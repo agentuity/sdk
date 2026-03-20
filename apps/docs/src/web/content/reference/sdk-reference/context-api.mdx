@@ -1,0 +1,348 @@
+---
+title: Context API
+short_title: Context API
+description: Storage, logging, and services available via the ctx.* object
+---
+
+The `AgentContext` provides access to various capabilities and services within your agent handler, including storage APIs, logging, tracing, agent communication, and state management.
+
+## Context Properties
+
+The context object passed to your agent handler contains the following properties:
+
+```typescript
+interface AgentContext<TConfig = unknown, TAppState = unknown> {
+  // Identifiers
+  sessionId: string;                  // Unique ID for this agent execution
+  current: {                          // Current agent metadata
+    name: string;                     // Agent name from createAgent()
+    agentId: string;                  // Stable across deployments
+    id: string;                       // Changes each deployment
+    filename: string;                 // Path to agent file
+    version: string;                  // Changes when code changes
+  };
+
+  // Agent Calling (use imports instead)
+  // import otherAgent from '@agent/other-agent';
+  // await otherAgent.run(input);
+
+  // Configuration
+  config: TConfig;                    // Agent-specific config from setup()
+  app: TAppState;                     // App-wide state from createApp setup()
+
+  // State Management
+  session: Session;                   // Session object for cross-request state
+  thread: Thread;                     // Thread object for conversation state
+  state: Map<string, unknown>;        // Request-scoped state storage
+
+  // Storage Services
+  kv: KeyValueStorage;                // Key-value storage
+  vector: VectorStorage;              // Vector database for embeddings
+  stream: StreamStorage;              // Stream storage
+
+  // Platform Services
+  queue: QueueService;                // Message queue publishing and management
+  task: TaskStorage;                  // Work item tracking with lifecycle management
+  email: EmailService;                // Email addresses, sending, and destinations
+  schedule: ScheduleService;          // Platform-managed cron jobs
+  sandbox: SandboxService;            // Code execution in isolated containers
+
+  // Observability
+  logger: Logger;                     // Structured logging
+  tracer: Tracer;                     // OpenTelemetry tracing
+
+  // Lifecycle
+  waitUntil(promise: Promise<void> | (() => void | Promise<void>)): void;
+}
+```
+
+## Service Access
+
+All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalone scripts. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete access pattern reference.
+
+**Key Properties Explained:**
+
+**Identifiers:**
+- `sessionId`: Unique identifier for this agent execution. Use for tracking and correlating logs.
+- `current`: Metadata about the currently executing agent:
+  - `name`: The name passed to `createAgent()`.
+  - `agentId`: Stays the same across deployments. Use for state keys (e.g., `${ctx.current.agentId}_counter`).
+  - `id`: Changes with each deployment. Use when you need deployment-specific identifiers.
+  - `filename`: Relative path to the agent file.
+  - `version`: Changes when agent code changes. Use for cache keys or versioned storage.
+  - `description?`: Human-readable description from `createAgent()` config.
+  - `inputSchemaCode?`: Source code for the input schema (if defined).
+  - `outputSchemaCode?`: Source code for the output schema (if defined).
+
+**Configuration:**
+- `config`: Agent-specific configuration returned from the agent's `setup()` function. Fully typed based on what setup returns.
+- `app`: Application-wide state returned from `createApp()`'s `setup()` function. Shared across all agents.
+
+**Agent Calling:**
+- Import agents directly: `import otherAgent from '@agent/other-agent'`
+- Call with: `await otherAgent.run(input)`
+
+**State Management:**
+- `session`: Persistent session object that spans multiple agent calls.
+- `thread`: Thread object for managing conversation state.
+- `state`: Map for storing request-scoped data that persists throughout the handler execution.
+
+**Example Usage:**
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('QueryProcessor', {
+  schema: {
+    input: z.object({ query: z.string() }),
+    output: z.object({ result: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    // Access session ID
+    ctx.logger.info(`Session ID: ${ctx.sessionId}`);
+
+    // Use storage services
+    await ctx.kv.set('cache', 'last-query', input.query);
+
+    // Store request-scoped data
+    ctx.state.set('startTime', Date.now());
+
+    // Call another agent (import at top of file)
+    // import enrichmentAgent from '@agent/enrichment';
+    const enrichedData = await enrichmentAgent.run({ text: input.query });
+
+    // Use session state
+    ctx.session.state.set('queryCount',
+      (ctx.session.state.get('queryCount') as number || 0) + 1
+    );
+
+    return { result: enrichedData.output };
+  },
+});
+```
+
+## Background Tasks (waitUntil)
+
+`waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void`
+
+Execute background tasks that don't block the response to the caller. Tasks complete after the main response is sent.
+
+**Parameters**
+
+- `callback`: A Promise, or a function that returns either void (synchronous) or a Promise (asynchronous), to be executed in the background
+
+**Example**
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('MessageReceiver', {
+  schema: {
+    input: z.object({ userId: z.string(), message: z.string() }),
+    output: z.object({ status: z.string(), timestamp: z.number() }),
+  },
+  handler: async (ctx, input) => {
+    const responseData = {
+      status: 'received',
+      timestamp: Date.now(),
+    };
+
+    // Schedule background tasks (async functions)
+    ctx.waitUntil(async () => {
+      // Log the message asynchronously
+      await logMessageToDatabase(input.userId, input.message);
+    });
+
+    ctx.waitUntil(async () => {
+      // Send push notification in the background
+      await sendPushNotification(input.userId, input.message);
+    });
+
+    // Can also use synchronous functions
+    ctx.waitUntil(() => {
+      // Update analytics synchronously
+      updateAnalyticsSync(input.userId, 'message_received');
+    });
+
+    // Return immediately without waiting for background tasks
+    return responseData;
+  },
+});
+```
+
+**Use Cases**
+
+- Logging and analytics that don't affect the user experience
+- Sending push notifications
+- Database cleanup or maintenance tasks
+- Third-party API calls that don't impact the response
+- Background data processing or enrichment
+
+## Authentication (ctx.auth)
+
+When `@agentuity/auth` middleware is configured, `ctx.auth` provides access to the authenticated user, organization, and API key context. It is `null` for unauthenticated requests, cron jobs, and agent-to-agent calls without auth propagation.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+export default createAgent('protected-agent', {
+  handler: async (ctx, input) => {
+    if (!ctx.auth) {
+      return { error: 'Please sign in' };
+    }
+
+    const user = await ctx.auth.getUser();
+    ctx.logger.info('Request from %s', user.email);
+
+    // Check organization role
+    if (await ctx.auth.hasOrgRole('admin')) {
+      // Admin-only logic
+    }
+
+    // Check API key permissions (for API key auth)
+    if (ctx.auth.authMethod === 'api-key') {
+      if (!ctx.auth.hasPermission('data', 'read')) {
+        return { error: 'Insufficient permissions' };
+      }
+    }
+
+    return { userId: user.id };
+  },
+});
+```
+
+**Available properties and methods:**
+
+- `getUser()` returns the authenticated user (id, email, name, image, timestamps).
+- `getToken()` returns the raw JWT token, or null.
+- `org` is the active organization context (id, slug, name, role, memberId), or null if no org is active.
+- `getOrgRole()` returns the user's role in the active organization, or null.
+- `hasOrgRole(...roles)` returns true if the user's org role matches one of the provided roles.
+- `authMethod` indicates how the request was authenticated: `'session'`, `'api-key'`, or `'bearer'`.
+- `apiKey` is the API key context when authenticated via API key, or null.
+- `hasPermission(resource, ...actions)` checks whether the API key has all specified actions for a resource. Supports `'*'` wildcard.
+
+For setting up authentication middleware and React client providers, see [Adding Authentication](/frontend/authentication).
+
+## Thread and Session State
+
+The context provides three levels of state storage, each scoped differently.
+
+**`ctx.thread`** persists across multiple requests in a conversation. Thread state uses async lazy-loading, so data is only fetched from storage on first read.
+
+```typescript
+// Store conversation history across requests
+const count = await ctx.thread.state.get<number>('messageCount') ?? 0;
+await ctx.thread.state.set('messageCount', count + 1);
+
+// Append to arrays efficiently without loading the full array
+await ctx.thread.state.push('messages', { role: 'user', content: input.text });
+
+// Keep a sliding window of the last 100 messages
+await ctx.thread.state.push('messages', newMessage, 100);
+
+// Thread metadata (stored unencrypted for filtering)
+await ctx.thread.setMetadata({ userId: user.id, topic: 'support' });
+```
+
+**`ctx.session`** is scoped to a single request-response cycle. Each HTTP request creates a new session within the same thread. Session state is a synchronous `Map<string, unknown>`.
+
+```typescript
+// Track timing for this request only
+ctx.session.state.set('startTime', Date.now());
+
+// Access the parent thread from the session
+ctx.logger.info('Thread: %s, Session: %s', ctx.session.thread.id, ctx.session.id);
+
+// Session metadata (stored unencrypted for querying)
+ctx.session.metadata.requestType = 'chat';
+```
+
+**`ctx.state`** is request-scoped, in-memory only, and cleared between requests. It is a synchronous `Map<string, unknown>` for passing data within a single handler execution.
+
+```typescript
+ctx.state.set('processingStep', 'validation');
+const step = ctx.state.get('processingStep') as string;
+```
+
+**When to use each:**
+
+| Scope | Persisted | Async | Use case |
+|-------|-----------|-------|----------|
+| `ctx.thread.state` | Yes, across requests | Yes (lazy-loaded) | Conversation history, user preferences |
+| `ctx.session.state` | For this request | No (synchronous Map) | Request timing, intermediate results |
+| `ctx.state` | No | No (synchronous Map) | Passing data within the handler |
+
+## Session Interface
+
+The `Session` object is available via `ctx.session`. It represents the current request's session within a thread.
+
+```typescript
+interface Session {
+  id: string;                      // Unique session identifier
+  thread: Thread;                  // Reference to the current thread
+  state: Map<string, unknown>;     // Session-scoped state (synchronous)
+  metadata: Record<string, unknown>; // Unencrypted metadata for querying
+
+  // Lifecycle event: fires when the session completes
+  addEventListener(
+    eventName: 'completed',
+    callback: (eventName: 'completed', session: Session) => Promise<void> | void
+  ): void;
+  removeEventListener(
+    eventName: 'completed',
+    callback: (eventName: 'completed', session: Session) => Promise<void> | void
+  ): void;
+}
+```
+
+## Thread Interface
+
+The `Thread` object is available via `ctx.thread`. It persists across multiple sessions (requests) in a conversation.
+
+```typescript
+interface Thread {
+  id: string;                      // Unique thread identifier
+  state: ThreadState;              // Async lazy-loaded state
+
+  // Lifecycle event: fires when the thread is destroyed
+  addEventListener(
+    eventName: 'destroyed',
+    callback: (eventName: 'destroyed', thread: Thread) => Promise<void> | void
+  ): void;
+  removeEventListener(
+    eventName: 'destroyed',
+    callback: (eventName: 'destroyed', thread: Thread) => Promise<void> | void
+  ): void;
+
+  // Remove the thread and all its state
+  destroy(): Promise<void>;
+
+  // Store unencrypted metadata for filtering and querying
+  setMetadata(metadata: Record<string, unknown>): Promise<void>;
+}
+```
+
+Call `destroy()` to clean up a thread when a conversation ends. This removes the thread's persisted state and fires the `destroyed` event.
+
+## Config Type Inference
+
+When you define a `setup()` function, its return type automatically flows through to `ctx.config`:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+
+export default createAgent('my-agent', {
+  setup: async () => ({
+    cache: new Map<string, string>(),
+    maxRetries: 3,
+  }),
+  handler: async (ctx, input) => {
+    // ctx.config is typed as { cache: Map<string, string>, maxRetries: number }
+    ctx.config.cache.set('key', 'value'); // [!code highlight]
+    ctx.logger.info('Max retries: %d', ctx.config.maxRetries);
+  },
+});
+```

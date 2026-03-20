@@ -5,6 +5,10 @@ description: Send and receive emails with managed addresses, destinations, and d
 
 Send outbound emails and receive inbound messages through managed addresses under your organization, with webhook forwarding for inbound processing.
 
+<Callout type="tip" title="Standalone Package Available">
+Use `@agentuity/email` to access this service from any Node.js or Bun app without the full runtime. See [Standalone Packages](/reference/standalone-packages#email) for install and usage.
+</Callout>
+
 ## When to Use Email
 
 | Service | Best For |
@@ -168,7 +172,7 @@ const agent = createAgent('DeliveryTracker', {
 
 ## Inbound Email
 
-Emails sent to your addresses are stored and can be retrieved by ID or listed for an address. The `addressId` filter is optional — omit it to list inbound across all addresses.
+Emails sent to your addresses are stored and can be retrieved by ID or listed for an address. The `addressId` filter is optional; omit it to list inbound across all addresses.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';

@@ -3,7 +3,11 @@ title: Tasks
 description: Track work items, issues, and agent activity with built-in lifecycle management
 ---
 
-Use `ctx.task` to create and manage structured work items — bugs, features, epics, and general tasks — across agents and human collaborators, with built-in status tracking, comments, tags, and file attachments.
+Use `ctx.task` to create and manage structured work items: bugs, features, epics, and general tasks, across agents and human collaborators, with built-in status tracking, comments, tags, and file attachments.
+
+<Callout type="tip" title="Standalone Package Available">
+Use `@agentuity/task` to access this service from any Node.js or Bun app without the full runtime. See [Standalone Packages](/reference/standalone-packages#tasks) for install and usage.
+</Callout>
 
 ## When to Use Tasks
 
@@ -287,7 +291,7 @@ const agent = createAgent('AttachmentUploader', {
 ```
 
 <Callout type="info" title="Presigned URL expiry">
-Both upload and download URLs expire after a short window (`expiry_seconds` on the response). Do not cache or share these URLs — request a new one when needed.
+Both upload and download URLs expire after a short window (`expiry_seconds` on the response). Do not cache or share these URLs; request a new one when needed.
 </Callout>
 
 ## Filtering and Pagination
@@ -366,7 +370,7 @@ const agent = createAgent('TaskAuditor', {
 });
 ```
 
-Each `TaskChangelogEntry` records the `field` name, `old_value`, `new_value`, and `created_at` timestamp. Status transitions, priority changes, and reassignments all appear automatically — no extra instrumentation needed.
+Each `TaskChangelogEntry` records the `field` name, `old_value`, `new_value`, and `created_at` timestamp. Status transitions, priority changes, and reassignments all appear automatically, with no extra instrumentation needed.
 
 ## Batch Operations
 

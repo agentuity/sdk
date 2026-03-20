@@ -1,0 +1,16 @@
+{
+	"title": "SDK Reference",
+	"pages": [
+		"application-entry",
+		"agents",
+		"schema",
+		"context-api",
+		"router",
+		"communication",
+		"storage",
+		"observability",
+		"evaluations",
+		"events",
+		"advanced"
+	]
+}

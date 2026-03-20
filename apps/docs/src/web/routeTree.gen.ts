@@ -46,7 +46,7 @@ import { Route as DocsRoutesMiddlewareRouteImport } from './routes/_docs/routes/
 import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http';
 import { Route as DocsRoutesExplicitRoutingRouteImport } from './routes/_docs/routes/explicit-routing';
 import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron';
-import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference';
+import { Route as DocsReferenceStandalonePackagesRouteImport } from './routes/_docs/reference/standalone-packages';
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide';
 import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network';
 import { Route as DocsReferenceGithubAppRouteImport } from './routes/_docs/reference/github-app';
@@ -77,11 +77,13 @@ import { Route as DocsAgentsCreatingAgentsRouteImport } from './routes/_docs/age
 import { Route as DocsAgentsCallingOtherAgentsRouteImport } from './routes/_docs/agents/calling-other-agents';
 import { Route as DocsAgentsAiSdkIntegrationRouteImport } from './routes/_docs/agents/ai-sdk-integration';
 import { Route as DocsAgentsAiGatewayRouteImport } from './routes/_docs/agents/ai-gateway';
+import { Route as DocsReferenceSdkReferenceRouteRouteImport } from './routes/_docs/reference/sdk-reference/route';
 import { Route as DocsReferenceApiRouteRouteImport } from './routes/_docs/reference/api/route';
 import { Route as DocsServicesStorageIndexRouteImport } from './routes/_docs/services/storage/index';
 import { Route as DocsServicesSandboxIndexRouteImport } from './routes/_docs/services/sandbox/index';
 import { Route as DocsServicesObservabilityIndexRouteImport } from './routes/_docs/services/observability/index';
 import { Route as DocsServicesDatabaseIndexRouteImport } from './routes/_docs/services/database/index';
+import { Route as DocsReferenceSdkReferenceIndexRouteImport } from './routes/_docs/reference/sdk-reference/index';
 import { Route as DocsReferenceCliIndexRouteImport } from './routes/_docs/reference/cli/index';
 import { Route as DocsReferenceApiIndexRouteImport } from './routes/_docs/reference/api/index';
 import { Route as DocsCookbookTutorialsIndexRouteImport } from './routes/_docs/cookbook/tutorials/index';
@@ -99,6 +101,17 @@ import { Route as DocsServicesObservabilitySessionsDebuggingRouteImport } from '
 import { Route as DocsServicesObservabilityLoggingRouteImport } from './routes/_docs/services/observability/logging';
 import { Route as DocsServicesDatabasePostgresRouteImport } from './routes/_docs/services/database/postgres';
 import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/services/database/drizzle';
+import { Route as DocsReferenceSdkReferenceStorageRouteImport } from './routes/_docs/reference/sdk-reference/storage';
+import { Route as DocsReferenceSdkReferenceSchemaRouteImport } from './routes/_docs/reference/sdk-reference/schema';
+import { Route as DocsReferenceSdkReferenceRouterRouteImport } from './routes/_docs/reference/sdk-reference/router';
+import { Route as DocsReferenceSdkReferenceObservabilityRouteImport } from './routes/_docs/reference/sdk-reference/observability';
+import { Route as DocsReferenceSdkReferenceEventsRouteImport } from './routes/_docs/reference/sdk-reference/events';
+import { Route as DocsReferenceSdkReferenceEvaluationsRouteImport } from './routes/_docs/reference/sdk-reference/evaluations';
+import { Route as DocsReferenceSdkReferenceContextApiRouteImport } from './routes/_docs/reference/sdk-reference/context-api';
+import { Route as DocsReferenceSdkReferenceCommunicationRouteImport } from './routes/_docs/reference/sdk-reference/communication';
+import { Route as DocsReferenceSdkReferenceApplicationEntryRouteImport } from './routes/_docs/reference/sdk-reference/application-entry';
+import { Route as DocsReferenceSdkReferenceAgentsRouteImport } from './routes/_docs/reference/sdk-reference/agents';
+import { Route as DocsReferenceSdkReferenceAdvancedRouteImport } from './routes/_docs/reference/sdk-reference/advanced';
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage';
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox';
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin';
@@ -340,9 +353,9 @@ const DocsRoutesCronRoute = DocsRoutesCronRouteImport.update({
 	path: '/routes/cron',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
-const DocsReferenceSdkReferenceRoute = DocsReferenceSdkReferenceRouteImport.update({
-	id: '/reference/sdk-reference',
-	path: '/reference/sdk-reference',
+const DocsReferenceStandalonePackagesRoute = DocsReferenceStandalonePackagesRouteImport.update({
+	id: '/reference/standalone-packages',
+	path: '/reference/standalone-packages',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsReferenceMigrationGuideRoute = DocsReferenceMigrationGuideRouteImport.update({
@@ -495,6 +508,11 @@ const DocsAgentsAiGatewayRoute = DocsAgentsAiGatewayRouteImport.update({
 	path: '/agents/ai-gateway',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceSdkReferenceRouteRoute = DocsReferenceSdkReferenceRouteRouteImport.update({
+	id: '/reference/sdk-reference',
+	path: '/reference/sdk-reference',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsReferenceApiRouteRoute = DocsReferenceApiRouteRouteImport.update({
 	id: '/reference/api',
 	path: '/reference/api',
@@ -519,6 +537,11 @@ const DocsServicesDatabaseIndexRoute = DocsServicesDatabaseIndexRouteImport.upda
 	id: '/services/database/',
 	path: '/services/database/',
 	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceIndexRoute = DocsReferenceSdkReferenceIndexRouteImport.update({
+	id: '/',
+	path: '/',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 } as any);
 const DocsReferenceCliIndexRoute = DocsReferenceCliIndexRouteImport.update({
 	id: '/reference/cli/',
@@ -606,6 +629,66 @@ const DocsServicesDatabaseDrizzleRoute = DocsServicesDatabaseDrizzleRouteImport.
 	id: '/services/database/drizzle',
 	path: '/services/database/drizzle',
 	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceStorageRoute = DocsReferenceSdkReferenceStorageRouteImport.update({
+	id: '/storage',
+	path: '/storage',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceSchemaRoute = DocsReferenceSdkReferenceSchemaRouteImport.update({
+	id: '/schema',
+	path: '/schema',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceRouterRoute = DocsReferenceSdkReferenceRouterRouteImport.update({
+	id: '/router',
+	path: '/router',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceObservabilityRoute =
+	DocsReferenceSdkReferenceObservabilityRouteImport.update({
+		id: '/observability',
+		path: '/observability',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceEventsRoute = DocsReferenceSdkReferenceEventsRouteImport.update({
+	id: '/events',
+	path: '/events',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceEvaluationsRoute =
+	DocsReferenceSdkReferenceEvaluationsRouteImport.update({
+		id: '/evaluations',
+		path: '/evaluations',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceContextApiRoute =
+	DocsReferenceSdkReferenceContextApiRouteImport.update({
+		id: '/context-api',
+		path: '/context-api',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceCommunicationRoute =
+	DocsReferenceSdkReferenceCommunicationRouteImport.update({
+		id: '/communication',
+		path: '/communication',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceApplicationEntryRoute =
+	DocsReferenceSdkReferenceApplicationEntryRouteImport.update({
+		id: '/application-entry',
+		path: '/application-entry',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceAgentsRoute = DocsReferenceSdkReferenceAgentsRouteImport.update({
+	id: '/agents',
+	path: '/agents',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceAdvancedRoute = DocsReferenceSdkReferenceAdvancedRouteImport.update({
+	id: '/advanced',
+	path: '/advanced',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 } as any);
 const DocsReferenceCliStorageRoute = DocsReferenceCliStorageRouteImport.update({
 	id: '/reference/cli/storage',
@@ -918,6 +1001,7 @@ export interface FileRoutesByFullPath {
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
 	'/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
+	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	'/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -948,7 +1032,7 @@ export interface FileRoutesByFullPath {
 	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
-	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
+	'/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
 	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
@@ -1026,6 +1110,17 @@ export interface FileRoutesByFullPath {
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
+	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
+	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
+	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
+	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	'/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
+	'/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
+	'/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
 	'/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1043,6 +1138,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute;
 	'/reference/api/': typeof DocsReferenceApiIndexRoute;
 	'/reference/cli/': typeof DocsReferenceCliIndexRoute;
+	'/reference/sdk-reference/': typeof DocsReferenceSdkReferenceIndexRoute;
 	'/services/database/': typeof DocsServicesDatabaseIndexRoute;
 	'/services/observability/': typeof DocsServicesObservabilityIndexRoute;
 	'/services/sandbox/': typeof DocsServicesSandboxIndexRoute;
@@ -1094,7 +1190,7 @@ export interface FileRoutesByTo {
 	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
-	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
+	'/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
 	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
@@ -1172,6 +1268,17 @@ export interface FileRoutesByTo {
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
+	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
+	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
+	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
+	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	'/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
+	'/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
+	'/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
 	'/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1189,6 +1296,7 @@ export interface FileRoutesByTo {
 	'/cookbook/tutorials': typeof DocsCookbookTutorialsIndexRoute;
 	'/reference/api': typeof DocsReferenceApiIndexRoute;
 	'/reference/cli': typeof DocsReferenceCliIndexRoute;
+	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceIndexRoute;
 	'/services/database': typeof DocsServicesDatabaseIndexRoute;
 	'/services/observability': typeof DocsServicesObservabilityIndexRoute;
 	'/services/sandbox': typeof DocsServicesSandboxIndexRoute;
@@ -1213,6 +1321,7 @@ export interface FileRoutesById {
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
 	'/_docs/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
+	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	'/_docs/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/_docs/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/_docs/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -1243,7 +1352,7 @@ export interface FileRoutesById {
 	'/_docs/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
-	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
+	'/_docs/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
 	'/_docs/routes/cron': typeof DocsRoutesCronRoute;
 	'/_docs/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/_docs/routes/http': typeof DocsRoutesHttpRoute;
@@ -1321,6 +1430,17 @@ export interface FileRoutesById {
 	'/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
+	'/_docs/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
+	'/_docs/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
+	'/_docs/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/_docs/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
+	'/_docs/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/_docs/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	'/_docs/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
+	'/_docs/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/_docs/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/_docs/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
+	'/_docs/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
 	'/_docs/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/_docs/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/_docs/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1338,6 +1458,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute;
 	'/_docs/reference/api/': typeof DocsReferenceApiIndexRoute;
 	'/_docs/reference/cli/': typeof DocsReferenceCliIndexRoute;
+	'/_docs/reference/sdk-reference/': typeof DocsReferenceSdkReferenceIndexRoute;
 	'/_docs/services/database/': typeof DocsServicesDatabaseIndexRoute;
 	'/_docs/services/observability/': typeof DocsServicesObservabilityIndexRoute;
 	'/_docs/services/sandbox/': typeof DocsServicesSandboxIndexRoute;
@@ -1362,6 +1483,7 @@ export interface FileRouteTypes {
 		| '/demo/streaming'
 		| '/demo/vector-storage'
 		| '/reference/api'
+		| '/reference/sdk-reference'
 		| '/agents/ai-gateway'
 		| '/agents/ai-sdk-integration'
 		| '/agents/calling-other-agents'
@@ -1392,7 +1514,7 @@ export interface FileRouteTypes {
 		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
-		| '/reference/sdk-reference'
+		| '/reference/standalone-packages'
 		| '/routes/cron'
 		| '/routes/explicit-routing'
 		| '/routes/http'
@@ -1470,6 +1592,17 @@ export interface FileRouteTypes {
 		| '/reference/cli/opencode-plugin'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
+		| '/reference/sdk-reference/advanced'
+		| '/reference/sdk-reference/agents'
+		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/communication'
+		| '/reference/sdk-reference/context-api'
+		| '/reference/sdk-reference/evaluations'
+		| '/reference/sdk-reference/events'
+		| '/reference/sdk-reference/observability'
+		| '/reference/sdk-reference/router'
+		| '/reference/sdk-reference/schema'
+		| '/reference/sdk-reference/storage'
 		| '/services/database/drizzle'
 		| '/services/database/postgres'
 		| '/services/observability/logging'
@@ -1487,6 +1620,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials/'
 		| '/reference/api/'
 		| '/reference/cli/'
+		| '/reference/sdk-reference/'
 		| '/services/database/'
 		| '/services/observability/'
 		| '/services/sandbox/'
@@ -1538,7 +1672,7 @@ export interface FileRouteTypes {
 		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
-		| '/reference/sdk-reference'
+		| '/reference/standalone-packages'
 		| '/routes/cron'
 		| '/routes/explicit-routing'
 		| '/routes/http'
@@ -1616,6 +1750,17 @@ export interface FileRouteTypes {
 		| '/reference/cli/opencode-plugin'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
+		| '/reference/sdk-reference/advanced'
+		| '/reference/sdk-reference/agents'
+		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/communication'
+		| '/reference/sdk-reference/context-api'
+		| '/reference/sdk-reference/evaluations'
+		| '/reference/sdk-reference/events'
+		| '/reference/sdk-reference/observability'
+		| '/reference/sdk-reference/router'
+		| '/reference/sdk-reference/schema'
+		| '/reference/sdk-reference/storage'
 		| '/services/database/drizzle'
 		| '/services/database/postgres'
 		| '/services/observability/logging'
@@ -1633,6 +1778,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials'
 		| '/reference/api'
 		| '/reference/cli'
+		| '/reference/sdk-reference'
 		| '/services/database'
 		| '/services/observability'
 		| '/services/sandbox'
@@ -1656,6 +1802,7 @@ export interface FileRouteTypes {
 		| '/demo/streaming'
 		| '/demo/vector-storage'
 		| '/_docs/reference/api'
+		| '/_docs/reference/sdk-reference'
 		| '/_docs/agents/ai-gateway'
 		| '/_docs/agents/ai-sdk-integration'
 		| '/_docs/agents/calling-other-agents'
@@ -1686,7 +1833,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/github-app'
 		| '/_docs/reference/gravity-network'
 		| '/_docs/reference/migration-guide'
-		| '/_docs/reference/sdk-reference'
+		| '/_docs/reference/standalone-packages'
 		| '/_docs/routes/cron'
 		| '/_docs/routes/explicit-routing'
 		| '/_docs/routes/http'
@@ -1764,6 +1911,17 @@ export interface FileRouteTypes {
 		| '/_docs/reference/cli/opencode-plugin'
 		| '/_docs/reference/cli/sandbox'
 		| '/_docs/reference/cli/storage'
+		| '/_docs/reference/sdk-reference/advanced'
+		| '/_docs/reference/sdk-reference/agents'
+		| '/_docs/reference/sdk-reference/application-entry'
+		| '/_docs/reference/sdk-reference/communication'
+		| '/_docs/reference/sdk-reference/context-api'
+		| '/_docs/reference/sdk-reference/evaluations'
+		| '/_docs/reference/sdk-reference/events'
+		| '/_docs/reference/sdk-reference/observability'
+		| '/_docs/reference/sdk-reference/router'
+		| '/_docs/reference/sdk-reference/schema'
+		| '/_docs/reference/sdk-reference/storage'
 		| '/_docs/services/database/drizzle'
 		| '/_docs/services/database/postgres'
 		| '/_docs/services/observability/logging'
@@ -1781,6 +1939,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/tutorials/'
 		| '/_docs/reference/api/'
 		| '/_docs/reference/cli/'
+		| '/_docs/reference/sdk-reference/'
 		| '/_docs/services/database/'
 		| '/_docs/services/observability/'
 		| '/_docs/services/sandbox/'
@@ -2067,11 +2226,11 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsRoutesCronRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
-		'/_docs/reference/sdk-reference': {
-			id: '/_docs/reference/sdk-reference';
-			path: '/reference/sdk-reference';
-			fullPath: '/reference/sdk-reference';
-			preLoaderRoute: typeof DocsReferenceSdkReferenceRouteImport;
+		'/_docs/reference/standalone-packages': {
+			id: '/_docs/reference/standalone-packages';
+			path: '/reference/standalone-packages';
+			fullPath: '/reference/standalone-packages';
+			preLoaderRoute: typeof DocsReferenceStandalonePackagesRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/reference/migration-guide': {
@@ -2284,6 +2443,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsAgentsAiGatewayRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/sdk-reference': {
+			id: '/_docs/reference/sdk-reference';
+			path: '/reference/sdk-reference';
+			fullPath: '/reference/sdk-reference';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceRouteRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/reference/api': {
 			id: '/_docs/reference/api';
 			path: '/reference/api';
@@ -2318,6 +2484,13 @@ declare module '@tanstack/react-router' {
 			fullPath: '/services/database/';
 			preLoaderRoute: typeof DocsServicesDatabaseIndexRouteImport;
 			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/': {
+			id: '/_docs/reference/sdk-reference/';
+			path: '/';
+			fullPath: '/reference/sdk-reference/';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceIndexRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
 		'/_docs/reference/cli/': {
 			id: '/_docs/reference/cli/';
@@ -2437,6 +2610,83 @@ declare module '@tanstack/react-router' {
 			fullPath: '/services/database/drizzle';
 			preLoaderRoute: typeof DocsServicesDatabaseDrizzleRouteImport;
 			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/storage': {
+			id: '/_docs/reference/sdk-reference/storage';
+			path: '/storage';
+			fullPath: '/reference/sdk-reference/storage';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceStorageRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/schema': {
+			id: '/_docs/reference/sdk-reference/schema';
+			path: '/schema';
+			fullPath: '/reference/sdk-reference/schema';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceSchemaRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/router': {
+			id: '/_docs/reference/sdk-reference/router';
+			path: '/router';
+			fullPath: '/reference/sdk-reference/router';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceRouterRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/observability': {
+			id: '/_docs/reference/sdk-reference/observability';
+			path: '/observability';
+			fullPath: '/reference/sdk-reference/observability';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceObservabilityRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/events': {
+			id: '/_docs/reference/sdk-reference/events';
+			path: '/events';
+			fullPath: '/reference/sdk-reference/events';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceEventsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/evaluations': {
+			id: '/_docs/reference/sdk-reference/evaluations';
+			path: '/evaluations';
+			fullPath: '/reference/sdk-reference/evaluations';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceEvaluationsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/context-api': {
+			id: '/_docs/reference/sdk-reference/context-api';
+			path: '/context-api';
+			fullPath: '/reference/sdk-reference/context-api';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceContextApiRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/communication': {
+			id: '/_docs/reference/sdk-reference/communication';
+			path: '/communication';
+			fullPath: '/reference/sdk-reference/communication';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceCommunicationRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/application-entry': {
+			id: '/_docs/reference/sdk-reference/application-entry';
+			path: '/application-entry';
+			fullPath: '/reference/sdk-reference/application-entry';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceApplicationEntryRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/agents': {
+			id: '/_docs/reference/sdk-reference/agents';
+			path: '/agents';
+			fullPath: '/reference/sdk-reference/agents';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceAgentsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/advanced': {
+			id: '/_docs/reference/sdk-reference/advanced';
+			path: '/advanced';
+			fullPath: '/reference/sdk-reference/advanced';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceAdvancedRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
 		'/_docs/reference/cli/storage': {
 			id: '/_docs/reference/cli/storage';
@@ -2887,8 +3137,44 @@ const DocsReferenceApiRouteRouteWithChildren = DocsReferenceApiRouteRoute._addFi
 	DocsReferenceApiRouteRouteChildren
 );
 
+interface DocsReferenceSdkReferenceRouteRouteChildren {
+	DocsReferenceSdkReferenceAdvancedRoute: typeof DocsReferenceSdkReferenceAdvancedRoute;
+	DocsReferenceSdkReferenceAgentsRoute: typeof DocsReferenceSdkReferenceAgentsRoute;
+	DocsReferenceSdkReferenceApplicationEntryRoute: typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	DocsReferenceSdkReferenceCommunicationRoute: typeof DocsReferenceSdkReferenceCommunicationRoute;
+	DocsReferenceSdkReferenceContextApiRoute: typeof DocsReferenceSdkReferenceContextApiRoute;
+	DocsReferenceSdkReferenceEvaluationsRoute: typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	DocsReferenceSdkReferenceEventsRoute: typeof DocsReferenceSdkReferenceEventsRoute;
+	DocsReferenceSdkReferenceObservabilityRoute: typeof DocsReferenceSdkReferenceObservabilityRoute;
+	DocsReferenceSdkReferenceRouterRoute: typeof DocsReferenceSdkReferenceRouterRoute;
+	DocsReferenceSdkReferenceSchemaRoute: typeof DocsReferenceSdkReferenceSchemaRoute;
+	DocsReferenceSdkReferenceStorageRoute: typeof DocsReferenceSdkReferenceStorageRoute;
+	DocsReferenceSdkReferenceIndexRoute: typeof DocsReferenceSdkReferenceIndexRoute;
+}
+
+const DocsReferenceSdkReferenceRouteRouteChildren: DocsReferenceSdkReferenceRouteRouteChildren = {
+	DocsReferenceSdkReferenceAdvancedRoute: DocsReferenceSdkReferenceAdvancedRoute,
+	DocsReferenceSdkReferenceAgentsRoute: DocsReferenceSdkReferenceAgentsRoute,
+	DocsReferenceSdkReferenceApplicationEntryRoute: DocsReferenceSdkReferenceApplicationEntryRoute,
+	DocsReferenceSdkReferenceCommunicationRoute: DocsReferenceSdkReferenceCommunicationRoute,
+	DocsReferenceSdkReferenceContextApiRoute: DocsReferenceSdkReferenceContextApiRoute,
+	DocsReferenceSdkReferenceEvaluationsRoute: DocsReferenceSdkReferenceEvaluationsRoute,
+	DocsReferenceSdkReferenceEventsRoute: DocsReferenceSdkReferenceEventsRoute,
+	DocsReferenceSdkReferenceObservabilityRoute: DocsReferenceSdkReferenceObservabilityRoute,
+	DocsReferenceSdkReferenceRouterRoute: DocsReferenceSdkReferenceRouterRoute,
+	DocsReferenceSdkReferenceSchemaRoute: DocsReferenceSdkReferenceSchemaRoute,
+	DocsReferenceSdkReferenceStorageRoute: DocsReferenceSdkReferenceStorageRoute,
+	DocsReferenceSdkReferenceIndexRoute: DocsReferenceSdkReferenceIndexRoute,
+};
+
+const DocsReferenceSdkReferenceRouteRouteWithChildren =
+	DocsReferenceSdkReferenceRouteRoute._addFileChildren(
+		DocsReferenceSdkReferenceRouteRouteChildren
+	);
+
 interface DocsRouteRouteChildren {
 	DocsReferenceApiRouteRoute: typeof DocsReferenceApiRouteRouteWithChildren;
+	DocsReferenceSdkReferenceRouteRoute: typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	DocsAgentsAiGatewayRoute: typeof DocsAgentsAiGatewayRoute;
 	DocsAgentsAiSdkIntegrationRoute: typeof DocsAgentsAiSdkIntegrationRoute;
 	DocsAgentsCallingOtherAgentsRoute: typeof DocsAgentsCallingOtherAgentsRoute;
@@ -2919,7 +3205,7 @@ interface DocsRouteRouteChildren {
 	DocsReferenceGithubAppRoute: typeof DocsReferenceGithubAppRoute;
 	DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute;
 	DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute;
-	DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute;
+	DocsReferenceStandalonePackagesRoute: typeof DocsReferenceStandalonePackagesRoute;
 	DocsRoutesCronRoute: typeof DocsRoutesCronRoute;
 	DocsRoutesExplicitRoutingRoute: typeof DocsRoutesExplicitRoutingRoute;
 	DocsRoutesHttpRoute: typeof DocsRoutesHttpRoute;
@@ -3000,6 +3286,7 @@ interface DocsRouteRouteChildren {
 
 const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceApiRouteRoute: DocsReferenceApiRouteRouteWithChildren,
+	DocsReferenceSdkReferenceRouteRoute: DocsReferenceSdkReferenceRouteRouteWithChildren,
 	DocsAgentsAiGatewayRoute: DocsAgentsAiGatewayRoute,
 	DocsAgentsAiSdkIntegrationRoute: DocsAgentsAiSdkIntegrationRoute,
 	DocsAgentsCallingOtherAgentsRoute: DocsAgentsCallingOtherAgentsRoute,
@@ -3030,7 +3317,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceGithubAppRoute: DocsReferenceGithubAppRoute,
 	DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
 	DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
-	DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
+	DocsReferenceStandalonePackagesRoute: DocsReferenceStandalonePackagesRoute,
 	DocsRoutesCronRoute: DocsRoutesCronRoute,
 	DocsRoutesExplicitRoutingRoute: DocsRoutesExplicitRoutingRoute,
 	DocsRoutesHttpRoute: DocsRoutesHttpRoute,

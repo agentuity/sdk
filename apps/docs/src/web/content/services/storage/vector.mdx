@@ -6,6 +6,10 @@ description: Semantic search and retrieval for knowledge bases and RAG systems
 
 Vector storage enables semantic search, allowing agents to find information by *meaning* rather than keywords. Use it for knowledge bases, RAG systems, recommendations, and persistent agent memory.
 
+<Callout type="tip" title="Standalone Package Available">
+Use `@agentuity/vector` to access this service from any Node.js or Bun app without the full runtime. See [Standalone Packages](/reference/standalone-packages#vector-search) for install and usage.
+</Callout>
+
 ## When to Use Vector Storage
 
 | Storage Type | Best For |
@@ -27,7 +31,7 @@ Vector storage enables semantic search, allowing agents to find information by *
 | Frontend | Via routes | [React Hooks](/frontend/react-hooks) |
 
 <Callout type="info" title="Same API Everywhere">
-The Vector API is identical in all contexts. `ctx.vector.search()` and `c.var.vector.search()` work the same way. See [Accessing Services](/reference/sdk-reference#accessing-services) for the full reference.
+The Vector API is identical in all contexts. `ctx.vector.search()` and `c.var.vector.search()` work the same way. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the full reference.
 </Callout>
 
 ## Upserting Documents
@@ -268,7 +272,7 @@ const ragAgent = createAgent('RAG', {
 
     // Generate response using context
     const { text } = await generateText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-nano'),
       prompt: `Answer based on this context:\n\n${context}\n\nQuestion: ${input.question}`,
     });
 
@@ -344,7 +348,7 @@ router.post('/ask',
 
     // Generate answer
     const { text } = await generateText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-nano'),
       prompt: `Answer based on this context:\n\n${context}\n\nQuestion: ${question}`,
     });
 

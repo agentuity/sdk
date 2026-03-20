@@ -1,0 +1,250 @@
+---
+title: Evaluations
+short_title: Evaluations
+description: Test and validate agent outputs with built-in evaluation framework
+---
+
+The SDK includes a built-in evaluation framework for assessing agent quality and performance. Evals run automatically after agent execution to validate outputs and measure quality metrics.
+
+## Creating Evals
+
+Evals are defined in an `eval.ts` file in the same folder as your agent and use named exports:
+
+```
+src/agent/my-agent/
+├── agent.ts       # Agent definition
+└── eval.ts        # Evals with named exports
+```
+
+**Eval Configuration:**
+
+```typescript
+agent.createEval('eval-name', {
+  description?: string;        // What this eval checks
+  handler: EvalFunction;       // Eval logic
+});
+```
+
+**Basic Example:**
+
+```typescript title="src/agent/qa-agent/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('ConfidenceAgent', {
+  schema: {
+    input: z.object({ query: z.string() }),
+    output: z.object({
+      answer: z.string(),
+      confidence: z.number(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    return {
+      answer: 'Response to ' + input.query,
+      confidence: 0.95,
+    };
+  },
+});
+
+export default agent;
+```
+
+```typescript title="src/agent/qa-agent/eval.ts"
+import agent from './agent';
+
+// Named export required (not export default)
+export const confidenceEval = agent.createEval('confidence-check', {
+  description: 'Ensures confidence is above minimum threshold',
+  handler: async (ctx, input, output) => {
+    const passed = output.confidence >= 0.8;
+
+    return {
+      passed,
+      reason: passed ? 'Confidence acceptable' : 'Confidence too low',
+      metadata: { confidence: output.confidence, threshold: 0.8 },
+    };
+  },
+});
+```
+
+The runtime auto-discovers `eval.ts` files next to your agents. No special imports needed in your routes.
+
+## Eval Results
+
+Evals can return different result types depending on the evaluation needs.
+
+**Result Types:**
+
+```typescript
+type EvalRunResult =
+  | { passed: boolean; reason?: string; score?: number; metadata?: object }                // Success
+  | { success: false; passed: false; error: string; reason?: string; metadata?: object };  // Error
+```
+
+**Binary Pass/Fail Eval:**
+
+```typescript title="src/agent/qa-agent/eval.ts"
+import agent from './agent';
+
+export const lengthEval = agent.createEval('output-length-check', {
+  description: 'Ensures output meets minimum length',
+  handler: async (ctx, input, output) => {
+    const passed = output.answer.length >= 10;
+
+    return {
+      passed,
+      reason: passed ? 'Output meets minimum length' : 'Output too short',
+      metadata: { actualLength: output.answer.length, minimumLength: 10 },
+    };
+  },
+});
+```
+
+**Score-Based Eval:**
+
+```typescript title="src/agent/qa-agent/eval.ts"
+import agent from './agent';
+
+export const qualityEval = agent.createEval('quality-score', {
+  description: 'Calculates overall quality score',
+  handler: async (ctx, input, output) => {
+    let score = 0;
+    if (output.answer.length > 20) score += 0.3;
+    if (output.confidence > 0.8) score += 0.4;
+    if (output.answer.includes(input.query)) score += 0.3;
+
+    return {
+      passed: score >= 0.7,
+      score,
+      reason: score >= 0.7 ? 'High quality response' : 'Quality below threshold',
+      metadata: {
+        factors: {
+          length: output.answer.length,
+          confidence: output.confidence,
+          relevance: output.answer.includes(input.query),
+        },
+      },
+    };
+  },
+});
+```
+
+**Error Handling in Evals:**
+
+```typescript title="src/agent/qa-agent/eval.ts"
+import agent from './agent';
+
+export const externalEval = agent.createEval('external-validation', {
+  description: 'Validates output via external API',
+  handler: async (ctx, input, output) => {
+    try {
+      const isValid = await validateWithExternalService(output);
+
+      return {
+        passed: isValid,
+        reason: isValid ? 'Validation passed' : 'Validation failed',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        passed: false,
+        error: `Validation service error: ${error.message}`,
+      };
+    }
+  },
+});
+```
+
+## Eval Execution
+
+Evals run automatically after agent execution completes, using the `waitUntil()` mechanism.
+
+**Execution Flow:**
+
+1. Agent handler executes and returns output
+2. Output is validated against schema
+3. Agent emits `completed` event
+4. All evals attached to the agent run via `waitUntil()`
+5. Eval results are sent to eval tracking service
+6. Response is returned to caller (without waiting for evals)
+
+**Multiple Evals Example:**
+
+```typescript title="src/agent/text-analyzer/eval.ts"
+import agent from './agent';
+
+// Eval 1: Check summary length
+export const summaryLengthEval = agent.createEval('summary-length', {
+  description: 'Validates summary length is within bounds',
+  handler: async (ctx, input, output) => {
+    const passed = output.summary.length >= 20 && output.summary.length <= 200;
+    return {
+      passed,
+      reason: passed ? 'Summary length acceptable' : 'Summary length out of bounds',
+      metadata: { length: output.summary.length },
+    };
+  },
+});
+
+// Eval 2: Check keywords count
+export const keywordsCountEval = agent.createEval('keywords-count', {
+  description: 'Validates keyword count is within bounds',
+  handler: async (ctx, input, output) => {
+    const passed = output.keywords.length >= 2 && output.keywords.length <= 10;
+    return {
+      passed,
+      reason: passed ? 'Keyword count acceptable' : 'Keyword count out of bounds',
+      metadata: { count: output.keywords.length },
+    };
+  },
+});
+
+// Eval 3: Overall quality score
+export const qualityScoreEval = agent.createEval('quality-score', {
+  description: 'Calculates overall quality score',
+  handler: async (ctx, input, output) => {
+    const summaryQuality = output.summary.length >= 50 ? 0.5 : 0.3;
+    const keywordQuality = output.keywords.length >= 3 ? 0.5 : 0.3;
+    const score = summaryQuality + keywordQuality;
+
+    return {
+      passed: score >= 0.7,
+      score,
+      reason: score >= 0.7 ? 'High quality' : 'Below quality threshold',
+      metadata: { summaryQuality, keywordQuality },
+    };
+  },
+});
+```
+
+**Accessing Context in Evals:**
+
+Evals receive the same context as the agent, enabling access to storage, logging, and other services:
+
+```typescript title="src/agent/qa-agent/eval.ts"
+import agent from './agent';
+
+export const loggedEval = agent.createEval('logged-eval', {
+  description: 'Logs eval execution and stores results',
+  handler: async (ctx, input, output) => {
+    // Log eval execution
+    ctx.logger.info('Running eval', {
+      sessionId: ctx.sessionId,
+      input,
+      output,
+    });
+
+    // Store eval results
+    await ctx.kv.set('eval-results', ctx.sessionId, {
+      timestamp: Date.now(),
+      passed: true,
+    });
+
+    return {
+      passed: true,
+      reason: 'Eval completed and logged',
+    };
+  },
+});
+```

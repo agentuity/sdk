@@ -1,0 +1,202 @@
+---
+title: Event System
+short_title: Events
+description: Lifecycle hooks for monitoring agent, session, and thread events
+---
+
+The SDK provides a comprehensive event system for hooking into agent, session, and thread lifecycles.
+
+## Agent Events
+
+Agents emit events during their lifecycle that you can listen to.
+
+**Available Events:**
+
+```typescript
+agent.addEventListener('started', (eventName, agent, ctx) => {
+  // Agent execution has started
+});
+
+agent.addEventListener('completed', (eventName, agent, ctx) => {
+  // Agent execution completed successfully
+  // Evals run during this event
+});
+
+agent.addEventListener('errored', (eventName, agent, ctx, error) => {
+  // Agent execution failed
+});
+```
+
+**Example: Logging Agent Lifecycle:**
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('TaskRunner', {
+  schema: {
+    input: z.object({ task: z.string() }),
+    output: z.object({ result: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    return { result: `Completed: ${input.task}` };
+  },
+});
+
+// Log when agent starts
+agent.addEventListener('started', (eventName, agent, ctx) => {
+  ctx.logger.info('Agent started', {
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+// Log when agent completes
+agent.addEventListener('completed', (eventName, agent, ctx) => {
+  ctx.logger.info('Agent completed', {
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+// Log when agent errors
+agent.addEventListener('errored', (eventName, agent, ctx, error) => {
+  ctx.logger.error('Agent errored', {
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+    error: error.message,
+  });
+});
+```
+
+## App Events
+
+The application instance emits events for agents, sessions, and threads.
+
+**Available App Events:**
+
+```typescript
+// Agent lifecycle events
+app.addEventListener('agent.started', (eventName, agent, ctx) => {});
+app.addEventListener('agent.completed', (eventName, agent, ctx) => {});
+app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {});
+
+// Session lifecycle events
+app.addEventListener('session.started', (eventName, session) => {});
+app.addEventListener('session.completed', (eventName, session) => {});
+
+// Thread lifecycle events
+app.addEventListener('thread.created', (eventName, thread) => {});
+app.addEventListener('thread.destroyed', (eventName, thread) => {});
+```
+
+**Example: Application-Wide Analytics:**
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+
+const { app, server, logger } = createApp();
+
+// Track agent executions
+let agentExecutions = 0;
+
+app.addEventListener('agent.started', (eventName, agent, ctx) => {
+  agentExecutions++;
+  logger.info(`Total agent executions: ${agentExecutions}`);
+});
+
+// Track errors for monitoring
+app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {
+  logger.error('Agent error detected', {
+    agentName: agent.metadata.name,
+    error: error.message,
+    sessionId: ctx.sessionId
+  });
+
+  // Could send to error tracking service
+  // await sendToErrorTracker(error, agent, ctx);
+});
+
+// Session analytics
+app.addEventListener('session.completed', (eventName, session) => {
+  const messageCount = session.state.get('messageCount') || 0;
+  logger.info('Session completed', {
+    sessionId: session.id,
+    totalMessages: messageCount
+  });
+});
+
+// Thread cleanup
+app.addEventListener('thread.destroyed', (eventName, thread) => {
+  logger.info('Thread destroyed', {
+    threadId: thread.id
+  });
+});
+```
+
+## Event Handlers
+
+Event handlers can be added and removed dynamically.
+
+**Adding Event Listeners:**
+
+```typescript
+// Agent-level
+const handler = (eventName, agent, ctx) => {
+  ctx.logger.info('Agent started');
+};
+
+agent.addEventListener('started', handler);
+
+// App-level
+app.addEventListener('agent.completed', (eventName, agent, ctx) => {
+  ctx.logger.info(`${agent.metadata.name} completed`);
+});
+```
+
+**Removing Event Listeners:**
+
+```typescript
+// Remove specific handler
+agent.removeEventListener('started', handler);
+
+// Note: You must keep a reference to the handler function
+// to remove it later
+```
+
+**Complete Example with Cleanup:**
+
+```typescript
+const agent = createAgent('ActionHandler', {
+  schema: {
+    input: z.object({ action: z.string() }),
+    output: z.object({ success: z.boolean() }),
+  },
+  handler: async (ctx, input) => {
+    return { success: true };
+  },
+});
+
+// Create handlers with references for cleanup
+const startedHandler = (eventName, agent, ctx) => {
+  ctx.logger.info('Started processing');
+};
+
+const completedHandler = (eventName, agent, ctx) => {
+  ctx.logger.info('Completed processing');
+};
+
+const erroredHandler = (eventName, agent, ctx, error) => {
+  ctx.logger.error('Error occurred', { error });
+};
+
+// Add listeners
+agent.addEventListener('started', startedHandler);
+agent.addEventListener('completed', completedHandler);
+agent.addEventListener('errored', erroredHandler);
+
+// Later, if needed, remove listeners
+// agent.removeEventListener('started', startedHandler);
+// agent.removeEventListener('completed', completedHandler);
+// agent.removeEventListener('errored', erroredHandler);
+```

@@ -5,25 +5,20 @@ description: Structured logging for agents and routes
 
 Use `ctx.logger` in agents and `c.var.logger` in routes for structured logging. Logs are automatically tied to session IDs for debugging.
 
+For the full `Logger` interface, all method signatures, and OpenTelemetry tracing, see [Observability Reference](/reference/sdk-reference/observability).
+
 ## Log Levels
 
+`ctx.logger` has methods for each level: `trace`, `debug`, `info`, `warn`, `error`, and `fatal`. Use the method that matches severity:
+
 ```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('LoggingExample', {
-  handler: async (ctx, input) => {
-    ctx.logger.trace('Verbose debugging info');
-    ctx.logger.debug('Debug-level details');
-    ctx.logger.info('General information');
-    ctx.logger.warn('Warning: potential issue');
-    ctx.logger.error('Error occurred', error);
-
-    return { success: true };
-  },
-});
+ctx.logger.info('Request processed', { requestId: '123' });
+ctx.logger.error('Failed to fetch data', error);
 ```
 
-Levels from most to least verbose: `trace` → `debug` → `info` → `warn` → `error`. The default minimum level is `info`.
+Levels from most to least verbose: `trace` → `debug` → `info` → `warn` → `error` → `fatal`. The default minimum level is `info`.
+
+For the complete `Logger` interface and all method signatures, see [Observability Reference](/reference/sdk-reference/observability).
 
 ## Structured Logging
 
@@ -52,34 +47,15 @@ This creates structured log entries you can filter and search in the Agentuity A
 
 ## Child Loggers
 
-Create component-scoped loggers that inherit parent context:
+`ctx.logger.child(fields)` creates a scoped logger that includes the given fields on every log line it emits:
 
 ```typescript
-const agent = createAgent('ChildLoggerExample', {
-  handler: async (ctx, input) => {
-    // Child logger adds context to all its messages
-    const dbLogger = ctx.logger.child({
-      component: 'database',
-      requestId: ctx.sessionId,
-    });
-
-    dbLogger.debug('Connecting to database');
-    dbLogger.info('Query executed', { duration: 45, rows: 10 });
-
-    // Another child logger for a different component
-    const embeddingsLogger = ctx.logger.child({
-      component: 'embeddings',
-      documentId: input.documentId,
-    });
-
-    embeddingsLogger.info('Generating embeddings', { chunkCount: 12 });
-
-    return { success: true };
-  },
-});
+const dbLogger = ctx.logger.child({ component: 'database', requestId: ctx.sessionId });
+dbLogger.info('Query executed', { duration: 45, rows: 10 });
+// Every line includes component and requestId automatically
 ```
 
-Child loggers are useful for tracing operations through different parts of your code.
+See [Creating Child Loggers](/reference/sdk-reference/observability#creating-child-loggers) for nesting patterns.
 
 ## Logging in Routes
 
@@ -122,34 +98,19 @@ export default router;
 
 ## Configuration
 
-Set the minimum log level with the `AGENTUITY_LOG_LEVEL` environment variable:
+Control the minimum log level with `AGENTUITY_LOG_LEVEL` in your `.env`:
 
 ```bash
-# In .env
-AGENTUITY_LOG_LEVEL=debug  # Show debug and above
+AGENTUITY_LOG_LEVEL=debug
 ```
 
-| Level | Shows |
-|-------|-------|
-| `trace` | trace, debug, info, warn, error |
-| `debug` | debug, info, warn, error |
-| `info` | info, warn, error (default) |
-| `warn` | warn, error |
-| `error` | error only |
+See [Log Configuration](/reference/sdk-reference/observability#log-configuration) for the full level table and defaults.
 
 ## Viewing Logs
 
-View logs for a specific session using the CLI:
+In dev mode, logs stream directly to your terminal. In deployed environments, use `agentuity cloud session logs <session-id>` or the Agentuity App session timeline.
 
-```bash
-# List recent sessions
-agentuity cloud session list
-
-# View logs for a session
-agentuity cloud session logs sess_abc123xyz
-```
-
-Logs are also visible in the Agentuity App session timeline. See [CLI Reference](/reference/CLI) for more log viewing options.
+See [Viewing Logs](/reference/sdk-reference/observability#viewing-logs) for the full CLI commands.
 
 ## Best Practices
 

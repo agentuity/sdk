@@ -1,0 +1,77 @@
+---
+title: SDK Reference
+description: Comprehensive reference for the Agentuity TypeScript/JavaScript SDK
+---
+
+import { Rocket, Box, Shield, Database, Globe, Radio, Layers, BarChart, Zap, Package, Eye } from 'lucide-react';
+
+These pages document method signatures, parameters, and return types for the Agentuity TypeScript SDK. For concepts and patterns, see [Agents](/agents), [Services](/services), and [Cookbook](/cookbook). For using services outside the runtime, see [Standalone Packages](/reference/standalone-packages).
+
+<Cards>
+  <CardLink
+    href="/reference/sdk-reference/application-entry"
+    title="Application Entry"
+    description="Initialize your app with createApp()"
+    icon={<Rocket className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/agents"
+    title="Agents"
+    description="Define agents with createAgent() and handle inputs"
+    icon={<Box className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/schema"
+    title="Schema Validation"
+    description="Type-safe validation with StandardSchema"
+    icon={<Shield className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/context-api"
+    title="Context API"
+    description="Storage, logging, state management, and services via ctx.*"
+    icon={<Database className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/router"
+    title="Router &amp; Routes"
+    description="HTTP endpoints, middleware, and WebSocket handlers"
+    icon={<Globe className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/communication"
+    title="Agent Communication"
+    description="Call agents from routes or other agents"
+    icon={<Radio className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/storage"
+    title="Storage APIs"
+    description="KV, Vector, Database, Object, and Stream storage"
+    icon={<Layers className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/observability"
+    title="Observability"
+    description="Structured logging and OpenTelemetry tracing"
+    icon={<Eye className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/evaluations"
+    title="Evaluations"
+    description="Test and validate agent outputs"
+    icon={<BarChart className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/events"
+    title="Event System"
+    description="Lifecycle hooks for monitoring agents"
+    icon={<Zap className="size-5" />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/advanced"
+    title="Runtime Utilities"
+    description="File imports, standalone execution, context detection, and build metadata"
+    icon={<Package className="size-5" />}
+  />
+</Cards>

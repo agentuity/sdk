@@ -235,6 +235,17 @@ export const navData: NavSection[] = [
 				url: '/routes/sse',
 				description: 'Stream updates from server to client using SSE middleware',
 			},
+			{
+				title: 'Using WebRTC',
+				url: '/routes/webrtc',
+				description: 'Peer-to-peer audio, video, and data channels with the webrtc middleware',
+			},
+			{
+				title: 'Using Explicit Routing',
+				url: '/routes/explicit-routing',
+				description:
+					'Pass your own Hono router to createApp() for full control over route composition and mount paths',
+			},
 		],
 	},
 	{
@@ -349,6 +360,29 @@ export const navData: NavSection[] = [
 				url: '/services/queues',
 				description:
 					'Publish messages for async processing, webhooks, and event-driven workflows',
+			},
+			{
+				title: 'Email',
+				url: '/services/email',
+				description:
+					'Send and receive emails with managed addresses, destinations, and delivery tracking',
+			},
+			{
+				title: 'Webhooks',
+				url: '/services/webhooks',
+				description:
+					'Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry',
+			},
+			{
+				title: 'Schedules',
+				url: '/services/schedules',
+				description: 'Create platform-managed cron jobs with HTTP and sandbox destinations',
+			},
+			{
+				title: 'Tasks',
+				url: '/services/tasks',
+				description:
+					'Track work items, issues, and agent activity with built-in lifecycle management',
 			},
 			{
 				title: 'Observability',
@@ -766,7 +800,79 @@ export const navData: NavSection[] = [
 			{
 				title: 'SDK Reference',
 				url: '/reference/sdk-reference',
-				description: 'Comprehensive reference for the Agentuity TypeScript/JavaScript SDK',
+				items: [
+					{
+						title: 'Application Entry',
+						url: '/reference/sdk-reference/application-entry',
+						description:
+							'Initialize your Agentuity app with createApp() and configure services',
+					},
+					{
+						title: 'Agents',
+						url: '/reference/sdk-reference/agents',
+						description:
+							'Define agents with createAgent(), configure schemas, and write handlers',
+					},
+					{
+						title: 'Schema',
+						url: '/reference/sdk-reference/schema',
+						description: 'Type-safe runtime validation with StandardSchema support',
+					},
+					{
+						title: 'Context API',
+						url: '/reference/sdk-reference/context-api',
+						description: 'Storage, logging, and services available via the ctx.* object',
+					},
+					{
+						title: 'Router',
+						url: '/reference/sdk-reference/router',
+						description: 'HTTP endpoints, middleware, WebSocket, SSE, and cron handlers',
+					},
+					{
+						title: 'Communication',
+						url: '/reference/sdk-reference/communication',
+						description: 'Call agents from routes or other agents with type-safe imports',
+					},
+					{
+						title: 'Storage',
+						url: '/reference/sdk-reference/storage',
+						description: 'KV, Vector, Database, Object, and Stream storage reference',
+					},
+					{
+						title: 'Observability',
+						url: '/reference/sdk-reference/observability',
+						description:
+							'Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer',
+					},
+					{
+						title: 'Evaluations',
+						url: '/reference/sdk-reference/evaluations',
+						description: 'Test and validate agent outputs with built-in evaluation framework',
+					},
+					{
+						title: 'Events',
+						url: '/reference/sdk-reference/events',
+						description: 'Lifecycle hooks for monitoring agent, session, and thread events',
+					},
+					{
+						title: 'Runtime Utilities',
+						url: '/reference/sdk-reference/advanced',
+						description:
+							'File imports, standalone execution, context detection, process lifecycle, and build metadata',
+					},
+				],
+			},
+			{
+				title: 'Standalone Packages',
+				url: '/reference/standalone-packages',
+				description:
+					'Use Agentuity services from any Node.js or Bun application without the full runtime',
+			},
+			{
+				title: 'GitHub App',
+				url: '/reference/github-app',
+				description:
+					'How the Agentuity GitHub App automates deployments from your repositories.',
 			},
 			{
 				title: 'Gravity Network',

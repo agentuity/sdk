@@ -6,6 +6,10 @@ description: Programmatic API for creating and managing sandboxes
 
 Access sandbox functionality through `ctx.sandbox` in agents or `c.var.sandbox` in routes. Choose between one-shot execution for single commands or interactive sandboxes for multi-step workflows.
 
+<Callout type="tip" title="Standalone Package Available">
+Use `@agentuity/sandbox` to access this service from any Node.js or Bun app without the full runtime. See [Standalone Packages](/reference/standalone-packages#sandbox) for install and usage.
+</Callout>
+
 ## One-shot Execution
 
 Use `sandbox.run()` when you need to execute a single command. The sandbox is automatically created and destroyed.
