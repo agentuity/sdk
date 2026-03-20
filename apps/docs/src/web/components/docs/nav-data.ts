@@ -421,6 +421,12 @@ export const navData: NavSection[] = [
 				title: 'Patterns',
 				items: [
 					{
+						title: 'Autonomous Research Agent',
+						url: '/cookbook/patterns/autonomous-research',
+						description:
+							'Build a recursive research loop using the Anthropic SDK with native tool calling',
+					},
+					{
 						title: 'Background Tasks',
 						url: '/cookbook/patterns/background-tasks',
 						description: 'Use waitUntil to run work after responding to the client',
@@ -465,10 +471,69 @@ export const navData: NavSection[] = [
 						description: 'Add Tailwind CSS styling to your Agentuity frontend',
 					},
 					{
+						title: 'Web Exploration with Sandboxes',
+						url: '/cookbook/patterns/web-exploration',
+						description:
+							'Run a headless browser in a sandbox to let agents browse, screenshot, and extract web content',
+					},
+					{
 						title: 'Webhook Handler',
 						url: '/cookbook/patterns/webhook-handler',
 						description:
 							'Handle incoming webhooks with signature verification and background processing',
+					},
+				],
+			},
+			{
+				title: 'Integrations',
+				items: [
+					{
+						title: 'Mastra',
+						url: '/cookbook/integrations/mastra',
+						description:
+							'Deploy Mastra agents on Agentuity with persistent state, observability, and the AI Gateway',
+					},
+					{
+						title: 'LangChain',
+						url: '/cookbook/integrations/langchain',
+						description:
+							"Build LangChain agents with Agentuity's deployment runtime, persistent storage, and observability",
+					},
+					{
+						title: 'OpenAI Agents SDK',
+						url: '/cookbook/integrations/openai-agents',
+						description:
+							"Run OpenAI Agents SDK tool calling, handoffs, and structured output on Agentuity's deployment runtime",
+					},
+					{
+						title: 'Claude Agent SDK',
+						url: '/cookbook/integrations/claude-agent',
+						description:
+							'Build conversational code intelligence agents with Claude Agent SDK and Agentuity sandboxes',
+					},
+					{
+						title: 'Chat SDK',
+						url: '/cookbook/integrations/chat-sdk',
+						description:
+							'Build multi-platform chatbots for Slack and Discord with Chat SDK and Agentuity agents',
+					},
+					{
+						title: 'Next.js',
+						url: '/cookbook/integrations/nextjs',
+						description:
+							'Connect a Next.js frontend to an Agentuity backend using API rewrites',
+					},
+					{
+						title: 'TanStack Start',
+						url: '/cookbook/integrations/tanstack-start',
+						description:
+							'Connect a TanStack Start frontend to an Agentuity backend using Vite proxy',
+					},
+					{
+						title: 'Turborepo',
+						url: '/cookbook/integrations/turborepo',
+						description:
+							'Add Agentuity agents as a workspace package alongside your existing apps, with shared types across packages',
 					},
 				],
 			},
@@ -671,6 +736,18 @@ export const navData: NavSection[] = [
 						url: '/reference/cli/ai-commands',
 						description:
 							'CLI commands for AI agents, IDE integration, and schema inspection.',
+					},
+					{
+						title: 'OAuth Applications',
+						url: '/reference/cli/oauth',
+						description:
+							'Create and manage OAuth/OIDC applications for third-party integrations from the CLI',
+					},
+					{
+						title: 'Infrastructure Monitoring',
+						url: '/reference/cli/monitoring',
+						description:
+							'Monitor machine health and resource usage from the CLI in real time or as a snapshot',
 					},
 					{
 						title: 'Claude Code Plugin',

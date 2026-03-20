@@ -36,6 +36,7 @@ Before writing a new page, read these as reference implementations:
 ```
 ---
 title: Action-Oriented Title (e.g., "Calling Other Agents" not "Agent Communication")
+short_title: Concise Sidebar Label (optional, falls back to title if omitted)
 description: One sentence explaining what readers will learn
 ---
 
@@ -55,6 +56,10 @@ Brief context: what is this for, when do you use it? (1-2 sentences)
 ## Next Steps
 - [Related Topic](path): When you need X
 ```
+
+## Sidebar Navigation
+
+The sidebar is auto-generated at build time by `scripts/generate-nav-data.ts`. Page ordering within each section is controlled by the `meta.json` file in the same directory. When adding a new page, add its slug to the `pages` array in the relevant `meta.json`.
 
 ## Provider Documentation
 
