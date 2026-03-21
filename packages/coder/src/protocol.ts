@@ -95,6 +95,11 @@ export interface HubConfig {
 export interface InitMessage {
 	type: 'init';
 	sessionId?: string;
+	resume?: {
+		sessionFile: string;
+		piSessionId?: string;
+		cwd?: string;
+	};
 	tools?: HubToolDefinition[];
 	commands?: HubCommandDefinition[];
 	agents?: AgentDefinition[];
@@ -215,6 +220,9 @@ export interface ConversationEntry {
 		| 'tool_call'
 		| 'tool_result'
 		| 'task_result'
+		| 'runtime_status'
+		| 'runtime_output'
+		| 'runtime_preview'
 		| 'turn'
 		| 'user_prompt';
 	agent?: string;
@@ -223,6 +231,29 @@ export interface ConversationEntry {
 	toolName?: string;
 	toolArgs?: Record<string, unknown>;
 	toolCallId?: string;
+	runtime?:
+		| {
+				id?: string;
+				command?: string;
+				status?: string;
+				stream?: string;
+				exitCode?: number;
+		  }
+		| undefined;
+	preview?:
+		| {
+				id?: string;
+				url?: string;
+				status?: string;
+				label?: string;
+		  }
+		| undefined;
+	attachments?: Array<{
+		id?: string;
+		filename?: string;
+		mime?: string;
+		size?: number;
+	}>;
 	isError?: boolean;
 	taskId?: string;
 	turnId?: string;
@@ -264,41 +295,161 @@ export interface SessionStreamProjection extends SessionStreamBlock {
 	tasks: Record<string, SessionStreamBlock>;
 }
 
+export type WorkflowMode = 'standard' | 'loop';
+
+export interface SessionLoopState {
+	workflowMode?: WorkflowMode;
+	status?: string;
+	iteration?: number;
+	goal?: string;
+	summary?: string;
+	nextAction?: string;
+	startedAt?: number;
+	updatedAt?: number;
+	lastCheckpointAt?: number;
+	completedAt?: number;
+	lastError?: string;
+	blockers?: string[];
+}
+
+export type SessionBucket = 'running' | 'paused' | 'provisioning' | 'history';
+
+export interface SessionSkillRef {
+	skillId: string;
+	repo: string;
+	name?: string;
+	url?: string;
+}
+
+export interface SessionListDiagnostics {
+	inactiveRunningTasks: Array<{
+		taskId: string;
+		agent: string;
+		inactivityMs: number;
+		startedAt: string;
+		lastActivityAt?: string;
+	}>;
+}
+
+export interface SessionListItem {
+	sessionId: string;
+	label: string;
+	status: string;
+	mode: 'sandbox' | 'tui';
+	sessionKind?: string;
+	parentSessionId?: string;
+	coordinationJobId?: string;
+	workflowMode: WorkflowMode;
+	loopStatus?: SessionLoopState['status'];
+	loopIteration?: number;
+	createdAt: string;
+	taskCount: number;
+	subAgentCount: number;
+	observerCount: number;
+	participantCount: number;
+	tags: string[];
+	skills: SessionSkillRef[];
+	defaultAgent?: string;
+	bucket: SessionBucket;
+	runtimeAvailable: boolean;
+	controlAvailable: boolean;
+	historyOnly: boolean;
+	diagnostics?: SessionListDiagnostics;
+}
+
+export interface SessionDetailParticipant {
+	id: string;
+	role: string;
+	transport: string;
+	connectedAt: string;
+	idle?: boolean;
+}
+
+export interface SessionAgentActivity {
+	name?: string;
+	status: string;
+	currentTool?: string;
+	currentToolArgs?: string;
+	toolCallCount: number;
+	lastActivity: number;
+	totalElapsed?: number;
+}
+
+export interface SessionObservedProjection {
+	turnCount: number;
+	lastAgentModel?: string;
+	compactionCount: number;
+}
+
+export interface SessionDeckGenerationState {
+	state: string;
+	requestedAt?: number;
+	startedAt?: number;
+	completedAt?: number;
+	title?: string;
+	deckType?: string;
+	prdKey?: string;
+	prdTaskId?: string;
+	todoId?: string;
+	error?: string;
+	url?: string;
+}
+
+export interface SessionProductProjection {
+	activePrdKey?: string;
+	activePrdTaskId?: string;
+	deckGeneration?: SessionDeckGenerationState;
+}
+
+export interface SessionUsageAgentSummary {
+	inputTokens: number;
+	outputTokens: number;
+	reasoningTokens: number;
+	costUsd: number;
+	updatedAt: number;
+}
+
+export interface SessionUsageSummary {
+	inputTokens: number;
+	outputTokens: number;
+	reasoningTokens: number;
+	costUsd: number;
+	updatedAt: number;
+	byAgent?: Record<string, SessionUsageAgentSummary>;
+}
+
 export interface SessionSnapshot {
 	sessionId: string;
 	label: string;
-	status: 'active' | 'paused' | 'shutdown' | 'archived' | 'error' | 'stopped';
+	status: string;
 	createdAt: string;
 	mode: 'sandbox' | 'tui';
+	workflowMode: WorkflowMode;
+	loop?: SessionLoopState;
 	task?: string;
 	error?: string;
-	streamId?: string | null;
-	streamUrl?: string | null;
+	streamId: string | null;
+	streamUrl: string | null;
 	context: {
 		branch?: string;
 		workingDirectory?: string;
 	};
-	participants: SessionParticipant[];
+	participants: SessionDetailParticipant[];
 	tasks: SessionTaskState[];
-	agentActivity: Record<
-		string,
-		{
-			name?: string;
-			status: string;
-			currentTool?: string;
-			currentToolArgs?: string;
-			toolCallCount: number;
-			lastActivity: number;
-			totalElapsed?: number;
-		}
-	>;
+	agentActivity: Record<string, SessionAgentActivity>;
 	stream?: SessionStreamProjection;
-	tags?: string[];
+	observed?: SessionObservedProjection;
+	usage: SessionUsageSummary;
+	product?: SessionProductProjection;
+	tags: string[];
+	skills: SessionSkillRef[];
 	defaultAgent?: string;
-	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
-	runtimeAvailable?: boolean;
-	controlAvailable?: boolean;
-	historyOnly?: boolean;
+	bucket: SessionBucket;
+	runtimeAvailable: boolean;
+	controlAvailable: boolean;
+	historyOnly: boolean;
+	diagnostics?: SessionListDiagnostics;
+	workers?: SessionListItem[];
 }
 
 export interface CoderHubHydrationMessage {
@@ -336,6 +487,19 @@ export interface BroadcastEventMessage {
 	category?: string;
 	sessionId?: string;
 	timestamp?: number;
+}
+
+export type ReplayEntry = ConversationEntry;
+
+export interface ReplayHistoryResponse {
+	sessionId: string;
+	entriesSource: 'durable_stream' | 'session_entries' | 'event_history' | 'none';
+	sourceCounts?: {
+		durableStream: number;
+		sessionEntries: number;
+		eventHistory: number;
+	};
+	entries: ReplayEntry[];
 }
 
 export interface RpcEventMessage {

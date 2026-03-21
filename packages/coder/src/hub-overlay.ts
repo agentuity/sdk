@@ -10,6 +10,11 @@ import {
 	type StreamProjectionSource,
 } from './hub-overlay-state.ts';
 import { truncateToWidth } from './renderers.ts';
+import type {
+	ReplayHistoryResponse as HubReplayResponse,
+	SessionListItem as HubSessionSummary,
+	SessionSnapshot as BaseHubSessionDetail,
+} from './protocol.ts';
 
 interface Component {
 	render(width: number): string[];
@@ -23,50 +28,6 @@ interface Focusable {
 
 interface TUIRef {
 	requestRender(): void;
-}
-
-interface HubSessionSummary {
-	sessionId: string;
-	label?: string;
-	status: string;
-	mode: string;
-	observerCount: number;
-	subAgentCount: number;
-	taskCount: number;
-	participantCount: number;
-	createdAt: string;
-	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
-	runtimeAvailable?: boolean;
-	controlAvailable?: boolean;
-	historyOnly?: boolean;
-	tags?: string[];
-	skills?: HubSessionSkillRef[];
-	defaultAgent?: string;
-}
-
-interface HubSessionSkillRef {
-	skillId: string;
-	repo: string;
-	name?: string;
-	url?: string;
-}
-
-interface HubParticipant {
-	id: string;
-	role: string;
-	transport?: string;
-	connectedAt?: string;
-	idle?: boolean;
-}
-
-interface HubTask {
-	taskId: string;
-	agent: string;
-	status: string;
-	prompt?: string;
-	duration?: number;
-	startedAt?: string;
-	completedAt?: string;
 }
 
 interface HubTodoSummary {
@@ -89,59 +50,6 @@ interface HubTodo {
 	attachmentCount?: number;
 }
 
-type AgentActivity = Record<
-	string,
-	{
-		status?: string;
-		currentTool?: string;
-		toolCallCount?: number;
-		lastActivity?: string | number;
-		currentToolArgs?: string;
-		totalElapsed?: number;
-	}
->;
-
-interface HubSessionDiagnostics {
-	inactiveRunningTasks?: Array<{
-		taskId: string;
-		agent: string;
-		inactivityMs: number;
-		startedAt: string;
-		lastActivityAt?: string;
-	}>;
-}
-
-interface HubSessionDetail {
-	sessionId: string;
-	label?: string;
-	status: string;
-	createdAt: string;
-	mode: string;
-	task?: string;
-	error?: string;
-	streamId?: string | null;
-	streamUrl?: string | null;
-	tags?: string[];
-	skills?: HubSessionSkillRef[];
-	defaultAgent?: string;
-	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
-	runtimeAvailable?: boolean;
-	controlAvailable?: boolean;
-	historyOnly?: boolean;
-	diagnostics?: HubSessionDiagnostics;
-	context?: {
-		branch?: string;
-		workingDirectory?: string;
-	};
-	participants?: HubParticipant[];
-	tasks?: HubTask[];
-	todos?: HubTodo[];
-	todoSummary?: HubTodoSummary;
-	todosUnavailable?: string;
-	agentActivity?: AgentActivity;
-	stream?: StreamProjection;
-}
-
 interface HubTodoListResponse {
 	ok?: boolean;
 	count?: number;
@@ -151,15 +59,18 @@ interface HubTodoListResponse {
 	message?: string;
 }
 
+type HubTask = BaseHubSessionDetail['tasks'][number];
+
+type HubSessionDetail = BaseHubSessionDetail & {
+	todos?: HubTodo[];
+	todoSummary?: HubTodoSummary;
+	todosUnavailable?: string;
+};
+
 interface HubListResponse {
 	sessions?: {
 		websocket?: HubSessionSummary[];
 	};
-}
-
-interface HubReplayResponse {
-	sessionId: string;
-	entries?: ConversationEntryLike[];
 }
 
 interface HubEventHistoryItem {
