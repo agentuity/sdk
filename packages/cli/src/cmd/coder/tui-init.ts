@@ -1,6 +1,6 @@
 import { hubFetchHeaders } from './hub-url';
 
-export type TuiInitProbeResult =
+export type HubInitProbeResult =
 	| { ok: true }
 	| {
 			ok: false;
@@ -19,12 +19,12 @@ function normalizeErrorMessage(payload: unknown, fallback: string): string {
 	return fallback;
 }
 
-export async function probeTuiInitAccess(
+export async function probeHubInitAccess(
 	hubHttpUrl: string,
 	fetchImpl: typeof fetch = fetch
-): Promise<TuiInitProbeResult> {
+): Promise<HubInitProbeResult> {
 	try {
-		const response = await fetchImpl(`${hubHttpUrl}/api/hub/tui/init`, {
+		const response = await fetchImpl(`${hubHttpUrl}/api/hub/init`, {
 			headers: hubFetchHeaders({ accept: 'application/json' }),
 			signal: AbortSignal.timeout(5_000),
 		});

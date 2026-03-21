@@ -6,7 +6,7 @@ import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 import { toHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
-import { probeTuiInitAccess } from './tui-init';
+import { probeHubInitAccess } from './tui-init';
 
 /**
  * Resolve the Coder extension path.
@@ -140,18 +140,18 @@ export const startSubcommand = createSubcommand({
 		}
 		const hubWsUrl = toHubWsUrl(hubHttpUrl);
 
-		const tuiInitProbe = await probeTuiInitAccess(hubHttpUrl);
-		if (!tuiInitProbe.ok) {
-			if (tuiInitProbe.code === 'unauthorized') {
+		const initProbe = await probeHubInitAccess(hubHttpUrl);
+		if (!initProbe.ok) {
+			if (initProbe.code === 'unauthorized') {
 				tui.fatal(
-					`Coder Hub at ${hubHttpUrl} requires authentication.\n\nSet AGENTUITY_CODER_API_KEY in your shell and retry.\n\nServer said: ${tuiInitProbe.message}`,
+					`Coder Hub at ${hubHttpUrl} requires authentication.\n\nSet AGENTUITY_CODER_API_KEY in your shell and retry.\n\nServer said: ${initProbe.message}`,
 					ErrorCode.NETWORK_ERROR
 				);
 				return;
 			}
 
 			tui.fatal(
-				`Could not bootstrap the Coder Hub at ${hubHttpUrl}: ${tuiInitProbe.message}`,
+				`Could not bootstrap the Coder Hub at ${hubHttpUrl}: ${initProbe.message}`,
 				ErrorCode.NETWORK_ERROR
 			);
 			return;

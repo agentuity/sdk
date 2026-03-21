@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { probeTuiInitAccess } from '../src/cmd/coder/tui-init';
+import { probeHubInitAccess } from '../src/cmd/coder/tui-init';
 
-describe('probeTuiInitAccess', () => {
+describe('probeHubInitAccess', () => {
 	test('returns ok for a valid init payload', async () => {
-		const result = await probeTuiInitAccess(
+		const result = await probeHubInitAccess(
 			'http://hub.test',
 			async () =>
 				new Response(JSON.stringify({ type: 'init', tools: [] }), {
@@ -16,7 +16,7 @@ describe('probeTuiInitAccess', () => {
 	});
 
 	test('surfaces auth failures with server message', async () => {
-		const result = await probeTuiInitAccess(
+		const result = await probeHubInitAccess(
 			'http://hub.test',
 			async () =>
 				new Response(JSON.stringify({ error: 'Unauthorized: API key required' }), {
@@ -33,7 +33,7 @@ describe('probeTuiInitAccess', () => {
 	});
 
 	test('rejects non-init success payloads', async () => {
-		const result = await probeTuiInitAccess(
+		const result = await probeHubInitAccess(
 			'http://hub.test',
 			async () =>
 				new Response(JSON.stringify({ ok: true }), {

@@ -136,9 +136,9 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 
 	if (httpUrl.includes('/api/ws')) {
-		httpUrl = httpUrl.replace('/api/ws', '/api/hub/tui/init');
+		httpUrl = httpUrl.replace('/api/ws', '/api/hub/init');
 	} else {
-		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/tui/init');
+		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/init');
 	}
 
 	if (agentRole && agentRole !== 'lead') {
