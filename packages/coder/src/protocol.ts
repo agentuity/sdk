@@ -450,6 +450,11 @@ export interface SessionWorkflowProjection {
 	loop?: SessionLoopState;
 }
 
+export interface SessionLoopResponse extends Omit<SessionWorkflowProjection, 'loop'> {
+	sessionId: string;
+	loop: SessionLoopState | null;
+}
+
 export interface SessionUsageAgentSummary {
 	inputTokens: number;
 	outputTokens: number;
