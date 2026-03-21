@@ -389,6 +389,23 @@ export interface SessionListItem {
 	diagnostics?: SessionListDiagnostics;
 }
 
+export interface SandboxSessionListItem {
+	sessionId: string;
+	sandboxId: string;
+	status: string;
+	task?: string;
+	metadata?: Record<string, unknown>;
+	wsConnected: boolean;
+}
+
+export interface SessionListResponse {
+	sessions: {
+		websocket: SessionListItem[];
+		sandbox: SandboxSessionListItem[];
+	};
+	total: number;
+}
+
 export interface SessionDetailParticipant {
 	id: string;
 	role: string;

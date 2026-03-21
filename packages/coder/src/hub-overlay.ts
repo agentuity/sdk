@@ -16,6 +16,7 @@ import type {
 	SessionEventHistoryItem as HubEventHistoryItem,
 	SessionEventHistoryResponse as HubEventHistoryResponse,
 	SessionListItem as HubSessionSummary,
+	SessionListResponse as HubListResponse,
 	SessionSnapshot as BaseHubSessionDetail,
 	SessionTodoItem as HubTodo,
 	SessionTodoListResponse as HubTodoListResponse,
@@ -44,12 +45,6 @@ type HubSessionDetail = BaseHubSessionDetail & {
 	todoSummary?: HubTodoSummary;
 	todosUnavailable?: string;
 };
-
-interface HubListResponse {
-	sessions?: {
-		websocket?: HubSessionSummary[];
-	};
-}
 
 interface FeedEntry {
 	at: number;
