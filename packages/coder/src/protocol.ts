@@ -94,6 +94,7 @@ export interface HubConfig {
 
 export interface InitMessage {
 	type: 'init';
+	role: 'lead' | 'sub_agent' | 'controller';
 	sessionId?: string;
 	resume?: {
 		sessionFile: string;
@@ -110,6 +111,7 @@ export interface InitMessage {
 	};
 	thinkingLevel?: string;
 	task?: string;
+	agentRole?: string;
 }
 
 export interface EventRequest {
