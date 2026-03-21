@@ -306,20 +306,42 @@ export interface SessionStreamProjection extends SessionStreamBlock {
 }
 
 export type WorkflowMode = 'standard' | 'loop';
+export type LoopStatus =
+	| 'idle'
+	| 'starting'
+	| 'running'
+	| 'paused'
+	| 'awaiting_input'
+	| 'blocked'
+	| 'completed'
+	| 'failed'
+	| 'cancelled';
 
 export interface SessionLoopState {
-	workflowMode?: WorkflowMode;
-	status?: string;
-	iteration?: number;
+	workflowMode: WorkflowMode;
+	loopId?: string;
+	status: LoopStatus;
 	goal?: string;
 	summary?: string;
 	nextAction?: string;
+	blockers: string[];
+	iteration: number;
+	maxIterations: number;
+	autoContinue: boolean;
+	allowDetached: boolean;
+	recoveryAttempts: number;
+	awaitingUser: boolean;
+	activePrdKey?: string;
+	activePrdTaskId?: string;
+	coordinationJobId?: string;
+	currentWaveId?: string;
+	currentWaveLabel?: string;
+	lastCheckpointSummary?: string;
 	startedAt?: number;
 	updatedAt?: number;
 	lastCheckpointAt?: number;
 	completedAt?: number;
 	lastError?: string;
-	blockers?: string[];
 }
 
 export type SessionBucket = 'running' | 'paused' | 'provisioning' | 'history';
