@@ -590,6 +590,22 @@ export interface SessionEventHistoryResponse {
 	events: SessionEventHistoryItem[];
 }
 
+export interface SessionParticipantHistoryItem {
+	id: string;
+	role: string;
+	transport: string;
+	agentRole?: string;
+	connectedAt: string;
+	disconnectedAt?: string;
+	lastActivityAt: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface SessionParticipantsResponse {
+	sessionId: string;
+	participants: SessionParticipantHistoryItem[];
+}
+
 export type SseSessionSnapshotParticipant = SessionDetailParticipant;
 
 export interface SseHydrationTaskState {
