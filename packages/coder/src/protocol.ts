@@ -279,6 +279,14 @@ export interface SessionTaskState {
 
 export type HydrationTaskState = SessionTaskState;
 
+export interface SessionTaskProjection<TTaskState = SessionTaskState> {
+	tasks: TTaskState[];
+}
+
+export interface SessionStreamWorkExtension {
+	stream?: SessionStreamProjection;
+}
+
 export interface SessionParticipant {
 	id: string;
 	role: 'lead' | 'observer' | 'controller';
@@ -403,6 +411,23 @@ export interface SessionProductProjection {
 	deckGeneration?: SessionDeckGenerationState;
 }
 
+export interface SessionActivityWorkExtensions {
+	agentActivity?: Record<string, SessionAgentActivity>;
+	diagnostics?: SessionListDiagnostics;
+}
+
+export interface SessionWorkProjection<TTaskState = SessionTaskState>
+	extends SessionTaskProjection<TTaskState>,
+		SessionStreamWorkExtension,
+		SessionActivityWorkExtensions {
+	workflowMode: WorkflowMode;
+}
+
+export interface SessionWorkflowProjection {
+	workflowMode: WorkflowMode;
+	loop?: SessionLoopState;
+}
+
 export interface SessionUsageAgentSummary {
 	inputTokens: number;
 	outputTokens: number;
@@ -420,7 +445,7 @@ export interface SessionUsageSummary {
 	byAgent?: Record<string, SessionUsageAgentSummary>;
 }
 
-export interface SessionSnapshotCore {
+export interface SessionSnapshotCore extends SessionTaskProjection {
 	sessionId: string;
 	label: string;
 	status: string;
@@ -428,7 +453,6 @@ export interface SessionSnapshotCore {
 	mode: 'sandbox' | 'tui';
 	workflowMode: WorkflowMode;
 	participants: SessionDetailParticipant[];
-	tasks: SessionTaskState[];
 	task?: string;
 	error?: string;
 	bucket: SessionBucket;
@@ -442,15 +466,15 @@ export interface SessionSnapshotHistoryExtensions {
 	streamUrl: string | null;
 }
 
-export interface SessionSnapshotWorkExtensions {
+export interface SessionSnapshotWorkExtensions
+	extends SessionStreamWorkExtension,
+		SessionActivityWorkExtensions {
 	agentActivity: Record<string, SessionAgentActivity>;
-	stream?: SessionStreamProjection;
 	usage: SessionUsageSummary;
 }
 
-export interface SessionSnapshotWorkflowExtensions {
-	loop?: SessionLoopState;
-}
+export interface SessionSnapshotWorkflowExtensions
+	extends Pick<SessionWorkflowProjection, 'loop'> {}
 
 export interface SessionSnapshotMetadataExtensions {
 	context: {
@@ -462,7 +486,6 @@ export interface SessionSnapshotMetadataExtensions {
 	tags: string[];
 	skills: SessionSkillRef[];
 	defaultAgent?: string;
-	diagnostics?: SessionListDiagnostics;
 	workers?: SessionListItem[];
 }
 
@@ -474,14 +497,14 @@ export interface SessionSnapshotExtensions
 
 export interface SessionSnapshot extends SessionSnapshotCore, SessionSnapshotExtensions {}
 
-export interface CoderHubHydrationMessage {
+export interface CoderHubHydrationMessage
+	extends SessionTaskProjection<HydrationTaskState>,
+		SessionStreamWorkExtension {
 	type: 'session_hydration';
 	sessionId: string;
 	label?: string;
 	resumedAt: number;
 	entries: ConversationEntry[];
-	tasks: HydrationTaskState[];
-	stream?: SessionStreamProjection;
 	task?: string;
 	leadConnected?: boolean;
 	streamingState?: {
@@ -546,12 +569,12 @@ export interface SseSessionSnapshotMessage {
 	stream?: SessionStreamProjection;
 }
 
-export interface SseHydrationMessage {
+export interface SseHydrationMessage
+	extends SessionTaskProjection<SseHydrationTaskState>,
+		SessionStreamWorkExtension {
 	type: 'hydration';
 	sessionId: string;
 	entries: ConversationEntry[];
-	tasks: SseHydrationTaskState[];
-	stream?: SessionStreamProjection;
 	task?: string;
 }
 
