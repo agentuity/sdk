@@ -287,6 +287,7 @@ export class RemoteSession {
 					this.connected = true;
 					this.reconnectAttempts = 0;
 					if (data.sessionId) this.sessionId = data.sessionId as string;
+					if (typeof data.label === 'string') this.label = data.label;
 					this.applyLifecycle({
 						type: 'init',
 						sessionId: typeof data.sessionId === 'string' ? data.sessionId : undefined,
