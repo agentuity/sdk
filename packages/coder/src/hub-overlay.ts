@@ -11,9 +11,11 @@ import {
 } from './hub-overlay-state.ts';
 import { truncateToWidth } from './renderers.ts';
 import type {
+	ConversationEntry as HubConversationEntry,
 	ReplayHistoryResponse as HubReplayResponse,
 	SessionListItem as HubSessionSummary,
 	SessionSnapshot as BaseHubSessionDetail,
+	SseHydrationMessage,
 } from './protocol.ts';
 
 interface Component {
@@ -1953,7 +1955,7 @@ export class HubOverlay implements Component, Focusable {
 
 	private applyHydration(sessionId: string, eventData: unknown): void {
 		if (!eventData || typeof eventData !== 'object') return;
-		const payload = eventData as Record<string, unknown>;
+		const payload = eventData as SseHydrationMessage;
 		const loadedFromProjection = this.replaceStreamProjection(
 			sessionId,
 			payload.stream as StreamProjection | undefined,
@@ -1963,7 +1965,7 @@ export class HubOverlay implements Component, Focusable {
 		if (!loadedFromProjection) {
 			const entries = Array.isArray(payload.entries)
 				? payload.entries.filter(
-						(entry): entry is ConversationEntryLike => !!entry && typeof entry === 'object'
+						(entry): entry is HubConversationEntry => !!entry && typeof entry === 'object'
 					)
 				: [];
 			this.replaceStreamProjection(sessionId, buildProjectionFromEntries(entries), 'hydration');

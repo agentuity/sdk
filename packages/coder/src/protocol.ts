@@ -504,6 +504,37 @@ export interface ReplayHistoryResponse {
 	entries: ReplayEntry[];
 }
 
+export type SseSessionSnapshotParticipant = SessionDetailParticipant;
+
+export interface SseHydrationTaskState {
+	taskId: string;
+	agent: string;
+	status: SessionTaskState['status'];
+	prompt: string;
+}
+
+export interface SseSessionSnapshotMessage {
+	type: 'snapshot';
+	sessionId: string;
+	label: string;
+	status: string;
+	createdAt: string;
+	mode: 'sandbox' | 'tui';
+	participants: SseSessionSnapshotParticipant[];
+	taskCount: number;
+	agentActivity: Record<string, SessionAgentActivity>;
+	stream?: SessionStreamProjection;
+}
+
+export interface SseHydrationMessage {
+	type: 'hydration';
+	sessionId: string;
+	entries: ConversationEntry[];
+	tasks: SseHydrationTaskState[];
+	stream?: SessionStreamProjection;
+	task?: string;
+}
+
 export interface RpcEventMessage {
 	type: 'rpc_event';
 	event: Record<string, unknown>;
@@ -530,6 +561,8 @@ export type ServerMessage =
 	| CoderHubSessionResumeMessage
 	| ConnectionRejectedMessage
 	| ProtocolErrorMessage
+	| SseSessionSnapshotMessage
+	| SseHydrationMessage
 	| PresenceEventMessage
 	| BroadcastEventMessage
 	| RpcEventMessage
