@@ -420,39 +420,59 @@ export interface SessionUsageSummary {
 	byAgent?: Record<string, SessionUsageAgentSummary>;
 }
 
-export interface SessionSnapshot {
+export interface SessionSnapshotCore {
 	sessionId: string;
 	label: string;
 	status: string;
 	createdAt: string;
 	mode: 'sandbox' | 'tui';
 	workflowMode: WorkflowMode;
-	loop?: SessionLoopState;
-	task?: string;
-	error?: string;
-	streamId: string | null;
-	streamUrl: string | null;
-	context: {
-		branch?: string;
-		workingDirectory?: string;
-	};
 	participants: SessionDetailParticipant[];
 	tasks: SessionTaskState[];
-	agentActivity: Record<string, SessionAgentActivity>;
-	stream?: SessionStreamProjection;
-	observed?: SessionObservedProjection;
-	usage: SessionUsageSummary;
-	product?: SessionProductProjection;
-	tags: string[];
-	skills: SessionSkillRef[];
-	defaultAgent?: string;
+	task?: string;
+	error?: string;
 	bucket: SessionBucket;
 	runtimeAvailable: boolean;
 	controlAvailable: boolean;
 	historyOnly: boolean;
+}
+
+export interface SessionSnapshotHistoryExtensions {
+	streamId: string | null;
+	streamUrl: string | null;
+}
+
+export interface SessionSnapshotWorkExtensions {
+	agentActivity: Record<string, SessionAgentActivity>;
+	stream?: SessionStreamProjection;
+	usage: SessionUsageSummary;
+}
+
+export interface SessionSnapshotWorkflowExtensions {
+	loop?: SessionLoopState;
+}
+
+export interface SessionSnapshotMetadataExtensions {
+	context: {
+		branch?: string;
+		workingDirectory?: string;
+	};
+	observed?: SessionObservedProjection;
+	product?: SessionProductProjection;
+	tags: string[];
+	skills: SessionSkillRef[];
+	defaultAgent?: string;
 	diagnostics?: SessionListDiagnostics;
 	workers?: SessionListItem[];
 }
+
+export interface SessionSnapshotExtensions
+	extends SessionSnapshotHistoryExtensions,
+		SessionSnapshotWorkExtensions,
+		SessionSnapshotWorkflowExtensions,
+		SessionSnapshotMetadataExtensions {}
+
+export interface SessionSnapshot extends SessionSnapshotCore, SessionSnapshotExtensions {}
 
 export interface CoderHubHydrationMessage {
 	type: 'session_hydration';
