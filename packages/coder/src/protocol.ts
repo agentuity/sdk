@@ -159,10 +159,15 @@ export interface PingMessage {
 	timestamp: number;
 }
 
+export interface BootstrapReadyMessage {
+	type: 'bootstrap_ready';
+}
+
 export type HubClientMessage =
 	| HubRequest
 	| SessionEntryMessage
 	| SessionWriteMessage
+	| BootstrapReadyMessage
 	| RpcCommandMessage
 	| RpcUiResponseMessage
 	| PingMessage;
@@ -195,6 +200,14 @@ export interface ConnectionRejectedMessage {
 	timestamp: number;
 }
 
+export interface ProtocolErrorMessage {
+	type: 'protocol_error';
+	code: string;
+	message: string;
+	sessionId?: string;
+	timestamp: number;
+}
+
 export interface ConversationEntry {
 	type:
 		| 'message'
@@ -219,15 +232,19 @@ export interface ConversationEntry {
 	timestamp: number;
 }
 
-export interface HydrationTaskState {
+export interface SessionTaskState {
 	taskId: string;
 	agent: string;
 	status: 'running' | 'completed' | 'failed';
 	prompt: string;
+	startedAt?: string;
+	completedAt?: string;
 	duration?: number;
 	result?: string;
 	error?: string;
 }
+
+export type HydrationTaskState = SessionTaskState;
 
 export interface SessionParticipant {
 	id: string;
@@ -262,15 +279,7 @@ export interface SessionSnapshot {
 		workingDirectory?: string;
 	};
 	participants: SessionParticipant[];
-	tasks: Array<{
-		taskId: string;
-		agent: string;
-		status: 'running' | 'completed' | 'failed';
-		prompt: string;
-		duration?: number;
-		startedAt?: string;
-		completedAt?: string;
-	}>;
+	tasks: SessionTaskState[];
 	agentActivity: Record<
 		string,
 		{
@@ -295,11 +304,13 @@ export interface SessionSnapshot {
 export interface CoderHubHydrationMessage {
 	type: 'session_hydration';
 	sessionId: string;
+	label?: string;
 	resumedAt: number;
 	entries: ConversationEntry[];
 	tasks: HydrationTaskState[];
 	stream?: SessionStreamProjection;
 	task?: string;
+	leadConnected?: boolean;
 	streamingState?: {
 		isStreaming?: boolean;
 		activeTasks?: Array<{
@@ -352,6 +363,7 @@ export type ServerMessage =
 	| CoderHubStreamReadyMessage
 	| CoderHubSessionResumeMessage
 	| ConnectionRejectedMessage
+	| ProtocolErrorMessage
 	| PresenceEventMessage
 	| BroadcastEventMessage
 	| RpcEventMessage
