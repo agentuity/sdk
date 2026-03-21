@@ -17,6 +17,9 @@ import type {
 	SessionEventHistoryResponse as HubEventHistoryResponse,
 	SessionListItem as HubSessionSummary,
 	SessionSnapshot as BaseHubSessionDetail,
+	SessionTodoItem as HubTodo,
+	SessionTodoListResponse as HubTodoListResponse,
+	SessionTodoSummary as HubTodoSummary,
 	SseHydrationMessage,
 } from './protocol.ts';
 
@@ -32,35 +35,6 @@ interface Focusable {
 
 interface TUIRef {
 	requestRender(): void;
-}
-
-interface HubTodoSummary {
-	open?: number;
-	in_progress?: number;
-	done?: number;
-	closed?: number;
-	cancelled?: number;
-}
-
-interface HubTodo {
-	id: string;
-	title: string;
-	status: string;
-	type?: string;
-	priority?: string;
-	parentTaskId?: string | null;
-	assignee?: string | null;
-	origin?: string | null;
-	attachmentCount?: number;
-}
-
-interface HubTodoListResponse {
-	ok?: boolean;
-	count?: number;
-	summary?: HubTodoSummary;
-	todos?: HubTodo[];
-	unavailable?: boolean;
-	message?: string;
 }
 
 type HubTask = BaseHubSessionDetail['tasks'][number];
@@ -410,7 +384,8 @@ export class HubOverlay implements Component, Focusable {
 
 	private sessions: HubSessionSummary[] = [];
 	private detail: HubSessionDetail | null = null;
-	private cachedTodos: { todos: any[]; summary: any; sessionId: string } | null = null;
+	private cachedTodos: { todos: HubTodo[]; summary?: HubTodoSummary; sessionId: string } | null =
+		null;
 	private feed: FeedEntry[] = [];
 	private sessionFeed = new Map<string, FeedEntry[]>();
 	private sessionHistoryFeed = new Map<string, FeedEntry[]>();
@@ -2602,7 +2577,13 @@ export class HubOverlay implements Component, Focusable {
 				);
 			} else {
 				const todos = session.todos ?? [];
-				const summary = session.todoSummary ?? {};
+				const summary: HubTodoSummary = session.todoSummary ?? {
+					open: 0,
+					in_progress: 0,
+					done: 0,
+					closed: 0,
+					cancelled: 0,
+				};
 				body.push(
 					this.contentLine(
 						this.theme.fg(
@@ -2639,9 +2620,11 @@ export class HubOverlay implements Component, Focusable {
 						const details = [
 							typeof todo.priority === 'string' ? `prio:${todo.priority}` : undefined,
 							typeof todo.type === 'string' ? `type:${todo.type}` : undefined,
-							typeof todo.assignee === 'string' && todo.assignee.length > 0
-								? `owner:${todo.assignee}`
-								: undefined,
+							typeof todo.assignee?.name === 'string' && todo.assignee.name.length > 0
+								? `owner:${todo.assignee.name}`
+								: typeof todo.assignee?.id === 'string' && todo.assignee.id.length > 0
+									? `owner:${todo.assignee.id}`
+									: undefined,
 							typeof todo.attachmentCount === 'number' && todo.attachmentCount > 0
 								? `att:${todo.attachmentCount}`
 								: undefined,

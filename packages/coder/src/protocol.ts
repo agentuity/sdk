@@ -606,6 +606,57 @@ export interface SessionParticipantsResponse {
 	participants: SessionParticipantHistoryItem[];
 }
 
+export interface SessionTodoSummary {
+	open: number;
+	in_progress: number;
+	done: number;
+	closed: number;
+	cancelled: number;
+}
+
+export interface SessionTodoAssignee {
+	id: string;
+	name: string;
+	type?: string;
+}
+
+export interface SessionTodoItem {
+	id: string;
+	title: string;
+	status: 'open' | 'in_progress' | 'done' | 'closed' | 'cancelled';
+	type?: string | null;
+	priority?: string | null;
+	parentTaskId?: string | null;
+	prdKey?: string | null;
+	externalRef?: string | null;
+	taskKey?: string | null;
+	origin?: string | null;
+	kind?: string | null;
+	assignee?: SessionTodoAssignee | null;
+	lastSessionId?: string | null;
+	sessionIds: string[];
+	tags: string[];
+	memoryKeys: string[];
+	memoryIds: string[];
+	touchedByAgents: string[];
+	lastTouchedByAgent?: string | null;
+	attachments: Array<Record<string, unknown>>;
+	attachmentCount: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface SessionTodoListResponse {
+	sessionId: string;
+	ok: boolean;
+	op: 'session_todo_list';
+	count: number;
+	summary: SessionTodoSummary;
+	todos: SessionTodoItem[];
+	unavailable?: boolean;
+	message?: string;
+}
+
 export type SseSessionSnapshotParticipant = SessionDetailParticipant;
 
 export interface SseHydrationTaskState {
