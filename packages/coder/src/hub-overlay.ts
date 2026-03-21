@@ -13,6 +13,8 @@ import { truncateToWidth } from './renderers.ts';
 import type {
 	ConversationEntry as HubConversationEntry,
 	ReplayHistoryResponse as HubReplayResponse,
+	SessionEventHistoryItem as HubEventHistoryItem,
+	SessionEventHistoryResponse as HubEventHistoryResponse,
 	SessionListItem as HubSessionSummary,
 	SessionSnapshot as BaseHubSessionDetail,
 	SseHydrationMessage,
@@ -73,22 +75,6 @@ interface HubListResponse {
 	sessions?: {
 		websocket?: HubSessionSummary[];
 	};
-}
-
-interface HubEventHistoryItem {
-	id: number;
-	event: string;
-	category?: string;
-	agent?: string;
-	taskId?: string;
-	payload?: unknown;
-	occurredAt: string;
-	ingestedAt?: string;
-}
-
-interface HubEventHistoryResponse {
-	sessionId: string;
-	events?: HubEventHistoryItem[];
 }
 
 interface FeedEntry {

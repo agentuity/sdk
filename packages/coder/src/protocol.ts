@@ -574,6 +574,22 @@ export interface ReplayHistoryResponse {
 	entries: ReplayEntry[];
 }
 
+export interface SessionEventHistoryItem {
+	id: number;
+	event: string;
+	category: string;
+	agent?: string;
+	taskId?: string;
+	payload: Record<string, unknown>;
+	occurredAt: string;
+	ingestedAt: string;
+}
+
+export interface SessionEventHistoryResponse {
+	sessionId: string;
+	events: SessionEventHistoryItem[];
+}
+
 export type SseSessionSnapshotParticipant = SessionDetailParticipant;
 
 export interface SseHydrationTaskState {
