@@ -223,10 +223,20 @@ export const execSubcommand = createCommand({
 					tui.error(`failed with exit code ${finalExecution.exitCode} in ${duration}ms`);
 				}
 				process.exitCode = finalExecution.exitCode;
-			} else if (!options.json && finalExecution.exitCode === undefined) {
-				tui.info(
-					`Execution ${tui.bold(finalExecution.executionId)} - Status: ${finalExecution.status}`
-				);
+			} else if (finalExecution.exitCode === undefined) {
+				const failStatuses = ['failed', 'error', 'timeout', 'killed'];
+				if (failStatuses.includes(finalExecution.status)) {
+					if (!options.json) {
+						tui.error(
+							`Execution ${tui.bold(finalExecution.executionId)} ${finalExecution.status} in ${duration}ms`
+						);
+					}
+					process.exitCode = 1;
+				} else if (!options.json) {
+					tui.info(
+						`Execution ${tui.bold(finalExecution.executionId)} - Status: ${finalExecution.status}`
+					);
+				}
 			}
 
 			return {

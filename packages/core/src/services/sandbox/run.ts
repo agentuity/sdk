@@ -244,11 +244,18 @@ export async function sandboxRun(
 				if (attempt < maxStatusRetries - 1) {
 					await new Promise((r) => setTimeout(r, Math.min(100 * Math.pow(2, attempt), 2000)));
 				}
-			} catch {
-				// Sandbox may already be destroyed (fire-and-forget teardown).
-				// Stream EOF already confirmed execution completed.
-				logger?.debug('sandboxGetStatus failed after stream EOF, using default exit code 0');
-				break;
+			} catch (err) {
+				// Transient failure (sandbox briefly unavailable, network error).
+				// Retry instead of giving up — the lifecycle event may still arrive.
+				logger?.debug(
+					'sandboxGetStatus attempt %d/%d failed: %s',
+					attempt + 1,
+					maxStatusRetries,
+					err
+				);
+				if (attempt < maxStatusRetries - 1) {
+					await new Promise((r) => setTimeout(r, Math.min(100 * Math.pow(2, attempt), 2000)));
+				}
 			}
 		}
 
