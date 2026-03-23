@@ -137,6 +137,8 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 
 	if (httpUrl.includes('/api/ws')) {
 		httpUrl = httpUrl.replace('/api/ws', '/api/hub/init');
+	} else if (/\/ws\b/.test(httpUrl)) {
+		httpUrl = httpUrl.replace(/\/ws\b/, '/api/hub/init');
 	} else {
 		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/init');
 	}
@@ -151,6 +153,7 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 function getHubHttpBaseUrl(hubUrl: string): string {
 	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 	httpUrl = httpUrl.replace(/\/api\/ws\b.*$/, '');
+	httpUrl = httpUrl.replace(/\/ws\b.*$/, '');
 	return httpUrl.replace(/\/+$/, '');
 }
 
