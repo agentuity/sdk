@@ -1,6 +1,5 @@
-import type { LogLevel } from '@agentuity/core';
+import type { LogLevel, Logger } from '@agentuity/core';
 import { __originalConsole } from '../logger';
-import type { Logger } from './logger';
 import { formatMessage } from './util';
 
 const BOLD = '\x1b[1m';

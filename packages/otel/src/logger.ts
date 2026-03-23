@@ -1,8 +1,7 @@
 import { format } from 'node:util';
-import { safeStringify, type LogLevel } from '@agentuity/core';
+import { safeStringify, type LogLevel, type Logger } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
-import type { Logger } from './logger/logger';
-export type { Logger } from './logger/logger';
+export type { Logger } from '@agentuity/core';
 import ConsoleLogger from './logger/console';
 
 /**

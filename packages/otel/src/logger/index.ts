@@ -1,2 +1,3 @@
 export { internal } from './internal';
-export { type Logger, logger } from './user';
+export type { Logger } from '@agentuity/core';
+export { logger } from './user';
