@@ -66,7 +66,11 @@ export class ValidationError extends Error {
 			.map((issue) => {
 				const path = issue.path
 					? `[${issue.path
-							.map((p) => (typeof p === 'object' ? (p as any).key : p))
+							.map((p) =>
+								typeof p === 'object' && p !== null && 'key' in p
+									? String((p as { key: PropertyKey }).key)
+									: String(p)
+							)
 							.join('.')}]`
 					: '';
 				return path ? `${path}: ${issue.message}` : issue.message;

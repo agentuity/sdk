@@ -855,7 +855,7 @@ export function useAPI(routeOrOptions: unknown): any {
 
 						// Track accumulated chunks locally to avoid stale closure
 						const accumulatedChunks: any[] = [];
-						let streamError: any;
+						let streamError: Error | undefined;
 
 						const success = await processStream<any>(response.body, {
 							delimiter: delimiterRef.current,

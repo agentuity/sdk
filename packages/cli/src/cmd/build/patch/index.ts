@@ -61,7 +61,7 @@ export async function applyPatch(
 				fnprefix = 'async ';
 			}
 			if (isExport) {
-				fnprefix += `export ${fnprefix}`;
+				fnprefix = `export ${fnprefix}`;
 			}
 			contents = contents.replace(fnname, newfnname);
 			if (isJS) {
