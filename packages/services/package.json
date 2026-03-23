@@ -27,7 +27,16 @@
 		"@agentuity/server": "workspace:*",
 		"@opentelemetry/api": "^1.9.0"
 	},
+	"peerDependencies": {
+		"@agentuity/local": "workspace:*"
+	},
+	"peerDependenciesMeta": {
+		"@agentuity/local": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
+		"@agentuity/local": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

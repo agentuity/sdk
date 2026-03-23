@@ -8,5 +8,5 @@
 		"types": ["bun-types"]
 	},
 	"include": ["src/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../server" }]
+	"references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../local" }]
 }
