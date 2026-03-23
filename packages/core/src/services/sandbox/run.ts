@@ -224,20 +224,32 @@ export async function sandboxRun(
 		logger?.debug('streams completed, fetching final status');
 
 		// Stream EOF means the sandbox is done — hadron only closes streams after the
-		// container exits. Fetch status once for the exit code; if lifecycle events
-		// haven't propagated to Catalyst yet, default to exit code 0.
+		// container exits. Poll for the exit code with retries because the lifecycle
+		// event (carrying the exit code) may still be in flight to Catalyst when the
+		// stream completes. Without retries, exitCode defaults to 0 and the CLI
+		// incorrectly reports success for failed sandboxes.
 		let exitCode = 0;
-		try {
-			const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
-			if (sandboxStatus.exitCode != null) {
-				exitCode = sandboxStatus.exitCode;
-			} else if (sandboxStatus.status === 'failed') {
-				exitCode = 1;
+		const maxStatusRetries = 5;
+		for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
+			try {
+				const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
+				if (sandboxStatus.exitCode != null) {
+					exitCode = sandboxStatus.exitCode;
+					break;
+				} else if (sandboxStatus.status === 'failed') {
+					exitCode = 1;
+					break;
+				}
+				// Exit code not yet propagated — wait briefly and retry.
+				if (attempt < maxStatusRetries - 1) {
+					await new Promise((r) => setTimeout(r, 250));
+				}
+			} catch {
+				// Sandbox may already be destroyed (fire-and-forget teardown).
+				// Stream EOF already confirmed execution completed.
+				logger?.debug('sandboxGetStatus failed after stream EOF, using default exit code 0');
+				break;
 			}
-		} catch {
-			// Sandbox may already be destroyed (fire-and-forget teardown).
-			// Stream EOF already confirmed execution completed.
-			logger?.debug('sandboxGetStatus failed after stream EOF, using default exit code 0');
 		}
 
 		if (timingLogsEnabled)

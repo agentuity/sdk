@@ -325,7 +325,9 @@ async function main() {
 	closeDatabase();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
-	exit(0);
+	// Preserve process.exitCode set by command handlers (e.g., sandbox run/exec
+	// propagate the sandbox process's exit code). Default to 0 for success.
+	exit(process.exitCode ?? 0);
 }
 
 try {

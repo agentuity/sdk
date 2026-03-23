@@ -218,16 +218,15 @@ export const execSubcommand = createCommand({
 			const stderrOutput =
 				!isCombinedOutput && stderrStreamUrl ? stderrChunks.join('') : undefined;
 
-			if (!options.json) {
-				if (finalExecution.exitCode === 0) {
-					// no op
-				} else if (finalExecution.exitCode !== undefined) {
+			if (finalExecution.exitCode !== undefined && finalExecution.exitCode !== 0) {
+				if (!options.json) {
 					tui.error(`failed with exit code ${finalExecution.exitCode} in ${duration}ms`);
-				} else {
-					tui.info(
-						`Execution ${tui.bold(finalExecution.executionId)} - Status: ${finalExecution.status}`
-					);
 				}
+				process.exitCode = finalExecution.exitCode;
+			} else if (!options.json && finalExecution.exitCode === undefined) {
+				tui.info(
+					`Execution ${tui.bold(finalExecution.executionId)} - Status: ${finalExecution.status}`
+				);
 			}
 
 			return {
