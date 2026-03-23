@@ -55,8 +55,8 @@ function normalizeToHttp(url: string): string {
 	let normalized = url.trim().replace(/\/+$/, '');
 
 	// ws:// -> http://
-	if (normalized.startsWith('ws://')) normalized = 'http://' + normalized.slice(5);
-	else if (normalized.startsWith('wss://')) normalized = 'https://' + normalized.slice(6);
+	if (normalized.startsWith('ws://')) normalized = `http://${normalized.slice(5)}`;
+	else if (normalized.startsWith('wss://')) normalized = `https://${normalized.slice(6)}`;
 
 	// Strip known Hub transport/helper paths to get the HTTP base URL.
 	// Accept `/ws` as a convenience alias because users often copy the raw route name.
@@ -72,8 +72,8 @@ function normalizeToHttp(url: string): string {
  */
 function normalizeToWs(httpUrl: string): string {
 	let wsUrl = httpUrl;
-	if (wsUrl.startsWith('http://')) wsUrl = 'ws://' + wsUrl.slice(7);
-	else if (wsUrl.startsWith('https://')) wsUrl = 'wss://' + wsUrl.slice(8);
+	if (wsUrl.startsWith('http://')) wsUrl = `ws://${wsUrl.slice(7)}`;
+	else if (wsUrl.startsWith('https://')) wsUrl = `wss://${wsUrl.slice(8)}`;
 
 	try {
 		const parsed = new URL(wsUrl);

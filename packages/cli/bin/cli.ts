@@ -119,7 +119,6 @@ if (
 	const commands = await discoverCommands();
 	const cliSchema = generateCLISchema(program, commands, version);
 	console.log(JSON.stringify(cliSchema, null, 2));
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	closeDatabase();
 	exit(0);
@@ -134,7 +133,6 @@ if (preprocessedArgs.includes('--ai-help')) {
 	const cliSchema = generateCLISchema(program, commands, version);
 	const aiHelp = generateAIHelp(cliSchema);
 	console.log(aiHelp);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	closeDatabase();
 	exit(0);
@@ -312,7 +310,6 @@ async function main() {
 
 	// Generate and store CLI schema globally for the schema command
 	const cliSchema = generateCLISchema(program, commands, version);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(global as any).__CLI_SCHEMA__ = cliSchema;
 
 	await registerCommands(program, commands, ctx as unknown as CommandContext);
@@ -323,7 +320,6 @@ async function main() {
 	// (e.g., after confirm() calls resume()/setRawMode()), and Bun does not
 	// support process.stdin.unref(), so we must explicitly exit.
 	closeDatabase();
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	exit(0);
 }
@@ -331,7 +327,6 @@ async function main() {
 try {
 	await main();
 } catch (error) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	// Don't log error if it's from Ctrl+C, user cancellation, or signal termination
 	if (error instanceof Error) {

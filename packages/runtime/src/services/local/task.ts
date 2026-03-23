@@ -705,7 +705,7 @@ export class LocalTaskStorage implements TaskStorage {
 		const offset = params?.offset ?? 0;
 
 		const totalQuery = this.#db.query(
-			`SELECT COUNT(*) as count FROM task_changelog_storage WHERE project_path = ? AND task_id = ?`
+			'SELECT COUNT(*) as count FROM task_changelog_storage WHERE project_path = ? AND task_id = ?'
 		);
 		const totalRow = totalQuery.get(this.#projectPath, id) as { count: number };
 
@@ -957,7 +957,7 @@ export class LocalTaskStorage implements TaskStorage {
 		const offset = params?.offset ?? 0;
 
 		const totalQuery = this.#db.query(
-			`SELECT COUNT(*) as count FROM task_comment_storage WHERE project_path = ? AND task_id = ?`
+			'SELECT COUNT(*) as count FROM task_comment_storage WHERE project_path = ? AND task_id = ?'
 		);
 		const totalRow = totalQuery.get(this.#projectPath, taskId) as { count: number };
 

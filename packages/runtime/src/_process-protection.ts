@@ -11,12 +11,10 @@ import { StructuredError } from '@agentuity/core';
 // This is critical for hot reload scenarios where this module may be re-imported
 // multiple times. We must capture the truly original process.exit, not a previously
 // wrapped version.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const existingOriginalExit = (globalThis as any).__AGENTUITY_ORIGINAL_PROCESS_EXIT__;
 const originalExit: (code?: number) => never = existingOriginalExit ?? process.exit.bind(process);
 // Store it globally so subsequent imports get the same original
 if (!existingOriginalExit) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_ORIGINAL_PROCESS_EXIT__ = originalExit;
 }
 
@@ -41,11 +39,9 @@ export function enableProcessExitProtection(): void {
 
 	protectionEnabled = true;
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).AGENTUITY_PROCESS_EXIT = originalExit;
 
 	// Replace process.exit with a function that throws
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(process as any).exit = (code?: number | string | null | undefined): never => {
 		throw new ProcessExitAttemptError({ code });
 	};
@@ -59,7 +55,6 @@ export function disableProcessExitProtection(): void {
 		return;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).AGENTUITY_PROCESS_EXIT = undefined;
 
 	protectionEnabled = false;

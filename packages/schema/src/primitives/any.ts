@@ -3,7 +3,6 @@ import { success, createParseMethods, SCHEMA_KIND } from '../base.ts';
 import { optional } from '../utils/optional.ts';
 import { nullable } from '../utils/nullable.ts';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseMethods = createParseMethods<any>();
 
 /**
@@ -21,7 +20,6 @@ const parseMethods = createParseMethods<any>();
  * value.toUpperCase(); // No error, but may fail at runtime
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class AnySchema implements Schema<any, any> {
 	readonly [SCHEMA_KIND] = 'AnySchema';
 	description?: string;
@@ -29,9 +27,7 @@ export class AnySchema implements Schema<any, any> {
 	readonly '~standard' = {
 		version: 1 as const,
 		vendor: 'agentuity',
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		validate: (value: unknown) => success(value as any),
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		types: undefined as unknown as { input: any; output: any },
 	};
 

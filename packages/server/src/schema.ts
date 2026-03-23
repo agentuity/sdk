@@ -13,7 +13,6 @@ import {
  * @param schema - The schema to convert
  * @param options - Conversion options (only applies to Agentuity schemas)
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const toJSONSchema = (schema: any, options?: ToJSONSchemaOptions): JSONSchema => {
 	// Check if it's an Agentuity schema via StandardSchemaV1 vendor
 	if (schema?.['~standard']?.vendor === 'agentuity') {

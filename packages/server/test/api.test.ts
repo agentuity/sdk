@@ -25,7 +25,6 @@ describe('APIClient', () => {
 		const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
 
 		await client.request('GET', '/endpoint');
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		expect(globalThis.fetch as any).toHaveBeenCalled();
 	});
 

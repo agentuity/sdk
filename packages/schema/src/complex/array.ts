@@ -20,7 +20,6 @@ import { nullable } from '../utils/nullable.ts';
  * }));
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class ArraySchema<T extends Schema<any, any>>
 	implements Schema<Array<Infer<T>>, Array<Infer<T>>>
 {
@@ -103,7 +102,6 @@ export class ArraySchema<T extends Schema<any, any>>
  * }));
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function array<T extends Schema<any, any>>(itemSchema: T): ArraySchema<T> {
 	return new ArraySchema(itemSchema);
 }

@@ -71,7 +71,7 @@ export const getSubcommand = createCommand({
 				if (data.document) {
 					details.Document =
 						data.document.length > 200
-							? data.document.substring(0, 197) + '...'
+							? `${data.document.substring(0, 197)}...`
 							: data.document;
 				}
 

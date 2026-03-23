@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { StandardSchemaV1, InferInput, InferOutput } from '@agentuity/core';
 
 /**

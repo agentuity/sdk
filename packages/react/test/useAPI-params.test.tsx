@@ -7,11 +7,8 @@ import { AgentuityProvider } from '../src/context';
 import { useAPI } from '../src/api';
 
 // Define schemas for testing
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const userOutput = s.object({ userId: s.string(), name: s.string() });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const memberOutput = s.object({ orgId: s.string(), memberId: s.string() });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const searchOutput = s.object({ query: s.string(), limit: s.number() });
 
 // Extend RouteRegistry for testing

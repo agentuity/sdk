@@ -166,7 +166,7 @@ export const listSubcommand = createSubcommand({
 					Success: s.success ? '✓' : '✗',
 					Duration: s.duration ? `${(s.duration / 1_000_000).toFixed(0)}ms` : '-',
 					Method: s.method ?? '-',
-					Path: urlPath.length > 50 ? urlPath.substring(0, 47) + '...' : urlPath,
+					Path: urlPath.length > 50 ? `${urlPath.substring(0, 47)}...` : urlPath,
 					Trigger: s.trigger,
 					Env: s.env,
 				};

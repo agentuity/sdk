@@ -71,7 +71,6 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'app',
 ] as const;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function installContextPropertyHelpers(c: any): void {
 	for (const property of AGENT_CONTEXT_PROPERTIES) {
 		if (Object.hasOwn(c, property)) {
@@ -83,7 +82,7 @@ function installContextPropertyHelpers(c: any): void {
 				throw new Error(
 					`In route handlers, use c.var.${property} instead of c.${property}. ` +
 						`The property '${property}' is available on AgentContext (for agent handlers) ` +
-						`but must be accessed via c.var in HonoContext (route handlers).`
+						'but must be accessed via c.var in HonoContext (route handlers).'
 				);
 			},
 			configurable: true,
@@ -103,7 +102,6 @@ export interface MiddlewareConfig {
  * Create base middleware that sets up context variables
  */
 export function createBaseMiddleware(config: MiddlewareConfig) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		c.set('logger', config.logger);
 		c.set('tracer', config.tracer);
@@ -199,7 +197,6 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
  * ```
  */
 export function createCorsMiddleware(staticOptions?: CorsConfig) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Lazy resolve: merge app config with static options
 		const appConfig = getAppConfig();
@@ -284,7 +281,6 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
  * This is the critical middleware that creates AgentContext
  */
 export function createOtelMiddleware() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Skip thread/session setup entirely for lightweight endpoints
 		if (OTEL_FULL_SKIP_PATHS.has(c.req.path)) {
@@ -359,12 +355,9 @@ export function createOtelMiddleware() {
 					c.set('sessionId', sessionId);
 					c.set('thread', thread);
 					c.set('session', session);
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('waitUntilHandler', handler);
 					const agentIds = new Set<string>();
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('agentIds', agentIds);
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('trigger', isWsUpgrade ? 'websocket' : 'api');
 
 					// Send session start event (so evalruns can reference this session)
@@ -452,7 +445,6 @@ export function createOtelMiddleware() {
 									'[session] sending session complete event, userData: %s',
 									userData ? `${userData.length} bytes` : 'none'
 								);
-								// eslint-disable-next-line @typescript-eslint/no-explicit-any
 								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
 								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
 								internal.info('[session] agentIds: %o', agentIds);
@@ -506,20 +498,16 @@ export function createOtelMiddleware() {
 						);
 
 						// Check if this is a streaming response that needs deferred finalization
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const streamDone = (c as any).get(STREAM_DONE_PROMISE_KEY) as
 							| Promise<void>
 							| undefined;
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
 
 						// Check if this is a WebSocket response that needs deferred finalization
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as Promise<void> | undefined;
 
 						// Check if Hono caught an error (c.error is set by Hono's error handler)
 						// or if the response status indicates an error
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const honoError = (c as any).error as Error | undefined;
 						responseStatus = c.res?.status ?? 200;
 						const isError = honoError || responseStatus >= 500;
@@ -587,7 +575,7 @@ export function createOtelMiddleware() {
 							// track the streaming finalization work in telemetry
 							handler.waitUntil(async () => {
 								// Track if stream ended with error so we can update finalization status
-								let streamError: unknown = undefined;
+								let streamError: unknown;
 
 								try {
 									await streamDone;
@@ -720,7 +708,7 @@ export function createOtelMiddleware() {
 
 							// Use waitUntil to handle WebSocket close and finalization
 							handler.waitUntil(async () => {
-								let wsError: unknown = undefined;
+								let wsError: unknown;
 
 								try {
 									await wsDone;
@@ -1049,7 +1037,6 @@ export function createCompressionMiddleware(
 	 */
 	configResolver?: () => { compression?: CompressionConfig | false } | undefined
 ) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Lazy resolve: merge app config with static config
 		const appConfig = configResolver ? configResolver() : getAppConfig();
@@ -1115,7 +1102,6 @@ export function createCompressionMiddleware(
  * - Thread cookie (atid_a): Analytics-readable copy, 1-week expiry
  */
 export function createWebSessionMiddleware() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider } = await import('./_services');

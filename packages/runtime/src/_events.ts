@@ -7,7 +7,6 @@ import type { Agent, AgentContext } from './agent';
 import type { Session, Thread } from './session';
 import { internal } from './logger/internal';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // Note: Generic event system requires 'any' for proper type inference with unknown app states
 
 export type AppEventMap<TAppState = Record<string, never>> = {

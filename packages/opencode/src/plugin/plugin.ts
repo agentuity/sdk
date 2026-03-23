@@ -840,7 +840,7 @@ function getCurrentActivity(reader: OpenCodeDBReader, sessionId: string): string
 	const firstPart = textParts[0];
 	if (firstPart) {
 		const text = firstPart.text.trim();
-		if (text.length > 80) return text.substring(0, 77) + '...';
+		if (text.length > 80) return `${text.substring(0, 77)}...`;
 		return text;
 	}
 

@@ -34,7 +34,6 @@ export class CoerceDateSchema implements Schema<unknown, Date> {
 			}
 
 			// Coerce to Date
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const coerced = new Date(value as any);
 			if (Number.isNaN(coerced.getTime())) {
 				return failure([createIssue(`Cannot coerce ${typeof value} to date`)]);

@@ -132,7 +132,6 @@ export function createAuthClient<TPlugins extends BetterAuthClientPlugin[] = []>
 		baseURL,
 		basePath,
 		plugins: [...defaultPlugins, ...userPlugins] as BetterAuthClientPlugin[],
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	}) as any;
 }
 

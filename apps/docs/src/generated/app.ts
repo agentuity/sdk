@@ -115,7 +115,6 @@ if (!isDevelopment()) {
 	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
 		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
@@ -192,12 +191,10 @@ if (isDevelopment() && process.env.VITE_PORT) {
 
 	// HMR WebSocket proxy - enables hot reload through tunnels (*.agentuity.live)
 	// This proxies the Vite HMR WebSocket connection from the Bun server to Vite
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const viteHmrWebsocket = (globalThis as any).__AGENTUITY_VITE_HMR_WEBSOCKET__ = {
 		// Map of client WebSocket -> Vite WebSocket
 		connections: new Map<WebSocket, WebSocket>(),
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		open(clientWs: any) {
 			// Get the query string from ws.data (set during upgrade)
 			const queryString = clientWs.data?.queryString || '';
@@ -257,7 +254,6 @@ if (isDevelopment() && process.env.VITE_PORT) {
 		if (upgradeHeader?.toLowerCase() === 'websocket') {
 			// Get the Bun server from context using Hono's pattern
 			// When app.fetch(req, server) is called, Hono stores server as c.env
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const server = 'server' in (c.env as any) ? (c.env as any).server : c.env;
 
 			if (server?.upgrade) {
@@ -524,11 +520,9 @@ if (typeof Bun !== 'undefined') {
 	const port = parseInt(process.env.PORT || '3500', 10);
 
 	// Create custom WebSocket handler that supports both regular WebSockets and HMR proxy
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const hmrHandler = (globalThis as any).__AGENTUITY_VITE_HMR_WEBSOCKET__;
 	const customWebsocket = {
 		...websocket,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		open(ws: any) {
 			// Check if this is an HMR connection
 			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
@@ -537,7 +531,6 @@ if (typeof Bun !== 'undefined') {
 				websocket.open(ws);
 			}
 		},
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		message(ws: any, message: string | Buffer) {
 			// Check if this is an HMR connection
 			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
@@ -546,7 +539,6 @@ if (typeof Bun !== 'undefined') {
 				websocket.message(ws, message);
 			}
 		},
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		close(ws: any, code?: number, reason?: string) {
 			// Check if this is an HMR connection
 			if (ws.data?.type === 'vite-hmr' && hmrHandler) {
@@ -570,7 +562,6 @@ if (typeof Bun !== 'undefined') {
 	});
 	
 	// Make server available globally for health checks
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(`Server listening on http://127.0.0.1:${port}`);

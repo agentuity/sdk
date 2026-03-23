@@ -170,7 +170,6 @@ export class ConsoleLogger implements Logger {
 
 	private formatMessage(message: unknown, args: unknown[]): string {
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const base = format(message as any, ...(args as any[]));
 
 			if (!this.context || Object.keys(this.context).length === 0) {

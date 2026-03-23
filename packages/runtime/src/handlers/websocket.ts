@@ -119,7 +119,6 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 			donePromise.catch(() => {});
 
 			// Set on context so middleware defers session finalization until WS closes
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(c as any).set(WS_DONE_PROMISE_KEY, donePromise);
 		}
 
@@ -156,7 +155,6 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 		runHandler();
 
 		return {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			onOpen: async (event: Event, ws: any) => {
 				try {
 					wsConnection.send = (data) => ws.send(data);
@@ -176,7 +174,6 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 					throw err;
 				}
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			onMessage: async (event: MessageEvent, ws: any) => {
 				try {
 					if (!initialized) {
@@ -198,7 +195,6 @@ export function websocket<E extends Env = Env>(handler: WebSocketHandler<E>): Mi
 					throw err;
 				}
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			onClose: async (event: CloseEvent, _ws: any) => {
 				try {
 					if (closeHandler) {

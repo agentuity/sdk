@@ -15,8 +15,8 @@ import { test } from '@test/suite';
 import { assert, assertEqual, uniqueId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated, PROJECT_DIR } from '@test/helpers/cli';
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Track all env vars created during tests for cleanup
 const createdEnvVars: string[] = [];
@@ -58,7 +58,7 @@ function writeEnvFile(filePath: string, env: Record<string, string>): void {
 	for (const [key, value] of Object.entries(env).sort()) {
 		lines.push(`${key}=${value}`);
 	}
-	writeFileSync(filePath, lines.join('\n') + '\n');
+	writeFileSync(filePath, `${lines.join('\n')}\n`);
 }
 
 // Helper to backup and restore .env file

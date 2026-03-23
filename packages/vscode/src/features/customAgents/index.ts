@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import * as path from 'node:path';
 
 const AGENTUITY_DEVELOPER_AGENT = `---
 name: Agentuity Developer

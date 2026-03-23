@@ -10,7 +10,6 @@ import type { Tracer } from '@opentelemetry/api';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { TokenSpanProcessor } from './_tokens';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let globalRouterInstance: Hono<Env<any>> | null = null;
 let globalLogger: Logger | null = null;
 let globalTracer: Tracer | null = null;
@@ -42,7 +41,6 @@ export function getRouter() {
 	return globalRouterInstance;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function setGlobalRouter(router: Hono<Env<any>>) {
 	globalRouterInstance = router;
 }

@@ -3,7 +3,6 @@ import { createIssue, failure, createParseMethods, SCHEMA_KIND } from '../base.t
 import { optional } from '../utils/optional.ts';
 import { nullable } from '../utils/nullable.ts';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type InferUnion<T extends Schema<any, any>[]> = Infer<T[number]>;
 
 /**
@@ -25,7 +24,6 @@ type InferUnion<T extends Schema<any, any>[]> = Infer<T[number]>;
  * );
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class UnionSchema<T extends Schema<any, any>[]>
 	implements Schema<InferUnion<T>, InferUnion<T>>
 {
@@ -50,7 +48,6 @@ export class UnionSchema<T extends Schema<any, any>[]>
 				}
 
 				if (!result.issues) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					return result as any;
 				}
 				allIssues.push(...result.issues);
@@ -98,7 +95,6 @@ export class UnionSchema<T extends Schema<any, any>[]>
  * );
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function union<T extends Schema<any, any>[]>(...schemas: T): UnionSchema<T> {
 	return new UnionSchema(schemas);
 }

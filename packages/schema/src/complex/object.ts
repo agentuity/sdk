@@ -3,11 +3,9 @@ import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '
 import { optional, OptionalSchema } from '../utils/optional.ts';
 import { nullable } from '../utils/nullable.ts';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ObjectShape = Record<string, Schema<any, any>>;
 
 // Helper to check if a schema is optional
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type IsOptional<T> = T extends OptionalSchema<any> ? true : false;
 
 // Split required and optional keys
@@ -84,7 +82,6 @@ export class ObjectSchema<T extends ObjectShape>
 				return failure([createIssue(`Expected object, got ${typeof value}`)]);
 			}
 
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result: Record<string, any> = {};
 			const issues: ReturnType<typeof createIssue>[] = [];
 

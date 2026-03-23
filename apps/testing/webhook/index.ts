@@ -28,7 +28,7 @@ async function main() {
 	// ============================================================
 	// Test 2: Add a destination to the webhook
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 2: Add a destination to the webhook');
 	console.log('═'.repeat(60));
 
@@ -42,7 +42,7 @@ async function main() {
 	// ============================================================
 	// Test 3: Create another webhook with a destination
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 3: Create another webhook');
 	console.log('═'.repeat(60));
 
@@ -62,7 +62,7 @@ async function main() {
 	// ============================================================
 	// Test 4: Create a webhook for monitoring
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 4: Create a monitoring webhook');
 	console.log('═'.repeat(60));
 
@@ -85,7 +85,7 @@ async function main() {
 	});
 	console.log('   ✅ Destination 2 added');
 
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('✨ Webhook test completed successfully!');
 	console.log('═'.repeat(60));
 }

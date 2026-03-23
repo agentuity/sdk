@@ -65,7 +65,6 @@ export function webrtc<E extends Env = Env>(options?: WebRTCOptions): Middleware
 		const capturedContext = asyncLocalStorage.getStore();
 
 		return {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			onOpen: (_event: Event, ws: any) => {
 				otelContext.with(ROOT_CONTEXT, () => {
 					if (capturedContext) {
@@ -87,7 +86,6 @@ export function webrtc<E extends Env = Env>(options?: WebRTCOptions): Middleware
 					}
 				});
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			onMessage: (event: MessageEvent, _ws: any) => {
 				if (currentWs) {
 					otelContext.with(ROOT_CONTEXT, () => {
@@ -101,7 +99,6 @@ export function webrtc<E extends Env = Env>(options?: WebRTCOptions): Middleware
 					});
 				}
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			onClose: (_event: CloseEvent, _ws: any) => {
 				if (currentWs) {
 					otelContext.with(ROOT_CONTEXT, () => {

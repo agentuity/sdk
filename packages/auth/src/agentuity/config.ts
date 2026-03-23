@@ -322,7 +322,6 @@ export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
  * @param apiKeyOptions - API key plugin options, or false to disable
  */
 export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const plugins: any[] = [
 		organization(),
 		jwt({

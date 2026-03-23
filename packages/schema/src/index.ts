@@ -164,7 +164,6 @@ export const s = {
  * type User = s.infer<typeof User>;
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace s {
 	/**
 	 * Extract the TypeScript type from a schema (like zod's z.infer).
@@ -178,6 +177,5 @@ export namespace s {
 	 * // { username: string; xp: number }
 	 * ```
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	export type infer<T extends Schema<any, any>> = InferType<T>;
 }

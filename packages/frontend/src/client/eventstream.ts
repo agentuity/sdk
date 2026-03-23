@@ -25,17 +25,14 @@ export function createEventStreamClient(
 	};
 
 	// Set up native EventSource event listeners
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	eventSource.onmessage = (event: any) => {
 		handlers.message.forEach((handler) => handler(event));
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	eventSource.onopen = (event: any) => {
 		handlers.open.forEach((handler) => handler(event));
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	eventSource.onerror = (event: any) => {
 		handlers.error.forEach((handler) => handler(event));
 	};

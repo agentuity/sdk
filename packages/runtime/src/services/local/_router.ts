@@ -1,7 +1,6 @@
 import type { Database } from 'bun:sqlite';
 import { createRouter } from '../../router';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createLocalStorageRouter(db: Database, projectPath: string): any {
 	const router = createRouter();
 

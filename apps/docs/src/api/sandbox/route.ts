@@ -35,6 +35,7 @@ const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
 
 // ANSI escape sequence regex for stripping terminal colors
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
 
 function cleanOutput(content: string): string {

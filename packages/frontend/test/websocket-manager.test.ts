@@ -60,7 +60,6 @@ describe('WebSocketManager', () => {
 
 	beforeEach(() => {
 		originalWebSocket = globalThis.WebSocket;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).WebSocket = MockWebSocket;
 		MockWebSocket.instances = [];
 	});

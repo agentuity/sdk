@@ -15,7 +15,6 @@ import { success, createParseMethods, SCHEMA_KIND } from '../base.ts';
  * schema.parse(123); // throws ValidationError
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class OptionalSchema<T extends Schema<any, any>>
 	implements Schema<Infer<T> | undefined, Infer<T> | undefined>
 {
@@ -53,7 +52,6 @@ export class OptionalSchema<T extends Schema<any, any>>
 
 	nullable(): Schema<Infer<T> | undefined | null, Infer<T> | undefined | null> {
 		// Import here to avoid circular dependency
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const { nullable } = require('./nullable.js');
 		return nullable(this);
 	}
@@ -75,7 +73,6 @@ export class OptionalSchema<T extends Schema<any, any>>
  * });
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function optional<T extends Schema<any, any>>(schema: T): OptionalSchema<T> {
 	return new OptionalSchema(schema);
 }

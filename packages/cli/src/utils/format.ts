@@ -4,7 +4,7 @@
 export function abbreviate(str: string | null | undefined, maxLength = 8): string {
 	if (!str) return 'N/A';
 	if (str.length <= maxLength) return str;
-	return str.slice(0, maxLength) + '...';
+	return `${str.slice(0, maxLength)}...`;
 }
 
 /**
@@ -13,5 +13,5 @@ export function abbreviate(str: string | null | undefined, maxLength = 8): strin
 export function abbreviateDescription(str: string | null | undefined, maxLength = 40): string {
 	if (!str) return 'N/A';
 	if (str.length <= maxLength) return str;
-	return str.slice(0, maxLength) + '...';
+	return `${str.slice(0, maxLength)}...`;
 }

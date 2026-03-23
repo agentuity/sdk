@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { join } from 'path';
+import { join } from 'node:path';
 
 /**
  * Tests for dev server bundle loading behavior.

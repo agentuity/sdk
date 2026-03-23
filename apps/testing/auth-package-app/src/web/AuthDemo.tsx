@@ -300,7 +300,6 @@ export function ApiKeyManager() {
 		setCreatedKey(null);
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result = (await (createKey as any)({ name: newKeyName || 'default-key' })) as ApiKey;
 			if (result?.key) {
 				setCreatedKey(result.key);
@@ -519,7 +518,6 @@ export function OrganizationManager() {
 		}
 
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			await (createOrg as any)({ name: newOrgName, slug: newOrgSlug });
 			setSuccess(`Organization "${newOrgName}" created!`);
 			setNewOrgName('');

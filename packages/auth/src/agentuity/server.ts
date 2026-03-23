@@ -171,7 +171,7 @@ function buildAuthInterface(
 	authMethod: AuthMethod,
 	apiKeyContext: AuthApiKeyContext | null
 ): AuthInterface<AuthUser> {
-	let cachedFullOrg: AuthOrgContext | null | undefined = undefined;
+	let cachedFullOrg: AuthOrgContext | null | undefined;
 	const permissions = apiKeyContext?.permissions ?? null;
 
 	return {

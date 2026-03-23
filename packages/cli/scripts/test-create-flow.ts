@@ -218,7 +218,7 @@ async function linkLocalPackages(): Promise<boolean> {
 		packageJson.overrides[pkgName] = `file:${packagePaths[i]}`;
 	}
 
-	await Bun.write(packageJsonPath, JSON.stringify(packageJson, null, '\t') + '\n');
+	await Bun.write(packageJsonPath, `${JSON.stringify(packageJson, null, '\t')}\n`);
 
 	// Install other dependencies first
 	await Bun.$`bun install`.cwd(TEST_PROJECT_PATH);

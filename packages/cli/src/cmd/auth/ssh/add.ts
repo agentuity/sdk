@@ -3,9 +3,9 @@ import { addSSHKey, computeSSHKeyFingerprint, listSSHKeys } from './api';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import enquirer from 'enquirer';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { z } from 'zod';
 import { ErrorCode } from '../../../errors';
 
@@ -75,10 +75,7 @@ function discoverSSHKeys(): SSHKeyOption[] {
 					fingerprint,
 					comment,
 				});
-			} catch {
-				// Skip invalid keys
-				continue;
-			}
+			} catch {}
 		}
 	} catch {
 		// If we can't read ~/.ssh, just return empty array
@@ -129,7 +126,7 @@ export const addCommand = createSubcommand({
 			description: 'Add deploy key from file',
 		},
 		{
-			command: 'cat ~/.ssh/id_rsa.pub | ' + getCommand('auth ssh add'),
+			command: `cat ~/.ssh/id_rsa.pub | ${getCommand('auth ssh add')}`,
 			description: 'Add SSH key from stdin',
 		},
 	],
@@ -187,7 +184,7 @@ export const addCommand = createSubcommand({
 
 					if (newKeys.length === 0) {
 						const cmd = getCommand('auth ssh add');
-						const boldcmd = tui.bold('cat key.pub | ' + cmd);
+						const boldcmd = tui.bold(`cat key.pub | ${cmd}`);
 						tui.info('All local SSH keys in ~/.ssh/ have already been added to your account');
 						tui.newline();
 						console.log('To add a different key:');

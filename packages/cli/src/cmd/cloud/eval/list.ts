@@ -113,7 +113,7 @@ export const listSubcommand = createSubcommand({
 
 			const tableData = evals.map((e) => ({
 				ID: e.id,
-				Name: e.name.length > 30 ? e.name.substring(0, 27) + '...' : e.name,
+				Name: e.name.length > 30 ? `${e.name.substring(0, 27)}...` : e.name,
 				Agent: e.agentIdentifier || '-',
 				Devmode: e.devmode ? '✓' : '✗',
 				Created: new Date(e.createdAt).toLocaleString(),

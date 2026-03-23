@@ -42,7 +42,7 @@ export async function generateLifecycleTypes(
 	}
 
 	try {
-		logger.debug(`[lifecycle] Calling generateLifecycleTypesFromAST...`);
+		logger.debug('[lifecycle] Calling generateLifecycleTypesFromAST...');
 		const result = await generateLifecycleTypesFromAST(rootDir, outDir, appFile);
 		if (result) {
 			logger.debug(`[lifecycle] Lifecycle types generated successfully in ${outDir}`);

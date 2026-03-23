@@ -25,7 +25,7 @@ export async function generateWebAnalyticsFile(
 	const analyticsPath = join(generatedDir, 'webanalytics.ts');
 	const configPath = join(generatedDir, 'analytics-config.ts');
 
-	logger.trace(`Generating web analytics files...`);
+	logger.trace('Generating web analytics files...');
 
 	const analyticsEnabled = analytics !== false;
 	const analyticsConfig: AnalyticsConfig = typeof analytics === 'object' ? analytics : {};
@@ -38,7 +38,7 @@ export async function generateWebAnalyticsFile(
 	const code = analyticsEnabled ? getEnabledAnalyticsCode() : getDisabledAnalyticsCode();
 	await Bun.write(analyticsPath, code);
 
-	logger.trace(`Generated web analytics files at %s`, generatedDir);
+	logger.trace('Generated web analytics files at %s', generatedDir);
 }
 
 function generateAnalyticsConfigCode(enabled: boolean, config: AnalyticsConfig): string {

@@ -45,6 +45,6 @@ await standaloneCtx.invoke(async () => {
 	console.log(`  Result: ${JSON.stringify(greeting)}`);
 	console.log('');
 	console.log('Background Task (ctx.waitUntil):');
-	console.log(`  Scheduled async work after main execution`);
+	console.log('  Scheduled async work after main execution');
 	console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
 });

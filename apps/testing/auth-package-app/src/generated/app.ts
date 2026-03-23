@@ -122,7 +122,6 @@ if (!isDevelopment()) {
 	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
 		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
@@ -377,7 +376,6 @@ if (typeof Bun !== 'undefined') {
 	});
 	
 	// Make server available globally for health checks
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(`Server listening on http://127.0.0.1:${port}`);

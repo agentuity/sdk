@@ -68,7 +68,7 @@ export async function sandboxRun(
 ): Promise<SandboxRunResult> {
 	const { options, orgId, region, apiKey, signal, stdin, stdout, stderr, logger } = params;
 	const started = Date.now();
-	if (timingLogsEnabled) console.error(`[TIMING] +0ms: sandbox run started`);
+	if (timingLogsEnabled) console.error('[TIMING] +0ms: sandbox run started');
 
 	let stdinStreamId: string | undefined;
 	let stdinStreamUrl: string | undefined;

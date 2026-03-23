@@ -192,7 +192,7 @@ describe('Compression Middleware', () => {
 	describe('Lazy config resolution', () => {
 		test('reads config from app state at request time', async () => {
 			// Use a mutable config object to simulate lazy resolution
-			let currentConfig: { compression?: CompressionConfig | false } | undefined = undefined;
+			let currentConfig: { compression?: CompressionConfig | false } | undefined;
 			const configResolver = () => currentConfig;
 
 			const app = new Hono();

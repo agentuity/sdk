@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { type Context, Hono, type Env as HonoEnv, type Schema } from 'hono';
 import { loadBuildMetadata } from './_metadata';
 import { returnResponse } from './_util';

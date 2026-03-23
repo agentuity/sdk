@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
-import * as readline from 'readline';
+import * as readline from 'node:readline';
 import type { ColorScheme } from './terminal';
 import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
@@ -500,7 +500,7 @@ export function output(message: string): void {
  */
 export function getDisplayWidth(str: string): number {
 	// Remove OSC-8 hyperlink sequences using Unicode escapes (\u001b = ESC, \u0007 = BEL) to satisfy linter
-	// eslint-disable-next-line no-control-regex
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: OSC 8 hyperlink escape sequences for terminal hyperlinks
 	const withoutOSC8 = str.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
 	return Bun.stringWidth(withoutOSC8);
 }
@@ -509,12 +509,12 @@ export function getDisplayWidth(str: string): number {
  * Strip all ANSI escape sequences from a string
  */
 export function stripAnsi(str: string): string {
-	/* eslint-disable no-control-regex */
+	// biome-ignore-start lint/suspicious/noControlCharactersInRegex: Various ANSI escape sequences for terminal control
 	return str
 		.replace(/\u001b\[[0-9;]*m/g, '') // SGR sequences (colors, bold, etc.)
 		.replace(/\u001b\[\?[0-9;]*[a-zA-Z]/g, '') // DEC private mode (cursor show/hide, etc.)
 		.replace(/\u001b\]8;;[^\u0007]*\u0007/g, ''); // OSC 8 hyperlinks
-	/* eslint-enable no-control-regex */
+	// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
 }
 
 /**
@@ -562,7 +562,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 	while (i < str.length && visibleIndex < cutIndex) {
 		// Check for ANSI escape sequence
 		if (str[i] === '\u001b') {
-			/* eslint-disable no-control-regex */
+			// biome-ignore-start lint/suspicious/noControlCharactersInRegex: Various ANSI escape sequences for terminal control
 			// Copy entire SGR sequence (colors, bold, etc.)
 			const match = str.slice(i).match(/^\u001b\[[0-9;]*m/);
 			if (match) {
@@ -586,7 +586,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 				i += oscMatch[0].length;
 				continue;
 			}
-			/* eslint-enable no-control-regex */
+			// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
 		}
 
 		// Copy visible character
@@ -660,8 +660,8 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 
 	// If required content width exceeds terminal width, skip box and print plain text
 	if (requiredContentWidth + 4 > termWidth) {
-		console.log('\n' + bold(title));
-		console.log(body + '\n');
+		console.log(`\n${bold(title)}`);
+		console.log(`${body}\n`);
 		return;
 	}
 
@@ -705,7 +705,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 		);
 	} else {
 		const titleRightPadding = Math.max(0, innerWidth - titleDisplayWidth);
-		const titleLine = `${titleColor}${bold(title)}${reset}` + ' '.repeat(titleRightPadding);
+		const titleLine = `${titleColor}${bold(title)}${reset}${' '.repeat(titleRightPadding)}`;
 		lines.push(
 			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
 		);
@@ -740,7 +740,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 	);
 
 	// Print the banner
-	console.log('\n' + lines.join('\n') + '\n');
+	console.log(`\n${lines.join('\n')}\n`);
 }
 
 /**
@@ -897,7 +897,7 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
-		`║ ⨺ Unauthenticated (local mode)               ║`,
+		'║ ⨺ Unauthenticated (local mode)               ║',
 		'║                                              ║',
 		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
 		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
@@ -924,7 +924,7 @@ export function showLocalOnlyWarning(): void {
 
 	const lines = [
 		'╔═══════════════════════════════════════════════════════════════╗',
-		`║ ⨺ Local-only mode                                             ║`,
+		'║ ⨺ Local-only mode                                             ║',
 		'║                                                               ║',
 		`║ ${TEXT}This project is not registered with Agentuity Cloud.${YELLOW}          ║`,
 		`║ ${TEXT}The following features are disabled:${YELLOW}                          ║`,
@@ -999,7 +999,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
  */
 function extractLeadingAnsiCodes(str: string): string {
 	// Match ANSI escape sequences at the start of the string
-	// eslint-disable-next-line no-control-regex
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 	const match = str.match(/^(\x1b\[[0-9;]*m)+/);
 	return match ? match[0] : '';
 }
@@ -1009,11 +1009,11 @@ function extractLeadingAnsiCodes(str: string): string {
  */
 function stripAnsiCodes(str: string): string {
 	// Remove all ANSI escape sequences
-	/* eslint-disable no-control-regex */
+	// biome-ignore-start lint/suspicious/noControlCharactersInRegex: Various ANSI escape sequences for terminal control
 	return str
 		.replace(/\x1b\[[0-9;]*m/g, '') // SGR sequences
 		.replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, ''); // DEC private mode
-	/* eslint-enable no-control-regex */
+	// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
 }
 
 /**
@@ -1253,7 +1253,7 @@ export async function spinner<T>(
 					: options.type === 'logger'
 						? await options.callback((logMessage: string) => {
 								// In non-TTY mode, just write logs directly to stdout
-								process.stdout.write(logMessage + '\n');
+								process.stdout.write(`${logMessage}\n`);
 							})
 						: options.type === 'countdown'
 							? await options.callback()
@@ -1605,7 +1605,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	const red = getColor('error');
 	const cmdColor =
 		currentColorScheme === 'light'
-			? '\x1b[1m' + (Bun.color('#00008B', 'ansi') || '\x1b[34m')
+			? `\x1b[1m${Bun.color('#00008B', 'ansi') || '\x1b[34m'}`
 			: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
 	const mutedColor = Bun.color('#808080', 'ansi') || '\x1b[90m';
 	const reset = getColor('reset');
@@ -2122,7 +2122,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 		}
 	}
 
-	return lines.join('\n') + '\n';
+	return `${lines.join('\n')}\n`;
 }
 
 /**
@@ -2182,7 +2182,6 @@ export function table<T extends Record<string, unknown>>(
 	if (useVertical) {
 		output = renderVerticalTable(data, columnNames, options?.padStart);
 	} else {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const Table = require('cli-table3') as new (options?: {
 			head?: string[];
 			colAligns?: Array<'left' | 'right' | 'center'>;

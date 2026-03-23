@@ -114,7 +114,6 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 				// Look up route metadata
 				let routeType = 'api';
 				let routePath: string | undefined;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				let metaNode: any = metadata;
 
 				if (isStreamMethod) {
@@ -141,14 +140,13 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 				}
 
 				// Fallback URL path if no metadata
-				const fallbackPath = '/api/' + pathSegments.join('/');
+				const fallbackPath = `/api/${pathSegments.join('/')}`;
 
 				return (...args: unknown[]) => {
 					const resolvedBaseUrl = resolveBaseUrl(baseUrl);
 					const resolvedHeaders = resolveHeaders(defaultHeaders);
 
 					// Get path param names from metadata if available
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const pathParamNames: string[] | undefined = (metaNode as any)?.[method]?.pathParams;
 					const hasPathParams = pathParamNames && pathParamNames.length > 0;
 
@@ -178,7 +176,6 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 						// Check if there's an options object after the path params
 						const optionsArg = args[pathParamNames.length];
 						if (optionsArg && typeof optionsArg === 'object') {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							const opts = optionsArg as any;
 							input = opts.input;
 							query = opts.query;
@@ -186,7 +183,6 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 					} else {
 						// No path params - use existing behavior
 						const options = args[0];
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const opts = options as any;
 						const isOptionsObject =
 							opts && typeof opts === 'object' && ('input' in opts || 'query' in opts);

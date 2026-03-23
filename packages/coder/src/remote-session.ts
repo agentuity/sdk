@@ -522,10 +522,7 @@ export class RemoteSession {
 			return;
 		}
 
-		const delay = Math.min(
-			RECONNECT_BASE_MS * Math.pow(2, this.reconnectAttempts),
-			RECONNECT_MAX_MS
-		);
+		const delay = Math.min(RECONNECT_BASE_MS * 2 ** this.reconnectAttempts, RECONNECT_MAX_MS);
 		this.reconnectAttempts++;
 		log(`Reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
 
@@ -939,7 +936,7 @@ export async function setupRemoteMode(
 					});
 				}
 				messageBuffer = '';
-				log(`Message complete`);
+				log('Message complete');
 				break;
 			}
 
@@ -975,7 +972,7 @@ export async function setupRemoteMode(
 					extensionCtxRef.ui.setStatus('remote_activity', 'idle');
 				}
 				clearStreamWidget();
-				log(`Agent ended`);
+				log('Agent ended');
 				break;
 
 			case 'tool_execution_start': {

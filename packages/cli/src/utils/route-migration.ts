@@ -49,10 +49,10 @@ function writeMigrationState(rootDir: string, state: MigrationState): void {
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 	writeFileSync(
 		statePath,
-		JSON.stringify({
+		`${JSON.stringify({
 			state,
 			timestamp: Date.now(),
-		} satisfies MigrationStateFile) + '\n'
+		} satisfies MigrationStateFile)}\n`
 	);
 }
 

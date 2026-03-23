@@ -91,7 +91,6 @@ async function stopBunServer(
 	port: number,
 	logger: { debug: (msg: string, ...args: unknown[]) => void }
 ): Promise<void> {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const globalAny = globalThis as any;
 
 	// Check for subprocess first (used when debugger flags are enabled)
@@ -265,7 +264,6 @@ export const command = createCommand({
 
 		const interactive = !shouldDisableInteractive(opts.interactive);
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let originalExit = (globalThis as any).AGENTUITY_PROCESS_EXIT;
 
 		if (!originalExit) {
@@ -342,7 +340,7 @@ export const command = createCommand({
 				} else {
 					// Non-TTY: fatal error with instruction
 					logger.fatal(
-						`Authentication required for this project.\n` +
+						'Authentication required for this project.\n' +
 							`Run "${getCommand('auth login')}" to login to Agentuity`,
 						ErrorCode.AUTH_REQUIRED
 					);
@@ -575,7 +573,7 @@ export const command = createCommand({
 				(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
 				'\n' +
 				(interactive
-					? '\n' + tui.muted('Press ') + tui.bold('h') + tui.muted(' for keyboard shortcuts')
+					? `\n${tui.muted('Press ')}${tui.bold('h')}${tui.muted(' for keyboard shortcuts')}`
 					: '');
 
 			tui.banner('⨺ Agentuity DevMode', devmodebody, {
@@ -876,7 +874,6 @@ export const command = createCommand({
 				}
 
 				// Stop Bun server synchronously (best effort)
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const server = (globalThis as any).__AGENTUITY_SERVER__;
 				if (server?.stop) {
 					try {
@@ -952,11 +949,9 @@ export const command = createCommand({
 								})
 							).toString(36);
 
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							const prevFingerprint = (globalThis as any)
 								.__AGENTUITY_DISCOVERY_FINGERPRINT__ as string | undefined;
 							const discoveryChanged = discoveryFingerprint !== prevFingerprint;
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							(globalThis as any).__AGENTUITY_DISCOVERY_FINGERPRINT__ = discoveryFingerprint;
 
 							if (discoveryChanged) {
@@ -1338,10 +1333,10 @@ export const command = createCommand({
 						process.stdin.setEncoding('utf8');
 
 						const showHelp = () => {
-							console.log('\n' + tui.bold('Keyboard Shortcuts:'));
-							console.log(tui.muted('  h') + ' - show this help');
-							console.log(tui.muted('  c') + ' - clear console');
-							console.log(tui.muted('  q') + ' - quit\n');
+							console.log(`\n${tui.bold('Keyboard Shortcuts:')}`);
+							console.log(`${tui.muted('  h')} - show this help`);
+							console.log(`${tui.muted('  c')} - clear console`);
+							console.log(`${tui.muted('  q')} - quit\n`);
 						};
 
 						// Store handler reference for cleanup

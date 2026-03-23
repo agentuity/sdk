@@ -726,9 +726,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			name: 'task',
 			label: 'Delegate Task to Agent',
 			description:
-				`Delegate a task to a specialized agent on your team. ` +
+				'Delegate a task to a specialized agent on your team. ' +
 				`Available agents: ${agentNames.join(', ')}. ` +
-				`Each agent runs independently with its own context window.`,
+				'Each agent runs independently with its own context window.',
 			promptSnippet:
 				'Use task({ description, prompt, subagent_type }) to delegate one focused sub-task to a specialist agent.',
 			parameters: Type.Object({
@@ -789,16 +789,16 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 					if (!ctx.hasUI) return;
 					let msg = '';
 					if (status === 'running') {
-						msg = '\u25CF ' + subagent_type; // ● name
+						msg = `\u25CF ${subagent_type}`; // ● name
 						if (tool) {
 							const toolInfo = toolArgs ? `${tool} ${toolArgs}` : tool;
-							msg += '  ' + toolInfo.slice(0, 40);
+							msg += `  ${toolInfo.slice(0, 40)}`;
 						}
-						msg += '  ' + formatElapsed();
+						msg += `  ${formatElapsed()}`;
 					} else if (status === 'completed') {
-						msg = '\u2713 ' + subagent_type + '  ' + formatElapsed(); // ✓ name Xs
+						msg = `\u2713 ${subagent_type}  ${formatElapsed()}`; // ✓ name Xs
 					} else if (status === 'failed') {
-						msg = '\u2717 ' + subagent_type + '  failed'; // ✗ name failed
+						msg = `\u2717 ${subagent_type}  failed`; // ✗ name failed
 					}
 					ctx.ui.setWorkingMessage(msg);
 				}
@@ -932,7 +932,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			name: 'parallel_tasks',
 			label: 'Delegate Parallel Tasks',
 			description:
-				`Run multiple agent tasks concurrently (max 4). ` +
+				'Run multiple agent tasks concurrently (max 4). ' +
 				`Available agents: ${agentNames.join(', ')}.`,
 			promptSnippet:
 				'Use parallel_tasks({ tasks: [...] }) when multiple independent specialist tasks can run at the same time.',
@@ -1007,7 +1007,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 							if (s.status === 'running') {
 								let info = `\u25CF ${s.name}`;
 								if (s.currentTool) info += ` ${s.currentTool.slice(0, 15)}`;
-								return info + ` ${timeStr}`;
+								return `${info} ${timeStr}`;
 							}
 							if (s.status === 'completed') {
 								return `\u2713 ${s.name} ${timeStr}`;
@@ -1404,9 +1404,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			if (result.systemPrompt) {
 				const mode = result.systemPromptMode || 'suffix';
 				if (mode === 'prefix') {
-					systemPrompt = result.systemPrompt + '\n\n' + systemPrompt;
+					systemPrompt = `${result.systemPrompt}\n\n${systemPrompt}`;
 				} else if (mode === 'suffix') {
-					systemPrompt = systemPrompt + '\n\n' + result.systemPrompt;
+					systemPrompt = `${systemPrompt}\n\n${result.systemPrompt}`;
 				} else {
 					systemPrompt = result.systemPrompt;
 				}
@@ -1418,11 +1418,11 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		// Apply config prefix/suffix — LEAD ONLY
 		if (!isSubAgent) {
 			if (hubConfig?.systemPromptPrefix && !systemPromptApplied) {
-				systemPrompt = hubConfig.systemPromptPrefix + '\n\n' + systemPrompt;
+				systemPrompt = `${hubConfig.systemPromptPrefix}\n\n${systemPrompt}`;
 				systemPromptApplied = true;
 			}
 			if (hubConfig?.systemPromptSuffix) {
-				systemPrompt = systemPrompt + '\n\n' + hubConfig.systemPromptSuffix;
+				systemPrompt = `${systemPrompt}\n\n${hubConfig.systemPromptSuffix}`;
 			}
 		}
 
@@ -1680,7 +1680,6 @@ async function runSubAgent(
 
 	const { piSdk, piAi } = await loadPiSdk();
 	// Runtime-resolved dynamic imports — exact types unavailable statically
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const {
 		createAgentSession,
 		DefaultResourceLoader,
@@ -1688,7 +1687,6 @@ async function runSubAgent(
 		createCodingTools,
 		createReadOnlyTools,
 	} = piSdk as any;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { getModel } = piAi as any;
 
 	// Model — use agent's configured model (sub-agents typically use haiku for speed)
@@ -1759,7 +1757,6 @@ async function runSubAgent(
 		try {
 			session.subscribe?.((event: unknown) => {
 				try {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const evt = event as any;
 					const elapsed = Date.now() - startTime;
 

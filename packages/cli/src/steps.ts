@@ -270,12 +270,10 @@ export function pauseStepUI(clear = false): () => void {
 	const originalStderrWrite = process.stderr.write.bind(process.stderr);
 
 	// Intercept writes during pause (unused but prevents issues with interactive prompts)
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	process.stdout.write = ((chunk: any, ..._args: any[]) => {
 		return originalStdoutWrite(chunk);
 	}) as typeof process.stdout.write;
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	process.stderr.write = ((chunk: any, ..._args: any[]) => {
 		return originalStderrWrite(chunk);
 	}) as typeof process.stderr.write;
@@ -408,7 +406,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 			process.stdout.write('\x1B[0G');
 		}
 		process.stdout.write('\x1B[0J');
-		process.stdout.write(rendered.output + '\n');
+		process.stdout.write(`${rendered.output}\n`);
 
 		totalLinesFromLastRender = rendered.totalLines;
 	};
@@ -422,7 +420,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 
 		// Initial render
 		const initialRender = renderAllSteps(state, -1);
-		process.stdout.write(initialRender.output + '\n');
+		process.stdout.write(`${initialRender.output}\n`);
 		totalLinesFromLastRender = initialRender.totalLines;
 
 		// Execute steps
@@ -455,7 +453,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 					process.stdout.write('\x1B[0G'); // Move to column 0 (using absolute positioning)
 				}
 				process.stdout.write('\x1B[0J'); // Clear from cursor to end
-				process.stdout.write(rendered.output + '\n');
+				process.stdout.write(`${rendered.output}\n`);
 
 				totalLinesFromLastRender = rendered.totalLines;
 				currentFrameIndex++;
@@ -480,7 +478,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 					process.stdout.write('\x1B[0G');
 				}
 				process.stdout.write('\x1B[0J');
-				process.stdout.write(rendered.output + '\n');
+				process.stdout.write(`${rendered.output}\n`);
 
 				totalLinesFromLastRender = rendered.totalLines;
 			};
@@ -535,7 +533,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				process.stdout.write('\x1B[0G');
 			}
 			process.stdout.write('\x1B[0J');
-			process.stdout.write(finalRender.output + '\n');
+			process.stdout.write(`${finalRender.output}\n`);
 
 			totalLinesFromLastRender = finalRender.totalLines;
 

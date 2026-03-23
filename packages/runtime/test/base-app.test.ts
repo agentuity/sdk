@@ -189,7 +189,6 @@ describe('createRouter - sub-router compatibility', () => {
 describe('createApp({ router }) - user-provided router', () => {
 	afterEach(() => {
 		// Clean up globals
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		delete (globalThis as any).__AGENTUITY_USER_ROUTER__;
 	});
 
@@ -229,7 +228,6 @@ describe('createApp({ router }) - user-provided router', () => {
 	test('getUserRouter returns normalized RouteMount[] for plain Hono', () => {
 		const router = createRouter();
 		// Simulate what createApp does internally: normalize and store
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [{ path: '/api', router }];
 
 		const result = getUserRouter();
@@ -240,7 +238,6 @@ describe('createApp({ router }) - user-provided router', () => {
 
 	test('getUserRouter returns normalized RouteMount[] for RouteMount input', () => {
 		const router = createRouter();
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [{ path: '/v1', router }];
 
 		const result = getUserRouter();
@@ -251,7 +248,6 @@ describe('createApp({ router }) - user-provided router', () => {
 	test('getUserRouter returns normalized RouteMount[] for array input', () => {
 		const r1 = createRouter();
 		const r2 = createRouter();
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [
 			{ path: '/api/v1', router: r1 },
 			{ path: '/api/v2', router: r2 },
@@ -327,7 +323,7 @@ describe('createApp({ router }) - user-provided router', () => {
 
 		// Simulate entry file: apply middleware to each prefix
 		for (const mount of mounts) {
-			const prefix = mount.path + '/*';
+			const prefix = `${mount.path}/*`;
 			app.use(prefix, async (c, next) => {
 				intercepted.push(c.req.path);
 				await next();

@@ -41,7 +41,6 @@ describe('Thread ID Header Support', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -75,7 +74,6 @@ describe('Thread ID Header Support', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -107,7 +105,6 @@ describe('Thread ID Header Support', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -141,7 +138,6 @@ describe('Thread ID Header Support', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -169,7 +165,6 @@ describe('Thread ID Header Support', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -201,8 +196,8 @@ describe('Thread ID Validation', () => {
 	});
 
 	test('isValidThreadId rejects thread IDs that are too long', () => {
-		expect(isValidThreadId('thrd_' + 'a'.repeat(60))).toBe(false); // 65 chars
-		expect(isValidThreadId('thrd_' + 'a'.repeat(100))).toBe(false);
+		expect(isValidThreadId(`thrd_${'a'.repeat(60)}`)).toBe(false); // 65 chars
+		expect(isValidThreadId(`thrd_${'a'.repeat(100)}`)).toBe(false);
 	});
 
 	test('isValidThreadId rejects thread IDs with invalid characters', () => {
@@ -230,7 +225,6 @@ describe('Thread ID Validation', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const shortThreadId = await provider.getThreadId({} as AppState, ctxShort);
@@ -253,7 +247,6 @@ describe('Thread ID Validation', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -269,7 +262,6 @@ describe('Connection Security Detection', () => {
 				url: 'https://example.com/path',
 				header: () => undefined,
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		expect(isSecureConnection(ctx)).toBe(true);
@@ -281,7 +273,6 @@ describe('Connection Security Detection', () => {
 				url: 'http://localhost:3000/path',
 				header: () => undefined,
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		expect(isSecureConnection(ctx)).toBe(false);
@@ -298,7 +289,6 @@ describe('Connection Security Detection', () => {
 					return undefined;
 				},
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		expect(isSecureConnection(ctx)).toBe(true);
@@ -315,7 +305,6 @@ describe('Connection Security Detection', () => {
 					return undefined;
 				},
 			},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		expect(isSecureConnection(ctx)).toBe(false);
@@ -416,7 +405,6 @@ describe('Thread ID Signing and Verification', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);
@@ -449,7 +437,6 @@ describe('Thread ID Signing and Verification', () => {
 			get: () => undefined,
 			set: () => {},
 			var: {},
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} as any;
 
 		const threadId = await provider.getThreadId({} as AppState, ctx);

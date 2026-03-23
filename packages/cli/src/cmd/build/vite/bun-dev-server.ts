@@ -99,7 +99,6 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		});
 
 		// Store the process globally so it can be killed on shutdown
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
 
 		// Wait for server to actually start listening
@@ -164,7 +163,6 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 		for (let i = 0; i < maxRetries; i++) {
 			// Check if global server object exists
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			if ((globalThis as any).__AGENTUITY_SERVER__) {
 				// Server object exists, now verify it's actually listening by making a request
 				try {

@@ -48,7 +48,6 @@ describe('EventStreamManager', () => {
 
 	beforeEach(() => {
 		originalEventSource = globalThis.EventSource;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).EventSource = MockEventSource;
 		MockEventSource.instances = [];
 	});

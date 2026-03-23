@@ -141,7 +141,7 @@ async function discoverExplicitRoutes(
 			});
 
 			if (parsedRoutes.length > 0) {
-				const relFile = './' + toForwardSlash(relative(srcDir, mount.routerFile));
+				const relFile = `./${toForwardSlash(relative(srcDir, mount.routerFile))}`;
 				logger.trace(
 					'Discovered %d route(s) from explicit mount at %s (%s)',
 					parsedRoutes.length,
@@ -253,7 +253,7 @@ async function discoverFileBasedRoutes(
 			}
 
 			const rootDir = join(srcDir, '..');
-			const relativeFilename = './' + toForwardSlash(relative(srcDir, filePath));
+			const relativeFilename = `./${toForwardSlash(relative(srcDir, filePath))}`;
 
 			try {
 				const parsedRoutes = await parseRoute(

@@ -18,7 +18,6 @@ interface ASTNode {
 	type: string;
 	start?: number;
 	end?: number;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	[key: string]: any;
 }
 

@@ -32,7 +32,7 @@ export function getDefaultConfigDir(): string {
 }
 
 export function getDefaultConfigPath(): string {
-	return join(getDefaultConfigDir(), defaultProfileName + '.yaml');
+	return join(getDefaultConfigDir(), `${defaultProfileName}.yaml`);
 }
 
 export function getProfilePath(): string {
@@ -297,7 +297,7 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	await ensureConfigDir();
 
 	const content = formatYAML(config);
-	await writeFile(configPath, content + '\n', { mode: 0o600 });
+	await writeFile(configPath, `${content}\n`, { mode: 0o600 });
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
 
@@ -655,7 +655,7 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 			domains: sanitizedConfig.deployment?.domains ?? [],
 		},
 	};
-	await Bun.write(configPath, JSON.stringify(configData, null, 2) + '\n');
+	await Bun.write(configPath, `${JSON.stringify(configData, null, 2)}\n`);
 
 	// generate or update the .env file with SDK key
 	const envPath = join(dir, '.env');
@@ -729,7 +729,7 @@ export async function updateProjectConfig(
 		throw new Error(`Invalid project config after update: ${issues}`);
 	}
 
-	await Bun.write(configPath, JSON.stringify(updated, null, 2) + '\n');
+	await Bun.write(configPath, `${JSON.stringify(updated, null, 2)}\n`);
 }
 
 const BuildMetadataNotFoundError = StructuredError('BuildMetadataNotFoundError');

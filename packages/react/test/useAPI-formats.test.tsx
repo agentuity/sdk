@@ -7,11 +7,8 @@ import { AgentuityProvider } from '../src/context';
 import { useAPI } from '../src/api';
 
 // Define schemas for testing
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getTestOutput = s.object({ message: s.string() });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const postTestInput = s.object({ name: s.string() });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const postTestOutput = s.object({ id: s.string(), name: s.string() });
 
 // Extend RouteRegistry for testing

@@ -52,7 +52,7 @@ export default router;`
 	test('ignores files without routers', () => {
 		writeFileSync(
 			join(testDir, 'src', 'api', 'utils.ts'),
-			`export function helper() { return 42; }`
+			'export function helper() { return 42; }'
 		);
 
 		const files = detectFileBasedRoutes(testDir);

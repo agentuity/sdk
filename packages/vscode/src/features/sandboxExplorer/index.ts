@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as os from 'os';
-import * as fs from 'fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as fs from 'node:fs';
 import { SandboxTreeDataProvider, SandboxTreeItem } from './sandboxTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import {
@@ -728,7 +728,7 @@ async function linkSandbox(sandboxId: string, provider: SandboxTreeDataProvider)
 			name: name || undefined,
 			remotePath: remotePath || DEFAULT_SANDBOX_PATH,
 		});
-		vscode.window.showInformationMessage(`Sandbox linked to workspace`);
+		vscode.window.showInformationMessage('Sandbox linked to workspace');
 		provider.refresh();
 	} catch (err) {
 		vscode.window.showErrorMessage(
@@ -1098,8 +1098,8 @@ async function viewExecution(executionId: string): Promise<void> {
 
 async function fetchStreamContent(url: string): Promise<string> {
 	// Use https module to fetch stream content
-	const https = await import('https');
-	const http = await import('http');
+	const https = await import('node:https');
+	const http = await import('node:http');
 
 	return new Promise((resolve, reject) => {
 		const protocol = url.startsWith('https') ? https : http;
@@ -1375,8 +1375,8 @@ async function viewSnapshotFile(snapshot: SnapshotInfo, filePath: string): Promi
 }
 
 async function downloadFile(url: string, destPath: string): Promise<void> {
-	const https = await import('https');
-	const http = await import('http');
+	const https = await import('node:https');
+	const http = await import('node:http');
 
 	return new Promise((resolve, reject) => {
 		const protocol = url.startsWith('https') ? https : http;

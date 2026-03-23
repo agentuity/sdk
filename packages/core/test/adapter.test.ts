@@ -52,7 +52,6 @@ describe('adapter types', () => {
 		expect(successResponse.ok).toBe(true);
 		expect(successResponse.data.result).toBe('success');
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const errorResponse: FetchResponse<any> = {
 			ok: false,
 			data: undefined as never,

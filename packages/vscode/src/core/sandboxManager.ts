@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import { spawn } from 'child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { spawn } from 'node:child_process';
 import { getCliClient, CliClient, type SandboxInfo } from './cliClient';
 
 /** Default remote path for sandbox file operations */
@@ -300,7 +300,7 @@ export class SandboxManager {
 					.filter((f) => {
 						// Apply additional exclusions
 						for (const exclusion of additionalExclusions) {
-							if (f.startsWith(exclusion + '/') || f === exclusion) {
+							if (f.startsWith(`${exclusion}/`) || f === exclusion) {
 								return false;
 							}
 						}
@@ -328,7 +328,7 @@ export class SandboxManager {
 					// Check exclusions
 					let excluded = false;
 					for (const exclusion of exclusions) {
-						if (entryRelPath.startsWith(exclusion + '/') || entryRelPath === exclusion) {
+						if (entryRelPath.startsWith(`${exclusion}/`) || entryRelPath === exclusion) {
 							excluded = true;
 							break;
 						}

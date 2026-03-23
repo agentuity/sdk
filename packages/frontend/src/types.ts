@@ -6,7 +6,6 @@
  * This interface is augmented by generated code via `declare module '@agentuity/frontend'`.
  * The augmentation provides type-safe routing for useAPI and other hooks.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RouteRegistry {
 	// Will be augmented by generated code
 	// Format: 'METHOD /path': { inputSchema: ..., outputSchema: ..., stream?: boolean }
@@ -20,7 +19,6 @@ export interface RouteRegistry {
  * This interface is augmented by generated code via `declare module '@agentuity/frontend'`.
  * The augmentation provides type-safe routing for useWebsocket and other hooks.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface WebSocketRouteRegistry {
 	// Will be augmented by generated code
 	// Format: '/path': { inputSchema: ..., outputSchema: ... }
@@ -34,7 +32,6 @@ export interface WebSocketRouteRegistry {
  * This interface is augmented by generated code via `declare module '@agentuity/frontend'`.
  * The augmentation provides type-safe routing for useEventStream and other hooks.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SSERouteRegistry {
 	// Will be augmented by generated code
 	// Format: '/path': { inputSchema: ..., outputSchema: ... }
@@ -49,7 +46,6 @@ export interface SSERouteRegistry {
  * This interface is augmented by generated code via `declare module '@agentuity/frontend'`.
  * The augmentation provides type-safe routing for createClient and createAPIClient.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RPCRouteRegistry {
 	// Will be augmented by generated code
 	// Format: { path: { method: { input: ..., output: ..., type: ... } } }

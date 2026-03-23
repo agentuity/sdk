@@ -117,7 +117,7 @@ export const listSubcommand = createSubcommand({
 		}
 
 		const tableData = sessions.map((s) => ({
-			'Session ID': s.sessionId.length > 20 ? s.sessionId.slice(0, 17) + '...' : s.sessionId,
+			'Session ID': s.sessionId.length > 20 ? `${s.sessionId.slice(0, 17)}...` : s.sessionId,
 			Label: s.label || '-',
 			Status: s.status,
 			Mode: s.mode,

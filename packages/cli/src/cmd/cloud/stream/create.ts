@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { basename } from 'path';
+import { basename } from 'node:path';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
@@ -227,13 +227,13 @@ export const createSubcommand = createCommand({
 				console.log(`Expires:   ${expiresAt}`);
 			}
 			if (metadata && Object.keys(metadata).length > 0) {
-				console.log(`Metadata:`);
+				console.log('Metadata:');
 				for (const [key, value] of Object.entries(metadata)) {
 					console.log(`  ${key}: ${value}`);
 				}
 			}
 			if (opts.compress) {
-				console.log(`Compressed: yes`);
+				console.log('Compressed: yes');
 			}
 			tui.success(`created stream from ${sourceLabel} in ${durationMs.toFixed(1)}ms`);
 		}

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { InferInput, InferOutput, StandardSchemaV1 } from '@agentuity/core';
 import { z } from 'zod';
 import type { AgentContext } from './agent';

@@ -101,9 +101,7 @@ function initializeStandaloneRuntime(): void {
 	setGlobalTracer(tracer);
 
 	// Set minimal app state if not already set
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if (!(globalThis as any).__AGENTUITY_APP_STATE__) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_APP_STATE__ = {};
 	}
 
@@ -656,7 +654,6 @@ export class StandaloneAgentContext<
 	 * const result = await ctx.run(postprocessAgent, step2);
 	 * ```
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	async run<TOutput>(agent: AgentRunner<any, any, any>, input?: unknown): Promise<TOutput> {
 		// Handle both agents with and without input
 		// The agent.run type varies based on whether input schema is defined

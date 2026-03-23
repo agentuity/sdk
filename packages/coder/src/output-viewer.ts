@@ -29,6 +29,7 @@ interface TUIRef {
 	requestRender(): void;
 }
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 function visibleWidth(text: string): number {
@@ -391,7 +392,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 		for (let i = this.scrollOffset; i < sliceEnd; i++) {
 			const line = contentLines[i] ?? '';
 			content.push(
-				this.contentLine('   ' + truncateToWidth(line, Math.max(0, inner - 3)), inner)
+				this.contentLine(`   ${truncateToWidth(line, Math.max(0, inner - 3))}`, inner)
 			);
 		}
 

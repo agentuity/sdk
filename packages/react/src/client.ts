@@ -131,6 +131,5 @@ export function createAPIClient<R = RPCRouteRegistry>(
 ): Client<R> {
 	// This function is designed to be used with generated metadata
 	// The metadata will be provided by the code generator
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createClient<R>(options, (globalThis as any).__rpcRouteMetadata);
 }

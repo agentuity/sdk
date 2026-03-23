@@ -118,7 +118,6 @@ describe('StructuredError', () => {
 	describe('_tag protection', () => {
 		test('should not allow _tag override from args', () => {
 			const AppError = StructuredError('AppError');
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const error = new AppError({ _tag: 'DifferentTag' } as any);
 
 			expect(error._tag).toBe('AppError');
@@ -239,7 +238,6 @@ describe('StructuredError', () => {
 			const error2 = new AppError({ message: 'Error 2', cause: error1 });
 
 			// Create circular reference by modifying the internal symbol
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(error1 as any)[Symbol.for('@@RichError:cause')] = error2;
 
 			const output = error1.prettyPrint();
@@ -264,7 +262,6 @@ describe('StructuredError', () => {
 	describe('JSON.stringify with circular references', () => {
 		test('should handle circular object references in custom properties', () => {
 			const AppError = StructuredError('AppError')<{ data: unknown }>();
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const circular: any = { name: 'test' };
 			circular.self = circular;
 
@@ -292,7 +289,6 @@ describe('StructuredError', () => {
 				throw new AppError({ message: 'test' });
 			} catch (e) {
 				expect(e).toBeInstanceOf(Error);
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				expect((e as any)._tag).toBe('AppError');
 			}
 		});

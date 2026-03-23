@@ -74,6 +74,7 @@ interface HubOverlayOptions {
 
 type ScreenMode = 'list' | 'detail' | 'feed' | 'task';
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const POLL_MS = 4_000;
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -227,11 +228,14 @@ function wrapText(text: string, width: number): string[] {
 }
 
 function toSingleLine(text: string): string {
-	return text
-		.replace(/[\r\n\t]+/g, ' ')
-		.replace(/[\x00-\x1f\x7f]/g, '')
-		.replace(/\s+/g, ' ')
-		.trim();
+	return (
+		text
+			.replace(/[\r\n\t]+/g, ' ')
+			// biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally strips control chars for single-line output
+			.replace(/[\x00-\x1f\x7f]/g, '')
+			.replace(/\s+/g, ' ')
+			.trim()
+	);
 }
 
 interface MessageSegments {
@@ -336,7 +340,6 @@ function extractMessageSegments(data: Record<string, unknown> | undefined): Mess
 			}
 			if (type === 'thinking' && typeof block.thinking === 'string') {
 				thinkingParts.push(block.thinking);
-				continue;
 			}
 		}
 	}
@@ -1842,7 +1845,7 @@ export class HubOverlay implements Component, Focusable {
 		sseEvent: string,
 		dataText: string
 	): void {
-		let payload: unknown = undefined;
+		let payload: unknown;
 		if (dataText) {
 			try {
 				payload = JSON.parse(dataText);
@@ -1957,17 +1960,17 @@ export class HubOverlay implements Component, Focusable {
 		if (eventName === 'message_end') {
 			const segments = extractMessageSegments(data);
 			if (segments.thinking) {
-				this.appendBufferText(sessionId, 'thinking', segments.thinking + '\n\n', taskId);
+				this.appendBufferText(sessionId, 'thinking', `${segments.thinking}\n\n`, taskId);
 			}
 			if (segments.output) {
-				this.appendBufferText(sessionId, 'output', segments.output + '\n\n', taskId);
+				this.appendBufferText(sessionId, 'output', `${segments.output}\n\n`, taskId);
 			}
 			return;
 		}
 
 		if (eventName === 'thinking_end') {
 			const text = typeof data?.text === 'string' ? data.text : '';
-			if (text) this.appendBufferText(sessionId, 'thinking', text + '\n\n', taskId);
+			if (text) this.appendBufferText(sessionId, 'thinking', `${text}\n\n`, taskId);
 			return;
 		}
 
@@ -1990,7 +1993,7 @@ export class HubOverlay implements Component, Focusable {
 
 		if (eventName === 'task_complete') {
 			const result = typeof data?.result === 'string' ? data.result : '';
-			if (result) this.appendBufferText(sessionId, 'output', result + '\n\n', taskId);
+			if (result) this.appendBufferText(sessionId, 'output', `${result}\n\n`, taskId);
 			return;
 		}
 

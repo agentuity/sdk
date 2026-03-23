@@ -120,49 +120,36 @@ export function extractCommandSchema(def: CommandDefinition): SchemaCommand {
 	}
 
 	// Extract examples if available
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).examples) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.examples = (def as any).examples;
 	}
 
 	// Extract idempotent marker
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).idempotent !== undefined) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.idempotent = (def as any).idempotent;
 	}
 
 	// Extract prerequisites
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).prerequisites) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.prerequisites = (def as any).prerequisites;
 	}
 
 	// Extract pagination
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).pagination) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.pagination = (def as any).pagination;
 	}
 
 	// Extract tags
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).tags) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.tags = (def as any).tags;
 	}
 
 	// Extract skipSkill
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).skipSkill !== undefined) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.skipSkill = (def as any).skipSkill;
 	}
 
 	// Extract requires/optional
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const d = def as any;
 	if (d.requires) {
 		schema.requires = {
@@ -183,17 +170,13 @@ export function extractCommandSchema(def: CommandDefinition): SchemaCommand {
 	}
 
 	// Extract args and options from schema if available
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).schema) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const schemas = (def as any).schema as CommandSchemas;
 		applySchemaFields(schema, schemas);
 	}
 
 	// Extract subcommands recursively
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).subcommands) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.subcommands = ((def as any).subcommands as SubcommandDefinition[]).map((sub) =>
 			extractSubcommandSchema(sub)
 		);
@@ -216,56 +199,41 @@ export function extractSubcommandSchema(def: SubcommandDefinition): SchemaComman
 	}
 
 	// Extract examples if available
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).examples) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.examples = (def as any).examples;
 	}
 
 	// Extract idempotent marker
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).idempotent !== undefined) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.idempotent = (def as any).idempotent;
 	}
 
 	// Extract prerequisites
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).prerequisites) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.prerequisites = (def as any).prerequisites;
 	}
 
 	// Extract pagination
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).pagination) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.pagination = (def as any).pagination;
 	}
 
 	// Extract tags
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).tags) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.tags = (def as any).tags;
 	}
 
 	// Extract skipSkill
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).skipSkill !== undefined) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.skipSkill = (def as any).skipSkill;
 	}
 
 	// Extract toplevel
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((def as any).toplevel !== undefined) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.toplevel = (def as any).toplevel;
 	}
 
 	// Extract requires/optional
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const d = def as any;
 	if (d.requires) {
 		schema.requires = {

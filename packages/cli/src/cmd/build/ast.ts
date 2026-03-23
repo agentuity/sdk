@@ -191,7 +191,6 @@ function generateStableEvalId(projectId: string, agentId: string, name: string):
  * Type guard to check if an AST node is an ObjectExpression
  */
 function isObjectExpression(node: unknown): node is ASTObjectExpression {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return typeof node === 'object' && node !== null && (node as any).type === 'ObjectExpression';
 }
 
@@ -727,9 +726,7 @@ export async function parseAgentMetadata(
 						);
 					}
 
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const nameArg = call.arguments[0] as any;
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const configArg = call.arguments[1] as any;
 
 					if (!nameArg || nameArg.type !== 'Literal' || typeof nameArg.value !== 'string') {
@@ -793,9 +790,7 @@ export async function parseAgentMetadata(
 				}
 			}
 		}
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		if (!result && (body as any).declaration?.type === 'Identifier') {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const identifier = (body as any).declaration as ASTNodeIdentifier;
 			exportName = identifier.name;
 			break;
@@ -822,9 +817,7 @@ export async function parseAgentMetadata(
 										);
 									}
 
-									// eslint-disable-next-line @typescript-eslint/no-explicit-any
 									const nameArg = call.arguments[0] as any;
-									// eslint-disable-next-line @typescript-eslint/no-explicit-any
 									const configArg = call.arguments[1] as any;
 
 									if (
@@ -1042,7 +1035,7 @@ function validateSchemaExports(
 			path,
 			message:
 				`Schema "${schemaVariable}" used as the ${kind} validator${routeDesc} in ${filename} is not exported.\n\n` +
-				`Agentuity generates a route registry that imports schema types by name, so the schema must be exported.\n\n` +
+				'Agentuity generates a route registry that imports schema types by name, so the schema must be exported.\n\n' +
 				`To fix this, add "export" to the schema declaration:\n\n` +
 				`  export const ${schemaVariable} = s.object({ ... });\n`,
 		});
@@ -1183,7 +1176,6 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 					if (schemas.stream !== undefined && result.stream === undefined) {
 						result.stream = schemas.stream;
 					}
-					continue;
 				}
 			}
 		}
@@ -3002,7 +2994,7 @@ async function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): P
 		}
 
 		// Write back using standard JSON (TypeScript requires strict JSON format)
-		await Bun.write(tsconfigPath, JSON.stringify(tsconfig, null, '\t') + '\n');
+		await Bun.write(tsconfigPath, `${JSON.stringify(tsconfig, null, '\t')}\n`);
 	} catch (error) {
 		logger.warn('Failed to update tsconfig.json:', error);
 	}
@@ -3077,7 +3069,7 @@ export async function generateLifecycleTypes(
 	if (!runtimePkgPath) {
 		throw new RuntimePackageNotFound({
 			message:
-				`@agentuity/runtime package not found.\n` +
+				'@agentuity/runtime package not found.\n' +
 				`Searched paths:\n${searchedPaths.map((p) => `  - ${p}`).join('\n')}\n` +
 				`Make sure dependencies are installed by running 'bun install' or 'npm install'`,
 		});
@@ -3097,13 +3089,13 @@ export async function generateLifecycleTypes(
 		throw new RuntimePackageNotFound({
 			message:
 				`Failed to access @agentuity/runtime package at ${runtimePkgPath}\n` +
-				`Make sure dependencies are installed`,
+				'Make sure dependencies are installed',
 		});
 	}
 
 	if (!runtimeImportPath) {
 		throw new RuntimePackageNotFound({
-			message: `Failed to determine import path for @agentuity/runtime`,
+			message: 'Failed to determine import path for @agentuity/runtime',
 		});
 	}
 

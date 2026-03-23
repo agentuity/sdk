@@ -6,8 +6,8 @@
  *
  * Usage: bun run scripts/generate-sandbox-scripts.ts
  */
-import { readdir, readFile, writeFile } from 'fs/promises';
-import { basename, join } from 'path';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 
 const RUN_DIR = 'src/run';
 const OUTPUT_FILE = 'src/api/sandbox/scripts.ts';

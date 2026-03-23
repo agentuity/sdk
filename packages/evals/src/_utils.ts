@@ -88,7 +88,6 @@ export async function generateEvalResult(
 }
 
 // Infer the output type from a schema, or any if undefined
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> : any;
 
 type PresetEvalOverrides<
@@ -115,7 +114,6 @@ type PresetEvalOverrides<
 };
 
 // Return type is compatible with any agent's createEval method
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PresetEvalResult<TOptions extends BaseEvalOptions> = CreateEvalConfig<any, any> & {
 	name: string;
 	options: TOptions;
@@ -136,9 +134,7 @@ export function createPresetEval<
 	) => ReturnType<CreateEvalConfig<TEvalInput, TEvalOutput>['handler']>;
 	options: TOptions;
 }): <
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	TAgentInput extends StandardSchemaV1 | undefined = any,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	TAgentOutput extends StandardSchemaV1 | undefined = any,
 >(
 	overrides?: PresetEvalOverrides<
@@ -157,7 +153,6 @@ export function createPresetEval<
 		return {
 			name: name ?? config.name,
 			description: description ?? config.description,
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			handler: (async (ctx: EvalContext, input: any, output: any) => {
 				// Call onStart hook if provided
 				if (onStart) {
@@ -187,7 +182,6 @@ export function createPresetEval<
 				}
 
 				return result;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			}) as any,
 			options: currentOptions,
 		};

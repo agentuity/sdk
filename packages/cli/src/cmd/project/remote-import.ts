@@ -1249,7 +1249,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				const pkgRaw = await Bun.file(pkgJsonPath).text();
 				const pkg = JSON.parse(pkgRaw);
 				pkg.name = projectDirName;
-				await Bun.write(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+				await Bun.write(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
 				logger.debug('[remote-import] Updated package.json name to %s', projectDirName);
 			} catch (err) {
 				logger.debug('[remote-import] Could not update package.json name: %o', err);

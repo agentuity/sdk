@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
 	StructuredError,
 	type KeyValueStorage,
@@ -564,7 +563,6 @@ export interface AgentValidator<
 				any,
 				any,
 				{
-					// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 					in: {};
 					out: { json: InferInput<TInput> };
 				}
@@ -597,7 +595,6 @@ export interface AgentValidator<
 		any,
 		any,
 		{
-			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: { json: InferOutput<TOverrideOutput> };
 		}
@@ -643,7 +640,6 @@ export interface AgentValidator<
 		any,
 		any,
 		{
-			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: {
 				json: InferInput<TOverrideInput>;
@@ -1380,7 +1376,6 @@ export type AgentName = keyof AgentRegistry extends never ? string : keyof Agent
  * Agent registry interface.
  * This interface is augmented by generated code to provide strongly-typed agent access.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AgentRegistry {}
 
 export const registerAgent = (name: AgentName, agent: Agent<any, any, any, any, any>): void => {
@@ -1647,7 +1642,7 @@ export function createAgent<
 	const evalsArray: Eval[] = [];
 
 	const handler = async (input?: any) => {
-		let validatedInput: any = undefined;
+		let validatedInput: any;
 
 		if (inputSchema) {
 			const inputResult = await inputSchema['~standard'].validate(input);
@@ -1895,8 +1890,8 @@ export function createAgent<
 	if (!metadata.id && !metadata.agentId && runtimeConfig.getProjectId()) {
 		throw new Error(
 			`Agent "${name}" has no metadata IDs (id and agentId are empty). ` +
-				`This will result in empty agent_ids in session events. ` +
-				`Ensure agentuity.metadata.json exists in the runtime directory ` +
+				'This will result in empty agent_ids in session events. ' +
+				'Ensure agentuity.metadata.json exists in the runtime directory ' +
 				`(checked: ${process.cwd()}/agentuity.metadata.json and ${process.cwd()}/.agentuity/agentuity.metadata.json). ` +
 				`Run 'agentuity build' to generate the metadata file.`
 		);
@@ -2036,7 +2031,7 @@ export function createAgent<
 									if (result.issues) {
 										throw new ValidationError({
 											issues: result.issues,
-											message: `Eval input validation failed`,
+											message: 'Eval input validation failed',
 										});
 									}
 									evalValidatedInput = result.value;
@@ -2048,7 +2043,7 @@ export function createAgent<
 									if (result.issues) {
 										throw new ValidationError({
 											issues: result.issues,
-											message: `Eval output validation failed`,
+											message: 'Eval output validation failed',
 										});
 									}
 									evalValidatedOutput = result.value;
@@ -2167,7 +2162,7 @@ export function createAgent<
 								if (result.issues) {
 									throw new ValidationError({
 										issues: result.issues,
-										message: `Eval input validation failed`,
+										message: 'Eval input validation failed',
 									});
 								}
 								evalValidatedInput = result.value;
@@ -2178,7 +2173,7 @@ export function createAgent<
 								if (result.issues) {
 									throw new ValidationError({
 										issues: result.issues,
-										message: `Eval output validation failed`,
+										message: 'Eval output validation failed',
 									});
 								}
 								evalValidatedOutput = result.value;

@@ -141,7 +141,6 @@ describe('validator middleware', () => {
 				async (c) => {
 					const data = c.req.valid('json');
 					// Return invalid output (missing id)
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					return c.json({ name: data.name } as any);
 				}
 			);

@@ -71,13 +71,11 @@ function shouldSkipCheck(
 	}
 
 	// Skip if command explicitly opts out of upgrade check
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if (commandDef && (commandDef as any).skipUpgradeCheck === true) {
 		return true;
 	}
 
 	// Skip if subcommand explicitly opts out of upgrade check
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if (subcommandDef && (subcommandDef as any).skipUpgradeCheck === true) {
 		return true;
 	}

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
-import { join } from 'path';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
+import { join } from 'node:path';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { generatePatches, applyPatch, buildPatchFilter } from '../../src/cmd/build/patch';
 import type { BunPlugin } from 'bun';
 

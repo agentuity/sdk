@@ -109,7 +109,7 @@ export const statsSubcommand = createCommand({
 						const tableData = Object.entries(stats.sampledResults).map(([key, item]) => {
 							const docPreview = item.document
 								? item.document.length > 30
-									? item.document.substring(0, 27) + '...'
+									? `${item.document.substring(0, 27)}...`
 									: item.document
 								: '-';
 							return {

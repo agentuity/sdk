@@ -73,7 +73,7 @@ async function test(name: string, fn: () => Promise<void>): Promise<void> {
 
 async function setup(rawSql: InstanceType<typeof SQL>) {
 	await rawSql.unsafe(`DROP TABLE IF EXISTS ${TEST_TABLE}`);
-	await rawSql.unsafe(`DROP TABLE IF EXISTS drizzle_tx_verification_test`);
+	await rawSql.unsafe('DROP TABLE IF EXISTS drizzle_tx_verification_test');
 	await rawSql.unsafe(`
 		CREATE TABLE ${TEST_TABLE} (
 			id SERIAL PRIMARY KEY,
@@ -96,7 +96,7 @@ async function setup(rawSql: InstanceType<typeof SQL>) {
 
 async function teardown(rawSql: InstanceType<typeof SQL>) {
 	await rawSql.unsafe(`DROP TABLE IF EXISTS ${TEST_TABLE}`);
-	await rawSql.unsafe(`DROP TABLE IF EXISTS drizzle_tx_verification_test`);
+	await rawSql.unsafe('DROP TABLE IF EXISTS drizzle_tx_verification_test');
 }
 
 // ───────────────────────────────────────────────────────────────────────

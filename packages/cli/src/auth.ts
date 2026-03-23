@@ -169,13 +169,11 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 	if (!isTTY()) {
 		if (hasConfig) {
 			logger.fatal(
-				`You are not currently logged in or your session has expired.\n` +
+				'You are not currently logged in or your session has expired.\n' +
 					`Use "${loginCmd}" to login to Agentuity`
 			);
 		} else {
-			logger.fatal(
-				`Authentication required.\n` + `Use "${loginCmd}" to create an account or login`
-			);
+			logger.fatal(`Authentication required.\nUse "${loginCmd}" to create an account or login`);
 		}
 	}
 

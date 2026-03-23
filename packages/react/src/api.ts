@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
 import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
@@ -119,8 +118,7 @@ type UseAPIBaseOptions<TRoute extends RouteKey> = {
 				chunk: RouteChunkType<TRoute>
 			) => Promise<RouteChunkType<TRoute>> | RouteChunkType<TRoute>;
 		}
-	: // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-		{}) &
+	: {}) &
 	(ExtractMethod<TRoute> extends 'GET'
 		? {
 				/** GET requests cannot have input (use query params instead) */
@@ -138,8 +136,7 @@ type UseAPIBaseOptions<TRoute extends RouteKey> = {
  */
 type UseAPIRouteFormOptions<TRoute extends RouteKey> = UseAPIBaseOptions<TRoute> &
 	(RoutePathParams<TRoute> extends never
-		? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-			{} // No params property - omit entirely for routes without path parameters
+		? {} // No params property - omit entirely for routes without path parameters
 		: {
 				/** Path parameters for routes with dynamic segments (e.g., { id: '123' } for /users/:id) */
 				params: RoutePathParams<TRoute>;
@@ -858,7 +855,7 @@ export function useAPI(routeOrOptions: unknown): any {
 
 						// Track accumulated chunks locally to avoid stale closure
 						const accumulatedChunks: any[] = [];
-						let streamError: any = undefined;
+						let streamError: any;
 
 						const success = await processStream<any>(response.body, {
 							delimiter: delimiterRef.current,

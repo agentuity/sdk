@@ -1,6 +1,6 @@
 import enquirer from 'enquirer';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import { readEnvFile, writeEnvFile } from '../../../env-util';

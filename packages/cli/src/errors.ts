@@ -153,16 +153,6 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		// Payment required - user needs to upgrade their plan
 		case ErrorCode.PAYMENT_REQUIRED:
 			return ExitCode.GENERAL_ERROR;
-
-		// Resource conflicts and other errors
-		case ErrorCode.RESOURCE_ALREADY_EXISTS:
-		case ErrorCode.RESOURCE_CONFLICT:
-		case ErrorCode.ORG_REQUIRED:
-		case ErrorCode.REGION_REQUIRED:
-		case ErrorCode.RUNTIME_ERROR:
-		case ErrorCode.INTERNAL_ERROR:
-		case ErrorCode.NOT_IMPLEMENTED:
-		case ErrorCode.UPGRADE_REQUIRED:
 		default:
 			return ExitCode.GENERAL_ERROR;
 	}

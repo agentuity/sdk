@@ -66,7 +66,6 @@ export function ChatDemo() {
 			}
 		};
 		loadHistory();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [invoke]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when messages change

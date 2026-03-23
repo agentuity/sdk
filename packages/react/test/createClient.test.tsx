@@ -158,7 +158,6 @@ describe('React createClient', () => {
 			};
 
 			// Set up global metadata (simulating what generated code does)
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(globalThis as any).__rpcRouteMetadata = {
 				version: {
 					get: { type: 'api', path: '/api/version' },
@@ -186,7 +185,6 @@ describe('React createClient', () => {
 			expect(result).toEqual({ version: '1.0.0' });
 
 			// Clean up
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			delete (globalThis as any).__rpcRouteMetadata;
 		});
 	});

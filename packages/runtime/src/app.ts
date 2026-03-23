@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
 import type { compress } from 'hono/compress';
@@ -271,7 +270,6 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * });
 	 * ```
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router?: import('hono').Hono<any, any, any> | RouteMount | RouteMount[];
 }
 
@@ -289,7 +287,6 @@ export interface RouteMount {
 	/**
 	 * The Hono router to mount.
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router: import('hono').Hono<any, any, any>;
 }
 
@@ -543,7 +540,6 @@ export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefine
  * @internal
  */
 function normalizeRouterConfig(
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router: import('hono').Hono<any, any, any> | RouteMount | RouteMount[]
 ): RouteMount[] {
 	if (Array.isArray(router)) {
@@ -552,7 +548,6 @@ function normalizeRouterConfig(
 	if ('router' in router && 'path' in router) {
 		return [router as RouteMount];
 	}
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return [{ path: '/api', router: router as import('hono').Hono<any, any, any> }];
 }
 

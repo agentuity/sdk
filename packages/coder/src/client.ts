@@ -81,11 +81,11 @@ export class HubClient {
 	private buildWebSocketUrl(url: string): string {
 		let wsUrl = url;
 		if (wsUrl.startsWith('http://')) {
-			wsUrl = 'ws://' + wsUrl.slice(7);
+			wsUrl = `ws://${wsUrl.slice(7)}`;
 		} else if (wsUrl.startsWith('https://')) {
-			wsUrl = 'wss://' + wsUrl.slice(8);
+			wsUrl = `wss://${wsUrl.slice(8)}`;
 		} else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-			wsUrl = 'ws://' + wsUrl;
+			wsUrl = `ws://${wsUrl}`;
 		}
 		return wsUrl;
 	}

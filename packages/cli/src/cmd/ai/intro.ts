@@ -151,13 +151,13 @@ export const introSubcommand = createSubcommand({
 			tui.info(tui.bold('This command is designed for AI coding agents'));
 			tui.newline();
 			console.log(
-				`  This command outputs an introduction to the Agentuity CLI that helps AI\n` +
-					`  coding agents understand how to use the platform effectively.\n`
+				'  This command outputs an introduction to the Agentuity CLI that helps AI\n' +
+					'  coding agents understand how to use the platform effectively.\n'
 			);
 			console.log(`  ${tui.bold('To use this command:')}\n`);
 			console.log(
 				`  Ask your AI coding agent to run ${tui.colorPrimary(`"${getCommand('ai intro')}"`)} to introduce\n` +
-					`  itself to the Agentuity platform and learn how to help you build and deploy agents.\n`
+					'  itself to the Agentuity platform and learn how to help you build and deploy agents.\n'
 			);
 			console.log(
 				`  ${tui.muted('Supported agents:')} ${KNOWN_AGENTS.map(([, name]) => getAgentDisplayName(name)).join(', ')}\n`

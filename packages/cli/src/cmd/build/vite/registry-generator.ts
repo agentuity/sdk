@@ -46,7 +46,7 @@ function rebaseImportPath(routeFilename: string, schemaImportPath: string, srcDi
 
 	// Ensure it starts with './' or '../'
 	if (!rebasedPath.startsWith('.') && !rebasedPath.startsWith('/')) {
-		rebasedPath = './' + rebasedPath;
+		rebasedPath = `./${rebasedPath}`;
 	}
 
 	return rebasedPath;
@@ -134,8 +134,8 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 		throw new AgentIdentifierCollisionError({
 			message:
 				`Agent identifier naming collisions detected:\n${collisions.join('\n')}\n\n` +
-				`This occurs when different agent names produce the same camelCase identifier.\n` +
-				`Please rename your agents to avoid this collision.`,
+				'This occurs when different agent names produce the same camelCase identifier.\n' +
+				'Please rename your agents to avoid this collision.',
 		});
 	}
 
@@ -206,34 +206,34 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 
 			const parts = [
 				'',
-				`/**`,
+				'/**',
 				` * Input type for ${name} agent${descComment}`,
-				` */`,
+				' */',
 				`export type ${pascalName}Input = InferInput<typeof ${camelName}['inputSchema']>;`,
 				'',
-				`/**`,
+				'/**',
 				` * Output type for ${name} agent${descComment}`,
-				` */`,
+				' */',
 				`export type ${pascalName}Output = InferOutput<typeof ${camelName}['outputSchema']>;`,
 				'',
-				`/**`,
+				'/**',
 				` * Input schema type for ${name} agent${descComment}`,
-				` */`,
+				' */',
 				`export type ${pascalName}InputSchema = typeof ${camelName}['inputSchema'];`,
 				'',
-				`/**`,
+				'/**',
 				` * Output schema type for ${name} agent${descComment}`,
-				` */`,
+				' */',
 				`export type ${pascalName}OutputSchema = typeof ${camelName}['outputSchema'];`,
 				'',
-				`/**`,
+				'/**',
 				` * Agent type for ${name}${descComment}`,
-				` */`,
+				' */',
 				`export type ${pascalName}Agent = AgentRunner<`,
 				`\t${pascalName}InputSchema,`,
 				`\t${pascalName}OutputSchema,`,
 				`\ttypeof ${camelName}['stream'] extends true ? true : false`,
-				`>;`,
+				'>;',
 			];
 			return parts.join('\n');
 		})
@@ -385,7 +385,6 @@ function generateRPCRegistryType(
 		const pathParts = cleanPath.split('/').filter(Boolean);
 
 		// Navigate/create tree structure: path segments first, then method
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let current: any = tree;
 
 		// Add path segments - sanitize for valid TypeScript property names
@@ -499,7 +498,7 @@ function generateRPCRegistryType(
 			} else {
 				// Nested node
 				lines.push(`${indent}${quotePropertyName(key)}: {`);
-				lines.push(treeToTypeString(value as NestedNode, indent + '\t'));
+				lines.push(treeToTypeString(value as NestedNode, `${indent}\t`));
 				lines.push(`${indent}};`);
 			}
 		}
@@ -538,7 +537,6 @@ function generateRPCRuntimeMetadata(
 		}
 
 		const pathParts = cleanPath.split('/').filter(Boolean);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let current: any = tree;
 
 		// Sanitize path segments for valid property names (must match type generation)
@@ -720,7 +718,7 @@ export async function generateRouteRegistry(
 					// File path (e.g., @agent/hello/agent) - add .js
 					const finalPath = suffix.endsWith('.js')
 						? suffix
-						: suffix.replace(/\.tsx?$/, '') + '.js';
+						: `${suffix.replace(/\.tsx?$/, '')}.js`;
 					resolvedPath = `../agent/${finalPath}`;
 				}
 			} else if (resolvedPath.startsWith('@api/')) {
@@ -728,7 +726,7 @@ export async function generateRouteRegistry(
 				const suffix = resolvedPath.substring('@api/'.length);
 				const finalPath = suffix.endsWith('.js')
 					? suffix
-					: suffix.replace(/\.tsx?$/, '') + '.js';
+					: `${suffix.replace(/\.tsx?$/, '')}.js`;
 				resolvedPath = `../api/${finalPath}`;
 			} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
 				// Resolve relative import from route file's directory
@@ -902,7 +900,7 @@ export async function generateRouteRegistry(
 		imports.push(`import type { ${importParts.join(', ')} } from '${importPath}';`);
 	});
 
-	const importsStr = imports.length > 0 ? imports.join('\n') + '\n' : '';
+	const importsStr = imports.length > 0 ? `${imports.join('\n')}\n` : '';
 
 	// Add InferInput/InferOutput imports if we have any routes with schemas
 	const hasSchemas = allRoutes.some(
@@ -999,14 +997,14 @@ export async function generateRouteRegistry(
 				...outputJSDoc,
 				`export type ${pascalName}Output = ${outputType};`,
 				'',
-				`/**`,
+				'/**',
 				` * Input schema type for route: ${routeKey}`,
-				` */`,
+				' */',
 				`export type ${pascalName}InputSchema = ${inputSchemaType};`,
 				'',
-				`/**`,
+				'/**',
 				` * Output schema type for route: ${routeKey}`,
-				` */`,
+				' */',
 				`export type ${pascalName}OutputSchema = ${outputSchemaType};`,
 			];
 			return parts.join('\n');

@@ -16,7 +16,7 @@ const serializeWSData = (
 		}
 		return JSON.stringify(data);
 	}
-	throw new Error('unsupported data type for websocket: ' + typeof data);
+	throw new Error(`unsupported data type for websocket: ${typeof data}`);
 };
 
 /**

@@ -31,19 +31,19 @@ function displayConfig(config: BucketConfig) {
 	if (config.cors) {
 		console.log(tui.bold('CORS:'));
 		if (config.cors.allowed_origins?.length) {
-			console.log('  Origins: ' + config.cors.allowed_origins.join(', '));
+			console.log(`  Origins: ${config.cors.allowed_origins.join(', ')}`);
 		}
 		if (config.cors.allowed_methods?.length) {
-			console.log('  Methods: ' + config.cors.allowed_methods.join(', '));
+			console.log(`  Methods: ${config.cors.allowed_methods.join(', ')}`);
 		}
 		if (config.cors.allowed_headers?.length) {
-			console.log('  Headers: ' + config.cors.allowed_headers.join(', '));
+			console.log(`  Headers: ${config.cors.allowed_headers.join(', ')}`);
 		}
 		if (config.cors.expose_headers?.length) {
-			console.log('  Expose:  ' + config.cors.expose_headers.join(', '));
+			console.log(`  Expose:  ${config.cors.expose_headers.join(', ')}`);
 		}
 		if (config.cors.max_age_seconds != null) {
-			console.log('  Max Age: ' + config.cors.max_age_seconds + 's');
+			console.log(`  Max Age: ${config.cors.max_age_seconds}s`);
 		}
 	} else {
 		console.log(tui.bold('CORS:            ') + tui.muted('default'));

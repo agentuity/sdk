@@ -35,7 +35,7 @@ export const detectSubcommand = createSubcommand({
 			tui.info('No AI coding agent detected.');
 			tui.newline();
 			console.log(`  This CLI can detect when it's being run by an AI coding agent.`);
-			console.log(`  Currently supported agents:\n`);
+			console.log('  Currently supported agents:\n');
 			for (const [, id] of KNOWN_AGENTS) {
 				console.log(`    - ${getAgentDisplayName(id)} (${id})`);
 			}
@@ -43,7 +43,7 @@ export const detectSubcommand = createSubcommand({
 			console.log(
 				`  You can also set the ${tui.colorPrimary('AGENTUITY_AGENT_MODE')} environment variable`
 			);
-			console.log(`  to manually specify the agent.\n`);
+			console.log('  to manually specify the agent.\n');
 
 			// Exit with code 1 when no agent detected (non-JSON mode)
 			process.exit(1);

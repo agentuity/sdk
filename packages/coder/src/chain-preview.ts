@@ -30,6 +30,7 @@ type DoneFn = (result: ChainResult | undefined) => void;
 type Mode = 'sequential' | 'parallel';
 type ScreenMode = 'compose' | 'picker' | 'edit';
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 function visibleWidth(text: string): number {
@@ -409,7 +410,7 @@ export class ChainEditorOverlay implements Component, Focusable {
 		const hintRun = this.steps.length >= 2 ? '[Enter] Run' : '[Enter] Run (needs 2+ steps)';
 		const footer: string[] = [
 			this.contentLine(
-				this.theme.fg('dim', `  [↑↓] Navigate  [e] Edit task  [d] Remove`),
+				this.theme.fg('dim', '  [↑↓] Navigate  [e] Edit task  [d] Remove'),
 				inner
 			),
 			this.contentLine(

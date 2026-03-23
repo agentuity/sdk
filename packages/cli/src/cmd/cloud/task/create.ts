@@ -1,4 +1,4 @@
-import { basename, join } from 'path';
+import { basename, join } from 'node:path';
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';

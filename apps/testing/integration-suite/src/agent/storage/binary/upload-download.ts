@@ -7,7 +7,7 @@
 
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 	description: 'Upload and download binary data with integrity verification',
