@@ -1,0 +1,45 @@
+{
+	"name": "@agentuity/hono",
+	"version": "1.0.0",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"src",
+		"dist"
+	],
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/server": "workspace:*",
+		"@agentuity/otel": "workspace:*",
+		"@agentuity/services": "workspace:*",
+		"@opentelemetry/api": "^1.9.0",
+		"hono": "^4.7.13"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"peerDependencies": {
+		"hono": "^4.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}
