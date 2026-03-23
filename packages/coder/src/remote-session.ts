@@ -265,11 +265,6 @@ export class RemoteSession {
 
 			this.ws.onopen = () => {
 				log('WebSocket connected');
-				try {
-					this.ws?.send(JSON.stringify({ type: 'controller_ready' }));
-				} catch {
-					// Let the normal init timeout surface if bootstrap cannot start.
-				}
 			};
 
 			this.ws.onmessage = (event: MessageEvent) => {
@@ -292,11 +287,17 @@ export class RemoteSession {
 					this.connected = true;
 					this.reconnectAttempts = 0;
 					if (data.sessionId) this.sessionId = data.sessionId as string;
+					if (typeof data.label === 'string') this.label = data.label;
 					this.applyLifecycle({
 						type: 'init',
 						sessionId: typeof data.sessionId === 'string' ? data.sessionId : undefined,
 						label: typeof data.label === 'string' ? data.label : undefined,
 					});
+					try {
+						this.ws?.send(JSON.stringify({ type: 'bootstrap_ready' }));
+					} catch {
+						// Let the close/error path surface bootstrap failure.
+					}
 					log(`Connected to session ${this.sessionId}`);
 					this.notifyConnectionChange('connected');
 					resolve();
@@ -313,6 +314,25 @@ export class RemoteSession {
 						paused: false,
 					});
 					reject(new Error(msg));
+					return;
+				}
+
+				if (type === 'protocol_error') {
+					clearTimeout(connectTimeout);
+					const msg = (data.message as string) || 'Hub protocol error';
+					this.applyLifecycle({
+						type: 'rpc_command_error',
+						error: msg,
+						paused: false,
+					});
+					this.dispatchEvent({
+						type: 'protocol_error',
+						...data,
+						_source: 'hub',
+					} as RpcEvent);
+					if (!this.connected) {
+						reject(new Error(msg));
+					}
 					return;
 				}
 
@@ -405,7 +425,7 @@ export class RemoteSession {
 					return;
 				}
 
-				// Raw RPC messages (from Durable Stream replay — historical, not live)
+				// Legacy/raw RPC messages — tolerated but not expected on the controller path.
 				if (type === 'rpc_event') {
 					const rpcEvent = data.event as RpcEvent;
 					if (rpcEvent) {

@@ -326,6 +326,7 @@ export class HubClient {
 					msgType === 'session_hydration' ||
 					msgType === 'session_resume' ||
 					msgType === 'session_stream_ready' ||
+					msgType === 'protocol_error' ||
 					msgType === 'rpc_event' ||
 					msgType === 'rpc_response' ||
 					msgType === 'rpc_ui_request'
