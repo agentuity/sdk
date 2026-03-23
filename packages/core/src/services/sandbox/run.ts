@@ -229,7 +229,7 @@ export async function sandboxRun(
 		// stream completes. Without retries, exitCode defaults to 0 and the CLI
 		// incorrectly reports success for failed sandboxes.
 		let exitCode = 0;
-		const maxStatusRetries = 5;
+		const maxStatusRetries = 10;
 		for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
 			try {
 				const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
@@ -240,9 +240,9 @@ export async function sandboxRun(
 					exitCode = 1;
 					break;
 				}
-				// Exit code not yet propagated — wait briefly and retry.
+				// Exit code not yet propagated — wait with exponential backoff.
 				if (attempt < maxStatusRetries - 1) {
-					await new Promise((r) => setTimeout(r, 250));
+					await new Promise((r) => setTimeout(r, Math.min(100 * Math.pow(2, attempt), 2000)));
 				}
 			} catch {
 				// Sandbox may already be destroyed (fire-and-forget teardown).
