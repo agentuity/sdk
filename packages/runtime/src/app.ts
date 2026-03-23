@@ -160,6 +160,12 @@ export interface AppResult {
  * ```
  */
 export async function createApp(config?: AppConfig): Promise<AppResult> {
+	// Deprecation warning for v3
+	console.warn(
+		'[Agentuity] createApp() is deprecated and will be removed in a future version. ' +
+			'Use the agentuity() middleware from @agentuity/hono instead.'
+	);
+
 	// --- Imports (lazy to avoid circular deps) ---
 	const { bootstrapRuntimeEnv } = await import('@agentuity/server');
 	const { agentuity } = await import('@agentuity/hono');

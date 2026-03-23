@@ -740,6 +740,18 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/local": {
+      "name": "@agentuity/local",
+      "version": "1.0.0",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
     "packages/migrate": {
       "name": "@agentuity/migrate",
       "version": "1.0.46",
@@ -964,10 +976,17 @@
         "@opentelemetry/api": "^1.9.0",
       },
       "devDependencies": {
+        "@agentuity/local": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
       },
+      "peerDependencies": {
+        "@agentuity/local": "workspace:*",
+      },
+      "optionalPeers": [
+        "@agentuity/local",
+      ],
     },
     "packages/task": {
       "name": "@agentuity/task",
@@ -1140,6 +1159,8 @@
     "@agentuity/hono": ["@agentuity/hono@workspace:packages/hono"],
 
     "@agentuity/keyvalue": ["@agentuity/keyvalue@workspace:packages/keyvalue"],
+
+    "@agentuity/local": ["@agentuity/local@workspace:packages/local"],
 
     "@agentuity/migrate": ["@agentuity/migrate@workspace:packages/migrate"],
 

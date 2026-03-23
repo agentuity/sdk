@@ -4,38 +4,49 @@
  * Provides the `agentuity()` middleware that initializes OTel and services,
  * injecting them into Hono's context variables.
  *
- * @example
+ * @example Basic usage (cloud services auto-initialized):
  * ```typescript
  * import { Hono } from 'hono';
  * import { agentuity } from '@agentuity/hono';
- * import { kv } from '@agentuity/services';
  *
  * const app = new Hono();
  * app.use('*', agentuity());
  *
  * app.get('/data', async (c) => {
+ *   const { kv, logger } = c.var;
  *   const data = await kv.get('key');
  *   return c.json(data);
  * });
+ * ```
  *
- * export default app;
+ * @example With service overrides:
+ * ```typescript
+ * import { Hono } from 'hono';
+ * import { agentuity } from '@agentuity/hono';
+ * import { MyKV } from './my-kv';
+ *
+ * const app = new Hono();
+ * app.use('*', agentuity({
+ *   services: {
+ *     services: { kv: new MyKV() }
+ *   }
+ * }));
  * ```
  */
 
 import { createMiddleware } from 'hono/factory';
 import { registerOtel, type OtelConfig, type OtelResponse } from '@agentuity/otel';
-import { initServices, getServices, type ServicesConfig, type Services } from '@agentuity/services';
+import { initServices, getServices, resetServices, type ServicesConfig } from '@agentuity/services';
 
 export interface AgentuityOptions {
 	/** OTel configuration */
 	otel?: Partial<OtelConfig>;
-	/** Services configuration */
+	/** Services configuration (passed to initServices) */
 	services?: ServicesConfig;
 }
 
 // Global state (initialized once at composition time)
 let otelInstance: OtelResponse | null = null;
-let servicesInstance: Services | null = null;
 
 /**
  * Create the Agentuity middleware for Hono.
@@ -43,25 +54,12 @@ let servicesInstance: Services | null = null;
  * Initializes OTel and services at middleware composition time,
  * making them available via Hono's context variables.
  *
- * @example
- * ```typescript
- * import { Hono } from 'hono';
- * import { agentuity } from '@agentuity/hono';
- *
- * const app = new Hono();
- * app.use('*', agentuity());
- *
- * app.get('/data', async (c) => {
- *   // Access via c.var
- *   const kv = c.var.kv;
- *   const logger = c.var.logger;
- *   const data = await kv.get('key');
- *   return c.json(data);
- * });
- * ```
+ * Services are auto-initialized from `@agentuity/services` which
+ * defaults to cloud services when AGENTUITY_SDK_KEY is present.
+ * Override via `services` option.
  */
 export function agentuity(options?: AgentuityOptions) {
-	// Initialize at composition time (before any requests)
+	// Initialize OTel
 	if (!otelInstance) {
 		otelInstance = registerOtel({
 			name: process.env.AGENTUITY_APP_NAME ?? 'agentuity-app',
@@ -78,13 +76,12 @@ export function agentuity(options?: AgentuityOptions) {
 		});
 	}
 
-	if (!servicesInstance) {
-		servicesInstance = initServices({
-			logger: otelInstance.logger as any,
-			tracer: otelInstance.tracer,
-			...options?.services,
-		});
-	}
+	// Initialize services (passes logger from OTel)
+	initServices({
+		logger: otelInstance.logger as any,
+		tracer: otelInstance.tracer,
+		...options?.services,
+	});
 
 	// Return the middleware handler
 	return createMiddleware(async (c, next) => {
@@ -92,15 +89,17 @@ export function agentuity(options?: AgentuityOptions) {
 		c.set('tracer', otelInstance!.tracer as any);
 		c.set('logger', otelInstance!.logger as any);
 		c.set('meter', otelInstance!.meter as any);
+
 		// Inject services into context
-		c.set('kv', servicesInstance!.kv as any);
-		c.set('stream', servicesInstance!.stream as any);
-		c.set('vector', servicesInstance!.vector as any);
-		c.set('queue', servicesInstance!.queue as any);
-		c.set('email', servicesInstance!.email as any);
-		c.set('schedule', servicesInstance!.schedule as any);
-		c.set('task', servicesInstance!.task as any);
-		c.set('sandbox', servicesInstance!.sandbox as any);
+		const services = getServices();
+		c.set('kv', services.kv as any);
+		c.set('stream', services.stream as any);
+		c.set('vector', services.vector as any);
+		c.set('queue', services.queue as any);
+		c.set('email', services.email as any);
+		c.set('schedule', services.schedule as any);
+		c.set('task', services.task as any);
+		c.set('sandbox', services.sandbox as any);
 
 		await next();
 	});
@@ -114,9 +113,16 @@ export function getOtel(): OtelResponse | null {
 }
 
 /**
- * Get services. Available after agentuity() is composed.
+ * Reset global state (for testing).
  */
-export { getServices, initServices };
+export function reset(): void {
+	otelInstance = null;
+	resetServices();
+}
 
-export type { Services, ServicesConfig } from '@agentuity/services';
+// Re-export getServices for convenience
+export { getServices, resetServices };
+
+// Re-export types
 export type { OtelConfig, OtelResponse } from '@agentuity/otel';
+export type { ServicesConfig, Services } from '@agentuity/services';
