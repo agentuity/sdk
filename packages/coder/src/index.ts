@@ -726,6 +726,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				`Delegate a task to a specialized agent on your team. ` +
 				`Available agents: ${agentNames.join(', ')}. ` +
 				`Each agent runs independently with its own context window.`,
+			promptSnippet:
+				'Use task({ description, prompt, subagent_type }) to delegate one focused sub-task to a specialist agent.',
 			parameters: Type.Object({
 				description: Type.String({ description: 'Short 3-5 word task description' }),
 				prompt: Type.String({ description: 'Detailed task instructions for the agent' }),
@@ -929,6 +931,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			description:
 				`Run multiple agent tasks concurrently (max 4). ` +
 				`Available agents: ${agentNames.join(', ')}.`,
+			promptSnippet:
+				'Use parallel_tasks({ tasks: [...] }) when multiple independent specialist tasks can run at the same time.',
 			parameters: Type.Object({
 				tasks: Type.Array(
 					Type.Object({
