@@ -136,9 +136,11 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 
 	if (httpUrl.includes('/api/ws')) {
-		httpUrl = httpUrl.replace('/api/ws', '/api/hub/tui/init');
+		httpUrl = httpUrl.replace('/api/ws', '/api/hub/init');
+	} else if (/\/ws\b/.test(httpUrl)) {
+		httpUrl = httpUrl.replace(/\/ws\b/, '/api/hub/init');
 	} else {
-		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/tui/init');
+		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/init');
 	}
 
 	if (agentRole && agentRole !== 'lead') {
@@ -151,6 +153,7 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 function getHubHttpBaseUrl(hubUrl: string): string {
 	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 	httpUrl = httpUrl.replace(/\/api\/ws\b.*$/, '');
+	httpUrl = httpUrl.replace(/\/ws\b.*$/, '');
 	return httpUrl.replace(/\/+$/, '');
 }
 
@@ -726,6 +729,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				`Delegate a task to a specialized agent on your team. ` +
 				`Available agents: ${agentNames.join(', ')}. ` +
 				`Each agent runs independently with its own context window.`,
+			promptSnippet:
+				'Use task({ description, prompt, subagent_type }) to delegate one focused sub-task to a specialist agent.',
 			parameters: Type.Object({
 				description: Type.String({ description: 'Short 3-5 word task description' }),
 				prompt: Type.String({ description: 'Detailed task instructions for the agent' }),
@@ -929,6 +934,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			description:
 				`Run multiple agent tasks concurrently (max 4). ` +
 				`Available agents: ${agentNames.join(', ')}.`,
+			promptSnippet:
+				'Use parallel_tasks({ tasks: [...] }) when multiple independent specialist tasks can run at the same time.',
 			parameters: Type.Object({
 				tasks: Type.Array(
 					Type.Object({
