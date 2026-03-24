@@ -13,8 +13,6 @@ When you need audio, video, or data to flow directly between browsers without a 
 | [WebSockets](/routes/websockets) | Chat, collaboration, real-time bidirectional data |
 | [SSE](/routes/sse) | LLM streaming, progress updates, server-to-client feeds |
 
-Use WebRTC when data flows **directly between browsers**. Use WebSockets when the **server mediates** every message. Use SSE when you only need **server-to-client** streaming.
-
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. The signaling endpoint is a WebSocket route that relays peer discovery messages.
 </Callout>
