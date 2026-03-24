@@ -6,11 +6,11 @@
 		"domains": ["agentuity.dev"]
 	},
 	"build": {
-		"timeout": "30m",
+		"timeout": "45m",
 		"resources": {
-			"memory": "4Gi",
-			"cpu": "2",
-			"disk": "4Gi"
+			"memory": "8Gi",
+			"cpu": "4",
+			"disk": "20Gi"
 		}
 	},
 	"region": "use"
