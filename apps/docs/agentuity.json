@@ -8,7 +8,7 @@
 			"memory": "2Gi",
 			"cpu": "2",
 			"disk": "4Gi"
-    	}
+		}
 	},
 	"build": {
 		"timeout": "45m",
