@@ -3,7 +3,7 @@ title: Routes
 description: Define HTTP endpoints, triggers, and real-time connections
 ---
 
-import { Globe, Layers, Clock, Plug, Radio, GitMerge } from 'lucide-react';
+import { Globe, Layers, Clock, Plug, Radio, GitMerge, Video } from 'lucide-react';
 
 Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebSockets, and Server-Sent Events.
 
@@ -43,5 +43,11 @@ Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebS
     title="SSE"
     description="Server-Sent Events for streaming"
     icon={<Radio />}
+  />
+  <CardLink
+    href="/routes/webrtc"
+    title="WebRTC"
+    description="Peer-to-peer audio, video, and data channels"
+    icon={<Video />}
   />
 </Cards>
