@@ -105,6 +105,9 @@ function buildDeployArgs(opts: CIBuildOptions): string[] {
 
 export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise<void> {
 	let tempDir = '';
+	// Track subprocess exit code so we can clean up in finally before calling process.exit().
+	// Bun does not reliably honor process.exitCode, so an explicit process.exit() is required.
+	let pendingExitCode: number | undefined;
 
 	try {
 		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-ci-build-'));
@@ -121,9 +124,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			tempDir
 		);
 		if (unzipExit !== 0 && unzipExit !== 1) {
-			// Propagate the subprocess exit code instead of overriding it
 			tui.error(`Failed to unzip source archive (exit ${unzipExit})`);
-			process.exit(unzipExit);
+			pendingExitCode = unzipExit;
+			return;
 		}
 
 		const extractedEntries = await readdir(extractPath, { withFileTypes: true });
@@ -170,9 +173,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		tui.info('3️⃣ Installing your project dependencies...');
 		const installExit = await runCommand(['bun', 'install'], projectDir);
 		if (installExit !== 0) {
-			// Propagate the subprocess exit code instead of overriding it
 			tui.error(`Dependency installation failed (exit ${installExit})`);
-			process.exit(installExit);
+			pendingExitCode = installExit;
+			return;
 		}
 
 		const packageJsonPath = join(projectDir, 'package.json');
@@ -189,9 +192,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			tui.info('🔧 Running predeploy script...');
 			const predeployExit = await runCommand(['bun', 'run', '--bun', 'predeploy'], projectDir);
 			if (predeployExit !== 0) {
-				// Propagate the subprocess exit code instead of overriding it
 				tui.error(`Predeploy failed (exit ${predeployExit})`);
-				process.exit(predeployExit);
+				pendingExitCode = predeployExit;
+				return;
 			}
 		}
 
@@ -206,18 +209,18 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		tui.info(`Using CLI: ${cliExists ? localCliBin : 'bunx --bun agentuity'}`);
 		const deployExit = await runCommand(deployCmd, projectDir);
 		if (deployExit !== 0) {
-			// Propagate the deploy CLI's exit code — it already uses our ErrorCode system
 			tui.error(`Deploy failed (exit ${deployExit})`);
-			process.exit(deployExit);
+			pendingExitCode = deployExit;
+			return;
 		}
 
 		if (scripts?.postdeploy) {
 			tui.info('🔧 Running postdeploy script...');
 			const postdeployExit = await runCommand(['bun', 'run', '--bun', 'postdeploy'], projectDir);
 			if (postdeployExit !== 0) {
-				// Propagate the subprocess exit code instead of overriding it
 				tui.error(`Postdeploy failed (exit ${postdeployExit})`);
-				process.exit(postdeployExit);
+				pendingExitCode = postdeployExit;
+				return;
 			}
 		}
 
@@ -228,6 +231,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 	} finally {
 		if (tempDir) {
 			await rm(tempDir, { recursive: true, force: true });
+		}
+		if (pendingExitCode !== undefined) {
+			process.exit(pendingExitCode);
 		}
 	}
 }

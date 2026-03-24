@@ -27,6 +27,26 @@ export enum ExitCode {
 }
 
 /**
+ * Human-readable descriptions for each exit code.
+ * This is the single source of truth consumed by the schema generator and AI help.
+ */
+export const exitCodeDescriptions: Record<number, string> = {
+	[ExitCode.SUCCESS]: 'Success',
+	[ExitCode.GENERAL_ERROR]: 'General error',
+	[ExitCode.VALIDATION_ERROR]: 'Validation error (invalid arguments or options)',
+	[ExitCode.AUTH_ERROR]: 'Authentication error (login required or credentials invalid)',
+	[ExitCode.NOT_FOUND]: 'Resource not found (project, file, deployment, etc.)',
+	[ExitCode.PERMISSION_ERROR]: 'Permission denied (insufficient access rights)',
+	[ExitCode.NETWORK_ERROR]: 'Network error (API unreachable or timeout)',
+	[ExitCode.FILE_ERROR]: 'File system error (file read/write failed)',
+	[ExitCode.USER_CANCELLED]: 'User cancelled (operation aborted by user)',
+	[ExitCode.BUILD_FAILED]: 'Build failed',
+	[ExitCode.SECURITY_ERROR]: 'Security error (malware detected)',
+	[ExitCode.PAYMENT_REQUIRED]: 'Payment required (plan upgrade needed)',
+	[ExitCode.UPGRADE_REQUIRED]: 'Upgrade required (CLI version too old)',
+};
+
+/**
  * Standard error codes for the CLI
  */
 export enum ErrorCode {

@@ -87,11 +87,17 @@ for (const example of errorExamples) {
 console.log('\nTest 4: Exit codes avoid system signal range');
 console.log('----------------------------------------------');
 const unsafeRange = [2, 3, 4, 5, 6, 7, 8, 9]; // Signal numbers to avoid
+let hasConflict = false;
 for (const exitCode of Object.values(ExitCode)) {
 	if (typeof exitCode !== 'number') continue;
 	if (unsafeRange.includes(exitCode)) {
 		console.log(`  ✗ ExitCode ${exitCode} conflicts with Unix signal range`);
+		hasConflict = true;
 	}
+}
+if (hasConflict) {
+	console.error('\nFAILED: One or more exit codes fall in the Unix signal range (2-9)\n');
+	process.exit(1);
 }
 console.log('  ✓ All exit codes are outside the Unix signal range (2-9)');
 
