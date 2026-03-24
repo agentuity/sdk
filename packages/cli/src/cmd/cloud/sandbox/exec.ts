@@ -98,6 +98,8 @@ export const execSubcommand = createCommand({
 		process.on('SIGTERM', handleSignal);
 
 		try {
+			logger.debug('[exec] calling sandboxExecute for %s', args.sandboxId);
+			const executeStart = Date.now();
 			const execution = await sandboxExecute(client, {
 				sandboxId: args.sandboxId,
 				options: {
@@ -107,6 +109,13 @@ export const execSubcommand = createCommand({
 				},
 				orgId,
 			});
+			logger.debug(
+				'[exec] sandboxExecute returned in %dms: executionId=%s, stdoutUrl=%s, stderrUrl=%s',
+				Date.now() - executeStart,
+				execution.executionId,
+				execution.stdoutStreamUrl ?? 'none',
+				execution.stderrStreamUrl ?? 'none'
+			);
 
 			if (execution.autoResumed && !options.json) {
 				tui.warning('Sandbox was automatically resumed from suspended state');
@@ -116,10 +125,17 @@ export const execSubcommand = createCommand({
 			const stderrStreamUrl = execution.stderrStreamUrl;
 			const streamAbortController = new AbortController();
 			const streamPromises: Promise<void>[] = [];
+			const streamLabels: string[] = [];
 
 			// Check if stdout and stderr are the same stream (combined output)
 			const isCombinedOutput =
 				stdoutStreamUrl && stderrStreamUrl && stdoutStreamUrl === stderrStreamUrl;
+			logger.debug(
+				'[exec] stream mode: combined=%s, stdoutUrl=%s, stderrUrl=%s',
+				isCombinedOutput,
+				stdoutStreamUrl ?? 'none',
+				stderrStreamUrl ?? 'none'
+			);
 
 			// Set up stream capture — in JSON mode, capture to buffers;
 			// when streams are separate, capture stdout/stderr independently
@@ -153,9 +169,11 @@ export const execSubcommand = createCommand({
 
 			if (isCombinedOutput) {
 				// Stream combined output to stdout only to avoid duplicates
-				logger.debug('using combined output stream (stdout === stderr): %s', stdoutStreamUrl);
+				logger.debug('[exec] starting combined stream: %s', stdoutStreamUrl);
+				streamLabels.push('combined');
 				streamPromises.push(
 					streamUrlToWritable(
+						'combined',
 						stdoutStreamUrl,
 						stdoutWritable,
 						streamAbortController.signal,
@@ -164,9 +182,11 @@ export const execSubcommand = createCommand({
 				);
 			} else {
 				if (stdoutStreamUrl) {
-					logger.debug('starting stdout stream from: %s', stdoutStreamUrl);
+					logger.debug('[exec] starting stdout stream: %s', stdoutStreamUrl);
+					streamLabels.push('stdout');
 					streamPromises.push(
 						streamUrlToWritable(
+							'stdout',
 							stdoutStreamUrl,
 							stdoutWritable,
 							streamAbortController.signal,
@@ -176,9 +196,11 @@ export const execSubcommand = createCommand({
 				}
 
 				if (stderrStreamUrl) {
-					logger.debug('starting stderr stream from: %s', stderrStreamUrl);
+					logger.debug('[exec] starting stderr stream: %s', stderrStreamUrl);
+					streamLabels.push('stderr');
 					streamPromises.push(
 						streamUrlToWritable(
+							'stderr',
 							stderrStreamUrl,
 							stderrWritable,
 							streamAbortController.signal,
@@ -188,17 +210,63 @@ export const execSubcommand = createCommand({
 				}
 			}
 
+			logger.debug(
+				'[exec] %d stream(s) started [%s], now long-polling executionGet',
+				streamPromises.length,
+				streamLabels.join(', ')
+			);
+
 			// Use server-side long-polling to wait for execution completion
 			// This is more efficient than client-side polling and provides immediate
 			// error detection if the sandbox is terminated
-			const finalExecution = await executionGet(client, {
-				executionId: execution.executionId,
-				orgId,
-				wait: EXECUTION_WAIT_DURATION,
-			});
+			let finalExecution: Awaited<ReturnType<typeof executionGet>>;
+			const pollStart = Date.now();
+			try {
+				finalExecution = await executionGet(client, {
+					executionId: execution.executionId,
+					orgId,
+					wait: EXECUTION_WAIT_DURATION,
+				});
+			} catch (err) {
+				// Abort any active stream readers before rethrowing so they
+				// don't keep running after the execution poll has failed.
+				streamAbortController.abort();
+				throw err;
+			}
+			logger.debug(
+				'[exec] executionGet returned in %dms: status=%s, exitCode=%s',
+				Date.now() - pollStart,
+				finalExecution.status,
+				finalExecution.exitCode ?? 'undefined'
+			);
 
-			// Wait for all streams to reach EOF (Pulse blocks until true EOF)
-			await Promise.all(streamPromises);
+			// Wait for all streams to reach EOF (Pulse blocks until true EOF).
+			// Safety: execution is confirmed complete so all data has been written
+			// and complete/v2 sent. If Pulse doesn't close the response within
+			// a grace period (e.g. cross-server routing delay, stale metadata
+			// cache), abort the streams to prevent an indefinite hang.
+			if (streamPromises.length > 0) {
+				logger.debug('[exec] waiting for %d stream(s) to EOF', streamPromises.length);
+				const streamWaitStart = Date.now();
+				let graceTriggered = false;
+				const streamGrace = setTimeout(() => {
+					graceTriggered = true;
+					logger.debug(
+						'[exec] stream grace period (5s) expired after execution complete — aborting streams'
+					);
+					streamAbortController.abort();
+				}, 5_000);
+				try {
+					await Promise.all(streamPromises);
+				} finally {
+					clearTimeout(streamGrace);
+				}
+				logger.debug(
+					'[exec] all streams done in %dms (graceTriggered=%s)',
+					Date.now() - streamWaitStart,
+					graceTriggered
+				);
+			}
 
 			// Ensure stdout is fully flushed before continuing
 			if (!options.json && process.stdout.writable) {
@@ -258,42 +326,72 @@ export const execSubcommand = createCommand({
 });
 
 async function streamUrlToWritable(
+	label: string,
 	url: string,
 	writable: NodeJS.WritableStream,
 	signal: AbortSignal,
 	logger: Logger
 ): Promise<void> {
+	const streamStart = Date.now();
 	try {
-		logger.debug('fetching stream: %s', url);
-		const response = await fetch(url, { signal });
-		logger.debug('stream response status: %d', response.status);
+		// Signal to Pulse that this is a v2 stream so it waits for v2 metadata
+		// instead of falling back to the legacy download path on a short timeout.
+		const v2Url = new URL(url);
+		v2Url.searchParams.set('v', '2');
+		logger.debug('[stream:%s] fetching: %s', label, v2Url.href);
+		const response = await fetch(v2Url.href, { signal });
+		logger.debug(
+			'[stream:%s] response status=%d in %dms',
+			label,
+			response.status,
+			Date.now() - streamStart
+		);
 
 		if (!response.ok || !response.body) {
-			logger.debug('stream response not ok or no body');
+			logger.debug('[stream:%s] not ok or no body — returning', label);
 			return;
 		}
 
 		const reader = response.body.getReader();
+		let chunks = 0;
+		let totalBytes = 0;
 
 		// Read until EOF - Pulse will block until data is available
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) {
-				logger.debug('stream EOF');
+				logger.debug(
+					'[stream:%s] EOF after %dms (%d chunks, %d bytes)',
+					label,
+					Date.now() - streamStart,
+					chunks,
+					totalBytes
+				);
 				break;
 			}
 
 			if (value) {
-				logger.debug('stream chunk: %d bytes', value.length);
+				chunks++;
+				totalBytes += value.length;
+				if (chunks <= 3 || chunks % 100 === 0) {
+					logger.debug(
+						'[stream:%s] chunk #%d: %d bytes (total: %d bytes, +%dms)',
+						label,
+						chunks,
+						value.length,
+						totalBytes,
+						Date.now() - streamStart
+					);
+				}
 				await writeAndDrain(writable, value);
 			}
 		}
 	} catch (err) {
 		if (err instanceof Error && err.name === 'AbortError') {
-			logger.debug('stream aborted');
+			logger.debug('[stream:%s] aborted after %dms', label, Date.now() - streamStart);
 			return;
 		}
-		logger.debug('stream error: %s', err);
+		logger.debug('[stream:%s] error after %dms: %s', label, Date.now() - streamStart, err);
 	}
 }
 
