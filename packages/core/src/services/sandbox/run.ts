@@ -446,7 +446,7 @@ async function streamUrlToWritable(
 	writable: Writable,
 	signal: AbortSignal,
 	logger?: Logger,
-	started?: number
+	_started?: number
 ): Promise<void> {
 	const streamStart = Date.now();
 	try {
