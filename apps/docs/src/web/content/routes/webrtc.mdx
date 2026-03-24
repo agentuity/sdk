@@ -5,6 +5,16 @@ description: Peer-to-peer audio, video, and data channels with the webrtc middle
 
 When you need audio, video, or data to flow directly between browsers without a relay server, WebRTC gives you peer-to-peer connections with the lowest possible latency. The server only handles signaling: once peers find each other, all data flows directly between them.
 
+## When to Use WebRTC
+
+| Protocol | Best For |
+|----------|----------|
+| **WebRTC** | Video/audio calls, P2P data transfer, low-latency gaming |
+| [WebSockets](/routes/websockets) | Chat, collaboration, real-time bidirectional data |
+| [SSE](/routes/sse) | LLM streaming, progress updates, server-to-client feeds |
+
+Use WebRTC when data flows **directly between browsers**. Use WebSockets when the **server mediates** every message. Use SSE when you only need **server-to-client** streaming.
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. The signaling endpoint is a WebSocket route that relays peer discovery messages.
 </Callout>
@@ -384,19 +394,6 @@ const { connect } = useWebRTCCall({
   media: new CustomStreamSource(canvasStream), // [!code highlight]
 });
 ```
-
-## When to Use WebRTC
-
-| Use Case | WebRTC | WebSocket | SSE |
-|----------|--------|-----------|-----|
-| Video/audio calls | Yes | | |
-| P2P data transfer | Yes | | |
-| Low-latency gaming | Yes | | |
-| Chat (server-mediated) | | Yes | |
-| Live dashboards | | Yes | Yes |
-| LLM streaming | | | Yes |
-
-Use WebRTC when you need **peer-to-peer** connections or **media streaming**. Use [WebSockets](/routes/websockets) when you need **server-mediated** bidirectional communication. Use [SSE](/routes/sse) for **server-to-client** streaming.
 
 ## Next Steps
 
