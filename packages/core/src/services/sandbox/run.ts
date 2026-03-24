@@ -11,16 +11,36 @@ import { getServiceUrls } from '../config.ts';
 
 // Lazy-load node:stream to avoid bundling issues in browser environments
 let PassThrough: typeof import('node:stream').PassThrough | undefined;
-let streamLoaded = false;
+let streamLoadPromise: Promise<void> | undefined;
+
 async function ensureNodeStreamLoaded(): Promise<void> {
-	if (PassThrough || streamLoaded) return;
+	// Already loaded
+	if (PassThrough) return;
+
+	// Browser environment - skip loading
 	if (typeof process === 'undefined' || !process.versions?.node) {
-		streamLoaded = true;
 		return;
 	}
-	streamLoaded = true;
-	const stream = await import('node:stream');
-	PassThrough = stream.PassThrough;
+
+	// If already in-flight, wait for it
+	if (streamLoadPromise) {
+		await streamLoadPromise;
+		return;
+	}
+
+	// Start loading
+	streamLoadPromise = (async () => {
+		try {
+			const stream = await import('node:stream');
+			PassThrough = stream.PassThrough;
+		} catch (error) {
+			// Clear in-flight promise on error so future calls can retry
+			streamLoadPromise = undefined;
+			throw error;
+		}
+	})();
+
+	await streamLoadPromise;
 }
 
 const timingLogsEnabled = false;
