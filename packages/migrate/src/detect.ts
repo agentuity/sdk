@@ -378,7 +378,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				file: 'app.ts',
 				hint:
 					'Move initialisation logic to module-level top-of-file code in app.ts. ' +
-					'If you need shutdown cleanup, call registerShutdownHook() from @agentuity/runtime.',
+					"For cleanup, use Hono's standard patterns or Bun's process hooks (e.g., process.on('beforeExit', ...)).",
 			});
 		}
 
@@ -390,8 +390,8 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				message: 'createApp({ shutdown }) — shutdown() lifecycle removed in v2',
 				file: 'app.ts',
 				hint:
-					'Replace with registerShutdownHook(() => { /* your cleanup */ }) from @agentuity/runtime. ' +
-					'Shutdown hooks are called LIFO on SIGTERM/SIGINT.',
+					"Use Hono's standard patterns or Bun's process hooks for cleanup " +
+					"(e.g., process.on('beforeExit', async () => { /* cleanup */ })).",
 			});
 		}
 
