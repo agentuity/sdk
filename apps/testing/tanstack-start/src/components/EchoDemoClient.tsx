@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AgentuityProvider } from '@agentuity/react';
 import { hc } from 'hono/client';
 import type { InferResponseType } from 'hono/client';
 import type { ApiRouter } from '../../agentuity/src/api/index';
@@ -366,9 +365,5 @@ const data = await res.json();
 }
 
 export default function EchoDemoClient() {
-	return (
-		<AgentuityProvider>
-			<EchoDemoInner />
-		</AgentuityProvider>
-	);
+	return <EchoDemoInner />;
 }
