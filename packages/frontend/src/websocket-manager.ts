@@ -2,6 +2,11 @@ import { StructuredError } from '@agentuity/core';
 import { createReconnectManager, type ReconnectManager } from './reconnect';
 import { deserializeData } from './serialization';
 
+/** Error thrown when an unsupported data type is passed to WebSocket send */
+const UnsupportedWebSocketDataTypeError = StructuredError('UNSUPPORTED_WEBSOCKET_DATA_TYPE')<{
+	dataType: string;
+}>();
+
 /**
  * Serialize data for WebSocket transmission
  */
@@ -17,8 +22,9 @@ const serializeWSData = (
 		}
 		return JSON.stringify(data);
 	}
-	throw new StructuredError('UNSUPPORTED_WEBSOCKET_DATA_TYPE', {
+	throw new UnsupportedWebSocketDataTypeError({
 		message: `Unsupported data type for websocket: ${typeof data}`,
+		dataType: typeof data,
 	});
 };
 
