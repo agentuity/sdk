@@ -1,6 +1,5 @@
 import type { Logger } from '../../logger.ts';
 import type { Readable, Writable } from 'node:stream';
-import { PassThrough } from 'node:stream';
 import { z } from 'zod';
 import { APIClient, PaymentRequiredError } from '../api.ts';
 import { sandboxCreate } from './create.ts';
@@ -9,6 +8,20 @@ import { sandboxGetStatus } from './getStatus.ts';
 import { ExecutionCancelledError, writeAndDrain } from './util.ts';
 import { SandboxRunOptionsSchema, type SandboxRunResult } from './types.ts';
 import { getServiceUrls } from '../config.ts';
+
+// Lazy-load node:stream to avoid bundling issues in browser environments
+let PassThrough: typeof import('node:stream').PassThrough | undefined;
+let streamLoaded = false;
+async function ensureNodeStreamLoaded(): Promise<void> {
+	if (PassThrough || streamLoaded) return;
+	if (typeof process === 'undefined' || !process.versions?.node) {
+		streamLoaded = true;
+		return;
+	}
+	streamLoaded = true;
+	const stream = await import('node:stream');
+	PassThrough = stream.PassThrough;
+}
 
 const timingLogsEnabled = false;
 
@@ -21,7 +34,8 @@ const timingLogsEnabled = false;
  * @returns A Writable stream that captures and optionally forwards data
  */
 function createTeeWritable(chunks: Buffer[], ...userStreams: (Writable | undefined)[]): Writable {
-	const tee = new PassThrough();
+	// PassThrough is guaranteed to be loaded after ensureNodeStreamLoaded() is called
+	const tee = new PassThrough!();
 
 	// Always capture chunks to the buffer
 	tee.on('data', (chunk: Buffer) => {
@@ -69,6 +83,9 @@ export async function sandboxRun(
 	const { options, orgId, region, apiKey, signal, stdin, stdout, stderr, logger } = params;
 	const started = Date.now();
 	if (timingLogsEnabled) console.error('[TIMING] +0ms: sandbox run started');
+
+	// Ensure node:stream is loaded before using PassThrough (lazy-load for browser compat)
+	await ensureNodeStreamLoaded();
 
 	let stdinStreamId: string | undefined;
 	let stdinStreamUrl: string | undefined;
