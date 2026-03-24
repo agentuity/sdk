@@ -216,6 +216,108 @@ Resume a paused or evacuated sandbox from its checkpoint.
 
 **Returns:** `Promise<void>`
 
+## Running Background Jobs
+
+Run processes that outlive a single `execute()` call. Jobs continue in the background and can be monitored or stopped.
+
+### createJob(options)
+
+Start a long-running job in the sandbox.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `options` | `CreateJobOptions` | yes | Job configuration |
+| `options.command` | `string[]` | yes | Command and arguments to execute |
+| `options.streams` | `object` | no | Stream configuration for output capture |
+| `options.streams.stdout` | `string` | no | Stream ID for stdout output |
+| `options.streams.stderr` | `string` | no | Stream ID for stderr output |
+
+**Returns:** `Promise<Job>`
+
+```typescript
+interface Job {
+  jobId: string;
+  sandboxId: string;
+  command: string[];
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  exitCode?: number | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  error?: string | null;
+  stdoutStreamUrl?: string | null;
+  stderrStreamUrl?: string | null;
+}
+```
+
+#### Example
+
+```typescript
+const sandbox = await ctx.sandbox.create({ runtime: 'bun:1' });
+
+const job = await sandbox.createJob({
+  command: ['bun', 'run', 'server.ts'],
+});
+
+ctx.logger.info('Job started: %s (status: %s)', job.jobId, job.status);
+```
+
+### getJob(jobId)
+
+Get current status and details of a job.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `jobId` | `string` | yes | Job identifier |
+
+**Returns:** `Promise<Job>`
+
+#### Example
+
+```typescript
+const job = await sandbox.getJob(jobId);
+ctx.logger.info('Job %s: %s (exit: %d)', job.jobId, job.status, job.exitCode);
+```
+
+### listJobs(limit?)
+
+List jobs in the sandbox.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `limit` | `number` | no | Maximum number of jobs to return |
+
+**Returns:** `Promise<{ jobs: Job[] }>`
+
+#### Example
+
+```typescript
+const { jobs } = await sandbox.listJobs();
+for (const job of jobs) {
+  ctx.logger.info('%s: %s', job.jobId, job.status);
+}
+```
+
+### stopJob(jobId, force?)
+
+Stop a running job. By default sends SIGTERM for graceful shutdown. Use `force` for SIGKILL.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `jobId` | `string` | yes | Job identifier |
+| `force` | `boolean` | no | Use SIGKILL instead of SIGTERM |
+
+**Returns:** `Promise<Job>` (updated job with new status)
+
+#### Example
+
+```typescript
+// Graceful stop
+const stopped = await sandbox.stopJob(job.jobId);
+
+// Force kill
+const killed = await sandbox.stopJob(job.jobId, true);
+```
+
 ## Snapshots
 
 Snapshots capture the state of a sandbox for reuse. Access snapshot operations via `ctx.sandbox.snapshot`.
@@ -291,3 +393,19 @@ Update the tag on a snapshot. Pass `null` to remove the tag.
 | `tag` | `string \| null` | yes | New tag, or `null` to clear |
 
 **Returns:** `Promise<SnapshotInfo>`
+
+## Error Handling
+
+The sandbox API throws specific errors for common failure modes:
+
+- **`SandboxNotFoundError`**: Thrown when the sandbox returns HTTP 404. This can happen if the sandbox was destroyed or is still initializing. The error includes the sandbox ID for debugging.
+
+```typescript
+try {
+  const result = await sandbox.execute({ command: ['echo', 'hello'] });
+} catch (error) {
+  if (error._tag === 'SandboxNotFoundError') {
+    ctx.logger.warn('Sandbox not ready, may still be initializing');
+  }
+}
+```

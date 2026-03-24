@@ -39,6 +39,7 @@ import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/t
 import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules';
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues';
 import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email';
+import { Route as DocsServicesAuthenticationRouteImport } from './routes/_docs/services/authentication';
 import { Route as DocsRoutesWebsocketsRouteImport } from './routes/_docs/routes/websockets';
 import { Route as DocsRoutesWebrtcRouteImport } from './routes/_docs/routes/webrtc';
 import { Route as DocsRoutesSseRouteImport } from './routes/_docs/routes/sse';
@@ -101,12 +102,17 @@ import { Route as DocsServicesObservabilitySessionsDebuggingRouteImport } from '
 import { Route as DocsServicesObservabilityLoggingRouteImport } from './routes/_docs/services/observability/logging';
 import { Route as DocsServicesDatabasePostgresRouteImport } from './routes/_docs/services/database/postgres';
 import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/services/database/drizzle';
+import { Route as DocsReferenceSdkReferenceTaskServiceRouteImport } from './routes/_docs/reference/sdk-reference/task-service';
 import { Route as DocsReferenceSdkReferenceStorageRouteImport } from './routes/_docs/reference/sdk-reference/storage';
 import { Route as DocsReferenceSdkReferenceSchemaRouteImport } from './routes/_docs/reference/sdk-reference/schema';
+import { Route as DocsReferenceSdkReferenceScheduleServiceRouteImport } from './routes/_docs/reference/sdk-reference/schedule-service';
+import { Route as DocsReferenceSdkReferenceSandboxServiceRouteImport } from './routes/_docs/reference/sdk-reference/sandbox-service';
 import { Route as DocsReferenceSdkReferenceRouterRouteImport } from './routes/_docs/reference/sdk-reference/router';
+import { Route as DocsReferenceSdkReferenceQueueServiceRouteImport } from './routes/_docs/reference/sdk-reference/queue-service';
 import { Route as DocsReferenceSdkReferenceObservabilityRouteImport } from './routes/_docs/reference/sdk-reference/observability';
 import { Route as DocsReferenceSdkReferenceEventsRouteImport } from './routes/_docs/reference/sdk-reference/events';
 import { Route as DocsReferenceSdkReferenceEvaluationsRouteImport } from './routes/_docs/reference/sdk-reference/evaluations';
+import { Route as DocsReferenceSdkReferenceEmailServiceRouteImport } from './routes/_docs/reference/sdk-reference/email-service';
 import { Route as DocsReferenceSdkReferenceContextApiRouteImport } from './routes/_docs/reference/sdk-reference/context-api';
 import { Route as DocsReferenceSdkReferenceCommunicationRouteImport } from './routes/_docs/reference/sdk-reference/communication';
 import { Route as DocsReferenceSdkReferenceApplicationEntryRouteImport } from './routes/_docs/reference/sdk-reference/application-entry';
@@ -316,6 +322,11 @@ const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
 const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
 	id: '/services/email',
 	path: '/services/email',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesAuthenticationRoute = DocsServicesAuthenticationRouteImport.update({
+	id: '/services/authentication',
+	path: '/services/authentication',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsRoutesWebsocketsRoute = DocsRoutesWebsocketsRouteImport.update({
@@ -630,6 +641,12 @@ const DocsServicesDatabaseDrizzleRoute = DocsServicesDatabaseDrizzleRouteImport.
 	path: '/services/database/drizzle',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceSdkReferenceTaskServiceRoute =
+	DocsReferenceSdkReferenceTaskServiceRouteImport.update({
+		id: '/task-service',
+		path: '/task-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
 const DocsReferenceSdkReferenceStorageRoute = DocsReferenceSdkReferenceStorageRouteImport.update({
 	id: '/storage',
 	path: '/storage',
@@ -640,11 +657,29 @@ const DocsReferenceSdkReferenceSchemaRoute = DocsReferenceSdkReferenceSchemaRout
 	path: '/schema',
 	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 } as any);
+const DocsReferenceSdkReferenceScheduleServiceRoute =
+	DocsReferenceSdkReferenceScheduleServiceRouteImport.update({
+		id: '/schedule-service',
+		path: '/schedule-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceSandboxServiceRoute =
+	DocsReferenceSdkReferenceSandboxServiceRouteImport.update({
+		id: '/sandbox-service',
+		path: '/sandbox-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
 const DocsReferenceSdkReferenceRouterRoute = DocsReferenceSdkReferenceRouterRouteImport.update({
 	id: '/router',
 	path: '/router',
 	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 } as any);
+const DocsReferenceSdkReferenceQueueServiceRoute =
+	DocsReferenceSdkReferenceQueueServiceRouteImport.update({
+		id: '/queue-service',
+		path: '/queue-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
 const DocsReferenceSdkReferenceObservabilityRoute =
 	DocsReferenceSdkReferenceObservabilityRouteImport.update({
 		id: '/observability',
@@ -660,6 +695,12 @@ const DocsReferenceSdkReferenceEvaluationsRoute =
 	DocsReferenceSdkReferenceEvaluationsRouteImport.update({
 		id: '/evaluations',
 		path: '/evaluations',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceEmailServiceRoute =
+	DocsReferenceSdkReferenceEmailServiceRouteImport.update({
+		id: '/email-service',
+		path: '/email-service',
 		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 	} as any);
 const DocsReferenceSdkReferenceContextApiRoute =
@@ -1040,6 +1081,7 @@ export interface FileRoutesByFullPath {
 	'/routes/sse': typeof DocsRoutesSseRoute;
 	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
@@ -1115,12 +1157,17 @@ export interface FileRoutesByFullPath {
 	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
 	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
 	'/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
 	'/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
 	'/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/reference/sdk-reference/queue-service': typeof DocsReferenceSdkReferenceQueueServiceRoute;
 	'/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/reference/sdk-reference/sandbox-service': typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	'/reference/sdk-reference/schedule-service': typeof DocsReferenceSdkReferenceScheduleServiceRoute;
 	'/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
 	'/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
+	'/reference/sdk-reference/task-service': typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	'/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1198,6 +1245,7 @@ export interface FileRoutesByTo {
 	'/routes/sse': typeof DocsRoutesSseRoute;
 	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
@@ -1273,12 +1321,17 @@ export interface FileRoutesByTo {
 	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
 	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
 	'/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
 	'/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
 	'/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/reference/sdk-reference/queue-service': typeof DocsReferenceSdkReferenceQueueServiceRoute;
 	'/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/reference/sdk-reference/sandbox-service': typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	'/reference/sdk-reference/schedule-service': typeof DocsReferenceSdkReferenceScheduleServiceRoute;
 	'/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
 	'/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
+	'/reference/sdk-reference/task-service': typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	'/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1360,6 +1413,7 @@ export interface FileRoutesById {
 	'/_docs/routes/sse': typeof DocsRoutesSseRoute;
 	'/_docs/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/_docs/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/_docs/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/_docs/services/email': typeof DocsServicesEmailRoute;
 	'/_docs/services/queues': typeof DocsServicesQueuesRoute;
 	'/_docs/services/schedules': typeof DocsServicesSchedulesRoute;
@@ -1435,12 +1489,17 @@ export interface FileRoutesById {
 	'/_docs/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
 	'/_docs/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/_docs/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/_docs/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
 	'/_docs/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
 	'/_docs/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
 	'/_docs/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/_docs/reference/sdk-reference/queue-service': typeof DocsReferenceSdkReferenceQueueServiceRoute;
 	'/_docs/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/_docs/reference/sdk-reference/sandbox-service': typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	'/_docs/reference/sdk-reference/schedule-service': typeof DocsReferenceSdkReferenceScheduleServiceRoute;
 	'/_docs/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
 	'/_docs/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
+	'/_docs/reference/sdk-reference/task-service': typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	'/_docs/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/_docs/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/_docs/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1522,6 +1581,7 @@ export interface FileRouteTypes {
 		| '/routes/sse'
 		| '/routes/webrtc'
 		| '/routes/websockets'
+		| '/services/authentication'
 		| '/services/email'
 		| '/services/queues'
 		| '/services/schedules'
@@ -1597,12 +1657,17 @@ export interface FileRouteTypes {
 		| '/reference/sdk-reference/application-entry'
 		| '/reference/sdk-reference/communication'
 		| '/reference/sdk-reference/context-api'
+		| '/reference/sdk-reference/email-service'
 		| '/reference/sdk-reference/evaluations'
 		| '/reference/sdk-reference/events'
 		| '/reference/sdk-reference/observability'
+		| '/reference/sdk-reference/queue-service'
 		| '/reference/sdk-reference/router'
+		| '/reference/sdk-reference/sandbox-service'
+		| '/reference/sdk-reference/schedule-service'
 		| '/reference/sdk-reference/schema'
 		| '/reference/sdk-reference/storage'
+		| '/reference/sdk-reference/task-service'
 		| '/services/database/drizzle'
 		| '/services/database/postgres'
 		| '/services/observability/logging'
@@ -1680,6 +1745,7 @@ export interface FileRouteTypes {
 		| '/routes/sse'
 		| '/routes/webrtc'
 		| '/routes/websockets'
+		| '/services/authentication'
 		| '/services/email'
 		| '/services/queues'
 		| '/services/schedules'
@@ -1755,12 +1821,17 @@ export interface FileRouteTypes {
 		| '/reference/sdk-reference/application-entry'
 		| '/reference/sdk-reference/communication'
 		| '/reference/sdk-reference/context-api'
+		| '/reference/sdk-reference/email-service'
 		| '/reference/sdk-reference/evaluations'
 		| '/reference/sdk-reference/events'
 		| '/reference/sdk-reference/observability'
+		| '/reference/sdk-reference/queue-service'
 		| '/reference/sdk-reference/router'
+		| '/reference/sdk-reference/sandbox-service'
+		| '/reference/sdk-reference/schedule-service'
 		| '/reference/sdk-reference/schema'
 		| '/reference/sdk-reference/storage'
+		| '/reference/sdk-reference/task-service'
 		| '/services/database/drizzle'
 		| '/services/database/postgres'
 		| '/services/observability/logging'
@@ -1841,6 +1912,7 @@ export interface FileRouteTypes {
 		| '/_docs/routes/sse'
 		| '/_docs/routes/webrtc'
 		| '/_docs/routes/websockets'
+		| '/_docs/services/authentication'
 		| '/_docs/services/email'
 		| '/_docs/services/queues'
 		| '/_docs/services/schedules'
@@ -1916,12 +1988,17 @@ export interface FileRouteTypes {
 		| '/_docs/reference/sdk-reference/application-entry'
 		| '/_docs/reference/sdk-reference/communication'
 		| '/_docs/reference/sdk-reference/context-api'
+		| '/_docs/reference/sdk-reference/email-service'
 		| '/_docs/reference/sdk-reference/evaluations'
 		| '/_docs/reference/sdk-reference/events'
 		| '/_docs/reference/sdk-reference/observability'
+		| '/_docs/reference/sdk-reference/queue-service'
 		| '/_docs/reference/sdk-reference/router'
+		| '/_docs/reference/sdk-reference/sandbox-service'
+		| '/_docs/reference/sdk-reference/schedule-service'
 		| '/_docs/reference/sdk-reference/schema'
 		| '/_docs/reference/sdk-reference/storage'
+		| '/_docs/reference/sdk-reference/task-service'
 		| '/_docs/services/database/drizzle'
 		| '/_docs/services/database/postgres'
 		| '/_docs/services/observability/logging'
@@ -2175,6 +2252,13 @@ declare module '@tanstack/react-router' {
 			path: '/services/email';
 			fullPath: '/services/email';
 			preLoaderRoute: typeof DocsServicesEmailRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/authentication': {
+			id: '/_docs/services/authentication';
+			path: '/services/authentication';
+			fullPath: '/services/authentication';
+			preLoaderRoute: typeof DocsServicesAuthenticationRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/routes/websockets': {
@@ -2611,6 +2695,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsServicesDatabaseDrizzleRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/sdk-reference/task-service': {
+			id: '/_docs/reference/sdk-reference/task-service';
+			path: '/task-service';
+			fullPath: '/reference/sdk-reference/task-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceTaskServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
 		'/_docs/reference/sdk-reference/storage': {
 			id: '/_docs/reference/sdk-reference/storage';
 			path: '/storage';
@@ -2625,11 +2716,32 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceSdkReferenceSchemaRouteImport;
 			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
+		'/_docs/reference/sdk-reference/schedule-service': {
+			id: '/_docs/reference/sdk-reference/schedule-service';
+			path: '/schedule-service';
+			fullPath: '/reference/sdk-reference/schedule-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceScheduleServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/sandbox-service': {
+			id: '/_docs/reference/sdk-reference/sandbox-service';
+			path: '/sandbox-service';
+			fullPath: '/reference/sdk-reference/sandbox-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceSandboxServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
 		'/_docs/reference/sdk-reference/router': {
 			id: '/_docs/reference/sdk-reference/router';
 			path: '/router';
 			fullPath: '/reference/sdk-reference/router';
 			preLoaderRoute: typeof DocsReferenceSdkReferenceRouterRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/queue-service': {
+			id: '/_docs/reference/sdk-reference/queue-service';
+			path: '/queue-service';
+			fullPath: '/reference/sdk-reference/queue-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceQueueServiceRouteImport;
 			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
 		'/_docs/reference/sdk-reference/observability': {
@@ -2651,6 +2763,13 @@ declare module '@tanstack/react-router' {
 			path: '/evaluations';
 			fullPath: '/reference/sdk-reference/evaluations';
 			preLoaderRoute: typeof DocsReferenceSdkReferenceEvaluationsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/email-service': {
+			id: '/_docs/reference/sdk-reference/email-service';
+			path: '/email-service';
+			fullPath: '/reference/sdk-reference/email-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceEmailServiceRouteImport;
 			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
 		'/_docs/reference/sdk-reference/context-api': {
@@ -3143,12 +3262,17 @@ interface DocsReferenceSdkReferenceRouteRouteChildren {
 	DocsReferenceSdkReferenceApplicationEntryRoute: typeof DocsReferenceSdkReferenceApplicationEntryRoute;
 	DocsReferenceSdkReferenceCommunicationRoute: typeof DocsReferenceSdkReferenceCommunicationRoute;
 	DocsReferenceSdkReferenceContextApiRoute: typeof DocsReferenceSdkReferenceContextApiRoute;
+	DocsReferenceSdkReferenceEmailServiceRoute: typeof DocsReferenceSdkReferenceEmailServiceRoute;
 	DocsReferenceSdkReferenceEvaluationsRoute: typeof DocsReferenceSdkReferenceEvaluationsRoute;
 	DocsReferenceSdkReferenceEventsRoute: typeof DocsReferenceSdkReferenceEventsRoute;
 	DocsReferenceSdkReferenceObservabilityRoute: typeof DocsReferenceSdkReferenceObservabilityRoute;
+	DocsReferenceSdkReferenceQueueServiceRoute: typeof DocsReferenceSdkReferenceQueueServiceRoute;
 	DocsReferenceSdkReferenceRouterRoute: typeof DocsReferenceSdkReferenceRouterRoute;
+	DocsReferenceSdkReferenceSandboxServiceRoute: typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	DocsReferenceSdkReferenceScheduleServiceRoute: typeof DocsReferenceSdkReferenceScheduleServiceRoute;
 	DocsReferenceSdkReferenceSchemaRoute: typeof DocsReferenceSdkReferenceSchemaRoute;
 	DocsReferenceSdkReferenceStorageRoute: typeof DocsReferenceSdkReferenceStorageRoute;
+	DocsReferenceSdkReferenceTaskServiceRoute: typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	DocsReferenceSdkReferenceIndexRoute: typeof DocsReferenceSdkReferenceIndexRoute;
 }
 
@@ -3158,12 +3282,17 @@ const DocsReferenceSdkReferenceRouteRouteChildren: DocsReferenceSdkReferenceRout
 	DocsReferenceSdkReferenceApplicationEntryRoute: DocsReferenceSdkReferenceApplicationEntryRoute,
 	DocsReferenceSdkReferenceCommunicationRoute: DocsReferenceSdkReferenceCommunicationRoute,
 	DocsReferenceSdkReferenceContextApiRoute: DocsReferenceSdkReferenceContextApiRoute,
+	DocsReferenceSdkReferenceEmailServiceRoute: DocsReferenceSdkReferenceEmailServiceRoute,
 	DocsReferenceSdkReferenceEvaluationsRoute: DocsReferenceSdkReferenceEvaluationsRoute,
 	DocsReferenceSdkReferenceEventsRoute: DocsReferenceSdkReferenceEventsRoute,
 	DocsReferenceSdkReferenceObservabilityRoute: DocsReferenceSdkReferenceObservabilityRoute,
+	DocsReferenceSdkReferenceQueueServiceRoute: DocsReferenceSdkReferenceQueueServiceRoute,
 	DocsReferenceSdkReferenceRouterRoute: DocsReferenceSdkReferenceRouterRoute,
+	DocsReferenceSdkReferenceSandboxServiceRoute: DocsReferenceSdkReferenceSandboxServiceRoute,
+	DocsReferenceSdkReferenceScheduleServiceRoute: DocsReferenceSdkReferenceScheduleServiceRoute,
 	DocsReferenceSdkReferenceSchemaRoute: DocsReferenceSdkReferenceSchemaRoute,
 	DocsReferenceSdkReferenceStorageRoute: DocsReferenceSdkReferenceStorageRoute,
+	DocsReferenceSdkReferenceTaskServiceRoute: DocsReferenceSdkReferenceTaskServiceRoute,
 	DocsReferenceSdkReferenceIndexRoute: DocsReferenceSdkReferenceIndexRoute,
 };
 
@@ -3213,6 +3342,7 @@ interface DocsRouteRouteChildren {
 	DocsRoutesSseRoute: typeof DocsRoutesSseRoute;
 	DocsRoutesWebrtcRoute: typeof DocsRoutesWebrtcRoute;
 	DocsRoutesWebsocketsRoute: typeof DocsRoutesWebsocketsRoute;
+	DocsServicesAuthenticationRoute: typeof DocsServicesAuthenticationRoute;
 	DocsServicesEmailRoute: typeof DocsServicesEmailRoute;
 	DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute;
 	DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute;
@@ -3325,6 +3455,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsRoutesSseRoute: DocsRoutesSseRoute,
 	DocsRoutesWebrtcRoute: DocsRoutesWebrtcRoute,
 	DocsRoutesWebsocketsRoute: DocsRoutesWebsocketsRoute,
+	DocsServicesAuthenticationRoute: DocsServicesAuthenticationRoute,
 	DocsServicesEmailRoute: DocsServicesEmailRoute,
 	DocsServicesQueuesRoute: DocsServicesQueuesRoute,
 	DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,

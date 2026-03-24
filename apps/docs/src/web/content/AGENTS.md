@@ -41,34 +41,35 @@ SDK Reference pages use a hybrid format: narrative intro followed by structured 
 
 ```
 ---
-title: Using [Service Name]
-short_title: [Service Name]
+title: Descriptive Title
+short_title: Short Sidebar Label
 description: One sentence about ctx.X usage
 ---
 
 Brief intro (1-2 sentences), standalone callout if applicable, cross-link to how-to page.
 
-### methodName(param1, param2, options?)
+### methodName
+
+`methodName(param: string, options?: Options): Promise<Result>`
 
 One sentence describing what this method does.
 
-| Param | Type | Required | Description |
-|-------|------|----------|-------------|
-| param1 | string | yes | What it is |
-| param2 | object | no | What it configures (optional) |
+**Parameters:**
+- `param`: What it is
+- `options` (optional): What it configures
 
-**Returns:** `Promise<ReturnType>`
+**Returns:** `Promise<Result>`
 
 (Interface block if return type is complex)
 
-#### Example
+**Example:**
 
 \```typescript
 const result = await ctx.service.methodName('value', 'key');
 \```
 ```
 
-Each method gets the triplet: **param table + return type + example**. Mark optional parameters explicitly.
+Each method gets: **parameters + return type + example**. Mark optional parameters explicitly. Use param tables (`| Param | Type | Required | Description |`) for methods with many parameters.
 
 **Exemplars:** `reference/sdk-reference/storage.mdx`, `reference/sdk-reference/agents.mdx`
 

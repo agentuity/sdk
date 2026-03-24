@@ -230,7 +230,7 @@ The agent handler is the core function that processes inputs and produces output
 
 ### Handler Signature
 
-The handler signature has changed significantly from v0:
+The handler receives a context object and the validated input:
 
 ```typescript
 type AgentHandler<TInput, TOutput> = (

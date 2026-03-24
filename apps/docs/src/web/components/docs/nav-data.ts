@@ -777,7 +777,7 @@ export const navData: NavSection[] = [
 							'CLI commands for AI agents, IDE integration, and schema inspection.',
 					},
 					{
-						title: 'OAuth Applications',
+						title: 'Managing OAuth Applications',
 						url: '/reference/cli/oauth',
 						description:
 							'Create and manage OAuth/OIDC applications for third-party integrations from the CLI',
