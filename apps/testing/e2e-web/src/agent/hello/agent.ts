@@ -14,7 +14,7 @@ const agent = createAgent('hello', {
 		output: s.string(),
 	},
 	handler: async (_c, { name }) => {
-		return `Hello, ${name}! Nice to meet.`;
+		return `Hello, ${name}! Nice to meet you.`;
 	},
 });
 

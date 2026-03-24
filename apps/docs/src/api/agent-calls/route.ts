@@ -31,8 +31,13 @@ const router = new Hono<Env>()
 	})
 
 	.post('/sync', async (c) => {
-		const body = await c.req.json();
-		const { operation = 'clean' } = body as { operation?: 'clean' | 'analyze' };
+		let body: { operation?: 'clean' | 'analyze' };
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: 'Invalid JSON body' }, 400);
+		}
+		const { operation = 'clean' } = body;
 
 		c.var.logger?.info('Sync agent call starting', { operation });
 		const startTime = Date.now();
@@ -54,8 +59,13 @@ const router = new Hono<Env>()
 	})
 
 	.post('/background', async (c) => {
-		const body = await c.req.json();
-		const { operation = 'clean' } = body as { operation?: 'clean' | 'analyze' };
+		let body: { operation?: 'clean' | 'analyze' };
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: 'Invalid JSON body' }, 400);
+		}
+		const { operation = 'clean' } = body;
 
 		const taskId = crypto.randomUUID().slice(0, 8);
 		c.var.logger?.info('Background agent call starting', { taskId, operation });

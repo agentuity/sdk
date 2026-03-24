@@ -19,6 +19,9 @@ export function PathParamsPage() {
 		try {
 			setError(null);
 			const res = await client.users[':userId'].$get({ param: { userId } });
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status}`);
+			}
 			const result = await res.json();
 			setUserResult(JSON.stringify(result, null, 2));
 		} catch (err) {
@@ -32,6 +35,9 @@ export function PathParamsPage() {
 			const res = await client.organizations[':orgId'].members[':memberId'].$get({
 				param: { orgId, memberId },
 			});
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status}`);
+			}
 			const result = await res.json();
 			setMemberResult(JSON.stringify(result, null, 2));
 		} catch (err) {
@@ -43,6 +49,9 @@ export function PathParamsPage() {
 		try {
 			setError(null);
 			const res = await client.search.$get({ query: { q: searchQuery, limit: searchLimit } });
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status}`);
+			}
 			const result = await res.json();
 			setSearchResult(JSON.stringify(result, null, 2));
 		} catch (err) {

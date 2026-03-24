@@ -23,8 +23,13 @@ export function App() {
 		setRunning(true);
 		try {
 			const res = await client.hello.$post({ json: input });
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+			}
 			const data = await res.text();
 			setGreeting(data);
+		} catch (err) {
+			setGreeting(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		} finally {
 			setRunning(false);
 		}

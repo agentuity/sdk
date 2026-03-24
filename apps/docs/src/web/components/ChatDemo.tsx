@@ -31,6 +31,9 @@ export function ChatDemo() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(input),
 			});
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+			}
 			return await res.json();
 		} finally {
 			setRunning(false);

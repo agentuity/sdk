@@ -98,7 +98,7 @@ ${historyText}`;
 				title: title || 'New chat',
 			});
 		} catch (error) {
-			c.var.logger.error('Title generation failed: %s', error);
+			c.var.logger?.error('Title generation failed: %s', error);
 			return c.json(
 				{
 					error: 'Failed to generate title',

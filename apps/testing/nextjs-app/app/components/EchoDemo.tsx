@@ -101,7 +101,10 @@ function EchoDemoInner() {
 		setError(null);
 		try {
 			const res = await client.echo.$post({ json: input });
-			setData((await res.json()) as any);
+			if (!res.ok) {
+				throw new Error(`Echo request failed with ${res.status}`);
+			}
+			setData(await res.json());
 		} catch (e) {
 			setError(e instanceof Error ? e : new Error(String(e)));
 		} finally {

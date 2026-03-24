@@ -42,10 +42,12 @@ function useFetch<T>(url: string) {
 function usePost<T>(url: string) {
 	const [data, setData] = useState<T | undefined>(undefined);
 	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
 
 	const invoke = useCallback(
 		async (input?: unknown) => {
 			setIsLoading(true);
+			setError(null);
 			try {
 				const res = await fetch(url, {
 					method: 'POST',
@@ -53,9 +55,15 @@ function usePost<T>(url: string) {
 					body: input ? JSON.stringify(input) : undefined,
 					credentials: 'include',
 				});
+				if (!res.ok) {
+					throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+				}
 				const result = await res.json();
 				setData(result);
 				return result;
+			} catch (err) {
+				setError(err instanceof Error ? err : new Error('Unknown error'));
+				throw err;
 			} finally {
 				setIsLoading(false);
 			}
@@ -63,7 +71,7 @@ function usePost<T>(url: string) {
 		[url]
 	);
 
-	return { data, invoke, isLoading };
+	return { data, invoke, isLoading, error };
 }
 
 // =============================================================================

@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { AgentuityProvider } from '@agentuity/react';
 import { hc } from 'hono/client';
+import type { InferResponseType } from 'hono/client';
 import type { ApiRouter } from '../../agentuity/src/api/index';
 
 const client = hc<ApiRouter>('/api');
+const $post = client.echo.$post;
+type EchoResponse = InferResponseType<typeof $post>;
 
 function AgentuityLogo() {
 	return (
@@ -53,8 +56,12 @@ function EchoDemoInner() {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const res = await client.echo.$post({ json: input });
-			setData((await res.json()) as any);
+			const res = await $post({ json: input });
+			if (!res.ok) {
+				throw new Error(`Echo request failed with ${res.status}`);
+			}
+			const data: EchoResponse = await res.json();
+			setData(data);
 		} catch (e) {
 			setError(e instanceof Error ? e : new Error(String(e)));
 		} finally {

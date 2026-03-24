@@ -17,7 +17,12 @@ export function App() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(input),
 			});
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+			}
 			setGreeting(await res.text());
+		} catch (err) {
+			setGreeting(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		} finally {
 			setRunning(false);
 		}
