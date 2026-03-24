@@ -272,7 +272,7 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
 				...requiredExposeHeaders,
 			],
 			maxAge: honoCorsOptions.maxAge ?? 600,
-			credentials: honoCorsOptions.credentials ?? true,
+			credentials: honoCorsOptions.credentials ?? originHandler !== '*',
 		});
 
 		return corsMiddleware(c, next);
