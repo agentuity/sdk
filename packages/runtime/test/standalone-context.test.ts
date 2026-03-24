@@ -15,7 +15,7 @@ const testLogger: Logger = {
 
 const testTracer: Tracer = trace.getTracer('standalone-test');
 
-const testAppState = {
+const _testAppState = {
 	testMode: true,
 	startTime: Date.now(),
 };
