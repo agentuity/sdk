@@ -194,10 +194,17 @@ export const runSubcommand = createCommand({
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
 
-			if (!options.json) {
-				if (result.exitCode !== 0) {
+			if (result.exitCode !== 0) {
+				if (!options.json) {
 					tui.error(`failed with exit code ${result.exitCode} in ${duration}ms`);
 				}
+				// Use process.exit() directly rather than process.exitCode to ensure
+				// the exit code propagates reliably across all runtimes (Bun/Node).
+				// process.exitCode can be overwritten by later async cleanup.
+				if (!options.json) {
+					process.exit(result.exitCode);
+				}
+				process.exitCode = result.exitCode;
 			}
 
 			return {

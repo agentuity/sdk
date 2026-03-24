@@ -398,6 +398,20 @@ export const SandboxSchema = z.object({
 		.describe('Resume the sandbox from a paused or evacuated state.'),
 	/** Destroy the sandbox */
 	destroy: z.custom<() => Promise<void>>().describe('Destroy the sandbox'),
+	/** Create a new job in the sandbox */
+	createJob: z
+		.custom<(options: CreateJobOptions) => Promise<Job>>()
+		.describe('Create a new job in the sandbox'),
+	/** Get a job by ID */
+	getJob: z.custom<(jobId: string) => Promise<Job>>().describe('Get a job by ID'),
+	/** List jobs in the sandbox */
+	listJobs: z
+		.custom<(limit?: number) => Promise<{ jobs: Job[] }>>()
+		.describe('List jobs in the sandbox'),
+	/** Stop a running job */
+	stopJob: z
+		.custom<(jobId: string, force?: boolean) => Promise<Job>>()
+		.describe('Stop a running job'),
 });
 export type Sandbox = z.infer<typeof SandboxSchema>;
 

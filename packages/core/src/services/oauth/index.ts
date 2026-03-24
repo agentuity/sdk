@@ -7,3 +7,4 @@ export * from './members.ts';
 export * from './keys.ts';
 export * from './util.ts';
 export * from './flow.ts';
+export * from './token-storage.ts';

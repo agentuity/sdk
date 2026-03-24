@@ -25,11 +25,28 @@ function resolveConfig(config?: OAuthFlowConfig) {
 		config?.userinfoUrl ??
 		getEnv('OAUTH_USERINFO_URL') ??
 		(issuer ? `${issuer}/userinfo` : undefined);
+	const revokeUrl =
+		config?.revokeUrl ?? getEnv('OAUTH_REVOKE_URL') ?? (issuer ? `${issuer}/revoke` : undefined);
+	const endSessionUrl =
+		config?.endSessionUrl ??
+		getEnv('OAUTH_END_SESSION_URL') ??
+		(issuer ? `${issuer}/end_session` : undefined);
 	const scopes = config?.scopes ?? getEnv('OAUTH_SCOPES') ?? 'openid profile email';
 
 	const prompt = config?.prompt;
 
-	return { clientId, clientSecret, issuer, authorizeUrl, tokenUrl, userinfoUrl, scopes, prompt };
+	return {
+		clientId,
+		clientSecret,
+		issuer,
+		authorizeUrl,
+		tokenUrl,
+		userinfoUrl,
+		revokeUrl,
+		endSessionUrl,
+		scopes,
+		prompt,
+	};
 }
 
 /**
@@ -118,9 +135,6 @@ export async function exchangeToken(
 		});
 	}
 
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-
 	let response: Response;
 	try {
 		response = await fetch(resolved.tokenUrl, {
@@ -133,18 +147,16 @@ export async function exchangeToken(
 				client_id: resolved.clientId,
 				client_secret: resolved.clientSecret,
 			}),
-			signal: controller.signal,
+			signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
 		});
 	} catch (err) {
-		clearTimeout(timer);
-		if (err instanceof DOMException && err.name === 'AbortError') {
+		if (err instanceof DOMException && err.name === 'TimeoutError') {
 			throw new OAuthResponseError({
 				message: `Token exchange timed out after ${DEFAULT_TIMEOUT_MS}ms`,
 			});
 		}
 		throw err;
 	}
-	clearTimeout(timer);
 
 	if (!response.ok) {
 		const error = await response.text();
@@ -155,6 +167,140 @@ export async function exchangeToken(
 
 	const data = await response.json();
 	return OAuthTokenResponseSchema.parse(data);
+}
+
+/**
+ * Refresh an access token using a refresh token.
+ *
+ * @param refreshTokenValue - The refresh token obtained from a previous token exchange
+ * @param config - Optional OAuth configuration. Falls back to environment variables.
+ * @returns The token response including a new access_token, and optionally a new refresh_token
+ *
+ * @example
+ * ```typescript
+ * const newToken = await refreshToken(previousToken.refresh_token!);
+ * console.log(newToken.access_token);
+ * ```
+ */
+export async function refreshToken(
+	refreshTokenValue: string,
+	config?: OAuthFlowConfig
+): Promise<OAuthTokenResponse> {
+	const resolved = resolveConfig(config);
+
+	if (!resolved.tokenUrl) {
+		throw new OAuthResponseError({
+			message:
+				'No token URL configured. Set OAUTH_TOKEN_URL or OAUTH_ISSUER environment variable.',
+		});
+	}
+	if (!resolved.clientId) {
+		throw new OAuthResponseError({
+			message: 'No client ID configured. Set OAUTH_CLIENT_ID environment variable.',
+		});
+	}
+
+	const params = new URLSearchParams({
+		grant_type: 'refresh_token',
+		refresh_token: refreshTokenValue,
+		client_id: resolved.clientId,
+	});
+
+	if (resolved.clientSecret) {
+		params.set('client_secret', resolved.clientSecret);
+	}
+
+	let response: Response;
+	try {
+		response = await fetch(resolved.tokenUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: params,
+			signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+		});
+	} catch (err) {
+		if (err instanceof DOMException && err.name === 'TimeoutError') {
+			throw new OAuthResponseError({
+				message: `Token refresh timed out after ${DEFAULT_TIMEOUT_MS}ms`,
+			});
+		}
+		throw err;
+	}
+
+	if (!response.ok) {
+		const error = await response.text();
+		throw new OAuthResponseError({
+			message: `Token refresh failed (${response.status}): ${error}`,
+		});
+	}
+
+	const data = await response.json();
+	return OAuthTokenResponseSchema.parse(data);
+}
+
+/**
+ * Revoke an OAuth token (access token or refresh token) to log the user out.
+ *
+ * Calls the token revocation endpoint (RFC 7009). The server will invalidate
+ * the token so it can no longer be used. Per the spec, the endpoint returns
+ * a success response even if the token was already invalid.
+ *
+ * @param token - The access token or refresh token to revoke
+ * @param config - Optional OAuth configuration. Falls back to environment variables.
+ *
+ * @example
+ * ```typescript
+ * // Revoke the refresh token to fully log out
+ * await logout(token.refresh_token!);
+ * ```
+ */
+export async function logout(token: string, config?: OAuthFlowConfig): Promise<void> {
+	const resolved = resolveConfig(config);
+
+	if (!resolved.revokeUrl) {
+		throw new OAuthResponseError({
+			message:
+				'No revoke URL configured. Set OAUTH_REVOKE_URL or OAUTH_ISSUER environment variable.',
+		});
+	}
+	if (!resolved.clientId) {
+		throw new OAuthResponseError({
+			message: 'No client ID configured. Set OAUTH_CLIENT_ID environment variable.',
+		});
+	}
+
+	const params = new URLSearchParams({
+		token,
+		client_id: resolved.clientId,
+	});
+
+	if (resolved.clientSecret) {
+		params.set('client_secret', resolved.clientSecret);
+	}
+
+	let response: Response;
+	try {
+		response = await fetch(resolved.revokeUrl, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: params,
+			signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+		});
+	} catch (err) {
+		if (err instanceof DOMException && err.name === 'TimeoutError') {
+			throw new OAuthResponseError({
+				message: `Token revocation timed out after ${DEFAULT_TIMEOUT_MS}ms`,
+			});
+		}
+		throw err;
+	}
+
+	if (!response.ok) {
+		const error = await response.text();
+		throw new OAuthResponseError({
+			message: `Token revocation failed (${response.status}): ${error}`,
+		});
+	}
 }
 
 /**
@@ -183,25 +329,20 @@ export async function fetchUserInfo(
 		});
 	}
 
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-
 	let response: Response;
 	try {
 		response = await fetch(resolved.userinfoUrl, {
 			headers: { Authorization: `Bearer ${accessToken}` },
-			signal: controller.signal,
+			signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
 		});
 	} catch (err) {
-		clearTimeout(timer);
-		if (err instanceof DOMException && err.name === 'AbortError') {
+		if (err instanceof DOMException && err.name === 'TimeoutError') {
 			throw new OAuthResponseError({
 				message: `Userinfo request timed out after ${DEFAULT_TIMEOUT_MS}ms`,
 			});
 		}
 		throw err;
 	}
-	clearTimeout(timer);
 
 	if (!response.ok) {
 		const error = await response.text();
