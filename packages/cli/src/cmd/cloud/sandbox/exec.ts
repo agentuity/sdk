@@ -219,12 +219,20 @@ export const execSubcommand = createCommand({
 			// Use server-side long-polling to wait for execution completion
 			// This is more efficient than client-side polling and provides immediate
 			// error detection if the sandbox is terminated
+			let finalExecution: Awaited<ReturnType<typeof executionGet>>;
 			const pollStart = Date.now();
-			const finalExecution = await executionGet(client, {
-				executionId: execution.executionId,
-				orgId,
-				wait: EXECUTION_WAIT_DURATION,
-			});
+			try {
+				finalExecution = await executionGet(client, {
+					executionId: execution.executionId,
+					orgId,
+					wait: EXECUTION_WAIT_DURATION,
+				});
+			} catch (err) {
+				// Abort any active stream readers before rethrowing so they
+				// don't keep running after the execution poll has failed.
+				streamAbortController.abort();
+				throw err;
+			}
 			logger.debug(
 				'[exec] executionGet returned in %dms: status=%s, exitCode=%s',
 				Date.now() - pollStart,

@@ -234,11 +234,32 @@ export async function sandboxRun(
 		// linear 1s polling interval (not exponential backoff) so we don't overshoot
 		// the window — 15 attempts × 1s = 15s total, which comfortably covers the
 		// drain + lifecycle propagation delay.
+		// Abort-aware sleep that rejects when the caller's signal fires.
+		const abortAwareSleep = (ms: number): Promise<void> =>
+			new Promise((resolve, reject) => {
+				if (signal?.aborted) {
+					reject(new DOMException('Aborted', 'AbortError'));
+					return;
+				}
+				const timer = setTimeout(resolve, ms);
+				signal?.addEventListener(
+					'abort',
+					() => {
+						clearTimeout(timer);
+						reject(new DOMException('Aborted', 'AbortError'));
+					},
+					{ once: true }
+				);
+			});
+
 		let exitCode = 0;
 		const maxStatusRetries = 15;
 		const statusPollInterval = 1000;
 		const statusPollStart = Date.now();
 		for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
+			if (signal?.aborted) {
+				break;
+			}
 			try {
 				const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
 				if (sandboxStatus.exitCode != null) {
@@ -274,9 +295,12 @@ export async function sandboxRun(
 				}
 				// Exit code not yet propagated — wait before next poll.
 				if (attempt < maxStatusRetries - 1) {
-					await new Promise((r) => setTimeout(r, statusPollInterval));
+					await abortAwareSleep(statusPollInterval);
 				}
 			} catch (err) {
+				if (err instanceof DOMException && err.name === 'AbortError') {
+					break;
+				}
 				// Transient failure (sandbox briefly unavailable, network error).
 				// Retry instead of giving up — the lifecycle event may still arrive.
 				logger?.debug(
@@ -287,7 +311,7 @@ export async function sandboxRun(
 					err
 				);
 				if (attempt < maxStatusRetries - 1) {
-					await new Promise((r) => setTimeout(r, statusPollInterval));
+					await abortAwareSleep(statusPollInterval);
 				}
 			}
 		}
