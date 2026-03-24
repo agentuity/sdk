@@ -7,10 +7,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
 	testDir: './e2e/frameworks',
 	testMatch: '**/*.pw.ts',
-	fullyParallel: false,
+	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
-	retries: process.env.CI ? 2 : 0,
-	workers: 1,
+	retries: process.env.CI ? 1 : 0,
+	workers: process.env.CI ? Number(process.env.PLAYWRIGHT_WORKERS) || undefined : undefined, // Auto-detect based on CPUs, or override via PLAYWRIGHT_WORKERS
 	reporter: 'html',
 	timeout: 60000,
 	use: {

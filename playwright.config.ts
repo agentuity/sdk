@@ -8,8 +8,8 @@ export default defineConfig({
 	testIgnore: ['**/frameworks/**'],
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
-	retries: process.env.CI ? 2 : 0,
-	workers: process.env.CI ? 4 : undefined, // CI runner has 4 vCPUs, tests use unique room IDs so can run in parallel
+	retries: process.env.CI ? 1 : 0,
+	workers: process.env.CI ? Number(process.env.PLAYWRIGHT_WORKERS) || undefined : undefined, // Auto-detect based on CPUs, or override via PLAYWRIGHT_WORKERS
 	reporter: 'html',
 	use: {
 		baseURL: 'http://localhost:3500',

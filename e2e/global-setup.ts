@@ -9,7 +9,7 @@
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 
-const MAX_RETRIES = 60;
+const MAX_RETRIES = 30;
 const RETRY_DELAY = 1000;
 
 async function globalSetup(): Promise<void> {

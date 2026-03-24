@@ -1,6 +1,8 @@
 #!/bin/bash
 # Framework Demo Tests - Playwright E2E Tests for TanStack, Next.js, and Vite RSC Integration
 # Tests the frontend framework integration demos with Agentuity
+#
+# Optimized: Starts all servers in parallel, then runs all tests in parallel
 
 set -e
 
@@ -51,22 +53,16 @@ done
 cleanup() {
 	echo ""
 	echo "Cleaning up..."
-	if [ -n "$TANSTACK_PID" ]; then
-		kill $TANSTACK_PID 2>/dev/null || true
-	fi
-	if [ -n "$NEXTJS_PID" ]; then
-		kill $NEXTJS_PID 2>/dev/null || true
-	fi
-	if [ -n "$VITE_RSC_PID" ]; then
-		kill $VITE_RSC_PID 2>/dev/null || true
-	fi
+	# Kill all server PIDs
+	for pid in $TANSTACK_PID $NEXTJS_PID $VITE_RSC_PID; do
+		if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+			kill "$pid" 2>/dev/null || true
+		fi
+	done
 	# Kill any remaining processes on the ports
-	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3500 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3501 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3502 | xargs kill -9 2>/dev/null || true
+	for port in 3000 3001 3002 3500 3501 3502; do
+		lsof -ti:$port | xargs kill -9 2>/dev/null || true
+	done
 }
 trap cleanup EXIT
 
@@ -77,14 +73,13 @@ if [ "$SKIP_BUILD" = false ]; then
 	echo ""
 fi
 
-# Function to wait for server
+# Function to wait for server (with timeout)
 wait_for_server() {
 	local url=$1
 	local name=$2
-	local max_attempts=60
+	local max_attempts=${3:-60}
 	local attempt=0
 	
-	echo "Waiting for $name at $url..."
 	while [ $attempt -lt $max_attempts ]; do
 		if curl -s "$url" > /dev/null 2>&1; then
 			echo "✓ $name is ready"
@@ -97,109 +92,98 @@ wait_for_server() {
 	return 1
 }
 
-# Run TanStack tests
+# Build list of projects to test
+PROJECTS=()
 if [ "$RUN_TANSTACK" = true ]; then
-	echo "═══════════════════════════════════════════════"
-	echo "  Testing TanStack Start + Agentuity"
-	echo "═══════════════════════════════════════════════"
-	echo ""
-	
-	# Start TanStack app
-	echo "Starting TanStack app..."
+	PROJECTS+=("tanstack")
+fi
+if [ "$RUN_NEXTJS" = true ]; then
+	PROJECTS+=("nextjs")
+fi
+if [ "$RUN_VITE_RSC" = true ]; then
+	PROJECTS+=("vite-rsc")
+fi
+
+if [ ${#PROJECTS[@]} -eq 0 ]; then
+	echo "No projects selected for testing"
+	exit 1
+fi
+
+echo "Projects to test: ${PROJECTS[*]}"
+echo ""
+
+# Step 2: Start all servers in parallel
+echo "Step 2: Starting all dev servers in parallel..."
+
+if [ "$RUN_TANSTACK" = true ]; then
+	echo "  Starting TanStack app..."
 	cd "$SDK_ROOT/apps/testing/tanstack-start"
 	bun run dev &
 	TANSTACK_PID=$!
-	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3000" "TanStack web (3000)"
-	wait_for_server "http://localhost:3500" "TanStack agent (3500)"
-	
-	# Run Playwright tests for TanStack
-	echo ""
-	echo "Running Playwright tests for TanStack..."
 	cd "$SDK_ROOT"
-	bun run playwright test --config=playwright.frameworks.config.ts --project=tanstack
-	
-	# Stop TanStack
-	kill $TANSTACK_PID 2>/dev/null || true
-	TANSTACK_PID=""
-	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3500 | xargs kill -9 2>/dev/null || true
-	sleep 2
-	
-	echo ""
-	echo "✓ TanStack tests completed"
-	echo ""
 fi
 
-# Run Next.js tests
 if [ "$RUN_NEXTJS" = true ]; then
-	echo "═══════════════════════════════════════════════"
-	echo "  Testing Next.js + Agentuity"
-	echo "═══════════════════════════════════════════════"
-	echo ""
-	
-	# Start Next.js app
-	echo "Starting Next.js app..."
+	echo "  Starting Next.js app..."
 	cd "$SDK_ROOT/apps/testing/nextjs-app"
 	bun run dev &
 	NEXTJS_PID=$!
-	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3001" "Next.js web (3001)"
-	wait_for_server "http://localhost:3501" "Next.js agent (3501)"
-	
-	# Run Playwright tests for Next.js
-	echo ""
-	echo "Running Playwright tests for Next.js..."
 	cd "$SDK_ROOT"
-	bun run playwright test --config=playwright.frameworks.config.ts --project=nextjs
-	
-	# Stop Next.js
-	kill $NEXTJS_PID 2>/dev/null || true
-	NEXTJS_PID=""
-	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3501 | xargs kill -9 2>/dev/null || true
-	
-	echo ""
-	echo "✓ Next.js tests completed"
-	echo ""
 fi
 
-# Run Vite RSC tests
 if [ "$RUN_VITE_RSC" = true ]; then
-	echo "═══════════════════════════════════════════════"
-	echo "  Testing Vite RSC + Agentuity"
-	echo "═══════════════════════════════════════════════"
-	echo ""
-	
-	# Start Vite RSC app
-	echo "Starting Vite RSC app..."
+	echo "  Starting Vite RSC app..."
 	cd "$SDK_ROOT/apps/testing/vite-rsc-app"
 	bun run dev &
 	VITE_RSC_PID=$!
-	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3002" "Vite RSC web (3002)"
-	wait_for_server "http://localhost:3502" "Vite RSC agent (3502)"
-	
-	# Run Playwright tests for Vite RSC
-	echo ""
-	echo "Running Playwright tests for Vite RSC..."
 	cd "$SDK_ROOT"
-	bun run playwright test --config=playwright.frameworks.config.ts --project=vite-rsc
-	
-	# Stop Vite RSC
-	kill $VITE_RSC_PID 2>/dev/null || true
-	VITE_RSC_PID=""
-	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3502 | xargs kill -9 2>/dev/null || true
-	
-	echo ""
-	echo "✓ Vite RSC tests completed"
-	echo ""
 fi
 
+echo ""
+echo "Waiting for all servers to be ready..."
+
+# Wait for all servers in parallel (print status as they become ready)
+WAIT_FAILURE=0
+
+if [ "$RUN_TANSTACK" = true ]; then
+	wait_for_server "http://localhost:3000" "TanStack web (3000)" 90 || WAIT_FAILURE=1
+	wait_for_server "http://localhost:3500" "TanStack agent (3500)" 30 || WAIT_FAILURE=1
+fi
+
+if [ "$RUN_NEXTJS" = true ]; then
+	wait_for_server "http://localhost:3001" "Next.js web (3001)" 90 || WAIT_FAILURE=1
+	wait_for_server "http://localhost:3501" "Next.js agent (3501)" 30 || WAIT_FAILURE=1
+fi
+
+if [ "$RUN_VITE_RSC" = true ]; then
+	wait_for_server "http://localhost:3002" "Vite RSC web (3002)" 90 || WAIT_FAILURE=1
+	wait_for_server "http://localhost:3502" "Vite RSC agent (3502)" 30 || WAIT_FAILURE=1
+fi
+
+if [ $WAIT_FAILURE -eq 1 ]; then
+	echo ""
+	echo "✗ One or more servers failed to start"
+	exit 1
+fi
+
+echo ""
+echo "✓ All servers are ready"
+echo ""
+
+# Step 3: Run Playwright tests for all projects in one command
+# Playwright will run projects in parallel based on config (workers: 3)
+echo "Step 3: Running Playwright tests for all projects..."
+echo ""
+
+PROJECT_ARGS=""
+for proj in "${PROJECTS[@]}"; do
+	PROJECT_ARGS="$PROJECT_ARGS --project=$proj"
+done
+
+cd "$SDK_ROOT"
+bun run playwright test --config=playwright.frameworks.config.ts $PROJECT_ARGS
+
+echo ""
 echo "╔════════════════════════════════════════════════╗"
 echo "║  ✅ Framework Demo Tests Complete              ║"
 echo "╚════════════════════════════════════════════════╝"
