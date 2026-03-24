@@ -194,10 +194,11 @@ export const runSubcommand = createCommand({
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
 
-			if (!options.json) {
-				if (result.exitCode !== 0) {
+			if (result.exitCode !== 0) {
+				if (!options.json) {
 					tui.error(`failed with exit code ${result.exitCode} in ${duration}ms`);
 				}
+				process.exitCode = result.exitCode;
 			}
 
 			return {
