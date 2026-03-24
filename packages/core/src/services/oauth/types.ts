@@ -268,6 +268,18 @@ export const OAuthFlowConfigSchema = z.object({
 		.string()
 		.optional()
 		.describe('UserInfo endpoint. Defaults to OAUTH_USERINFO_URL or {issuer}/userinfo'),
+	revokeUrl: z
+		.string()
+		.optional()
+		.describe(
+			'Token revocation endpoint (RFC 7009). Defaults to OAUTH_REVOKE_URL or {issuer}/revoke'
+		),
+	endSessionUrl: z
+		.string()
+		.optional()
+		.describe(
+			'OIDC end session endpoint. Defaults to OAUTH_END_SESSION_URL or {issuer}/end_session'
+		),
 	scopes: z
 		.string()
 		.optional()
@@ -305,3 +317,17 @@ export const OAuthUserInfoSchema = z
 	.catchall(z.unknown());
 
 export type OAuthUserInfo = z.infer<typeof OAuthUserInfoSchema>;
+
+export const StoredTokenSchema = z.object({
+	access_token: z.string(),
+	token_type: z.string().optional(),
+	refresh_token: z.string().optional(),
+	scope: z.string().optional(),
+	id_token: z.string().optional(),
+	expires_at: z
+		.number()
+		.optional()
+		.describe('Unix timestamp (seconds) when the access token expires'),
+});
+
+export type StoredToken = z.infer<typeof StoredTokenSchema>;
