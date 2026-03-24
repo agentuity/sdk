@@ -226,37 +226,77 @@ export async function sandboxRun(
 		// Stream EOF means the sandbox is done — hadron only closes streams after the
 		// container exits. Poll for the exit code with retries because the lifecycle
 		// event (carrying the exit code) may still be in flight to Catalyst when the
-		// stream completes. Without retries, exitCode defaults to 0 and the CLI
-		// incorrectly reports success for failed sandboxes.
+		// stream completes.
+		//
+		// Hadron drains container logs for up to 5s after exit, then closes the
+		// stream, then sends the lifecycle event in a goroutine. So the exit code
+		// typically arrives at Catalyst 5–7s after the container exits. We use a
+		// linear 1s polling interval (not exponential backoff) so we don't overshoot
+		// the window — 15 attempts × 1s = 15s total, which comfortably covers the
+		// drain + lifecycle propagation delay.
 		let exitCode = 0;
-		const maxStatusRetries = 10;
+		const maxStatusRetries = 15;
+		const statusPollInterval = 1000;
+		const statusPollStart = Date.now();
 		for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
 			try {
 				const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
 				if (sandboxStatus.exitCode != null) {
 					exitCode = sandboxStatus.exitCode;
+					logger?.debug(
+						'[run] exit code %d found on attempt %d/%d (+%dms)',
+						exitCode,
+						attempt + 1,
+						maxStatusRetries,
+						Date.now() - statusPollStart
+					);
 					break;
 				} else if (sandboxStatus.status === 'failed') {
 					exitCode = 1;
+					logger?.debug(
+						'[run] sandbox failed on attempt %d/%d (+%dms)',
+						attempt + 1,
+						maxStatusRetries,
+						Date.now() - statusPollStart
+					);
+					break;
+				} else if (sandboxStatus.status === 'terminated') {
+					// Sandbox was destroyed. If exit code is missing, the
+					// terminated event may have overwritten it. Stop polling —
+					// no further updates will come.
+					logger?.debug(
+						'[run] sandbox terminated without exit code on attempt %d/%d (+%dms)',
+						attempt + 1,
+						maxStatusRetries,
+						Date.now() - statusPollStart
+					);
 					break;
 				}
-				// Exit code not yet propagated — wait with exponential backoff.
+				// Exit code not yet propagated — wait before next poll.
 				if (attempt < maxStatusRetries - 1) {
-					await new Promise((r) => setTimeout(r, Math.min(100 * Math.pow(2, attempt), 2000)));
+					await new Promise((r) => setTimeout(r, statusPollInterval));
 				}
 			} catch (err) {
 				// Transient failure (sandbox briefly unavailable, network error).
 				// Retry instead of giving up — the lifecycle event may still arrive.
 				logger?.debug(
-					'sandboxGetStatus attempt %d/%d failed: %s',
+					'[run] sandboxGetStatus attempt %d/%d failed (+%dms): %s',
 					attempt + 1,
 					maxStatusRetries,
+					Date.now() - statusPollStart,
 					err
 				);
 				if (attempt < maxStatusRetries - 1) {
-					await new Promise((r) => setTimeout(r, Math.min(100 * Math.pow(2, attempt), 2000)));
+					await new Promise((r) => setTimeout(r, statusPollInterval));
 				}
 			}
+		}
+		if (exitCode === 0) {
+			logger?.debug(
+				'[run] exit code polling finished with default 0 after %d attempts (+%dms)',
+				maxStatusRetries,
+				Date.now() - statusPollStart
+			);
 		}
 
 		if (timingLogsEnabled)
@@ -408,42 +448,54 @@ async function streamUrlToWritable(
 	logger?: Logger,
 	started?: number
 ): Promise<void> {
+	const streamStart = Date.now();
 	try {
-		logger?.debug('fetching stream: %s', url);
-		const response = await fetch(url, { signal });
-		logger?.debug('stream response status: %d', response.status);
-		if (timingLogsEnabled && started)
-			console.error(
-				`[TIMING] +${Date.now() - started}ms: stream response received (status: ${response.status})`
-			);
+		// Signal to Pulse that this is a v2 stream so it waits for v2 metadata
+		// instead of falling back to the legacy download path on a short timeout.
+		const v2Url = new URL(url);
+		v2Url.searchParams.set('v', '2');
+		logger?.debug('[stream] fetching: %s', v2Url.href);
+		const response = await fetch(v2Url.href, { signal });
+		logger?.debug(
+			'[stream] response status=%d in %dms',
+			response.status,
+			Date.now() - streamStart
+		);
 
 		if (!response.ok || !response.body) {
-			logger?.debug('stream response not ok or no body');
+			logger?.debug('[stream] not ok or no body (status=%d) — returning empty', response.status);
 			return;
 		}
 
 		const reader = response.body.getReader();
-		let firstChunk = true;
+		let chunks = 0;
+		let totalBytes = 0;
 
 		// Read until EOF - Pulse will block until data is available
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) {
-				logger?.debug('stream EOF');
-				if (timingLogsEnabled && started)
-					console.error(`[TIMING] +${Date.now() - started}ms: stream EOF`);
+				logger?.debug(
+					'[stream] EOF after %dms (%d chunks, %d bytes)',
+					Date.now() - streamStart,
+					chunks,
+					totalBytes
+				);
 				break;
 			}
 
 			if (value) {
-				if (firstChunk && started) {
-					if (timingLogsEnabled)
-						console.error(
-							`[TIMING] +${Date.now() - started}ms: first chunk (${value.length} bytes)`
-						);
-					firstChunk = false;
+				chunks++;
+				totalBytes += value.length;
+				if (chunks <= 3 || chunks % 100 === 0) {
+					logger?.debug(
+						'[stream] chunk #%d: %d bytes (total: %d bytes, +%dms)',
+						chunks,
+						value.length,
+						totalBytes,
+						Date.now() - streamStart
+					);
 				}
-				logger?.debug('stream chunk: %d bytes', value.length);
 				await writeAndDrain(writable, value);
 			}
 		}
@@ -452,9 +504,9 @@ async function streamUrlToWritable(
 		writable.end();
 	} catch (err) {
 		if (err instanceof Error && err.name === 'AbortError') {
-			logger?.debug('stream aborted');
+			logger?.debug('[stream] aborted after %dms', Date.now() - streamStart);
 			return;
 		}
-		logger?.debug('stream error: %s', err);
+		logger?.debug('[stream] error after %dms: %s', Date.now() - streamStart, err);
 	}
 }
