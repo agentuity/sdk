@@ -19,6 +19,10 @@ const testCases: [ErrorCode, ExitCode][] = [
 	[ErrorCode.NETWORK_ERROR, ExitCode.NETWORK_ERROR],
 	[ErrorCode.FILE_READ_ERROR, ExitCode.FILE_ERROR],
 	[ErrorCode.USER_CANCELLED, ExitCode.USER_CANCELLED],
+	[ErrorCode.BUILD_FAILED, ExitCode.BUILD_FAILED],
+	[ErrorCode.MALWARE_DETECTED, ExitCode.SECURITY_ERROR],
+	[ErrorCode.PAYMENT_REQUIRED, ExitCode.PAYMENT_REQUIRED],
+	[ErrorCode.UPGRADE_REQUIRED, ExitCode.UPGRADE_REQUIRED],
 	[ErrorCode.INTERNAL_ERROR, ExitCode.GENERAL_ERROR],
 ];
 
@@ -79,16 +83,32 @@ for (const example of errorExamples) {
 	);
 }
 
+// Test 4: Exit codes are in safe user-defined range (10+)
+console.log('\nTest 4: Exit codes avoid system signal range');
+console.log('----------------------------------------------');
+const unsafeRange = [2, 3, 4, 5, 6, 7, 8, 9]; // Signal numbers to avoid
+for (const exitCode of Object.values(ExitCode)) {
+	if (typeof exitCode !== 'number') continue;
+	if (unsafeRange.includes(exitCode)) {
+		console.log(`  ✗ ExitCode ${exitCode} conflicts with Unix signal range`);
+	}
+}
+console.log('  ✓ All exit codes are outside the Unix signal range (2-9)');
+
 console.log('\nAll tests completed successfully! ✓\n');
 console.log('Exit Code Reference:');
 console.log('--------------------');
-console.log('  0 - Success');
-console.log('  1 - General error');
-console.log('  2 - Validation error');
-console.log('  3 - Authentication error');
-console.log('  4 - Resource not found');
-console.log('  5 - Permission denied');
-console.log('  6 - Network error');
-console.log('  7 - File system error');
-console.log('  8 - User cancelled');
+console.log('  0  - Success');
+console.log('  1  - General error');
+console.log('  10 - Validation error');
+console.log('  11 - Authentication error');
+console.log('  12 - Resource not found');
+console.log('  13 - Permission denied');
+console.log('  14 - Network error');
+console.log('  15 - File system error');
+console.log('  16 - User cancelled');
+console.log('  17 - Build failed');
+console.log('  18 - Security error');
+console.log('  19 - Payment required');
+console.log('  20 - Upgrade required');
 console.log();

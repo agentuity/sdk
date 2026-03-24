@@ -121,7 +121,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			tempDir
 		);
 		if (unzipExit !== 0 && unzipExit !== 1) {
-			tui.fatal(`Failed to unzip source archive (exit ${unzipExit})`, ErrorCode.BUILD_FAILED);
+			// Propagate the subprocess exit code instead of overriding it
+			tui.error(`Failed to unzip source archive (exit ${unzipExit})`);
+			process.exit(unzipExit);
 		}
 
 		const extractedEntries = await readdir(extractPath, { withFileTypes: true });
@@ -168,7 +170,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		tui.info('3️⃣ Installing your project dependencies...');
 		const installExit = await runCommand(['bun', 'install'], projectDir);
 		if (installExit !== 0) {
-			tui.fatal(`Dependency installation failed (exit ${installExit})`, ErrorCode.BUILD_FAILED);
+			// Propagate the subprocess exit code instead of overriding it
+			tui.error(`Dependency installation failed (exit ${installExit})`);
+			process.exit(installExit);
 		}
 
 		const packageJsonPath = join(projectDir, 'package.json');
@@ -185,7 +189,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			tui.info('🔧 Running predeploy script...');
 			const predeployExit = await runCommand(['bun', 'run', '--bun', 'predeploy'], projectDir);
 			if (predeployExit !== 0) {
-				tui.fatal(`Predeploy failed (exit ${predeployExit})`, ErrorCode.BUILD_FAILED);
+				// Propagate the subprocess exit code instead of overriding it
+				tui.error(`Predeploy failed (exit ${predeployExit})`);
+				process.exit(predeployExit);
 			}
 		}
 
@@ -200,14 +206,18 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		tui.info(`Using CLI: ${cliExists ? localCliBin : 'bunx --bun agentuity'}`);
 		const deployExit = await runCommand(deployCmd, projectDir);
 		if (deployExit !== 0) {
-			tui.fatal(`Deploy failed (exit ${deployExit})`, ErrorCode.BUILD_FAILED);
+			// Propagate the deploy CLI's exit code — it already uses our ErrorCode system
+			tui.error(`Deploy failed (exit ${deployExit})`);
+			process.exit(deployExit);
 		}
 
 		if (scripts?.postdeploy) {
 			tui.info('🔧 Running postdeploy script...');
 			const postdeployExit = await runCommand(['bun', 'run', '--bun', 'postdeploy'], projectDir);
 			if (postdeployExit !== 0) {
-				tui.fatal(`Postdeploy failed (exit ${postdeployExit})`, ErrorCode.BUILD_FAILED);
+				// Propagate the subprocess exit code instead of overriding it
+				tui.error(`Postdeploy failed (exit ${postdeployExit})`);
+				process.exit(postdeployExit);
 			}
 		}
 
