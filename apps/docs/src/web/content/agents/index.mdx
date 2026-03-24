@@ -3,11 +3,17 @@ title: Agents
 description: Build and configure AI agents
 ---
 
-import { Bot, Wrench, Database, Sparkles, Cpu, Radio, Archive, Phone, Play, ClipboardCheck, Calendar } from 'lucide-react';
+import { Bot, Wrench, Database, Sparkles, Cpu, Radio, Archive, Phone, Play, ClipboardCheck, Calendar, GitCompare } from 'lucide-react';
 
 Agents are the core building blocks of Agentuity. Each agent handles a specific task with schema validation, AI integration, and lifecycle hooks.
 
 <Cards>
+  <CardLink
+    href="/agents/when-to-use"
+    title="Agents vs Routes"
+    description="When to create an agent vs handling requests directly"
+    icon={<GitCompare />}
+  />
   <CardLink
     href="/agents/creating-agents"
     title="Creating Agents"

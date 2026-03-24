@@ -103,6 +103,30 @@ Brief context: what is this for, when do you use it? (1-2 sentences)
 
 The sidebar is auto-generated at build time by `scripts/generate-nav-data.ts`. Page ordering within each section is controlled by the `meta.json` file in the same directory. When adding a new page, add its slug to the `pages` array in the relevant `meta.json`.
 
+## Adding a New Page
+
+Every new page requires **three things**:
+
+1. **MDX content file** in `src/web/content/` (the page content)
+2. **Route file** in `src/web/routes/_docs/` (TanStack Router needs this to serve the page)
+3. **meta.json entry** in the same content directory (controls sidebar ordering)
+
+Without the route file, the page shows "Not Found" at runtime even though the build passes. The `scripts/validate-routes.ts` script runs during prebuild and auto-generates any missing route files.
+
+Route file template (generated automatically, but for reference):
+
+```typescript
+import { createFileRoute } from '@tanstack/react-router';
+import { MDXPage } from '../../../components/docs/mdx-page';
+
+export const Route = createFileRoute('/_docs/section/page-name')({
+	component: () => <MDXPage route="section/page-name" />,
+	staticData: { crumb: 'Page Title' },
+});
+```
+
+The import depth for `MDXPage` varies by nesting level. Run `bun run scripts/validate-routes.ts` to generate correct route files, or use `--check` to validate without generating.
+
 ## Provider Documentation
 
 Agentuity supports raw provider SDKs and AI SDK providers. When writing docs:

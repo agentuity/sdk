@@ -6,6 +6,8 @@ description: Import and invoke agents from your routes
 
 Routes import agents directly and call them using `agent.run()`. Use `agent.validator()` for type-safe request validation.
 
+For guidance on when to use agents vs handling requests directly in routes, see [Agents vs Routes](/agents/when-to-use).
+
 ## Basic Agent Call
 
 Import an agent and call it in your route:
@@ -284,6 +286,7 @@ router.post('/chat', async (c) => {
 
 ## Next Steps
 
+- [Agents vs Routes](/agents/when-to-use): When to create an agent vs handling requests directly
 - [Creating Agents](/agents/creating-agents): Build agents with schemas and handlers
 - [Calling Other Agents](/agents/calling-other-agents): Agent-to-agent communication patterns
 - [HTTP Routes](/routes/http): Complete routing guide

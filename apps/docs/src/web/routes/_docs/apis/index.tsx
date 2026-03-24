@@ -1,7 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../components/docs/mdx-page';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/_docs/apis/')({
-	component: () => <MDXPage route="apis" />,
-	staticData: { crumb: 'APIs' },
+	beforeLoad: () => {
+		throw redirect({ to: '/agents/when-to-use' });
+	},
 });
