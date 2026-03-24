@@ -1,7 +1,7 @@
 import { createRouter } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
-import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/core/oauth';
+import { buildAuthorizeUrl, exchangeToken, fetchUserInfo, logout } from '@agentuity/core/oauth';
 import type {} from '@agentuity/react';
 
 const api = createRouter();
@@ -45,6 +45,25 @@ api.get('/oauth/login', async (c) => {
 		const token = await exchangeToken(code, redirectUri);
 		const user = await fetchUserInfo(token.access_token);
 
+		// Store tokens for logout
+		setCookie(
+			c,
+			'oauth_tokens',
+			encodeURIComponent(
+				JSON.stringify({
+					access_token: token.access_token,
+					refresh_token: token.refresh_token,
+				})
+			),
+			{
+				path: '/',
+				httpOnly: true,
+				secure: new URL(c.req.url).protocol === 'https:',
+				sameSite: 'Lax',
+				maxAge: 60 * 60 * 24,
+			}
+		);
+
 		setCookie(c, 'oauth_session', encodeURIComponent(JSON.stringify(user)), {
 			path: '/',
 			httpOnly: true,
@@ -61,8 +80,22 @@ api.get('/oauth/login', async (c) => {
 	}
 });
 
-// Logout - clear session
+// Logout - revoke token and clear session
 api.get('/oauth/logout', async (c) => {
+	const tokensCookie = getCookie(c, 'oauth_tokens');
+	if (tokensCookie) {
+		try {
+			const tokens = JSON.parse(decodeURIComponent(tokensCookie));
+			// Revoke the refresh token (or access token if no refresh token)
+			const tokenToRevoke = tokens.refresh_token ?? tokens.access_token;
+			if (tokenToRevoke) {
+				await logout(tokenToRevoke);
+			}
+		} catch {
+			// Best effort — continue with cookie cleanup even if revocation fails
+		}
+	}
+	deleteCookie(c, 'oauth_tokens', { path: '/' });
 	deleteCookie(c, 'oauth_session', { path: '/' });
 	return c.redirect('/');
 });
