@@ -1077,8 +1077,9 @@ The migration tool generates barrel files:
 import helloRouter from './hello';
 import echoRouter from './echo';
 import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const api = new Hono()
+const api = new Hono<Env>()
   .route('/hello', helloRouter)
   .route('/echo', echoRouter);
 
