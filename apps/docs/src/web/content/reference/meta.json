@@ -1,4 +1,12 @@
 {
 	"title": "Reference",
-	"pages": ["api", "cli", "sdk-reference", "gravity-network", "migration-guide"]
+	"pages": [
+		"api",
+		"cli",
+		"sdk-reference",
+		"standalone-packages",
+		"github-app",
+		"gravity-network",
+		"migration-guide"
+	]
 }

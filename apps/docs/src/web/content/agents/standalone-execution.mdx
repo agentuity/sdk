@@ -154,28 +154,13 @@ const result = await ctx.invoke(() => agent.run(input), { spanName: 'daily-clean
 
 Each call to `ctx.run()` or `ctx.invoke()` follows this lifecycle:
 
-<Steps>
-### Create tracing span
-An OpenTelemetry span is created within the parent context. Trace state includes project, org, and deployment IDs for distributed tracing.
-
-### Restore session and thread
-A new thread is created and the session is restored from the session provider using the session ID.
-
-### Fire session start event
-A `start` event is sent to the session event provider with the trigger type, session ID, thread ID, and deployment metadata.
-
-### Execute function
-Your function runs within `AsyncLocalStorage` context, giving it access to `ctx.kv`, `ctx.stream`, `ctx.vector`, `ctx.logger`, and `waitUntil`.
-
-### Wait for background tasks
-Any `ctx.waitUntil()` callbacks are awaited before the invocation completes.
-
-### Save session and thread
-Session and thread state are persisted via their providers.
-
-### Fire session complete event
-A `complete` event is sent with the final status code, agent IDs that participated, and any user data.
-</Steps>
+1. **Create tracing span**: An OpenTelemetry span is created within the parent context. Trace state includes project, org, and deployment IDs for distributed tracing.
+2. **Restore session and thread**: A new thread is created and the session is restored from the session provider using the session ID.
+3. **Fire session start event**: A `start` event is sent to the session event provider with the trigger type, session ID, thread ID, and deployment metadata.
+4. **Execute function**: Your function runs within `AsyncLocalStorage` context, giving it access to `ctx.kv`, `ctx.stream`, `ctx.vector`, `ctx.logger`, and `waitUntil`.
+5. **Wait for background tasks**: Any `ctx.waitUntil()` callbacks are awaited before the invocation completes.
+6. **Save session and thread**: Session and thread state are persisted via their providers.
+7. **Fire session complete event**: A `complete` event is sent with the final status code, agent IDs that participated, and any user data.
 
 If background tasks are pending (`waitUntil`), session save and the complete event happen after all tasks finish. Errors during execution set the span status to `ERROR` and include the error message in the session complete event.
 

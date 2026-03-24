@@ -6,6 +6,14 @@ description: Stream updates from server to client using SSE middleware
 
 Server-Sent Events (SSE) provide efficient one-way streaming from server to client over HTTP. Use them for progress indicators, live feeds, notifications, and LLM response streaming.
 
+## When to Use SSE
+
+| Protocol | Best For |
+|----------|----------|
+| **SSE** | LLM streaming, progress updates, server-to-client feeds |
+| [WebSockets](/routes/websockets) | Chat, collaboration, real-time bidirectional data |
+| [WebRTC](/routes/webrtc) | Video/audio calls, P2P data transfer, low-latency gaming |
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. Import agents you need and call them directly.
 </Callout>
@@ -245,7 +253,7 @@ router.post('/chat', sse(async (c, stream) => {
   const { message } = await c.req.json();
 
   const result = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     prompt: message,
   });
 
@@ -258,18 +266,6 @@ router.post('/chat', sse(async (c, stream) => {
 
 export default router;
 ```
-
-## SSE vs WebSocket
-
-| Aspect | SSE | WebSocket |
-|--------|-----|-----------|
-| Direction | Server → Client only | Bidirectional |
-| Protocol | HTTP | WebSocket |
-| Reconnection | Built-in auto-reconnect | Manual |
-| Browser support | Native EventSource | Native WebSocket |
-| Best for | Progress, feeds, LLM streaming | Chat, collaboration |
-
-Use SSE when you only need to push data **from server to client**. Use [WebSockets](/routes/websockets) when you need **bidirectional** communication.
 
 ## Standalone Usage
 

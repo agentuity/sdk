@@ -1,0 +1,404 @@
+---
+title: Schema Validation
+short_title: Schema
+description: Type-safe runtime validation with StandardSchema support
+---
+
+The SDK includes built-in schema validation using the StandardSchemaV1 interface, providing runtime type safety and automatic validation.
+
+## StandardSchema Support
+
+The SDK validates agent input and output using the [StandardSchemaV1](https://github.com/standard-schema/standard-schema) interface. Any validation library that implements this interface works out of the box: Zod, Valibot, ArkType, or the built-in `@agentuity/schema` package.
+
+For choosing between schema libraries and integration patterns, see [Schema Libraries](/agents/schema-libraries). For how schemas attach to agents, see [Agents](/reference/sdk-reference/agents#agent-configuration).
+
+## Type Inference
+
+TypeScript automatically infers types from your schemas, providing full autocomplete and type checking:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('SearchAgent', {
+  schema: {
+    input: z.object({
+      query: z.string(),
+      filters: z.object({
+        category: z.enum(['tech', 'business', 'sports']),
+        limit: z.number().default(10),
+      }),
+    }),
+    output: z.object({
+      results: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        score: z.number(),
+      })),
+      total: z.number(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // TypeScript knows:
+    // - input.query is string
+    // - input.filters.category is 'tech' | 'business' | 'sports'
+    // - input.filters.limit is number
+
+    // Return type is also validated
+    return {
+      results: [
+        { id: '1', title: 'Example', score: 0.95 },
+      ],
+      total: 1,
+    };
+
+    // This would cause a TypeScript error:
+    // return { invalid: 'structure' };
+  },
+});
+
+// When calling the agent from another agent:
+import searchAgent from '@agent/search';
+
+const result = await searchAgent.run({
+  query: 'agentic AI',
+  filters: { category: 'tech', limit: 5 },
+});
+
+// TypeScript knows result has this shape:
+// {
+//   results: Array<{ id: string; title: string; score: number }>;
+//   total: number;
+// }
+```
+
+**Benefits of Type Inference:**
+- Full IDE autocomplete for input and output
+- Compile-time type checking catches errors before runtime
+- No need to manually define TypeScript interfaces
+- Refactoring is safer - changes to schemas update types automatically
+
+## Primitive Types
+
+The `s` builder provides schemas for all JavaScript primitive types.
+
+| Schema | Validates | Example |
+|--------|-----------|---------|
+| `s.string()` | `string` values | `s.string().parse('hello')` |
+| `s.number()` | `number` values | `s.number().parse(42)` |
+| `s.boolean()` | `boolean` values | `s.boolean().parse(true)` |
+| `s.null()` | `null` only | `s.null().parse(null)` |
+| `s.undefined()` | `undefined` only | `s.undefined().parse(undefined)` |
+| `s.unknown()` | any value, typed as `unknown` | `s.unknown().parse('anything')` |
+| `s.any()` | any value, typed as `any` | `s.any().parse(123)` |
+
+`s.string()` supports chainable refinements for common validations:
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const email = s.string().email();
+email.parse('user@example.com'); // 'user@example.com'
+
+const username = s.string().min(3).max(20);
+username.parse('alice'); // 'alice'
+
+const website = s.string().url();
+website.parse('https://agentuity.dev'); // 'https://agentuity.dev'
+```
+
+Every schema supports `.describe()` for documentation. Descriptions carry through to JSON Schema output:
+
+```typescript
+const age = s.number().describe('Age in years');
+```
+
+## Complex Types
+
+Build structured schemas with `s.object()`, `s.array()`, and `s.record()`.
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const UserSchema = s.object({
+  name: s.string(),
+  age: s.number(),
+  tags: s.array(s.string()),
+});
+
+type User = s.infer<typeof UserSchema>;
+// { name: string; age: number; tags: string[] }
+
+const user = UserSchema.parse({
+  name: 'Alice',
+  age: 30,
+  tags: ['admin', 'active'],
+});
+```
+
+Object schemas support `.pick()`, `.omit()`, `.partial()`, and `.extend()` for deriving new schemas:
+
+```typescript
+const CreateUser = UserSchema.omit(['age']);
+// { name: string; tags: string[] }
+
+const UpdateUser = UserSchema.partial();
+// { name?: string; age?: number; tags?: string[] }
+
+const AdminUser = UserSchema.extend({
+  role: s.literal('admin'),
+  permissions: s.array(s.string()),
+});
+// { name: string; age: number; tags: string[]; role: 'admin'; permissions: string[] }
+```
+
+`s.record()` validates objects with dynamic keys, like TypeScript's `Record<string, T>`:
+
+```typescript
+const config = s.record(s.string(), s.number());
+config.parse({ timeout: 30, retries: 3 }); // OK
+config.parse({ timeout: 'fast' }); // throws ValidationError
+```
+
+## Utility Types
+
+Utility schemas modify or combine other schemas.
+
+| Schema | Effect | Output Type |
+|--------|--------|-------------|
+| `s.literal(value)` | Exact value match | `value` (literal type) |
+| `s.optional(schema)` | Allows `undefined` | `T \| undefined` |
+| `s.nullable(schema)` | Allows `null` | `T \| null` |
+| `s.union(a, b, ...)` | Matches any of the given schemas | `A \| B \| ...` |
+| `s.enum([...values])` | Union of literal values | `values[number]` |
+
+```typescript
+import { s } from '@agentuity/schema';
+
+// Exact value matching
+const admin = s.literal('admin');
+admin.parse('admin'); // 'admin'
+admin.parse('user');  // throws ValidationError
+
+// Optional and nullable fields
+const Profile = s.object({
+  name: s.string(),
+  bio: s.optional(s.string()),     // string | undefined
+  avatar: s.nullable(s.string()),  // string | null
+});
+
+// Union types
+const ID = s.union(s.string(), s.number());
+ID.parse('abc-123'); // OK
+ID.parse(42);        // OK
+
+// Enum shorthand: creates a union of literals
+const Role = s.enum(['admin', 'editor', 'viewer']);
+Role.parse('admin'); // 'admin'
+Role.parse('other'); // throws ValidationError
+
+// Equivalent to:
+// s.union(s.literal('admin'), s.literal('editor'), s.literal('viewer'))
+```
+
+All schemas also have `.optional()` and `.nullable()` as chainable methods:
+
+```typescript
+const maybeString = s.string().optional();  // string | undefined
+const nullableNum = s.number().nullable();  // number | null
+```
+
+## Extracting Types with `s.infer`
+
+Use `s.infer<typeof Schema>` to extract the TypeScript type from any schema. This is the recommended way to derive types rather than writing separate interfaces.
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const UserSchema = s.object({
+  id: s.string(),
+  name: s.string(),
+  email: s.optional(s.string()),
+  role: s.enum(['admin', 'editor', 'viewer']),
+});
+
+// Extract the type -- equivalent to writing the interface by hand
+type User = s.infer<typeof UserSchema>;
+// { id: string; name: string; email?: string; role: 'admin' | 'editor' | 'viewer' }
+
+// Use the type in function signatures, state, or API boundaries
+function greetUser(user: User): string {
+  return `Hello, ${user.name} (${user.role})`;
+}
+```
+
+`s.infer` works with all schema types, including nested objects, arrays, unions, and optional/nullable wrappers.
+
+For non-builder schemas, the standalone `Infer` type export does the same thing:
+
+```typescript
+import { type Infer } from '@agentuity/schema';
+
+type User = Infer<typeof UserSchema>;
+```
+
+## Type Coercion
+
+Coercion schemas convert input values before validating. Useful for form data, query parameters, and other string-based inputs where the runtime type doesn't match the desired type.
+
+Coercion schemas are accessed via `s.coerce.*`:
+
+| Schema | Conversion | Fails on |
+|--------|-----------|----------|
+| `s.coerce.string()` | `String(value)` | Never (all values coerce) |
+| `s.coerce.number()` | `Number(value)` | `NaN` results |
+| `s.coerce.boolean()` | `Boolean(value)` | Never (uses JS truthiness) |
+| `s.coerce.date()` | `new Date(value)` | Invalid dates |
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const QueryParams = s.object({
+  page: s.coerce.number(),
+  limit: s.coerce.number(),
+  active: s.coerce.boolean(),
+  since: s.coerce.date(),
+});
+
+// String inputs from query parameters are coerced to the correct types
+const params = QueryParams.parse({
+  page: '2',           // -> 2
+  limit: '25',         // -> 25
+  active: 'true',      // -> true
+  since: '2025-01-01', // -> Date object
+});
+```
+
+`s.coerce.number()` rejects values that produce `NaN`, and `s.coerce.date()` rejects invalid date strings:
+
+```typescript
+s.coerce.number().parse('abc');     // throws: Cannot coerce string to number
+s.coerce.date().parse('not-a-date'); // throws: Cannot coerce string to date
+```
+
+## JSON Schema Conversion
+
+Convert between `@agentuity/schema` schemas and JSON Schema (Draft 7). This is useful for LLM structured output, API documentation, and interoperability with tools that consume JSON Schema.
+
+`toJSONSchema()` converts a schema to a JSON Schema object:
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const UserSchema = s.object({
+  name: s.string().describe('Full name'),
+  age: s.number().describe('Age in years'),
+  role: s.enum(['admin', 'user']),
+});
+
+const jsonSchema = s.toJSONSchema(UserSchema);
+// {
+//   type: 'object',
+//   properties: {
+//     name: { type: 'string', description: 'Full name' },
+//     age: { type: 'number', description: 'Age in years' },
+//     role: { anyOf: [{ type: 'string', const: 'admin' }, { type: 'string', const: 'user' }] }
+//   },
+//   required: ['name', 'age', 'role']
+// }
+```
+
+For LLM structured output (OpenAI, Groq, etc.), pass `{ strict: true }` to add `additionalProperties: false` to all object schemas:
+
+```typescript
+const strictSchema = s.toJSONSchema(UserSchema, { strict: true });
+// Adds additionalProperties: false to the object, required by some LLM providers
+```
+
+`fromJSONSchema()` converts a JSON Schema object back into a schema, supporting round-trip conversion:
+
+```typescript
+const jsonSchema = {
+  type: 'object' as const,
+  properties: {
+    name: { type: 'string' as const },
+    score: { type: 'number' as const },
+  },
+  required: ['name', 'score'],
+};
+
+const schema = s.fromJSONSchema(jsonSchema);
+const result = schema.parse({ name: 'Alice', score: 95 });
+```
+
+### Using with LLM Structured Output
+
+Combine `toJSONSchema()` with `{ strict: true }` to generate schemas compatible with LLM structured output APIs. The `strict` flag adds `additionalProperties: false` to every object, which providers like OpenAI require.
+
+```typescript
+import { s } from '@agentuity/schema';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const SentimentSchema = s.object({
+  sentiment: s.enum(['positive', 'negative', 'neutral']),
+  confidence: s.number(),
+  reasoning: s.string(),
+});
+
+const { object } = await generateObject({
+  model: openai('gpt-4o'),
+  schema: s.toJSONSchema(SentimentSchema, { strict: true }),
+  prompt: 'Analyze the sentiment of: "I love this product!"',
+});
+
+// object is typed as { sentiment: string; confidence: number; reasoning: string }
+```
+
+This approach works with any provider that accepts JSON Schema for structured output.
+
+For supported LLM providers, see [AI Gateway](/agents/ai-gateway).
+
+## Validation Errors
+
+Every schema provides two ways to validate data: `parse()` throws on failure, `safeParse()` returns a result object.
+
+```typescript
+import { s, ValidationError } from '@agentuity/schema';
+
+const User = s.object({
+  name: s.string(),
+  age: s.number(),
+});
+
+// parse() throws a ValidationError on invalid data
+try {
+  User.parse({ name: 123, age: 'old' });
+} catch (err) {
+  if (err instanceof ValidationError) {
+    console.log(err.message);
+    // [name]: Expected string, got number
+    // [age]: Expected number, got string
+
+    console.log(err.issues);
+    // [
+    //   { message: 'Expected string, got number', path: ['name'] },
+    //   { message: 'Expected number, got string', path: ['age'] }
+    // ]
+  }
+}
+```
+
+`safeParse()` never throws. It returns `{ success: true, data }` on success or `{ success: false, error }` on failure:
+
+```typescript
+const result = User.safeParse({ name: 'Alice', age: 30 });
+
+if (result.success) {
+  console.log(result.data); // { name: 'Alice', age: 30 }
+} else {
+  console.log(result.error.issues); // ValidationError with issues array
+}
+```
+
+`ValidationError` extends `Error`, so it works with standard error handling. Each issue includes a `message` and an optional `path` array pointing to the field that failed.

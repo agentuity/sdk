@@ -11,6 +11,8 @@
 		"configuration",
 		"debugging",
 		"ai-commands",
+		"oauth",
+		"monitoring",
 		"claude-code-plugin",
 		"opencode-plugin"
 	]

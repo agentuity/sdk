@@ -34,15 +34,23 @@ import { Route as DocsCookbookIndexRouteImport } from './routes/_docs/cookbook/i
 import { Route as DocsCommunityIndexRouteImport } from './routes/_docs/community/index';
 import { Route as DocsApisIndexRouteImport } from './routes/_docs/apis/index';
 import { Route as DocsAgentsIndexRouteImport } from './routes/_docs/agents/index';
+import { Route as DocsServicesWebhooksRouteImport } from './routes/_docs/services/webhooks';
+import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/tasks';
+import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules';
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues';
+import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email';
+import { Route as DocsServicesAuthenticationRouteImport } from './routes/_docs/services/authentication';
 import { Route as DocsRoutesWebsocketsRouteImport } from './routes/_docs/routes/websockets';
+import { Route as DocsRoutesWebrtcRouteImport } from './routes/_docs/routes/webrtc';
 import { Route as DocsRoutesSseRouteImport } from './routes/_docs/routes/sse';
 import { Route as DocsRoutesMiddlewareRouteImport } from './routes/_docs/routes/middleware';
 import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http';
+import { Route as DocsRoutesExplicitRoutingRouteImport } from './routes/_docs/routes/explicit-routing';
 import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron';
-import { Route as DocsReferenceSdkReferenceRouteImport } from './routes/_docs/reference/sdk-reference';
+import { Route as DocsReferenceStandalonePackagesRouteImport } from './routes/_docs/reference/standalone-packages';
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide';
 import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network';
+import { Route as DocsReferenceGithubAppRouteImport } from './routes/_docs/reference/github-app';
 import { Route as DocsGetStartedWhatIsAgentuityRouteImport } from './routes/_docs/get-started/what-is-agentuity';
 import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get-started/quickstart';
 import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_docs/get-started/project-structure';
@@ -70,11 +78,13 @@ import { Route as DocsAgentsCreatingAgentsRouteImport } from './routes/_docs/age
 import { Route as DocsAgentsCallingOtherAgentsRouteImport } from './routes/_docs/agents/calling-other-agents';
 import { Route as DocsAgentsAiSdkIntegrationRouteImport } from './routes/_docs/agents/ai-sdk-integration';
 import { Route as DocsAgentsAiGatewayRouteImport } from './routes/_docs/agents/ai-gateway';
+import { Route as DocsReferenceSdkReferenceRouteRouteImport } from './routes/_docs/reference/sdk-reference/route';
 import { Route as DocsReferenceApiRouteRouteImport } from './routes/_docs/reference/api/route';
 import { Route as DocsServicesStorageIndexRouteImport } from './routes/_docs/services/storage/index';
 import { Route as DocsServicesSandboxIndexRouteImport } from './routes/_docs/services/sandbox/index';
 import { Route as DocsServicesObservabilityIndexRouteImport } from './routes/_docs/services/observability/index';
 import { Route as DocsServicesDatabaseIndexRouteImport } from './routes/_docs/services/database/index';
+import { Route as DocsReferenceSdkReferenceIndexRouteImport } from './routes/_docs/reference/sdk-reference/index';
 import { Route as DocsReferenceCliIndexRouteImport } from './routes/_docs/reference/cli/index';
 import { Route as DocsReferenceApiIndexRouteImport } from './routes/_docs/reference/api/index';
 import { Route as DocsCookbookTutorialsIndexRouteImport } from './routes/_docs/cookbook/tutorials/index';
@@ -92,9 +102,27 @@ import { Route as DocsServicesObservabilitySessionsDebuggingRouteImport } from '
 import { Route as DocsServicesObservabilityLoggingRouteImport } from './routes/_docs/services/observability/logging';
 import { Route as DocsServicesDatabasePostgresRouteImport } from './routes/_docs/services/database/postgres';
 import { Route as DocsServicesDatabaseDrizzleRouteImport } from './routes/_docs/services/database/drizzle';
+import { Route as DocsReferenceSdkReferenceTaskServiceRouteImport } from './routes/_docs/reference/sdk-reference/task-service';
+import { Route as DocsReferenceSdkReferenceStorageRouteImport } from './routes/_docs/reference/sdk-reference/storage';
+import { Route as DocsReferenceSdkReferenceSchemaRouteImport } from './routes/_docs/reference/sdk-reference/schema';
+import { Route as DocsReferenceSdkReferenceScheduleServiceRouteImport } from './routes/_docs/reference/sdk-reference/schedule-service';
+import { Route as DocsReferenceSdkReferenceSandboxServiceRouteImport } from './routes/_docs/reference/sdk-reference/sandbox-service';
+import { Route as DocsReferenceSdkReferenceRouterRouteImport } from './routes/_docs/reference/sdk-reference/router';
+import { Route as DocsReferenceSdkReferenceQueueServiceRouteImport } from './routes/_docs/reference/sdk-reference/queue-service';
+import { Route as DocsReferenceSdkReferenceObservabilityRouteImport } from './routes/_docs/reference/sdk-reference/observability';
+import { Route as DocsReferenceSdkReferenceEventsRouteImport } from './routes/_docs/reference/sdk-reference/events';
+import { Route as DocsReferenceSdkReferenceEvaluationsRouteImport } from './routes/_docs/reference/sdk-reference/evaluations';
+import { Route as DocsReferenceSdkReferenceEmailServiceRouteImport } from './routes/_docs/reference/sdk-reference/email-service';
+import { Route as DocsReferenceSdkReferenceContextApiRouteImport } from './routes/_docs/reference/sdk-reference/context-api';
+import { Route as DocsReferenceSdkReferenceCommunicationRouteImport } from './routes/_docs/reference/sdk-reference/communication';
+import { Route as DocsReferenceSdkReferenceApplicationEntryRouteImport } from './routes/_docs/reference/sdk-reference/application-entry';
+import { Route as DocsReferenceSdkReferenceAgentsRouteImport } from './routes/_docs/reference/sdk-reference/agents';
+import { Route as DocsReferenceSdkReferenceAdvancedRouteImport } from './routes/_docs/reference/sdk-reference/advanced';
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage';
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox';
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin';
+import { Route as DocsReferenceCliOauthRouteImport } from './routes/_docs/reference/cli/oauth';
+import { Route as DocsReferenceCliMonitoringRouteImport } from './routes/_docs/reference/cli/monitoring';
 import { Route as DocsReferenceCliGitIntegrationRouteImport } from './routes/_docs/reference/cli/git-integration';
 import { Route as DocsReferenceCliGettingStartedRouteImport } from './routes/_docs/reference/cli/getting-started';
 import { Route as DocsReferenceCliDevelopmentRouteImport } from './routes/_docs/reference/cli/development';
@@ -128,6 +156,7 @@ import { Route as DocsReferenceApiApiKeysRouteImport } from './routes/_docs/refe
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents';
 import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent';
 import { Route as DocsCookbookPatternsWebhookHandlerRouteImport } from './routes/_docs/cookbook/patterns/webhook-handler';
+import { Route as DocsCookbookPatternsWebExplorationRouteImport } from './routes/_docs/cookbook/patterns/web-exploration';
 import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/_docs/cookbook/patterns/tailwind-setup';
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities';
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search';
@@ -136,6 +165,15 @@ import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage';
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history';
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks';
+import { Route as DocsCookbookPatternsAutonomousResearchRouteImport } from './routes/_docs/cookbook/patterns/autonomous-research';
+import { Route as DocsCookbookIntegrationsTurborepoRouteImport } from './routes/_docs/cookbook/integrations/turborepo';
+import { Route as DocsCookbookIntegrationsTanstackStartRouteImport } from './routes/_docs/cookbook/integrations/tanstack-start';
+import { Route as DocsCookbookIntegrationsOpenaiAgentsRouteImport } from './routes/_docs/cookbook/integrations/openai-agents';
+import { Route as DocsCookbookIntegrationsNextjsRouteImport } from './routes/_docs/cookbook/integrations/nextjs';
+import { Route as DocsCookbookIntegrationsMastraRouteImport } from './routes/_docs/cookbook/integrations/mastra';
+import { Route as DocsCookbookIntegrationsLangchainRouteImport } from './routes/_docs/cookbook/integrations/langchain';
+import { Route as DocsCookbookIntegrationsClaudeAgentRouteImport } from './routes/_docs/cookbook/integrations/claude-agent';
+import { Route as DocsCookbookIntegrationsChatSdkRouteImport } from './routes/_docs/cookbook/integrations/chat-sdk';
 
 const DocsRouteRoute = DocsRouteRouteImport.update({
 	id: '/_docs',
@@ -261,14 +299,44 @@ const DocsAgentsIndexRoute = DocsAgentsIndexRouteImport.update({
 	path: '/agents/',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsServicesWebhooksRoute = DocsServicesWebhooksRouteImport.update({
+	id: '/services/webhooks',
+	path: '/services/webhooks',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesTasksRoute = DocsServicesTasksRouteImport.update({
+	id: '/services/tasks',
+	path: '/services/tasks',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesSchedulesRoute = DocsServicesSchedulesRouteImport.update({
+	id: '/services/schedules',
+	path: '/services/schedules',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
 	id: '/services/queues',
 	path: '/services/queues',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
+	id: '/services/email',
+	path: '/services/email',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesAuthenticationRoute = DocsServicesAuthenticationRouteImport.update({
+	id: '/services/authentication',
+	path: '/services/authentication',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsRoutesWebsocketsRoute = DocsRoutesWebsocketsRouteImport.update({
 	id: '/routes/websockets',
 	path: '/routes/websockets',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsRoutesWebrtcRoute = DocsRoutesWebrtcRouteImport.update({
+	id: '/routes/webrtc',
+	path: '/routes/webrtc',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsRoutesSseRoute = DocsRoutesSseRouteImport.update({
@@ -286,14 +354,19 @@ const DocsRoutesHttpRoute = DocsRoutesHttpRouteImport.update({
 	path: '/routes/http',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsRoutesExplicitRoutingRoute = DocsRoutesExplicitRoutingRouteImport.update({
+	id: '/routes/explicit-routing',
+	path: '/routes/explicit-routing',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsRoutesCronRoute = DocsRoutesCronRouteImport.update({
 	id: '/routes/cron',
 	path: '/routes/cron',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
-const DocsReferenceSdkReferenceRoute = DocsReferenceSdkReferenceRouteImport.update({
-	id: '/reference/sdk-reference',
-	path: '/reference/sdk-reference',
+const DocsReferenceStandalonePackagesRoute = DocsReferenceStandalonePackagesRouteImport.update({
+	id: '/reference/standalone-packages',
+	path: '/reference/standalone-packages',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsReferenceMigrationGuideRoute = DocsReferenceMigrationGuideRouteImport.update({
@@ -304,6 +377,11 @@ const DocsReferenceMigrationGuideRoute = DocsReferenceMigrationGuideRouteImport.
 const DocsReferenceGravityNetworkRoute = DocsReferenceGravityNetworkRouteImport.update({
 	id: '/reference/gravity-network',
 	path: '/reference/gravity-network',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceGithubAppRoute = DocsReferenceGithubAppRouteImport.update({
+	id: '/reference/github-app',
+	path: '/reference/github-app',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsGetStartedWhatIsAgentuityRoute = DocsGetStartedWhatIsAgentuityRouteImport.update({
@@ -441,6 +519,11 @@ const DocsAgentsAiGatewayRoute = DocsAgentsAiGatewayRouteImport.update({
 	path: '/agents/ai-gateway',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceSdkReferenceRouteRoute = DocsReferenceSdkReferenceRouteRouteImport.update({
+	id: '/reference/sdk-reference',
+	path: '/reference/sdk-reference',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsReferenceApiRouteRoute = DocsReferenceApiRouteRouteImport.update({
 	id: '/reference/api',
 	path: '/reference/api',
@@ -465,6 +548,11 @@ const DocsServicesDatabaseIndexRoute = DocsServicesDatabaseIndexRouteImport.upda
 	id: '/services/database/',
 	path: '/services/database/',
 	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceIndexRoute = DocsReferenceSdkReferenceIndexRouteImport.update({
+	id: '/',
+	path: '/',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 } as any);
 const DocsReferenceCliIndexRoute = DocsReferenceCliIndexRouteImport.update({
 	id: '/reference/cli/',
@@ -553,6 +641,96 @@ const DocsServicesDatabaseDrizzleRoute = DocsServicesDatabaseDrizzleRouteImport.
 	path: '/services/database/drizzle',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceSdkReferenceTaskServiceRoute =
+	DocsReferenceSdkReferenceTaskServiceRouteImport.update({
+		id: '/task-service',
+		path: '/task-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceStorageRoute = DocsReferenceSdkReferenceStorageRouteImport.update({
+	id: '/storage',
+	path: '/storage',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceSchemaRoute = DocsReferenceSdkReferenceSchemaRouteImport.update({
+	id: '/schema',
+	path: '/schema',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceScheduleServiceRoute =
+	DocsReferenceSdkReferenceScheduleServiceRouteImport.update({
+		id: '/schedule-service',
+		path: '/schedule-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceSandboxServiceRoute =
+	DocsReferenceSdkReferenceSandboxServiceRouteImport.update({
+		id: '/sandbox-service',
+		path: '/sandbox-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceRouterRoute = DocsReferenceSdkReferenceRouterRouteImport.update({
+	id: '/router',
+	path: '/router',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceQueueServiceRoute =
+	DocsReferenceSdkReferenceQueueServiceRouteImport.update({
+		id: '/queue-service',
+		path: '/queue-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceObservabilityRoute =
+	DocsReferenceSdkReferenceObservabilityRouteImport.update({
+		id: '/observability',
+		path: '/observability',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceEventsRoute = DocsReferenceSdkReferenceEventsRouteImport.update({
+	id: '/events',
+	path: '/events',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceEvaluationsRoute =
+	DocsReferenceSdkReferenceEvaluationsRouteImport.update({
+		id: '/evaluations',
+		path: '/evaluations',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceEmailServiceRoute =
+	DocsReferenceSdkReferenceEmailServiceRouteImport.update({
+		id: '/email-service',
+		path: '/email-service',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceContextApiRoute =
+	DocsReferenceSdkReferenceContextApiRouteImport.update({
+		id: '/context-api',
+		path: '/context-api',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceCommunicationRoute =
+	DocsReferenceSdkReferenceCommunicationRouteImport.update({
+		id: '/communication',
+		path: '/communication',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceApplicationEntryRoute =
+	DocsReferenceSdkReferenceApplicationEntryRouteImport.update({
+		id: '/application-entry',
+		path: '/application-entry',
+		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+	} as any);
+const DocsReferenceSdkReferenceAgentsRoute = DocsReferenceSdkReferenceAgentsRouteImport.update({
+	id: '/agents',
+	path: '/agents',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
+const DocsReferenceSdkReferenceAdvancedRoute = DocsReferenceSdkReferenceAdvancedRouteImport.update({
+	id: '/advanced',
+	path: '/advanced',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
 const DocsReferenceCliStorageRoute = DocsReferenceCliStorageRouteImport.update({
 	id: '/reference/cli/storage',
 	path: '/reference/cli/storage',
@@ -566,6 +744,16 @@ const DocsReferenceCliSandboxRoute = DocsReferenceCliSandboxRouteImport.update({
 const DocsReferenceCliOpencodePluginRoute = DocsReferenceCliOpencodePluginRouteImport.update({
 	id: '/reference/cli/opencode-plugin',
 	path: '/reference/cli/opencode-plugin',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceCliOauthRoute = DocsReferenceCliOauthRouteImport.update({
+	id: '/reference/cli/oauth',
+	path: '/reference/cli/oauth',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceCliMonitoringRoute = DocsReferenceCliMonitoringRouteImport.update({
+	id: '/reference/cli/monitoring',
+	path: '/reference/cli/monitoring',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsReferenceCliGitIntegrationRoute = DocsReferenceCliGitIntegrationRouteImport.update({
@@ -736,6 +924,12 @@ const DocsCookbookPatternsWebhookHandlerRoute =
 		path: '/cookbook/patterns/webhook-handler',
 		getParentRoute: () => DocsRouteRoute,
 	} as any);
+const DocsCookbookPatternsWebExplorationRoute =
+	DocsCookbookPatternsWebExplorationRouteImport.update({
+		id: '/cookbook/patterns/web-exploration',
+		path: '/cookbook/patterns/web-exploration',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
 const DocsCookbookPatternsTailwindSetupRoute = DocsCookbookPatternsTailwindSetupRouteImport.update({
 	id: '/cookbook/patterns/tailwind-setup',
 	path: '/cookbook/patterns/tailwind-setup',
@@ -781,6 +975,55 @@ const DocsCookbookPatternsBackgroundTasksRoute =
 		path: '/cookbook/patterns/background-tasks',
 		getParentRoute: () => DocsRouteRoute,
 	} as any);
+const DocsCookbookPatternsAutonomousResearchRoute =
+	DocsCookbookPatternsAutonomousResearchRouteImport.update({
+		id: '/cookbook/patterns/autonomous-research',
+		path: '/cookbook/patterns/autonomous-research',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsTurborepoRoute = DocsCookbookIntegrationsTurborepoRouteImport.update({
+	id: '/cookbook/integrations/turborepo',
+	path: '/cookbook/integrations/turborepo',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsTanstackStartRoute =
+	DocsCookbookIntegrationsTanstackStartRouteImport.update({
+		id: '/cookbook/integrations/tanstack-start',
+		path: '/cookbook/integrations/tanstack-start',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsOpenaiAgentsRoute =
+	DocsCookbookIntegrationsOpenaiAgentsRouteImport.update({
+		id: '/cookbook/integrations/openai-agents',
+		path: '/cookbook/integrations/openai-agents',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsNextjsRoute = DocsCookbookIntegrationsNextjsRouteImport.update({
+	id: '/cookbook/integrations/nextjs',
+	path: '/cookbook/integrations/nextjs',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsMastraRoute = DocsCookbookIntegrationsMastraRouteImport.update({
+	id: '/cookbook/integrations/mastra',
+	path: '/cookbook/integrations/mastra',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsLangchainRoute = DocsCookbookIntegrationsLangchainRouteImport.update({
+	id: '/cookbook/integrations/langchain',
+	path: '/cookbook/integrations/langchain',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsCookbookIntegrationsClaudeAgentRoute =
+	DocsCookbookIntegrationsClaudeAgentRouteImport.update({
+		id: '/cookbook/integrations/claude-agent',
+		path: '/cookbook/integrations/claude-agent',
+		getParentRoute: () => DocsRouteRoute,
+	} as any);
+const DocsCookbookIntegrationsChatSdkRoute = DocsCookbookIntegrationsChatSdkRouteImport.update({
+	id: '/cookbook/integrations/chat-sdk',
+	path: '/cookbook/integrations/chat-sdk',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
 	'/': typeof IndexRoute;
@@ -799,6 +1042,7 @@ export interface FileRoutesByFullPath {
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
 	'/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
+	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	'/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -826,15 +1070,23 @@ export interface FileRoutesByFullPath {
 	'/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
-	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
+	'/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
+	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
 	'/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/routes/sse': typeof DocsRoutesSseRoute;
+	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/services/authentication': typeof DocsServicesAuthenticationRoute;
+	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
+	'/services/schedules': typeof DocsServicesSchedulesRoute;
+	'/services/tasks': typeof DocsServicesTasksRoute;
+	'/services/webhooks': typeof DocsServicesWebhooksRoute;
 	'/agents/': typeof DocsAgentsIndexRoute;
 	'/apis/': typeof DocsApisIndexRoute;
 	'/community/': typeof DocsCommunityIndexRoute;
@@ -844,6 +1096,15 @@ export interface FileRoutesByFullPath {
 	'/reference/': typeof DocsReferenceIndexRoute;
 	'/routes/': typeof DocsRoutesIndexRoute;
 	'/services/': typeof DocsServicesIndexRoute;
+	'/cookbook/integrations/chat-sdk': typeof DocsCookbookIntegrationsChatSdkRoute;
+	'/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute;
+	'/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
+	'/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
+	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
+	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/cookbook/integrations/turborepo': typeof DocsCookbookIntegrationsTurborepoRoute;
+	'/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -852,6 +1113,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
 	'/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute;
+	'/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute;
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -885,9 +1147,27 @@ export interface FileRoutesByFullPath {
 	'/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute;
 	'/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute;
 	'/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute;
+	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
+	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
+	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
+	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
+	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
+	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
+	'/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	'/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
+	'/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/reference/sdk-reference/queue-service': typeof DocsReferenceSdkReferenceQueueServiceRoute;
+	'/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/reference/sdk-reference/sandbox-service': typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	'/reference/sdk-reference/schedule-service': typeof DocsReferenceSdkReferenceScheduleServiceRoute;
+	'/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
+	'/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
+	'/reference/sdk-reference/task-service': typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	'/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -905,6 +1185,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute;
 	'/reference/api/': typeof DocsReferenceApiIndexRoute;
 	'/reference/cli/': typeof DocsReferenceCliIndexRoute;
+	'/reference/sdk-reference/': typeof DocsReferenceSdkReferenceIndexRoute;
 	'/services/database/': typeof DocsServicesDatabaseIndexRoute;
 	'/services/observability/': typeof DocsServicesObservabilityIndexRoute;
 	'/services/sandbox/': typeof DocsServicesSandboxIndexRoute;
@@ -953,15 +1234,23 @@ export interface FileRoutesByTo {
 	'/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
-	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
+	'/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
+	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
 	'/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/routes/sse': typeof DocsRoutesSseRoute;
+	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/services/authentication': typeof DocsServicesAuthenticationRoute;
+	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
+	'/services/schedules': typeof DocsServicesSchedulesRoute;
+	'/services/tasks': typeof DocsServicesTasksRoute;
+	'/services/webhooks': typeof DocsServicesWebhooksRoute;
 	'/agents': typeof DocsAgentsIndexRoute;
 	'/apis': typeof DocsApisIndexRoute;
 	'/community': typeof DocsCommunityIndexRoute;
@@ -971,6 +1260,15 @@ export interface FileRoutesByTo {
 	'/reference': typeof DocsReferenceIndexRoute;
 	'/routes': typeof DocsRoutesIndexRoute;
 	'/services': typeof DocsServicesIndexRoute;
+	'/cookbook/integrations/chat-sdk': typeof DocsCookbookIntegrationsChatSdkRoute;
+	'/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute;
+	'/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
+	'/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
+	'/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
+	'/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	'/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/cookbook/integrations/turborepo': typeof DocsCookbookIntegrationsTurborepoRoute;
+	'/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -979,6 +1277,7 @@ export interface FileRoutesByTo {
 	'/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
 	'/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute;
+	'/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute;
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -1012,9 +1311,27 @@ export interface FileRoutesByTo {
 	'/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute;
 	'/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute;
 	'/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute;
+	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
+	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
+	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
+	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
+	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
+	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
+	'/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	'/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
+	'/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/reference/sdk-reference/queue-service': typeof DocsReferenceSdkReferenceQueueServiceRoute;
+	'/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/reference/sdk-reference/sandbox-service': typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	'/reference/sdk-reference/schedule-service': typeof DocsReferenceSdkReferenceScheduleServiceRoute;
+	'/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
+	'/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
+	'/reference/sdk-reference/task-service': typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	'/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1032,6 +1349,7 @@ export interface FileRoutesByTo {
 	'/cookbook/tutorials': typeof DocsCookbookTutorialsIndexRoute;
 	'/reference/api': typeof DocsReferenceApiIndexRoute;
 	'/reference/cli': typeof DocsReferenceCliIndexRoute;
+	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceIndexRoute;
 	'/services/database': typeof DocsServicesDatabaseIndexRoute;
 	'/services/observability': typeof DocsServicesObservabilityIndexRoute;
 	'/services/sandbox': typeof DocsServicesSandboxIndexRoute;
@@ -1056,6 +1374,7 @@ export interface FileRoutesById {
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
 	'/_docs/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
+	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	'/_docs/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/_docs/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/_docs/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -1083,15 +1402,23 @@ export interface FileRoutesById {
 	'/_docs/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/_docs/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/_docs/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/_docs/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
-	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRoute;
+	'/_docs/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
 	'/_docs/routes/cron': typeof DocsRoutesCronRoute;
+	'/_docs/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/_docs/routes/http': typeof DocsRoutesHttpRoute;
 	'/_docs/routes/middleware': typeof DocsRoutesMiddlewareRoute;
 	'/_docs/routes/sse': typeof DocsRoutesSseRoute;
+	'/_docs/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/_docs/routes/websockets': typeof DocsRoutesWebsocketsRoute;
+	'/_docs/services/authentication': typeof DocsServicesAuthenticationRoute;
+	'/_docs/services/email': typeof DocsServicesEmailRoute;
 	'/_docs/services/queues': typeof DocsServicesQueuesRoute;
+	'/_docs/services/schedules': typeof DocsServicesSchedulesRoute;
+	'/_docs/services/tasks': typeof DocsServicesTasksRoute;
+	'/_docs/services/webhooks': typeof DocsServicesWebhooksRoute;
 	'/_docs/agents/': typeof DocsAgentsIndexRoute;
 	'/_docs/apis/': typeof DocsApisIndexRoute;
 	'/_docs/community/': typeof DocsCommunityIndexRoute;
@@ -1101,6 +1428,15 @@ export interface FileRoutesById {
 	'/_docs/reference/': typeof DocsReferenceIndexRoute;
 	'/_docs/routes/': typeof DocsRoutesIndexRoute;
 	'/_docs/services/': typeof DocsServicesIndexRoute;
+	'/_docs/cookbook/integrations/chat-sdk': typeof DocsCookbookIntegrationsChatSdkRoute;
+	'/_docs/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute;
+	'/_docs/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute;
+	'/_docs/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute;
+	'/_docs/cookbook/integrations/nextjs': typeof DocsCookbookIntegrationsNextjsRoute;
+	'/_docs/cookbook/integrations/openai-agents': typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	'/_docs/cookbook/integrations/tanstack-start': typeof DocsCookbookIntegrationsTanstackStartRoute;
+	'/_docs/cookbook/integrations/turborepo': typeof DocsCookbookIntegrationsTurborepoRoute;
+	'/_docs/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute;
 	'/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute;
 	'/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute;
 	'/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -1109,6 +1445,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute;
 	'/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute;
 	'/_docs/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute;
+	'/_docs/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute;
 	'/_docs/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -1142,9 +1479,27 @@ export interface FileRoutesById {
 	'/_docs/reference/cli/development': typeof DocsReferenceCliDevelopmentRoute;
 	'/_docs/reference/cli/getting-started': typeof DocsReferenceCliGettingStartedRoute;
 	'/_docs/reference/cli/git-integration': typeof DocsReferenceCliGitIntegrationRoute;
+	'/_docs/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
+	'/_docs/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
 	'/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
+	'/_docs/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
+	'/_docs/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
+	'/_docs/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/_docs/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
+	'/_docs/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
+	'/_docs/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
+	'/_docs/reference/sdk-reference/evaluations': typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	'/_docs/reference/sdk-reference/events': typeof DocsReferenceSdkReferenceEventsRoute;
+	'/_docs/reference/sdk-reference/observability': typeof DocsReferenceSdkReferenceObservabilityRoute;
+	'/_docs/reference/sdk-reference/queue-service': typeof DocsReferenceSdkReferenceQueueServiceRoute;
+	'/_docs/reference/sdk-reference/router': typeof DocsReferenceSdkReferenceRouterRoute;
+	'/_docs/reference/sdk-reference/sandbox-service': typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	'/_docs/reference/sdk-reference/schedule-service': typeof DocsReferenceSdkReferenceScheduleServiceRoute;
+	'/_docs/reference/sdk-reference/schema': typeof DocsReferenceSdkReferenceSchemaRoute;
+	'/_docs/reference/sdk-reference/storage': typeof DocsReferenceSdkReferenceStorageRoute;
+	'/_docs/reference/sdk-reference/task-service': typeof DocsReferenceSdkReferenceTaskServiceRoute;
 	'/_docs/services/database/drizzle': typeof DocsServicesDatabaseDrizzleRoute;
 	'/_docs/services/database/postgres': typeof DocsServicesDatabasePostgresRoute;
 	'/_docs/services/observability/logging': typeof DocsServicesObservabilityLoggingRoute;
@@ -1162,6 +1517,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute;
 	'/_docs/reference/api/': typeof DocsReferenceApiIndexRoute;
 	'/_docs/reference/cli/': typeof DocsReferenceCliIndexRoute;
+	'/_docs/reference/sdk-reference/': typeof DocsReferenceSdkReferenceIndexRoute;
 	'/_docs/services/database/': typeof DocsServicesDatabaseIndexRoute;
 	'/_docs/services/observability/': typeof DocsServicesObservabilityIndexRoute;
 	'/_docs/services/sandbox/': typeof DocsServicesSandboxIndexRoute;
@@ -1186,6 +1542,7 @@ export interface FileRouteTypes {
 		| '/demo/streaming'
 		| '/demo/vector-storage'
 		| '/reference/api'
+		| '/reference/sdk-reference'
 		| '/agents/ai-gateway'
 		| '/agents/ai-sdk-integration'
 		| '/agents/calling-other-agents'
@@ -1213,15 +1570,23 @@ export interface FileRouteTypes {
 		| '/get-started/project-structure'
 		| '/get-started/quickstart'
 		| '/get-started/what-is-agentuity'
+		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
-		| '/reference/sdk-reference'
+		| '/reference/standalone-packages'
 		| '/routes/cron'
+		| '/routes/explicit-routing'
 		| '/routes/http'
 		| '/routes/middleware'
 		| '/routes/sse'
+		| '/routes/webrtc'
 		| '/routes/websockets'
+		| '/services/authentication'
+		| '/services/email'
 		| '/services/queues'
+		| '/services/schedules'
+		| '/services/tasks'
+		| '/services/webhooks'
 		| '/agents/'
 		| '/apis/'
 		| '/community/'
@@ -1231,6 +1596,15 @@ export interface FileRouteTypes {
 		| '/reference/'
 		| '/routes/'
 		| '/services/'
+		| '/cookbook/integrations/chat-sdk'
+		| '/cookbook/integrations/claude-agent'
+		| '/cookbook/integrations/langchain'
+		| '/cookbook/integrations/mastra'
+		| '/cookbook/integrations/nextjs'
+		| '/cookbook/integrations/openai-agents'
+		| '/cookbook/integrations/tanstack-start'
+		| '/cookbook/integrations/turborepo'
+		| '/cookbook/patterns/autonomous-research'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
@@ -1239,6 +1613,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
 		| '/cookbook/patterns/tailwind-setup'
+		| '/cookbook/patterns/web-exploration'
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
@@ -1272,9 +1647,27 @@ export interface FileRouteTypes {
 		| '/reference/cli/development'
 		| '/reference/cli/getting-started'
 		| '/reference/cli/git-integration'
+		| '/reference/cli/monitoring'
+		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
+		| '/reference/sdk-reference/advanced'
+		| '/reference/sdk-reference/agents'
+		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/communication'
+		| '/reference/sdk-reference/context-api'
+		| '/reference/sdk-reference/email-service'
+		| '/reference/sdk-reference/evaluations'
+		| '/reference/sdk-reference/events'
+		| '/reference/sdk-reference/observability'
+		| '/reference/sdk-reference/queue-service'
+		| '/reference/sdk-reference/router'
+		| '/reference/sdk-reference/sandbox-service'
+		| '/reference/sdk-reference/schedule-service'
+		| '/reference/sdk-reference/schema'
+		| '/reference/sdk-reference/storage'
+		| '/reference/sdk-reference/task-service'
 		| '/services/database/drizzle'
 		| '/services/database/postgres'
 		| '/services/observability/logging'
@@ -1292,6 +1685,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials/'
 		| '/reference/api/'
 		| '/reference/cli/'
+		| '/reference/sdk-reference/'
 		| '/services/database/'
 		| '/services/observability/'
 		| '/services/sandbox/'
@@ -1340,15 +1734,23 @@ export interface FileRouteTypes {
 		| '/get-started/project-structure'
 		| '/get-started/quickstart'
 		| '/get-started/what-is-agentuity'
+		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
-		| '/reference/sdk-reference'
+		| '/reference/standalone-packages'
 		| '/routes/cron'
+		| '/routes/explicit-routing'
 		| '/routes/http'
 		| '/routes/middleware'
 		| '/routes/sse'
+		| '/routes/webrtc'
 		| '/routes/websockets'
+		| '/services/authentication'
+		| '/services/email'
 		| '/services/queues'
+		| '/services/schedules'
+		| '/services/tasks'
+		| '/services/webhooks'
 		| '/agents'
 		| '/apis'
 		| '/community'
@@ -1358,6 +1760,15 @@ export interface FileRouteTypes {
 		| '/reference'
 		| '/routes'
 		| '/services'
+		| '/cookbook/integrations/chat-sdk'
+		| '/cookbook/integrations/claude-agent'
+		| '/cookbook/integrations/langchain'
+		| '/cookbook/integrations/mastra'
+		| '/cookbook/integrations/nextjs'
+		| '/cookbook/integrations/openai-agents'
+		| '/cookbook/integrations/tanstack-start'
+		| '/cookbook/integrations/turborepo'
+		| '/cookbook/patterns/autonomous-research'
 		| '/cookbook/patterns/background-tasks'
 		| '/cookbook/patterns/chat-with-history'
 		| '/cookbook/patterns/cron-with-storage'
@@ -1366,6 +1777,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/product-search'
 		| '/cookbook/patterns/server-utilities'
 		| '/cookbook/patterns/tailwind-setup'
+		| '/cookbook/patterns/web-exploration'
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
@@ -1399,9 +1811,27 @@ export interface FileRouteTypes {
 		| '/reference/cli/development'
 		| '/reference/cli/getting-started'
 		| '/reference/cli/git-integration'
+		| '/reference/cli/monitoring'
+		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
+		| '/reference/sdk-reference/advanced'
+		| '/reference/sdk-reference/agents'
+		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/communication'
+		| '/reference/sdk-reference/context-api'
+		| '/reference/sdk-reference/email-service'
+		| '/reference/sdk-reference/evaluations'
+		| '/reference/sdk-reference/events'
+		| '/reference/sdk-reference/observability'
+		| '/reference/sdk-reference/queue-service'
+		| '/reference/sdk-reference/router'
+		| '/reference/sdk-reference/sandbox-service'
+		| '/reference/sdk-reference/schedule-service'
+		| '/reference/sdk-reference/schema'
+		| '/reference/sdk-reference/storage'
+		| '/reference/sdk-reference/task-service'
 		| '/services/database/drizzle'
 		| '/services/database/postgres'
 		| '/services/observability/logging'
@@ -1419,6 +1849,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials'
 		| '/reference/api'
 		| '/reference/cli'
+		| '/reference/sdk-reference'
 		| '/services/database'
 		| '/services/observability'
 		| '/services/sandbox'
@@ -1442,6 +1873,7 @@ export interface FileRouteTypes {
 		| '/demo/streaming'
 		| '/demo/vector-storage'
 		| '/_docs/reference/api'
+		| '/_docs/reference/sdk-reference'
 		| '/_docs/agents/ai-gateway'
 		| '/_docs/agents/ai-sdk-integration'
 		| '/_docs/agents/calling-other-agents'
@@ -1469,15 +1901,23 @@ export interface FileRouteTypes {
 		| '/_docs/get-started/project-structure'
 		| '/_docs/get-started/quickstart'
 		| '/_docs/get-started/what-is-agentuity'
+		| '/_docs/reference/github-app'
 		| '/_docs/reference/gravity-network'
 		| '/_docs/reference/migration-guide'
-		| '/_docs/reference/sdk-reference'
+		| '/_docs/reference/standalone-packages'
 		| '/_docs/routes/cron'
+		| '/_docs/routes/explicit-routing'
 		| '/_docs/routes/http'
 		| '/_docs/routes/middleware'
 		| '/_docs/routes/sse'
+		| '/_docs/routes/webrtc'
 		| '/_docs/routes/websockets'
+		| '/_docs/services/authentication'
+		| '/_docs/services/email'
 		| '/_docs/services/queues'
+		| '/_docs/services/schedules'
+		| '/_docs/services/tasks'
+		| '/_docs/services/webhooks'
 		| '/_docs/agents/'
 		| '/_docs/apis/'
 		| '/_docs/community/'
@@ -1487,6 +1927,15 @@ export interface FileRouteTypes {
 		| '/_docs/reference/'
 		| '/_docs/routes/'
 		| '/_docs/services/'
+		| '/_docs/cookbook/integrations/chat-sdk'
+		| '/_docs/cookbook/integrations/claude-agent'
+		| '/_docs/cookbook/integrations/langchain'
+		| '/_docs/cookbook/integrations/mastra'
+		| '/_docs/cookbook/integrations/nextjs'
+		| '/_docs/cookbook/integrations/openai-agents'
+		| '/_docs/cookbook/integrations/tanstack-start'
+		| '/_docs/cookbook/integrations/turborepo'
+		| '/_docs/cookbook/patterns/autonomous-research'
 		| '/_docs/cookbook/patterns/background-tasks'
 		| '/_docs/cookbook/patterns/chat-with-history'
 		| '/_docs/cookbook/patterns/cron-with-storage'
@@ -1495,6 +1944,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/patterns/product-search'
 		| '/_docs/cookbook/patterns/server-utilities'
 		| '/_docs/cookbook/patterns/tailwind-setup'
+		| '/_docs/cookbook/patterns/web-exploration'
 		| '/_docs/cookbook/patterns/webhook-handler'
 		| '/_docs/cookbook/tutorials/rag-agent'
 		| '/_docs/cookbook/tutorials/understanding-agents'
@@ -1528,9 +1978,27 @@ export interface FileRouteTypes {
 		| '/_docs/reference/cli/development'
 		| '/_docs/reference/cli/getting-started'
 		| '/_docs/reference/cli/git-integration'
+		| '/_docs/reference/cli/monitoring'
+		| '/_docs/reference/cli/oauth'
 		| '/_docs/reference/cli/opencode-plugin'
 		| '/_docs/reference/cli/sandbox'
 		| '/_docs/reference/cli/storage'
+		| '/_docs/reference/sdk-reference/advanced'
+		| '/_docs/reference/sdk-reference/agents'
+		| '/_docs/reference/sdk-reference/application-entry'
+		| '/_docs/reference/sdk-reference/communication'
+		| '/_docs/reference/sdk-reference/context-api'
+		| '/_docs/reference/sdk-reference/email-service'
+		| '/_docs/reference/sdk-reference/evaluations'
+		| '/_docs/reference/sdk-reference/events'
+		| '/_docs/reference/sdk-reference/observability'
+		| '/_docs/reference/sdk-reference/queue-service'
+		| '/_docs/reference/sdk-reference/router'
+		| '/_docs/reference/sdk-reference/sandbox-service'
+		| '/_docs/reference/sdk-reference/schedule-service'
+		| '/_docs/reference/sdk-reference/schema'
+		| '/_docs/reference/sdk-reference/storage'
+		| '/_docs/reference/sdk-reference/task-service'
 		| '/_docs/services/database/drizzle'
 		| '/_docs/services/database/postgres'
 		| '/_docs/services/observability/logging'
@@ -1548,6 +2016,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/tutorials/'
 		| '/_docs/reference/api/'
 		| '/_docs/reference/cli/'
+		| '/_docs/reference/sdk-reference/'
 		| '/_docs/services/database/'
 		| '/_docs/services/observability/'
 		| '/_docs/services/sandbox/'
@@ -1750,6 +2219,27 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsAgentsIndexRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/services/webhooks': {
+			id: '/_docs/services/webhooks';
+			path: '/services/webhooks';
+			fullPath: '/services/webhooks';
+			preLoaderRoute: typeof DocsServicesWebhooksRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/tasks': {
+			id: '/_docs/services/tasks';
+			path: '/services/tasks';
+			fullPath: '/services/tasks';
+			preLoaderRoute: typeof DocsServicesTasksRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/schedules': {
+			id: '/_docs/services/schedules';
+			path: '/services/schedules';
+			fullPath: '/services/schedules';
+			preLoaderRoute: typeof DocsServicesSchedulesRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/services/queues': {
 			id: '/_docs/services/queues';
 			path: '/services/queues';
@@ -1757,11 +2247,32 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsServicesQueuesRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/services/email': {
+			id: '/_docs/services/email';
+			path: '/services/email';
+			fullPath: '/services/email';
+			preLoaderRoute: typeof DocsServicesEmailRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/authentication': {
+			id: '/_docs/services/authentication';
+			path: '/services/authentication';
+			fullPath: '/services/authentication';
+			preLoaderRoute: typeof DocsServicesAuthenticationRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/routes/websockets': {
 			id: '/_docs/routes/websockets';
 			path: '/routes/websockets';
 			fullPath: '/routes/websockets';
 			preLoaderRoute: typeof DocsRoutesWebsocketsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/routes/webrtc': {
+			id: '/_docs/routes/webrtc';
+			path: '/routes/webrtc';
+			fullPath: '/routes/webrtc';
+			preLoaderRoute: typeof DocsRoutesWebrtcRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/routes/sse': {
@@ -1785,6 +2296,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsRoutesHttpRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/routes/explicit-routing': {
+			id: '/_docs/routes/explicit-routing';
+			path: '/routes/explicit-routing';
+			fullPath: '/routes/explicit-routing';
+			preLoaderRoute: typeof DocsRoutesExplicitRoutingRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/routes/cron': {
 			id: '/_docs/routes/cron';
 			path: '/routes/cron';
@@ -1792,11 +2310,11 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsRoutesCronRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
-		'/_docs/reference/sdk-reference': {
-			id: '/_docs/reference/sdk-reference';
-			path: '/reference/sdk-reference';
-			fullPath: '/reference/sdk-reference';
-			preLoaderRoute: typeof DocsReferenceSdkReferenceRouteImport;
+		'/_docs/reference/standalone-packages': {
+			id: '/_docs/reference/standalone-packages';
+			path: '/reference/standalone-packages';
+			fullPath: '/reference/standalone-packages';
+			preLoaderRoute: typeof DocsReferenceStandalonePackagesRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/reference/migration-guide': {
@@ -1811,6 +2329,13 @@ declare module '@tanstack/react-router' {
 			path: '/reference/gravity-network';
 			fullPath: '/reference/gravity-network';
 			preLoaderRoute: typeof DocsReferenceGravityNetworkRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/github-app': {
+			id: '/_docs/reference/github-app';
+			path: '/reference/github-app';
+			fullPath: '/reference/github-app';
+			preLoaderRoute: typeof DocsReferenceGithubAppRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/get-started/what-is-agentuity': {
@@ -2002,6 +2527,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsAgentsAiGatewayRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/sdk-reference': {
+			id: '/_docs/reference/sdk-reference';
+			path: '/reference/sdk-reference';
+			fullPath: '/reference/sdk-reference';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceRouteRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/reference/api': {
 			id: '/_docs/reference/api';
 			path: '/reference/api';
@@ -2036,6 +2568,13 @@ declare module '@tanstack/react-router' {
 			fullPath: '/services/database/';
 			preLoaderRoute: typeof DocsServicesDatabaseIndexRouteImport;
 			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/': {
+			id: '/_docs/reference/sdk-reference/';
+			path: '/';
+			fullPath: '/reference/sdk-reference/';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceIndexRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
 		'/_docs/reference/cli/': {
 			id: '/_docs/reference/cli/';
@@ -2156,6 +2695,118 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsServicesDatabaseDrizzleRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/sdk-reference/task-service': {
+			id: '/_docs/reference/sdk-reference/task-service';
+			path: '/task-service';
+			fullPath: '/reference/sdk-reference/task-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceTaskServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/storage': {
+			id: '/_docs/reference/sdk-reference/storage';
+			path: '/storage';
+			fullPath: '/reference/sdk-reference/storage';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceStorageRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/schema': {
+			id: '/_docs/reference/sdk-reference/schema';
+			path: '/schema';
+			fullPath: '/reference/sdk-reference/schema';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceSchemaRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/schedule-service': {
+			id: '/_docs/reference/sdk-reference/schedule-service';
+			path: '/schedule-service';
+			fullPath: '/reference/sdk-reference/schedule-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceScheduleServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/sandbox-service': {
+			id: '/_docs/reference/sdk-reference/sandbox-service';
+			path: '/sandbox-service';
+			fullPath: '/reference/sdk-reference/sandbox-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceSandboxServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/router': {
+			id: '/_docs/reference/sdk-reference/router';
+			path: '/router';
+			fullPath: '/reference/sdk-reference/router';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceRouterRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/queue-service': {
+			id: '/_docs/reference/sdk-reference/queue-service';
+			path: '/queue-service';
+			fullPath: '/reference/sdk-reference/queue-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceQueueServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/observability': {
+			id: '/_docs/reference/sdk-reference/observability';
+			path: '/observability';
+			fullPath: '/reference/sdk-reference/observability';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceObservabilityRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/events': {
+			id: '/_docs/reference/sdk-reference/events';
+			path: '/events';
+			fullPath: '/reference/sdk-reference/events';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceEventsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/evaluations': {
+			id: '/_docs/reference/sdk-reference/evaluations';
+			path: '/evaluations';
+			fullPath: '/reference/sdk-reference/evaluations';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceEvaluationsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/email-service': {
+			id: '/_docs/reference/sdk-reference/email-service';
+			path: '/email-service';
+			fullPath: '/reference/sdk-reference/email-service';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceEmailServiceRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/context-api': {
+			id: '/_docs/reference/sdk-reference/context-api';
+			path: '/context-api';
+			fullPath: '/reference/sdk-reference/context-api';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceContextApiRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/communication': {
+			id: '/_docs/reference/sdk-reference/communication';
+			path: '/communication';
+			fullPath: '/reference/sdk-reference/communication';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceCommunicationRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/application-entry': {
+			id: '/_docs/reference/sdk-reference/application-entry';
+			path: '/application-entry';
+			fullPath: '/reference/sdk-reference/application-entry';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceApplicationEntryRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/agents': {
+			id: '/_docs/reference/sdk-reference/agents';
+			path: '/agents';
+			fullPath: '/reference/sdk-reference/agents';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceAgentsRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
+		'/_docs/reference/sdk-reference/advanced': {
+			id: '/_docs/reference/sdk-reference/advanced';
+			path: '/advanced';
+			fullPath: '/reference/sdk-reference/advanced';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceAdvancedRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
 		'/_docs/reference/cli/storage': {
 			id: '/_docs/reference/cli/storage';
 			path: '/reference/cli/storage';
@@ -2175,6 +2826,20 @@ declare module '@tanstack/react-router' {
 			path: '/reference/cli/opencode-plugin';
 			fullPath: '/reference/cli/opencode-plugin';
 			preLoaderRoute: typeof DocsReferenceCliOpencodePluginRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/cli/oauth': {
+			id: '/_docs/reference/cli/oauth';
+			path: '/reference/cli/oauth';
+			fullPath: '/reference/cli/oauth';
+			preLoaderRoute: typeof DocsReferenceCliOauthRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/cli/monitoring': {
+			id: '/_docs/reference/cli/monitoring';
+			path: '/reference/cli/monitoring';
+			fullPath: '/reference/cli/monitoring';
+			preLoaderRoute: typeof DocsReferenceCliMonitoringRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/reference/cli/git-integration': {
@@ -2408,6 +3073,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsCookbookPatternsWebhookHandlerRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/cookbook/patterns/web-exploration': {
+			id: '/_docs/cookbook/patterns/web-exploration';
+			path: '/cookbook/patterns/web-exploration';
+			fullPath: '/cookbook/patterns/web-exploration';
+			preLoaderRoute: typeof DocsCookbookPatternsWebExplorationRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/cookbook/patterns/tailwind-setup': {
 			id: '/_docs/cookbook/patterns/tailwind-setup';
 			path: '/cookbook/patterns/tailwind-setup';
@@ -2462,6 +3134,69 @@ declare module '@tanstack/react-router' {
 			path: '/cookbook/patterns/background-tasks';
 			fullPath: '/cookbook/patterns/background-tasks';
 			preLoaderRoute: typeof DocsCookbookPatternsBackgroundTasksRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/patterns/autonomous-research': {
+			id: '/_docs/cookbook/patterns/autonomous-research';
+			path: '/cookbook/patterns/autonomous-research';
+			fullPath: '/cookbook/patterns/autonomous-research';
+			preLoaderRoute: typeof DocsCookbookPatternsAutonomousResearchRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/turborepo': {
+			id: '/_docs/cookbook/integrations/turborepo';
+			path: '/cookbook/integrations/turborepo';
+			fullPath: '/cookbook/integrations/turborepo';
+			preLoaderRoute: typeof DocsCookbookIntegrationsTurborepoRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/tanstack-start': {
+			id: '/_docs/cookbook/integrations/tanstack-start';
+			path: '/cookbook/integrations/tanstack-start';
+			fullPath: '/cookbook/integrations/tanstack-start';
+			preLoaderRoute: typeof DocsCookbookIntegrationsTanstackStartRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/openai-agents': {
+			id: '/_docs/cookbook/integrations/openai-agents';
+			path: '/cookbook/integrations/openai-agents';
+			fullPath: '/cookbook/integrations/openai-agents';
+			preLoaderRoute: typeof DocsCookbookIntegrationsOpenaiAgentsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/nextjs': {
+			id: '/_docs/cookbook/integrations/nextjs';
+			path: '/cookbook/integrations/nextjs';
+			fullPath: '/cookbook/integrations/nextjs';
+			preLoaderRoute: typeof DocsCookbookIntegrationsNextjsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/mastra': {
+			id: '/_docs/cookbook/integrations/mastra';
+			path: '/cookbook/integrations/mastra';
+			fullPath: '/cookbook/integrations/mastra';
+			preLoaderRoute: typeof DocsCookbookIntegrationsMastraRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/langchain': {
+			id: '/_docs/cookbook/integrations/langchain';
+			path: '/cookbook/integrations/langchain';
+			fullPath: '/cookbook/integrations/langchain';
+			preLoaderRoute: typeof DocsCookbookIntegrationsLangchainRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/claude-agent': {
+			id: '/_docs/cookbook/integrations/claude-agent';
+			path: '/cookbook/integrations/claude-agent';
+			fullPath: '/cookbook/integrations/claude-agent';
+			preLoaderRoute: typeof DocsCookbookIntegrationsClaudeAgentRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/cookbook/integrations/chat-sdk': {
+			id: '/_docs/cookbook/integrations/chat-sdk';
+			path: '/cookbook/integrations/chat-sdk';
+			fullPath: '/cookbook/integrations/chat-sdk';
+			preLoaderRoute: typeof DocsCookbookIntegrationsChatSdkRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 	}
@@ -2521,8 +3256,54 @@ const DocsReferenceApiRouteRouteWithChildren = DocsReferenceApiRouteRoute._addFi
 	DocsReferenceApiRouteRouteChildren
 );
 
+interface DocsReferenceSdkReferenceRouteRouteChildren {
+	DocsReferenceSdkReferenceAdvancedRoute: typeof DocsReferenceSdkReferenceAdvancedRoute;
+	DocsReferenceSdkReferenceAgentsRoute: typeof DocsReferenceSdkReferenceAgentsRoute;
+	DocsReferenceSdkReferenceApplicationEntryRoute: typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	DocsReferenceSdkReferenceCommunicationRoute: typeof DocsReferenceSdkReferenceCommunicationRoute;
+	DocsReferenceSdkReferenceContextApiRoute: typeof DocsReferenceSdkReferenceContextApiRoute;
+	DocsReferenceSdkReferenceEmailServiceRoute: typeof DocsReferenceSdkReferenceEmailServiceRoute;
+	DocsReferenceSdkReferenceEvaluationsRoute: typeof DocsReferenceSdkReferenceEvaluationsRoute;
+	DocsReferenceSdkReferenceEventsRoute: typeof DocsReferenceSdkReferenceEventsRoute;
+	DocsReferenceSdkReferenceObservabilityRoute: typeof DocsReferenceSdkReferenceObservabilityRoute;
+	DocsReferenceSdkReferenceQueueServiceRoute: typeof DocsReferenceSdkReferenceQueueServiceRoute;
+	DocsReferenceSdkReferenceRouterRoute: typeof DocsReferenceSdkReferenceRouterRoute;
+	DocsReferenceSdkReferenceSandboxServiceRoute: typeof DocsReferenceSdkReferenceSandboxServiceRoute;
+	DocsReferenceSdkReferenceScheduleServiceRoute: typeof DocsReferenceSdkReferenceScheduleServiceRoute;
+	DocsReferenceSdkReferenceSchemaRoute: typeof DocsReferenceSdkReferenceSchemaRoute;
+	DocsReferenceSdkReferenceStorageRoute: typeof DocsReferenceSdkReferenceStorageRoute;
+	DocsReferenceSdkReferenceTaskServiceRoute: typeof DocsReferenceSdkReferenceTaskServiceRoute;
+	DocsReferenceSdkReferenceIndexRoute: typeof DocsReferenceSdkReferenceIndexRoute;
+}
+
+const DocsReferenceSdkReferenceRouteRouteChildren: DocsReferenceSdkReferenceRouteRouteChildren = {
+	DocsReferenceSdkReferenceAdvancedRoute: DocsReferenceSdkReferenceAdvancedRoute,
+	DocsReferenceSdkReferenceAgentsRoute: DocsReferenceSdkReferenceAgentsRoute,
+	DocsReferenceSdkReferenceApplicationEntryRoute: DocsReferenceSdkReferenceApplicationEntryRoute,
+	DocsReferenceSdkReferenceCommunicationRoute: DocsReferenceSdkReferenceCommunicationRoute,
+	DocsReferenceSdkReferenceContextApiRoute: DocsReferenceSdkReferenceContextApiRoute,
+	DocsReferenceSdkReferenceEmailServiceRoute: DocsReferenceSdkReferenceEmailServiceRoute,
+	DocsReferenceSdkReferenceEvaluationsRoute: DocsReferenceSdkReferenceEvaluationsRoute,
+	DocsReferenceSdkReferenceEventsRoute: DocsReferenceSdkReferenceEventsRoute,
+	DocsReferenceSdkReferenceObservabilityRoute: DocsReferenceSdkReferenceObservabilityRoute,
+	DocsReferenceSdkReferenceQueueServiceRoute: DocsReferenceSdkReferenceQueueServiceRoute,
+	DocsReferenceSdkReferenceRouterRoute: DocsReferenceSdkReferenceRouterRoute,
+	DocsReferenceSdkReferenceSandboxServiceRoute: DocsReferenceSdkReferenceSandboxServiceRoute,
+	DocsReferenceSdkReferenceScheduleServiceRoute: DocsReferenceSdkReferenceScheduleServiceRoute,
+	DocsReferenceSdkReferenceSchemaRoute: DocsReferenceSdkReferenceSchemaRoute,
+	DocsReferenceSdkReferenceStorageRoute: DocsReferenceSdkReferenceStorageRoute,
+	DocsReferenceSdkReferenceTaskServiceRoute: DocsReferenceSdkReferenceTaskServiceRoute,
+	DocsReferenceSdkReferenceIndexRoute: DocsReferenceSdkReferenceIndexRoute,
+};
+
+const DocsReferenceSdkReferenceRouteRouteWithChildren =
+	DocsReferenceSdkReferenceRouteRoute._addFileChildren(
+		DocsReferenceSdkReferenceRouteRouteChildren
+	);
+
 interface DocsRouteRouteChildren {
 	DocsReferenceApiRouteRoute: typeof DocsReferenceApiRouteRouteWithChildren;
+	DocsReferenceSdkReferenceRouteRoute: typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	DocsAgentsAiGatewayRoute: typeof DocsAgentsAiGatewayRoute;
 	DocsAgentsAiSdkIntegrationRoute: typeof DocsAgentsAiSdkIntegrationRoute;
 	DocsAgentsCallingOtherAgentsRoute: typeof DocsAgentsCallingOtherAgentsRoute;
@@ -2550,15 +3331,23 @@ interface DocsRouteRouteChildren {
 	DocsGetStartedProjectStructureRoute: typeof DocsGetStartedProjectStructureRoute;
 	DocsGetStartedQuickstartRoute: typeof DocsGetStartedQuickstartRoute;
 	DocsGetStartedWhatIsAgentuityRoute: typeof DocsGetStartedWhatIsAgentuityRoute;
+	DocsReferenceGithubAppRoute: typeof DocsReferenceGithubAppRoute;
 	DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute;
 	DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute;
-	DocsReferenceSdkReferenceRoute: typeof DocsReferenceSdkReferenceRoute;
+	DocsReferenceStandalonePackagesRoute: typeof DocsReferenceStandalonePackagesRoute;
 	DocsRoutesCronRoute: typeof DocsRoutesCronRoute;
+	DocsRoutesExplicitRoutingRoute: typeof DocsRoutesExplicitRoutingRoute;
 	DocsRoutesHttpRoute: typeof DocsRoutesHttpRoute;
 	DocsRoutesMiddlewareRoute: typeof DocsRoutesMiddlewareRoute;
 	DocsRoutesSseRoute: typeof DocsRoutesSseRoute;
+	DocsRoutesWebrtcRoute: typeof DocsRoutesWebrtcRoute;
 	DocsRoutesWebsocketsRoute: typeof DocsRoutesWebsocketsRoute;
+	DocsServicesAuthenticationRoute: typeof DocsServicesAuthenticationRoute;
+	DocsServicesEmailRoute: typeof DocsServicesEmailRoute;
 	DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute;
+	DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute;
+	DocsServicesTasksRoute: typeof DocsServicesTasksRoute;
+	DocsServicesWebhooksRoute: typeof DocsServicesWebhooksRoute;
 	DocsAgentsIndexRoute: typeof DocsAgentsIndexRoute;
 	DocsApisIndexRoute: typeof DocsApisIndexRoute;
 	DocsCommunityIndexRoute: typeof DocsCommunityIndexRoute;
@@ -2568,6 +3357,15 @@ interface DocsRouteRouteChildren {
 	DocsReferenceIndexRoute: typeof DocsReferenceIndexRoute;
 	DocsRoutesIndexRoute: typeof DocsRoutesIndexRoute;
 	DocsServicesIndexRoute: typeof DocsServicesIndexRoute;
+	DocsCookbookIntegrationsChatSdkRoute: typeof DocsCookbookIntegrationsChatSdkRoute;
+	DocsCookbookIntegrationsClaudeAgentRoute: typeof DocsCookbookIntegrationsClaudeAgentRoute;
+	DocsCookbookIntegrationsLangchainRoute: typeof DocsCookbookIntegrationsLangchainRoute;
+	DocsCookbookIntegrationsMastraRoute: typeof DocsCookbookIntegrationsMastraRoute;
+	DocsCookbookIntegrationsNextjsRoute: typeof DocsCookbookIntegrationsNextjsRoute;
+	DocsCookbookIntegrationsOpenaiAgentsRoute: typeof DocsCookbookIntegrationsOpenaiAgentsRoute;
+	DocsCookbookIntegrationsTanstackStartRoute: typeof DocsCookbookIntegrationsTanstackStartRoute;
+	DocsCookbookIntegrationsTurborepoRoute: typeof DocsCookbookIntegrationsTurborepoRoute;
+	DocsCookbookPatternsAutonomousResearchRoute: typeof DocsCookbookPatternsAutonomousResearchRoute;
 	DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute;
 	DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute;
 	DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute;
@@ -2576,6 +3374,7 @@ interface DocsRouteRouteChildren {
 	DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute;
 	DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute;
 	DocsCookbookPatternsTailwindSetupRoute: typeof DocsCookbookPatternsTailwindSetupRoute;
+	DocsCookbookPatternsWebExplorationRoute: typeof DocsCookbookPatternsWebExplorationRoute;
 	DocsCookbookPatternsWebhookHandlerRoute: typeof DocsCookbookPatternsWebhookHandlerRoute;
 	DocsCookbookTutorialsRagAgentRoute: typeof DocsCookbookTutorialsRagAgentRoute;
 	DocsCookbookTutorialsUnderstandingAgentsRoute: typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
@@ -2588,6 +3387,8 @@ interface DocsRouteRouteChildren {
 	DocsReferenceCliDevelopmentRoute: typeof DocsReferenceCliDevelopmentRoute;
 	DocsReferenceCliGettingStartedRoute: typeof DocsReferenceCliGettingStartedRoute;
 	DocsReferenceCliGitIntegrationRoute: typeof DocsReferenceCliGitIntegrationRoute;
+	DocsReferenceCliMonitoringRoute: typeof DocsReferenceCliMonitoringRoute;
+	DocsReferenceCliOauthRoute: typeof DocsReferenceCliOauthRoute;
 	DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute;
 	DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute;
 	DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute;
@@ -2615,6 +3416,7 @@ interface DocsRouteRouteChildren {
 
 const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceApiRouteRoute: DocsReferenceApiRouteRouteWithChildren,
+	DocsReferenceSdkReferenceRouteRoute: DocsReferenceSdkReferenceRouteRouteWithChildren,
 	DocsAgentsAiGatewayRoute: DocsAgentsAiGatewayRoute,
 	DocsAgentsAiSdkIntegrationRoute: DocsAgentsAiSdkIntegrationRoute,
 	DocsAgentsCallingOtherAgentsRoute: DocsAgentsCallingOtherAgentsRoute,
@@ -2642,15 +3444,23 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsGetStartedProjectStructureRoute: DocsGetStartedProjectStructureRoute,
 	DocsGetStartedQuickstartRoute: DocsGetStartedQuickstartRoute,
 	DocsGetStartedWhatIsAgentuityRoute: DocsGetStartedWhatIsAgentuityRoute,
+	DocsReferenceGithubAppRoute: DocsReferenceGithubAppRoute,
 	DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
 	DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
-	DocsReferenceSdkReferenceRoute: DocsReferenceSdkReferenceRoute,
+	DocsReferenceStandalonePackagesRoute: DocsReferenceStandalonePackagesRoute,
 	DocsRoutesCronRoute: DocsRoutesCronRoute,
+	DocsRoutesExplicitRoutingRoute: DocsRoutesExplicitRoutingRoute,
 	DocsRoutesHttpRoute: DocsRoutesHttpRoute,
 	DocsRoutesMiddlewareRoute: DocsRoutesMiddlewareRoute,
 	DocsRoutesSseRoute: DocsRoutesSseRoute,
+	DocsRoutesWebrtcRoute: DocsRoutesWebrtcRoute,
 	DocsRoutesWebsocketsRoute: DocsRoutesWebsocketsRoute,
+	DocsServicesAuthenticationRoute: DocsServicesAuthenticationRoute,
+	DocsServicesEmailRoute: DocsServicesEmailRoute,
 	DocsServicesQueuesRoute: DocsServicesQueuesRoute,
+	DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,
+	DocsServicesTasksRoute: DocsServicesTasksRoute,
+	DocsServicesWebhooksRoute: DocsServicesWebhooksRoute,
 	DocsAgentsIndexRoute: DocsAgentsIndexRoute,
 	DocsApisIndexRoute: DocsApisIndexRoute,
 	DocsCommunityIndexRoute: DocsCommunityIndexRoute,
@@ -2660,6 +3470,15 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceIndexRoute: DocsReferenceIndexRoute,
 	DocsRoutesIndexRoute: DocsRoutesIndexRoute,
 	DocsServicesIndexRoute: DocsServicesIndexRoute,
+	DocsCookbookIntegrationsChatSdkRoute: DocsCookbookIntegrationsChatSdkRoute,
+	DocsCookbookIntegrationsClaudeAgentRoute: DocsCookbookIntegrationsClaudeAgentRoute,
+	DocsCookbookIntegrationsLangchainRoute: DocsCookbookIntegrationsLangchainRoute,
+	DocsCookbookIntegrationsMastraRoute: DocsCookbookIntegrationsMastraRoute,
+	DocsCookbookIntegrationsNextjsRoute: DocsCookbookIntegrationsNextjsRoute,
+	DocsCookbookIntegrationsOpenaiAgentsRoute: DocsCookbookIntegrationsOpenaiAgentsRoute,
+	DocsCookbookIntegrationsTanstackStartRoute: DocsCookbookIntegrationsTanstackStartRoute,
+	DocsCookbookIntegrationsTurborepoRoute: DocsCookbookIntegrationsTurborepoRoute,
+	DocsCookbookPatternsAutonomousResearchRoute: DocsCookbookPatternsAutonomousResearchRoute,
 	DocsCookbookPatternsBackgroundTasksRoute: DocsCookbookPatternsBackgroundTasksRoute,
 	DocsCookbookPatternsChatWithHistoryRoute: DocsCookbookPatternsChatWithHistoryRoute,
 	DocsCookbookPatternsCronWithStorageRoute: DocsCookbookPatternsCronWithStorageRoute,
@@ -2668,6 +3487,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsCookbookPatternsProductSearchRoute: DocsCookbookPatternsProductSearchRoute,
 	DocsCookbookPatternsServerUtilitiesRoute: DocsCookbookPatternsServerUtilitiesRoute,
 	DocsCookbookPatternsTailwindSetupRoute: DocsCookbookPatternsTailwindSetupRoute,
+	DocsCookbookPatternsWebExplorationRoute: DocsCookbookPatternsWebExplorationRoute,
 	DocsCookbookPatternsWebhookHandlerRoute: DocsCookbookPatternsWebhookHandlerRoute,
 	DocsCookbookTutorialsRagAgentRoute: DocsCookbookTutorialsRagAgentRoute,
 	DocsCookbookTutorialsUnderstandingAgentsRoute: DocsCookbookTutorialsUnderstandingAgentsRoute,
@@ -2680,6 +3500,8 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceCliDevelopmentRoute: DocsReferenceCliDevelopmentRoute,
 	DocsReferenceCliGettingStartedRoute: DocsReferenceCliGettingStartedRoute,
 	DocsReferenceCliGitIntegrationRoute: DocsReferenceCliGitIntegrationRoute,
+	DocsReferenceCliMonitoringRoute: DocsReferenceCliMonitoringRoute,
+	DocsReferenceCliOauthRoute: DocsReferenceCliOauthRoute,
 	DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
 	DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
 	DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,

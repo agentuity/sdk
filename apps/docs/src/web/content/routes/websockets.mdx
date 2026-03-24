@@ -6,6 +6,14 @@ description: Real-time bidirectional communication with the websocket middleware
 
 WebSockets enable persistent, bidirectional connections between client and server. Use them for chat interfaces, live dashboards, collaborative tools, and any scenario requiring real-time two-way communication.
 
+## When to Use WebSockets
+
+| Protocol | Best For |
+|----------|----------|
+| **WebSockets** | Chat, collaboration, real-time bidirectional data |
+| [SSE](/routes/sse) | LLM streaming, progress updates, server-to-client feeds |
+| [WebRTC](/routes/webrtc) | Video/audio calls, P2P data transfer, low-latency gaming |
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. Import agents you need and call them directly.
 </Callout>
@@ -205,18 +213,6 @@ ws.onclose = () => {
   console.log('Disconnected');
 };
 ```
-
-## When to Use WebSockets
-
-| Use Case | WebSocket | SSE | HTTP |
-|----------|-----------|-----|------|
-| Chat / messaging | ✓ | | |
-| Live collaboration | ✓ | | |
-| Real-time dashboards | ✓ | ✓ | |
-| Progress updates | | ✓ | |
-| Request/response API | | | ✓ |
-
-Use WebSockets when you need **bidirectional** communication. For **server-to-client only** streaming, consider [Server-Sent Events](/routes/sse).
 
 ## Standalone Usage
 

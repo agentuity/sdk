@@ -1,0 +1,461 @@
+---
+title: Agent Creation and Handlers
+short_title: Agents
+description: Define agents with createAgent(), configure schemas, and write handlers
+---
+
+Agents are the core building blocks of an Agentuity application. Use `createAgent()` to define typed handlers with schema validation, lifecycle hooks, and route middleware.
+
+## Agent Creation
+
+Agents are created using the `createAgent()` function, which provides type-safe agent definitions with built-in schema validation.
+
+### createAgent
+
+`createAgent(name: string, config: AgentConfig): AgentRunner`
+
+Creates a new agent with schema validation and type inference.
+
+**Parameters**
+
+- `name`: Unique agent name (must be unique within the project)
+- `config`: Configuration object with the following properties:
+  - `description` (optional): Human-readable description of what the agent does
+  - `schema` (optional): Object containing input and output schemas
+    - `input`: Schema for validating incoming data (Zod, Valibot, ArkType, or any StandardSchemaV1)
+    - `output`: Schema for validating outgoing data
+    - `stream`: Enable streaming responses (boolean, defaults to false)
+  - `handler`: The agent function that processes inputs and returns outputs
+  - `setup` (optional): Async function called once on app startup, returns agent-specific config accessible via `ctx.config`
+  - `shutdown` (optional): Async cleanup function called on app shutdown
+
+**Return Value**
+
+Returns an `AgentRunner` object with the following properties:
+- `metadata`: Agent metadata (id, identifier, filename, version, name, description)
+- `run(input?)`: Execute the agent with optional input
+- `createEval(name, config)`: Create quality evaluations for this agent
+- `addEventListener(eventName, callback)`: Attach lifecycle event listeners
+- `removeEventListener(eventName, callback)`: Remove event listeners
+
+See [Event System](/reference/sdk-reference/events) for available events and usage examples.
+
+- `validator(options?)`: Route validation middleware (see below)
+- `inputSchema` (conditional): Present if input schema is defined
+- `outputSchema` (conditional): Present if output schema is defined
+- `stream` (conditional): Present if streaming is enabled
+
+**Note**: To call agents from other agents, import them directly: `import otherAgent from '@agent/other'; otherAgent.run(input)` (see [Agent Communication](/reference/sdk-reference/communication)).
+
+### Agent Setup and Shutdown
+
+Agents can define `setup` and `shutdown` functions for initialization and cleanup:
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('CachedProcessor', {
+  schema: {
+    input: z.object({ key: z.string() }),
+    output: z.object({ value: z.string() }),
+  },
+  // Called once when app starts - return value available via ctx.config
+  setup: async (app) => {
+    const cache = new Map<string, string>();
+    const client = await initializeExternalService();
+    return { cache, client };
+  },
+  // Called when app shuts down
+  shutdown: async (app, config) => {
+    await config.client.disconnect();
+    config.cache.clear();
+  },
+  handler: async (ctx, input) => {
+    // ctx.config is fully typed from setup's return value
+    const cached = ctx.config.cache.get(input.key);
+    if (cached) {
+      return { value: cached };
+    }
+
+    const value = await ctx.config.client.fetch(input.key);
+    ctx.config.cache.set(input.key, value);
+    return { value };
+  },
+});
+
+export default agent;
+```
+
+The `setup` function receives the app state (from `createApp`'s setup) and returns agent-specific configuration. This is useful for:
+- Agent-specific caches or connection pools
+- Pre-computed data or models
+- External service clients
+
+### agent.validator()
+
+Creates Hono middleware for type-safe request validation using the agent's schema.
+
+**Signatures**
+
+```typescript
+agent.validator(): MiddlewareHandler
+agent.validator(options: { output: Schema }): MiddlewareHandler
+agent.validator(options: { input: Schema; output?: Schema }): MiddlewareHandler
+```
+
+**Options**
+- No options: Uses agent's input/output schemas
+- `{ output: Schema }`: Output-only validation (useful for GET routes)
+- `{ input: Schema, output?: Schema }`: Custom schema override
+
+**Example**
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import agent from './agent';
+
+const router = createRouter();
+
+// Use agent's schema
+router.post('/', agent.validator(), async (c) => {
+  const data = c.req.valid('json'); // Fully typed
+  return c.json(data);
+});
+
+// Custom schema override
+router.post('/custom',
+  agent.validator({ input: z.object({ custom: z.string() }) }),
+  async (c) => {
+    const data = c.req.valid('json');
+    return c.json(data);
+  }
+);
+```
+
+Returns 400 Bad Request with validation error details if input validation fails.
+
+**Example**
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent('GreetingAgent', {
+  description: 'A simple greeting agent that responds to user messages',
+  schema: {
+    input: z.object({
+      message: z.string().min(1),
+      userId: z.string().optional(),
+    }),
+    output: z.object({
+      response: z.string(),
+      timestamp: z.number(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Input is automatically validated and typed
+    ctx.logger.info(`Processing message from user: ${input.userId ?? 'anonymous'}`);
+
+    return {
+      response: `Hello! You said: ${input.message}`,
+      timestamp: Date.now(),
+    };
+  },
+});
+
+export default agent;
+```
+
+### Agent Configuration
+
+The agent configuration object defines the structure and behavior of your agent.
+
+**Schema Property**
+
+The `schema` property defines input and output validation using any library that implements StandardSchemaV1:
+
+```typescript
+// Using Zod
+import { z } from 'zod';
+
+const agent = createAgent('Greeter', {
+  schema: {
+    input: z.object({ name: z.string() }),
+    output: z.object({ greeting: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    return { greeting: `Hello, ${input.name}!` };
+  },
+});
+```
+
+```typescript
+// Using Valibot
+import * as v from 'valibot';
+
+const agent = createAgent('Greeter', {
+  schema: {
+    input: v.object({ name: v.string() }),
+    output: v.object({ greeting: v.string() }),
+  },
+  handler: async (ctx, input) => {
+    return { greeting: `Hello, ${input.name}!` };
+  },
+});
+```
+
+**Metadata Property**
+
+Agent metadata provides information about the agent for documentation and tooling:
+
+```typescript
+const agent = createAgent('DataProcessor', {
+  description: 'Processes and transforms user data',
+  schema: {
+    input: inputSchema,
+    output: outputSchema,
+  },
+  handler: async (ctx, input) => {
+    // Agent logic
+  },
+});
+```
+
+---
+
+## Agent Handler
+
+The agent handler is the core function that processes inputs and produces outputs.
+
+### Handler Signature
+
+The handler receives a context object and the validated input:
+
+```typescript
+type AgentHandler<TInput, TOutput> = (
+  ctx: AgentContext,
+  input: TInput
+) => Promise<TOutput> | TOutput;
+```
+
+**Parameters**
+
+- `ctx`: The agent context providing access to services, logging, and agent capabilities
+- `input`: The validated input data (typed according to your input schema)
+
+**Return Value**
+
+The handler should return the output data (typed according to your output schema). The return can be:
+- A direct value: `return { result: 'value' }`
+- A Promise: `return Promise.resolve({ result: 'value' })`
+- An async function automatically returns a Promise
+
+### Input Validation
+
+Input validation happens automatically before the handler executes:
+
+```typescript
+const agent = createAgent('UserValidator', {
+  schema: {
+    input: z.object({
+      email: z.string().email(),
+      age: z.number().min(18),
+    }),
+    output: z.object({
+      success: z.boolean(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // This code only runs if:
+    // - input.email is a valid email format
+    // - input.age is a number >= 18
+
+    ctx.logger.info(`Valid user: ${input.email}, age ${input.age}`);
+
+    return { success: true };
+  },
+});
+```
+
+**Validation Errors:**
+
+If validation fails, the handler is not called and an error response is returned:
+
+```typescript
+// Request with invalid input:
+// { email: "not-an-email", age: 15 }
+
+// Results in validation error thrown before handler:
+// Error: Validation failed
+//   - email: Invalid email format
+//   - age: Number must be greater than or equal to 18
+```
+
+### Return Values
+
+Handlers return data directly rather than using response builder methods:
+
+**Simple Returns:**
+
+```typescript
+const agent = createAgent('Adder', {
+  schema: {
+    input: z.object({ x: z.number(), y: z.number() }),
+    output: z.object({ sum: z.number() }),
+  },
+  handler: async (ctx, input) => {
+    return { sum: input.x + input.y };
+  },
+});
+```
+
+**Async Processing:**
+
+```typescript
+const agent = createAgent('UserFetcher', {
+  schema: {
+    input: z.object({ userId: z.string() }),
+    output: z.object({
+      user: z.object({
+        id: z.string(),
+        name: z.string(),
+      }),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // Await async operations
+    const userData = await fetchUserFromDatabase(input.userId);
+
+    // Return the result
+    return {
+      user: {
+        id: userData.id,
+        name: userData.name,
+      },
+    };
+  },
+});
+```
+
+**Error Handling:**
+
+```typescript
+const agent = createAgent('RiskyOperator', {
+  schema: {
+    input: z.object({ id: z.string() }),
+    output: z.object({ data: z.any() }),
+  },
+  handler: async (ctx, input) => {
+    try {
+      const data = await riskyOperation(input.id);
+      return { data };
+    } catch (error) {
+      ctx.logger.error('Operation failed', { error });
+      throw new Error('Failed to process request');
+    }
+  },
+});
+```
+
+**Output Validation:**
+
+The return value is automatically validated against the output schema:
+
+```typescript
+const agent = createAgent('ValueChecker', {
+  schema: {
+    input: z.object({ value: z.number() }),
+    output: z.object({
+      result: z.number(),
+      isPositive: z.boolean(),
+    }),
+  },
+  handler: async (ctx, input) => {
+    // This would fail output validation:
+    // return { result: input.value };
+    // Error: Missing required field 'isPositive'
+
+    // This passes validation:
+    return {
+      result: input.value,
+      isPositive: input.value > 0,
+    };
+  },
+});
+```
+
+For concepts, LLM integration, and progressive examples, see [Creating Agents](/agents/creating-agents).
+
+---
+
+## Streaming Responses
+
+Set `schema.stream: true` to declare that the handler returns a `ReadableStream` instead of a plain object. The runtime skips output validation for streaming agents and the `AgentRunner` gains a `stream: true` property.
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import { streamText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
+
+export default createAgent('chat-stream', {
+  schema: {
+    input: s.object({ message: s.string() }),
+    // No output schema needed — the stream is the output
+    stream: true,
+  },
+  handler: async (ctx, input) => {
+    const { textStream } = streamText({
+      model: anthropic('claude-sonnet-4-5'),
+      prompt: input.message,
+    });
+
+    // textStream is a ReadableStream<string> — return it directly
+    return textStream;
+  },
+});
+```
+
+**Handler return type**: When `stream: true`, return any `ReadableStream<string>` or `ReadableStream<Uint8Array>`. AI SDK's `textStream` (from `streamText`) satisfies this directly.
+
+For streaming patterns with routes, see [HTTP Routes](/routes/http).
+
+### Route setup
+
+Streaming agents require the `stream()` middleware in the route handler. Without it the response may be buffered:
+
+```typescript
+import { createRouter, stream } from '@agentuity/runtime';
+import chatAgent from '@agent/chat-stream';
+
+const router = createRouter();
+
+router.post('/chat', chatAgent.validator(), stream(async (c) => {
+  const body = c.req.valid('json');
+  return chatAgent.run(body);
+}));
+
+export default router;
+```
+
+### Consuming a stream
+
+```typescript
+const response = await fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message: 'Hello' }),
+});
+
+const reader = response.body?.getReader();
+const decoder = new TextDecoder();
+
+while (reader) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  process.stdout.write(decoder.decode(value));
+}
+```
+
+For streaming patterns, chunked responses, and AI SDK integration, see [Streaming Responses](/agents/streaming-responses).

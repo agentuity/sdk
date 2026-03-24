@@ -18,12 +18,9 @@ function flattenToc(items: TocItem[], result: TocItem[] = []): TocItem[] {
 export function TableOfContents() {
 	const { headings, activeId, setActiveId, scrollToHeading } = useToc();
 
-	// Only show h2 and h3 in the TOC — h4+ sub-items (Parameters, Request Body, etc.)
-	// would make the nav unusably long on pages with many endpoints.
-	const flatHeadings = flattenToc(headings).filter((h) => h.depth <= 3);
-
-	// Track active heading on scroll — observe only headings rendered in the TOC
+	// Track active heading on scroll
 	useEffect(() => {
+		const flatHeadings = flattenToc(headings);
 		if (flatHeadings.length === 0) return;
 
 		const observer = new IntersectionObserver(
@@ -47,15 +44,17 @@ export function TableOfContents() {
 			}
 		);
 
-		for (const { id } of flatHeadings) {
+		flatHeadings.forEach(({ id }) => {
 			const element = document.getElementById(id);
 			if (element) {
 				observer.observe(element);
 			}
-		}
+		});
 
 		return () => observer.disconnect();
-	}, [flatHeadings, setActiveId]);
+	}, [headings, setActiveId]);
+
+	const flatHeadings = flattenToc(headings);
 
 	if (flatHeadings.length === 0) {
 		return null;

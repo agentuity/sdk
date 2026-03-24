@@ -1,0 +1,130 @@
+---
+title: Infrastructure Monitoring
+description: Monitor machine health and resource usage from the CLI in real time or as a snapshot
+---
+
+Use this command to check the health of infrastructure machines, track CPU/memory/disk usage, and identify distressed nodes.
+
+<Callout type="info" title="Cloud Prefix Required">
+This command requires the `cloud` prefix: `agentuity cloud monitor ...`
+</Callout>
+
+## Quick Reference
+
+```bash
+agentuity cloud monitor [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--machine <id>` | Monitor a specific machine by ID |
+| `--deployment <id>` | Monitor machines running a specific deployment |
+| `--distressed` | Show only distressed machines |
+| `--snapshot` | One-shot snapshot (no live stream) |
+| `--json` | JSON output |
+
+## Monitoring Modes
+
+### Watch Mode (Default)
+
+Without `--snapshot`, the monitor connects to a live WebSocket stream and continuously updates the terminal as machine state changes.
+
+```bash
+# Watch all machines in real time
+agentuity cloud monitor
+
+# Watch a single machine
+agentuity cloud monitor --machine mach_abc123
+```
+
+The live display shows a table with: Machine ID, Health, CPU %, Memory %, Disk %, Pressure score, Container count, and Last Report time.
+
+Press `Ctrl+C` to stop watching.
+
+<Callout type="tip" title="State Change Alerts">
+In watch mode, state transitions (e.g., `CONNECTED` to `STALE`) are highlighted inline so you can spot problems as they happen.
+</Callout>
+
+### Snapshot Mode
+
+Use `--snapshot` to print the current state once and exit. This is useful for scripting and CI checks.
+
+```bash
+# Print current state and exit
+agentuity cloud monitor --snapshot
+```
+
+## Filtering
+
+### By Machine
+
+Focus on a single machine by ID:
+
+```bash
+agentuity cloud monitor --machine mach_abc123
+```
+
+### By Deployment
+
+Show only machines that are running containers for a specific deployment:
+
+```bash
+agentuity cloud monitor --deployment dep_xyz789
+```
+
+### Distressed Only
+
+Filter to machines in a distressed state:
+
+```bash
+agentuity cloud monitor --distressed
+```
+
+<Callout type="info" title="Mutually Exclusive Filters">
+`--machine` and `--distressed` cannot be combined. Similarly, `--deployment` and `--distressed` cannot be combined. Use one filter at a time.
+</Callout>
+
+## Health States
+
+| State | Indicator | Meaning |
+|-------|-----------|---------|
+| `CONNECTED` | `●` | Machine is healthy and reporting |
+| `STALE` | `◌` | Reports are delayed, may indicate issues |
+| `DISCONNECTED` | `○` | Machine is not reporting |
+
+## Pressure Score
+
+Each machine has a composite pressure score from 0.00 to 1.00. Scores at or above 0.85 are flagged with a warning indicator. High pressure typically means the machine is approaching resource limits for CPU, memory, or disk.
+
+## JSON Output
+
+Combine `--json` with `--snapshot` (or use `--json` alone, which implies snapshot behavior) for machine-readable output:
+
+```bash
+agentuity cloud monitor --json
+```
+
+```json
+[
+  {
+    "machineId": "mach_abc123",
+    "health": "CONNECTED",
+    "compositeScore": 0.42,
+    "report": {
+      "host": {
+        "cpu": { "usagePercent": 35.2 },
+        "memory": { "usagePercent": 61.8 }
+      },
+      "capacity": {
+        "runningContainers": 3,
+        "totalContainers": 10
+      }
+    }
+  }
+]
+```
+
+## Next Steps
+
+- [Debugging](/reference/cli/debugging): SSH into containers and inspect sessions for deployed agents
+- [Deployment](/reference/cli/deployment): Deploy your agents to Agentuity Cloud

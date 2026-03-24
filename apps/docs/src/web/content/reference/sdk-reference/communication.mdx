@@ -1,0 +1,202 @@
+---
+title: Calling Other Agents
+short_title: Communication
+description: Call agents from routes or other agents with type-safe imports
+---
+
+Import other agents by name and call them with full type safety. The `@agent/` path alias gives you compile-time type checking and IDE autocomplete.
+
+<Callout type="tip" title="Looking for patterns?">
+For orchestration strategies, retry logic, and conditional routing between agents, see [Calling Other Agents](/agents/calling-other-agents).
+</Callout>
+
+## Agent Registry
+
+```typescript
+import otherAgent from '@agent/other';
+
+// Call another agent
+const result = await otherAgent.run(input);
+```
+
+The `@agent/` path alias provides access to all agents in your project with compile-time type checking.
+
+## Single Agent Call
+
+Import an agent and call it directly. TypeScript infers the result type from the called agent's output schema.
+
+```typescript
+// src/agent/processor/agent.ts
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import enrichmentAgent from '@agent/enrichment';
+
+export default createAgent('Processor', {
+  schema: {
+    input: s.object({ userInput: s.string() }),
+    output: s.object({
+      processed: s.boolean(),
+      analysis: s.object({
+        sentiment: s.string(),
+        keywords: s.array(s.string()),
+      }),
+    }),
+  },
+  handler: async (ctx, input) => {
+    const enriched = await enrichmentAgent.run({
+      text: input.userInput,
+    });
+
+    // TypeScript knows enriched has the shape from the agent's schema
+
+    return {
+      processed: true,
+      analysis: {
+        sentiment: enriched.sentiment,
+        keywords: enriched.keywords,
+      },
+    };
+  },
+});
+```
+
+## Parallel Agent Calls
+
+Use `Promise.all` to call multiple agents concurrently and combine their results.
+
+```typescript
+// src/agent/coordinator/agent.ts
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import webSearchAgent from '@agent/web-search';
+import databaseAgent from '@agent/database';
+import cacheAgent from '@agent/cache';
+
+export default createAgent('Coordinator', {
+  schema: {
+    input: s.object({ query: s.string() }),
+    output: s.object({
+      results: s.array(s.object({
+        id: s.string(),
+        source: s.string(),
+        content: s.string(),
+      })),
+      metadata: s.object({
+        sources: s.number(),
+        processingTime: s.number(),
+      }),
+    }),
+  },
+  handler: async (ctx, input) => {
+    const startTime = Date.now();
+
+    // Call multiple agents in parallel rather than sequentially
+    const [webResults, dbResults, cacheResults] = await Promise.all([
+      webSearchAgent.run({ query: input.query }),
+      databaseAgent.run({ query: input.query }),
+      cacheAgent.run({ key: input.query }),
+    ]);
+
+    const allResults = [
+      ...webResults.items,
+      ...dbResults.records,
+      ...(cacheResults.found ? [cacheResults.data] : []),
+    ];
+
+    return {
+      results: allResults,
+      metadata: {
+        sources: 3,
+        processingTime: Date.now() - startTime,
+      },
+    };
+  },
+});
+```
+
+## Calling from Routes
+
+Import agents into route handlers the same way you import them in other agents. The `@agent/` alias works in any file within your project.
+
+```typescript title="src/api/summarize/route.ts"
+import { createRouter } from '@agentuity/runtime';
+import summarizeAgent from '@agent/summarize';
+
+const router = createRouter();
+
+router.post('/', summarizeAgent.validator(), async (c) => {
+  const body = c.req.valid('json');
+  const result = await summarizeAgent.run(body);
+  return c.json(result);
+});
+
+export default router;
+```
+
+`summarizeAgent.run()` returns the same typed result as calling it from another agent. Use `agent.validator()` to validate the request body against the agent's input schema before calling `.run()`.
+
+## Typed Responses
+
+TypeScript infers the return type of `.run()` from the called agent's output schema. No manual type annotations are needed:
+
+```typescript
+import enrichmentAgent from '@agent/enrichment';
+
+// result is automatically typed as { sentiment: string; keywords: string[] }
+const result = await enrichmentAgent.run({ text: 'Hello world' });
+result.sentiment; // string -- autocomplete works
+```
+
+When you need an explicit type (for function signatures or intermediate variables), use `Awaited<ReturnType<>>`:
+
+```typescript
+import enrichmentAgent from '@agent/enrichment';
+
+// Extract the output type from the agent
+type EnrichmentOutput = Awaited<ReturnType<typeof enrichmentAgent.run>>;
+
+function formatEnrichment(data: EnrichmentOutput): string {
+  return `${data.sentiment}: ${data.keywords.join(', ')}`;
+}
+```
+
+## Error Handling
+
+Wrap agent calls in try/catch to handle failures gracefully. This example falls back to cached data when an external agent is unavailable.
+
+```typescript
+// src/agent/robust/agent.ts
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import externalService from '@agent/external-service';
+
+export default createAgent('Robust', {
+  schema: {
+    input: s.object({ userId: s.string() }),
+    output: s.object({
+      success: s.boolean(),
+      data: s.nullable(s.object({ id: s.string(), content: s.string() })),
+    }),
+  },
+  handler: async (ctx, input) => {
+    try {
+      const result = await externalService.run({
+        userId: input.userId,
+      });
+
+      return { success: true, data: result };
+    } catch (error) {
+      ctx.logger.error('External service failed', { error });
+
+      // Fall back to cached data rather than returning an error
+      const cached = await ctx.kv.get('user-cache', input.userId);
+
+      if (cached.exists) {
+        return { success: true, data: cached.data };
+      }
+
+      return { success: false, data: null };
+    }
+  },
+});
+```

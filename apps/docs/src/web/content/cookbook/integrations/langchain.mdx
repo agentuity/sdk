@@ -1,0 +1,184 @@
+---
+title: Using LangChain with Agentuity
+short_title: LangChain
+description: Build LangChain agents with Agentuity's deployment runtime, persistent storage, and observability
+---
+
+[LangChain](https://js.langchain.com) provides agent primitives, chains, and tool orchestration, but deploying and running those agents requires infrastructure: state management, credential routing, observability. Agentuity handles that layer. Write your agent logic with LangChain, deploy it on Agentuity with built-in storage, logging, and an [AI gateway](/agents/ai-gateway).
+
+## ReAct Agent with Tools
+
+Create a [LangChain ReAct agent](https://js.langchain.com/docs/concepts/agents) inside an Agentuity handler. LangChain owns the agent loop, Agentuity owns the infrastructure.
+
+Define your tools and agent with LangChain's standard APIs:
+
+```typescript title="src/agent/basic/index.ts"
+import {
+  createAgent as createLangChainAgent,
+  createMiddleware,
+  tool,
+  ToolMessage,
+} from 'langchain';
+import { ChatOpenAI } from '@langchain/openai';
+import * as z from 'zod';
+
+// LangChain tools use Zod for input validation
+const search = tool(
+  async ({ query }) => `Results for: ${query}`,
+  {
+    name: 'search',
+    description: 'Search for information',
+    schema: z.object({ query: z.string().describe('The search query') }),
+  },
+);
+
+// Middleware catches tool errors so the agent can recover
+const handleToolErrors = createMiddleware({
+  name: 'HandleToolErrors',
+  wrapToolCall: async (request, handler) => {
+    try {
+      return await handler(request);
+    } catch (error) {
+      return new ToolMessage({
+        content: `Tool error: ${error}`,
+        tool_call_id: request.toolCall.id!,
+      });
+    }
+  },
+});
+
+const langchainAgent = createLangChainAgent({
+  model: new ChatOpenAI({ model: 'gpt-5.4', temperature: 0.1 }),
+  tools: [search],
+  middleware: [handleToolErrors],
+  systemPrompt: 'You are a helpful assistant. Be concise.',
+});
+```
+
+Then wrap the LangChain agent with Agentuity's `createAgent()` for deployment, schemas, and observability:
+
+```typescript title="src/agent/basic/index.ts"
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export default createAgent('basic', {
+  description: 'LangChain ReAct agent with tools and error handling',
+  schema: {
+    input: s.object({ message: s.string() }),
+    output: s.object({ response: s.string() }),
+  },
+  handler: async (ctx, { message }) => {
+    ctx.logger.info('Invoking LangChain agent', { message }); // [!code highlight]
+
+    const result = await langchainAgent.invoke({
+      messages: [{ role: 'user', content: message }],
+    });
+
+    // Extract final AI response from the message history
+    const lastAi = [...result.messages]
+      .reverse()
+      .find((m: any) => m._getType?.() === 'ai');
+
+    return {
+      response: typeof lastAi?.content === 'string'
+        ? lastAi.content
+        : 'No response generated',
+    };
+  },
+});
+```
+
+- LangChain tools use `tool()` with Zod schemas, middleware uses `createMiddleware()` with `wrapToolCall` hooks
+- `langchainAgent.invoke()` returns a `messages` array containing the full reasoning trace
+- Extract the final AI response by finding the last `'ai'` message in the array
+
+<Callout type="info" title="Agentuity handles model credentials">
+When deployed to Agentuity, model credentials are managed through the [AI Gateway](/agents/ai-gateway). No API keys needed in your code.
+</Callout>
+
+## Streaming with Timeline
+
+Use `agent.stream()` with `streamMode: "values"` to iterate over state snapshots as the agent reasons, calls tools, and generates responses.
+
+```typescript
+// ... langchainAgent and tools defined above
+import { createAgent as createLangChainAgent, tool } from 'langchain';
+import { ChatOpenAI } from '@langchain/openai';
+import { HumanMessage } from '@langchain/core/messages';
+
+const langchainAgent = createLangChainAgent({
+  model: new ChatOpenAI({ model: 'gpt-5.4', temperature: 0.3 }),
+  tools: [search, calculate, getTime],
+});
+
+// Stream the agent execution, capturing each step
+const stream = await langchainAgent.stream(
+  { messages: [new HumanMessage(message)] },
+  { streamMode: 'values' }, // [!code highlight]
+);
+
+for await (const chunk of stream) {
+  const lastMessage = chunk.messages[chunk.messages.length - 1];
+  const type = (lastMessage as any)._getType?.();
+
+  if (type === 'ai' && (lastMessage as any).tool_calls?.length > 0) {
+    // Tool call in progress: agent decided to use a tool
+  } else if (type === 'tool') {
+    // Tool result received: observation ready for the next reasoning step
+  } else if (type === 'ai') {
+    // Final AI response: no more tool calls
+  }
+}
+```
+
+Each snapshot includes the full message history. Use `_getType()` to distinguish message types: tool calls appear as `'ai'` messages with a non-empty `tool_calls` array, while the final response has an empty array.
+
+## Structured Output
+
+Use `model.withStructuredOutput()` with a Zod schema to guarantee typed, structured data from the LLM. This works well for extraction tasks where the agent gathers data with tools, then a second model call extracts structured fields.
+
+```typescript
+// ... langchainAgent and tools defined above
+import { ChatOpenAI } from '@langchain/openai';
+import { z } from 'zod';
+
+const ContactInfoSchema = z.object({
+  name: z.string().describe('Full name of the person'),
+  email: z.string().describe('Email address'),
+  company: z.string().describe('Company name'),
+  role: z.string().describe('Job title'),
+});
+
+const structuredModel = new ChatOpenAI({ model: 'gpt-5.4' })
+  .withStructuredOutput(ContactInfoSchema); // [!code highlight]
+
+// Step 1: Agent gathers data with tools
+const result = await langchainAgent.invoke({ messages });
+
+// Step 2: Structured extraction, fully typed output
+const contact = await structuredModel.invoke([...result.messages]);
+// contact.name, contact.email, contact.company are typed strings
+```
+
+This two-step pattern separates data gathering from extraction. `withStructuredOutput()` returns a model that produces fully typed data matching the Zod schema, with no casting needed.
+
+<Callout type="tip" title="Composable middleware">
+LangChain middleware layers compose in order. Stack multiple layers for dynamic model selection, role-based tool filtering, and tool-call interception. See the [Dynamic Tools](https://github.com/agentuity/examples/tree/main/integrations/langchain/dynamic-tools) and [Dynamic Model](https://github.com/agentuity/examples/tree/main/integrations/langchain/dynamic-model) examples.
+</Callout>
+
+## Full Examples
+
+Explore complete working examples for each pattern:
+
+- [Basic ReAct Agent](https://github.com/agentuity/examples/tree/main/integrations/langchain/basic-agent): tools, model config, error handling middleware
+- [Streaming Agent](https://github.com/agentuity/examples/tree/main/integrations/langchain/streaming-agent): `agent.stream()` with timeline visualization
+- [Dynamic Tools](https://github.com/agentuity/examples/tree/main/integrations/langchain/dynamic-tools): role-based tool filtering with composed middleware
+- [Dynamic Model](https://github.com/agentuity/examples/tree/main/integrations/langchain/dynamic-model): runtime model selection based on conversation complexity
+- [Structured Output](https://github.com/agentuity/examples/tree/main/integrations/langchain/structured-agent-output): `withStructuredOutput()` and Zod schemas
+- [System Prompt](https://github.com/agentuity/examples/tree/main/integrations/langchain/system-prompt): static prompts, dynamic prompt middleware, custom state schemas
+
+## Next Steps
+
+- [Creating Agents](/agents/creating-agents): Agentuity agent patterns and schemas
+- [AI Gateway](/agents/ai-gateway): Managed model credentials across providers
+- [State Management](/agents/state-management): Persist conversation history across requests

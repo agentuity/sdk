@@ -235,6 +235,17 @@ export const navData: NavSection[] = [
 				url: '/routes/sse',
 				description: 'Stream updates from server to client using SSE middleware',
 			},
+			{
+				title: 'Using WebRTC',
+				url: '/routes/webrtc',
+				description: 'Peer-to-peer audio, video, and data channels with the webrtc middleware',
+			},
+			{
+				title: 'Using Explicit Routing',
+				url: '/routes/explicit-routing',
+				description:
+					'Pass your own Hono router to createApp() for full control over route composition and mount paths',
+			},
 		],
 	},
 	{
@@ -351,6 +362,34 @@ export const navData: NavSection[] = [
 					'Publish messages for async processing, webhooks, and event-driven workflows',
 			},
 			{
+				title: 'Email',
+				url: '/services/email',
+				description:
+					'Send and receive emails with managed addresses, destinations, and delivery tracking',
+			},
+			{
+				title: 'Webhooks',
+				url: '/services/webhooks',
+				description:
+					'Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry',
+			},
+			{
+				title: 'Schedules',
+				url: '/services/schedules',
+				description: 'Create platform-managed cron jobs with HTTP and sandbox destinations',
+			},
+			{
+				title: 'Tasks',
+				url: '/services/tasks',
+				description:
+					'Track work items, issues, and agent activity with built-in lifecycle management',
+			},
+			{
+				title: 'Authentication',
+				url: '/services/authentication',
+				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+			},
+			{
 				title: 'Observability',
 				url: '/services/observability',
 				items: [
@@ -421,6 +460,12 @@ export const navData: NavSection[] = [
 				title: 'Patterns',
 				items: [
 					{
+						title: 'Autonomous Research Agent',
+						url: '/cookbook/patterns/autonomous-research',
+						description:
+							'Build a recursive research loop using the Anthropic SDK with native tool calling',
+					},
+					{
 						title: 'Background Tasks',
 						url: '/cookbook/patterns/background-tasks',
 						description: 'Use waitUntil to run work after responding to the client',
@@ -465,10 +510,69 @@ export const navData: NavSection[] = [
 						description: 'Add Tailwind CSS styling to your Agentuity frontend',
 					},
 					{
+						title: 'Web Exploration with Sandboxes',
+						url: '/cookbook/patterns/web-exploration',
+						description:
+							'Run a headless browser in a sandbox to let agents browse, screenshot, and extract web content',
+					},
+					{
 						title: 'Webhook Handler',
 						url: '/cookbook/patterns/webhook-handler',
 						description:
 							'Handle incoming webhooks with signature verification and background processing',
+					},
+				],
+			},
+			{
+				title: 'Integrations',
+				items: [
+					{
+						title: 'Mastra',
+						url: '/cookbook/integrations/mastra',
+						description:
+							'Deploy Mastra agents on Agentuity with persistent state, observability, and the AI Gateway',
+					},
+					{
+						title: 'LangChain',
+						url: '/cookbook/integrations/langchain',
+						description:
+							"Build LangChain agents with Agentuity's deployment runtime, persistent storage, and observability",
+					},
+					{
+						title: 'OpenAI Agents SDK',
+						url: '/cookbook/integrations/openai-agents',
+						description:
+							"Run OpenAI Agents SDK tool calling, handoffs, and structured output on Agentuity's deployment runtime",
+					},
+					{
+						title: 'Claude Agent SDK',
+						url: '/cookbook/integrations/claude-agent',
+						description:
+							'Build conversational code intelligence agents with Claude Agent SDK and Agentuity sandboxes',
+					},
+					{
+						title: 'Chat SDK',
+						url: '/cookbook/integrations/chat-sdk',
+						description:
+							'Build multi-platform chatbots for Slack and Discord with Chat SDK and Agentuity agents',
+					},
+					{
+						title: 'Next.js',
+						url: '/cookbook/integrations/nextjs',
+						description:
+							'Connect a Next.js frontend to an Agentuity backend using API rewrites',
+					},
+					{
+						title: 'TanStack Start',
+						url: '/cookbook/integrations/tanstack-start',
+						description:
+							'Connect a TanStack Start frontend to an Agentuity backend using Vite proxy',
+					},
+					{
+						title: 'Turborepo',
+						url: '/cookbook/integrations/turborepo',
+						description:
+							'Add Agentuity agents as a workspace package alongside your existing apps, with shared types across packages',
 					},
 				],
 			},
@@ -673,6 +777,18 @@ export const navData: NavSection[] = [
 							'CLI commands for AI agents, IDE integration, and schema inspection.',
 					},
 					{
+						title: 'Managing OAuth Applications',
+						url: '/reference/cli/oauth',
+						description:
+							'Create and manage OAuth/OIDC applications for third-party integrations from the CLI',
+					},
+					{
+						title: 'Infrastructure Monitoring',
+						url: '/reference/cli/monitoring',
+						description:
+							'Monitor machine health and resource usage from the CLI in real time or as a snapshot',
+					},
+					{
 						title: 'Claude Code Plugin',
 						url: '/reference/cli/claude-code-plugin',
 						description:
@@ -689,7 +805,104 @@ export const navData: NavSection[] = [
 			{
 				title: 'SDK Reference',
 				url: '/reference/sdk-reference',
-				description: 'Comprehensive reference for the Agentuity TypeScript/JavaScript SDK',
+				items: [
+					{
+						title: 'Application Entry',
+						url: '/reference/sdk-reference/application-entry',
+						description:
+							'Initialize your Agentuity app with createApp() and configure services',
+					},
+					{
+						title: 'Agents',
+						url: '/reference/sdk-reference/agents',
+						description:
+							'Define agents with createAgent(), configure schemas, and write handlers',
+					},
+					{
+						title: 'Schema',
+						url: '/reference/sdk-reference/schema',
+						description: 'Type-safe runtime validation with StandardSchema support',
+					},
+					{
+						title: 'Context API',
+						url: '/reference/sdk-reference/context-api',
+						description: 'Storage, logging, and services available via the ctx.* object',
+					},
+					{
+						title: 'Router',
+						url: '/reference/sdk-reference/router',
+						description: 'HTTP endpoints, middleware, WebSocket, SSE, and cron handlers',
+					},
+					{
+						title: 'Communication',
+						url: '/reference/sdk-reference/communication',
+						description: 'Call agents from routes or other agents with type-safe imports',
+					},
+					{
+						title: 'Storage',
+						url: '/reference/sdk-reference/storage',
+						description: 'KV, Vector, Database, Object, and Stream storage reference',
+					},
+					{
+						title: 'Queue Service',
+						url: '/reference/sdk-reference/queue-service',
+						description: 'Publish messages and manage queues with ctx.queue',
+					},
+					{
+						title: 'Task Service',
+						url: '/reference/sdk-reference/task-service',
+						description: 'Track work items with lifecycle management via ctx.task',
+					},
+					{
+						title: 'Email Service',
+						url: '/reference/sdk-reference/email-service',
+						description: 'Send emails and manage addresses with ctx.email',
+					},
+					{
+						title: 'Schedule Service',
+						url: '/reference/sdk-reference/schedule-service',
+						description: 'Create and manage cron-based scheduled jobs with ctx.schedule',
+					},
+					{
+						title: 'Sandbox Service',
+						url: '/reference/sdk-reference/sandbox-service',
+						description: 'Run code in isolated containers with ctx.sandbox',
+					},
+					{
+						title: 'Observability',
+						url: '/reference/sdk-reference/observability',
+						description:
+							'Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer',
+					},
+					{
+						title: 'Evaluations',
+						url: '/reference/sdk-reference/evaluations',
+						description: 'Test and validate agent outputs with built-in evaluation framework',
+					},
+					{
+						title: 'Events',
+						url: '/reference/sdk-reference/events',
+						description: 'Lifecycle hooks for monitoring agent, session, and thread events',
+					},
+					{
+						title: 'Runtime Utilities',
+						url: '/reference/sdk-reference/advanced',
+						description:
+							'File imports, standalone execution, context detection, process lifecycle, and build metadata',
+					},
+				],
+			},
+			{
+				title: 'Standalone Packages',
+				url: '/reference/standalone-packages',
+				description:
+					'Use Agentuity services from any Node.js or Bun application without the full runtime',
+			},
+			{
+				title: 'GitHub App',
+				url: '/reference/github-app',
+				description:
+					'How the Agentuity GitHub App automates deployments from your repositories.',
 			},
 			{
 				title: 'Gravity Network',

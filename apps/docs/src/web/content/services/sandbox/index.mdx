@@ -24,7 +24,7 @@ Agentuity sandboxes handle this automatically. Every execution runs in an isolat
 
 | Method | Best For |
 |--------|----------|
-| **[Web App](https://app-v1.agentuity.com)** | Visual management, browsing runtimes and snapshots |
+| **[Web App](https://app.agentuity.com)** | Visual management, browsing runtimes and snapshots |
 | **[SDK](/services/sandbox/sdk-usage)** | Programmatic use in agents and routes (`ctx.sandbox`) |
 | **[CLI](/reference/cli/sandbox)** | Local development, scripting, CI/CD |
 
@@ -87,7 +87,7 @@ Pre-configured testing runtimes:
 | `playwright:v1` | Playwright browser automation runtime (Chrome, Firefox, WebKit) |
 
 <Callout type="tip" title="List Available Runtimes">
-Run `agentuity cloud sandbox runtime list` to see all available runtimes, or view them in the [Agentuity App](https://app-v1.agentuity.com) under **Services > Sandbox > Runtimes**.
+Run `agentuity cloud sandbox runtime list` to see all available runtimes, or view them in the [Web App](https://app.agentuity.com) under **Services > Sandbox > Runtimes**.
 </Callout>
 
 ### Runtime Metadata
@@ -261,6 +261,52 @@ The API is identical in both contexts.
 | `dependencies` | Apt packages to install | `['python3', 'git']` |
 | `env` | Environment variables | `{ NODE_ENV: 'test' }` |
 | `snapshot` | Create from existing snapshot | `'my-env'` or `snp_abc123` |
+
+## Sandbox Events
+
+Every sandbox records lifecycle events as it transitions through states. Use `sandboxEventList` to retrieve these events for auditing or debugging.
+
+<Callout type="info" title="Server Utility">
+`sandboxEventList` is a server-side function from `@agentuity/server`. It requires an `APIClient` instance, typically used in CLI tools or standalone scripts rather than agent handlers.
+</Callout>
+
+```typescript
+import { sandboxEventList } from '@agentuity/server';
+
+const { events } = await sandboxEventList(client, {
+  sandboxId: 'sbx_abc123',
+  limit: 50,            // optional, default 50
+  direction: 'asc',    // optional: 'asc' (oldest first, default) or 'desc'
+});
+```
+
+Each event includes:
+
+| Field | Description |
+|-------|-------------|
+| `eventId` | Unique identifier for the event |
+| `sandboxId` | ID of the sandbox |
+| `type` | Event type (e.g., `create`, `destroy`, `lifecycle:started`) |
+| `event` | Arbitrary payload data for the event |
+| `createdAt` | ISO timestamp when the event was recorded |
+
+From the CLI, use `agentuity cloud sandbox events <sandbox-id>` to list events. See [CLI Commands](/reference/cli/sandbox) for options.
+
+## Auto-Resume on Execute
+
+When you call `exec` on a suspended sandbox, the sandbox automatically resumes before running the command. The response includes `autoResumed: true` so you can detect and log this behavior.
+
+```typescript
+const execution = await sandbox.execute({ command: ['bun', 'run', 'test'] });
+
+if (execution.autoResumed) {
+  ctx.logger.info('Sandbox was resumed automatically before execution');
+}
+```
+
+<Callout type="info" title="Auto-resume vs explicit resume">
+Auto-resume is transparent: the command runs normally after the sandbox wakes up. Use explicit `sandbox.resume()` (or `agentuity cloud sandbox resume`) if you need the sandbox ready before issuing multiple commands.
+</Callout>
 
 ## When to Use Sandbox
 

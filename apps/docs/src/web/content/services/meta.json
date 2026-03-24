@@ -1,4 +1,15 @@
 {
 	"title": "Services",
-	"pages": ["database", "storage", "queues", "observability", "sandbox"]
+	"pages": [
+		"database",
+		"storage",
+		"queues",
+		"email",
+		"webhooks",
+		"schedules",
+		"tasks",
+		"authentication",
+		"observability",
+		"sandbox"
+	]
 }

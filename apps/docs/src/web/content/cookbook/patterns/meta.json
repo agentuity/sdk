@@ -1,6 +1,7 @@
 {
 	"title": "Patterns",
 	"pages": [
+		"autonomous-research",
 		"background-tasks",
 		"chat-with-history",
 		"cron-with-storage",
@@ -9,6 +10,7 @@
 		"server-utilities",
 		"product-search",
 		"tailwind-setup",
+		"web-exploration",
 		"webhook-handler"
 	]
 }

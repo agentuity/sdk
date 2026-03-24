@@ -1,0 +1,221 @@
+---
+title: Using Explicit Routing
+description: Pass your own Hono router to createApp() for full control over route composition and mount paths
+---
+
+When your API grows beyond a few endpoints, you may want to compose routers yourself instead of relying on file-based auto-discovery. Explicit routing lets you pass a Hono router directly to `createApp({ router })`, giving you full control over how routes are organized and mounted.
+
+<Callout type="info" title="Experimental">
+Explicit routing is experimental and may change in future releases. File-based routing continues to work, but explicit routing will become the default in the next major version.
+</Callout>
+
+## Basic Setup
+
+Create a root router in `src/api/index.ts` and pass it to `createApp()`:
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/health', (c) => c.json({ status: 'ok' }));
+router.post('/users', async (c) => {
+  const body = await c.req.json();
+  return c.json({ created: body });
+});
+
+export default router;
+```
+
+```typescript title="src/app.ts"
+import { createApp } from '@agentuity/runtime';
+import router from './api/index'; // [!code highlight]
+
+export const app = await createApp({ router }); // [!code highlight]
+```
+
+The router is mounted at `/api` by default. All Agentuity middleware (CORS, OpenTelemetry, agent context) is applied automatically.
+
+## Three Forms
+
+The `router` property in `createApp()` accepts three forms, depending on how you want to organize your routes.
+
+### Plain Hono Instance
+
+Pass a single router and it mounts at `/api`:
+
+```typescript title="src/app.ts"
+import { createApp } from '@agentuity/runtime';
+import router from './api/index';
+
+// Mounted at /api — routes are reachable at /api/health, /api/users, etc.
+export const app = await createApp({ router });
+```
+
+### Single Mount with Custom Path
+
+Wrap the router in `{ path, router }` to control the mount path:
+
+```typescript title="src/app.ts"
+import { createApp } from '@agentuity/runtime';
+import router from './api/index';
+
+// Mounted at /v1 — routes are reachable at /v1/health, /v1/users, etc.
+export const app = await createApp({
+  router: { path: '/v1', router }, // [!code highlight]
+});
+```
+
+### Multiple Mounts
+
+Pass an array of `{ path, router }` objects for multi-version or domain-split APIs:
+
+```typescript title="src/app.ts"
+import { createApp } from '@agentuity/runtime';
+import v1Router from './api/v1';
+import v2Router from './api/v2';
+import internalRouter from './api/internal';
+
+export const app = await createApp({
+  router: [ // [!code highlight]
+    { path: '/api/v1', router: v1Router }, // [!code highlight]
+    { path: '/api/v2', router: v2Router }, // [!code highlight]
+    { path: '/internal', router: internalRouter }, // [!code highlight]
+  ], // [!code highlight]
+});
+```
+
+Each mount gets its own Agentuity middleware (CORS, OpenTelemetry, agent context) applied to `{path}/*`.
+
+## Composing Sub-Routers
+
+For larger APIs, split routes across files and compose them with `.route()`:
+
+```typescript title="src/api/users.ts"
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/', async (c) => {
+  return c.json({ users: [] });
+});
+
+router.get('/:id', async (c) => {
+  const id = c.req.param('id');
+  return c.json({ id, name: 'Alice' });
+});
+
+export default router;
+```
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+import users from './users';
+import posts from './posts';
+
+const router = createRouter();
+
+router.route('/users', users); // [!code highlight]
+router.route('/posts', posts); // [!code highlight]
+
+export default router;
+```
+
+This is standard Hono composition. Routes defined in `users.ts` are reachable at `/api/users/`, `/api/users/:id`, etc.
+
+## When to Use Explicit Routing
+
+| Scenario | Approach |
+|----------|----------|
+| Small API, few route files | File-based routing is simpler |
+| Need custom mount paths (e.g., `/v1`, `/internal`) | Explicit routing with `{ path, router }` |
+| API versioning | Multiple mounts: `[{ path: '/v1', router: v1 }, ...]` |
+| Type-safe RPC with Hono client | Explicit routing, chain methods for type inference |
+| Monorepo with shared route modules | Explicit routing, compose imported routers |
+
+<Callout type="tip" title="Type-Safe API Clients">
+Explicit routing works well with Hono RPC. When you compose routes into a single router with `.route()`, you can export the type and use `hc<AppRoute>()` for end-to-end type safety. See [Hono RPC + TanStack Query](/cookbook/patterns/hono-rpc-tanstack-query) for the full pattern.
+</Callout>
+
+## Migrating from File-Based Routing
+
+If your project uses file-based routing (multiple route files auto-discovered from `src/api/`), the CLI will show a migration notice during `agentuity dev` or `agentuity build`.
+
+### What the Migration Does
+
+1. **Creates `src/api/index.ts`**: A root router that imports and mounts all your existing route files using `.route()`.
+2. **Updates `src/app.ts`**: Adds `import router from './api/index'` and passes it to `createApp({ router })`.
+
+Your existing route files are not modified. They already export Hono routers, so the migration just wires them together.
+
+### Running the Migration
+
+```bash
+agentuity dev --migrate-routes
+```
+
+### Before and After
+
+**Before** (file-based): The build system scans `src/api/**/*.ts` and auto-discovers route files at build time.
+
+```text
+src/api/
+  users.ts      # Auto-discovered, mounted at /api/users
+  posts.ts      # Auto-discovered, mounted at /api/posts
+  health.ts     # Auto-discovered, mounted at /api/health
+```
+
+**After** (explicit): You control the composition in `src/api/index.ts`.
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+import healthRouter from './health';
+import postsRouter from './posts';
+import usersRouter from './users';
+
+const router = createRouter();
+
+router.route('/health', healthRouter);
+router.route('/posts', postsRouter);
+router.route('/users', usersRouter);
+
+export default router;
+```
+
+```typescript title="src/app.ts"
+import { createApp } from '@agentuity/runtime';
+import router from './api/index';
+
+export const app = await createApp({ router });
+```
+
+### Dismissing the Notice
+
+The migration notice appears once. After you see it, the CLI records the state in `.agentuity/.route-migration-state` and does not prompt again. If you are not ready to migrate, you can ignore the notice and continue using file-based routing.
+
+## Agentuity Context in Routes
+
+Both `createRouter()` and `new Hono<Env>()` give you access to Agentuity context variables in your route handlers:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/example', async (c) => {
+  // All Agentuity services are available on c.var
+  c.var.logger.info('Handling request');
+  const data = await c.var.kv.get('cache', 'key');
+  return c.json({ data });
+});
+
+export default router;
+```
+
+`createRouter()` is a thin wrapper around `new Hono<Env>()` that adds response conversion and route ID tracking. Both provide the same typed access to `c.var.logger`, `c.var.kv`, `c.var.vector`, `c.var.thread`, and other services.
+
+## Next Steps
+
+- [Creating HTTP Routes](/routes/http) for route parameters, validation, and request context
+- [Hono RPC + TanStack Query](/cookbook/patterns/hono-rpc-tanstack-query) for end-to-end type safety with explicit routing
+- [Middleware](/routes/middleware) for authentication, rate limiting, and logging

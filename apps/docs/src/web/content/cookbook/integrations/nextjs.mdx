@@ -1,0 +1,151 @@
+---
+title: Adding Agentuity to a Next.js App
+short_title: Next.js
+description: Connect a Next.js frontend to an Agentuity backend using API rewrites
+---
+
+Already have a [Next.js](https://nextjs.org/docs) app? You don't need to rewrite it. Add Agentuity agents alongside your existing frontend, and your Next.js app gets access to agent-native infrastructure: persistent state, storage, observability, and an AI gateway. The two services run side by side, connected through API rewrites.
+
+## Project Structure
+
+The Agentuity backend lives in an `agentuity/` subdirectory inside your Next.js project:
+
+```text
+my-nextjs-app/
+├── app/                          # Next.js frontend
+│   ├── components/App.tsx        # UI using useAPI hooks
+│   ├── layout.tsx
+│   └── page.tsx
+├── agentuity/                    # Agentuity backend
+│   ├── src/agent/translate/      # Agent with handler + evals
+│   ├── src/api/index.ts          # HTTP routes
+│   └── src/generated/routes.ts   # Generated route types
+├── next.config.ts                # /api/* rewrite to backend
+├── tsconfig.json                 # @agentuity/routes alias
+└── package.json
+```
+
+## Rewrite Configuration
+
+In development, Next.js rewrites proxy `/api/*` requests to the Agentuity backend running on a separate port:
+
+```typescript title="next.config.ts"
+import type { NextConfig } from 'next';
+
+const agentuityProxyTarget = process.env.AGENTUITY_PROXY_TARGET
+  ?? (process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3500'
+    : undefined);
+
+const nextConfig: NextConfig = {
+  async rewrites() {
+    if (!agentuityProxyTarget) return [];
+
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${agentuityProxyTarget}/api/:path*`, // [!code highlight]
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+```
+
+<Callout type="info" title="Two runtimes in development">
+`bun run dev` starts both runtimes concurrently. The frontend waits for the backend health check at `http://127.0.0.1:3500/api/health` before launching Next.js.
+</Callout>
+
+## Path Alias Setup
+
+Add the `@agentuity/routes` alias in `tsconfig.json` so TypeScript resolves the generated route types:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@agentuity/routes": ["./agentuity/src/generated/routes"]
+    }
+  }
+}
+```
+
+## Type-Safe API Calls
+
+Import the generated route types and use the [`useAPI`](/frontend/react-hooks) hook for type-safe requests to your Agentuity backend:
+
+```tsx title="app/components/TranslateDemo.tsx"
+'use client';
+
+import { AgentuityProvider, useAPI } from '@agentuity/react';
+import '@agentuity/routes'; // Side-effect import loads generated types
+
+function TranslateDemoInner() {
+  // GET auto-executes and returns data
+  const { data: history, refetch } = useAPI('GET /api/translate/history');
+
+  // POST returns an invoke function for manual calls
+  const { data, invoke: translate, isLoading } = useAPI('POST /api/translate'); // [!code highlight]
+
+  const onTranslate = async () => {
+    await translate({ text: 'Hello world', toLanguage: 'Spanish' });
+    refetch(); // Refresh history after translation
+  };
+
+  return (
+    <div>
+      <button onClick={onTranslate} disabled={isLoading}>Translate</button>
+      {data?.translation && <p>{data.translation}</p>}
+    </div>
+  );
+}
+
+// Wrap with AgentuityProvider at the top level
+export default function TranslateDemo() {
+  return (
+    <AgentuityProvider baseUrl={process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL}>
+      <TranslateDemoInner />
+    </AgentuityProvider>
+  );
+}
+```
+
+- `import '@agentuity/routes'` is a side-effect import: it registers generated type augmentations so TypeScript knows the shape of every route
+- `useAPI('GET ...')` auto-executes on mount and returns `refetch()` for manual refresh
+- `useAPI('POST ...')` returns `invoke()` for manual triggering, with the request body fully typed from the route definition
+
+<Callout type="warning" title="Keep the side-effect import">
+The `import '@agentuity/routes'` line loads the generated route type augmentations. Without it, `useAPI` route keys and payloads lose type safety.
+</Callout>
+
+## Running Locally
+
+Run from the project root (not from inside `agentuity/`):
+
+```bash
+bun install
+bun run build:agent    # Generate route types
+bun run dev            # Start both runtimes
+```
+
+- Frontend: `http://localhost:3001`
+- Backend: `http://localhost:3500`
+- Workbench: `http://localhost:3500/workbench`
+
+## Deployment
+
+When deployed, configure routing at the host level:
+
+1. **Preferred**: Route `/api/*` traffic to the Agentuity backend at the load balancer, matching the local rewrite behavior.
+2. **Fallback**: Set `NEXT_PUBLIC_AGENTUITY_BASE_URL` to the backend URL and pass it through `AgentuityProvider baseUrl`. Enable CORS with `AGENTUITY_CORS_ALLOWED_ORIGINS` on the backend.
+
+## Full Example
+
+[Next.js + Agentuity Example](https://github.com/agentuity/examples/tree/main/existing-apps/nextjs): translate agent, evals, history management, and type-safe routes.
+
+## Next Steps
+
+- [React Hooks](/frontend/react-hooks): Full `useAPI`, `useWebsocket`, and `useEventStream` API
+- [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration options
+- [HTTP Routes](/routes/http): Defining backend API routes
