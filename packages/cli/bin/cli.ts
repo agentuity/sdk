@@ -321,7 +321,9 @@ async function main() {
 	// support process.stdin.unref(), so we must explicitly exit.
 	closeDatabase();
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
-	exit(0);
+	// Preserve process.exitCode set by command handlers (e.g., sandbox run/exec
+	// propagate the sandbox process's exit code). Default to 0 for success.
+	exit(process.exitCode ?? 0);
 }
 
 try {
