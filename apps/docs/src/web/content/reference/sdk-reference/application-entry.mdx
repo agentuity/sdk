@@ -16,24 +16,32 @@ Creates and initializes an Agentuity application instance.
 
 **Parameters**
 
-- `config` (optional): Application configuration object
-  - `cors`: Override default CORS settings (see [CORS configuration](#cors-configuration) below)
-  - `compression`: Configure response compression, or `false` to disable (see [Compression](#compression) below)
-  - `requestTimeout` (optional): Request timeout in seconds. Defaults to `0` (no timeout)
-  - `services`: Override default service implementations
-    - `useLocal`: Use local services for development (default: false)
-    - `keyvalue`: Custom KeyValueStorage implementation
-    - `vector`: Custom VectorStorage implementation
-    - `stream`: Custom StreamStorage implementation
-    - `task`: Custom TaskStorage implementation
-    - `thread`: Custom ThreadProvider implementation
-    - `session`: Custom SessionProvider implementation
-    - `sessionEvent`: Custom SessionEventProvider implementation
-    - `evalRunEvent`: Custom EvalRunEventProvider implementation
-    - `email`: Custom EmailService implementation
-  - `setup`: Async function called before server starts, returns app state available via `ctx.app`
-  - `shutdown`: Async cleanup function called when server stops, receives app state
-  - `router` (experimental): User-provided Hono router(s) instead of file-based routing (see [Custom Router](#custom-router) below)
+`config` (optional): `AppConfig` object.
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `cors` | `CorsConfig` | Reflects any origin | Override default CORS settings (see [CORS configuration](#cors-configuration)) |
+| `compression` | `CompressionConfig \| false` | Enabled, 1024 byte threshold | Configure response compression, or `false` to disable (see [Compression](#compression)) |
+| `requestTimeout` | `number` | `0` (no timeout) | Request timeout in seconds |
+| `services` | `object` | Built-in cloud services | Override default service implementations (see below) |
+| `setup` | `() => Promise<T> \| T` | none | Async function called before server starts. Return value is available via `ctx.app` in agents and `c.var.appState` in routes |
+| `shutdown` | `(state: T) => Promise<void> \| void` | none | Cleanup function called when server stops. Receives the app state from `setup` |
+| `router` | `Hono \| RouteMount \| RouteMount[]` | File-based routing | User-provided Hono router(s) instead of file-based routing (see [Custom Router](#custom-router)). **Experimental** |
+
+**`services` sub-properties** (all optional):
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `useLocal` | `boolean` | Use local in-memory services (default: `false`) |
+| `keyvalue` | `KeyValueStorage` | Custom KV storage implementation |
+| `vector` | `VectorStorage` | Custom vector storage implementation |
+| `stream` | `StreamStorage` | Custom stream storage implementation |
+| `task` | `TaskStorage` | Custom task storage implementation |
+| `thread` | `ThreadProvider` | Custom thread provider |
+| `session` | `SessionProvider` | Custom session provider |
+| `sessionEvent` | `SessionEventProvider` | Custom session event provider |
+| `evalRunEvent` | `EvalRunEventProvider` | Custom eval run event provider |
+| `email` | `EmailService` | Custom email service |
 
 **Return Value**
 
@@ -124,13 +132,11 @@ const app = await createApp({
 
 When `sameOrigin` is enabled, allowed origins are derived from the `AGENTUITY_BASE_URL`, `AGENTUITY_CLOUD_DOMAINS`, and `AUTH_TRUSTED_DOMAINS` environment variables, plus the request's own origin. Any entries in `allowedOrigins` are merged in.
 
-```typescript
-interface CorsConfig {
-  sameOrigin?: boolean;          // Restrict to trusted origins (default: false)
-  allowedOrigins?: string[];     // Additional origins when sameOrigin is true
-  // ... plus standard Hono CORS options (origin, credentials, etc.)
-}
-```
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `sameOrigin` | `boolean` | `false` | Restrict to trusted origins derived from environment variables |
+| `allowedOrigins` | `string[]` | `[]` | Additional origins merged in when `sameOrigin` is `true` |
+| *...rest* | | | Standard [Hono CORS options](https://hono.dev/docs/middleware/builtin/cors) (`origin`, `credentials`, etc.) |
 
 #### Compression
 
@@ -151,14 +157,12 @@ const app = await createApp({
 const app2 = await createApp({ compression: false });
 ```
 
-```typescript
-interface CompressionConfig {
-  enabled?: boolean;                       // Default: true
-  threshold?: number;                      // Min bytes before compressing (default: 1024)
-  filter?: (c: Context) => boolean;        // Return false to skip compression
-  honoOptions?: HonoCompressOptions;       // Passed through to Hono's compress middleware
-}
-```
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable or disable compression |
+| `threshold` | `number` | `1024` | Minimum response size in bytes before compressing |
+| `filter` | `(c: Context) => boolean` | none | Return `false` to skip compression for a request |
+| `honoOptions` | `HonoCompressOptions` | none | Passed through to Hono's compress middleware |
 
 #### Custom Router
 

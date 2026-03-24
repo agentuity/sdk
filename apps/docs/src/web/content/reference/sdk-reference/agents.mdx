@@ -251,44 +251,6 @@ The handler should return the output data (typed according to your output schema
 - A Promise: `return Promise.resolve({ result: 'value' })`
 - An async function automatically returns a Promise
 
-**Key Differences from v0:**
-
-| Aspect | v0 | v1 |
-|--------|-----|-----|
-| **Parameters** | `(request, response, context)` | `(ctx, input)` |
-| **Input access** | `await request.data.json()` | Direct `input` parameter |
-| **Return pattern** | `return response.json(data)` | `return data` |
-| **Validation** | Manual | Automatic via schemas |
-| **Type safety** | Manual types | Auto-inferred from schemas |
-
-**Example Comparison:**
-
-```typescript
-// v0 pattern
-export default async (request, response, context) => {
-  const { name } = await request.data.json();
-  context.logger.info(`Hello ${name}`);
-  return response.json({ greeting: `Hello, ${name}!` });
-};
-```
-
-```typescript
-// v1 pattern
-import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
-
-export default createAgent('Greeter', {
-  schema: {
-    input: z.object({ name: z.string() }),
-    output: z.object({ greeting: z.string() }),
-  },
-  handler: async (ctx, input) => {
-    ctx.logger.info(`Hello ${input.name}`);
-    return { greeting: `Hello, ${input.name}!` };
-  },
-});
-```
-
 ### Input Validation
 
 Input validation happens automatically before the handler executes:
@@ -456,6 +418,8 @@ export default createAgent('chat-stream', {
 ```
 
 **Handler return type**: When `stream: true`, return any `ReadableStream<string>` or `ReadableStream<Uint8Array>`. AI SDK's `textStream` (from `streamText`) satisfies this directly.
+
+For streaming patterns with routes, see [HTTP Routes](/routes/http).
 
 ### Route setup
 

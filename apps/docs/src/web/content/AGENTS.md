@@ -20,6 +20,7 @@ Before writing a new page, read these as reference implementations:
 - **Cookbook pattern**: `cookbook/patterns/chat-with-history.mdx` -- concise, code highlights, thread state
 - **Getting started**: `get-started/quickstart.mdx` -- step-by-step, CardLinks, tips
 - **Reference**: `agents/ai-gateway.mdx` -- provider tables, how-it-works flow
+- **SDK Reference**: `reference/sdk-reference/storage.mdx` -- hybrid narrative + structured method docs
 
 ## Page Types
 
@@ -30,6 +31,46 @@ Before writing a new page, read these as reference implementations:
 | **Service doc**      | When-to-use table, access patterns, operations   | `services/storage/key-value.mdx` |
 | **Cookbook pattern** | Problem statement, complete solution, variations | `cookbook/patterns/*.mdx`        |
 | **Reference**        | Factual, tables, complete flag/option lists      | `reference/cli/*.mdx`            |
+| **SDK Reference**    | Narrative intro, then structured method docs     | `reference/sdk-reference/storage.mdx` |
+
+### SDK Reference Page Convention
+
+SDK Reference pages use a hybrid format: narrative intro followed by structured method documentation.
+
+**Page structure:**
+
+```
+---
+title: Using [Service Name]
+short_title: [Service Name]
+description: One sentence about ctx.X usage
+---
+
+Brief intro (1-2 sentences), standalone callout if applicable, cross-link to how-to page.
+
+### methodName(param1, param2, options?)
+
+One sentence describing what this method does.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| param1 | string | yes | What it is |
+| param2 | object | no | What it configures (optional) |
+
+**Returns:** `Promise<ReturnType>`
+
+(Interface block if return type is complex)
+
+#### Example
+
+\```typescript
+const result = await ctx.service.methodName('value', 'key');
+\```
+```
+
+Each method gets the triplet: **param table + return type + example**. Mark optional parameters explicitly.
+
+**Exemplars:** `reference/sdk-reference/storage.mdx`, `reference/sdk-reference/agents.mdx`
 
 ## Page Structure
 

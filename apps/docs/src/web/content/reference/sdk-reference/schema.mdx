@@ -208,6 +208,40 @@ const maybeString = s.string().optional();  // string | undefined
 const nullableNum = s.number().nullable();  // number | null
 ```
 
+## Extracting Types with `s.infer`
+
+Use `s.infer<typeof Schema>` to extract the TypeScript type from any schema. This is the recommended way to derive types rather than writing separate interfaces.
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const UserSchema = s.object({
+  id: s.string(),
+  name: s.string(),
+  email: s.optional(s.string()),
+  role: s.enum(['admin', 'editor', 'viewer']),
+});
+
+// Extract the type -- equivalent to writing the interface by hand
+type User = s.infer<typeof UserSchema>;
+// { id: string; name: string; email?: string; role: 'admin' | 'editor' | 'viewer' }
+
+// Use the type in function signatures, state, or API boundaries
+function greetUser(user: User): string {
+  return `Hello, ${user.name} (${user.role})`;
+}
+```
+
+`s.infer` works with all schema types, including nested objects, arrays, unions, and optional/nullable wrappers.
+
+For non-builder schemas, the standalone `Infer` type export does the same thing:
+
+```typescript
+import { type Infer } from '@agentuity/schema';
+
+type User = Infer<typeof UserSchema>;
+```
+
 ## Type Coercion
 
 Coercion schemas convert input values before validating. Useful for form data, query parameters, and other string-based inputs where the runtime type doesn't match the desired type.
@@ -296,6 +330,34 @@ const jsonSchema = {
 const schema = s.fromJSONSchema(jsonSchema);
 const result = schema.parse({ name: 'Alice', score: 95 });
 ```
+
+### Using with LLM Structured Output
+
+Combine `toJSONSchema()` with `{ strict: true }` to generate schemas compatible with LLM structured output APIs. The `strict` flag adds `additionalProperties: false` to every object, which providers like OpenAI require.
+
+```typescript
+import { s } from '@agentuity/schema';
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const SentimentSchema = s.object({
+  sentiment: s.enum(['positive', 'negative', 'neutral']),
+  confidence: s.number(),
+  reasoning: s.string(),
+});
+
+const { object } = await generateObject({
+  model: openai('gpt-4o'),
+  schema: s.toJSONSchema(SentimentSchema, { strict: true }),
+  prompt: 'Analyze the sentiment of: "I love this product!"',
+});
+
+// object is typed as { sentiment: string; confidence: number; reasoning: string }
+```
+
+This approach works with any provider that accepts JSON Schema for structured output.
+
+For supported LLM providers, see [AI Gateway](/agents/ai-gateway).
 
 ## Validation Errors
 

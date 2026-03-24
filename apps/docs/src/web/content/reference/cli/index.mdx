@@ -3,49 +3,93 @@ title: CLI Reference
 description: Command-line tools for building, deploying, and managing agents
 ---
 
-The Agentuity CLI is your primary interface for building and managing agents. Create projects, deploy to the cloud, inspect sessions, and manage storage from the terminal.
+import { Terminal, Play, Wrench, Rocket, GitBranch, HardDrive, Box, Settings, Bug, Sparkles, KeyRound, Activity } from 'lucide-react';
 
-## Installation
+Build, deploy, and manage agents from the terminal. Install with `curl -sSL https://agentuity.sh | sh`, then see [Getting Started](/reference/cli/getting-started) for authentication and first steps.
 
-```bash
-curl -sSL https://agentuity.sh | sh
-```
-
-See [Getting Started](/reference/cli/getting-started) for installation options, authentication, and first steps.
-
-## Command Categories
-
-| Category | Commands | Use For |
-|----------|----------|---------|
-| [Getting Started](/reference/cli/getting-started) | `login`, `logout`, `new` | Install, authenticate, create projects |
-| [Development](/reference/cli/development) | `dev` | Local development server |
-| [Deployment](/reference/cli/deployment) | `deploy`, `cloud project` | Deploy and manage cloud projects |
-| [Storage](/reference/cli/storage) | `cloud kv`, `cloud vector`, `cloud s3`, `cloud redis` | Manage KV, vector, object, and Redis storage |
-| [Configuration](/reference/cli/configuration) | `cloud env`, `cloud secret`, `cloud apikey` | Manage env vars, secrets, and API keys |
-| [Debugging](/reference/cli/debugging) | `cloud ssh`, `cloud session` | SSH access, session inspection |
-| [AI Commands](/reference/cli/ai-commands) | `ai` | AI coding agent utilities |
-
-## Quick Reference
-
-```bash
-# Development
-agentuity dev                    # Start dev server
-
-# Deployment
-agentuity deploy                 # Deploy to cloud
-
-# Sessions and Debugging
-agentuity cloud session list     # List recent sessions
-agentuity cloud session logs <id> # View session logs
-agentuity cloud ssh              # SSH into deployment
-
-# Storage
-agentuity cloud kv list <ns>     # List KV keys
-agentuity cloud vector list <ns> # List vector namespaces
-```
-
-## Next Steps
-
-- [Getting Started](/reference/cli/getting-started): Install and authenticate
-- [Development](/reference/cli/development): Run the local dev server
-- [Debugging](/reference/cli/debugging): SSH access and session inspection
+<Cards>
+  <CardLink
+    href="/reference/cli/getting-started"
+    title="Getting Started"
+    description="Install, authenticate, and create projects"
+    icon={<Terminal className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/development"
+    title="Development"
+    description="Local dev server with hot reload"
+    icon={<Play className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/build-configuration"
+    title="Build Configuration"
+    description="Vite plugins and build options"
+    icon={<Wrench className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/deployment"
+    title="Deployment"
+    description="Deploy and manage cloud projects"
+    icon={<Rocket className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/git-integration"
+    title="Git Integration"
+    description="GitHub and Git-based workflows"
+    icon={<GitBranch className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/storage"
+    title="Storage"
+    description="Manage KV, vector, and object storage"
+    icon={<HardDrive className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/sandbox"
+    title="Sandbox"
+    description="Create and manage sandbox environments"
+    icon={<Box className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/configuration"
+    title="Configuration"
+    description="Environment variables and project secrets"
+    icon={<Settings className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/debugging"
+    title="Debugging"
+    description="SSH access and session inspection"
+    icon={<Bug className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/ai-commands"
+    title="AI Commands"
+    description="Generate agents and scaffold code with AI"
+    icon={<Sparkles className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/oauth"
+    title="OAuth"
+    description="Create and manage OAuth/OIDC applications"
+    icon={<KeyRound className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/monitoring"
+    title="Monitoring"
+    description="Health checks and deployment status"
+    icon={<Activity className="size-5" />}
+  />
+  <CardLink
+    href="/reference/cli/claude-code-plugin"
+    title="Claude Code Plugin"
+    description="AI-assisted agent development with Claude Code"
+    icon={<picture><img src="/public/images/integrations/claude.svg" alt="Claude Code" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/reference/cli/opencode-plugin"
+    title="OpenCode Plugin"
+    description="AI-assisted agent development with OpenCode"
+    icon={<picture><img src="/public/images/integrations/opencode.svg" alt="OpenCode" width={28} height={28} /></picture>}
+  />
+</Cards>

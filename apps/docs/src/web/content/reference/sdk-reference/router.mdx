@@ -451,6 +451,8 @@ router.post('/data', stream(async (c) => {
 export default router;
 ```
 
+For streaming agent outputs, see [Streaming Responses](/agents/streaming-responses).
+
 ### Cron Routes
 
 Schedule recurring jobs using cron syntax with the `cron` middleware.
@@ -511,6 +513,8 @@ router.post('/health-check', cron('*/5 * * * *', async (c) => {
 
 export default router;
 ```
+
+For platform-managed schedules with delivery tracking and retry, see [Schedules](/services/schedules).
 
 ## Route Parameters
 

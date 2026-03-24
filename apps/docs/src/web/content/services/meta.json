@@ -8,6 +8,7 @@
 		"webhooks",
 		"schedules",
 		"tasks",
+		"authentication",
 		"observability",
 		"sandbox"
 	]

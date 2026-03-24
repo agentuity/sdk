@@ -1,0 +1,173 @@
+---
+title: Protecting Agents and Routes
+short_title: Authentication
+description: Session auth, API keys, and bearer tokens for agents and routes
+---
+
+import { Monitor, ShieldCheck, Terminal, Globe } from 'lucide-react';
+
+Control who can access your agents and routes. Agentuity Auth supports sessions for browser users, API keys for programmatic access, and bearer tokens for service-to-service calls. Built on [BetterAuth](https://better-auth.com), it works with any PostgreSQL database.
+
+## Quick Start
+
+Install the auth and drizzle packages:
+
+```bash
+bun add @agentuity/auth @agentuity/drizzle
+```
+
+<Tabs items={["Server Setup", "Agent Handler"]}>
+<Tab value="Server Setup">
+Create an auth instance, mount the auth routes, and protect your API with session middleware:
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+import { createAuth, mountAuthRoutes, createSessionMiddleware } from '@agentuity/auth';
+
+const auth = createAuth({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const router = createRouter();
+
+// Expose sign-in, sign-up, session, and token endpoints
+router.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
+
+// Require a valid session for all other API routes
+router.use('/api/*', createSessionMiddleware(auth));
+
+export default router;
+```
+</Tab>
+<Tab value="Agent Handler">
+When middleware is configured, `ctx.auth` is available in every agent handler:
+
+```typescript title="src/agent/protected/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+
+export default createAgent('protected', {
+  handler: async (ctx, input) => {
+    if (!ctx.auth) {
+      ctx.logger.warn('unauthenticated request');
+      return { error: 'Please sign in' };
+    }
+
+    const user = await ctx.auth.getUser();
+    ctx.logger.info('authenticated request', { userId: user.id });
+
+    return { greeting: `Hello, ${user.name}` };
+  },
+});
+```
+</Tab>
+</Tabs>
+
+## Auth Methods
+
+| Method | When to Use | How It Works |
+|--------|------------|--------------|
+| Session | Browser users with a login flow | Cookie-based, managed by BetterAuth |
+| API Key | Server-to-server or CLI tools | Header: `x-agentuity-auth-api-key` or `Authorization: ApiKey <key>` |
+| Bearer Token | JWT-based service auth | Header: `Authorization: Bearer <token>` |
+
+You can check which method authenticated a request with `ctx.auth.authMethod`, which returns `'session'`, `'api-key'`, or `'bearer'`.
+
+## Auth in Different Contexts
+
+<Cards>
+  <CardLink
+    href="/frontend/authentication"
+    title="React Frontend"
+    description="AuthProvider, useAuth hooks, and login forms for browser apps"
+    icon={<Monitor />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/context-api#authentication"
+    title="Agent Handlers"
+    description="Full ctx.auth reference with method signatures and return types"
+    icon={<ShieldCheck />}
+  />
+  <CardLink
+    href="/reference/cli/oauth"
+    title="CLI OAuth"
+    description="Create and manage OAuth/OIDC applications from the command line"
+    icon={<Terminal />}
+  />
+  <CardLink
+    href="/reference/api/oauth"
+    title="REST API"
+    description="OAuth endpoints for any language or integration"
+    icon={<Globe />}
+  />
+</Cards>
+
+## Default Plugins
+
+Agentuity Auth includes four plugins automatically:
+
+| Plugin | Purpose |
+|--------|---------|
+| `organization` | Multi-tenancy with teams, roles, and invitations |
+| `jwt` | JWT token generation with a JWKS endpoint |
+| `bearer` | Bearer token auth via the `Authorization` header |
+| `apiKey` | API key authentication for programmatic access |
+
+<Callout type="tip" title="Full Control Over Plugins">
+Pass `skipDefaultPlugins: true` to `createAuth()` and add only the plugins you need. This is useful when you want a minimal setup or need to customize plugin options.
+</Callout>
+
+## Database Setup
+
+Agentuity Auth needs a PostgreSQL database to store users, sessions, and keys.
+
+**Connection string (simplest).** Provide a URL and Agentuity creates the Bun SQL connection and Drizzle adapter internally:
+
+```typescript
+import { createAuth } from '@agentuity/auth';
+
+const auth = createAuth({
+  connectionString: process.env.DATABASE_URL,
+});
+```
+
+**Bring your own adapter.** If you already have a Drizzle setup, pass it directly:
+
+```typescript
+import { createAuth } from '@agentuity/auth';
+import { drizzleAdapter } from '@agentuity/drizzle';
+import { drizzle } from 'drizzle-orm/bun-sql';
+import * as authSchema from '@agentuity/auth/schema';
+import * as appSchema from './schema';
+
+const schema = { ...authSchema, ...appSchema };
+const db = drizzle(process.env.DATABASE_URL!, { schema });
+
+const auth = createAuth({
+  database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
+});
+```
+
+<Callout type="info" title="Schema Exports">
+The `@agentuity/auth/schema` export provides all auth-related Drizzle tables: `user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`, and `apiKey`.
+</Callout>
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | **Required** |
+| `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
+| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Falls back to `BETTER_AUTH_URL` |
+
+Trusted origins are resolved automatically from `AGENTUITY_CLOUD_DOMAINS` (set by the platform on deploy) and `AUTH_TRUSTED_DOMAINS` (comma-separated, developer-set).
+
+<Callout type="warning" title="Replace Dev Secrets Before Deploying">
+Generate a secure secret with `openssl rand -hex 32` and store it in your environment variables before deploying.
+</Callout>
+
+## Next Steps
+
+- [React Frontend Auth](/frontend/authentication) for AuthProvider setup, useAuth hooks, and sign-in/sign-up forms
+- [ctx.auth Reference](/reference/sdk-reference/context-api#authentication) for complete method signatures and return types
+- [CLI OAuth Commands](/reference/cli/oauth) for creating and managing OAuth/OIDC applications
+- [Auth Testing App](https://github.com/agentuity/sdk/tree/main/apps/testing/auth-package-app) for full working examples

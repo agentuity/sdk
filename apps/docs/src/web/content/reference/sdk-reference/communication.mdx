@@ -1,26 +1,16 @@
 ---
-title: Agent Communication
+title: Calling Other Agents
 short_title: Communication
 description: Call agents from routes or other agents with type-safe imports
 ---
 
-Agents can communicate with each other through a type-safe registry pattern, enabling complex multi-agent workflows with full TypeScript support.
+Import other agents by name and call them with full type safety. The `@agent/` path alias gives you compile-time type checking and IDE autocomplete.
 
 <Callout type="tip" title="Looking for patterns?">
-For orchestration, retry logic, conditional routing, and advanced multi-agent patterns, see [Calling Other Agents](/agents/calling-other-agents).
+For orchestration strategies, retry logic, and conditional routing between agents, see [Calling Other Agents](/agents/calling-other-agents).
 </Callout>
 
 ## Agent Registry
-
-Import other agents directly and call them with full type safety.
-
-**Key Features:**
-- **Type-safe calls**: TypeScript infers input and output types from agent schemas
-- **Automatic validation**: Input and output are validated against schemas
-- **IDE autocomplete**: Full IntelliSense support for agent names and parameters
-- **Error handling**: Type-safe error responses
-
-**Basic Pattern:**
 
 ```typescript
 import otherAgent from '@agent/other';
@@ -122,6 +112,52 @@ export default createAgent('Coordinator', {
     };
   },
 });
+```
+
+## Calling from Routes
+
+Import agents into route handlers the same way you import them in other agents. The `@agent/` alias works in any file within your project.
+
+```typescript title="src/api/summarize/route.ts"
+import { createRouter } from '@agentuity/runtime';
+import summarizeAgent from '@agent/summarize';
+
+const router = createRouter();
+
+router.post('/', summarizeAgent.validator(), async (c) => {
+  const body = c.req.valid('json');
+  const result = await summarizeAgent.run(body);
+  return c.json(result);
+});
+
+export default router;
+```
+
+`summarizeAgent.run()` returns the same typed result as calling it from another agent. Use `agent.validator()` to validate the request body against the agent's input schema before calling `.run()`.
+
+## Typed Responses
+
+TypeScript infers the return type of `.run()` from the called agent's output schema. No manual type annotations are needed:
+
+```typescript
+import enrichmentAgent from '@agent/enrichment';
+
+// result is automatically typed as { sentiment: string; keywords: string[] }
+const result = await enrichmentAgent.run({ text: 'Hello world' });
+result.sentiment; // string -- autocomplete works
+```
+
+When you need an explicit type (for function signatures or intermediate variables), use `Awaited<ReturnType<>>`:
+
+```typescript
+import enrichmentAgent from '@agent/enrichment';
+
+// Extract the output type from the agent
+type EnrichmentOutput = Awaited<ReturnType<typeof enrichmentAgent.run>>;
+
+function formatEnrichment(data: EnrichmentOutput): string {
+  return `${data.sentiment}: ${data.keywords.join(', ')}`;
+}
 ```
 
 ## Error Handling

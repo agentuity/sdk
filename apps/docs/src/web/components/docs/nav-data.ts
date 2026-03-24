@@ -385,6 +385,11 @@ export const navData: NavSection[] = [
 					'Track work items, issues, and agent activity with built-in lifecycle management',
 			},
 			{
+				title: 'Authentication',
+				url: '/services/authentication',
+				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+			},
+			{
 				title: 'Observability',
 				url: '/services/observability',
 				items: [
@@ -837,6 +842,31 @@ export const navData: NavSection[] = [
 						title: 'Storage',
 						url: '/reference/sdk-reference/storage',
 						description: 'KV, Vector, Database, Object, and Stream storage reference',
+					},
+					{
+						title: 'Queue Service',
+						url: '/reference/sdk-reference/queue-service',
+						description: 'Publish messages and manage queues with ctx.queue',
+					},
+					{
+						title: 'Task Service',
+						url: '/reference/sdk-reference/task-service',
+						description: 'Track work items with lifecycle management via ctx.task',
+					},
+					{
+						title: 'Email Service',
+						url: '/reference/sdk-reference/email-service',
+						description: 'Send emails and manage addresses with ctx.email',
+					},
+					{
+						title: 'Schedule Service',
+						url: '/reference/sdk-reference/schedule-service',
+						description: 'Create and manage cron-based scheduled jobs with ctx.schedule',
+					},
+					{
+						title: 'Sandbox Service',
+						url: '/reference/sdk-reference/sandbox-service',
+						description: 'Run code in isolated containers with ctx.sandbox',
 					},
 					{
 						title: 'Observability',

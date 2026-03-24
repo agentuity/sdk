@@ -19,7 +19,7 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
 
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   // Agent execution completed successfully
-  // Evals run during this event
+  // Evals run during this event (see below)
 });
 
 agent.addEventListener('errored', (eventName, agent, ctx, error) => {
@@ -51,7 +51,7 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
   });
 });
 
-// Log when agent completes
+// Log when agent completes (evals also run during this event)
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   ctx.logger.info('Agent completed', {
     agentName: agent.metadata.name,
@@ -200,3 +200,5 @@ agent.addEventListener('errored', erroredHandler);
 // agent.removeEventListener('completed', completedHandler);
 // agent.removeEventListener('errored', erroredHandler);
 ```
+
+For eval creation and lifecycle, see [Evaluations](/reference/sdk-reference/evaluations).

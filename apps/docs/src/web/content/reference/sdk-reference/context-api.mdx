@@ -40,9 +40,9 @@ interface AgentContext<TConfig = unknown, TAppState = unknown> {
   vector: VectorStorage;              // Vector database for embeddings
   stream: StreamStorage;              // Stream storage
 
-  // Platform Services
+  // Platform Services (see individual service pages for full API)
   queue: QueueService;                // Message queue publishing and management
-  task: TaskStorage;                  // Work item tracking with lifecycle management
+  task: TaskService;                  // Work item tracking with lifecycle management
   email: EmailService;                // Email addresses, sending, and destinations
   schedule: ScheduleService;          // Platform-managed cron jobs
   sandbox: SandboxService;            // Code execution in isolated containers
@@ -55,6 +55,23 @@ interface AgentContext<TConfig = unknown, TAppState = unknown> {
   waitUntil(promise: Promise<void> | (() => void | Promise<void>)): void;
 }
 ```
+
+## Platform Services
+
+Each service on the context object is documented on its own reference page:
+
+| Service | Property | Reference |
+|---------|----------|-----------|
+| Key-Value Storage | `ctx.kv` | [Storage APIs](/reference/sdk-reference/storage) |
+| Vector Search | `ctx.vector` | [Storage APIs](/reference/sdk-reference/storage) |
+| Durable Streams | `ctx.stream` | [Storage APIs](/reference/sdk-reference/storage) |
+| Object Storage | `ctx.storage` | [Storage APIs](/reference/sdk-reference/storage) |
+| Database | `ctx.db` | [Storage APIs](/reference/sdk-reference/storage) |
+| Message Queues | `ctx.queue` | [Queue Service](/reference/sdk-reference/queue-service) |
+| Tasks | `ctx.task` | [Task Service](/reference/sdk-reference/task-service) |
+| Email | `ctx.email` | [Email Service](/reference/sdk-reference/email-service) |
+| Schedules | `ctx.schedule` | [Schedule Service](/reference/sdk-reference/schedule-service) |
+| Sandbox | `ctx.sandbox` | [Sandbox Service](/reference/sdk-reference/sandbox-service) |
 
 ## Service Access
 
@@ -81,6 +98,8 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 **Agent Calling:**
 - Import agents directly: `import otherAgent from '@agent/other-agent'`
 - Call with: `await otherAgent.run(input)`
+
+For orchestration patterns, see [Calling Other Agents](/agents/calling-other-agents).
 
 **State Management:**
 - `session`: Persistent session object that spans multiple agent calls.
@@ -266,6 +285,8 @@ ctx.session.metadata.requestType = 'chat';
 ctx.state.set('processingStep', 'validation');
 const step = ctx.state.get('processingStep') as string;
 ```
+
+For a complete chat example, see [Chat with Conversation History](/cookbook/patterns/chat-with-history).
 
 **When to use each:**
 

@@ -70,6 +70,8 @@ export const confidenceEval = agent.createEval('confidence-check', {
 
 The runtime auto-discovers `eval.ts` files next to your agents. No special imports needed in your routes.
 
+For agent creation with evals, see [Creating Agents](/agents/creating-agents).
+
 ## Eval Results
 
 Evals can return different result types depending on the evaluation needs.
@@ -168,6 +170,8 @@ Evals run automatically after agent execution completes, using the `waitUntil()`
 4. All evals attached to the agent run via `waitUntil()`
 5. Eval results are sent to eval tracking service
 6. Response is returned to caller (without waiting for evals)
+
+For background task patterns, see [Context API](/reference/sdk-reference/context-api#background-tasks).
 
 **Multiple Evals Example:**
 
