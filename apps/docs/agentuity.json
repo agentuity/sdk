@@ -3,10 +3,12 @@
 	"projectId": "proj_5ed7da797bef771d65e1bd6946a052b1",
 	"orgId": "org_2u8RgDTwcZWrZrZ3sZh24T5FCtz",
 	"deployment": {
-		"domains": ["agentuity.dev"]
+		"domains": ["agentuity.dev"],
+		"resources": {
 			"memory": "2Gi",
 			"cpu": "2",
 			"disk": "4Gi"
+    	}
 	},
 	"build": {
 		"timeout": "45m",
