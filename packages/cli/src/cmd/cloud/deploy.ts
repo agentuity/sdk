@@ -1,8 +1,15 @@
 import { createPublicKey } from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+	createReadStream,
+	createWriteStream,
+	existsSync,
+	mkdirSync,
+	unlinkSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { createGzip } from 'node:zlib';
 import { StructuredError } from '@agentuity/core';
 import {
@@ -877,42 +884,46 @@ export const deploySubcommand = createSubcommand({
 
 										bytes += asset.size;
 
-										let body: Uint8Array | Blob | ReadableStream<Uint8Array>;
-										let compressedSize: { value: number } | undefined;
+										let body: Blob;
+										let gzTempPath: string | undefined;
 										if (asset.contentEncoding === 'gzip') {
-											const source = createReadStream(filePath);
-											const gzip = createGzip();
-											// Forward source errors to gzip so they propagate
-											// through the ReadableStream to the fetch body,
-											// preventing unhandled EventEmitter errors.
-											source.on('error', (err) => gzip.destroy(err));
-											compressedSize = { value: 0 };
-											gzip.on('data', (chunk: Buffer) => {
-												compressedSize!.value += chunk.length;
-											});
+											// Gzip to a temp file so Bun.file() can provide
+											// Content-Length to S3 (streaming bodies use chunked
+											// transfer encoding which S3 rejects).
+											gzTempPath = join(
+												tmpdir(),
+												`agentuity-asset-${deployment.id}-${Date.now()}-${asset.filename.replace(/\//g, '_')}.gz`
+											);
+											await pipeline(
+												createReadStream(filePath),
+												createGzip(),
+												createWriteStream(gzTempPath)
+											);
 											headers['Content-Encoding'] = 'gzip';
-											body = Readable.toWeb(
-												source.pipe(gzip)
-											) as ReadableStream<Uint8Array>;
+											body = Bun.file(gzTempPath);
+											const compressedSize = body.size;
 											ctx.logger.trace(
-												`Streaming gzip compression for ${asset.filename} (${asset.size} bytes input)`
+												`Gzip compressed ${asset.filename} (${asset.size} -> ${compressedSize} bytes)`
 											);
 										} else {
 											body = Bun.file(filePath);
 										}
 
+										const assetGzTempPath = gzTempPath;
 										promises.push(
 											fetch(assetUrl, {
 												method: 'PUT',
-												duplex: 'half',
 												headers,
 												body,
 												signal: stepCtx.signal,
 											}).then((response) => {
-												if (compressedSize) {
-													ctx.logger.trace(
-														`Compressed ${asset.filename} (${asset.size} -> ${compressedSize.value} bytes)`
-													);
+												// Clean up temp gzip file after upload completes
+												if (assetGzTempPath) {
+													try {
+														unlinkSync(assetGzTempPath);
+													} catch {
+														// ignore — file may already be cleaned up
+													}
 												}
 												return response;
 											})
