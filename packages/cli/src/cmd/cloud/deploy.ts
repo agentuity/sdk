@@ -1,3 +1,4 @@
+import { heapStats } from 'bun:jsc';
 import { createPublicKey } from 'node:crypto';
 import {
 	createReadStream,
@@ -163,6 +164,7 @@ export const deploySubcommand = createSubcommand({
 		let { project } = ctx;
 		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
 		logger.error('THIS IS RUNNING THE NEW BUILD (PARENT)');
+		console.log(heapStats());
 
 		// Verify project access and offer import if needed
 		const { reconcileProject } = await import('../project/reconcile');
@@ -404,6 +406,8 @@ export const deploySubcommand = createSubcommand({
 			logger.error('before Bun.gc 2');
 			Bun.gc(true); // TODO review
 			logger.error('after Bun.gc 2');
+
+			console.log(heapStats());
 
 			if (!result.success) {
 				const appUrl = getAppBaseURL(
