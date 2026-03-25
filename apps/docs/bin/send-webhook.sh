@@ -42,7 +42,11 @@ fi
 echo "Payload size: $(wc -c < "$TEMP_FILE") bytes" >&2
 
 # Build curl command using temporary file
+# Force HTTP/1.1 for compatibility with large request bodies.
+# Server processes async, so a short timeout is sufficient.
 curl_args=(
+    --http1.1
+    --max-time 30
     -X POST
     -H "Content-Type: application/json"
     --data-binary "@$TEMP_FILE"
