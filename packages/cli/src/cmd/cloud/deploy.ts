@@ -388,6 +388,10 @@ export const deploySubcommand = createSubcommand({
 				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 
+			logger.error('before Bun.gc 1');
+			Bun.gc(true); // TODO review
+			logger.error('after Bun.gc 1');
+
 			const result = await runForkedDeploy({
 				projectDir,
 				apiClient,
@@ -396,6 +400,10 @@ export const deploySubcommand = createSubcommand({
 				deployment: initialDeployment,
 				args: childArgs,
 			});
+
+			logger.error('before Bun.gc 2');
+			Bun.gc(true); // TODO review
+			logger.error('after Bun.gc 2');
 
 			if (!result.success) {
 				const appUrl = getAppBaseURL(
