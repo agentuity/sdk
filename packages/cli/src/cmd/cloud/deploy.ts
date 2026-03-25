@@ -1,4 +1,3 @@
-import { heapStats } from 'bun:jsc';
 import { createPublicKey } from 'node:crypto';
 import {
 	createReadStream,
@@ -163,7 +162,6 @@ export const deploySubcommand = createSubcommand({
 	async handler(ctx) {
 		let { project } = ctx;
 		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
-		console.log(heapStats());
 
 		// Verify project access and offer import if needed
 		const { reconcileProject } = await import('../project/reconcile');
@@ -389,10 +387,6 @@ export const deploySubcommand = createSubcommand({
 				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 
-			logger.error('before Bun.gc 1');
-			Bun.gc(true); // TODO review
-			logger.error('after Bun.gc 1');
-
 			const result = await runForkedDeploy({
 				projectDir,
 				apiClient,
@@ -401,12 +395,6 @@ export const deploySubcommand = createSubcommand({
 				deployment: initialDeployment,
 				args: childArgs,
 			});
-
-			logger.error('before Bun.gc 2');
-			Bun.gc(true); // TODO review
-			logger.error('after Bun.gc 2');
-
-			console.log(heapStats());
 
 			if (!result.success) {
 				const appUrl = getAppBaseURL(
