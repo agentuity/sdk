@@ -34,6 +34,16 @@ export interface ForkDeployResult {
 	success: boolean;
 	exitCode: number;
 	diagnostics?: ClientDiagnostics;
+	/** Deploy result passed back from child process via temp file */
+	deployResult?: {
+		urls?: {
+			deployment: string;
+			latest: string;
+			custom?: string[];
+			dashboard: string;
+		};
+		logs?: string[];
+	};
 }
 
 /**
@@ -77,6 +87,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	const reportFile = join(tmpdir(), `agentuity-deploy-${deploymentId}.json`);
 	const cleanLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-logs.txt`);
 	const rawLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-raw.txt`);
+	const deployResultFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-result.json`);
 	const rawLogsWriter = createWriteStream(rawLogsFile);
 	let proc: Subprocess | null = null;
 	let cancelled = false;
@@ -190,6 +201,8 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 				LINES: String(rows),
 				// Enable clean log collection for Pulse streaming
 				AGENTUITY_CLEAN_LOGS_FILE: cleanLogsFile,
+				// Pass result file path for child to write deploy URLs/logs back
+				AGENTUITY_DEPLOY_RESULT_FILE: deployResultFile,
 			},
 			stdin: 'inherit',
 			stdout: 'pipe',
@@ -246,6 +259,18 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			}
 		}
 
+		// Read deploy result (URLs, logs) from child process
+		let deployResult: ForkDeployResult['deployResult'] | undefined;
+		if (existsSync(deployResultFile)) {
+			try {
+				const resultContent = readFileSync(deployResultFile, 'utf-8');
+				deployResult = JSON.parse(resultContent);
+				unlinkSync(deployResultFile);
+			} catch (err) {
+				logger.debug('Failed to read deploy result file: %s', err);
+			}
+		}
+
 		// Stream clean logs to Pulse (prefer clean logs over raw output)
 		if (buildLogsStreamURL) {
 			let logsContent = '';
@@ -299,7 +324,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			return { success: false, exitCode, diagnostics };
 		}
 
-		return { success: true, exitCode, diagnostics };
+		return { success: true, exitCode, diagnostics, deployResult };
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Fork deploy error: %s', errorMessage);
@@ -383,7 +408,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		process.off('SIGTERM', sigtermHandler);
 
 		// Clean up temp files
-		for (const file of [reportFile, cleanLogsFile, rawLogsFile]) {
+		for (const file of [reportFile, cleanLogsFile, rawLogsFile, deployResultFile]) {
 			if (existsSync(file)) {
 				try {
 					unlinkSync(file);

@@ -19,6 +19,13 @@ export const ProjectSchema = z.object({
 	api_key: z.string().optional().describe('the SDK api key for the project'),
 	env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
 	secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
+	urls: z
+		.object({
+			dashboard: z.string().describe('the dashboard URL for the project'),
+			app: z.string().describe('the public URL for the latest deployment'),
+		})
+		.optional()
+		.describe('project URLs'),
 });
 
 export const ProjectGetResponseSchema = APIResponseSchema(ProjectSchema);
