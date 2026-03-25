@@ -128,20 +128,11 @@ async function detectAvailableMemory(
 			// Try cgroup v2
 			const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
 			const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
-			const maxExists = await cgroupMax.exists();
-			const currentExists = await cgroupCurrent.exists();
-			logger.debug(
-				`[${label}] cgroup v2: memory.max exists=${maxExists}, memory.current exists=${currentExists}`
-			);
-			if (maxExists && currentExists) {
+			if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
 				const maxStr = (await cgroupMax.text()).trim();
 				const currentStr = (await cgroupCurrent.text()).trim();
-				logger.debug(
-					`[${label}] cgroup v2 raw: memory.max="${maxStr}", memory.current="${currentStr}"`
-				);
-				// "max" means unlimited
+				// "max" means unlimited — use total system memory
 				if (maxStr === 'max') {
-					// No cgroup limit — use total system memory
 					const { totalmem } = await import('node:os');
 					cgroupMaxBytes = totalmem();
 				} else if (/^\d+$/.test(maxStr)) {
@@ -173,12 +164,9 @@ async function detectAvailableMemory(
 		if (!availableBytes) {
 			const { freemem } = await import('node:os');
 			availableBytes = freemem();
-			logger.debug(
-				`[${label}] Fallback to os.freemem(): ${Math.round(availableBytes / 1024 / 1024)} MiB`
-			);
 		}
-	} catch (err) {
-		logger.debug(`[${label}] Memory detection error: ${err}`);
+	} catch {
+		// If detection fails, let JSC use its own defaults
 	}
 
 	const jscEnv: Record<string, string> = {};
