@@ -15,7 +15,7 @@ import {
 	toCamelCase,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
-import { enrichContextWithTraceState } from './otel/tracestate';
+import { enrichContextWithTraceState } from '@agentuity/analytics';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';

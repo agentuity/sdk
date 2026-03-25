@@ -9,7 +9,10 @@
  * the definitions so call-sites don't need casts.
  */
 
-import type { OtelResponse } from './otel/otel';
+import type { AnalyticsResponse } from '@agentuity/analytics';
+
+// Backwards compatibility alias
+export type OtelResponse = AnalyticsResponse;
 
 /** Shutdown hook function type (duplicated here to avoid circular dep with app.ts) */
 type ShutdownHook = () => Promise<void> | void;

@@ -2,7 +2,7 @@
 import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
 import type { compress } from 'hono/compress';
-import type { Logger } from '@agentuity/otel';
+import type { Logger } from '@agentuity/analytics';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import type {
 	KeyValueStorage,
@@ -169,7 +169,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	// --- Imports (lazy to avoid circular deps) ---
 	const { bootstrapRuntimeEnv } = await import('@agentuity/server');
 	const { agentuity } = await import('@agentuity/hono');
-	const { getOtel } = await import('@agentuity/hono');
+	const { getAnalytics } = await import('@agentuity/hono');
 	const { setGlobalLogger, setGlobalTracer, setGlobalRouter } = await import('./_server');
 	const { createBaseMiddleware, createCorsMiddleware, createCompressionMiddleware } = await import(
 		'./middleware'
@@ -211,25 +211,29 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	// until local services, thread/session providers are migrated
 	app.use('*', agentuity());
 
-	// Get the initialized OTel instance for globals
-	const otel = getOtel();
-	if (otel) {
-		setGlobalLogger(otel.logger);
-		setGlobalTracer(otel.tracer);
+	// Get the initialized Analytics instance for globals
+	const analytics = getAnalytics();
+	if (analytics) {
+		setGlobalLogger(analytics.logger);
+		setGlobalTracer(analytics.tracer);
 	}
 
 	// Additional middleware
 	app.use('*', createCompressionMiddleware(config?.compression));
 	app.use(
 		'*',
-		createBaseMiddleware({ logger: otel!.logger, tracer: otel!.tracer, meter: otel!.meter })
+		createBaseMiddleware({
+			logger: analytics!.logger,
+			tracer: analytics!.tracer,
+			meter: analytics!.meter,
+		})
 	);
 
 	// --- Step 2: Services (thread/session providers still needed) ---
 	const port = process.env.PORT || '3500';
 	const serverUrl = `http://127.0.0.1:${port}`;
 	const { createServices, getThreadProvider, getSessionProvider } = await import('./_services');
-	createServices(otel!.logger, config, serverUrl);
+	createServices(analytics!.logger, config, serverUrl);
 
 	const threadProvider = getThreadProvider();
 	const sessionProvider = getSessionProvider();
@@ -278,7 +282,10 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	const { serverStarted } = await import('./_globals');
 	if (!serverStarted.get()) {
 		serverStarted.set(true);
-		otel!.logger.debug('Server listening on http://127.0.0.1:%s', process.env.PORT || '3500');
+		analytics!.logger.debug(
+			'Server listening on http://127.0.0.1:%s',
+			process.env.PORT || '3500'
+		);
 	}
 
 	const portNumber = parseInt(process.env.PORT || '3500', 10);
@@ -287,7 +294,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		config,
 		router: app as Hono<Env>,
 		server: { url: `http://127.0.0.1:${portNumber}` },
-		logger: otel!.logger,
+		logger: analytics!.logger,
 		fetch: app.fetch,
 		port: portNumber,
 		hostname: '127.0.0.1',

@@ -1,5 +1,5 @@
 import { context, SpanKind, SpanStatusCode, type Context, trace } from '@opentelemetry/api';
-import { enrichContextWithTraceState } from './otel/tracestate';
+import { enrichContextWithTraceState } from '@agentuity/analytics';
 import type {
 	KeyValueStorage,
 	StreamStorage,

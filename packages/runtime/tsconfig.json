@@ -14,8 +14,7 @@
 		{ "path": "../frontend" },
 		{ "path": "../schema" },
 		{ "path": "../server" },
-		{ "path": "../otel" },
-		{ "path": "../services" },
+		{ "path": "../analytics" },
 		{ "path": "../hono" }
 	]
 }

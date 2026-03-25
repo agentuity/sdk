@@ -530,6 +530,34 @@
         "typescript": "^6.0.2",
       },
     },
+    "packages/analytics": {
+      "name": "@agentuity/analytics",
+      "version": "1.0.0",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
+        "@opentelemetry/api": "^1.9.0",
+        "@opentelemetry/api-logs": "^0.207.0",
+        "@opentelemetry/auto-instrumentations-node": "^0.66.0",
+        "@opentelemetry/core": "^2.2.0",
+        "@opentelemetry/exporter-logs-otlp-http": "^0.207.0",
+        "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0",
+        "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
+        "@opentelemetry/host-metrics": "^0.36.2",
+        "@opentelemetry/otlp-exporter-base": "^0.207.0",
+        "@opentelemetry/resources": "^2.2.0",
+        "@opentelemetry/sdk-logs": "^0.207.0",
+        "@opentelemetry/sdk-metrics": "^2.2.0",
+        "@opentelemetry/sdk-node": "^0.207.0",
+        "@opentelemetry/sdk-trace-base": "^2.2.0",
+        "@opentelemetry/semantic-conventions": "^1.37.0",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
     "packages/auth": {
       "name": "@agentuity/auth",
       "version": "1.0.54",
@@ -720,10 +748,15 @@
       "name": "@agentuity/hono",
       "version": "1.0.0",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
-        "@agentuity/otel": "workspace:*",
-        "@agentuity/server": "workspace:*",
-        "@agentuity/services": "workspace:*",
+        "@agentuity/analytics": "workspace:*",
+        "@agentuity/email": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/queue": "workspace:*",
+        "@agentuity/sandbox": "workspace:*",
+        "@agentuity/schedule": "workspace:*",
+        "@agentuity/stream": "workspace:*",
+        "@agentuity/task": "workspace:*",
+        "@agentuity/vector": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "hono": "^4.7.13",
       },
@@ -795,34 +828,6 @@
         "typescript": "^5.9.0",
       },
     },
-    "packages/otel": {
-      "name": "@agentuity/otel",
-      "version": "1.0.0",
-      "dependencies": {
-        "@agentuity/core": "workspace:*",
-        "@agentuity/server": "workspace:*",
-        "@opentelemetry/api": "^1.9.0",
-        "@opentelemetry/api-logs": "^0.207.0",
-        "@opentelemetry/auto-instrumentations-node": "^0.66.0",
-        "@opentelemetry/core": "^2.2.0",
-        "@opentelemetry/exporter-logs-otlp-http": "^0.207.0",
-        "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0",
-        "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
-        "@opentelemetry/host-metrics": "^0.36.2",
-        "@opentelemetry/otlp-exporter-base": "^0.207.0",
-        "@opentelemetry/resources": "^2.2.0",
-        "@opentelemetry/sdk-logs": "^0.207.0",
-        "@opentelemetry/sdk-metrics": "^2.2.0",
-        "@opentelemetry/sdk-node": "^0.207.0",
-        "@opentelemetry/sdk-trace-base": "^2.2.0",
-        "@opentelemetry/semantic-conventions": "^1.37.0",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "bun-types": "latest",
-        "typescript": "^5.9.0",
-      },
-    },
     "packages/postgres": {
       "name": "@agentuity/postgres",
       "version": "1.0.54",
@@ -884,29 +889,14 @@
       "name": "@agentuity/runtime",
       "version": "1.0.54",
       "dependencies": {
+        "@agentuity/analytics": "workspace:*",
         "@agentuity/auth": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
         "@agentuity/hono": "workspace:*",
-        "@agentuity/otel": "workspace:*",
         "@agentuity/schema": "workspace:*",
         "@agentuity/server": "workspace:*",
-        "@agentuity/services": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
-        "@opentelemetry/api-logs": "^0.207.0",
-        "@opentelemetry/auto-instrumentations-node": "^0.66.0",
-        "@opentelemetry/core": "^2.2.0",
-        "@opentelemetry/exporter-logs-otlp-http": "^0.207.0",
-        "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0",
-        "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
-        "@opentelemetry/host-metrics": "^0.36.2",
-        "@opentelemetry/otlp-exporter-base": "^0.207.0",
-        "@opentelemetry/resources": "^2.2.0",
-        "@opentelemetry/sdk-logs": "^0.207.0",
-        "@opentelemetry/sdk-metrics": "^2.2.0",
-        "@opentelemetry/sdk-node": "^0.207.0",
-        "@opentelemetry/sdk-trace-base": "^2.2.0",
-        "@opentelemetry/semantic-conventions": "^1.37.0",
         "hono": "^4.7.13",
         "zod": "^4.3.5",
       },
@@ -979,26 +969,20 @@
         "typescript": "^6.0.2",
       },
     },
-    "packages/services": {
-      "name": "@agentuity/services",
+    "packages/stream": {
+      "name": "@agentuity/stream",
       "version": "1.0.0",
       "dependencies": {
+        "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
-        "@agentuity/server": "workspace:*",
-        "@opentelemetry/api": "^1.9.0",
+        "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/local": "workspace:*",
         "@types/bun": "latest",
+        "@types/node": "^22.0.0",
         "bun-types": "latest",
-        "typescript": "^5.9.0",
+        "typescript": "^6.0.2",
       },
-      "peerDependencies": {
-        "@agentuity/local": "workspace:*",
-      },
-      "optionalPeers": [
-        "@agentuity/local",
-      ],
     },
     "packages/task": {
       "name": "@agentuity/task",
@@ -1150,6 +1134,8 @@
 
     "@agentuity/adapter": ["@agentuity/adapter@workspace:packages/adapter"],
 
+    "@agentuity/analytics": ["@agentuity/analytics@workspace:packages/analytics"],
+
     "@agentuity/auth": ["@agentuity/auth@workspace:packages/auth"],
 
     "@agentuity/claude-code": ["@agentuity/claude-code@workspace:packages/claude-code"],
@@ -1180,8 +1166,6 @@
 
     "@agentuity/opencode": ["@agentuity/opencode@workspace:packages/opencode"],
 
-    "@agentuity/otel": ["@agentuity/otel@workspace:packages/otel"],
-
     "@agentuity/postgres": ["@agentuity/postgres@workspace:packages/postgres"],
 
     "@agentuity/queue": ["@agentuity/queue@workspace:packages/queue"],
@@ -1198,7 +1182,7 @@
 
     "@agentuity/server": ["@agentuity/server@workspace:packages/server"],
 
-    "@agentuity/services": ["@agentuity/services@workspace:packages/services"],
+    "@agentuity/stream": ["@agentuity/stream@workspace:packages/stream"],
 
     "@agentuity/task": ["@agentuity/task@workspace:packages/task"],
 
@@ -4428,6 +4412,8 @@
 
     "zwitch": ["zwitch@2.0.4", "", {}, "sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A=="],
 
+    "@agentuity/analytics/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
     "@agentuity/auth/@types/react": ["@types/react@18.3.28", "", { "dependencies": { "@types/prop-types": "*", "csstype": "^3.2.2" } }, "sha512-z9VXpC7MWrhfWipitjNdgCauoMLRdIILQsAEV+ZesIzBq/oUlxk0m3ApZuMFCXdnS4U7KrI+l3WRUEGQ8K1QKw=="],
 
     "@agentuity/auth/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
@@ -4456,8 +4442,6 @@
 
     "@agentuity/opencode/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
-    "@agentuity/otel/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
     "@agentuity/postgres/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@agentuity/react/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
@@ -4467,8 +4451,6 @@
     "@agentuity/sandbox/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@agentuity/schema/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
-
-    "@agentuity/services/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@agentuity/workbench/@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA=="],
 

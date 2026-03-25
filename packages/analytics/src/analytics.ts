@@ -30,31 +30,47 @@ import { instrumentFetch } from './fetch';
 import { createLogger, patchConsole } from './logger';
 import type { LogLevel } from '@agentuity/core';
 import { JSONLLogExporter, JSONLTraceExporter, JSONLMetricExporter } from './exporters';
+import { analytics as analyticsGlobal } from './globals';
+import { getServiceUrls } from '@agentuity/server';
 
 /**
- * Configuration for OpenTelemetry initialization
+ * Configuration for Analytics/OTel initialization
  */
-export interface OtelConfig {
+export interface AnalyticsConfig {
+	/** Service name (default: AGENTUITY_APP_NAME env) */
+	name?: string;
+	/** Service version (default: AGENTUITY_APP_VERSION env) */
+	version?: string;
+	/** OTel collector URL (default: derived from AGENTUITY_REGION) */
 	url?: string;
-	name: string;
-	version: string;
+	/** Bearer token for auth (default: AGENTUITY_SDK_KEY) */
 	bearerToken?: string;
+	/** Organization ID (default: AGENTUITY_CLOUD_ORG_ID) */
 	orgId?: string;
+	/** Project ID (default: AGENTUITY_CLOUD_PROJECT_ID) */
 	projectId?: string;
+	/** Deployment ID (default: AGENTUITY_CLOUD_DEPLOYMENT_ID) */
 	deploymentId?: string;
+	/** Environment (default: AGENTUITY_ENVIRONMENT or NODE_ENV) */
 	environment?: string;
+	/** CLI version (default: AGENTUITY_CLI_VERSION) */
 	cliVersion?: string;
+	/** SDK version */
 	sdkVersion?: string;
+	/** Development mode (default: AGENTUITY_SDK_DEV_MODE) */
 	devmode?: boolean;
+	/** Custom span processors */
 	spanProcessors?: Array<SpanProcessor>;
+	/** Log level (default: 'warn') */
 	logLevel?: LogLevel;
+	/** JSONL export base path (default: AGENTUITY_CLOUD_EXPORT_DIR) */
 	jsonlBasePath?: string;
 }
 
 /**
- * Response from OpenTelemetry initialization
+ * Response from Analytics initialization
  */
-export interface OtelResponse {
+export interface AnalyticsResponse {
 	tracer: Tracer;
 	meter: Meter;
 	logger: Logger;
@@ -64,7 +80,7 @@ export interface OtelResponse {
 const devmodeExportInterval = 1_000; // 1 second
 const productionExportInterval = 10_000; // 10 seconds
 
-export const createResource = (config: OtelConfig): Resource => {
+export const createResource = (config: Required<AnalyticsConfig>): Resource => {
 	const {
 		name,
 		version,
@@ -80,22 +96,23 @@ export const createResource = (config: OtelConfig): Resource => {
 	return resourceFromAttributes({
 		[ATTR_SERVICE_NAME]: name,
 		[ATTR_SERVICE_VERSION]: version,
-		'@agentuity/orgId': orgId ?? 'unknown',
-		'@agentuity/projectId': projectId ?? 'unknown',
-		'@agentuity/deploymentId': deploymentId ?? 'unknown',
+		'@agentuity/orgId': orgId,
+		'@agentuity/projectId': projectId,
+		'@agentuity/deploymentId': deploymentId,
 		'@agentuity/env': environment,
 		'@agentuity/devmode': devmode,
-		'@agentuity/sdkVersion': sdkVersion ?? 'unknown',
-		'@agentuity/cliVersion': cliVersion ?? 'unknown',
+		'@agentuity/sdkVersion': sdkVersion,
+		'@agentuity/cliVersion': cliVersion,
 	});
 };
 
-export const createAgentuityLoggerProvider = ({
+const createLoggerProvider = ({
 	url,
 	headers,
 	resource,
 	jsonlBasePath,
 	useConsoleExporters,
+	logLevel: _logLevel,
 }: {
 	url?: string;
 	headers?: Record<string, string>;
@@ -113,7 +130,6 @@ export const createAgentuityLoggerProvider = ({
 		exporter = new JSONLLogExporter(jsonlBasePath);
 		processor = new BatchLogRecordProcessor(exporter);
 	} else if (url) {
-		// Original OTLP export behavior
 		const otlpExporter = new OTLPLogExporter({
 			url: `${url}/v1/logs`,
 			headers,
@@ -131,102 +147,113 @@ export const createAgentuityLoggerProvider = ({
 	});
 	LogsAPI.logs.setGlobalLoggerProvider(provider);
 
-	return {
-		processor,
-		provider,
-		exporter,
-	};
+	return { processor, provider, exporter };
 };
-
-export const createUserLoggerProvider = ({
-	url,
-	headers,
-	resource,
-}: {
-	url: string;
-	headers?: Record<string, string>;
-	resource: Resource;
-}) => {
-	const exporter = new OTLPLogExporter({
-		url: `${url}/v1/logs`,
-		headers,
-		compression: CompressionAlgorithm.GZIP,
-		timeoutMillis: 10_000,
-	});
-	const processor = new BatchLogRecordProcessor(exporter);
-	const provider = new LoggerProvider({
-		resource,
-		processors: [processor],
-	});
-	return {
-		provider,
-		exporter,
-		processor,
-	};
-};
-
-import { otel as otelGlobal } from './globals';
 
 /**
- * Registers and initializes OpenTelemetry with the specified configuration.
+ * Get configuration from environment variables
+ */
+function getConfigFromEnv(): Required<AnalyticsConfig> {
+	const region = process.env.AGENTUITY_REGION ?? 'usc';
+	const serviceUrls = getServiceUrls(region);
+
+	return {
+		name: process.env.AGENTUITY_APP_NAME ?? 'agentuity-app',
+		version: process.env.AGENTUITY_APP_VERSION ?? '1.0.0',
+		url: serviceUrls.otel,
+		bearerToken: process.env.AGENTUITY_OTLP_BEARER_TOKEN ?? process.env.AGENTUITY_SDK_KEY ?? '',
+		orgId: process.env.AGENTUITY_CLOUD_ORG_ID ?? 'unknown',
+		projectId: process.env.AGENTUITY_CLOUD_PROJECT_ID ?? 'unknown',
+		deploymentId: process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID ?? 'unknown',
+		environment: process.env.AGENTUITY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development',
+		cliVersion: process.env.AGENTUITY_CLI_VERSION ?? 'unknown',
+		sdkVersion: process.env.AGENTUITY_CLOUD_SDK_VERSION ?? 'unknown',
+		devmode: process.env.AGENTUITY_SDK_DEV_MODE === 'true',
+		logLevel: 'warn' as LogLevel,
+		jsonlBasePath: process.env.AGENTUITY_CLOUD_EXPORT_DIR ?? '',
+		spanProcessors: [],
+	};
+}
+
+/**
+ * Registers and initializes Analytics with the specified configuration.
  *
  * Idempotent: if called again (e.g. during bun --hot reload), the previous
  * instance is shut down before creating a new one.
  *
- * @param config - The configuration for OpenTelemetry
+ * @param config - Optional configuration overrides (defaults from env vars)
  * @returns An object containing the tracer, logger, and shutdown function
  */
-export function registerOtel(config: OtelConfig): OtelResponse {
+export function registerAnalytics(config?: AnalyticsConfig): AnalyticsResponse {
 	// Shut down previous instance if this is a hot reload
-	const previous = otelGlobal.get();
+	const previous = analyticsGlobal.get();
 	if (previous) {
 		previous.shutdown().catch(() => {});
 	}
+
+	// Merge provided config with env defaults
+	const envConfig = getConfigFromEnv();
+	const mergedConfig: Required<AnalyticsConfig> = {
+		name: config?.name ?? envConfig.name,
+		version: config?.version ?? envConfig.version,
+		url: config?.url ?? envConfig.url,
+		bearerToken: config?.bearerToken ?? envConfig.bearerToken,
+		orgId: config?.orgId ?? envConfig.orgId,
+		projectId: config?.projectId ?? envConfig.projectId,
+		deploymentId: config?.deploymentId ?? envConfig.deploymentId,
+		environment: config?.environment ?? envConfig.environment,
+		cliVersion: config?.cliVersion ?? envConfig.cliVersion,
+		sdkVersion: config?.sdkVersion ?? envConfig.sdkVersion,
+		devmode: config?.devmode ?? envConfig.devmode,
+		logLevel: config?.logLevel ?? envConfig.logLevel,
+		jsonlBasePath: config?.jsonlBasePath ?? envConfig.jsonlBasePath,
+		spanProcessors: config?.spanProcessors ?? envConfig.spanProcessors,
+	};
+
 	const {
 		url,
 		name,
 		version,
 		bearerToken,
-		environment = 'development',
+		environment,
 		orgId,
 		projectId,
 		deploymentId,
-		devmode = false,
-		logLevel = 'warn',
-		jsonlBasePath = undefined,
-	} = config;
+		devmode,
+		logLevel,
+		jsonlBasePath,
+		spanProcessors,
+	} = mergedConfig;
 
 	let headers: Record<string, string> | undefined;
-
 	if (bearerToken) {
-		headers = {};
-		headers.Authorization = `Bearer ${bearerToken}`;
+		headers = { Authorization: `Bearer ${bearerToken}` };
 	}
 
-	// use console debug exporters for local debugging
+	// Use console debug exporters for local debugging
 	const useConsoleExporters = process.env.AGENTUITY_DEBUG_OTEL_CONSOLE === 'true';
 
-	const resource = createResource(config);
-	const loggerProvider = createAgentuityLoggerProvider({
+	const resource = createResource(mergedConfig);
+	const loggerProvider = createLoggerProvider({
 		url,
 		headers,
 		resource,
 		logLevel,
-		jsonlBasePath,
+		jsonlBasePath: jsonlBasePath || undefined,
 		useConsoleExporters,
 	});
+
 	const attrs = {
-		'@agentuity/orgId': orgId ?? 'unknown',
-		'@agentuity/projectId': projectId ?? 'unknown',
-		'@agentuity/deploymentId': deploymentId ?? 'unknown',
+		'@agentuity/orgId': orgId,
+		'@agentuity/projectId': projectId,
+		'@agentuity/deploymentId': deploymentId,
 		'@agentuity/env': environment,
 		'@agentuity/devmode': devmode,
 		'@agentuity/language': 'javascript',
 	};
 	const logger = createLogger(!!url, attrs, logLevel);
 
-	// must do this after we have created the logger
-	// don't patch console if we're using console exporters (to avoid double logging)
+	// Don't patch console if using console exporters (avoid double logging)
 	if (!useConsoleExporters) {
 		patchConsole(!!url, attrs, logLevel);
 	}
@@ -256,19 +283,20 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 			: undefined;
 
 	// Create span processors
-	const spanProcessors: SpanProcessor[] = [];
+	const allSpanProcessors: SpanProcessor[] = [];
 
-	// Add OTLP/JSONL span processor if we have an exporter
 	if (traceExporter) {
-		spanProcessors.push(new BatchSpanProcessor(traceExporter));
+		allSpanProcessors.push(new BatchSpanProcessor(traceExporter));
 	}
 
-	// Add debug span processor if console debugging is enabled
 	if (useConsoleExporters) {
-		spanProcessors.push(new SimpleSpanProcessor(new DebugSpanExporter()));
+		allSpanProcessors.push(new SimpleSpanProcessor(new DebugSpanExporter()));
 	}
 
-	// Create a separate metric reader for the NodeSDK
+	// Add custom span processors
+	allSpanProcessors.push(...spanProcessors);
+
+	// Create metric readers
 	const sdkMetricReader = metricExporter
 		? new PeriodicExportingMetricReader({
 				exporter: metricExporter,
@@ -277,7 +305,6 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 			})
 		: undefined;
 
-	// Create a separate metric reader for the MeterProvider
 	const hostMetricReader = metricExporter
 		? new PeriodicExportingMetricReader({
 				exporter: metricExporter,
@@ -287,10 +314,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		: undefined;
 
 	const meterProvider = hostMetricReader
-		? new MeterProvider({
-				resource,
-				readers: [hostMetricReader],
-			})
+		? new MeterProvider({ resource, readers: [hostMetricReader] })
 		: undefined;
 
 	if (meterProvider) {
@@ -309,9 +333,6 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		propagation.setGlobalPropagator(propagator);
 
 		instrumentFetch();
-
-		// Combine custom span processors with our span processors
-		const allSpanProcessors = [...spanProcessors, ...(config.spanProcessors || [])];
 
 		instrumentationSDK = new NodeSDK({
 			logRecordProcessor: loggerProvider.processor,
@@ -338,15 +359,13 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 			logger.debug('shutting down OpenTelemetry');
 			await loggerProvider.provider
 				.forceFlush()
-				.catch((e) => logger.warn('error in forceFlush of otel provider. %s', e));
+				.catch((e) => logger.warn('error in forceFlush. %s', e));
 			await loggerProvider.exporter
 				?.shutdown()
-				.catch((e) => !devmode && logger.warn('error in shutdown of otel exporter. %s', e));
+				.catch((e) => !devmode && logger.warn('error in shutdown of exporter. %s', e));
 			await instrumentationSDK
 				?.shutdown()
-				.catch(
-					(e) => !devmode && logger.warn('error in shutdown of otel instrumentation. %s', e)
-				);
+				.catch((e) => !devmode && logger.warn('error in shutdown of instrumentation. %s', e));
 			logger.debug('shut down OpenTelemetry');
 		}
 	};
@@ -355,7 +374,30 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		logger.info('connected to Agentuity Agent Cloud');
 	}
 
-	const instance: OtelResponse = { tracer, meter, logger, shutdown };
-	otelGlobal.set(instance);
+	const instance: AnalyticsResponse = { tracer, meter, logger, shutdown };
+	analyticsGlobal.set(instance);
+	return instance;
+}
+
+/**
+ * Alias for registerAnalytics (shorter name)
+ */
+export const register = registerAnalytics;
+
+/**
+ * Get the current analytics instance (or undefined if not initialized)
+ */
+export function getAnalytics(): AnalyticsResponse | undefined {
+	return analyticsGlobal.get();
+}
+
+/**
+ * Ensure analytics is initialized (auto-init from env vars if needed)
+ */
+export function ensureInitialized(): AnalyticsResponse {
+	let instance = analyticsGlobal.get();
+	if (!instance) {
+		instance = registerAnalytics();
+	}
 	return instance;
 }

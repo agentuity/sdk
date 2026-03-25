@@ -2,6 +2,7 @@
 	"files": [],
 	"references": [
 		{ "path": "./packages/adapter" },
+		{ "path": "./packages/analytics" },
 		{ "path": "./packages/auth" },
 		{ "path": "./packages/claude-code" },
 		{ "path": "./packages/cli" },
@@ -24,7 +25,7 @@
 		{ "path": "./packages/schedule" },
 		{ "path": "./packages/schema" },
 		{ "path": "./packages/server" },
-		{ "path": "./packages/services" },
+		{ "path": "./packages/stream" },
 		{ "path": "./packages/task" },
 		{ "path": "./packages/vector" },
 		{ "path": "./packages/vscode" },

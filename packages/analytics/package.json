@@ -1,5 +1,5 @@
 {
-	"name": "@agentuity/otel",
+	"name": "@agentuity/analytics",
 	"version": "1.0.0",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
@@ -49,5 +49,5 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": false
+	"sideEffects": true
 }

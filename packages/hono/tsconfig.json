@@ -9,9 +9,14 @@
 	},
 	"include": ["src/**/*"],
 	"references": [
-		{ "path": "../core" },
-		{ "path": "../server" },
-		{ "path": "../otel" },
-		{ "path": "../services" }
+		{ "path": "../analytics" },
+		{ "path": "../keyvalue" },
+		{ "path": "../vector" },
+		{ "path": "../stream" },
+		{ "path": "../queue" },
+		{ "path": "../email" },
+		{ "path": "../task" },
+		{ "path": "../schedule" },
+		{ "path": "../sandbox" }
 	]
 }

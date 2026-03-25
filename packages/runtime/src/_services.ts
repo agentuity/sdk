@@ -38,7 +38,7 @@ import {
 	HTTPEvalRunEventProvider,
 } from './services/evalrun';
 import { LocalThreadProvider } from './services/thread/local';
-import { injectTraceContextToHeaders } from './otel/http';
+import { injectTraceContextToHeaders } from '@agentuity/analytics';
 import { getTracer } from './_server';
 import { populateAgentsRegistry } from './agent.js';
 import { getSDKVersion, isAuthenticated, isProduction } from './_config';

@@ -1,45 +1,39 @@
 {
-	"name": "@agentuity/services",
+	"name": "@agentuity/stream",
 	"version": "1.0.0",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		}
 	},
-	"files": [
-		"src",
-		"dist"
-	],
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build",
-		"typecheck": "bunx tsc --noEmit",
+		"build": "bunx tsgo --build --force",
+		"typecheck": "bunx tsgo --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@agentuity/server": "workspace:*",
-		"@opentelemetry/api": "^1.9.0"
-	},
-	"peerDependencies": {
-		"@agentuity/local": "workspace:*"
-	},
-	"peerDependenciesMeta": {
-		"@agentuity/local": {
-			"optional": true
-		}
+		"@agentuity/adapter": "workspace:*",
+		"zod": "^4.3.5"
 	},
 	"devDependencies": {
-		"@agentuity/local": "workspace:*",
 		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
 		"bun-types": "latest",
-		"typescript": "^5.9.0"
+		"typescript": "^6.0.2"
 	},
 	"publishConfig": {
 		"access": "public"

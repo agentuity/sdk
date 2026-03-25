@@ -1,17 +1,26 @@
+/**
+ * OTel configuration wrapper - uses @agentuity/analytics under the hood
+ *
+ * @deprecated Use `@agentuity/analytics` directly instead:
+ * ```typescript
+ * import { register, tracer, logger, meter } from '@agentuity/analytics';
+ * ```
+ */
+
 import type { LogLevel } from '@agentuity/core';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { getServiceUrls } from '@agentuity/server';
-import * as runtimeConfig from '../_config';
-import type { OtelConfig, OtelResponse } from './otel';
-import { registerOtel } from './otel';
+import {
+	register as registerAnalytics,
+	type AnalyticsConfig,
+	type AnalyticsResponse,
+} from '@agentuity/analytics';
 
 /**
  * Configuration for user provided OpenTelemetry
+ * @deprecated Use AnalyticsConfig from @agentuity/analytics
  */
 export interface CustomizedOtelConfig {
 	endpoint: string;
-	// only supports http/json for now
-	// protocol: 'grpc' | 'http/protobuf' | 'http/json';
 	serviceName: string;
 	resourceAttributes: Record<string, string>;
 	headers: Record<string, string>;
@@ -22,26 +31,19 @@ interface OtelRegisterConfig {
 	logLevel?: LogLevel;
 }
 
-export function register(registerConfig: OtelRegisterConfig): OtelResponse {
-	const region = process.env.AGENTUITY_REGION ?? 'usc';
-	const serviceUrls = getServiceUrls(region);
-	const url = serviceUrls.otel;
-	const bearerToken = process.env.AGENTUITY_OTLP_BEARER_TOKEN ?? process.env.AGENTUITY_SDK_KEY;
-	const config: OtelConfig = {
-		spanProcessors: registerConfig.processors,
-		name: runtimeConfig.getAppName(),
-		version: runtimeConfig.getAppVersion(),
-		cliVersion: runtimeConfig.getCLIVersion(),
-		devmode: runtimeConfig.isDevMode(),
-		orgId: runtimeConfig.getOrganizationId(),
-		projectId: runtimeConfig.getProjectId(),
-		deploymentId: runtimeConfig.getDeploymentId(),
-		environment: runtimeConfig.getEnvironment(),
-		logLevel: registerConfig.logLevel,
-		jsonlBasePath: process.env.AGENTUITY_CLOUD_EXPORT_DIR,
-		bearerToken,
-		url,
+/**
+ * Register and initialize analytics/OTel
+ *
+ * @deprecated Use `register()` from `@agentuity/analytics` directly
+ */
+export function register(registerConfig?: OtelRegisterConfig): AnalyticsResponse {
+	const config: Partial<AnalyticsConfig> = {
+		spanProcessors: registerConfig?.processors,
+		logLevel: registerConfig?.logLevel,
 	};
 
-	return registerOtel(config);
+	return registerAnalytics(config);
 }
+
+// Re-export types for backwards compatibility
+export type { AnalyticsResponse as OtelResponse } from '@agentuity/analytics';
