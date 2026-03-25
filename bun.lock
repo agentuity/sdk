@@ -571,7 +571,6 @@
         "@datasert/cronjs-parser": "^1.4.0",
         "@vitejs/plugin-react": "^5.1.2",
         "acorn-loose": "^8.5.2",
-        "adm-zip": "^0.5.16",
         "archiver": "^7.0.1",
         "astring": "^1.9.0",
         "cli-table3": "^0.6.5",
@@ -587,7 +586,6 @@
       },
       "devDependencies": {
         "@agentuity/test-utils": "workspace:*",
-        "@types/adm-zip": "^0.5.7",
         "@types/archiver": "^6.0.3",
         "@types/bun": "latest",
         "@types/tar-fs": "^2.0.4",
@@ -2258,8 +2256,6 @@
     "@tokenlens/models": ["@tokenlens/models@1.3.0", "", { "dependencies": { "@tokenlens/core": "1.3.0" } }, "sha512-9mx7ZGeewW4ndXAiD7AT1bbCk4OpJeortbjHHyNkgap+pMPPn1chY6R5zqe1ggXIUzZ2l8VOAKfPqOvpcrisJw=="],
 
     "@tootallnate/quickjs-emscripten": ["@tootallnate/quickjs-emscripten@0.23.0", "", {}, "sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA=="],
-
-    "@types/adm-zip": ["@types/adm-zip@0.5.8", "", { "dependencies": { "@types/node": "*" } }, "sha512-RVVH7QvZYbN+ihqZ4kX/dMiowf6o+Jk1fNwiSdx0NahBJLU787zkULhGhJM8mf/obmLGmgdMM0bXsQTmyfbR7Q=="],
 
     "@types/archiver": ["@types/archiver@6.0.4", "", { "dependencies": { "@types/readdir-glob": "*" } }, "sha512-ULdQpARQ3sz9WH4nb98mJDYA0ft2A8C4f4fovvUcFwINa1cgGjY36JCAYuP5YypRq4mco1lJp1/7jEMS2oR0Hg=="],
 
