@@ -49,7 +49,7 @@ import {
 	type VectorSearchResultWithDocument,
 	type VectorUpsertResult,
 } from '@agentuity/core/vector';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
 import { createMinimalLogger } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';

@@ -1,6 +1,7 @@
 {
 	"files": [],
 	"references": [
+		{ "path": "./packages/adapter" },
 		{ "path": "./packages/auth" },
 		{ "path": "./packages/claude-code" },
 		{ "path": "./packages/cli" },
@@ -12,6 +13,7 @@
 		{ "path": "./packages/evals" },
 		{ "path": "./packages/frontend" },
 		{ "path": "./packages/keyvalue" },
+		{ "path": "./packages/local" },
 		{ "path": "./packages/migrate" },
 		{ "path": "./packages/opencode" },
 		{ "path": "./packages/postgres" },
@@ -22,6 +24,7 @@
 		{ "path": "./packages/schedule" },
 		{ "path": "./packages/schema" },
 		{ "path": "./packages/server" },
+		{ "path": "./packages/services" },
 		{ "path": "./packages/task" },
 		{ "path": "./packages/vector" },
 		{ "path": "./packages/vscode" },

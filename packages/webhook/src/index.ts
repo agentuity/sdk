@@ -68,7 +68,7 @@ import {
 	type WebhookOrgAnalytics,
 	type WebhookReceipt,
 } from '@agentuity/core/webhook';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
 import { createMinimalLogger } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';

@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/server",
-	"version": "1.0.54",
+	"version": "2.0.0-beta.1",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -20,11 +20,12 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build --force",
-		"typecheck": "bunx tsc --noEmit",
+		"build": "bunx tsgo --build --force",
+		"typecheck": "bunx tsgo --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/adapter": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"zod": "^4.3.5"
@@ -34,7 +35,7 @@
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
 		"bun-types": "latest",
-		"typescript": "^5.9.0"
+		"typescript": "^6.0.2"
 	},
 	"publishConfig": {
 		"access": "public"

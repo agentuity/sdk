@@ -63,7 +63,8 @@ export interface AuthClientOptions<
  *
  * Note: jwt() and bearer() are server-only plugins.
  */
-export function getDefaultClientPlugins() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getDefaultClientPlugins(): any {
 	return [organizationClient(), apiKeyClient()];
 }
 
@@ -109,9 +110,10 @@ export function getDefaultClientPlugins() {
  * });
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createAuthClient<TPlugins extends BetterAuthClientPlugin[] = []>(
 	options?: AuthClientOptions<TPlugins>
-): ReturnType<typeof createBetterAuthClient<{ plugins: TPlugins }>> {
+): any {
 	const baseURL =
 		options?.baseURL ?? (typeof window !== 'undefined' ? window.location.origin : '');
 	const basePath = options?.basePath ?? '/api/auth';
@@ -121,11 +123,12 @@ export function createAuthClient<TPlugins extends BetterAuthClientPlugin[] = []>
 
 	// Merge default plugins with user plugins
 	// We pass through the full options to preserve type inference
-	// The return type preserves plugin type inference via the generic parameter
 	//
 	// The plugins array uses a type assertion because bun's package resolution can create
 	// multiple physical copies of @better-auth/core with different dependency tree hashes,
 	// causing TypeScript to treat structurally identical types as incompatible.
+	// The return type uses a simpler signature to avoid referencing unexported types
+	// from better-auth plugins (e.g., OrganizationClientOptions).
 	return createBetterAuthClient({
 		...options,
 		baseURL,

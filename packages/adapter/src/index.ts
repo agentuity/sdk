@@ -1,3 +1,16 @@
+// Re-export Logger type from core for convenience
+export type { Logger } from '@agentuity/core';
+
+/**
+ * HTTP client adapter for Agentuity service clients.
+ *
+ * This package provides a minimal HTTP adapter that service clients (keyvalue, queue, etc.)
+ * use to communicate with Agentuity cloud services. It handles authentication headers,
+ * request/response processing, and debug logging.
+ *
+ * @module @agentuity/adapter
+ */
+
 import type {
 	FetchRequest,
 	FetchErrorResponse,
@@ -9,10 +22,21 @@ import type {
 import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
 import { appendFileSync } from 'node:fs';
 
-interface ServiceAdapterConfig {
+// =============================================================================
+// Configuration Types
+// =============================================================================
+
+/**
+ * Configuration for the service fetch adapter.
+ */
+export interface ServiceAdapterConfig {
+	/** Headers to include in all requests */
 	headers: Record<string, string>;
+	/** Query parameters to append to all requests */
 	queryParams?: Record<string, string>;
+	/** Hook called before each request */
 	onBefore?: (url: string, options: FetchRequest, invoke: () => Promise<void>) => Promise<void>;
+	/** Hook called after each request */
 	onAfter?: <T>(
 		url: string,
 		options: FetchRequest,
@@ -20,6 +44,10 @@ interface ServiceAdapterConfig {
 		err?: InstanceType<typeof ServiceException>
 	) => Promise<void>;
 }
+
+// =============================================================================
+// Header Builder
+// =============================================================================
 
 /**
  * Options for building client request headers.
@@ -42,7 +70,7 @@ export interface BuildClientHeadersOptions {
  *
  * @example
  * ```typescript
- * import { buildClientHeaders, createServerFetchAdapter } from '@agentuity/server';
+ * import { buildClientHeaders, createServerFetchAdapter } from '@agentuity/adapter';
  *
  * const headers = buildClientHeaders({ apiKey: 'sk_xxx', orgId: 'org_xxx' });
  * const adapter = createServerFetchAdapter({ headers }, logger);
@@ -63,6 +91,10 @@ export function buildClientHeaders(options: BuildClientHeadersOptions): Record<s
 	return headers;
 }
 
+// =============================================================================
+// Redaction Utilities
+// =============================================================================
+
 /**
  * Headers that contain sensitive information and should be redacted in debug logs.
  * Includes authentication tokens, API keys, cookies, and proxy credentials.
@@ -74,6 +106,96 @@ const sensitiveHeaders = new Set([
 	'set-cookie',
 	'proxy-authorization',
 ]);
+
+/**
+ * Redacts the middle of a string while keeping a prefix and suffix visible.
+ * Ensures that if the string is too short, everything is redacted.
+ *
+ * @param input The string to redact
+ * @param prefix Number of chars to keep at the start
+ * @param suffix Number of chars to keep at the end
+ * @param mask Character used for redaction
+ */
+export function redact(
+	input: string,
+	prefix: number = 4,
+	suffix: number = 4,
+	mask: string = '*'
+): string {
+	if (!input) return '';
+
+	// If revealing prefix+suffix would leak too much, fully mask
+	if (input.length <= prefix + suffix) {
+		return mask.repeat(input.length);
+	}
+
+	const start = input.slice(0, prefix);
+	const end = input.slice(-suffix);
+	const hiddenLength = input.length - prefix - suffix;
+
+	return start + mask.repeat(hiddenLength) + end;
+}
+
+/**
+ * Format a sensitive header value, preserving Bearer prefix if present.
+ */
+function redactSensitiveHeader(key: string, value: string): string {
+	const _k = key.toLowerCase();
+	// Handle Bearer tokens in authorization and proxy-authorization headers
+	if ((_k === 'authorization' || _k === 'proxy-authorization') && value.startsWith('Bearer ')) {
+		return `Bearer ${redact(value.substring(7))}`;
+	}
+	return redact(value);
+}
+
+/**
+ * Format headers as a readable string for debug logging.
+ * Sensitive headers (auth tokens, cookies, API keys) are redacted.
+ */
+function formatHeaders(headers: Headers | Record<string, string>): string {
+	const entries: string[] = [];
+	if (headers instanceof Headers) {
+		headers.forEach((value, key) => {
+			const _k = key.toLowerCase();
+			if (sensitiveHeaders.has(_k)) {
+				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
+			} else {
+				entries.push(`  ${key}: ${value}`);
+			}
+		});
+	} else {
+		for (const [key, value] of Object.entries(headers)) {
+			const _k = key.toLowerCase();
+			if (sensitiveHeaders.has(_k)) {
+				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
+			} else {
+				entries.push(`  ${key}: ${value}`);
+			}
+		}
+	}
+	return entries.join('\n');
+}
+
+const redactHeaders = (kv: Record<string, string>): string => {
+	const values: string[] = [];
+	for (const k of Object.keys(kv)) {
+		const _k = k.toLowerCase();
+		const v = kv[k];
+		if (v === undefined) {
+			continue;
+		}
+		if (sensitiveHeaders.has(_k)) {
+			values.push(`${_k}=${redactSensitiveHeader(k, v)}`);
+		} else {
+			values.push(`${_k}=${v}`);
+		}
+	}
+	return '[' + values.join(',') + ']';
+};
+
+// =============================================================================
+// Debug Logging
+// =============================================================================
 
 /**
  * Check if API debug logging is enabled and return the output destination.
@@ -124,46 +246,6 @@ function formatRequestBody(body: unknown): string {
 		return '[stream]';
 	}
 	return String(body);
-}
-
-/**
- * Format a sensitive header value, preserving Bearer prefix if present.
- */
-function redactSensitiveHeader(key: string, value: string): string {
-	const _k = key.toLowerCase();
-	// Handle Bearer tokens in authorization and proxy-authorization headers
-	if ((_k === 'authorization' || _k === 'proxy-authorization') && value.startsWith('Bearer ')) {
-		return `Bearer ${redact(value.substring(7))}`;
-	}
-	return redact(value);
-}
-
-/**
- * Format headers as a readable string for debug logging.
- * Sensitive headers (auth tokens, cookies, API keys) are redacted.
- */
-function formatHeaders(headers: Headers | Record<string, string>): string {
-	const entries: string[] = [];
-	if (headers instanceof Headers) {
-		headers.forEach((value, key) => {
-			const _k = key.toLowerCase();
-			if (sensitiveHeaders.has(_k)) {
-				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
-			} else {
-				entries.push(`  ${key}: ${value}`);
-			}
-		});
-	} else {
-		for (const [key, value] of Object.entries(headers)) {
-			const _k = key.toLowerCase();
-			if (sensitiveHeaders.has(_k)) {
-				entries.push(`  ${key}: ${redactSensitiveHeader(key, value)}`);
-			} else {
-				entries.push(`  ${key}: ${value}`);
-			}
-		}
-	}
-	return entries.join('\n');
 }
 
 /**
@@ -226,51 +308,9 @@ function logAPIDebug(
 	}
 }
 
-/**
- * Redacts the middle of a string while keeping a prefix and suffix visible.
- * Ensures that if the string is too short, everything is redacted.
- *
- * @param input The string to redact
- * @param prefix Number of chars to keep at the start
- * @param suffix Number of chars to keep at the end
- * @param mask  Character used for redaction
- */
-export function redact(
-	input: string,
-	prefix: number = 4,
-	suffix: number = 4,
-	mask: string = '*'
-): string {
-	if (!input) return '';
-
-	// If revealing prefix+suffix would leak too much, fully mask
-	if (input.length <= prefix + suffix) {
-		return mask.repeat(input.length);
-	}
-
-	const start = input.slice(0, prefix);
-	const end = input.slice(-suffix);
-	const hiddenLength = input.length - prefix - suffix;
-
-	return start + mask.repeat(hiddenLength) + end;
-}
-
-const redactHeaders = (kv: Record<string, string>): string => {
-	const values: string[] = [];
-	for (const k of Object.keys(kv)) {
-		const _k = k.toLowerCase();
-		const v = kv[k];
-		if (v === undefined) {
-			continue;
-		}
-		if (sensitiveHeaders.has(_k)) {
-			values.push(`${_k}=${redactSensitiveHeader(k, v)}`);
-		} else {
-			values.push(`${_k}=${v}`);
-		}
-	}
-	return '[' + values.join(',') + ']';
-};
+// =============================================================================
+// Server Fetch Adapter
+// =============================================================================
 
 class ServerFetchAdapter implements FetchAdapter {
 	#config: ServiceAdapterConfig;
@@ -370,6 +410,7 @@ class ServerFetchAdapter implements FetchAdapter {
 		const err = await toServiceException(method, url, res);
 		throw err;
 	}
+
 	async invoke<T>(
 		url: string,
 		options: FetchRequest = { method: 'POST' }
@@ -413,11 +454,31 @@ class ServerFetchAdapter implements FetchAdapter {
 	}
 }
 
+// =============================================================================
+// Factory Function
+// =============================================================================
+
 /**
- * Create a Server Side Fetch Adapter to allow the server to add headers and track outgoing requests
+ * Create a Server Side Fetch Adapter to allow the server to add headers and track outgoing requests.
  *
- * @param config the service config
- * @returns
+ * This adapter is used by all Agentuity service clients (KeyValueClient, QueueClient, etc.)
+ * to communicate with Agentuity cloud services.
+ *
+ * @param config - Configuration containing headers and optional hooks
+ * @param logger - Logger instance for debug output
+ * @returns A FetchAdapter instance
+ *
+ * @example
+ * ```typescript
+ * import { createServerFetchAdapter, buildClientHeaders } from '@agentuity/adapter';
+ * import { createMinimalLogger } from '@agentuity/core';
+ *
+ * const headers = buildClientHeaders({ apiKey: 'sk_xxx' });
+ * const adapter = createServerFetchAdapter({ headers }, createMinimalLogger());
+ *
+ * // Use with a service
+ * const service = new KeyValueStorageService('https://api.agentuity.sh', adapter);
+ * ```
  */
 export function createServerFetchAdapter(config: ServiceAdapterConfig, logger: Logger) {
 	return new ServerFetchAdapter(config, logger);

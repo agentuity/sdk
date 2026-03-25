@@ -21,7 +21,7 @@ import {
 	type QueueCreateParams,
 	type QueueCreateResult,
 } from '@agentuity/core/queue';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
 import { createMinimalLogger, StructuredError } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';

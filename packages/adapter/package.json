@@ -1,0 +1,35 @@
+{
+	"name": "@agentuity/adapter",
+	"version": "2.0.0-beta.1",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"description": "HTTP client adapter for Agentuity service clients",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsgo --build",
+		"typecheck": "tsgo --noEmit",
+		"clean": "rm -rf dist *.tsbuildinfo"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^6.0.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

@@ -20,20 +20,19 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build --force",
-		"typecheck": "bunx tsc --noEmit",
+		"build": "bunx tsgo --build --force",
+		"typecheck": "bunx tsgo --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@agentuity/server": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
 		"bun-types": "latest",
-		"typescript": "^5.9.0"
+		"typescript": "^6.0.2"
 	},
 	"publishConfig": {
 		"access": "public"

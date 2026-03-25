@@ -9,8 +9,8 @@
 	],
 	"scripts": {
 		"prepare": "husky",
-		"build": "bunx tsc --build && bun run --filter='./packages/core' build && bun run --filter='./packages/schema' build && bun run --filter='./packages/frontend' build && bun run --filter='./packages/server' build && bun run --filter='./packages/react' build && bun run --filter='./packages/postgres' build && bun run --filter='./packages/drizzle' build && bun run --filter='./packages/auth' build && bun run --filter='./packages/evals' build && bun run --filter='./packages/workbench' build && bun run --filter='./packages/runtime' build && bun packages/frontend/scripts/build-beacon.ts && bun run --filter='./packages/cli' build && bun run --filter='./packages/opencode' build && bun run --filter='./apps/testing/integration-suite' build && bun run --filter='./apps/testing/cloud-deployment' build && bun run --filter='./apps/testing/e2e-web' build && bun run --filter='./apps/testing/svelte-web' build",
-		"build:packages": "bunx tsc --build && bun run --filter='./packages/core' build && bun run --filter='./packages/schema' build && bun run --filter='./packages/frontend' build && bun run --filter='./packages/server' build && bun run --filter='./packages/react' build && bun run --filter='./packages/postgres' build && bun run --filter='./packages/drizzle' build && bun run --filter='./packages/auth' build && bun run --filter='./packages/evals' build && bun run --filter='./packages/workbench' build && bun run --filter='./packages/runtime' build && bun packages/frontend/scripts/build-beacon.ts && bun run --filter='./packages/cli' build && bun run --filter='./packages/opencode' build",
+		"build": "bunx tsgo --build && bun run --filter='./packages/core' build && bun run --filter='./packages/schema' build && bun run --filter='./packages/frontend' build && bun run --filter='./packages/server' build && bun run --filter='./packages/react' build && bun run --filter='./packages/postgres' build && bun run --filter='./packages/drizzle' build && bun run --filter='./packages/auth' build && bun run --filter='./packages/evals' build && bun run --filter='./packages/workbench' build && bun run --filter='./packages/runtime' build && bun packages/frontend/scripts/build-beacon.ts && bun run --filter='./packages/cli' build && bun run --filter='./packages/opencode' build && bun run --filter='./apps/testing/integration-suite' build && bun run --filter='./apps/testing/cloud-deployment' build && bun run --filter='./apps/testing/e2e-web' build && bun run --filter='./apps/testing/svelte-web' build",
+		"build:packages": "bunx tsgo --build && bun run --filter='./packages/core' build && bun run --filter='./packages/schema' build && bun run --filter='./packages/frontend' build && bun run --filter='./packages/server' build && bun run --filter='./packages/react' build && bun run --filter='./packages/postgres' build && bun run --filter='./packages/drizzle' build && bun run --filter='./packages/auth' build && bun run --filter='./packages/evals' build && bun run --filter='./packages/workbench' build && bun run --filter='./packages/runtime' build && bun packages/frontend/scripts/build-beacon.ts && bun run --filter='./packages/cli' build && bun run --filter='./packages/opencode' build",
 		"dev:workbench": "concurrently \"cd packages/workbench && bun run dev:app\" \"cd apps/testing/integration-suite && bun run dev\" --names \"workbench,integration-suite\" --prefix-colors \"blue,green\"",
 		"test": "bun test:packages && cd packages/cli && bun run test && cd ../.. && bun test:templates && bun test:pkginstall && bun test:create",
 		"test:packages": "cd packages/core && bun test && cd ../schema && bun test && cd ../frontend && bun test && cd ../server && bun test && cd ../react && bun test && cd ../postgres && bun test && cd ../drizzle && bun test && cd ../auth && bun test && cd ../runtime && bun test --max-concurrency=1 && cd ../opencode && bun test",
@@ -72,6 +72,7 @@
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
+		"@typescript/native-preview": "latest",
 		"bun-types": "latest",
 		"concurrently": "^9.2.1",
 		"husky": "^9.1.7",
@@ -80,7 +81,7 @@
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"rehype-pretty-code": "^0.14.1",
-		"typescript": "^5.9.0"
+		"typescript": "^6.0.2"
 	},
 	"dependencies": {
 		"@radix-ui/react-tabs": "^1.1.13",

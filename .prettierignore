@@ -1,5 +1,0 @@
-bun.lock
-**/.agentuity/*
-packages/cli/test-interop/go-common
-*.sh
-**/generated/*.ts
