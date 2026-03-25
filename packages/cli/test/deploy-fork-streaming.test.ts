@@ -11,6 +11,7 @@ import { spawn } from 'bun';
 import { createWriteStream, existsSync, statSync, readFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { captureStreamToFile } from '../src/utils/stream-capture';
 
 describe('deploy-fork streaming', () => {
 	const tempFiles: string[] = [];
@@ -27,33 +28,6 @@ describe('deploy-fork streaming', () => {
 		}
 		tempFiles.length = 0;
 	});
-
-	/**
-	 * Helper that mirrors the fixed handleOutput pattern from deploy-fork.ts:
-	 * raw bytes are written to a WriteStream instead of being accumulated in a
-	 * string.  Returns the total number of bytes captured.
-	 */
-	async function captureToFile(
-		stream: ReadableStream<Uint8Array>,
-		filePath: string
-	): Promise<number> {
-		const writer = createWriteStream(filePath);
-		const reader = stream.getReader();
-		let totalBytes = 0;
-
-		try {
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				writer.write(value);
-				totalBytes += value.byteLength;
-			}
-		} finally {
-			await new Promise<void>((resolve) => writer.end(resolve));
-		}
-
-		return totalBytes;
-	}
 
 	test('streams large child output to file without holding it in memory', async () => {
 		// Generate ~10 MB of output from a child process.  This is large enough
@@ -76,7 +50,10 @@ describe('deploy-fork streaming', () => {
 			stderr: 'pipe',
 		});
 
-		const captured = await captureToFile(proc.stdout as ReadableStream<Uint8Array>, rawLogsFile);
+		const captured = await captureStreamToFile(
+			proc.stdout as ReadableStream<Uint8Array>,
+			rawLogsFile
+		);
 		await proc.exited;
 
 		// File must exist and contain roughly the expected amount of data
@@ -97,7 +74,7 @@ describe('deploy-fork streaming', () => {
 			stderr: 'pipe',
 		});
 
-		await captureToFile(proc.stdout as ReadableStream<Uint8Array>, rawLogsFile);
+		await captureStreamToFile(proc.stdout as ReadableStream<Uint8Array>, rawLogsFile);
 		await proc.exited;
 
 		// Verify that Bun.file() can read the file and it implements Blob
@@ -174,7 +151,10 @@ describe('deploy-fork streaming', () => {
 			stderr: 'pipe',
 		});
 
-		const captured = await captureToFile(proc.stdout as ReadableStream<Uint8Array>, rawLogsFile);
+		const captured = await captureStreamToFile(
+			proc.stdout as ReadableStream<Uint8Array>,
+			rawLogsFile
+		);
 		await proc.exited;
 
 		expect(existsSync(rawLogsFile)).toBe(true);

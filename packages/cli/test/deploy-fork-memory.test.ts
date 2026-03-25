@@ -16,9 +16,10 @@
  */
 import { describe, test, expect, afterEach } from 'bun:test';
 import { spawn } from 'bun';
-import { createWriteStream, existsSync, statSync, unlinkSync } from 'node:fs';
+import { existsSync, statSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { captureStreamToFile } from '../src/utils/stream-capture';
 
 describe('deploy-fork memory safety', () => {
 	const tempFiles: string[] = [];
@@ -59,18 +60,10 @@ describe('deploy-fork memory safety', () => {
 
 		// FIXED approach: stream raw bytes to a WriteStream on disk.
 		// No string accumulation, no TextDecoder — just raw Uint8Array to file.
-		const writer = createWriteStream(rawLogsFile);
-		const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
-		let totalBytes = 0;
-
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			writer.write(value);
-			totalBytes += value.byteLength;
-		}
-
-		await new Promise<void>((resolve) => writer.end(resolve));
+		const totalBytes = await captureStreamToFile(
+			proc.stdout as ReadableStream<Uint8Array>,
+			rawLogsFile
+		);
 		await proc.exited;
 
 		// ── Data integrity: every byte made it to disk ───────────────
