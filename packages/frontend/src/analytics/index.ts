@@ -20,7 +20,6 @@ export {
 	type ScrollEvent,
 	type AnalyticsCustomEvent,
 	type GeoLocation,
-	type SessionData,
 	type AnalyticsConfig,
 } from '@agentuity/analytics';
 

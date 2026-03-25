@@ -37,17 +37,13 @@ const OTEL_SESSION_EVENT_SKIP_PATHS = new Set([
 	'/_agentuity/workbench/sample',
 	'/_agentuity/workbench/state',
 	'/_agentuity/workbench/metadata.json',
-	'/_agentuity/webanalytics/session.js',
 ]);
 
 /**
  * Paths that should skip thread/session setup entirely.
  * These are lightweight endpoints that don't need any context.
  */
-const OTEL_FULL_SKIP_PATHS = new Set([
-	'/_agentuity/workbench/metadata.json',
-	'/_agentuity/webanalytics/session.js',
-]);
+const OTEL_FULL_SKIP_PATHS = new Set(['/_agentuity/workbench/metadata.json']);
 
 export const AGENT_CONTEXT_PROPERTIES = [
 	'logger',

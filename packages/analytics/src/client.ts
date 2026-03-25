@@ -2,7 +2,7 @@
  * Analytics client - programmatic API
  */
 
-import { isEnabled, getConfig, getEndpoint, getSession } from './config';
+import { isEnabled, getConfig, getEndpoint } from './config';
 import { generateId, safeStringify, getVisitorId } from './util';
 import type { AnalyticsClient, PageViewData, AnalyticsPayload } from './types';
 
@@ -76,12 +76,9 @@ function buildPayload(): AnalyticsPayload | null {
 	const config = getConfig();
 	if (!config) return null;
 
-	const session = getSession();
-
 	return {
 		org_id: config.orgId,
 		project_id: config.projectId,
-		thread_id: session?.threadId ?? '',
 		visitor_id: getVisitorId(),
 		user_id: userId,
 		user_traits: userTraits,

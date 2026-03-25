@@ -46,7 +46,6 @@ export type {
 	ScrollEvent,
 	AnalyticsCustomEvent,
 	GeoLocation,
-	SessionData,
 } from './types';
 
 // Config utilities

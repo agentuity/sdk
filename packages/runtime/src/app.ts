@@ -183,7 +183,6 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		resolveAnalyticsConfig,
 		resolveWorkbenchConfig,
 		registerHealthRoutes,
-		registerAnalyticsRoutes,
 		registerWebRoutes,
 		registerWorkbenchUI,
 		startServer,
@@ -245,10 +244,6 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	const workbenchConfig = resolveWorkbenchConfig(config?.workbench);
 
 	registerHealthRoutes(app);
-
-	if (analyticsConfig.enabled) {
-		registerAnalyticsRoutes(app, analyticsConfig);
-	}
 
 	// Mount user routers
 	if (config?.router) {

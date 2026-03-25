@@ -46,9 +46,7 @@ function devAnalyticsPlugin(): Plugin {
 					isDevmode: true,
 				};
 
-				const injection =
-					`<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(config)};</script>` +
-					'<script src="/_agentuity/webanalytics/session.js" async></script>';
+				const injection = `<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(config)};</script>`;
 
 				if (html.includes('</head>')) {
 					return html.replace('</head>', `${injection}</head>`);

@@ -8,7 +8,6 @@ import type { AnalyticsConfig } from './types';
 declare global {
 	interface Window {
 		__AGENTUITY_ANALYTICS__?: AnalyticsConfig;
-		__AGENTUITY_SESSION__?: { threadId?: string };
 		agentuityAnalytics?: import('./types').AnalyticsClient;
 	}
 }
@@ -24,13 +23,6 @@ export const MAX_CUSTOM_EVENTS = 1000;
  */
 export function getConfig(): AnalyticsConfig | null {
 	return window.__AGENTUITY_ANALYTICS__ ?? null;
-}
-
-/**
- * Get session data from window global
- */
-export function getSession(): { threadId?: string } | undefined {
-	return window.__AGENTUITY_SESSION__;
 }
 
 /**

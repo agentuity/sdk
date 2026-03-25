@@ -15,7 +15,6 @@ import { mimeTypes } from '@agentuity/server';
 import { runShutdown } from './app';
 import type { AnalyticsOptions, WorkbenchOptions } from './app';
 import { createRouter } from './router';
-import { createWebSessionMiddleware } from './middleware';
 import { enableProcessExitProtection } from './_process-protection';
 import { hasWaitUntilPending } from './_waituntil';
 import { getOrganizationId, getProjectId, isDevMode as runtimeIsDevMode } from './_config';
@@ -88,7 +87,7 @@ export function resolveWorkbenchConfig(
 	};
 }
 
-/** Inject analytics scripts into HTML */
+/** Inject analytics config into HTML */
 function injectAnalytics(
 	html: string,
 	analyticsConfig: AnalyticsOptions & { enabled: boolean }
@@ -106,40 +105,16 @@ function injectAnalytics(
 		isDevmode,
 	};
 
-	// Inject config and session context
-	// Users import '@agentuity/analytics/beacon' in their frontend code
+	// Inject config - users import '@agentuity/analytics/beacon' in their frontend code
 	const configScript = `<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(pageConfig)};</script>`;
-	const sessionScript = '<script src="/_agentuity/webanalytics/session.js" async></script>';
 
 	if (html.includes('</head>')) {
-		return html.replace('</head>', configScript + sessionScript + '</head>');
+		return html.replace('</head>', configScript + '</head>');
 	}
 	if (html.includes('<body')) {
-		return html.replace(/<body([^>]*)>/, `<body$1>${configScript}${sessionScript}`);
+		return html.replace(/<body([^>]*)>/, `<body$1>${configScript}`);
 	}
-	return configScript + sessionScript + html;
-}
-
-/** Register analytics routes on the app */
-export function registerAnalyticsRoutes(
-	app: ReturnType<typeof createRouter>,
-	_analyticsConfig: AnalyticsOptions & { enabled: boolean }
-): void {
-	app.get(
-		'/_agentuity/webanalytics/session.js',
-		createWebSessionMiddleware(),
-		async (c: Context) => {
-			const threadId = c.get('_webThreadId') || '';
-			const sessionData = JSON.stringify({ threadId });
-			const sessionScript = `window.__AGENTUITY_SESSION__=${sessionData};`;
-			return new Response(sessionScript, {
-				headers: {
-					'Content-Type': 'application/javascript; charset=utf-8',
-					'Cache-Control': 'no-store, no-cache, must-revalidate',
-				},
-			});
-		}
-	);
+	return configScript + html;
 }
 
 // ============================================================================

@@ -104,11 +104,6 @@ export interface AnalyticsConfig {
 	endpoint?: string;
 }
 
-/** Session data from server */
-export interface SessionData {
-	threadId?: string;
-}
-
 /** Analytics client API */
 export interface AnalyticsClient {
 	/** Track a custom event */
@@ -123,7 +118,6 @@ export interface AnalyticsClient {
 export interface AnalyticsPayload {
 	org_id: string;
 	project_id: string;
-	thread_id: string;
 	visitor_id: string;
 	user_id: string;
 	user_traits: Record<string, string>;
