@@ -25,6 +25,12 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Only write ANSI escape sequences when stderr is a real terminal.
+		// Writing to non-TTY streams (pipes, command substitution, etc.)
+		// pollutes captured output with invisible control characters.
+		if (!process.stderr.isTTY) {
+			return;
+		}
 		// Skip cursor restoration in CI - terminals don't support these sequences
 		if (process.env.CI) {
 			return;
@@ -293,8 +299,13 @@ export function getSeverityColor(severity: string): (text: string) => string {
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	// Clear line first to ensure no leftover content from previous output
-	process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
+	if (process.stderr.isTTY) {
+		// Clear line first to ensure no leftover content from previous output
+		process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
+	} else {
+		// No ANSI control sequences for non-TTY streams (pipes, command substitution)
+		process.stderr.write(`${ICONS.success} ${message}\n`);
+	}
 }
 
 /**
@@ -1243,9 +1254,11 @@ export async function spinner<T>(
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
 
-	// If no interactive TTY-like environment or progress disabled, just execute
-	// the callback without animation
-	if (!isTTYLike() || noProgress) {
+	// If stderr is not a real terminal or progress disabled, just execute
+	// the callback without animation. We check stderr specifically because
+	// the spinner writes ANSI sequences to stderr — isTTYLike() may return
+	// true when stdout is a TTY but stderr is piped (e.g. 2>&1 in $()).
+	if (!process.stderr.isTTY || noProgress) {
 		try {
 			const result =
 				options.type === 'progress'

@@ -1,5 +1,6 @@
 import type { Command } from 'commander';
 import type { CommandDefinition, SubcommandDefinition, CommandSchemas } from './types';
+import { exitCodeDescriptions } from './errors';
 import { parseArgsSchema, parseOptionsSchema } from './schema-parser';
 import * as z from 'zod';
 
@@ -313,18 +314,7 @@ export function generateCLISchema(
 		name: 'agentuity',
 		version,
 		description: 'Agentuity CLI',
-		exitCodes: {
-			0: 'Success',
-			1: 'General error',
-			2: 'Validation error (invalid arguments or options)',
-			3: 'Authentication error (login required or credentials invalid)',
-			4: 'Resource not found (project, file, deployment, etc.)',
-			5: 'Permission denied (insufficient access rights)',
-			6: 'Network error (API unreachable or timeout)',
-			7: 'File system error (file read/write failed)',
-			8: 'User cancelled (operation aborted by user)',
-			9: 'Build failed',
-		},
+		exitCodes: { ...exitCodeDescriptions },
 		globalOptions: [
 			{
 				name: 'config',
