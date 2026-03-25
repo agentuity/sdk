@@ -123,33 +123,72 @@ async function runViteBuildInSubprocess(
 	try {
 		await Bun.write(optionsPath, JSON.stringify(options));
 
-		// Detect available memory so JSC can size its heap appropriately.
-		// Inside containers, JSC may underestimate available RAM from cgroup
-		// limits and restrict its heap too aggressively.  We read the cgroup
-		// memory limit (Linux) or total system memory and pass it via
-		// BUN_JSC_forceRAMSize so the build worker can use it.
-		let forceRAMSize: string | undefined;
+		// Detect ACTUALLY available memory (not just cgroup limit).
+		// The cgroup limit (memory.max) includes page cache from bun install,
+		// predeploy builds, etc. which can consume most of the allocation.
+		// We need: cgroup_max - cgroup_current = truly free memory.
+		let cgroupMaxBytes = 0;
+		let cgroupCurrentBytes = 0;
+		let availableBytes = 0;
 		try {
 			if (process.platform === 'linux') {
-				// Try cgroup v2, then v1
-				const cgroupV2 = Bun.file('/sys/fs/cgroup/memory.max');
-				const cgroupV1 = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
-				let limitStr: string | undefined;
-				if (await cgroupV2.exists()) {
-					limitStr = (await cgroupV2.text()).trim();
-				} else if (await cgroupV1.exists()) {
-					limitStr = (await cgroupV1.text()).trim();
+				// Read cgroup v2 max + current usage
+				const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
+				const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
+				if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
+					const maxStr = (await cgroupMax.text()).trim();
+					const currentStr = (await cgroupCurrent.text()).trim();
+					if (maxStr !== 'max' && /^\d+$/.test(maxStr)) {
+						cgroupMaxBytes = Number(maxStr);
+					}
+					if (/^\d+$/.test(currentStr)) {
+						cgroupCurrentBytes = Number(currentStr);
+					}
+					if (cgroupMaxBytes > 0 && cgroupCurrentBytes > 0) {
+						availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+					}
 				}
-				if (limitStr && limitStr !== 'max' && /^\d+$/.test(limitStr)) {
-					forceRAMSize = limitStr;
+				// Fallback to cgroup v1
+				if (!availableBytes) {
+					const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
+					const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
+					if ((await v1Limit.exists()) && (await v1Usage.exists())) {
+						const limitStr = (await v1Limit.text()).trim();
+						const usageStr = (await v1Usage.text()).trim();
+						if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
+							cgroupMaxBytes = Number(limitStr);
+							cgroupCurrentBytes = Number(usageStr);
+							availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+						}
+					}
 				}
 			}
-			if (!forceRAMSize) {
-				const { totalmem } = await import('node:os');
-				forceRAMSize = String(totalmem());
+			if (!availableBytes) {
+				const { freemem } = await import('node:os');
+				availableBytes = freemem();
 			}
 		} catch {
-			// If detection fails, let JSC use its own default
+			// If detection fails, let JSC use its own defaults
+		}
+
+		const jscEnv: Record<string, string> = {};
+		if (availableBytes > 0) {
+			const maxMb = Math.round(cgroupMaxBytes / 1024 / 1024);
+			const usedMb = Math.round(cgroupCurrentBytes / 1024 / 1024);
+			const availMb = Math.round(availableBytes / 1024 / 1024);
+			// gcMaxHeapSize: allow JSC to use up to 80% of AVAILABLE memory
+			// (not cgroup max, which includes page cache already in use)
+			const maxHeap = Math.round(availableBytes * 0.8);
+			const maxHeapMb = Math.round(maxHeap / 1024 / 1024);
+			jscEnv.BUN_JSC_forceRAMSize = String(availableBytes);
+			jscEnv.BUN_JSC_gcMaxHeapSize = String(maxHeap);
+			logger.debug(
+				`[vite-build-worker:${options.mode}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB`
+			);
+		} else {
+			logger.debug(
+				`[vite-build-worker:${options.mode}] Could not detect available memory, using JSC defaults`
+			);
 		}
 
 		const proc = Bun.spawn({
@@ -157,9 +196,7 @@ async function runViteBuildInSubprocess(
 			cwd: options.rootDir,
 			env: {
 				...process.env,
-				// Tell JSC how much RAM is actually available so it sizes
-				// its heap correctly inside containers.
-				...(forceRAMSize ? { BUN_JSC_forceRAMSize: forceRAMSize } : {}),
+				...jscEnv,
 			},
 			stdin: 'ignore',
 			stdout: 'pipe',
@@ -398,6 +435,9 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				// Copy public files to output for CDN upload (production builds only)
 				// In dev mode, Vite serves them directly from src/web/public/
 				copyPublicDir: !dev,
+				// Skip compressed size reporting to save memory — we measure
+				// sizes during the asset upload phase instead.
+				reportCompressedSize: false,
 			},
 			logLevel: isViteDebug ? 'info' : 'warn',
 		};
