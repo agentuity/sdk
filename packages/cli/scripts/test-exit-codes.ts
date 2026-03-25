@@ -8,6 +8,8 @@ import { ErrorCode, ExitCode, createError, getExitCode, formatErrorJSON } from '
 console.log('Testing Exit Code System\n');
 console.log('=========================\n');
 
+let failures = 0;
+
 // Test 1: Exit code mapping
 console.log('Test 1: Verify ErrorCode to ExitCode mapping');
 console.log('----------------------------------------------');
@@ -33,7 +35,11 @@ for (const [errorCode, expectedExitCode] of testCases) {
 	console.log(
 		`  ${passed ? '✓' : '✗'} ${errorCode} → ${actualExitCode} ${passed ? '' : `(expected ${expectedExitCode})`}`
 	);
-	if (passed) passedTests++;
+	if (passed) {
+		passedTests++;
+	} else {
+		failures++;
+	}
 }
 console.log(`\nPassed: ${passedTests}/${testCases.length}\n`);
 
@@ -49,9 +55,16 @@ const testError = createError(
 const jsonOutput = formatErrorJSON(testError);
 const parsed = JSON.parse(jsonOutput);
 console.log(JSON.stringify(parsed, null, 2));
-console.log(
-	`\n  ${parsed.error.exitCode === ExitCode.AUTH_ERROR ? '✓' : '✗'} Exit code in JSON: ${parsed.error.exitCode} (expected ${ExitCode.AUTH_ERROR})\n`
-);
+if (parsed.error.exitCode === ExitCode.AUTH_ERROR) {
+	console.log(
+		`\n  ✓ Exit code in JSON: ${parsed.error.exitCode} (expected ${ExitCode.AUTH_ERROR})\n`
+	);
+} else {
+	console.log(
+		`\n  ✗ Exit code in JSON: ${parsed.error.exitCode} (expected ${ExitCode.AUTH_ERROR})\n`
+	);
+	failures++;
+}
 
 // Test 3: Different error categories produce correct exit codes
 console.log('Test 3: Different error types produce distinct exit codes');
@@ -81,6 +94,7 @@ for (const example of errorExamples) {
 	console.log(
 		`  ${passed ? '✓' : '✗'} ${example.code} → exit ${exitCode} ${passed ? '' : `(expected ${example.expected})`}`
 	);
+	if (!passed) failures++;
 }
 
 // Test 4: Exit codes are in safe user-defined range (10+)
@@ -100,6 +114,11 @@ if (hasConflict) {
 	process.exit(1);
 }
 console.log('  ✓ All exit codes are outside the Unix signal range (2-9)');
+
+if (failures > 0) {
+	console.error(`\nFAILED: ${failures} test(s) failed\n`);
+	process.exit(1);
+}
 
 console.log('\nAll tests completed successfully! ✓\n');
 console.log('Exit Code Reference:');
