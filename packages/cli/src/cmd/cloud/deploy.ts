@@ -2,6 +2,8 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Readable } from 'node:stream';
+import { createGzip } from 'node:zlib';
 import { StructuredError } from '@agentuity/core';
 import {
 	type BuildMetadata,
@@ -821,9 +823,10 @@ export const deploySubcommand = createSubcommand({
 								endCodeUploadDiagnostic();
 
 								progress(70);
-								ctx.logger.trace('Consuming response body');
-								// Wait for response body to be consumed before deleting
-								await resp.arrayBuffer();
+								ctx.logger.trace('Cancelling upload response body');
+								// No response payload is needed for successful uploads.
+								// Cancel to release resources without buffering into memory.
+								await resp.body?.cancel();
 								ctx.logger.trace('Deleting encrypted zip');
 								await zipfile.delete();
 							} finally {
@@ -874,15 +877,25 @@ export const deploySubcommand = createSubcommand({
 
 										bytes += asset.size;
 
-										let body: Uint8Array | Blob;
+										let body: Uint8Array | Blob | ReadableStream<Uint8Array>;
+										let compressedSize: { value: number } | undefined;
 										if (asset.contentEncoding === 'gzip') {
-											const file = Bun.file(filePath);
-											const ab = await file.arrayBuffer();
-											const gzipped = Bun.gzipSync(new Uint8Array(ab));
+											const source = createReadStream(filePath);
+											const gzip = createGzip();
+											// Forward source errors to gzip so they propagate
+											// through the ReadableStream to the fetch body,
+											// preventing unhandled EventEmitter errors.
+											source.on('error', (err) => gzip.destroy(err));
+											compressedSize = { value: 0 };
+											gzip.on('data', (chunk: Buffer) => {
+												compressedSize!.value += chunk.length;
+											});
 											headers['Content-Encoding'] = 'gzip';
-											body = gzipped;
+											body = Readable.toWeb(
+												source.pipe(gzip)
+											) as ReadableStream<Uint8Array>;
 											ctx.logger.trace(
-												`Compressing ${asset.filename} (${asset.size} -> ${gzipped.byteLength} bytes)`
+												`Streaming gzip compression for ${asset.filename} (${asset.size} bytes input)`
 											);
 										} else {
 											body = Bun.file(filePath);
@@ -895,6 +908,13 @@ export const deploySubcommand = createSubcommand({
 												headers,
 												body,
 												signal: stepCtx.signal,
+											}).then((response) => {
+												if (compressedSize) {
+													ctx.logger.trace(
+														`Compressed ${asset.filename} (${asset.size} -> ${compressedSize.value} bytes)`
+													);
+												}
+												return response;
 											})
 										);
 									}

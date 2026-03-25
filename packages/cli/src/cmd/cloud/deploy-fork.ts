@@ -248,18 +248,20 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 
 		// Stream clean logs to Pulse (prefer clean logs over raw output)
 		if (buildLogsStreamURL) {
-			let logsContent = '';
+			let streamedCleanLogs = false;
 			if (existsSync(cleanLogsFile)) {
 				try {
-					logsContent = readFileSync(cleanLogsFile, 'utf-8');
+					const cleanLogs = Bun.file(cleanLogsFile);
+					if (cleanLogs.size > 0) {
+						await streamToPulse(buildLogsStreamURL, sdkKey, cleanLogs, logger);
+						streamedCleanLogs = true;
+					}
 					unlinkSync(cleanLogsFile);
 				} catch (err) {
-					logger.debug('Failed to read clean logs file: %s', err);
+					logger.debug('Failed to stream clean logs file: %s', err);
 				}
 			}
-			if (logsContent) {
-				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
-			} else if (existsSync(rawLogsFile)) {
+			if (!streamedCleanLogs && existsSync(rawLogsFile)) {
 				// Stream raw logs file directly to Pulse without loading into memory
 				await streamToPulse(buildLogsStreamURL, sdkKey, Bun.file(rawLogsFile), logger);
 			}
@@ -305,18 +307,26 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		logger.error('Fork deploy error: %s', errorMessage);
 
 		if (buildLogsStreamURL) {
-			let logsContent = '';
+			let streamedCleanLogs = false;
 			if (existsSync(cleanLogsFile)) {
 				try {
-					logsContent = readFileSync(cleanLogsFile, 'utf-8');
+					const cleanLogs = Bun.file(cleanLogsFile);
+					if (cleanLogs.size > 0) {
+						await streamToPulse(buildLogsStreamURL, sdkKey, cleanLogs, logger);
+						streamedCleanLogs = true;
+					}
 					unlinkSync(cleanLogsFile);
 				} catch {
 					// ignore
 				}
 			}
-			if (logsContent) {
-				logsContent += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
-				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
+			if (streamedCleanLogs) {
+				await streamToPulse(
+					buildLogsStreamURL,
+					sdkKey,
+					`\n\n--- FORK ERROR ---\n${errorMessage}\n`,
+					logger
+				);
 			} else {
 				// Append error to raw logs file and stream it without loading into memory
 				try {
