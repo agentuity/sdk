@@ -162,6 +162,7 @@ export const deploySubcommand = createSubcommand({
 	async handler(ctx) {
 		let { project } = ctx;
 		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
+		logger.error('THIS IS RUNNING THE NEW BUILD (PARENT)');
 
 		// Verify project access and offer import if needed
 		const { reconcileProject } = await import('../project/reconcile');
