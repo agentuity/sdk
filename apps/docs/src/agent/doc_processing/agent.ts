@@ -71,7 +71,7 @@ agent.addEventListener('errored', (_event, _agent, ctx, error) => {
 	const startTime = ctx.state.get('syncStartTime') as number | undefined;
 	const durationMs = startTime !== undefined ? Date.now() - startTime : -1;
 	ctx.logger.error('DocProcessing agent failed', {
-		error: error.message,
+		error: error instanceof Error ? error.message : String(error),
 		durationMs,
 		sessionId: ctx.sessionId,
 	});

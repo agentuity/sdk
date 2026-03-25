@@ -94,9 +94,9 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 				batch.map((logicalPath) => removeVectorsByPath(ctx, logicalPath, VECTOR_STORE_NAME))
 			);
 
-			for (let j = 0; j < results.length; j++) {
-				const result = results[j];
+			for (const [j, result] of results.entries()) {
 				const logicalPath = batch[j];
+				if (!logicalPath) continue;
 				if (result.status === 'fulfilled') {
 					deleted++;
 				} else {
@@ -139,9 +139,9 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 				batch.map((file) => processChangedFile(ctx, file))
 			);
 
-			for (let j = 0; j < results.length; j++) {
-				const result = results[j];
+			for (const [j, result] of results.entries()) {
 				const file = batch[j];
+				if (!file) continue;
 				if (result.status === 'fulfilled') {
 					processed++;
 					ctx.logger.info('Processed %s (%d chunks)', file.path, result.value);
@@ -190,6 +190,10 @@ export async function clearVectorDb(ctx: any) {
 		if (batch.length === 0) break;
 
 		const keys = batch.map((v: { key: string }) => v.key);
-		await ctx.vector.delete(VECTOR_STORE_NAME, ...keys);
+		const deletedCount = await ctx.vector.delete(VECTOR_STORE_NAME, ...keys);
+		if (deletedCount === 0) {
+			ctx.logger.warn('Vector delete returned 0 during clearVectorDb, aborting loop');
+			break;
+		}
 	}
 }
