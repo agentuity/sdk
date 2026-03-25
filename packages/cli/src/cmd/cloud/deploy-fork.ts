@@ -13,7 +13,7 @@
 import { spawn, type Subprocess } from 'bun';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { appendFileSync, createWriteStream, existsSync, readFileSync, unlinkSync } from 'node:fs';
 import type { APIClient } from '../../api';
 import { getUserAgent } from '../../api';
 import { isUnicode } from '../../tui/symbols';
@@ -37,12 +37,14 @@ export interface ForkDeployResult {
 }
 
 /**
- * Stream data to a Pulse stream URL
+ * Stream data to a Pulse stream URL.
+ * Accepts a string, Blob/BunFile, or ReadableStream as the body to avoid
+ * loading large outputs into memory.
  */
 async function streamToPulse(
 	streamURL: string,
 	sdkKey: string,
-	data: string,
+	data: string | Blob | ReadableStream<Uint8Array>,
 	logger: Logger
 ): Promise<void> {
 	try {
@@ -74,7 +76,8 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	const buildLogsStreamURL = deployment.buildLogsStreamURL;
 	const reportFile = join(tmpdir(), `agentuity-deploy-${deploymentId}.json`);
 	const cleanLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-logs.txt`);
-	let outputBuffer = '';
+	const rawLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-raw.txt`);
+	const rawLogsWriter = createWriteStream(rawLogsFile);
 	let proc: Subprocess | null = null;
 	let cancelled = false;
 
@@ -195,7 +198,6 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 
 		const handleOutput = async (stream: ReadableStream<Uint8Array>, isStderr: boolean) => {
 			const reader = stream.getReader();
-			const decoder = new TextDecoder();
 			const target = isStderr ? process.stderr : process.stdout;
 
 			try {
@@ -203,8 +205,9 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 					const { done, value } = await reader.read();
 					if (done) break;
 
-					const text = decoder.decode(value, { stream: true });
-					outputBuffer += text;
+					// Stream raw bytes to disk instead of accumulating in memory.
+					// This prevents OOM / ERR_STRING_TOO_LONG crashes on large builds.
+					rawLogsWriter.write(value);
 					target.write(value);
 				}
 			} catch (err) {
@@ -222,6 +225,11 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 				: Promise.resolve();
 
 		await Promise.all([stdoutPromise, stderrPromise]);
+
+		// Close the raw logs writer so the file is fully flushed before reading
+		await new Promise<void>((resolve) => {
+			rawLogsWriter.end(resolve);
+		});
 
 		const exitCode = await proc.exited;
 		logger.debug('Child process exited with code: %d', exitCode);
@@ -249,12 +257,11 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 					logger.debug('Failed to read clean logs file: %s', err);
 				}
 			}
-			// Fall back to raw output if no clean logs
-			if (!logsContent && outputBuffer) {
-				logsContent = outputBuffer;
-			}
 			if (logsContent) {
 				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
+			} else if (existsSync(rawLogsFile)) {
+				// Stream raw logs file directly to Pulse without loading into memory
+				await streamToPulse(buildLogsStreamURL, sdkKey, Bun.file(rawLogsFile), logger);
 			}
 		}
 
@@ -307,11 +314,27 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 					// ignore
 				}
 			}
-			if (!logsContent) {
-				logsContent = outputBuffer;
+			if (logsContent) {
+				logsContent += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
+				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
+			} else {
+				// Append error to raw logs file and stream it without loading into memory
+				try {
+					appendFileSync(rawLogsFile, `\n\n--- FORK ERROR ---\n${errorMessage}\n`);
+				} catch {
+					// ignore — file may not exist if child never produced output
+				}
+				if (existsSync(rawLogsFile)) {
+					await streamToPulse(buildLogsStreamURL, sdkKey, Bun.file(rawLogsFile), logger);
+				} else {
+					await streamToPulse(
+						buildLogsStreamURL,
+						sdkKey,
+						`--- FORK ERROR ---\n${errorMessage}\n`,
+						logger
+					);
+				}
 			}
-			logsContent += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
-			await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
 		}
 
 		try {
@@ -360,7 +383,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		process.off('SIGTERM', sigtermHandler);
 
 		// Clean up temp files
-		for (const file of [reportFile, cleanLogsFile]) {
+		for (const file of [reportFile, cleanLogsFile, rawLogsFile]) {
 			if (existsSync(file)) {
 				try {
 					unlinkSync(file);
