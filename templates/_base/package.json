@@ -24,7 +24,7 @@
 	},
 	"devDependencies": {
 		"@agentuity/cli": "^2.0.0",
-		"@types/bun": "^2.0.0",
+		"@types/bun": "latest",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^4.5.0",
