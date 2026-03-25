@@ -25,11 +25,49 @@ function createWorkerLogger(): Logger {
 	return loggerRef;
 }
 
+async function logMemoryDiagnostics(label: string): Promise<void> {
+	try {
+		const { heapStats } = await import('bun:jsc');
+		const stats = heapStats();
+		const heapMb = Math.round(Number(stats.heapSize) / 1024 / 1024);
+		const capacityMb = Math.round(Number(stats.heapCapacity) / 1024 / 1024);
+		const objectCount = stats.objectCount;
+		console.log(
+			`[${label}] JSC heap: size=${heapMb} MiB, capacity=${capacityMb} MiB, objects=${objectCount}`
+		);
+	} catch {
+		// bun:jsc may not be available
+	}
+
+	// Log process RSS from /proc/self/status on Linux
+	try {
+		const status = Bun.file('/proc/self/status');
+		if (await status.exists()) {
+			const text = await status.text();
+			const vmRss = text.match(/VmRSS:\s+(\d+)/);
+			const vmPeak = text.match(/VmPeak:\s+(\d+)/);
+			if (vmRss) {
+				console.log(
+					`[${label}] Process RSS: ${Math.round(Number(vmRss[1]) / 1024)} MiB, Peak: ${vmPeak ? Math.round(Number(vmPeak[1]) / 1024) : '?'} MiB`
+				);
+			}
+		}
+	} catch {
+		// Not on Linux
+	}
+}
+
 async function main(): Promise<void> {
 	const optionsPath = process.argv[2];
 	if (!optionsPath) {
 		throw new Error('Missing worker options file path argument');
 	}
+
+	// Log env vars and initial memory state for diagnostics
+	console.log(
+		`BUN_JSC_forceRAMSize=${process.env.BUN_JSC_forceRAMSize ?? 'unset'}, BUN_JSC_gcMaxHeapSize=${process.env.BUN_JSC_gcMaxHeapSize ?? 'unset'}`
+	);
+	await logMemoryDiagnostics('startup');
 
 	const optionsFile = Bun.file(optionsPath);
 	if (!(await optionsFile.exists())) {
@@ -42,6 +80,8 @@ async function main(): Promise<void> {
 		...options,
 		logger: createWorkerLogger(),
 	});
+
+	await logMemoryDiagnostics('complete');
 }
 
 void main()

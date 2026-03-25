@@ -125,21 +125,37 @@ async function detectAvailableMemory(
 	let availableBytes = 0;
 	try {
 		if (process.platform === 'linux') {
+			// Try cgroup v2
 			const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
 			const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
-			if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
+			const maxExists = await cgroupMax.exists();
+			const currentExists = await cgroupCurrent.exists();
+			logger.debug(
+				`[${label}] cgroup v2: memory.max exists=${maxExists}, memory.current exists=${currentExists}`
+			);
+			if (maxExists && currentExists) {
 				const maxStr = (await cgroupMax.text()).trim();
 				const currentStr = (await cgroupCurrent.text()).trim();
-				if (maxStr !== 'max' && /^\d+$/.test(maxStr)) {
+				logger.debug(
+					`[${label}] cgroup v2 raw: memory.max="${maxStr}", memory.current="${currentStr}"`
+				);
+				// "max" means unlimited
+				if (maxStr === 'max') {
+					// No cgroup limit — use total system memory
+					const { totalmem } = await import('node:os');
+					cgroupMaxBytes = totalmem();
+				} else if (/^\d+$/.test(maxStr)) {
 					cgroupMaxBytes = Number(maxStr);
 				}
 				if (/^\d+$/.test(currentStr)) {
 					cgroupCurrentBytes = Number(currentStr);
 				}
-				if (cgroupMaxBytes > 0 && cgroupCurrentBytes > 0) {
-					availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+				if (cgroupMaxBytes > 0) {
+					availableBytes =
+						cgroupCurrentBytes > 0 ? cgroupMaxBytes - cgroupCurrentBytes : cgroupMaxBytes;
 				}
 			}
+			// Fallback to cgroup v1
 			if (!availableBytes) {
 				const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
 				const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
@@ -157,9 +173,12 @@ async function detectAvailableMemory(
 		if (!availableBytes) {
 			const { freemem } = await import('node:os');
 			availableBytes = freemem();
+			logger.debug(
+				`[${label}] Fallback to os.freemem(): ${Math.round(availableBytes / 1024 / 1024)} MiB`
+			);
 		}
-	} catch {
-		// If detection fails, let JSC use its own defaults
+	} catch (err) {
+		logger.debug(`[${label}] Memory detection error: ${err}`);
 	}
 
 	const jscEnv: Record<string, string> = {};
