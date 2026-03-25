@@ -19,11 +19,20 @@ export async function captureStreamToFile(
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) break;
-			writer.write(value);
+
+			const ok = writer.write(value);
 			totalBytes += value.byteLength;
+
+			// Respect backpressure: wait for drain when the internal buffer is full
+			if (!ok) {
+				await new Promise<void>((resolve) => writer.once('drain', resolve));
+			}
 		}
 	} finally {
-		await new Promise<void>((resolve) => writer.end(resolve));
+		await new Promise<void>((resolve, reject) => {
+			writer.once('error', reject);
+			writer.end(resolve);
+		});
 	}
 
 	return totalBytes;
