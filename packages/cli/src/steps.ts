@@ -705,13 +705,34 @@ export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void
 
 	// In JSON mode, skip all UI rendering
 	if (outputOptions && isJSONMode(outputOptions)) {
+		const abortController = new AbortController();
 		for (const step of steps) {
+			if (abortController.signal.aborted) break;
 			if (step) {
 				const ctx: StepContext = {
-					signal: new AbortController().signal,
+					signal: abortController.signal,
 					progress: () => {},
 				};
-				await step.run(ctx);
+				let outcome: StepOutcome;
+				try {
+					outcome = await step.run(ctx);
+				} catch (err) {
+					if (err instanceof Error && err.name === 'AbortError') {
+						throw new StepInterruptError();
+					}
+					outcome = {
+						status: 'error',
+						message: err instanceof Error ? err.message : String(err),
+						cause: err instanceof Error ? err : undefined,
+					};
+				}
+				if (outcome.status === 'error') {
+					if (outcome.cause instanceof Error && outcome.cause.name === 'AbortError') {
+						throw new StepInterruptError();
+					}
+					const errorMsg = outcome.message || 'An unknown error occurred';
+					throw new Error(errorMsg);
+				}
 			}
 		}
 		return;
