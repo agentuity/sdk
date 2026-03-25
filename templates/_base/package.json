@@ -13,18 +13,18 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@agentuity/frontend": "latest",
-		"@agentuity/react": "latest",
-		"@agentuity/runtime": "latest",
-		"@agentuity/schema": "latest",
-		"@agentuity/workbench": "latest",
+		"@agentuity/frontend": "^2.0.0",
+		"@agentuity/react": "^2.0.0",
+		"@agentuity/runtime": "^2.0.0",
+		"@agentuity/schema": "^2.0.0",
+		"@agentuity/workbench": "^2.0.0",
 		"hono": "^4.7.13",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
 	},
 	"devDependencies": {
-		"@agentuity/cli": "latest",
-		"@types/bun": "latest",
+		"@agentuity/cli": "^2.0.0",
+		"@types/bun": "^2.0.0",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^4.5.0",

@@ -21,6 +21,7 @@ import { isTTY, hasLoggedInBefore } from '../../auth';
 import { prepareDevLock, releaseLockSync } from './dev-lock';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
 import { initProcessManager } from './process-manager';
+import { detectVersionMismatch, formatVersionMismatchWarning } from '../../utils/version-mismatch';
 
 import { ErrorCode } from '../../errors';
 
@@ -337,6 +338,14 @@ export const command = createCommand({
 				`Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
 				ErrorCode.BUILD_FAILED
 			);
+		}
+
+		// Check for version mismatches (v1 vs v2 SDK packages)
+		const versionMismatch = detectVersionMismatch(rootDir, logger);
+		if (versionMismatch.hasV1Packages || versionMismatch.hasMajorMismatches) {
+			tui.newline();
+			tui.warning(formatVersionMismatchWarning(versionMismatch));
+			tui.newline();
 		}
 
 		try {

@@ -568,6 +568,10 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	setGlobalLogger(otel.logger);
 	setGlobalTracer(otel.tracer);
 
+	// --- Step 1b: Version consistency check ---
+	const { checkVersionConsistency } = await import('./version-check');
+	checkVersionConsistency(otel.logger);
+
 	// --- Step 2: Router + middleware ---
 	const { createRouter } = await import('./router');
 	const app = createRouter();
