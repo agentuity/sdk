@@ -123,13 +123,43 @@ async function runViteBuildInSubprocess(
 	try {
 		await Bun.write(optionsPath, JSON.stringify(options));
 
+		// Detect available memory so JSC can size its heap appropriately.
+		// Inside containers, JSC may underestimate available RAM from cgroup
+		// limits and restrict its heap too aggressively.  We read the cgroup
+		// memory limit (Linux) or total system memory and pass it via
+		// BUN_JSC_forceRAMSize so the build worker can use it.
+		let forceRAMSize: string | undefined;
+		try {
+			if (process.platform === 'linux') {
+				// Try cgroup v2, then v1
+				const cgroupV2 = Bun.file('/sys/fs/cgroup/memory.max');
+				const cgroupV1 = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
+				let limitStr: string | undefined;
+				if (await cgroupV2.exists()) {
+					limitStr = (await cgroupV2.text()).trim();
+				} else if (await cgroupV1.exists()) {
+					limitStr = (await cgroupV1.text()).trim();
+				}
+				if (limitStr && limitStr !== 'max' && /^\d+$/.test(limitStr)) {
+					forceRAMSize = limitStr;
+				}
+			}
+			if (!forceRAMSize) {
+				const { totalmem } = await import('node:os');
+				forceRAMSize = String(totalmem());
+			}
+		} catch {
+			// If detection fails, let JSC use its own default
+		}
+
 		const proc = Bun.spawn({
-			// --smol tells Bun to use a smaller heap and more aggressive GC,
-			// reducing peak memory at the cost of slightly slower builds.
-			cmd: [process.execPath, '--smol', workerScriptPath, optionsPath],
+			cmd: [process.execPath, workerScriptPath, optionsPath],
 			cwd: options.rootDir,
 			env: {
 				...process.env,
+				// Tell JSC how much RAM is actually available so it sizes
+				// its heap correctly inside containers.
+				...(forceRAMSize ? { BUN_JSC_forceRAMSize: forceRAMSize } : {}),
 			},
 			stdin: 'ignore',
 			stdout: 'pipe',
