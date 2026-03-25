@@ -25,6 +25,12 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Only write ANSI escape sequences when stderr is a real terminal.
+		// Writing to non-TTY streams (pipes, command substitution, etc.)
+		// pollutes captured output with invisible control characters.
+		if (!process.stderr.isTTY) {
+			return;
+		}
 		// Skip cursor restoration in CI - terminals don't support these sequences
 		if (process.env.CI) {
 			return;
