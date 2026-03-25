@@ -1,5 +1,5 @@
 import type { LogLevel } from '@agentuity/core';
-import { __originalConsole } from '@agentuity/analytics';
+import { __originalConsole } from '@agentuity/telemetry';
 import type { Logger } from './logger';
 import { formatMessage } from './util';
 

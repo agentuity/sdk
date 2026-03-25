@@ -19,7 +19,6 @@ import { createWebSessionMiddleware } from './middleware';
 import { enableProcessExitProtection } from './_process-protection';
 import { hasWaitUntilPending } from './_waituntil';
 import { getOrganizationId, getProjectId, isDevMode as runtimeIsDevMode } from './_config';
-import { BEACON_SCRIPT } from '@agentuity/frontend';
 
 // ============================================================================
 // Mode detection
@@ -107,27 +106,18 @@ function injectAnalytics(
 		isDevmode,
 	};
 
+	// Inject config and session context
+	// Users import '@agentuity/analytics/beacon' in their frontend code
 	const configScript = `<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(pageConfig)};</script>`;
 	const sessionScript = '<script src="/_agentuity/webanalytics/session.js" async></script>';
 
-	// In production, the beacon is already in HTML as a CDN asset (data-agentuity-beacon marker)
-	const beaconMarker = '<script data-agentuity-beacon';
-	if (html.includes(beaconMarker)) {
-		const injection = configScript + sessionScript;
-		return html.replace(beaconMarker, injection + beaconMarker);
-	}
-
-	// Development: beacon served from local route
-	const beaconScript = '<script src="/_agentuity/webanalytics/analytics.js"></script>';
-	const injection = configScript + sessionScript + beaconScript;
-
 	if (html.includes('</head>')) {
-		return html.replace('</head>', injection + '</head>');
+		return html.replace('</head>', configScript + sessionScript + '</head>');
 	}
 	if (html.includes('<body')) {
-		return html.replace(/<body([^>]*)>/, `<body$1>${injection}`);
+		return html.replace(/<body([^>]*)>/, `<body$1>${configScript}${sessionScript}`);
 	}
-	return injection + html;
+	return configScript + sessionScript + html;
 }
 
 /** Register analytics routes on the app */
@@ -150,17 +140,6 @@ export function registerAnalyticsRoutes(
 			});
 		}
 	);
-
-	if (isDevelopment()) {
-		app.get('/_agentuity/webanalytics/analytics.js', async () => {
-			return new Response(BEACON_SCRIPT, {
-				headers: {
-					'Content-Type': 'application/javascript; charset=utf-8',
-					'Cache-Control': 'no-store, no-cache, must-revalidate',
-				},
-			});
-		});
-	}
 }
 
 // ============================================================================

@@ -21,12 +21,10 @@ export interface GenerateAssetServerConfigOptions {
 }
 
 /**
- * Vite plugin that injects analytics scripts in dev mode.
+ * Vite plugin that injects analytics config in dev mode.
  *
- * In production the beacon plugin handles this at build time. In dev mode
- * the analytics config + session + beacon scripts are served by the Bun
- * backend at /_agentuity/webanalytics/* routes, but we need to inject the
- * `<script>` tags into the HTML so the browser loads them.
+ * In dev mode we inject the analytics config and session script.
+ * Users import '@agentuity/analytics/beacon' directly in their frontend code.
  */
 function devAnalyticsPlugin(): Plugin {
 	return {
@@ -35,6 +33,7 @@ function devAnalyticsPlugin(): Plugin {
 			order: 'pre',
 			handler(html) {
 				// Default analytics config — matches resolveAnalyticsConfig(undefined) in runtime
+				// Users import '@agentuity/analytics/beacon' in their frontend code
 				const config = {
 					enabled: true,
 					trackClicks: true,
@@ -49,8 +48,7 @@ function devAnalyticsPlugin(): Plugin {
 
 				const injection =
 					`<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(config)};</script>` +
-					'<script src="/_agentuity/webanalytics/session.js" async></script>' +
-					'<script src="/_agentuity/webanalytics/analytics.js"></script>';
+					'<script src="/_agentuity/webanalytics/session.js" async></script>';
 
 				if (html.includes('</head>')) {
 					return html.replace('</head>', `${injection}</head>`);

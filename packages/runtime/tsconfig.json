@@ -14,7 +14,7 @@
 		{ "path": "../frontend" },
 		{ "path": "../schema" },
 		{ "path": "../server" },
-		{ "path": "../analytics" },
+		{ "path": "../telemetry" },
 		{ "path": "../hono" }
 	]
 }

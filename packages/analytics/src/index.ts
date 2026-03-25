@@ -1,82 +1,99 @@
 /**
- * @agentuity/analytics - OpenTelemetry analytics for Agentuity
+ * @agentuity/analytics - Browser analytics for Agentuity applications
  *
- * Auto-initializes from environment variables on import (Vercel-style).
+ * ## Usage
  *
- * @example Automatic initialization (recommended)
+ * ### Auto-init (drop-in)
  * ```typescript
- * // Just import - auto-configures from AGENTUITY_* env vars
- * import '@agentuity/analytics';
- *
- * // Then access the globals anywhere
- * import { tracer, logger, meter } from '@agentuity/analytics';
+ * // Just import - uses window.__AGENTUITY_ANALYTICS__ config
+ * import '@agentuity/analytics/beacon';
  * ```
  *
- * @example Explicit configuration
+ * ### Programmatic
  * ```typescript
- * import { register } from '@agentuity/analytics';
+ * import { init, track, identify, flush } from '@agentuity/analytics';
  *
- * register({
- *   name: 'my-app',
- *   version: '1.0.0',
- *   // ... optional overrides
+ * init({
+ *   orgId: 'your-org-id',
+ *   projectId: 'your-project-id',
  * });
+ *
+ * track('button_click', { button: 'signup' });
+ * identify('user-123', { email: 'user@example.com' });
+ * flush();
+ * ```
+ *
+ * ### With React
+ * ```typescript
+ * import { useEffect } from 'react';
+ * import { track } from '@agentuity/analytics';
+ *
+ * function SignupButton() {
+ *   const handleClick = () => {
+ *     track('signup_click');
+ *   };
+ *   return <button onClick={handleClick}>Sign Up</button>;
+ * }
  * ```
  */
 
-// Re-export types
-export type { Logger } from './logger';
+// Types
+export type {
+	AnalyticsConfig,
+	AnalyticsClient,
+	AnalyticsPayload,
+	PageViewData,
+	ScrollEvent,
+	AnalyticsCustomEvent,
+	GeoLocation,
+	SessionData,
+} from './types';
 
-// Re-export console reference for custom loggers
-export { __originalConsole } from './logger';
-export type { AnalyticsConfig, AnalyticsResponse } from './analytics';
-
-// Re-export HTTP utilities for trace context propagation
-export { injectTraceContextToHeaders, extractTraceContextFromRequest } from './http';
-
-// Re-export trace state utilities
+// Config utilities
 export {
-	enrichContextWithTraceState,
-	generateTraceId,
-	generateSpanId,
-	type TraceStateEntries,
-} from './tracestate';
+	getConfig,
+	isEnabled,
+	isDevmode,
+	getEndpoint,
+	DEFAULT_ENDPOINT,
+} from './config';
 
-// Core registration function
-export { register, registerAnalytics, getAnalytics, ensureInitialized } from './analytics';
+// Utility functions
+export {
+	generateId,
+	getVisitorId,
+	getUTMParams,
+	stripQueryString,
+} from './util';
 
-// Lazy-loaded exports - auto-initialized from env vars
-import type { Tracer, Meter } from '@opentelemetry/api';
-import type { Logger } from './logger';
-import { ensureInitialized } from './analytics';
-
-/**
- * Get the OpenTelemetry tracer (auto-initialized)
- */
-export const tracer: Tracer = new Proxy({} as Tracer, {
-	get: (_, prop) => ensureInitialized().tracer[prop as keyof Tracer],
-});
-
-/**
- * Get the OpenTelemetry meter (auto-initialized)
- */
-export const meter: Meter = new Proxy({} as Meter, {
-	get: (_, prop) => ensureInitialized().meter[prop as keyof Meter],
-});
+// Programmatic API
+export {
+	initClient,
+	track,
+	identify,
+	flush,
+	send,
+	getClient,
+} from './client';
 
 /**
- * Get the Logger instance (auto-initialized)
+ * Initialize analytics with explicit config
+ * Alternative to using window.__AGENTUITY_ANALYTICS__
  */
-export const logger: Logger = new Proxy({} as Logger, {
-	get: (_, prop) => ensureInitialized().logger[prop as keyof Logger],
-});
-
-/**
- * Shutdown analytics (call on process exit)
- */
-export async function shutdown(): Promise<void> {
-	const analytics = ensureInitialized();
-	if (analytics?.shutdown) {
-		await analytics.shutdown();
+export function init(config: import('./types').AnalyticsConfig): void {
+	if (typeof window !== 'undefined') {
+		window.__AGENTUITY_ANALYTICS__ = config;
+		// Import beacon to trigger auto-init
+		import('./beacon');
 	}
+}
+
+/**
+ * Get the global analytics client
+ */
+export function getAnalytics(): import('./types').AnalyticsClient | null {
+	if (typeof window !== 'undefined' && window.agentuityAnalytics) {
+		return window.agentuityAnalytics;
+	}
+	return null;
 }

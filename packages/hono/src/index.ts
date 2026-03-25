@@ -1,7 +1,7 @@
 /**
  * @agentuity/hono - Agentuity middleware for Hono
  *
- * Provides the `agentuity()` middleware that initializes analytics and service clients,
+ * Provides the `agentuity()` middleware that initializes telemetry and service clients,
  * injecting them into Hono's context variables.
  *
  * @example Basic usage (auto-configured from env vars):
@@ -23,10 +23,10 @@
 import { createMiddleware } from 'hono/factory';
 import {
 	register,
-	type AnalyticsConfig,
-	type AnalyticsResponse,
+	type TelemetryConfig,
+	type TelemetryResponse,
 	type Logger,
-} from '@agentuity/analytics';
+} from '@agentuity/telemetry';
 import { KeyValueClient, type KeyValueClientOptions } from '@agentuity/keyvalue';
 import { VectorClient, type VectorClientOptions } from '@agentuity/vector';
 import { StreamClient, type StreamClientOptions } from '@agentuity/stream';
@@ -64,14 +64,14 @@ export interface Services {
 }
 
 export interface AgentuityOptions {
-	/** Analytics configuration overrides */
-	analytics?: Partial<AnalyticsConfig>;
+	/** Telemetry configuration overrides */
+	telemetry?: Partial<TelemetryConfig>;
 	/** Services configuration */
 	services?: ServicesConfig;
 }
 
 // Global state (initialized once at composition time)
-let analyticsInstance: AnalyticsResponse | null = null;
+let telemetryInstance: TelemetryResponse | null = null;
 let globalServices: Services | null = null;
 
 /**
@@ -114,30 +114,30 @@ export function resetServices(): void {
 /**
  * Create the Agentuity middleware for Hono.
  *
- * Initializes analytics and services at middleware composition time,
+ * Initializes telemetry and services at middleware composition time,
  * making them available via Hono's context variables.
  *
- * Analytics auto-configures from AGENTUITY_* environment variables.
+ * Telemetry auto-configures from AGENTUITY_* environment variables.
  * Services auto-configure from AGENTUITY_SDK_KEY.
  */
 export function agentuity(options?: AgentuityOptions) {
-	// Initialize analytics (auto-configures from env vars)
-	if (!analyticsInstance) {
-		analyticsInstance = register(options?.analytics);
+	// Initialize telemetry (auto-configures from env vars)
+	if (!telemetryInstance) {
+		telemetryInstance = register(options?.telemetry);
 	}
 
 	// Initialize services
 	initServices({
-		logger: analyticsInstance.logger,
+		logger: telemetryInstance.logger,
 		...options?.services,
 	});
 
 	// Return the middleware handler
 	return createMiddleware(async (c, next) => {
-		// Inject analytics into context
-		c.set('tracer', analyticsInstance!.tracer as any);
-		c.set('logger', analyticsInstance!.logger as any);
-		c.set('meter', analyticsInstance!.meter as any);
+		// Inject telemetry into context
+		c.set('tracer', telemetryInstance!.tracer as any);
+		c.set('logger', telemetryInstance!.logger as any);
+		c.set('meter', telemetryInstance!.meter as any);
 
 		// Inject services into context
 		const services = getServices();
@@ -155,19 +155,19 @@ export function agentuity(options?: AgentuityOptions) {
 }
 
 /**
- * Get the analytics instance. Available after agentuity() is composed.
+ * Get the telemetry instance. Available after agentuity() is composed.
  */
-export function getAnalytics(): AnalyticsResponse | null {
-	return analyticsInstance;
+export function getTelemetry(): TelemetryResponse | null {
+	return telemetryInstance;
 }
 
 /**
  * Reset global state (for testing).
  */
 export function reset(): void {
-	analyticsInstance = null;
+	telemetryInstance = null;
 	resetServices();
 }
 
 // Re-export types
-export type { AnalyticsConfig, AnalyticsResponse, Logger } from '@agentuity/analytics';
+export type { TelemetryConfig, TelemetryResponse, Logger } from '@agentuity/telemetry';

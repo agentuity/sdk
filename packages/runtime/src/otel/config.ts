@@ -1,23 +1,23 @@
 /**
- * OTel configuration wrapper - uses @agentuity/analytics under the hood
+ * OTel configuration wrapper - uses @agentuity/telemetry under the hood
  *
- * @deprecated Use `@agentuity/analytics` directly instead:
+ * @deprecated Use `@agentuity/telemetry` directly instead:
  * ```typescript
- * import { register, tracer, logger, meter } from '@agentuity/analytics';
+ * import { register, tracer, logger, meter } from '@agentuity/telemetry';
  * ```
  */
 
 import type { LogLevel } from '@agentuity/core';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import {
-	register as registerAnalytics,
-	type AnalyticsConfig,
-	type AnalyticsResponse,
-} from '@agentuity/analytics';
+	register as registerTelemetry,
+	type TelemetryConfig,
+	type TelemetryResponse,
+} from '@agentuity/telemetry';
 
 /**
  * Configuration for user provided OpenTelemetry
- * @deprecated Use AnalyticsConfig from @agentuity/analytics
+ * @deprecated Use TelemetryConfig from @agentuity/telemetry
  */
 export interface CustomizedOtelConfig {
 	endpoint: string;
@@ -32,18 +32,18 @@ interface OtelRegisterConfig {
 }
 
 /**
- * Register and initialize analytics/OTel
+ * Register and initialize telemetry/OTel
  *
- * @deprecated Use `register()` from `@agentuity/analytics` directly
+ * @deprecated Use `register()` from `@agentuity/telemetry` directly
  */
-export function register(registerConfig?: OtelRegisterConfig): AnalyticsResponse {
-	const config: Partial<AnalyticsConfig> = {
+export function register(registerConfig?: OtelRegisterConfig): TelemetryResponse {
+	const config: Partial<TelemetryConfig> = {
 		spanProcessors: registerConfig?.processors,
 		logLevel: registerConfig?.logLevel,
 	};
 
-	return registerAnalytics(config);
+	return registerTelemetry(config);
 }
 
 // Re-export types for backwards compatibility
-export type { AnalyticsResponse as OtelResponse } from '@agentuity/analytics';
+export type { TelemetryResponse as OtelResponse } from '@agentuity/telemetry';

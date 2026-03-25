@@ -5,6 +5,9 @@
 	"private": true,
 	"type": "module",
 	"description": "Test utilities for Agentuity packages (not published)",
+	"scripts": {
+		"build": "echo 'No build needed'"
+	},
 	"exports": {
 		".": {
 			"import": "./src/index.ts"

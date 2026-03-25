@@ -14,7 +14,7 @@ import type { Logger } from './logger';
 import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
-import { extractTraceContextFromRequest, enrichContextWithTraceState } from '@agentuity/analytics';
+import { extractTraceContextFromRequest, enrichContextWithTraceState } from '@agentuity/telemetry';
 import { context, SpanKind, SpanStatusCode, trace, propagation } from '@opentelemetry/api';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import * as runtimeConfig from './_config';
@@ -37,7 +37,6 @@ const OTEL_SESSION_EVENT_SKIP_PATHS = new Set([
 	'/_agentuity/workbench/sample',
 	'/_agentuity/workbench/state',
 	'/_agentuity/workbench/metadata.json',
-	'/_agentuity/webanalytics/analytics.js',
 	'/_agentuity/webanalytics/session.js',
 ]);
 
@@ -47,7 +46,6 @@ const OTEL_SESSION_EVENT_SKIP_PATHS = new Set([
  */
 const OTEL_FULL_SKIP_PATHS = new Set([
 	'/_agentuity/workbench/metadata.json',
-	'/_agentuity/webanalytics/analytics.js',
 	'/_agentuity/webanalytics/session.js',
 ]);
 

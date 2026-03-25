@@ -3,6 +3,7 @@
 	"references": [
 		{ "path": "./packages/adapter" },
 		{ "path": "./packages/analytics" },
+		{ "path": "./packages/telemetry" },
 		{ "path": "./packages/auth" },
 		{ "path": "./packages/claude-code" },
 		{ "path": "./packages/cli" },

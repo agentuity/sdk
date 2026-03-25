@@ -23,7 +23,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/analytics": "workspace:*",
+		"@agentuity/telemetry": "workspace:*",
 		"@agentuity/keyvalue": "workspace:*",
 		"@agentuity/vector": "workspace:*",
 		"@agentuity/stream": "workspace:*",

@@ -42,7 +42,7 @@ export type {
 	RecordingState,
 } from '@agentuity/core';
 
-// Export analytics (beacon is bundled separately via beacon-standalone.ts)
+// Export analytics
 export {
 	getAnalytics,
 	track,
@@ -52,13 +52,9 @@ export {
 	getUTMParams,
 	type AnalyticsClient,
 	type AnalyticsPayload,
-	type AnalyticsPageConfig,
+	type AnalyticsConfig,
 	type PageViewPayload,
 	type ScrollEvent,
 	type AnalyticsCustomEvent,
 	type GeoLocation,
 } from './analytics';
-
-// Re-export beacon script for server-side use
-// The actual value is replaced at build time by scripts/build-beacon.ts
-export { BEACON_SCRIPT, validateBeaconScript } from './beacon-script';

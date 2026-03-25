@@ -9,7 +9,7 @@
 	],
 	"scripts": {
 		"prepare": "husky",
-		"build": "bunx tsgo --build && bun packages/frontend/scripts/build-beacon.ts",
+		"build": "bunx tsgo --build",
 		"build:apps": "bun run --filter='./apps/testing/*' build",
 		"build:all": "bun run build && bun run build:apps",
 		"dev:workbench": "concurrently \"cd packages/workbench && bun run dev:app\" \"cd apps/testing/integration-suite && bun run dev\" --names \"workbench,integration-suite\" --prefix-colors \"blue,green\"",

@@ -20,12 +20,13 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build && bun scripts/build-beacon.ts",
+		"build": "bunx tsc --build",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/analytics": "workspace:*",
 		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {

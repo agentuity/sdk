@@ -2,7 +2,7 @@
 import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
 import type { compress } from 'hono/compress';
-import type { Logger } from '@agentuity/analytics';
+import type { Logger } from '@agentuity/telemetry';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import type {
 	KeyValueStorage,
@@ -169,7 +169,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	// --- Imports (lazy to avoid circular deps) ---
 	const { bootstrapRuntimeEnv } = await import('@agentuity/server');
 	const { agentuity } = await import('@agentuity/hono');
-	const { getAnalytics } = await import('@agentuity/hono');
+	const { getTelemetry } = await import('@agentuity/hono');
 	const { setGlobalLogger, setGlobalTracer, setGlobalRouter } = await import('./_server');
 	const { createBaseMiddleware, createCorsMiddleware, createCompressionMiddleware } = await import(
 		'./middleware'
@@ -211,11 +211,11 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	// until local services, thread/session providers are migrated
 	app.use('*', agentuity());
 
-	// Get the initialized Analytics instance for globals
-	const analytics = getAnalytics();
-	if (analytics) {
-		setGlobalLogger(analytics.logger);
-		setGlobalTracer(analytics.tracer);
+	// Get the initialized Telemetry instance for globals
+	const telemetry = getTelemetry();
+	if (telemetry) {
+		setGlobalLogger(telemetry.logger);
+		setGlobalTracer(telemetry.tracer);
 	}
 
 	// Additional middleware
@@ -223,9 +223,9 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	app.use(
 		'*',
 		createBaseMiddleware({
-			logger: analytics!.logger,
-			tracer: analytics!.tracer,
-			meter: analytics!.meter,
+			logger: telemetry!.logger,
+			tracer: telemetry!.tracer,
+			meter: telemetry!.meter,
 		})
 	);
 
@@ -233,7 +233,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	const port = process.env.PORT || '3500';
 	const serverUrl = `http://127.0.0.1:${port}`;
 	const { createServices, getThreadProvider, getSessionProvider } = await import('./_services');
-	createServices(analytics!.logger, config, serverUrl);
+	createServices(telemetry!.logger, config, serverUrl);
 
 	const threadProvider = getThreadProvider();
 	const sessionProvider = getSessionProvider();
@@ -282,7 +282,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	const { serverStarted } = await import('./_globals');
 	if (!serverStarted.get()) {
 		serverStarted.set(true);
-		analytics!.logger.debug(
+		telemetry!.logger.debug(
 			'Server listening on http://127.0.0.1:%s',
 			process.env.PORT || '3500'
 		);
@@ -294,7 +294,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		config,
 		router: app as Hono<Env>,
 		server: { url: `http://127.0.0.1:${portNumber}` },
-		logger: analytics!.logger,
+		logger: telemetry!.logger,
 		fetch: app.fetch,
 		port: portNumber,
 		hostname: '127.0.0.1',

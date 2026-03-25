@@ -9,10 +9,10 @@
  * the definitions so call-sites don't need casts.
  */
 
-import type { AnalyticsResponse } from '@agentuity/analytics';
+import type { TelemetryResponse } from '@agentuity/telemetry';
 
 // Backwards compatibility alias
-export type OtelResponse = AnalyticsResponse;
+export type OtelResponse = TelemetryResponse;
 
 /** Shutdown hook function type (duplicated here to avoid circular dep with app.ts) */
 type ShutdownHook = () => Promise<void> | void;

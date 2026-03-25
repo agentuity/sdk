@@ -1,42 +1,52 @@
 /**
  * Web Analytics for Agentuity SDK applications
  *
- * The analytics beacon is bundled separately via beacon-standalone.ts
- * and injected as a script tag by the SDK runtime.
- *
- * This module re-exports types and utilities for programmatic access.
+ * @deprecated Import directly from '@agentuity/analytics' instead.
+ * This module re-exports for backwards compatibility.
  */
 
-import type { AnalyticsClient } from './types';
+// Re-export everything from @agentuity/analytics
+export {
+	getAnalytics,
+	track,
+	flush,
+	identify,
+	getVisitorId,
+	getUTMParams,
+	isEnabled,
+	type AnalyticsClient,
+	type AnalyticsPayload,
+	type PageViewData,
+	type ScrollEvent,
+	type AnalyticsCustomEvent,
+	type GeoLocation,
+	type SessionData,
+	type AnalyticsConfig,
+} from '@agentuity/analytics';
 
-export type {
-	AnalyticsClient,
-	AnalyticsPayload,
-	AnalyticsPageConfig,
-	PageViewPayload,
-	ScrollEvent,
-	AnalyticsCustomEvent,
-	GeoLocation,
-} from './types';
-
-export { getVisitorId, isOptedOut, setOptOut } from './utils/storage';
-export { getUTMParams } from './utils/utm';
+// Legacy type aliases
+export type { PageViewData as PageViewPayload } from '@agentuity/analytics';
 
 /**
- * Get the analytics client from the global window object.
- * Returns null if the beacon hasn't been initialized.
+ * Check if user has opted out
+ * @deprecated Use your own opt-out mechanism
  */
-export function getAnalytics(): AnalyticsClient | null {
-	if (typeof window !== 'undefined') {
-		const client = (window as { agentuityAnalytics?: AnalyticsClient }).agentuityAnalytics;
-		return client ?? null;
+export function isOptedOut(): boolean {
+	try {
+		return localStorage.getItem('agentuity_opt_out') === 'true';
+	} catch {
+		return false;
 	}
-	return null;
 }
 
 /**
- * Track a custom event. No-op if analytics isn't initialized.
+ * Set opt-out status
+ * @deprecated Use your own opt-out mechanism
  */
-export function track(eventName: string, properties?: Record<string, unknown>): void {
-	getAnalytics()?.track(eventName, properties);
+export function setOptOut(optOut: boolean): void {
+	try {
+		localStorage.setItem('agentuity_opt_out', String(optOut));
+	} catch {
+		// localStorage not available
+	}
 }

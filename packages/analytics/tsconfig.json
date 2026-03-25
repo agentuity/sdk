@@ -4,9 +4,8 @@
 		"composite": true,
 		"outDir": "./dist",
 		"rootDir": "./src",
-		"declaration": true,
-		"types": ["bun-types"]
+		"lib": ["DOM", "DOM.Iterable", "ESNext"]
 	},
 	"include": ["src/**/*"],
-	"references": [{ "path": "../core" }]
+	"exclude": ["test/**/*"]
 }
