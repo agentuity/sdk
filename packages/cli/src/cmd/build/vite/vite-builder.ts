@@ -111,93 +111,104 @@ async function drainSubprocessStream(
 	return tail;
 }
 
-async function runViteBuildInSubprocess(
-	options: ViteBuildWorkerOptions,
-	logger: Logger
-): Promise<void> {
-	const workerTsPath = fileURLToPath(new URL('./vite-build-worker.ts', import.meta.url));
-	const workerJsPath = fileURLToPath(new URL('./vite-build-worker.js', import.meta.url));
-	const workerScriptPath = existsSync(workerTsPath) ? workerTsPath : workerJsPath;
-	const optionsPath = join(tmpdir(), `agentuity-vite-build-${options.mode}-${randomUUID()}.json`);
-
+/**
+ * Detect actually available memory for subprocess heap sizing.
+ * Reads cgroup v2/v1 max and current usage to compute free memory.
+ * Falls back to os.freemem() if cgroup files aren't available.
+ */
+async function detectAvailableMemory(
+	logger: Logger,
+	label: string
+): Promise<Record<string, string>> {
+	let cgroupMaxBytes = 0;
+	let cgroupCurrentBytes = 0;
+	let availableBytes = 0;
 	try {
-		await Bun.write(optionsPath, JSON.stringify(options));
-
-		// Detect ACTUALLY available memory (not just cgroup limit).
-		// The cgroup limit (memory.max) includes page cache from bun install,
-		// predeploy builds, etc. which can consume most of the allocation.
-		// We need: cgroup_max - cgroup_current = truly free memory.
-		let cgroupMaxBytes = 0;
-		let cgroupCurrentBytes = 0;
-		let availableBytes = 0;
-		try {
-			if (process.platform === 'linux') {
-				// Read cgroup v2 max + current usage
-				const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
-				const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
-				if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
-					const maxStr = (await cgroupMax.text()).trim();
-					const currentStr = (await cgroupCurrent.text()).trim();
-					if (maxStr !== 'max' && /^\d+$/.test(maxStr)) {
-						cgroupMaxBytes = Number(maxStr);
-					}
-					if (/^\d+$/.test(currentStr)) {
-						cgroupCurrentBytes = Number(currentStr);
-					}
-					if (cgroupMaxBytes > 0 && cgroupCurrentBytes > 0) {
-						availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
-					}
+		if (process.platform === 'linux') {
+			const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
+			const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
+			if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
+				const maxStr = (await cgroupMax.text()).trim();
+				const currentStr = (await cgroupCurrent.text()).trim();
+				if (maxStr !== 'max' && /^\d+$/.test(maxStr)) {
+					cgroupMaxBytes = Number(maxStr);
 				}
-				// Fallback to cgroup v1
-				if (!availableBytes) {
-					const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
-					const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
-					if ((await v1Limit.exists()) && (await v1Usage.exists())) {
-						const limitStr = (await v1Limit.text()).trim();
-						const usageStr = (await v1Usage.text()).trim();
-						if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
-							cgroupMaxBytes = Number(limitStr);
-							cgroupCurrentBytes = Number(usageStr);
-							availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
-						}
-					}
+				if (/^\d+$/.test(currentStr)) {
+					cgroupCurrentBytes = Number(currentStr);
+				}
+				if (cgroupMaxBytes > 0 && cgroupCurrentBytes > 0) {
+					availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
 				}
 			}
 			if (!availableBytes) {
-				const { freemem } = await import('node:os');
-				availableBytes = freemem();
+				const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
+				const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
+				if ((await v1Limit.exists()) && (await v1Usage.exists())) {
+					const limitStr = (await v1Limit.text()).trim();
+					const usageStr = (await v1Usage.text()).trim();
+					if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
+						cgroupMaxBytes = Number(limitStr);
+						cgroupCurrentBytes = Number(usageStr);
+						availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+					}
+				}
 			}
-		} catch {
-			// If detection fails, let JSC use its own defaults
 		}
+		if (!availableBytes) {
+			const { freemem } = await import('node:os');
+			availableBytes = freemem();
+		}
+	} catch {
+		// If detection fails, let JSC use its own defaults
+	}
 
-		const jscEnv: Record<string, string> = {};
-		if (availableBytes > 0) {
-			const maxMb = Math.round(cgroupMaxBytes / 1024 / 1024);
-			const usedMb = Math.round(cgroupCurrentBytes / 1024 / 1024);
-			const availMb = Math.round(availableBytes / 1024 / 1024);
-			// gcMaxHeapSize: allow JSC to use up to 80% of AVAILABLE memory
-			// (not cgroup max, which includes page cache already in use)
-			const maxHeap = Math.round(availableBytes * 0.8);
-			const maxHeapMb = Math.round(maxHeap / 1024 / 1024);
-			jscEnv.BUN_JSC_forceRAMSize = String(availableBytes);
-			jscEnv.BUN_JSC_gcMaxHeapSize = String(maxHeap);
-			logger.debug(
-				`[vite-build-worker:${options.mode}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB`
-			);
-		} else {
-			logger.debug(
-				`[vite-build-worker:${options.mode}] Could not detect available memory, using JSC defaults`
-			);
-		}
+	const jscEnv: Record<string, string> = {};
+	if (availableBytes > 0) {
+		const maxMb = Math.round(cgroupMaxBytes / 1024 / 1024);
+		const usedMb = Math.round(cgroupCurrentBytes / 1024 / 1024);
+		const availMb = Math.round(availableBytes / 1024 / 1024);
+		const maxHeap = Math.round(availableBytes * 0.8);
+		const maxHeapMb = Math.round(maxHeap / 1024 / 1024);
+		jscEnv.BUN_JSC_forceRAMSize = String(availableBytes);
+		jscEnv.BUN_JSC_gcMaxHeapSize = String(maxHeap);
+		logger.debug(
+			`[${label}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB`
+		);
+	} else {
+		logger.debug(`[${label}] Could not detect available memory, using JSC defaults`);
+	}
+	return jscEnv;
+}
+
+function resolveWorkerScript(name: string): string {
+	const tsPath = fileURLToPath(new URL(`./${name}.ts`, import.meta.url));
+	const jsPath = fileURLToPath(new URL(`./${name}.js`, import.meta.url));
+	return existsSync(tsPath) ? tsPath : jsPath;
+}
+
+/**
+ * Spawn an isolated worker subprocess with JSC memory tuning.
+ * Returns the captured stdout tail (for parsing results) and throws on failure.
+ */
+async function spawnIsolatedWorker(opts: {
+	workerName: string;
+	label: string;
+	optionsJson: unknown;
+	cwd: string;
+	logger: Logger;
+}): Promise<string> {
+	const { workerName, label, optionsJson, cwd, logger } = opts;
+	const workerScript = resolveWorkerScript(workerName);
+	const optionsPath = join(tmpdir(), `agentuity-${label}-${randomUUID()}.json`);
+
+	try {
+		await Bun.write(optionsPath, JSON.stringify(optionsJson));
+		const jscEnv = await detectAvailableMemory(logger, label);
 
 		const proc = Bun.spawn({
-			cmd: [process.execPath, workerScriptPath, optionsPath],
-			cwd: options.rootDir,
-			env: {
-				...process.env,
-				...jscEnv,
-			},
+			cmd: [process.execPath, workerScript, optionsPath],
+			cwd,
+			env: { ...process.env, ...jscEnv },
 			stdin: 'ignore',
 			stdout: 'pipe',
 			stderr: 'pipe',
@@ -207,9 +218,7 @@ async function runViteBuildInSubprocess(
 			proc.stdout && typeof proc.stdout !== 'number'
 				? drainSubprocessStream(proc.stdout, (chunk) => {
 						const text = chunk.trim();
-						if (text) {
-							logger.debug(`[vite-build-worker:${options.mode}] ${text}`);
-						}
+						if (text) logger.debug(`[${label}] ${text}`);
 					})
 				: Promise.resolve('');
 
@@ -217,9 +226,7 @@ async function runViteBuildInSubprocess(
 			proc.stderr && typeof proc.stderr !== 'number'
 				? drainSubprocessStream(proc.stderr, (chunk) => {
 						const text = chunk.trim();
-						if (text) {
-							logger.error(`[vite-build-worker:${options.mode}] ${text}`);
-						}
+						if (text) logger.error(`[${label}] ${text}`);
 					})
 				: Promise.resolve('');
 
@@ -233,20 +240,59 @@ async function runViteBuildInSubprocess(
 			const errorOutput = stderr.trim() || stdout.trim();
 			const suffix = errorOutput ? `: ${errorOutput}` : '';
 			throw new BuildFailedError({
-				message: `Vite build worker failed for mode ${options.mode} with exit code ${exitCode}${suffix}`,
+				message: `${label} failed with exit code ${exitCode}${suffix}`,
 			});
 		}
+		return stdout;
 	} catch (error) {
-		if (error instanceof Error && error.name === 'BuildFailedError') {
-			throw error;
-		}
-
+		if (error instanceof Error && error.name === 'BuildFailedError') throw error;
 		throw new BuildFailedError({
-			message: `Failed to run Vite build worker for mode ${options.mode}: ${error instanceof Error ? error.message : String(error)}`,
+			message: `Failed to run ${label}: ${error instanceof Error ? error.message : String(error)}`,
 		});
 	} finally {
 		rmSync(optionsPath, { force: true });
 	}
+}
+
+async function runViteBuildInSubprocess(
+	options: ViteBuildWorkerOptions,
+	logger: Logger
+): Promise<void> {
+	await spawnIsolatedWorker({
+		workerName: 'vite-build-worker',
+		label: `vite-build-worker:${options.mode}`,
+		optionsJson: options,
+		cwd: options.rootDir,
+		logger,
+	});
+}
+
+async function runStaticRenderInSubprocess(
+	rootDir: string,
+	logger: Logger
+): Promise<{ routes: number; duration: number }> {
+	const stdout = await spawnIsolatedWorker({
+		workerName: 'static-render-worker',
+		label: 'static-render-worker',
+		optionsJson: { rootDir },
+		cwd: rootDir,
+		logger,
+	});
+
+	// Worker writes JSON result as last line of stdout
+	try {
+		// Find the last JSON line in the tail
+		const lines = stdout.split('\n').filter((l) => l.trim());
+		for (let i = lines.length - 1; i >= 0; i--) {
+			const line = lines[i]!.trim();
+			if (line.startsWith('{')) {
+				return JSON.parse(line);
+			}
+		}
+	} catch {
+		// Parse failure — return defaults
+	}
+	return { routes: 0, duration: 0 };
 }
 
 /**
@@ -607,15 +653,22 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	if (config?.render === 'static' && hasWebFrontend) {
 		logger.debug('Running static rendering (pre-rendering all routes)...');
 		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
-		const { runStaticRender } = await import('./static-renderer');
-		const staticResult = await runStaticRender({
-			rootDir,
-			logger,
-			userPlugins: config?.plugins || [],
-		});
-		result.static.included = true;
-		result.static.duration = staticResult.duration;
-		result.static.routes = staticResult.routes;
+		if (dev) {
+			const { runStaticRender } = await import('./static-renderer');
+			const staticResult = await runStaticRender({
+				rootDir,
+				logger,
+				userPlugins: config?.plugins || [],
+			});
+			result.static.included = true;
+			result.static.duration = staticResult.duration;
+			result.static.routes = staticResult.routes;
+		} else {
+			const staticResult = await runStaticRenderInSubprocess(rootDir, logger);
+			result.static.included = true;
+			result.static.duration = staticResult.duration;
+			result.static.routes = staticResult.routes;
+		}
 		endStaticDiagnostic?.();
 	}
 
