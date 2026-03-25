@@ -6,7 +6,11 @@
 
 import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { StructuredError } from '@agentuity/core';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
@@ -14,6 +18,8 @@ import { tailwindSourcePlugin } from './tailwind-source-plugin';
 import { beaconPlugin } from './beacon-plugin';
 import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
+
+const BuildFailedError = StructuredError('BuildFailedError');
 
 /**
  * Vite plugin to flatten the output structure for index.html
@@ -68,6 +74,112 @@ export interface ViteBuildOptions {
 	collector?: BuildReportCollector;
 	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
 	profile?: string;
+}
+
+export type ViteBuildWorkerOptions = Omit<ViteBuildOptions, 'logger' | 'collector'>;
+
+/**
+ * Drain a subprocess stream, forwarding each chunk to the callback
+ * without accumulating in memory. Only the last `tailBytes` of output
+ * are retained so we can include them in error messages on failure.
+ */
+async function drainSubprocessStream(
+	stream: ReadableStream<Uint8Array>,
+	onChunk: (chunk: string) => void,
+	tailBytes = 4096
+): Promise<string> {
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	// Ring buffer that keeps only the trailing output for error context
+	let tail = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		const text = decoder.decode(value, { stream: true });
+		if (!text) continue;
+		onChunk(text);
+		tail = (tail + text).slice(-tailBytes);
+	}
+
+	const finalText = decoder.decode();
+	if (finalText) {
+		onChunk(finalText);
+		tail = (tail + finalText).slice(-tailBytes);
+	}
+
+	return tail;
+}
+
+async function runViteBuildInSubprocess(
+	options: ViteBuildWorkerOptions,
+	logger: Logger
+): Promise<void> {
+	const workerTsPath = fileURLToPath(new URL('./vite-build-worker.ts', import.meta.url));
+	const workerJsPath = fileURLToPath(new URL('./vite-build-worker.js', import.meta.url));
+	const workerScriptPath = existsSync(workerTsPath) ? workerTsPath : workerJsPath;
+	const optionsPath = join(tmpdir(), `agentuity-vite-build-${options.mode}-${randomUUID()}.json`);
+
+	try {
+		await Bun.write(optionsPath, JSON.stringify(options));
+
+		const proc = Bun.spawn({
+			// --smol tells Bun to use a smaller heap and more aggressive GC,
+			// reducing peak memory at the cost of slightly slower builds.
+			cmd: [process.execPath, '--smol', workerScriptPath, optionsPath],
+			cwd: options.rootDir,
+			env: {
+				...process.env,
+			},
+			stdin: 'ignore',
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+
+		const stdoutPromise =
+			proc.stdout && typeof proc.stdout !== 'number'
+				? drainSubprocessStream(proc.stdout, (chunk) => {
+						const text = chunk.trim();
+						if (text) {
+							logger.debug(`[vite-build-worker:${options.mode}] ${text}`);
+						}
+					})
+				: Promise.resolve('');
+
+		const stderrPromise =
+			proc.stderr && typeof proc.stderr !== 'number'
+				? drainSubprocessStream(proc.stderr, (chunk) => {
+						const text = chunk.trim();
+						if (text) {
+							logger.error(`[vite-build-worker:${options.mode}] ${text}`);
+						}
+					})
+				: Promise.resolve('');
+
+		const [stdout, stderr, exitCode] = await Promise.all([
+			stdoutPromise,
+			stderrPromise,
+			proc.exited,
+		]);
+
+		if (exitCode !== 0) {
+			const errorOutput = stderr.trim() || stdout.trim();
+			const suffix = errorOutput ? `: ${errorOutput}` : '';
+			throw new BuildFailedError({
+				message: `Vite build worker failed for mode ${options.mode} with exit code ${exitCode}${suffix}`,
+			});
+		}
+	} catch (error) {
+		if (error instanceof Error && error.name === 'BuildFailedError') {
+			throw error;
+		}
+
+		throw new BuildFailedError({
+			message: `Failed to run Vite build worker for mode ${options.mode}: ${error instanceof Error ? error.message : String(error)}`,
+		});
+	} finally {
+		rmSync(optionsPath, { force: true });
+	}
 }
 
 /**
@@ -322,6 +434,7 @@ interface BuildResult {
  */
 export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
 	const { rootDir, projectId = '', dev = false, logger, collector } = options;
+	const { logger: _logger, collector: _collector, ...workerBaseOptions } = options;
 
 	if (!dev) {
 		rmSync(join(rootDir, '.agentuity'), { force: true, recursive: true });
@@ -393,13 +506,26 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Building client assets...');
 		const endClientDiagnostic = collector?.startDiagnostic('client-build');
 		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'client',
-			workbenchEnabled: workbenchConfig.enabled,
-			workbenchRoute: workbenchConfig.route,
-			analyticsEnabled,
-		});
+		if (dev) {
+			await runViteBuild({
+				...options,
+				mode: 'client',
+				workbenchEnabled: workbenchConfig.enabled,
+				workbenchRoute: workbenchConfig.route,
+				analyticsEnabled,
+			});
+		} else {
+			await runViteBuildInSubprocess(
+				{
+					...workerBaseOptions,
+					mode: 'client',
+					workbenchEnabled: workbenchConfig.enabled,
+					workbenchRoute: workbenchConfig.route,
+					analyticsEnabled,
+				},
+				logger
+			);
+		}
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
 		endClientDiagnostic?.();
@@ -428,12 +554,24 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Building workbench assets...');
 		const endWorkbenchDiagnostic = collector?.startDiagnostic('workbench-build');
 		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'workbench',
-			workbenchRoute: workbenchConfig.route,
-			workbenchEnabled: true,
-		});
+		if (dev) {
+			await runViteBuild({
+				...options,
+				mode: 'workbench',
+				workbenchRoute: workbenchConfig.route,
+				workbenchEnabled: true,
+			});
+		} else {
+			await runViteBuildInSubprocess(
+				{
+					...workerBaseOptions,
+					mode: 'workbench',
+					workbenchRoute: workbenchConfig.route,
+					workbenchEnabled: true,
+				},
+				logger
+			);
+		}
 		result.workbench.included = true;
 		result.workbench.duration = Date.now() - started;
 		endWorkbenchDiagnostic?.();
@@ -443,7 +581,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	logger.debug('Building server...');
 	const endServerDiagnostic = collector?.startDiagnostic('server-build');
 	const serverStarted = Date.now();
-	await runViteBuild({ ...options, mode: 'server' });
+	if (dev) {
+		await runViteBuild({ ...options, mode: 'server' });
+	} else {
+		await runViteBuildInSubprocess({ ...workerBaseOptions, mode: 'server' }, logger);
+	}
 	result.server.included = true;
 	result.server.duration = Date.now() - serverStarted;
 	endServerDiagnostic?.();
