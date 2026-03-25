@@ -16,6 +16,7 @@ export const ProjectSchema = z.object({
 	orgId: z.string().describe('the organization id'),
 	cloudRegion: z.string().nullable().optional().describe('the cloud region'),
 	vanityHostname: z.string().nullable().optional().describe('the vanity hostname'),
+	domains: z.array(z.string()).nullable().optional().describe('custom domains for the project'),
 	api_key: z.string().optional().describe('the SDK api key for the project'),
 	env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
 	secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
@@ -23,6 +24,7 @@ export const ProjectSchema = z.object({
 		.object({
 			dashboard: z.string().describe('the dashboard URL for the project'),
 			app: z.string().describe('the public URL for the latest deployment'),
+			custom: z.array(z.string()).describe('custom domain URLs'),
 		})
 		.optional()
 		.describe('project URLs'),

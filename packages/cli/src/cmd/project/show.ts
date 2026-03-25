@@ -16,6 +16,7 @@ const ProjectShowResponseSchema = z.object({
 		.object({
 			dashboard: z.string().describe('Dashboard URL for the project'),
 			app: z.string().describe('Public URL for the latest deployment'),
+			custom: z.array(z.string()).describe('Custom domain URLs'),
 		})
 		.optional()
 		.describe('Project URLs'),
