@@ -152,13 +152,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	process.on('SIGTERM', sigtermHandler);
 
 	try {
-		const childArgs = [
-			'agentuity',
-			'deploy',
-			'--child-mode',
-			`--report-file=${reportFile}`,
-			...args,
-		];
+		const childArgs = ['deploy', '--child-mode', `--report-file=${reportFile}`, ...args];
 
 		// Pass the deployment info via environment variable (same format as CI builds)
 		const deploymentEnvValue = JSON.stringify({
@@ -167,16 +161,19 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			publicKey: deployment.publicKey,
 		});
 
-		logger.error('THIS IS RUNNING THE NEW BUILD');
-
-		logger.debug('Spawning child deploy process: bunx %s', childArgs.join(' '));
+		// Re-exec the same entry point that the parent is running so that
+		// local/dev builds test the current code instead of a stale global
+		// install.  process.execPath is the bun binary; Bun.main is the
+		// script entry (e.g. bin/cli.ts or the compiled binary).
+		const cmd = [process.execPath, Bun.main, ...childArgs];
+		logger.debug('Spawning child deploy process: %s', cmd.join(' '));
 
 		// Get terminal dimensions to pass to child
 		const columns = process.stdout.columns || 80;
 		const rows = process.stdout.rows || 24;
 
 		proc = spawn({
-			cmd: ['bunx', ...childArgs],
+			cmd,
 			cwd: projectDir,
 			env: {
 				...process.env,
