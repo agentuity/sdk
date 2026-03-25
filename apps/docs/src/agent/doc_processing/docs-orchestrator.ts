@@ -1,8 +1,13 @@
+import { StructuredError } from '@agentuity/core';
 import { VECTOR_STORE_NAME } from '../../config';
 import { processDoc } from './docs-processor';
 import type { FilePayload, SyncPayload, SyncStats } from './types';
 
 const CONCURRENCY = 5;
+
+const Base64DecodeError = StructuredError('Base64DecodeError')<{
+	path: string;
+}>();
 
 /**
  * Helper to remove all vectors for a given logical path from the vector store.
@@ -31,6 +36,16 @@ async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreNam
 		}
 	}
 
+	// Verify deletion was complete
+	const remaining = await ctx.vector.search(vectorStoreName, {
+		query: 'anything',
+		limit: 1,
+		metadata: { path: logicalPath },
+	});
+	if (remaining.length > 0) {
+		ctx.logger.warn('Vectors still exist after deletion for path: %s', logicalPath);
+	}
+
 	if (totalDeleted > 0) {
 		ctx.logger.info('Removed %d vectors for path: %s', totalDeleted, logicalPath);
 	}
@@ -46,11 +61,16 @@ async function processChangedFile(ctx: any, file: FilePayload): Promise<number> 
 	try {
 		const buf = Buffer.from(base64Content, 'base64');
 		if (buf.toString('base64') !== base64Content.replace(/\s/g, '')) {
-			throw new Error('Malformed base64 payload');
+			throw new Base64DecodeError({ path: logicalPath, message: 'Malformed base64 payload' });
 		}
 		content = buf.toString('utf-8');
 	} catch (decodeErr) {
-		throw new Error(`Invalid base64 content for ${logicalPath}: ${decodeErr}`);
+		if (decodeErr instanceof Base64DecodeError) throw decodeErr;
+		throw new Base64DecodeError({
+			path: logicalPath,
+			message: `Invalid base64 content for ${logicalPath}`,
+			cause: decodeErr,
+		});
 	}
 
 	await removeVectorsByPath(ctx, logicalPath, VECTOR_STORE_NAME);
@@ -114,6 +134,9 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 	if (changed.length > 0) {
 		const totalFiles = changed.length;
 		const totalBatches = Math.ceil(totalFiles / CONCURRENCY);
+		let changedProcessed = 0;
+		let changedErrors = 0;
+
 		ctx.logger.info(
 			'Processing %d changed files in %d batches (concurrency: %d)',
 			totalFiles,
@@ -144,9 +167,11 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 				if (!file) continue;
 				if (result.status === 'fulfilled') {
 					processed++;
+					changedProcessed++;
 					ctx.logger.info('Processed %s (%d chunks)', file.path, result.value);
 				} else {
 					errors++;
+					changedErrors++;
 					errorFiles.push(file.path);
 					ctx.logger.error('Failed to process %s: %s', file.path, result.reason);
 				}
@@ -157,7 +182,7 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 				batchIndex,
 				totalBatches,
 				Date.now() - batchStart,
-				processed + errors,
+				changedProcessed + changedErrors,
 				totalFiles
 			);
 		}
