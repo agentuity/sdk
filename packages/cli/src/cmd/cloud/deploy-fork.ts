@@ -167,6 +167,8 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			publicKey: deployment.publicKey,
 		});
 
+		logger.error('THIS IS RUNNING THE NEW BUILD');
+
 		logger.debug('Spawning child deploy process: bunx %s', childArgs.join(' '));
 
 		// Get terminal dimensions to pass to child
