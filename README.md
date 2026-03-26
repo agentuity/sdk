@@ -72,7 +72,7 @@ The structure of this mono repository:
 - `packages/evals` - Reusable Evaluation Presets
 - `packages/frontend` - Reusable code for web frontends including WebRTC peer connections
 - `packages/keyvalue` - Key-value storage service client
-- `packages/opencode` - Opencoder agent plugins for Agentuity
+- `packages/opencode` - Opencode agent plugins for Agentuity
 - `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
 - `packages/queue` - Queue service client for publishing messages to queues
 - `packages/react` - React package for the Browser including WebRTC hooks
@@ -125,3 +125,4 @@ This script builds all packages, creates tarballs, and installs them in your tar
 # LICENSE
 
 See the [LICENSE](./LICENSE.md) for more information about the license to this project. The code is licensed under the Apache-2 License.
+

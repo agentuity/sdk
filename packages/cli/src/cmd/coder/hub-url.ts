@@ -58,8 +58,10 @@ function normalizeToHttp(url: string): string {
 	if (normalized.startsWith('ws://')) normalized = 'http://' + normalized.slice(5);
 	else if (normalized.startsWith('wss://')) normalized = 'https://' + normalized.slice(6);
 
-	// Strip /api/ws or /api/hub/* paths to get base URL
+	// Strip known Hub transport/helper paths to get the HTTP base URL.
+	// Accept `/ws` as a convenience alias because users often copy the raw route name.
 	normalized = normalized.replace(/\/api\/ws\b.*$/, '');
+	normalized = normalized.replace(/\/ws\b.*$/, '');
 	normalized = normalized.replace(/\/api\/hub\b.*$/, '');
 
 	return normalized.replace(/\/+$/, '');

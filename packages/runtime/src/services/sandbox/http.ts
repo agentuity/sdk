@@ -16,6 +16,10 @@ import {
 	sandboxRun,
 	sandboxSetEnv,
 	sandboxWriteFiles,
+	jobCreate,
+	jobGet,
+	jobList,
+	jobStop,
 	snapshotCreate,
 	snapshotGet,
 	snapshotList,
@@ -43,6 +47,9 @@ import type {
 	SnapshotInfo,
 	SnapshotListParams,
 	SnapshotListResponse,
+	CreateJobOptions,
+	Job,
+	JobListResponse,
 } from '@agentuity/core';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 
@@ -273,6 +280,36 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 		async destroy(): Promise<void> {
 			await withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
 				sandboxDestroy(client, { sandboxId })
+			);
+		},
+
+		async createJob(options: CreateJobOptions): Promise<Job> {
+			return withSpan(
+				'agentuity.sandbox.createJob',
+				{ 'sandbox.id': sandboxId, 'sandbox.command': options.command?.join(' ') ?? '' },
+				() => jobCreate(client, { sandboxId, options })
+			);
+		},
+
+		async getJob(jobId: string): Promise<Job> {
+			return withSpan(
+				'agentuity.sandbox.getJob',
+				{ 'sandbox.id': sandboxId, 'job.id': jobId },
+				() => jobGet(client, { sandboxId, jobId })
+			);
+		},
+
+		async listJobs(limit?: number): Promise<JobListResponse> {
+			return withSpan('agentuity.sandbox.listJobs', { 'sandbox.id': sandboxId }, () =>
+				jobList(client, { sandboxId, limit })
+			);
+		},
+
+		async stopJob(jobId: string, force?: boolean): Promise<Job> {
+			return withSpan(
+				'agentuity.sandbox.stopJob',
+				{ 'sandbox.id': sandboxId, 'job.id': jobId },
+				() => jobStop(client, { sandboxId, jobId, force })
 			);
 		},
 	};

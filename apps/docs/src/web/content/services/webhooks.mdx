@@ -1,0 +1,243 @@
+---
+title: Webhooks
+description: Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry
+---
+
+Use the webhook service when you need a managed ingest endpoint for callbacks from services like Stripe, GitHub, or Slack, with a full audit trail of received payloads and delivery attempts.
+
+<Callout type="tip" title="Not inside an agent or route?">
+Use the [`@agentuity/webhook`](/reference/standalone-packages#webhooks) standalone package to access this service from any Node.js or Bun app without the runtime.
+</Callout>
+
+## When to Use Webhooks
+
+| Approach | Best For |
+|----------|----------|
+| **Webhook Service** | Managed ingest endpoints with receipts, delivery tracking, and retry |
+| [Route Handlers](/cookbook/patterns/webhook-handler) | Processing webhooks directly in your routes with signature verification |
+| [Queues](/services/queues) | Internal async message passing between your own services |
+
+<Callout type="info" title="Webhook Handler Pattern">
+To handle incoming webhooks directly in an agent or route, including signature verification for Stripe or GitHub, see the [Webhook Handler Pattern](/cookbook/patterns/webhook-handler).
+</Callout>
+
+## Managing Webhooks
+
+| Method | Access | Details |
+|--------|--------|---------|
+| SDK functions | `@agentuity/server` | Standalone functions for programmatic management |
+| CLI | `agentuity cloud webhook` | Create and inspect webhooks from the terminal |
+| Web App | [Web App](https://app.agentuity.com/services/webhook) | Manage webhooks in the web app |
+
+<Callout type="info" title="Org-Level Resource">
+Webhooks are organization-level resources, not tied to a specific project. A single webhook can receive payloads from any external service and forward them to multiple destinations.
+</Callout>
+
+## Setup
+
+All webhook functions take an `APIClient` as their first parameter.
+
+```typescript
+import { APIClient, createLogger } from '@agentuity/server';
+
+const logger = createLogger();
+const client = new APIClient(process.env.AGENTUITY_API_URL!, logger);
+```
+
+## Creating Webhooks
+
+Create a webhook to get a unique ingest URL. Point external services at this URL to start receiving their callbacks.
+
+```typescript
+import { APIClient, createLogger, createWebhook } from '@agentuity/server';
+
+const logger = createLogger();
+const client = new APIClient(process.env.AGENTUITY_API_URL!, logger);
+
+const webhook = await createWebhook(client, { // [!code highlight]
+  name: 'stripe-events',
+  description: 'Payment webhooks from Stripe', // optional
+}); // [!code highlight]
+
+// webhook.url contains the ingest URL (only present on create)
+// Format: https://<catalyst-url>/webhook/<orgId>-<webhookId>
+```
+
+Via the CLI:
+
+```bash
+agentuity cloud webhook create --name stripe-events --description "Payment webhooks from Stripe"
+```
+
+The `url` field on the created webhook is the ingest URL to configure in the external service. The URL format is `https://<catalyst-url>/webhook/<orgId>-<webhookId>`.
+
+<Callout type="warning" title="URL Only On Create">
+The `url` field is only present in the create response. Store it at creation time: it cannot be retrieved afterward via `getWebhook`.
+</Callout>
+
+## Listing and Retrieving Webhooks
+
+```typescript
+import { listWebhooks, getWebhook } from '@agentuity/server';
+
+// List all webhooks (supports limit/offset pagination)
+const { webhooks } = await listWebhooks(client, { limit: 10 }); // [!code highlight]
+
+for (const wh of webhooks) {
+  // wh.id, wh.name, wh.description, wh.created_at
+}
+
+// Get a specific webhook by ID
+const webhook = await getWebhook(client, 'wh_abc123'); // [!code highlight]
+```
+
+## Updating and Deleting Webhooks
+
+```typescript
+import { updateWebhook, deleteWebhook } from '@agentuity/server';
+
+// Update the webhook (name is required, description is optional)
+const updated = await updateWebhook(client, 'wh_abc123', { // [!code highlight]
+  name: 'stripe-events-v2',
+  description: 'Updated description',
+}); // [!code highlight]
+
+// Delete a webhook (permanently removes all destinations, receipts, and deliveries)
+await deleteWebhook(client, 'wh_abc123'); // [!code highlight]
+```
+
+## Adding Destinations
+
+Destinations are the endpoints that receive forwarded payloads when a request arrives at your ingest URL. Add one or more URL destinations per webhook.
+
+```typescript
+import { createWebhookDestination } from '@agentuity/server';
+
+const destination = await createWebhookDestination(client, 'wh_abc123', { // [!code highlight]
+  type: 'url',
+  config: {
+    url: 'https://example.com/handle-stripe',   // required
+    headers: {                                    // optional custom headers
+      'X-Webhook-Source': 'agentuity',
+    },
+  },
+}); // [!code highlight]
+```
+
+Via the CLI:
+
+```bash
+agentuity cloud webhook destinations create url wh_abc123 https://example.com/handle-stripe
+```
+
+**Destination config for `url` type:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `url` | `string` | Target URL. Must use `http` or `https`. |
+| `headers` | `Record<string, string>` | Optional headers added to each forwarded request. |
+
+A webhook can have multiple destinations. Each incoming request is forwarded to all configured destinations independently.
+
+## Managing Destinations
+
+```typescript
+import {
+  listWebhookDestinations,
+  updateWebhookDestination,
+  deleteWebhookDestination,
+} from '@agentuity/server';
+
+// List all destinations for a webhook
+const destinations = await listWebhookDestinations(client, 'wh_abc123'); // [!code highlight]
+
+for (const dest of destinations) {
+  // dest.id, dest.type, dest.config, dest.webhook_id
+}
+
+// Update a destination's config
+const updated = await updateWebhookDestination(client, 'wh_abc123', 'whds_def456', { // [!code highlight]
+  config: { url: 'https://example.com/handle-stripe/v2' },
+}); // [!code highlight]
+
+// Delete a destination
+await deleteWebhookDestination(client, 'wh_abc123', 'whds_def456'); // [!code highlight]
+```
+
+## Receipts
+
+Every HTTP request received at a webhook's ingest URL is recorded as a receipt, capturing the original headers and payload for auditing.
+
+```typescript
+import { listWebhookReceipts, getWebhookReceipt } from '@agentuity/server';
+
+// List recent receipts (supports limit/offset pagination)
+const { receipts } = await listWebhookReceipts(client, 'wh_abc123', { limit: 50 }); // [!code highlight]
+
+for (const receipt of receipts) {
+  // receipt.id, receipt.date, receipt.headers, receipt.payload
+}
+
+// Fetch the full payload for a specific receipt
+const receipt = await getWebhookReceipt(client, 'wh_abc123', 'whrc_def456'); // [!code highlight]
+```
+
+Receipts let you replay a request by passing `receipt.payload` directly to your processing logic, without needing the external service to resend.
+
+## Delivery Tracking
+
+Each receipt triggers a delivery attempt for every configured destination. Track these attempts to see which succeeded and which need retrying.
+
+```typescript
+import { listWebhookDeliveries } from '@agentuity/server';
+
+const { deliveries } = await listWebhookDeliveries(client, 'wh_abc123'); // [!code highlight]
+
+for (const delivery of deliveries) {
+  // delivery.status: 'pending' | 'success' | 'failed'
+  // delivery.retries: number of retry attempts
+  // delivery.error: reason string (when failed)
+  // delivery.webhook_destination_id: which destination this delivery targeted
+  // delivery.webhook_receipt_id: which receipt triggered this delivery
+}
+```
+
+**Delivery statuses:**
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Queued, waiting to be sent to the destination |
+| `success` | Forwarded successfully |
+| `failed` | Delivery attempt failed; `error` field contains the reason |
+
+Each delivery record links back to its source receipt via `webhook_receipt_id`, so you can trace a failure to the original incoming payload.
+
+## Retrying Failed Deliveries
+
+Only deliveries with `status: 'failed'` can be retried. The retry enqueues a new delivery attempt to the same destination.
+
+```typescript
+import { listWebhookDeliveries, retryWebhookDelivery } from '@agentuity/server';
+
+const { deliveries } = await listWebhookDeliveries(client, 'wh_abc123');
+
+for (const delivery of deliveries) {
+  if (delivery.status === 'failed') {
+    await retryWebhookDelivery(client, 'wh_abc123', delivery.id); // [!code highlight]
+  }
+}
+```
+
+## Best Practices
+
+- **One webhook per source**: Use separate webhooks for Stripe, GitHub, Slack, etc., so receipts stay organized and you can route them to different destinations independently.
+- **Verify signatures in your destination**: The webhook service records and forwards payloads as received; signature verification (HMAC, Stripe-Signature header, etc.) belongs in your destination handler. See the [Webhook Handler Pattern](/cookbook/patterns/webhook-handler) for an example of processing webhooks in your routes with signature verification.
+- **Use receipts as an audit log**: Before debugging a missed event, check `listWebhookReceipts` to confirm the payload was received at the ingest URL.
+- **Poll deliveries after destination changes**: If you update a destination URL, retry any recent `failed` deliveries so they reach the correct endpoint.
+- **Set custom headers for authentication**: Add a shared secret in `headers` when creating a destination so your handler can verify requests came from the webhook service.
+
+## Next Steps
+
+- [Queues](/services/queues): Async message passing between your own agents and services
+- [Webhook Handler Pattern](/cookbook/patterns/webhook-handler): Handling incoming webhooks directly in routes with signature verification
+- [Email](/services/email): Send transactional email from agents

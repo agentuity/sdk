@@ -1,0 +1,157 @@
+---
+title: Using Claude Agent SDK with Agentuity
+short_title: Claude Agent SDK
+description: Build conversational code intelligence agents with Claude Agent SDK and Agentuity sandboxes
+---
+
+[Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) handles conversations and tool use: reading files, writing code, running multi-turn analysis. Agentuity adds the deployment runtime, [sandboxes](/services/sandbox/sdk-usage) for safe code execution, and [thread state](/agents/state-management) for conversation history. You write the agent logic, Agentuity handles the infrastructure.
+
+## The Integration Pattern
+
+Wrap a Claude Agent SDK `query()` call inside Agentuity's [`createAgent()`](/agents/creating-agents). Claude handles the LLM interaction and file tools. Agentuity provides schema validation, thread-isolated state, and sandbox execution.
+
+Define schemas and create the agent handler:
+
+```typescript title="src/agent/claude-code/index.ts"
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+
+const AgentInput = s.object({
+  prompt: s.string().describe('The user prompt to send to Claude'),
+});
+
+const AgentOutput = s.object({
+  response: s.string(),
+  sessionId: s.string(),
+  threadId: s.string(),
+  costUsd: s.number().optional(),
+});
+
+export default createAgent('claude-code', {
+  schema: { input: AgentInput, output: AgentOutput },
+  handler: async (ctx, { prompt }) => {
+    ctx.logger.info('Claude Agent invoked', { promptLength: prompt.length });
+
+    // Load conversation history from thread state
+    const history = (await ctx.thread.state.get<Message[]>('messages')) ?? []; // [!code highlight]
+
+    const systemPrompt = [
+      'You are a helpful code assistant running inside an Agentuity agent.',
+      'You have access to a workspace with sample TypeScript files.',
+      history.length > 0
+        ? `\nThis is a continuing conversation (${history.length} messages so far).`
+        : '',
+    ].join('\n');
+
+    // Claude Agent SDK manages the conversation loop and tool calls
+    const collectedMessages = [];
+    const q = query({ // [!code highlight]
+      prompt: fullPrompt,
+      options: {
+        systemPrompt,
+        allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep'], // [!code highlight]
+        cwd: workspaceDir,
+        maxTurns: 10,
+      },
+    });
+
+    for await (const msg of q) {
+      collectedMessages.push(msg);
+    }
+
+    const responseText = extractResponseText(collectedMessages);
+
+    // Persist with a sliding window via thread state
+    await ctx.thread.state.push('messages', { role: 'user', content: prompt }, 20);
+    await ctx.thread.state.push('messages', { role: 'assistant', content: responseText }, 20);
+
+    return {
+      response: responseText,
+      sessionId: ctx.sessionId,
+      threadId: ctx.thread.id,
+    };
+  },
+});
+```
+
+Claude Agent SDK iterates through an async generator of messages, calling tools (Read, Write, Edit, Glob, Grep) as needed. Each turn is bounded by `maxTurns` to prevent runaway loops. Agentuity's [`ctx.thread.state`](/agents/state-management) persists conversation history across requests with a 20-message sliding window.
+
+## Sandbox Execution
+
+When a user asks to run code, the agent ships workspace files to an Agentuity [sandbox](/services/sandbox/sdk-usage) for isolated execution. Claude handles the analysis, Agentuity handles the execution:
+
+```typescript title="src/agent/claude-code/index.ts"
+// Detect execution intent from the user's prompt
+const wantsExecution = /\b(run|execute|test|try)\b/i.test(prompt);
+
+if (wantsExecution) {
+  const workspaceFiles = collectWorkspaceFiles(workspaceDir);
+  const mainFile = pickMainFile(workspaceFiles, prompt, collectedMessages);
+
+  if (workspaceFiles.length > 0 && mainFile) {
+    ctx.logger.info('Executing in sandbox', { mainFile, fileCount: workspaceFiles.length });
+
+    const result = await ctx.sandbox.run({ // [!code highlight]
+      runtime: 'bun:1',
+      command: {
+        exec: ['bun', 'run', mainFile],
+        files: workspaceFiles, // [!code highlight]
+      },
+      resources: { memory: '500Mi', cpu: '500m' },
+    });
+
+    executionResult = {
+      stdout: result.stdout,
+      stderr: result.stderr !== result.stdout ? result.stderr : undefined,
+      exitCode: result.exitCode,
+    };
+  }
+}
+```
+
+`ctx.sandbox.run()` creates an isolated environment with the Bun runtime, copies in the workspace files, and executes the specified file. Resources are capped so a single request cannot exhaust the sandbox. The exit code, stdout, and stderr come back as structured data.
+
+## Workspace Setup
+
+The agent seeds a per-thread temp directory with sample files so Claude has code to work with from the first message:
+
+```typescript title="src/agent/claude-code/index.ts"
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { SAMPLE_FILES } from './sample-files';
+
+function initWorkspace(workspaceDir: string): void {
+  if (!existsSync(workspaceDir)) {
+    mkdirSync(workspaceDir, { recursive: true });
+  }
+  for (const file of SAMPLE_FILES) {
+    const filePath = join(workspaceDir, file.name);
+    if (!existsSync(filePath)) {
+      writeFileSync(filePath, file.content);
+    }
+  }
+}
+
+// One workspace per thread, so concurrent conversations stay isolated
+const workspaceDir = join(tmpdir(), 'claude-code-workspaces', ctx.thread.id);
+initWorkspace(workspaceDir);
+```
+
+Each thread gets its own directory keyed by `ctx.thread.id`, keeping concurrent conversations isolated. Files that Claude writes or edits during the session persist within the workspace for follow-up turns.
+
+<Callout type="info" title="Authentication">
+This integration requires an `ANTHROPIC_API_KEY` in your `.env` file. The Claude Agent SDK authenticates directly with Anthropic, separate from the [AI Gateway](/agents/ai-gateway).
+</Callout>
+
+## Full Example
+
+[Claude Code Integration](https://github.com/agentuity/examples/tree/main/integrations/claude-code): complete project with chat frontend, API routes, and sample workspace files.
+
+## Next Steps
+
+- [Sandbox SDK Usage](/services/sandbox/sdk-usage): Full API for creating and managing sandboxes
+- [State Management](/agents/state-management): Request, thread, and global state scopes
+- [Streaming Responses](/agents/streaming-responses): Stream agent output to the frontend in real time
+- [Evaluations](/agents/evaluations): Test and validate agent outputs

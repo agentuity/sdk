@@ -1,0 +1,137 @@
+---
+title: Adding Agentuity to a TanStack Start App
+short_title: TanStack Start
+description: Connect a TanStack Start frontend to an Agentuity backend using Vite proxy
+---
+
+Already have a [TanStack Start](https://tanstack.com/start/latest/docs/framework/react/overview) app? Add Agentuity agents alongside your existing frontend for agent-native infrastructure: persistent state, storage, observability, and an AI gateway. The two services run side by side, connected through a Vite proxy.
+
+## Project Structure
+
+The Agentuity backend lives in an `agentuity/` subdirectory inside your TanStack Start project:
+
+```text
+my-tanstack-app/
+├── src/
+│   ├── router.tsx                  # Route registration
+│   ├── routes/__root.tsx           # Root shell
+│   └── routes/index.tsx            # UI using useAPI hooks
+├── agentuity/                      # Agentuity backend
+│   ├── src/agent/translate/        # Agent with handler + evals
+│   ├── src/api/index.ts            # HTTP routes
+│   └── src/generated/routes.ts     # Generated route types
+├── vite.config.ts                  # /api proxy to backend
+└── tsconfig.json                   # @agentuity/routes alias
+```
+
+## Vite Proxy Configuration
+
+Vite's built-in proxy forwards `/api` requests to the Agentuity backend during development:
+
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+
+export default defineConfig({
+  plugins: [tsconfigPaths(), tanstackStart()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3500', // [!code highlight]
+        changeOrigin: true,
+      },
+    },
+  },
+  ssr: {
+    // Keep Agentuity packages bundled for SSR compatibility
+    noExternal: [/^@agentuity\//],
+  },
+});
+```
+
+<Callout type="info" title="Two runtimes in development">
+`bun run dev` starts both the TanStack Start frontend and the Agentuity backend concurrently. The frontend waits for the backend health check before launching Vite.
+</Callout>
+
+## Path Alias Setup
+
+Add the `@agentuity/routes` alias in `tsconfig.json` so TypeScript resolves the generated route types:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@agentuity/routes": ["./agentuity/src/generated/routes"]
+    }
+  }
+}
+```
+
+## Type-Safe API Calls
+
+Import the generated route types and use [`useAPI`](/frontend/react-hooks) from `@agentuity/react` for type-safe requests:
+
+```tsx title="src/routes/index.tsx"
+import { AgentuityProvider, useAPI } from '@agentuity/react';
+import '@agentuity/routes'; // Side-effect import loads generated types
+
+function TranslateDemo() {
+  const { data: history } = useAPI('GET /api/translate/history');
+
+  // invoke() triggers the request manually
+  const { data, invoke: translate, isLoading } = useAPI('POST /api/translate'); // [!code highlight]
+
+  const onTranslate = async () => {
+    await translate({ text: 'Hello world', toLanguage: 'French' });
+  };
+
+  return (
+    <div>
+      <button onClick={onTranslate} disabled={isLoading}>Translate</button>
+      {data?.translation && <p>{data.translation}</p>}
+    </div>
+  );
+}
+```
+
+The `useAPI` pattern works the same as Next.js: type safety comes from the `@agentuity/routes` side-effect import. The main differences are that `AgentuityProvider` wraps at the route level via `createFileRoute`, and you use `import.meta.env.VITE_AGENTUITY_BASE_URL` instead of `process.env.NEXT_PUBLIC_*`.
+
+<Callout type="warning" title="Keep the side-effect import">
+The `import '@agentuity/routes'` line loads generated route type augmentations. Without it, `useAPI` route keys and payloads lose type safety.
+</Callout>
+
+<Callout type="tip" title="SSR and noExternal">
+The `ssr.noExternal` setting in `vite.config.ts` keeps `@agentuity/*` packages bundled during server-side rendering. Without it, Vite may try to externalize them and fail to resolve browser-only imports.
+</Callout>
+
+## Running Locally
+
+Run from the project root (not from inside `agentuity/`):
+
+```bash
+bun install
+bun run build:agent    # Generate route types
+bun run dev            # Start both runtimes
+```
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3500`
+- Workbench: `http://localhost:3500/workbench`
+
+## Deployment
+
+When deployed, configure routing at the host level:
+
+1. **Preferred**: Route `/api/*` traffic to the Agentuity backend at the load balancer, matching the local Vite proxy behavior.
+2. **Fallback**: Set `VITE_AGENTUITY_BASE_URL` to the backend URL and pass it through `AgentuityProvider baseUrl`. Enable CORS with `AGENTUITY_CORS_ALLOWED_ORIGINS` on the backend.
+
+## Full Example
+
+[TanStack Start + Agentuity Example](https://github.com/agentuity/examples/tree/main/existing-apps/tanstack-start): translate agent, evals, history management, and type-safe routes.
+
+## Next Steps
+
+- [React Hooks](/frontend/react-hooks): Full `useAPI`, `useWebsocket`, and `useEventStream` API
+- [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration options
+- [HTTP Routes](/routes/http): Defining backend API routes

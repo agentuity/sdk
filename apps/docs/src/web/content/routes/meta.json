@@ -1,4 +1,13 @@
 {
 	"title": "Routes",
-	"pages": ["index", "http", "middleware", "cron", "websockets", "sse"]
+	"pages": [
+		"index",
+		"http",
+		"middleware",
+		"cron",
+		"websockets",
+		"sse",
+		"webrtc",
+		"explicit-routing"
+	]
 }

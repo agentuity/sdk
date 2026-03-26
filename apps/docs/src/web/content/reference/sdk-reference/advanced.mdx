@@ -1,0 +1,290 @@
+---
+title: Using Runtime Utilities
+short_title: Runtime Utilities
+description: File imports, standalone execution, context detection, process lifecycle, and build metadata
+---
+
+Utilities for file bundling, standalone agent execution, runtime detection, process lifecycle, and build metadata.
+
+## File Imports
+
+The Agentuity bundler supports importing various file types directly into your agent code. Files are processed at build time and embedded in your agent bundle, making them immediately available without disk I/O.
+
+**Supported File Types:**
+
+| File Extension | Data Type | Description |
+|----------------|-----------|-------------|
+| `.json` | `object` | Parsed JSON data |
+| `.yaml`, `.yml` | `object` | Parsed YAML data |
+| `.toml` | `object` | Parsed TOML data |
+| `.sql` | `string` | SQL query content |
+| `.txt` | `string` | Text content |
+| `.md` | `string` | Markdown content |
+| `.csv` | `string` | CSV data |
+| `.xml` | `string` | XML content |
+| `.html` | `string` | HTML content |
+| `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp` | `string` | Base64 data URL |
+
+**Usage Example:**
+
+```typescript
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+// Import various file types
+import config from './config.json';              // object
+import emailTemplate from './templates/welcome.txt';  // string
+import getUserQuery from './queries/getUser.sql';     // string
+import logo from './assets/logo.png';            // string (base64 data URL)
+
+const agent = createAgent('ReportGenerator', {
+  schema: {
+    input: z.object({ userId: z.string(), format: z.enum(['html', 'text']) }),
+    output: z.object({ sent: z.boolean(), report: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    // Use JSON config
+    const apiUrl = config.api.baseUrl;
+
+    // Use text template
+    const message = emailTemplate
+      .replace('{{userId}}', input.userId)
+      .replace('{{appName}}', config.appName);
+
+    // Use SQL query
+    const user = await database.query(getUserQuery, [input.userId]);
+
+    // Use image in HTML report
+    let report = 'Text report';
+    if (input.format === 'html') {
+      report = `
+        <html>
+          <body>
+            <img src="${logo}" alt="Logo" />
+            <h1>User Report</h1>
+            <p>User: ${user.name}</p>
+          </body>
+        </html>
+      `;
+    }
+
+    await sendEmail(input.userId, message);
+
+    return { sent: true, report };
+  },
+});
+```
+
+**Key Features:**
+
+- **Build-time processing**: Files are embedded during build, not loaded at runtime
+- **No disk I/O**: Data is immediately available in memory
+- **Automatic parsing**: JSON and YAML files are automatically parsed into objects
+- **Type safety**: TypeScript infers types for imported data
+- **Relative paths**: Import from current directory, subdirectories, or parent directories
+
+**TypeScript Support:**
+
+For TypeScript projects, add type declarations:
+
+```typescript
+// src/types/assets.d.ts
+declare module '*.json' {
+  const value: any;
+  export default value;
+}
+
+declare module '*.sql' {
+  const value: string;
+  export default value;
+}
+
+declare module '*.png' {
+  const value: string; // Base64 data URL
+  export default value;
+}
+
+declare module '*.txt' {
+  const value: string;
+  export default value;
+}
+```
+
+**Best Practices:**
+
+- **Keep files small** - Imported files are bundled with your code, increasing bundle size and deployment time
+- **Use for static data** - Best for configuration, templates, and static assets that don't change frequently
+- **Consider external storage** - For large datasets or frequently changing data, use Object Storage or Vector Storage APIs instead
+- **Version control** - Commit imported files to your repository to keep them in sync with code
+
+**Notes:**
+
+- All imports are processed at build time, not runtime
+- Imported files become part of your agent bundle
+- File paths are relative to the importing file
+- The bundler automatically handles file types by extension
+
+## Standalone Execution
+
+Run agents outside the HTTP server for scripts, CLI tools, cron jobs, or integrations like Discord bots.
+
+`createAgentContext()` creates a lightweight context with the same services (KV, Vector, Stream) available in normal agent handlers. When running outside the Agentuity runtime, it auto-initializes minimal defaults.
+
+```typescript
+import { createAgent, createAgentContext } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const greeter = createAgent('greeter', {
+  schema: {
+    input: s.object({ name: s.string() }),
+    output: s.object({ greeting: s.string() }),
+  },
+  handler: async (ctx, input) => {
+    ctx.logger.info('Greeting %s', input.name);
+    return { greeting: `Hello, ${input.name}!` };
+  },
+});
+
+const ctx = createAgentContext();
+const result = await ctx.run(greeter, { name: 'World' });
+console.log(result); // { greeting: 'Hello, World!' }
+```
+
+**`StandaloneContextOptions`** (all fields optional):
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `sessionId` | `string` | Custom session ID. Auto-generated from trace context if omitted |
+| `trigger` | `string` | Trigger type for telemetry (e.g., `'cron'`, `'discord'`, `'manual'`) |
+| `thread` | `Thread` | Thread for multi-turn conversations |
+| `session` | `Session` | Session for this execution |
+| `parentContext` | `Context` | Parent OpenTelemetry context for distributed tracing |
+
+```typescript
+// Discord bot integration
+client.on('messageCreate', async (message) => {
+  const ctx = createAgentContext({
+    sessionId: message.id,
+    trigger: 'discord',
+  });
+  const response = await ctx.run(chatAgent, { message: message.content });
+  await message.reply(response.text);
+});
+```
+
+For more control, use `ctx.invoke()` to run arbitrary async functions within the agent context:
+
+```typescript
+const ctx = createAgentContext();
+const result = await ctx.invoke(async () => {
+  const step1 = await agent1.run(input);
+  return agent2.run(step1);
+});
+```
+
+## Context Detection
+
+Check which execution context your code is running in. Useful for libraries or shared utilities that behave differently inside agent handlers vs. HTTP routes.
+
+```typescript
+import {
+  inAgentContext,
+  inHTTPContext,
+  getAgentContext,
+  getHTTPContext,
+} from '@agentuity/runtime';
+
+// Boolean checks
+if (inAgentContext()) {
+  // Running inside an agent handler
+  const ctx = getAgentContext(); // throws if not in agent context
+  ctx.logger.info('Inside agent');
+}
+
+if (inHTTPContext()) {
+  // Running inside an HTTP route handler
+  const c = getHTTPContext(); // throws if not in HTTP context
+}
+```
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `inAgentContext()` | `boolean` | `true` if executing inside an agent handler |
+| `inHTTPContext()` | `boolean` | `true` if executing inside an HTTP route |
+| `getAgentContext()` | `AgentContext` | Returns the current agent context. Throws if not in agent context |
+| `getHTTPContext()` | `HonoContext` | Returns the current Hono HTTP context. Throws if not in HTTP context |
+
+<Callout type="warning" title="getAgentContext and getHTTPContext throw">
+  These functions throw an error when called outside their respective contexts. Always guard with `inAgentContext()` or `inHTTPContext()` first.
+</Callout>
+
+## Process Lifecycle
+
+Control process behavior for long-running servers. These are used internally by the runtime and are available for advanced use cases.
+
+```typescript
+import {
+  enableProcessExitProtection,
+  hasWaitUntilPending,
+  registerShutdownHook,
+} from '@agentuity/runtime';
+
+// Prevent agent code from calling process.exit(), which would crash the server
+enableProcessExitProtection();
+
+// Check if background tasks (from ctx.waitUntil) are still running
+if (hasWaitUntilPending()) {
+  console.log('Background tasks are still in progress');
+}
+
+// Register cleanup logic that runs on graceful shutdown.
+// Returns an unregister function.
+const unregister = registerShutdownHook(async () => {
+  await database.close();
+});
+```
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `enableProcessExitProtection()` | `void` | Replaces `process.exit()` with an error throw to keep the server alive |
+| `hasWaitUntilPending()` | `boolean` | `true` if any `ctx.waitUntil()` background tasks are still running |
+| `registerShutdownHook(fn)` | `() => void` | Registers a cleanup function for graceful shutdown. Returns an unregister function |
+
+## Build Metadata
+
+Access deployment and project information at runtime. These read from environment variables set during deployment.
+
+```typescript
+import {
+  loadBuildMetadata,
+  getOrganizationId,
+  getProjectId,
+  getDeploymentId,
+} from '@agentuity/runtime';
+
+// Environment identifiers
+const orgId = getOrganizationId();       // string | undefined
+const projectId = getProjectId();         // string | undefined
+const deploymentId = getDeploymentId();   // string | undefined
+
+// Full build metadata from agentuity.metadata.json (cached after first load)
+const metadata = loadBuildMetadata();
+if (metadata) {
+  console.log(`Project: ${metadata.project.name}`);
+  console.log(`Agents: ${metadata.agents.length}`);
+  console.log(`Routes: ${metadata.routes.length}`);
+}
+```
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `getOrganizationId()` | `string \| undefined` | Organization ID from `AGENTUITY_CLOUD_ORG_ID` |
+| `getProjectId()` | `string \| undefined` | Project ID from `AGENTUITY_CLOUD_PROJECT_ID` |
+| `getDeploymentId()` | `string \| undefined` | Deployment ID from `AGENTUITY_CLOUD_DEPLOYMENT_ID` |
+| `loadBuildMetadata()` | `BuildMetadata \| undefined` | Parsed `agentuity.metadata.json` with agents, routes, and project info. Returns `undefined` if the file is not found |
+
+---
+
+<Callout type="info" title="Migrating from v0?">
+  See the [Migration Guide](/reference/migration-guide) for a complete walkthrough of upgrading from the v0 SDK.
+</Callout>

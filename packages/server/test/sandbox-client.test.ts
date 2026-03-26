@@ -855,6 +855,7 @@ describe('SandboxClient', () => {
 							data: {
 								sandboxId: 'sandbox-run-123',
 								status: 'terminated',
+								exitCode: 0,
 							},
 						}),
 						{ status: 200, headers: { 'content-type': 'application/json' } }

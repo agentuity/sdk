@@ -10,6 +10,19 @@ import {
 	type StreamProjectionSource,
 } from './hub-overlay-state.ts';
 import { truncateToWidth } from './renderers.ts';
+import type {
+	ConversationEntry as HubConversationEntry,
+	ReplayHistoryResponse as HubReplayResponse,
+	SessionEventHistoryItem as HubEventHistoryItem,
+	SessionEventHistoryResponse as HubEventHistoryResponse,
+	SessionListItem as HubSessionSummary,
+	SessionListResponse as HubListResponse,
+	SessionSnapshot as BaseHubSessionDetail,
+	SessionTodoItem as HubTodo,
+	SessionTodoListResponse as HubTodoListResponse,
+	SessionTodoSummary as HubTodoSummary,
+	SseHydrationMessage,
+} from './protocol.ts';
 
 interface Component {
 	render(width: number): string[];
@@ -25,158 +38,13 @@ interface TUIRef {
 	requestRender(): void;
 }
 
-interface HubSessionSummary {
-	sessionId: string;
-	label?: string;
-	status: string;
-	mode: string;
-	observerCount: number;
-	subAgentCount: number;
-	taskCount: number;
-	participantCount: number;
-	createdAt: string;
-	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
-	runtimeAvailable?: boolean;
-	controlAvailable?: boolean;
-	historyOnly?: boolean;
-	tags?: string[];
-	skills?: HubSessionSkillRef[];
-	defaultAgent?: string;
-}
+type HubTask = BaseHubSessionDetail['tasks'][number];
 
-interface HubSessionSkillRef {
-	skillId: string;
-	repo: string;
-	name?: string;
-	url?: string;
-}
-
-interface HubParticipant {
-	id: string;
-	role: string;
-	transport?: string;
-	connectedAt?: string;
-	idle?: boolean;
-}
-
-interface HubTask {
-	taskId: string;
-	agent: string;
-	status: string;
-	prompt?: string;
-	duration?: number;
-	startedAt?: string;
-	completedAt?: string;
-}
-
-interface HubTodoSummary {
-	open?: number;
-	in_progress?: number;
-	done?: number;
-	closed?: number;
-	cancelled?: number;
-}
-
-interface HubTodo {
-	id: string;
-	title: string;
-	status: string;
-	type?: string;
-	priority?: string;
-	parentTaskId?: string | null;
-	assignee?: string | null;
-	origin?: string | null;
-	attachmentCount?: number;
-}
-
-type AgentActivity = Record<
-	string,
-	{
-		status?: string;
-		currentTool?: string;
-		toolCallCount?: number;
-		lastActivity?: string | number;
-		currentToolArgs?: string;
-		totalElapsed?: number;
-	}
->;
-
-interface HubSessionDiagnostics {
-	inactiveRunningTasks?: Array<{
-		taskId: string;
-		agent: string;
-		inactivityMs: number;
-		startedAt: string;
-		lastActivityAt?: string;
-	}>;
-}
-
-interface HubSessionDetail {
-	sessionId: string;
-	label?: string;
-	status: string;
-	createdAt: string;
-	mode: string;
-	task?: string;
-	error?: string;
-	streamId?: string | null;
-	streamUrl?: string | null;
-	tags?: string[];
-	skills?: HubSessionSkillRef[];
-	defaultAgent?: string;
-	bucket?: 'running' | 'paused' | 'provisioning' | 'history';
-	runtimeAvailable?: boolean;
-	controlAvailable?: boolean;
-	historyOnly?: boolean;
-	diagnostics?: HubSessionDiagnostics;
-	context?: {
-		branch?: string;
-		workingDirectory?: string;
-	};
-	participants?: HubParticipant[];
-	tasks?: HubTask[];
+type HubSessionDetail = BaseHubSessionDetail & {
 	todos?: HubTodo[];
 	todoSummary?: HubTodoSummary;
 	todosUnavailable?: string;
-	agentActivity?: AgentActivity;
-	stream?: StreamProjection;
-}
-
-interface HubTodoListResponse {
-	ok?: boolean;
-	count?: number;
-	summary?: HubTodoSummary;
-	todos?: HubTodo[];
-	unavailable?: boolean;
-	message?: string;
-}
-
-interface HubListResponse {
-	sessions?: {
-		websocket?: HubSessionSummary[];
-	};
-}
-
-interface HubReplayResponse {
-	sessionId: string;
-	entries?: ConversationEntryLike[];
-}
-
-interface HubEventHistoryItem {
-	id: number;
-	event: string;
-	category?: string;
-	agent?: string;
-	taskId?: string;
-	payload?: unknown;
-	occurredAt: string;
-	ingestedAt?: string;
-}
-
-interface HubEventHistoryResponse {
-	sessionId: string;
-	events?: HubEventHistoryItem[];
-}
+};
 
 interface FeedEntry {
 	at: number;
@@ -511,7 +379,8 @@ export class HubOverlay implements Component, Focusable {
 
 	private sessions: HubSessionSummary[] = [];
 	private detail: HubSessionDetail | null = null;
-	private cachedTodos: { todos: any[]; summary: any; sessionId: string } | null = null;
+	private cachedTodos: { todos: HubTodo[]; summary?: HubTodoSummary; sessionId: string } | null =
+		null;
 	private feed: FeedEntry[] = [];
 	private sessionFeed = new Map<string, FeedEntry[]>();
 	private sessionHistoryFeed = new Map<string, FeedEntry[]>();
@@ -2042,7 +1911,7 @@ export class HubOverlay implements Component, Focusable {
 
 	private applyHydration(sessionId: string, eventData: unknown): void {
 		if (!eventData || typeof eventData !== 'object') return;
-		const payload = eventData as Record<string, unknown>;
+		const payload = eventData as SseHydrationMessage;
 		const loadedFromProjection = this.replaceStreamProjection(
 			sessionId,
 			payload.stream as StreamProjection | undefined,
@@ -2052,7 +1921,7 @@ export class HubOverlay implements Component, Focusable {
 		if (!loadedFromProjection) {
 			const entries = Array.isArray(payload.entries)
 				? payload.entries.filter(
-						(entry): entry is ConversationEntryLike => !!entry && typeof entry === 'object'
+						(entry): entry is HubConversationEntry => !!entry && typeof entry === 'object'
 					)
 				: [];
 			this.replaceStreamProjection(sessionId, buildProjectionFromEntries(entries), 'hydration');
@@ -2703,7 +2572,13 @@ export class HubOverlay implements Component, Focusable {
 				);
 			} else {
 				const todos = session.todos ?? [];
-				const summary = session.todoSummary ?? {};
+				const summary: HubTodoSummary = session.todoSummary ?? {
+					open: 0,
+					in_progress: 0,
+					done: 0,
+					closed: 0,
+					cancelled: 0,
+				};
 				body.push(
 					this.contentLine(
 						this.theme.fg(
@@ -2740,9 +2615,11 @@ export class HubOverlay implements Component, Focusable {
 						const details = [
 							typeof todo.priority === 'string' ? `prio:${todo.priority}` : undefined,
 							typeof todo.type === 'string' ? `type:${todo.type}` : undefined,
-							typeof todo.assignee === 'string' && todo.assignee.length > 0
-								? `owner:${todo.assignee}`
-								: undefined,
+							typeof todo.assignee?.name === 'string' && todo.assignee.name.length > 0
+								? `owner:${todo.assignee.name}`
+								: typeof todo.assignee?.id === 'string' && todo.assignee.id.length > 0
+									? `owner:${todo.assignee.id}`
+									: undefined,
 							typeof todo.attachmentCount === 'number' && todo.attachmentCount > 0
 								? `att:${todo.attachmentCount}`
 								: undefined,

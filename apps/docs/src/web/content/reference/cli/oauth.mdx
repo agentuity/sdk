@@ -1,0 +1,179 @@
+---
+title: Managing OAuth Applications
+description: Create and manage OAuth/OIDC applications for third-party integrations from the CLI
+---
+
+Use these commands to register OAuth applications, manage client credentials, and track usage across your organization.
+
+<Callout type="info" title="Cloud Prefix Required">
+All OAuth commands require the `cloud` prefix. For example: `agentuity cloud oidc create ...`
+</Callout>
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `oidc create` | Create a new OAuth application |
+| `oidc list` | List all OAuth applications |
+| `oidc get <id>` | Get application details |
+| `oidc delete <id>` | Delete an application |
+| `oidc rotate-secret <id>` | Rotate the client secret |
+| `oidc activity <id>` | View usage activity |
+| `oidc users <id>` | List connected users |
+
+## Creating an Application
+
+Register a new OAuth application interactively or with flags.
+
+```bash
+agentuity cloud oidc create [options]
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Application name |
+| `--description <text>` | Application description |
+| `--homepage-url <url>` | Homepage URL |
+| `--type <type>` | Client type: `public` or `confidential` |
+| `--redirect-uris <uris>` | Comma-separated redirect URIs |
+| `--scopes <scopes>` | Comma-separated OAuth scopes (e.g. `openid,profile,email`) |
+| `--json` | JSON output |
+
+### Examples
+
+```bash
+# Interactive mode (prompts for each field)
+agentuity cloud oidc create
+
+# Non-interactive with all required flags
+agentuity cloud oidc create \
+  --name "My App" \
+  --description "OAuth integration" \
+  --homepage-url "https://example.com" \
+  --type confidential \
+  --redirect-uris "https://example.com/callback" \
+  --scopes "openid,profile,email"
+```
+
+<Callout type="warning" title="Save the Client Secret">
+The client secret is displayed only once at creation time. Copy it immediately and store it in a secure location.
+</Callout>
+
+**Alias:** `new` (e.g., `agentuity cloud oidc new`)
+
+## Managing Applications
+
+### List Applications
+
+```bash
+agentuity cloud oidc list
+```
+
+Shows all OAuth applications with their ID, name, type, scope count, user count, and creation date.
+
+**Alias:** `ls`
+
+### Get Application Details
+
+```bash
+agentuity cloud oidc get <id>
+```
+
+Displays the full configuration for a single application: name, description, type, homepage URL, redirect URIs, scopes, and timestamps.
+
+### Delete an Application
+
+```bash
+agentuity cloud oidc delete <id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Skip confirmation prompt |
+| `--yes` | Skip confirmation prompt (alias for `--force`) |
+
+```bash
+# With confirmation prompt
+agentuity cloud oidc delete oac_abc123
+
+# Skip confirmation
+agentuity cloud oidc delete oac_abc123 --force
+```
+
+**Aliases:** `del`, `rm`
+
+## Rotating Secrets
+
+Rotate the client secret for an existing application. The previous secret is immediately invalidated.
+
+```bash
+agentuity cloud oidc rotate-secret <id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Skip confirmation prompt |
+
+```bash
+# With confirmation prompt
+agentuity cloud oidc rotate-secret oac_abc123
+
+# Skip confirmation
+agentuity cloud oidc rotate-secret oac_abc123 --force
+```
+
+<Callout type="warning" title="Immediate Invalidation">
+Rotating the secret immediately invalidates the previous one. Update all consumers before rotating, or plan for a brief service interruption.
+</Callout>
+
+## Monitoring Activity
+
+### View Usage Activity
+
+Check how often an application is being used over a given period.
+
+```bash
+agentuity cloud oidc activity <id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--days <n>` | Number of days to include (1-365, default: 7) |
+
+```bash
+# Last 7 days (default)
+agentuity cloud oidc activity oac_abc123
+
+# Last 30 days
+agentuity cloud oidc activity oac_abc123 --days 30
+```
+
+Shows a per-day breakdown of total access count and unique users.
+
+### List Connected Users
+
+See which users have authorized the application.
+
+```bash
+agentuity cloud oidc users <id>
+```
+
+Displays user IDs, granted scopes, and the date each user connected.
+
+## JSON Output
+
+All commands support `--json` for machine-readable output:
+
+```bash
+agentuity cloud oidc list --json
+agentuity cloud oidc get oac_abc123 --json
+agentuity cloud oidc activity oac_abc123 --json
+```
+
+## Next Steps
+
+- [OAuth/OIDC Integration](/services/authentication#oauthoidc-integration): Token storage, auto-refresh, and logout in your app code
+- [Configuration](/reference/cli/configuration): Manage environment variables and secrets
+- [REST API OAuth Reference](/reference/api/oauth): HTTP endpoints for OAuth operations

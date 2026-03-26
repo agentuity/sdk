@@ -6,6 +6,10 @@ description: Add user authentication with Agentuity Auth
 
 Protect your agents and routes with user authentication. Agentuity provides a first-party auth solution powered by [BetterAuth](https://better-auth.com).
 
+<Callout type="info" title="Platform Auth Overview">
+This page covers React frontend auth setup. For a platform overview covering API keys, bearer tokens, and session auth configuration, see [Authentication Services](/services/authentication).
+</Callout>
+
 ## Full-Stack Auth in Seconds
 
 <Tabs items={["Frontend", "API Route", "Agent"]}>
@@ -365,10 +369,6 @@ export default createAgent('hello', {
 });
 ```
 
-<Callout type="info" title="Complete Examples">
-See the [auth testing app](https://github.com/agentuity/sdk/tree/main/apps/testing/auth-package-app) for full working examples of agents with authentication.
-</Callout>
-
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -411,7 +411,7 @@ If you have an existing Drizzle setup:
 
 ```typescript
 import { drizzle } from 'drizzle-orm/bun-sql';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { drizzleAdapter } from '@agentuity/drizzle';
 import * as authSchema from '@agentuity/auth/schema';
 import * as appSchema from './schema';
 
@@ -513,7 +513,7 @@ This outputs the SQL needed to create all auth tables, which you can then run wi
 
 ## Next Steps
 
-- [Middleware & Routes](/routes/middleware) - More middleware patterns
-- [Provider Setup](/frontend/provider-setup) - AgentuityProvider configuration
-- [React Hooks](/frontend/react-hooks) - Building custom UIs
-- [Auth Testing App](https://github.com/agentuity/sdk/tree/main/apps/testing/auth-package-app) - Complete working examples
+- [Middleware & Routes](/routes/middleware): Authentication and validation patterns
+- [Provider Setup](/frontend/provider-setup): AgentuityProvider configuration
+- [React Hooks](/frontend/react-hooks): Building custom UIs
+- [Authentication Services](/services/authentication): Platform auth overview with OAuth/OIDC

@@ -1,0 +1,454 @@
+---
+title: Using Standalone Packages
+short_title: Standalone Packages
+description: Use Agentuity services from any Node.js or Bun application without the full runtime
+---
+
+Need to use Agentuity services from a Next.js route, Express server, or standalone script? Each service is available as a lightweight npm package with the same API you already know from `ctx.*`.
+
+## Available Packages
+
+| Package | Install | Description |
+|---------|---------|-------------|
+| [`@agentuity/keyvalue`](#key-value-storage) | `bun add @agentuity/keyvalue` | Store and retrieve data by key with TTL support |
+| [`@agentuity/vector`](#vector-search) | `bun add @agentuity/vector` | Semantic search with automatic embedding generation |
+| [`@agentuity/sandbox`](#sandbox) | `bun add @agentuity/sandbox` | Create and manage isolated execution environments |
+| [`@agentuity/queue`](#message-queues) | `bun add @agentuity/queue` | Publish messages to worker and pub/sub queues |
+| [`@agentuity/db`](#database) | `bun add @agentuity/db` | Execute SQL queries and inspect table schemas |
+| [`@agentuity/email`](#email) | `bun add @agentuity/email` | Send and receive emails with managed addresses |
+| [`@agentuity/webhook`](#webhooks) | `bun add @agentuity/webhook` | Manage webhook endpoints and track deliveries |
+| [`@agentuity/schedule`](#schedules) | `bun add @agentuity/schedule` | Create cron-based scheduled jobs |
+| [`@agentuity/task`](#tasks) | `bun add @agentuity/task` | Track work items with comments, tags, and attachments |
+
+## Quick Example
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+await kv.set('cache', 'user:123', { name: 'Alice', role: 'admin' });
+const result = await kv.get('cache', 'user:123');
+```
+
+## When to Use What
+
+Agentuity services are accessible four ways, depending on where your code runs:
+
+- **Agent handler** (`ctx.*`): Inside a `createAgent` handler. Services are pre-configured on the context object.
+- **Route handler** (`c.var.*`): Inside a `createRouter` route. Same services, accessed via Hono context variables.
+- **Standalone package**: From any Node.js or Bun app (Next.js, Express, scripts). Install one package, set an env var.
+- **REST API**: Direct HTTP access from any language or environment.
+
+| Service | Agent (`ctx.*`) | Route (`c.var.*`) | Standalone Package | REST API |
+|---------|----------------|-------------------|-------------------|----------|
+| [Key-Value](/services/storage/key-value) | `ctx.kv` | `c.var.kv` | `@agentuity/keyvalue` | [API](/reference/api/key-value) |
+| [Vector](/services/storage/vector) | `ctx.vector` | `c.var.vector` | `@agentuity/vector` | [API](/reference/api/vector) |
+| [Sandbox](/services/sandbox/sdk-usage) | `ctx.sandbox` | `c.var.sandbox` | `@agentuity/sandbox` | [API](/reference/api/sandboxes) |
+| [Queues](/services/queues) | `ctx.queue` | `c.var.queue` | `@agentuity/queue` | [API](/reference/api/queues) |
+| [Database](/services/database) | N/A | N/A | `@agentuity/db` | [API](/reference/api/database) |
+| [Email](/services/email) | `ctx.email` | `c.var.email` | `@agentuity/email` | [API](/reference/api/email) |
+| [Webhooks](/services/webhooks) | N/A | N/A | `@agentuity/webhook` | [API](/reference/api/webhooks) |
+| [Schedules](/services/schedules) | `ctx.schedule` | `c.var.schedule` | `@agentuity/schedule` | [API](/reference/api/schedules) |
+| [Tasks](/services/tasks) | `ctx.task` | `c.var.task` | `@agentuity/task` | [API](/reference/api/tasks) |
+
+<Callout type="info" title="Additional ctx.* services">
+Services like Streams, Logger, Tracer, Thread, and Session are also available via `ctx.*` and `c.var.*` but don't have standalone packages. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete reference.
+</Callout>
+
+## Key-Value Storage
+
+Fast lookups, caching, configuration, and rate limiting.
+
+```bash
+bun add @agentuity/keyvalue
+```
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+// Store with optional TTL (in seconds)
+await kv.set('cache', 'session:abc', { userId: '123' }, { ttl: 3600 });
+
+// Retrieve
+const result = await kv.get('cache', 'session:abc');
+if (result.exists) {
+  console.log(result.data);
+}
+
+// Search keys by keyword
+const matches = await kv.search('cache', 'session');
+
+// Delete
+await kv.delete('cache', 'session:abc');
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the KV API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+<Callout type="tip" title="Full ctx.kv Reference">
+For the complete key-value API including namespace management and stats, see [Key-Value Storage](/services/storage/key-value).
+</Callout>
+
+## Vector Search
+
+Semantic search with automatic embedding generation.
+
+```bash
+bun add @agentuity/vector
+```
+
+```typescript
+import { VectorClient } from '@agentuity/vector';
+
+const vector = new VectorClient();
+
+// Upsert documents (embeddings are generated automatically)
+await vector.upsert('docs', {
+  key: 'doc-1',
+  document: 'Agentuity provides cloud-native agent hosting',
+  metadata: { source: 'readme' },
+});
+
+// Search by natural language query
+const results = await vector.search('docs', {
+  query: 'how to deploy agents',
+  limit: 5,
+});
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Vector API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+<Callout type="tip" title="Full ctx.vector Reference">
+For the complete vector API including TTL, batch operations, and metadata filtering, see [Vector Storage](/services/storage/vector).
+</Callout>
+
+## Sandbox
+
+Isolated execution environments for running untrusted code, build pipelines, or compute jobs.
+
+```bash
+bun add @agentuity/sandbox
+```
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+
+// One-shot execution (creates, runs, destroys automatically)
+const result = await client.run(
+  { command: { exec: ['echo', 'hello world'] } },
+  { stdout: process.stdout, stderr: process.stderr }
+);
+console.log('Exit code:', result.exitCode);
+
+// Interactive sandbox (long-lived)
+const sandbox = await client.create({ runtime: 'bun:1' });
+await sandbox.execute({ command: ['bun', 'install'] });
+await sandbox.writeFiles([{ path: 'index.ts', content: Buffer.from('console.log("hi")') }]);
+await sandbox.destroy();
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Sandbox API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+<Callout type="tip" title="Full Sandbox Reference">
+For the complete sandbox API including snapshots, jobs, disk checkpoints, and file operations, see [Sandboxes](/services/sandbox).
+</Callout>
+
+## Message Queues
+
+Publish messages to worker and pub/sub queues for asynchronous processing.
+
+```bash
+bun add @agentuity/queue
+```
+
+```typescript
+import { QueueClient } from '@agentuity/queue';
+
+const queue = new QueueClient();
+
+// Create a queue
+await queue.createQueue('notifications');
+
+// Publish a message
+await queue.publish('notifications', {
+  type: 'welcome',
+  userId: '123',
+});
+
+// Delete a queue
+await queue.deleteQueue('notifications');
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Queue API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+<Callout type="tip" title="Full Queue Reference">
+For the complete queue API including consumption patterns and message acknowledgment, see [Message Queues](/services/queues).
+</Callout>
+
+## Database
+
+Execute SQL queries and inspect table schemas on your Agentuity-managed database.
+
+```bash
+bun add @agentuity/db
+```
+
+```typescript
+import { DBClient } from '@agentuity/db';
+
+const db = new DBClient({
+  database: 'my-database',
+  orgId: 'org_abc123',
+});
+
+// Execute a query
+const result = await db.query('SELECT * FROM users LIMIT 10');
+console.log(result.columns, result.rows);
+
+// List tables
+const tables = await db.tables();
+
+// Get query logs
+const logs = await db.logs({ limit: 50 });
+```
+
+<Callout type="info" title="Required Options">
+`DBClient` requires `database` and `orgId` in the constructor. These are not optional because every query targets a specific database within an organization.
+</Callout>
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the DB API |
+| `database` | `string` | **Required** | Database name |
+| `orgId` | `string` | **Required** | Organization ID |
+| `region` | `string` | `AGENTUITY_REGION` or `usc` | Cloud region |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+## Email
+
+Send and receive emails using managed addresses with webhook-based inbound routing.
+
+```bash
+bun add @agentuity/email
+```
+
+```typescript
+import { EmailClient } from '@agentuity/email';
+
+const email = new EmailClient();
+
+// Create a managed email address
+const address = await email.createAddress('support');
+
+// Send an email
+await email.send({
+  from: address.address,
+  to: 'user@example.com',
+  subject: 'Welcome!',
+  text: 'Thanks for signing up.',
+});
+
+// List inbound emails
+const inbound = await email.listInbound(address.id);
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Email API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+## Webhooks
+
+Create webhook endpoints, route deliveries to destinations, and track receipts.
+
+```bash
+bun add @agentuity/webhook
+```
+
+```typescript
+import { WebhookClient } from '@agentuity/webhook';
+
+const webhooks = new WebhookClient();
+
+// Create a webhook endpoint
+const result = await webhooks.create({ name: 'stripe-events' });
+
+// Add a destination
+await webhooks.createDestination(result.webhook.id, {
+  type: 'url',
+  config: { url: 'https://myapp.com/api/stripe' },
+});
+
+// List receipts
+const receipts = await webhooks.listReceipts(result.webhook.id);
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Webhook API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+## Schedules
+
+Create cron-based scheduled jobs that deliver payloads to configured destinations.
+
+```bash
+bun add @agentuity/schedule
+```
+
+```typescript
+import { ScheduleClient } from '@agentuity/schedule';
+
+const schedules = new ScheduleClient();
+
+// Create a schedule (runs every hour)
+const result = await schedules.create({
+  name: 'hourly-sync',
+  cron: '0 * * * *',
+});
+
+// List all schedules
+const list = await schedules.list();
+
+// Get a specific schedule
+const details = await schedules.get(result.schedule.id);
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Schedule API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+## Tasks
+
+Track work items with comments, tags, attachments, and a full activity changelog.
+
+```bash
+bun add @agentuity/task
+```
+
+```typescript
+import { TaskClient } from '@agentuity/task';
+
+const tasks = new TaskClient();
+
+// Create a task
+const task = await tasks.create({
+  title: 'Fix login bug',
+  type: 'bug',
+  priority: 'high',
+});
+
+// Add a comment
+await tasks.createComment(task.id, 'Reproduced on Chrome 120', 'user_abc');
+
+// Tag it
+const tag = await tasks.createTag('urgent', '#ff0000');
+await tasks.addTagToTask(task.id, tag.id);
+
+// List all tasks
+const list = await tasks.list({ status: 'open' });
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-detected from region | Base URL for the Task API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+## Configuration
+
+All standalone packages share the same configuration pattern. Set environment variables once, and every client picks them up automatically.
+
+<Callout type="warning" title="API Key Required">
+All standalone packages require an API key. Set the `AGENTUITY_SDK_KEY` environment variable or pass `apiKey` directly to each client constructor.
+</Callout>
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AGENTUITY_SDK_KEY` | API key for authentication | **Required** |
+| `AGENTUITY_REGION` | Region for API endpoints | `usc` |
+
+Each service also supports a URL override variable for custom deployments:
+
+| Variable | Service |
+|----------|---------|
+| `AGENTUITY_KEYVALUE_URL` | Key-Value Storage |
+| `AGENTUITY_VECTOR_URL` | Vector Search |
+| `AGENTUITY_SANDBOX_URL` | Sandbox |
+| `AGENTUITY_QUEUE_URL` | Message Queues |
+| `AGENTUITY_DB_URL` | Database |
+| `AGENTUITY_EMAIL_URL` | Email |
+| `AGENTUITY_WEBHOOK_URL` | Webhooks |
+| `AGENTUITY_SCHEDULE_URL` | Schedules |
+| `AGENTUITY_TASK_URL` | Tasks |
+
+### Shared Constructor Pattern
+
+Every client follows the same constructor pattern:
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+// Minimal: uses env vars for everything
+const kv = new KeyValueClient();
+
+// Explicit: override specific options
+const kvCustom = new KeyValueClient({
+  apiKey: 'agentuity_sk_...',
+  orgId: 'org_abc123',
+});
+```
+
+All constructor options are validated at initialization using Zod schemas. Invalid options throw immediately with descriptive error messages.

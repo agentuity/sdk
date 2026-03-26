@@ -1,0 +1,280 @@
+---
+title: Logging and Telemetry
+short_title: Observability
+description: Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer
+---
+
+Structured logging via `ctx.logger` and distributed tracing via `ctx.tracer` (OpenTelemetry), available in agents, routes, and standalone scripts.
+
+## Logging
+
+Use `ctx.logger` to emit structured log lines that the platform captures and displays in the Console.
+
+### Logger Interface
+
+The `Logger` interface defines the following methods:
+
+```typescript
+interface Logger {
+  trace(message: unknown, ...args: unknown[]): void;
+  debug(message: unknown, ...args: unknown[]): void;
+  info(message: unknown, ...args: unknown[]): void;
+  warn(message: unknown, ...args: unknown[]): void;
+  error(message: unknown, ...args: unknown[]): void;
+  fatal(message: unknown, ...args: unknown[]): never;
+  child(opts: Record<string, unknown>): Logger;
+}
+```
+
+### Logging Methods
+
+All standard methods share the same signature: `(message: unknown, ...args: unknown[]): void`. Pass structured data as the second argument for queryable log fields.
+
+| Method | Level | Usage |
+|--------|-------|-------|
+| `trace(message, ...args)` | Most verbose | Detailed diagnostics, hot-path tracing |
+| `debug(message, ...args)` | Debug | Request-level context during development |
+| `info(message, ...args)` | Info | Significant state changes, milestones |
+| `warn(message, ...args)` | Warning | Recoverable issues, missing optional config |
+| `error(message, ...args)` | Error | Failures that need attention but don't crash |
+
+```typescript
+ctx.logger.trace('Detailed diagnostic info', { data: complexObject });
+ctx.logger.debug('Processing request', { requestId: '123' });
+ctx.logger.info('Request processed successfully', { requestId: '123' });
+ctx.logger.warn('Resource not found', { resourceId: '456' });
+ctx.logger.error('Failed to process request', error);
+```
+
+#### fatal
+
+`fatal(message: unknown, ...args: unknown[]): never`
+
+Logs a fatal error message and terminates the current execution. The return type is `never` because the process exits after logging.
+
+```typescript
+ctx.logger.fatal('Critical system failure', { error, context });
+// Code after this line will never execute
+```
+
+Use `fatal()` only for unrecoverable errors that require process termination. For recoverable errors, use `error()` instead.
+
+### Creating Child Loggers
+
+#### child
+
+`child(opts: Record<string, unknown>): Logger`
+
+Creates a child logger with additional context. The child inherits all parent context fields and adds its own, so every log from the child includes both sets of fields.
+
+**Parameters**
+
+- `opts`: Additional context to include in all logs from the child logger (key-value pairs of any type)
+
+**Return Value**
+
+Returns a new `Logger` instance with the merged context.
+
+**Example**
+
+```typescript
+const requestLogger = ctx.logger.child({ requestId: '123', userId: '456' });
+requestLogger.info('Processing request');
+// Output includes requestId and userId on every log line
+
+// Children can be nested further
+const stepLogger = requestLogger.child({ step: 'validation' });
+stepLogger.warn('Missing optional field');
+// Output includes requestId, userId, and step
+```
+
+### Log Configuration
+
+Set the minimum log level with the `AGENTUITY_LOG_LEVEL` environment variable:
+
+```bash
+# .env
+AGENTUITY_LOG_LEVEL=debug
+```
+
+| Value | Shows |
+|-------|-------|
+| `trace` | trace, debug, info, warn, error, fatal |
+| `debug` | debug, info, warn, error, fatal |
+| `info` | info, warn, error, fatal (default in deployed environments) |
+| `warn` | warn, error, fatal |
+| `error` | error, fatal |
+| `fatal` | fatal only |
+
+The default is `info` in deployed environments and `debug` in dev mode (`agentuity dev`).
+
+### Viewing Logs
+
+In dev mode, logs appear in the terminal where `agentuity dev` is running.
+
+In deployed environments, use the `agentuity` CLI to view session logs:
+
+```bash
+# List recent sessions
+agentuity cloud session list
+
+# View logs for a specific session
+agentuity cloud session logs sess_abc123xyz
+```
+
+Logs are also visible in the Agentuity App session timeline.
+
+### Route Logging
+
+In route handlers, the logger is available on `c.var.logger` instead of `ctx.logger`. The API is identical: same methods, same structured data support.
+
+```typescript title="src/api/users/route.ts"
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get('/:id', async (c) => {
+  const userId = c.req.param('id');
+  c.var.logger.info('Fetching user', { userId });
+
+  const user = await fetchUser(userId);
+  if (!user) {
+    c.var.logger.warn('User not found', { userId });
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  return c.json(user);
+});
+
+export default router;
+```
+
+Child loggers also work in routes, which is useful for adding per-request context:
+
+```typescript
+router.post('/process', async (c) => {
+  const requestLogger = c.var.logger.child({ requestId: c.req.header('x-request-id') });
+  requestLogger.info('Starting processing');
+  // All subsequent logs include requestId
+});
+```
+
+For patterns, best practices, and advanced logging strategies, see [Logging](/services/observability/logging).
+
+---
+
+## Telemetry
+
+The SDK integrates with OpenTelemetry for tracing.
+
+### Tracing
+
+Use `ctx.tracer` to create OpenTelemetry spans that track operations across agents and services.
+
+```typescript
+ctx.tracer.startActiveSpan('process-data', async (span) => {
+  try {
+    const result = await processData();
+    span.setStatus({ code: SpanStatusCode.OK });
+    return result;
+  } catch (error) {
+    span.recordException(error);
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    throw error;
+  } finally {
+    span.end();
+  }
+});
+```
+
+Always call `span.end()` when the operation completes. A `finally` block is the safest place for this.
+
+#### Span Operations
+
+Inside `startActiveSpan`, the span object exposes standard OpenTelemetry methods.
+
+- `span.setAttribute(key, value)`: attach a single key-value pair to the span
+- `span.setAttributes(attributes)`: attach multiple key-value pairs at once
+- `span.addEvent(name, attributes?)`: record a timestamped event within the span
+- `span.recordException(error)`: capture an error with its stack trace
+- `span.setStatus({ code, message? })`: set the final status of the span
+
+```typescript
+import { SpanStatusCode } from '@opentelemetry/api';
+
+ctx.tracer.startActiveSpan('checkout', async (span) => {
+  try {
+    span.setAttributes({
+      'cart.itemCount': items.length,
+      'cart.total': total,
+    });
+
+    const order = await createOrder(items);
+
+    span.addEvent('order-created', { orderId: order.id });
+    span.setAttribute('order.id', order.id);
+    span.setStatus({ code: SpanStatusCode.OK });
+
+    return order;
+  } catch (error) {
+    span.recordException(error);
+    span.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: error.message,
+    });
+    throw error;
+  } finally {
+    span.end();
+  }
+});
+```
+
+#### SpanStatusCode
+
+Import `SpanStatusCode` from `@opentelemetry/api` to set span outcomes.
+
+| Code | Value | Usage |
+|------|-------|-------|
+| `SpanStatusCode.UNSET` | `0` | Default. No explicit status set |
+| `SpanStatusCode.OK` | `1` | Operation completed successfully |
+| `SpanStatusCode.ERROR` | `2` | Operation failed |
+
+Set `OK` on the success path. Set `ERROR` in catch blocks, optionally with a `message` for diagnostics. Leave `UNSET` when the outcome is ambiguous or irrelevant.
+
+#### Nested Spans
+
+Nest `startActiveSpan` calls to create parent-child relationships. The inner span automatically inherits the outer span's trace context.
+
+```typescript
+ctx.tracer.startActiveSpan('handle-request', async (parentSpan) => {
+  try {
+    // Child span appears under handle-request in the trace
+    const user = await ctx.tracer.startActiveSpan('fetch-user', async (childSpan) => {
+      try {
+        const result = await db.getUser(userId);
+        childSpan.setStatus({ code: SpanStatusCode.OK });
+        return result;
+      } finally {
+        childSpan.end();
+      }
+    });
+
+    parentSpan.setStatus({ code: SpanStatusCode.OK });
+    return user;
+  } catch (error) {
+    parentSpan.recordException(error);
+    parentSpan.setStatus({ code: SpanStatusCode.ERROR });
+    throw error;
+  } finally {
+    parentSpan.end();
+  }
+});
+```
+
+### Trace Propagation
+
+When one agent calls another via `.run()`, trace context is propagated automatically. The called agent's spans appear as children of the calling agent's span, giving you a complete trace across the full request chain.
+
+No manual header injection or context passing is needed. The SDK handles propagation for both agent-to-agent calls and outbound HTTP requests made with `fetch`.
+
+For tracing best practices, see [Tracing](/services/observability/tracing).
