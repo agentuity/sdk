@@ -5,32 +5,24 @@ import { bearerTokenAuth } from '../../middleware/auth';
 const router = createRouter();
 
 // POST /api/process-docs
+// Processes docs synchronously and returns stats.
+// Callers should batch large payloads (~10 files per request).
 router.post('/', bearerTokenAuth, docProcessingAgent.validator(), async (c) => {
 	const data = c.req.valid('json');
 
-	const changedCount = data.changed?.length ?? 0;
-	const removedCount = data.removed?.length ?? 0;
-
-	c.var.logger.info('Accepted docs sync request', {
-		changed: changedCount,
-		removed: removedCount,
+	c.var.logger.info('Starting docs sync', {
+		changed: data.changed?.length ?? 0,
+		removed: data.removed?.length ?? 0,
 		commit: data.commit,
 	});
 
-	// Respond immediately; processing continues in the background.
-	c.waitUntil(async () => {
-		try {
-			const result = await docProcessingAgent.run(data);
-			c.var.logger.info('Docs sync complete', result);
-		} catch (err) {
-			c.var.logger.error('Docs sync failed', { error: err, commit: data.commit });
-		}
-	});
-
-	return c.json({
-		status: 'accepted',
-		message: `Processing ${changedCount} changed and ${removedCount} removed files in background`,
-	});
+	try {
+		const result = await docProcessingAgent.run(data);
+		return c.json(result);
+	} catch (err) {
+		c.var.logger.error('Docs sync failed', { error: err, commit: data.commit });
+		return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+	}
 });
 
 export default router;
