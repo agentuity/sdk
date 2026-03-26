@@ -6,7 +6,11 @@
 
 import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { StructuredError } from '@agentuity/core';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
@@ -14,6 +18,8 @@ import { tailwindSourcePlugin } from './tailwind-source-plugin';
 import { beaconPlugin } from './beacon-plugin';
 import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
+
+const BuildFailedError = StructuredError('BuildFailedError');
 
 /**
  * Vite plugin to flatten the output structure for index.html
@@ -68,6 +74,232 @@ export interface ViteBuildOptions {
 	collector?: BuildReportCollector;
 	/** Optional config profile name (e.g., 'staging', 'test') for .env.{profile} files */
 	profile?: string;
+}
+
+export type ViteBuildWorkerOptions = Omit<ViteBuildOptions, 'logger' | 'collector'>;
+
+/**
+ * Drain a subprocess stream, forwarding each chunk to the callback
+ * without accumulating in memory. Only the last `tailBytes` of output
+ * are retained so we can include them in error messages on failure.
+ */
+async function drainSubprocessStream(
+	stream: ReadableStream<Uint8Array>,
+	onChunk: (chunk: string) => void,
+	tailBytes = 4096
+): Promise<string> {
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	// Ring buffer that keeps only the trailing output for error context
+	let tail = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		const text = decoder.decode(value, { stream: true });
+		if (!text) continue;
+		onChunk(text);
+		tail = (tail + text).slice(-tailBytes);
+	}
+
+	const finalText = decoder.decode();
+	if (finalText) {
+		onChunk(finalText);
+		tail = (tail + finalText).slice(-tailBytes);
+	}
+
+	return tail;
+}
+
+/**
+ * Detect actually available memory for subprocess heap sizing.
+ * Reads cgroup v2/v1 max and current usage to compute free memory.
+ * Falls back to os.freemem() if cgroup files aren't available.
+ */
+async function detectAvailableMemory(
+	logger: Logger,
+	label: string
+): Promise<Record<string, string>> {
+	let cgroupMaxBytes = 0;
+	let cgroupCurrentBytes = 0;
+	let availableBytes = 0;
+	try {
+		if (process.platform === 'linux') {
+			// Try cgroup v2
+			const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
+			const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
+			if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
+				const maxStr = (await cgroupMax.text()).trim();
+				const currentStr = (await cgroupCurrent.text()).trim();
+				// "max" means unlimited — use total system memory
+				if (maxStr === 'max') {
+					const { totalmem } = await import('node:os');
+					cgroupMaxBytes = totalmem();
+				} else if (/^\d+$/.test(maxStr)) {
+					cgroupMaxBytes = Number(maxStr);
+				}
+				if (/^\d+$/.test(currentStr)) {
+					cgroupCurrentBytes = Number(currentStr);
+				}
+				if (cgroupMaxBytes > 0) {
+					availableBytes =
+						cgroupCurrentBytes > 0 ? cgroupMaxBytes - cgroupCurrentBytes : cgroupMaxBytes;
+				}
+			}
+			// Fallback to cgroup v1
+			if (!availableBytes) {
+				const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
+				const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
+				if ((await v1Limit.exists()) && (await v1Usage.exists())) {
+					const limitStr = (await v1Limit.text()).trim();
+					const usageStr = (await v1Usage.text()).trim();
+					if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
+						cgroupMaxBytes = Number(limitStr);
+						cgroupCurrentBytes = Number(usageStr);
+						availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+					}
+				}
+			}
+		}
+		if (!availableBytes) {
+			const { freemem } = await import('node:os');
+			availableBytes = freemem();
+		}
+	} catch {
+		// If detection fails, let JSC use its own defaults
+	}
+
+	const jscEnv: Record<string, string> = {};
+	if (availableBytes > 0) {
+		const maxMb = Math.round(cgroupMaxBytes / 1024 / 1024);
+		const usedMb = Math.round(cgroupCurrentBytes / 1024 / 1024);
+		const availMb = Math.round(availableBytes / 1024 / 1024);
+		const maxHeap = Math.round(availableBytes * 0.8);
+		const maxHeapMb = Math.round(maxHeap / 1024 / 1024);
+		jscEnv.BUN_JSC_forceRAMSize = String(availableBytes);
+		jscEnv.BUN_JSC_gcMaxHeapSize = String(maxHeap);
+		logger.debug(
+			`[${label}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB`
+		);
+	} else {
+		logger.debug(`[${label}] Could not detect available memory, using JSC defaults`);
+	}
+	return jscEnv;
+}
+
+function resolveWorkerScript(name: string): string {
+	const tsPath = fileURLToPath(new URL(`./${name}.ts`, import.meta.url));
+	const jsPath = fileURLToPath(new URL(`./${name}.js`, import.meta.url));
+	return existsSync(tsPath) ? tsPath : jsPath;
+}
+
+/**
+ * Spawn an isolated worker subprocess with JSC memory tuning.
+ * Returns the captured stdout tail (for parsing results) and throws on failure.
+ */
+async function spawnIsolatedWorker(opts: {
+	workerName: string;
+	label: string;
+	optionsJson: unknown;
+	cwd: string;
+	logger: Logger;
+}): Promise<string> {
+	const { workerName, label, optionsJson, cwd, logger } = opts;
+	const workerScript = resolveWorkerScript(workerName);
+	const optionsPath = join(tmpdir(), `agentuity-${label}-${randomUUID()}.json`);
+
+	try {
+		await Bun.write(optionsPath, JSON.stringify(optionsJson));
+		const jscEnv = await detectAvailableMemory(logger, label);
+
+		const proc = Bun.spawn({
+			cmd: [process.execPath, workerScript, optionsPath],
+			cwd,
+			env: { ...process.env, ...jscEnv },
+			stdin: 'ignore',
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+
+		const stdoutPromise =
+			proc.stdout && typeof proc.stdout !== 'number'
+				? drainSubprocessStream(proc.stdout, (chunk) => {
+						const text = chunk.trim();
+						if (text) logger.debug(`[${label}] ${text}`);
+					})
+				: Promise.resolve('');
+
+		const stderrPromise =
+			proc.stderr && typeof proc.stderr !== 'number'
+				? drainSubprocessStream(proc.stderr, (chunk) => {
+						const text = chunk.trim();
+						if (text) logger.error(`[${label}] ${text}`);
+					})
+				: Promise.resolve('');
+
+		const [stdout, stderr, exitCode] = await Promise.all([
+			stdoutPromise,
+			stderrPromise,
+			proc.exited,
+		]);
+
+		if (exitCode !== 0) {
+			const errorOutput = stderr.trim() || stdout.trim();
+			const suffix = errorOutput ? `: ${errorOutput}` : '';
+			throw new BuildFailedError({
+				message: `${label} failed with exit code ${exitCode}${suffix}`,
+			});
+		}
+		return stdout;
+	} catch (error) {
+		if (error instanceof Error && error.name === 'BuildFailedError') throw error;
+		throw new BuildFailedError({
+			message: `Failed to run ${label}: ${error instanceof Error ? error.message : String(error)}`,
+		});
+	} finally {
+		rmSync(optionsPath, { force: true });
+	}
+}
+
+async function runViteBuildInSubprocess(
+	options: ViteBuildWorkerOptions,
+	logger: Logger
+): Promise<void> {
+	await spawnIsolatedWorker({
+		workerName: 'vite-build-worker',
+		label: `vite-build-worker:${options.mode}`,
+		optionsJson: options,
+		cwd: options.rootDir,
+		logger,
+	});
+}
+
+async function runStaticRenderInSubprocess(
+	rootDir: string,
+	logger: Logger
+): Promise<{ routes: number; duration: number }> {
+	const stdout = await spawnIsolatedWorker({
+		workerName: 'static-render-worker',
+		label: 'static-render-worker',
+		optionsJson: { rootDir },
+		cwd: rootDir,
+		logger,
+	});
+
+	// Worker writes JSON result as last line of stdout
+	try {
+		// Find the last JSON line in the tail
+		const lines = stdout.split('\n').filter((l) => l.trim());
+		for (let i = lines.length - 1; i >= 0; i--) {
+			const line = lines[i]!.trim();
+			if (line.startsWith('{')) {
+				return JSON.parse(line);
+			}
+		}
+	} catch {
+		// Parse failure — return defaults
+	}
+	return { routes: 0, duration: 0 };
 }
 
 /**
@@ -256,6 +488,9 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				// Copy public files to output for CDN upload (production builds only)
 				// In dev mode, Vite serves them directly from src/web/public/
 				copyPublicDir: !dev,
+				// Skip compressed size reporting to save memory — we measure
+				// sizes during the asset upload phase instead.
+				reportCompressedSize: false,
 			},
 			logLevel: isViteDebug ? 'info' : 'warn',
 		};
@@ -322,6 +557,7 @@ interface BuildResult {
  */
 export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
 	const { rootDir, projectId = '', dev = false, logger, collector } = options;
+	const { logger: _logger, collector: _collector, ...workerBaseOptions } = options;
 
 	if (!dev) {
 		rmSync(join(rootDir, '.agentuity'), { force: true, recursive: true });
@@ -393,13 +629,26 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Building client assets...');
 		const endClientDiagnostic = collector?.startDiagnostic('client-build');
 		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'client',
-			workbenchEnabled: workbenchConfig.enabled,
-			workbenchRoute: workbenchConfig.route,
-			analyticsEnabled,
-		});
+		if (dev) {
+			await runViteBuild({
+				...options,
+				mode: 'client',
+				workbenchEnabled: workbenchConfig.enabled,
+				workbenchRoute: workbenchConfig.route,
+				analyticsEnabled,
+			});
+		} else {
+			await runViteBuildInSubprocess(
+				{
+					...workerBaseOptions,
+					mode: 'client',
+					workbenchEnabled: workbenchConfig.enabled,
+					workbenchRoute: workbenchConfig.route,
+					analyticsEnabled,
+				},
+				logger
+			);
+		}
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
 		endClientDiagnostic?.();
@@ -411,15 +660,22 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	if (config?.render === 'static' && hasWebFrontend) {
 		logger.debug('Running static rendering (pre-rendering all routes)...');
 		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
-		const { runStaticRender } = await import('./static-renderer');
-		const staticResult = await runStaticRender({
-			rootDir,
-			logger,
-			userPlugins: config?.plugins || [],
-		});
-		result.static.included = true;
-		result.static.duration = staticResult.duration;
-		result.static.routes = staticResult.routes;
+		if (dev) {
+			const { runStaticRender } = await import('./static-renderer');
+			const staticResult = await runStaticRender({
+				rootDir,
+				logger,
+				userPlugins: config?.plugins || [],
+			});
+			result.static.included = true;
+			result.static.duration = staticResult.duration;
+			result.static.routes = staticResult.routes;
+		} else {
+			const staticResult = await runStaticRenderInSubprocess(rootDir, logger);
+			result.static.included = true;
+			result.static.duration = staticResult.duration;
+			result.static.routes = staticResult.routes;
+		}
 		endStaticDiagnostic?.();
 	}
 
@@ -428,12 +684,24 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Building workbench assets...');
 		const endWorkbenchDiagnostic = collector?.startDiagnostic('workbench-build');
 		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'workbench',
-			workbenchRoute: workbenchConfig.route,
-			workbenchEnabled: true,
-		});
+		if (dev) {
+			await runViteBuild({
+				...options,
+				mode: 'workbench',
+				workbenchRoute: workbenchConfig.route,
+				workbenchEnabled: true,
+			});
+		} else {
+			await runViteBuildInSubprocess(
+				{
+					...workerBaseOptions,
+					mode: 'workbench',
+					workbenchRoute: workbenchConfig.route,
+					workbenchEnabled: true,
+				},
+				logger
+			);
+		}
 		result.workbench.included = true;
 		result.workbench.duration = Date.now() - started;
 		endWorkbenchDiagnostic?.();
@@ -443,7 +711,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	logger.debug('Building server...');
 	const endServerDiagnostic = collector?.startDiagnostic('server-build');
 	const serverStarted = Date.now();
-	await runViteBuild({ ...options, mode: 'server' });
+	if (dev) {
+		await runViteBuild({ ...options, mode: 'server' });
+	} else {
+		await runViteBuildInSubprocess({ ...workerBaseOptions, mode: 'server' }, logger);
+	}
 	result.server.included = true;
 	result.server.duration = Date.now() - serverStarted;
 	endServerDiagnostic?.();

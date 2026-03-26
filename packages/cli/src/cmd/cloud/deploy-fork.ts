@@ -163,13 +163,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	process.on('SIGTERM', sigtermHandler);
 
 	try {
-		const childArgs = [
-			'agentuity',
-			'deploy',
-			'--child-mode',
-			`--report-file=${reportFile}`,
-			...args,
-		];
+		const childArgs = ['deploy', '--child-mode', `--report-file=${reportFile}`, ...args];
 
 		// Pass the deployment info via environment variable (same format as CI builds)
 		const deploymentEnvValue = JSON.stringify({
@@ -178,14 +172,19 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			publicKey: deployment.publicKey,
 		});
 
-		logger.debug('Spawning child deploy process: bunx %s', childArgs.join(' '));
+		// Re-exec the same entry point that the parent is running so that
+		// local/dev builds test the current code instead of a stale global
+		// install.  process.execPath is the bun binary; Bun.main is the
+		// script entry (e.g. bin/cli.ts or the compiled binary).
+		const cmd = [process.execPath, Bun.main, ...childArgs];
+		logger.debug('Spawning child deploy process: %s', cmd.join(' '));
 
 		// Get terminal dimensions to pass to child
 		const columns = process.stdout.columns || 80;
 		const rows = process.stdout.rows || 24;
 
 		proc = spawn({
-			cmd: ['bunx', ...childArgs],
+			cmd,
 			cwd: projectDir,
 			env: {
 				...process.env,
@@ -273,18 +272,20 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 
 		// Stream clean logs to Pulse (prefer clean logs over raw output)
 		if (buildLogsStreamURL) {
-			let logsContent = '';
+			let streamedCleanLogs = false;
 			if (existsSync(cleanLogsFile)) {
 				try {
-					logsContent = readFileSync(cleanLogsFile, 'utf-8');
+					const cleanLogs = Bun.file(cleanLogsFile);
+					if (cleanLogs.size > 0) {
+						await streamToPulse(buildLogsStreamURL, sdkKey, cleanLogs, logger);
+						streamedCleanLogs = true;
+					}
 					unlinkSync(cleanLogsFile);
 				} catch (err) {
-					logger.debug('Failed to read clean logs file: %s', err);
+					logger.debug('Failed to stream clean logs file: %s', err);
 				}
 			}
-			if (logsContent) {
-				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
-			} else if (existsSync(rawLogsFile)) {
+			if (!streamedCleanLogs && existsSync(rawLogsFile)) {
 				// Stream raw logs file directly to Pulse without loading into memory
 				await streamToPulse(buildLogsStreamURL, sdkKey, Bun.file(rawLogsFile), logger);
 			}
@@ -330,18 +331,26 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		logger.error('Fork deploy error: %s', errorMessage);
 
 		if (buildLogsStreamURL) {
-			let logsContent = '';
+			let streamedCleanLogs = false;
 			if (existsSync(cleanLogsFile)) {
 				try {
-					logsContent = readFileSync(cleanLogsFile, 'utf-8');
+					const cleanLogs = Bun.file(cleanLogsFile);
+					if (cleanLogs.size > 0) {
+						await streamToPulse(buildLogsStreamURL, sdkKey, cleanLogs, logger);
+						streamedCleanLogs = true;
+					}
 					unlinkSync(cleanLogsFile);
 				} catch {
 					// ignore
 				}
 			}
-			if (logsContent) {
-				logsContent += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
-				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
+			if (streamedCleanLogs) {
+				await streamToPulse(
+					buildLogsStreamURL,
+					sdkKey,
+					`\n\n--- FORK ERROR ---\n${errorMessage}\n`,
+					logger
+				);
 			} else {
 				// Append error to raw logs file and stream it without loading into memory
 				try {
