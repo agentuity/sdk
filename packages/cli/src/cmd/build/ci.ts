@@ -7,7 +7,7 @@ import { ErrorCode } from '../../errors';
 import * as tui from '../../tui';
 
 export interface CIBuildOptions {
-	url: string;
+	url?: string;
 	directory?: string;
 	trigger?: string;
 	event?: string;
@@ -110,60 +110,72 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 	let pendingExitCode: number | undefined;
 
 	try {
-		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-ci-build-'));
-		const sourceZipPath = join(tempDir, 'source.zip');
-		const extractPath = join(tempDir, 'build');
+		let projectDir: string;
 
-		tui.info('1️⃣ Downloading source code from GitHub...');
-		await downloadSource(opts.url, sourceZipPath);
+		if (opts.url) {
+			// Download and extract source from URL
+			tempDir = await mkdtemp(join(tmpdir(), 'agentuity-ci-build-'));
+			const sourceZipPath = join(tempDir, 'source.zip');
+			const extractPath = join(tempDir, 'build');
 
-		tui.info('2️⃣ Unzipping source code from GitHub...');
-		await mkdir(extractPath, { recursive: true });
-		const unzipExit = await runCommand(
-			['unzip', '-q', sourceZipPath, '-d', extractPath],
-			tempDir
-		);
-		if (unzipExit !== 0 && unzipExit !== 1) {
-			tui.error(`Failed to unzip source archive (exit ${unzipExit})`);
-			pendingExitCode = unzipExit;
-			return;
-		}
+			tui.info('1️⃣ Downloading source code from GitHub...');
+			await downloadSource(opts.url, sourceZipPath);
 
-		const extractedEntries = await readdir(extractPath, { withFileTypes: true });
-		const extractedDirs = extractedEntries.filter((entry) => entry.isDirectory());
-		if (extractedDirs.length !== 1) {
-			tui.fatal(
-				`Expected one root directory after unzip, found ${extractedDirs.length}`,
-				ErrorCode.BUILD_FAILED
+			tui.info('2️⃣ Unzipping source code from GitHub...');
+			await mkdir(extractPath, { recursive: true });
+			const unzipExit = await runCommand(
+				['unzip', '-q', sourceZipPath, '-d', extractPath],
+				tempDir
 			);
-		}
+			if (unzipExit !== 0 && unzipExit !== 1) {
+				tui.error(`Failed to unzip source archive (exit ${unzipExit})`);
+				pendingExitCode = unzipExit;
+				return;
+			}
 
-		const sourceRoot = extractedDirs.at(0);
-		if (!sourceRoot) {
-			tui.fatal('Could not determine extracted source directory', ErrorCode.BUILD_FAILED);
-		}
+			const extractedEntries = await readdir(extractPath, { withFileTypes: true });
+			const extractedDirs = extractedEntries.filter((entry) => entry.isDirectory());
+			if (extractedDirs.length !== 1) {
+				tui.fatal(
+					`Expected one root directory after unzip, found ${extractedDirs.length}`,
+					ErrorCode.BUILD_FAILED
+				);
+			}
 
-		const sourceRootDir = join(extractPath, sourceRoot.name);
-		let projectDir = sourceRootDir;
-		if (opts.directory) {
-			projectDir = join(sourceRootDir, opts.directory);
-		}
+			const sourceRoot = extractedDirs.at(0);
+			if (!sourceRoot) {
+				tui.fatal('Could not determine extracted source directory', ErrorCode.BUILD_FAILED);
+			}
 
-		const projectStats = await stat(projectDir).catch(() => null);
-		if (!projectStats?.isDirectory()) {
-			tui.fatal(`Build directory not found: ${projectDir}`, ErrorCode.CONFIG_INVALID);
-		}
+			const sourceRootDir = join(extractPath, sourceRoot.name);
+			projectDir = sourceRootDir;
+			if (opts.directory) {
+				projectDir = join(sourceRootDir, opts.directory);
+			}
 
-		// Resolve symlinks and verify the project dir is within the source root
-		const realProjectDir = await realpath(projectDir).catch(() => null);
-		const realSourceRoot = await realpath(sourceRootDir).catch(() => null);
-		if (!realProjectDir || !realSourceRoot || !realProjectDir.startsWith(realSourceRoot)) {
-			tui.fatal(
-				'Directory path escapes the source root (path traversal denied)',
-				ErrorCode.CONFIG_INVALID
-			);
+			const projectStats = await stat(projectDir).catch(() => null);
+			if (!projectStats?.isDirectory()) {
+				tui.fatal(`Build directory not found: ${projectDir}`, ErrorCode.CONFIG_INVALID);
+			}
+
+			// Resolve symlinks and verify the project dir is within the source root
+			const realProjectDir = await realpath(projectDir).catch(() => null);
+			const realSourceRoot = await realpath(sourceRootDir).catch(() => null);
+			if (!realProjectDir || !realSourceRoot || !realProjectDir.startsWith(realSourceRoot)) {
+				tui.fatal(
+					'Directory path escapes the source root (path traversal denied)',
+					ErrorCode.CONFIG_INVALID
+				);
+			}
+			projectDir = realProjectDir;
+		} else {
+			// No URL — use current working directory (source already present, e.g. snapshot-based deploy)
+			tui.info('1️⃣ Using local source (no download URL provided)...');
+			projectDir = process.cwd();
+			if (opts.directory) {
+				projectDir = join(projectDir, opts.directory);
+			}
 		}
-		projectDir = realProjectDir;
 
 		const sdkKey = process.env.AGENTUITY_SDK_KEY;
 		if (sdkKey) {
