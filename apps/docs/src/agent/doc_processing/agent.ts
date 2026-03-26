@@ -29,7 +29,6 @@ const agent = createAgent('DocProcessing', {
 		}),
 	},
 	handler: async (ctx, input) => {
-		// Validate that at least one operation is requested
 		if (
 			(!input.changed || input.changed.length === 0) &&
 			(!input.removed || input.removed.length === 0)
@@ -40,9 +39,10 @@ const agent = createAgent('DocProcessing', {
 		}
 
 		ctx.logger.info(
-			'Processing payload: %d changed files, %d removed files',
+			'Starting docs sync: %d changed, %d removed, commit: %s',
 			input.changed?.length || 0,
-			input.removed?.length || 0
+			input.removed?.length || 0,
+			input.commit || 'unknown'
 		);
 
 		const stats = await syncDocsFromPayload(ctx, {
@@ -54,6 +54,27 @@ const agent = createAgent('DocProcessing', {
 
 		return { status: 'ok', stats };
 	},
+});
+
+agent.addEventListener('started', (_event, _agent, ctx) => {
+	ctx.state.set('syncStartTime', Date.now());
+	ctx.logger.info('DocProcessing agent started', { sessionId: ctx.sessionId });
+});
+
+agent.addEventListener('completed', (_event, _agent, ctx) => {
+	const startTime = ctx.state.get('syncStartTime') as number | undefined;
+	const durationMs = startTime !== undefined ? Date.now() - startTime : -1;
+	ctx.logger.info('DocProcessing agent completed', { durationMs, sessionId: ctx.sessionId });
+});
+
+agent.addEventListener('errored', (_event, _agent, ctx, error) => {
+	const startTime = ctx.state.get('syncStartTime') as number | undefined;
+	const durationMs = startTime !== undefined ? Date.now() - startTime : -1;
+	ctx.logger.error('DocProcessing agent failed', {
+		error: error instanceof Error ? error.message : String(error),
+		durationMs,
+		sessionId: ctx.sessionId,
+	});
 });
 
 export default agent;

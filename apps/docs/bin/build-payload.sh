@@ -59,7 +59,7 @@ echo "  \"repo\": \"$REPO_NAME\","
 # Build changed files array
 echo "  \"changed\": ["
 first=true
-for file in "${changed_files[@]}"; do
+for file in ${changed_files[@]+"${changed_files[@]}"}; do
     if [ -f "${CONTENT_DIR}/$file" ]; then
         if [ "$first" = true ]; then
             first=false
@@ -82,7 +82,7 @@ echo "  ],"
 # Build removed files array
 echo "  \"removed\": ["
 first=true
-for file in "${removed_files[@]}"; do
+for file in ${removed_files[@]+"${removed_files[@]}"}; do
     if [ "$first" = true ]; then
         first=false
     else

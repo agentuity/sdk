@@ -59,12 +59,15 @@ jobs:
               echo "Files to sync:"
               cat changed-files.txt
 
-         - name: Build and send payload
+         - name: Send batched payload
            env:
               AGENT_BEARER_TOKEN: ${{ secrets.AGENT_BEARER_TOKEN }}
               DOCS_WEBHOOK_URL: ${{ secrets.DOCS_WEBHOOK_URL }}
            run: |
               set -euo pipefail
               cat changed-files.txt | \
-                ./apps/docs/bin/build-payload.sh "${{ github.repository }}" incremental | \
-                ./apps/docs/bin/send-webhook.sh "$DOCS_WEBHOOK_URL" "Bearer $AGENT_BEARER_TOKEN"
+                ./apps/docs/bin/send-batched.sh \
+                  "${{ github.repository }}" \
+                  incremental \
+                  "$DOCS_WEBHOOK_URL" \
+                  "Bearer $AGENT_BEARER_TOKEN"
