@@ -18,7 +18,7 @@ import { join, relative } from 'node:path';
 
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
 const BASE_URL = process.env.REINDEX_URL ?? 'http://localhost:3500';
-const ENDPOINT = `${BASE_URL}/api/process-docs`;
+const ENDPOINT = `${BASE_URL}/api/process-docs-sync`;
 const BATCH_SIZE = 10;
 const TOKEN = process.env.AGENT_BEARER_TOKEN;
 

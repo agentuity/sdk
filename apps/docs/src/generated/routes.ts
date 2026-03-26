@@ -136,6 +136,26 @@ export type POSTApiProcessDocsInputSchema = typeof docProcessingAgent extends { 
 export type POSTApiProcessDocsOutputSchema = typeof docProcessingAgent extends { outputSchema?: infer O } ? O : never;
 
 /**
+ * Input type for route: POST /api/process-docs-sync
+ */
+export type POSTApiProcessDocsSyncInput = InferInput<typeof docProcessingAgent['inputSchema']>;
+
+/**
+ * Output type for route: POST /api/process-docs-sync
+ */
+export type POSTApiProcessDocsSyncOutput = InferOutput<typeof docProcessingAgent['outputSchema']>;
+
+/**
+ * Input schema type for route: POST /api/process-docs-sync
+ */
+export type POSTApiProcessDocsSyncInputSchema = typeof docProcessingAgent extends { inputSchema?: infer I } ? I : never;
+
+/**
+ * Output schema type for route: POST /api/process-docs-sync
+ */
+export type POSTApiProcessDocsSyncOutputSchema = typeof docProcessingAgent extends { outputSchema?: infer O } ? O : never;
+
+/**
  * Input type for route: POST /api/sessions
  */
 export type POSTApiSessionsInput = InferInput<typeof SessionSchema>;
@@ -454,6 +474,12 @@ declare module '@agentuity/frontend' {
 	'POST /api/process-docs': {
 				inputSchema: POSTApiProcessDocsInputSchema;
 				outputSchema: POSTApiProcessDocsOutputSchema;
+				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/process-docs-sync': {
+				inputSchema: POSTApiProcessDocsSyncInputSchema;
+				outputSchema: POSTApiProcessDocsSyncOutputSchema;
 				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
 				params: never;
 			};
@@ -822,6 +848,12 @@ declare module '@agentuity/frontend' {
 			 */
 			post: { input: POSTApiProcessDocsInput; output: POSTApiProcessDocsOutput; type: 'api'; params: never; paramsTuple: [] };
 		};
+		processDocsSync: {
+			/**
+			 * Route: POST /api/process-docs-sync
+			 */
+			post: { input: POSTApiProcessDocsSyncInput; output: POSTApiProcessDocsSyncOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
 		sandbox: {
 			run: {
 				/**
@@ -1142,6 +1174,12 @@ declare module '@agentuity/react' {
 	'POST /api/process-docs': {
 				inputSchema: POSTApiProcessDocsInputSchema;
 				outputSchema: POSTApiProcessDocsOutputSchema;
+				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/process-docs-sync': {
+				inputSchema: POSTApiProcessDocsSyncInputSchema;
+				outputSchema: POSTApiProcessDocsSyncOutputSchema;
 				stream: typeof docProcessingAgent extends { stream?: infer S } ? S : false;
 				params: never;
 			};
@@ -1490,6 +1528,12 @@ declare module '@agentuity/react' {
 			 * Route: POST /api/process-docs
 			 */
 			post: { input: POSTApiProcessDocsInput; output: POSTApiProcessDocsOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		processDocsSync: {
+			/**
+			 * Route: POST /api/process-docs-sync
+			 */
+			post: { input: POSTApiProcessDocsSyncInput; output: POSTApiProcessDocsSyncOutput; type: 'api'; params: never; paramsTuple: [] };
 		};
 		sandbox: {
 			run: {
@@ -1845,6 +1889,12 @@ const _rpcRouteMetadata = {
 				"post": {
 						"type": "api",
 						"path": "/api/process-docs"
+				}
+		},
+		"processDocsSync": {
+				"post": {
+						"type": "api",
+						"path": "/api/process-docs-sync"
 				}
 		},
 		"sandbox": {

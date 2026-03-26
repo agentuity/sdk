@@ -11,6 +11,16 @@ const Base64DecodeError = StructuredError('Base64DecodeError')<{
 
 /**
  * Helper to remove all vectors for a given logical path from the vector store.
+ *
+ * CONTRACT RISK: The VectorStorage interface has no list-by-metadata API.
+ * We use ctx.vector.search() with a throwaway query ('anything') and a metadata
+ * filter as a workaround. This works because the metadata filter is applied
+ * server-side after the semantic search, but it means:
+ *   1. Results are limited by the semantic relevance of 'anything', so vectors
+ *      with very short or unusual documents could theoretically be missed.
+ *   2. If the backend changes how metadata filters interact with similarity
+ *      thresholds, this listing pattern could silently return fewer results.
+ * A dedicated vector.list({ metadata }) API would eliminate this risk.
  */
 async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreName: string) {
 	let totalDeleted = 0;
@@ -205,6 +215,10 @@ export async function syncDocsFromPayload(ctx: any, payload: SyncPayload): Promi
 	return stats;
 }
 
+/**
+ * Remove all vectors from the store. Uses the same search-as-listing workaround
+ * as removeVectorsByPath; see the CONTRACT RISK note above.
+ */
 export async function clearVectorDb(ctx: any) {
 	ctx.logger.info('Clearing all vectors from store: %s', VECTOR_STORE_NAME);
 	while (true) {

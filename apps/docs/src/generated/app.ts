@@ -364,22 +364,24 @@ if (__userMounts) {
 	app.route('/api/model-arena', router_10);
 	const { default: router_11 } = await import('../api/object-storage/route.js');
 	app.route('/api/object-storage', router_11);
-	const { default: router_12 } = await import('../api/process-docs/route.js');
-	app.route('/api/process-docs', router_12);
-	const { default: router_13 } = await import('../api/sandbox/route.js');
-	app.route('/api/sandbox', router_13);
-	const { default: router_14 } = await import('../api/sessions/route.js');
-	app.route('/api/sessions', router_14);
-	const { default: router_15 } = await import('../api/sse-stream/route.js');
-	app.route('/api/sse-stream', router_15);
-	const { default: router_16 } = await import('../api/streaming/route.js');
-	app.route('/api/streaming', router_16);
-	const { default: router_17 } = await import('../api/title-generator/route.js');
-	app.route('/api/title-generator', router_17);
-	const { default: router_18 } = await import('../api/vector-storage/route.js');
-	app.route('/api/vector-storage', router_18);
-	const { default: router_19 } = await import('../api/websocket/route.js');
-	app.route('/api/websocket', router_19);
+	const { default: router_12 } = await import('../api/process-docs-sync/route.js');
+	app.route('/api/process-docs-sync', router_12);
+	const { default: router_13 } = await import('../api/process-docs/route.js');
+	app.route('/api/process-docs', router_13);
+	const { default: router_14 } = await import('../api/sandbox/route.js');
+	app.route('/api/sandbox', router_14);
+	const { default: router_15 } = await import('../api/sessions/route.js');
+	app.route('/api/sessions', router_15);
+	const { default: router_16 } = await import('../api/sse-stream/route.js');
+	app.route('/api/sse-stream', router_16);
+	const { default: router_17 } = await import('../api/streaming/route.js');
+	app.route('/api/streaming', router_17);
+	const { default: router_18 } = await import('../api/title-generator/route.js');
+	app.route('/api/title-generator', router_18);
+	const { default: router_19 } = await import('../api/vector-storage/route.js');
+	app.route('/api/vector-storage', router_19);
+	const { default: router_20 } = await import('../api/websocket/route.js');
+	app.route('/api/websocket', router_20);
 }
 
 // Mount workbench API routes (/_agentuity/workbench/*)
