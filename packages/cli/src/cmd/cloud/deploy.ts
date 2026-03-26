@@ -403,6 +403,8 @@ export const deploySubcommand = createSubcommand({
 				success: true,
 				deploymentId: initialDeployment.id,
 				projectId: project.projectId,
+				logs: result.deployResult?.logs,
+				urls: result.deployResult?.urls,
 			};
 		}
 		let useExistingDeployment = false;
@@ -1194,7 +1196,7 @@ export const deploySubcommand = createSubcommand({
 			}
 
 			// Show deployment URLs
-			if (complete?.publicUrls) {
+			if (complete?.publicUrls && !options.json) {
 				const lines: string[] = [];
 				if (complete.publicUrls.custom?.length) {
 					for (const url of complete.publicUrls.custom) {
@@ -1236,6 +1238,29 @@ export const deploySubcommand = createSubcommand({
 				await collector.forceWrite();
 			}
 			clearGlobalCollector();
+
+			// Write deploy result to file for fork parent to consume
+			const deployResultFile = process.env.AGENTUITY_DEPLOY_RESULT_FILE;
+			if (deployResultFile) {
+				try {
+					const resultData = {
+						urls: complete?.publicUrls
+							? {
+									deployment:
+										complete.publicUrls.vanityDeployment ??
+										complete.publicUrls.deployment,
+									latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
+									custom: complete.publicUrls.custom,
+									dashboard,
+								}
+							: undefined,
+						logs,
+					};
+					writeFileSync(deployResultFile, JSON.stringify(resultData));
+				} catch {
+					// Non-fatal: result file is optional
+				}
+			}
 
 			return {
 				success: true,
