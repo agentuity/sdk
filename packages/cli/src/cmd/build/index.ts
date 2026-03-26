@@ -57,10 +57,6 @@ export const command = createCommand({
 		const { opts, projectDir, project } = ctx;
 
 		if (opts.ci) {
-			if (!opts.url) {
-				tui.fatal('--url is required when using --ci mode', ErrorCode.CONFIG_INVALID);
-			}
-
 			const { runCIBuild } = await import('./ci');
 			await runCIBuild(
 				{

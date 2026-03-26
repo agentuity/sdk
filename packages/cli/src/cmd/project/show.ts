@@ -12,6 +12,14 @@ const ProjectShowResponseSchema = z.object({
 	orgId: z.string().describe('Organization ID'),
 	secrets: z.record(z.string(), z.string()).optional().describe('Project secrets (masked)'),
 	env: z.record(z.string(), z.string()).optional().describe('Environment variables'),
+	urls: z
+		.object({
+			dashboard: z.string().describe('Dashboard URL for the project'),
+			app: z.string().describe('Public URL for the latest deployment'),
+			custom: z.array(z.string()).describe('Custom domain URLs'),
+		})
+		.optional()
+		.describe('Project URLs'),
 });
 
 export const showSubcommand = createSubcommand({
@@ -60,6 +68,7 @@ export const showSubcommand = createSubcommand({
 			orgId: project.orgId,
 			secrets: project.secrets,
 			env: project.env,
+			urls: project.urls,
 		};
 	},
 });
