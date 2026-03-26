@@ -89,70 +89,81 @@ export const Route = createFileRoute('/_docs/${routePath}')({
 // Main
 // ---------------------------------------------------------------------------
 
-const contentGlob = new Glob('**/*.mdx');
-const missing: { mdxPath: string; routeFile: string; routePath: string; contentRoute: string }[] =
-	[];
-let checked = 0;
+async function main() {
+	const contentGlob = new Glob('**/*.mdx');
+	const missing: {
+		mdxPath: string;
+		routeFile: string;
+		routePath: string;
+		contentRoute: string;
+	}[] = [];
+	let checked = 0;
 
-for await (const mdxPath of contentGlob.scan(contentDir)) {
-	let routeFile: string;
-	let routePath: string;
-	let contentRoute: string;
+	for await (const mdxPath of contentGlob.scan(contentDir)) {
+		let routeFile: string;
+		let routePath: string;
+		let contentRoute: string;
 
-	if (mdxPath.endsWith('/index.mdx') || mdxPath === 'index.mdx') {
-		// Index pages: agents/index.mdx → routes/_docs/agents/index.tsx
-		const dir = mdxPath.replace(/\/?index\.mdx$/, '');
-		if (!dir) {
-			// Root index.mdx - skip, handled by the docs layout route
-			checked++;
-			continue;
+		if (mdxPath.endsWith('/index.mdx') || mdxPath === 'index.mdx') {
+			// Index pages: agents/index.mdx → routes/_docs/agents/index.tsx
+			const dir = mdxPath.replace(/\/?index\.mdx$/, '');
+			if (!dir) {
+				// Root index.mdx - skip, handled by the docs layout route
+				checked++;
+				continue;
+			}
+			routeFile = join(routesDir, dir, 'index.tsx');
+			routePath = `${dir}/`;
+			contentRoute = dir;
+		} else {
+			// Content pages: agents/creating-agents.mdx → routes/_docs/agents/creating-agents.tsx
+			const withoutExt = mdxPath.replace(/\.mdx$/, '');
+			routeFile = join(routesDir, `${withoutExt}.tsx`);
+			routePath = withoutExt;
+			contentRoute = withoutExt;
 		}
-		routeFile = join(routesDir, dir, 'index.tsx');
-		routePath = `${dir}/`;
-		contentRoute = dir;
-	} else {
-		// Content pages: agents/creating-agents.mdx → routes/_docs/agents/creating-agents.tsx
-		const withoutExt = mdxPath.replace(/\.mdx$/, '');
-		routeFile = join(routesDir, `${withoutExt}.tsx`);
-		routePath = withoutExt;
-		contentRoute = withoutExt;
+
+		if (!(await Bun.file(routeFile).exists())) {
+			missing.push({ mdxPath, routeFile, routePath, contentRoute });
+		}
+		checked++;
 	}
 
-	if (!(await Bun.file(routeFile).exists())) {
-		missing.push({ mdxPath, routeFile, routePath, contentRoute });
+	if (missing.length === 0) {
+		console.log(`All ${checked} content pages have route files.`);
+		process.exit(0);
 	}
-	checked++;
-}
 
-if (missing.length === 0) {
-	console.log(`  All ${checked} content pages have route files.`);
-	process.exit(0);
-}
+	if (checkOnly) {
+		console.error(`\nMissing route files for ${missing.length} page(s):\n`);
+		for (const m of missing) {
+			const relRoute = relative(docsRoot, m.routeFile);
+			console.error(`  ${m.mdxPath}`);
+			console.error(`  -> needs: ${relRoute}\n`);
+		}
+		console.error(`${checked} pages checked, ${missing.length} missing routes.\n`);
+		process.exit(1);
+	}
 
-if (checkOnly) {
-	console.error(`\n  Missing route files for ${missing.length} page(s):\n`);
+	// Generate missing route files
+	let generated = 0;
 	for (const m of missing) {
+		const crumb = await getCrumb(m.mdxPath);
+		const importPath = mdxPageImport(m.routeFile);
+		const content = generateRouteFile(m.routePath, m.contentRoute, crumb, importPath);
+
+		await mkdir(dirname(m.routeFile), { recursive: true });
+		await writeFile(m.routeFile, content);
+		generated++;
+
 		const relRoute = relative(docsRoot, m.routeFile);
-		console.error(`    ${m.mdxPath}`);
-		console.error(`    -> needs: ${relRoute}\n`);
+		console.log(`Generated: ${relRoute}`);
 	}
-	console.error(`  ${checked} pages checked, ${missing.length} missing routes.\n`);
+
+	console.log(`\n${checked} pages checked, ${generated} route files generated.`);
+}
+
+main().catch((err) => {
+	console.error('Failed to validate routes:', err);
 	process.exit(1);
-}
-
-// Generate missing route files
-let generated = 0;
-for (const m of missing) {
-	const crumb = await getCrumb(m.mdxPath);
-	const importPath = mdxPageImport(m.routeFile);
-	const content = generateRouteFile(m.routePath, m.contentRoute, crumb, importPath);
-
-	await mkdir(dirname(m.routeFile), { recursive: true });
-	await writeFile(m.routeFile, content);
-	generated++;
-
-	const relRoute = relative(docsRoot, m.routeFile);
-	console.log(`  Generated: ${relRoute}`);
-}
-
-console.log(`\n  ${checked} pages checked, ${generated} route files generated.`);
+});

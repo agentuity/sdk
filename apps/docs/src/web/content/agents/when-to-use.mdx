@@ -105,6 +105,9 @@ import paymentProcessor from '@agent/payment-processor';
 
 const router = createRouter();
 
+// Replace with your actual Stripe signature verification
+const verifyStripeSignature = (body: string, sig: string | undefined) => true;
+
 router.post('/webhooks/stripe', async (c) => {
   const signature = c.req.header('stripe-signature');
   const rawBody = await c.req.text();
