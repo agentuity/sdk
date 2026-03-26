@@ -26,9 +26,15 @@ WEBHOOK_URL="$3"
 AUTH_TOKEN="${4:-}"
 BATCH_SIZE="${BATCH_SIZE:-10}"
 
-# Read all file paths into an array
+# Validate BATCH_SIZE is a positive integer
+if ! [[ "$BATCH_SIZE" =~ ^[0-9]+$ ]] || [ "$BATCH_SIZE" -eq 0 ]; then
+    echo "Error: BATCH_SIZE must be a positive integer, got '$BATCH_SIZE'" >&2
+    exit 1
+fi
+
+# Read all file paths into an array (handles EOF without trailing newline)
 all_files=()
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do
     if [ -n "$line" ]; then
         all_files+=("$line")
     fi
@@ -71,25 +77,31 @@ for (( i=0; i<total_files; i+=BATCH_SIZE )); do
     # Build payload and send. Stderr (progress logs) passes through to console.
     # Only stdout (the JSON response) is captured in $response.
     if response=$(cat "$BATCH_FILE" | "$SCRIPT_DIR/build-payload.sh" "$REPO_NAME" "$MODE" | "$SCRIPT_DIR/send-webhook.sh" "$WEBHOOK_URL" "$AUTH_TOKEN"); then
-        # Parse stats from response
-        batch_processed=$(echo "$response" | jq -r '.stats.processed // 0' 2>/dev/null || echo "0")
-        batch_deleted=$(echo "$response" | jq -r '.stats.deleted // 0' 2>/dev/null || echo "0")
-        batch_errors=$(echo "$response" | jq -r '.stats.errors // 0' 2>/dev/null || echo "0")
-        batch_error_files=$(echo "$response" | jq -r '.stats.errorFiles // [] | join(", ")' 2>/dev/null || echo "")
+        # Validate response contains stats before extracting
+        if echo "$response" | jq -e '.stats and (.stats.processed | type == "number")' >/dev/null 2>&1; then
+            batch_processed=$(echo "$response" | jq -r '.stats.processed')
+            batch_deleted=$(echo "$response" | jq -r '.stats.deleted')
+            batch_errors=$(echo "$response" | jq -r '.stats.errors')
+            batch_error_files=$(echo "$response" | jq -r '.stats.errorFiles // [] | join(", ")')
 
-        total_processed=$(( total_processed + batch_processed ))
-        total_deleted=$(( total_deleted + batch_deleted ))
-        total_errors=$(( total_errors + batch_errors ))
+            total_processed=$(( total_processed + batch_processed ))
+            total_deleted=$(( total_deleted + batch_deleted ))
+            total_errors=$(( total_errors + batch_errors ))
 
-        if [ -n "$batch_error_files" ]; then
-            if [ -n "$error_files" ]; then
-                error_files="$error_files, $batch_error_files"
-            else
-                error_files="$batch_error_files"
+            if [ -n "$batch_error_files" ]; then
+                if [ -n "$error_files" ]; then
+                    error_files="$error_files, $batch_error_files"
+                else
+                    error_files="$batch_error_files"
+                fi
             fi
-        fi
 
-        echo "Batch $batch_num/$total_batches: $batch_processed processed, $batch_deleted deleted, $batch_errors errors" >&2
+            echo "Batch $batch_num/$total_batches: $batch_processed processed, $batch_deleted deleted, $batch_errors errors" >&2
+        else
+            echo "Batch $batch_num/$total_batches: FAILED (unexpected response: $response)" >&2
+            failed_batches=$(( failed_batches + 1 ))
+            total_errors=$(( total_errors + batch_count ))
+        fi
     else
         echo "Batch $batch_num/$total_batches: FAILED" >&2
         failed_batches=$(( failed_batches + 1 ))
