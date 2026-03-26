@@ -59,6 +59,8 @@ export interface DetectionResult {
 	bootstrapCallInAppTs: boolean;
 	/** Whether frontend code uses removed APIs */
 	frontendRemovedApis: FrontendFinding[];
+	/** @agentuity/* packages that need version upgrade to ^2.0.0 */
+	outdatedPackages: OutdatedPackage[];
 }
 
 export interface FrontendFinding {
@@ -66,6 +68,13 @@ export interface FrontendFinding {
 	apis: string[];
 	/** APIs that are deprecated (still work but should migrate away) */
 	deprecatedApis?: string[];
+}
+
+/** Outdated @agentuity/* package that needs version update */
+export interface OutdatedPackage {
+	name: string;
+	currentVersion: string;
+	section: 'dependencies' | 'devDependencies';
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +345,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 		shutdownInCreateApp: false,
 		bootstrapCallInAppTs: false,
 		frontendRemovedApis: [],
+		outdatedPackages: [],
 	};
 
 	// ── 1. src/generated/ ───────────────────────────────────────────────────
@@ -620,6 +630,65 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 					'\n' +
 					'The package will continue to work but will not receive updates.',
 			});
+		}
+	}
+
+	// ── 7a. Outdated @agentuity/* packages ──────────────────────────────────
+	const packageJsonPath = join(absDir, 'package.json');
+	if (existsSync(packageJsonPath)) {
+		try {
+			const packageJson = JSON.parse(await Bun.file(packageJsonPath).text());
+			const outdatedPackages: OutdatedPackage[] = [];
+
+			// Check both dependencies and devDependencies
+			for (const section of ['dependencies', 'devDependencies'] as const) {
+				const deps = packageJson[section];
+				if (!deps || typeof deps !== 'object') continue;
+
+				for (const [name, version] of Object.entries(deps)) {
+					// Only check @agentuity/* packages
+					if (!name.startsWith('@agentuity/')) continue;
+
+					const versionStr = String(version);
+
+					// Check if version needs updating:
+					// - "latest" tag → needs update
+					// - v1.x.x versions (e.g., "^1.0.60", "1.0.0") → needs update
+					// - Already v2 (e.g., "^2.0.0") → skip
+					const needsUpdate =
+						versionStr === 'latest' ||
+						versionStr === '*' ||
+						/^[~^]?1\./.test(versionStr) ||
+						/^1\./.test(versionStr);
+
+					if (needsUpdate) {
+						outdatedPackages.push({
+							name,
+							currentVersion: versionStr,
+							section,
+						});
+					}
+				}
+			}
+
+			result.outdatedPackages = outdatedPackages;
+
+			if (outdatedPackages.length > 0) {
+				const packageList = outdatedPackages
+					.map((p) => `${p.name}@${p.currentVersion}`)
+					.join(', ');
+				findings.push({
+					id: 'outdated-agentuity-packages',
+					severity: 'auto',
+					message: `Outdated @agentuity/* packages: ${packageList}`,
+					file: 'package.json',
+					hint:
+						'Will be updated to ^2.0.0.\n' +
+						'All @agentuity/* packages must be on v2 for the migration to work correctly.',
+				});
+			}
+		} catch {
+			// Ignore parse errors
 		}
 	}
 
