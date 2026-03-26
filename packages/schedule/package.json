@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/schedule",
-	"version": "1.0.59",
+	"version": "1.0.60",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",

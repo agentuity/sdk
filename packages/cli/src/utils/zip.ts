@@ -1,7 +1,8 @@
-import { readFileSync, lstatSync } from 'node:fs';
-import { relative } from 'node:path';
+import { createWriteStream, lstatSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import { dirname, relative } from 'node:path';
 import { Glob } from 'bun';
-import AdmZip from 'adm-zip';
+import archiver from 'archiver';
 import { toForwardSlash } from './normalize-path';
 
 interface Options {
@@ -10,7 +11,20 @@ interface Options {
 }
 
 export async function zipDir(dir: string, outdir: string, options?: Options) {
-	const zip = new AdmZip();
+	await mkdir(dirname(outdir), { recursive: true });
+	const output = createWriteStream(outdir);
+	const zip = archiver('zip', {
+		zlib: { level: 9 },
+	});
+
+	const writeDone = new Promise<void>((resolve, reject) => {
+		output.on('close', resolve);
+		output.on('error', reject);
+		zip.on('error', reject);
+	});
+
+	zip.pipe(output);
+
 	const files = await Array.fromAsync(
 		new Glob('**/*').scan({ cwd: dir, absolute: true, dot: true, followSymlinks: false })
 	);
@@ -31,11 +45,8 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 				// across machines and would cause EISDIR errors on extraction.
 				const stat = lstatSync(file);
 				if (!stat.isSymbolicLink() && !stat.isDirectory()) {
-					// Use addFile with explicit Unix permissions (0o644) instead of addLocalFile.
-					// On Windows, addLocalFile relies on OS file stats which may produce zip entries
-					// with incorrect Unix permission bits, causing EACCES errors when extracted on Linux.
-					const data = readFileSync(file);
-					zip.addFile(rel, data, '', 0o644);
+					// Set explicit Unix permissions (0o644) for portability across OSes.
+					zip.file(file, { name: rel, mode: 0o644 });
 				}
 			} catch (err) {
 				throw new Error(`Failed to add file to zip: ${rel} (${file})`, { cause: err });
@@ -48,7 +59,8 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 			await Bun.sleep(10); // give some time for the progress bar to render
 		}
 	}
-	await zip.writeZip(outdir);
+	await zip.finalize();
+	await writeDone;
 	if (options?.progress) {
 		options.progress(100);
 		await Bun.sleep(100); // give some time for the progress bar to render

@@ -1253,6 +1253,7 @@ export async function spinner<T>(
 	const { getOutputOptions, shouldDisableProgress } = await import('./output');
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
+	const isJsonMode = outputOptions?.json === true;
 
 	// If stderr is not a real terminal or progress disabled, just execute
 	// the callback without animation. We check stderr specifically because
@@ -1265,8 +1266,10 @@ export async function spinner<T>(
 					? await options.callback(() => {})
 					: options.type === 'logger'
 						? await options.callback((logMessage: string) => {
-								// In non-TTY mode, just write logs directly to stdout
-								process.stdout.write(logMessage + '\n');
+								// In JSON mode, don't write logs to stdout
+								if (!isJsonMode) {
+									process.stdout.write(logMessage + '\n');
+								}
 							})
 						: options.type === 'countdown'
 							? await options.callback()
@@ -1276,7 +1279,6 @@ export async function spinner<T>(
 
 			// If clearOnSuccess is true, don't show success message
 			// Also skip success message in JSON mode
-			const isJsonMode = outputOptions?.json === true;
 			if (!options.clearOnSuccess && !isJsonMode) {
 				const successColor = getColor('success');
 				console.error(`${successColor}${ICONS.success} ${message}${reset}`);
@@ -1286,7 +1288,7 @@ export async function spinner<T>(
 		} catch (err) {
 			const clearOnError =
 				(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
-			if (!clearOnError) {
+			if (!clearOnError && !isJsonMode) {
 				const errorColor = getColor('error');
 				console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
 			}
