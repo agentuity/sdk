@@ -19,6 +19,17 @@ export interface StreamUrlResult {
 	chunks: number;
 }
 
+export class StreamFetchError extends Error {
+	constructor(
+		public status: number,
+		public statusText: string,
+		message: string
+	) {
+		super(message);
+		this.name = 'StreamFetchError';
+	}
+}
+
 export async function streamUrlToWritable(
 	url: string,
 	writable: NodeJS.WritableStream,
@@ -60,11 +71,15 @@ export async function streamUrlToWritable(
 		);
 
 		if (!response.ok || !response.body) {
-			logger.debug('[%s] not ok or no body — returning', label);
+			logger.debug('[%s] not ok or no body', label);
 			if (!json) {
 				tui.error(`Failed to fetch stream: ${response.status} ${response.statusText}`);
 			}
-			return { bytesRead, chunks };
+			throw new StreamFetchError(
+				response.status,
+				response.statusText,
+				`Failed to fetch stream: ${response.status} ${response.statusText}`
+			);
 		}
 
 		const reader = response.body.getReader();
@@ -100,13 +115,46 @@ export async function streamUrlToWritable(
 				}
 			}
 		} else {
-			const lines: string[] = [];
+			const decoder = new TextDecoder();
+			let leftover = '';
 			const grepPattern = grep ? new RegExp(grep, 'i') : null;
 			const needsFiltering = tail !== undefined || grepPattern !== null;
+			const tailBuffer: string[] = [];
+			const maxTail = tail ?? Infinity;
+
+			const outputLine = async (line: string) => {
+				if (json) {
+					const obj = {
+						timestamp: new Date().toISOString(),
+						stream: label,
+						message: line,
+					};
+					await writeAndDrain(writable, Buffer.from(JSON.stringify(obj) + '\n'));
+				} else {
+					const formatted = timestamps ? formatLineWithTimestamp(line) : line;
+					await writeAndDrain(writable, Buffer.from(formatted + '\n'));
+				}
+			};
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) {
+					if (leftover) {
+						if (needsFiltering) {
+							if (grepPattern && !grepPattern.test(leftover)) {
+								// skip
+							} else if (tail !== undefined) {
+								tailBuffer.push(leftover);
+								if (tailBuffer.length > maxTail) {
+									tailBuffer.shift();
+								}
+							} else {
+								await outputLine(leftover);
+							}
+						} else {
+							await outputLine(leftover);
+						}
+					}
 					logger.debug(
 						'[%s] EOF after %dms (%d chunks, %d bytes)',
 						label,
@@ -120,33 +168,33 @@ export async function streamUrlToWritable(
 				if (value) {
 					chunks++;
 					bytesRead += value.length;
-					const text = new TextDecoder().decode(value);
+					const text = leftover + decoder.decode(value, { stream: true });
+					const lines = text.split('\n');
+					leftover = lines.pop() ?? '';
 
-					if (needsFiltering) {
-						for (const line of text.split('\n')) {
-							if (line.trim()) {
-								if (grepPattern && !grepPattern.test(line)) {
-									continue;
+					for (const line of lines) {
+						if (needsFiltering) {
+							if (grepPattern && !grepPattern.test(line)) {
+								continue;
+							}
+							if (tail !== undefined) {
+								tailBuffer.push(line);
+								if (tailBuffer.length > maxTail) {
+									tailBuffer.shift();
 								}
-								lines.push(line);
+							} else {
+								await outputLine(line);
 							}
-						}
-					} else {
-						for (const line of text.split('\n')) {
-							if (line.trim()) {
-								const outputLine = timestamps ? formatLineWithTimestamp(line) : line;
-								await writeAndDrain(writable, Buffer.from(outputLine + '\n'));
-							}
+						} else {
+							await outputLine(line);
 						}
 					}
 				}
 			}
 
-			if (needsFiltering && lines.length > 0) {
-				const outputLines = tail !== undefined ? lines.slice(-tail) : lines;
-				for (const line of outputLines) {
-					const outputLine = timestamps ? formatLineWithTimestamp(line) : line;
-					await writeAndDrain(writable, Buffer.from(outputLine + '\n'));
+			if (needsFiltering && tailBuffer.length > 0) {
+				for (const line of tailBuffer) {
+					await outputLine(line);
 				}
 			}
 		}
