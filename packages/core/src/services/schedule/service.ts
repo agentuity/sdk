@@ -58,6 +58,18 @@ export const ScheduleSchema = z.object({
 	 * the schedule fires or the expression is changed.
 	 */
 	due_date: z.string().describe('ISO 8601 timestamp of the next scheduled execution.'),
+
+	/**
+	 * Whether this is a system-managed schedule.
+	 *
+	 * @remarks Internal schedules are created by the system and cannot be modified
+	 * or deleted by users.
+	 */
+	internal: z
+		.boolean()
+		.describe(
+			'Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted users.'
+		),
 });
 
 export type Schedule = z.infer<typeof ScheduleSchema>;
@@ -203,6 +215,14 @@ export const CreateScheduleParamsSchema = z.object({
 	 * Supports standard five-field cron syntax including step values.
 	 */
 	expression: z.string().describe('Cron expression defining when the schedule fires'),
+
+	/**
+	 * Whether this is a system-managed schedule.
+	 *
+	 * @remarks Internal schedules are created by the system for workflows and cannot
+	 * be modified or deleted directly by users.
+	 */
+	internal: z.boolean().optional().describe('Whether this is a system-managed schedule.'),
 
 	/**
 	 * Optional array of destinations to create alongside the schedule.
