@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -116,6 +116,37 @@ async function drainSubprocessStream(
  * Reads cgroup v2/v1 max and current usage to compute free memory.
  * Falls back to os.freemem() if cgroup files aren't available.
  */
+/**
+ * Parses /proc/self/cgroup to find the cgroup v2 path for the current process.
+ * Returns the path relative to /sys/fs/cgroup, or empty string if not found.
+ * In a cgroup namespace, this typically returns "/" (root).
+ */
+function getCgroupV2Path(): string {
+	try {
+		const cgroupData = readFileSync('/proc/self/cgroup', 'utf8');
+		// cgroup v2 format: "0::/path/to/cgroup"
+		for (const line of cgroupData.trim().split('\n')) {
+			const parts = line.split(':');
+			if (parts.length >= 3 && parts[0] === '0') {
+				return parts[2] || '/';
+			}
+		}
+	} catch {
+		// Ignore errors
+	}
+	return '';
+}
+
+/**
+ * Detect actually available memory for subprocess heap sizing.
+ * Reads cgroup v2/v1 max and current usage to compute free memory.
+ *
+ * CRITICAL: When running in a container, we MUST NOT use freemem() as a fallback
+ * because it returns the HOST's free memory, not the container's limit. This has
+ * caused OOM crashes when Bun's JSC was configured with a 14GB heap in a 2GB container.
+ *
+ * Instead, we use a conservative default of 1GB when detection fails.
+ */
 async function detectAvailableMemory(
 	logger: Logger,
 	label: string
@@ -123,50 +154,94 @@ async function detectAvailableMemory(
 	let cgroupMaxBytes = 0;
 	let cgroupCurrentBytes = 0;
 	let availableBytes = 0;
+	let detectionMethod = 'unknown';
+
+	// Conservative default for when we cannot detect the actual limit.
+	// This is safe for most container sizes (1GB heap limit).
+	const DEFAULT_MEMORY_BYTES = 1024 * 1024 * 1024; // 1GB
+
 	try {
 		if (process.platform === 'linux') {
-			// Try cgroup v2
-			const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
-			const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
-			if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
-				const maxStr = (await cgroupMax.text()).trim();
-				const currentStr = (await cgroupCurrent.text()).trim();
-				// "max" means unlimited — use total system memory
-				if (maxStr === 'max') {
-					const { totalmem } = await import('node:os');
-					cgroupMaxBytes = totalmem();
-				} else if (/^\d+$/.test(maxStr)) {
-					cgroupMaxBytes = Number(maxStr);
-				}
-				if (/^\d+$/.test(currentStr)) {
-					cgroupCurrentBytes = Number(currentStr);
-				}
-				if (cgroupMaxBytes > 0) {
-					availableBytes =
-						cgroupCurrentBytes > 0 ? cgroupMaxBytes - cgroupCurrentBytes : cgroupMaxBytes;
+			// Determine the cgroup path by parsing /proc/self/cgroup
+			// In a cgroup namespace, the container's cgroup appears at the root
+			const cgroupRelPath = getCgroupV2Path();
+
+			// Try cgroup v2 at multiple possible locations
+			// 1. Root of cgroup namespace (most common for containers)
+			// 2. The actual path from /proc/self/cgroup (for host processes)
+			const cgroupV2Paths = [
+				'/sys/fs/cgroup', // cgroup namespace root
+				`/sys/fs/cgroup${cgroupRelPath}`, // actual cgroup path
+			];
+
+			for (const cgroupPath of cgroupV2Paths) {
+				const cgroupMax = Bun.file(`${cgroupPath}/memory.max`);
+				const cgroupCurrent = Bun.file(`${cgroupPath}/memory.current`);
+				if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
+					const maxStr = (await cgroupMax.text()).trim();
+					const currentStr = (await cgroupCurrent.text()).trim();
+					// "max" means unlimited — use a reasonable default
+					if (maxStr === 'max') {
+						// For unlimited containers, use a reasonable default
+						cgroupMaxBytes = DEFAULT_MEMORY_BYTES;
+						detectionMethod = `cgroup-v2-unlimited (${cgroupPath})`;
+					} else if (/^\d+$/.test(maxStr)) {
+						cgroupMaxBytes = Number(maxStr);
+						detectionMethod = `cgroup-v2 (${cgroupPath})`;
+					}
+					if (/^\d+$/.test(currentStr)) {
+						cgroupCurrentBytes = Number(currentStr);
+					}
+					if (cgroupMaxBytes > 0) {
+						availableBytes =
+							cgroupCurrentBytes > 0
+								? Math.max(cgroupMaxBytes - cgroupCurrentBytes, DEFAULT_MEMORY_BYTES / 2)
+								: cgroupMaxBytes;
+						break; // Found valid cgroup, stop searching
+					}
 				}
 			}
-			// Fallback to cgroup v1
+
+			// Fallback to cgroup v1 only if v2 detection failed completely
 			if (!availableBytes) {
-				const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
-				const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
-				if ((await v1Limit.exists()) && (await v1Usage.exists())) {
-					const limitStr = (await v1Limit.text()).trim();
-					const usageStr = (await v1Usage.text()).trim();
-					if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
-						cgroupMaxBytes = Number(limitStr);
-						cgroupCurrentBytes = Number(usageStr);
-						availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+				// Try common cgroup v1 paths
+				const v1Paths = ['/sys/fs/cgroup/memory', `/sys/fs/cgroup/memory${cgroupRelPath}`];
+				for (const v1Path of v1Paths) {
+					const v1Limit = Bun.file(`${v1Path}/memory.limit_in_bytes`);
+					const v1Usage = Bun.file(`${v1Path}/memory.usage_in_bytes`);
+					if ((await v1Limit.exists()) && (await v1Usage.exists())) {
+						const limitStr = (await v1Limit.text()).trim();
+						const usageStr = (await v1Usage.text()).trim();
+						if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
+							cgroupMaxBytes = Number(limitStr);
+							cgroupCurrentBytes = Number(usageStr);
+							// Check if this is a real limit (not the host's huge limit)
+							// On physical machines, v1 limit is often ~1TB or more
+							const ONE_TB = 1024 * 1024 * 1024 * 1024;
+							if (cgroupMaxBytes < ONE_TB) {
+								availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+								detectionMethod = `cgroup-v1 (${v1Path})`;
+								break;
+							}
+						}
 					}
 				}
 			}
 		}
-		if (!availableBytes) {
-			const { freemem } = await import('node:os');
-			availableBytes = freemem();
-		}
-	} catch {
-		// If detection fails, let JSC use its own defaults
+	} catch (err) {
+		logger.debug(`[${label}] Memory detection error: ${err}`);
+	}
+
+	// CRITICAL: Do NOT use freemem() as fallback in containerized environments!
+	// freemem() returns the HOST's free memory, not the container's limit.
+	// This has caused OOM crashes when JSC was configured with 14GB heap in 2GB containers.
+	if (!availableBytes) {
+		availableBytes = DEFAULT_MEMORY_BYTES;
+		detectionMethod = 'conservative-default';
+		logger.warn(
+			`[${label}] Could not detect cgroup memory limit, using conservative default of ${Math.round(DEFAULT_MEMORY_BYTES / 1024 / 1024)} MiB. ` +
+				`This may cause memory pressure if container limit is lower.`
+		);
 	}
 
 	const jscEnv: Record<string, string> = {};
@@ -174,12 +249,13 @@ async function detectAvailableMemory(
 		const maxMb = Math.round(cgroupMaxBytes / 1024 / 1024);
 		const usedMb = Math.round(cgroupCurrentBytes / 1024 / 1024);
 		const availMb = Math.round(availableBytes / 1024 / 1024);
-		const maxHeap = Math.round(availableBytes * 0.8);
+		// Use 80% of available memory, but cap at the detected limit
+		const maxHeap = Math.round(Math.min(availableBytes * 0.8, availableBytes));
 		const maxHeapMb = Math.round(maxHeap / 1024 / 1024);
 		jscEnv.BUN_JSC_forceRAMSize = String(availableBytes);
 		jscEnv.BUN_JSC_gcMaxHeapSize = String(maxHeap);
 		logger.debug(
-			`[${label}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB`
+			`[${label}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB (method=${detectionMethod})`
 		);
 	} else {
 		logger.debug(`[${label}] Could not detect available memory, using JSC defaults`);
