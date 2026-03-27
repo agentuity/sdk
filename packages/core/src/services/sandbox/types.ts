@@ -328,6 +328,13 @@ export const SandboxCreateOptionsSchema = z.object({
 		.record(z.string(), z.unknown())
 		.optional()
 		.describe('Optional user-defined metadata to associate with the sandbox.'),
+	/** Permission scopes for automatic service access (e.g., "services:read", "services:write"). */
+	scopes: z
+		.array(z.string())
+		.optional()
+		.describe(
+			'Permission scopes for automatic service access (e.g., "services:read", "services:write").'
+		),
 });
 export type SandboxCreateOptions = z.infer<typeof SandboxCreateOptionsSchema>;
 
