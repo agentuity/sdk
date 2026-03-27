@@ -10,7 +10,7 @@ const pkg = require('./package.json');
 // - Beta versions (-beta.) → use @beta
 // - Other prereleases (-alpha., -rc., etc.) → use @next
 // - Stable versions → use @latest
-function getDistTag(version) {
+export function getDistTag(version) {
 	// Check for beta prerelease first
 	if (/-beta\./.test(version)) {
 		return 'beta';
@@ -22,9 +22,17 @@ function getDistTag(version) {
 	return 'latest';
 }
 
-const distTag = getDistTag(pkg.version);
-const args = process.argv.slice(2);
-const result = spawnSync('bunx', [`@agentuity/cli@${distTag}`, 'create', ...args], {
-	stdio: 'inherit',
-});
-process.exit(result.status || 0);
+// Only run when executed directly, not when imported for testing
+const isMain =
+	typeof Bun !== 'undefined'
+		? Bun.main === new URL(import.meta.url).pathname
+		: process.argv[1] === new URL(import.meta.url).pathname;
+
+if (isMain) {
+	const distTag = getDistTag(pkg.version);
+	const args = process.argv.slice(2);
+	const result = spawnSync('bunx', [`@agentuity/cli@${distTag}`, 'create', ...args], {
+		stdio: 'inherit',
+	});
+	process.exit(result.status || 0);
+}

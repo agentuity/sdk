@@ -1,18 +1,6 @@
 #!/usr/bin/env bun test
 import { describe, test, expect } from 'bun:test';
-
-// Copy of the getDistTag function from bin.js for testing
-function getDistTag(version) {
-	// Check for beta prerelease first
-	if (/-beta\./.test(version)) {
-		return 'beta';
-	}
-	// Check for other prerelease identifiers: alpha, rc, canary, next, etc.
-	if (/-([a-zA-Z]+)/.test(version)) {
-		return 'next';
-	}
-	return 'latest';
-}
+import { getDistTag } from './bin.js';
 
 describe('getDistTag', () => {
 	describe('beta versions', () => {
