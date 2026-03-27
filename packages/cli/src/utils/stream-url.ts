@@ -30,6 +30,10 @@ export class StreamFetchError extends Error {
 	}
 }
 
+function escapeRegExp(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function streamUrlToWritable(
 	url: string,
 	writable: NodeJS.WritableStream,
@@ -117,7 +121,7 @@ export async function streamUrlToWritable(
 		} else {
 			const decoder = new TextDecoder();
 			let leftover = '';
-			const grepPattern = grep ? new RegExp(grep, 'i') : null;
+			const grepPattern = grep ? new RegExp(escapeRegExp(grep), 'i') : null;
 			const needsFiltering = tail !== undefined || grepPattern !== null;
 			const tailBuffer: string[] = [];
 			const maxTail = tail ?? Infinity;
