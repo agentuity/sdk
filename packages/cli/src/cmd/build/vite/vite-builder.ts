@@ -280,6 +280,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		const staticResult = await runStaticRender({
 			rootDir,
 			logger,
+			dev,
 		});
 		result.static.included = true;
 		result.static.duration = staticResult.duration;

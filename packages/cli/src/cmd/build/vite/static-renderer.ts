@@ -1,8 +1,8 @@
 /**
  * Static Renderer
  *
- * When `render: 'static'` is set in agentuity.config.ts, this module:
- * 1. Runs a Vite SSR build to create a server-side entry point
+ * When `src/web/entry-server.tsx` exists, this module:
+ * 1. Runs a Vite SSR build (as a subprocess to avoid in-process Bun/Vite issues)
  * 2. Imports the built entry-server.js
  * 3. Discovers routes to pre-render:
  *    - If `routeTree` is exported: auto-discovers all non-parameterized routes
@@ -14,7 +14,6 @@
  */
 
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import type { Logger } from '../../../types';
 
@@ -74,6 +73,7 @@ function extractRoutePaths(node: RouteTreeNode): string[] {
 export interface StaticRenderOptions {
 	rootDir: string;
 	logger: Logger;
+	dev?: boolean;
 }
 
 export interface StaticRenderResult {
@@ -82,7 +82,7 @@ export interface StaticRenderResult {
 }
 
 export async function runStaticRender(options: StaticRenderOptions): Promise<StaticRenderResult> {
-	const { rootDir, logger } = options;
+	const { rootDir, logger, dev = false } = options;
 	const started = Date.now();
 
 	const clientDir = join(rootDir, '.agentuity/client');
@@ -106,70 +106,39 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 		);
 	}
 
-	const isViteDebug =
-		process.env.AGENTUITY_VITE_DEBUG === '1' || process.env.AGENTUITY_VITE_DEBUG === 'true';
-	if (isViteDebug) {
-		logger.debug('Vite debug logging enabled via AGENTUITY_VITE_DEBUG');
-		const existing = process.env.DEBUG || '';
-		if (!existing.includes('vite:')) {
-			process.env.DEBUG = existing ? `${existing},vite:*` : 'vite:*';
+	// Step 1: Vite SSR build (subprocess)
+	// Run as a subprocess to avoid in-process Bun/Vite module resolution issues
+	// that cause @mdx-js/rollup and other plugins to fail during SSR builds.
+	// This matches the approach used for client builds in vite-builder.ts.
+	logger.debug('Running Vite SSR build for static rendering (subprocess)...');
+
+	const buildMode = dev ? 'development' : 'production';
+
+	const viteProcess = Bun.spawn(
+		[
+			'bun',
+			'x',
+			'vite',
+			'build',
+			'--ssr',
+			entryServerPath,
+			'--outDir',
+			ssrOutDir,
+			'--mode',
+			buildMode,
+		],
+		{
+			cwd: rootDir,
+			stdout: 'inherit',
+			stderr: 'inherit',
 		}
+	);
+
+	const exitCode = await viteProcess.exited;
+
+	if (exitCode !== 0) {
+		throw new Error(`Vite SSR build exited with code ${exitCode}`);
 	}
-
-	// Step 1: Vite SSR build
-	// This resolves import.meta.glob, MDX imports, and other Vite-specific APIs
-	logger.debug('Running Vite SSR build for static rendering...');
-
-	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	let vitePath = 'vite';
-	try {
-		vitePath = projectRequire.resolve('vite');
-	} catch {
-		// Use CLI's bundled version
-	}
-
-	const { build: viteBuild, loadConfigFromFile, mergeConfig } = await import(vitePath);
-
-	// Load vite.config.ts if it exists (v2 approach)
-	let userConfig: import('vite').InlineConfig = {};
-	const viteConfigPath = join(rootDir, 'vite.config.ts');
-
-	if (await Bun.file(viteConfigPath).exists()) {
-		try {
-			const loaded = await loadConfigFromFile(
-				{ command: 'build', mode: 'production' },
-				viteConfigPath
-			);
-			if (loaded?.config) {
-				userConfig = loaded.config as import('vite').InlineConfig;
-				logger.debug('Loaded vite.config.ts for SSR build');
-			}
-		} catch (error) {
-			logger.warn('Failed to load vite.config.ts: %s', error);
-		}
-	}
-
-	// Merge user config with SSR build settings
-	const ssrConfig = mergeConfig(userConfig, {
-		root: rootDir,
-		build: {
-			ssr: entryServerPath,
-			outDir: ssrOutDir,
-			rollupOptions: {
-				output: {
-					format: 'esm',
-				},
-			},
-		},
-		ssr: {
-			// Bundle all dependencies for SSR — we need import.meta.glob, MDX, etc.
-			// resolved at build time. Node built-ins are still externalized.
-			noExternal: true,
-		},
-		logLevel: isViteDebug ? 'info' : 'warn',
-	});
-
-	await viteBuild(ssrConfig);
 
 	// Steps 2–4: wrapped in try-finally so SSR artifacts are always cleaned up,
 	// even if an exception is thrown during module import, validation, or rendering.
