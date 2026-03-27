@@ -8,7 +8,7 @@
 	"scripts": {
 		"predev": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-nav-data.ts && bun run scripts/generate-markdown-files.ts",
 		"prebuild": "bun run scripts/generate-api-reference.ts && bun run scripts/generate-nav-data.ts && bun run scripts/generate-markdown-files.ts",
-		"predeploy": "bun run scripts/pin-workspace-deps.ts && bun install && bun run prebuild",
+		"predeploy": "bun run scripts/pin-workspace-deps.ts && rm -rf bun.lock node_modules && bun install && bun run prebuild",
 		"build": "bun ../../packages/cli/bin/cli.ts build --dir . --dev",
 		"dev": "bun ../../packages/cli/bin/cli.ts dev --dir .",
 		"start": "bun .agentuity/app.js",
