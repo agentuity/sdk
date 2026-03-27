@@ -217,6 +217,14 @@ export const CreateScheduleParamsSchema = z.object({
 	expression: z.string().describe('Cron expression defining when the schedule fires'),
 
 	/**
+	 * Whether this is a system-managed schedule.
+	 *
+	 * @remarks Internal schedules are created by the system for workflows and cannot
+	 * be modified or deleted directly by users.
+	 */
+	internal: z.boolean().optional().describe('Whether this is a system-managed schedule.'),
+
+	/**
 	 * Optional array of destinations to create alongside the schedule.
 	 *
 	 * @remarks Destinations are created atomically with the schedule — if any destination
