@@ -132,6 +132,11 @@ export const navData: NavSection[] = [
 		url: '/agents',
 		items: [
 			{
+				title: 'When to Use',
+				url: '/agents/when-to-use',
+				description: 'When to create an agent vs handling requests directly in routes',
+			},
+			{
 				title: 'Creating Agents',
 				url: '/agents/creating-agents',
 				description: 'Build agents with createAgent(), schemas, and handlers',
@@ -191,22 +196,6 @@ export const navData: NavSection[] = [
 		],
 	},
 	{
-		title: 'APIs',
-		url: '/apis',
-		items: [
-			{
-				title: 'When to Use',
-				url: '/apis/when-to-use',
-				description: 'When to use simple routes vs agents for your endpoints',
-			},
-			{
-				title: 'Calling Agents',
-				url: '/apis/calling-agents',
-				description: 'Import and invoke agents from your routes',
-			},
-		],
-	},
-	{
 		title: 'Routes',
 		url: '/routes',
 		items: [
@@ -219,6 +208,11 @@ export const navData: NavSection[] = [
 				title: 'Middleware',
 				url: '/routes/middleware',
 				description: 'Add authentication, validation, and request processing to your routes',
+			},
+			{
+				title: 'Calling Agents',
+				url: '/routes/calling-agents',
+				description: 'Import and invoke agents from your routes',
 			},
 			{
 				title: 'Cron',

@@ -4,6 +4,7 @@
 		"index",
 		"http",
 		"middleware",
+		"calling-agents",
 		"cron",
 		"websockets",
 		"sse",

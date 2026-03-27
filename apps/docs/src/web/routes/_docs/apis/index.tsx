@@ -1,7 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../components/docs/mdx-page';
+import { createFileRoute, redirect, ScriptOnce } from '@tanstack/react-router';
+
+const target = '/agents';
 
 export const Route = createFileRoute('/_docs/apis/')({
-	component: () => <MDXPage route="apis" />,
-	staticData: { crumb: 'APIs' },
+	beforeLoad: () => {
+		if (typeof window !== 'undefined') {
+			throw redirect({ to: target, replace: true });
+		}
+	},
+	component: () => (
+		<>
+			<ScriptOnce>{`window.location.replace(${JSON.stringify(target)})`}</ScriptOnce>
+			<p>
+				This page has moved to <a href={target}>{target}</a>. If you are not redirected
+				automatically, use this link.
+			</p>
+		</>
+	),
 });
