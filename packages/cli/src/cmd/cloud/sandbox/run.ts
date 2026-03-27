@@ -65,7 +65,7 @@ export const runSubcommand = createCommand({
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
 			projectId: z.string().optional().describe('Project ID to associate this sandbox with'),
-			scopes: z
+			scope: z
 				.array(z.string())
 				.optional()
 				.describe(
@@ -183,7 +183,7 @@ export const runSubcommand = createCommand({
 					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
 					snapshot: opts.snapshot,
 					dependencies: opts.dependency,
-					scopes: opts.scopes,
+					scopes: opts.scope,
 				},
 				orgId,
 				region,

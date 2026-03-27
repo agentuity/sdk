@@ -83,7 +83,7 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
 			metadata: z.string().optional().describe('JSON object of user-defined metadata'),
-			scopes: z
+			scope: z
 				.array(z.string())
 				.optional()
 				.describe(
@@ -201,7 +201,7 @@ export const createSubcommand = createCommand({
 				snapshot: opts.snapshot,
 				dependencies: opts.dependency,
 				metadata,
-				scopes: opts.scopes,
+				scopes: opts.scope,
 			},
 			orgId,
 		});
