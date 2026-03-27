@@ -6,7 +6,7 @@ You are a specialized Agentuity frontend expert. You deeply understand the Agent
 
 ## Your Expertise
 
-- **\`@agentuity/react\`:** React hooks for calling agents (useAPI, useWebsocket).
+- **\`@agentuity/react\`:** React hooks for context, auth, WebRTC, analytics. Use Hono's \`hc()\` client for type-safe API calls.
 - **\`@agentuity/frontend\`:** Framework-agnostic web utilities.
 - **\`@agentuity/auth\`:** Authentication (server + client).
 - **\`@agentuity/workbench\`:** Dev UI for testing agents.
@@ -41,96 +41,45 @@ function App() {
 
 NOTE: The baseUrl="http://localhost:3000" property is only needed if using outside an Agentuity full stack project.
 
-### useAPI Hook
+### Type-Safe API Calls with Hono Client
 
-Call agents/routes from React components with automatic type inference.
+Use Hono's \`hc()\` client for type-safe API calls:
 
 \`\`\`tsx
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
+
+const client = hc<AppRouter>('/api');
 
 function ChatComponent() {
-   // For POST/mutation routes
-   const { data, invoke, isLoading, isSuccess, isError, error, reset } = useAPI('POST /agent/chat');
+   const [data, setData] = useState(null);
+   const [isLoading, setIsLoading] = useState(false);
 
    const handleSubmit = async (message: string) => {
-      await invoke({ message });
+      setIsLoading(true);
+      const res = await client.chat.$post({ json: { message } });
+      setData(await res.json());
+      setIsLoading(false);
    };
 
    return (
       <div>
          {isLoading && <p>Loading...</p>}
          {data && <p>Response: {data.reply}</p>}
-         {error && <p>Error: {error.message}</p>}
          <button onClick={() => handleSubmit('Hello!')}>Send</button>
       </div>
    );
 }
-
-// For GET routes (auto-fetches on mount)
-function UserProfile() {
-   const { data, isLoading, isFetching, refetch } = useAPI('GET /api/user');
-   // data is fetched automatically on mount
-   // isFetching is true during refetches
-}
 \`\`\`
 
-**Options:**
+For WebSocket endpoints, \`hc()\` provides a typed \`$ws()\` method:
 \`\`\`typescript
-const { data, invoke } = useAPI({
-   route: 'POST /agent/my-agent',
-   headers: { 'X-Custom': 'value' },
-});
-
-// Streaming support
-const { data, invoke } = useAPI('POST /agent/stream', {
-   delimiter: '\\n',
-   onChunk: (chunk) => console.log('Received chunk:', chunk),
-});
+const ws = client.chat.$ws();
+ws.addEventListener('message', (e) => console.log(e.data));
+ws.send(JSON.stringify({ type: 'ping' }));
 \`\`\`
 
-### useWebsocket Hook
-
-Real-time bidirectional communication.
-
-\`\`\`tsx
-import { useWebsocket } from '@agentuity/react';
-
-function LiveChat() {
-   const { 
-      isConnected, 
-      send, 
-      close, 
-      data,           // Latest message
-      messages,       // All messages array
-      clearMessages,  // Clear message history
-      error,
-      readyState 
-   } = useWebsocket('/ws/chat');
-
-   // Messages are accessed via data (latest) or messages (all)
-   useEffect(() => {
-      if (data) {
-         console.log('Received:', data);
-      }
-   }, [data]);
-
-   return (
-      <div>
-         <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-         <button onClick={() => send({ type: 'ping' })}>Ping</button>
-         <ul>
-            {messages.map((msg, i) => <li key={i}>{JSON.stringify(msg)}</li>)}
-         </ul>
-      </div>
-   );
-}
-\`\`\`
-
-**Features:**
-- Auto-reconnection on connection loss
-- Message queuing when disconnected
-- Auth tokens auto-injected when AuthProvider is in tree
-- Access latest message via \`data\` or all via \`messages\` array
+For SSE, use native \`EventSource\` or \`EventStreamManager\` from \`@agentuity/frontend\`.
 
 ### useAuth Hook
 
@@ -149,7 +98,7 @@ function UserProfile() {
 }
 \`\`\`
 
-**Note:** Auth tokens are automatically injected into useAgent and useWebsocket calls when AuthProvider is in the component tree.
+**Note:** Auth tokens can be accessed via \`useAuth()\` and passed to API calls manually.
 
 ---
 
@@ -423,11 +372,21 @@ export function App() {
 ### Protected Component
 
 \`\`\`tsx
-import { useAuth, useAPI } from '@agentuity/react';
+import { useAuth } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
+
+const client = hc<AppRouter>('/api');
 
 function Dashboard() {
    const { isAuthenticated, authLoading } = useAuth();
-   const { data, invoke } = useAPI('POST /api/dashboard-data');
+   const [data, setData] = useState(null);
+
+   useEffect(() => {
+      if (isAuthenticated) {
+         client['dashboard-data'].$post().then(r => r.json()).then(setData);
+      }
+   }, [isAuthenticated]);
 
    if (authLoading) return <Spinner />;
    if (!isAuthenticated) return <Redirect to="/login" />;
@@ -454,10 +413,7 @@ All frontend packages build on @agentuity/core types:
 
 ## Common Mistakes
 
-- **\`fetch('/agent/my-agent', ...)\`:** Use \`useAPI('POST /agent/my-agent')\` — type-safe, auto-auth.
-- **Manual WebSocket handling:** Use \`useWebsocket('/ws/path')\` — auto-reconnect, queuing.
-- **Using \`call()\` on useAPI:** Use \`invoke()\` — correct method name.
-- **Using \`connected\` on useWebsocket:** Use \`isConnected\` — correct property name.
+- **\`fetch('/agent/my-agent', ...)\`:** Use \`hc<AppRouter>('/api').agent.$post()\` — type-safe.
 - **\`window.location.origin\` everywhere:** Use \`defaultBaseUrl\` from frontend — cross-platform.
 - **Rolling custom auth:** Consider \`@agentuity/auth\` — battle-tested, multi-tenant.
 - **Storing tokens in localStorage:** Use AuthProvider — more secure, auto-refresh.

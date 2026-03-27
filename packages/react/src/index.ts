@@ -9,45 +9,12 @@ export {
 	type AuthContextValue,
 } from './context';
 export {
-	createClient,
-	createAPIClient,
-	setGlobalBaseUrl,
-	getGlobalBaseUrl,
-	setGlobalAuthHeader,
-	getGlobalAuthHeader,
-} from './client';
-export {
-	useWebsocket,
-	type WebSocketRouteKey,
-	type WebSocketRouteInput,
-	type WebSocketRouteOutput,
-	type WebsocketOptions,
-} from './websocket';
-export {
-	useEventStream,
-	type SSERouteKey,
-	type SSERouteOutput,
-	type EventStreamOptions,
-} from './eventstream';
-export {
 	useWebRTCCall,
 	type UseWebRTCCallOptions,
 	type UseWebRTCCallResult,
 	type WebRTCConnectionState,
 	type WebRTCClientCallbacks,
 } from './webrtc';
-export {
-	useAPI,
-	type RouteKey,
-	type ExtractMethod,
-	type RouteIsStream,
-	type RouteInput,
-	type RouteOutput,
-	type RoutePathParams,
-	type UseAPIOptions,
-	type UseAPIResult,
-	type InvokeOptions,
-} from './api';
 export { useJsonMemo } from './memo';
 
 // Analytics
@@ -59,17 +26,7 @@ export {
 	type TrackOnMountOptions,
 } from './analytics.js';
 
-// Re-export route registry types from @agentuity/frontend
-// These are augmented by generated code via `declare module '@agentuity/frontend'`
-// Re-exporting ensures backwards compatibility for existing imports
-export type {
-	RouteRegistry,
-	WebSocketRouteRegistry,
-	SSERouteRegistry,
-	RPCRouteRegistry,
-} from '@agentuity/frontend';
-
-// Re-export web utilities for convenience (excluding registry types which come from ./types)
+// Re-export web utilities from @agentuity/frontend
 export {
 	buildUrl,
 	defaultBaseUrl,
@@ -96,12 +53,4 @@ export {
 	type WebRTCManagerOptions,
 	type WebRTCManagerState,
 	type WebRTCDisconnectReason,
-	// Client type exports (createClient is exported from ./client.ts)
-	type Client,
-	type ClientOptions,
-	type RouteEndpoint,
-	type WebSocketClient,
-	type EventStreamClient,
-	type StreamClient,
-	type EventHandler,
 } from '@agentuity/frontend';

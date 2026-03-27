@@ -7,7 +7,6 @@ This folder contains AI agents for your Agentuity application. Each agent is org
 The `src/generated/` folder contains auto-generated TypeScript files:
 
 - `registry.ts` - Agent registry with strongly-typed agent definitions and schema types
-- `routes.ts` - Route registry for API, WebSocket, and SSE endpoints
 - `app.ts` - Application entry point (regenerated on every build)
 
 **Important:** Never edit files in `src/generated/` - they are overwritten on every build.
@@ -305,4 +304,4 @@ export default agent;
 - Import agents directly to call them (recommended approach)
 - Subagents are one level deep only (team/members/, not team/members/subagent/)
 
-<!-- prompt_hash: 9a71bb6d5544990d6ab3ecdf143b3a5caad26ce2e250df3b728a8d70bbf1fbad -->
+<!-- prompt_hash: 93d6328b3fb415232e477b00c26496f3cff1f5f242f7652ddd4a1056f3914775 -->

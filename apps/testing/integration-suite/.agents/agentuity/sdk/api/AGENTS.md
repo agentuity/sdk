@@ -6,17 +6,10 @@ This folder contains REST API routes for your Agentuity application. Each API is
 
 The `src/generated/` folder contains auto-generated TypeScript files:
 
-- `routes.ts` - Route registry with strongly-typed route definitions and schema types
 - `registry.ts` - Agent registry (for calling agents from routes)
 - `app.ts` - Application entry point (regenerated on every build)
 
 **Important:** Never edit files in `src/generated/` - they are overwritten on every build.
-
-Import generated types in your routes:
-
-```typescript
-import type { POST_Api_UsersInput, POST_Api_UsersOutput } from '../generated/routes';
-```
 
 ## Directory Structure
 
@@ -364,4 +357,4 @@ export default router;
 - Return appropriate HTTP status codes
 - APIs run at `/api/{folderName}` by default
 
-<!-- prompt_hash: a79b3f50bbc54be2f21c3fd4a20f1683c4c51b0713844e2efc1d4b40a7e70c5d -->
+<!-- prompt_hash: d6efb96b72db856e9b72ee6da09d0ae9866cef43abb65d1fa55b0e67f0229a79 -->

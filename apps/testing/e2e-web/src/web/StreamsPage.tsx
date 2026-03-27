@@ -1,17 +1,68 @@
-import { useWebsocket, useEventStream } from '@agentuity/react';
-import { useState } from 'react';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export function StreamsPage() {
+	const clientRef = useRef(hc<AppRouter>(`${window.location.origin}/api`));
 	const [message, setMessage] = useState('');
-	const { isConnected: wsConnected, send, messages: wsMessages } = useWebsocket('/api/echo');
-	const { isConnected: sseConnected, data: sseData } = useEventStream('/api/events');
 
-	const handleSend = () => {
-		if (message.trim()) {
-			send({ message });
+	// WebSocket state
+	const [wsConnected, setWsConnected] = useState(false);
+	const [wsMessages, setWsMessages] = useState<Array<{ echo: string; timestamp: number }>>([]);
+	const wsRef = useRef<WebSocket | null>(null);
+
+	// SSE state
+	const [sseConnected, setSseConnected] = useState(false);
+	const [sseData, setSseData] = useState<{ event: string; count: number } | null>(null);
+
+	// Connect WebSocket on mount
+	useEffect(() => {
+		const ws = clientRef.current.echo.$ws();
+		wsRef.current = ws;
+
+		ws.addEventListener('open', () => setWsConnected(true));
+		ws.addEventListener('close', () => setWsConnected(false));
+		ws.addEventListener('message', (event: MessageEvent) => {
+			try {
+				const data = JSON.parse(event.data);
+				setWsMessages((prev) => [...prev, data]);
+			} catch {
+				// ignore parse errors
+			}
+		});
+
+		return () => {
+			ws.close();
+		};
+	}, []);
+
+	// Connect SSE on mount
+	useEffect(() => {
+		const baseUrl = window.location.origin;
+		const es = new EventSource(`${baseUrl}/api/events`);
+
+		es.addEventListener('open', () => setSseConnected(true));
+		es.addEventListener('error', () => setSseConnected(false));
+		es.addEventListener('message', (event: MessageEvent) => {
+			try {
+				const data = JSON.parse(event.data);
+				setSseData(data);
+			} catch {
+				// ignore parse errors
+			}
+		});
+
+		return () => {
+			es.close();
+		};
+	}, []);
+
+	const handleSend = useCallback(() => {
+		if (message.trim() && wsRef.current?.readyState === WebSocket.OPEN) {
+			wsRef.current.send(JSON.stringify({ message }));
 			setMessage('');
 		}
-	};
+	}, [message]);
 
 	return (
 		<div

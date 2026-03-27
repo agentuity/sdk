@@ -1,10 +1,8 @@
 import { createApp } from '@agentuity/runtime';
-import { bootstrapRuntimeEnv } from '@agentuity/runtime';
+import simple from './src/agent/simple/agent';
 
-// Bootstrap runtime environment based on active profile
-// This loads .env.{profile} and agentuity.{profile}.json
-await bootstrapRuntimeEnv();
-
-const app = await createApp();
+const app = await createApp({
+	agents: [simple],
+});
 
 export default app;

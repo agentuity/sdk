@@ -22,13 +22,13 @@ Framework-agnostic web utilities for building Agentuity frontend applications. W
 ```text
 src/
 ├── index.ts              # Main exports
-├── types.ts              # RouteRegistry, WebSocketRouteRegistry, SSERouteRegistry, RPCRouteRegistry
 ├── url.ts                # buildUrl, defaultBaseUrl
 ├── reconnect.ts          # createReconnectManager (exponential backoff)
 ├── websocket-manager.ts  # WebSocketManager class
 ├── eventstream-manager.ts # EventStreamManager class (SSE)
-├── client/               # Type-safe API client (createClient)
-└── analytics/            # getAnalytics, track, getVisitorId, isOptedOut
+├── webrtc-manager.ts     # WebRTCManager class
+├── analytics.ts          # getAnalytics, track, getVisitorId, isOptedOut
+└── memo.ts               # jsonEqual
 ```
 
 ## Code Conventions
@@ -38,41 +38,17 @@ src/
 - **Pure functions** - All utilities are pure functions where possible
 - **Browser APIs** - Uses standard browser APIs only
 
-## Important Patterns
+## Connection Managers
 
-### Route Registries
-
-Types are augmented by generated code:
-
-```typescript
-declare module '@agentuity/frontend' {
-	export interface RouteRegistry {
-		'GET /users': { outputSchema: typeof usersSchema };
-	}
-	export interface WebSocketRouteRegistry {
-		/* ... */
-	}
-	export interface SSERouteRegistry {
-		/* ... */
-	}
-	export interface RPCRouteRegistry {
-		/* ... */
-	}
-}
-```
-
-### Connection Managers
-
-`WebSocketManager` and `EventStreamManager` provide auto-reconnection with exponential backoff. Used internally by `@agentuity/react` hooks.
+`WebSocketManager` and `EventStreamManager` provide auto-reconnection with exponential backoff.
 
 ## Key Exports
 
 - **URL**: `buildUrl`, `defaultBaseUrl`
 - **Reconnect**: `createReconnectManager`
-- **Managers**: `WebSocketManager`, `EventStreamManager`
-- **Client**: `createClient`
+- **Managers**: `WebSocketManager`, `EventStreamManager`, `WebRTCManager`
 - **Analytics**: `getAnalytics`, `track`, `getVisitorId`, `isOptedOut`, `setOptOut`
-- **Types**: `RouteRegistry`, `WebSocketRouteRegistry`, `SSERouteRegistry`, `RPCRouteRegistry`
+- **Utilities**: `jsonEqual`, `deserializeData`, `getProcessEnv`
 
 ## Publishing
 

@@ -158,13 +158,23 @@ export const createUserLoggerProvider = ({
 	};
 };
 
+import { otel as otelGlobal } from '../_globals';
+
 /**
- * Registers and initializes OpenTelemetry with the specified configuration
+ * Registers and initializes OpenTelemetry with the specified configuration.
+ *
+ * Idempotent: if called again (e.g. during bun --hot reload), the previous
+ * instance is shut down before creating a new one.
  *
  * @param config - The configuration for OpenTelemetry
  * @returns An object containing the tracer, logger, and shutdown function
  */
 export function registerOtel(config: OtelConfig): OtelResponse {
+	// Shut down previous instance if this is a hot reload
+	const previous = otelGlobal.get();
+	if (previous) {
+		previous.shutdown().catch(() => {});
+	}
 	const {
 		url,
 		name,
@@ -338,5 +348,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		logger.info('connected to Agentuity Agent Cloud');
 	}
 
-	return { tracer, meter, logger, shutdown };
+	const instance: OtelResponse = { tracer, meter, logger, shutdown };
+	otelGlobal.set(instance);
+	return instance;
 }

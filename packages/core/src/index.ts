@@ -2,6 +2,9 @@
 export type { EnvField, ResourceType } from './env-example.ts';
 export { detectResourceFromKey, parseEnvExample } from './env-example.ts';
 
+// deprecation.ts exports
+export { isV1Package, showDeprecationWarning } from './deprecation';
+
 // error.ts exports
 export { isStructuredError, RichError, StructuredError } from './error.ts';
 

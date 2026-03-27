@@ -3,25 +3,23 @@
  *
  * Prevents user code from calling process.exit() which would crash the server.
  * The runtime can still exit gracefully using the internal exit function.
+ *
+ * Uses _globals.ts Symbol.for() accessors to store state across hot reloads.
  */
 
 import { StructuredError } from '@agentuity/core';
+import {
+	originalProcessExit as exitGlobal,
+	processExitProtected as protectedGlobal,
+} from './_globals';
 
-// Store the original process.exit ONLY if not already stored.
-// This is critical for hot reload scenarios where this module may be re-imported
-// multiple times. We must capture the truly original process.exit, not a previously
-// wrapped version.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const existingOriginalExit = (globalThis as any).__AGENTUITY_ORIGINAL_PROCESS_EXIT__;
-const originalExit: (code?: number) => never = existingOriginalExit ?? process.exit.bind(process);
-// Store it globally so subsequent imports get the same original
-if (!existingOriginalExit) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).__AGENTUITY_ORIGINAL_PROCESS_EXIT__ = originalExit;
+// Capture the original process.exit ONLY if not already stored.
+// Critical for hot reload: we must capture the truly original, not a wrapped version.
+const existingExit = exitGlobal.get();
+const originalExit: (code?: number) => never = existingExit ?? process.exit.bind(process);
+if (!existingExit) {
+	exitGlobal.set(originalExit);
 }
-
-// Flag to track if protection is enabled
-let protectionEnabled = false;
 
 const ProcessExitAttemptError = StructuredError(
 	'ProcessExitAttemptError',
@@ -35,16 +33,11 @@ const ProcessExitAttemptError = StructuredError(
  * After calling this, user code calling process.exit() will throw an error.
  */
 export function enableProcessExitProtection(): void {
-	if (protectionEnabled) {
+	if (protectedGlobal.get()) {
 		return;
 	}
+	protectedGlobal.set(true);
 
-	protectionEnabled = true;
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).AGENTUITY_PROCESS_EXIT = originalExit;
-
-	// Replace process.exit with a function that throws
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(process as any).exit = (code?: number | string | null | undefined): never => {
 		throw new ProcessExitAttemptError({ code });
@@ -55,14 +48,10 @@ export function enableProcessExitProtection(): void {
  * Disable protection (mainly for testing)
  */
 export function disableProcessExitProtection(): void {
-	if (!protectionEnabled) {
+	if (!protectedGlobal.get()) {
 		return;
 	}
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).AGENTUITY_PROCESS_EXIT = undefined;
-
-	protectionEnabled = false;
+	protectedGlobal.set(false);
 	process.exit = originalExit;
 }
 
@@ -78,5 +67,5 @@ export function internalExit(code?: number): never {
  * Check if protection is currently enabled
  */
 export function isProtectionEnabled(): boolean {
-	return protectionEnabled;
+	return protectedGlobal.get();
 }

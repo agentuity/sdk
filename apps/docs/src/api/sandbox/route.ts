@@ -10,7 +10,7 @@
  *
  * Usage: GET /run?script=<name>&input=<base64JSON>
  */
-import { createRouter, sse, createAgentContext } from '@agentuity/runtime';
+import { sse, createAgentContext, type Env } from '@agentuity/runtime';
 import {
 	APIClient,
 	sandboxRun,
@@ -23,8 +23,7 @@ import {
 } from '@agentuity/server';
 import { Writable } from 'node:stream';
 import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
-
-const router = createRouter();
+import { Hono } from 'hono';
 
 const SNAPSHOT_ID = process.env.SANDBOX_SNAPSHOT_ID;
 const SANDBOX_EXEC_TIMEOUT = '2m';
@@ -45,7 +44,7 @@ function cleanOutput(content: string): string {
 		.replace(/\\n/g, '\n');
 }
 
-router.get(
+const router = new Hono<Env>().get(
 	'/run',
 	sse(async (c, stream) => {
 		// Validate config

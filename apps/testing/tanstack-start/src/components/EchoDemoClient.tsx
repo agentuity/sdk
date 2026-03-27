@@ -1,6 +1,11 @@
 import { useState } from 'react';
-import { useAPI, AgentuityProvider } from '@agentuity/react';
-import '@agentuity/routes';
+import { hc } from 'hono/client';
+import type { InferResponseType } from 'hono/client';
+import type { ApiRouter } from '../../agentuity/src/api/index';
+
+const client = hc<ApiRouter>('/api');
+const $post = client.echo.$post;
+type EchoResponse = InferResponseType<typeof $post>;
 
 function AgentuityLogo() {
 	return (
@@ -42,7 +47,26 @@ function TanStackLogo() {
 
 function EchoDemoInner() {
 	const [message, setMessage] = useState('Hello from TanStack Start!');
-	const { data, invoke, isLoading, error } = useAPI('POST /api/echo');
+	const [data, setData] = useState<{ echo: string; timestamp: string } | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+
+	const invoke = async (input: { message: string }) => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			const res = await $post({ json: input });
+			if (!res.ok) {
+				throw new Error(`Echo request failed with ${res.status}`);
+			}
+			const data: EchoResponse = await res.json();
+			setData(data);
+		} catch (e) {
+			setError(e instanceof Error ? e : new Error(String(e)));
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	return (
 		<div className="app-container">
@@ -108,11 +132,10 @@ function EchoDemoInner() {
 				<div className="card">
 					<h3 className="section-title">Type Safety Demo</h3>
 					<div className="code-block">
-						<code>{`const { data, invoke } = useAPI('POST /api/echo');
-// TypeScript knows:
-// - invoke({ message: string })
-// - data.echo: string
-// - data.timestamp: string`}</code>
+						<code>{`const client = hc<ApiRouter>('/api');
+const res = await client.echo.$post({ json: { message } });
+const data = await res.json();
+// TypeScript knows: data.echo, data.timestamp`}</code>
 					</div>
 				</div>
 			</div>
@@ -342,9 +365,5 @@ function EchoDemoInner() {
 }
 
 export default function EchoDemoClient() {
-	return (
-		<AgentuityProvider>
-			<EchoDemoInner />
-		</AgentuityProvider>
-	);
+	return <EchoDemoInner />;
 }

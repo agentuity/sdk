@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/coder",
-	"version": "1.0.63",
+	"version": "2.0.0-beta.1",
 	"description": "Agentuity Coder Hub extension for Pi coding agent",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
@@ -25,13 +25,13 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"peerDependencies": {
-		"@mariozechner/pi-coding-agent": "^0.62.0",
-		"@mariozechner/pi-tui": "^0.62.0",
+		"@mariozechner/pi-coding-agent": "^0.58.1",
+		"@mariozechner/pi-tui": "^0.58.1",
 		"@sinclair/typebox": "^0.34.48"
 	},
 	"devDependencies": {
-		"@mariozechner/pi-coding-agent": "^0.62.0",
-		"@mariozechner/pi-tui": "^0.62.0",
+		"@mariozechner/pi-coding-agent": "^0.58.1",
+		"@mariozechner/pi-tui": "^0.58.1",
 		"@sinclair/typebox": "^0.34.48",
 		"@types/bun": "^1.3.9",
 		"bun-types": "^1.3.9",

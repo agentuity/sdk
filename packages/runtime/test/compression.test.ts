@@ -13,16 +13,10 @@
 import { expect, describe, test } from 'bun:test';
 import { Hono } from 'hono';
 import { createCompressionMiddleware } from '../src/middleware';
-import type { CompressionConfig } from '../src/app';
 
 // Generate a large string that will exceed the default threshold
 function generateLargePayload(size = 2048): string {
 	return 'x'.repeat(size);
-}
-
-// Helper to create a config resolver for test isolation
-function createConfigResolver(config?: { compression?: CompressionConfig | false }) {
-	return () => config;
 }
 
 describe('Compression Middleware', () => {
@@ -80,11 +74,9 @@ describe('Compression Middleware', () => {
 			expect(res.headers.get('Content-Encoding')).toBeNull();
 		});
 
-		test('compression: false in app config disables compression', async () => {
-			const configResolver = createConfigResolver({ compression: false });
-
+		test('compression: false disables compression', async () => {
 			const app = new Hono();
-			app.use('*', createCompressionMiddleware(undefined, configResolver));
+			app.use('*', createCompressionMiddleware(false));
 			app.get('/test', (c) => {
 				return c.json({ data: generateLargePayload(2048) });
 			});
@@ -98,11 +90,9 @@ describe('Compression Middleware', () => {
 			expect(res.headers.get('Content-Encoding')).toBeNull();
 		});
 
-		test('static config enabled:false overrides app config', async () => {
-			const configResolver = createConfigResolver({ compression: { threshold: 100 } });
-
+		test('enabled:false disables compression', async () => {
 			const app = new Hono();
-			app.use('*', createCompressionMiddleware({ enabled: false }, configResolver));
+			app.use('*', createCompressionMiddleware({ enabled: false }));
 			app.get('/test', (c) => {
 				return c.json({ data: generateLargePayload(2048) });
 			});
@@ -189,32 +179,7 @@ describe('Compression Middleware', () => {
 		});
 	});
 
-	describe('Lazy config resolution', () => {
-		test('reads config from app state at request time', async () => {
-			// Use a mutable config object to simulate lazy resolution
-			let currentConfig: { compression?: CompressionConfig | false } | undefined = undefined;
-			const configResolver = () => currentConfig;
-
-			const app = new Hono();
-			// Register middleware BEFORE setting config (simulating real startup order)
-			app.use('*', createCompressionMiddleware(undefined, configResolver));
-			app.get('/test', (c) => {
-				return c.json({ data: generateLargePayload(2048) });
-			});
-
-			// Now set config (simulating createApp running after middleware registration)
-			currentConfig = { compression: false };
-
-			const res = await app.request('/test', {
-				method: 'GET',
-				headers: { 'Accept-Encoding': 'gzip' },
-			});
-
-			expect(res.status).toBe(200);
-			// Config was resolved lazily, compression should be disabled
-			expect(res.headers.get('Content-Encoding')).toBeNull();
-		});
-
+	describe('Config resolution', () => {
 		test('works without any config (uses defaults)', async () => {
 			const app = new Hono();
 			app.use('*', createCompressionMiddleware());

@@ -13,7 +13,6 @@
 ## What Gets Generated
 
 - `registry.ts` - Built from agent discovery in `src/agent/`
-- `routes.ts` - Built from route discovery in `src/api/`
 - `app.ts` - Entry point assembled from project configuration
 - `analytics-config.ts` - Web analytics configuration from `agentuity.json`
 - `webanalytics.ts` - Web analytics injection and route registration

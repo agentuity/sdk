@@ -1,8 +1,9 @@
 /**
- * Vite Asset Server
+ * Vite Dev Server (Primary)
  *
- * Starts a minimal Vite dev server for frontend asset transformation and HMR only.
- * Does NOT handle API routes or WebSocket - the Bun server proxies to this.
+ * Starts Vite as the primary dev server on the user-facing port.
+ * Serves frontend assets natively and proxies API/WebSocket requests
+ * to the Bun backend server.
  */
 
 import { join } from 'node:path';
@@ -21,6 +22,10 @@ export interface StartViteAssetServerOptions {
 	rootDir: string;
 	logger: Logger;
 	workbenchPath?: string;
+	port?: number; // Preferred user-facing port (default: 3500)
+	backendPort: number; // Port of the Bun backend server
+	/** User-defined route mount paths from createApp({ router }) */
+	routePaths?: string[];
 }
 
 /**
@@ -68,27 +73,34 @@ async function findAvailablePort(
 export async function startViteAssetServer(
 	options: StartViteAssetServerOptions
 ): Promise<ViteAssetServerResult> {
-	const { rootDir, logger, workbenchPath } = options;
+	const {
+		rootDir,
+		logger,
+		workbenchPath,
+		port: preferredPort = 3500,
+		backendPort,
+		routePaths,
+	} = options;
 
-	logger.debug('Starting Vite asset server (HMR only)...');
+	logger.debug('Starting Vite dev server (primary, proxying backend on port %d)...', backendPort);
 
-	// Find an available port before starting Vite
-	// This avoids relying on Vite's strictPort:false fallback which can fail
-	const preferredPort = 5173;
+	// Find an available port for the user-facing Vite server
 	const availablePort = await findAvailablePort(preferredPort, '127.0.0.1');
 
 	if (availablePort !== preferredPort) {
 		logger.info(
-			`Port ${preferredPort} is in use, using port ${availablePort} for Vite asset server`
+			`Port ${preferredPort} is in use, using port ${availablePort} for Vite dev server`
 		);
 	}
 
-	// Generate minimal config with the available port
+	// Generate config with proxy to Bun backend
 	const config = await generateAssetServerConfig({
 		rootDir,
 		logger,
 		workbenchPath,
 		port: availablePort,
+		backendPort,
+		routePaths,
 	});
 
 	// Dynamically import vite from the project's node_modules
@@ -130,11 +142,9 @@ export async function startViteAssetServer(
 	// Port was pre-verified and strictPort:true ensures Vite uses exactly this port
 	const actualPort = availablePort;
 
-	logger.info(`Vite asset server running on port ${actualPort}`);
-	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
-	logger.debug(
-		`HMR WebSocket configured at /__vite_hmr (proxied through Bun server for tunnel support)`
-	);
+	logger.debug(`Vite dev server running on port ${actualPort} (primary)`);
+	logger.debug(`Frontend: HMR, React transformation, source maps (native)`);
+	logger.debug(`Backend: proxying to Bun on port ${backendPort}`);
 
 	return { server, port: actualPort };
 }

@@ -7,7 +7,6 @@ This directory contains auto-generated TypeScript files created by the Agentuity
 ## Generated Files
 
 - `registry.ts` - Agent registry from `src/agent/**`
-- `routes.ts` - Route registry from `src/api/**`
 - `app.ts` - Application entry point
 - `analytics-config.ts` - Web analytics configuration from `agentuity.json`
 - `webanalytics.ts` - Web analytics injection and route registration
@@ -23,14 +22,12 @@ The `env.d.ts` file provides TypeScript intellisense for your environment variab
 - **ImportMetaEnv**: Only `VITE_*`, `AGENTUITY_PUBLIC_*`, and `PUBLIC_*` prefixed variables (for client-side use)
 
 Files are merged based on build mode:
-
 - **Development**: `.env.{profile}` → `.env.development` → `.env` (later files override)
 - **Production**: `.env.{profile}` → `.env` → `.env.production` (later files override)
 
 ## For Developers
 
 Do not modify these files. Instead:
-
 - Add/modify agents in `src/agent/`
 - Add/modify routes in `src/api/`
 - Configure app in `app.ts`
