@@ -22,41 +22,16 @@ export interface CIBuildOptions {
 	logsUrl?: string;
 }
 
-async function streamProcessOutput(proc: ReturnType<typeof spawn>): Promise<void> {
-	const forwardStream = async (
-		stream: ReadableStream<Uint8Array> | number | undefined,
-		isStderr: boolean
-	) => {
-		if (typeof stream === 'number') return;
-		if (!stream) return;
-		const reader = stream.getReader();
-		const target = isStderr ? process.stderr : process.stdout;
-
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			target.write(value);
-		}
-	};
-
-	await Promise.all([
-		forwardStream(proc.stdout, false),
-		forwardStream(proc.stderr, true),
-		proc.exited,
-	]);
-}
-
 async function runCommand(cmd: string[], cwd: string): Promise<number> {
 	const proc = spawn({
 		cmd,
 		cwd,
 		env: { ...process.env, CI: 'true' },
 		stdin: 'ignore',
-		stdout: 'pipe',
-		stderr: 'pipe',
+		stdout: 'inherit',
+		stderr: 'inherit',
 	});
-
-	await streamProcessOutput(proc);
+	await proc.exited;
 	return proc.exitCode ?? 1;
 }
 
