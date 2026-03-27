@@ -330,6 +330,18 @@ export async function discoverAgents(
 			continue;
 		}
 
+		// Skip test files (*.test.ts, *.spec.ts) and test directories
+		if (
+			file.startsWith('test/') ||
+			file.includes('/test/') ||
+			file.startsWith('__tests__/') ||
+			file.includes('/__tests__/') ||
+			file.endsWith('.test.ts') ||
+			file.endsWith('.spec.ts')
+		) {
+			continue;
+		}
+
 		const relativeFilename = toForwardSlash(relative(rootDir, filePath));
 		const agentMetadata = await importAgentMetadata(
 			filePath,

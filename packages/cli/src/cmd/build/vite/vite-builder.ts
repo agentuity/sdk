@@ -250,6 +250,20 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 			workbenchRoute: workbenchConfig.route,
 			analyticsEnabled,
 		});
+
+		// Normalize index.html location: vite may output to src/web/index.html
+		// depending on the project's vite.config.ts configuration
+		const clientDir = join(rootDir, '.agentuity/client');
+		const nestedIndexHtml = join(clientDir, 'src/web/index.html');
+		const rootIndexHtml = join(clientDir, 'index.html');
+		if (existsSync(nestedIndexHtml) && !existsSync(rootIndexHtml)) {
+			const { renameSync, mkdirSync: mkdirSyncFs } = await import('node:fs');
+			// Ensure target directory exists
+			mkdirSyncFs(clientDir, { recursive: true });
+			renameSync(nestedIndexHtml, rootIndexHtml);
+			logger.debug('Moved index.html from src/web/ to client root');
+		}
+
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
 		endClientDiagnostic?.();

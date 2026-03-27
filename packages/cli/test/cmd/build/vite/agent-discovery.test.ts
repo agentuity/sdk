@@ -504,4 +504,68 @@ export default createAgent('broken-agent', {
 			discoverAgents(srcDir, 'test-project', 'test-deployment', logger)
 		).rejects.toThrow('Failed to import agent');
 	});
+
+	test('should skip test files and test directories', async () => {
+		// Valid agent
+		writeFileSync(
+			join(agentDir, 'good.ts'),
+			`
+import { createAgent } from '@agentuity/runtime';
+export default createAgent('good-agent', {
+	handler: async (ctx, input) => ({ ok: true }),
+});
+`
+		);
+
+		// Test file that would fail if imported
+		writeFileSync(
+			join(agentDir, 'good.test.ts'),
+			`
+import { test, expect } from 'bun:test';
+test('example', () => {
+	expect(1).toBe(1);
+});
+`
+		);
+
+		// Spec file
+		writeFileSync(
+			join(agentDir, 'good.spec.ts'),
+			`
+import { describe, it } from 'bun:test';
+describe('example', () => {
+	it('works', () => {});
+});
+`
+		);
+
+		// Test directory with file
+		const testDir = join(agentDir, 'test');
+		mkdirSync(testDir, { recursive: true });
+		writeFileSync(
+			join(testDir, 'helper.ts'),
+			`
+// This would fail with "Cannot use test outside of the test runner"
+import { test } from 'bun:test';
+test('helper', () => {});
+`
+		);
+
+		// __tests__ directory
+		const testsDir = join(agentDir, '__tests__');
+		mkdirSync(testsDir, { recursive: true });
+		writeFileSync(
+			join(testsDir, 'agent.test.ts'),
+			`
+import { test } from 'bun:test';
+test('agent', () => {});
+`
+		);
+
+		const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+		// Should only find the valid agent
+		expect(agents.length).toBe(1);
+		expect(agents[0]!.name).toBe('good-agent');
+	});
 });
