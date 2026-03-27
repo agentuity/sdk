@@ -279,12 +279,17 @@ async function importAgentMetadata(
 			evals: evals.length > 0 ? evals : undefined,
 		};
 	} catch (error) {
-		logger.warn(
-			'[agent-discovery] Failed to import agent %s: %s',
-			filePath,
-			error instanceof Error ? error.message : String(error)
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		throw new Error(
+			`Failed to import agent at ${relativeFilename}:\n` +
+				`  ${errorMsg}\n\n` +
+				`This usually happens when the agent module requires environment variables ` +
+				`or external services at import time.\n\n` +
+				`To fix this:\n` +
+				`  1. Ensure required environment variables are set during build (e.g., OPENAI_API_KEY)\n` +
+				`  2. Or refactor the agent to use lazy initialization (initialize clients in setup() or handler(), not at module scope)\n\n` +
+				`See https://agentuity.dev/docs/agents#build-time-requirements for more information.`
 		);
-		return null;
 	}
 }
 

@@ -475,7 +475,7 @@ export default createAgent('mutable-agent', {
 		expect(agents1[0]!.agentId).toBe(agents2[0]!.agentId);
 	});
 
-	test('should skip files that fail to import', async () => {
+	test('should throw error when agent fails to import', async () => {
 		// Valid agent
 		writeFileSync(
 			join(agentDir, 'good.ts'),
@@ -499,10 +499,9 @@ export default createAgent('broken-agent', {
 `
 		);
 
-		const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
-
-		// Should still discover the good agent
-		expect(agents.length).toBeGreaterThanOrEqual(1);
-		expect(agents.find((a) => a.name === 'good-agent')).toBeDefined();
+		// Should throw an error with helpful message
+		await expect(
+			discoverAgents(srcDir, 'test-project', 'test-deployment', logger)
+		).rejects.toThrow('Failed to import agent');
 	});
 });
