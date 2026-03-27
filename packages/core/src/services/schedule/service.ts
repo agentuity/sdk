@@ -68,7 +68,7 @@ export const ScheduleSchema = z.object({
 	internal: z
 		.boolean()
 		.describe(
-			'Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted by users.'
+			'Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted users.'
 		),
 });
 
