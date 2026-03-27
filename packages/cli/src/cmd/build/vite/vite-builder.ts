@@ -111,6 +111,82 @@ async function drainSubprocessStream(
 	return tail;
 }
 
+/**
+ * Detect actually available memory for subprocess heap sizing.
+ * Reads cgroup v2/v1 max and current usage to compute free memory.
+ * Falls back to os.freemem() if cgroup files aren't available.
+ */
+async function detectAvailableMemory(
+	logger: Logger,
+	label: string
+): Promise<Record<string, string>> {
+	let cgroupMaxBytes = 0;
+	let cgroupCurrentBytes = 0;
+	let availableBytes = 0;
+	try {
+		if (process.platform === 'linux') {
+			// Try cgroup v2
+			const cgroupMax = Bun.file('/sys/fs/cgroup/memory.max');
+			const cgroupCurrent = Bun.file('/sys/fs/cgroup/memory.current');
+			if ((await cgroupMax.exists()) && (await cgroupCurrent.exists())) {
+				const maxStr = (await cgroupMax.text()).trim();
+				const currentStr = (await cgroupCurrent.text()).trim();
+				// "max" means unlimited — use total system memory
+				if (maxStr === 'max') {
+					const { totalmem } = await import('node:os');
+					cgroupMaxBytes = totalmem();
+				} else if (/^\d+$/.test(maxStr)) {
+					cgroupMaxBytes = Number(maxStr);
+				}
+				if (/^\d+$/.test(currentStr)) {
+					cgroupCurrentBytes = Number(currentStr);
+				}
+				if (cgroupMaxBytes > 0) {
+					availableBytes =
+						cgroupCurrentBytes > 0 ? cgroupMaxBytes - cgroupCurrentBytes : cgroupMaxBytes;
+				}
+			}
+			// Fallback to cgroup v1
+			if (!availableBytes) {
+				const v1Limit = Bun.file('/sys/fs/cgroup/memory/memory.limit_in_bytes');
+				const v1Usage = Bun.file('/sys/fs/cgroup/memory/memory.usage_in_bytes');
+				if ((await v1Limit.exists()) && (await v1Usage.exists())) {
+					const limitStr = (await v1Limit.text()).trim();
+					const usageStr = (await v1Usage.text()).trim();
+					if (/^\d+$/.test(limitStr) && /^\d+$/.test(usageStr)) {
+						cgroupMaxBytes = Number(limitStr);
+						cgroupCurrentBytes = Number(usageStr);
+						availableBytes = cgroupMaxBytes - cgroupCurrentBytes;
+					}
+				}
+			}
+		}
+		if (!availableBytes) {
+			const { freemem } = await import('node:os');
+			availableBytes = freemem();
+		}
+	} catch {
+		// If detection fails, let JSC use its own defaults
+	}
+
+	const jscEnv: Record<string, string> = {};
+	if (availableBytes > 0) {
+		const maxMb = Math.round(cgroupMaxBytes / 1024 / 1024);
+		const usedMb = Math.round(cgroupCurrentBytes / 1024 / 1024);
+		const availMb = Math.round(availableBytes / 1024 / 1024);
+		const maxHeap = Math.round(availableBytes * 0.8);
+		const maxHeapMb = Math.round(maxHeap / 1024 / 1024);
+		jscEnv.BUN_JSC_forceRAMSize = String(availableBytes);
+		jscEnv.BUN_JSC_gcMaxHeapSize = String(maxHeap);
+		logger.debug(
+			`[${label}] Memory: cgroup max=${maxMb} MiB, used=${usedMb} MiB, available=${availMb} MiB, gcMaxHeapSize=${maxHeapMb} MiB`
+		);
+	} else {
+		logger.debug(`[${label}] Could not detect available memory, using JSC defaults`);
+	}
+	return jscEnv;
+}
+
 function resolveWorkerScript(name: string): string {
 	const tsPath = fileURLToPath(new URL(`./${name}.ts`, import.meta.url));
 	const jsPath = fileURLToPath(new URL(`./${name}.js`, import.meta.url));
@@ -134,11 +210,12 @@ async function spawnIsolatedWorker(opts: {
 
 	try {
 		await Bun.write(optionsPath, JSON.stringify(optionsJson));
+		const jscEnv = await detectAvailableMemory(logger, label);
 
 		const proc = Bun.spawn({
 			cmd: [process.execPath, workerScript, optionsPath],
 			cwd,
-			env: process.env,
+			env: { ...process.env, ...jscEnv },
 			stdin: 'ignore',
 			stdout: 'pipe',
 			stderr: 'pipe',
