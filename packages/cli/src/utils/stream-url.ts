@@ -65,7 +65,9 @@ export async function streamUrlToWritable(
 			fetchUrl.searchParams.set('follow', 'true');
 		}
 
-		logger.debug('[%s] fetching: %s', label, fetchUrl.href);
+		const redactedUrl =
+			fetchUrl.origin + fetchUrl.pathname + (fetchUrl.search ? '?REDACTED' : '');
+		logger.debug('[%s] fetching: %s', label, redactedUrl);
 		const response = await fetch(fetchUrl.href, { signal });
 		logger.debug(
 			'[%s] response status=%d in %dms',
