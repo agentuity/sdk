@@ -46,19 +46,23 @@ export function extractPathParams(path: string): string[] {
 }
 
 /**
- * Generate a deterministic route ID from project/deployment/path/method.
+ * Generate a deterministic route ID from project/deployment/type/method/filename/path/version.
+ * Must match the format used by the platform (prefix: route_, SHA1 hash of all components).
  */
-function generateRouteId(
+export function generateRouteId(
 	projectId: string,
 	deploymentId: string,
+	type: string,
+	method: string,
+	filename: string,
 	path: string,
-	method: string
+	version: string
 ): string {
-	const hash = createHash('sha256')
-		.update(`${projectId}:${deploymentId}:${path}:${method}`)
-		.digest('hex')
-		.substring(0, 16);
-	return `routeid_${hash}`;
+	const hasher = new Bun.CryptoHasher('sha1');
+	for (const val of [projectId, deploymentId, type, method, filename, path, version]) {
+		hasher.update(val);
+	}
+	return `route_${hasher.digest().toHex()}`;
 }
 
 /**
@@ -165,7 +169,16 @@ export async function discoverRoutes(
 				seenRoutes.add(routeKey);
 
 				const routeType = detectRouteType(route.handler);
-				const id = generateRouteId(projectId, deploymentId, fullPath, method);
+				const rel = toForwardSlash(relative(rootDir, mount.routerFile));
+				const id = generateRouteId(
+					projectId,
+					deploymentId,
+					routeType,
+					method,
+					rel,
+					fullPath,
+					version
+				);
 
 				routes.push({
 					id,
