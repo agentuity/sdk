@@ -6,10 +6,16 @@ const require = createRequire(import.meta.url);
 const pkg = require('./package.json');
 
 // Determine the dist-tag based on create-agentuity version
-// Prerelease versions (e.g., 2.0.0-beta.1) should use @next
-// Stable versions should use @latest
+// Must match the logic in scripts/publish.ts:
+// - Beta versions (-beta.) → use @beta
+// - Other prereleases (-alpha., -rc., etc.) → use @next
+// - Stable versions → use @latest
 function getDistTag(version) {
-	// Check for prerelease identifiers: alpha, beta, rc, canary, next, etc.
+	// Check for beta prerelease first
+	if (/-beta\./.test(version)) {
+		return 'beta';
+	}
+	// Check for other prerelease identifiers: alpha, rc, canary, next, etc.
 	if (/-([a-zA-Z]+)/.test(version)) {
 		return 'next';
 	}
