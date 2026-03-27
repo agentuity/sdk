@@ -10,6 +10,23 @@ const Base64DecodeError = StructuredError('Base64DecodeError')<{
 }>();
 
 /**
+ * Delete vector keys individually with bounded concurrency.
+ * Uses single-key DELETE /vector/:name/:key to avoid the batch delete bug
+ * where DELETE /vector/:name with multiple keys deletes the entire namespace.
+ */
+async function deleteKeys(ctx: any, namespace: string, keys: string[]): Promise<number> {
+	let deleted = 0;
+	for (let i = 0; i < keys.length; i += CONCURRENCY) {
+		const batch = keys.slice(i, i + CONCURRENCY);
+		const results = await Promise.all(batch.map((key) => ctx.vector.delete(namespace, key)));
+		for (const count of results) {
+			deleted += count;
+		}
+	}
+	return deleted;
+}
+
+/**
  * Helper to remove all vectors for a given logical path from the vector store.
  *
  * CONTRACT RISK: The VectorStorage interface has no list-by-metadata API.
@@ -36,13 +53,8 @@ async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreNam
 			break;
 		}
 
-		// Delete keys one at a time to avoid the batch delete bug
-		// where DELETE /vector/:name with multiple keys deletes the entire namespace.
 		const keys = vectors.map((v: { key: string }) => v.key);
-		let deletedCount = 0;
-		for (const key of keys) {
-			deletedCount += await ctx.vector.delete(vectorStoreName, key);
-		}
+		const deletedCount = await deleteKeys(ctx, vectorStoreName, keys);
 		totalDeleted += deletedCount;
 
 		if (deletedCount === 0) {
@@ -233,13 +245,8 @@ export async function clearVectorDb(ctx: any) {
 		});
 		if (batch.length === 0) break;
 
-		// Delete keys one at a time to avoid the batch delete bug
-		// where DELETE /vector/:name with multiple keys deletes the entire namespace.
 		const keys = batch.map((v: { key: string }) => v.key);
-		let deletedCount = 0;
-		for (const key of keys) {
-			deletedCount += await ctx.vector.delete(VECTOR_STORE_NAME, key);
-		}
+		const deletedCount = await deleteKeys(ctx, VECTOR_STORE_NAME, keys);
 		if (deletedCount === 0) {
 			ctx.logger.warn('Vector delete returned 0 during clearVectorDb, aborting loop');
 			break;
