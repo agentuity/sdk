@@ -4,6 +4,7 @@ on:
    push:
       branches:
          - main
+         - v2
       paths:
          - 'packages/cli/**'
          - 'packages/core/**'
@@ -108,8 +109,14 @@ jobs:
               CLI="bun packages/cli/bin/cli.ts"
               PROJECT_NAME="test-wsl-${GITHUB_RUN_ID:-local}"
 
-              # Determine template branch from current ref (v2 branch uses v2 templates)
-              TEMPLATE_BRANCH="${GITHUB_REF_NAME:-main}"
+              # Determine template branch from PR head ref or push branch
+              # For PRs, GITHUB_HEAD_REF is the source branch (e.g., v2)
+              # For pushes, GITHUB_REF_NAME is the branch name
+              if [ -n "${GITHUB_HEAD_REF:-}" ]; then
+                TEMPLATE_BRANCH="${GITHUB_HEAD_REF}"
+              else
+                TEMPLATE_BRANCH="${GITHUB_REF_NAME:-main}"
+              fi
               echo "Using template branch: $TEMPLATE_BRANCH"
 
               # Verify authentication
