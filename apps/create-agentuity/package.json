@@ -10,7 +10,7 @@
 	},
 	"scripts": {
 		"build": "echo 'No build required'",
-		"test": "echo 'No tests for create-agentuity (CLI wrapper)'"
+		"test": "bun test bin.test.js"
 	},
 	"files": [
 		"bin.js"
