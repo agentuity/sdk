@@ -108,6 +108,10 @@ jobs:
               CLI="bun packages/cli/bin/cli.ts"
               PROJECT_NAME="test-wsl-${GITHUB_RUN_ID:-local}"
 
+              # Determine template branch from current ref (v2 branch uses v2 templates)
+              TEMPLATE_BRANCH="${GITHUB_REF_NAME:-main}"
+              echo "Using template branch: $TEMPLATE_BRANCH"
+
               # Verify authentication
               $CLI auth whoami
 
@@ -116,6 +120,7 @@ jobs:
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --template default \
+                --template-branch "$TEMPLATE_BRANCH" \
                 --database skip \
                 --storage skip \
                 --confirm

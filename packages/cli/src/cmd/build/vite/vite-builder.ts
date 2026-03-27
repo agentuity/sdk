@@ -95,6 +95,27 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const buildMode = dev ? 'development' : 'production';
 		const clientOutDir = join(rootDir, '.agentuity/client');
 
+		// Ensure vite.config.ts exists (fallback for projects created before v2 template update)
+		const viteConfigPath = join(rootDir, 'vite.config.ts');
+		if (!existsSync(viteConfigPath)) {
+			logger.debug('Generating fallback vite.config.ts');
+			const fallbackConfig = `import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import { join } from 'node:path';
+
+export default defineConfig({
+	plugins: [react()],
+	root: '.',
+	build: {
+		rollupOptions: {
+			input: join(__dirname, 'src/web/index.html'),
+		},
+	},
+});
+`;
+			await Bun.write(viteConfigPath, fallbackConfig);
+		}
+
 		logger.debug('Spawning vite build for client (subprocess mode)');
 		logger.debug('  outDir: %s', clientOutDir);
 		logger.debug('  mode: %s', buildMode);
