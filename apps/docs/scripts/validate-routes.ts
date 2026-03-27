@@ -45,26 +45,17 @@ function slugToTitle(slug: string): string {
 
 /** Read the frontmatter title (short_title preferred) from an MDX file. */
 async function getCrumb(mdxPath: string): Promise<string> {
+	const slug =
+		mdxPath
+			.replace(/\.mdx$/, '')
+			.split('/')
+			.pop() || 'page';
 	try {
 		const content = await readFile(join(contentDir, mdxPath), 'utf-8');
 		const { data } = matter(content);
-		return (
-			data.short_title ||
-			data.title ||
-			slugToTitle(
-				mdxPath
-					.replace(/\.mdx$/, '')
-					.split('/')
-					.pop()!
-			)
-		);
+		return data.short_title || data.title || slugToTitle(slug);
 	} catch {
-		return slugToTitle(
-			mdxPath
-				.replace(/\.mdx$/, '')
-				.split('/')
-				.pop()!
-		);
+		return slugToTitle(slug);
 	}
 }
 

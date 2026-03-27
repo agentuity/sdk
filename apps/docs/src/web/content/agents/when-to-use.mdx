@@ -1,5 +1,5 @@
 ---
-title: Agents vs Routes
+title: When to Use Agents vs Routes
 short_title: When to Use
 description: When to create an agent vs handling requests directly in routes
 ---
@@ -57,7 +57,9 @@ Request → Route (auth, validation) → Agent (processing) → Route (response 
 
 A route receives the HTTP request, applies middleware (authentication, rate limiting), then delegates to an agent for structured processing. The agent returns typed output, and the route formats the HTTP response.
 
-## Route-Only: Health Check
+## Basic Usage
+
+### Route-Only: Health Check
 
 A health endpoint doesn't need an agent:
 
@@ -65,6 +67,9 @@ A health endpoint doesn't need an agent:
 import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
+
+// Replace with your actual database health check
+const checkDatabase = async () => true;
 
 router.get('/health', async (c) => {
   const dbHealthy = await checkDatabase();
@@ -74,7 +79,7 @@ router.get('/health', async (c) => {
 export default router;
 ```
 
-## Route + Agent: Chat Endpoint
+### Route + Agent: Chat Endpoint
 
 For structured processing, create an agent and call it from your route:
 
@@ -95,7 +100,7 @@ export default router;
 
 The agent defines the schema, validates input, runs the handler, and fires lifecycle events. The route just wires it to HTTP.
 
-## Webhook: Route Validates, Agent Processes
+### Webhook: Route Validates, Agent Processes
 
 Webhooks verify signatures in the route, then hand off to an agent in the background:
 
@@ -131,7 +136,7 @@ export default router;
 `c.waitUntil()` lets you respond immediately while the agent processes in the background. Webhook providers expect responses under 3 seconds.
 </Callout>
 
-## Agent-Only: Standalone Execution
+### Agent-Only: Standalone Execution
 
 Agents can also run outside of HTTP requests, triggered by other agents, cron jobs, or queue consumers:
 
@@ -153,6 +158,14 @@ export default createAgent('daily-report', {
 ```
 
 See [Standalone Execution](/agents/standalone-execution) for running agents from cron, queues, and other agents.
+
+## Best Practices
+
+- Handle authentication and rate limiting in routes, not agents
+- Use `agent.validator()` as route middleware for type-safe request validation
+- Keep agents focused on processing logic, let routes handle HTTP concerns
+- Use `c.waitUntil()` in routes for background agent work when the client doesn't need the result
+- Prefer agents when you need schema validation, evals, or agent-to-agent calling
 
 ## Next Steps
 
