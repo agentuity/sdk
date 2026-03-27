@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import mdx from '@mdx-js/rollup';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import { defineConfig } from 'vite';
+import { join } from 'node:path';
 import remarkGfm from 'remark-gfm';
 import remarkFrontmatter from 'remark-frontmatter';
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter';
@@ -19,6 +20,7 @@ import rehypeExtractTocExport from '@stefanprobst/rehype-extract-toc/mdx';
 import rehypeMermaid from 'rehype-mermaid';
 
 export default defineConfig({
+	root: '.',
 	plugins: [
 		// TanStack Router for file-based routing
 		tanstackRouter({
@@ -62,4 +64,9 @@ export default defineConfig({
 		react(),
 		tailwindcss(),
 	],
+	build: {
+		rollupOptions: {
+			input: join(__dirname, 'src/web/index.html'),
+		},
+	},
 });
