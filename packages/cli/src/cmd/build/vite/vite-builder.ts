@@ -5,10 +5,53 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, rmSync } from 'node:fs';
-import type { InlineConfig } from 'vite';
+import { existsSync, renameSync, rmSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { StructuredError } from '@agentuity/core';
+import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
+import { browserEnvPlugin } from './browser-env-plugin';
+import { tailwindSourcePlugin } from './tailwind-source-plugin';
+import { beaconPlugin } from './beacon-plugin';
+import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
+
+const BuildFailedError = StructuredError('BuildFailedError');
+
+/**
+ * Vite plugin to flatten the output structure for index.html
+ *
+ * When root is set to the project root (for TanStack Router compatibility),
+ * Vite outputs index.html to .agentuity/client/src/web/index.html instead of
+ * .agentuity/client/index.html. This plugin moves it to the expected location.
+ */
+function flattenHtmlOutputPlugin(outDir: string): Plugin {
+	return {
+		name: 'agentuity:flatten-html-output',
+		apply: 'build',
+		closeBundle() {
+			const nestedHtmlPath = join(outDir, 'src', 'web', 'index.html');
+			const targetHtmlPath = join(outDir, 'index.html');
+
+			if (existsSync(nestedHtmlPath)) {
+				renameSync(nestedHtmlPath, targetHtmlPath);
+
+				// Clean up empty src/web directory structure
+				const srcWebDir = join(outDir, 'src', 'web');
+				const srcDir = join(outDir, 'src');
+				try {
+					rmSync(srcWebDir, { recursive: true, force: true });
+					rmSync(srcDir, { recursive: true, force: true });
+				} catch {
+					// Ignore cleanup errors
+				}
+			}
+		},
+	};
+}
 
 export interface ViteBuildOptions {
 	rootDir: string;
@@ -33,12 +76,184 @@ export interface ViteBuildOptions {
 	profile?: string;
 }
 
+export type ViteBuildWorkerOptions = Omit<ViteBuildOptions, 'logger' | 'collector'>;
+
+/**
+ * Drain a subprocess stream, forwarding each chunk to the callback
+ * without accumulating in memory. Only the last `tailBytes` of output
+ * are retained so we can include them in error messages on failure.
+ */
+async function drainSubprocessStream(
+	stream: ReadableStream<Uint8Array>,
+	onChunk: (chunk: string) => void,
+	tailBytes = 4096
+): Promise<string> {
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	// Ring buffer that keeps only the trailing output for error context
+	let tail = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		const text = decoder.decode(value, { stream: true });
+		if (!text) continue;
+		onChunk(text);
+		tail = (tail + text).slice(-tailBytes);
+	}
+
+	const finalText = decoder.decode();
+	if (finalText) {
+		onChunk(finalText);
+		tail = (tail + finalText).slice(-tailBytes);
+	}
+
+	return tail;
+}
+
+/**
+ * Detect actually available memory for subprocess heap sizing.
+ * Reads cgroup v2/v1 max and current usage to compute free memory.
+ * Falls back to os.freemem() if cgroup files aren't available.
+ */
+function resolveWorkerScript(name: string): string {
+	const tsPath = fileURLToPath(new URL(`./${name}.ts`, import.meta.url));
+	const jsPath = fileURLToPath(new URL(`./${name}.js`, import.meta.url));
+	return existsSync(tsPath) ? tsPath : jsPath;
+}
+
+/**
+ * Spawn an isolated worker subprocess with JSC memory tuning.
+ * Returns the captured stdout tail (for parsing results) and throws on failure.
+ */
+async function spawnIsolatedWorker(opts: {
+	workerName: string;
+	label: string;
+	optionsJson: unknown;
+	cwd: string;
+	logger: Logger;
+}): Promise<string> {
+	const { workerName, label, optionsJson, cwd, logger } = opts;
+	const workerScript = resolveWorkerScript(workerName);
+	const optionsPath = join(tmpdir(), `agentuity-${label}-${randomUUID()}.json`);
+
+	try {
+		await Bun.write(optionsPath, JSON.stringify(optionsJson));
+
+		const proc = Bun.spawn({
+			cmd: [process.execPath, workerScript, optionsPath],
+			cwd,
+			env: process.env,
+			stdin: 'ignore',
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+
+		const stdoutPromise =
+			proc.stdout && typeof proc.stdout !== 'number'
+				? drainSubprocessStream(proc.stdout, (chunk) => {
+						const text = chunk.trim();
+						if (text) logger.debug(`[${label}] ${text}`);
+					})
+				: Promise.resolve('');
+
+		const stderrPromise =
+			proc.stderr && typeof proc.stderr !== 'number'
+				? drainSubprocessStream(proc.stderr, (chunk) => {
+						const text = chunk.trim();
+						if (text) logger.error(`[${label}] ${text}`);
+					})
+				: Promise.resolve('');
+
+		const [stdout, stderr, exitCode] = await Promise.all([
+			stdoutPromise,
+			stderrPromise,
+			proc.exited,
+		]);
+
+		if (exitCode !== 0) {
+			const errorOutput = stderr.trim() || stdout.trim();
+			const suffix = errorOutput ? `: ${errorOutput}` : '';
+			throw new BuildFailedError({
+				message: `${label} failed with exit code ${exitCode}${suffix}`,
+			});
+		}
+		return stdout;
+	} catch (error) {
+		if (error instanceof Error && error.name === 'BuildFailedError') throw error;
+		throw new BuildFailedError({
+			message: `Failed to run ${label}: ${error instanceof Error ? error.message : String(error)}`,
+		});
+	} finally {
+		rmSync(optionsPath, { force: true });
+	}
+}
+
+async function runViteBuildInSubprocess(
+	options: ViteBuildWorkerOptions,
+	logger: Logger
+): Promise<void> {
+	await spawnIsolatedWorker({
+		workerName: 'vite-build-worker',
+		label: `vite-build-worker:${options.mode}`,
+		optionsJson: options,
+		cwd: options.rootDir,
+		logger,
+	});
+}
+
+async function runStaticRenderInSubprocess(
+	rootDir: string,
+	logger: Logger
+): Promise<{ routes: number; duration: number }> {
+	const stdout = await spawnIsolatedWorker({
+		workerName: 'static-render-worker',
+		label: 'static-render-worker',
+		optionsJson: { rootDir },
+		cwd: rootDir,
+		logger,
+	});
+
+	// Worker writes JSON result as last line of stdout
+	try {
+		// Find the last JSON line in the tail
+		const lines = stdout.split('\n').filter((l) => l.trim());
+		for (let i = lines.length - 1; i >= 0; i--) {
+			const line = lines[i]!.trim();
+			if (line.startsWith('{')) {
+				return JSON.parse(line);
+			}
+		}
+	} catch {
+		// Parse failure — return defaults
+	}
+	return { routes: 0, duration: 0 };
+}
+
 /**
  * Run a Vite build for the specified mode
  * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const { rootDir, mode, dev = false, logger, profile } = options;
+	const {
+		rootDir,
+		mode,
+		dev = false,
+		projectId = '',
+		deploymentId = '',
+		logger,
+		profile,
+	} = options;
+
+	const isViteDebug =
+		process.env.AGENTUITY_VITE_DEBUG === '1' || process.env.AGENTUITY_VITE_DEBUG === 'true';
+	if (isViteDebug) {
+		logger.debug('Vite debug logging enabled via AGENTUITY_VITE_DEBUG');
+		const existing = process.env.DEBUG || '';
+		if (!existing.includes('vite:')) {
+			process.env.DEBUG = existing ? `${existing},vite:*` : 'vite:*';
+		}
+	}
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -71,7 +286,24 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			profile,
 		});
 
-		// Build with Bun.build (app.ts is the entrypoint)
+		// Load workbench config for entry file generation
+		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+		const config = await loadAgentuityConfig(rootDir, logger);
+		const workbenchConfig = getWorkbenchConfig(config, dev);
+
+		// Then, generate the entry file
+		const { generateEntryFile } = await import('../entry-generator');
+		await generateEntryFile({
+			rootDir,
+			projectId,
+			deploymentId: deploymentId || '',
+			logger,
+			mode: dev ? 'dev' : 'prod',
+			workbench: workbenchConfig.configured ? workbenchConfig : undefined,
+			analytics: config?.analytics,
+		});
+
+		// Finally, build with Bun.build
 		const { installExternalsAndBuild } = await import('./server-bundler');
 		await installExternalsAndBuild({
 			rootDir,
@@ -81,56 +313,140 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite for workbench builds
-	const { build: viteBuild } = await import('vite');
+	// Dynamically import vite and react plugin
+	// Try project's node_modules first (for custom vite configs), fall back to CLI's
+	const projectRequire = createRequire(join(rootDir, 'package.json'));
+	let vitePath = 'vite';
+	let reactPluginPath = '@vitejs/plugin-react';
+	try {
+		vitePath = projectRequire.resolve('vite');
+		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+	} catch {
+		// Project doesn't have vite, use CLI's bundled version
+	}
+	const { build: viteBuild } = await import(vitePath);
+	const reactModule = await import(reactPluginPath);
+	const react = reactModule.default;
 
-	// For client/workbench, use inline config with vite.config.ts loading
+	// For client/workbench, use inline config (no agentuity plugin needed)
 	let viteConfig: InlineConfig;
 
 	if (mode === 'client') {
-		// For client builds, spawn vite as a subprocess.
-		// This avoids issues with Bun's module loading that cause problems
-		// with certain plugins like @sveltejs/vite-plugin-svelte.
-		// The vite.config.ts in the project handles all configuration.
-		const buildMode = dev ? 'development' : 'production';
+		// Vite needs index.html as entry point for web apps
+		const htmlPath = join(rootDir, 'src', 'web', 'index.html');
+
+		// Use workbench config passed from runAllBuilds
+		const {
+			workbenchEnabled = false,
+			workbenchRoute = '/workbench',
+			analyticsEnabled = false,
+		} = options;
+
+		// Determine CDN base URL for production builds
+		// Use CDN for all non-dev builds with a deploymentId (including local region)
+		const isLocalRegion = options.region === 'local';
+		const cdnDomain = isLocalRegion
+			? 'localstack-static-assets.t3.storageapi.dev'
+			: 'cdn.agentuity.com';
+		const cdnBaseUrl =
+			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
+
+		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
+		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
+		const userConfig = await loadAgentuityConfig(rootDir, logger);
+		const userPlugins = userConfig?.plugins || [];
 
-		logger.debug('Spawning vite build for client (subprocess mode)');
-		logger.debug('  outDir: %s', clientOutDir);
-		logger.debug('  mode: %s', buildMode);
-
-		const viteProcess = Bun.spawn(
-			['bun', 'x', 'vite', 'build', '--mode', buildMode, '--outDir', clientOutDir],
-			{
-				cwd: rootDir,
-				stdout: 'inherit',
-				stderr: 'inherit',
-			}
-		);
-
-		const exitCode = await viteProcess.exited;
-
-		if (exitCode !== 0) {
-			throw new Error(`Vite build exited with code ${exitCode}`);
+		// Auto-add React plugin if no framework plugin is present (backwards compatibility)
+		if (userPlugins.length === 0 || !hasFrameworkPlugin(userPlugins)) {
+			logger.debug(
+				'No framework plugin found in agentuity.config.ts plugins, adding React automatically'
+			);
+			userPlugins.unshift(react());
 		}
 
-		logger.debug('Vite build complete for mode: client');
-		return;
+		if (userPlugins.length > 0) {
+			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
+		}
+
+		const plugins = [
+			tailwindSourcePlugin(),
+			...userPlugins,
+			browserEnvPlugin(),
+			// Fix incorrect public asset paths and rewrite to CDN URLs
+			publicAssetPathPlugin({ cdnBaseUrl }),
+			flattenHtmlOutputPlugin(clientOutDir),
+			// Emit analytics beacon as hashed CDN asset (prod builds only)
+			beaconPlugin({ enabled: analyticsEnabled && !dev }),
+		];
+
+		// Merge custom define values from user config
+		const userDefine = userConfig?.define || {};
+		if (Object.keys(userDefine).length > 0) {
+			logger.debug(
+				'Loaded %d custom define(s) from agentuity.config.ts',
+				Object.keys(userDefine).length
+			);
+		}
+
+		viteConfig = {
+			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
+			// from the repo root, matching where agentuity.config.ts is located
+			root: rootDir,
+			plugins,
+			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
+			publicDir: join(rootDir, 'src', 'web', 'public'),
+			base: cdnBaseUrl, // CDN URL for production assets
+			define: {
+				// Merge user-defined constants first
+				...userDefine,
+				// Then add default defines (these will override any user-defined protected keys)
+				// Set workbench path if enabled (use import.meta.env for client code)
+				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
+					? JSON.stringify(workbenchRoute)
+					: 'undefined',
+			},
+			build: {
+				outDir: clientOutDir,
+				rollupOptions: {
+					input: htmlPath,
+				},
+				manifest: true,
+				emptyOutDir: true,
+				// Copy public files to output for CDN upload (production builds only)
+				// In dev mode, Vite serves them directly from src/web/public/
+				copyPublicDir: !dev,
+				// Skip compressed size reporting to save memory — we measure
+				// sizes during the asset upload phase instead.
+				reportCompressedSize: false,
+			},
+			logLevel: isViteDebug ? 'info' : 'warn',
+		};
 	} else if (mode === 'workbench') {
 		const { workbenchRoute = '/workbench' } = options;
 		// Ensure route ends with / for Vite base
 		const base = workbenchRoute.endsWith('/') ? workbenchRoute : `${workbenchRoute}/`;
 
-		// Workbench is built with React (internal UI)
-		// Use CLI's bundled React plugin since workbench is our code
-		const reactModule = await import('@vitejs/plugin-react');
-		const react = reactModule.default;
+		// Load custom user config for define values (same as client mode)
+		const { loadAgentuityConfig } = await import('./config-loader');
+		const userConfig = await loadAgentuityConfig(rootDir, logger);
+		const userDefine = userConfig?.define || {};
+		if (Object.keys(userDefine).length > 0) {
+			logger.debug(
+				'Loaded %d custom define(s) from agentuity.config.ts for workbench',
+				Object.keys(userDefine).length
+			);
+		}
 
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
 			plugins: [react()],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
+			define: {
+				// Merge user-defined constants
+				...userDefine,
+			},
 			build: {
 				outDir: join(rootDir, '.agentuity/workbench'),
 				rollupOptions: {
@@ -139,13 +455,14 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				manifest: true,
 				emptyOutDir: true,
 			},
-			logLevel: 'warn',
+			logLevel: isViteDebug ? 'info' : 'warn',
 		};
 	} else {
 		throw new Error(`Unknown build mode: ${mode}`);
 	}
 
-	// For workbench mode, use programmatic vite build
+	// Build with Vite
+	// Force the build to use the correct mode
 	const buildMode = dev ? 'development' : 'production';
 
 	await viteBuild({
@@ -168,6 +485,7 @@ interface BuildResult {
  */
 export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
 	const { rootDir, projectId = '', dev = false, logger, collector } = options;
+	const { logger: _logger, collector: _collector, ...workerBaseOptions } = options;
 
 	if (!dev) {
 		rmSync(join(rootDir, '.agentuity'), { force: true, recursive: true });
@@ -180,11 +498,21 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		static: { included: false, duration: 0, routes: 0 },
 	};
 
-	// Load runtime config from createApp() in app.ts (v2 approach)
-	const { getWorkbenchConfig, loadRuntimeConfig } = await import('./config-loader');
-	const runtimeConfig = await loadRuntimeConfig(rootDir, logger);
+	// Load config to check if workbench is enabled (dev mode only)
+	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+	const config = await loadAgentuityConfig(rootDir, logger);
 
-	const workbenchConfig = getWorkbenchConfig(dev, runtimeConfig);
+	// Copy bundle files if configured (before build so build output takes priority)
+	if (config?.bundle?.length) {
+		const { copyBundleFiles } = await import('./bundle-files');
+		const outDir = join(rootDir, '.agentuity');
+		const count = await copyBundleFiles(rootDir, outDir, config.bundle, logger);
+		if (count > 0) {
+			logger.debug(`Copied ${count} bundle file(s) to .agentuity`);
+		}
+	}
+
+	const workbenchConfig = getWorkbenchConfig(config, dev);
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {
 		logger.debug('Workbench enabled (dev mode), generating files before build...');
@@ -194,6 +522,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 1. Discover agents and routes BEFORE builds
 	logger.debug('Discovering agents and routes...');
+	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
 	const { discoverAgents } = await import('./agent-discovery');
 	const { discoverRoutes } = await import('./route-discovery');
 
@@ -204,31 +533,50 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		options.deploymentId || '',
 		logger
 	);
-	const { routes } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
+	const { routes, routeInfoList } = await discoverRoutes(
+		srcDir,
+		projectId,
+		options.deploymentId || '',
+		logger
+	);
 
-	// Agent metadata is used for metadata.json generation (no registry codegen needed)
+	// Generate agent and route registries for type augmentation BEFORE builds
+	// (TypeScript needs these files to exist during type checking)
+	generateAgentRegistry(srcDir, agentMetadata);
+	await generateRouteRegistry(srcDir, routeInfoList);
+	logger.debug('Agent and route registries generated');
 
 	// Check if web frontend exists
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
 
 	// Check if analytics is enabled
-	// v2: analytics config comes from createApp()
-	const analyticsFromRuntime = runtimeConfig?.analytics;
-	const analyticsEnabled =
-		analyticsFromRuntime !== undefined ? analyticsFromRuntime !== false : true;
+	const analyticsEnabled = config?.analytics !== false;
 
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.debug('Building client assets...');
 		const endClientDiagnostic = collector?.startDiagnostic('client-build');
 		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'client',
-			workbenchEnabled: workbenchConfig.enabled,
-			workbenchRoute: workbenchConfig.route,
-			analyticsEnabled,
-		});
+		if (dev) {
+			await runViteBuild({
+				...options,
+				mode: 'client',
+				workbenchEnabled: workbenchConfig.enabled,
+				workbenchRoute: workbenchConfig.route,
+				analyticsEnabled,
+			});
+		} else {
+			await runViteBuildInSubprocess(
+				{
+					...workerBaseOptions,
+					mode: 'client',
+					workbenchEnabled: workbenchConfig.enabled,
+					workbenchRoute: workbenchConfig.route,
+					analyticsEnabled,
+				},
+				logger
+			);
+		}
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
 		endClientDiagnostic?.();
@@ -236,19 +584,26 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
 
-	// 2b. Static rendering (if entry-server.tsx exists)
-	const entryServerPath = join(rootDir, 'src', 'web', 'entry-server.tsx');
-	if (existsSync(entryServerPath) && hasWebFrontend) {
+	// 2b. Static rendering (if configured)
+	if (config?.render === 'static' && hasWebFrontend) {
 		logger.debug('Running static rendering (pre-rendering all routes)...');
 		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
-		const { runStaticRender } = await import('./static-renderer');
-		const staticResult = await runStaticRender({
-			rootDir,
-			logger,
-		});
-		result.static.included = true;
-		result.static.duration = staticResult.duration;
-		result.static.routes = staticResult.routes;
+		if (dev) {
+			const { runStaticRender } = await import('./static-renderer');
+			const staticResult = await runStaticRender({
+				rootDir,
+				logger,
+				userPlugins: config?.plugins || [],
+			});
+			result.static.included = true;
+			result.static.duration = staticResult.duration;
+			result.static.routes = staticResult.routes;
+		} else {
+			const staticResult = await runStaticRenderInSubprocess(rootDir, logger);
+			result.static.included = true;
+			result.static.duration = staticResult.duration;
+			result.static.routes = staticResult.routes;
+		}
 		endStaticDiagnostic?.();
 	}
 
@@ -257,12 +612,24 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Building workbench assets...');
 		const endWorkbenchDiagnostic = collector?.startDiagnostic('workbench-build');
 		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'workbench',
-			workbenchRoute: workbenchConfig.route,
-			workbenchEnabled: true,
-		});
+		if (dev) {
+			await runViteBuild({
+				...options,
+				mode: 'workbench',
+				workbenchRoute: workbenchConfig.route,
+				workbenchEnabled: true,
+			});
+		} else {
+			await runViteBuildInSubprocess(
+				{
+					...workerBaseOptions,
+					mode: 'workbench',
+					workbenchRoute: workbenchConfig.route,
+					workbenchEnabled: true,
+				},
+				logger
+			);
+		}
 		result.workbench.included = true;
 		result.workbench.duration = Date.now() - started;
 		endWorkbenchDiagnostic?.();
@@ -272,7 +639,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	logger.debug('Building server...');
 	const endServerDiagnostic = collector?.startDiagnostic('server-build');
 	const serverStarted = Date.now();
-	await runViteBuild({ ...options, mode: 'server' });
+	if (dev) {
+		await runViteBuild({ ...options, mode: 'server' });
+	} else {
+		await runViteBuildInSubprocess({ ...workerBaseOptions, mode: 'server' }, logger);
+	}
 	result.server.included = true;
 	result.server.duration = Date.now() - serverStarted;
 	endServerDiagnostic?.();
