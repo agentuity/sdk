@@ -125,6 +125,7 @@ export async function streamUrlToWritable(
 			const needsFiltering = tail !== undefined || grepPattern !== null;
 			const tailBuffer: string[] = [];
 			const maxTail = tail ?? Infinity;
+			const liveOutput = follow && needsFiltering;
 
 			const outputLine = async (line: string) => {
 				if (json) {
@@ -140,21 +141,29 @@ export async function streamUrlToWritable(
 				}
 			};
 
+			const processFilteredLine = async (line: string) => {
+				if (grepPattern && !grepPattern.test(line)) {
+					return;
+				}
+				if (tail !== undefined) {
+					tailBuffer.push(line);
+					if (tailBuffer.length > maxTail) {
+						tailBuffer.shift();
+					}
+					if (liveOutput) {
+						await outputLine(line);
+					}
+				} else {
+					await outputLine(line);
+				}
+			};
+
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) {
 					if (leftover) {
 						if (needsFiltering) {
-							if (grepPattern && !grepPattern.test(leftover)) {
-								// skip
-							} else if (tail !== undefined) {
-								tailBuffer.push(leftover);
-								if (tailBuffer.length > maxTail) {
-									tailBuffer.shift();
-								}
-							} else {
-								await outputLine(leftover);
-							}
+							await processFilteredLine(leftover);
 						} else {
 							await outputLine(leftover);
 						}
@@ -178,17 +187,7 @@ export async function streamUrlToWritable(
 
 					for (const line of lines) {
 						if (needsFiltering) {
-							if (grepPattern && !grepPattern.test(line)) {
-								continue;
-							}
-							if (tail !== undefined) {
-								tailBuffer.push(line);
-								if (tailBuffer.length > maxTail) {
-									tailBuffer.shift();
-								}
-							} else {
-								await outputLine(line);
-							}
+							await processFilteredLine(line);
 						} else {
 							await outputLine(line);
 						}
@@ -196,7 +195,7 @@ export async function streamUrlToWritable(
 				}
 			}
 
-			if (needsFiltering && tailBuffer.length > 0) {
+			if (!liveOutput && needsFiltering && tailBuffer.length > 0) {
 				for (const line of tailBuffer) {
 					await outputLine(line);
 				}
