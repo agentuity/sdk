@@ -23,7 +23,7 @@
 		"bun"
 	],
 	"dependencies": {
-		"@agentuity/cli": "latest"
+		"@agentuity/cli": "^2.0.0"
 	},
 	"publishConfig": {
 		"access": "public"
