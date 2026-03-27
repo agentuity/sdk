@@ -41,7 +41,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -54,7 +54,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -63,7 +63,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -76,7 +76,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -85,7 +85,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/world',
 			'v1'
@@ -98,7 +98,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -107,7 +107,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'POST',
+			'post',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -120,7 +120,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -129,7 +129,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_2',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -142,7 +142,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -151,7 +151,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'websocket',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -164,7 +164,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v1'
@@ -173,7 +173,7 @@ describe('generateRouteId', () => {
 			'proj_1',
 			'deploy_1',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/hello',
 			'v2'
@@ -181,19 +181,21 @@ describe('generateRouteId', () => {
 		expect(a).not.toBe(b);
 	});
 
-	test('should match platform SHA1 hash format', () => {
-		// This verifies compatibility with the platform's route ID generation (ast.ts hashSHA1)
-		// The hash is SHA1 of each component updated separately: projectId, deploymentId, type, method, filename, path, version
+	test('should match platform SHA1 hash format with lowercase method', () => {
+		// Platform (main branch ast.ts) uses lowercase HTTP methods: 'get', 'post', etc.
+		// The hash is SHA1 of each component updated separately:
+		//   projectId, deploymentId, type, method, filename, path, version
+		// This test uses real values from a production error to verify exact compatibility.
 		const id = generateRouteId(
-			'proj_123',
-			'deploy_456',
+			'proj_5ed7da797bef771d65e1bd6946a052b1',
+			'deploy_c447ff41f3681baa53d7e306bfa3b595',
 			'api',
-			'GET',
+			'get',
 			'src/api/index.ts',
 			'/api/agent-calls',
-			'abc123'
+			'93e74f74c76216e5'
 		);
-		expect(id).toBe('route_44d47b2af876df4bf7d9344f5726511f5bd400da');
+		expect(id).toBe('route_243d777fa53d9769d5f146862131650cb0b774f3');
 	});
 });
 

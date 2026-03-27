@@ -156,7 +156,7 @@ export async function discoverRoutes(
 			);
 
 			for (const route of routeEntries) {
-				const method = String(route.method).toUpperCase();
+				const method = String(route.method).toLowerCase();
 				// Combine mount path with route path
 				let fullPath = route.path;
 				if (mount.path !== '/' && !fullPath.startsWith(mount.path)) {
@@ -164,7 +164,7 @@ export async function discoverRoutes(
 				}
 
 				// Deduplicate (Hono may register same route multiple times for middleware)
-				const routeKey = `${method} ${fullPath}`;
+				const routeKey = `${method.toUpperCase()} ${fullPath}`;
 				if (seenRoutes.has(routeKey)) continue;
 				seenRoutes.add(routeKey);
 
@@ -184,7 +184,7 @@ export async function discoverRoutes(
 					id,
 					filename: toForwardSlash(relative(rootDir, mount.routerFile)),
 					path: fullPath,
-					method: method.toLowerCase(),
+					method,
 					version,
 					type: routeType,
 				});
