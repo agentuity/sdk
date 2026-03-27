@@ -283,12 +283,20 @@ async function importAgentMetadata(
 		throw new Error(
 			`Failed to import agent at ${relativeFilename}:\n` +
 				`  ${errorMsg}\n\n` +
-				`This usually happens when the agent module requires environment variables ` +
-				`or external services at import time.\n\n` +
-				`To fix this:\n` +
-				`  1. Ensure required environment variables are set during build (e.g., OPENAI_API_KEY)\n` +
-				`  2. Or refactor the agent to use lazy initialization (initialize clients in setup() or handler(), not at module scope)\n\n` +
-				`See https://agentuity.dev/docs/agents#build-time-requirements for more information.`
+				`Agent files are imported at build time to extract metadata. Code that ` +
+				`runs at module scope (outside of setup() or handler()) will execute ` +
+				`during the build — including SDK client constructors that require API ` +
+				`keys or environment variables.\n\n` +
+				`To fix this, move initialization code into setup() or handler():\n\n` +
+				`  // ❌ Don't do this — runs at import time:\n` +
+				`  const client = new OpenAI();\n` +
+				`  export default createAgent('my-agent', { handler: async (ctx) => { ... } });\n\n` +
+				`  // ✅ Do this instead — runs at request time:\n` +
+				`  export default createAgent('my-agent', {\n` +
+				`    setup: (ctx) => ({ client: new OpenAI() }),\n` +
+				`    handler: async (ctx) => { const { client } = ctx.setup; ... },\n` +
+				`  });\n\n` +
+				`See https://agentuity.dev/docs/agents#setup for more information.`
 		);
 	}
 }

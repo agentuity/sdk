@@ -107,16 +107,12 @@ jobs:
               cd ~/sdk
 
               CLI="bun packages/cli/bin/cli.ts"
-              PROJECT_NAME="test-wsl-${GITHUB_RUN_ID:-local}"
+              # Use GitHub expressions directly — env vars like GITHUB_RUN_ID
+              # and GITHUB_BASE_REF are NOT available inside WSL, but ${{ }}
+              # expressions are resolved at workflow parse time.
+              PROJECT_NAME="test-wsl-${{ github.run_id }}"
+              TEMPLATE_BRANCH="${{ github.base_ref || github.ref_name }}"
 
-              # Determine template branch from PR head ref or push branch
-              # For PRs, GITHUB_HEAD_REF is the source branch (e.g., v2)
-              # For pushes, GITHUB_REF_NAME is the branch name
-              if [ -n "${GITHUB_HEAD_REF:-}" ]; then
-                TEMPLATE_BRANCH="${GITHUB_HEAD_REF}"
-              else
-                TEMPLATE_BRANCH="${GITHUB_REF_NAME:-main}"
-              fi
               echo "Using template branch: $TEMPLATE_BRANCH"
 
               # Verify authentication
