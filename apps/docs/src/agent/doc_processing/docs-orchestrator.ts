@@ -36,8 +36,13 @@ async function removeVectorsByPath(ctx: any, logicalPath: string, vectorStoreNam
 			break;
 		}
 
+		// Delete keys one at a time to avoid the batch delete bug
+		// where DELETE /vector/:name with multiple keys deletes the entire namespace.
 		const keys = vectors.map((v: { key: string }) => v.key);
-		const deletedCount = await ctx.vector.delete(vectorStoreName, ...keys);
+		let deletedCount = 0;
+		for (const key of keys) {
+			deletedCount += await ctx.vector.delete(vectorStoreName, key);
+		}
 		totalDeleted += deletedCount;
 
 		if (deletedCount === 0) {
@@ -228,8 +233,13 @@ export async function clearVectorDb(ctx: any) {
 		});
 		if (batch.length === 0) break;
 
+		// Delete keys one at a time to avoid the batch delete bug
+		// where DELETE /vector/:name with multiple keys deletes the entire namespace.
 		const keys = batch.map((v: { key: string }) => v.key);
-		const deletedCount = await ctx.vector.delete(VECTOR_STORE_NAME, ...keys);
+		let deletedCount = 0;
+		for (const key of keys) {
+			deletedCount += await ctx.vector.delete(VECTOR_STORE_NAME, key);
+		}
 		if (deletedCount === 0) {
 			ctx.logger.warn('Vector delete returned 0 during clearVectorDb, aborting loop');
 			break;
