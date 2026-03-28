@@ -92,7 +92,9 @@ export interface AuthOrgContext {
  * };
  * ```
  */
-export type AuthApiKeyPermissions = Record<string, string[]>;
+export interface AuthApiKeyPermissions {
+	[key: string]: string[];
+}
 
 /**
  * API key context when request is authenticated via API key.
@@ -122,10 +124,10 @@ export type AuthMethod = 'session' | 'api-key' | 'bearer';
  *
  * This type is intentionally provider-agnostic.
  *
- * @typeParam TUser - Domain user type (defaults to AuthUser).
- * @typeParam TRaw - Underlying auth context (defaults to AuthContext).
+ * @typeParam TUser - Domain user type (defaults to unknown for flexibility).
+ * @typeParam TRaw - Underlying auth context (defaults to unknown for flexibility).
  */
-export interface AgentuityAuth<TUser = AuthUser, TRaw = AuthContext> {
+export interface AgentuityAuth<TUser = unknown, TRaw = unknown> {
 	/** Get the authenticated user, throws if not authenticated */
 	getUser(): Promise<TUser>;
 

@@ -7,6 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import type { Logger } from './logger';
 import { isV1Package, showDeprecationWarning } from '@agentuity/core';
 
@@ -52,17 +53,20 @@ function extractMajor(version: string): number {
 }
 
 /**
- * Get version of a package by resolving its package.json path
- * and reading it directly with fs.readFileSync.
+ * Get version of a package by resolving its main entry,
+ * then locating the package.json in the same directory.
  *
- * This avoids require(package.json) which can crash Bun's JSON parser.
+ * This avoids require.resolve(packageName/package.json) which can fail
+ * for packages that don't explicitly export ./package.json.
  */
 function getPackageVersion(packageName: string): string | null {
 	try {
-		// Use require.resolve to find the package.json location
-		// This doesn't import the file, just resolves the path
-		const pkgPath = require.resolve(`${packageName}/package.json`);
-
+		// Resolve the package main entry
+		const mainPath = require.resolve(packageName);
+		// Get the directory containing the package
+		const pkgDir = dirname(mainPath);
+		// Build the package.json path
+		const pkgPath = join(pkgDir, 'package.json');
 		// Read and parse manually - this avoids Bun's JSON import parser
 		const content = readFileSync(pkgPath, 'utf-8');
 		const pkgJson = JSON.parse(content);
