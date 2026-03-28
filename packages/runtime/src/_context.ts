@@ -12,7 +12,7 @@ import {
 	type ScheduleService,
 	type TaskStorage,
 } from '@agentuity/core';
-import type { AuthInterface } from '@agentuity/auth';
+import type { AuthInterface } from '@agentuity/core';
 import type {
 	AgentContext,
 	AgentRegistry,

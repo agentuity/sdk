@@ -5,8 +5,14 @@
  * at runtime startup. This helps developers catch version conflicts early.
  */
 
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join, parse } from 'node:path';
 import type { Logger } from './logger';
 import { isV1Package, showDeprecationWarning } from '@agentuity/core';
+
+// Create a require function for resolving module paths
+const require = createRequire(import.meta.url);
 
 /**
  * Known @agentuity/* packages that should have consistent versions.
@@ -47,27 +53,50 @@ function extractMajor(version: string): number {
 }
 
 /**
- * Get version of a package from its package.json (if importable).
+ * Walk up parent directories from a starting path until package.json is found.
+ * Returns the path to package.json, or null if not found (reached filesystem root).
+ */
+function findPackageJson(startPath: string): string | null {
+	let currentDir = dirname(startPath);
+	const root = parse(currentDir).root;
+
+	while (currentDir !== root) {
+		const pkgPath = join(currentDir, 'package.json');
+		if (existsSync(pkgPath)) {
+			return pkgPath;
+		}
+		const parentDir = dirname(currentDir);
+		if (parentDir === currentDir) {
+			break;
+		}
+		currentDir = parentDir;
+	}
+
+	return null;
+}
+
+/**
+ * Get version of a package by resolving its main entry,
+ * then walking up directories to find package.json.
+ *
+ * This handles packages whose main is ./dist/index.js where package.json
+ * is in the parent directory, not alongside the main entry.
  */
 function getPackageVersion(packageName: string): string | null {
 	try {
-		// Try to import the package.json
-		// This works for ESM packages that export their package.json
-		const pkg = require(`${packageName}/package.json`);
-		return pkg?.version || null;
-	} catch {
-		// Fallback: try to read from node_modules
-		try {
-			const fs = require('node:fs');
-			const pkgPath = require.resolve(`${packageName}/package.json`);
-			if (typeof pkgPath !== 'string') {
-				return null;
-			}
-			const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-			return pkgJson?.version || null;
-		} catch {
+		// Resolve the package main entry
+		const mainPath = require.resolve(packageName);
+		// Walk up to find package.json
+		const pkgPath = findPackageJson(mainPath);
+		if (!pkgPath) {
 			return null;
 		}
+		// Read and parse manually - this avoids Bun's JSON import parser
+		const content = readFileSync(pkgPath, 'utf-8');
+		const pkgJson = JSON.parse(content);
+		return pkgJson?.version || null;
+	} catch {
+		return null;
 	}
 }
 
