@@ -1,4 +1,5 @@
 export * from './adapter.ts';
+export * from './auth/index.ts';
 export * from './email/index.ts';
 export * from './exception.ts';
 export * from './keyvalue/index.ts';

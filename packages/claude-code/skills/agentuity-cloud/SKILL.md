@@ -66,7 +66,7 @@ Overview and routing guide for all Agentuity SDK packages and cloud services. Us
 
 ### Use Frontend Skill when:
 
-- Questions about `@agentuity/react` hooks (`useAPI`, `useWebsocket`)
+- Questions about `@agentuity/react` hooks (`useAuth`, `useWebRTCCall`)
 - Questions about `@agentuity/auth` (server or client)
 - Questions about `@agentuity/frontend` utilities
 - Questions about `@agentuity/workbench`

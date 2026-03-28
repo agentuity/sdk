@@ -3,13 +3,10 @@ import { join } from 'node:path';
 import { createLogger } from '@agentuity/server';
 import type { LogLevel, DeployOptions } from '../../../types';
 import { discoverAgents, type AgentMetadata } from './agent-discovery';
-import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery';
-import { generateAgentRegistry, generateRouteRegistry } from './registry-generator';
+import { discoverRoutes, type RouteMetadata } from './route-discovery';
 import { generateLifecycleTypes } from './lifecycle-generator';
 import { generateEnvTypes } from './env-types-generator';
 import { generateMetadata, writeMetadataFile, generateRouteMapping } from './metadata-generator';
-import { generateEntryFile } from '../entry-generator';
-import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 
 // Re-export plugins
 export { browserEnvPlugin } from './browser-env-plugin';
@@ -59,7 +56,6 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 	// Store discovered metadata
 	let agents: AgentMetadata[] = [];
 	let routes: RouteMetadata[] = [];
-	let routeInfoList: RouteInfo[] = [];
 
 	logger.trace('Initializing Agentuity Vite plugin', { dev, rootDir, projectId, deploymentId });
 
@@ -73,31 +69,12 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		async buildStart() {
 			logger.trace('buildStart: Discovering agents and routes');
 
-			// Load agentuity.config.ts for entry file generation
-			const config = await loadAgentuityConfig(rootDir, logger);
-			const workbenchConfig = getWorkbenchConfig(config, dev);
-
-			// Note: Workbench files are generated in runAllBuilds() BEFORE builds start (dev mode only)
-			// We just need the config here for entry file generation
-
 			// Discover agents (read-only)
 			agents = await discoverAgents(srcDir, projectId, deploymentId, logger);
 
 			// Discover routes (read-only)
 			const routeDiscovery = await discoverRoutes(srcDir, projectId, deploymentId, logger);
 			routes = routeDiscovery.routes;
-			routeInfoList = routeDiscovery.routeInfoList;
-
-			// Generate registries
-			if (agents.length > 0) {
-				generateAgentRegistry(srcDir, agents);
-				logger.trace('Generated agent registry with %d agent(s)', agents.length);
-			}
-
-			if (routeInfoList.length > 0) {
-				await generateRouteRegistry(srcDir, routeInfoList, agents);
-				logger.trace('Generated route registry with %d route(s)', routeInfoList.length);
-			}
 
 			// Generate lifecycle types
 			logger.debug('[vite-plugin] About to call generateLifecycleTypes');
@@ -115,17 +92,6 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			});
 			logger.debug(`[vite-plugin] generateEnvTypes returned: ${envTypesResult}`);
 
-			// Generate entry file (pass workbench and analytics config)
-			await generateEntryFile({
-				rootDir,
-				projectId,
-				deploymentId,
-				logger,
-				mode: dev ? 'dev' : 'prod',
-				workbench: workbenchConfig.configured ? workbenchConfig : undefined,
-				analytics: config?.analytics,
-			});
-
 			logger.trace('buildStart: Discovery complete');
 		},
 
@@ -136,9 +102,6 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		resolveId(id) {
 			if (id === 'virtual:agentuity/agents') {
 				return '\0virtual:agentuity/agents';
-			}
-			if (id === 'virtual:agentuity/routes') {
-				return '\0virtual:agentuity/routes';
 			}
 			return null;
 		},
@@ -151,10 +114,6 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			if (id === '\0virtual:agentuity/agents') {
 				// Re-export from generated registry
 				return `export { agentRegistry } from '../src/generated/registry.js';`;
-			}
-			if (id === '\0virtual:agentuity/routes') {
-				// Re-export from generated route registry
-				return `export { routeRegistry } from '../src/generated/routes.js';`;
 			}
 			return null;
 		},

@@ -1,92 +1,186 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { join } from 'path';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 
 /**
- * Tests for dev server bundle loading behavior.
+ * Tests for dev server behavior.
  *
- * This test suite verifies that the dev server correctly loads the bundled app
- * (.agentuity/app.js) instead of the source file (src/generated/app.ts).
- *
- * This is critical for AI Gateway functionality because LLM provider patches
- * are only applied during Bun.build - importing the source file directly
- * would bypass these patches entirely.
- *
- * Prevents regression of issue #293 where AI Gateway was not enabled in dev mode.
+ * This test suite verifies:
+ * 1. app.ts validation for bun --hot compatibility
+ * 2. Port cleanup and orphan process handling
+ * 3. Error message quality when server fails to start
  */
-describe('Dev Server Bundle Loading', () => {
-	test('bun-dev-server should reference .agentuity/app.js bundle path', async () => {
-		// Read the bun-dev-server source to verify it imports the bundled output
-		const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
-		const serverSource = await Bun.file(serverPath).text();
+describe('Bun Dev Server', () => {
+	const testDir = join(import.meta.dir, `.test-bun-dev-${Date.now()}`);
 
-		// Must import from .agentuity/app.js (the bundled output with patches)
-		expect(serverSource).toContain('.agentuity/app.js');
-
-		// Must NOT import from src/generated/app.ts (source without patches)
-		expect(serverSource).not.toMatch(/import\s*\(\s*[`'"].*src\/generated\/app\.ts/);
-
-		// Should have explanatory comment about why bundle is required
-		expect(serverSource).toContain('LLM');
-		expect(serverSource).toContain('patch');
+	beforeEach(() => {
+		mkdirSync(testDir, { recursive: true });
 	});
 
-	test('bun-dev-server should not regenerate entry file', async () => {
-		// Read the bun-dev-server source
-		const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
-		const serverSource = await Bun.file(serverPath).text();
-
-		// Should NOT call generateEntryFile (that's done before bundling in dev/index.ts)
-		expect(serverSource).not.toContain('generateEntryFile');
-
-		// Should NOT call generateWorkbenchFiles (that's also done before bundling)
-		expect(serverSource).not.toContain('generateWorkbenchFiles');
+	afterEach(() => {
+		rmSync(testDir, { recursive: true, force: true });
 	});
 
-	test('bun-dev-server should verify bundle exists before loading', async () => {
-		const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
-		const serverSource = await Bun.file(serverPath).text();
+	describe('app.ts validation', () => {
+		test('detects v1 pattern (destructuring without export default)', async () => {
+			const appPath = join(testDir, 'app.ts');
+			writeFileSync(
+				appPath,
+				`import { createApp } from '@agentuity/runtime';
+const { server, logger } = await createApp({ agents: [] });
+logger.debug('Running %s', server.url);
+// Missing export default!`
+			);
 
-		// Should check that bundle file exists
-		expect(serverSource).toContain('.exists()');
-		expect(serverSource).toContain('Dev bundle not found');
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { validateAppTs } = await import(serverPath);
+			const result = await validateAppTs(appPath);
+
+			expect(result.hasCreateApp).toBe(true);
+			expect(result.hasDefaultExport).toBe(false);
+			expect(result.isV1Pattern).toBe(true);
+			expect(result.hints.length).toBeGreaterThan(0);
+			expect(result.hints[0]).toContain('export default');
+		});
+
+		test('accepts correct v2 pattern (export default createApp)', async () => {
+			const appPath = join(testDir, 'app.ts');
+			writeFileSync(
+				appPath,
+				`import { createApp } from '@agentuity/runtime';
+import agents from '@agent/index';
+
+export default createApp({ agents });`
+			);
+
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { validateAppTs } = await import(serverPath);
+			const result = await validateAppTs(appPath);
+
+			expect(result.hasCreateApp).toBe(true);
+			expect(result.hasDefaultExport).toBe(true);
+			expect(result.isV1Pattern).toBe(false);
+			expect(result.hints.length).toBe(0);
+		});
+
+		test('accepts pattern with logger access', async () => {
+			const appPath = join(testDir, 'app.ts');
+			writeFileSync(
+				appPath,
+				`import { createApp } from '@agentuity/runtime';
+import agents from '@agent/index';
+
+const app = await createApp({ agents });
+app.logger.debug('Running %s', app.server.url);
+export default app;`
+			);
+
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { validateAppTs } = await import(serverPath);
+			const result = await validateAppTs(appPath);
+
+			expect(result.hasCreateApp).toBe(true);
+			expect(result.hasDefaultExport).toBe(true);
+			expect(result.isV1Pattern).toBe(false);
+		});
+
+		test('detects missing createApp call', async () => {
+			const appPath = join(testDir, 'app.ts');
+			writeFileSync(
+				appPath,
+				`// No createApp call at all
+export default { fetch: () => new Response('hi'), port: 3000 };`
+			);
+
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { validateAppTs } = await import(serverPath);
+			const result = await validateAppTs(appPath);
+
+			expect(result.hasCreateApp).toBe(false);
+			expect(result.hints.some((h) => h.includes('createApp'))).toBe(true);
+		});
+
+		test('accepts Bun.serve pattern (no createApp needed)', async () => {
+			const appPath = join(testDir, 'app.ts');
+			writeFileSync(
+				appPath,
+				`// Direct Bun.serve usage (advanced use case)
+export default {
+  fetch: () => new Response('Hello'),
+  port: 3000
+};`
+			);
+
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { validateAppTs } = await import(serverPath);
+			const result = await validateAppTs(appPath);
+
+			expect(result.hasCreateApp).toBe(false);
+			// Should NOT complain about missing createApp since Bun.serve pattern is valid
+			expect(result.hints.length).toBe(0);
+		});
 	});
 
-	test('dev/index.ts should generate workbench files before bundling', async () => {
-		const devIndexPath = join(import.meta.dir, '../../src/cmd/dev/index.ts');
-		const devIndexSource = await Bun.file(devIndexPath).text();
+	describe('error messages', () => {
+		test('buildStartupErrorMessage includes validation hints', async () => {
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { buildStartupErrorMessage } = await import(serverPath);
 
-		// Find the build section
-		const buildSection = devIndexSource.match(
-			/Building dev bundle[\s\S]*?installExternalsAndBuild/
-		)?.[0];
+			const message = buildStartupErrorMessage(3501, 5000, 'some error output', {
+				hasDefaultExport: false,
+				hasCreateApp: true,
+				isV1Pattern: true,
+				hints: ['Missing export default', 'Add: export default createApp({...})'],
+			});
 
-		expect(buildSection).toBeDefined();
+			expect(message).toContain('3501');
+			expect(message).toContain('5000ms');
+			expect(message).toContain('some error output');
+			expect(message).toContain('Missing export default');
+		});
 
-		// Workbench generation should happen before entry file generation
-		const workbenchIndex = buildSection!.indexOf('generateWorkbenchFiles');
-		const entryIndex = buildSection!.indexOf('generateEntryFile');
-		const bundleIndex = buildSection!.indexOf('installExternalsAndBuild');
+		test('buildStartupErrorMessage shows generic troubleshooting when no hints', async () => {
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { buildStartupErrorMessage } = await import(serverPath);
 
-		// All three should be present
-		expect(workbenchIndex).toBeGreaterThan(-1);
-		expect(entryIndex).toBeGreaterThan(-1);
-		expect(bundleIndex).toBeGreaterThan(-1);
+			const message = buildStartupErrorMessage(3501, 5000, '', {
+				hasDefaultExport: true,
+				hasCreateApp: true,
+				isV1Pattern: false,
+				hints: [],
+			});
 
-		// Order should be: workbench -> entry -> bundle
-		expect(workbenchIndex).toBeLessThan(entryIndex);
-		expect(entryIndex).toBeLessThan(bundleIndex);
+			expect(message).toContain('Troubleshooting');
+			expect(message).toContain('lsof -i :3501');
+		});
 	});
 
-	test('dev/index.ts should pass workbench config to generateEntryFile', async () => {
-		const devIndexPath = join(import.meta.dir, '../../src/cmd/dev/index.ts');
-		const devIndexSource = await Bun.file(devIndexPath).text();
+	describe('bun --hot requirements', () => {
+		test('bun-dev-server.ts documents export default requirement', async () => {
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const serverSource = await Bun.file(serverPath).text();
 
-		// Find the generateEntryFile call in the build section
-		const entryFileCall = devIndexSource.match(/generateEntryFile\(\{[\s\S]*?\}\)/)?.[0];
+			// Should document the export default requirement
+			expect(serverSource).toContain('export default');
+			expect(serverSource).toContain('fetch');
+			expect(serverSource).toContain('port');
+		});
 
-		expect(entryFileCall).toBeDefined();
+		test('bun-dev-server.ts validates app.ts before starting', async () => {
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const serverSource = await Bun.file(serverPath).text();
 
-		// Should include workbench config
-		expect(entryFileCall).toContain('workbench:');
+			// Should call validateAppTs
+			expect(serverSource).toContain('validateAppTs');
+		});
+
+		test('bun-dev-server.ts handles port cleanup', async () => {
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const serverSource = await Bun.file(serverPath).text();
+
+			// Should have port cleanup logic
+			expect(serverSource).toContain('ensurePortAvailable');
+			expect(serverSource).toContain('killProcessOnPort');
+		});
 	});
 });

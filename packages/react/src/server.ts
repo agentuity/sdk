@@ -5,37 +5,16 @@
  * (SSR, server components, API routes, loaders, etc.). It does NOT include React
  * hooks, which require a browser environment.
  *
+ * For type-safe API calls, use Hono's `hc()` client directly:
+ *
  * @example
  * ```typescript
- * // In a server loader (TanStack Start, Remix, Next.js server component)
- * import { createClient, type RPCRouteRegistry } from '@agentuity/react/server';
+ * import { hc } from 'hono/client';
+ * import type router from './src/api/router';
  *
- * const client = createClient<AppRPCRouteRegistry>();
- * const data = await client.users.get();
+ * const client = hc<typeof router>('http://localhost:3000');
  * ```
- *
- * @remarks
- * For client-side React components that need hooks like useAPI, useWebsocket, etc.,
- * import from '@agentuity/react/client' instead.
  */
-
-// Client creation utilities
-export {
-	createClient,
-	createAPIClient,
-	setGlobalBaseUrl,
-	getGlobalBaseUrl,
-	setGlobalAuthHeader,
-	getGlobalAuthHeader,
-} from './client';
-
-// Re-export all registry types from @agentuity/frontend
-export type {
-	RouteRegistry,
-	WebSocketRouteRegistry,
-	SSERouteRegistry,
-	RPCRouteRegistry,
-} from '@agentuity/frontend';
 
 // Re-export useful utilities from @agentuity/frontend
 export {
@@ -44,21 +23,4 @@ export {
 	deserializeData,
 	jsonEqual,
 	getProcessEnv,
-	type Client,
-	type ClientOptions,
-	type RouteEndpoint,
 } from '@agentuity/frontend';
-
-// Re-export type utilities for route inference
-export type {
-	RouteKey,
-	ExtractMethod,
-	RouteIsStream,
-	RouteInput,
-	RouteOutput,
-	RoutePathParams,
-} from './api';
-
-export type { WebSocketRouteKey, WebSocketRouteInput, WebSocketRouteOutput } from './websocket';
-
-export type { SSERouteKey, SSERouteOutput } from './eventstream';

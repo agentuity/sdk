@@ -11,20 +11,19 @@
  * ```tsx
  * 'use client';
  *
- * import { useAPI, AgentuityProvider } from '@agentuity/react/client';
- *
- * export function MyComponent() {
- *   const { data } = useAPI({ route: 'GET /users' });
- *   return <div>{JSON.stringify(data)}</div>;
- * }
+ * import { AgentuityProvider } from '@agentuity/react/client';
  * ```
  *
  * @remarks
- * For server-side code that needs createClient without hooks, import from
- * '@agentuity/react/server' instead.
+ * For type-safe API calls, use Hono's `hc()` client directly:
+ * ```typescript
+ * import { hc } from 'hono/client';
+ * import type router from './src/api/router';
+ * const client = hc<typeof router>('http://localhost:3000');
+ * ```
  */
 
-// Re-export everything from server (types, createClient, utilities)
+// Re-export everything from server (utilities)
 export * from './server';
 
 // Context and Provider
@@ -38,15 +37,6 @@ export {
 	type AgentuityHookValue,
 	type AuthContextValue,
 } from './context';
-
-// API hook
-export { useAPI, type UseAPIOptions, type UseAPIResult } from './api';
-
-// WebSocket hook
-export { useWebsocket, type WebsocketOptions } from './websocket';
-
-// EventStream hook
-export { useEventStream, type EventStreamOptions } from './eventstream';
 
 // JSON memo hook
 export { useJsonMemo } from './memo';
@@ -75,8 +65,4 @@ export {
 	type EventStreamCallbacks,
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
-	type WebSocketClient,
-	type EventStreamClient,
-	type StreamClient,
-	type EventHandler,
 } from '@agentuity/frontend';

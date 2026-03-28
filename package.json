@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "1.0.62",
+	"version": "2.0.1",
 	"license": "Apache-2.0",
 	"private": true,
 	"workspaces": [
@@ -72,6 +72,7 @@
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
+		"archiver": "^7.0.1",
 		"bun-types": "latest",
 		"concurrently": "^9.2.1",
 		"husky": "^9.1.7",

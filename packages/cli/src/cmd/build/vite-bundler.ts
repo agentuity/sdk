@@ -10,7 +10,6 @@ import { StructuredError } from '@agentuity/core';
 import type { Logger, DeployOptions } from '../../types';
 import { runAllBuilds } from './vite/vite-builder';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
-import { promptRouteMigration } from '../../utils/route-migration';
 import { checkBunVersion } from '../../utils/bun-version-checker';
 import * as tui from '../../tui';
 import type { BuildReportCollector } from '../../build-report';
@@ -89,9 +88,6 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			message: errorMessage,
 		});
 	}
-
-	// Check if project can migrate from file-based to explicit routing
-	await promptRouteMigration(rootDir, logger);
 
 	try {
 		// Run all builds (client -> workbench -> server)

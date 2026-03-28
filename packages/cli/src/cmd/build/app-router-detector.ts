@@ -5,22 +5,14 @@
  * to `createApp()`. If detected, resolves the router variable(s) to their import
  * sources and mount paths.
  *
- * This allows the build tooling to derive route metadata from the actual code-based
- * route tree instead of relying on filesystem-based discovery.
+ * Uses TypeScript's compiler API to reliably detect the pattern, consistent with
+ * the lifecycle generator approach.
  */
 
-import * as acornLoose from 'acorn-loose';
+import ts from 'typescript';
 import { join, dirname, resolve } from 'node:path';
-import { existsSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import type { Logger } from '../../types';
-
-interface ASTNode {
-	type: string;
-	start?: number;
-	end?: number;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	[key: string]: any;
-}
 
 /**
  * A resolved mount point from `createApp({ router })`.
@@ -46,7 +38,7 @@ export interface AppRouterDetection {
  * Resolve an import path to an actual file on disk.
  * Tries the path as-is, then with common extensions.
  */
-function resolveImportFile(fromDir: string, importPath: string): string | null {
+async function resolveImportFile(fromDir: string, importPath: string): Promise<string | null> {
 	if (!importPath.startsWith('.') && !importPath.startsWith('/')) {
 		return null; // Package import — can't resolve
 	}
@@ -54,7 +46,8 @@ function resolveImportFile(fromDir: string, importPath: string): string | null {
 	const basePath = resolve(fromDir, importPath);
 	const extensions = ['.ts', '.tsx', '/index.ts', '/index.tsx'];
 
-	if (existsSync(basePath)) {
+	const baseFile = Bun.file(basePath);
+	if (await baseFile.exists()) {
 		try {
 			if (statSync(basePath).isFile()) return basePath;
 		} catch {
@@ -64,7 +57,7 @@ function resolveImportFile(fromDir: string, importPath: string): string | null {
 
 	for (const ext of extensions) {
 		const candidate = basePath + ext;
-		if (existsSync(candidate)) {
+		if (await Bun.file(candidate).exists()) {
 			return candidate;
 		}
 	}
@@ -73,90 +66,157 @@ function resolveImportFile(fromDir: string, importPath: string): string | null {
 }
 
 /**
- * Extract the `router` property value from a `createApp()` call's argument object.
- *
- * Handles three forms:
- * - `createApp({ router: myVar })` → plain Hono, default /api mount
- * - `createApp({ router: { path: '/v1', router: myVar } })` → single RouteMount
- * - `createApp({ router: [{ path: '/v1', router: v1 }, ...] })` → array of RouteMounts
+ * A router mount extracted from the AST before file resolution.
  */
-function extractRouterFromCreateApp(
-	callNode: ASTNode
-): Array<{ path: string; varName: string }> | null {
-	// createApp() must have at least one argument (the config object)
-	if (!callNode.arguments || callNode.arguments.length === 0) {
-		return null;
-	}
-
-	const configArg = callNode.arguments[0] as ASTNode;
-	if (configArg.type !== 'ObjectExpression') {
-		return null;
-	}
-
-	// Find the `router` property
-	const routerProp = configArg.properties?.find(
-		(p: ASTNode) =>
-			p.type === 'Property' && p.key?.type === 'Identifier' && p.key?.name === 'router'
-	);
-
-	if (!routerProp) {
-		return null; // No router property — file-based routing
-	}
-
-	const routerValue = routerProp.value as ASTNode;
-
-	// Form 1: Plain Hono variable → createApp({ router: myRouter })
-	if (routerValue.type === 'Identifier') {
-		return [{ path: '/api', varName: routerValue.name }];
-	}
-
-	// Form 2: Single RouteMount → createApp({ router: { path: '/v1', router: myRouter } })
-	if (routerValue.type === 'ObjectExpression') {
-		const mount = extractRouteMountFromObject(routerValue);
-		return mount ? [mount] : null;
-	}
-
-	// Form 3: Array of RouteMounts → createApp({ router: [{ path: '/v1', router: v1 }, ...] })
-	if (routerValue.type === 'ArrayExpression') {
-		const mounts: Array<{ path: string; varName: string }> = [];
-		for (const element of routerValue.elements || []) {
-			if (element?.type === 'ObjectExpression') {
-				const mount = extractRouteMountFromObject(element);
-				if (mount) mounts.push(mount);
-			}
-		}
-		return mounts.length > 0 ? mounts : null;
-	}
-
-	return null;
+interface RawMount {
+	path: string;
+	varName: string;
 }
 
 /**
- * Extract { path, router } from an object literal AST node.
+ * Extract router mounts from a createApp() call using TypeScript's AST.
+ * Returns null if no router property found.
  */
-function extractRouteMountFromObject(objNode: ASTNode): { path: string; varName: string } | null {
-	let path: string | undefined;
-	let varName: string | undefined;
+function extractRouterMounts(sourceFile: ts.SourceFile): RawMount[] | null {
+	let result: RawMount[] | null = null;
 
-	for (const prop of objNode.properties || []) {
-		if (prop.type !== 'Property' || prop.key?.type !== 'Identifier') continue;
-
-		if (prop.key.name === 'path' && prop.value?.type === 'Literal') {
-			path = String(prop.value.value);
+	function getStringLiteral(node: ts.Expression): string | null {
+		if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+			return node.text;
 		}
-		if (prop.key.name === 'router' && prop.value?.type === 'Identifier') {
-			varName = prop.value.name;
+		return null;
+	}
+
+	function extractMountFromObject(obj: ts.ObjectLiteralExpression): RawMount | null {
+		let path: string | undefined;
+		let varName: string | undefined;
+
+		for (const prop of obj.properties) {
+			if (!ts.isPropertyAssignment(prop) || !ts.isIdentifier(prop.name)) continue;
+
+			if (prop.name.text === 'path') {
+				path = getStringLiteral(prop.initializer) ?? undefined;
+			}
+			if (prop.name.text === 'router') {
+				if (ts.isIdentifier(prop.initializer)) {
+					varName = prop.initializer.text;
+				}
+			}
+		}
+
+		// Also handle shorthand: { path: '/v1', router } where router is shorthand
+		for (const prop of obj.properties) {
+			if (ts.isShorthandPropertyAssignment(prop) && prop.name.text === 'router') {
+				varName = prop.name.text;
+			}
+		}
+
+		return path && varName ? { path, varName } : null;
+	}
+
+	function processRouterValue(value: ts.Expression): RawMount[] | null {
+		// Form 1: Identifier → createApp({ router: myRouter })
+		if (ts.isIdentifier(value)) {
+			return [{ path: '/api', varName: value.text }];
+		}
+
+		// Form 2: Object → createApp({ router: { path: '/v1', router: myRouter } })
+		if (ts.isObjectLiteralExpression(value)) {
+			const mount = extractMountFromObject(value);
+			return mount ? [mount] : null;
+		}
+
+		// Form 3: Array → createApp({ router: [...] })
+		if (ts.isArrayLiteralExpression(value)) {
+			const mounts: RawMount[] = [];
+			for (const element of value.elements) {
+				if (ts.isObjectLiteralExpression(element)) {
+					const mount = extractMountFromObject(element);
+					if (mount) mounts.push(mount);
+				}
+			}
+			return mounts.length > 0 ? mounts : null;
+		}
+
+		return null;
+	}
+
+	function visit(node: ts.Node): void {
+		if (result) return;
+
+		// Find createApp(...) — with or without await
+		let callExpr: ts.CallExpression | undefined;
+
+		if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+			if (node.expression.text === 'createApp') callExpr = node;
+		} else if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
+			const call = node.expression;
+			if (ts.isIdentifier(call.expression) && call.expression.text === 'createApp') {
+				callExpr = call;
+			}
+		}
+
+		if (callExpr && callExpr.arguments.length > 0) {
+			const configArg = callExpr.arguments[0];
+			if (configArg && ts.isObjectLiteralExpression(configArg)) {
+				for (const prop of configArg.properties) {
+					// Handle: router: value
+					if (
+						ts.isPropertyAssignment(prop) &&
+						ts.isIdentifier(prop.name) &&
+						prop.name.text === 'router'
+					) {
+						result = processRouterValue(prop.initializer);
+						return;
+					}
+
+					// Handle shorthand: createApp({ router })
+					if (ts.isShorthandPropertyAssignment(prop) && prop.name.text === 'router') {
+						result = [{ path: '/api', varName: 'router' }];
+						return;
+					}
+				}
+			}
+		}
+
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sourceFile);
+	return result;
+}
+
+/**
+ * Build import map from the source file: variable name → import path
+ */
+function buildImportMap(sourceFile: ts.SourceFile): Map<string, string> {
+	const importMap = new Map<string, string>();
+
+	for (const stmt of sourceFile.statements) {
+		if (!ts.isImportDeclaration(stmt) || !ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+
+		const importPath = stmt.moduleSpecifier.text;
+		const clause = stmt.importClause;
+		if (!clause) continue;
+
+		// Default import: import router from './api'
+		if (clause.name) {
+			importMap.set(clause.name.text, importPath);
+		}
+
+		// Named imports: import { v1, v2 } from './routers'
+		if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+			for (const spec of clause.namedBindings.elements) {
+				importMap.set(spec.name.text, importPath);
+			}
 		}
 	}
 
-	return path && varName ? { path, varName } : null;
+	return importMap;
 }
 
 /**
  * Detect whether `src/app.ts` uses `createApp({ router })`.
- *
- * Parses the file with acorn-loose, finds `createApp()` calls,
- * and resolves router variables to their import source files.
  *
  * Returns `{ detected: false, mounts: [] }` when:
  * - `src/app.ts` doesn't exist
@@ -169,76 +229,57 @@ export async function detectExplicitRouter(
 ): Promise<AppRouterDetection> {
 	const noDetection: AppRouterDetection = { detected: false, mounts: [] };
 
-	// Look for app.ts in src/ (standard location)
-	const appFile = join(rootDir, 'src', 'app.ts');
-	if (!existsSync(appFile)) {
-		// Also try root-level app.ts
-		const rootAppFile = join(rootDir, 'app.ts');
-		if (!existsSync(rootAppFile)) {
+	// Look for app.ts in src/ (standard location), then root
+	let appFile = join(rootDir, 'src', 'app.ts');
+	if (!(await Bun.file(appFile).exists())) {
+		appFile = join(rootDir, 'app.ts');
+		if (!(await Bun.file(appFile).exists())) {
 			logger.trace('[router-detect] No app.ts found');
 			return noDetection;
 		}
-		return detectInFile(rootAppFile, logger);
 	}
-
-	return detectInFile(appFile, logger);
-}
-
-async function detectInFile(appFile: string, logger: Logger): Promise<AppRouterDetection> {
-	const noDetection: AppRouterDetection = { detected: false, mounts: [] };
-	const appDir = dirname(appFile);
 
 	try {
 		const source = await Bun.file(appFile).text();
-		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
-		const contents = transpiler.transformSync(source);
+		const appDir = dirname(appFile);
 
-		// Quick check: skip AST parsing if createApp is not called with router
-		if (!contents.includes('createApp') || !contents.includes('router')) {
+		// Quick bail-out before parsing
+		if (!source.includes('createApp') || !source.includes('router')) {
 			logger.trace('[router-detect] No createApp + router pattern found in %s', appFile);
 			return noDetection;
 		}
 
-		const ast = acornLoose.parse(contents, {
-			locations: true,
-			ecmaVersion: 'latest',
-			sourceType: 'module',
-		}) as ASTNode;
+		// Parse with TypeScript
+		const sourceFile = ts.createSourceFile(
+			appFile,
+			source,
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TS
+		);
 
-		// Build import map: variable name → import path
-		const importMap = new Map<string, string>();
-		for (const node of ast.body || []) {
-			if (node.type === 'ImportDeclaration' && node.source?.value) {
-				for (const spec of node.specifiers || []) {
-					if (spec.local?.name) {
-						importMap.set(spec.local.name, String(node.source.value));
-					}
-				}
-			}
-		}
-
-		// Walk all statements looking for createApp() calls
-		const routerMounts = findCreateAppRouterCalls(ast, importMap);
-
-		if (!routerMounts || routerMounts.length === 0) {
+		const rawMounts = extractRouterMounts(sourceFile);
+		if (!rawMounts || rawMounts.length === 0) {
 			logger.trace('[router-detect] createApp() found but no router property');
 			return noDetection;
 		}
 
+		// Build import map to resolve variable names to file paths
+		const importMap = buildImportMap(sourceFile);
+
 		// Resolve each router variable to its file
 		const mounts: DetectedRouteMount[] = [];
-		for (const { path, varName } of routerMounts) {
+		for (const { path, varName } of rawMounts) {
 			const importPath = importMap.get(varName);
 			if (!importPath) {
 				logger.debug(
 					'[router-detect] Router variable %s is not imported — may be defined locally',
 					varName
 				);
-				// Could be defined in the same file — skip for now
 				continue;
 			}
 
-			const resolvedFile = resolveImportFile(appDir, importPath);
+			const resolvedFile = await resolveImportFile(appDir, importPath);
 			if (!resolvedFile) {
 				logger.warn(
 					'[router-detect] Could not resolve import %s for router variable %s',
@@ -276,75 +317,4 @@ async function detectInFile(appFile: string, logger: Logger): Promise<AppRouterD
 		);
 		return noDetection;
 	}
-}
-
-/**
- * Walk the AST looking for `createApp({ router: ... })` calls.
- * Handles:
- * - `createApp({ router })` (top-level expression)
- * - `const app = await createApp({ router })` (variable declaration)
- * - `export const app = await createApp({ router })` (exported)
- */
-function findCreateAppRouterCalls(
-	ast: ASTNode,
-	importMap: Map<string, string>
-): Array<{ path: string; varName: string }> | null {
-	for (const node of ast.body || []) {
-		// Check expression statements: createApp({ router })
-		if (node.type === 'ExpressionStatement') {
-			const result = checkForCreateAppCall(node.expression, importMap);
-			if (result) return result;
-		}
-
-		// Check variable declarations: const app = await createApp({ router })
-		if (node.type === 'VariableDeclaration') {
-			for (const decl of node.declarations || []) {
-				if (decl.init) {
-					const result = checkForCreateAppCall(decl.init, importMap);
-					if (result) return result;
-				}
-			}
-		}
-
-		// Check exports: export const app = await createApp({ router })
-		if (node.type === 'ExportNamedDeclaration' && node.declaration) {
-			if (node.declaration.type === 'VariableDeclaration') {
-				for (const decl of node.declaration.declarations || []) {
-					if (decl.init) {
-						const result = checkForCreateAppCall(decl.init, importMap);
-						if (result) return result;
-					}
-				}
-			}
-		}
-	}
-
-	return null;
-}
-
-/**
- * Check if an expression node is a `createApp({ router })` call.
- * Unwraps `await` expressions.
- */
-function checkForCreateAppCall(
-	expr: ASTNode,
-	importMap: Map<string, string>
-): Array<{ path: string; varName: string }> | null {
-	if (!expr) return null;
-
-	// Unwrap AwaitExpression: await createApp(...)
-	if (expr.type === 'AwaitExpression' && expr.argument) {
-		return checkForCreateAppCall(expr.argument, importMap);
-	}
-
-	// Check for createApp({ router })
-	if (
-		expr.type === 'CallExpression' &&
-		expr.callee?.type === 'Identifier' &&
-		expr.callee?.name === 'createApp'
-	) {
-		return extractRouterFromCreateApp(expr);
-	}
-
-	return null;
 }

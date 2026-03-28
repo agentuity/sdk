@@ -47,6 +47,7 @@ import { Route as DocsRoutesMiddlewareRouteImport } from './routes/_docs/routes/
 import { Route as DocsRoutesHttpRouteImport } from './routes/_docs/routes/http';
 import { Route as DocsRoutesExplicitRoutingRouteImport } from './routes/_docs/routes/explicit-routing';
 import { Route as DocsRoutesCronRouteImport } from './routes/_docs/routes/cron';
+import { Route as DocsRoutesCallingAgentsRouteImport } from './routes/_docs/routes/calling-agents';
 import { Route as DocsReferenceStandalonePackagesRouteImport } from './routes/_docs/reference/standalone-packages';
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide';
 import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network';
@@ -68,6 +69,7 @@ import { Route as DocsCommunityInboundEmailAgentRouteImport } from './routes/_do
 import { Route as DocsApisWhenToUseRouteImport } from './routes/_docs/apis/when-to-use';
 import { Route as DocsApisCallingAgentsRouteImport } from './routes/_docs/apis/calling-agents';
 import { Route as DocsAgentsWorkbenchRouteImport } from './routes/_docs/agents/workbench';
+import { Route as DocsAgentsWhenToUseRouteImport } from './routes/_docs/agents/when-to-use';
 import { Route as DocsAgentsStreamingResponsesRouteImport } from './routes/_docs/agents/streaming-responses';
 import { Route as DocsAgentsStateManagementRouteImport } from './routes/_docs/agents/state-management';
 import { Route as DocsAgentsStandaloneExecutionRouteImport } from './routes/_docs/agents/standalone-execution';
@@ -364,6 +366,11 @@ const DocsRoutesCronRoute = DocsRoutesCronRouteImport.update({
 	path: '/routes/cron',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsRoutesCallingAgentsRoute = DocsRoutesCallingAgentsRouteImport.update({
+	id: '/routes/calling-agents',
+	path: '/routes/calling-agents',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsReferenceStandalonePackagesRoute = DocsReferenceStandalonePackagesRouteImport.update({
 	id: '/reference/standalone-packages',
 	path: '/reference/standalone-packages',
@@ -467,6 +474,11 @@ const DocsApisCallingAgentsRoute = DocsApisCallingAgentsRouteImport.update({
 const DocsAgentsWorkbenchRoute = DocsAgentsWorkbenchRouteImport.update({
 	id: '/agents/workbench',
 	path: '/agents/workbench',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsAgentsWhenToUseRoute = DocsAgentsWhenToUseRouteImport.update({
+	id: '/agents/when-to-use',
+	path: '/agents/when-to-use',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsAgentsStreamingResponsesRoute = DocsAgentsStreamingResponsesRouteImport.update({
@@ -1053,6 +1065,7 @@ export interface FileRoutesByFullPath {
 	'/agents/standalone-execution': typeof DocsAgentsStandaloneExecutionRoute;
 	'/agents/state-management': typeof DocsAgentsStateManagementRoute;
 	'/agents/streaming-responses': typeof DocsAgentsStreamingResponsesRoute;
+	'/agents/when-to-use': typeof DocsAgentsWhenToUseRoute;
 	'/agents/workbench': typeof DocsAgentsWorkbenchRoute;
 	'/apis/calling-agents': typeof DocsApisCallingAgentsRoute;
 	'/apis/when-to-use': typeof DocsApisWhenToUseRoute;
@@ -1074,6 +1087,7 @@ export interface FileRoutesByFullPath {
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
+	'/routes/calling-agents': typeof DocsRoutesCallingAgentsRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
 	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
@@ -1217,6 +1231,7 @@ export interface FileRoutesByTo {
 	'/agents/standalone-execution': typeof DocsAgentsStandaloneExecutionRoute;
 	'/agents/state-management': typeof DocsAgentsStateManagementRoute;
 	'/agents/streaming-responses': typeof DocsAgentsStreamingResponsesRoute;
+	'/agents/when-to-use': typeof DocsAgentsWhenToUseRoute;
 	'/agents/workbench': typeof DocsAgentsWorkbenchRoute;
 	'/apis/calling-agents': typeof DocsApisCallingAgentsRoute;
 	'/apis/when-to-use': typeof DocsApisWhenToUseRoute;
@@ -1238,6 +1253,7 @@ export interface FileRoutesByTo {
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
+	'/routes/calling-agents': typeof DocsRoutesCallingAgentsRoute;
 	'/routes/cron': typeof DocsRoutesCronRoute;
 	'/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/routes/http': typeof DocsRoutesHttpRoute;
@@ -1385,6 +1401,7 @@ export interface FileRoutesById {
 	'/_docs/agents/standalone-execution': typeof DocsAgentsStandaloneExecutionRoute;
 	'/_docs/agents/state-management': typeof DocsAgentsStateManagementRoute;
 	'/_docs/agents/streaming-responses': typeof DocsAgentsStreamingResponsesRoute;
+	'/_docs/agents/when-to-use': typeof DocsAgentsWhenToUseRoute;
 	'/_docs/agents/workbench': typeof DocsAgentsWorkbenchRoute;
 	'/_docs/apis/calling-agents': typeof DocsApisCallingAgentsRoute;
 	'/_docs/apis/when-to-use': typeof DocsApisWhenToUseRoute;
@@ -1406,6 +1423,7 @@ export interface FileRoutesById {
 	'/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
 	'/_docs/reference/standalone-packages': typeof DocsReferenceStandalonePackagesRoute;
+	'/_docs/routes/calling-agents': typeof DocsRoutesCallingAgentsRoute;
 	'/_docs/routes/cron': typeof DocsRoutesCronRoute;
 	'/_docs/routes/explicit-routing': typeof DocsRoutesExplicitRoutingRoute;
 	'/_docs/routes/http': typeof DocsRoutesHttpRoute;
@@ -1553,6 +1571,7 @@ export interface FileRouteTypes {
 		| '/agents/standalone-execution'
 		| '/agents/state-management'
 		| '/agents/streaming-responses'
+		| '/agents/when-to-use'
 		| '/agents/workbench'
 		| '/apis/calling-agents'
 		| '/apis/when-to-use'
@@ -1574,6 +1593,7 @@ export interface FileRouteTypes {
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
 		| '/reference/standalone-packages'
+		| '/routes/calling-agents'
 		| '/routes/cron'
 		| '/routes/explicit-routing'
 		| '/routes/http'
@@ -1717,6 +1737,7 @@ export interface FileRouteTypes {
 		| '/agents/standalone-execution'
 		| '/agents/state-management'
 		| '/agents/streaming-responses'
+		| '/agents/when-to-use'
 		| '/agents/workbench'
 		| '/apis/calling-agents'
 		| '/apis/when-to-use'
@@ -1738,6 +1759,7 @@ export interface FileRouteTypes {
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
 		| '/reference/standalone-packages'
+		| '/routes/calling-agents'
 		| '/routes/cron'
 		| '/routes/explicit-routing'
 		| '/routes/http'
@@ -1884,6 +1906,7 @@ export interface FileRouteTypes {
 		| '/_docs/agents/standalone-execution'
 		| '/_docs/agents/state-management'
 		| '/_docs/agents/streaming-responses'
+		| '/_docs/agents/when-to-use'
 		| '/_docs/agents/workbench'
 		| '/_docs/apis/calling-agents'
 		| '/_docs/apis/when-to-use'
@@ -1905,6 +1928,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/gravity-network'
 		| '/_docs/reference/migration-guide'
 		| '/_docs/reference/standalone-packages'
+		| '/_docs/routes/calling-agents'
 		| '/_docs/routes/cron'
 		| '/_docs/routes/explicit-routing'
 		| '/_docs/routes/http'
@@ -2310,6 +2334,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsRoutesCronRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/routes/calling-agents': {
+			id: '/_docs/routes/calling-agents';
+			path: '/routes/calling-agents';
+			fullPath: '/routes/calling-agents';
+			preLoaderRoute: typeof DocsRoutesCallingAgentsRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/reference/standalone-packages': {
 			id: '/_docs/reference/standalone-packages';
 			path: '/reference/standalone-packages';
@@ -2455,6 +2486,13 @@ declare module '@tanstack/react-router' {
 			path: '/agents/workbench';
 			fullPath: '/agents/workbench';
 			preLoaderRoute: typeof DocsAgentsWorkbenchRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/agents/when-to-use': {
+			id: '/_docs/agents/when-to-use';
+			path: '/agents/when-to-use';
+			fullPath: '/agents/when-to-use';
+			preLoaderRoute: typeof DocsAgentsWhenToUseRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/agents/streaming-responses': {
@@ -3314,6 +3352,7 @@ interface DocsRouteRouteChildren {
 	DocsAgentsStandaloneExecutionRoute: typeof DocsAgentsStandaloneExecutionRoute;
 	DocsAgentsStateManagementRoute: typeof DocsAgentsStateManagementRoute;
 	DocsAgentsStreamingResponsesRoute: typeof DocsAgentsStreamingResponsesRoute;
+	DocsAgentsWhenToUseRoute: typeof DocsAgentsWhenToUseRoute;
 	DocsAgentsWorkbenchRoute: typeof DocsAgentsWorkbenchRoute;
 	DocsApisCallingAgentsRoute: typeof DocsApisCallingAgentsRoute;
 	DocsApisWhenToUseRoute: typeof DocsApisWhenToUseRoute;
@@ -3335,6 +3374,7 @@ interface DocsRouteRouteChildren {
 	DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute;
 	DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute;
 	DocsReferenceStandalonePackagesRoute: typeof DocsReferenceStandalonePackagesRoute;
+	DocsRoutesCallingAgentsRoute: typeof DocsRoutesCallingAgentsRoute;
 	DocsRoutesCronRoute: typeof DocsRoutesCronRoute;
 	DocsRoutesExplicitRoutingRoute: typeof DocsRoutesExplicitRoutingRoute;
 	DocsRoutesHttpRoute: typeof DocsRoutesHttpRoute;
@@ -3427,6 +3467,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsAgentsStandaloneExecutionRoute: DocsAgentsStandaloneExecutionRoute,
 	DocsAgentsStateManagementRoute: DocsAgentsStateManagementRoute,
 	DocsAgentsStreamingResponsesRoute: DocsAgentsStreamingResponsesRoute,
+	DocsAgentsWhenToUseRoute: DocsAgentsWhenToUseRoute,
 	DocsAgentsWorkbenchRoute: DocsAgentsWorkbenchRoute,
 	DocsApisCallingAgentsRoute: DocsApisCallingAgentsRoute,
 	DocsApisWhenToUseRoute: DocsApisWhenToUseRoute,
@@ -3448,6 +3489,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
 	DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
 	DocsReferenceStandalonePackagesRoute: DocsReferenceStandalonePackagesRoute,
+	DocsRoutesCallingAgentsRoute: DocsRoutesCallingAgentsRoute,
 	DocsRoutesCronRoute: DocsRoutesCronRoute,
 	DocsRoutesExplicitRoutingRoute: DocsRoutesExplicitRoutingRoute,
 	DocsRoutesHttpRoute: DocsRoutesHttpRoute,

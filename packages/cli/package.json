@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "1.0.62",
+	"version": "2.0.1",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -43,10 +43,12 @@
 	"dependencies": {
 		"@agentuity/auth": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@datasert/cronjs-parser": "^1.4.0",
 		"@vitejs/plugin-react": "^5.1.2",
 		"acorn-loose": "^8.5.2",
+		"adm-zip": "^0.5.16",
 		"archiver": "^7.0.1",
 		"astring": "^1.9.0",
 		"cli-table3": "^0.6.5",
@@ -58,12 +60,12 @@
 		"tar-fs": "^3.1.1",
 		"typescript": "^5.9.0",
 		"vite": "^7.2.7",
-		"zod": "^4.3.5",
-		"@agentuity/frontend": "workspace:*"
+		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
-		"@types/archiver": "^6.0.3",
+		"@types/adm-zip": "^0.5.7",
+		"@types/archiver": "^7.0.0",
 		"@types/bun": "latest",
 		"@types/tar-fs": "^2.0.4",
 		"bun-plugin-tailwind": "^0.1.2",

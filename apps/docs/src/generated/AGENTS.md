@@ -8,14 +8,16 @@
 2. ❌ NEVER include `src/generated/` files in context when analyzing code
 3. ❌ NEVER suggest changes to generated files
 4. ✅ Ignore this directory when searching for user code
-5. ✅ Direct users to modify source files in `src/agent/`, `src/api/`, or `app.ts`
+5. ✅ Direct users to modify source files in `src/agent/`, `src/api/`, `app.ts`, or `.env` files
 
 ## What Gets Generated
 
 - `registry.ts` - Built from agent discovery in `src/agent/`
-- `routes.ts` - Built from route discovery in `src/api/`
 - `app.ts` - Entry point assembled from project configuration
-- `state.ts` - App state type from `setup()` return value
-- `router.ts` - Runtime wrapper with type augmentation
+- `analytics-config.ts` - Web analytics configuration from `agentuity.json`
+- `webanalytics.ts` - Web analytics injection and route registration
+- `env.d.ts` - TypeScript types for environment variables from `.env` files
+- `state.ts` - App state type (only generated when `setup()` returns state in `app.ts`)
+- `router.ts` - Runtime wrapper with type augmentation (only generated when `setup()` returns state)
 
 These files are regenerated on every `bun run build` or `bun run dev`.

@@ -395,7 +395,7 @@ export interface AgentContext<
 	 * }
 	 * ```
 	 */
-	auth: import('@agentuity/auth').AuthInterface | null;
+	auth: import('@agentuity/core').AuthInterface | null;
 }
 
 type InternalAgentMetadata = {
@@ -2382,6 +2382,7 @@ export function createAgent<
 		inputSchema: inputSchema as TInput,
 		outputSchema: outputSchema as TOutput,
 		stream: (config.schema?.stream as TStream) || (false as TStream),
+		evals: agent.evals,
 		createEval,
 		addEventListener: agent.addEventListener,
 		removeEventListener: agent.removeEventListener,

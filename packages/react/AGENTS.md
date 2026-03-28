@@ -2,7 +2,9 @@
 
 ## Package Overview
 
-React hooks for building Agentuity web applications. Provides type-safe hooks for API calls, WebSocket, Server-Sent Events, and analytics.
+React hooks for building Agentuity web applications. Provides context, auth, WebRTC, and analytics hooks.
+
+For type-safe API calls, use Hono's `hc()` client directly from `hono/client`.
 
 ## Commands
 
@@ -20,66 +22,44 @@ React hooks for building Agentuity web applications. Provides type-safe hooks fo
 
 ```text
 src/
-├── index.ts        # Main exports (client-side)
-├── server.ts       # Server-side entry point (SSR, server components, API routes)
-├── context.tsx     # AgentuityProvider, useAgentuity, useAuth
-├── api.ts          # useAPI hook
-├── websocket.ts    # useWebsocket hook
-├── eventstream.ts  # useEventStream hook
-├── client.ts       # createClient, createAPIClient
-├── analytics.tsx   # useAnalytics, useTrackOnMount, withPageTracking
-└── memo.ts         # useJsonMemo
+├── index.ts            # Main exports (client-side)
+├── server.ts           # Server-side entry point (SSR, server components)
+├── client-entrypoint.tsx # Client entry point with 'use client' directive
+├── context.tsx         # AgentuityProvider, useAgentuity, useAuth
+├── webrtc.tsx          # useWebRTCCall hook
+├── analytics.tsx       # useAnalytics, useTrackOnMount, withPageTracking
+└── memo.ts             # useJsonMemo
 ```
 
 **Entry points:**
 
 - `@agentuity/react` - Client-side hooks (browser only)
 - `@agentuity/react/server` - Server-safe exports (SSR, server components)
+- `@agentuity/react/client` - Client entry with 'use client' directive
 
 ## Code Conventions
 
 - **Provider required** - All hooks must be used within `AgentuityProvider`
-- **Type inference** - Types inferred from generated registries (RouteRegistry, etc.)
 - **SSR safe** - All hooks include SSR guards
 
 ## Hooks API
-
-### useAPI (main HTTP hook)
-
-```typescript
-// GET auto-executes, returns refetch()
-const { data, isLoading, error, refetch } = useAPI('GET /users');
-
-// POST/PUT/PATCH/DELETE manual via invoke()
-const { data, invoke } = useAPI('POST /users');
-await invoke({ name: 'Alice' });
-```
-
-Returns: `{ data, error, isLoading, isSuccess, isError, isFetching, reset, refetch|invoke }`
-
-### useWebsocket
-
-```typescript
-const { isConnected, data, messages, send, close, clearMessages } = useWebsocket('/ws');
-send({ message: 'Hello' });
-```
-
-- `data` = latest message, `messages` = all messages
-- Auto-reconnection on connection loss
-
-### useEventStream (SSE)
-
-```typescript
-const { isConnected, data, close, error, isError, reset, readyState } = useEventStream('/events');
-```
-
-- Auto-reconnection on connection loss
-- `data` = latest event (with JSON memoization)
 
 ### useAuth
 
 ```typescript
 const { isAuthenticated, authHeader, setAuthHeader, authLoading } = useAuth();
+```
+
+### useAgentuity
+
+```typescript
+const { baseUrl } = useAgentuity();
+```
+
+### useWebRTCCall
+
+```typescript
+const { state, connect, disconnect } = useWebRTCCall(options);
 ```
 
 ### useAnalytics
@@ -91,21 +71,22 @@ track('event_name', { prop: 'value' });
 
 ### Other Hooks
 
-- `useAgentuity()` - Access baseUrl
 - `useTrackOnMount(options)` - Track event on mount
 - `useJsonMemo(value)` - Deep equality memoization
 - `withPageTracking(Component, pageName)` - HOC for page tracking
 
-## Client Functions
+## Type-Safe API Calls
+
+Use Hono's `hc()` client for type-safe API calls:
 
 ```typescript
-const api = createAPIClient();
-await api.hello.post({ name: 'World' });
+import { hc } from 'hono/client';
+import type { AppType } from './src/api/router';
+
+const client = hc<AppType>('/');
+const res = await client.api.hello.$post({ json: { name: 'World' } });
+const data = await res.json();
 ```
-
-## Generated Types
-
-Route registries are augmented via `declare module '@agentuity/frontend'`. See `@agentuity/frontend` for registry interfaces.
 
 ## Publishing
 

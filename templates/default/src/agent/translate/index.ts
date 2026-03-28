@@ -10,8 +10,10 @@ import OpenAI from 'openai';
 /**
  * AI Gateway: Routes requests to OpenAI, Anthropic, and other LLM providers.
  * One SDK key, unified observability and billing; no separate API keys needed.
+ *
+ * Client is created lazily in setup() to avoid requiring OPENAI_API_KEY
+ * at build time during agent discovery.
  */
-const client = new OpenAI();
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
@@ -51,6 +53,13 @@ const agent = createAgent('translate', {
 		input: AgentInput,
 		output: AgentOutput,
 	},
+	// Lazy initialization: create OpenAI client at runtime, not at build time
+	// This allows agent discovery to work without requiring OPENAI_API_KEY
+	setup: async () => {
+		return {
+			client: new OpenAI(),
+		};
+	},
 	handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5-nano' }) => {
 		// Agentuity logger: structured logs visible in terminal and Agentuity console
 		ctx.logger.info('──── Translation ────');
@@ -63,7 +72,7 @@ const agent = createAgent('translate', {
 		const prompt = `Translate to ${toLanguage}:\n\n${text}`;
 
 		// Call OpenAI via AI Gateway (automatically routed and tracked)
-		const completion = await client.chat.completions.create({
+		const completion = await ctx.config.client.chat.completions.create({
 			model,
 			messages: [{ role: 'user', content: prompt }],
 		});

@@ -1,15 +1,11 @@
 import { createApp } from '@agentuity/runtime';
+import router from './src/api/index';
+import hello from './src/agent/hello/agent';
+import poem from './src/agent/poem/agent';
 
 const { server, logger } = await createApp({
-	setup: async () => {
-		// Auth schema is managed via `agentuity project auth generate` CLI command
-		// which uses BetterAuth CLI to generate Drizzle migrations
-	},
-	shutdown: async (_state) => {
-		// the state variable will be the same value was what you
-		// return from setup above. you can use this callback to
-		// close any resources or other shutdown related tasks
-	},
+	router: { path: '/api', router },
+	agents: [hello, poem],
 });
 
 logger.debug('Running %s', server.url);

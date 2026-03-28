@@ -1,108 +1,76 @@
 /**
- * Config loader for agentuity.config.ts
+ * Config loader for v2
+ *
+ * In v2, all runtime config (analytics, workbench) goes in createApp().
+ * Vite-specific config (plugins, define, render, bundle) goes in vite.config.ts.
+ *
+ * Runtime config values are extracted from app.ts via app-config-extractor.
  */
 
-import { join } from 'node:path';
 import type { Logger } from '../../../types';
-import type { AgentuityConfig } from '../../../types';
+import { extractAppConfig, type ExtractedAppConfig } from '../app-config-extractor';
 
 /**
- * Load agentuity.config.ts from the project root
- * Returns null if the file doesn't exist or fails to load
+ * Load runtime config from createApp() in app.ts (v2 approach).
+ *
+ * This is the only way to get analytics/workbench config in v2.
+ * The CLI reads these values directly from the user's createApp() call.
  */
-export async function loadAgentuityConfig(
+export async function loadRuntimeConfig(
 	rootDir: string,
 	logger: Logger
-): Promise<AgentuityConfig | null> {
-	const configPath = join(rootDir, 'agentuity.config.ts');
-
-	if (!(await Bun.file(configPath).exists())) {
-		logger.trace('No agentuity.config.ts found');
-		return null;
-	}
-
-	try {
-		const config = await import(configPath);
-		const userConfig = config.default as AgentuityConfig | undefined;
-
-		if (!userConfig) {
-			logger.warn('agentuity.config.ts does not export a default configuration');
-			return null;
-		}
-
-		logger.trace('Loaded agentuity.config.ts');
-		return userConfig;
-	} catch (error) {
-		logger.warn('Failed to load agentuity.config.ts:', error);
-		return null;
-	}
+): Promise<ExtractedAppConfig> {
+	return extractAppConfig(rootDir, logger);
 }
 
 /**
- * Get workbench configuration with defaults
- * NOTE: Workbench is only enabled at runtime in dev mode, but we need to know
- * if it's configured at build time so we can generate the correct code.
+ * Get workbench configuration with defaults.
  *
- * Presence of workbench config implicitly enables it (no explicit 'enabled' flag needed)
- * Missing workbench config implicitly disables it
+ * In v2, workbench config is extracted from createApp() in app.ts.
  */
 export function getWorkbenchConfig(
-	config: AgentuityConfig | null,
-	dev: boolean
+	dev: boolean,
+	runtimeConfig?: ExtractedAppConfig
 ): {
 	configured: boolean;
 	enabled: boolean;
 	route: string;
 	headers: Record<string, string>;
 } {
-	const configured = config?.workbench !== undefined;
+	const workbenchFromRuntime = runtimeConfig?.workbench;
 
 	// Workbench is enabled if:
 	// 1. In dev mode (never in production)
-	// 2. Config has a workbench object (presence implies enablement)
-	const enabled = dev && configured;
+	// 2. Workbench is configured in createApp()
+	const hasWorkbench = workbenchFromRuntime !== undefined;
+	const configured = hasWorkbench;
+	const enabled = dev && hasWorkbench;
 
-	const workbench = config?.workbench || {};
+	// Extract values from createApp()
+	let route = '/workbench';
+	let headers: Record<string, string> = {};
+
+	if (workbenchFromRuntime !== undefined) {
+		if (typeof workbenchFromRuntime === 'string') {
+			route = workbenchFromRuntime;
+		} else if (typeof workbenchFromRuntime === 'object' && workbenchFromRuntime !== null) {
+			if ('route' in workbenchFromRuntime && typeof workbenchFromRuntime.route === 'string') {
+				route = workbenchFromRuntime.route;
+			}
+			if (
+				'headers' in workbenchFromRuntime &&
+				typeof workbenchFromRuntime.headers === 'object'
+			) {
+				headers = workbenchFromRuntime.headers as Record<string, string>;
+			}
+		}
+		// boolean true uses defaults
+	}
 
 	return {
 		configured,
 		enabled,
-		route: workbench.route ?? '/workbench',
-		headers: workbench.headers ?? {},
+		route,
+		headers,
 	};
-}
-
-/**
- * Known Vite framework plugin name prefixes.
- * Each framework's Vite plugin registers one or more plugins whose names
- * start with these prefixes. We match against these to detect whether the
- * user has already configured a framework plugin in their agentuity.config.ts.
- */
-const FRAMEWORK_PLUGIN_PREFIXES = [
-	'vite:react', // @vitejs/plugin-react  (vite:react-babel, vite:react-refresh, …)
-	'vite:preact', // @preact/preset-vite
-	'vite-plugin-svelte', // @sveltejs/vite-plugin-svelte
-	'vite:vue', // @vitejs/plugin-vue      (vite:vue, vite:vue-jsx)
-	'vite-plugin-solid', // vite-plugin-solid
-	'solid', // vite-plugin-solid also uses plain "solid"
-];
-
-/**
- * Check if the user's plugins include any known UI-framework Vite plugin
- * (React, Svelte, Vue, Solid, Preact, …).
- *
- * Detection is name-based: Vite plugins expose a `name` property and every
- * major framework plugin uses a predictable prefix. This avoids dynamically
- * importing every possible framework just to compare names.
- */
-export function hasFrameworkPlugin(userPlugins: import('vite').PluginOption[]): boolean {
-	const flat = (userPlugins as unknown[]).flat(Infinity).filter(Boolean);
-	return flat.some(
-		(p: unknown) =>
-			p &&
-			typeof p === 'object' &&
-			'name' in p &&
-			typeof (p as { name: unknown }).name === 'string' &&
-			FRAMEWORK_PLUGIN_PREFIXES.some((prefix) => (p as { name: string }).name.startsWith(prefix))
-	);
 }

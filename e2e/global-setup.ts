@@ -91,6 +91,33 @@ async function globalSetup(): Promise<void> {
 			}
 			console.log('[Global Setup] ✓ Client-side routing is working');
 
+			// Step 5: Verify Bun backend is responding (proxied through Vite/front-door)
+			// The analytics beacon JS is served by the Bun backend at /_agentuity/webanalytics/analytics.js
+			const backendRes = await fetch(`${baseURL}/_agentuity/webanalytics/analytics.js`, {
+				signal: AbortSignal.timeout(5000),
+			});
+			if (!backendRes.ok) {
+				console.log(
+					`[Global Setup] Backend not ready yet (/_agentuity/webanalytics/analytics.js returned ${backendRes.status})`
+				);
+				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+				continue;
+			}
+			console.log('[Global Setup] ✓ Bun backend is ready');
+
+			// Step 6: Verify workbench metadata is generated (dev server creates it asynchronously)
+			const metadataRes = await fetch(`${baseURL}/_agentuity/workbench/metadata.json`, {
+				signal: AbortSignal.timeout(5000),
+			});
+			if (!metadataRes.ok) {
+				console.log(
+					`[Global Setup] Metadata not ready yet (/_agentuity/workbench/metadata.json returned ${metadataRes.status})`
+				);
+				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+				continue;
+			}
+			console.log('[Global Setup] ✓ Workbench metadata is ready');
+
 			console.log('[Global Setup] ✓ All readiness checks passed!');
 			return;
 		} catch (err) {
