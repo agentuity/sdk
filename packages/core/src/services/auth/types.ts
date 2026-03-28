@@ -215,8 +215,9 @@ export interface AuthApiKeyHelpers {
  * }
  * ```
  *
- * @typeParam TUser - User type (defaults to AuthUser)
+ * @typeParam TUser - User type (extends AuthUser, defaults to AuthUser)
  */
-export type AuthInterface<TUser = AuthUser> = AgentuityAuth<TUser, AuthContext> &
-	AuthOrgHelpers &
-	AuthApiKeyHelpers;
+export interface AuthInterface<TUser extends AuthUser = AuthUser>
+	extends AgentuityAuth<TUser, AuthContext<TUser>>,
+		AuthOrgHelpers,
+		AuthApiKeyHelpers {}

@@ -5,9 +5,9 @@
  * at runtime startup. This helps developers catch version conflicts early.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, parse } from 'node:path';
 import type { Logger } from './logger';
 import { isV1Package, showDeprecationWarning } from '@agentuity/core';
 
@@ -53,20 +53,44 @@ function extractMajor(version: string): number {
 }
 
 /**
+ * Walk up parent directories from a starting path until package.json is found.
+ * Returns the path to package.json, or null if not found (reached filesystem root).
+ */
+function findPackageJson(startPath: string): string | null {
+	let currentDir = dirname(startPath);
+	const root = parse(currentDir).root;
+
+	while (currentDir !== root) {
+		const pkgPath = join(currentDir, 'package.json');
+		if (existsSync(pkgPath)) {
+			return pkgPath;
+		}
+		const parentDir = dirname(currentDir);
+		if (parentDir === currentDir) {
+			break;
+		}
+		currentDir = parentDir;
+	}
+
+	return null;
+}
+
+/**
  * Get version of a package by resolving its main entry,
- * then locating the package.json in the same directory.
+ * then walking up directories to find package.json.
  *
- * This avoids require.resolve(packageName/package.json) which can fail
- * for packages that don't explicitly export ./package.json.
+ * This handles packages whose main is ./dist/index.js where package.json
+ * is in the parent directory, not alongside the main entry.
  */
 function getPackageVersion(packageName: string): string | null {
 	try {
 		// Resolve the package main entry
 		const mainPath = require.resolve(packageName);
-		// Get the directory containing the package
-		const pkgDir = dirname(mainPath);
-		// Build the package.json path
-		const pkgPath = join(pkgDir, 'package.json');
+		// Walk up to find package.json
+		const pkgPath = findPackageJson(mainPath);
+		if (!pkgPath) {
+			return null;
+		}
 		// Read and parse manually - this avoids Bun's JSON import parser
 		const content = readFileSync(pkgPath, 'utf-8');
 		const pkgJson = JSON.parse(content);
