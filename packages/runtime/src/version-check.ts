@@ -5,8 +5,13 @@
  * at runtime startup. This helps developers catch version conflicts early.
  */
 
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { Logger } from './logger';
 import { isV1Package, showDeprecationWarning } from '@agentuity/core';
+
+// Create a require function for resolving module paths
+const require = createRequire(import.meta.url);
 
 /**
  * Known @agentuity/* packages that should have consistent versions.
@@ -47,27 +52,23 @@ function extractMajor(version: string): number {
 }
 
 /**
- * Get version of a package from its package.json (if importable).
+ * Get version of a package by resolving its package.json path
+ * and reading it directly with fs.readFileSync.
+ *
+ * This avoids require(package.json) which can crash Bun's JSON parser.
  */
 function getPackageVersion(packageName: string): string | null {
 	try {
-		// Try to import the package.json
-		// This works for ESM packages that export their package.json
-		const pkg = require(`${packageName}/package.json`);
-		return pkg?.version || null;
+		// Use require.resolve to find the package.json location
+		// This doesn't import the file, just resolves the path
+		const pkgPath = require.resolve(`${packageName}/package.json`);
+
+		// Read and parse manually - this avoids Bun's JSON import parser
+		const content = readFileSync(pkgPath, 'utf-8');
+		const pkgJson = JSON.parse(content);
+		return pkgJson?.version || null;
 	} catch {
-		// Fallback: try to read from node_modules
-		try {
-			const fs = require('node:fs');
-			const pkgPath = require.resolve(`${packageName}/package.json`);
-			if (typeof pkgPath !== 'string') {
-				return null;
-			}
-			const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-			return pkgJson?.version || null;
-		} catch {
-			return null;
-		}
+		return null;
 	}
 }
 
