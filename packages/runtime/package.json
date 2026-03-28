@@ -26,7 +26,6 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/auth": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/frontend": "workspace:*",
 		"@agentuity/schema": "workspace:*",
