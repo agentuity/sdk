@@ -389,6 +389,7 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 			...process.env,
 			...getAgentEnv(),
 			PORT: String(port),
+			FORCE_COLOR: '1', // Enable colors even though stdout is piped
 		},
 	});
 

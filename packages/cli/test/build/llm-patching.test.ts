@@ -246,7 +246,6 @@ describe('OTel LLM Instrumentation Patches', () => {
 		// Verify safety check for class existence
 		expect(code).toContain('typeof Completions');
 		expect(code).toContain('.prototype.create');
-		expect(code).toContain('Skipping patch');
 		expect(code).toContain('try');
 		expect(code).toContain('catch');
 	});

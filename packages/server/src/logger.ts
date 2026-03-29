@@ -29,6 +29,11 @@ function hexToAnsi(hex: string): string {
 }
 
 function shouldUseColors(): boolean {
+	// FORCE_COLOR overrides all checks (used when stdout is piped but we still want colors)
+	if (process.env.FORCE_COLOR === '1') {
+		return true;
+	}
+
 	// Check for NO_COLOR environment variable (any non-empty value disables colors)
 	if (process.env.NO_COLOR) {
 		return false;

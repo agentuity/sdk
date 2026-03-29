@@ -393,9 +393,6 @@ export async function applyOtelLLMPatches(): Promise<void> {
 			const proto = findPrototype(mod, className);
 
 			if (!proto || typeof proto.create !== 'function') {
-				console.debug(
-					`[Agentuity OTel] Skipping patch: ${className}.prototype.create not found in ${moduleName}`
-				);
 				continue;
 			}
 
