@@ -139,6 +139,29 @@ export default {
 			expect(message).toContain('Missing export default');
 		});
 
+		test('buildStartupErrorMessage includes stdout when provided', async () => {
+			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
+			const { buildStartupErrorMessage } = await import(serverPath);
+
+			const message = buildStartupErrorMessage(
+				3501,
+				5000,
+				'stderr output here',
+				{
+					hasDefaultExport: true,
+					hasCreateApp: true,
+					isV1Pattern: false,
+					hints: [],
+				},
+				'TypeError: Cannot read properties of undefined\n    at app.ts:5:10'
+			);
+
+			expect(message).toContain('Bun stderr:');
+			expect(message).toContain('stderr output here');
+			expect(message).toContain('Bun stdout:');
+			expect(message).toContain('TypeError: Cannot read properties of undefined');
+		});
+
 		test('buildStartupErrorMessage shows generic troubleshooting when no hints', async () => {
 			const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
 			const { buildStartupErrorMessage } = await import(serverPath);

@@ -1,5 +1,7 @@
 import { createApp } from '@agentuity/runtime';
 
-const { server, logger } = await createApp();
+const app = await createApp();
 
-logger.debug('Running %s', server.url);
+app.logger.debug('Running %s', app.server.url);
+
+export default app;
