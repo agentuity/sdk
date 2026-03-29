@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -22,11 +23,23 @@ export function getDistTag(version) {
 	return 'latest';
 }
 
-// Only run when executed directly, not when imported for testing
-const isMain =
-	typeof Bun !== 'undefined'
-		? Bun.main === new URL(import.meta.url).pathname
-		: process.argv[1] === new URL(import.meta.url).pathname;
+// Only run when executed directly, not when imported for testing.
+// When bunx runs this script, it creates a symlink (e.g. ~/.bun/bin/create-agentuity)
+// pointing to the real file. process.argv[1] is the symlink path while import.meta.url
+// resolves to the real path, so we must resolve symlinks before comparing.
+function checkIsMain() {
+	const scriptPath = new URL(import.meta.url).pathname;
+	if (typeof Bun !== 'undefined') {
+		return Bun.main === scriptPath;
+	}
+	try {
+		return realpathSync(process.argv[1]) === scriptPath;
+	} catch {
+		return process.argv[1] === scriptPath;
+	}
+}
+
+const isMain = checkIsMain();
 
 if (isMain) {
 	const distTag = getDistTag(pkg.version);
