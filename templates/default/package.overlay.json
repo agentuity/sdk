@@ -1,6 +1,6 @@
 {
 	"dependencies": {
-		"@agentuity/evals": "latest",
+		"@agentuity/evals": "^1.0.0",
 		"openai": "latest",
 		"groq-sdk": "latest"
 	},
