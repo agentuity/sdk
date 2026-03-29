@@ -593,6 +593,7 @@ export const CreateQueueRequestSchema = z
 		name: z.string().optional().describe('Optional queue name (auto-generated if not provided).'),
 		description: z.string().optional().describe("Optional description of the queue's purpose."),
 		queue_type: QueueTypeSchema.describe('Type of queue to create.'),
+		internal: z.boolean().optional().describe('Whether the queue is system-managed.'),
 		settings: QueueSettingsSchemaBase.partial()
 			.optional()
 			.describe(
