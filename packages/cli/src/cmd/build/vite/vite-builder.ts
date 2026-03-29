@@ -234,7 +234,18 @@ export default defineConfig({
 				? `https://${options.region === 'local' ? 'localstack-static-assets.t3.storageapi.dev' : 'cdn.agentuity.com'}/${options.deploymentId}/client/`
 				: undefined;
 
-		const args = ['bun', 'x', 'vite', 'build', '--mode', buildMode, '--outDir', clientOutDir];
+		const args = [
+			'bun',
+			'x',
+			'vite',
+			'build',
+			'--mode',
+			buildMode,
+			'--outDir',
+			clientOutDir,
+			'--logLevel',
+			'error',
+		];
 		if (cdnBaseUrl) {
 			args.push('--base', cdnBaseUrl);
 		}
