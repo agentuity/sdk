@@ -8,7 +8,7 @@ export default defineConfig({
 	root: '.',
 	build: {
 		rollupOptions: {
-			input: join(__dirname, 'src/web/index.html'),
+			input: join(import.meta.dirname, 'src/web/index.html'),
 		},
 	},
 });

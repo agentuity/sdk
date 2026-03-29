@@ -494,7 +494,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 					"    define: { CUSTOM: JSON.stringify('value') },\n" +
 					'    build: {\n' +
 					'      rollupOptions: {\n' +
-					"        input: join(__dirname, 'src/web/index.html'),\n" +
+					"        input: join(import.meta.dirname, 'src/web/index.html'),\n" +
 					'      },\n' +
 					'    },\n' +
 					'  });\n' +
@@ -733,7 +733,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				'    plugins: [react()],\n' +
 				'    build: {\n' +
 				'      rollupOptions: {\n' +
-				"        input: join(__dirname, 'src/web/index.html'),\n" +
+				"        input: join(import.meta.dirname, 'src/web/index.html'),\n" +
 				'      },\n' +
 				'    },\n' +
 				'  });\n' +
@@ -748,7 +748,11 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 	// If vite.config.ts exists but is missing build.rollupOptions.input, warn about it
 	if (hasFrontend && hasViteConfig) {
 		const viteSrc = await Bun.file(viteConfigPath).text();
-		if (!viteSrc.includes('rollupOptions') || !viteSrc.includes('index.html')) {
+		if (
+			!viteSrc.includes('rollupOptions') ||
+			!viteSrc.includes('input') ||
+			!viteSrc.includes('src/web/index.html')
+		) {
 			findings.push({
 				id: 'vite-config-missing-rollup-input',
 				severity: 'guided',
@@ -764,7 +768,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 					'    // ...your existing config\n' +
 					'    build: {\n' +
 					'      rollupOptions: {\n' +
-					"        input: join(__dirname, 'src/web/index.html'),\n" +
+					"        input: join(import.meta.dirname, 'src/web/index.html'),\n" +
 					'      },\n' +
 					'    },\n' +
 					'  });',
