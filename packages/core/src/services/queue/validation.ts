@@ -430,14 +430,16 @@ export function validateWebhookUrl(url: string): void {
 }
 
 /**
- * Validates a destination configuration object.
+ * Validates a destination configuration object based on the destination type.
  *
- * Checks that the config contains a valid URL and optional method/timeout settings.
- *
+ * @param destinationType - The type of destination (http, url, webhook, queue, sandbox, email)
  * @param config - The destination config object to validate
  * @throws {QueueValidationError} If the config is invalid
  */
-export function validateDestinationConfig(config: Record<string, unknown>): void {
+export function validateDestinationConfig(
+	destinationType: string,
+	config: Record<string, unknown>
+): void {
 	if (!config) {
 		throw new QueueValidationError({
 			message: 'Destination config is required',
@@ -445,35 +447,78 @@ export function validateDestinationConfig(config: Record<string, unknown>): void
 		});
 	}
 
-	const url = config.url;
-	if (typeof url !== 'string' || !url) {
-		throw new QueueValidationError({
-			message: 'config.url is required',
-			field: 'config.url',
-		});
-	}
-	validateWebhookUrl(url);
+	switch (destinationType) {
+		case 'http':
+		case 'url':
+		case 'webhook': {
+			const url = config.url;
+			if (typeof url !== 'string' || !url) {
+				throw new QueueValidationError({
+					message: 'config.url is required for http/url/webhook destinations',
+					field: 'config.url',
+				});
+			}
+			validateWebhookUrl(url);
 
-	const method = config.method;
-	if (method !== undefined) {
-		if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH') {
-			throw new QueueValidationError({
-				message: 'config.method must be POST, PUT, or PATCH',
-				field: 'config.method',
-				value: method,
-			});
-		}
-	}
+			const method = config.method;
+			if (method !== undefined) {
+				if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH') {
+					throw new QueueValidationError({
+						message: 'config.method must be POST, PUT, or PATCH',
+						field: 'config.method',
+						value: method,
+					});
+				}
+			}
 
-	const timeoutMs = config.timeout_ms;
-	if (timeoutMs !== undefined) {
-		if (typeof timeoutMs !== 'number' || timeoutMs < 1000 || timeoutMs > 300000) {
-			throw new QueueValidationError({
-				message: 'config.timeout_ms must be between 1000 and 300000',
-				field: 'config.timeout_ms',
-				value: timeoutMs,
-			});
+			const timeoutMs = config.timeout_ms;
+			if (timeoutMs !== undefined) {
+				if (typeof timeoutMs !== 'number' || timeoutMs < 1000 || timeoutMs > 300000) {
+					throw new QueueValidationError({
+						message: 'config.timeout_ms must be between 1000 and 300000',
+						field: 'config.timeout_ms',
+						value: timeoutMs,
+					});
+				}
+			}
+			break;
 		}
+		case 'queue': {
+			const queueId = config.queue_id;
+			if (typeof queueId !== 'string' || !queueId) {
+				throw new QueueValidationError({
+					message: 'config.queue_id is required for queue destinations',
+					field: 'config.queue_id',
+				});
+			}
+			break;
+		}
+		case 'sandbox': {
+			const sandboxId = config.sandbox_id;
+			if (typeof sandboxId !== 'string' || !sandboxId) {
+				throw new QueueValidationError({
+					message: 'config.sandbox_id is required for sandbox destinations',
+					field: 'config.sandbox_id',
+				});
+			}
+			break;
+		}
+		case 'email': {
+			const emailAddress = config.email_address;
+			if (typeof emailAddress !== 'string' || !emailAddress) {
+				throw new QueueValidationError({
+					message: 'config.email_address is required for email destinations',
+					field: 'config.email_address',
+				});
+			}
+			break;
+		}
+		default:
+			throw new QueueValidationError({
+				message: `Unknown destination type: ${destinationType}`,
+				field: 'destination_type',
+				value: destinationType,
+			});
 	}
 }
 
