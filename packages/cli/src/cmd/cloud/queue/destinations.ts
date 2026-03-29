@@ -93,8 +93,11 @@ const listDestinationsSubcommand = createSubcommand({
 			destinations: destinations.map((d: Destination) => {
 				const target = getConfigTarget(d.config);
 				const url =
-					d.config && typeof d.config === 'object' && 'url' in d.config
-						? (d.config as { url: string }).url
+					d.config &&
+					typeof d.config === 'object' &&
+					'url' in d.config &&
+					typeof d.config.url === 'string'
+						? d.config.url
 						: null;
 				return {
 					id: d.id,
