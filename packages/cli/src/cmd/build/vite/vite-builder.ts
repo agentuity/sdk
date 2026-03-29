@@ -99,29 +99,29 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	mkdirSync(assetsDir, { recursive: true });
 	const beaconFilePath = join(assetsDir, beaconFileName);
 	writeFileSync(beaconFilePath, beaconCode);
-	logger.info('[beacon] Wrote beacon file: %s (%d bytes)', beaconFilePath, beaconCode.length);
-	logger.info('[beacon] File exists after write: %s', existsSync(beaconFilePath));
+	console.error('[beacon] Wrote beacon file:', beaconFilePath, `(${beaconCode.length} bytes)`);
+	console.error('[beacon] File exists after write:', existsSync(beaconFilePath));
 
 	// Add beacon to Vite's manifest so the metadata generator includes it
 	// in the asset list and the deploy step uploads it to CDN.
 	const manifestPath = join(clientDir, '.vite', 'manifest.json');
-	logger.info('[beacon] Looking for Vite manifest at: %s', manifestPath);
-	logger.info('[beacon] Manifest exists: %s', existsSync(manifestPath));
+	console.error('[beacon] Looking for Vite manifest at:', manifestPath);
+	console.error('[beacon] Manifest exists:', existsSync(manifestPath));
 	if (existsSync(manifestPath)) {
 		const manifestRaw = readFileSync(manifestPath, 'utf-8');
 		const manifest = JSON.parse(manifestRaw);
 		const keysBefore = Object.keys(manifest);
-		logger.info('[beacon] Manifest keys before: %s', keysBefore.join(', '));
+		console.error('[beacon] Manifest keys before:', keysBefore.join(', '));
 		manifest['agentuity-beacon'] = { file: `assets/${beaconFileName}` };
 		writeFileSync(manifestPath, JSON.stringify(manifest));
-		logger.info('[beacon] Manifest updated, keys after: %s', Object.keys(manifest).join(', '));
+		console.error('[beacon] Manifest updated, keys after:', Object.keys(manifest).join(', '));
 	} else {
-		logger.warn('[beacon] Vite manifest not found — beacon will NOT be uploaded to CDN');
+		console.error('[beacon] Vite manifest NOT FOUND — beacon will NOT be uploaded to CDN');
 
 		// List what's in the client dir to help debug
 		const { readdirSync } = await import('node:fs');
 		const clientContents = readdirSync(clientDir, { recursive: true }) as string[];
-		logger.info('[beacon] Client dir contents: %s', clientContents.join(', '));
+		console.error('[beacon] Client dir contents:', clientContents.join(', '));
 	}
 
 	// Build the beacon URL using the CDN base
@@ -143,7 +143,7 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	}
 
 	writeFileSync(indexHtmlPath, html);
-	logger.info('[beacon] Injected script tag into HTML: %s', beaconUrl);
+	console.error('[beacon] Injected script tag into HTML:', beaconUrl);
 }
 
 export interface ViteBuildOptions {
