@@ -14,6 +14,21 @@ import {
 	type Destination,
 } from '@agentuity/server';
 
+// Helper to safely extract URL from any destination config type (config is a union)
+function getConfigUrl(config: Destination['config']): string | undefined {
+	if (config && typeof config === 'object' && 'url' in config) {
+		return (config as { url: string }).url;
+	}
+	return undefined;
+}
+
+function getConfigMethod(config: Destination['config']): string | undefined {
+	if (config && typeof config === 'object' && 'method' in config) {
+		return (config as { method: string }).method;
+	}
+	return undefined;
+}
+
 const DestinationsListResponseSchema = z.object({
 	destinations: z.array(
 		z.object({
@@ -61,7 +76,7 @@ const listDestinationsSubcommand = createSubcommand({
 					ID: d.id,
 					Name: d.name,
 					Type: d.destination_type,
-					URL: d.config.url,
+					URL: getConfigUrl(d.config) ?? 'N/A',
 					Enabled: d.enabled ? 'Yes' : 'No',
 					Created: new Date(d.created_at).toLocaleString(),
 				}));
@@ -75,7 +90,7 @@ const listDestinationsSubcommand = createSubcommand({
 				name: d.name,
 				description: d.description ?? null,
 				destination_type: d.destination_type,
-				url: d.config.url,
+				url: getConfigUrl(d.config) ?? '',
 				enabled: d.enabled,
 				created_at: d.created_at,
 			})),
@@ -85,15 +100,21 @@ const listDestinationsSubcommand = createSubcommand({
 
 const createDestinationSubcommand = createSubcommand({
 	name: 'create',
-	description: 'Create a webhook destination for a queue',
+	description: 'Create a destination for a queue',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
 	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand(
-				'cloud queue destinations create my-queue --name order-webhooks --url https://example.com/webhook'
+				'cloud queue destinations create my-queue --type http --name order-webhooks --url https://example.com/webhook'
 			),
-			description: 'Create a webhook destination',
+			description: 'Create an HTTP destination',
+		},
+		{
+			command: getCommand(
+				'cloud queue destinations create my-queue --type queue --name retry-queue --queue-id que_abc123'
+			),
+			description: 'Create a queue destination',
 		},
 	],
 	schema: {
@@ -103,9 +124,20 @@ const createDestinationSubcommand = createSubcommand({
 		options: z.object({
 			name: z.string().min(1).describe('Destination name'),
 			description: z.string().optional().describe('Destination description'),
-			url: z.string().url().describe('Webhook URL'),
-			method: z.string().default('POST').optional().describe('HTTP method (default: POST)'),
+			type: z
+				.enum(['http', 'url', 'webhook', 'queue', 'sandbox', 'email'])
+				.default('http')
+				.describe('Destination type'),
+			// HTTP/Webhook options
+			url: z.string().url().optional().describe('Webhook URL (for http/url/webhook types)'),
+			method: z.string().optional().describe('HTTP method (default: POST)'),
 			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
+			// Queue options
+			'queue-id': z.string().optional().describe('Target queue ID (for queue type)'),
+			// Sandbox options
+			'sandbox-id': z.string().optional().describe('Target sandbox ID (for sandbox type)'),
+			// Email options
+			email: z.string().email().optional().describe('Target email address (for email type)'),
 		}),
 		response: DestinationSchema,
 	},
@@ -114,6 +146,55 @@ const createDestinationSubcommand = createSubcommand({
 		const { args, opts, options } = ctx;
 		const client = await createQueueAPIClient(ctx);
 
+		// Build config based on destination type
+		let config: Record<string, unknown> = {};
+		switch (opts.type) {
+			case 'http':
+			case 'webhook':
+				if (!opts.url) {
+					tui.fatal(
+						'--url is required for http/webhook destinations',
+						ErrorCode.INVALID_ARGUMENT
+					);
+				}
+				config = {
+					url: opts.url,
+					method: opts.method || 'POST',
+					timeout_ms: opts.timeout ?? 30000,
+				};
+				break;
+			case 'url':
+				if (!opts.url) {
+					tui.fatal('--url is required for url destinations', ErrorCode.INVALID_ARGUMENT);
+				}
+				config = { url: opts.url };
+				break;
+			case 'queue':
+				if (!opts['queue-id']) {
+					tui.fatal(
+						'--queue-id is required for queue destinations',
+						ErrorCode.INVALID_ARGUMENT
+					);
+				}
+				config = { queue_id: opts['queue-id'] };
+				break;
+			case 'sandbox':
+				if (!opts['sandbox-id']) {
+					tui.fatal(
+						'--sandbox-id is required for sandbox destinations',
+						ErrorCode.INVALID_ARGUMENT
+					);
+				}
+				config = { sandbox_id: opts['sandbox-id'] };
+				break;
+			case 'email':
+				if (!opts.email) {
+					tui.fatal('--email is required for email destinations', ErrorCode.INVALID_ARGUMENT);
+				}
+				config = { email_address: opts.email };
+				break;
+		}
+
 		try {
 			const destination = await createDestination(
 				client,
@@ -121,12 +202,8 @@ const createDestinationSubcommand = createSubcommand({
 				{
 					name: opts.name,
 					description: opts.description,
-					destination_type: 'http',
-					config: {
-						url: opts.url,
-						method: opts.method || 'POST',
-						timeout_ms: opts.timeout ?? 30000,
-					},
+					destination_type: opts.type,
+					config,
 					enabled: true,
 				},
 				getQueueApiOptions(ctx)
@@ -135,15 +212,16 @@ const createDestinationSubcommand = createSubcommand({
 			if (!options.json) {
 				tui.success(`Created destination: ${destination.id}`);
 				console.log(`  Name:   ${destination.name}`);
-				console.log(`  URL:    ${destination.config.url}`);
-				console.log(`  Method: ${destination.config.method}`);
+				console.log(`  Type:   ${destination.destination_type}`);
+				const url = getConfigUrl(destination.config);
+				if (url) console.log(`  URL:    ${url}`);
 			}
 
 			return destination;
 		} catch (error) {
 			if (error instanceof DestinationAlreadyExistsError) {
 				tui.fatal(
-					`A destination with URL "${opts.url}" already exists for queue "${args.queue_name}". Use a different URL or delete the existing destination first.`,
+					`A destination already exists for queue "${args.queue_name}".`,
 					ErrorCode.RESOURCE_ALREADY_EXISTS
 				);
 			}
@@ -220,7 +298,7 @@ const updateDestinationSubcommand = createSubcommand({
 		if (!options.json) {
 			tui.success(`Updated destination: ${destination.id}`);
 			console.log(`  Name:    ${destination.name}`);
-			console.log(`  URL:     ${destination.config.url}`);
+			console.log(`  URL:     ${getConfigUrl(destination.config) ?? 'N/A'}`);
 			console.log(`  Enabled: ${destination.enabled ? 'Yes' : 'No'}`);
 		}
 
@@ -279,7 +357,7 @@ const deleteDestinationSubcommand = createSubcommand({
 export const destinationsSubcommand = createCommand({
 	name: 'destinations',
 	aliases: ['dest'],
-	description: 'Manage queue destinations (webhooks)',
+	description: 'Manage queue destinations',
 	tags: ['requires-auth'],
 	requires: { auth: true },
 	examples: [
@@ -289,9 +367,9 @@ export const destinationsSubcommand = createCommand({
 		},
 		{
 			command: getCommand(
-				'cloud queue destinations create my-queue --url https://example.com/webhook'
+				'cloud queue destinations create my-queue --type http --name order-webhooks --url https://example.com/webhook'
 			),
-			description: 'Create a webhook destination',
+			description: 'Create an HTTP destination',
 		},
 	],
 	subcommands: [
