@@ -99,6 +99,15 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	mkdirSync(assetsDir, { recursive: true });
 	writeFileSync(join(assetsDir, beaconFileName), beaconCode);
 
+	// Add beacon to Vite's manifest so the metadata generator includes it
+	// in the asset list and the deploy step uploads it to CDN.
+	const manifestPath = join(clientDir, '.vite', 'manifest.json');
+	if (existsSync(manifestPath)) {
+		const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+		manifest['agentuity-beacon'] = { file: `assets/${beaconFileName}` };
+		writeFileSync(manifestPath, JSON.stringify(manifest));
+	}
+
 	// Build the beacon URL using the CDN base
 	const normalizedBase = cdnBaseUrl.endsWith('/') ? cdnBaseUrl : `${cdnBaseUrl}/`;
 	const beaconUrl = `${normalizedBase}assets/${beaconFileName}`;
