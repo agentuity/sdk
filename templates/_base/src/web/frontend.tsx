@@ -9,7 +9,6 @@ import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
 import { App } from './App';
-import './App.css';
 
 function init() {
 	const elem = document.getElementById('root');
