@@ -244,7 +244,8 @@ export function buildStartupErrorMessage(
 	port: number,
 	timeoutMs: number,
 	stderr: string,
-	validation: AppValidationResult
+	validation: AppValidationResult,
+	stdout?: string
 ): string {
 	const lines: string[] = [];
 
@@ -253,13 +254,26 @@ export function buildStartupErrorMessage(
 
 	// Show captured stderr if any
 	if (stderr.trim()) {
-		lines.push('Bun output:');
+		lines.push('Bun stderr:');
 		lines.push('');
 		// Indent stderr lines for readability
 		for (const line of stderr.trim().split('\n').slice(0, 20)) {
 			lines.push(`  ${line}`);
 		}
 		if (stderr.split('\n').length > 20) {
+			lines.push('  ... (truncated)');
+		}
+		lines.push('');
+	}
+
+	// Show captured stdout if any (runtime errors, uncaught exceptions, etc.)
+	if (stdout?.trim()) {
+		lines.push('Bun stdout:');
+		lines.push('');
+		for (const line of stdout.trim().split('\n').slice(0, 20)) {
+			lines.push(`  ${line}`);
+		}
+		if (stdout.split('\n').length > 20) {
 			lines.push('  ... (truncated)');
 		}
 		lines.push('');
@@ -397,9 +411,13 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	for (let i = 0; i < maxRetries; i++) {
 		if (bunProcess.exitCode !== null) {
+			// Brief pause to let stream capture finish flushing
+			await new Promise((resolve) => setTimeout(resolve, 50));
 			const stderr = stderrChunks.join('');
+			const stdout = stdoutChunks.join('');
+			const output = [stderr, stdout].filter(Boolean).join('\n');
 			throw new Error(
-				`Bun subprocess exited with code ${bunProcess.exitCode} during startup\n\n${stderr}`
+				`Bun subprocess exited with code ${bunProcess.exitCode} during startup\n\n${output}`
 			);
 		}
 
@@ -425,8 +443,11 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = undefined;
 
+		// Brief pause to let stream capture finish flushing
+		await new Promise((resolve) => setTimeout(resolve, 50));
 		const stderr = stderrChunks.join('');
-		throw new Error(buildStartupErrorMessage(port, timeoutMs, stderr, validation));
+		const stdout = stdoutChunks.join('');
+		throw new Error(buildStartupErrorMessage(port, timeoutMs, stderr, validation, stdout));
 	}
 
 	logger.debug(`Bun dev server started on http://127.0.0.1:${port} (--hot mode)`);
