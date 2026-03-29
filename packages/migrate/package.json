@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/migrate",
-	"version": "2.0.2",
+	"version": "2.0.4",
 	"description": "Migration tool from Agentuity SDK v1 to v2",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
