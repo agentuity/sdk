@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const pkg = require('./package.json');
@@ -23,10 +24,9 @@ export function getDistTag(version) {
 }
 
 // Only run when executed directly, not when imported for testing
+const scriptPath = fileURLToPath(import.meta.url);
 const isMain =
-	typeof Bun !== 'undefined'
-		? Bun.main === new URL(import.meta.url).pathname
-		: process.argv[1] === new URL(import.meta.url).pathname;
+	typeof Bun !== 'undefined' ? Bun.main === scriptPath : process.argv[1] === scriptPath;
 
 if (isMain) {
 	const distTag = getDistTag(pkg.version);
