@@ -319,9 +319,11 @@ export const MessageSchema = z
 export type Message = z.infer<typeof MessageSchema>;
 
 /**
- * Destination type schema. Currently only HTTP webhooks are supported.
+ * Destination type schema. Supports webhook, queue, sandbox, and email destinations.
  */
-export const DestinationTypeSchema = z.enum(['http']).describe('Destination type schema');
+export const DestinationTypeSchema = z
+	.enum(['http', 'url', 'webhook', 'queue', 'sandbox', 'email'])
+	.describe('Destination type schema');
 
 /**
  * Destination type.
@@ -747,7 +749,9 @@ export const CreateDestinationRequestSchema = z
 		name: z.string().describe('Human-readable name for the destination.'),
 		description: z.string().optional().describe('Optional description of the destination.'),
 		destination_type: DestinationTypeSchema.describe('Type of destination to create.'),
-		config: HttpDestinationConfigSchema.describe('HTTP configuration for the destination.'),
+		config: z
+			.record(z.string(), z.unknown())
+			.describe('Configuration for the destination (type-specific).'),
 		enabled: z
 			.boolean()
 			.default(true)
@@ -769,9 +773,10 @@ export const UpdateDestinationRequestSchema = z
 			.nullable()
 			.optional()
 			.describe('Updated description of the destination.'),
-		config: HttpDestinationConfigSchema.partial()
+		config: z
+			.record(z.string(), z.unknown())
 			.optional()
-			.describe('HTTP configuration updates (partial update supported).'),
+			.describe('Configuration updates (partial update supported).'),
 		enabled: z.boolean().optional().describe('Enable or disable the destination.'),
 	})
 	.describe('Update destination request schema');
