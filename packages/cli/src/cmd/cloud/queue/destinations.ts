@@ -14,12 +14,23 @@ import {
 	type Destination,
 } from '@agentuity/server';
 
-// Helper to safely extract URL from any destination config type (config is a union)
-function getConfigUrl(config: Destination['config']): string | undefined {
-	if (config && typeof config === 'object' && 'url' in config) {
-		return (config as { url: string }).url;
+function getConfigTarget(config: Destination['config']): string {
+	if (!config || typeof config !== 'object') {
+		return 'N/A';
 	}
-	return undefined;
+	if ('url' in config && typeof config.url === 'string') {
+		return config.url;
+	}
+	if ('queue_id' in config && typeof config.queue_id === 'string') {
+		return `queue:${config.queue_id}`;
+	}
+	if ('sandbox_id' in config && typeof config.sandbox_id === 'string') {
+		return `sandbox:${config.sandbox_id}`;
+	}
+	if ('email_address' in config && typeof config.email_address === 'string') {
+		return config.email_address;
+	}
+	return JSON.stringify(config);
 }
 
 const DestinationsListResponseSchema = z.object({
@@ -29,7 +40,7 @@ const DestinationsListResponseSchema = z.object({
 			name: z.string(),
 			description: z.string().nullable().optional(),
 			destination_type: z.string(),
-			url: z.string(),
+			target: z.string(),
 			enabled: z.boolean(),
 			created_at: z.string(),
 		})
@@ -69,11 +80,11 @@ const listDestinationsSubcommand = createSubcommand({
 					ID: d.id,
 					Name: d.name,
 					Type: d.destination_type,
-					URL: getConfigUrl(d.config) ?? 'N/A',
+					Target: getConfigTarget(d.config),
 					Enabled: d.enabled ? 'Yes' : 'No',
 					Created: new Date(d.created_at).toLocaleString(),
 				}));
-				tui.table(tableData, ['ID', 'Name', 'Type', 'URL', 'Enabled', 'Created']);
+				tui.table(tableData, ['ID', 'Name', 'Type', 'Target', 'Enabled', 'Created']);
 			}
 		}
 
@@ -83,7 +94,7 @@ const listDestinationsSubcommand = createSubcommand({
 				name: d.name,
 				description: d.description ?? null,
 				destination_type: d.destination_type,
-				url: getConfigUrl(d.config) ?? '',
+				target: getConfigTarget(d.config),
 				enabled: d.enabled,
 				created_at: d.created_at,
 			})),
@@ -206,8 +217,7 @@ const createDestinationSubcommand = createSubcommand({
 				tui.success(`Created destination: ${destination.id}`);
 				console.log(`  Name:   ${destination.name}`);
 				console.log(`  Type:   ${destination.destination_type}`);
-				const url = getConfigUrl(destination.config);
-				if (url) console.log(`  URL:    ${url}`);
+				console.log(`  Target: ${getConfigTarget(destination.config)}`);
 			}
 
 			return destination;
@@ -291,7 +301,7 @@ const updateDestinationSubcommand = createSubcommand({
 		if (!options.json) {
 			tui.success(`Updated destination: ${destination.id}`);
 			console.log(`  Name:    ${destination.name}`);
-			console.log(`  URL:     ${getConfigUrl(destination.config) ?? 'N/A'}`);
+			console.log(`  Target:  ${getConfigTarget(destination.config)}`);
 			console.log(`  Enabled: ${destination.enabled ? 'Yes' : 'No'}`);
 		}
 
