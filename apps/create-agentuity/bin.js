@@ -6,12 +6,25 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const pkg = require('./package.json');
 
-// Determine the dist-tag based on create-agentuity version
-// Must match the logic in scripts/publish.ts:
-// - Beta versions (-beta.) → use @beta
-// - Other prereleases (-alpha., -rc., etc.) → use @next
-// - Stable versions → use @latest
-export function getDistTag(version) {
+/**
+ * Derive the @agentuity/cli version specifier from the create-agentuity version.
+ *
+ * Since create-agentuity and @agentuity/cli are published in lockstep with
+ * identical version numbers, we use the exact version to ensure compatibility.
+ *
+ * This matters when users pin a specific version, e.g.:
+ *   bun create agentuity@^1.0.0   → should use @agentuity/cli@1.0.x, not @latest
+ *   bun create agentuity@2.0.0    → should use @agentuity/cli@2.0.0
+ *   bun create agentuity           → uses @latest create-agentuity, gets @latest CLI
+ *
+ * Prerelease versions use their dist-tag instead:
+ * - Beta versions (-beta.) → @beta
+ * - Other prereleases (-alpha., -rc., etc.) → @next
+ *
+ * @param {string} version - The create-agentuity package version
+ * @returns {string} Version specifier for @agentuity/cli (e.g. "2.0.2", "beta", "next")
+ */
+export function getCliVersionSpecifier(version) {
 	// Check for beta prerelease first
 	if (/-beta\./.test(version)) {
 		return 'beta';
@@ -20,7 +33,8 @@ export function getDistTag(version) {
 	if (/-([a-zA-Z]+)/.test(version)) {
 		return 'next';
 	}
-	return 'latest';
+	// Stable versions: use the exact version to ensure major version compatibility
+	return version;
 }
 
 // Only run when executed directly, not when imported for testing.
@@ -42,9 +56,9 @@ function checkIsMain() {
 const isMain = checkIsMain();
 
 if (isMain) {
-	const distTag = getDistTag(pkg.version);
+	const cliVersion = getCliVersionSpecifier(pkg.version);
 	const args = process.argv.slice(2);
-	const result = spawnSync('bunx', [`@agentuity/cli@${distTag}`, 'create', ...args], {
+	const result = spawnSync('bunx', [`@agentuity/cli@${cliVersion}`, 'create', ...args], {
 		stdio: 'inherit',
 	});
 	process.exit(result.status || 0);
