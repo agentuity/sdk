@@ -31,5 +31,6 @@ export * from './stream/index.ts';
 export * from './thread/index.ts';
 export * from './user/index.ts';
 export * from './webhook/index.ts';
+export * from './workflow/index.ts';
 
 export { buildUrl, fromResponse, toPayload, toServiceException } from './_util.ts';

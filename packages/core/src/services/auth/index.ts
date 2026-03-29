@@ -16,4 +16,4 @@ export type {
 	AuthOrgHelpers,
 	AuthApiKeyHelpers,
 	AuthInterface,
-} from './types';
+} from './types.ts';

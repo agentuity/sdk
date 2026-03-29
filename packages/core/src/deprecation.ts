@@ -7,7 +7,7 @@
  * The warning is only shown once per process to avoid noise.
  */
 
-import type { Logger } from './logger';
+import type { Logger } from './logger.ts';
 
 let deprecationWarningShown = false;
 
