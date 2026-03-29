@@ -22,13 +22,6 @@ function getConfigUrl(config: Destination['config']): string | undefined {
 	return undefined;
 }
 
-function getConfigMethod(config: Destination['config']): string | undefined {
-	if (config && typeof config === 'object' && 'method' in config) {
-		return (config as { method: string }).method;
-	}
-	return undefined;
-}
-
 const DestinationsListResponseSchema = z.object({
 	destinations: z.array(
 		z.object({
