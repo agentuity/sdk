@@ -105,7 +105,7 @@ const createDestinationSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand(
-				'cloud queue destinations create my-queue --type queue --name retry-queue --queue-id que_abc123'
+				'cloud queue destinations create my-queue --type queue --name retry-queue --queueId que_abc123'
 			),
 			description: 'Create a queue destination',
 		},
@@ -126,9 +126,9 @@ const createDestinationSubcommand = createSubcommand({
 			method: z.string().optional().describe('HTTP method (default: POST)'),
 			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
 			// Queue options
-			'queue-id': z.string().optional().describe('Target queue ID (for queue type)'),
+			queueId: z.string().optional().describe('Target queue ID (for queue type)'),
 			// Sandbox options
-			'sandbox-id': z.string().optional().describe('Target sandbox ID (for sandbox type)'),
+			sandboxId: z.string().optional().describe('Target sandbox ID (for sandbox type)'),
 			// Email options
 			email: z.string().email().optional().describe('Target email address (for email type)'),
 		}),
@@ -163,22 +163,22 @@ const createDestinationSubcommand = createSubcommand({
 				config = { url: opts.url };
 				break;
 			case 'queue':
-				if (!opts['queue-id']) {
+				if (!opts.queueId) {
 					tui.fatal(
-						'--queue-id is required for queue destinations',
+						'--queueId is required for queue destinations',
 						ErrorCode.INVALID_ARGUMENT
 					);
 				}
-				config = { queue_id: opts['queue-id'] };
+				config = { queue_id: opts.queueId };
 				break;
 			case 'sandbox':
-				if (!opts['sandbox-id']) {
+				if (!opts.sandboxId) {
 					tui.fatal(
-						'--sandbox-id is required for sandbox destinations',
+						'--sandboxId is required for sandbox destinations',
 						ErrorCode.INVALID_ARGUMENT
 					);
 				}
-				config = { sandbox_id: opts['sandbox-id'] };
+				config = { sandbox_id: opts.sandboxId };
 				break;
 			case 'email':
 				if (!opts.email) {
