@@ -245,6 +245,8 @@ export default defineConfig({
 			clientOutDir,
 			'--logLevel',
 			'error',
+			'--clearScreen',
+			'false',
 		];
 		if (cdnBaseUrl) {
 			args.push('--base', cdnBaseUrl);
