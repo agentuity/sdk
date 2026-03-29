@@ -138,7 +138,8 @@ export class WorkflowService {
 		if (params?.filter) queryParams['filter'] = params.filter;
 
 		const qs = new URLSearchParams(queryParams);
-		const finalUrl = qs.toString() ? `${url}?${qs.toString()}` : url;
+		const qsStr = qs.toString();
+		const finalUrl = qsStr ? `${url}?${qsStr}` : url;
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowListResult>>(finalUrl, {
 			method: 'GET',
 			signal,
@@ -470,7 +471,8 @@ export class WorkflowService {
 		if (days !== undefined) queryParams['days'] = String(days);
 
 		const qs = new URLSearchParams(queryParams);
-		const finalUrl = qs.toString() ? `${url}?${qs.toString()}` : url;
+		const qsStr = qs.toString();
+		const finalUrl = qsStr ? `${url}?${qsStr}` : url;
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowActivity>>(finalUrl, {
 			method: 'GET',
 			signal,

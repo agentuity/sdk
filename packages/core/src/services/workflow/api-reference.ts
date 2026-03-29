@@ -156,7 +156,7 @@ const service: Service = {
 			title: 'Update Workflow Graph',
 			sectionTitle: 'Workflow Management',
 			method: 'PUT',
-			path: '/workflow/{workflowId}/graph',
+			path: '/workflow/graph/{workflowId}',
 			description: 'Update the workflow graph definition (nodes and edges).',
 			pathParams: [
 				{
@@ -178,13 +178,15 @@ const service: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
 				{ code: 404, description: 'Workflow not found' },
 			],
-			examplePath: '/workflow/wf_abc123/graph',
+			examplePath: '/workflow/graph/wf_abc123',
 			exampleBody: {
-				nodes: [
-					{ id: 'n1', type: 'filter' },
-					{ id: 'n2', type: 'action' },
-				],
-				edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+				graph_json: {
+					nodes: [
+						{ id: 'n1', type: 'filter' },
+						{ id: 'n2', type: 'action' },
+					],
+					edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+				},
 			},
 		},
 		{
@@ -217,7 +219,7 @@ const service: Service = {
 			title: 'Test Workflow',
 			sectionTitle: 'Testing',
 			method: 'POST',
-			path: '/workflow/{workflowId}/test',
+			path: '/workflow/test/{workflowId}',
 			description: 'Test a workflow with a sample payload.',
 			pathParams: [
 				{
@@ -239,7 +241,7 @@ const service: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
 				{ code: 404, description: 'Workflow not found' },
 			],
-			examplePath: '/workflow/wf_abc123/test',
+			examplePath: '/workflow/test/wf_abc123',
 			exampleBody: { payload: { event: 'test', data: { key: 'value' } } },
 		},
 		{
@@ -272,7 +274,7 @@ const service: Service = {
 			title: 'List Workflow Executions',
 			sectionTitle: 'Executions',
 			method: 'GET',
-			path: '/workflow/{workflowId}/executions',
+			path: '/workflow/executions/{workflowId}',
 			description: 'List execution records for a specific workflow.',
 			pathParams: [
 				{
@@ -291,14 +293,14 @@ const service: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
 				{ code: 404, description: 'Workflow not found' },
 			],
-			examplePath: '/workflow/wf_abc123/executions',
+			examplePath: '/workflow/executions/wf_abc123',
 		},
 		{
 			id: 'list-workflow-deliveries',
 			title: 'List Workflow Deliveries',
 			sectionTitle: 'Deliveries',
 			method: 'GET',
-			path: '/workflow/executions/{executionId}/deliveries',
+			path: '/workflow/deliveries/{executionId}',
 			description: 'List delivery records for a specific execution.',
 			pathParams: [
 				{
@@ -317,14 +319,14 @@ const service: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
 				{ code: 404, description: 'Execution not found' },
 			],
-			examplePath: '/workflow/executions/exec_abc123/deliveries',
+			examplePath: '/workflow/deliveries/exec_abc123',
 		},
 		{
 			id: 'get-recent-payload',
 			title: 'Get Recent Payload',
 			sectionTitle: 'Analytics',
 			method: 'GET',
-			path: '/workflow/{workflowId}/recent-payload',
+			path: '/workflow/recent-payload/{workflowId}',
 			description: 'Get the most recent payload received by a workflow.',
 			pathParams: [
 				{
@@ -342,7 +344,7 @@ const service: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing Bearer token' },
 				{ code: 404, description: 'Workflow not found or no recent payload' },
 			],
-			examplePath: '/workflow/wf_abc123/recent-payload',
+			examplePath: '/workflow/recent-payload/wf_abc123',
 		},
 	],
 };
