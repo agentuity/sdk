@@ -123,3 +123,18 @@ safeStringify(circularObject); // Safe JSON stringification
 2. Verify `dist/` contains `.js` and `.d.ts` files
 3. Ensure no breaking changes to public APIs
 4. This package must be published **first** before other packages (dependency order)
+
+## Import Extensions
+
+All relative imports in TypeScript files MUST include the `.ts` extension. This is required for proper ESM module resolution in the compiled output.
+
+Example:
+```typescript
+// Correct
+import { foo } from './bar.ts';
+
+// Incorrect - will cause module resolution errors
+import { foo } from './bar';
+```
+
+This applies to all relative imports using `./` or `../`.
