@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const pkg = require('./package.json');
@@ -42,7 +43,7 @@ export function getCliVersionSpecifier(version) {
 // pointing to the real file. process.argv[1] is the symlink path while import.meta.url
 // resolves to the real path, so we must resolve symlinks before comparing.
 function checkIsMain() {
-	const scriptPath = new URL(import.meta.url).pathname;
+	const scriptPath = fileURLToPath(import.meta.url);
 	if (typeof Bun !== 'undefined') {
 		return Bun.main === scriptPath;
 	}
