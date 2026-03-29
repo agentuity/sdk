@@ -78,7 +78,7 @@ export async function createDestination(
 				undefined,
 				buildQueueHeaders(options?.orgId)
 			),
-		{ queueName, destinationUrl: params.config?.url }
+		{ queueName, destinationUrl: params.config?.url as string | undefined }
 	);
 
 	if (resp.success) {
