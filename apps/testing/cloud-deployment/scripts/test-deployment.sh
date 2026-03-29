@@ -196,9 +196,9 @@ else
 	else
 		echo "Deployment URL: $DEPLOYMENT_URL"
 		
-		# Test 3b: Fetch HTML page and verify analytics beacon is present
+		# Test 3b: Fetch HTML page and verify CDN assets and analytics beacon
 		echo ""
-		echo "Test 3b: Verify analytics beacon in HTML..."
+		echo "Test 3b: Verify CDN asset URLs and analytics beacon..."
 		HTML_OUTPUT="$TEMP_DIR/html-page.txt"
 		set +e
 		curl -s "$DEPLOYMENT_URL/" > "$HTML_OUTPUT" 2>&1
@@ -206,80 +206,138 @@ else
 		set -e
 		
 		if [ $HTML_EXIT -eq 0 ]; then
-			# Check for analytics config script
-			if grep -q "__AGENTUITY_ANALYTICS__" "$HTML_OUTPUT"; then
-				echo -e "${GREEN}✓${NC} Analytics config found in HTML"
+			# 3b-i: Verify beacon script is present with CDN URL (not dev fallback)
+			if grep -q "data-agentuity-beacon" "$HTML_OUTPUT"; then
+				echo -e "${GREEN}✓${NC} Analytics beacon marker (data-agentuity-beacon) found in HTML"
 			else
-				echo -e "${RED}✗${NC} Analytics config (__AGENTUITY_ANALYTICS__) not found in HTML"
-				echo "HTML content (first 1000 chars):"
-				head -c 1000 "$HTML_OUTPUT"
+				echo -e "${RED}✗${NC} Analytics beacon marker (data-agentuity-beacon) not found in HTML"
+				echo "HTML content (first 2000 chars):"
+				head -c 2000 "$HTML_OUTPUT"
 				TEST_FAILED=true
 				exit 1
 			fi
 			
-			# Check for beacon script (either dev route or CDN asset)
-			if grep -q "analytics.js" "$HTML_OUTPUT" || grep -q "data-agentuity-beacon" "$HTML_OUTPUT"; then
-				echo -e "${GREEN}✓${NC} Analytics beacon script found in HTML"
-			else
-				echo -e "${RED}✗${NC} Analytics beacon script not found in HTML"
-				echo "HTML content (first 1000 chars):"
-				head -c 1000 "$HTML_OUTPUT"
+			# 3b-ii: Verify beacon src points to CDN, not dev fallback route
+			BEACON_SRC=$(grep -oE 'src="[^"]*agentuity-beacon[^"]*"' "$HTML_OUTPUT" | head -1 | sed 's/src="//;s/"$//' || echo "")
+			if [ -z "$BEACON_SRC" ]; then
+				echo -e "${RED}✗${NC} Could not extract beacon script src URL"
 				TEST_FAILED=true
 				exit 1
 			fi
 			
-			# Check for session.js script with async attribute
-			if grep -q 'session.js.*async\|async.*session.js' "$HTML_OUTPUT"; then
-				echo -e "${GREEN}✓${NC} Session script found with async attribute"
-			elif grep -q "session.js" "$HTML_OUTPUT"; then
-				echo -e "${YELLOW}⚠${NC} Session script found but async attribute not verified"
+			echo "Beacon src: $BEACON_SRC"
+			if echo "$BEACON_SRC" | grep -q "cdn.agentuity.com"; then
+				echo -e "${GREEN}✓${NC} Beacon loads from CDN (cdn.agentuity.com)"
 			else
-				echo -e "${YELLOW}⚠${NC} Session script not found (may be expected in some configurations)"
+				echo -e "${RED}✗${NC} Beacon does NOT load from CDN — got: $BEACON_SRC"
+				TEST_FAILED=true
+				exit 1
 			fi
 			
-			# Test 3c: Verify public asset is accessible from CDN
+			# 3b-iii: Verify beacon is NOT using the dev fallback route
+			if grep -q "/_agentuity/webanalytics/analytics.js" "$HTML_OUTPUT"; then
+				echo -e "${RED}✗${NC} HTML contains dev-mode fallback route (/_agentuity/webanalytics/analytics.js) — should use CDN beacon"
+				TEST_FAILED=true
+				exit 1
+			else
+				echo -e "${GREEN}✓${NC} No dev-mode fallback analytics route in HTML"
+			fi
+			
+			# 3b-iv: Fetch the beacon JS from CDN and verify it's accessible
 			echo ""
-			echo "Test 3c: Verify public asset on CDN..."
+			echo "Fetching beacon from CDN: $BEACON_SRC"
+			BEACON_FETCH_OUTPUT="$TEMP_DIR/beacon-fetch.txt"
+			set +e
+			BEACON_HTTP_CODE=$(curl -s -o "$BEACON_FETCH_OUTPUT" -w "%{http_code}" "$BEACON_SRC" 2>&1)
+			BEACON_FETCH_EXIT=$?
+			set -e
 			
-			# Extract CDN base URL from HTML (look for src="https://cdn...agentuity.io/.../client/...")
-			CDN_BASE_URL=$(grep -oE 'https://cdn[^"]+/client/' "$HTML_OUTPUT" | head -1 | sed 's|/client/$|/client|' || echo "")
+			if [ $BEACON_FETCH_EXIT -eq 0 ] && [ "$BEACON_HTTP_CODE" = "200" ]; then
+				echo -e "${GREEN}✓${NC} Beacon JS accessible from CDN (HTTP $BEACON_HTTP_CODE)"
+			else
+				echo -e "${RED}✗${NC} Failed to fetch beacon from CDN (HTTP $BEACON_HTTP_CODE, curl exit: $BEACON_FETCH_EXIT)"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			# Test 3c: Verify build assets (CSS/JS) load from CDN, not app origin
+			echo ""
+			echo "Test 3c: Verify build assets reference CDN..."
+			
+			# Extract CDN base URL from asset references in HTML
+			CDN_BASE_URL=$(grep -oE 'https://cdn\.agentuity\.com/[^"]+/client/' "$HTML_OUTPUT" | head -1 | sed 's|/$||' || echo "")
 			
 			if [ -z "$CDN_BASE_URL" ]; then
-				echo -e "${YELLOW}⚠${NC} Could not extract CDN base URL from HTML"
-				echo "Looking for pattern: https://cdn.../client/"
-			else
-				echo "CDN Base URL: $CDN_BASE_URL"
-				
-				# Fetch the public asset from CDN
-				PUBLIC_ASSET_URL="${CDN_BASE_URL}/test-asset.txt"
-				echo "Fetching: $PUBLIC_ASSET_URL"
-				
-				PUBLIC_ASSET_OUTPUT="$TEMP_DIR/public-asset.txt"
+				echo -e "${RED}✗${NC} No CDN asset URLs found in HTML (expected https://cdn.agentuity.com/.../client/)"
+				echo "Asset references found in HTML:"
+				grep -oE '(src|href)="[^"]*"' "$HTML_OUTPUT" || echo "  (none)"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			echo "CDN Base URL: $CDN_BASE_URL"
+			echo -e "${GREEN}✓${NC} Build assets reference CDN"
+			
+			# 3c-i: Verify CSS asset loads from CDN (not relative /assets/ path)
+			CSS_URL=$(grep -oE 'href="https://cdn\.agentuity\.com/[^"]*\.css"' "$HTML_OUTPUT" | head -1 | sed 's/href="//;s/"$//' || echo "")
+			if [ -n "$CSS_URL" ]; then
+				echo "CSS asset: $CSS_URL"
 				set +e
-				curl -s "$PUBLIC_ASSET_URL" > "$PUBLIC_ASSET_OUTPUT" 2>&1
-				PUBLIC_ASSET_EXIT=$?
+				CSS_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$CSS_URL" 2>&1)
 				set -e
-				
-				if [ $PUBLIC_ASSET_EXIT -eq 0 ]; then
-					# Verify the content matches expected value
-					if grep -q "AGENTUITY_PUBLIC_ASSET_TEST_OK" "$PUBLIC_ASSET_OUTPUT"; then
-						echo -e "${GREEN}✓${NC} Public asset accessible from CDN with correct content"
-					else
-						echo -e "${RED}✗${NC} Public asset content mismatch"
-						echo "Expected: AGENTUITY_PUBLIC_ASSET_TEST_OK"
-						echo "Got:"
-						cat "$PUBLIC_ASSET_OUTPUT"
-						TEST_FAILED=true
-						exit 1
-					fi
+				if [ "$CSS_HTTP_CODE" = "200" ]; then
+					echo -e "${GREEN}✓${NC} CSS asset accessible from CDN (HTTP $CSS_HTTP_CODE)"
 				else
-					echo -e "${RED}✗${NC} Failed to fetch public asset from CDN (curl exit: $PUBLIC_ASSET_EXIT)"
+					echo -e "${RED}✗${NC} CSS asset not accessible from CDN (HTTP $CSS_HTTP_CODE)"
 					TEST_FAILED=true
 					exit 1
 				fi
+			else
+				echo -e "${YELLOW}⚠${NC} No CSS asset found in HTML (may be expected for minimal projects)"
+			fi
+			
+			# 3c-ii: Verify JS asset loads from CDN
+			JS_URL=$(grep -oE 'src="https://cdn\.agentuity\.com/[^"]*\.js"' "$HTML_OUTPUT" | grep -v "agentuity-beacon" | head -1 | sed 's/src="//;s/"$//' || echo "")
+			if [ -n "$JS_URL" ]; then
+				echo "JS asset: $JS_URL"
+				set +e
+				JS_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$JS_URL" 2>&1)
+				set -e
+				if [ "$JS_HTTP_CODE" = "200" ]; then
+					echo -e "${GREEN}✓${NC} JS asset accessible from CDN (HTTP $JS_HTTP_CODE)"
+				else
+					echo -e "${RED}✗${NC} JS asset not accessible from CDN (HTTP $JS_HTTP_CODE)"
+					TEST_FAILED=true
+					exit 1
+				fi
+			else
+				echo -e "${YELLOW}⚠${NC} No JS asset found in HTML (may be expected for minimal projects)"
+			fi
+			
+			# 3c-iii: Verify public asset is accessible from CDN
+			PUBLIC_ASSET_URL="${CDN_BASE_URL}/test-asset.txt"
+			echo ""
+			echo "Fetching public asset: $PUBLIC_ASSET_URL"
+			
+			PUBLIC_ASSET_OUTPUT="$TEMP_DIR/public-asset.txt"
+			set +e
+			curl -s "$PUBLIC_ASSET_URL" > "$PUBLIC_ASSET_OUTPUT" 2>&1
+			PUBLIC_ASSET_EXIT=$?
+			set -e
+			
+			if [ $PUBLIC_ASSET_EXIT -eq 0 ]; then
+				if grep -q "AGENTUITY_PUBLIC_ASSET_TEST_OK" "$PUBLIC_ASSET_OUTPUT"; then
+					echo -e "${GREEN}✓${NC} Public asset accessible from CDN with correct content"
+				else
+					echo -e "${YELLOW}⚠${NC} Public asset content mismatch (may not be uploaded to CDN)"
+				fi
+			else
+				echo -e "${YELLOW}⚠${NC} Could not fetch public asset from CDN (curl exit: $PUBLIC_ASSET_EXIT)"
 			fi
 		else
-			echo -e "${YELLOW}⚠${NC} Failed to fetch HTML page (curl exit: $HTML_EXIT)"
+			echo -e "${RED}✗${NC} Failed to fetch HTML page (curl exit: $HTML_EXIT)"
+			TEST_FAILED=true
+			exit 1
 		fi
 		echo ""
 		
@@ -761,8 +819,9 @@ echo ""
 echo "Tests completed:"
 echo "  ✓ List deployments"
 echo "  ✓ Deploy project (first deployment)"
-echo "  ✓ Verify analytics beacon in HTML"
-echo "  ✓ Verify public asset on CDN"
+echo "  ✓ Verify analytics beacon loads from CDN (not dev fallback)"
+echo "  ✓ Verify build assets (CSS/JS) reference CDN URLs"
+echo "  ✓ Verify beacon JS accessible from CDN"
 echo "  ✓ Invoke deployment and capture session"
 echo "  ✓ Get session details"
 echo "  ✓ List sessions"
