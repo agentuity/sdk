@@ -1666,7 +1666,7 @@ export function createAgent<
 		(agentCtx as any)[CURRENT_AGENT] = agent;
 
 		// Expose current agent metadata on the context
-		(agentCtx as any).current = agent.metadata;
+		agentCtx.current = agent.metadata;
 
 		// Update ctx.config with this agent's setup() return value.
 		// This ensures correct config when:
@@ -1675,7 +1675,7 @@ export function createAgent<
 		// - Agent is called via runInAgentContext() in tests
 		const agentConfig = getAgentConfig(agent.metadata.name as AgentName);
 		if (agentConfig !== undefined) {
-			(agentCtx as any).config = agentConfig;
+			agentCtx.config = agentConfig as TConfig;
 		}
 
 		const attrs = {
