@@ -97,15 +97,31 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	const beaconFileName = `agentuity-beacon-${hash}.js`;
 	const assetsDir = join(clientDir, 'assets');
 	mkdirSync(assetsDir, { recursive: true });
-	writeFileSync(join(assetsDir, beaconFileName), beaconCode);
+	const beaconFilePath = join(assetsDir, beaconFileName);
+	writeFileSync(beaconFilePath, beaconCode);
+	logger.info('[beacon] Wrote beacon file: %s (%d bytes)', beaconFilePath, beaconCode.length);
+	logger.info('[beacon] File exists after write: %s', existsSync(beaconFilePath));
 
 	// Add beacon to Vite's manifest so the metadata generator includes it
 	// in the asset list and the deploy step uploads it to CDN.
 	const manifestPath = join(clientDir, '.vite', 'manifest.json');
+	logger.info('[beacon] Looking for Vite manifest at: %s', manifestPath);
+	logger.info('[beacon] Manifest exists: %s', existsSync(manifestPath));
 	if (existsSync(manifestPath)) {
-		const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+		const manifestRaw = readFileSync(manifestPath, 'utf-8');
+		const manifest = JSON.parse(manifestRaw);
+		const keysBefore = Object.keys(manifest);
+		logger.info('[beacon] Manifest keys before: %s', keysBefore.join(', '));
 		manifest['agentuity-beacon'] = { file: `assets/${beaconFileName}` };
 		writeFileSync(manifestPath, JSON.stringify(manifest));
+		logger.info('[beacon] Manifest updated, keys after: %s', Object.keys(manifest).join(', '));
+	} else {
+		logger.warn('[beacon] Vite manifest not found — beacon will NOT be uploaded to CDN');
+
+		// List what's in the client dir to help debug
+		const { readdirSync } = await import('node:fs');
+		const clientContents = readdirSync(clientDir, { recursive: true }) as string[];
+		logger.info('[beacon] Client dir contents: %s', clientContents.join(', '));
 	}
 
 	// Build the beacon URL using the CDN base
@@ -127,7 +143,7 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	}
 
 	writeFileSync(indexHtmlPath, html);
-	logger.debug('Injected analytics beacon: %s', beaconUrl);
+	logger.info('[beacon] Injected script tag into HTML: %s', beaconUrl);
 }
 
 export interface ViteBuildOptions {
