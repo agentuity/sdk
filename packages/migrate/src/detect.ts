@@ -487,11 +487,20 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 					'  // vite.config.ts\n' +
 					"  import { defineConfig } from 'vite';\n" +
 					"  import react from '@vitejs/plugin-react';\n" +
+					"  import { join } from 'node:path';\n" +
 					'\n' +
 					'  export default defineConfig({\n' +
 					'    plugins: [react()],\n' +
 					"    define: { CUSTOM: JSON.stringify('value') },\n" +
+					'    build: {\n' +
+					'      rollupOptions: {\n' +
+					"        input: join(__dirname, 'src/web/index.html'),\n" +
+					'      },\n' +
+					'    },\n' +
 					'  });\n' +
+					'\n' +
+					'The build.rollupOptions.input is required so Vite finds your\n' +
+					'HTML entry point at src/web/index.html.\n' +
 					'\n' +
 					'After creating vite.config.ts, delete agentuity.config.ts.',
 			});
@@ -712,14 +721,21 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 			severity: 'guided',
 			message: 'No vite.config.ts found - frontend requires Vite configuration',
 			hint:
-				'Create vite.config.ts with your frontend framework plugin:\n' +
+				'Create vite.config.ts with your frontend framework plugin.\n' +
+				'The build.rollupOptions.input must point to src/web/index.html:\n' +
 				'\n' +
 				'  // vite.config.ts\n' +
 				"  import { defineConfig } from 'vite';\n" +
 				"  import react from '@vitejs/plugin-react';\n" +
+				"  import { join } from 'node:path';\n" +
 				'\n' +
 				'  export default defineConfig({\n' +
 				'    plugins: [react()],\n' +
+				'    build: {\n' +
+				'      rollupOptions: {\n' +
+				"        input: join(__dirname, 'src/web/index.html'),\n" +
+				'      },\n' +
+				'    },\n' +
 				'  });\n' +
 				'\n' +
 				'For other frameworks:\n' +
@@ -727,6 +743,33 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				"  • Vue: import vue from '@vitejs/plugin-vue'\n" +
 				"  • Solid: import solid from 'vite-plugin-solid'",
 		});
+	}
+
+	// If vite.config.ts exists but is missing build.rollupOptions.input, warn about it
+	if (hasFrontend && hasViteConfig) {
+		const viteSrc = await Bun.file(viteConfigPath).text();
+		if (!viteSrc.includes('rollupOptions') || !viteSrc.includes('index.html')) {
+			findings.push({
+				id: 'vite-config-missing-rollup-input',
+				severity: 'guided',
+				message: 'vite.config.ts may be missing build.rollupOptions.input',
+				file: 'vite.config.ts',
+				hint:
+					'Agentuity expects the HTML entry point at src/web/index.html.\n' +
+					'Add build.rollupOptions.input to your vite.config.ts:\n' +
+					'\n' +
+					"  import { join } from 'node:path';\n" +
+					'\n' +
+					'  export default defineConfig({\n' +
+					'    // ...your existing config\n' +
+					'    build: {\n' +
+					'      rollupOptions: {\n' +
+					"        input: join(__dirname, 'src/web/index.html'),\n" +
+					'      },\n' +
+					'    },\n' +
+					'  });',
+			});
+		}
 	}
 
 	if (hasApiRoutes && hasFrontend && result.frontendRemovedApis.length === 0) {
