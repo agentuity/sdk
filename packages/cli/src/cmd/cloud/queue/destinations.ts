@@ -165,7 +165,7 @@ const createDestinationSubcommand = createSubcommand({
 			case 'queue':
 				if (!opts.queueId) {
 					tui.fatal(
-						'--queueId is required for queue destinations',
+						'--queue-id is required for queue destinations',
 						ErrorCode.INVALID_ARGUMENT
 					);
 				}
@@ -174,7 +174,7 @@ const createDestinationSubcommand = createSubcommand({
 			case 'sandbox':
 				if (!opts.sandboxId) {
 					tui.fatal(
-						'--sandboxId is required for sandbox destinations',
+						'--sandbox-id is required for sandbox destinations',
 						ErrorCode.INVALID_ARGUMENT
 					);
 				}
