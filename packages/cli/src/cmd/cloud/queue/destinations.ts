@@ -41,6 +41,7 @@ const DestinationsListResponseSchema = z.object({
 			description: z.string().nullable().optional(),
 			destination_type: z.string(),
 			target: z.string(),
+			url: z.string().nullable().optional(),
 			enabled: z.boolean(),
 			created_at: z.string(),
 		})
@@ -89,15 +90,23 @@ const listDestinationsSubcommand = createSubcommand({
 		}
 
 		return {
-			destinations: destinations.map((d: Destination) => ({
-				id: d.id,
-				name: d.name,
-				description: d.description ?? null,
-				destination_type: d.destination_type,
-				target: getConfigTarget(d.config),
-				enabled: d.enabled,
-				created_at: d.created_at,
-			})),
+			destinations: destinations.map((d: Destination) => {
+				const target = getConfigTarget(d.config);
+				const url =
+					d.config && typeof d.config === 'object' && 'url' in d.config
+						? (d.config as { url: string }).url
+						: null;
+				return {
+					id: d.id,
+					name: d.name,
+					description: d.description ?? null,
+					destination_type: d.destination_type,
+					target,
+					url,
+					enabled: d.enabled,
+					created_at: d.created_at,
+				};
+			}),
 		};
 	},
 });
@@ -139,7 +148,11 @@ const createDestinationSubcommand = createSubcommand({
 			// Queue options
 			queueId: z.string().optional().describe('Target queue ID (for queue type)'),
 			// Sandbox options
-			sandboxId: z.string().optional().describe('Target sandbox ID (for sandbox type)'),
+			sandboxId: z
+				.string()
+				.regex(/^sbx_[A-Za-z0-9_-]+$/, 'Sandbox ID must start with "sbx_"')
+				.optional()
+				.describe('Target sandbox ID (for sandbox type)'),
 			// Email options
 			email: z.string().email().optional().describe('Target email address (for email type)'),
 		}),
