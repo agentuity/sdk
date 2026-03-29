@@ -711,6 +711,68 @@ export const command = createCommand({
 			});
 
 			// ================================================================
+			// Step 0b: Early environment setup
+			// ================================================================
+			// Load SDK key and set gateway env vars BEFORE agent discovery.
+			// Agent discovery imports eval files, which may import LLM SDKs at
+			// module scope. Those SDKs check for API keys (e.g. GROQ_API_KEY)
+			// at import time, so the gateway env patching must happen first.
+
+			if (!process.env.AGENTUITY_SDK_KEY) {
+				const sdkKey = await loadProjectSDKKey(logger, rootDir);
+				if (sdkKey) {
+					process.env.AGENTUITY_SDK_KEY = sdkKey;
+				} else if (project) {
+					tui.warning(
+						'AGENTUITY_SDK_KEY not found in .env file. Numerous features will be unavailable.'
+					);
+					tui.bullet(
+						`Run "${getCommand('cloud env pull')}" to sync your SDK key, or add AGENTUITY_SDK_KEY to your .env file.`
+					);
+				}
+			}
+
+			process.env.NODE_ENV = 'development';
+			process.env.AGENTUITY_ENV = 'development';
+
+			if (project) {
+				const earlyServiceUrls = getServiceUrls(project.region);
+				if (!process.env.AGENTUITY_TRANSPORT_URL) {
+					process.env.AGENTUITY_TRANSPORT_URL = earlyServiceUrls.catalyst;
+				}
+			}
+
+			// Apply gateway env patching so LLM SDK API keys are set before
+			// agent discovery imports eval files that may reference them.
+			{
+				const sdkKey = process.env.AGENTUITY_SDK_KEY;
+				const gatewayUrl =
+					process.env.AGENTUITY_AIGATEWAY_URL ||
+					process.env.AGENTUITY_TRANSPORT_URL ||
+					(sdkKey ? 'https://catalyst.agentuity.cloud' : '');
+
+				const gatewayConfigs = [
+					{
+						apiKeyEnv: 'ANTHROPIC_API_KEY',
+						baseUrlEnv: 'ANTHROPIC_BASE_URL',
+						provider: 'anthropic',
+					},
+					{ apiKeyEnv: 'GROQ_API_KEY', baseUrlEnv: 'GROQ_BASE_URL', provider: 'groq' },
+					{ apiKeyEnv: 'OPENAI_API_KEY', baseUrlEnv: 'OPENAI_BASE_URL', provider: 'openai' },
+				];
+
+				for (const cfg of gatewayConfigs) {
+					const currentKey = process.env[cfg.apiKeyEnv];
+					if (currentKey && currentKey !== sdkKey) continue;
+					if (gatewayUrl && sdkKey) {
+						process.env[cfg.apiKeyEnv] = sdkKey;
+						process.env[cfg.baseUrlEnv] = `${gatewayUrl}/gateway/${cfg.provider}`;
+						logger.debug('Enabled Agentuity AI Gateway for %s', cfg.provider);
+					}
+				}
+			}
+
+			// ================================================================
 			// Step 1: Prepare dev server (once)
 			// ================================================================
 
@@ -793,27 +855,14 @@ export const command = createCommand({
 			});
 
 			// ================================================================
-			// Step 2: Set environment variables
+			// Step 2: Set remaining environment variables
 			// ================================================================
-
-			if (!process.env.AGENTUITY_SDK_KEY) {
-				const sdkKey = await loadProjectSDKKey(logger, rootDir);
-				if (sdkKey) {
-					process.env.AGENTUITY_SDK_KEY = sdkKey;
-				} else if (project) {
-					tui.warning(
-						'AGENTUITY_SDK_KEY not found in .env file. Numerous features will be unavailable.'
-					);
-					tui.bullet(
-						`Run "${getCommand('cloud env pull')}" to sync your SDK key, or add AGENTUITY_SDK_KEY to your .env file.`
-					);
-				}
-			}
+			// Note: AGENTUITY_SDK_KEY, NODE_ENV, AGENTUITY_ENV, and
+			// AGENTUITY_TRANSPORT_URL are already set in Step 0b (before
+			// agent discovery) to support gateway env patching.
 
 			process.env.AGENTUITY_SDK_DEV_MODE = 'true';
 			process.env.AGENTUITY_RUNTIME = 'yes';
-			process.env.AGENTUITY_ENV = 'development';
-			process.env.NODE_ENV = 'development';
 			process.env.AGENTUITY_PROJECT_DIR = rootDir;
 			if (project?.region) {
 				process.env.AGENTUITY_REGION = project.region;

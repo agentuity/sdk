@@ -5,6 +5,9 @@ import agents from './src/agent';
 const app = await createApp({
 	router: { path: '/api', router: api },
 	agents,
+  workbench: {
+    route: "/workbench",
+  },
 });
 
 const {logger, server} = app;
