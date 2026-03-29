@@ -258,13 +258,6 @@ export default defineConfig({
 			throw new Error(`Vite build exited with code ${exitCode}`);
 		}
 
-		// Post-build: inject analytics beacon into the built HTML.
-		// This runs after Vite finishes so it works regardless of the
-		// user's vite.config.ts — no plugin required.
-		if (cdnBaseUrl && options.analyticsEnabled) {
-			await injectBeacon(rootDir, cdnBaseUrl, logger);
-		}
-
 		logger.debug('Vite build complete for mode: client');
 		return;
 	} else if (mode === 'workbench') {
@@ -392,6 +385,22 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 			mkdirSyncFs(clientDir, { recursive: true });
 			renameSync(nestedIndexHtml, rootIndexHtml);
 			logger.debug('Moved index.html from src/web/ to client root');
+		}
+
+		// Post-build: inject analytics beacon into the built HTML.
+		// Must run AFTER the index.html normalization above (Vite may
+		// output to src/web/index.html which gets moved to the client root).
+		const isLocalRegion = options.region === 'local';
+		const cdnDomain = isLocalRegion
+			? 'localstack-static-assets.t3.storageapi.dev'
+			: 'cdn.agentuity.com';
+		const cdnBaseUrl =
+			!dev && options.deploymentId
+				? `https://${cdnDomain}/${options.deploymentId}/client/`
+				: undefined;
+
+		if (cdnBaseUrl && analyticsEnabled) {
+			await injectBeacon(rootDir, cdnBaseUrl, logger);
 		}
 
 		result.client.included = true;
