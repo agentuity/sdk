@@ -1668,6 +1668,16 @@ export function createAgent<
 		// Expose current agent metadata on the context
 		(agentCtx as any).current = agent.metadata;
 
+		// Update ctx.config with this agent's setup() return value.
+		// This ensures correct config when:
+		// - Agent is called via user router (createAgentMiddleware(''))
+		// - Agent A calls Agent B (agentB.run() inside handler)
+		// - Agent is called via runInAgentContext() in tests
+		const agentConfig = getAgentConfig(agent.metadata.name as AgentName);
+		if (agentConfig !== undefined) {
+			(agentCtx as any).config = agentConfig;
+		}
+
 		const attrs = {
 			'@agentuity/agentId': agent.metadata.agentId, // stable ID (agent_*) - consistent across deployments
 			'@agentuity/agentInstanceId': agent.metadata.id, // deployment-specific ID (agentid_*) - changes per deployment
