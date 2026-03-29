@@ -138,7 +138,8 @@ export class WorkflowService {
 		if (params?.filter) queryParams['filter'] = params.filter;
 
 		const qs = new URLSearchParams(queryParams);
-		const finalUrl = qs.toString() ? `${url}?${qs.toString()}` : url;
+		const qsStr = qs.toString();
+		const finalUrl = qsStr ? `${url}?${qsStr}` : url;
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowListResult>>(finalUrl, {
 			method: 'GET',
 			signal,
@@ -322,13 +323,13 @@ export class WorkflowService {
 		workflowId: string,
 		params: UpdateWorkflowGraphRequest
 	): Promise<WorkflowUpdateResult> {
-		const url = this.#createUrl(`/workflow/${encodeURIComponent(workflowId)}/graph`);
+		const url = this.#createUrl(`/workflow/graph/${encodeURIComponent(workflowId)}`);
 		const signal = createTimeoutSignal();
 
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowUpdateResult>>(url, {
 			method: 'PUT',
 			signal,
-			body: JSON.stringify(params),
+			body: JSON.stringify({ graph_json: params }),
 			contentType: 'application/json',
 			telemetry: {
 				name: 'agentuity.workflow.updateGraph',
@@ -418,7 +419,7 @@ export class WorkflowService {
 	 * ```
 	 */
 	async test(workflowId: string, params: TestWorkflowRequest): Promise<TestWorkflowResult> {
-		const url = this.#createUrl(`/workflow/${encodeURIComponent(workflowId)}/test`);
+		const url = this.#createUrl(`/workflow/test/${encodeURIComponent(workflowId)}`);
 		const signal = createTimeoutSignal();
 
 		const res = await this.#adapter.invoke<WorkflowResponse<TestWorkflowResult>>(url, {
@@ -470,7 +471,8 @@ export class WorkflowService {
 		if (days !== undefined) queryParams['days'] = String(days);
 
 		const qs = new URLSearchParams(queryParams);
-		const finalUrl = qs.toString() ? `${url}?${qs.toString()}` : url;
+		const qsStr = qs.toString();
+		const finalUrl = qsStr ? `${url}?${qsStr}` : url;
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowActivity>>(finalUrl, {
 			method: 'GET',
 			signal,
@@ -510,7 +512,7 @@ export class WorkflowService {
 	 * ```
 	 */
 	async listExecutions(workflowId: string): Promise<WorkflowExecution[]> {
-		const url = this.#createUrl(`/workflow/${encodeURIComponent(workflowId)}/executions`);
+		const url = this.#createUrl(`/workflow/executions/${encodeURIComponent(workflowId)}`);
 		const signal = createTimeoutSignal();
 
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowExecution[]>>(url, {
@@ -555,9 +557,7 @@ export class WorkflowService {
 	 * ```
 	 */
 	async listDeliveries(executionId: string): Promise<WorkflowDelivery[]> {
-		const url = this.#createUrl(
-			`/workflow/executions/${encodeURIComponent(executionId)}/deliveries`
-		);
+		const url = this.#createUrl(`/workflow/deliveries/${encodeURIComponent(executionId)}`);
 		const signal = createTimeoutSignal();
 
 		const res = await this.#adapter.invoke<WorkflowResponse<WorkflowDelivery[]>>(url, {
@@ -603,7 +603,7 @@ export class WorkflowService {
 	 * ```
 	 */
 	async getRecentPayload(workflowId: string): Promise<unknown> {
-		const url = this.#createUrl(`/workflow/${encodeURIComponent(workflowId)}/recent-payload`);
+		const url = this.#createUrl(`/workflow/recent-payload/${encodeURIComponent(workflowId)}`);
 		const signal = createTimeoutSignal();
 
 		const res = await this.#adapter.invoke<WorkflowResponse<unknown>>(url, {
