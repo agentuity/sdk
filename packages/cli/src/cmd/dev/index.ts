@@ -552,6 +552,7 @@ export const command = createCommand({
 					port: viteInternalPort,
 					backendPort: bunBackendPort,
 					routePaths,
+					liveHostname: devmode?.hostname,
 				});
 				viteServer = viteResult.server;
 				vitePort = viteResult.port;

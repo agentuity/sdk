@@ -26,6 +26,8 @@ export interface StartViteAssetServerOptions {
 	backendPort: number; // Port of the Bun backend server
 	/** User-defined route mount paths from createApp({ router }) */
 	routePaths?: string[];
+	/** Live tunnel hostname to add to Vite's allowedHosts */
+	liveHostname?: string;
 }
 
 /**
@@ -80,6 +82,7 @@ export async function startViteAssetServer(
 		port: preferredPort = 3500,
 		backendPort,
 		routePaths,
+		liveHostname,
 	} = options;
 
 	logger.debug('Starting Vite dev server (primary, proxying backend on port %d)...', backendPort);
@@ -101,6 +104,7 @@ export async function startViteAssetServer(
 		port: availablePort,
 		backendPort,
 		routePaths,
+		liveHostname,
 	});
 
 	// Dynamically import vite from the project's node_modules

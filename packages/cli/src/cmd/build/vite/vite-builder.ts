@@ -116,18 +116,39 @@ export default defineConfig({
 			await Bun.write(viteConfigPath, fallbackConfig);
 		}
 
+		// Construct CDN base URL for production builds so Vite prefixes all
+		// asset URLs (CSS, JS chunks) with the CDN origin instead of "/".
+		const cdnBaseUrl =
+			!dev && options.deploymentId
+				? `https://${options.region === 'local' ? 'localstack-static-assets.t3.storageapi.dev' : 'cdn.agentuity.com'}/${options.deploymentId}/client/`
+				: undefined;
+
+		const args = ['bun', 'x', 'vite', 'build', '--mode', buildMode, '--outDir', clientOutDir];
+		if (cdnBaseUrl) {
+			args.push('--base', cdnBaseUrl);
+		}
+
 		logger.debug('Spawning vite build for client (subprocess mode)');
 		logger.debug('  outDir: %s', clientOutDir);
 		logger.debug('  mode: %s', buildMode);
+		if (cdnBaseUrl) {
+			logger.debug('  base (CDN): %s', cdnBaseUrl);
+		}
 
-		const viteProcess = Bun.spawn(
-			['bun', 'x', 'vite', 'build', '--mode', buildMode, '--outDir', clientOutDir],
-			{
-				cwd: rootDir,
-				stdout: 'inherit',
-				stderr: 'inherit',
-			}
-		);
+		const viteProcess = Bun.spawn(args, {
+			cwd: rootDir,
+			stdout: 'inherit',
+			stderr: 'inherit',
+			env: {
+				...process.env,
+				// Pass CDN URL and analytics flag to Vite subprocess so that
+				// agentuityPlugin() can include the beacon and CDN rewrite plugins.
+				...(cdnBaseUrl ? { AGENTUITY_CDN_BASE_URL: cdnBaseUrl } : {}),
+				...(options.analyticsEnabled !== undefined
+					? { AGENTUITY_ANALYTICS_ENABLED: String(options.analyticsEnabled) }
+					: {}),
+			},
+		});
 
 		const exitCode = await viteProcess.exited;
 

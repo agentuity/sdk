@@ -18,6 +18,8 @@ export interface GenerateAssetServerConfigOptions {
 	backendPort: number; // The port Bun backend is running on (internal)
 	/** User-defined route mount paths from createApp({ router }) (e.g., ['/api', '/v1']) */
 	routePaths?: string[];
+	/** Live tunnel hostname (e.g. "epXXX.agentuity-us.live.internal") to add to Vite's allowedHosts */
+	liveHostname?: string;
 }
 
 /**
@@ -165,7 +167,15 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[], workbenchPath?
 export async function generateAssetServerConfig(
 	options: GenerateAssetServerConfigOptions
 ): Promise<InlineConfig> {
-	const { rootDir, logger, workbenchPath, port, backendPort, routePaths = ['/api'] } = options;
+	const {
+		rootDir,
+		logger,
+		workbenchPath,
+		port,
+		backendPort,
+		routePaths = ['/api'],
+		liveHostname,
+	} = options;
 
 	// Load path aliases from tsconfig.json if available
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
@@ -218,6 +228,11 @@ export async function generateAssetServerConfig(
 			port,
 			strictPort: true, // Port is pre-verified as available by findAvailablePort()
 			host: '127.0.0.1',
+
+			// When accessed via an Agentuity live tunnel, the Host header is the
+			// tunnel hostname (e.g. "epXXX.agentuity-us.live.internal"). Without
+			// adding it here, Vite 6+ rejects the request with "host not allowed".
+			...(liveHostname ? { allowedHosts: [liveHostname] } : {}),
 
 			// Proxy backend routes to Bun server (HTTP only).
 			// WebSocket upgrades are handled by the front-door TCP proxy (ws-proxy.ts)
