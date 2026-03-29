@@ -7,8 +7,6 @@ import { discoverRoutes, type RouteMetadata } from './route-discovery';
 import { generateLifecycleTypes } from './lifecycle-generator';
 import { generateEnvTypes } from './env-types-generator';
 import { generateMetadata, writeMetadataFile, generateRouteMapping } from './metadata-generator';
-import { beaconPlugin } from './beacon-plugin';
-import { publicAssetPathPlugin } from './public-asset-path-plugin';
 
 // Re-export plugins
 export { browserEnvPlugin } from './browser-env-plugin';
@@ -39,10 +37,8 @@ export interface AgentuityPluginOptions {
  * - Entry file generation (src/generated/app.ts)
  * - Virtual modules (virtual:agentuity/agents, virtual:agentuity/routes)
  * - Metadata generation (agentuity.metadata.json)
- * - Analytics beacon emission (production builds)
- * - Public asset CDN rewriting (production builds)
  */
-export function agentuityPlugin(options: AgentuityPluginOptions): Plugin[] {
+export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 	const {
 		dev = false,
 		rootDir,
@@ -63,7 +59,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin[] {
 
 	logger.trace('Initializing Agentuity Vite plugin', { dev, rootDir, projectId, deploymentId });
 
-	const corePlugin: Plugin = {
+	return {
 		name: 'agentuity',
 
 		/**
@@ -151,22 +147,4 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin[] {
 			logger.trace('writeBundle: Complete');
 		},
 	};
-
-	const plugins: Plugin[] = [corePlugin];
-
-	// In production builds, the CLI sets AGENTUITY_CDN_BASE_URL and
-	// AGENTUITY_ANALYTICS_ENABLED env vars before spawning `vite build`.
-	// Use them to include the beacon and CDN rewrite plugins.
-	const cdnBaseUrl = process.env.AGENTUITY_CDN_BASE_URL;
-	const analyticsEnabled = process.env.AGENTUITY_ANALYTICS_ENABLED !== 'false';
-
-	if (!dev && analyticsEnabled) {
-		plugins.push(beaconPlugin({ enabled: true }));
-	}
-
-	if (!dev && cdnBaseUrl) {
-		plugins.push(publicAssetPathPlugin({ cdnBaseUrl }));
-	}
-
-	return plugins;
 }

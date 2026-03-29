@@ -5,10 +5,121 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import type { InlineConfig } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import type { BuildReportCollector } from '../../../build-report';
+
+/**
+ * Read the pre-built beacon script from @agentuity/frontend package.
+ * Tries multiple resolution strategies for workspace/installed/symlink scenarios.
+ */
+async function readBeaconScript(projectRoot: string): Promise<string> {
+	let frontendPath: string | null = null;
+
+	try {
+		frontendPath = await Bun.resolve('@agentuity/frontend', projectRoot);
+	} catch {
+		// Not found from project root
+	}
+
+	if (!frontendPath) {
+		try {
+			const thisDir = new URL('.', import.meta.url).pathname;
+			frontendPath = await Bun.resolve('@agentuity/frontend', thisDir);
+		} catch {
+			// Not found from CLI directory
+		}
+	}
+
+	if (!frontendPath) {
+		try {
+			const projectRequire = createRequire(join(projectRoot, 'package.json'));
+			frontendPath = projectRequire.resolve('@agentuity/frontend');
+		} catch {
+			// Not found via createRequire
+		}
+	}
+
+	if (!frontendPath) {
+		throw new Error(
+			'Could not resolve @agentuity/frontend. Ensure the package is installed and built.'
+		);
+	}
+
+	const packageDir = join(frontendPath, '..');
+	const beaconPath = join(packageDir, 'beacon.js');
+
+	const beaconFile = Bun.file(beaconPath);
+	if (!(await beaconFile.exists())) {
+		throw new Error(
+			`Beacon script not found at ${beaconPath}. Run "bun run build" in @agentuity/frontend first.`
+		);
+	}
+
+	return beaconFile.text();
+}
+
+/**
+ * Post-build step: inject the analytics beacon into the built index.html.
+ *
+ * 1. Reads the beacon script from @agentuity/frontend
+ * 2. Writes it as a content-hashed asset file
+ * 3. Injects a <script data-agentuity-beacon> tag into the HTML
+ *
+ * This runs after `vite build` completes so it works regardless of the
+ * user's vite.config.ts — no Vite plugin required.
+ */
+async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger): Promise<void> {
+	const clientDir = join(rootDir, '.agentuity/client');
+	const indexHtmlPath = join(clientDir, 'index.html');
+
+	if (!existsSync(indexHtmlPath)) {
+		logger.debug('No index.html found, skipping beacon injection');
+		return;
+	}
+
+	let beaconCode: string;
+	try {
+		beaconCode = await readBeaconScript(rootDir);
+	} catch (error) {
+		logger.warn(
+			'Failed to read beacon script, skipping injection: %s',
+			error instanceof Error ? error.message : String(error)
+		);
+		return;
+	}
+
+	// Write beacon as a content-hashed asset (matches Vite's naming convention)
+	const hash = createHash('sha256').update(beaconCode).digest('hex').slice(0, 8);
+	const beaconFileName = `agentuity-beacon-${hash}.js`;
+	const assetsDir = join(clientDir, 'assets');
+	mkdirSync(assetsDir, { recursive: true });
+	writeFileSync(join(assetsDir, beaconFileName), beaconCode);
+
+	// Build the beacon URL using the CDN base
+	const normalizedBase = cdnBaseUrl.endsWith('/') ? cdnBaseUrl : `${cdnBaseUrl}/`;
+	const beaconUrl = `${normalizedBase}assets/${beaconFileName}`;
+
+	// Inject the script tag into index.html
+	// The script must be sync (no async/defer) to patch history API before router loads.
+	// The data-agentuity-beacon attribute is the marker the runtime looks for.
+	const beaconScript = `<script data-agentuity-beacon src="${beaconUrl}"></script>`;
+
+	let html = readFileSync(indexHtmlPath, 'utf-8');
+	if (html.includes('</head>')) {
+		html = html.replace('</head>', `${beaconScript}</head>`);
+	} else if (html.includes('<body')) {
+		html = html.replace(/<body([^>]*)>/, `<body$1>${beaconScript}`);
+	} else {
+		html = beaconScript + html;
+	}
+
+	writeFileSync(indexHtmlPath, html);
+	logger.debug('Injected analytics beacon: %s', beaconUrl);
+}
 
 export interface ViteBuildOptions {
 	rootDir: string;
@@ -139,21 +250,19 @@ export default defineConfig({
 			cwd: rootDir,
 			stdout: 'inherit',
 			stderr: 'inherit',
-			env: {
-				...process.env,
-				// Pass CDN URL and analytics flag to Vite subprocess so that
-				// agentuityPlugin() can include the beacon and CDN rewrite plugins.
-				...(cdnBaseUrl ? { AGENTUITY_CDN_BASE_URL: cdnBaseUrl } : {}),
-				...(options.analyticsEnabled !== undefined
-					? { AGENTUITY_ANALYTICS_ENABLED: String(options.analyticsEnabled) }
-					: {}),
-			},
 		});
 
 		const exitCode = await viteProcess.exited;
 
 		if (exitCode !== 0) {
 			throw new Error(`Vite build exited with code ${exitCode}`);
+		}
+
+		// Post-build: inject analytics beacon into the built HTML.
+		// This runs after Vite finishes so it works regardless of the
+		// user's vite.config.ts — no plugin required.
+		if (cdnBaseUrl && options.analyticsEnabled) {
+			await injectBeacon(rootDir, cdnBaseUrl, logger);
 		}
 
 		logger.debug('Vite build complete for mode: client');
