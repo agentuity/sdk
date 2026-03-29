@@ -180,7 +180,10 @@ const service: Service = {
 			],
 			examplePath: '/workflow/wf_abc123/graph',
 			exampleBody: {
-				nodes: [{ id: 'n1', type: 'filter' }],
+				nodes: [
+					{ id: 'n1', type: 'filter' },
+					{ id: 'n2', type: 'action' },
+				],
 				edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
 			},
 		},

@@ -3,22 +3,7 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createWorkflowAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
-const WorkflowGetResponseSchema = z.object({
-	workflow: z.object({
-		id: z.string(),
-		created_at: z.string(),
-		updated_at: z.string(),
-		created_by: z.string(),
-		name: z.string(),
-		description: z.string().nullable(),
-		source_type: z.string(),
-		source_ref_id: z.string(),
-		source_config: z.record(z.string(), z.unknown()).nullable(),
-		status: z.string(),
-		graph_json: z.record(z.string(), z.unknown()).nullable(),
-	}),
-});
+import { WorkflowGetResultSchema } from '@agentuity/core';
 
 export const getSubcommand = createCommand({
 	name: 'get',
@@ -37,7 +22,7 @@ export const getSubcommand = createCommand({
 		args: z.object({
 			workflow_id: z.string().min(1).describe('Workflow ID'),
 		}),
-		response: WorkflowGetResponseSchema,
+		response: WorkflowGetResultSchema,
 	},
 
 	async handler(ctx) {

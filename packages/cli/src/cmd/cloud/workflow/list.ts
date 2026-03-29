@@ -3,23 +3,11 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createWorkflowAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
-const WorkflowListResponseSchema = z.object({
-	workflows: z.array(
-		z.object({
-			id: z.string(),
-			created_at: z.string(),
-			updated_at: z.string(),
-			name: z.string(),
-			description: z.string().nullable(),
-			source_type: z.string(),
-			source_ref_id: z.string(),
-			status: z.string(),
-			execution_count: z.number().optional(),
-		})
-	),
-	total: z.number(),
-});
+import {
+	WorkflowListResultSchema,
+	WorkflowSourceTypeSchema,
+	WorkflowStatusSchema,
+} from '@agentuity/core';
 
 export const listSubcommand = createCommand({
 	name: 'list',
@@ -40,14 +28,11 @@ export const listSubcommand = createCommand({
 		options: z.object({
 			limit: z.coerce.number().min(0).optional().describe('Maximum number of workflows'),
 			offset: z.coerce.number().min(0).optional().describe('Pagination offset'),
-			'source-type': z
-				.enum(['email', 'queue', 'webhook', 'schedule'])
-				.optional()
-				.describe('Filter by source type'),
-			status: z.enum(['enabled', 'disabled']).optional().describe('Filter by status'),
+			'source-type': WorkflowSourceTypeSchema.optional().describe('Filter by source type'),
+			status: WorkflowStatusSchema.optional().describe('Filter by status'),
 			filter: z.string().optional().describe('Filter workflows by name'),
 		}),
-		response: WorkflowListResponseSchema,
+		response: WorkflowListResultSchema,
 	},
 
 	async handler(ctx) {

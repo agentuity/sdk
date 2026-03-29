@@ -381,6 +381,10 @@ export class WorkflowService {
 		});
 
 		if (res.ok) {
+			// Handle 204 No Content or responses without a body
+			if (res.response.status === 204 || res.data === undefined) {
+				return;
+			}
 			if (res.data.success) {
 				return;
 			}
