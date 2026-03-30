@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # Required for npm provenance
+  id-token: write # Required for npm Trusted Publishers (OIDC)
 
 concurrency:
   group: release-next-${{ github.ref_name }}
@@ -87,7 +87,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Build packages
         run: bun run build:packages
@@ -152,11 +151,11 @@ jobs:
               echo "  Version already published, updating dist-tag..."
               npm dist-tag add "$pkg_name@$pkg_version" next
             else
-              (cd "$pkg_path" && npm publish --tag next --access public)
+              (cd "$pkg_path" && npm publish --tag next --access public --provenance)
             fi
           done
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Uses npm Trusted Publishers (OIDC) - no token needed
+        # Configure on npm: https://docs.npmjs.com/trusted-publishers
 
       - name: Summary
         run: |
