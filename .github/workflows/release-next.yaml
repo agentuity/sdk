@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: release-next-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CI: true
@@ -71,7 +71,7 @@ jobs:
 
   release:
     name: Release to npm
-    runs-on: blacksmith-4vcpu-ubuntu-2204
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: build-and-test
     steps:
@@ -86,7 +86,7 @@ jobs:
       - name: Setup Node.js for npm
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Build packages
         run: bun run build:packages
@@ -148,13 +148,14 @@ jobs:
 
             # Check if version already exists
             if npm view "$pkg_name@$pkg_version" version 2>/dev/null; then
-              echo "  Version already published, updating dist-tag..."
-              npm dist-tag add "$pkg_name@$pkg_version" next
-            else
-              (cd "$pkg_path" && npm publish --tag next --access public)
+              echo "  Version already published, skipping"
+              continue
             fi
+
+            (cd "$pkg_path" && npm publish --tag next --access public)
           done
         # Uses npm Trusted Publishers (OIDC) - no token needed
+        # Requires: GitHub-hosted runner + Node 24+ (npm v11.x+)
         # Provenance is automatically generated for GitHub Actions
         # Configure on npm: https://docs.npmjs.com/trusted-publishers
 
