@@ -151,10 +151,11 @@ jobs:
               echo "  Version already published, updating dist-tag..."
               npm dist-tag add "$pkg_name@$pkg_version" next
             else
-              (cd "$pkg_path" && npm publish --tag next --access public --provenance)
+              (cd "$pkg_path" && npm publish --tag next --access public)
             fi
           done
         # Uses npm Trusted Publishers (OIDC) - no token needed
+        # Provenance is automatically generated for GitHub Actions
         # Configure on npm: https://docs.npmjs.com/trusted-publishers
 
       - name: Summary
