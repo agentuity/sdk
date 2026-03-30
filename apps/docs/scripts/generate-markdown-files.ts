@@ -503,6 +503,12 @@ function transformApiEndpoint(text: string): string {
  *
  * Uses character scanning to handle > inside quoted attributes and {{ }} JSX objects.
  */
+
+/** Escape single quotes for safe embedding in shell single-quoted strings. */
+function escapeShellSingleQuote(s: string): string {
+	return s.replace(/'/g, "'\"'\"'");
+}
+
 function transformApiExample(text: string): string {
 	let result = text;
 	const openPattern = /<ApiExample\s/;
@@ -594,7 +600,7 @@ function transformApiExample(text: string): string {
 
 		if (bodyObj) {
 			curl += ' \\\n  -H "Content-Type: application/json"';
-			curl += ` \\\n  -d '${bodyObj}'`;
+			curl += ` \\\n  -d '${escapeShellSingleQuote(bodyObj)}'`;
 		} else if (bodyStringMatch) {
 			// String body (binary data placeholders)
 			const bodyStr = bodyStringMatch[1];
@@ -611,7 +617,7 @@ function transformApiExample(text: string): string {
 					// fall through
 				}
 			}
-			curl += ` \\\n  --data-binary '${bodyStr}'`;
+			curl += ` \\\n  --data-binary '${escapeShellSingleQuote(bodyStr)}'`;
 		}
 
 		curl += '\n```\n';
@@ -828,7 +834,12 @@ async function ensureDir(filePath: string) {
 
 /** Remove stale .md files from previous runs so orphaned content doesn't persist. */
 async function cleanGeneratedMarkdown(dir: string) {
-	const entries = await readdir(dir, { withFileTypes: true });
+	let entries: Awaited<ReturnType<typeof readdir>>;
+	try {
+		entries = await readdir(dir, { withFileTypes: true });
+	} catch {
+		return; // Directory doesn't exist yet (fresh environment)
+	}
 	for (const entry of entries) {
 		const fullPath = join(dir, entry.name);
 		if (entry.isDirectory()) {
