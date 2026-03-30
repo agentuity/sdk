@@ -21,6 +21,7 @@ import rehypeMermaid from 'rehype-mermaid';
 
 export default defineConfig({
 	root: '.',
+	publicDir: 'src/web/public',
 	plugins: [
 		// TanStack Router for file-based routing
 		tanstackRouter({
