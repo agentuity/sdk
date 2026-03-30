@@ -116,8 +116,9 @@ function stripCodeMarkers(code: string): string {
 function transformProse(text: string): string {
 	let result = text;
 
-	// 1. Strip import statements
-	result = result.replace(/^import\s+.*from\s+['"].*['"];?\s*$/gm, '');
+	// 1. Strip import statements (single-line, multi-line, and side-effect)
+	result = result.replace(/^import\s+[\s\S]*?from\s+['"].*?['"];?\s*$/gm, '');
+	result = result.replace(/^import\s+['"].*?['"];?\s*$/gm, '');
 
 	// 2. Strip JSX comments: {/* ... */}
 	result = result.replace(/\{\/\*[\s\S]*?\*\/\}\s*\n?/g, '');
@@ -378,8 +379,9 @@ function transformParamTable(text: string): string {
 		}>;
 		try {
 			params = JSON.parse(jsonStr);
-		} catch {
-			break; // malformed JSON, stop
+		} catch (err) {
+			console.error('Failed to parse <ParamTable> JSON:', jsonStr.slice(0, 100));
+			throw err;
 		}
 
 		// Render as markdown table
@@ -436,8 +438,9 @@ function transformResponseFields(text: string): string {
 		let fields: Array<{ name: string; type: string; required: boolean; description: string }>;
 		try {
 			fields = JSON.parse(jsonStr);
-		} catch {
-			break;
+		} catch (err) {
+			console.error('Failed to parse <ResponseFields> JSON:', jsonStr.slice(0, 100));
+			throw err;
 		}
 
 		let table = '| Field | Type | Required | Description |\n';
@@ -837,8 +840,11 @@ async function cleanGeneratedMarkdown(dir: string) {
 	let entries: Awaited<ReturnType<typeof readdir>>;
 	try {
 		entries = await readdir(dir, { withFileTypes: true });
-	} catch {
-		return; // Directory doesn't exist yet (fresh environment)
+	} catch (err: unknown) {
+		if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+			return; // Directory doesn't exist yet (fresh environment)
+		}
+		throw err;
 	}
 	for (const entry of entries) {
 		const fullPath = join(dir, entry.name);
