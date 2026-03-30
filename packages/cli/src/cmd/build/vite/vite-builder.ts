@@ -97,31 +97,16 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	const beaconFileName = `agentuity-beacon-${hash}.js`;
 	const assetsDir = join(clientDir, 'assets');
 	mkdirSync(assetsDir, { recursive: true });
-	const beaconFilePath = join(assetsDir, beaconFileName);
-	writeFileSync(beaconFilePath, beaconCode);
-	console.error('[beacon] Wrote beacon file:', beaconFilePath, `(${beaconCode.length} bytes)`);
-	console.error('[beacon] File exists after write:', existsSync(beaconFilePath));
+	writeFileSync(join(assetsDir, beaconFileName), beaconCode);
 
-	// Add beacon to Vite's manifest so the metadata generator includes it
-	// in the asset list and the deploy step uploads it to CDN.
+	// If a Vite manifest exists, add the beacon so the metadata generator
+	// includes it in the asset list. When no manifest exists, the directory
+	// scanner in metadata-generator.ts picks up assets/ directly.
 	const manifestPath = join(clientDir, '.vite', 'manifest.json');
-	console.error('[beacon] Looking for Vite manifest at:', manifestPath);
-	console.error('[beacon] Manifest exists:', existsSync(manifestPath));
 	if (existsSync(manifestPath)) {
-		const manifestRaw = readFileSync(manifestPath, 'utf-8');
-		const manifest = JSON.parse(manifestRaw);
-		const keysBefore = Object.keys(manifest);
-		console.error('[beacon] Manifest keys before:', keysBefore.join(', '));
+		const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
 		manifest['agentuity-beacon'] = { file: `assets/${beaconFileName}` };
 		writeFileSync(manifestPath, JSON.stringify(manifest));
-		console.error('[beacon] Manifest updated, keys after:', Object.keys(manifest).join(', '));
-	} else {
-		console.error('[beacon] Vite manifest NOT FOUND — beacon will NOT be uploaded to CDN');
-
-		// List what's in the client dir to help debug
-		const { readdirSync } = await import('node:fs');
-		const clientContents = readdirSync(clientDir, { recursive: true }) as string[];
-		console.error('[beacon] Client dir contents:', clientContents.join(', '));
 	}
 
 	// Build the beacon URL using the CDN base
@@ -143,7 +128,7 @@ async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger)
 	}
 
 	writeFileSync(indexHtmlPath, html);
-	console.error('[beacon] Injected script tag into HTML:', beaconUrl);
+	logger.debug('Injected analytics beacon: %s', beaconUrl);
 }
 
 export interface ViteBuildOptions {
