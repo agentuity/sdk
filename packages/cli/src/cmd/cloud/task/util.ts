@@ -4,20 +4,25 @@ import { setResourceInfo } from '../../../cache';
 import { getCatalystUrl } from '../../../catalyst';
 import { defaultProfileName, getDefaultRegion } from '../../../config';
 import * as tui from '../../../tui';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
 
 export interface TaskContext {
 	logger: Logger;
 	auth: AuthData;
 	config: Config | null;
 	options: GlobalOptions;
+	project?: ProjectConfig;
 }
 
 export async function createStorageAdapter(ctx: TaskContext) {
 	const orgId =
-		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ??
+		ctx.project?.orgId ??
+		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	if (!orgId) {
-		tui.fatal('Organization ID is required. Use --org-id flag or set AGENTUITY_CLOUD_ORG_ID.');
+		tui.fatal(
+			'Organization ID is required. Either run from a project directory or use --org-id flag.'
+		);
 	}
 
 	const adapter = createServerFetchAdapter(
@@ -38,7 +43,9 @@ export async function createStorageAdapter(ctx: TaskContext) {
 
 export async function createStorageAdapterOptionalOrg(ctx: TaskContext) {
 	const orgId =
-		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ??
+		ctx.project?.orgId ??
+		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 
 	const headers: Record<string, string> = {
 		Authorization: `Bearer ${ctx.auth.apiKey}`,
@@ -58,14 +65,30 @@ export async function cacheTaskId(
 	ctx: {
 		config: Config | null;
 		options: GlobalOptions;
+		project?: ProjectConfig;
 	},
 	taskId: string
 ) {
 	const profileName = ctx.config?.name ?? defaultProfileName;
 	const region = await getDefaultRegion(profileName, ctx.config);
 	const orgId =
-		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+		ctx.options.orgId ??
+		ctx.project?.orgId ??
+		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	await setResourceInfo('task', profileName, taskId, region, orgId);
+}
+
+/**
+ * Resolve the `me` shorthand to the authenticated user's ID.
+ * If the value is literally `"me"`, returns `ctx.auth.userId`.
+ * Otherwise returns the value unchanged.
+ */
+export function resolveUserIdOrMe(
+	value: string | undefined,
+	ctx: { auth: AuthData }
+): string | undefined {
+	if (!value) return undefined;
+	return value === 'me' ? ctx.auth.userId : value;
 }
 
 export function parseMetadataFlag(raw: string | undefined): Record<string, unknown> | undefined {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
+import { createStorageAdapter, resolveUserIdOrMe } from './util';
 import { getCommand } from '../../../command-prefix';
 import type { TaskPriority, TaskStatus, TaskType, Task } from '@agentuity/core';
 
@@ -36,6 +36,11 @@ const TaskListResponseSchema = z.object({
 				.optional(),
 			created_at: z.string(),
 			updated_at: z.string(),
+			description: z.string().optional(),
+			metadata: z.record(z.string(), z.unknown()).optional(),
+			tags: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+			created_id: z.string().optional(),
+			subtask_count: z.number().optional(),
 		})
 	),
 	total: z.number().describe('Total number of matching tasks'),
@@ -103,6 +108,22 @@ export const listSubcommand = createCommand({
 			command: getCommand('cloud task list --assigned-id agent_001 --limit 10'),
 			description: 'List first 10 tasks assigned to an agent',
 		},
+		{
+			command: getCommand('cloud task list --created-id me --json'),
+			description: 'List tasks created by the current user as JSON',
+		},
+		{
+			command: getCommand('cloud task list --all --json'),
+			description: 'List all tasks with full audit-grade JSON output',
+		},
+		{
+			command: getCommand('cloud task list --project-id proj_abc --tag-id tag_xyz'),
+			description: 'List tasks in a specific project with a specific tag',
+		},
+		{
+			command: getCommand('cloud task list --deleted'),
+			description: 'List soft-deleted tasks',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -119,6 +140,13 @@ export const listSubcommand = createCommand({
 				.optional()
 				.describe('filter by priority'),
 			assignedId: z.string().optional().describe('filter by assigned agent or user ID'),
+			createdId: z
+				.string()
+				.optional()
+				.describe('filter by creator ID (use "me" for the authenticated user)'),
+			projectId: z.string().optional().describe('filter by project ID'),
+			tagId: z.string().optional().describe('filter by tag ID'),
+			deleted: z.boolean().optional().describe('include soft-deleted tasks'),
 			parentId: z.string().optional().describe('filter by parent task ID'),
 			sort: z
 				.enum(['created_at', 'updated_at', 'priority'])
@@ -127,6 +155,12 @@ export const listSubcommand = createCommand({
 			order: z.enum(['asc', 'desc']).optional().describe('sort order (default: desc)'),
 			limit: z.coerce.number().optional().describe('max results to return (default: 50)'),
 			offset: z.coerce.number().optional().describe('offset for pagination'),
+			all: z
+				.boolean()
+				.optional()
+				.describe(
+					'include all fields in JSON output (description, metadata, tags, created_id, subtask_count)'
+				),
 		}),
 		response: TaskListResponseSchema,
 	},
@@ -136,11 +170,17 @@ export const listSubcommand = createCommand({
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
 
+		const createdId = resolveUserIdOrMe(opts.createdId, ctx);
+
 		const result = await storage.list({
 			status: opts.status as TaskStatus | undefined,
 			type: opts.type as TaskType | undefined,
 			priority: opts.priority as TaskPriority | undefined,
 			assigned_id: opts.assignedId,
+			created_id: createdId,
+			project_id: opts.projectId,
+			tag_id: opts.tagId,
+			deleted: opts.deleted,
 			parent_id: opts.parentId,
 			sort: opts.sort,
 			order: opts.order,
@@ -182,6 +222,8 @@ export const listSubcommand = createCommand({
 			}
 		}
 
+		const includeAll = opts.all === true;
+
 		return {
 			success: true,
 			tasks: result.tasks.map((task: Task) => ({
@@ -195,6 +237,15 @@ export const listSubcommand = createCommand({
 				project: task.project,
 				created_at: task.created_at,
 				updated_at: task.updated_at,
+				...(includeAll
+					? {
+							description: task.description,
+							metadata: task.metadata,
+							tags: task.tags,
+							created_id: task.created_id,
+							subtask_count: task.subtask_count,
+						}
+					: {}),
 			})),
 			total: result.total,
 			limit: result.limit,

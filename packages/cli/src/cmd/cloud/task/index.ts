@@ -8,6 +8,7 @@ import { statsSubcommand } from './stats';
 import { attachmentSubcommand } from './attachment';
 import { userSubcommand } from './user';
 import { projectSubcommand } from './project';
+import { closeSubcommand } from './close';
 import { getCommand } from '../../../command-prefix';
 
 export const taskCommand = createCommand({
@@ -41,6 +42,14 @@ export const taskCommand = createCommand({
 			description: 'Batch delete done tasks older than 7 days',
 		},
 		{
+			command: getCommand('cloud task close --created-id me --status open --dry-run'),
+			description: 'Preview which of your open tasks would be closed',
+		},
+		{
+			command: getCommand('cloud task close --ids-file /tmp/task-close-manifest.json'),
+			description: 'Close tasks listed in a JSON manifest file',
+		},
+		{
 			command: getCommand('cloud task attachment upload task_abc123 ./report.pdf'),
 			description: 'Upload a file attachment to a task',
 		},
@@ -59,6 +68,7 @@ export const taskCommand = createCommand({
 		updateSubcommand,
 		listSubcommand,
 		deleteSubcommand,
+		closeSubcommand,
 		statsSubcommand,
 		attachmentSubcommand,
 		userSubcommand,
