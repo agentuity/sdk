@@ -258,8 +258,10 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 	};
 
 	// Read client manifest
+	let hasClientManifest = false;
 	const clientManifestPath = join(agentuityDir, 'client', '.vite', 'manifest.json');
 	if (existsSync(clientManifestPath)) {
+		hasClientManifest = true;
 		try {
 			const clientManifest: Record<string, ViteManifestEntry> = JSON.parse(
 				readFileSync(clientManifestPath, 'utf-8')
@@ -348,9 +350,13 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 					const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
 					const fullPath = join(dir, entry.name);
 
-					// Skip directories we already process (assets from manifest, .vite metadata)
+					// Skip .vite metadata dir always; skip assets/ only if manifest
+					// was found (the manifest already enumerates those files).
 					if (entry.isDirectory()) {
-						if (entry.name === 'assets' || entry.name === '.vite') {
+						if (entry.name === '.vite') {
+							continue;
+						}
+						if (entry.name === 'assets' && hasClientManifest) {
 							continue;
 						}
 						scanClientDirectory(fullPath, relativePath);
