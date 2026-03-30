@@ -55,6 +55,12 @@ Queue creation payload.
     "required": true
   },
   {
+    "name": "internal",
+    "type": "boolean",
+    "description": "Whether the queue is system-managed.",
+    "required": false
+  },
+  {
     "name": "settings",
     "type": "object",
     "description": "Optional settings to customize queue behavior (server applies defaults for missing fields).",
@@ -1710,80 +1716,8 @@ Destination creation payload.
   {
     "name": "config",
     "type": "object",
-    "description": "HTTP configuration for the destination.",
+    "description": "Configuration for the destination (type-specific).",
     "required": true
-  },
-  {
-    "name": "config.url",
-    "type": "string",
-    "description": "The URL to send messages to.",
-    "required": true
-  },
-  {
-    "name": "config.headers",
-    "type": "object",
-    "description": "Optional custom headers to include in requests.",
-    "required": false
-  },
-  {
-    "name": "config.method",
-    "type": "string",
-    "description": "HTTP method to use (default: POST).",
-    "required": true
-  },
-  {
-    "name": "config.timeout_ms",
-    "type": "number",
-    "description": "Request timeout in milliseconds (default: 30000).",
-    "required": true
-  },
-  {
-    "name": "config.retry_policy",
-    "type": "object",
-    "description": "Optional retry policy for failed deliveries.",
-    "required": false
-  },
-  {
-    "name": "config.retry_policy.max_attempts",
-    "type": "number",
-    "description": "Maximum number of delivery attempts (default: 5).",
-    "required": true
-  },
-  {
-    "name": "config.retry_policy.initial_backoff_ms",
-    "type": "number",
-    "description": "Initial backoff delay in milliseconds (default: 1000).",
-    "required": true
-  },
-  {
-    "name": "config.retry_policy.max_backoff_ms",
-    "type": "number",
-    "description": "Maximum backoff delay in milliseconds (default: 60000).",
-    "required": true
-  },
-  {
-    "name": "config.retry_policy.backoff_multiplier",
-    "type": "number",
-    "description": "Backoff multiplier for exponential backoff (default: 2.0).",
-    "required": true
-  },
-  {
-    "name": "config.signing",
-    "type": "object",
-    "description": "Optional request signing configuration.",
-    "required": false
-  },
-  {
-    "name": "config.signing.enabled",
-    "type": "boolean",
-    "description": "Whether signing is enabled (default: false).",
-    "required": true
-  },
-  {
-    "name": "config.signing.secret_key",
-    "type": "string",
-    "description": "Secret key for HMAC signing.",
-    "required": false
   },
   {
     "name": "enabled",
@@ -1880,85 +1814,13 @@ Response containing destination list.
   {
     "name": "destinations[].destination_type",
     "type": "string",
-    "description": "Type of destination (currently only 'http').",
+    "description": "Type of destination.",
     "required": true
   },
   {
     "name": "destinations[].config",
     "type": "object",
-    "description": "HTTP configuration for the destination.",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.url",
-    "type": "string",
-    "description": "The URL to send messages to.",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.headers",
-    "type": "object",
-    "description": "Optional custom headers to include in requests.",
-    "required": false
-  },
-  {
-    "name": "destinations[].config.method",
-    "type": "string",
-    "description": "HTTP method to use (default: POST).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.timeout_ms",
-    "type": "number",
-    "description": "Request timeout in milliseconds (default: 30000).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.retry_policy",
-    "type": "object",
-    "description": "Optional retry policy for failed deliveries.",
-    "required": false
-  },
-  {
-    "name": "destinations[].config.retry_policy.max_attempts",
-    "type": "number",
-    "description": "Maximum number of delivery attempts (default: 5).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.retry_policy.initial_backoff_ms",
-    "type": "number",
-    "description": "Initial backoff delay in milliseconds (default: 1000).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.retry_policy.max_backoff_ms",
-    "type": "number",
-    "description": "Maximum backoff delay in milliseconds (default: 60000).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.retry_policy.backoff_multiplier",
-    "type": "number",
-    "description": "Backoff multiplier for exponential backoff (default: 2.0).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.signing",
-    "type": "object",
-    "description": "Optional request signing configuration.",
-    "required": false
-  },
-  {
-    "name": "destinations[].config.signing.enabled",
-    "type": "boolean",
-    "description": "Whether signing is enabled (default: false).",
-    "required": true
-  },
-  {
-    "name": "destinations[].config.signing.secret_key",
-    "type": "string",
-    "description": "Secret key for HMAC signing.",
+    "description": "Configuration for the destination based on type.",
     "required": false
   },
   {

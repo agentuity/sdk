@@ -906,7 +906,7 @@ export const navData: NavSection[] = [
 			{
 				title: 'Migration Guide',
 				url: '/reference/migration-guide',
-				description: "Moving from v0? Here's everything you need to update.",
+				description: 'Migrate your Agentuity projects to the latest version.',
 			},
 		],
 	},
