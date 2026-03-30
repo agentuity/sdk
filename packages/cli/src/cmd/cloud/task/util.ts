@@ -21,7 +21,7 @@ export async function createStorageAdapter(ctx: TaskContext) {
 		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	if (!orgId) {
 		tui.fatal(
-			'Organization ID is required. Either run from a project directory or use --org-id flag.'
+			'Organization ID is required. Run from a project directory, pass --org-id, set AGENTUITY_CLOUD_ORG_ID, or configure a default org in your profile.'
 		);
 	}
 

@@ -5,7 +5,7 @@ import { createStorageAdapter, resolveUserIdOrMe } from './util';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { parseDuration } from './delete';
-import type { TaskPriority, TaskStatus, TaskType, Task } from '@agentuity/core';
+import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 
 function truncate(s: string, max: number): string {
 	if (s.length <= max) return s;
@@ -22,6 +22,15 @@ const TaskCloseResponseSchema = z.object({
 			})
 		)
 		.describe('List of closed tasks'),
+	errors: z
+		.array(
+			z.object({
+				id: z.string().describe('Task ID that failed to close'),
+				error: z.string().describe('Failure reason'),
+			})
+		)
+		.optional()
+		.describe('Per-task failures'),
 	count: z.number().describe('Number of tasks closed'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
 	dryRun: z.boolean().optional().describe('Whether this was a dry run'),
@@ -119,6 +128,20 @@ export const closeSubcommand = createCommand({
 			if (args.id) {
 				tui.fatal('Cannot combine task ID argument with --ids-file.');
 			}
+			if (
+				opts.status ||
+				opts.type ||
+				opts.priority ||
+				opts.olderThan ||
+				opts.parentId ||
+				createdId ||
+				opts.projectId ||
+				opts.tagId
+			) {
+				tui.fatal(
+					'Cannot combine --ids-file with filter options. Use either --ids-file or batch filters.'
+				);
+			}
 			const file = Bun.file(opts.idsFile);
 			if (!(await file.exists())) {
 				tui.fatal(`File not found: ${opts.idsFile}`);
@@ -186,11 +209,9 @@ export const closeSubcommand = createCommand({
 
 			for (const id of ids) {
 				try {
-					let task: Task;
+					const task = await storage.close(id);
 					if (closedId) {
-						task = await storage.update(id, { status: 'done', closed_id: closedId });
-					} else {
-						task = await storage.close(id);
+						await storage.update(task.id, { closed_id: closedId });
 					}
 					closed.push({ id: task.id, title: task.title });
 				} catch (err) {
@@ -220,6 +241,7 @@ export const closeSubcommand = createCommand({
 			return {
 				success: errors.length === 0,
 				closed,
+				errors: errors.length > 0 ? errors : undefined,
 				count: closed.length,
 				durationMs,
 			};
@@ -276,11 +298,9 @@ export const closeSubcommand = createCommand({
 				}
 			}
 
-			let task: Task;
+			const task = await storage.close(args.id!);
 			if (closedId) {
-				task = await storage.update(args.id!, { status: 'done', closed_id: closedId });
-			} else {
-				task = await storage.close(args.id!);
+				await storage.update(task.id, { closed_id: closedId });
 			}
 			const durationMs = Date.now() - started;
 
@@ -412,11 +432,9 @@ export const closeSubcommand = createCommand({
 
 		for (const candidate of candidates) {
 			try {
-				let task: Task;
+				const task = await storage.close(candidate.id);
 				if (closedId) {
-					task = await storage.update(candidate.id, { status: 'done', closed_id: closedId });
-				} else {
-					task = await storage.close(candidate.id);
+					await storage.update(task.id, { closed_id: closedId });
 				}
 				closed.push({ id: task.id, title: task.title });
 			} catch (err) {
@@ -446,6 +464,7 @@ export const closeSubcommand = createCommand({
 		return {
 			success: errors.length === 0,
 			closed,
+			errors: errors.length > 0 ? errors : undefined,
 			count: closed.length,
 			durationMs,
 		};
