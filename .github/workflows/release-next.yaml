@@ -110,9 +110,7 @@ jobs:
 
       - name: Publish packages
         run: |
-          set -eou pipefail
-
-          VERSION=$(jq -r .version package.json)
+          set -euo pipefail
 
           # Packages in dependency order (core first)
           PACKAGES=(
