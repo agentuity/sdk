@@ -1,41 +1,13 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter, resolveMeId } from './util';
+import { createStorageAdapter, resolveMeId, parseDuration } from './util';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
 
-const DURATION_UNITS: Record<string, number> = {
-	s: 1000,
-	m: 60 * 1000,
-	h: 60 * 60 * 1000,
-	d: 24 * 60 * 60 * 1000,
-	w: 7 * 24 * 60 * 60 * 1000,
-};
-
-/**
- * Parse a human-friendly duration string (e.g. "30s", "7d", "24h", "30m", "2w")
- * into milliseconds. Exported for testing.
- */
-export function parseDuration(duration: string): number {
-	const match = duration.match(/^(\d+)([smhdw])$/);
-	if (!match) {
-		tui.fatal(
-			`Invalid duration format: "${duration}". Use a number followed by s (seconds), m (minutes), h (hours), d (days), or w (weeks). Examples: 30s, 30m, 24h, 7d, 2w`
-		);
-		// tui.fatal exits, but TypeScript doesn't know that
-		throw new Error('unreachable');
-	}
-	const value = parseInt(match[1]!, 10);
-	const unit = match[2]!;
-	const ms = DURATION_UNITS[unit];
-	if (!ms) {
-		tui.fatal(`Unknown duration unit: "${unit}"`);
-		throw new Error('unreachable');
-	}
-	return value * ms;
-}
+// Re-export for testing
+export { parseDuration } from './util';
 
 function truncate(s: string, max: number): string {
 	if (s.length <= max) return s;

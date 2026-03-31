@@ -88,6 +88,32 @@ export function parseMetadataFlag(raw: string | undefined): Record<string, unkno
 	}
 }
 
+const DURATION_UNITS: Record<string, number> = {
+	s: 1000,
+	m: 60 * 1000,
+	h: 60 * 60 * 1000,
+	d: 24 * 60 * 60 * 1000,
+	w: 7 * 24 * 60 * 60 * 1000,
+};
+
+export function parseDuration(duration: string): number {
+	const match = duration.match(/^(\d+)([smhdw])$/);
+	if (!match) {
+		tui.fatal(
+			`Invalid duration format: "${duration}". Use a number followed by s (seconds), m (minutes), h (hours), d (days), or w (weeks). Examples: 30s, 30m, 24h, 7d, 2w`
+		);
+		throw new Error('unreachable');
+	}
+	const value = parseInt(match[1]!, 10);
+	const unit = match[2]!;
+	const ms = DURATION_UNITS[unit];
+	if (!ms) {
+		tui.fatal(`Unknown duration unit: "${unit}"`);
+		throw new Error('unreachable');
+	}
+	return value * ms;
+}
+
 export async function resolveMeId(
 	id: string | undefined,
 	ctx: TaskContext
