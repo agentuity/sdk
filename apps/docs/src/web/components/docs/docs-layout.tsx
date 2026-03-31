@@ -26,9 +26,7 @@ function HeaderBreadcrumb({
 	onNavigate: (path: string) => void;
 }) {
 	const chain =
-		currentPage === 'home'
-			? [{ title: 'SDK Explorer', url: '/' }]
-			: findBreadcrumbChain(currentPage);
+		currentPage === 'home' ? [{ title: 'Home', url: '/' }] : findBreadcrumbChain(currentPage);
 
 	if (chain.length === 0) return null;
 

@@ -11,7 +11,7 @@ function NotFound() {
 				The page you're looking for doesn't exist.
 			</p>
 			<a href="/" className="text-cyan-600 dark:text-cyan-400 hover:underline transition-colors">
-				Go to SDK Explorer
+				Go to Home
 			</a>
 		</div>
 	);

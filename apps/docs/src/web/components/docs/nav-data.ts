@@ -20,8 +20,14 @@ export interface NavSection {
 
 export const navData: NavSection[] = [
 	{
-		title: 'SDK Explorer',
+		title: 'Home',
 		url: '/',
+		hideItems: true,
+		items: [],
+	},
+	{
+		title: 'SDK Explorer',
+		url: '/explorer',
 		hideItems: true,
 		items: [
 			{

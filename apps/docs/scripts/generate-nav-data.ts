@@ -42,9 +42,16 @@ interface MetaJson {
 // SDK Explorer (hardcoded — demo routes, not content pages)
 // ---------------------------------------------------------------------------
 
+const HOME: NavSection = {
+	title: 'Home',
+	url: '/',
+	hideItems: true,
+	items: [],
+};
+
 const SDK_EXPLORER: NavSection = {
 	title: 'SDK Explorer',
-	url: '/',
+	url: '/explorer',
 	hideItems: true,
 	items: [
 		{
@@ -412,7 +419,7 @@ export function hasActiveChild(items: NavItem[], currentUrl: string): boolean {
 async function main() {
 	const rootMeta = await readMetaJson(CONTENT_DIR);
 	const sectionSlugs = rootMeta.sections || [];
-	const sections: NavSection[] = [SDK_EXPLORER];
+	const sections: NavSection[] = [HOME, SDK_EXPLORER];
 
 	for (const slug of sectionSlugs) {
 		const sectionDir = join(CONTENT_DIR, slug);

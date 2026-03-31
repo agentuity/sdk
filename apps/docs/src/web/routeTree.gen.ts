@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root';
+import { Route as ExplorerRouteImport } from './routes/explorer';
 import { Route as DocsRouteRouteImport } from './routes/_docs/route';
 import { Route as IndexRouteImport } from './routes/index';
 import { Route as DemoVectorStorageRouteImport } from './routes/demo/vector-storage';
@@ -177,6 +178,11 @@ import { Route as DocsCookbookIntegrationsLangchainRouteImport } from './routes/
 import { Route as DocsCookbookIntegrationsClaudeAgentRouteImport } from './routes/_docs/cookbook/integrations/claude-agent';
 import { Route as DocsCookbookIntegrationsChatSdkRouteImport } from './routes/_docs/cookbook/integrations/chat-sdk';
 
+const ExplorerRoute = ExplorerRouteImport.update({
+	id: '/explorer',
+	path: '/explorer',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const DocsRouteRoute = DocsRouteRouteImport.update({
 	id: '/_docs',
 	getParentRoute: () => rootRouteImport,
@@ -1039,6 +1045,7 @@ const DocsCookbookIntegrationsChatSdkRoute = DocsCookbookIntegrationsChatSdkRout
 
 export interface FileRoutesByFullPath {
 	'/': typeof IndexRoute;
+	'/explorer': typeof ExplorerRoute;
 	'/demo/agent-calls': typeof DemoAgentCallsRoute;
 	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
 	'/demo/chat': typeof DemoChatRoute;
@@ -1207,6 +1214,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
 	'/': typeof IndexRoute;
+	'/explorer': typeof ExplorerRoute;
 	'/demo/agent-calls': typeof DemoAgentCallsRoute;
 	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
 	'/demo/chat': typeof DemoChatRoute;
@@ -1375,6 +1383,7 @@ export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	'/': typeof IndexRoute;
 	'/_docs': typeof DocsRouteRouteWithChildren;
+	'/explorer': typeof ExplorerRoute;
 	'/demo/agent-calls': typeof DemoAgentCallsRoute;
 	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
 	'/demo/chat': typeof DemoChatRoute;
@@ -1545,6 +1554,7 @@ export interface FileRouteTypes {
 	fileRoutesByFullPath: FileRoutesByFullPath;
 	fullPaths:
 		| '/'
+		| '/explorer'
 		| '/demo/agent-calls'
 		| '/demo/ai-gateway'
 		| '/demo/chat'
@@ -1713,6 +1723,7 @@ export interface FileRouteTypes {
 	fileRoutesByTo: FileRoutesByTo;
 	to:
 		| '/'
+		| '/explorer'
 		| '/demo/agent-calls'
 		| '/demo/ai-gateway'
 		| '/demo/chat'
@@ -1880,6 +1891,7 @@ export interface FileRouteTypes {
 		| '__root__'
 		| '/'
 		| '/_docs'
+		| '/explorer'
 		| '/demo/agent-calls'
 		| '/demo/ai-gateway'
 		| '/demo/chat'
@@ -2050,6 +2062,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
 	DocsRouteRoute: typeof DocsRouteRouteWithChildren;
+	ExplorerRoute: typeof ExplorerRoute;
 	DemoAgentCallsRoute: typeof DemoAgentCallsRoute;
 	DemoAiGatewayRoute: typeof DemoAiGatewayRoute;
 	DemoChatRoute: typeof DemoChatRoute;
@@ -2068,6 +2081,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
 	interface FileRoutesByPath {
+		'/explorer': {
+			id: '/explorer';
+			path: '/explorer';
+			fullPath: '/explorer';
+			preLoaderRoute: typeof ExplorerRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		'/_docs': {
 			id: '/_docs';
 			path: '';
@@ -3574,6 +3594,7 @@ const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(DocsRouteRout
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
 	DocsRouteRoute: DocsRouteRouteWithChildren,
+	ExplorerRoute: ExplorerRoute,
 	DemoAgentCallsRoute: DemoAgentCallsRoute,
 	DemoAiGatewayRoute: DemoAiGatewayRoute,
 	DemoChatRoute: DemoChatRoute,
