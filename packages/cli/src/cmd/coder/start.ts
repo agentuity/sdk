@@ -1,6 +1,4 @@
 import { z } from 'zod';
-import { existsSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
@@ -16,49 +14,8 @@ import {
 	resolveHubUrl,
 	toHubWsUrl,
 } from './hub-url';
+import { resolveExtensionPath, resolveExtensionRuntimeModulePath } from './extension-path';
 import { probeHubInitAccess } from './tui-init';
-
-/**
- * Resolve the Coder extension path.
- *
- * Priority:
- *   1. --extension flag (explicit override)
- *   2. AGENTUITY_CODER_EXTENSION env var
- *   3. Installed @agentuity/coder package (node_modules)
- *   4. Local dev path relative to CLI package (SDK monorepo)
- */
-function resolveExtensionPath(flagPath?: string): string | null {
-	// 1. Explicit flag
-	if (flagPath) {
-		const resolved = resolve(flagPath);
-		if (existsSync(resolved)) return resolved;
-		return null;
-	}
-
-	// 2. Env var
-	const envPath = process.env.AGENTUITY_CODER_EXTENSION;
-	if (envPath) {
-		const resolved = resolve(envPath);
-		if (existsSync(resolved)) return resolved;
-	}
-
-	// 3. Installed npm package in cwd
-	const cwdNodeModules = resolve(process.cwd(), 'node_modules', '@agentuity', 'coder');
-	if (existsSync(cwdNodeModules)) return cwdNodeModules;
-
-	// 4. SDK monorepo sibling (for development)
-	// This file is at packages/cli/src/cmd/coder/start.ts — 5 levels up to SDK root
-	try {
-		const cliDir = dirname(new URL(import.meta.url).pathname);
-		const sdkRoot = resolve(cliDir, '..', '..', '..', '..', '..');
-		const coderPath = join(sdkRoot, 'packages', 'coder');
-		if (existsSync(join(coderPath, 'src', 'index.ts'))) return coderPath;
-	} catch {
-		// Not in SDK monorepo
-	}
-
-	return null;
-}
 
 /**
  * Find the `pi` binary.
@@ -188,14 +145,24 @@ export const startSubcommand = createSubcommand({
 		}
 
 		// Resolve extension path
-		const extensionPath = resolveExtensionPath(opts?.extension);
+		const extensionPath = await resolveExtensionPath(opts?.extension);
 		if (!extensionPath) {
 			tui.fatal(
-				'Could not find the Agentuity Coder extension.\n\nEither:\n  - Install it: npm install @agentuity/coder\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
+				'Could not find the Agentuity Coder extension.\n\nThis CLI install should include it automatically. Try:\n  - Reinstall or update @agentuity/cli\n  - Install it locally: npm install @agentuity/coder\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
 				ErrorCode.CONFIG_INVALID
 			);
 			return;
 		}
+
+		const loadRemoteTui = async () => {
+			const modulePath = await resolveExtensionRuntimeModulePath(extensionPath);
+			if (!modulePath) {
+				throw new Error(
+					`Coder extension at ${extensionPath} is missing the remote TUI entrypoint`
+				);
+			}
+			return import(modulePath);
+		};
 
 		// Resolve pi binary
 		const piBinary = resolvePiBinary(opts?.pi);
@@ -284,7 +251,7 @@ export const startSubcommand = createSubcommand({
 			}
 
 			try {
-				const { runRemoteTui } = await import(join(extensionPath, 'src', 'remote-tui.ts'));
+				const { runRemoteTui } = await loadRemoteTui();
 				await runRemoteTui({
 					hubWsUrl,
 					sessionId: remoteSessionId,
@@ -395,7 +362,7 @@ export const startSubcommand = createSubcommand({
 			tui.newline();
 
 			try {
-				const { runRemoteTui } = await import(join(extensionPath, 'src', 'remote-tui.ts'));
+				const { runRemoteTui } = await loadRemoteTui();
 				await runRemoteTui({
 					hubWsUrl,
 					sessionId,
