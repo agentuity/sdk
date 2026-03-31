@@ -435,6 +435,12 @@ Returns paginated list of tasks.
     "required": false
   },
   {
+    "name": "tasks[].deleted",
+    "type": "boolean",
+    "description": "Whether this task has been soft-deleted.",
+    "required": false
+  },
+  {
     "name": "tasks[].creator",
     "type": "object",
     "description": "Reference to the user who created the task.",

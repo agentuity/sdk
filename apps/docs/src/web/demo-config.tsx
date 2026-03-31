@@ -31,6 +31,8 @@ export type DemoId =
 	| 'object-storage'
 	| 'evals';
 
+export const explorerHref = (id: DemoId) => `/explorer/${id}` as const;
+
 export interface DemoConfig {
 	id: DemoId;
 	title: string;
@@ -67,7 +69,7 @@ export const DEMOS: DemoConfig[] = [
 				comes out, the <em>handler</em> processes requests. Once you're comfortable here,
 				explore the{' '}
 				<a
-					href="/demo/handler-context"
+					href={explorerHref('handler-context')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					Handler Context
@@ -124,7 +126,7 @@ export const DEMOS: DemoConfig[] = [
 				</span>
 				. For searching by meaning or similarity, use{' '}
 				<a
-					href="/demo/vector-storage"
+					href={explorerHref('vector-storage')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					Vector storage
@@ -159,7 +161,7 @@ export const DEMOS: DemoConfig[] = [
 				</span>{' '}
 				rather than exact keywords. For exact key lookups, use{' '}
 				<a
-					href="/demo/key-value"
+					href={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					KV storage
@@ -195,7 +197,7 @@ export const DEMOS: DemoConfig[] = [
 				widely-used standard for file storage), so the patterns you learn here work anywhere.
 				For simple key-value data, see{' '}
 				<a
-					href="/demo/key-value"
+					href={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					KV storage
@@ -251,7 +253,7 @@ export const DEMOS: DemoConfig[] = [
 				where you just want text to appear word-by-word. If you need typed events, message IDs,
 				or automatic reconnection, see{' '}
 				<a
-					href="/demo/sse-stream"
+					href={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					SSE streaming
@@ -283,7 +285,7 @@ export const DEMOS: DemoConfig[] = [
 				</span>
 				. For simpler use cases where you just need raw bytes, see{' '}
 				<a
-					href="/demo/streaming"
+					href={explorerHref('streaming')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					Text Stream
@@ -315,7 +317,7 @@ export const DEMOS: DemoConfig[] = [
 				</span>
 				. For real-time use cases where data streams in as it's generated, see{' '}
 				<a
-					href="/demo/sse-stream"
+					href={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					SSE streaming
@@ -372,7 +374,7 @@ export const DEMOS: DemoConfig[] = [
 				<span className="bg-cyan-500/10 px-1 rounded">Use cron for recurring tasks</span> like
 				fetching data, cleaning up old records, or sending reports. Combine with{' '}
 				<a
-					href="/demo/key-value"
+					href={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					KV storage
@@ -404,7 +406,7 @@ export const DEMOS: DemoConfig[] = [
 				</span>
 				. See{' '}
 				<a
-					href="/demo/handler-context"
+					href={explorerHref('handler-context')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					Handler Context
@@ -431,7 +433,7 @@ export const DEMOS: DemoConfig[] = [
 				<span className="bg-cyan-500/10 px-1 rounded">using another AI as the judge</span>.
 				Generate content from multiple providers in parallel via the{' '}
 				<a
-					href="/demo/ai-gateway"
+					href={explorerHref('ai-gateway')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					AI Gateway

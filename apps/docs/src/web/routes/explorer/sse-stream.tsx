@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { DemoView } from '../../components/demo-view';
 
-export const Route = createFileRoute('/demo/cron')({
-	component: () => <DemoView demoId="cron" />,
+export const Route = createFileRoute('/explorer/sse-stream')({
+	component: () => <DemoView demoId="sse-stream" />,
 	staticData: { crumb: 'Demo' },
 });

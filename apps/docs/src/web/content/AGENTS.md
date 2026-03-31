@@ -153,6 +153,13 @@ General rules:
 - Use a balance of raw SDK providers and AI SDK providers (`openai()`, `anthropic()`) in examples
 - Prefer `s` from `@agentuity/schema` for schemas. Other StandardSchema libraries (Zod, ArkType, Valibot) are equally valid and should appear across examples to show the SDK is schema-agnostic
 
+## Static Assets
+
+Images and other static files live in `src/web/public/`. Vite copies these to the build root, so reference them **without** the `/public/` prefix:
+
+- Correct: `/images/integrations/openai.svg`
+- Wrong: `/public/images/integrations/openai.svg`
+
 ## MDX Components
 
 Available components in doc pages:

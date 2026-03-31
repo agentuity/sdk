@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { RedirectFallback } from '../../../components/docs/RedirectFallback';
+import { RedirectFallback } from '../../components/docs/RedirectFallback';
 
-const target = '/agents/when-to-use';
+const target = '/explorer';
 
-export const Route = createFileRoute('/_docs/apis/when-to-use')({
+export const Route = createFileRoute('/demo/')({
 	beforeLoad: () => {
 		if (typeof window !== 'undefined') {
 			throw redirect({ to: target, replace: true });
