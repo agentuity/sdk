@@ -24,8 +24,11 @@ function HomePage() {
 				Agentuity Documentation
 			</h1>
 			<p className="text-lg text-zinc-600 dark:text-zinc-400 mb-4">
+				{/* Opens marketing site in new tab so users stay in docs */}
 				<a
 					href="https://agentuity.com"
+					target="_blank"
+					rel="noopener noreferrer"
 					className="text-cyan-600 dark:text-cyan-400 hover:underline"
 				>
 					Agentuity

@@ -10,7 +10,9 @@ const redirects = new Hono()
 		return c.redirect(`/explorer/${c.req.param('rest')}`, 301);
 	})
 	.get('/demo', (c) => c.redirect('/explorer', 301))
-	// Old APIs section → new locations
+	// Old /apis section was merged into /agents and /routes.
+	// Server-side 301s here complement the client-side redirects in
+	// routes/_docs/apis/ for clients that don't execute JavaScript.
 	.get('/apis/calling-agents', (c) => c.redirect('/routes/calling-agents', 301))
 	.get('/apis/when-to-use', (c) => c.redirect('/agents/when-to-use', 301))
 	.get('/apis/', (c) => c.redirect('/agents', 301))
