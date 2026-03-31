@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
+import { createStorageAdapter, resolveMeId } from './util';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
@@ -104,7 +104,10 @@ export const deleteSubcommand = createCommand({
 				.optional()
 				.describe('filter batch delete by age (e.g. 30s, 7d, 24h, 2w)'),
 			parentId: z.string().optional().describe('filter batch delete by parent task ID'),
-			createdId: z.string().optional().describe('filter batch delete by creator ID'),
+			createdId: z
+				.string()
+				.optional()
+				.describe('filter batch delete by creator ID (use "me" for current user)'),
 			limit: z.coerce
 				.number()
 				.int()
@@ -198,7 +201,7 @@ export const deleteSubcommand = createCommand({
 			type: opts.type as TaskType | undefined,
 			priority: opts.priority as TaskPriority | undefined,
 			parent_id: opts.parentId,
-			created_id: opts.createdId,
+			created_id: await resolveMeId(opts.createdId, ctx),
 			older_than: opts.olderThan,
 			limit: opts.limit,
 		};

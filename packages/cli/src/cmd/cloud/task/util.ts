@@ -11,11 +11,14 @@ export interface TaskContext {
 	auth: AuthData;
 	config: Config | null;
 	options: GlobalOptions;
+	project?: {
+		projectId: string;
+		orgId: string;
+	};
 }
 
 export async function createStorageAdapter(ctx: TaskContext) {
-	const orgId =
-		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+	const orgId = resolveOrgId(ctx);
 	if (!orgId) {
 		tui.fatal('Organization ID is required. Use --org-id flag or set AGENTUITY_CLOUD_ORG_ID.');
 	}
@@ -37,8 +40,7 @@ export async function createStorageAdapter(ctx: TaskContext) {
 }
 
 export async function createStorageAdapterOptionalOrg(ctx: TaskContext) {
-	const orgId =
-		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+	const orgId = resolveOrgId(ctx);
 
 	const headers: Record<string, string> = {
 		Authorization: `Bearer ${ctx.auth.apiKey}`,
@@ -54,17 +56,26 @@ export async function createStorageAdapterOptionalOrg(ctx: TaskContext) {
 	return new TaskStorageService(baseUrl, adapter);
 }
 
+function resolveOrgId(ctx: TaskContext): string | undefined {
+	return (
+		ctx.options.orgId ??
+		process.env.AGENTUITY_CLOUD_ORG_ID ??
+		ctx.project?.orgId ??
+		ctx.config?.preferences?.orgId
+	);
+}
+
 export async function cacheTaskId(
 	ctx: {
 		config: Config | null;
 		options: GlobalOptions;
+		project?: { orgId: string };
 	},
 	taskId: string
 ) {
 	const profileName = ctx.config?.name ?? defaultProfileName;
 	const region = await getDefaultRegion(profileName, ctx.config);
-	const orgId =
-		ctx.options.orgId ?? (process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
+	const orgId = resolveOrgId(ctx as TaskContext);
 	await setResourceInfo('task', profileName, taskId, region, orgId);
 }
 
@@ -75,4 +86,15 @@ export function parseMetadataFlag(raw: string | undefined): Record<string, unkno
 	} catch {
 		tui.fatal('Invalid JSON for --metadata flag');
 	}
+}
+
+export async function resolveMeId(
+	id: string | undefined,
+	ctx: TaskContext
+): Promise<string | undefined> {
+	if (!id) return undefined;
+	if (id === 'me') {
+		return ctx.auth.userId;
+	}
+	return id;
 }

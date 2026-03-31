@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
+import { createStorageAdapter, resolveMeId } from './util';
 import { getCommand } from '../../../command-prefix';
-import type { TaskPriority, TaskStatus, TaskType, Task } from '@agentuity/core';
+import type { TaskPriority, TaskStatus, TaskType, Task, TaskIncludeField } from '@agentuity/core';
 
 const TaskListResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -14,6 +14,12 @@ const TaskListResponseSchema = z.object({
 			type: z.string(),
 			status: z.string(),
 			priority: z.string(),
+			description: z.string().optional(),
+			metadata: z.record(z.string(), z.unknown()).optional(),
+			tags: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
+			subtask_count: z.number().optional(),
+			created_id: z.string().optional(),
+			deleted: z.boolean().optional(),
 			creator: z
 				.object({
 					id: z.string(),
@@ -73,6 +79,11 @@ function truncate(s: string, max: number): string {
 	return `${s.slice(0, max - 1)}…`;
 }
 
+function parseIncludeParam(include: string | undefined): TaskIncludeField[] | undefined {
+	if (!include) return undefined;
+	return include.split(',').map((f) => f.trim() as TaskIncludeField);
+}
+
 export const listSubcommand = createCommand({
 	name: 'list',
 	aliases: ['ls'],
@@ -103,6 +114,14 @@ export const listSubcommand = createCommand({
 			command: getCommand('cloud task list --assigned-id agent_001 --limit 10'),
 			description: 'List first 10 tasks assigned to an agent',
 		},
+		{
+			command: getCommand('cloud task list --created-id me --include description,metadata,tags'),
+			description: 'List tasks created by me with full details',
+		},
+		{
+			command: getCommand('cloud task list --project-id proj_abc123'),
+			description: 'List tasks for a specific project',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -118,8 +137,24 @@ export const listSubcommand = createCommand({
 				.enum(['high', 'medium', 'low', 'none'])
 				.optional()
 				.describe('filter by priority'),
-			assignedId: z.string().optional().describe('filter by assigned agent or user ID'),
+			assignedId: z
+				.string()
+				.optional()
+				.describe('filter by assigned agent or user ID (use "me" for current user)'),
+			createdId: z
+				.string()
+				.optional()
+				.describe('filter by creator ID (use "me" for current user)'),
 			parentId: z.string().optional().describe('filter by parent task ID'),
+			projectId: z.string().optional().describe('filter by project ID'),
+			tagId: z.string().optional().describe('filter by tag ID'),
+			deleted: z.boolean().optional().describe('include soft-deleted tasks'),
+			include: z
+				.string()
+				.optional()
+				.describe(
+					'comma-separated fields to include: description,metadata,tags,subtask_count,created_id,deleted'
+				),
 			sort: z
 				.enum(['created_at', 'updated_at', 'priority'])
 				.optional()
@@ -136,12 +171,20 @@ export const listSubcommand = createCommand({
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
 
+		const createdId = await resolveMeId(opts.createdId, ctx);
+		const assignedId = await resolveMeId(opts.assignedId, ctx);
+
 		const result = await storage.list({
 			status: opts.status as TaskStatus | undefined,
 			type: opts.type as TaskType | undefined,
 			priority: opts.priority as TaskPriority | undefined,
-			assigned_id: opts.assignedId,
+			assigned_id: assignedId,
+			created_id: createdId,
 			parent_id: opts.parentId,
+			project_id: opts.projectId,
+			tag_id: opts.tagId,
+			deleted: opts.deleted,
+			include: parseIncludeParam(opts.include),
 			sort: opts.sort,
 			order: opts.order,
 			limit: opts.limit,
@@ -190,6 +233,11 @@ export const listSubcommand = createCommand({
 				type: task.type,
 				status: task.status,
 				priority: task.priority,
+				description: task.description,
+				metadata: task.metadata,
+				tags: task.tags,
+				subtask_count: task.subtask_count,
+				created_id: task.created_id,
 				creator: task.creator,
 				assignee: task.assignee,
 				project: task.project,

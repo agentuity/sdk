@@ -12,6 +12,10 @@ import type {
 	ListTasksResult,
 	BatchDeleteTasksParams,
 	BatchDeleteTasksResult,
+	BatchUpdateTasksParams,
+	BatchUpdateTasksResult,
+	BatchCloseTasksParams,
+	BatchCloseTasksResult,
 	TaskChangelogResult,
 	Comment,
 	Tag,
@@ -861,6 +865,308 @@ export class LocalTaskStorage implements TaskStorage {
 		return {
 			deleted: rows.map((r) => ({ id: r.id, title: r.title })),
 			count: rows.length,
+		};
+	}
+
+	async batchUpdate(params: BatchUpdateTasksParams): Promise<BatchUpdateTasksResult> {
+		const conditions: string[] = ['project_path = ?', 'deleted = 0'];
+		const args: (string | number)[] = [this.#projectPath];
+
+		// Handle explicit IDs
+		if (params.ids && params.ids.length > 0) {
+			const placeholders = params.ids.map(() => '?').join(', ');
+			conditions.push(`id IN (${placeholders})`);
+			args.push(...params.ids);
+		} else {
+			// Build filter conditions
+			if (params.status) {
+				conditions.push('status = ?');
+				args.push(normalizeTaskStatus(params.status));
+			}
+			if (params.type) {
+				conditions.push('type = ?');
+				args.push(params.type);
+			}
+			if (params.priority) {
+				conditions.push('priority = ?');
+				args.push(params.priority);
+			}
+			if (params.parent_id) {
+				conditions.push('parent_id = ?');
+				args.push(params.parent_id);
+			}
+			if (params.created_id) {
+				conditions.push('created_id = ?');
+				args.push(params.created_id);
+			}
+			if (params.assigned_id) {
+				conditions.push('assigned_id = ?');
+				args.push(params.assigned_id);
+			}
+			if (params.older_than) {
+				const ms = parseDurationMs(params.older_than);
+				const cutoff = Date.now() - ms;
+				conditions.push('created_at < ?');
+				args.push(cutoff);
+			}
+		}
+
+		// Require at least one filter or IDs
+		if (params.ids && params.ids.length > 0) {
+			// IDs provided, OK
+		} else if (conditions.length < 3) {
+			throw new Error('At least one filter or ids is required for batch update');
+		}
+
+		// Check for update fields
+		const hasUpdate =
+			params.new_status ||
+			params.new_priority ||
+			params.new_assigned_id ||
+			params.new_title ||
+			params.new_description ||
+			params.new_metadata;
+		if (!hasUpdate) {
+			throw new Error('At least one update field is required for batch update');
+		}
+
+		if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit <= 0)) {
+			throw new Error('Batch update limit must be a positive integer');
+		}
+		const limit = Math.min(params.limit ?? 50, 200);
+
+		const whereClause = conditions.join(' AND ');
+		const selectQuery = `SELECT id, title, status, priority FROM task_storage WHERE ${whereClause} ORDER BY created_at ASC LIMIT ?`;
+		const selectStmt = this.#db.prepare(selectQuery);
+		const rows = selectStmt.all(...args, limit) as Array<{
+			id: string;
+			title: string;
+			status: string;
+			priority: string;
+		}>;
+
+		if (rows.length === 0) {
+			return { updated: [], count: 0, dry_run: params.dry_run ?? false };
+		}
+
+		// Dry run - return preview without updating
+		if (params.dry_run) {
+			return {
+				updated: rows.map((r) => ({
+					id: r.id,
+					title: params.new_title ?? r.title,
+					status: (params.new_status ?? r.status) as TaskStatus,
+					priority: (params.new_priority ?? r.priority) as TaskPriority,
+				})),
+				count: rows.length,
+				dry_run: true,
+			};
+		}
+
+		const timestamp = now();
+		const ids = rows.map((r) => r.id);
+		const placeholders = ids.map(() => '?').join(', ');
+
+		const updateFields: string[] = ['updated_at = ?'];
+		const updateArgs: (string | number)[] = [timestamp];
+
+		if (params.new_status) {
+			updateFields.push('status = ?');
+			updateArgs.push(normalizeTaskStatus(params.new_status));
+		}
+		if (params.new_priority) {
+			updateFields.push('priority = ?');
+			updateArgs.push(params.new_priority);
+		}
+		if (params.new_assigned_id) {
+			updateFields.push('assigned_id = ?');
+			updateArgs.push(params.new_assigned_id);
+		}
+		if (params.new_title) {
+			updateFields.push('title = ?');
+			updateArgs.push(params.new_title);
+		}
+		if (params.new_description) {
+			updateFields.push('description = ?');
+			updateArgs.push(params.new_description);
+		}
+
+		const txn = this.#db.transaction(() => {
+			const updateStmt = this.#db.prepare(`
+				UPDATE task_storage SET ${updateFields.join(', ')}
+				WHERE project_path = ? AND id IN (${placeholders})
+			`);
+			updateStmt.run(...updateArgs, this.#projectPath, ...ids);
+
+			const changelogStmt = this.#db.prepare(`
+				INSERT INTO task_changelog_storage (
+					project_path, id, task_id, field, old_value, new_value, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`);
+			for (const row of rows) {
+				if (params.new_status && row.status !== params.new_status) {
+					changelogStmt.run(
+						this.#projectPath,
+						generateChangelogId(),
+						row.id,
+						'status',
+						row.status,
+						params.new_status,
+						timestamp
+					);
+				}
+				if (params.new_priority && row.priority !== params.new_priority) {
+					changelogStmt.run(
+						this.#projectPath,
+						generateChangelogId(),
+						row.id,
+						'priority',
+						row.priority,
+						params.new_priority,
+						timestamp
+					);
+				}
+			}
+		});
+		txn();
+
+		return {
+			updated: rows.map((r) => ({
+				id: r.id,
+				title: params.new_title ?? r.title,
+				status: (params.new_status ?? r.status) as TaskStatus,
+				priority: (params.new_priority ?? r.priority) as TaskPriority,
+			})),
+			count: rows.length,
+			dry_run: false,
+		};
+	}
+
+	async batchClose(params: BatchCloseTasksParams): Promise<BatchCloseTasksResult> {
+		const conditions: string[] = ['project_path = ?', 'deleted = 0', "status != 'done'"];
+		const args: (string | number)[] = [this.#projectPath];
+
+		// Handle explicit IDs
+		if (params.ids && params.ids.length > 0) {
+			const placeholders = params.ids.map(() => '?').join(', ');
+			conditions.push(`id IN (${placeholders})`);
+			args.push(...params.ids);
+		} else {
+			// Build filter conditions
+			if (params.status) {
+				conditions.push('status = ?');
+				args.push(normalizeTaskStatus(params.status));
+			}
+			if (params.type) {
+				conditions.push('type = ?');
+				args.push(params.type);
+			}
+			if (params.priority) {
+				conditions.push('priority = ?');
+				args.push(params.priority);
+			}
+			if (params.parent_id) {
+				conditions.push('parent_id = ?');
+				args.push(params.parent_id);
+			}
+			if (params.created_id) {
+				conditions.push('created_id = ?');
+				args.push(params.created_id);
+			}
+			if (params.assigned_id) {
+				conditions.push('assigned_id = ?');
+				args.push(params.assigned_id);
+			}
+			if (params.older_than) {
+				const ms = parseDurationMs(params.older_than);
+				const cutoff = Date.now() - ms;
+				conditions.push('created_at < ?');
+				args.push(cutoff);
+			}
+		}
+
+		// Require at least one filter or IDs
+		if (params.ids && params.ids.length > 0) {
+			// IDs provided, OK
+		} else if (conditions.length < 4) {
+			throw new Error('At least one filter or ids is required for batch close');
+		}
+
+		if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit <= 0)) {
+			throw new Error('Batch close limit must be a positive integer');
+		}
+		const limit = Math.min(params.limit ?? 50, 200);
+
+		const whereClause = conditions.join(' AND ');
+		const selectQuery = `SELECT id, title, status FROM task_storage WHERE ${whereClause} ORDER BY created_at ASC LIMIT ?`;
+		const selectStmt = this.#db.prepare(selectQuery);
+		const rows = selectStmt.all(...args, limit) as Array<{
+			id: string;
+			title: string;
+			status: string;
+		}>;
+
+		if (rows.length === 0) {
+			return { closed: [], count: 0, dry_run: params.dry_run ?? false };
+		}
+
+		// Dry run - return preview without closing
+		if (params.dry_run) {
+			const nowTs = new Date().toISOString();
+			return {
+				closed: rows.map((r) => ({
+					id: r.id,
+					title: r.title,
+					status: 'done',
+					closed_date: nowTs,
+				})),
+				count: rows.length,
+				dry_run: true,
+			};
+		}
+
+		const timestamp = now();
+		const ids = rows.map((r) => r.id);
+		const placeholders = ids.map(() => '?').join(', ');
+		const closedDate = new Date(timestamp).toISOString();
+
+		const txn = this.#db.transaction(() => {
+			const updateStmt = this.#db.prepare(`
+				UPDATE task_storage SET status = 'done', closed_date = COALESCE(closed_date, ?), closed_id = ?, updated_at = ?
+				WHERE project_path = ? AND id IN (${placeholders})
+			`);
+			updateStmt.run(closedDate, params.closed_id ?? null, timestamp, this.#projectPath, ...ids);
+
+			const changelogStmt = this.#db.prepare(`
+				INSERT INTO task_changelog_storage (
+					project_path, id, task_id, field, old_value, new_value, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`);
+			for (const row of rows) {
+				if (row.status !== 'done') {
+					changelogStmt.run(
+						this.#projectPath,
+						generateChangelogId(),
+						row.id,
+						'status',
+						row.status,
+						'done',
+						timestamp
+					);
+				}
+			}
+		});
+		txn();
+
+		return {
+			closed: rows.map((r) => ({
+				id: r.id,
+				title: r.title,
+				status: 'done',
+				closed_date: closedDate,
+			})),
+			count: rows.length,
+			dry_run: false,
 		};
 	}
 
