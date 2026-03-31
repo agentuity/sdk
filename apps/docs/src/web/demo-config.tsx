@@ -13,6 +13,9 @@ import { PersistentStreamDemo } from './components/PersistentStreamDemo';
 import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
+import { QueueDemo } from './components/QueueDemo';
+import { DatabaseDemo } from './components/DatabaseDemo';
+import { EmailDemo } from './components/EmailDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -29,7 +32,10 @@ export type DemoId =
 	| 'cron'
 	| 'agent-calls'
 	| 'object-storage'
-	| 'evals';
+	| 'evals'
+	| 'queue'
+	| 'email'
+	| 'database';
 
 export interface DemoConfig {
 	id: DemoId;
@@ -38,7 +44,7 @@ export interface DemoConfig {
 	description: string;
 	explanation: React.ReactNode;
 	docsUrl?: string;
-	category: 'basics' | 'services' | 'io-patterns' | 'examples';
+	category: 'basics' | 'services' | 'io-patterns' | 'examples' | 'messaging' | 'platform';
 	component: React.ComponentType;
 	codeExample: string;
 	sandboxEnabled?: boolean;
@@ -474,6 +480,86 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'evals',
 		sandboxInput: { question: 'What is Agentuity and what are its main features?' },
+	},
+	{
+		id: 'queue',
+		title: 'Message Queue',
+		subtitle: 'Publish & Consume',
+		description: 'Publish messages, receive with ack/nack, and explore the dead letter queue.',
+		explanation: (
+			<>
+				Message queues decouple producers from consumers. Publish a message and a worker picks
+				it up later, processes it, and acknowledges completion.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					If processing fails, the message retries automatically
+				</span>
+				. After exhausting retries, it moves to the <em>dead letter queue</em> (DLQ) for
+				inspection and replay. Agents use <em>ctx.queue</em> to create queues and publish.
+				Server routes consume with receive/ack/nack.
+			</>
+		),
+		docsUrl: '/services/queues',
+		category: 'messaging',
+		component: QueueDemo,
+		codeExample: CODE_EXAMPLES.queue,
+		sandboxEnabled: true,
+		sandboxScript: 'queue',
+	},
+	{
+		id: 'email',
+		title: 'Email',
+		subtitle: 'Send & Receive',
+		description: 'Send templated emails and preview delivery.',
+		explanation: (
+			<>
+				Send transactional emails using <em>ctx.email.send()</em> with full control over HTML
+				content, recipients, and attachments.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Choose a template and watch the email get sent and previewed
+				</span>
+				. Under the hood, the platform handles delivery, bounce tracking, and DNS configuration.
+				For receiving emails, configure <em>email destinations</em> to route inbound messages to
+				your agent handlers.
+			</>
+		),
+		docsUrl: '/services/email',
+		category: 'messaging',
+		component: EmailDemo,
+		codeExample: CODE_EXAMPLES.email,
+		sandboxEnabled: true,
+		sandboxScript: 'email',
+		sandboxInput: { template: 'welcome' },
+	},
+	{
+		id: 'database',
+		title: 'Database',
+		subtitle: 'Drizzle ORM',
+		description: 'Query a PostgreSQL database with type-safe Drizzle ORM.',
+		explanation: (
+			<>
+				Query a real PostgreSQL database using <em>Drizzle ORM</em> for type-safe, composable
+				queries.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Define your schema in TypeScript and query with full autocompletion
+				</span>
+				. The same chairs from the{' '}
+				<a
+					href="/demo/vector-storage"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					Vector Search
+				</a>{' '}
+				demo are stored here in a relational table. Vector found them by meaning, this finds
+				them by exact criteria: price ranges, ratings, and keywords.
+			</>
+		),
+		docsUrl: '/services/database',
+		category: 'platform',
+		component: DatabaseDemo,
+		codeExample: CODE_EXAMPLES.database,
+		sandboxEnabled: true,
+		sandboxScript: 'database',
+		sandboxInput: { query: 'all', seedData: true },
 	},
 ];
 

@@ -497,4 +497,118 @@ export const factualClaimsEval = agent.createEval("factual-claims", {
     };
   },
 });`,
+
+	queue: `// Message Queue: publish messages for async processing.
+// Agents publish via ctx.queue. Workers receive and ack/nack.
+
+// CREATE a queue with worker type and retry settings
+const queueName = "task-queue";
+await ctx.queue.createQueue(queueName, {
+  queueType: "worker",
+  settings: {
+    defaultMaxRetries: 3,
+    defaultVisibilityTimeoutSeconds: 30,
+  },
+});
+
+// PUBLISH a message (sync mode returns the published message)
+const result = await ctx.queue.publish(queueName, {
+  task: "process-order",
+  orderId: "order-123",
+  priority: "high",
+}, {
+  sync: true,
+  metadata: { source: "checkout" },
+  idempotencyKey: "order-123-v1",
+});
+
+ctx.logger.info("Published", {
+  id: result.id,
+  offset: result.offset,
+});
+
+// PUBLISH another message (fire-and-forget, no sync)
+await ctx.queue.publish(queueName, {
+  task: "send-receipt",
+  orderId: "order-123",
+});
+
+// CLEANUP
+await ctx.queue.deleteQueue(queueName);
+ctx.logger.info("Queue deleted");`,
+
+	email: `import { createAgent } from "@agentuity/runtime";
+import { s } from "@agentuity/schema";
+
+const agent = createAgent("email-sender", {
+  description: "Send a welcome email",
+  schema: {
+    input: s.object({
+      template: s.literal("welcome"),
+    }),
+    output: s.object({
+      id: s.string(),
+      status: s.string(),
+    }),
+  },
+  handler: async (ctx, { template }) => {
+    // ctx.email.send() handles delivery via the platform
+    const result = await ctx.email.send({
+      from: "hello-explorer@agentuity.email",
+      to: ["inbox-explorer@agentuity.email"],
+      subject: "Welcome to Agentuity!",
+      text: "Hi, welcome to the platform.",
+      html: "<h1>Welcome!</h1><p>Get started with Agentuity.</p>",
+    });
+
+    ctx.logger.info("Email sent", { id: result.id });
+    return { id: result.id, status: result.status };
+  },
+});`,
+
+	database: `// Database: type-safe PostgreSQL queries with Drizzle ORM.
+// Same chairs as the vector demo — found by exact criteria instead of meaning.
+import { createPostgresDrizzle, pgTable, text, real, serial, lt, gte, ilike, sql } from "@agentuity/drizzle";
+
+// Define your schema in TypeScript
+const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  sku: text("sku").notNull().unique(),
+  name: text("name").notNull(),
+  price: real("price").notNull(),
+  avg_rating: real("avg_rating").notNull(),
+  description: text("description").notNull(),
+  customer_feedback: text("customer_feedback").notNull(),
+});
+
+// Connect (uses DATABASE_URL by default)
+const { db, close } = createPostgresDrizzle({ schema: { products } });
+
+// All products
+const all = await db.select().from(products);
+ctx.logger.info("All products", { count: all.length });
+
+// Budget chairs (under $200)
+const budget = await db.select().from(products).where(lt(products.price, 200));
+ctx.logger.info("Budget chairs", { count: budget.length });
+
+// Top rated (4.5+)
+const topRated = await db.select().from(products).where(gte(products.avg_rating, 4.5));
+ctx.logger.info("Top rated", { count: topRated.length });
+
+// Search by keyword
+const search = await db.select().from(products).where(ilike(products.name, "%Ergo%"));
+ctx.logger.info("Search results", { count: search.length });
+
+// Aggregates (raw SQL for functions not in the Drizzle re-exports)
+const result = await db.execute(sql\`
+  SELECT ROUND(AVG(price)::numeric, 2) AS "avgPrice",
+         MIN(price) AS "minPrice", MAX(price) AS "maxPrice",
+         COUNT(*)::int AS "total"
+  FROM products
+\`);
+const summary = result.rows[0];
+ctx.logger.info("Price summary", summary);
+
+await close();`,
 };

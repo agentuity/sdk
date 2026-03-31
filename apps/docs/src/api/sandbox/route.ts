@@ -263,22 +263,27 @@ async function executeOnSandbox(
 		orgId,
 	});
 
-	// Fetch output and wait for completion in parallel
-	// The fetch blocks until data is available (when execution completes)
-	const [result, stdout, stderr] = await Promise.all([
-		executionGet(client, {
-			executionId: execution.executionId,
-			orgId,
-			wait: '5m',
-		}),
-		fetchOutput(execution.stdoutStreamUrl),
-		fetchOutput(execution.stderrStreamUrl),
-	]);
+	// Wait for execution to complete before fetching output.
+	// Stream URLs may not have all data while execution is still running.
+	const result = await executionGet(client, {
+		executionId: execution.executionId,
+		orgId,
+		wait: '5m',
+	});
 
-	// Combine stdout and stderr (stderr often has logger output)
+	// Fetch output after completion (prefer URLs from result, fall back to execution)
+	const stdoutUrl = result.stdoutStreamUrl ?? execution.stdoutStreamUrl;
+	const stderrUrl = result.stderrStreamUrl ?? execution.stderrStreamUrl;
+
+	// If stdout and stderr are the same stream, fetch once to avoid duplicates
+	const isCombined = stdoutUrl && stderrUrl && stdoutUrl === stderrUrl;
+	const [stdout, stderr] = isCombined
+		? [await fetchOutput(stdoutUrl), '']
+		: await Promise.all([fetchOutput(stdoutUrl), fetchOutput(stderrUrl)]);
+
 	const output = [stdout, stderr].filter(Boolean).join('\n');
 
-	return { output, exitCode: result.exitCode ?? 0 };
+	return { output, exitCode: result.exitCode ?? (result.status === 'completed' ? 0 : 1) };
 }
 
 /**

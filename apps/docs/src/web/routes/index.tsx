@@ -37,7 +37,9 @@ function LandingPage() {
 	};
 
 	const basics = DEMOS.filter((d) => d.category === 'basics');
-	const services = DEMOS.filter((d) => d.category === 'services');
+	const services = DEMOS.filter(
+		(d) => d.category === 'services' || d.category === 'messaging' || d.category === 'platform'
+	);
 	const ioPatterns = DEMOS.filter((d) => d.category === 'io-patterns');
 	const examples = DEMOS.filter((d) => d.category === 'examples');
 

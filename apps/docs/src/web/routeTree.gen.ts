@@ -14,13 +14,16 @@ import { Route as IndexRouteImport } from './routes/index';
 import { Route as DemoVectorStorageRouteImport } from './routes/demo/vector-storage';
 import { Route as DemoStreamingRouteImport } from './routes/demo/streaming';
 import { Route as DemoSseStreamRouteImport } from './routes/demo/sse-stream';
+import { Route as DemoQueueRouteImport } from './routes/demo/queue';
 import { Route as DemoObjectStorageRouteImport } from './routes/demo/object-storage';
 import { Route as DemoModelArenaRouteImport } from './routes/demo/model-arena';
 import { Route as DemoKeyValueRouteImport } from './routes/demo/key-value';
 import { Route as DemoHelloRouteImport } from './routes/demo/hello';
 import { Route as DemoHandlerContextRouteImport } from './routes/demo/handler-context';
 import { Route as DemoEvalsRouteImport } from './routes/demo/evals';
+import { Route as DemoEmailRouteImport } from './routes/demo/email';
 import { Route as DemoDurableStreamRouteImport } from './routes/demo/durable-stream';
+import { Route as DemoDatabaseRouteImport } from './routes/demo/database';
 import { Route as DemoCronRouteImport } from './routes/demo/cron';
 import { Route as DemoChatRouteImport } from './routes/demo/chat';
 import { Route as DemoAiGatewayRouteImport } from './routes/demo/ai-gateway';
@@ -201,6 +204,11 @@ const DemoSseStreamRoute = DemoSseStreamRouteImport.update({
 	path: '/demo/sse-stream',
 	getParentRoute: () => rootRouteImport,
 } as any);
+const DemoQueueRoute = DemoQueueRouteImport.update({
+	id: '/demo/queue',
+	path: '/demo/queue',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const DemoObjectStorageRoute = DemoObjectStorageRouteImport.update({
 	id: '/demo/object-storage',
 	path: '/demo/object-storage',
@@ -231,9 +239,19 @@ const DemoEvalsRoute = DemoEvalsRouteImport.update({
 	path: '/demo/evals',
 	getParentRoute: () => rootRouteImport,
 } as any);
+const DemoEmailRoute = DemoEmailRouteImport.update({
+	id: '/demo/email',
+	path: '/demo/email',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const DemoDurableStreamRoute = DemoDurableStreamRouteImport.update({
 	id: '/demo/durable-stream',
 	path: '/demo/durable-stream',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const DemoDatabaseRoute = DemoDatabaseRouteImport.update({
+	id: '/demo/database',
+	path: '/demo/database',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const DemoCronRoute = DemoCronRouteImport.update({
@@ -1043,13 +1061,16 @@ export interface FileRoutesByFullPath {
 	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
 	'/demo/chat': typeof DemoChatRoute;
 	'/demo/cron': typeof DemoCronRoute;
+	'/demo/database': typeof DemoDatabaseRoute;
 	'/demo/durable-stream': typeof DemoDurableStreamRoute;
+	'/demo/email': typeof DemoEmailRoute;
 	'/demo/evals': typeof DemoEvalsRoute;
 	'/demo/handler-context': typeof DemoHandlerContextRoute;
 	'/demo/hello': typeof DemoHelloRoute;
 	'/demo/key-value': typeof DemoKeyValueRoute;
 	'/demo/model-arena': typeof DemoModelArenaRoute;
 	'/demo/object-storage': typeof DemoObjectStorageRoute;
+	'/demo/queue': typeof DemoQueueRoute;
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
@@ -1211,13 +1232,16 @@ export interface FileRoutesByTo {
 	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
 	'/demo/chat': typeof DemoChatRoute;
 	'/demo/cron': typeof DemoCronRoute;
+	'/demo/database': typeof DemoDatabaseRoute;
 	'/demo/durable-stream': typeof DemoDurableStreamRoute;
+	'/demo/email': typeof DemoEmailRoute;
 	'/demo/evals': typeof DemoEvalsRoute;
 	'/demo/handler-context': typeof DemoHandlerContextRoute;
 	'/demo/hello': typeof DemoHelloRoute;
 	'/demo/key-value': typeof DemoKeyValueRoute;
 	'/demo/model-arena': typeof DemoModelArenaRoute;
 	'/demo/object-storage': typeof DemoObjectStorageRoute;
+	'/demo/queue': typeof DemoQueueRoute;
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
@@ -1379,13 +1403,16 @@ export interface FileRoutesById {
 	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
 	'/demo/chat': typeof DemoChatRoute;
 	'/demo/cron': typeof DemoCronRoute;
+	'/demo/database': typeof DemoDatabaseRoute;
 	'/demo/durable-stream': typeof DemoDurableStreamRoute;
+	'/demo/email': typeof DemoEmailRoute;
 	'/demo/evals': typeof DemoEvalsRoute;
 	'/demo/handler-context': typeof DemoHandlerContextRoute;
 	'/demo/hello': typeof DemoHelloRoute;
 	'/demo/key-value': typeof DemoKeyValueRoute;
 	'/demo/model-arena': typeof DemoModelArenaRoute;
 	'/demo/object-storage': typeof DemoObjectStorageRoute;
+	'/demo/queue': typeof DemoQueueRoute;
 	'/demo/sse-stream': typeof DemoSseStreamRoute;
 	'/demo/streaming': typeof DemoStreamingRoute;
 	'/demo/vector-storage': typeof DemoVectorStorageRoute;
@@ -1549,13 +1576,16 @@ export interface FileRouteTypes {
 		| '/demo/ai-gateway'
 		| '/demo/chat'
 		| '/demo/cron'
+		| '/demo/database'
 		| '/demo/durable-stream'
+		| '/demo/email'
 		| '/demo/evals'
 		| '/demo/handler-context'
 		| '/demo/hello'
 		| '/demo/key-value'
 		| '/demo/model-arena'
 		| '/demo/object-storage'
+		| '/demo/queue'
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
@@ -1717,13 +1747,16 @@ export interface FileRouteTypes {
 		| '/demo/ai-gateway'
 		| '/demo/chat'
 		| '/demo/cron'
+		| '/demo/database'
 		| '/demo/durable-stream'
+		| '/demo/email'
 		| '/demo/evals'
 		| '/demo/handler-context'
 		| '/demo/hello'
 		| '/demo/key-value'
 		| '/demo/model-arena'
 		| '/demo/object-storage'
+		| '/demo/queue'
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
@@ -1884,13 +1917,16 @@ export interface FileRouteTypes {
 		| '/demo/ai-gateway'
 		| '/demo/chat'
 		| '/demo/cron'
+		| '/demo/database'
 		| '/demo/durable-stream'
+		| '/demo/email'
 		| '/demo/evals'
 		| '/demo/handler-context'
 		| '/demo/hello'
 		| '/demo/key-value'
 		| '/demo/model-arena'
 		| '/demo/object-storage'
+		| '/demo/queue'
 		| '/demo/sse-stream'
 		| '/demo/streaming'
 		| '/demo/vector-storage'
@@ -2054,13 +2090,16 @@ export interface RootRouteChildren {
 	DemoAiGatewayRoute: typeof DemoAiGatewayRoute;
 	DemoChatRoute: typeof DemoChatRoute;
 	DemoCronRoute: typeof DemoCronRoute;
+	DemoDatabaseRoute: typeof DemoDatabaseRoute;
 	DemoDurableStreamRoute: typeof DemoDurableStreamRoute;
+	DemoEmailRoute: typeof DemoEmailRoute;
 	DemoEvalsRoute: typeof DemoEvalsRoute;
 	DemoHandlerContextRoute: typeof DemoHandlerContextRoute;
 	DemoHelloRoute: typeof DemoHelloRoute;
 	DemoKeyValueRoute: typeof DemoKeyValueRoute;
 	DemoModelArenaRoute: typeof DemoModelArenaRoute;
 	DemoObjectStorageRoute: typeof DemoObjectStorageRoute;
+	DemoQueueRoute: typeof DemoQueueRoute;
 	DemoSseStreamRoute: typeof DemoSseStreamRoute;
 	DemoStreamingRoute: typeof DemoStreamingRoute;
 	DemoVectorStorageRoute: typeof DemoVectorStorageRoute;
@@ -2101,6 +2140,13 @@ declare module '@tanstack/react-router' {
 			path: '/demo/sse-stream';
 			fullPath: '/demo/sse-stream';
 			preLoaderRoute: typeof DemoSseStreamRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/demo/queue': {
+			id: '/demo/queue';
+			path: '/demo/queue';
+			fullPath: '/demo/queue';
+			preLoaderRoute: typeof DemoQueueRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/demo/object-storage': {
@@ -2145,11 +2191,25 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DemoEvalsRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		'/demo/email': {
+			id: '/demo/email';
+			path: '/demo/email';
+			fullPath: '/demo/email';
+			preLoaderRoute: typeof DemoEmailRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		'/demo/durable-stream': {
 			id: '/demo/durable-stream';
 			path: '/demo/durable-stream';
 			fullPath: '/demo/durable-stream';
 			preLoaderRoute: typeof DemoDurableStreamRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/demo/database': {
+			id: '/demo/database';
+			path: '/demo/database';
+			fullPath: '/demo/database';
+			preLoaderRoute: typeof DemoDatabaseRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/demo/cron': {
@@ -3578,13 +3638,16 @@ const rootRouteChildren: RootRouteChildren = {
 	DemoAiGatewayRoute: DemoAiGatewayRoute,
 	DemoChatRoute: DemoChatRoute,
 	DemoCronRoute: DemoCronRoute,
+	DemoDatabaseRoute: DemoDatabaseRoute,
 	DemoDurableStreamRoute: DemoDurableStreamRoute,
+	DemoEmailRoute: DemoEmailRoute,
 	DemoEvalsRoute: DemoEvalsRoute,
 	DemoHandlerContextRoute: DemoHandlerContextRoute,
 	DemoHelloRoute: DemoHelloRoute,
 	DemoKeyValueRoute: DemoKeyValueRoute,
 	DemoModelArenaRoute: DemoModelArenaRoute,
 	DemoObjectStorageRoute: DemoObjectStorageRoute,
+	DemoQueueRoute: DemoQueueRoute,
 	DemoSseStreamRoute: DemoSseStreamRoute,
 	DemoStreamingRoute: DemoStreamingRoute,
 	DemoVectorStorageRoute: DemoVectorStorageRoute,
