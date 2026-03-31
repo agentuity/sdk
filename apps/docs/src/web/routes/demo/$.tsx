@@ -1,4 +1,5 @@
-import { createFileRoute, redirect, ScriptOnce, useParams } from '@tanstack/react-router';
+import { createFileRoute, redirect, useParams } from '@tanstack/react-router';
+import { RedirectFallback } from '../../components/docs/RedirectFallback';
 
 export const Route = createFileRoute('/demo/$')({
 	beforeLoad: ({ params }) => {
@@ -9,15 +10,6 @@ export const Route = createFileRoute('/demo/$')({
 	},
 	component: function DemoSplatRedirect() {
 		const { _splat } = useParams({ from: '/demo/$' });
-		const target = `/explorer/${_splat}`;
-		return (
-			<>
-				<ScriptOnce>{`window.location.replace(${JSON.stringify(target)})`}</ScriptOnce>
-				<p>
-					This page has moved to <a href={target}>{target}</a>. If you are not redirected
-					automatically, use this link.
-				</p>
-			</>
-		);
+		return <RedirectFallback target={`/explorer/${_splat}`} />;
 	},
 });

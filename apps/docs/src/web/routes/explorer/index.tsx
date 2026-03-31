@@ -1,6 +1,15 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui';
-import { DEMOS, type DemoId } from '../../demo-config';
+import { DEMOS, type DemoConfig, type DemoId } from '../../demo-config';
+
+const categories = [...new Set(DEMOS.map((d) => d.category))];
+
+const categoryLabels: Record<DemoConfig['category'], string> = {
+	basics: 'Basics',
+	services: 'Services',
+	'io-patterns': 'I/O Patterns',
+	examples: 'Examples',
+};
 
 export const Route = createFileRoute('/explorer/')({
 	component: ExplorerPage,
@@ -34,17 +43,6 @@ function ExplorerPage() {
 
 	const handleSelectDemo = (id: DemoId) => {
 		void navigate({ to: `/explorer/${id}` });
-	};
-
-	const categories = [...new Set(DEMOS.map((d) => d.category))];
-
-	const categoryLabels: Record<string, string> = {
-		basics: 'Basics',
-		services: 'Services',
-		'io-patterns': 'I/O Patterns',
-		examples: 'Examples',
-		messaging: 'Messaging',
-		platform: 'Platform',
 	};
 
 	return (
