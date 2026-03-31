@@ -138,6 +138,7 @@ export const TaskSchema = z.object({
 	created_id: z.string().describe('ID of the user who created the task.'),
 	assigned_id: z.string().optional().describe('ID of the user the task is assigned to.'),
 	closed_id: z.string().optional().describe('ID of the user who closed the task.'),
+	deleted: z.boolean().optional().describe('Whether this task has been soft-deleted.'),
 	creator: z
 		.lazy(() => UserEntityRefSchema)
 		.optional()
@@ -614,6 +615,15 @@ export const BatchUpdateTasksParamsSchema = z.object({
 	/** New metadata to set (merged with existing). */
 	new_metadata: z.record(z.string(), z.unknown()).optional().describe('New metadata to set.'),
 
+	/** New type to set. */
+	new_type: TaskTypeSchema.optional().describe('New type to set.'),
+
+	/**
+	 * Filter for tasks newer than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	newer_than: z.string().optional().describe('Filter for tasks newer than this duration.'),
+
 	/** Whether this is a dry run (preview only). */
 	dry_run: z.boolean().optional().describe('Whether this is a dry run (preview only).'),
 });
@@ -682,6 +692,12 @@ export const BatchCloseTasksParamsSchema = z.object({
 	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
 	 */
 	older_than: z.string().optional().describe('Filter for tasks older than this duration.'),
+
+	/**
+	 * Filter for tasks newer than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	newer_than: z.string().optional().describe('Filter for tasks newer than this duration.'),
 
 	/** Specific task IDs to close (alternative to filters). */
 	ids: z.array(z.string()).optional().describe('Specific task IDs to close.'),

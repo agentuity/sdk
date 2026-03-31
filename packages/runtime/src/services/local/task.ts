@@ -143,6 +143,7 @@ const SORT_FIELDS: Record<string, string> = {
 };
 
 const DURATION_UNITS: Record<string, number> = {
+	s: 1000,
 	m: 60 * 1000,
 	h: 60 * 60 * 1000,
 	d: 24 * 60 * 60 * 1000,
@@ -151,11 +152,11 @@ const DURATION_UNITS: Record<string, number> = {
 
 const InvalidDurationError = StructuredError(
 	'InvalidDurationError',
-	'Invalid duration format: use a number followed by m (minutes), h (hours), d (days), or w (weeks)'
+	'Invalid duration format: use a number followed by s (seconds), m (minutes), h (hours), d (days), or w (weeks)'
 );
 
 function parseDurationMs(duration: string): number {
-	const match = duration.match(/^(\d+)([mhdw])$/);
+	const match = duration.match(/^(\d+)([smhdw])$/);
 	if (!match) {
 		throw new InvalidDurationError();
 	}
@@ -194,6 +195,7 @@ function toTask(row: TaskRow): Task {
 		created_id: row.created_id,
 		assigned_id: row.assigned_id ?? undefined,
 		closed_id: row.closed_id ?? undefined,
+		deleted: row.deleted === 1,
 	};
 }
 
@@ -387,6 +389,22 @@ export class LocalTaskStorage implements TaskStorage {
 		if (params?.parent_id) {
 			filters.push('parent_id = ?');
 			values.push(params.parent_id);
+		}
+		if (params?.created_id) {
+			filters.push('created_id = ?');
+			values.push(params.created_id);
+		}
+		if (params?.project_id) {
+			filters.push('project_id = ?');
+			values.push(params.project_id);
+		}
+		if (params?.deleted !== undefined) {
+			filters.push('deleted = ?');
+			values.push(params.deleted ? 1 : 0);
+		}
+		if (params?.tag_id) {
+			filters.push('id IN (SELECT task_id FROM task_tag_storage WHERE tag_id = ?)');
+			values.push(params.tag_id);
 		}
 
 		const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
@@ -909,6 +927,20 @@ export class LocalTaskStorage implements TaskStorage {
 				conditions.push('created_at < ?');
 				args.push(cutoff);
 			}
+			if (params.project_id) {
+				conditions.push('project_id = ?');
+				args.push(params.project_id);
+			}
+			if (params.tag_id) {
+				conditions.push('id IN (SELECT task_id FROM task_tag_storage WHERE tag_id = ?)');
+				args.push(params.tag_id);
+			}
+			if (params.newer_than) {
+				const ms = parseDurationMs(params.newer_than);
+				const cutoff = Date.now() - ms;
+				conditions.push('created_at > ?');
+				args.push(cutoff);
+			}
 		}
 
 		// Require at least one filter or IDs
@@ -925,7 +957,8 @@ export class LocalTaskStorage implements TaskStorage {
 			params.new_assigned_id ||
 			params.new_title ||
 			params.new_description ||
-			params.new_metadata;
+			params.new_metadata ||
+			params.new_type;
 		if (!hasUpdate) {
 			throw new Error('At least one update field is required for batch update');
 		}
@@ -993,6 +1026,25 @@ export class LocalTaskStorage implements TaskStorage {
 		if (params.new_metadata) {
 			updateFields.push('metadata = ?');
 			updateArgs.push(JSON.stringify(params.new_metadata));
+		}
+		if (params.new_type) {
+			updateFields.push('type = ?');
+			updateArgs.push(params.new_type);
+		}
+
+		// Set lifecycle timestamps based on new status
+		if (params.new_status) {
+			const newStatus = normalizeTaskStatus(params.new_status);
+			if (newStatus === 'open') {
+				updateFields.push('open_date = ?');
+				updateArgs.push(new Date(timestamp).toISOString());
+			} else if (newStatus === 'in_progress') {
+				updateFields.push('in_progress_date = ?');
+				updateArgs.push(new Date(timestamp).toISOString());
+			} else if (newStatus === 'done') {
+				updateFields.push('closed_date = ?');
+				updateArgs.push(new Date(timestamp).toISOString());
+			}
 		}
 
 		const txn = this.#db.transaction(() => {
@@ -1088,6 +1140,20 @@ export class LocalTaskStorage implements TaskStorage {
 				const ms = parseDurationMs(params.older_than);
 				const cutoff = Date.now() - ms;
 				conditions.push('created_at < ?');
+				args.push(cutoff);
+			}
+			if (params.project_id) {
+				conditions.push('project_id = ?');
+				args.push(params.project_id);
+			}
+			if (params.tag_id) {
+				conditions.push('id IN (SELECT task_id FROM task_tag_storage WHERE tag_id = ?)');
+				args.push(params.tag_id);
+			}
+			if (params.newer_than) {
+				const ms = parseDurationMs(params.newer_than);
+				const cutoff = Date.now() - ms;
+				conditions.push('created_at > ?');
 				args.push(cutoff);
 			}
 		}

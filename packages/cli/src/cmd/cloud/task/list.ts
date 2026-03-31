@@ -288,6 +288,7 @@ export const listSubcommand = createCommand({
 				tags: task.tags,
 				subtask_count: task.subtask_count,
 				created_id: task.created_id,
+				deleted: task.deleted,
 				creator: task.creator,
 				assignee: task.assignee,
 				project: task.project,

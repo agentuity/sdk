@@ -188,6 +188,7 @@ export const deleteSubcommand = createCommand({
 				type: batchParams.type,
 				priority: batchParams.priority,
 				parent_id: batchParams.parent_id,
+				created_id: batchParams.created_id,
 				limit: batchParams.limit,
 				sort: 'created_at',
 				order: 'asc',
@@ -195,11 +196,6 @@ export const deleteSubcommand = createCommand({
 
 			// Client-side filters for preview (server will apply these on actual delete)
 			let candidates = preview.tasks;
-			if (batchParams.created_id) {
-				candidates = candidates.filter(
-					(t: { created_id: string }) => t.created_id === batchParams.created_id
-				);
-			}
 			if (opts.olderThan) {
 				const durationMs = parseDuration(opts.olderThan);
 				const cutoff = new Date(Date.now() - durationMs);
