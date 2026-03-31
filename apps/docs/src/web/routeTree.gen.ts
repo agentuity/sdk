@@ -11,23 +11,26 @@
 import { Route as rootRouteImport } from './routes/__root';
 import { Route as DocsRouteRouteImport } from './routes/_docs/route';
 import { Route as IndexRouteImport } from './routes/index';
-import { Route as DemoVectorStorageRouteImport } from './routes/demo/vector-storage';
-import { Route as DemoStreamingRouteImport } from './routes/demo/streaming';
-import { Route as DemoSseStreamRouteImport } from './routes/demo/sse-stream';
-import { Route as DemoQueueRouteImport } from './routes/demo/queue';
-import { Route as DemoObjectStorageRouteImport } from './routes/demo/object-storage';
-import { Route as DemoModelArenaRouteImport } from './routes/demo/model-arena';
-import { Route as DemoKeyValueRouteImport } from './routes/demo/key-value';
-import { Route as DemoHelloRouteImport } from './routes/demo/hello';
-import { Route as DemoHandlerContextRouteImport } from './routes/demo/handler-context';
-import { Route as DemoEvalsRouteImport } from './routes/demo/evals';
-import { Route as DemoEmailRouteImport } from './routes/demo/email';
-import { Route as DemoDurableStreamRouteImport } from './routes/demo/durable-stream';
-import { Route as DemoDatabaseRouteImport } from './routes/demo/database';
-import { Route as DemoCronRouteImport } from './routes/demo/cron';
-import { Route as DemoChatRouteImport } from './routes/demo/chat';
-import { Route as DemoAiGatewayRouteImport } from './routes/demo/ai-gateway';
-import { Route as DemoAgentCallsRouteImport } from './routes/demo/agent-calls';
+import { Route as ExplorerIndexRouteImport } from './routes/explorer/index';
+import { Route as DemoIndexRouteImport } from './routes/demo/index';
+import { Route as ExplorerVectorStorageRouteImport } from './routes/explorer/vector-storage';
+import { Route as ExplorerStreamingRouteImport } from './routes/explorer/streaming';
+import { Route as ExplorerSseStreamRouteImport } from './routes/explorer/sse-stream';
+import { Route as ExplorerQueueRouteImport } from './routes/explorer/queue';
+import { Route as ExplorerObjectStorageRouteImport } from './routes/explorer/object-storage';
+import { Route as ExplorerModelArenaRouteImport } from './routes/explorer/model-arena';
+import { Route as ExplorerKeyValueRouteImport } from './routes/explorer/key-value';
+import { Route as ExplorerHelloRouteImport } from './routes/explorer/hello';
+import { Route as ExplorerHandlerContextRouteImport } from './routes/explorer/handler-context';
+import { Route as ExplorerEvalsRouteImport } from './routes/explorer/evals';
+import { Route as ExplorerEmailRouteImport } from './routes/explorer/email';
+import { Route as ExplorerDurableStreamRouteImport } from './routes/explorer/durable-stream';
+import { Route as ExplorerDatabaseRouteImport } from './routes/explorer/database';
+import { Route as ExplorerCronRouteImport } from './routes/explorer/cron';
+import { Route as ExplorerChatRouteImport } from './routes/explorer/chat';
+import { Route as ExplorerAiGatewayRouteImport } from './routes/explorer/ai-gateway';
+import { Route as ExplorerAgentCallsRouteImport } from './routes/explorer/agent-calls';
+import { Route as DemoSplatRouteImport } from './routes/demo/$';
 import { Route as DocsServicesIndexRouteImport } from './routes/_docs/services/index';
 import { Route as DocsRoutesIndexRouteImport } from './routes/_docs/routes/index';
 import { Route as DocsReferenceIndexRouteImport } from './routes/_docs/reference/index';
@@ -189,89 +192,104 @@ const IndexRoute = IndexRouteImport.update({
 	path: '/',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoVectorStorageRoute = DemoVectorStorageRouteImport.update({
-	id: '/demo/vector-storage',
-	path: '/demo/vector-storage',
+const ExplorerIndexRoute = ExplorerIndexRouteImport.update({
+	id: '/explorer/',
+	path: '/explorer/',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoStreamingRoute = DemoStreamingRouteImport.update({
-	id: '/demo/streaming',
-	path: '/demo/streaming',
+const DemoIndexRoute = DemoIndexRouteImport.update({
+	id: '/demo/',
+	path: '/demo/',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoSseStreamRoute = DemoSseStreamRouteImport.update({
-	id: '/demo/sse-stream',
-	path: '/demo/sse-stream',
+const ExplorerVectorStorageRoute = ExplorerVectorStorageRouteImport.update({
+	id: '/explorer/vector-storage',
+	path: '/explorer/vector-storage',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoQueueRoute = DemoQueueRouteImport.update({
-	id: '/demo/queue',
-	path: '/demo/queue',
+const ExplorerStreamingRoute = ExplorerStreamingRouteImport.update({
+	id: '/explorer/streaming',
+	path: '/explorer/streaming',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoObjectStorageRoute = DemoObjectStorageRouteImport.update({
-	id: '/demo/object-storage',
-	path: '/demo/object-storage',
+const ExplorerSseStreamRoute = ExplorerSseStreamRouteImport.update({
+	id: '/explorer/sse-stream',
+	path: '/explorer/sse-stream',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoModelArenaRoute = DemoModelArenaRouteImport.update({
-	id: '/demo/model-arena',
-	path: '/demo/model-arena',
+const ExplorerQueueRoute = ExplorerQueueRouteImport.update({
+	id: '/explorer/queue',
+	path: '/explorer/queue',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoKeyValueRoute = DemoKeyValueRouteImport.update({
-	id: '/demo/key-value',
-	path: '/demo/key-value',
+const ExplorerObjectStorageRoute = ExplorerObjectStorageRouteImport.update({
+	id: '/explorer/object-storage',
+	path: '/explorer/object-storage',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoHelloRoute = DemoHelloRouteImport.update({
-	id: '/demo/hello',
-	path: '/demo/hello',
+const ExplorerModelArenaRoute = ExplorerModelArenaRouteImport.update({
+	id: '/explorer/model-arena',
+	path: '/explorer/model-arena',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoHandlerContextRoute = DemoHandlerContextRouteImport.update({
-	id: '/demo/handler-context',
-	path: '/demo/handler-context',
+const ExplorerKeyValueRoute = ExplorerKeyValueRouteImport.update({
+	id: '/explorer/key-value',
+	path: '/explorer/key-value',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoEvalsRoute = DemoEvalsRouteImport.update({
-	id: '/demo/evals',
-	path: '/demo/evals',
+const ExplorerHelloRoute = ExplorerHelloRouteImport.update({
+	id: '/explorer/hello',
+	path: '/explorer/hello',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoEmailRoute = DemoEmailRouteImport.update({
-	id: '/demo/email',
-	path: '/demo/email',
+const ExplorerHandlerContextRoute = ExplorerHandlerContextRouteImport.update({
+	id: '/explorer/handler-context',
+	path: '/explorer/handler-context',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoDurableStreamRoute = DemoDurableStreamRouteImport.update({
-	id: '/demo/durable-stream',
-	path: '/demo/durable-stream',
+const ExplorerEvalsRoute = ExplorerEvalsRouteImport.update({
+	id: '/explorer/evals',
+	path: '/explorer/evals',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoDatabaseRoute = DemoDatabaseRouteImport.update({
-	id: '/demo/database',
-	path: '/demo/database',
+const ExplorerEmailRoute = ExplorerEmailRouteImport.update({
+	id: '/explorer/email',
+	path: '/explorer/email',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoCronRoute = DemoCronRouteImport.update({
-	id: '/demo/cron',
-	path: '/demo/cron',
+const ExplorerDurableStreamRoute = ExplorerDurableStreamRouteImport.update({
+	id: '/explorer/durable-stream',
+	path: '/explorer/durable-stream',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoChatRoute = DemoChatRouteImport.update({
-	id: '/demo/chat',
-	path: '/demo/chat',
+const ExplorerDatabaseRoute = ExplorerDatabaseRouteImport.update({
+	id: '/explorer/database',
+	path: '/explorer/database',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoAiGatewayRoute = DemoAiGatewayRouteImport.update({
-	id: '/demo/ai-gateway',
-	path: '/demo/ai-gateway',
+const ExplorerCronRoute = ExplorerCronRouteImport.update({
+	id: '/explorer/cron',
+	path: '/explorer/cron',
 	getParentRoute: () => rootRouteImport,
 } as any);
-const DemoAgentCallsRoute = DemoAgentCallsRouteImport.update({
-	id: '/demo/agent-calls',
-	path: '/demo/agent-calls',
+const ExplorerChatRoute = ExplorerChatRouteImport.update({
+	id: '/explorer/chat',
+	path: '/explorer/chat',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ExplorerAiGatewayRoute = ExplorerAiGatewayRouteImport.update({
+	id: '/explorer/ai-gateway',
+	path: '/explorer/ai-gateway',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ExplorerAgentCallsRoute = ExplorerAgentCallsRouteImport.update({
+	id: '/explorer/agent-calls',
+	path: '/explorer/agent-calls',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const DemoSplatRoute = DemoSplatRouteImport.update({
+	id: '/demo/$',
+	path: '/demo/$',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const DocsServicesIndexRoute = DocsServicesIndexRouteImport.update({
@@ -1057,23 +1075,26 @@ const DocsCookbookIntegrationsChatSdkRoute = DocsCookbookIntegrationsChatSdkRout
 
 export interface FileRoutesByFullPath {
 	'/': typeof IndexRoute;
-	'/demo/agent-calls': typeof DemoAgentCallsRoute;
-	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
-	'/demo/chat': typeof DemoChatRoute;
-	'/demo/cron': typeof DemoCronRoute;
-	'/demo/database': typeof DemoDatabaseRoute;
-	'/demo/durable-stream': typeof DemoDurableStreamRoute;
-	'/demo/email': typeof DemoEmailRoute;
-	'/demo/evals': typeof DemoEvalsRoute;
-	'/demo/handler-context': typeof DemoHandlerContextRoute;
-	'/demo/hello': typeof DemoHelloRoute;
-	'/demo/key-value': typeof DemoKeyValueRoute;
-	'/demo/model-arena': typeof DemoModelArenaRoute;
-	'/demo/object-storage': typeof DemoObjectStorageRoute;
-	'/demo/queue': typeof DemoQueueRoute;
-	'/demo/sse-stream': typeof DemoSseStreamRoute;
-	'/demo/streaming': typeof DemoStreamingRoute;
-	'/demo/vector-storage': typeof DemoVectorStorageRoute;
+	'/demo/$': typeof DemoSplatRoute;
+	'/explorer/agent-calls': typeof ExplorerAgentCallsRoute;
+	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
+	'/explorer/chat': typeof ExplorerChatRoute;
+	'/explorer/cron': typeof ExplorerCronRoute;
+	'/explorer/database': typeof ExplorerDatabaseRoute;
+	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
+	'/explorer/email': typeof ExplorerEmailRoute;
+	'/explorer/evals': typeof ExplorerEvalsRoute;
+	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
+	'/explorer/hello': typeof ExplorerHelloRoute;
+	'/explorer/key-value': typeof ExplorerKeyValueRoute;
+	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
+	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
+	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
+	'/explorer/streaming': typeof ExplorerStreamingRoute;
+	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
+	'/demo/': typeof DemoIndexRoute;
+	'/explorer/': typeof ExplorerIndexRoute;
 	'/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
 	'/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	'/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
@@ -1228,23 +1249,26 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
 	'/': typeof IndexRoute;
-	'/demo/agent-calls': typeof DemoAgentCallsRoute;
-	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
-	'/demo/chat': typeof DemoChatRoute;
-	'/demo/cron': typeof DemoCronRoute;
-	'/demo/database': typeof DemoDatabaseRoute;
-	'/demo/durable-stream': typeof DemoDurableStreamRoute;
-	'/demo/email': typeof DemoEmailRoute;
-	'/demo/evals': typeof DemoEvalsRoute;
-	'/demo/handler-context': typeof DemoHandlerContextRoute;
-	'/demo/hello': typeof DemoHelloRoute;
-	'/demo/key-value': typeof DemoKeyValueRoute;
-	'/demo/model-arena': typeof DemoModelArenaRoute;
-	'/demo/object-storage': typeof DemoObjectStorageRoute;
-	'/demo/queue': typeof DemoQueueRoute;
-	'/demo/sse-stream': typeof DemoSseStreamRoute;
-	'/demo/streaming': typeof DemoStreamingRoute;
-	'/demo/vector-storage': typeof DemoVectorStorageRoute;
+	'/demo/$': typeof DemoSplatRoute;
+	'/explorer/agent-calls': typeof ExplorerAgentCallsRoute;
+	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
+	'/explorer/chat': typeof ExplorerChatRoute;
+	'/explorer/cron': typeof ExplorerCronRoute;
+	'/explorer/database': typeof ExplorerDatabaseRoute;
+	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
+	'/explorer/email': typeof ExplorerEmailRoute;
+	'/explorer/evals': typeof ExplorerEvalsRoute;
+	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
+	'/explorer/hello': typeof ExplorerHelloRoute;
+	'/explorer/key-value': typeof ExplorerKeyValueRoute;
+	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
+	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
+	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
+	'/explorer/streaming': typeof ExplorerStreamingRoute;
+	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
+	'/demo': typeof DemoIndexRoute;
+	'/explorer': typeof ExplorerIndexRoute;
 	'/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
 	'/agents/ai-sdk-integration': typeof DocsAgentsAiSdkIntegrationRoute;
 	'/agents/calling-other-agents': typeof DocsAgentsCallingOtherAgentsRoute;
@@ -1399,23 +1423,26 @@ export interface FileRoutesById {
 	__root__: typeof rootRouteImport;
 	'/': typeof IndexRoute;
 	'/_docs': typeof DocsRouteRouteWithChildren;
-	'/demo/agent-calls': typeof DemoAgentCallsRoute;
-	'/demo/ai-gateway': typeof DemoAiGatewayRoute;
-	'/demo/chat': typeof DemoChatRoute;
-	'/demo/cron': typeof DemoCronRoute;
-	'/demo/database': typeof DemoDatabaseRoute;
-	'/demo/durable-stream': typeof DemoDurableStreamRoute;
-	'/demo/email': typeof DemoEmailRoute;
-	'/demo/evals': typeof DemoEvalsRoute;
-	'/demo/handler-context': typeof DemoHandlerContextRoute;
-	'/demo/hello': typeof DemoHelloRoute;
-	'/demo/key-value': typeof DemoKeyValueRoute;
-	'/demo/model-arena': typeof DemoModelArenaRoute;
-	'/demo/object-storage': typeof DemoObjectStorageRoute;
-	'/demo/queue': typeof DemoQueueRoute;
-	'/demo/sse-stream': typeof DemoSseStreamRoute;
-	'/demo/streaming': typeof DemoStreamingRoute;
-	'/demo/vector-storage': typeof DemoVectorStorageRoute;
+	'/demo/$': typeof DemoSplatRoute;
+	'/explorer/agent-calls': typeof ExplorerAgentCallsRoute;
+	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
+	'/explorer/chat': typeof ExplorerChatRoute;
+	'/explorer/cron': typeof ExplorerCronRoute;
+	'/explorer/database': typeof ExplorerDatabaseRoute;
+	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
+	'/explorer/email': typeof ExplorerEmailRoute;
+	'/explorer/evals': typeof ExplorerEvalsRoute;
+	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
+	'/explorer/hello': typeof ExplorerHelloRoute;
+	'/explorer/key-value': typeof ExplorerKeyValueRoute;
+	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
+	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
+	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
+	'/explorer/streaming': typeof ExplorerStreamingRoute;
+	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
+	'/demo/': typeof DemoIndexRoute;
+	'/explorer/': typeof ExplorerIndexRoute;
 	'/_docs/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
 	'/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren;
 	'/_docs/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
@@ -1572,23 +1599,26 @@ export interface FileRouteTypes {
 	fileRoutesByFullPath: FileRoutesByFullPath;
 	fullPaths:
 		| '/'
-		| '/demo/agent-calls'
-		| '/demo/ai-gateway'
-		| '/demo/chat'
-		| '/demo/cron'
-		| '/demo/database'
-		| '/demo/durable-stream'
-		| '/demo/email'
-		| '/demo/evals'
-		| '/demo/handler-context'
-		| '/demo/hello'
-		| '/demo/key-value'
-		| '/demo/model-arena'
-		| '/demo/object-storage'
-		| '/demo/queue'
-		| '/demo/sse-stream'
-		| '/demo/streaming'
-		| '/demo/vector-storage'
+		| '/demo/$'
+		| '/explorer/agent-calls'
+		| '/explorer/ai-gateway'
+		| '/explorer/chat'
+		| '/explorer/cron'
+		| '/explorer/database'
+		| '/explorer/durable-stream'
+		| '/explorer/email'
+		| '/explorer/evals'
+		| '/explorer/handler-context'
+		| '/explorer/hello'
+		| '/explorer/key-value'
+		| '/explorer/model-arena'
+		| '/explorer/object-storage'
+		| '/explorer/queue'
+		| '/explorer/sse-stream'
+		| '/explorer/streaming'
+		| '/explorer/vector-storage'
+		| '/demo/'
+		| '/explorer/'
 		| '/reference/api'
 		| '/reference/sdk-reference'
 		| '/agents/ai-gateway'
@@ -1743,23 +1773,26 @@ export interface FileRouteTypes {
 	fileRoutesByTo: FileRoutesByTo;
 	to:
 		| '/'
-		| '/demo/agent-calls'
-		| '/demo/ai-gateway'
-		| '/demo/chat'
-		| '/demo/cron'
-		| '/demo/database'
-		| '/demo/durable-stream'
-		| '/demo/email'
-		| '/demo/evals'
-		| '/demo/handler-context'
-		| '/demo/hello'
-		| '/demo/key-value'
-		| '/demo/model-arena'
-		| '/demo/object-storage'
-		| '/demo/queue'
-		| '/demo/sse-stream'
-		| '/demo/streaming'
-		| '/demo/vector-storage'
+		| '/demo/$'
+		| '/explorer/agent-calls'
+		| '/explorer/ai-gateway'
+		| '/explorer/chat'
+		| '/explorer/cron'
+		| '/explorer/database'
+		| '/explorer/durable-stream'
+		| '/explorer/email'
+		| '/explorer/evals'
+		| '/explorer/handler-context'
+		| '/explorer/hello'
+		| '/explorer/key-value'
+		| '/explorer/model-arena'
+		| '/explorer/object-storage'
+		| '/explorer/queue'
+		| '/explorer/sse-stream'
+		| '/explorer/streaming'
+		| '/explorer/vector-storage'
+		| '/demo'
+		| '/explorer'
 		| '/agents/ai-gateway'
 		| '/agents/ai-sdk-integration'
 		| '/agents/calling-other-agents'
@@ -1913,23 +1946,26 @@ export interface FileRouteTypes {
 		| '__root__'
 		| '/'
 		| '/_docs'
-		| '/demo/agent-calls'
-		| '/demo/ai-gateway'
-		| '/demo/chat'
-		| '/demo/cron'
-		| '/demo/database'
-		| '/demo/durable-stream'
-		| '/demo/email'
-		| '/demo/evals'
-		| '/demo/handler-context'
-		| '/demo/hello'
-		| '/demo/key-value'
-		| '/demo/model-arena'
-		| '/demo/object-storage'
-		| '/demo/queue'
-		| '/demo/sse-stream'
-		| '/demo/streaming'
-		| '/demo/vector-storage'
+		| '/demo/$'
+		| '/explorer/agent-calls'
+		| '/explorer/ai-gateway'
+		| '/explorer/chat'
+		| '/explorer/cron'
+		| '/explorer/database'
+		| '/explorer/durable-stream'
+		| '/explorer/email'
+		| '/explorer/evals'
+		| '/explorer/handler-context'
+		| '/explorer/hello'
+		| '/explorer/key-value'
+		| '/explorer/model-arena'
+		| '/explorer/object-storage'
+		| '/explorer/queue'
+		| '/explorer/sse-stream'
+		| '/explorer/streaming'
+		| '/explorer/vector-storage'
+		| '/demo/'
+		| '/explorer/'
 		| '/_docs/reference/api'
 		| '/_docs/reference/sdk-reference'
 		| '/_docs/agents/ai-gateway'
@@ -2086,23 +2122,26 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
 	IndexRoute: typeof IndexRoute;
 	DocsRouteRoute: typeof DocsRouteRouteWithChildren;
-	DemoAgentCallsRoute: typeof DemoAgentCallsRoute;
-	DemoAiGatewayRoute: typeof DemoAiGatewayRoute;
-	DemoChatRoute: typeof DemoChatRoute;
-	DemoCronRoute: typeof DemoCronRoute;
-	DemoDatabaseRoute: typeof DemoDatabaseRoute;
-	DemoDurableStreamRoute: typeof DemoDurableStreamRoute;
-	DemoEmailRoute: typeof DemoEmailRoute;
-	DemoEvalsRoute: typeof DemoEvalsRoute;
-	DemoHandlerContextRoute: typeof DemoHandlerContextRoute;
-	DemoHelloRoute: typeof DemoHelloRoute;
-	DemoKeyValueRoute: typeof DemoKeyValueRoute;
-	DemoModelArenaRoute: typeof DemoModelArenaRoute;
-	DemoObjectStorageRoute: typeof DemoObjectStorageRoute;
-	DemoQueueRoute: typeof DemoQueueRoute;
-	DemoSseStreamRoute: typeof DemoSseStreamRoute;
-	DemoStreamingRoute: typeof DemoStreamingRoute;
-	DemoVectorStorageRoute: typeof DemoVectorStorageRoute;
+	DemoSplatRoute: typeof DemoSplatRoute;
+	ExplorerAgentCallsRoute: typeof ExplorerAgentCallsRoute;
+	ExplorerAiGatewayRoute: typeof ExplorerAiGatewayRoute;
+	ExplorerChatRoute: typeof ExplorerChatRoute;
+	ExplorerCronRoute: typeof ExplorerCronRoute;
+	ExplorerDatabaseRoute: typeof ExplorerDatabaseRoute;
+	ExplorerDurableStreamRoute: typeof ExplorerDurableStreamRoute;
+	ExplorerEmailRoute: typeof ExplorerEmailRoute;
+	ExplorerEvalsRoute: typeof ExplorerEvalsRoute;
+	ExplorerHandlerContextRoute: typeof ExplorerHandlerContextRoute;
+	ExplorerHelloRoute: typeof ExplorerHelloRoute;
+	ExplorerKeyValueRoute: typeof ExplorerKeyValueRoute;
+	ExplorerModelArenaRoute: typeof ExplorerModelArenaRoute;
+	ExplorerObjectStorageRoute: typeof ExplorerObjectStorageRoute;
+	ExplorerQueueRoute: typeof ExplorerQueueRoute;
+	ExplorerSseStreamRoute: typeof ExplorerSseStreamRoute;
+	ExplorerStreamingRoute: typeof ExplorerStreamingRoute;
+	ExplorerVectorStorageRoute: typeof ExplorerVectorStorageRoute;
+	DemoIndexRoute: typeof DemoIndexRoute;
+	ExplorerIndexRoute: typeof ExplorerIndexRoute;
 }
 
 declare module '@tanstack/react-router' {
@@ -2121,123 +2160,144 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof IndexRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/vector-storage': {
-			id: '/demo/vector-storage';
-			path: '/demo/vector-storage';
-			fullPath: '/demo/vector-storage';
-			preLoaderRoute: typeof DemoVectorStorageRouteImport;
+		'/explorer/': {
+			id: '/explorer/';
+			path: '/explorer';
+			fullPath: '/explorer/';
+			preLoaderRoute: typeof ExplorerIndexRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/streaming': {
-			id: '/demo/streaming';
-			path: '/demo/streaming';
-			fullPath: '/demo/streaming';
-			preLoaderRoute: typeof DemoStreamingRouteImport;
+		'/demo/': {
+			id: '/demo/';
+			path: '/demo';
+			fullPath: '/demo/';
+			preLoaderRoute: typeof DemoIndexRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/sse-stream': {
-			id: '/demo/sse-stream';
-			path: '/demo/sse-stream';
-			fullPath: '/demo/sse-stream';
-			preLoaderRoute: typeof DemoSseStreamRouteImport;
+		'/explorer/vector-storage': {
+			id: '/explorer/vector-storage';
+			path: '/explorer/vector-storage';
+			fullPath: '/explorer/vector-storage';
+			preLoaderRoute: typeof ExplorerVectorStorageRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/queue': {
-			id: '/demo/queue';
-			path: '/demo/queue';
-			fullPath: '/demo/queue';
-			preLoaderRoute: typeof DemoQueueRouteImport;
+		'/explorer/streaming': {
+			id: '/explorer/streaming';
+			path: '/explorer/streaming';
+			fullPath: '/explorer/streaming';
+			preLoaderRoute: typeof ExplorerStreamingRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/object-storage': {
-			id: '/demo/object-storage';
-			path: '/demo/object-storage';
-			fullPath: '/demo/object-storage';
-			preLoaderRoute: typeof DemoObjectStorageRouteImport;
+		'/explorer/sse-stream': {
+			id: '/explorer/sse-stream';
+			path: '/explorer/sse-stream';
+			fullPath: '/explorer/sse-stream';
+			preLoaderRoute: typeof ExplorerSseStreamRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/model-arena': {
-			id: '/demo/model-arena';
-			path: '/demo/model-arena';
-			fullPath: '/demo/model-arena';
-			preLoaderRoute: typeof DemoModelArenaRouteImport;
+		'/explorer/queue': {
+			id: '/explorer/queue';
+			path: '/explorer/queue';
+			fullPath: '/explorer/queue';
+			preLoaderRoute: typeof ExplorerQueueRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/key-value': {
-			id: '/demo/key-value';
-			path: '/demo/key-value';
-			fullPath: '/demo/key-value';
-			preLoaderRoute: typeof DemoKeyValueRouteImport;
+		'/explorer/object-storage': {
+			id: '/explorer/object-storage';
+			path: '/explorer/object-storage';
+			fullPath: '/explorer/object-storage';
+			preLoaderRoute: typeof ExplorerObjectStorageRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/hello': {
-			id: '/demo/hello';
-			path: '/demo/hello';
-			fullPath: '/demo/hello';
-			preLoaderRoute: typeof DemoHelloRouteImport;
+		'/explorer/model-arena': {
+			id: '/explorer/model-arena';
+			path: '/explorer/model-arena';
+			fullPath: '/explorer/model-arena';
+			preLoaderRoute: typeof ExplorerModelArenaRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/handler-context': {
-			id: '/demo/handler-context';
-			path: '/demo/handler-context';
-			fullPath: '/demo/handler-context';
-			preLoaderRoute: typeof DemoHandlerContextRouteImport;
+		'/explorer/key-value': {
+			id: '/explorer/key-value';
+			path: '/explorer/key-value';
+			fullPath: '/explorer/key-value';
+			preLoaderRoute: typeof ExplorerKeyValueRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/evals': {
-			id: '/demo/evals';
-			path: '/demo/evals';
-			fullPath: '/demo/evals';
-			preLoaderRoute: typeof DemoEvalsRouteImport;
+		'/explorer/hello': {
+			id: '/explorer/hello';
+			path: '/explorer/hello';
+			fullPath: '/explorer/hello';
+			preLoaderRoute: typeof ExplorerHelloRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/email': {
-			id: '/demo/email';
-			path: '/demo/email';
-			fullPath: '/demo/email';
-			preLoaderRoute: typeof DemoEmailRouteImport;
+		'/explorer/handler-context': {
+			id: '/explorer/handler-context';
+			path: '/explorer/handler-context';
+			fullPath: '/explorer/handler-context';
+			preLoaderRoute: typeof ExplorerHandlerContextRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/durable-stream': {
-			id: '/demo/durable-stream';
-			path: '/demo/durable-stream';
-			fullPath: '/demo/durable-stream';
-			preLoaderRoute: typeof DemoDurableStreamRouteImport;
+		'/explorer/evals': {
+			id: '/explorer/evals';
+			path: '/explorer/evals';
+			fullPath: '/explorer/evals';
+			preLoaderRoute: typeof ExplorerEvalsRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/database': {
-			id: '/demo/database';
-			path: '/demo/database';
-			fullPath: '/demo/database';
-			preLoaderRoute: typeof DemoDatabaseRouteImport;
+		'/explorer/email': {
+			id: '/explorer/email';
+			path: '/explorer/email';
+			fullPath: '/explorer/email';
+			preLoaderRoute: typeof ExplorerEmailRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/cron': {
-			id: '/demo/cron';
-			path: '/demo/cron';
-			fullPath: '/demo/cron';
-			preLoaderRoute: typeof DemoCronRouteImport;
+		'/explorer/durable-stream': {
+			id: '/explorer/durable-stream';
+			path: '/explorer/durable-stream';
+			fullPath: '/explorer/durable-stream';
+			preLoaderRoute: typeof ExplorerDurableStreamRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/chat': {
-			id: '/demo/chat';
-			path: '/demo/chat';
-			fullPath: '/demo/chat';
-			preLoaderRoute: typeof DemoChatRouteImport;
+		'/explorer/database': {
+			id: '/explorer/database';
+			path: '/explorer/database';
+			fullPath: '/explorer/database';
+			preLoaderRoute: typeof ExplorerDatabaseRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/ai-gateway': {
-			id: '/demo/ai-gateway';
-			path: '/demo/ai-gateway';
-			fullPath: '/demo/ai-gateway';
-			preLoaderRoute: typeof DemoAiGatewayRouteImport;
+		'/explorer/cron': {
+			id: '/explorer/cron';
+			path: '/explorer/cron';
+			fullPath: '/explorer/cron';
+			preLoaderRoute: typeof ExplorerCronRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
-		'/demo/agent-calls': {
-			id: '/demo/agent-calls';
-			path: '/demo/agent-calls';
-			fullPath: '/demo/agent-calls';
-			preLoaderRoute: typeof DemoAgentCallsRouteImport;
+		'/explorer/chat': {
+			id: '/explorer/chat';
+			path: '/explorer/chat';
+			fullPath: '/explorer/chat';
+			preLoaderRoute: typeof ExplorerChatRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/explorer/ai-gateway': {
+			id: '/explorer/ai-gateway';
+			path: '/explorer/ai-gateway';
+			fullPath: '/explorer/ai-gateway';
+			preLoaderRoute: typeof ExplorerAiGatewayRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/explorer/agent-calls': {
+			id: '/explorer/agent-calls';
+			path: '/explorer/agent-calls';
+			fullPath: '/explorer/agent-calls';
+			preLoaderRoute: typeof ExplorerAgentCallsRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/demo/$': {
+			id: '/demo/$';
+			path: '/demo/$';
+			fullPath: '/demo/$';
+			preLoaderRoute: typeof DemoSplatRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/_docs/services/': {
@@ -3634,23 +3694,26 @@ const DocsRouteRouteWithChildren = DocsRouteRoute._addFileChildren(DocsRouteRout
 const rootRouteChildren: RootRouteChildren = {
 	IndexRoute: IndexRoute,
 	DocsRouteRoute: DocsRouteRouteWithChildren,
-	DemoAgentCallsRoute: DemoAgentCallsRoute,
-	DemoAiGatewayRoute: DemoAiGatewayRoute,
-	DemoChatRoute: DemoChatRoute,
-	DemoCronRoute: DemoCronRoute,
-	DemoDatabaseRoute: DemoDatabaseRoute,
-	DemoDurableStreamRoute: DemoDurableStreamRoute,
-	DemoEmailRoute: DemoEmailRoute,
-	DemoEvalsRoute: DemoEvalsRoute,
-	DemoHandlerContextRoute: DemoHandlerContextRoute,
-	DemoHelloRoute: DemoHelloRoute,
-	DemoKeyValueRoute: DemoKeyValueRoute,
-	DemoModelArenaRoute: DemoModelArenaRoute,
-	DemoObjectStorageRoute: DemoObjectStorageRoute,
-	DemoQueueRoute: DemoQueueRoute,
-	DemoSseStreamRoute: DemoSseStreamRoute,
-	DemoStreamingRoute: DemoStreamingRoute,
-	DemoVectorStorageRoute: DemoVectorStorageRoute,
+	DemoSplatRoute: DemoSplatRoute,
+	ExplorerAgentCallsRoute: ExplorerAgentCallsRoute,
+	ExplorerAiGatewayRoute: ExplorerAiGatewayRoute,
+	ExplorerChatRoute: ExplorerChatRoute,
+	ExplorerCronRoute: ExplorerCronRoute,
+	ExplorerDatabaseRoute: ExplorerDatabaseRoute,
+	ExplorerDurableStreamRoute: ExplorerDurableStreamRoute,
+	ExplorerEmailRoute: ExplorerEmailRoute,
+	ExplorerEvalsRoute: ExplorerEvalsRoute,
+	ExplorerHandlerContextRoute: ExplorerHandlerContextRoute,
+	ExplorerHelloRoute: ExplorerHelloRoute,
+	ExplorerKeyValueRoute: ExplorerKeyValueRoute,
+	ExplorerModelArenaRoute: ExplorerModelArenaRoute,
+	ExplorerObjectStorageRoute: ExplorerObjectStorageRoute,
+	ExplorerQueueRoute: ExplorerQueueRoute,
+	ExplorerSseStreamRoute: ExplorerSseStreamRoute,
+	ExplorerStreamingRoute: ExplorerStreamingRoute,
+	ExplorerVectorStorageRoute: ExplorerVectorStorageRoute,
+	DemoIndexRoute: DemoIndexRoute,
+	ExplorerIndexRoute: ExplorerIndexRoute,
 };
 export const routeTree = rootRouteImport
 	._addFileChildren(rootRouteChildren)

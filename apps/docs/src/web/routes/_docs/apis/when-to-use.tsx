@@ -1,4 +1,5 @@
-import { createFileRoute, redirect, ScriptOnce } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { RedirectFallback } from '../../../components/docs/RedirectFallback';
 
 const target = '/agents/when-to-use';
 
@@ -8,13 +9,5 @@ export const Route = createFileRoute('/_docs/apis/when-to-use')({
 			throw redirect({ to: target, replace: true });
 		}
 	},
-	component: () => (
-		<>
-			<ScriptOnce>{`window.location.replace(${JSON.stringify(target)})`}</ScriptOnce>
-			<p>
-				This page has moved to <a href={target}>{target}</a>. If you are not redirected
-				automatically, use this link.
-			</p>
-		</>
-	),
+	component: () => <RedirectFallback target={target} />,
 });
