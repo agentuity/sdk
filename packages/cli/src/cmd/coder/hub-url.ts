@@ -125,13 +125,14 @@ export function isHubUnauthorizedStatus(status: number): boolean {
 export async function clearStoredHubApiKeyOnUnauthorized(
 	status: number,
 	resolvedApiKey: ResolvedHubApiKey,
-	clearStoredApiKey: () => Promise<unknown> = clearStoredCoderApiKey
+	config?: Config | null,
+	clearStoredApiKey: (config?: Config | null) => Promise<unknown> = clearStoredCoderApiKey
 ): Promise<boolean> {
 	if (!isHubUnauthorizedStatus(status) || resolvedApiKey.source !== 'stored') {
 		return false;
 	}
 
-	await clearStoredApiKey();
+	await clearStoredApiKey(config);
 	return true;
 }
 

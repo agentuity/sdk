@@ -102,7 +102,8 @@ export const listSubcommand = createSubcommand({
 				if (isHubUnauthorizedStatus(resp.status)) {
 					const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
 						resp.status,
-						resolvedHubApiKey
+						resolvedHubApiKey,
+						config
 					);
 					tui.fatal(
 						formatHubUnauthorizedMessage(hubUrl, message, { clearedStoredKey }),

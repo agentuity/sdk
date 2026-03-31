@@ -155,7 +155,8 @@ export const startSubcommand = createSubcommand({
 			const message = await getHubResponseErrorMessage(response);
 			const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
 				response.status,
-				resolvedHubApiKey
+				resolvedHubApiKey,
+				config
 			);
 			tui.fatal(
 				formatHubUnauthorizedMessage(hubHttpUrl, message, { clearedStoredKey }),
@@ -170,7 +171,7 @@ export const startSubcommand = createSubcommand({
 			if (initProbe.code === 'unauthorized') {
 				const clearedStoredKey =
 					resolvedHubApiKey.source === 'stored'
-						? await clearStoredHubApiKeyOnUnauthorized(401, resolvedHubApiKey)
+						? await clearStoredHubApiKeyOnUnauthorized(401, resolvedHubApiKey, config)
 						: false;
 				tui.fatal(
 					formatHubUnauthorizedMessage(hubHttpUrl, initProbe.message, { clearedStoredKey }),

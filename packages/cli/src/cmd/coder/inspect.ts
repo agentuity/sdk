@@ -120,7 +120,8 @@ export const inspectSubcommand = createSubcommand({
 				const message = await getHubResponseErrorMessage(resp);
 				const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
 					resp.status,
-					resolvedHubApiKey
+					resolvedHubApiKey,
+					config
 				);
 				tui.fatal(
 					formatHubUnauthorizedMessage(hubUrl, message, { clearedStoredKey }),

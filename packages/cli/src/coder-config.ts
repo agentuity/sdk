@@ -111,9 +111,11 @@ export async function getStoredCoderApiKey(config?: Config | null): Promise<stri
 	return storedValue || null;
 }
 
-export async function clearStoredCoderApiKey(): Promise<{ profileName: string }> {
-	const config = await getOrInitConfig();
-	const profileName = getProfileName(config);
+export async function clearStoredCoderApiKey(
+	config?: Config | null
+): Promise<{ profileName: string }> {
+	const loadedConfig = config ?? (await getOrInitConfig());
+	const profileName = getProfileName(loadedConfig);
 
 	if (isMacOS()) {
 		try {
@@ -123,13 +125,16 @@ export async function clearStoredCoderApiKey(): Promise<{ profileName: string }>
 		}
 	}
 
-	if (config.coder?.apiKey) {
-		config.coder = {
-			...config.coder,
+	if (loadedConfig.coder?.apiKey) {
+		const configToSave = {
+			...loadedConfig,
+			coder: {
+				...loadedConfig.coder,
+			},
 		};
-		delete config.coder.apiKey;
-		pruneCoderConfig(config);
-		await saveConfig(config);
+		delete configToSave.coder.apiKey;
+		pruneCoderConfig(configToSave);
+		await saveConfig(configToSave);
 	}
 
 	return { profileName };

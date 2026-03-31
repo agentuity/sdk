@@ -30,4 +30,24 @@ describe('internal logger command sanitization', () => {
 			'https://hub.example.com',
 		]);
 	});
+
+	test('reprocesses sensitive flags that appear where a masked value was expected', () => {
+		const sanitized = sanitizeCliCommandForLogging('coder start', [
+			'--api-key',
+			'--token',
+			'secret_token',
+			'--hub-url',
+			'https://hub.example.com',
+		]);
+
+		expect(sanitized.command).toBe('coder start');
+		expect(sanitized.args).toEqual([
+			'--api-key',
+			'***MASKED***',
+			'--token',
+			'***MASKED***',
+			'--hub-url',
+			'https://hub.example.com',
+		]);
+	});
 });

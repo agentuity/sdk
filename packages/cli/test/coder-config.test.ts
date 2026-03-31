@@ -9,7 +9,7 @@ import {
 	saveCoderApiKey,
 	saveCoderHubUrl,
 } from '../src/coder-config';
-import { resetConfigCache } from '../src/config';
+import { loadConfig, resetConfigCache } from '../src/config';
 import {
 	clearStoredHubApiKeyOnUnauthorized,
 	resolveHubApiKey,
@@ -110,10 +110,14 @@ describe('coder config storage', () => {
 
 		await saveCoderApiKey('agc_stored');
 		await expect(
-			clearStoredHubApiKeyOnUnauthorized(401, {
-				apiKey: 'agc_stored',
-				source: 'stored',
-			})
+			clearStoredHubApiKeyOnUnauthorized(
+				401,
+				{
+					apiKey: 'agc_stored',
+					source: 'stored',
+				},
+				await loadConfig()
+			)
 		).resolves.toBe(true);
 		await expect(getStoredCoderApiKey()).resolves.toBeNull();
 	});

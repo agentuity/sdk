@@ -120,10 +120,19 @@ function sanitizeArgsForLogging(args: string[]): string[] {
 	const sanitized: string[] = [];
 	let maskNextValue = false;
 
-	for (const arg of args) {
+	for (let i = 0; i < args.length; i += 1) {
+		const arg = args[i]!;
+
 		if (maskNextValue) {
+			if (!arg.startsWith('-')) {
+				sanitized.push(MASKED_ARG_VALUE);
+				maskNextValue = false;
+				continue;
+			}
+
 			sanitized.push(MASKED_ARG_VALUE);
 			maskNextValue = false;
+			i -= 1;
 			continue;
 		}
 

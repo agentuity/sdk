@@ -96,9 +96,12 @@ describe('coder hub API key resolution', () => {
 
 	test('clears stored keys only for stored-key auth failures', async () => {
 		let clearCalls = 0;
-		const clearFn = async () => {
+		let lastConfig: Record<string, unknown> | undefined;
+		const clearFn = async (config?: Record<string, unknown> | null) => {
 			clearCalls += 1;
+			lastConfig = config ?? undefined;
 		};
+		const config = { name: 'staging' };
 
 		await expect(
 			clearStoredHubApiKeyOnUnauthorized(
@@ -107,10 +110,12 @@ describe('coder hub API key resolution', () => {
 					apiKey: 'agc_stored',
 					source: 'stored',
 				},
+				config,
 				clearFn
 			)
 		).resolves.toBe(true);
 		expect(clearCalls).toBe(1);
+		expect(lastConfig).toEqual(config);
 
 		await expect(
 			clearStoredHubApiKeyOnUnauthorized(
@@ -119,6 +124,7 @@ describe('coder hub API key resolution', () => {
 					apiKey: 'agc_env',
 					source: 'env',
 				},
+				config,
 				clearFn
 			)
 		).resolves.toBe(false);
