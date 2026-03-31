@@ -1,18 +1,13 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter, resolveMeId, parseDuration } from './util';
+import { createStorageAdapter, resolveMeId, parseDuration, truncate } from './util';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
 
 // Re-export for testing
 export { parseDuration } from './util';
-
-function truncate(s: string, max: number): string {
-	if (s.length <= max) return s;
-	return `${s.slice(0, max - 1)}…`;
-}
 
 const TaskDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -179,7 +174,7 @@ export const deleteSubcommand = createCommand({
 			type: opts.type as TaskType | undefined,
 			priority: opts.priority as TaskPriority | undefined,
 			parent_id: opts.parentId,
-			created_id: await resolveMeId(opts.createdId, ctx),
+			created_id: resolveMeId(opts.createdId, ctx),
 			older_than: opts.olderThan,
 			limit: opts.limit,
 		};

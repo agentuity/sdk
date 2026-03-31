@@ -1,15 +1,10 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createStorageAdapter, resolveMeId, parseDuration } from './util';
+import { createStorageAdapter, resolveMeId, parseDuration, truncate } from './util';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import type { TaskPriority, TaskStatus, TaskType, BatchClosedTask } from '@agentuity/core';
-
-function truncate(s: string, max: number): string {
-	if (s.length <= max) return s;
-	return `${s.slice(0, max - 1)}…`;
-}
 
 const TaskCloseResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -185,14 +180,17 @@ export const closeSubcommand = createCommand({
 			parseDuration(opts.olderThan);
 		}
 
-		const createdId = await resolveMeId(opts.createdId, ctx);
-		const assignedId = await resolveMeId(opts.assignedId, ctx);
+		const createdId = resolveMeId(opts.createdId, ctx);
+		const assignedId = resolveMeId(opts.assignedId, ctx);
 
 		// Handle IDs file
 		let explicitIds: string[] | undefined;
 		if (opts.idsFile) {
+			const file = Bun.file(opts.idsFile);
+			if (!(await file.exists())) {
+				tui.fatal(`IDs file not found: ${opts.idsFile}`);
+			}
 			try {
-				const file = Bun.file(opts.idsFile);
 				const content = await file.json();
 				if (Array.isArray(content)) {
 					explicitIds = content.map((id) => String(id));
@@ -202,7 +200,7 @@ export const closeSubcommand = createCommand({
 					tui.fatal(`Invalid IDs file format. Expected array of IDs or { ids: [...] }`);
 				}
 			} catch (err) {
-				tui.fatal(`Failed to read IDs file: ${err}`);
+				tui.fatal(`Failed to parse IDs file: ${err}`);
 			}
 		}
 

@@ -79,9 +79,29 @@ function truncate(s: string, max: number): string {
 	return `${s.slice(0, max - 1)}…`;
 }
 
+const VALID_INCLUDE_FIELDS = new Set<TaskIncludeField>([
+	'description',
+	'metadata',
+	'tags',
+	'subtask_count',
+	'created_id',
+	'deleted',
+]);
+
 function parseIncludeParam(include: string | undefined): TaskIncludeField[] | undefined {
 	if (!include) return undefined;
-	return include.split(',').map((f) => f.trim() as TaskIncludeField);
+	const fields: TaskIncludeField[] = [];
+	for (const f of include.split(',')) {
+		const trimmed = f.trim() as TaskIncludeField;
+		if (VALID_INCLUDE_FIELDS.has(trimmed)) {
+			fields.push(trimmed);
+		} else {
+			tui.fatal(
+				`Invalid include field: "${trimmed}". Valid fields are: ${[...VALID_INCLUDE_FIELDS].join(', ')}`
+			);
+		}
+	}
+	return fields.length > 0 ? fields : undefined;
 }
 
 function hasIncludeField(
@@ -179,8 +199,8 @@ export const listSubcommand = createCommand({
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
 
-		const createdId = await resolveMeId(opts.createdId, ctx);
-		const assignedId = await resolveMeId(opts.assignedId, ctx);
+		const createdId = resolveMeId(opts.createdId, ctx);
+		const assignedId = resolveMeId(opts.assignedId, ctx);
 
 		const includeFields = parseIncludeParam(opts.include);
 

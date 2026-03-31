@@ -990,6 +990,10 @@ export class LocalTaskStorage implements TaskStorage {
 			updateFields.push('description = ?');
 			updateArgs.push(params.new_description);
 		}
+		if (params.new_metadata) {
+			updateFields.push('metadata = ?');
+			updateArgs.push(JSON.stringify(params.new_metadata));
+		}
 
 		const txn = this.#db.transaction(() => {
 			const updateStmt = this.#db.prepare(`
@@ -1043,6 +1047,9 @@ export class LocalTaskStorage implements TaskStorage {
 	}
 
 	async batchClose(params: BatchCloseTasksParams): Promise<BatchCloseTasksResult> {
+		// Resolve closer ID from either closed_id or closer entity ref
+		const closerId = params.closed_id ?? params.closer?.id ?? null;
+
 		const conditions: string[] = ['project_path = ?', 'deleted = 0', "status != 'done'"];
 		const args: (string | number)[] = [this.#projectPath];
 
@@ -1135,7 +1142,7 @@ export class LocalTaskStorage implements TaskStorage {
 				UPDATE task_storage SET status = 'done', closed_date = COALESCE(closed_date, ?), closed_id = ?, updated_at = ?
 				WHERE project_path = ? AND id IN (${placeholders})
 			`);
-			updateStmt.run(closedDate, params.closed_id ?? null, timestamp, this.#projectPath, ...ids);
+			updateStmt.run(closedDate, closerId, timestamp, this.#projectPath, ...ids);
 
 			const changelogStmt = this.#db.prepare(`
 				INSERT INTO task_changelog_storage (

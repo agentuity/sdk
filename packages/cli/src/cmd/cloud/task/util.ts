@@ -75,7 +75,11 @@ export async function cacheTaskId(
 ) {
 	const profileName = ctx.config?.name ?? defaultProfileName;
 	const region = await getDefaultRegion(profileName, ctx.config);
-	const orgId = resolveOrgId(ctx as TaskContext);
+	const orgId =
+		ctx.options.orgId ??
+		process.env.AGENTUITY_CLOUD_ORG_ID ??
+		ctx.project?.orgId ??
+		ctx.config?.preferences?.orgId;
 	await setResourceInfo('task', profileName, taskId, region, orgId);
 }
 
@@ -114,10 +118,12 @@ export function parseDuration(duration: string): number {
 	return value * ms;
 }
 
-export async function resolveMeId(
-	id: string | undefined,
-	ctx: TaskContext
-): Promise<string | undefined> {
+export function truncate(s: string, max: number): string {
+	if (s.length <= max) return s;
+	return `${s.slice(0, max - 1)}…`;
+}
+
+export function resolveMeId(id: string | undefined, ctx: TaskContext): string | undefined {
 	if (!id) return undefined;
 	if (id === 'me') {
 		return ctx.auth.userId;
