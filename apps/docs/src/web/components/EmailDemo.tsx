@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { EMAIL_FROM, EMAIL_NAME, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
+import { EMAIL_FROM, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
 import { Badge, Button, Separator } from './ui';
 
 interface EmailResult {
@@ -46,7 +46,7 @@ export function EmailDemo() {
 		invoke();
 	};
 
-	const preview = generateEmailContent('welcome', EMAIL_NAME);
+	const preview = generateEmailContent();
 	const showResult = hasSent;
 
 	const setupCode = `await ctx.email.send({

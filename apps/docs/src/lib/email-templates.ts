@@ -1,13 +1,7 @@
 export const EMAIL_FROM = 'hello-explorer@agentuity.email';
 export const EMAIL_TO = ['inbox-explorer@agentuity.email'];
-export const EMAIL_NAME = 'Explorer';
 
-export type EmailTemplateId = 'welcome';
-
-export function generateEmailContent(
-	template: EmailTemplateId,
-	name: string
-): { subject: string; html: string; text: string } {
+export function generateEmailContent(): { subject: string; html: string; text: string } {
 	return {
 		subject: 'Hello from the SDK Explorer',
 		text: 'This email was sent by an Agentuity agent using ctx.email.send(). Agents can also handle queues, databases, webhooks, and scheduled tasks. Reply to this email to see what happens next.',

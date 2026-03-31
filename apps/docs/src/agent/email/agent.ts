@@ -13,7 +13,7 @@
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { EMAIL_FROM, EMAIL_NAME, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
+import { EMAIL_FROM, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
 
 const agent = createAgent('email-sender', {
 	description: 'Send templated emails via the Agentuity email service',
@@ -33,7 +33,7 @@ const agent = createAgent('email-sender', {
 	},
 
 	handler: async (ctx, { template }) => {
-		const { subject, html, text } = generateEmailContent(template, EMAIL_NAME);
+		const { subject, html, text } = generateEmailContent();
 
 		ctx.logger.info('Sending email', { template, subject });
 

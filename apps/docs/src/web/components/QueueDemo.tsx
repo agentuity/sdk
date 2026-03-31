@@ -83,7 +83,8 @@ export function QueueDemo() {
 		}
 	}, []);
 
-	// Auto-fetch DLQ messages when stats show non-zero DLQ count
+	// Auto-fetch DLQ messages when stats change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only re-fetch when dlq_count changes
 	useEffect(() => {
 		if (stats && stats.dlq_count > 0) {
 			api<{ success: boolean; data?: { messages: DlqMessage[]; total?: number } }>('/dlq')

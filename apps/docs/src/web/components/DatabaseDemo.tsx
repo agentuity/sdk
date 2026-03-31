@@ -282,8 +282,11 @@ export function DatabaseDemo() {
 									</tr>
 								</thead>
 								<tbody>
-									{(typedResult.rows as SummaryRow[]).map((row, i) => (
-										<tr key={i} className="border-b border-zinc-200 dark:border-zinc-900">
+									{(typedResult.rows as SummaryRow[]).map((row) => (
+										<tr
+											key={`summary-${row.total}`}
+											className="border-b border-zinc-200 dark:border-zinc-900"
+										>
 											<td className="text-xs font-mono text-zinc-900 dark:text-white px-4 py-2.5">
 												${Number(row.avgPrice).toFixed(2)}
 											</td>
