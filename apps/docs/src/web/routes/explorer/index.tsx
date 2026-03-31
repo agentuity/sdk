@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui';
-import { DEMOS, type DemoId } from '../demo-config';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui';
+import { DEMOS, type DemoId } from '../../demo-config';
 
-export const Route = createFileRoute('/explorer')({
+export const Route = createFileRoute('/explorer/')({
 	component: ExplorerPage,
 	staticData: { crumb: 'SDK Explorer' },
 });
@@ -33,7 +33,7 @@ function ExplorerPage() {
 	const navigate = useNavigate();
 
 	const handleSelectDemo = (id: DemoId) => {
-		void navigate({ to: `/demo/${id}` });
+		void navigate({ to: `/explorer/${id}` });
 	};
 
 	const categories = [...new Set(DEMOS.map((d) => d.category))];
