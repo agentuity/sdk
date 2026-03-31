@@ -398,13 +398,18 @@ export class LocalTaskStorage implements TaskStorage {
 			filters.push('project_id = ?');
 			values.push(params.project_id);
 		}
-		if (params?.deleted !== undefined) {
+		if (params?.deleted === undefined) {
+			filters.push('deleted = 0');
+		} else {
 			filters.push('deleted = ?');
 			values.push(params.deleted ? 1 : 0);
 		}
 		if (params?.tag_id) {
-			filters.push('id IN (SELECT task_id FROM task_tag_storage WHERE tag_id = ?)');
+			filters.push(
+				'id IN (SELECT task_id FROM task_tag_association_storage WHERE tag_id = ? AND project_path = ?)'
+			);
 			values.push(params.tag_id);
+			values.push(this.#projectPath);
 		}
 
 		const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
@@ -932,8 +937,11 @@ export class LocalTaskStorage implements TaskStorage {
 				args.push(params.project_id);
 			}
 			if (params.tag_id) {
-				conditions.push('id IN (SELECT task_id FROM task_tag_storage WHERE tag_id = ?)');
+				conditions.push(
+					'id IN (SELECT task_id FROM task_tag_association_storage WHERE tag_id = ? AND project_path = ?)'
+				);
 				args.push(params.tag_id);
+				args.push(this.#projectPath);
 			}
 			if (params.newer_than) {
 				const ms = parseDurationMs(params.newer_than);
@@ -955,6 +963,7 @@ export class LocalTaskStorage implements TaskStorage {
 			params.new_status ||
 			params.new_priority ||
 			params.new_assigned_id ||
+			params.new_assignee ||
 			params.new_title ||
 			params.new_description ||
 			params.new_metadata ||
@@ -984,11 +993,14 @@ export class LocalTaskStorage implements TaskStorage {
 
 		// Dry run - return preview without updating
 		if (params.dry_run) {
+			const normalizedStatus = params.new_status
+				? normalizeTaskStatus(params.new_status)
+				: undefined;
 			return {
 				updated: rows.map((r) => ({
 					id: r.id,
 					title: params.new_title ?? r.title,
-					status: (params.new_status ?? r.status) as TaskStatus,
+					status: (normalizedStatus ?? r.status) as TaskStatus,
 					priority: (params.new_priority ?? r.priority) as TaskPriority,
 				})),
 				count: rows.length,
@@ -1032,17 +1044,17 @@ export class LocalTaskStorage implements TaskStorage {
 			updateArgs.push(params.new_type);
 		}
 
-		// Set lifecycle timestamps based on new status
+		// Set lifecycle timestamps based on new status (only when transitioning)
 		if (params.new_status) {
 			const newStatus = normalizeTaskStatus(params.new_status);
 			if (newStatus === 'open') {
-				updateFields.push('open_date = ?');
+				updateFields.push('open_date = COALESCE(open_date, ?)');
 				updateArgs.push(new Date(timestamp).toISOString());
 			} else if (newStatus === 'in_progress') {
-				updateFields.push('in_progress_date = ?');
+				updateFields.push('in_progress_date = COALESCE(in_progress_date, ?)');
 				updateArgs.push(new Date(timestamp).toISOString());
 			} else if (newStatus === 'done') {
-				updateFields.push('closed_date = ?');
+				updateFields.push('closed_date = COALESCE(closed_date, ?)');
 				updateArgs.push(new Date(timestamp).toISOString());
 			}
 		}
@@ -1147,8 +1159,11 @@ export class LocalTaskStorage implements TaskStorage {
 				args.push(params.project_id);
 			}
 			if (params.tag_id) {
-				conditions.push('id IN (SELECT task_id FROM task_tag_storage WHERE tag_id = ?)');
+				conditions.push(
+					'id IN (SELECT task_id FROM task_tag_association_storage WHERE tag_id = ? AND project_path = ?)'
+				);
 				args.push(params.tag_id);
+				args.push(this.#projectPath);
 			}
 			if (params.newer_than) {
 				const ms = parseDurationMs(params.newer_than);

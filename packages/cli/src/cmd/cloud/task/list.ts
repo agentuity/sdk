@@ -229,6 +229,7 @@ export const listSubcommand = createCommand({
 			} else {
 				const showDescription = hasIncludeField(includeFields, 'description');
 				const showTags = hasIncludeField(includeFields, 'tags');
+				const showMetadata = hasIncludeField(includeFields, 'metadata');
 
 				const tableData = result.tasks.map((task: Task) => ({
 					ID: tui.muted(truncate(task.id, 28)),
@@ -253,7 +254,7 @@ export const listSubcommand = createCommand({
 				]);
 
 				// Show extra details for each task if included
-				if (showDescription || showTags) {
+				if (showDescription || showTags || showMetadata) {
 					for (const task of result.tasks) {
 						const extras: string[] = [];
 						if (showDescription && task.description) {
@@ -262,6 +263,13 @@ export const listSubcommand = createCommand({
 						if (showTags && task.tags && task.tags.length > 0) {
 							const tagList = task.tags.map((t) => t.name).join(', ');
 							extras.push(`${tui.muted('Tags:')} ${tagList}`);
+						}
+						if (showMetadata && task.metadata) {
+							const metaStr =
+								typeof task.metadata === 'object'
+									? JSON.stringify(task.metadata)
+									: String(task.metadata);
+							extras.push(`${tui.muted('Meta:')} ${truncate(metaStr, 80)}`);
 						}
 						if (extras.length > 0) {
 							tui.output(`  ${tui.muted(truncate(task.id, 28))} → ${extras.join(' | ')}`);

@@ -1889,6 +1889,7 @@ export class TaskStorageService implements TaskStorage {
 			params.project_id ||
 			params.tag_id ||
 			params.older_than ||
+			params.newer_than ||
 			(params.ids && params.ids.length > 0);
 		if (!hasFilter) {
 			throw new Error('At least one filter or ids is required for batch update');
@@ -1901,7 +1902,8 @@ export class TaskStorageService implements TaskStorage {
 			params.new_assignee ||
 			params.new_title ||
 			params.new_description ||
-			params.new_metadata;
+			params.new_metadata ||
+			params.new_type;
 		if (!hasUpdate) {
 			throw new Error('At least one update field is required for batch update');
 		}
@@ -1925,6 +1927,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params.project_id) body.project_id = params.project_id;
 		if (params.tag_id) body.tag_id = params.tag_id;
 		if (params.older_than) body.older_than = params.older_than;
+		if (params.newer_than) body.newer_than = params.newer_than;
 		if (params.ids && params.ids.length > 0) body.ids = params.ids;
 		if (params.limit !== undefined) body.limit = params.limit;
 		if (params.new_status) body.new_status = normalizeTaskStatus(params.new_status);
@@ -1934,6 +1937,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params.new_title) body.new_title = params.new_title;
 		if (params.new_description) body.new_description = params.new_description;
 		if (params.new_metadata) body.new_metadata = params.new_metadata;
+		if (params.new_type) body.new_type = params.new_type;
 		if (params.dry_run !== undefined) body.dry_run = params.dry_run;
 
 		const res = await this.#adapter.invoke<TaskResponse<BatchUpdateTasksResult>>(url, {
@@ -1994,6 +1998,7 @@ export class TaskStorageService implements TaskStorage {
 			params.project_id ||
 			params.tag_id ||
 			params.older_than ||
+			params.newer_than ||
 			(params.ids && params.ids.length > 0);
 		if (!hasFilter) {
 			throw new Error('At least one filter or ids is required for batch close');
@@ -2018,6 +2023,7 @@ export class TaskStorageService implements TaskStorage {
 		if (params.project_id) body.project_id = params.project_id;
 		if (params.tag_id) body.tag_id = params.tag_id;
 		if (params.older_than) body.older_than = params.older_than;
+		if (params.newer_than) body.newer_than = params.newer_than;
 		if (params.ids && params.ids.length > 0) body.ids = params.ids;
 		if (params.limit !== undefined) body.limit = params.limit;
 		if (params.closed_id) body.closed_id = params.closed_id;
