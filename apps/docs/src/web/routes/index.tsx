@@ -1,16 +1,22 @@
 import { createFileRoute } from '@tanstack/react-router';
 import {
 	Rocket,
+	Download,
+	Zap,
 	Bot,
 	Route as RouteIcon,
 	Server,
 	Monitor,
 	Play,
 	BookOpen,
-	FileText,
 	Users,
+	Code,
+	Terminal,
+	Package,
 } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { Cards, CardLink } from '../components/docs/cards';
+import { Alert, AlertTitle, AlertDescription } from '../components/ui';
 
 export const Route = createFileRoute('/')({
 	component: HomePage,
@@ -39,73 +45,112 @@ function HomePage() {
 				Start with a guide, explore interactive demos, or dive into the reference docs.
 			</p>
 
-			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">Get Started</h2>
+			<Link to="/explorer" className="block group mb-10">
+				<Alert variant="tip" className="transition-colors hover:border-cyan-500/50">
+					<Play className="size-4" />
+					<AlertTitle className="group-hover:text-cyan-500 transition-colors">
+						Try the SDK in Your Browser
+					</AlertTitle>
+					<AlertDescription>
+						The SDK Explorer has live, interactive demos for agents, storage, streaming, and
+						more. No setup required.
+					</AlertDescription>
+				</Alert>
+			</Link>
+
+			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
+				New to Agentuity?
+			</h2>
 			<Cards>
 				<CardLink
-					href="/get-started"
-					title="Get Started"
-					description="Installation, quickstart, project structure, and configuration"
+					href="/get-started/what-is-agentuity"
+					title="What is Agentuity?"
+					description="What Agentuity is and how it works"
 					icon={<Rocket />}
+				/>
+				<CardLink
+					href="/get-started/installation"
+					title="Installation"
+					description="Install the CLI and create your first project"
+					icon={<Download />}
+				/>
+				<CardLink
+					href="/get-started/quickstart"
+					title="Quickstart"
+					description="Build and deploy your first agent in minutes"
+					icon={<Zap />}
 				/>
 			</Cards>
 
-			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">Build</h2>
-			<Cards>
+			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
+				Start Building
+			</h2>
+			<Cards className="lg:grid-cols-2">
 				<CardLink
 					href="/agents"
 					title="Agents"
-					description="Build AI agents with schema validation, streaming, state, and tool use"
+					description="Define handlers, validate input, manage state, and stream responses"
 					icon={<Bot />}
 				/>
 				<CardLink
 					href="/routes"
 					title="Routes"
-					description="HTTP, WebSocket, SSE, cron, middleware, and WebRTC endpoints"
+					description="Expose APIs, schedule cron jobs, and handle real-time connections"
 					icon={<RouteIcon />}
 				/>
 				<CardLink
 					href="/services"
 					title="Services"
-					description="Storage, email, queues, database, tasks, webhooks, and sandbox"
+					description="Persist data, send emails, run background jobs, and execute sandboxed code"
 					icon={<Server />}
 				/>
 				<CardLink
 					href="/frontend"
 					title="Frontend"
-					description="React hooks, authentication, RPC client, and deployment"
+					description="Connect your React app to agents with type-safe hooks and auth"
 					icon={<Monitor />}
 				/>
 			</Cards>
 
-			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">Learn</h2>
-			<Cards>
-				<CardLink
-					href="/explorer"
-					title="SDK Explorer"
-					description="Interactive demos for every SDK feature"
-					icon={<Play />}
-				/>
+			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
+				Explore Further
+			</h2>
+			<Cards className="lg:grid-cols-2">
 				<CardLink
 					href="/cookbook"
 					title="Cookbook"
-					description="Tutorials, patterns, and framework integrations"
+					description="Step-by-step guides for RAG, chat history, background tasks, and more"
 					icon={<BookOpen />}
 				/>
 				<CardLink
 					href="/community"
 					title="Community"
-					description="Community examples, integrations, and resources"
+					description="Open-source examples and third-party integrations"
 					icon={<Users />}
 				/>
 			</Cards>
 
-			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">Reference</h2>
+			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
+				Find What You Need
+			</h2>
 			<Cards>
 				<CardLink
-					href="/reference"
-					title="Reference"
-					description="CLI commands, API endpoints, and SDK reference"
-					icon={<FileText />}
+					href="/reference/sdk-reference"
+					title="SDK Reference"
+					description="Method signatures for agents, routes, and every service API"
+					icon={<Code />}
+				/>
+				<CardLink
+					href="/reference/cli"
+					title="CLI Reference"
+					description="Commands for dev, deploy, cloud storage, and sandbox management"
+					icon={<Terminal />}
+				/>
+				<CardLink
+					href="/reference/standalone-packages"
+					title="Standalone Packages"
+					description="Use Agentuity packages outside the runtime"
+					icon={<Package />}
 				/>
 			</Cards>
 		</div>
