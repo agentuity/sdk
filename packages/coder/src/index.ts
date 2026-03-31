@@ -478,10 +478,121 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		}
 	};
 
+	function buildInboundRpcPromptText(command: Record<string, unknown>): string | null {
+		const rawText =
+			typeof command.message === 'string'
+				? command.message
+				: typeof command.text === 'string'
+					? command.text
+					: '';
+		const promptText = rawText.trim();
+		if (!promptText) return null;
+
+		const targetAgent =
+			typeof command.agent === 'string'
+				? command.agent.trim()
+				: typeof command.targetAgent === 'string'
+					? command.targetAgent.trim()
+					: '';
+		if (targetAgent && targetAgent !== 'lead') {
+			return `@${targetAgent} ${promptText}`;
+		}
+		return promptText;
+	}
+
+	function getInboundRpcDeliverAs(commandType: string): 'steer' | 'followUp' | undefined {
+		const isIdle = footerCtx?.isIdle() ?? true;
+		if (commandType === 'steer') {
+			return isIdle ? undefined : 'steer';
+		}
+		if (commandType === 'prompt' || commandType === 'follow_up') {
+			return isIdle ? undefined : 'followUp';
+		}
+		return undefined;
+	}
+
+	function handleInboundRpcCommand(message: Record<string, unknown>): void {
+		const command = message.command as Record<string, unknown> | undefined;
+		if (!command) {
+			log('Ignoring inbound rpc_command without command payload');
+			return;
+		}
+
+		const commandType = typeof command.type === 'string' ? command.type : '';
+		if (commandType === 'abort') {
+			if (!footerCtx) {
+				log('Ignoring inbound abort before session context is ready');
+				return;
+			}
+			footerCtx.abort();
+			log('Handled inbound rpc abort');
+			return;
+		}
+
+		if (commandType !== 'prompt' && commandType !== 'follow_up' && commandType !== 'steer') {
+			log(`Ignoring unsupported inbound rpc command: ${commandType || 'unknown'}`);
+			return;
+		}
+
+		const promptText = buildInboundRpcPromptText(command);
+		if (!promptText) {
+			log(`Ignoring empty inbound rpc ${commandType}`);
+			return;
+		}
+
+		if (Array.isArray(command.attachments) && command.attachments.length > 0) {
+			log(`Inbound rpc ${commandType} included attachments; native TUI forwarding text only`);
+		}
+
+		const deliverAs = getInboundRpcDeliverAs(commandType);
+		try {
+			if (deliverAs) {
+				pi.sendUserMessage(promptText, { deliverAs });
+			} else {
+				pi.sendUserMessage(promptText);
+			}
+			log(`Handled inbound rpc ${commandType}`);
+			return;
+		} catch (err) {
+			if (!deliverAs && commandType === 'prompt') {
+				try {
+					pi.sendUserMessage(promptText, { deliverAs: 'followUp' });
+					log('Handled inbound rpc prompt as follow-up after busy-state fallback');
+					return;
+				} catch (fallbackErr) {
+					log(
+						`Inbound rpc prompt fallback failed: ${
+							fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+						}`
+					);
+				}
+			}
+			log(
+				`Inbound rpc ${commandType} failed: ${err instanceof Error ? err.message : String(err)}`
+			);
+		}
+	}
+
 	// Handle unsolicited server messages (broadcast, presence)
 	// Updates observer state for footer display
 	client.onServerMessage = (message) => {
 		const msgType = message.type as string;
+		if (msgType === 'rpc_command') {
+			if (!remoteSessionId && !isSubAgent) {
+				handleInboundRpcCommand(message);
+			}
+			return;
+		}
+
+		if (msgType === 'rpc_command_error') {
+			log(
+				`Hub reported rpc_command_error: ${
+					typeof message.error === 'string' ? message.error : 'unknown error'
+				}`
+			);
+			return;
+		}
+
 		if (msgType === 'broadcast') {
 			const event = message.event as string;
 			if (event === 'session_join') {
@@ -547,8 +658,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			try {
 				// In remote mode, connect as a controller to the existing session
 				const connectOpts = remoteSessionId
-					? { sessionId: remoteSessionId, role: 'controller' }
-					: undefined;
+					? { sessionId: remoteSessionId, role: 'controller' as const }
+					: { origin: 'tui' as const };
 				const wsInitMsg = await client.connect(hubUrl!, connectOpts);
 				log('WebSocket connected');
 				applyInitMessage(wsInitMsg);
