@@ -5,7 +5,17 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { toHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
+import {
+	clearStoredHubApiKeyOnUnauthorized,
+	formatHubUnauthorizedMessage,
+	formatMissingHubUrlMessage,
+	getHubResponseErrorMessage,
+	hubFetchHeaders,
+	isHubUnauthorizedStatus,
+	resolveHubApiKey,
+	resolveHubUrl,
+	toHubWsUrl,
+} from './hub-url';
 import { probeHubInitAccess } from './tui-init';
 
 /**
@@ -127,24 +137,44 @@ export const startSubcommand = createSubcommand({
 		}),
 	},
 	async handler(ctx) {
-		const { opts, options } = ctx;
+		const { opts, options, config } = ctx;
 
 		// Resolve Hub URL
-		const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
+		const hubHttpUrl = await resolveHubUrl(opts?.hubUrl, config);
 		if (!hubHttpUrl) {
-			tui.fatal(
-				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
-				ErrorCode.NETWORK_ERROR
-			);
+			tui.fatal(formatMissingHubUrlMessage(), ErrorCode.NETWORK_ERROR);
 			return;
 		}
 		const hubWsUrl = toHubWsUrl(hubHttpUrl);
+		const resolvedHubApiKey = await resolveHubApiKey(config);
 
-		const initProbe = await probeHubInitAccess(hubHttpUrl);
+		const handleUnauthorizedResponse = async (
+			response: Response,
+			errorCode: ErrorCode = ErrorCode.NETWORK_ERROR
+		): Promise<void> => {
+			const message = await getHubResponseErrorMessage(response);
+			const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
+				response.status,
+				resolvedHubApiKey,
+				config
+			);
+			tui.fatal(
+				formatHubUnauthorizedMessage(hubHttpUrl, message, { clearedStoredKey }),
+				errorCode
+			);
+		};
+
+		const initProbe = await probeHubInitAccess(hubHttpUrl, {
+			apiKey: resolvedHubApiKey.apiKey,
+		});
 		if (!initProbe.ok) {
 			if (initProbe.code === 'unauthorized') {
+				const clearedStoredKey =
+					resolvedHubApiKey.source === 'stored'
+						? await clearStoredHubApiKeyOnUnauthorized(401, resolvedHubApiKey, config)
+						: false;
 				tui.fatal(
-					`Coder Hub at ${hubHttpUrl} requires authentication.\n\nSet AGENTUITY_CODER_API_KEY in your shell and retry.\n\nServer said: ${initProbe.message}`,
+					formatHubUnauthorizedMessage(hubHttpUrl, initProbe.message, { clearedStoredKey }),
 					ErrorCode.NETWORK_ERROR
 				);
 				return;
@@ -192,11 +222,15 @@ export const startSubcommand = createSubcommand({
 						message: 'Fetching connectable sessions…',
 						callback: async () => {
 							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`, {
-								headers: hubFetchHeaders(),
+								headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
 								signal: AbortSignal.timeout(10_000),
 							});
+							if (isHubUnauthorizedStatus(resp.status)) {
+								await handleUnauthorizedResponse(resp);
+								throw new Error('Hub authentication failed');
+							}
 							if (!resp.ok) {
-								throw new Error(`${resp.status} ${resp.statusText}`);
+								throw new Error(`${resp.status} ${await getHubResponseErrorMessage(resp)}`);
 							}
 							const data = (await resp.json()) as { sessions: SessionInfo[] };
 							return data.sessions;
@@ -205,7 +239,7 @@ export const startSubcommand = createSubcommand({
 
 					if (sessions.length === 0) {
 						tui.fatal(
-							'No connectable sandbox sessions found.\n\nCreate one with: ag-dev coder session create --task "your task"',
+							`No connectable sandbox sessions found.\n\nCreate one with:\n  ${getCommand('coder start --sandbox "your task"')}`,
 							ErrorCode.CONFIG_INVALID
 						);
 						return;
@@ -229,7 +263,7 @@ export const startSubcommand = createSubcommand({
 					});
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
-					if (msg === 'User cancelled') return;
+					if (msg === 'User cancelled' || msg === 'Hub authentication failed') return;
 					tui.fatal(`Failed to fetch connectable sessions: ${msg}`, ErrorCode.NETWORK_ERROR);
 					return;
 				}
@@ -273,12 +307,6 @@ export const startSubcommand = createSubcommand({
 				return;
 			}
 
-			const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
-			if (!hubHttpUrl) {
-				tui.fatal('Could not find Hub URL for sandbox creation.', ErrorCode.NETWORK_ERROR);
-				return;
-			}
-
 			// Build request body
 			const body: Record<string, unknown> = { task };
 			if (opts?.repo) {
@@ -293,14 +321,20 @@ export const startSubcommand = createSubcommand({
 			try {
 				const resp = await fetch(`${hubHttpUrl}/api/hub/session`, {
 					method: 'POST',
-					headers: hubFetchHeaders({ 'Content-Type': 'application/json' }),
+					headers: hubFetchHeaders(
+						{ 'Content-Type': 'application/json' },
+						resolvedHubApiKey.apiKey
+					),
 					body: JSON.stringify(body),
 					signal: AbortSignal.timeout(10_000),
 				});
+				if (isHubUnauthorizedStatus(resp.status)) {
+					await handleUnauthorizedResponse(resp);
+					return;
+				}
 				if (!resp.ok) {
-					const errText = await resp.text();
 					tui.fatal(
-						`Failed to create sandbox session: ${resp.status} ${errText}`,
+						`Failed to create sandbox session: ${resp.status} ${await getHubResponseErrorMessage(resp)}`,
 						ErrorCode.NETWORK_ERROR
 					);
 					return;
@@ -328,9 +362,13 @@ export const startSubcommand = createSubcommand({
 				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
 				try {
 					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`, {
-						headers: hubFetchHeaders(),
+						headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
 						signal: AbortSignal.timeout(5_000),
 					});
+					if (isHubUnauthorizedStatus(pollResp.status)) {
+						await handleUnauthorizedResponse(pollResp);
+						return;
+					}
 					if (pollResp.ok) {
 						const data = (await pollResp.json()) as {
 							participants?: Array<{ role: string }>;
@@ -374,9 +412,7 @@ export const startSubcommand = createSubcommand({
 			...(process.env as Record<string, string>),
 			AGENTUITY_CODER_HUB_URL: hubWsUrl,
 		};
-		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
-		const cliApiKey = process.env.AGENTUITY_CODER_API_KEY;
-		if (cliApiKey) env.AGENTUITY_CODER_API_KEY = cliApiKey;
+		if (resolvedHubApiKey.apiKey) env.AGENTUITY_CODER_API_KEY = resolvedHubApiKey.apiKey;
 
 		if (opts?.agent) {
 			env.AGENTUITY_CODER_AGENT = opts.agent;

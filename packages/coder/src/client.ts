@@ -327,6 +327,8 @@ export class HubClient {
 					msgType === 'session_resume' ||
 					msgType === 'session_stream_ready' ||
 					msgType === 'protocol_error' ||
+					msgType === 'rpc_command' ||
+					msgType === 'rpc_command_error' ||
 					msgType === 'rpc_event' ||
 					msgType === 'rpc_response' ||
 					msgType === 'rpc_ui_request'
@@ -374,7 +376,10 @@ export class HubClient {
 		});
 	}
 
-	async connect(url: string, opts?: { sessionId?: string; role?: string }): Promise<InitMessage> {
+	async connect(
+		url: string,
+		opts?: { sessionId?: string; role?: string; origin?: string }
+	): Promise<InitMessage> {
 		if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
 			throw new Error('Already connected or connecting — call close() first');
 		}
@@ -390,6 +395,10 @@ export class HubClient {
 		if (opts?.role) {
 			const separator = connectUrl.includes('?') ? '&' : '?';
 			connectUrl = `${connectUrl}${separator}role=${encodeURIComponent(opts.role)}`;
+		}
+		if (opts?.origin) {
+			const separator = connectUrl.includes('?') ? '&' : '?';
+			connectUrl = `${connectUrl}${separator}origin=${encodeURIComponent(opts.origin)}`;
 		}
 
 		this.lastConnectUrl = connectUrl;

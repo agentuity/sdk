@@ -21,11 +21,16 @@ function normalizeErrorMessage(payload: unknown, fallback: string): string {
 
 export async function probeHubInitAccess(
 	hubHttpUrl: string,
-	fetchImpl: typeof fetch = fetch
+	options?: {
+		apiKey?: string | null;
+		fetchImpl?: typeof fetch;
+	}
 ): Promise<HubInitProbeResult> {
+	const fetchImpl = options?.fetchImpl ?? fetch;
+
 	try {
 		const response = await fetchImpl(`${hubHttpUrl}/api/hub/init`, {
-			headers: hubFetchHeaders({ accept: 'application/json' }),
+			headers: hubFetchHeaders({ accept: 'application/json' }, options?.apiKey),
 			signal: AbortSignal.timeout(5_000),
 		});
 

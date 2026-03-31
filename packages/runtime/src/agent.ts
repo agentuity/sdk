@@ -1949,7 +1949,7 @@ export function createAgent<
 		);
 
 		if (agentEvals && agentEvals.length > 0) {
-			internal.info(`Executing ${agentEvals.length} eval(s) after agent run`);
+			internal.info(`Executing ${agentEvals.length} evaluations after agent run`);
 
 			// Get validated input/output from context state
 			const validatedInput = ctx.state.get('_evalInput');
