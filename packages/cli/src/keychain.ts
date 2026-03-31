@@ -7,6 +7,8 @@
 
 const SERVICE_PREFIX = 'com.agentuity.cli';
 const KEY_ACCOUNT = 'aes-encryption-key';
+const AUTH_ACCOUNT = 'auth-token';
+const CODER_API_KEY_ACCOUNT = 'coder-hub-api-key';
 
 /**
  * Check if we're running on macOS
@@ -88,26 +90,15 @@ async function decrypt(combined: Uint8Array, keyBytes: Uint8Array): Promise<stri
 	return new TextDecoder().decode(plaintext);
 }
 
-/**
- * Store auth data in macOS Keychain
- */
-export async function saveAuthToKeychain(
-	profileName: string,
-	authData: { api_key: string; user_id: string; expires: number }
+async function saveEncryptedValueToKeychain(
+	service: string,
+	account: string,
+	value: string
 ): Promise<void> {
-	const service = `${SERVICE_PREFIX}.${profileName}`;
-	const account = 'auth-token';
-
-	// Get or create encryption key
 	const key = await ensureEncryptionKey(service);
-
-	// Encrypt the auth data
-	const json = JSON.stringify(authData);
-	const encrypted = await encrypt(json, key);
+	const encrypted = await encrypt(value, key);
 	const b64 = Buffer.from(encrypted).toString('base64');
 
-	// Store encrypted auth in keychain
-	// First try to delete if exists, then add
 	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
 		stderr: 'ignore',
 	});
@@ -127,6 +118,43 @@ export async function saveAuthToKeychain(
 	await add.exited;
 }
 
+async function getEncryptedValueFromKeychain(
+	service: string,
+	account: string
+): Promise<string | null> {
+	const find = Bun.spawn(
+		['security', 'find-generic-password', '-s', service, '-a', account, '-w'],
+		{ stderr: 'ignore' }
+	);
+
+	const stdout = await new Response(find.stdout).text();
+	if (stdout.length === 0) {
+		return null;
+	}
+
+	const encrypted = Uint8Array.from(Buffer.from(stdout.trim(), 'base64'));
+	const key = await ensureEncryptionKey(service);
+	return decrypt(encrypted, key);
+}
+
+async function deleteValueFromKeychain(service: string, account: string): Promise<void> {
+	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
+		stderr: 'ignore',
+	});
+	await del.exited;
+}
+
+/**
+ * Store auth data in macOS Keychain
+ */
+export async function saveAuthToKeychain(
+	profileName: string,
+	authData: { api_key: string; user_id: string; expires: number }
+): Promise<void> {
+	const service = `${SERVICE_PREFIX}.${profileName}`;
+	await saveEncryptedValueToKeychain(service, AUTH_ACCOUNT, JSON.stringify(authData));
+}
+
 /**
  * Retrieve auth data from macOS Keychain
  */
@@ -134,28 +162,12 @@ export async function getAuthFromKeychain(
 	profileName: string
 ): Promise<{ api_key: string; user_id: string; expires: number } | null> {
 	const service = `${SERVICE_PREFIX}.${profileName}`;
-	const account = 'auth-token';
 
 	try {
-		// Get the encrypted auth data
-		const find = Bun.spawn(
-			['security', 'find-generic-password', '-s', service, '-a', account, '-w'],
-			{ stderr: 'ignore' }
-		);
-
-		const stdout = await new Response(find.stdout).text();
-		if (stdout.length === 0) {
+		const json = await getEncryptedValueFromKeychain(service, AUTH_ACCOUNT);
+		if (!json) {
 			return null;
 		}
-
-		const b64 = stdout.trim();
-		const encrypted = Uint8Array.from(Buffer.from(b64, 'base64'));
-
-		// Get the encryption key
-		const key = await ensureEncryptionKey(service);
-
-		// Decrypt the auth data
-		const json = await decrypt(encrypted, key);
 		return JSON.parse(json);
 	} catch {
 		return null;
@@ -167,10 +179,27 @@ export async function getAuthFromKeychain(
  */
 export async function deleteAuthFromKeychain(profileName: string): Promise<void> {
 	const service = `${SERVICE_PREFIX}.${profileName}`;
-	const account = 'auth-token';
+	await deleteValueFromKeychain(service, AUTH_ACCOUNT);
+}
 
-	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
-		stderr: 'ignore',
-	});
-	await del.exited;
+export async function saveCoderApiKeyToKeychain(
+	profileName: string,
+	apiKey: string
+): Promise<void> {
+	const service = `${SERVICE_PREFIX}.${profileName}`;
+	await saveEncryptedValueToKeychain(service, CODER_API_KEY_ACCOUNT, apiKey);
+}
+
+export async function getCoderApiKeyFromKeychain(profileName: string): Promise<string | null> {
+	const service = `${SERVICE_PREFIX}.${profileName}`;
+	try {
+		return await getEncryptedValueFromKeychain(service, CODER_API_KEY_ACCOUNT);
+	} catch {
+		return null;
+	}
+}
+
+export async function deleteCoderApiKeyFromKeychain(profileName: string): Promise<void> {
+	const service = `${SERVICE_PREFIX}.${profileName}`;
+	await deleteValueFromKeychain(service, CODER_API_KEY_ACCOUNT);
 }
