@@ -108,6 +108,12 @@ export const deleteSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('filter batch delete by creator ID (use "me" for current user)'),
+			orgId: z.string().optional().describe('organization ID (uses default if not specified)'),
+			dryRun: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('preview changes without executing'),
 			limit: z.coerce
 				.number()
 				.int()

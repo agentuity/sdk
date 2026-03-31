@@ -84,6 +84,13 @@ function parseIncludeParam(include: string | undefined): TaskIncludeField[] | un
 	return include.split(',').map((f) => f.trim() as TaskIncludeField);
 }
 
+function hasIncludeField(
+	include: TaskIncludeField[] | undefined,
+	field: TaskIncludeField
+): boolean {
+	return include?.includes(field) ?? false;
+}
+
 export const listSubcommand = createCommand({
 	name: 'list',
 	aliases: ['ls'],
@@ -162,6 +169,7 @@ export const listSubcommand = createCommand({
 			order: z.enum(['asc', 'desc']).optional().describe('sort order (default: desc)'),
 			limit: z.coerce.number().optional().describe('max results to return (default: 50)'),
 			offset: z.coerce.number().optional().describe('offset for pagination'),
+			orgId: z.string().optional().describe('organization ID (uses default if not specified)'),
 		}),
 		response: TaskListResponseSchema,
 	},
@@ -174,6 +182,8 @@ export const listSubcommand = createCommand({
 		const createdId = await resolveMeId(opts.createdId, ctx);
 		const assignedId = await resolveMeId(opts.assignedId, ctx);
 
+		const includeFields = parseIncludeParam(opts.include);
+
 		const result = await storage.list({
 			status: opts.status as TaskStatus | undefined,
 			type: opts.type as TaskType | undefined,
@@ -184,7 +194,7 @@ export const listSubcommand = createCommand({
 			project_id: opts.projectId,
 			tag_id: opts.tagId,
 			deleted: opts.deleted,
-			include: parseIncludeParam(opts.include),
+			include: includeFields,
 			sort: opts.sort,
 			order: opts.order,
 			limit: opts.limit,
@@ -197,6 +207,9 @@ export const listSubcommand = createCommand({
 			if (result.tasks.length === 0) {
 				tui.info('No tasks found');
 			} else {
+				const showDescription = hasIncludeField(includeFields, 'description');
+				const showTags = hasIncludeField(includeFields, 'tags');
+
 				const tableData = result.tasks.map((task: Task) => ({
 					ID: tui.muted(truncate(task.id, 28)),
 					Title: truncate(task.title, 40),
@@ -218,6 +231,23 @@ export const listSubcommand = createCommand({
 					{ name: 'Assigned', alignment: 'left' },
 					{ name: 'Updated', alignment: 'left' },
 				]);
+
+				// Show extra details for each task if included
+				if (showDescription || showTags) {
+					for (const task of result.tasks) {
+						const extras: string[] = [];
+						if (showDescription && task.description) {
+							extras.push(`${tui.muted('Desc:')} ${truncate(task.description, 80)}`);
+						}
+						if (showTags && task.tags && task.tags.length > 0) {
+							const tagList = task.tags.map((t) => t.name).join(', ');
+							extras.push(`${tui.muted('Tags:')} ${tagList}`);
+						}
+						if (extras.length > 0) {
+							tui.output(`  ${tui.muted(truncate(task.id, 28))} → ${extras.join(' | ')}`);
+						}
+					}
+				}
 
 				tui.info(
 					`Showing ${result.tasks.length} of ${result.total} ${tui.plural(result.total, 'task', 'tasks')} (${durationMs.toFixed(1)}ms)`

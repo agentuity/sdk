@@ -109,6 +109,12 @@ export const closeSubcommand = createCommand({
 			projectId: z.string().optional().describe('filter batch close by project ID'),
 			tagId: z.string().optional().describe('filter batch close by tag ID'),
 			idsFile: z.string().optional().describe('path to JSON file containing task IDs to close'),
+			orgId: z.string().optional().describe('organization ID (uses default if not specified)'),
+			dryRun: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('preview changes without executing'),
 			limit: z.coerce
 				.number()
 				.int()
@@ -310,6 +316,19 @@ export const closeSubcommand = createCommand({
 				tui.success(
 					`Closed ${result.count} ${tui.plural(result.count, 'task', 'tasks')} in ${durationMs}ms`
 				);
+
+				// Show which tasks were closed
+				if (result.closed.length > 0) {
+					tui.newline();
+					const closedTable = result.closed.map((task) => ({
+						ID: tui.muted(truncate(task.id, 28)),
+						Title: truncate(task.title, 40),
+					}));
+					tui.table(closedTable, [
+						{ name: 'ID', alignment: 'left' },
+						{ name: 'Title', alignment: 'left' },
+					]);
+				}
 			} else {
 				tui.info('No tasks matched the given filters');
 			}
