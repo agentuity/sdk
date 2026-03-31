@@ -1,6 +1,6 @@
 {
 	"name": "agentuity-coder",
-	"version": "2.0.6",
+	"version": "2.0.7",
 	"description": "Agentuity Coder - a team of specialized AI agents for code assistance with persistent memory via Agentuity Cloud",
 	"author": {
 		"name": "Agentuity",
