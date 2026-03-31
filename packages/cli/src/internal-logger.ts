@@ -43,6 +43,16 @@ const SENSITIVE_ENV_PATTERNS = [
 	/AUTH/i,
 ];
 
+const MASKED_ARG_VALUE = '***MASKED***';
+const SENSITIVE_ARG_PATTERNS = [
+	/^--?api[-_]?key$/i,
+	/^--?token$/i,
+	/^--?secret$/i,
+	/^--?password$/i,
+	/^--?client[-_]?secret$/i,
+	/^--?auth[-_]?value$/i,
+];
+
 interface SessionMetadata {
 	sessionId: string;
 	bucket: number;
@@ -100,6 +110,66 @@ function maskEnvironment(): Record<string, string> {
 		}
 	}
 	return masked;
+}
+
+function isSensitiveArgFlag(arg: string): boolean {
+	return SENSITIVE_ARG_PATTERNS.some((pattern) => pattern.test(arg));
+}
+
+function sanitizeArgsForLogging(args: string[]): string[] {
+	const sanitized: string[] = [];
+	let maskNextValue = false;
+
+	for (const arg of args) {
+		if (maskNextValue) {
+			sanitized.push(MASKED_ARG_VALUE);
+			maskNextValue = false;
+			continue;
+		}
+
+		if (!arg.startsWith('-')) {
+			sanitized.push(arg);
+			continue;
+		}
+
+		const equalsIndex = arg.indexOf('=');
+		if (equalsIndex > 0) {
+			const flag = arg.slice(0, equalsIndex);
+			if (isSensitiveArgFlag(flag)) {
+				sanitized.push(`${flag}=${MASKED_ARG_VALUE}`);
+				continue;
+			}
+		}
+
+		sanitized.push(arg);
+		if (isSensitiveArgFlag(arg)) {
+			maskNextValue = true;
+		}
+	}
+
+	return sanitized;
+}
+
+export function sanitizeCliCommandForLogging(
+	command: string,
+	args: string[]
+): { command: string; args: string[] } {
+	const commandTokens = command ? command.split(' ') : [];
+
+	if (
+		commandTokens.length >= 5 &&
+		commandTokens[0] === 'coder' &&
+		commandTokens[1] === 'config' &&
+		commandTokens[2] === 'set' &&
+		commandTokens[3] === 'apikey'
+	) {
+		commandTokens[4] = MASKED_ARG_VALUE;
+	}
+
+	return {
+		command: commandTokens.join(' '),
+		args: sanitizeArgsForLogging(args),
+	};
 }
 
 /**
@@ -266,14 +336,16 @@ export class InternalLogger implements Logger {
 			// Use workingDir as cwd in session metadata
 			const cwd = workingDir;
 
+			const sanitizedInvocation = sanitizeCliCommandForLogging(command, args);
+
 			// Gather session metadata
 			const sessionMetadata: SessionMetadata = {
 				sessionId: this.sessionId,
 				bucket: this.bucket,
 				pid: process.pid,
 				ppid: process.ppid,
-				command,
-				args,
+				command: sanitizedInvocation.command,
+				args: sanitizedInvocation.args,
 				timestamp: new Date().toISOString(),
 				cli: {
 					version: this.cliVersion,

@@ -28,6 +28,14 @@ import { ConfigSchema, ProjectSchema } from './types';
 export const defaultProfileName = 'production';
 
 export function getDefaultConfigDir(): string {
+	const configDirOverride = process.env.AGENTUITY_CONFIG_DIR?.trim();
+	if (configDirOverride) {
+		if (configDirOverride.startsWith('~/')) {
+			return resolve(join(homedir(), configDirOverride.slice(2)));
+		}
+		return resolve(configDirOverride);
+	}
+
 	return join(homedir(), '.config', 'agentuity');
 }
 
@@ -143,6 +151,11 @@ function expandTilde(path: string): string {
 let cachedConfig: Config | null | undefined;
 // Track the resolved config path so saveConfig writes back to the same file
 let cachedConfigPath: string | undefined;
+
+export function resetConfigCache(): void {
+	cachedConfig = undefined;
+	cachedConfigPath = undefined;
+}
 
 export async function loadConfig(
 	customPath?: string,

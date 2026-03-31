@@ -3,7 +3,17 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubUrl, hubFetchHeaders } from './hub-url';
+import {
+	clearStoredHubApiKeyOnUnauthorized,
+	formatHubUnauthorizedMessage,
+	formatMissingHubUrlMessage,
+	getHubResponseErrorMessage,
+	getHubUrlSetupGuidance,
+	hubFetchHeaders,
+	isHubUnauthorizedStatus,
+	resolveHubApiKey,
+	resolveHubUrl,
+} from './hub-url';
 
 function formatRelativeTime(isoDate: string): string {
 	const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -52,17 +62,16 @@ export const inspectSubcommand = createSubcommand({
 		}),
 	},
 	async handler(ctx) {
-		const { args, options, opts } = ctx;
+		const { args, options, opts, config } = ctx;
 		const sessionId = args.session_id;
-		const hubUrl = await resolveHubUrl(opts?.hubUrl);
+		const hubUrl = await resolveHubUrl(opts?.hubUrl, config);
 
 		if (!hubUrl) {
-			tui.fatal(
-				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
-				ErrorCode.NETWORK_ERROR
-			);
+			tui.fatal(formatMissingHubUrlMessage(), ErrorCode.NETWORK_ERROR);
 			return;
 		}
+
+		const resolvedHubApiKey = await resolveHubApiKey(config);
 
 		let data: {
 			sessionId: string;
@@ -104,9 +113,21 @@ export const inspectSubcommand = createSubcommand({
 
 		try {
 			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, {
-				headers: hubFetchHeaders(),
+				headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
 				signal: AbortSignal.timeout(10_000),
 			});
+			if (isHubUnauthorizedStatus(resp.status)) {
+				const message = await getHubResponseErrorMessage(resp);
+				const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
+					resp.status,
+					resolvedHubApiKey
+				);
+				tui.fatal(
+					formatHubUnauthorizedMessage(hubUrl, message, { clearedStoredKey }),
+					ErrorCode.API_ERROR
+				);
+				return;
+			}
 			if (resp.status === 404) {
 				tui.fatal(`Session not found: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
@@ -116,8 +137,9 @@ export const inspectSubcommand = createSubcommand({
 				return;
 			}
 			if (!resp.ok) {
+				const message = await getHubResponseErrorMessage(resp);
 				tui.fatal(
-					`Hub returned ${resp.status}: ${resp.statusText}. Is the Coder Hub running at ${hubUrl}?`,
+					`Hub returned ${resp.status}: ${message}. Is the Coder Hub running at ${hubUrl}?`,
 					ErrorCode.API_ERROR
 				);
 				return;
@@ -126,7 +148,7 @@ export const inspectSubcommand = createSubcommand({
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(
-				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\nSet AGENTUITY_CODER_HUB_URL or start the Hub with: bun run dev`,
+				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\n${getHubUrlSetupGuidance()}`,
 				ErrorCode.NETWORK_ERROR
 			);
 			return;
