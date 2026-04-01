@@ -1,12 +1,8 @@
-import { AlertTriangle, Check, Inbox, RotateCcw, Send, X } from 'lucide-react';
+import { AlertTriangle, Check, Inbox, RotateCcw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Button, Separator } from './ui';
 
-const PRESET_MESSAGES = [
-	{ label: 'Process Data', payload: { task: 'process-data', priority: 'normal' } },
-	{ label: 'Generate Report', payload: { task: 'generate-report', priority: 'high' } },
-	{ label: 'Send Notification', payload: { task: 'send-notification', priority: 'low' } },
-];
+const MESSAGE_PAYLOAD = { task: 'process-order', orderId: 'order-123' };
 
 type ActionType = 'setup' | 'publish' | 'receive' | 'ack' | 'nack' | 'dlq' | 'replay';
 
@@ -49,7 +45,6 @@ async function api<T = unknown>(path: string, options?: RequestInit): Promise<T>
 
 export function QueueDemo() {
 	const [queueReady, setQueueReady] = useState(false);
-	const [selectedPreset, setSelectedPreset] = useState(0);
 	const [receivedMessage, setReceivedMessage] = useState<QueueMessage | null>(null);
 	const [events, setEvents] = useState<QueueEvent[]>([]);
 	const [dlqMessages, setDlqMessages] = useState<DlqMessage[]>([]);
@@ -130,17 +125,16 @@ export function QueueDemo() {
 		setLoading('publish');
 		setError(null);
 		try {
-			const preset = PRESET_MESSAGES[selectedPreset]!;
 			const result = await api<{ success: boolean; message: string; data?: { id: string } }>(
 				'/publish',
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ payload: preset.payload }),
+					body: JSON.stringify({ payload: MESSAGE_PAYLOAD }),
 				}
 			);
 			if (result.success) {
-				addEvent('publish', `${preset.label}: ${result.message}`, result.data?.id);
+				addEvent('publish', result.message, result.data?.id);
 				await refreshStats();
 			} else {
 				setError(result.message);
@@ -355,31 +349,11 @@ export function QueueDemo() {
 						{queueReady && (
 							<>
 								<div>
-									<span className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase">
-										Message
-									</span>
-									<div className="flex flex-wrap gap-2">
-										{PRESET_MESSAGES.map((preset, i) => (
-											<Button
-												key={preset.label}
-												onClick={() => setSelectedPreset(i)}
-												disabled={!!loading}
-												variant={selectedPreset === i ? 'toggle-active' : 'toggle'}
-												size="xs"
-											>
-												<Send className="size-3.5" />
-												<span>{preset.label}</span>
-											</Button>
-										))}
-									</div>
-								</div>
-
-								<div>
 									<span className="text-zinc-500 dark:text-zinc-400 block text-xs mb-1 uppercase">
 										Payload
 									</span>
 									<code className="text-xs font-mono text-cyan-600 dark:text-cyan-400">
-										{JSON.stringify(PRESET_MESSAGES[selectedPreset]!.payload)}
+										{JSON.stringify(MESSAGE_PAYLOAD)}
 									</code>
 								</div>
 
@@ -571,9 +545,10 @@ export function QueueDemo() {
 			{/* Callout Tip */}
 			<div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg px-4 py-3">
 				<p className="text-zinc-600 dark:text-zinc-400 text-xs">
-					<span className="text-cyan-600 dark:text-cyan-400 font-medium">Tip:</span> Nack a
-					message {stats?.name ? `(max retries: 2)` : 'multiple times'} to see it move to the
-					Dead Letter Queue. Then use Replay to return it to the main queue.
+					<span className="text-cyan-600 dark:text-cyan-400 font-medium">Tip:</span> Publish a
+					message, receive it, then nack it. Wait a few seconds, then receive again. After 2
+					attempts it moves to the Dead Letter Queue. Use Replay to return it to the main
+					queue.
 				</p>
 			</div>
 		</div>

@@ -46,7 +46,7 @@ export interface DemoConfig {
 	description: string;
 	explanation: React.ReactNode;
 	docsUrl?: string;
-	category: 'basics' | 'services' | 'io-patterns' | 'examples' | 'messaging' | 'platform';
+	category: 'basics' | 'services' | 'io-patterns' | 'examples';
 	component: React.ComponentType;
 	codeExample: string;
 	sandboxEnabled?: boolean;
@@ -485,7 +485,7 @@ export const DEMOS: DemoConfig[] = [
 	},
 	{
 		id: 'queue',
-		title: 'Message Queue',
+		title: 'Queues',
 		subtitle: 'Publish & Consume',
 		description: 'Publish messages, receive with ack/nack, and explore the dead letter queue.',
 		explanation: (
@@ -501,7 +501,7 @@ export const DEMOS: DemoConfig[] = [
 			</>
 		),
 		docsUrl: '/services/queues',
-		category: 'messaging',
+		category: 'services',
 		component: QueueDemo,
 		codeExample: CODE_EXAMPLES.queue,
 		sandboxEnabled: true,
@@ -525,7 +525,7 @@ export const DEMOS: DemoConfig[] = [
 			</>
 		),
 		docsUrl: '/services/email',
-		category: 'messaging',
+		category: 'services',
 		component: EmailDemo,
 		codeExample: CODE_EXAMPLES.email,
 		sandboxEnabled: true,
@@ -546,7 +546,7 @@ export const DEMOS: DemoConfig[] = [
 				</span>
 				. The same chairs from the{' '}
 				<a
-					href="/demo/vector-storage"
+					href="/explorer/vector-storage"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					Vector Search
@@ -556,7 +556,7 @@ export const DEMOS: DemoConfig[] = [
 			</>
 		),
 		docsUrl: '/services/database',
-		category: 'platform',
+		category: 'services',
 		component: DatabaseDemo,
 		codeExample: CODE_EXAMPLES.database,
 		sandboxEnabled: true,

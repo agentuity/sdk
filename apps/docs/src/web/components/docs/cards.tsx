@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils';
 interface CardLinkProps {
 	href: string;
 	title: string;
+	subtitle?: string;
 	description?: ReactNode;
 	icon?: ReactNode;
 	className?: string;
@@ -34,6 +35,7 @@ interface CardsProps {
 export function CardLink({
 	href,
 	title,
+	subtitle,
 	description,
 	icon,
 	className,
@@ -65,6 +67,9 @@ export function CardLink({
 						</div>
 					)}
 					<CardTitle className={titleClassName}>{title}</CardTitle>
+					{subtitle && (
+						<p className="text-cyan-600 dark:text-cyan-400 text-xs mt-0.5">{subtitle}</p>
+					)}
 					{description && (
 						<CardDescription className={descriptionClassName}>{description}</CardDescription>
 					)}

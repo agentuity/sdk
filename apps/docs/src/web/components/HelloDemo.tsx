@@ -1,31 +1,41 @@
 import { type ChangeEvent, useState, useCallback } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Input } from './ui';
 
 export function HelloDemo() {
-	const [name, setName] = useState('World');
-	const [greeting, setGreeting] = useState<string | null>(null);
+	const [name, setName] = usePersistentDemoState<string>('hello', 'name', {
+		defaultValue: 'World',
+		storage: 'session',
+	});
+	const [greeting, setGreeting] = usePersistentDemoState<string | null>('hello', 'greeting', {
+		defaultValue: null,
+		storage: 'session',
+	});
 	const [error, setError] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 
-	const invoke = useCallback(async (input: { name: string }) => {
-		setIsLoading(true);
-		setError(null);
-		try {
-			const res = await fetch('/api/hello', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(input),
-			});
-			if (!res.ok) {
-				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+	const invoke = useCallback(
+		async (input: { name: string }) => {
+			setIsLoading(true);
+			setError(null);
+			try {
+				const res = await fetch('/api/hello', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(input),
+				});
+				if (!res.ok) {
+					throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+				}
+				setGreeting(await res.text());
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Unknown error');
+			} finally {
+				setIsLoading(false);
 			}
-			setGreeting(await res.text());
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Unknown error');
-		} finally {
-			setIsLoading(false);
-		}
-	}, []);
+		},
+		[setGreeting]
+	);
 
 	return (
 		<div className="flex flex-col gap-4">

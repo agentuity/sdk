@@ -1,5 +1,6 @@
 import { BarChart3, CheckCircle, Database, DollarSign, Search, Star } from 'lucide-react';
 import { type ReactNode, useCallback, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Badge, Button, Separator } from './ui';
 
 type QueryId = 'all' | 'budget' | 'top-rated' | 'keyword' | 'summary';
@@ -61,7 +62,14 @@ interface QueryResult {
 }
 
 export function DatabaseDemo() {
-	const [selectedQuery, setSelectedQuery] = useState<QueryId>('all');
+	const [selectedQuery, setSelectedQuery] = usePersistentDemoState<QueryId>(
+		'database',
+		'selected-query',
+		{
+			defaultValue: 'all',
+			storage: 'session',
+		}
+	);
 	const [hasRun, setHasRun] = useState(false);
 	const [seeded, setSeeded] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);

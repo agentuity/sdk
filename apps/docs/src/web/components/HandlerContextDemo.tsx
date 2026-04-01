@@ -1,5 +1,6 @@
 import { CodeBracketIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button } from './ui';
 import { JsonDisplay } from './JsonDisplay';
 
@@ -183,7 +184,11 @@ export function HandlerContextDemo() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [data, setData] = useState<unknown>(null);
-	const [lastEndpoint, setLastEndpoint] = useState<string | null>(null);
+	const [lastEndpoint, setLastEndpoint] = usePersistentDemoState<string | null>(
+		'handler-context',
+		'lastEndpoint',
+		{ defaultValue: null, storage: 'session' }
+	);
 	const [mockLogs, setMockLogs] = useState<LogEntry[]>([]);
 
 	const callEndpoint = async (endpoint: string) => {
