@@ -69,7 +69,6 @@ export const listSubcommand = createSubcommand({
 
 		if (!hubUrl) {
 			tui.fatal(formatMissingHubUrlMessage(), ErrorCode.NETWORK_ERROR);
-			return [];
 		}
 
 		const resolvedHubApiKey = await resolveHubApiKey(config);
@@ -109,14 +108,12 @@ export const listSubcommand = createSubcommand({
 						formatHubUnauthorizedMessage(hubUrl, message, { clearedStoredKey }),
 						ErrorCode.API_ERROR
 					);
-					return [];
 				}
 
 				tui.fatal(
 					`Hub returned ${resp.status}: ${message}. Is the Coder Hub running at ${hubUrl}?`,
 					ErrorCode.API_ERROR
 				);
-				return [];
 			}
 			data = (await resp.json()) as typeof data;
 		} catch (err) {
@@ -125,7 +122,6 @@ export const listSubcommand = createSubcommand({
 				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\n${getHubUrlSetupGuidance()}`,
 				ErrorCode.NETWORK_ERROR
 			);
-			return [];
 		}
 
 		const sessions = data.sessions.websocket;
@@ -140,7 +136,7 @@ export const listSubcommand = createSubcommand({
 		}
 
 		const tableData = sessions.map((s) => ({
-			'Session ID': s.sessionId.length > 20 ? s.sessionId.slice(0, 17) + '...' : s.sessionId,
+			'Session ID': s.sessionId,
 			Label: s.label || '-',
 			Status: s.status,
 			Mode: s.mode,

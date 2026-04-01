@@ -40,6 +40,7 @@ function formatDuration(ms: number): string {
 
 export const inspectSubcommand = createSubcommand({
 	name: 'inspect',
+	aliases: ['get', 'show'],
 	description: 'Show detailed information about a Coder Hub session',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [

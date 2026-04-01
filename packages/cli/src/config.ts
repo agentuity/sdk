@@ -162,11 +162,12 @@ export async function loadConfig(
 	skipCache = false,
 	profileFromFlag?: string
 ): Promise<Config | null> {
-	// Use cache if available and not skipped
-	if (!skipCache && cachedConfig !== undefined) {
+	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
+
+	// Use cache if available and not skipped, but only if the path matches
+	if (!skipCache && cachedConfig !== undefined && cachedConfigPath === configPath) {
 		return cachedConfig;
 	}
-	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
 
 	try {
 		const file = Bun.file(configPath);
