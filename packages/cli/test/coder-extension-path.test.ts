@@ -22,7 +22,15 @@ async function createExtensionPackage(rootPath: string, options?: { withSource?:
 	await mkdir(rootPath, { recursive: true });
 	await writeFile(
 		join(rootPath, 'package.json'),
-		JSON.stringify({ name: '@agentuity/coder', version: '2.0.7' }, null, 2)
+		JSON.stringify(
+			{
+				name: '@agentuity/coder',
+				version: '2.0.7',
+				main: './dist/index.js',
+			},
+			null,
+			2
+		)
 	);
 	await mkdir(join(rootPath, 'dist'), { recursive: true });
 	await writeFile(join(rootPath, 'dist', 'index.js'), 'export const ok = true;\n');
@@ -42,49 +50,104 @@ async function createExtensionPackage(rootPath: string, options?: { withSource?:
 }
 
 describe('resolveExtensionPath', () => {
-	test('prefers the CLI-installed coder package before cwd node_modules fallback', async () => {
+	test('uses --extension flag when provided', async () => {
 		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
 
-		const cliInstalledRoot = join(tempDir, 'global-node_modules', '@agentuity', 'coder');
-		const cwdInstalledRoot = join(tempDir, 'project', 'node_modules', '@agentuity', 'coder');
+		const extensionRoot = join(tempDir, 'custom-extension');
+		await createExtensionPackage(extensionRoot);
+
+		const resolved = await resolveExtensionPath(extensionRoot, {
+			cwd: tempDir,
+			env: { AGENTUITY_CODER_EXTENSION: join(tempDir, 'other-extension') },
+		});
+
+		expect(resolved).toBe(extensionRoot);
+	});
+
+	test('uses AGENTUITY_CODER_EXTENSION env when no flag provided', async () => {
+		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
+
+		const extensionRoot = join(tempDir, 'env-extension');
+		await createExtensionPackage(extensionRoot);
+
+		const resolved = await resolveExtensionPath(undefined, {
+			cwd: tempDir,
+			env: { AGENTUITY_CODER_EXTENSION: extensionRoot },
+		});
+
+		expect(resolved).toBe(extensionRoot);
+	});
+
+	test('uses require.resolve fallback when no flag or env provided', async () => {
+		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
+
+		const cliInstalledRoot = join(tempDir, 'node_modules', '@agentuity', 'coder');
 		await createExtensionPackage(cliInstalledRoot);
-		await createExtensionPackage(cwdInstalledRoot);
+
+		const cliDir = join(tempDir, 'cli');
+		await mkdir(cliDir, { recursive: true });
 
 		const resolved = await resolveExtensionPath(undefined, {
-			cwd: join(tempDir, 'project'),
-			resolvePackageEntry: async (specifier) => {
-				expect(specifier).toBe('@agentuity/coder');
-				return join(cliInstalledRoot, 'dist', 'index.js');
-			},
+			cwd: tempDir,
+			env: {},
+			moduleUrl: `file://${cliDir}/index.js`,
 		});
 
-		expect(resolved).toBe(cliInstalledRoot);
+		expect(resolved).not.toBeNull();
+		expect(resolved!.endsWith('node_modules/@agentuity/coder')).toBe(true);
 	});
 
-	test('falls back to cwd node_modules when the CLI install does not resolve coder', async () => {
+	test('returns null when coder package cannot be resolved', async () => {
 		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
 
-		const cwdInstalledRoot = join(tempDir, 'project', 'node_modules', '@agentuity', 'coder');
-		await createExtensionPackage(cwdInstalledRoot);
+		const cliDir = join(tempDir, 'cli');
+		await mkdir(cliDir, { recursive: true });
 
 		const resolved = await resolveExtensionPath(undefined, {
-			cwd: join(tempDir, 'project'),
-			resolvePackageEntry: async () => {
-				throw new Error('not installed with CLI');
-			},
+			cwd: tempDir,
+			env: {},
+			moduleUrl: `file://${cliDir}/index.js`,
 		});
 
-		expect(resolved).toBe(cwdInstalledRoot);
+		expect(resolved).toBeNull();
 	});
+});
 
-	test('resolves the remote TUI module from dist when src files are not shipped', async () => {
+describe('resolveExtensionRuntimeModulePath', () => {
+	test('resolves from src when source files exist', async () => {
 		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
 
-		const cliInstalledRoot = join(tempDir, 'global-node_modules', '@agentuity', 'coder');
-		await createExtensionPackage(cliInstalledRoot, { withSource: false });
+		const extensionRoot = join(tempDir, 'extension');
+		await createExtensionPackage(extensionRoot, { withSource: true });
 
-		const modulePath = await resolveExtensionRuntimeModulePath(cliInstalledRoot);
+		const modulePath = await resolveExtensionRuntimeModulePath(extensionRoot);
 
-		expect(modulePath).toBe(join(cliInstalledRoot, 'dist', 'remote-tui.js'));
+		expect(modulePath).toBe(join(extensionRoot, 'src', 'remote-tui.ts'));
+	});
+
+	test('resolves from dist when src files are not shipped', async () => {
+		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
+
+		const extensionRoot = join(tempDir, 'extension');
+		await createExtensionPackage(extensionRoot, { withSource: false });
+
+		const modulePath = await resolveExtensionRuntimeModulePath(extensionRoot);
+
+		expect(modulePath).toBe(join(extensionRoot, 'dist', 'remote-tui.js'));
+	});
+
+	test('returns null when runtime module not found', async () => {
+		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
+
+		const extensionRoot = join(tempDir, 'extension');
+		await mkdir(extensionRoot, { recursive: true });
+		await writeFile(
+			join(extensionRoot, 'package.json'),
+			JSON.stringify({ name: '@agentuity/coder', version: '2.0.7' }, null, 2)
+		);
+
+		const modulePath = await resolveExtensionRuntimeModulePath(extensionRoot);
+
+		expect(modulePath).toBeNull();
 	});
 });

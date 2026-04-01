@@ -30,7 +30,12 @@ export async function resolveExtensionPath(
 	try {
 		const cliDir = fileURLToPath(new URL('.', moduleUrl));
 		const entryPath = require.resolve('@agentuity/coder', { paths: [cliDir] });
-		return dirname(entryPath);
+		let dir = dirname(entryPath);
+		while (dir !== dirname(dir)) {
+			if (await Bun.file(resolve(dir, 'package.json')).exists()) return dir;
+			dir = dirname(dir);
+		}
+		return null;
 	} catch {
 		return null;
 	}
