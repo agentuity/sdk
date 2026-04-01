@@ -20,6 +20,7 @@ import { HubOverlay } from './hub-overlay.ts';
 import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
 import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
+import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -478,39 +479,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		}
 	};
 
-	function buildInboundRpcPromptText(command: Record<string, unknown>): string | null {
-		const rawText =
-			typeof command.message === 'string'
-				? command.message
-				: typeof command.text === 'string'
-					? command.text
-					: '';
-		const promptText = rawText.trim();
-		if (!promptText) return null;
-
-		const targetAgent =
-			typeof command.agent === 'string'
-				? command.agent.trim()
-				: typeof command.targetAgent === 'string'
-					? command.targetAgent.trim()
-					: '';
-		if (targetAgent && targetAgent !== 'lead') {
-			return `@${targetAgent} ${promptText}`;
-		}
-		return promptText;
-	}
-
-	function getInboundRpcDeliverAs(commandType: string): 'steer' | 'followUp' | undefined {
-		const isIdle = footerCtx?.isIdle() ?? true;
-		if (commandType === 'steer') {
-			return isIdle ? undefined : 'steer';
-		}
-		if (commandType === 'prompt' || commandType === 'follow_up') {
-			return isIdle ? undefined : 'followUp';
-		}
-		return undefined;
-	}
-
 	function handleInboundRpcCommand(message: Record<string, unknown>): void {
 		const command = message.command as Record<string, unknown> | undefined;
 		if (!command) {
@@ -544,7 +512,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			log(`Inbound rpc ${commandType} included attachments; native TUI forwarding text only`);
 		}
 
-		const deliverAs = getInboundRpcDeliverAs(commandType);
+		const deliverAs = getInboundRpcDeliverAs(commandType, footerCtx?.isIdle() ?? true);
 		try {
 			if (deliverAs) {
 				pi.sendUserMessage(promptText, { deliverAs });
@@ -1692,7 +1660,6 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 	// Try direct import first (works if packages are in module resolution path)
 	try {
 		const piSdk = await import('@mariozechner/pi-coding-agent');
-		// @ts-expect-error pi-ai is a runtime dependency available inside Pi's process
 		const piAi = await import('@mariozechner/pi-ai');
 		_piSdkCache = { piSdk, piAi };
 		return _piSdkCache;
