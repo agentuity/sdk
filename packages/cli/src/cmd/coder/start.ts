@@ -34,6 +34,7 @@ function resolvePiBinary(flagPath?: string): string {
 
 export const startSubcommand = createSubcommand({
 	name: 'start',
+	aliases: ['run'],
 	description: 'Start a Pi coding session connected to the Coder Hub',
 	tags: ['fast', 'requires-auth'],
 	examples: [
@@ -54,7 +55,7 @@ export const startSubcommand = createSubcommand({
 			description: 'Start as a specific agent role',
 		},
 		{
-			command: getCommand('coder start --remote codesess_abc123'),
+			command: getCommand('coder start --remote codesess_abc123456789'),
 			description: 'Connect to an existing sandbox session remotely',
 		},
 		{
