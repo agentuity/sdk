@@ -230,13 +230,8 @@ export type OrmSetup = 'drizzle' | 'prisma' | 'none';
 
 /**
  * Get the directory for generated SQL files.
- * Uses src/generated/ if it exists, otherwise falls back to project root.
  */
 export async function getGeneratedSqlDir(projectDir: string): Promise<string> {
-	const generatedDir = path.join(projectDir, 'src', 'generated');
-	if (await Bun.file(path.join(generatedDir, 'registry.ts')).exists()) {
-		return generatedDir;
-	}
 	return projectDir;
 }
 

@@ -159,7 +159,7 @@ export interface ViteBuildOptions {
  * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const { rootDir, mode, dev = false, logger, profile } = options;
+	const { rootDir, mode, dev = false, logger } = options;
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -167,30 +167,12 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	if (mode === 'server') {
 		const srcDir = join(rootDir, 'src');
 
-		// Generate documentation files (if they don't exist)
-		const { generateDocumentation } = await import('./docs-generator');
-		await generateDocumentation(srcDir, logger);
-
 		// Generate/update prompt files in dev mode only (non-blocking)
 		if (dev) {
 			import('./prompt-generator')
 				.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
 				.catch((err) => logger.warn('Failed to generate prompt files: %s', err.message));
 		}
-
-		// Generate lifecycle types (if setup() exists)
-		const { generateLifecycleTypes } = await import('./lifecycle-generator');
-		await generateLifecycleTypes(rootDir, srcDir, logger);
-
-		// Generate environment types from local .env files
-		const { generateEnvTypes } = await import('./env-types-generator');
-		await generateEnvTypes({
-			rootDir,
-			srcDir,
-			logger,
-			isProduction: !dev,
-			profile,
-		});
 
 		// Build with Bun.build (app.ts is the entrypoint)
 		const { installExternalsAndBuild } = await import('./server-bundler');

@@ -56,7 +56,6 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'.DS_Store',
 		'.playwright',
 		'.bun',
-		'src/generated',
 	]);
 
 	// Paths to ignore for file change events (but may still be traversed)
@@ -81,7 +80,6 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'.DS_Store',
 		'.playwright',
 		'src/web', // Vite handles frontend with HMR - no backend restart needed
-		'src/generated', // Generated files shouldn't trigger rebuilds
 	];
 
 	// File extensions to ignore - non-code files that shouldn't trigger reload

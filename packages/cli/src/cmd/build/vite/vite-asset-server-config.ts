@@ -177,6 +177,25 @@ export async function generateAssetServerConfig(
 		liveHostname,
 	} = options;
 
+	// Configure callback for backend proxy entries.
+	// Sends a 503 response when the backend is unavailable (e.g. during --hot reload)
+	// so the browser gets a meaningful status instead of a connection reset.
+	// The corresponding Vite error log is suppressed in the custom logger below.
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const backendProxyConfigure = (proxy: any) => {
+		proxy.on(
+			'error',
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(_err: any, _req: any, res: any) => {
+				// Only handle HTTP responses (not WebSocket upgrades)
+				if (res && 'writeHead' in res && !res.headersSent && !res.writableEnded) {
+					res.writeHead(503, { 'Content-Type': 'text/plain', 'Retry-After': '1' });
+					res.end('Backend server is restarting');
+				}
+			}
+		);
+	};
+
 	// Load path aliases from tsconfig.json if available
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
 	let alias = {};
@@ -246,6 +265,7 @@ export async function generateAssetServerConfig(
 						{
 							target: `http://127.0.0.1:${backendPort}`,
 							changeOrigin: true,
+							configure: backendProxyConfigure,
 						},
 					])
 				),
@@ -253,6 +273,7 @@ export async function generateAssetServerConfig(
 				'/_agentuity': {
 					target: `http://127.0.0.1:${backendPort}`,
 					changeOrigin: true,
+					configure: backendProxyConfigure,
 				},
 				// Workbench UI route (served by Bun, references /@fs/* paths handled by Vite)
 				...(workbenchPath
@@ -260,6 +281,7 @@ export async function generateAssetServerConfig(
 							[workbenchPath]: {
 								target: `http://127.0.0.1:${backendPort}`,
 								changeOrigin: true,
+								configure: backendProxyConfigure,
 							},
 						}
 					: {}),
@@ -267,10 +289,12 @@ export async function generateAssetServerConfig(
 				'/_health': {
 					target: `http://127.0.0.1:${backendPort}`,
 					changeOrigin: true,
+					configure: backendProxyConfigure,
 				},
 				'/_idle': {
 					target: `http://127.0.0.1:${backendPort}`,
 					changeOrigin: true,
+					configure: backendProxyConfigure,
 				},
 			},
 
@@ -335,6 +359,13 @@ export async function generateAssetServerConfig(
 				logger.warn(`[Vite Asset] ${msg}`);
 			},
 			error(msg: string) {
+				// Suppress proxy connection errors during backend restarts (--hot reload).
+				// Vite's built-in proxy handler always logs these as errors, but they are
+				// transient and expected when Bun is swapping the fetch handler.
+				if (msg.includes('http proxy error:') || msg.includes('ws proxy error:')) {
+					logger.debug(`[Vite Asset] ${msg}`);
+					return;
+				}
 				logger.error(`[Vite Asset] ${msg}`);
 			},
 			clearScreen() {
