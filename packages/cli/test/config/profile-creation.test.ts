@@ -12,26 +12,49 @@ import {
 import type { Config } from '../../src/types';
 
 let testConfigDir: string;
-let originalConfigDir: string | undefined;
+let originalEnvVars: Record<string, string | undefined> = {};
+
+const ENV_VARS_TO_CLEAR = [
+	'AGENTUITY_CONFIG_DIR',
+	'AGENTUITY_PROFILE',
+	'AGENTUITY_API_URL',
+	'AGENTUITY_APP_URL',
+	'AGENTUITY_CATALYST_URL',
+	'AGENTUITY_TRANSPORT_URL',
+	'AGENTUITY_KEYVALUE_URL',
+	'AGENTUITY_SANDBOX_URL',
+	'AGENTUITY_VECTOR_URL',
+	'AGENTUITY_STREAM_URL',
+	'AGENTUITY_REGION',
+	'AGENTUITY_CLI_API_KEY',
+	'AGENTUITY_USER_ID',
+	'AGENTUITY_API_KEY',
+];
 
 beforeEach(() => {
 	testConfigDir = join(tmpdir(), `agentuity-profile-test-${Date.now()}-${Math.random()}`);
 	mkdirSync(testConfigDir, { recursive: true });
 
-	originalConfigDir = process.env.AGENTUITY_CONFIG_DIR;
-	process.env.AGENTUITY_CONFIG_DIR = testConfigDir;
+	for (const key of ENV_VARS_TO_CLEAR) {
+		originalEnvVars[key] = process.env[key];
+		delete process.env[key];
+	}
 
+	process.env.AGENTUITY_CONFIG_DIR = testConfigDir;
 	resetConfigCache();
 });
 
 afterEach(() => {
 	resetConfigCache();
 
-	if (originalConfigDir === undefined) {
-		delete process.env.AGENTUITY_CONFIG_DIR;
-	} else {
-		process.env.AGENTUITY_CONFIG_DIR = originalConfigDir;
+	for (const [key, value] of Object.entries(originalEnvVars)) {
+		if (value !== undefined) {
+			process.env[key] = value;
+		} else {
+			delete process.env[key];
+		}
 	}
+	originalEnvVars = {};
 
 	try {
 		rmSync(testConfigDir, { recursive: true, force: true });
@@ -42,7 +65,6 @@ afterEach(() => {
 
 test('profile creation > new profile should not inherit auth from cached config', async () => {
 	const configDir = testConfigDir;
-	await mkdirSync(configDir, { recursive: true });
 
 	const prodConfig: Config = {
 		name: 'production',
@@ -73,8 +95,7 @@ test('profile creation > new profile should not inherit auth from cached config'
 	const template = generateYAMLTemplate(newProfileName);
 	await Bun.write(newProfilePath, template);
 
-	resetConfigCache();
-	const newProfile = await loadConfig(newProfilePath, true);
+	const newProfile = await loadConfig(newProfilePath);
 
 	expect(newProfile).not.toBeNull();
 	expect(newProfile?.name).toBe(newProfileName);
@@ -105,8 +126,7 @@ test('profile creation > new profile should not inherit preferences from cached 
 	const template = generateYAMLTemplate(newProfileName);
 	await Bun.write(newProfilePath, template);
 
-	resetConfigCache();
-	const newProfile = await loadConfig(newProfilePath, true);
+	const newProfile = await loadConfig(newProfilePath);
 
 	expect(newProfile?.name).toBe(newProfileName);
 	expect(newProfile?.preferences).toBeUndefined();
@@ -127,7 +147,7 @@ test('profile creation > new profile should not inherit overrides from cached co
 	const config1Path = join(configDir, 'custom.yaml');
 	await saveConfig(config1, config1Path);
 
-	const loaded1 = await loadConfig(config1Path, true);
+	const loaded1 = await loadConfig(config1Path);
 	expect(loaded1?.overrides).toBeDefined();
 	expect(loaded1?.overrides?.api_url).toBe('https://custom.example.com');
 
@@ -136,8 +156,7 @@ test('profile creation > new profile should not inherit overrides from cached co
 	const template = generateYAMLTemplate(newProfileName);
 	await Bun.write(newProfilePath, template);
 
-	resetConfigCache();
-	const newProfile = await loadConfig(newProfilePath, true);
+	const newProfile = await loadConfig(newProfilePath);
 
 	expect(newProfile?.name).toBe(newProfileName);
 	expect(newProfile?.overrides).toEqual({});
@@ -180,7 +199,7 @@ test('profile flag > loadConfig with explicit customPath loads correct profile',
 	const profilePath = join(configDir, 'my-custom-profile.yaml');
 	await saveConfig(testProfile, profilePath);
 
-	const config = await loadConfig(profilePath, true);
+	const config = await loadConfig(profilePath);
 	expect(config).not.toBeNull();
 	expect(config?.name).toBe('my-custom-profile');
 	expect(config?.overrides?.api_url).toBe('https://custom-api.example.com');
@@ -195,7 +214,7 @@ test('profile flag > loadConfig customPath takes precedence over profileFromFlag
 	const profilePath = join(configDir, 'test-profile.yaml');
 	await saveConfig(testProfile, profilePath);
 
-	const config = await loadConfig(profilePath, true, 'ignored-profile');
+	const config = await loadConfig(profilePath, false, 'ignored-profile');
 	expect(config).not.toBeNull();
 	expect(config?.name).toBe('test-profile');
 });
