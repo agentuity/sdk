@@ -24,8 +24,8 @@ Creates and initializes an Agentuity application instance.
 | `compression` | `CompressionConfig \| false` | Enabled, 1024 byte threshold | Configure response compression, or `false` to disable (see [Compression](#compression)) |
 | `requestTimeout` | `number` | `0` (no timeout) | Request timeout in seconds |
 | `services` | `object` | Built-in cloud services | Override default service implementations (see below) |
-| `setup` | `() => Promise<T> \| T` | none | Async function called before server starts. Return value is available via `ctx.app` in agents and `c.var.appState` in routes |
-| `shutdown` | `(state: T) => Promise<void> \| void` | none | Cleanup function called when server stops. Receives the app state from `setup` |
+| `analytics` | `AnalyticsConfig` | Enabled | Configure analytics collection |
+| `workbench` | `WorkbenchConfig` | Enabled in dev | Configure the Workbench UI |
 | `router` | `Hono \| RouteMount \| RouteMount[]` | File-based routing | User-provided Hono router(s) instead of file-based routing (see [Custom Router](#custom-router)). **Experimental** |
 
 **`services` sub-properties** (all optional):
@@ -48,15 +48,20 @@ Creates and initializes an Agentuity application instance.
 Returns an `AppResult` object with the following properties:
 
 ```typescript
-interface AppResult<TAppState> {
-  state: TAppState;                      // Value returned from setup()
+interface AppResult {
   router: Hono;                          // The main application router
   server: Server;                        // Server instance with .url property
   logger: Logger;                        // Application-level logger
-  addEventListener(event, handler): void;   // Subscribe to app events
-  removeEventListener(event, handler): void; // Unsubscribe from app events
 }
 ```
+
+To subscribe to lifecycle events, use the top-level `addEventListener` import:
+
+```typescript
+import { addEventListener } from '@agentuity/runtime';
+```
+
+See [Event System](/reference/sdk-reference/events) for available events and usage.
 
 **Basic Example**
 
@@ -65,13 +70,15 @@ interface AppResult<TAppState> {
 import { createApp } from '@agentuity/runtime';
 
 // Create the application instance (async)
-const { server, logger } = await createApp();
+const app = await createApp();
 
 // The application will automatically discover and mount agents
 // from the agents directory specified in your agentuity.json
 
 // Access application properties
-logger.info(`Server running at ${server.url}`);
+app.logger.info(`Server running at ${app.server.url}`);
+
+export default app;
 ```
 
 **With Configuration**
@@ -79,7 +86,7 @@ logger.info(`Server running at ${server.url}`);
 ```typescript
 import { createApp } from '@agentuity/runtime';
 
-const { server, logger } = await createApp({
+const app = await createApp({
   // Custom CORS settings
   cors: {
     origin: ['https://example.com'],
@@ -90,29 +97,26 @@ const { server, logger } = await createApp({
     useLocal: true
   }
 });
+
+export default app;
 ```
 
-**With Setup and Shutdown**
+**With Cleanup on Shutdown**
+
+Use `registerShutdownHook` to run cleanup logic when the server stops. See [Shutdown Hooks](#shutdown-hooks) for details.
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
+import { createApp, registerShutdownHook } from '@agentuity/runtime';
 
-const { server, logger } = await createApp({
-  // Initialize shared resources
-  setup: async () => {
-    const db = await connectDatabase();
-    const redis = await connectRedis();
-    return { db, redis };
-  },
-  // Clean up on shutdown
-  shutdown: async (state) => {
-    await state.db.close();
-    await state.redis.quit();
-  },
+const db = await connectDatabase();
+
+registerShutdownHook(async () => {
+  await db.close();
 });
 
-// In agents, access via ctx.app:
-// ctx.app.db.query('SELECT * FROM users')
+const app = await createApp();
+
+export default app;
 ```
 
 #### CORS Configuration
@@ -128,6 +132,8 @@ const app = await createApp({
     allowedOrigins: ['https://admin.myapp.com'],
   }
 });
+
+export default app;
 ```
 
 When `sameOrigin` is enabled, allowed origins are derived from the `AGENTUITY_BASE_URL`, `AGENTUITY_CLOUD_DOMAINS`, and `AUTH_TRUSTED_DOMAINS` environment variables, plus the request's own origin. Any entries in `allowedOrigins` are merged in.
@@ -145,16 +151,18 @@ Response compression is enabled by default with a 1024-byte threshold. You can c
 ```typescript
 import { createApp } from '@agentuity/runtime';
 
-const app = await createApp({
+export default await createApp({
   compression: {
     threshold: 2048,
     // Skip compression for internal endpoints
     filter: (c) => !c.req.path.startsWith('/internal'),
   }
 });
+```
 
+```typescript
 // Or disable compression entirely
-const app2 = await createApp({ compression: false });
+export default await createApp({ compression: false });
 ```
 
 | Param | Type | Default | Description |
@@ -173,13 +181,17 @@ const app2 = await createApp({ compression: false });
 You can provide your own Hono router instead of using file-based route discovery from `src/api/`. All Agentuity middleware (CORS, OpenTelemetry, agent context) is applied to each mount path.
 
 ```typescript
-import { createApp, createRouter } from '@agentuity/runtime';
+import { createApp } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
 // Single router mounted at /api (default)
-const router = createRouter();
+const router = new Hono<Env>();
 router.get('/users', (c) => c.json({ users: [] }));
 
 const app = await createApp({ router });
+
+export default app;
 ```
 
 The `router` option accepts three forms:
@@ -200,7 +212,13 @@ router: [
 
 ## Lifecycle Events
 
-The App instance provides `addEventListener()` and `removeEventListener()` methods for lifecycle events such as `server:started`, `agent:started`, and `agent:completed`. See the [Event System](/reference/sdk-reference/events) page for available events and usage.
+The runtime exports top-level `addEventListener` and `removeEventListener` functions for subscribing to lifecycle events such as `server:started`, `agent:started`, and `agent:completed`:
+
+```typescript
+import { addEventListener, removeEventListener } from '@agentuity/runtime';
+```
+
+See the [Event System](/reference/sdk-reference/events) page for available events and usage.
 
 ## Helper Functions
 
@@ -208,7 +226,7 @@ These functions are available from `@agentuity/runtime` for inspecting the appli
 
 ### getAppState
 
-Returns the global application state (the value returned from your `setup` function).
+Returns the global application state object, if one was set via an external state management mechanism.
 
 ```typescript
 import { getAppState } from '@agentuity/runtime';
@@ -258,7 +276,7 @@ This is useful in libraries that need to detect whether global state (logger, tr
 
 ## Shutdown Hooks
 
-Use `registerShutdownHook` to register cleanup functions that run during graceful shutdown. Hooks run in reverse order (LIFO) after the app's `shutdown` callback and agent shutdowns have completed.
+Use `registerShutdownHook` to register cleanup functions that run during graceful shutdown. Hooks run in reverse order (LIFO) after agent shutdowns have completed.
 
 ```typescript
 import { registerShutdownHook } from '@agentuity/runtime';
@@ -280,9 +298,8 @@ registerShutdownHook(hook: () => Promise<void> | void): () => void
 
 **Shutdown order:**
 
-1. App's `shutdown` callback (from `createApp` config)
-2. Agent shutdown handlers
-3. Registered shutdown hooks (reverse order, LIFO)
+1. Agent shutdown handlers
+2. Registered shutdown hooks (reverse order, LIFO)
 
 ## Environment Variables
 
@@ -304,12 +321,14 @@ if (!process.env.AGENTUITY_SDK_KEY) {
   process.exit(1);
 }
 
-const { server, logger } = await createApp();
+const app = await createApp();
 
 // Access other environment variables
 const apiEndpoint = process.env.API_ENDPOINT || 'https://api.example.com';
 const openaiKey = process.env.OPENAI_API_KEY;
 // Optional: you can use the AI Gateway to access OpenAI, Anthropic, etc without needing to set various API keys.
+
+export default app;
 ```
 
 **Note**: Environment variables are typically loaded from a `.env` file in development and configured in your deployment environment.

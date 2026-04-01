@@ -8,17 +8,16 @@ This page covers advanced Workbench configuration and embedding. For basic setup
 
 ## Configuration
 
-Configure Workbench in your `agentuity.config.ts`:
+Configure Workbench via `createApp()` in your `app.ts`:
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { createApp } from '@agentuity/runtime';
 
-export default {
-  workbench: {
-    route: '/workbench',
-    headers: {},
-  },
-} satisfies AgentuityConfig;
+const app = await createApp({
+  workbench: true, // Enables at /workbench
+});
+
+export default app;
 ```
 
 | Option | Type | Description |
@@ -31,13 +30,13 @@ export default {
 Serve Workbench at a different path:
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { createApp } from '@agentuity/runtime';
 
-export default {
-  workbench: {
-    route: '/dev',
-  },
-} satisfies AgentuityConfig;
+const app = await createApp({
+  workbench: '/dev', // Custom route path
+});
+
+export default app;
 ```
 
 ### Authentication

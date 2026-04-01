@@ -13,7 +13,7 @@ For orchestration strategies, retry logic, and conditional routing between agent
 ## Agent Registry
 
 ```typescript
-import otherAgent from '@agent/other';
+import otherAgent from '@agent/other/agent';
 
 // Call another agent
 const result = await otherAgent.run(input);
@@ -29,7 +29,7 @@ Import an agent and call it directly. TypeScript infers the result type from the
 // src/agent/processor/agent.ts
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import enrichmentAgent from '@agent/enrichment';
+import enrichmentAgent from '@agent/enrichment/agent';
 
 export default createAgent('Processor', {
   schema: {
@@ -68,9 +68,9 @@ Use `Promise.all` to call multiple agents concurrently and combine their results
 // src/agent/coordinator/agent.ts
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import webSearchAgent from '@agent/web-search';
-import databaseAgent from '@agent/database';
-import cacheAgent from '@agent/cache';
+import webSearchAgent from '@agent/web-search/agent';
+import databaseAgent from '@agent/database/agent';
+import cacheAgent from '@agent/cache/agent';
 
 export default createAgent('Coordinator', {
   schema: {
@@ -119,10 +119,11 @@ export default createAgent('Coordinator', {
 Import agents into route handlers the same way you import them in other agents. The `@agent/` alias works in any file within your project.
 
 ```typescript title="src/api/summarize/route.ts"
-import { createRouter } from '@agentuity/runtime';
-import summarizeAgent from '@agent/summarize';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import summarizeAgent from '@agent/summarize/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/', summarizeAgent.validator(), async (c) => {
   const body = c.req.valid('json');
@@ -140,7 +141,7 @@ export default router;
 TypeScript infers the return type of `.run()` from the called agent's output schema. No manual type annotations are needed:
 
 ```typescript
-import enrichmentAgent from '@agent/enrichment';
+import enrichmentAgent from '@agent/enrichment/agent';
 
 // result is automatically typed as { sentiment: string; keywords: string[] }
 const result = await enrichmentAgent.run({ text: 'Hello world' });
@@ -150,7 +151,7 @@ result.sentiment; // string -- autocomplete works
 When you need an explicit type (for function signatures or intermediate variables), use `Awaited<ReturnType<>>`:
 
 ```typescript
-import enrichmentAgent from '@agent/enrichment';
+import enrichmentAgent from '@agent/enrichment/agent';
 
 // Extract the output type from the agent
 type EnrichmentOutput = Awaited<ReturnType<typeof enrichmentAgent.run>>;
@@ -168,7 +169,7 @@ Wrap agent calls in try/catch to handle failures gracefully. This example falls 
 // src/agent/robust/agent.ts
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import externalService from '@agent/external-service';
+import externalService from '@agent/external-service/agent';
 
 export default createAgent('Robust', {
   schema: {

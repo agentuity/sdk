@@ -190,10 +190,11 @@ const result = await generateText({
 Create an HTTP endpoint to call your agent:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
-import researchAgent from '@agent/researcher';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import researchAgent from '@agent/researcher/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/research', researchAgent.validator(), async (c) => { // [!code highlight]
   const { topic } = c.req.valid('json'); // [!code highlight]
@@ -227,12 +228,23 @@ curl -X POST http://localhost:3500/research \
 Create a simple frontend to interact with your agent:
 
 ```tsx title="src/web/App.tsx"
-import { useAPI } from '@agentuity/react';
 import { useState } from 'react';
 
 export function App() {
   const [topic, setTopic] = useState('');
-  const { data, invoke, isLoading } = useAPI('POST /research'); // [!code highlight]
+  const [data, setData] = useState<{ summary: string; sourcesUsed: number } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleResearch = async () => { // [!code highlight]
+    setIsLoading(true); // [!code highlight]
+    const res = await fetch('/api/research', { // [!code highlight]
+      method: 'POST', // [!code highlight]
+      headers: { 'Content-Type': 'application/json' }, // [!code highlight]
+      body: JSON.stringify({ topic }), // [!code highlight]
+    }); // [!code highlight]
+    setData(await res.json()); // [!code highlight]
+    setIsLoading(false); // [!code highlight]
+  }; // [!code highlight]
 
   return (
     <div style={{ padding: '2rem', maxWidth: '600px' }}>
@@ -247,7 +259,7 @@ export function App() {
           disabled={isLoading}
           style={{ flex: 1, padding: '0.5rem' }}
         />
-        <button onClick={() => invoke({ topic })} disabled={isLoading || !topic}>
+        <button onClick={handleResearch} disabled={isLoading || !topic}>
           {isLoading ? 'Researching...' : 'Research'}
         </button>
       </div>

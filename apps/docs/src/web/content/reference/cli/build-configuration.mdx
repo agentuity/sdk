@@ -3,16 +3,16 @@ title: Build Configuration
 description: Customize the build process with Vite plugins, build-time constants, and file bundling
 ---
 
-Customize how your project is built by creating an `agentuity.config.ts` file in your project root. Add Vite plugins for frontend builds, define build-time constants, or bundle extra files into your deployment.
+Customize how your project is built using `vite.config.ts` in your project root. Add Vite plugins for frontend builds, define build-time constants, or bundle extra files into your deployment.
 
 ## Basic Configuration
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { defineConfig } from 'vite';
 
-export default {
+export default defineConfig({
   // Configuration options here
-} satisfies AgentuityConfig;
+});
 ```
 
 ## Configuration Options
@@ -22,12 +22,12 @@ export default {
 Add Vite plugins for frontend builds (`src/web/`). Plugins run after built-in plugins (React, environment variables).
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
-export default {
+export default defineConfig({
   plugins: [tailwindcss()],
-} satisfies AgentuityConfig;
+});
 ```
 
 See the [Vite plugin documentation](https://vitejs.dev/plugins/) for available plugins.
@@ -41,14 +41,14 @@ Vite plugins apply to frontend builds only. Server code is bundled separately wi
 Replace identifiers with constant values at build time. Values must be JSON-stringified.
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { defineConfig } from 'vite';
 
-export default {
+export default defineConfig({
   define: {
     'API_VERSION': JSON.stringify('v2'),
     '__DEV__': JSON.stringify(false),
   },
-} satisfies AgentuityConfig;
+});
 ```
 
 <Callout type="warning" title="Reserved Keys">
@@ -59,31 +59,30 @@ These keys are set by the build system and will override any user-defined values
 
 ### workbench
 
-Configure the development Workbench UI. See [Testing with Workbench](/agents/workbench) for usage.
+Workbench is now configured via `createApp()` in your `app.ts`, not in the build config. See [Testing with Workbench](/agents/workbench) for usage.
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { createApp } from '@agentuity/runtime';
 
-export default {
-  workbench: {
-    route: '/workbench',  // Access at http://localhost:3500/workbench
-    headers: {},          // Custom headers for requests
-  },
-} satisfies AgentuityConfig;
+const app = await createApp({
+  workbench: true, // Enables at /workbench
+});
+
+export default app;
 ```
 
-Omit the `workbench` section to disable Workbench.
+Omit the `workbench` option to disable Workbench.
 
 ### bundle
 
 Include additional files in your deployment package using glob patterns. Use this to ship data files, prompt templates, configuration, or other non-code assets alongside your agents.
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { defineConfig } from 'vite';
 
-export default {
+export default defineConfig({
   bundle: ['prompts/**', 'data/*.json', 'models/weights.bin'],
-} satisfies AgentuityConfig;
+});
 ```
 
 Files are copied into the build output **before** the build runs, preserving their relative directory structure from the project root. If any bundled file path conflicts with a build output path, the build output takes priority.
@@ -153,11 +152,11 @@ For details on how these components interact during development, see [Dev Server
 
 ## Full Example
 
-```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
-export default {
+export default defineConfig({
   // Vite plugins for frontend
   plugins: [tailwindcss()],
 
@@ -166,15 +165,9 @@ export default {
     'APP_VERSION': JSON.stringify('1.0.0'),
   },
 
-  // Development workbench
-  workbench: {
-    route: '/workbench',
-    headers: {},
-  },
-
   // Extra files to include in deployment
   bundle: ['prompts/**', 'data/*.json'],
-} satisfies AgentuityConfig;
+});
 ```
 
 ## Next Steps

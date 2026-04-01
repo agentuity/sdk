@@ -123,11 +123,12 @@ If you need full control over plugins, use `skipDefaultPlugins: true` and add on
 Mount the auth handler to expose sign-in, sign-up, session, and other endpoints:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { mountAuthRoutes } from '@agentuity/auth';
 import { auth } from '../auth';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Mount auth routes at /api/auth/*
 router.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));

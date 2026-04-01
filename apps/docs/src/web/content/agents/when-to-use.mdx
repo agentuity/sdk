@@ -64,9 +64,10 @@ A route receives the HTTP request, applies middleware (authentication, rate limi
 A health endpoint doesn't need an agent:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Replace with your actual database health check
 const checkDatabase = async () => true;
@@ -84,16 +85,16 @@ export default router;
 For structured processing, create an agent and call it from your route:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
-
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json'); // Fully typed from agent schema
-  const result = await chat.run(data);
-  return c.json(result);
-});
+const router = new Hono<Env>()
+  .post('/chat', chat.validator(), async (c) => {
+    const data = c.req.valid('json'); // Fully typed from agent schema
+    const result = await chat.run(data);
+    return c.json(result);
+  });
 
 export default router;
 ```
@@ -105,29 +106,29 @@ The agent defines the schema, validates input, runs the handler, and fires lifec
 Webhooks verify signatures in the route, then hand off to an agent in the background:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import paymentProcessor from '@agent/payment-processor';
-
-const router = createRouter();
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import paymentProcessor from '@agent/payment-processor/agent';
 
 // Replace with your actual Stripe signature verification
 const verifyStripeSignature = (body: string, sig: string | undefined) => true;
 
-router.post('/webhooks/stripe', async (c) => {
-  const signature = c.req.header('stripe-signature');
-  const rawBody = await c.req.text();
+const router = new Hono<Env>()
+  .post('/webhooks/stripe', async (c) => {
+    const signature = c.req.header('stripe-signature');
+    const rawBody = await c.req.text();
 
-  if (!verifyStripeSignature(rawBody, signature)) {
-    return c.json({ error: 'Invalid signature' }, 401);
-  }
+    if (!verifyStripeSignature(rawBody, signature)) {
+      return c.json({ error: 'Invalid signature' }, 401);
+    }
 
-  // Respond fast, process in background
-  c.waitUntil(async () => {
-    await paymentProcessor.run(JSON.parse(rawBody));
+    // Respond fast, process in background
+    c.waitUntil(async () => {
+      await paymentProcessor.run(JSON.parse(rawBody));
+    });
+
+    return c.json({ received: true });
   });
-
-  return c.json({ received: true });
-});
 
 export default router;
 ```

@@ -8,15 +8,16 @@ The SDK provides a Hono-based routing system for creating HTTP endpoints. Routes
 
 ## Creating Routes
 
-Routes are created using the `createRouter()` function from `@agentuity/server`.
+Routes are created using `new Hono<Env>()` from `hono` and `@agentuity/runtime`.
 
 **Basic Setup:**
 
 ```typescript
 // src/api/index.ts
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Define routes
 router.get('/', (c) => {
@@ -86,7 +87,7 @@ interface RouterContext {
 **Example Usage:**
 
 ```typescript
-import processor from '@agent/processor';
+import processor from '@agent/processor/agent';
 
 router.post('/process', processor.validator(), async (c) => {
   // Access request
@@ -146,9 +147,10 @@ export default createAgent('cache-manager', {
 ### From Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/cache', async (c) => {
   await c.var.kv.set('cache', 'key', { data: 'value' });
@@ -166,7 +168,7 @@ For Discord bots, CLI tools, or queue workers running within the Agentuity runti
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 
-await createApp();
+export default await createApp();
 
 const ctx = createAgentContext();
 await ctx.invoke(async () => {
@@ -182,9 +184,10 @@ See [Running Agents Without HTTP](/agents/standalone-execution) for Discord bots
 External backends cannot access Agentuity services directly. Create authenticated routes that expose storage operations, then call them via HTTP:
 
 ```typescript title="Agentuity route: src/api/sessions/route.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/:id', async (c) => {
   const result = await c.var.kv.get('sessions', c.req.param('id'));
@@ -211,20 +214,24 @@ See [SDK Utilities for External Apps](/cookbook/patterns/server-utilities) for t
 
 ### From Frontend
 
-Frontend code accesses services through routes using `useAPI` or `fetch`:
+Frontend code accesses services through routes using `hc()` from `hono/client` or `fetch`:
 
 ```tsx
-import { useAPI } from '@agentuity/react';
+import { useState, useEffect } from 'react';
 
 function SessionView({ id }: { id: string }) {
-  const { data, isLoading } = useAPI(`GET /api/sessions/${id}`);
+  const [data, setData] = useState<{ message: string } | null>(null);
 
-  if (isLoading) return <div>Loading...</div>;
-  return <div>{data?.message}</div>;
+  useEffect(() => {
+    fetch(`/api/sessions/${id}`).then(r => r.json()).then(setData);
+  }, [id]);
+
+  if (!data) return <div>Loading...</div>;
+  return <div>{data.message}</div>;
 }
 ```
 
-See [React Hooks](/frontend/react-hooks) for `useAPI`, `useWebsocket`, and `useEventStream`.
+See [RPC Client](/frontend/rpc-client) for type-safe `hc()` patterns and [React Hooks](/frontend/react-hooks) for auth and analytics hooks.
 
 ## HTTP Methods
 
@@ -278,7 +285,7 @@ router.delete('/users/:id', (c) => {
 Import agents and call them directly:
 
 ```typescript
-import processorAgent from '@agent/processor';
+import processorAgent from '@agent/processor/agent';
 
 router.post('/process', processorAgent.validator(), async (c) => {
   const input = c.req.valid('json');
@@ -322,10 +329,11 @@ interface WebSocketConnection {
 **Example:**
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
-import chatAgent from '@agent/chat';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
+import chatAgent from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/chat', websocket((c, ws) => {
   ws.onOpen((event) => {
@@ -378,10 +386,11 @@ interface SSEStream {
 **Example:**
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
-import longRunningAgent from '@agent/long-running';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
+import longRunningAgent from '@agent/long-running/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/updates', sse(async (c, stream) => {
   // Send initial connection message
@@ -425,10 +434,11 @@ type StreamHandler = (c: Context) => ReadableStream<any> | Promise<ReadableStrea
 **Example:**
 
 ```typescript
-import { createRouter, stream } from '@agentuity/runtime';
-import dataGenerator from '@agent/data-generator';
+import { Hono } from 'hono';
+import { type Env, stream } from '@agentuity/runtime';
+import dataGenerator from '@agent/data-generator/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/data', stream(async (c) => {
   // Create a readable stream
@@ -484,14 +494,15 @@ type CronHandler = (c: Context) => any | Promise<any>;
 **Example:**
 
 ```typescript
-import { createRouter, cron } from '@agentuity/runtime';
-import reportGenerator from '@agent/report-generator';
-import healthCheck from '@agent/health-check';
+import { Hono } from 'hono';
+import { type Env, cron } from '@agentuity/runtime';
+import reportGenerator from '@agent/report-generator/agent';
+import healthCheck from '@agent/health-check/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Run daily at 9am
-router.post('/daily-report', cron('0 9 * * *', async (c) => {
+router.post('/daily-report', cron('0 9 * * *', { auth: true }, async (c) => {
   c.var.logger.info('Running daily report');
 
   const report = await reportGenerator.run({
@@ -506,7 +517,7 @@ router.post('/daily-report', cron('0 9 * * *', async (c) => {
 }));
 
 // Run every 5 minutes
-router.post('/health-check', cron('*/5 * * * *', async (c) => {
+router.post('/health-check', cron('*/5 * * * *', { auth: true }, async (c) => {
   await healthCheck.run({});
   return c.json({ checked: true });
 }));

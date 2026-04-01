@@ -6,7 +6,7 @@ description: Connect to custom WebSocket and SSE endpoints with useWebsocket and
 For custom endpoints that aren't agents, use the low-level hooks directly.
 
 <Callout type="info" title="Standard Hooks">
-For most use cases, the standard hooks (`useAPI`, `useWebsocket`, `useEventStream`) work directly with your routes. These advanced patterns are for custom message handlers and third-party integrations.
+For most use cases, `hc()` from `hono/client` or standard `fetch` work directly with your routes. These advanced patterns are for WebRTC and custom real-time integrations.
 </Callout>
 
 ## useWebsocket
@@ -129,7 +129,7 @@ Connections are automatically closed when the component unmounts. You don't need
 
 | Use Case | Recommended Hook |
 |----------|------------------|
-| HTTP API routes | `useAPI` |
+| HTTP API routes | `hc()` from `hono/client` or `fetch` |
 | WebSocket routes | `useWebsocket` |
 | SSE routes | `useEventStream` |
 | Third-party WebSocket | `useWebsocket` with custom handler |

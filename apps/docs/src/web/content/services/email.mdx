@@ -313,9 +313,10 @@ The `days` parameter is optional and defaults to 7. Values below 7 are clamped t
 Routes access the same email service via `c.var.email`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/notify', async (c) => {
   const { to, subject, text } = await c.req.json();

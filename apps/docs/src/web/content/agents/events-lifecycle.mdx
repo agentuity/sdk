@@ -63,29 +63,27 @@ Event listeners receive: event name, agent instance, context, and (for `errored`
 
 ## App-Level Events
 
-Monitor all agents globally by registering listeners in `app.ts`:
+Monitor all agents globally using the top-level `addEventListener` function:
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
-
-const app = await createApp();
+import { addEventListener } from '@agentuity/runtime';
 
 // Track all agent executions
-app.addEventListener('agent.started', (event, agent, ctx) => {
+addEventListener('agent.started', (event, agent, ctx) => {
   ctx.logger.info('Agent execution started', {
     agent: agent.metadata.name,
     sessionId: ctx.sessionId,
   });
 });
 
-app.addEventListener('agent.completed', (event, agent, ctx) => {
+addEventListener('agent.completed', (event, agent, ctx) => {
   ctx.logger.info('Agent execution completed', {
     agent: agent.metadata.name,
     sessionId: ctx.sessionId,
   });
 });
 
-app.addEventListener('agent.errored', (event, agent, ctx, error) => {
+addEventListener('agent.errored', (event, agent, ctx, error) => {
   ctx.logger.error('Agent execution failed', {
     agent: agent.metadata.name,
     error: error.message,

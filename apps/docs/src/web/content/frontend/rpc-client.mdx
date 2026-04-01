@@ -1,77 +1,102 @@
 ---
 title: RPC Client
-description: Type-safe API calls from any JavaScript environment using createAPIClient
+description: Type-safe API calls from any JavaScript environment using hc() from hono/client
 ---
 
-Call your API routes with full type safety. The SDK auto-generates a typed client based on your route definitions.
+Call your API routes with full type safety using Hono's built-in RPC client.
+
+## Setup
+
+**1. Export your router type** from your API file:
+
+```typescript title="src/api/index.ts"
+import { Hono } from 'hono';
+
+const router = new Hono()
+  .post('/chat', async (c) => {
+    const { message } = await c.req.json<{ message: string }>();
+    return c.json({ response: `Echo: ${message}` });
+  })
+  .get('/users', async (c) => {
+    return c.json([{ id: '1', name: 'Alice' }]);
+  });
+
+export default router;
+
+// Export the type for use with hc()
+export type ApiRouter = typeof router;
+```
+
+**2. Create the client** in your frontend:
+
+```typescript
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
+
+const client = hc<ApiRouter>('/api');
+```
 
 ## Basic Usage
 
-For non-React apps, import `createAPIClient` from the generated routes:
-
 ```typescript
-import { createAPIClient } from './generated/routes';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
 
-const api = createAPIClient();
+const client = hc<ApiRouter>('/api');
 
-// Type-safe API call - types are inferred from your route schemas
-const result = await api.chat.post({ message: 'Hello' });
-console.log(result.response);
+// POST with JSON body — fully typed
+const res = await client.chat.$post({ json: { message: 'Hello' } });
+const data = await res.json();
+console.log(data.response);
+
+// GET request
+const usersRes = await client.users.$get();
+const users = await usersRes.json();
 ```
-
-For React apps, import from `@agentuity/react`:
-
-```typescript
-import { createAPIClient } from '@agentuity/react';
-
-const api = createAPIClient();
-const result = await api.chat.post({ message: 'Hello' });
-```
-
-<Callout type="info" title="Auth Headers">
-When imported from `@agentuity/react`, the client automatically includes auth headers if you've configured authentication with `AgentuityProvider`. Use `./generated/routes` when you need a client without automatic auth injection.
-</Callout>
 
 <Callout type="info" title="React Apps">
-For React components, consider using [React Hooks](/frontend/react-hooks) instead. They provide built-in state management, loading states, and automatic cleanup.
+For React components, manage loading and error state yourself with `useState`, or use the pattern from [React Hooks](/frontend/react-hooks).
 </Callout>
 
 ## HTTP Methods
 
-All standard HTTP methods are supported:
+Hono's RPC client uses `$get`, `$post`, `$put`, `$delete`, and `$patch` to match your route definitions:
 
 ```typescript
-import { createAPIClient } from './generated/routes';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
 
-const api = createAPIClient();
+const client = hc<ApiRouter>('/api');
 
-const users = await api.users.get();
-const created = await api.users.post({ name: 'Alice', email: 'alice@example.com' });
-await api.users.alice.put({ name: 'Alice Smith' });
-await api.users.alice.delete();
+const users = await (await client.users.$get()).json();
+const created = await (await client.users.$post({ json: { name: 'Alice', email: 'alice@example.com' } })).json();
+await client.users[':id'].$put({ param: { id: 'alice' }, json: { name: 'Alice Smith' } });
+await client.users[':id'].$delete({ param: { id: 'alice' } });
 ```
 
 ## WebSocket Connections
 
-Connect to WebSocket routes with `.websocket()`:
+Use `$ws()` for WebSocket routes:
 
 ```typescript
-import { createAPIClient } from './generated/routes';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
 
-const api = createAPIClient();
-const ws = api.chat.websocket();
+const client = hc<ApiRouter>('/api');
+const ws = client.chat.$ws();
 
-ws.on('open', () => {
+ws.addEventListener('open', () => {
   console.log('Connected');
-  ws.send({ message: 'Hello!' });
+  ws.send(JSON.stringify({ message: 'Hello!' }));
 });
 
-ws.on('message', (data) => {
+ws.addEventListener('message', (event) => {
+  const data = JSON.parse(event.data);
   console.log('Received:', data);
 });
 
-ws.on('error', (error) => {
-  console.error('WebSocket error:', error);
+ws.addEventListener('error', (event) => {
+  console.error('WebSocket error:', event);
 });
 
 ws.close();
@@ -79,89 +104,61 @@ ws.close();
 
 ## Server-Sent Events
 
-Subscribe to SSE streams with `.eventstream()`:
+For SSE routes, use the standard `EventSource` API since Hono's RPC client does not wrap SSE:
 
 ```typescript
-import { createAPIClient } from './generated/routes';
+const events = new EventSource('/api/notifications');
 
-const api = createAPIClient();
-const events = api.notifications.eventstream();
-
-events.on('message', (event) => {
+events.addEventListener('message', (event) => {
   const data = JSON.parse(event.data);
   console.log('Event:', data);
 });
 
-events.on('error', (error) => {
-  console.error('Stream error:', error);
+events.addEventListener('error', () => {
+  console.error('Stream error');
 });
 
+// Close when done
 events.close();
-```
-
-## Streaming Responses
-
-For streaming HTTP responses, use `.stream()`:
-
-```typescript
-import { createAPIClient } from './generated/routes';
-
-const api = createAPIClient();
-const stream = await api.generate.stream({ prompt: 'Write a story' });
-
-stream.on('chunk', (chunk) => {
-  const text = new TextDecoder().decode(chunk);
-  process.stdout.write(text);
-});
-
-stream.on('close', () => {
-  console.log('\nStream complete');
-});
 ```
 
 ## Client Options
 
-Configure the client with custom options:
+Pass a custom `fetch` or base URL when creating the client:
 
 ```typescript
-import { createAPIClient } from './generated/routes';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
 
-// With custom headers
-const api = createAPIClient({
-  headers: {
-    'X-Custom-Header': 'value',
-  },
-});
-
-// With dynamic headers (called on each request)
-const authenticatedApi = createAPIClient({
-  headers: () => ({
-    'Authorization': `Bearer ${getToken()}`,
-  }),
+// With auth headers via a custom fetch wrapper
+const client = hc<ApiRouter>('/api', {
+  fetch: (input, init) =>
+    fetch(input, {
+      ...init,
+      headers: {
+        ...init?.headers,
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }),
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `baseUrl` | `string \| () => string` | `''` (relative) | Base URL for requests |
-| `headers` | `Record<string, string> \| () => Record<string, string>` | `{}` | Request headers |
-| `contentType` | `string` | `application/json` | Content-Type header |
-| `signal` | `AbortSignal` | — | For request cancellation |
-
 ## Request Cancellation
 
-Cancel in-flight requests using `AbortController`:
+Pass an `AbortSignal` through the fetch option:
 
 ```typescript
-import { createAPIClient } from './generated/routes';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
 
 const controller = new AbortController();
 
-const api = createAPIClient({
-  signal: controller.signal,
+const client = hc<ApiRouter>('/api', {
+  fetch: (input, init) =>
+    fetch(input, { ...init, signal: controller.signal }),
 });
 
-const resultPromise = api.longProcess.post({ data: 'large payload' });
+const resultPromise = client.longProcess.$post({ json: { data: 'large payload' } });
 
 // Cancel if needed
 setTimeout(() => controller.abort(), 5000);
@@ -169,7 +166,7 @@ setTimeout(() => controller.abort(), 5000);
 try {
   const result = await resultPromise;
 } catch (error) {
-  if (error.name === 'AbortError') {
+  if (error instanceof Error && error.name === 'AbortError') {
     console.log('Request cancelled');
   }
 }
@@ -177,56 +174,59 @@ try {
 
 ## Error Handling
 
-The client throws on HTTP errors:
+The client returns `Response` objects — check the status yourself:
 
 ```typescript
-import { createAPIClient } from './generated/routes';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
 
-const api = createAPIClient();
+const client = hc<ApiRouter>('/api');
 
-try {
-  const result = await api.users.post({ name: 'Alice' });
-  console.log('Created:', result);
-} catch (error) {
-  if (error.message.startsWith('HTTP 4')) {
-    console.error('Client error:', error.message);
-  } else if (error.message.startsWith('HTTP 5')) {
-    console.error('Server error:', error.message);
+const res = await client.users.$post({ json: { name: 'Alice' } });
+
+if (!res.ok) {
+  const error = await res.json();
+  if (res.status >= 400 && res.status < 500) {
+    console.error('Client error:', res.status, error);
   } else {
-    console.error('Network error:', error);
+    console.error('Server error:', res.status, error);
   }
+  return;
 }
+
+const user = await res.json();
+console.log('Created:', user);
 ```
 
-## Type Generation
+## Type Safety
 
-Types are generated automatically when you run `agentuity dev`. The generated `RPCRouteRegistry` maps your route paths to their input/output types:
+The type for your router is derived directly from your route definitions — no code generation needed. Export the type from your API file and import it in your frontend:
 
 ```typescript
-// Generated at src/generated/routes.ts
-export type RPCRouteRegistry = {
-  chat: {
-    post: { input: { message: string }; output: { response: string } };
-  };
-  users: {
-    get: { input: void; output: User[] };
-    post: { input: CreateUserInput; output: User };
-  };
-};
+// src/api/index.ts
+const router = new Hono()
+  .post('/chat', zValidator('json', chatSchema), async (c) => {
+    const { message } = c.req.valid('json');
+    return c.json({ response: `Echo: ${message}` });
+  });
+
+export type ApiRouter = typeof router; // Captures all route types
 ```
 
-<Callout type="info" title="Generated Files">
-Generated types live in `src/generated/`. Don't edit these files directly as they're regenerated on each build.
+The client infers input and output types from the router, so `$post({ json: ... })` is fully typed without a separate registry.
+
+<Callout type="info" title="Validator Middleware">
+Use Hono's `zValidator` or `vValidator` middleware to get input type inference on the client side. Without a validator, request body types default to `unknown`.
 </Callout>
 
 ## RPC Client vs React Hooks
 
 | Use Case | Recommended |
 |----------|-------------|
-| React components | [React Hooks](/frontend/react-hooks) |
-| Non-React apps (Vue, Svelte, vanilla JS) | `createAPIClient` from `./generated/routes` |
-| Server-side JavaScript | `createAPIClient` from `./generated/routes` |
-| CLI tools or scripts | `createAPIClient` from `./generated/routes` |
+| React components | [React Hooks](/frontend/react-hooks) with `hc()` or `fetch` |
+| Non-React apps (Vue, Svelte, vanilla JS) | `hc()` from `hono/client` |
+| Server-side JavaScript | `hc()` from `hono/client` |
+| CLI tools or scripts | `fetch` directly |
 
 ## Calling Routes from External Backends
 

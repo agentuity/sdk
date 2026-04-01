@@ -247,9 +247,10 @@ const agent = createAgent('ScheduleCleaner', {
 Routes access the schedule service via `c.var.schedule`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/schedules', async (c) => {
   const body = await c.req.json();

@@ -14,9 +14,10 @@ Explicit routing is experimental and may change in future releases. File-based r
 Create a root router in `src/api/index.ts` and pass it to `createApp()`:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/health', (c) => c.json({ status: 'ok' }));
 router.post('/users', async (c) => {
@@ -31,7 +32,9 @@ export default router;
 import { createApp } from '@agentuity/runtime';
 import router from './api/index'; // [!code highlight]
 
-export const app = await createApp({ router }); // [!code highlight]
+const app = await createApp({ router }); // [!code highlight]
+
+export default app;
 ```
 
 The router is mounted at `/api` by default. All Agentuity middleware (CORS, OpenTelemetry, agent context) is applied automatically.
@@ -49,7 +52,9 @@ import { createApp } from '@agentuity/runtime';
 import router from './api/index';
 
 // Mounted at /api — routes are reachable at /api/health, /api/users, etc.
-export const app = await createApp({ router });
+const app = await createApp({ router });
+
+export default app;
 ```
 
 ### Single Mount with Custom Path
@@ -61,9 +66,11 @@ import { createApp } from '@agentuity/runtime';
 import router from './api/index';
 
 // Mounted at /v1 — routes are reachable at /v1/health, /v1/users, etc.
-export const app = await createApp({
+const app = await createApp({
   router: { path: '/v1', router }, // [!code highlight]
 });
+
+export default app;
 ```
 
 ### Multiple Mounts
@@ -76,13 +83,15 @@ import v1Router from './api/v1';
 import v2Router from './api/v2';
 import internalRouter from './api/internal';
 
-export const app = await createApp({
+const app = await createApp({
   router: [ // [!code highlight]
     { path: '/api/v1', router: v1Router }, // [!code highlight]
     { path: '/api/v2', router: v2Router }, // [!code highlight]
     { path: '/internal', router: internalRouter }, // [!code highlight]
   ], // [!code highlight]
 });
+
+export default app;
 ```
 
 Each mount gets its own Agentuity middleware (CORS, OpenTelemetry, agent context) applied to `{path}/*`.
@@ -92,9 +101,10 @@ Each mount gets its own Agentuity middleware (CORS, OpenTelemetry, agent context
 For larger APIs, split routes across files and compose them with `.route()`:
 
 ```typescript title="src/api/users.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/', async (c) => {
   return c.json({ users: [] });
@@ -109,11 +119,12 @@ export default router;
 ```
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import users from './users';
 import posts from './posts';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.route('/users', users); // [!code highlight]
 router.route('/posts', posts); // [!code highlight]
@@ -168,12 +179,13 @@ src/api/
 **After** (explicit): You control the composition in `src/api/index.ts`.
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import healthRouter from './health';
 import postsRouter from './posts';
 import usersRouter from './users';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.route('/health', healthRouter);
 router.route('/posts', postsRouter);
@@ -186,7 +198,9 @@ export default router;
 import { createApp } from '@agentuity/runtime';
 import router from './api/index';
 
-export const app = await createApp({ router });
+const app = await createApp({ router });
+
+export default app;
 ```
 
 ### Dismissing the Notice
@@ -195,12 +209,13 @@ The migration notice appears once. After you see it, the CLI records the state i
 
 ## Agentuity Context in Routes
 
-Both `createRouter()` and `new Hono<Env>()` give you access to Agentuity context variables in your route handlers:
+`new Hono<Env>()` gives you access to Agentuity context variables in your route handlers:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/example', async (c) => {
   // All Agentuity services are available on c.var
@@ -212,7 +227,7 @@ router.get('/example', async (c) => {
 export default router;
 ```
 
-`createRouter()` is a thin wrapper around `new Hono<Env>()` that adds response conversion and route ID tracking. Both provide the same typed access to `c.var.logger`, `c.var.kv`, `c.var.vector`, `c.var.thread`, and other services.
+Use `c.json()`, `c.text()`, and other Hono response methods in your handlers. `new Hono<Env>()` provides typed access to `c.var.logger`, `c.var.kv`, `c.var.vector`, `c.var.thread`, and other services.
 
 ## Next Steps
 

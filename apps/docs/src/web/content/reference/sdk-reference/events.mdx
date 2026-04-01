@@ -71,66 +71,57 @@ agent.addEventListener('errored', (eventName, agent, ctx, error) => {
 
 ## App Events
 
-The application instance emits events for agents, sessions, and threads.
+Register global event listeners using the top-level `addEventListener` function.
 
 **Available App Events:**
 
 ```typescript
+import { addEventListener } from '@agentuity/runtime';
+
 // Agent lifecycle events
-app.addEventListener('agent.started', (eventName, agent, ctx) => {});
-app.addEventListener('agent.completed', (eventName, agent, ctx) => {});
-app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {});
+addEventListener('agent.started', (eventName, agent, ctx) => {});
+addEventListener('agent.completed', (eventName, agent, ctx) => {});
+addEventListener('agent.errored', (eventName, agent, ctx, error) => {});
 
 // Session lifecycle events
-app.addEventListener('session.started', (eventName, session) => {});
-app.addEventListener('session.completed', (eventName, session) => {});
+addEventListener('session.started', (eventName, session) => {});
+addEventListener('session.completed', (eventName, session) => {});
 
 // Thread lifecycle events
-app.addEventListener('thread.created', (eventName, thread) => {});
-app.addEventListener('thread.destroyed', (eventName, thread) => {});
+addEventListener('thread.created', (eventName, thread) => {});
+addEventListener('thread.destroyed', (eventName, thread) => {});
 ```
 
 **Example: Application-Wide Analytics:**
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
-
-const { app, server, logger } = createApp();
+import { addEventListener } from '@agentuity/runtime';
 
 // Track agent executions
 let agentExecutions = 0;
 
-app.addEventListener('agent.started', (eventName, agent, ctx) => {
+addEventListener('agent.started', (eventName, agent, ctx) => {
   agentExecutions++;
-  logger.info(`Total agent executions: ${agentExecutions}`);
+  ctx.logger.info(`Total agent executions: ${agentExecutions}`);
 });
 
 // Track errors for monitoring
-app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {
-  logger.error('Agent error detected', {
+addEventListener('agent.errored', (eventName, agent, ctx, error) => {
+  ctx.logger.error('Agent error detected', {
     agentName: agent.metadata.name,
     error: error.message,
     sessionId: ctx.sessionId
   });
-
-  // Could send to error tracking service
-  // await sendToErrorTracker(error, agent, ctx);
 });
 
 // Session analytics
-app.addEventListener('session.completed', (eventName, session) => {
-  const messageCount = session.state.get('messageCount') || 0;
-  logger.info('Session completed', {
-    sessionId: session.id,
-    totalMessages: messageCount
-  });
+addEventListener('session.completed', (eventName, session) => {
+  console.log('Session completed', { sessionId: session.id });
 });
 
 // Thread cleanup
-app.addEventListener('thread.destroyed', (eventName, thread) => {
-  logger.info('Thread destroyed', {
-    threadId: thread.id
-  });
+addEventListener('thread.destroyed', (eventName, thread) => {
+  console.log('Thread destroyed', { threadId: thread.id });
 });
 ```
 
@@ -148,8 +139,8 @@ const handler = (eventName, agent, ctx) => {
 
 agent.addEventListener('started', handler);
 
-// App-level
-app.addEventListener('agent.completed', (eventName, agent, ctx) => {
+// App-level (top-level function)
+addEventListener('agent.completed', (eventName, agent, ctx) => {
   ctx.logger.info(`${agent.metadata.name} completed`);
 });
 ```

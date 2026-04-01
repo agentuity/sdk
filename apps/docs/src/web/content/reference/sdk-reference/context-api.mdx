@@ -23,12 +23,11 @@ interface AgentContext<TConfig = unknown, TAppState = unknown> {
   };
 
   // Agent Calling (use imports instead)
-  // import otherAgent from '@agent/other-agent';
+  // import otherAgent from '@agent/other-agent/agent';
   // await otherAgent.run(input);
 
   // Configuration
-  config: TConfig;                    // Agent-specific config from setup()
-  app: TAppState;                     // App-wide state from createApp setup()
+  config: TConfig;                    // Agent-specific config from agent setup()
 
   // State Management
   session: Session;                   // Session object for cross-request state
@@ -93,10 +92,9 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 
 **Configuration:**
 - `config`: Agent-specific configuration returned from the agent's `setup()` function. Fully typed based on what setup returns.
-- `app`: Application-wide state returned from `createApp()`'s `setup()` function. Shared across all agents.
 
 **Agent Calling:**
-- Import agents directly: `import otherAgent from '@agent/other-agent'`
+- Import agents directly: `import otherAgent from '@agent/other-agent/agent'`
 - Call with: `await otherAgent.run(input)`
 
 For orchestration patterns, see [Calling Other Agents](/agents/calling-other-agents).
@@ -128,7 +126,7 @@ const agent = createAgent('QueryProcessor', {
     ctx.state.set('startTime', Date.now());
 
     // Call another agent (import at top of file)
-    // import enrichmentAgent from '@agent/enrichment';
+    // import enrichmentAgent from '@agent/enrichment/agent';
     const enrichedData = await enrichmentAgent.run({ text: input.query });
 
     // Use session state

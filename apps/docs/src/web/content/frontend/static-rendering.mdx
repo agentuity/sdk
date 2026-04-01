@@ -11,12 +11,12 @@ Three steps to enable static rendering:
 
 **1. Set the render mode** in your app configuration:
 
-```typescript title="agentuity.config.ts"
-import type { AgentuityConfig } from '@agentuity/cli';
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
 
-export default {
+export default defineConfig({
 	render: 'static',
-} satisfies AgentuityConfig;
+});
 ```
 
 **2. Create `src/web/entry-server.tsx`** with your render function and route tree:
@@ -61,12 +61,12 @@ The `render` option in your app configuration controls how the frontend is built
 | `'spa'` (default) | Standard single-page app. Client-side routing, JavaScript renders everything |
 | `'static'`        | Pre-renders all routes at build time. Full HTML in the initial response      |
 
-```typescript title="agentuity.config.ts"
-import type { AgentuityConfig } from '@agentuity/cli';
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
 
-export default {
+export default defineConfig({
 	render: 'static', // 'spa' | 'static'
-} satisfies AgentuityConfig;
+});
 ```
 
 ## Entry Server
@@ -213,12 +213,12 @@ if (container.innerHTML.trim()) {
 
 A complete minimal setup with all four files:
 
-```typescript title="agentuity.config.ts"
-import type { AgentuityConfig } from '@agentuity/cli';
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
 
-export default {
+export default defineConfig({
 	render: 'static',
-} satisfies AgentuityConfig;
+});
 ```
 
 ```html title="src/web/index.html"

@@ -13,7 +13,7 @@ The Agentuity backend lives in an `agentuity/` subdirectory inside your Next.js 
 ```text
 my-nextjs-app/
 ├── app/                          # Next.js frontend
-│   ├── components/App.tsx        # UI using useAPI hooks
+│   ├── components/App.tsx        # UI using hc() for type-safe API calls
 │   ├── layout.tsx
 │   └── page.tsx
 ├── agentuity/                    # Agentuity backend
@@ -73,23 +73,32 @@ Add the `@agentuity/routes` alias in `tsconfig.json` so TypeScript resolves the 
 
 ## Type-Safe API Calls
 
-Import the generated route types and use the [`useAPI`](/frontend/react-hooks) hook for type-safe requests to your Agentuity backend:
+Import the route types and use `hc()` from `hono/client` for type-safe requests to your Agentuity backend:
 
 ```tsx title="app/components/TranslateDemo.tsx"
 'use client';
 
-import { AgentuityProvider, useAPI } from '@agentuity/react';
-import '@agentuity/routes'; // Side-effect import loads generated types
+import { AgentuityProvider } from '@agentuity/react';
+import { hc } from 'hono/client'; // [!code highlight]
+import type { ApiRouter } from '@agentuity/src/api'; // [!code highlight]
+import { useState, useEffect } from 'react';
+
+const client = hc<ApiRouter>('https://your-project.agentuity.cloud'); // [!code highlight]
 
 function TranslateDemoInner() {
-  // GET auto-executes and returns data
-  const { data: history, refetch } = useAPI('GET /api/translate/history');
+  const [data, setData] = useState<{ translation: string } | null>(null);
+  const [history, setHistory] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // POST returns an invoke function for manual calls
-  const { data, invoke: translate, isLoading } = useAPI('POST /api/translate'); // [!code highlight]
+  useEffect(() => {
+    client.api.translate.history.$get().then(r => r.json()).then(setHistory);
+  }, []);
 
   const onTranslate = async () => {
-    await translate({ text: 'Hello world', toLanguage: 'Spanish' });
+    setIsLoading(true);
+    const res = await client.api.translate.$post({ json: { text: 'Hello world', toLanguage: 'Spanish' } }); // [!code highlight]
+    setData(await res.json());
+    setIsLoading(false);
     refetch(); // Refresh history after translation
   };
 
@@ -111,13 +120,9 @@ export default function TranslateDemo() {
 }
 ```
 
-- `import '@agentuity/routes'` is a side-effect import: it registers generated type augmentations so TypeScript knows the shape of every route
-- `useAPI('GET ...')` auto-executes on mount and returns `refetch()` for manual refresh
-- `useAPI('POST ...')` returns `invoke()` for manual triggering, with the request body fully typed from the route definition
-
-<Callout type="warning" title="Keep the side-effect import">
-The `import '@agentuity/routes'` line loads the generated route type augmentations. Without it, `useAPI` route keys and payloads lose type safety.
-</Callout>
+- `hc<ApiRouter>()` creates a type-safe client from your route definitions
+- GET requests use `.$get()` and POST requests use `.$post({ json: ... })`
+- All request bodies and responses are fully typed from the route definition
 
 ## Running Locally
 
@@ -146,6 +151,6 @@ When deployed, configure routing at the host level:
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): Full `useAPI`, `useWebsocket`, and `useEventStream` API
+- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks
 - [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration options
 - [HTTP Routes](/routes/http): Defining backend API routes

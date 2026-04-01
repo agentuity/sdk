@@ -1,12 +1,12 @@
 ---
 title: React Hooks
-description: Call your API routes from React with useAPI, useWebsocket, and useEventStream
+description: Authentication, analytics, and WebRTC hooks from @agentuity/react
 ---
 
-Call your API routes from React components using type-safe hooks from `@agentuity/react`.
+React hooks from `@agentuity/react` provide authentication state, analytics tracking, and WebRTC capabilities. For API calls, use `hc()` from `hono/client` or standard `fetch`.
 
-<Callout type="tip" title="Non-React Alternative">
-For non-React apps (Vue, Svelte, vanilla JS) or server-side code, use the [RPC Client](/frontend/rpc-client) from `@agentuity/frontend` instead.
+<Callout type="tip" title="API Calls">
+For type-safe API calls, use Hono's `hc()` client. See [RPC Client](/frontend/rpc-client) for the full pattern.
 </Callout>
 
 ## Installation
@@ -15,26 +15,36 @@ For non-React apps (Vue, Svelte, vanilla JS) or server-side code, use the [RPC C
 bun add @agentuity/react
 ```
 
-## Basic Usage with useAPI
+## Calling API Routes
 
-The `useAPI` hook calls your API routes with full type safety:
+Use `hc()` from `hono/client` for type-safe API calls, or plain `fetch` for simple cases:
 
 ```tsx
-import { AgentuityProvider, useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
+import { useState } from 'react';
+
+const client = hc<ApiRouter>('/'); // [!code highlight]
 
 function ChatForm() {
-  const { invoke, isLoading, data, error } = useAPI('POST /api/chat');
+  const [data, setData] = useState<{ response: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const message = formData.get('message') as string;
 
+    setIsLoading(true);
+    setError(null);
     try {
-      await invoke({ message });
+      const res = await client.api.chat.$post({ json: { message } }); // [!code highlight]
+      setData(await res.json());
     } catch (err) {
-      // Error is also available via the error state
-      console.error('API call failed:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,274 +59,18 @@ function ChatForm() {
     </form>
   );
 }
-
-export default function App() {
-  return (
-    <AgentuityProvider>
-      <ChatForm />
-    </AgentuityProvider>
-  );
-}
 ```
 
-**Return values:**
-
-| Property | Type | Description | Methods |
-|----------|------|-------------|---------|
-| `invoke` | `(input) => Promise<TOutput>` | Execute the request | POST, PUT, PATCH, DELETE |
-| `refetch` | `() => Promise<void>` | Manually refetch data | GET |
-| `data` | `TOutput \| undefined` | Last successful response | All |
-| `error` | `Error \| null` | Last error, if any | All |
-| `isLoading` | `boolean` | True during initial load | All |
-| `isFetching` | `boolean` | True during any fetch (including refetches) | All |
-| `isSuccess` | `boolean` | True after successful completion | All |
-| `isError` | `boolean` | True if request failed | All |
-| `reset` | `() => void` | Reset state to initial values | All |
-
-GET requests auto-fetch on mount. POST/PUT/PATCH/DELETE require calling `invoke()`.
-
-### useAPI Options
-
-Pass an options object instead of a route string for advanced configuration:
+Or with plain `fetch`:
 
 ```tsx
-const { data, refetch } = useAPI({
-  route: 'GET /api/users',
-  staleTime: 30000,        // Data stays fresh for 30 seconds
-  refetchInterval: 60000,  // Auto-refetch every 60 seconds
-  enabled: isReady,        // Only fetch when condition is true
-  onSuccess: (data) => console.log('Fetched:', data),
-  onError: (err) => console.error('Failed:', err),
+const res = await fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message }),
 });
+const data = await res.json();
 ```
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `route` | `string` | - | Route key (e.g., `'GET /api/users'`) |
-| `query` | `URLSearchParams \| Record<string, string>` | - | Query parameters |
-| `headers` | `Record<string, string>` | - | Additional request headers |
-| `enabled` | `boolean` | `true` (GET), `false` (others) | Control when request executes |
-| `staleTime` | `number` | `0` | Milliseconds data stays fresh before refetching |
-| `refetchInterval` | `number` | - | Auto-refetch interval in milliseconds |
-| `onSuccess` | `(data) => void` | - | Callback on successful request |
-| `onError` | `(error) => void` | - | Callback on failed request |
-
-### Streaming with useAPI
-
-For streaming routes, `useAPI` accumulates chunks and provides transform callbacks:
-
-```tsx
-const { data, isLoading } = useAPI({
-  route: 'POST /api/stream',
-  input: { prompt: 'Hello' },
-  delimiter: '\n',  // Split chunks by newline (default)
-  onChunk: (chunk) => {
-    console.log('Received chunk:', chunk);
-    return chunk;  // Can transform before accumulation
-  },
-});
-
-// data is TOutput[] - array of all received chunks
-```
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `delimiter` | `string` | Delimiter for splitting stream chunks (default: `\n`) |
-| `onChunk` | `(chunk) => chunk` | Transform each chunk before accumulation |
-
-## Real-Time with useWebsocket
-
-For bidirectional real-time communication, use `useWebsocket`:
-
-```tsx
-import { useWebsocket } from '@agentuity/react';
-
-function RealtimeChat() {
-  const { isConnected, send, messages, clearMessages } = useWebsocket('/api/chat', {
-    maxMessages: 100,  // Keep last 100 messages
-  });
-
-  return (
-    <div>
-      <p>Status: {isConnected ? 'Connected' : 'Connecting...'}</p>
-      <ul>
-        {messages.map((msg, i) => (
-          <li key={i}>{JSON.stringify(msg)}</li>
-        ))}
-      </ul>
-      <button onClick={() => send({ message: 'Hello!' })}>Send Hello</button>
-      <button onClick={clearMessages}>Clear</button>
-    </div>
-  );
-}
-```
-
-You can also use `data` for only the most recent message:
-
-```tsx
-import { useWebsocket } from '@agentuity/react';
-import { useEffect } from 'react';
-
-function LatestUpdate() {
-  const { isConnected, send, data } = useWebsocket('/api/updates');
-
-  useEffect(() => {
-    if (data) {
-      console.log('Latest update:', data);
-    }
-  }, [data]);
-
-  return <p>Latest: {data ? JSON.stringify(data) : 'Waiting...'}</p>;
-}
-```
-
-<Callout type="info" title="Auto-Reconnection">
-WebSocket connections automatically reconnect with exponential backoff if the connection drops. Messages sent while disconnected are queued and sent when the connection is restored.
-</Callout>
-
-**Return values:**
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | True when WebSocket is open |
-| `send` | `(data: TInput) => void` | Send a message |
-| `data` | `TOutput \| undefined` | Last received message |
-| `messages` | `TOutput[]` | Array of all received messages |
-| `clearMessages` | `() => void` | Clear the messages array |
-| `error` | `Error \| null` | Connection or message error |
-| `isError` | `boolean` | True if an error occurred |
-| `readyState` | `number` | WebSocket state (0=connecting, 1=open, 2=closing, 3=closed) |
-| `close` | `() => void` | Close the connection |
-| `reset` | `() => void` | Clear error state |
-
-**Options:**
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `query` | `URLSearchParams` | Query parameters to append to the WebSocket URL |
-| `subpath` | `string` | Subpath to append to the WebSocket path |
-| `signal` | `AbortSignal` | AbortSignal to cancel the connection |
-| `maxMessages` | `number` | Maximum messages to keep in `messages` array (oldest removed when exceeded) |
-
-## Streaming with useEventStream
-
-For one-way streaming from server to client, use Server-Sent Events:
-
-```tsx
-import { useEventStream } from '@agentuity/react';
-
-function LiveStatus() {
-  const { isConnected, data, error } = useEventStream('/api/status');
-
-  if (!isConnected) {
-    return <p>Connecting to status feed...</p>;
-  }
-
-  if (error) {
-    return <p>Error: {error.message}</p>;
-  }
-
-  return (
-    <div>
-      <p>Live Status: {data?.status ?? 'Waiting for update...'}</p>
-      <p>Last updated: {data?.timestamp ?? '-'}</p>
-    </div>
-  );
-}
-```
-
-<Callout type="tip" title="When to Use SSE">
-Use `useEventStream` when you only need server-to-client updates (e.g., progress indicators, live dashboards, notifications). For bidirectional communication, use `useWebsocket`.
-</Callout>
-
-**Return values:**
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | True when EventStream is open |
-| `data` | `TOutput \| undefined` | Last received event data |
-| `error` | `Error \| null` | Connection error |
-| `isError` | `boolean` | True if an error occurred |
-| `readyState` | `number` | EventSource state (0=connecting, 1=open, 2=closed) |
-| `close` | `() => void` | Close the connection |
-| `reset` | `() => void` | Clear error state |
-
-**Options:** Accepts `query`, `subpath`, and `signal` options, same as `useWebsocket`.
-
-## Choosing the Right Hook
-
-| Hook | Use Case | Direction | Examples |
-|------|----------|-----------|---------|
-| `useAPI` | Request/response | One-time | Send a message, fetch user data, submit a form |
-| `useWebsocket` | Bidirectional streaming | Client ↔ Server | Live chat, multiplayer sync, shared editing |
-| `useEventStream` | Server push | Server → Client | AI token streaming, build logs, live metrics |
-
-## Request Options
-
-Pass options to the hook for customizing requests. Options like `query` and `headers` are set when calling the hook, not when invoking:
-
-```tsx
-// Options are passed to useAPI, not invoke
-const { invoke } = useAPI({
-  route: 'POST /api/chat',
-  query: new URLSearchParams({ version: '2' }),
-  headers: { 'X-Custom-Header': 'value' },
-});
-
-// invoke only takes the input data
-await invoke({ message: 'Hello' });
-```
-
-For dynamic query parameters, create a new hook instance:
-
-```tsx
-function SearchResults({ query }: { query: string }) {
-  const { data, isLoading } = useAPI({
-    route: 'GET /api/search',
-    query: { q: query },
-  });
-
-  return <div>{isLoading ? 'Searching...' : JSON.stringify(data)}</div>;
-}
-```
-
-### Dynamic Path Parameters
-
-For routes with path parameters (e.g., `/api/items/:itemId`), pass params at invocation time:
-
-```tsx
-import { useAPI } from '@agentuity/react';
-
-function ItemActions({ itemId }: { itemId: string }) {
-  const { invoke: deleteItem, isLoading } = useAPI('DELETE /api/items/:itemId');
-  const { invoke: updateItem } = useAPI('PUT /api/items/:itemId');
-
-  const handleDelete = async () => {
-    await deleteItem(undefined, { params: { itemId } });
-  };
-
-  const handleUpdate = async (name: string) => {
-    await updateItem({ name }, { params: { itemId } });
-  };
-
-  return (
-    <div>
-      <button onClick={() => handleUpdate('New Name')} disabled={isLoading}>
-        Rename
-      </button>
-      <button onClick={handleDelete} disabled={isLoading}>
-        Delete
-      </button>
-    </div>
-  );
-}
-```
-
-The second argument to `invoke()` accepts `params` for path parameter values (e.g., `{ params: { itemId: '123' } }`).
-
-<Callout type="info" title="Query and Headers">
-To set `query` or `headers`, pass them when calling `useAPI()`, not to `invoke()`. For dynamic query parameters, see the [example above](#request-options).
-</Callout>
 
 ## Auth State with useAuth
 
@@ -354,6 +108,10 @@ function ProtectedContent() {
 `useAuth` provides auth-specific state. For non-auth context like `baseUrl`, use `useAgentuity()` instead. See [Authentication](/frontend/authentication) for integrating with identity providers.
 </Callout>
 
+## WebRTC with useWebRTCCall
+
+For peer-to-peer audio, video, and data channels, see [WebRTC](/routes/webrtc) for the full API.
+
 ## Analytics Hooks
 
 Track page views and custom events from React components. See [Web Analytics](/services/observability/web-analytics) for configuration, privacy options, and the full API.
@@ -380,9 +138,22 @@ function ProductPage({ productId }: { productId: string }) {
 
 A `withPageTracking` HOC is also available for class components or simpler page-level tracking.
 
+## Real-Time Communication
+
+For real-time features, use standard browser APIs:
+
+| Pattern | API | Use Case |
+|---------|-----|----------|
+| Bidirectional streaming | `WebSocket` | Live chat, collaboration |
+| Server push | `EventSource` | AI streaming, live dashboards |
+| Peer-to-peer | `useWebRTCCall` | Video/audio calls, data channels |
+| Request/response | `hc()` or `fetch` | API calls, form submissions |
+
+See [WebSockets](/routes/websockets), [SSE](/routes/sse), and [WebRTC](/routes/webrtc) for server-side setup.
+
 ## Next Steps
 
 - [Provider Setup](/frontend/provider-setup): Configure `AgentuityProvider` for deployments
-- [Advanced Hooks](/frontend/advanced-hooks): Custom handlers for WebSocket and SSE
-- [Deployment Scenarios](/frontend/deployment-scenarios): Choose where your frontend lives
+- [Advanced Hooks](/frontend/advanced-hooks): WebRTC data channels and custom handlers
+- [RPC Client](/frontend/rpc-client): Type-safe API calls with `hc()`
 - [Web Analytics](/services/observability/web-analytics): Track page views and custom events

@@ -15,10 +15,11 @@ Middleware works on HTTP, WebSocket, SSE, Cron, and Stream routes.
 Create middleware with `createMiddleware` from Hono:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Middleware that logs all requests
 const loggerMiddleware = createMiddleware(async (c, next) => {
@@ -45,10 +46,11 @@ export default router;
 ### API Key Authentication
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const apiKeyAuth = createMiddleware(async (c, next) => {
   const apiKey = c.req.header('X-API-Key');
@@ -79,11 +81,12 @@ export default router;
 ### Bearer Token (JWT)
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import { verify } from 'hono/jwt';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const jwtAuth = createMiddleware(async (c, next) => {
   const authHeader = c.req.header('Authorization');
@@ -116,11 +119,12 @@ export default router;
 The `@agentuity/auth` package provides authentication middleware:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createSessionMiddleware } from '@agentuity/auth';
 import { auth } from '../auth';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/public', (c) => {
   return c.json({ message: 'Public endpoint' });
@@ -139,7 +143,7 @@ router.get('/protected', createSessionMiddleware(auth), async (c) => {
 export default router;
 ```
 
-The `@agentuity/auth` package automatically integrates with `useAPI` and `useWebsocket` hooks, injecting auth tokens into requests.
+The `@agentuity/auth` package provides authentication middleware that integrates with your routes and frontend auth hooks.
 
 <Callout type="info" title="Full Authentication Setup">
 For complete setup including client-side configuration, see [Adding Authentication](/frontend/authentication).
@@ -150,10 +154,11 @@ For complete setup including client-side configuration, see [Adding Authenticati
 Use `agent.validator()` for type-safe request validation:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import agent from './agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Validates using agent's input schema
 router.post('/items', agent.validator(), async (c) => {
@@ -216,10 +221,11 @@ See [Schema Libraries](/agents/schema-libraries) for more on Valibot and ArkType
 Apply middleware to all routes in a router with `router.use()`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Apply to all routes in this file
 router.use('/*', createMiddleware(async (c, next) => {
@@ -241,11 +247,12 @@ export default router;
 Chain multiple middleware for complex requirements:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import agent from './agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const rateLimiter = createMiddleware(async (c, next) => {
   const ip = c.req.header('x-forwarded-for') || 'unknown';
@@ -292,10 +299,11 @@ export default router;
 Handle errors gracefully in middleware:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const errorHandler = createMiddleware(async (c, next) => {
   try {
@@ -332,9 +340,10 @@ Agentuity provides middleware for common needs, exported from `@agentuity/runtim
 Apply CORS headers to routes:
 
 ```typescript
-import { createRouter, createCorsMiddleware } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, createCorsMiddleware } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Apply CORS to all API routes
 router.use('/api/*', createCorsMiddleware());
@@ -356,9 +365,10 @@ CORS can also be configured globally via `createApp()`. See [App Configuration](
 Compress responses with gzip/deflate based on the `Accept-Encoding` header:
 
 ```typescript
-import { createRouter, createCompressionMiddleware } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, createCompressionMiddleware } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Apply compression to all routes
 router.use('/*', createCompressionMiddleware());

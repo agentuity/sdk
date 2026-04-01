@@ -309,9 +309,10 @@ For one-off queue management, use the CLI instead: `agentuity cloud queue create
 If you want to centralize storage logic in your Agentuity project (for [middleware](/routes/middleware), sharing across multiple apps, or avoiding SDK key distribution), use [HTTP routes](/routes/http) instead.
 
 ```typescript title="src/api/sessions/route.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 interface ChatSession {
   messages: Array<{ role: string; content: string }>;
@@ -364,10 +365,11 @@ export default router;
 Add authentication middleware to protect storage endpoints:
 
 ```typescript title="src/api/sessions/route.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const requireAuth = createMiddleware(async (c, next) => {
   const apiKey = c.req.header('x-api-key');
@@ -516,6 +518,6 @@ const jsonSchema = toJSONSchema(schema);
 
 - [Standalone Packages](/reference/standalone-packages): Full list of service packages and their APIs
 - [Queues](/services/queues): Queue concepts and CLI commands
-- [HTTP Routes](/routes/http): Route creation with `createRouter`
+- [HTTP Routes](/routes/http): Route creation with Hono
 - [Route Middleware](/routes/middleware): Authentication patterns
 - [RPC Client](/frontend/rpc-client): Typed client generation

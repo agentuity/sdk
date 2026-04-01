@@ -22,9 +22,10 @@ All routes live in `src/api/`. The signaling endpoint is a WebSocket route that 
 The server side is one line. The `webrtc()` middleware creates a signaling server that manages rooms, relays SDP offers/answers, and forwards ICE candidates:
 
 ```typescript title="src/api/call/route.ts"
-import { createRouter, webrtc } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, webrtc } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Registered as /signal here; the file path (src/api/call/) + this path = /api/call/signal
 router.get('/signal', webrtc());

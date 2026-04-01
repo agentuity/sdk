@@ -28,10 +28,18 @@ When you run `agentuity deploy`, both your agents and frontend are bundled and d
 
 ```tsx
 // src/web/App.tsx
-import { AgentuityProvider, useAPI } from '@agentuity/react';
+import { AgentuityProvider } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
+
+const client = hc<ApiRouter>('/');
 
 function Chat() {
-  const { invoke, data, isLoading } = useAPI('POST /api/chat');
+  // Use hc() for type-safe API calls
+  const handleSend = async (message: string) => {
+    const res = await client.api.chat.$post({ json: { message } });
+    return res.json();
+  };
   // ... your chat UI
 }
 
@@ -67,7 +75,7 @@ Frontend (e.g., Vercel)                Agents (Agentuity)
 
 ```tsx
 // In your React app
-import { AgentuityProvider, useAPI } from '@agentuity/react';
+import { AgentuityProvider } from '@agentuity/react';
 
 export default function App() {
   return (

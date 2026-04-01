@@ -87,16 +87,18 @@ export default function App() {
 }
 ```
 
-Once configured, `useAPI` and `useWebsocket` automatically include auth tokens in requests. See [Adding Authentication](/frontend/authentication) for full setup.
+Once configured, `useAuth` provides authentication state to all child components. See [Adding Authentication](/frontend/authentication) for full setup.
 
 ## Type Safety
 
 When you run `bun dev` or `agentuity dev`, the CLI generates TypeScript types for your agents at `.agentuity/types.d.ts`. This enables autocomplete and type checking for agent names and their input/output schemas.
 
 ```tsx
-// TypeScript knows which routes exist and their types
-const { invoke } = useAPI('POST /api/chat'); // Autocomplete for routes
-await invoke({ message: 'Hello' });  // Type-checked input
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../src/api';
+
+const client = hc<ApiRouter>('/');
+const res = await client.api.chat.$post({ json: { message: 'Hello' } }); // Type-safe
 ```
 
 <Callout type="info" title="Type Generation">
@@ -105,5 +107,5 @@ Types are regenerated automatically when you add or modify agents. If types seem
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): Learn about `useAPI`, `useWebsocket`, and `useEventStream`
+- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks
 - [Deployment Scenarios](/frontend/deployment-scenarios): Choose where your frontend lives

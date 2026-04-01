@@ -143,11 +143,12 @@ Nested spans create a parent-child hierarchy in trace views, showing how operati
 Routes access the tracer via `c.var.tracer`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { SpanStatusCode } from '@opentelemetry/api';
-import notificationSender from '@agent/notification-sender';
+import notificationSender from '@agent/notification-sender/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/customers/:id/notify', async (c) => {
   return c.var.tracer.startActiveSpan('send-notification', async (span) => {
@@ -182,10 +183,11 @@ export default router;
 Use nested spans to track multi-step operations within a route:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { SpanStatusCode } from '@opentelemetry/api';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/process', async (c) => {
   return c.var.tracer.startActiveSpan('process-request', async (parentSpan) => {

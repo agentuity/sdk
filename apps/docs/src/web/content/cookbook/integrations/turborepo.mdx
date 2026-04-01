@@ -15,7 +15,7 @@ my-monorepo/
 ├── apps/
 │   ├── web/                          # Frontend (Vite + React, port 3000)
 │   │   └── src/components/
-│   │       └── TranslateDemo.tsx     # Uses useAPI with generated route types
+│   │       └── TranslateDemo.tsx     # Uses hc() with typed route client
 │   └── agentuity/                    # Agentuity backend (port 3500)
 │       ├── src/agent/translate/      # Agent handler and evals
 │       ├── src/api/                  # HTTP routes (history, health)
@@ -132,11 +132,12 @@ The agent validates input and output against the shared schemas automatically �
 Routes handle HTTP concerns that don't belong in the agent itself (history reads, clears, health checks). They use the same shared schema for their output types:
 
 ```typescript title="apps/agentuity/src/api/index.ts"
-import { createRouter, validator } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, validator } from '@agentuity/runtime';
 import translate from '../agent/translate/agent';
 import { TranslateOutputSchema, type HistoryEntry } from '@my-monorepo/shared';
 
-const api = createRouter();
+const api = new Hono<Env>();
 
 // Subset of output schema for state-only routes
 const StateSchema = TranslateOutputSchema.pick(['history', 'threadId', 'translationCount']);
@@ -162,22 +163,27 @@ export default api;
 
 ## Frontend Type Safety
 
-The `apps/web` package imports route types from the Agentuity workspace package and shared constants from `packages/shared`. The side-effect import loads the generated type augmentations that make [`useAPI`](/frontend/react-hooks) aware of every route:
+The `apps/web` package imports route types from the Agentuity workspace package and shared constants from `packages/shared`. Use `hc()` from `hono/client` for type-safe API calls:
 
 ```tsx title="apps/web/src/components/TranslateDemo.tsx"
-import { useAPI } from '@agentuity/react';
-import '@my-monorepo/agentuity/routes'; // Side-effect: registers generated route types
+import { hc } from 'hono/client'; // [!code highlight]
+import type { ApiRouter } from '@my-monorepo/agentuity/src/api'; // [!code highlight]
+import { useState } from 'react';
 import { LANGUAGES, MODELS, type Language, type Model } from '@my-monorepo/shared';
 
-export function TranslateDemo() {
-  const { data: historyData, refetch } = useAPI('GET /api/translate/history');
+const client = hc<ApiRouter>('/'); // [!code highlight]
 
-  // TypeScript knows the exact shape of the request body and response
-  const { data, invoke: translate, isLoading } = useAPI('POST /api/translate'); // [!code highlight]
+export function TranslateDemo() {
+  const [data, setData] = useState<{ translation: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const onTranslate = async () => {
-    await translate({ text: 'Hello world', toLanguage: 'Spanish', model: 'gpt-5.4-nano' });
-    refetch();
+    setIsLoading(true);
+    const res = await client.api.translate.$post({ // [!code highlight]
+      json: { text: 'Hello world', toLanguage: 'Spanish', model: 'gpt-5.4-nano' },
+    });
+    setData(await res.json());
+    setIsLoading(false);
   };
 
   return (
@@ -257,6 +263,6 @@ When deployed, point `/api/*` requests at the Agentuity backend URL. Set `AGENTU
 ## Next Steps
 
 - [Schema Libraries](/agents/schema-libraries): Use Zod, Valibot, ArkType, or `@agentuity/schema` for shared schemas
-- [React Hooks](/frontend/react-hooks): Full `useAPI`, `useWebsocket`, and `useEventStream` API
+- [React Hooks](/frontend/react-hooks): `useAuth`, `useWebRTCCall`, and other React hooks
 - [HTTP Routes](/routes/http): Define and validate backend API routes
 - [Deployment Scenarios](/frontend/deployment-scenarios): Options for routing frontend traffic to a deployed agent

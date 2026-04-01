@@ -120,7 +120,7 @@ Local mode disables cloud services (KV, Vector, Object Storage). Use when develo
 import { createApp } from '@agentuity/runtime';
 import { MyCustomKV } from './storage';
 
-const app = createApp({
+export default await createApp({
   services: {
     useLocal: true,
     keyvalue: new MyCustomKV(), // Your implementation

@@ -130,10 +130,11 @@ export default agent;
 The route exposes your agent over HTTP. Use `agent.validator()` for type-safe validation using the agent's schema.
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
-import knowledgeAgent from '@agent/knowledge';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import knowledgeAgent from '@agent/knowledge/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Query endpoint - validates using agent's input schema
 router.post('/knowledge', knowledgeAgent.validator(), async (c) => { // [!code highlight]
@@ -268,7 +269,6 @@ Expected response:
 Build a search interface for your knowledge base:
 
 ```tsx title="src/web/App.tsx"
-import { useAPI } from '@agentuity/react';
 import { useState } from 'react';
 
 interface Source {
@@ -285,7 +285,19 @@ interface KnowledgeResult {
 
 export function App() {
   const [question, setQuestion] = useState('');
-  const { data, invoke, isLoading } = useAPI<KnowledgeResult>('POST /knowledge'); // [!code highlight]
+  const [data, setData] = useState<KnowledgeResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearch = async () => { // [!code highlight]
+    setIsLoading(true); // [!code highlight]
+    const res = await fetch('/api/knowledge', { // [!code highlight]
+      method: 'POST', // [!code highlight]
+      headers: { 'Content-Type': 'application/json' }, // [!code highlight]
+      body: JSON.stringify({ question }), // [!code highlight]
+    }); // [!code highlight]
+    setData(await res.json()); // [!code highlight]
+    setIsLoading(false); // [!code highlight]
+  }; // [!code highlight]
 
   return (
     <div style={{ padding: '2rem', maxWidth: '700px' }}>
@@ -296,13 +308,13 @@ export function App() {
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && invoke({ question })}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           placeholder="Ask a question..."
           disabled={isLoading}
           style={{ flex: 1, padding: '0.75rem' }}
         />
         <button
-          onClick={() => invoke({ question })}
+          onClick={handleSearch}
           disabled={isLoading || !question.trim()}
         >
           {isLoading ? 'Searching...' : 'Search'}
