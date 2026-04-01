@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Separator } from './ui';
 
 interface EvalResultData {
@@ -33,10 +34,22 @@ const EVAL_CONFIG: Record<string, { name: string; type: 'score' | 'binary' }> = 
 const MAX_POLL_ATTEMPTS = 15;
 
 export function EvalsDemo() {
-	const [status, setStatus] = useState<Status>('idle');
-	const [generatedContent, setGeneratedContent] = useState('');
-	const [sessionId, setSessionId] = useState('');
-	const [evalResults, setEvalResults] = useState<EvalRun[]>([]);
+	const [generatedContent, setGeneratedContent] = usePersistentDemoState<string>(
+		'evals',
+		'generatedContent',
+		{ defaultValue: '', storage: 'session' }
+	);
+	const [sessionId, setSessionId] = usePersistentDemoState<string>('evals', 'sessionId', {
+		defaultValue: '',
+		storage: 'session',
+	});
+	const [evalResults, setEvalResults] = usePersistentDemoState<EvalRun[]>('evals', 'evalResults', {
+		defaultValue: [],
+		storage: 'session',
+	});
+	const [status, setStatus] = useState<Status>(() =>
+		evalResults.length > 0 && generatedContent ? 'done' : 'idle'
+	);
 	const [error, setError] = useState('');
 	const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pollCountRef = useRef(0);
@@ -49,37 +62,40 @@ export function EvalsDemo() {
 		};
 	}, []);
 
-	const pollSession = useCallback(async (sid: string) => {
-		// Check max polling attempts
-		pollCountRef.current++;
-		if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
-			setError('Evaluation timed out after 30 seconds');
-			setStatus('error');
-			return;
-		}
-
-		try {
-			const response = await fetch(`/api/evals/session/${sid}`, {
-				signal: abortControllerRef.current?.signal,
-			});
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-			const data: SessionResponse = await response.json();
-			setEvalResults(data.evalResults);
-
-			const allDone = data.evalResults.every((r) => !r.pending);
-			if (allDone && data.evalResults.length > 0) {
-				setStatus('done');
-			} else {
-				pollingRef.current = setTimeout(() => pollSession(sid), 2000);
+	const pollSession = useCallback(
+		async (sid: string): Promise<void> => {
+			// Check max polling attempts
+			pollCountRef.current++;
+			if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
+				setError('Evaluation timed out after 30 seconds');
+				setStatus('error');
+				return;
 			}
-		} catch (err) {
-			// Ignore abort errors (component unmounted)
-			if (err instanceof Error && err.name === 'AbortError') return;
-			setError(err instanceof Error ? err.message : 'Polling failed');
-			setStatus('error');
-		}
-	}, []);
+
+			try {
+				const response = await fetch(`/api/evals/session/${sid}`, {
+					signal: abortControllerRef.current?.signal,
+				});
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+				const data: SessionResponse = await response.json();
+				setEvalResults(data.evalResults);
+
+				const allDone = data.evalResults.every((r) => !r.pending);
+				if (allDone && data.evalResults.length > 0) {
+					setStatus('done');
+				} else {
+					pollingRef.current = setTimeout(() => pollSession(sid), 2000);
+				}
+			} catch (err) {
+				// Ignore abort errors (component unmounted)
+				if (err instanceof Error && err.name === 'AbortError') return;
+				setError(err instanceof Error ? err.message : 'Polling failed');
+				setStatus('error');
+			}
+		},
+		[setEvalResults]
+	);
 
 	const generate = useCallback(async () => {
 		// Abort any previous request and reset state
@@ -112,7 +128,7 @@ export function EvalsDemo() {
 			setError(err instanceof Error ? err.message : 'Generation failed');
 			setStatus('error');
 		}
-	}, [pollSession]);
+	}, [pollSession, setGeneratedContent, setSessionId, setEvalResults]);
 
 	const getEvalConfig = (evalId: string) =>
 		EVAL_CONFIG[evalId] ?? { name: evalId, type: 'binary' };
