@@ -18,7 +18,6 @@ import objectStorage from './object-storage/route';
 import processDocs from './process-docs/route';
 import queue from './queue/route';
 import sandbox from './sandbox/route';
-import schedule from './schedule/route';
 import sessions from './sessions/route';
 import sseStream from './sse-stream/route';
 import streaming from './streaming/route';
@@ -44,7 +43,6 @@ const router = new Hono<Env>()
 	.route('/process-docs', processDocs)
 	.route('/queue', queue)
 	.route('/sandbox', sandbox)
-	.route('/schedule', schedule)
 	.route('/sessions', sessions)
 	.route('/sse-stream', sseStream)
 	.route('/streaming', streaming)
