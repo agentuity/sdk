@@ -1,5 +1,6 @@
 import { AlertTriangle, Check, Inbox, RotateCcw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Badge, Button, Separator } from './ui';
 
 const MESSAGE_PAYLOAD = { task: 'process-order', orderId: 'order-123' };
@@ -44,14 +45,24 @@ async function api<T = unknown>(path: string, options?: RequestInit): Promise<T>
 }
 
 export function QueueDemo() {
-	const [queueReady, setQueueReady] = useState(false);
+	const [queueReady, setQueueReady] = usePersistentDemoState<boolean>('queue', 'ready', {
+		defaultValue: false,
+		storage: 'session',
+	});
 	const [receivedMessage, setReceivedMessage] = useState<QueueMessage | null>(null);
-	const [events, setEvents] = useState<QueueEvent[]>([]);
+	const [events, setEvents, resetEvents] = usePersistentDemoState<QueueEvent[]>(
+		'queue',
+		'events',
+		{
+			defaultValue: [],
+			storage: 'session',
+		}
+	);
 	const [dlqMessages, setDlqMessages] = useState<DlqMessage[]>([]);
 	const [stats, setStats] = useState<QueueStats | null>(null);
 	const [loading, setLoading] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const eventIdRef = useRef(0);
+	const eventIdRef = useRef(events.length);
 	const eventsEndRef = useRef<HTMLDivElement>(null);
 
 	const addEvent = useCallback((action: ActionType, detail: string, messageId?: string) => {
@@ -71,9 +82,9 @@ export function QueueDemo() {
 		setReceivedMessage(null);
 		setDlqMessages([]);
 		setStats(null);
-		setEvents([]);
+		resetEvents();
 		eventIdRef.current = 0;
-	}, []);
+	}, [resetEvents]);
 
 	const refreshStats = useCallback(async () => {
 		try {
@@ -250,7 +261,11 @@ export function QueueDemo() {
 				{ method: 'POST' }
 			);
 			if (result.success) {
-				addEvent('nack', `Nacked ${receivedMessage.id} (retry/DLQ)`, receivedMessage.id);
+				addEvent(
+					'nack',
+					`Nacked ${receivedMessage.id} — will be visible again in ~5s`,
+					receivedMessage.id
+				);
 				setReceivedMessage(null);
 				await refreshQueueState();
 			} else {

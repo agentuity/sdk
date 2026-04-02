@@ -270,30 +270,47 @@ ctx.waitUntil(async () => {
 
 ctx.logger.info("Main execution complete (background still running)");`,
 
-	cron: `// Schedule tasks with the cron() middleware.
-// Platform triggers POST requests on your schedule.
-import { createRouter, cron } from "@agentuity/runtime";
+	schedule: `// Schedules: platform-managed recurring triggers with destinations.
+// Schedules define WHEN to run. Destinations define WHERE to send.
 
-const router = createRouter();
+const runId = Date.now().toString(36);
+const name = \`\${runId}:hourly-sync\`;
 
-// Runs every hour at minute 0
-router.post("/hourly-task", cron("0 * * * *", async (c) => {
-  c.var.logger?.info("Hourly task running");
+// CREATE a schedule with a cron expression and URL destination
+const { schedule, destinations } = await ctx.schedule.create({
+  name,
+  expression: "0 * * * *",  // every hour at :00
+  destinations: [
+    { type: "url", config: { url: "https://api.example.com/sync" } },
+  ],
+});
+ctx.logger.info("Schedule created", {
+  id: schedule.id,
+  expression: schedule.expression,
+  destination: destinations[0]?.id,
+});
 
-  // Fetch data, update cache, send notifications, etc.
-  const data = await fetch("https://api.example.com/data")
-    .then(r => r.json());
+// LIST all schedules
+const { schedules, total } = await ctx.schedule.list({ limit: 5 });
+ctx.logger.info("Schedules", { total });
 
-  await c.var.kv?.set("cache", "latest", data, { ttl: 3600 });
+// GET a schedule with its destinations
+const details = await ctx.schedule.get(schedule.id);
+ctx.logger.info("Details", {
+  name: details.schedule.name,
+  nextDue: details.schedule.due_date,
+  destinations: details.destinations.length,
+});
 
-  return c.json({ success: true, timestamp: new Date() });
-}));
+// CLEANUP
+await ctx.schedule.delete(schedule.id);
+ctx.logger.info("Cleaned up", { id: schedule.id });
 
 // Cron expressions: minute hour day month weekday
-// "* * * * *"     every minute
 // "0 * * * *"     every hour
 // "0 0 * * *"     daily at midnight
-// "0 9 * * 1"     Mondays at 9am`,
+// "0 9 * * 1"     Mondays at 9am
+// "*/15 * * * *"  every 15 minutes`,
 
 	'durable-stream': `// Create durable content with shareable URLs.
 // Unlike ephemeral streams, content persists forever.
@@ -304,24 +321,24 @@ import { streamText } from "ai";
 
 const router = new Hono<Env>()
   .post("/generate", async (c) => {
-  // Create stream - returns a public URL
-  const stream = await c.var.stream.create("summary", {
-    contentType: "text/plain",
-    metadata: { created: new Date().toISOString() },
-  });
-
-  // Write content in background
-  c.var.waitUntil(async () => {
-    const { textStream } = streamText({
-      model: openai("gpt-5-nano"),
-      prompt: "Write a summary of what Agentuity is.",
+    // Create stream - returns a public URL
+    const stream = await c.var.stream.create("summary", {
+      contentType: "text/plain",
+      metadata: { created: new Date().toISOString() },
     });
 
-    for await (const chunk of textStream) {
-      await stream.write(chunk);
-    }
-    await stream.close();
-  });
+    // Write content in background
+    c.var.waitUntil(async () => {
+      const { textStream } = streamText({
+        model: openai("gpt-5-nano"),
+        prompt: "Write a summary of what Agentuity is.",
+      });
+
+      for await (const chunk of textStream) {
+        await stream.write(chunk);
+      }
+      await stream.close();
+    });
 
     // Return URL immediately - shareable with anyone
     return c.json({

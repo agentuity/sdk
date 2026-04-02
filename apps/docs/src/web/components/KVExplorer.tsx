@@ -15,7 +15,7 @@ export function KVExplorer() {
 	const [error, setError] = useState<string | null>(null);
 	const [seeded, setSeeded] = useState(false);
 
-	const fetchKeys = useCallback(async (): Promise<string[]> => {
+	const fetchKeys = useCallback(async (): Promise<string[] | null> => {
 		setLoading(true);
 		setError(null);
 		try {
@@ -31,12 +31,13 @@ export function KVExplorer() {
 				return keysList;
 			}
 			setError('Failed to fetch keys');
+			return null;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Unknown error');
+			return null;
 		} finally {
 			setLoading(false);
 		}
-		return [];
 	}, []);
 
 	// Capture the initial persisted key so the mount effect can restore it
@@ -46,6 +47,7 @@ export function KVExplorer() {
 	useEffect(() => {
 		const keyToRestore = initialKeyRef.current;
 		fetchKeys().then(async (loadedKeys) => {
+			if (loadedKeys === null) return;
 			if (keyToRestore) {
 				if (!loadedKeys.includes(keyToRestore)) {
 					// Persisted key no longer exists in loaded keys, clear stale state

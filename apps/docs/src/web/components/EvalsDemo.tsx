@@ -104,6 +104,7 @@ export function EvalsDemo() {
 	);
 
 	// Resume polling on mount if session has incomplete evals
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only effect — refs capture initial values
 	useEffect(() => {
 		const sid = initialSessionIdRef.current;
 		const results = initialEvalResultsRef.current;
@@ -127,7 +128,7 @@ export function EvalsDemo() {
 			setStatus('polling');
 			pollSession(sid);
 		}
-	}, [pollSession]);
+	}, []);
 
 	const generate = useCallback(async () => {
 		// Cancel any existing polling timer before starting a new run

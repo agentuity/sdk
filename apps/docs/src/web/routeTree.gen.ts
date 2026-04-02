@@ -16,6 +16,7 @@ import { Route as DemoIndexRouteImport } from './routes/demo/index';
 import { Route as ExplorerVectorStorageRouteImport } from './routes/explorer/vector-storage';
 import { Route as ExplorerStreamingRouteImport } from './routes/explorer/streaming';
 import { Route as ExplorerSseStreamRouteImport } from './routes/explorer/sse-stream';
+import { Route as ExplorerScheduleRouteImport } from './routes/explorer/schedule';
 import { Route as ExplorerQueueRouteImport } from './routes/explorer/queue';
 import { Route as ExplorerObjectStorageRouteImport } from './routes/explorer/object-storage';
 import { Route as ExplorerModelArenaRouteImport } from './routes/explorer/model-arena';
@@ -26,7 +27,6 @@ import { Route as ExplorerEvalsRouteImport } from './routes/explorer/evals';
 import { Route as ExplorerEmailRouteImport } from './routes/explorer/email';
 import { Route as ExplorerDurableStreamRouteImport } from './routes/explorer/durable-stream';
 import { Route as ExplorerDatabaseRouteImport } from './routes/explorer/database';
-import { Route as ExplorerCronRouteImport } from './routes/explorer/cron';
 import { Route as ExplorerChatRouteImport } from './routes/explorer/chat';
 import { Route as ExplorerAiGatewayRouteImport } from './routes/explorer/ai-gateway';
 import { Route as ExplorerAgentCallsRouteImport } from './routes/explorer/agent-calls';
@@ -217,6 +217,11 @@ const ExplorerSseStreamRoute = ExplorerSseStreamRouteImport.update({
 	path: '/explorer/sse-stream',
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ExplorerScheduleRoute = ExplorerScheduleRouteImport.update({
+	id: '/explorer/schedule',
+	path: '/explorer/schedule',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const ExplorerQueueRoute = ExplorerQueueRouteImport.update({
 	id: '/explorer/queue',
 	path: '/explorer/queue',
@@ -265,11 +270,6 @@ const ExplorerDurableStreamRoute = ExplorerDurableStreamRouteImport.update({
 const ExplorerDatabaseRoute = ExplorerDatabaseRouteImport.update({
 	id: '/explorer/database',
 	path: '/explorer/database',
-	getParentRoute: () => rootRouteImport,
-} as any);
-const ExplorerCronRoute = ExplorerCronRouteImport.update({
-	id: '/explorer/cron',
-	path: '/explorer/cron',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const ExplorerChatRoute = ExplorerChatRouteImport.update({
@@ -1079,7 +1079,6 @@ export interface FileRoutesByFullPath {
 	'/explorer/agent-calls': typeof ExplorerAgentCallsRoute;
 	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
 	'/explorer/chat': typeof ExplorerChatRoute;
-	'/explorer/cron': typeof ExplorerCronRoute;
 	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
 	'/explorer/email': typeof ExplorerEmailRoute;
@@ -1090,6 +1089,7 @@ export interface FileRoutesByFullPath {
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
 	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/schedule': typeof ExplorerScheduleRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
@@ -1253,7 +1253,6 @@ export interface FileRoutesByTo {
 	'/explorer/agent-calls': typeof ExplorerAgentCallsRoute;
 	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
 	'/explorer/chat': typeof ExplorerChatRoute;
-	'/explorer/cron': typeof ExplorerCronRoute;
 	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
 	'/explorer/email': typeof ExplorerEmailRoute;
@@ -1264,6 +1263,7 @@ export interface FileRoutesByTo {
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
 	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/schedule': typeof ExplorerScheduleRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
@@ -1427,7 +1427,6 @@ export interface FileRoutesById {
 	'/explorer/agent-calls': typeof ExplorerAgentCallsRoute;
 	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
 	'/explorer/chat': typeof ExplorerChatRoute;
-	'/explorer/cron': typeof ExplorerCronRoute;
 	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
 	'/explorer/email': typeof ExplorerEmailRoute;
@@ -1438,6 +1437,7 @@ export interface FileRoutesById {
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
 	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/schedule': typeof ExplorerScheduleRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
@@ -1603,7 +1603,6 @@ export interface FileRouteTypes {
 		| '/explorer/agent-calls'
 		| '/explorer/ai-gateway'
 		| '/explorer/chat'
-		| '/explorer/cron'
 		| '/explorer/database'
 		| '/explorer/durable-stream'
 		| '/explorer/email'
@@ -1614,6 +1613,7 @@ export interface FileRouteTypes {
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
 		| '/explorer/queue'
+		| '/explorer/schedule'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
@@ -1777,7 +1777,6 @@ export interface FileRouteTypes {
 		| '/explorer/agent-calls'
 		| '/explorer/ai-gateway'
 		| '/explorer/chat'
-		| '/explorer/cron'
 		| '/explorer/database'
 		| '/explorer/durable-stream'
 		| '/explorer/email'
@@ -1788,6 +1787,7 @@ export interface FileRouteTypes {
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
 		| '/explorer/queue'
+		| '/explorer/schedule'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
@@ -1950,7 +1950,6 @@ export interface FileRouteTypes {
 		| '/explorer/agent-calls'
 		| '/explorer/ai-gateway'
 		| '/explorer/chat'
-		| '/explorer/cron'
 		| '/explorer/database'
 		| '/explorer/durable-stream'
 		| '/explorer/email'
@@ -1961,6 +1960,7 @@ export interface FileRouteTypes {
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
 		| '/explorer/queue'
+		| '/explorer/schedule'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
@@ -2126,7 +2126,6 @@ export interface RootRouteChildren {
 	ExplorerAgentCallsRoute: typeof ExplorerAgentCallsRoute;
 	ExplorerAiGatewayRoute: typeof ExplorerAiGatewayRoute;
 	ExplorerChatRoute: typeof ExplorerChatRoute;
-	ExplorerCronRoute: typeof ExplorerCronRoute;
 	ExplorerDatabaseRoute: typeof ExplorerDatabaseRoute;
 	ExplorerDurableStreamRoute: typeof ExplorerDurableStreamRoute;
 	ExplorerEmailRoute: typeof ExplorerEmailRoute;
@@ -2137,6 +2136,7 @@ export interface RootRouteChildren {
 	ExplorerModelArenaRoute: typeof ExplorerModelArenaRoute;
 	ExplorerObjectStorageRoute: typeof ExplorerObjectStorageRoute;
 	ExplorerQueueRoute: typeof ExplorerQueueRoute;
+	ExplorerScheduleRoute: typeof ExplorerScheduleRoute;
 	ExplorerSseStreamRoute: typeof ExplorerSseStreamRoute;
 	ExplorerStreamingRoute: typeof ExplorerStreamingRoute;
 	ExplorerVectorStorageRoute: typeof ExplorerVectorStorageRoute;
@@ -2193,6 +2193,13 @@ declare module '@tanstack/react-router' {
 			path: '/explorer/sse-stream';
 			fullPath: '/explorer/sse-stream';
 			preLoaderRoute: typeof ExplorerSseStreamRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/explorer/schedule': {
+			id: '/explorer/schedule';
+			path: '/explorer/schedule';
+			fullPath: '/explorer/schedule';
+			preLoaderRoute: typeof ExplorerScheduleRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/explorer/queue': {
@@ -2263,13 +2270,6 @@ declare module '@tanstack/react-router' {
 			path: '/explorer/database';
 			fullPath: '/explorer/database';
 			preLoaderRoute: typeof ExplorerDatabaseRouteImport;
-			parentRoute: typeof rootRouteImport;
-		};
-		'/explorer/cron': {
-			id: '/explorer/cron';
-			path: '/explorer/cron';
-			fullPath: '/explorer/cron';
-			preLoaderRoute: typeof ExplorerCronRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/explorer/chat': {
@@ -3698,7 +3698,6 @@ const rootRouteChildren: RootRouteChildren = {
 	ExplorerAgentCallsRoute: ExplorerAgentCallsRoute,
 	ExplorerAiGatewayRoute: ExplorerAiGatewayRoute,
 	ExplorerChatRoute: ExplorerChatRoute,
-	ExplorerCronRoute: ExplorerCronRoute,
 	ExplorerDatabaseRoute: ExplorerDatabaseRoute,
 	ExplorerDurableStreamRoute: ExplorerDurableStreamRoute,
 	ExplorerEmailRoute: ExplorerEmailRoute,
@@ -3709,6 +3708,7 @@ const rootRouteChildren: RootRouteChildren = {
 	ExplorerModelArenaRoute: ExplorerModelArenaRoute,
 	ExplorerObjectStorageRoute: ExplorerObjectStorageRoute,
 	ExplorerQueueRoute: ExplorerQueueRoute,
+	ExplorerScheduleRoute: ExplorerScheduleRoute,
 	ExplorerSseStreamRoute: ExplorerSseStreamRoute,
 	ExplorerStreamingRoute: ExplorerStreamingRoute,
 	ExplorerVectorStorageRoute: ExplorerVectorStorageRoute,

@@ -2,7 +2,7 @@ import { CODE_EXAMPLES } from './code-examples';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
-import { CronDemo } from './components/CronDemo';
+import { ScheduleDemo } from './components/ScheduleDemo';
 import { EvalsDemo } from './components/EvalsDemo';
 import { HandlerContextDemo } from './components/HandlerContextDemo';
 import { HelloDemo } from './components/HelloDemo';
@@ -29,7 +29,7 @@ export type DemoId =
 	| 'sse-stream'
 	| 'streaming'
 	| 'durable-stream'
-	| 'cron'
+	| 'schedule'
 	| 'agent-calls'
 	| 'object-storage'
 	| 'evals'
@@ -366,35 +366,36 @@ export const DEMOS: DemoConfig[] = [
 		sandboxInput: { name: 'Explorer' },
 	},
 	{
-		id: 'cron',
-		title: 'Cron Jobs',
-		subtitle: 'Scheduled Tasks',
-		description: 'Run tasks on a schedule with cron expressions.',
+		id: 'schedule',
+		title: 'Schedules',
+		subtitle: 'Recurring Triggers',
+		description: 'Create schedules and route triggers to URLs or sandboxes.',
 		explanation: (
 			<>
 				Sometimes you need code to run automatically: every hour, every day, or on a custom
-				schedule. That's what <em>cron jobs</em> do. The schedule is defined using a{' '}
+				interval. That's what <em>schedules</em> do. Create a schedule with a{' '}
 				<em>cron expression</em> like{' '}
-				<code className="bg-cyan-500/10 px-1 rounded">0 * * * *</code>, which reads as "minute
-				hour day month weekday" (this one means "at minute 0 of every hour").{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">Use cron for recurring tasks</span> like
-				fetching data, cleaning up old records, or sending reports. Combine with{' '}
+				<code className="bg-cyan-500/10 px-1 rounded">0 * * * *</code> (every hour at :00), then
+				attach a <em>destination</em> that defines where the trigger is sent.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Destinations can be a URL or a sandbox
+				</span>
+				. One schedule can have multiple destinations. Combine with{' '}
 				<a
 					href={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 				>
 					KV storage
 				</a>{' '}
-				to cache results so you don't have to fetch them each time.
+				to cache results from scheduled tasks.
 			</>
 		),
-		docsUrl: '/routes/cron',
-		category: 'io-patterns',
-		component: CronDemo,
-		codeExample: CODE_EXAMPLES.cron,
+		docsUrl: '/services/schedules',
+		category: 'services',
+		component: ScheduleDemo,
+		codeExample: CODE_EXAMPLES.schedule,
 		sandboxEnabled: true,
-		sandboxScript: 'cron',
-		isRoute: true,
+		sandboxScript: 'schedule',
 	},
 	// Examples - complete use cases
 	{

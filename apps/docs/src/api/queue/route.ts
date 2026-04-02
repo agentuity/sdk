@@ -70,7 +70,10 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 
 	.post('/reset', async (c) => {
 		try {
-			await deleteQueue(c.var.queueClient, c.var.queueName).catch(() => {});
+			await deleteQueue(c.var.queueClient, c.var.queueName).catch((err) => {
+				const msg = err instanceof Error ? err.message : String(err);
+				if (!msg.includes('not found') && !msg.includes('404')) throw err;
+			});
 			const result = await queueAgent.run({ action: 'setup', queueName: c.var.queueName });
 			return c.json(result);
 		} catch (err) {

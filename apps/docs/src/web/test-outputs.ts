@@ -118,21 +118,24 @@ Step 2: Calling text-processor (analyze)...
 
 Pipeline completed`,
 
-	cron: `[INFO] Hourly task running
+	schedule: `[INFO] Creating schedule
 ---OUTPUT---
-=== Hourly Data Sync (Simulated) ===
-Triggered at: 2026-01-15T15:00:00.000Z
+=== Schedules Demo ===
 
-Step 1: Fetching external data...
-  Fetched 542 records from api.example.com
+Created: "explorer-sandbox-lk3x7" (0 * * * *)
+  ID: sch_abc123
+  Next due: 2026-04-02T10:00:00.000Z
+  Destination: sdst_xyz789 (url)
 
-Step 2: Caching in KV storage...
-  Cached to "v1-ks-cron/latest-sync" (TTL: 1 hour)
+Listed: 1 schedule(s)
 
-Step 3: Verifying cache...
-  Cache verified successfully
+Details for sch_abc123:
+  Name: explorer-sandbox-lk3x7
+  Expression: 0 * * * *
+  Destinations: 1
+    → url: {"url":"https://api.example.com/sync"}
 
-Cron job completed successfully`,
+Deleted: "explorer-sandbox-lk3x7" (sch_abc123)`,
 
 	chat: `---OUTPUT---
 Thread ID: thrd_xyz789abc
