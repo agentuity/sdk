@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { resolve, join, relative } from 'node:path';
 import { createCommand, DeployOptionsSchema } from '../../types';
-import { viteBundle } from './vite-bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 import { typecheck } from './typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
+import { detectFrameworkWithPackageJson } from './detect';
+import { getAdapter } from './adapters';
+import { packageBuildOutput } from './package';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -14,6 +16,7 @@ const BuildResponseSchema = z.object({
 	projectName: z.string().describe('Project name'),
 	dev: z.boolean().describe('Whether dev mode was enabled'),
 	size: z.number().optional().describe('Build size in bytes'),
+	framework: z.string().optional().describe('Detected framework name'),
 });
 
 const BuildOptionsSchema = z.intersection(
@@ -104,22 +107,68 @@ export const command = createCommand({
 			const rel = outDir.startsWith(absoluteProjectDir)
 				? relative(absoluteProjectDir, outDir)
 				: outDir;
-			tui.info(`Building project with Vite at ${absoluteProjectDir} to ${rel}`);
 
-			await viteBundle({
-				rootDir: absoluteProjectDir,
-				dev: opts.dev || false,
+			// Step 1: Detect framework
+			tui.info('Detecting framework...');
+			const { framework, packageJson } =
+				await detectFrameworkWithPackageJson(absoluteProjectDir);
+
+			if (!framework) {
+				collector.addGeneralError(
+					'build',
+					'Could not detect a JS framework. Ensure package.json exists with a build script.',
+					'BUILD010'
+				);
+				if (opts.reportFile) {
+					await collector.forceWrite();
+				}
+				clearGlobalCollector();
+				tui.fatal(
+					'Could not detect a JS framework. Ensure package.json exists with a build script.',
+					ErrorCode.BUILD_FAILED
+				);
+			}
+
+			const frameworkLabel = framework.version
+				? `${framework.name} v${framework.version}`
+				: framework.name;
+			tui.success(
+				`Detected ${tui.bold(frameworkLabel)} (${framework.mode}, ${framework.runtime})`
+			);
+
+			// Step 2: Get the build adapter for this framework
+			const adapter = getAdapter(framework.name);
+			tui.info(`Building with ${adapter.name} adapter to ${rel}`);
+
+			// Step 3: Run the build
+			const endBuildDiagnostic = collector.startDiagnostic('build');
+			const buildResult = await adapter.build({
+				projectDir: absoluteProjectDir,
+				framework,
+				packageJson: packageJson!,
+				outputDir: outDir,
+				logger: ctx.logger,
+				collector,
+				dev: opts.dev,
 				projectId: project?.projectId,
 				orgId: project?.orgId,
 				region: project?.region ?? 'local',
-				logger: ctx.logger,
-				collector,
 			});
+			endBuildDiagnostic();
 
-			// Copy profile-specific .env file AFTER bundling (bundler clears outDir first)
+			// Log build output
+			for (const line of buildResult.logs) {
+				tui.info(tui.muted(line));
+			}
+
+			// Step 4: Package the output with launch metadata
+			const packageResult = packageBuildOutput(framework, buildResult, buildResult.outputDir);
+			ctx.logger.debug('Launch metadata: %s', JSON.stringify(packageResult.launch, null, 2));
+
+			// Step 5: Copy profile-specific .env file AFTER building
 			if (opts.dev && ctx.config?.name) {
 				const envSourcePath = join(absoluteProjectDir, `.env.${ctx.config.name}`);
-				const envDestPath = join(outDir, '.env');
+				const envDestPath = join(buildResult.outputDir, '.env');
 
 				const envFile = Bun.file(envSourcePath);
 				if (await envFile.exists()) {
@@ -130,7 +179,7 @@ export const command = createCommand({
 				}
 			}
 
-			// Run TypeScript type checking after registry generation (skip in dev mode)
+			// Step 6: Run TypeScript type checking (skip in dev mode, skip for non-TS projects)
 			if (!opts.dev && !opts.skipTypeCheck) {
 				try {
 					tui.info('Running type check...');
@@ -147,7 +196,6 @@ export const command = createCommand({
 						const msg =
 							'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
 
-						// Write report before fatal exit
 						if (opts.reportFile) {
 							await collector.forceWrite();
 						}
@@ -158,7 +206,6 @@ export const command = createCommand({
 					const errorMsg = error instanceof Error ? error.message : String(error);
 					collector.addGeneralError('typescript', errorMsg, 'BUILD008');
 
-					// Write report before fatal exit
 					if (opts.reportFile) {
 						await collector.forceWrite();
 					}
@@ -172,7 +219,7 @@ export const command = createCommand({
 				}
 			}
 
-			tui.success('Build complete');
+			tui.success(`Build complete (${frameworkLabel}, ${buildResult.duration}ms)`);
 
 			// Write final report on success
 			if (opts.reportFile) {
@@ -182,9 +229,10 @@ export const command = createCommand({
 
 			return {
 				success: true,
-				bundlePath: outDir,
+				bundlePath: buildResult.outputDir,
 				projectName: project?.projectId || 'unknown',
 				dev: opts.dev || false,
+				framework: framework.name,
 			};
 		} catch (error: unknown) {
 			// Add error to collector
