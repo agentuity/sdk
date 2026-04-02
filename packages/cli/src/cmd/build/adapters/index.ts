@@ -6,7 +6,6 @@
  * Frameworks without a specific adapter fall through to the generic adapter.
  */
 
-import type { FrameworkName } from '../detect/types';
 import type { BuildAdapter } from './types';
 import { genericAdapter } from './generic';
 import { nextjsAdapter } from './nextjs';
@@ -16,7 +15,7 @@ import { agentuityAdapter } from './agentuity';
  * Registry of framework-specific build adapters.
  * Frameworks not in this map use the generic adapter.
  */
-const adapters: Partial<Record<FrameworkName, BuildAdapter>> = {
+const adapters: Record<string, BuildAdapter> = {
 	agentuity: agentuityAdapter,
 	nextjs: nextjsAdapter,
 	// More framework-specific adapters can be added here:
@@ -30,7 +29,7 @@ const adapters: Partial<Record<FrameworkName, BuildAdapter>> = {
  * Get the build adapter for a detected framework.
  * Falls back to the generic adapter if no specific one exists.
  */
-export function getAdapter(frameworkName: FrameworkName): BuildAdapter {
+export function getAdapter(frameworkName: string): BuildAdapter {
 	return adapters[frameworkName] ?? genericAdapter;
 }
 
