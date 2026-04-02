@@ -1,6 +1,5 @@
 import { describe, test, expect } from 'bun:test';
 import { getAdapter } from '../../../../src/cmd/build/adapters';
-import type { FrameworkName } from '../../../../src/cmd/build/detect/types';
 
 describe('Adapter Registry', () => {
 	test('returns agentuity adapter for agentuity framework', () => {
@@ -43,8 +42,13 @@ describe('Adapter Registry', () => {
 		expect(adapter.name).toBe('generic');
 	});
 
-	test('all framework names return a valid adapter', () => {
-		const frameworks: FrameworkName[] = [
+	test('returns generic adapter for unknown framework slug', () => {
+		const adapter = getAdapter('some-unknown-framework');
+		expect(adapter.name).toBe('generic');
+	});
+
+	test('all known framework adapters have a build function', () => {
+		const slugs = [
 			'agentuity',
 			'nextjs',
 			'vite',
@@ -52,11 +56,14 @@ describe('Adapter Registry', () => {
 			'astro',
 			'nuxt',
 			'remix',
+			'react-router',
+			'solidstart',
+			'tanstack-start',
 			'generic',
 		];
 
-		for (const name of frameworks) {
-			const adapter = getAdapter(name);
+		for (const slug of slugs) {
+			const adapter = getAdapter(slug);
 			expect(adapter).toBeDefined();
 			expect(typeof adapter.build).toBe('function');
 			expect(typeof adapter.name).toBe('string');

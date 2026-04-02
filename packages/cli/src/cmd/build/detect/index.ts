@@ -4,36 +4,48 @@
  * Examines a project directory and determines which JS framework is being used.
  * Returns a DetectedFramework with all the information needed to build and launch.
  *
- * Detection order is priority-based: specific frameworks are checked before generic.
- * The first detector that returns a non-null result wins.
+ * Detection strategy:
+ * 1. Check for Agentuity native app (app.ts + @agentuity/runtime) — highest priority
+ * 2. Run the framework database engine (rules derived from @vercel/frameworks)
+ * 3. Fall back to generic detection (package.json scripts)
  */
 
-import type { DetectedFramework, FrameworkDetector, PackageJsonData } from './types';
-import { readPackageJson } from './util';
-
-// Import detectors
+import type { DetectedFramework, PackageJsonData } from './types';
+import { readPackageJson, detectPackageManager } from './util';
+import { frameworkDefinitions } from './frameworks';
+import { detectFromDatabase } from './engine';
 import { agentuityDetector } from './agentuity';
-import { nextjsDetector } from './nextjs';
-import { nuxtDetector } from './nuxt';
-import { remixDetector } from './remix';
-import { sveltekitDetector } from './sveltekit';
-import { astroDetector } from './astro';
-import { viteDetector } from './vite';
 import { genericDetector } from './generic';
 
 /**
- * All registered framework detectors, sorted by priority.
+ * Convert a matched framework definition + project context into a DetectedFramework.
  */
-const detectors: FrameworkDetector[] = [
-	agentuityDetector,
-	nextjsDetector,
-	nuxtDetector,
-	remixDetector,
-	sveltekitDetector,
-	astroDetector,
-	viteDetector,
-	genericDetector,
-].sort((a, b) => a.priority - b.priority);
+async function frameworkDefToDetected(
+	slug: string,
+	_name: string,
+	buildCommand: string | null,
+	outputDirectory: string | null,
+	projectDir: string,
+	pkg: PackageJsonData
+): Promise<DetectedFramework> {
+	const pm = await detectPackageManager(projectDir);
+
+	// Use the project's build script if available, otherwise the framework default
+	const resolvedBuildCommand = pkg.scripts?.build ?? buildCommand ?? 'npm run build';
+
+	// Resolve output directory — use framework default or '.'
+	const resolvedOutputDir = outputDirectory ?? '.';
+
+	return {
+		name: slug,
+		runtime: 'node',
+		packageManager: pm,
+		mode: 'server', // Default; adapters can override based on actual build output
+		buildCommand: resolvedBuildCommand,
+		buildOutput: resolvedOutputDir,
+		confidence: 'high',
+	};
+}
 
 /**
  * Detect the framework used by a project.
@@ -45,12 +57,25 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 	const pkg = await readPackageJson(projectDir);
 	if (!pkg) return null;
 
-	for (const detector of detectors) {
-		const result = await detector.detect(projectDir, pkg);
-		if (result) return result;
+	// 1. Check Agentuity native first (highest priority)
+	const agentuity = await agentuityDetector.detect(projectDir, pkg);
+	if (agentuity) return agentuity;
+
+	// 2. Run through the framework database
+	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
+	if (match) {
+		return frameworkDefToDetected(
+			match.slug,
+			match.name,
+			match.buildCommand,
+			match.outputDirectory,
+			projectDir,
+			pkg
+		);
 	}
 
-	return null;
+	// 3. Generic fallback
+	return genericDetector.detect(projectDir, pkg);
 }
 
 /**
@@ -62,12 +87,27 @@ export async function detectFrameworkWithPackageJson(
 	const pkg = await readPackageJson(projectDir);
 	if (!pkg) return { framework: null, packageJson: null };
 
-	for (const detector of detectors) {
-		const result = await detector.detect(projectDir, pkg);
-		if (result) return { framework: result, packageJson: pkg };
+	// 1. Check Agentuity native first
+	const agentuity = await agentuityDetector.detect(projectDir, pkg);
+	if (agentuity) return { framework: agentuity, packageJson: pkg };
+
+	// 2. Run through the framework database
+	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
+	if (match) {
+		const framework = await frameworkDefToDetected(
+			match.slug,
+			match.name,
+			match.buildCommand,
+			match.outputDirectory,
+			projectDir,
+			pkg
+		);
+		return { framework, packageJson: pkg };
 	}
 
-	return { framework: null, packageJson: pkg };
+	// 3. Generic fallback
+	const generic = await genericDetector.detect(projectDir, pkg);
+	return { framework: generic, packageJson: pkg };
 }
 
 // Re-export types
