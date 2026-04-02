@@ -10,6 +10,8 @@ export const ROUTE_META = Symbol.for('agentuity:route-meta');
 
 export interface RouteMeta {
 	type: 'websocket' | 'sse' | 'stream' | 'cron';
+	/** Cron schedule expression (only for type: 'cron') */
+	schedule?: string;
 }
 
 /**
