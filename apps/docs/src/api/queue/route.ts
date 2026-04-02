@@ -21,6 +21,7 @@ import {
 	APIClient,
 	type Logger,
 	getServiceUrls,
+	createQueue,
 	receiveMessage,
 	ackMessage,
 	nackMessage,
@@ -74,8 +75,21 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 				const msg = err instanceof Error ? err.message : String(err);
 				if (!msg.includes('not found') && !msg.includes('404')) throw err;
 			});
-			const result = await queueAgent.run({ action: 'setup', queueName: c.var.queueName });
-			return c.json(result);
+			// Use APIClient directly — the agent's ctx.queue caches queue names
+			// and would short-circuit createQueue after a delete.
+			const queue = await createQueue(c.var.queueClient, {
+				name: c.var.queueName,
+				queue_type: 'worker',
+				settings: {
+					default_max_retries: 2,
+					default_visibility_timeout_seconds: 5,
+				},
+			});
+			return c.json({
+				success: true,
+				message: `Queue "${queue.name}" ready (${queue.queue_type})`,
+				data: queue,
+			});
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			return c.json({ success: false, message }, 500);
