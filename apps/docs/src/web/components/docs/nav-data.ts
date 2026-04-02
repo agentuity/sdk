@@ -208,7 +208,7 @@ export const navData: NavSection[] = [
 			{
 				title: 'HTTP',
 				url: '/routes/http',
-				description: 'Define GET, POST, and other HTTP endpoints with createRouter()',
+				description: 'Define GET, POST, and other HTTP endpoints with Hono',
 			},
 			{
 				title: 'Middleware',
@@ -255,14 +255,13 @@ export const navData: NavSection[] = [
 			{
 				title: 'React Hooks',
 				url: '/frontend/react-hooks',
-				description:
-					'Call your API routes from React with useAPI, useWebsocket, and useEventStream',
+				description: 'Authentication, analytics, and WebRTC hooks from @agentuity/react',
 			},
 			{
 				title: 'RPC Client',
 				url: '/frontend/rpc-client',
 				description:
-					'Type-safe API calls from any JavaScript environment using createAPIClient',
+					'Type-safe API calls from any JavaScript environment using hc() from hono/client',
 			},
 			{
 				title: 'Provider Setup',
@@ -912,7 +911,8 @@ export const navData: NavSection[] = [
 			{
 				title: 'Migration Guide',
 				url: '/reference/migration-guide',
-				description: 'Migrate your Agentuity projects to the latest version.',
+				description:
+					'Migrate from v1 to v2 for explicit routing, Hono-native routers, and standard Vite config.',
 			},
 		],
 	},

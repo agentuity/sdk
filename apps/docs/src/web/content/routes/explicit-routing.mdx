@@ -5,10 +5,6 @@ description: Pass your own Hono router to createApp() for full control over rout
 
 When your API grows beyond a few endpoints, you may want to compose routers yourself instead of relying on file-based auto-discovery. Explicit routing lets you pass a Hono router directly to `createApp({ router })`, giving you full control over how routes are organized and mounted.
 
-<Callout type="info" title="Experimental">
-Explicit routing is experimental and may change in future releases. File-based routing continues to work, but explicit routing will become the default in the next major version.
-</Callout>
-
 ## Basic Setup
 
 Create a root router in `src/api/index.ts` and pass it to `createApp()`:
