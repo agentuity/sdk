@@ -48,6 +48,10 @@ function createQueueClient(logger: Logger) {
 // Per-request context set by middleware
 type QueueVars = { queueName: string; queueClient: APIClient };
 
+function isPayloadObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 const router = new Hono<Env & { Variables: QueueVars }>()
 
 	// Derive queue name and client once per request
@@ -98,7 +102,14 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 
 	.post('/publish', async (c) => {
 		try {
-			const body = await c.req.json();
+			const body = await c.req.json<{ payload?: unknown }>();
+			if (!isPayloadObject(body.payload)) {
+				return c.json(
+					{ success: false, message: 'Request body must include a payload object' },
+					400
+				);
+			}
+
 			const result = await queueAgent.run({
 				action: 'publish',
 				payload: body.payload,
@@ -106,6 +117,9 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 			});
 			return c.json(result);
 		} catch (err) {
+			if (err instanceof SyntaxError) {
+				return c.json({ success: false, message: 'Invalid JSON body' }, 400);
+			}
 			const message = err instanceof Error ? err.message : String(err);
 			return c.json({ success: false, message }, 500);
 		}

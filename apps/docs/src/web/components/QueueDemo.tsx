@@ -38,10 +38,15 @@ interface QueueStats {
 
 async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
 	const resp = await fetch(`/api/queue${path}`, options);
+	const body = await resp.json().catch(() => null);
 	if (!resp.ok) {
-		throw new Error(`HTTP ${resp.status}`);
+		const message =
+			body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
+				? body.message
+				: `HTTP ${resp.status}`;
+		throw new Error(message);
 	}
-	return resp.json();
+	return body as T;
 }
 
 export function QueueDemo() {
@@ -65,18 +70,21 @@ export function QueueDemo() {
 	const eventIdRef = useRef(events.length);
 	const eventsEndRef = useRef<HTMLDivElement>(null);
 
-	const addEvent = useCallback((action: ActionType, detail: string, messageId?: string) => {
-		setEvents((prev) => [
-			...prev,
-			{
-				id: eventIdRef.current++,
-				action,
-				messageId,
-				detail,
-				timestamp: new Date().toISOString(),
-			},
-		]);
-	}, []);
+	const addEvent = useCallback(
+		(action: ActionType, detail: string, messageId?: string) => {
+			setEvents((prev) => [
+				...prev,
+				{
+					id: eventIdRef.current++,
+					action,
+					messageId,
+					detail,
+					timestamp: new Date().toISOString(),
+				},
+			]);
+		},
+		[setEvents]
+	);
 
 	const clearDemoState = useCallback(() => {
 		setReceivedMessage(null);

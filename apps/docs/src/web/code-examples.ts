@@ -311,7 +311,7 @@ const router = new Hono<Env>()
   });
 
   // Write content in background
-  c.var.waitUntil(async () => {
+  c.waitUntil(async () => {
     const { textStream } = streamText({
       model: openai("gpt-5-nano"),
       prompt: "Write a summary of what Agentuity is.",

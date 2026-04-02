@@ -30,6 +30,7 @@ export function EmailDemo() {
 	const [hasSent, setHasSent] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
+	const [showCloudHint, setShowCloudHint] = useState(false);
 	const [result, setResult] = useState<EmailResult | null>(null);
 	const [sendCount, setSendCount] = useState(0);
 	const [cooldown, setCooldown] = useState(false);
@@ -40,6 +41,8 @@ export function EmailDemo() {
 	const invoke = useCallback(async (to?: string) => {
 		setIsLoading(true);
 		setError(null);
+		setResult(null);
+		setShowCloudHint(false);
 		try {
 			const body: Record<string, string> = { template: 'welcome' };
 			if (to) {
@@ -54,12 +57,17 @@ export function EmailDemo() {
 				// Read the error body for a more descriptive message
 				const errorBody = await res.json().catch(() => null);
 				const message = errorBody?.error || `Request failed: ${res.status} ${res.statusText}`;
+				setShowCloudHint(res.status >= 500);
 				throw new Error(message);
 			}
 			setResult(await res.json());
 			setSendCount((prev) => prev + 1);
 		} catch (err) {
-			setError(err instanceof Error ? err : new Error('Unknown error'));
+			const nextError = err instanceof Error ? err : new Error('Unknown error');
+			setError(nextError);
+			if (!nextError.message.toLowerCase().includes('invalid email format')) {
+				setShowCloudHint(true);
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -227,9 +235,11 @@ export function EmailDemo() {
 						<Separator />
 						<div className="px-4 py-3">
 							<p className="text-red-600 dark:text-red-400 text-sm">{error.message}</p>
-							<p className="text-zinc-500 text-xs mt-1">
-								Email sending requires deployment to Agentuity Cloud.
-							</p>
+							{showCloudHint && (
+								<p className="text-zinc-500 text-xs mt-1">
+									Email sending requires deployment to Agentuity Cloud.
+								</p>
+							)}
 						</div>
 					</>
 				)}

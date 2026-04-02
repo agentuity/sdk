@@ -52,6 +52,7 @@ export function EvalsDemo() {
 	const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pollCountRef = useRef(0);
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const currentSessionRef = useRef('');
 
 	// Capture initial persisted values for mount-only effect
 	const initialSessionIdRef = useRef(sessionId);
@@ -62,6 +63,7 @@ export function EvalsDemo() {
 		return () => {
 			if (pollingRef.current) clearTimeout(pollingRef.current);
 			abortControllerRef.current?.abort();
+			currentSessionRef.current = '';
 		};
 	}, []);
 
@@ -83,6 +85,9 @@ export function EvalsDemo() {
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
 				const data: SessionResponse = await response.json();
+				if (currentSessionRef.current !== sid) {
+					return;
+				}
 				setEvalResults(data.evalResults);
 
 				const allDone = data.evalResults.every((r) => !r.pending);
@@ -95,6 +100,9 @@ export function EvalsDemo() {
 			} catch (err) {
 				// Ignore abort errors (component unmounted)
 				if (err instanceof Error && err.name === 'AbortError') return;
+				if (currentSessionRef.current !== sid) {
+					return;
+				}
 				setError(err instanceof Error ? err.message : 'Polling failed');
 				setStatus('error');
 				pollingRef.current = null;
@@ -114,6 +122,7 @@ export function EvalsDemo() {
 			const hasPending = results.some((r) => r.pending);
 			if (hasPending) {
 				abortControllerRef.current = new AbortController();
+				currentSessionRef.current = sid;
 				pollCountRef.current = 0;
 				setStatus('polling');
 				pollSession(sid);
@@ -124,6 +133,7 @@ export function EvalsDemo() {
 		} else if (sid && content) {
 			// Had content and session but no results yet — resume polling
 			abortControllerRef.current = new AbortController();
+			currentSessionRef.current = sid;
 			pollCountRef.current = 0;
 			setStatus('polling');
 			pollSession(sid);
@@ -140,6 +150,7 @@ export function EvalsDemo() {
 		// Abort any previous request and reset state
 		abortControllerRef.current?.abort();
 		abortControllerRef.current = new AbortController();
+		currentSessionRef.current = '';
 		pollCountRef.current = 0;
 
 		setStatus('generating');
@@ -159,6 +170,7 @@ export function EvalsDemo() {
 			const data = await response.json();
 			setGeneratedContent(data.content);
 			setSessionId(data.sessionId);
+			currentSessionRef.current = data.sessionId;
 			setStatus('polling');
 			pollSession(data.sessionId);
 		} catch (err) {
