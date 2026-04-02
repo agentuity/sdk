@@ -1,3 +1,6 @@
+// Simple email format check — no library dependency
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const EMAIL_FROM = 'hello-explorer@agentuity.email';
 export const EMAIL_TO = ['inbox-explorer@agentuity.email'];
 

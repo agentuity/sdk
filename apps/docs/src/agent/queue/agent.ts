@@ -15,15 +15,17 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const QUEUE_NAME = 'explorer-demo';
+const DEFAULT_QUEUE_NAME = 'explorer-demo';
 
 const InputSchema = s.union(
 	s.object({
 		action: s.literal('setup'),
+		queueName: s.optional(s.string()),
 	}),
 	s.object({
 		action: s.literal('publish'),
 		payload: s.record(s.string(), s.unknown()),
+		queueName: s.optional(s.string()),
 	})
 );
 
@@ -38,10 +40,12 @@ const agent = createAgent('queue', {
 		}),
 	},
 	handler: async (ctx, input) => {
+		const queueName = input.queueName ?? DEFAULT_QUEUE_NAME;
+
 		switch (input.action) {
 			case 'setup': {
 				try {
-					const result = await ctx.queue.createQueue(QUEUE_NAME, {
+					const result = await ctx.queue.createQueue(queueName, {
 						queueType: 'worker',
 						settings: {
 							defaultMaxRetries: 2,
@@ -59,7 +63,7 @@ const agent = createAgent('queue', {
 					if (msg.includes('already exists') || msg.includes('conflict')) {
 						return {
 							success: true,
-							message: `Queue "${QUEUE_NAME}" already exists`,
+							message: `Queue "${queueName}" already exists`,
 						};
 					}
 					return { success: false, message: msg };
@@ -67,13 +71,21 @@ const agent = createAgent('queue', {
 			}
 
 			case 'publish': {
-				const result = await ctx.queue.publish(QUEUE_NAME, input.payload, { sync: true });
-				return {
-					success: true,
-					message: `Published message ${result.id}`,
-					data: result,
-				};
+				try {
+					const result = await ctx.queue.publish(queueName, input.payload, { sync: true });
+					return {
+						success: true,
+						message: `Published message ${result.id}`,
+						data: result,
+					};
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					return { success: false, message: msg };
+				}
 			}
+
+			default:
+				throw new Error(`Unknown action: ${(input as { action: string }).action}`);
 		}
 	},
 });

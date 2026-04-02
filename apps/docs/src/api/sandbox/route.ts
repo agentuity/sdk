@@ -20,6 +20,7 @@ import {
 	getServiceUrls,
 	SandboxNotFoundError,
 	SandboxTerminatedError,
+	type ExecutionStatus,
 } from '@agentuity/server';
 import { Writable } from 'node:stream';
 import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
@@ -32,6 +33,9 @@ const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
+
+// Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
+const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
 
 // ANSI escape sequence regex for stripping terminal colors
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
@@ -250,6 +254,8 @@ const router = new Hono<Env>().get(
 
 /**
  * Execute a command on an existing sandbox and return the output.
+ * Polls executionGet until the execution reaches a terminal status before
+ * fetching output streams, so we don't read partial data.
  */
 async function executeOnSandbox(
 	client: APIClient,
@@ -263,13 +269,31 @@ async function executeOnSandbox(
 		orgId,
 	});
 
-	// Wait for execution to complete before fetching output.
-	// Stream URLs may not have all data while execution is still running.
-	const result = await executionGet(client, {
+	// Poll until execution reaches a terminal state.
+	// executionGet with `wait` uses server-side long-polling, but may return
+	// a non-terminal status if the wait duration expires before completion.
+	let result = await executionGet(client, {
 		executionId: execution.executionId,
 		orgId,
 		wait: '5m',
 	});
+
+	// Guard against stuck-queued executions that never start
+	const MAX_POLL_ITERATIONS = 6;
+	let pollIterations = 0;
+
+	while (!TERMINAL_STATUSES.has(result.status)) {
+		if (++pollIterations > MAX_POLL_ITERATIONS) {
+			throw new Error(
+				`Execution ${execution.executionId} did not complete after ${MAX_POLL_ITERATIONS} poll attempts`
+			);
+		}
+		result = await executionGet(client, {
+			executionId: execution.executionId,
+			orgId,
+			wait: '5m',
+		});
+	}
 
 	// Fetch output after completion (prefer URLs from result, fall back to execution)
 	const stdoutUrl = result.stdoutStreamUrl ?? execution.stdoutStreamUrl;

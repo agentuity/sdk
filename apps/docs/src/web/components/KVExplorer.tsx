@@ -46,7 +46,13 @@ export function KVExplorer() {
 	useEffect(() => {
 		const keyToRestore = initialKeyRef.current;
 		fetchKeys().then(async (loadedKeys) => {
-			if (keyToRestore && loadedKeys.includes(keyToRestore)) {
+			if (keyToRestore) {
+				if (!loadedKeys.includes(keyToRestore)) {
+					// Persisted key no longer exists in loaded keys, clear stale state
+					setSelectedKey(null);
+					setSelectedValue(null);
+					return;
+				}
 				try {
 					const response = await fetch(
 						`/api/key-value/get/${encodeURIComponent(keyToRestore)}`
@@ -55,9 +61,15 @@ export function KVExplorer() {
 					if (data.success) {
 						setSelectedKey(keyToRestore);
 						setSelectedValue(data.value);
+					} else {
+						// Fetch failed, clear stale persisted key
+						setSelectedKey(null);
+						setSelectedValue(null);
 					}
 				} catch {
-					// Restore failed silently; the user can still click a key manually.
+					// Restore failed, clear stale state
+					setSelectedKey(null);
+					setSelectedValue(null);
 				}
 			}
 		});

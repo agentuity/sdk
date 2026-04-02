@@ -29,7 +29,11 @@ import {
 } from '@agentuity/server';
 import queueAgent from '../../agent/queue/agent';
 
-const QUEUE_NAME = 'explorer-demo';
+/** Derive a per-session queue name from the thread ID. */
+function getQueueName(threadId?: string): string {
+	if (!threadId) throw new Error('Thread ID required for queue demo — session context missing');
+	return `explorer-${threadId.slice(0, 12)}`;
+}
 
 function createQueueClient(logger: Logger) {
 	const apiKey = process.env.AGENTUITY_SDK_KEY || process.env.AGENTUITY_CLI_KEY || '';
@@ -38,13 +42,23 @@ function createQueueClient(logger: Logger) {
 	return new APIClient(serviceUrls.catalyst, logger, apiKey);
 }
 
-// --- Agent-side operations ---
+// Per-request context set by middleware
+type QueueVars = { queueName: string; queueClient: APIClient };
 
-const router = new Hono<Env>()
+const router = new Hono<Env & { Variables: QueueVars }>()
+
+	// Derive queue name and client once per request
+	.use(async (c, next) => {
+		c.set('queueName', getQueueName(c.var.thread?.id));
+		c.set('queueClient', createQueueClient(c.var.logger));
+		await next();
+	})
+
+	// --- Agent-side operations ---
 
 	.post('/setup', async (c) => {
 		try {
-			const result = await queueAgent.run({ action: 'setup' });
+			const result = await queueAgent.run({ action: 'setup', queueName: c.var.queueName });
 			return c.json(result);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -55,7 +69,11 @@ const router = new Hono<Env>()
 	.post('/publish', async (c) => {
 		try {
 			const body = await c.req.json();
-			const result = await queueAgent.run({ action: 'publish', payload: body.payload });
+			const result = await queueAgent.run({
+				action: 'publish',
+				payload: body.payload,
+				queueName: c.var.queueName,
+			});
 			return c.json(result);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -67,8 +85,7 @@ const router = new Hono<Env>()
 
 	.get('/status', async (c) => {
 		try {
-			const client = createQueueClient(c.var.logger);
-			const queue = await getQueue(client, QUEUE_NAME);
+			const queue = await getQueue(c.var.queueClient, c.var.queueName);
 			return c.json({
 				success: true,
 				data: {
@@ -86,10 +103,9 @@ const router = new Hono<Env>()
 
 	.get('/receive', async (c) => {
 		try {
-			const client = createQueueClient(c.var.logger);
-			const message = await receiveMessage(client, QUEUE_NAME, 5);
-			if (message) {
-				return c.json({ success: true, data: message });
+			const msg = await receiveMessage(c.var.queueClient, c.var.queueName, 5);
+			if (msg) {
+				return c.json({ success: true, data: msg });
 			}
 			return c.json({ success: true, data: null, message: 'No messages available' });
 		} catch (err) {
@@ -101,8 +117,7 @@ const router = new Hono<Env>()
 	.post('/ack/:id', async (c) => {
 		try {
 			const messageId = c.req.param('id');
-			const client = createQueueClient(c.var.logger);
-			await ackMessage(client, QUEUE_NAME, messageId);
+			await ackMessage(c.var.queueClient, c.var.queueName, messageId);
 			return c.json({ success: true, message: `Acknowledged ${messageId}` });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -113,8 +128,7 @@ const router = new Hono<Env>()
 	.post('/nack/:id', async (c) => {
 		try {
 			const messageId = c.req.param('id');
-			const client = createQueueClient(c.var.logger);
-			await nackMessage(client, QUEUE_NAME, messageId);
+			await nackMessage(c.var.queueClient, c.var.queueName, messageId);
 			return c.json({ success: true, message: `Nacked ${messageId}` });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -124,8 +138,7 @@ const router = new Hono<Env>()
 
 	.get('/dlq', async (c) => {
 		try {
-			const client = createQueueClient(c.var.logger);
-			const result = await listDeadLetterMessages(client, QUEUE_NAME);
+			const result = await listDeadLetterMessages(c.var.queueClient, c.var.queueName);
 			return c.json({ success: true, data: result });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -136,9 +149,8 @@ const router = new Hono<Env>()
 	.post('/dlq/:id', async (c) => {
 		try {
 			const messageId = c.req.param('id');
-			const client = createQueueClient(c.var.logger);
-			const message = await replayDeadLetterMessage(client, QUEUE_NAME, messageId);
-			return c.json({ success: true, message: `Replayed ${messageId}`, data: message });
+			const msg = await replayDeadLetterMessage(c.var.queueClient, c.var.queueName, messageId);
+			return c.json({ success: true, message: `Replayed ${messageId}`, data: msg });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			return c.json({ success: false, message }, 500);

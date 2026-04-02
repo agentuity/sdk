@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Markdown from 'react-markdown';
-import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Input, Separator } from './ui';
 import { ChatCodeBlock } from './ChatCodeBlock';
 
@@ -12,10 +11,7 @@ interface Message {
 
 export function ChatDemo() {
 	const [messages, setMessages] = useState<Message[]>([]);
-	const [input, setInput] = usePersistentDemoState<string>('chat', 'draft', {
-		defaultValue: '',
-		storage: 'session',
-	});
+	const [input, setInput] = useState('');
 	const [threadInfo, setThreadInfo] = useState<{
 		threadId: string;
 		turnCount: number;

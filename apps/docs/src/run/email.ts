@@ -8,10 +8,10 @@
 import { createAgentContext } from '@agentuity/runtime';
 import emailAgent from '../agent/email/agent';
 
-const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
 const ctx = createAgentContext();
 
 try {
+	const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
 	ctx.logger.info('Sending email', { template: input.template });
 	const result = await ctx.invoke(() => emailAgent.run(input));
 

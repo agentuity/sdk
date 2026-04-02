@@ -14,10 +14,7 @@
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { EMAIL_FROM, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
-
-// Simple email format check -- no library dependency
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_FROM, EMAIL_REGEX, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
 
 const agent = createAgent('email-sender', {
 	description: 'Send templated emails via the Agentuity email service',

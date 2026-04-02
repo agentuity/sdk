@@ -21,7 +21,12 @@ function getWebStorage(storageKind: DemoStorageKind): Storage | null {
 		return null;
 	}
 
-	return storageKind === 'local' ? window.localStorage : window.sessionStorage;
+	try {
+		return storageKind === 'local' ? window.localStorage : window.sessionStorage;
+	} catch {
+		// Storage may be unavailable in incognito mode or sandboxed iframes
+		return null;
+	}
 }
 
 function readStoredValue<T>(

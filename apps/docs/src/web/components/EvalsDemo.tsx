@@ -47,13 +47,16 @@ export function EvalsDemo() {
 		defaultValue: [],
 		storage: 'session',
 	});
-	const [status, setStatus] = useState<Status>(() =>
-		evalResults.length > 0 && generatedContent ? 'done' : 'idle'
-	);
+	const [status, setStatus] = useState<Status>('idle');
 	const [error, setError] = useState('');
 	const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pollCountRef = useRef(0);
 	const abortControllerRef = useRef<AbortController | null>(null);
+
+	// Capture initial persisted values for mount-only effect
+	const initialSessionIdRef = useRef(sessionId);
+	const initialEvalResultsRef = useRef(evalResults);
+	const initialGeneratedContentRef = useRef(generatedContent);
 
 	useEffect(() => {
 		return () => {
@@ -69,6 +72,7 @@ export function EvalsDemo() {
 			if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
 				setError('Evaluation timed out after 30 seconds');
 				setStatus('error');
+				pollingRef.current = null;
 				return;
 			}
 
@@ -84,6 +88,7 @@ export function EvalsDemo() {
 				const allDone = data.evalResults.every((r) => !r.pending);
 				if (allDone && data.evalResults.length > 0) {
 					setStatus('done');
+					pollingRef.current = null;
 				} else {
 					pollingRef.current = setTimeout(() => pollSession(sid), 2000);
 				}
@@ -92,12 +97,45 @@ export function EvalsDemo() {
 				if (err instanceof Error && err.name === 'AbortError') return;
 				setError(err instanceof Error ? err.message : 'Polling failed');
 				setStatus('error');
+				pollingRef.current = null;
 			}
 		},
 		[setEvalResults]
 	);
 
+	// Resume polling on mount if session has incomplete evals
+	useEffect(() => {
+		const sid = initialSessionIdRef.current;
+		const results = initialEvalResultsRef.current;
+		const content = initialGeneratedContentRef.current;
+
+		if (sid && results.length > 0) {
+			const hasPending = results.some((r) => r.pending);
+			if (hasPending) {
+				abortControllerRef.current = new AbortController();
+				pollCountRef.current = 0;
+				setStatus('polling');
+				pollSession(sid);
+			} else {
+				// All evals complete, show done state
+				setStatus('done');
+			}
+		} else if (sid && content) {
+			// Had content and session but no results yet — resume polling
+			abortControllerRef.current = new AbortController();
+			pollCountRef.current = 0;
+			setStatus('polling');
+			pollSession(sid);
+		}
+	}, [pollSession]);
+
 	const generate = useCallback(async () => {
+		// Cancel any existing polling timer before starting a new run
+		if (pollingRef.current) {
+			clearTimeout(pollingRef.current);
+			pollingRef.current = null;
+		}
+
 		// Abort any previous request and reset state
 		abortControllerRef.current?.abort();
 		abortControllerRef.current = new AbortController();

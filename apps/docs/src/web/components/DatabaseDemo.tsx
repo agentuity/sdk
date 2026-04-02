@@ -120,8 +120,7 @@ export function DatabaseDemo() {
 		}
 	};
 
-	const typedResult = result as QueryResult | undefined;
-	const isSummaryQuery = typedResult?.query === 'summary';
+	const isSummaryQuery = result?.query === 'summary';
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -232,9 +231,9 @@ export function DatabaseDemo() {
 						<span className="text-zinc-900 dark:text-white font-medium text-sm">
 							Query Results
 						</span>
-						{hasRun && typedResult && !isLoading && (
+						{hasRun && result && !isLoading && (
 							<Badge variant="secondary" className="text-[10px]">
-								{typedResult.count} {typedResult.count === 1 ? 'row' : 'rows'}
+								{result.count} {result.count === 1 ? 'row' : 'rows'}
 							</Badge>
 						)}
 					</div>
@@ -270,7 +269,7 @@ export function DatabaseDemo() {
 					)}
 
 					{/* Result state - Summary */}
-					{hasRun && typedResult && !isLoading && isSummaryQuery && (
+					{hasRun && result && !isLoading && isSummaryQuery && (
 						<div className="overflow-x-auto">
 							<table className="w-full">
 								<thead>
@@ -290,7 +289,7 @@ export function DatabaseDemo() {
 									</tr>
 								</thead>
 								<tbody>
-									{(typedResult.rows as SummaryRow[]).map((row) => (
+									{(result.rows as SummaryRow[]).map((row) => (
 										<tr
 											key={`summary-${row.total}`}
 											className="border-b border-zinc-200 dark:border-zinc-900"
@@ -315,9 +314,9 @@ export function DatabaseDemo() {
 					)}
 
 					{/* Result state - Product rows */}
-					{hasRun && typedResult && !isLoading && !isSummaryQuery && (
+					{hasRun && result && !isLoading && !isSummaryQuery && (
 						<div className="overflow-x-auto">
-							{typedResult.rows.length === 0 ? (
+							{result.rows.length === 0 ? (
 								<div className="text-zinc-500 dark:text-zinc-600 text-sm p-8 text-center">
 									No rows returned.
 								</div>
@@ -340,7 +339,7 @@ export function DatabaseDemo() {
 										</tr>
 									</thead>
 									<tbody>
-										{(typedResult.rows as ProductRow[]).map((row) => (
+										{(result.rows as ProductRow[]).map((row) => (
 											<tr
 												key={row.sku}
 												className="border-b border-zinc-200 dark:border-zinc-900"
