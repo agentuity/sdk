@@ -20,8 +20,8 @@ const router = new Hono<Env>().post('/', async (c) => {
 		return c.json(result);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Failed to send email';
-		// JSON parse errors and missing required fields are client errors
-		if (err instanceof SyntaxError || message.includes('expected')) {
+		// SyntaxError means the request body was not valid JSON — that's a client error
+		if (err instanceof SyntaxError) {
 			return c.json({ error: message }, 400);
 		}
 		return c.json({ error: message }, 500);

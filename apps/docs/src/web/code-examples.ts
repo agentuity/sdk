@@ -186,14 +186,14 @@ ctx.logger.info("Cleaned up", { filename, existsAfter });`,
 
 	'sse-stream': `// Server-Sent Events (SSE) for real-time streaming to clients.
 // Perfect for LLM token streaming, progress updates, and live feeds.
-import { createRouter, sse } from "@agentuity/runtime";
+import { Hono } from "hono";
+import { type Env, sse } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = createRouter();
-
-// sse() middleware with flattened (c, stream) signature
-router.get("/stream", sse(async (c, stream) => {
+const router = new Hono<Env>()
+  // sse() middleware with flattened (c, stream) signature
+  .get("/stream", sse(async (c, stream) => {
   const prompt = c.req.query("prompt") ?? "Tell me a story";
 
   c.var.logger?.info("SSE stream started", { prompt });
@@ -224,15 +224,15 @@ router.get("/stream", sse(async (c, stream) => {
 
 	streaming: `// Raw streaming for simple text responses.
 // Simpler than SSE - just returns a ReadableStream directly.
-import { createRouter, stream } from "@agentuity/runtime";
+import { Hono } from "hono";
+import { type Env, stream } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = createRouter();
-
-// stream() middleware wraps your handler and pipes the ReadableStream
-// Clients consume with fetch + getReader()
-router.post("/stream", stream(async (c) => {
+const router = new Hono<Env>()
+  // stream() middleware wraps your handler and pipes the ReadableStream
+  // Clients consume with fetch + getReader()
+  .post("/stream", stream(async (c) => {
   const { prompt } = await c.req.json();
 
   c.var.logger?.info("Streaming started", { prompt });
@@ -297,13 +297,13 @@ router.post("/hourly-task", cron("0 * * * *", async (c) => {
 
 	'durable-stream': `// Create durable content with shareable URLs.
 // Unlike ephemeral streams, content persists forever.
-import { createRouter } from "@agentuity/runtime";
+import { Hono } from "hono";
+import type { Env } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = createRouter();
-
-router.post("/generate", async (c) => {
+const router = new Hono<Env>()
+  .post("/generate", async (c) => {
   // Create stream - returns a public URL
   const stream = await c.var.stream.create("summary", {
     contentType: "text/plain",
@@ -323,18 +323,17 @@ router.post("/generate", async (c) => {
     await stream.close();
   });
 
-  // Return URL immediately - shareable with anyone
-  return c.json({
-    url: stream.url,    // Public, permanent URL
-    id: stream.id,
-  });
-});
-
-// List all generated summaries
-router.get("/list", async (c) => {
-  const { streams } = await c.var.stream.list({ name: "summary" });
-  return c.json(streams);
-});`,
+    // Return URL immediately - shareable with anyone
+    return c.json({
+      url: stream.url,    // Public, permanent URL
+      id: stream.id,
+    });
+  })
+  // List all generated summaries
+  .get("/list", async (c) => {
+    const { streams } = await c.var.stream.list({ name: "summary" });
+    return c.json(streams);
+  });`,
 
 	chat: `// Multi-turn chat with thread and session state
 // Demonstrates: thread state, session state APIs
