@@ -1,7 +1,7 @@
 import type { ExecuteOptions, Execution, ExecutionStatus } from './types.ts';
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api.ts';
-import { SandboxBusyError, throwSandboxError } from './util.ts';
+import type { APIClient } from '../api.ts';
+import { SandboxBusyError, SandboxNotFoundError, throwSandboxError } from './util.ts';
 
 export const ExecuteRequestSchema = z
 	.object({
@@ -37,10 +37,26 @@ export const ExecuteDataSchema = z
 		durationMs: z.number().optional().describe('Execution duration in milliseconds'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		outputTruncated: z
+			.boolean()
+			.optional()
+			.describe('Whether the captured output was truncated due to size limits'),
 	})
 	.describe('Response data from command execution');
 
-export const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
+export const ExecuteResponseSchema = z.discriminatedUnion('success', [
+	z.object({
+		success: z.literal(false),
+		message: z.string(),
+		code: z.string().optional(),
+	}),
+	z.object({
+		success: z.literal(true),
+		data: ExecuteDataSchema,
+		/** True if the sandbox was automatically resumed from a suspended state */
+		autoResumed: z.boolean().optional(),
+	}),
+]);
 
 export const SandboxExecuteParamsSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID where command should execute'),
@@ -98,23 +114,37 @@ export async function sandboxExecute(
 			signal ?? options.signal
 		);
 	} catch (error: unknown) {
-		// Detect 409 Conflict (sandbox busy) and throw a specific error.
-		// The sandbox API client is configured with maxRetries: 0 to fail fast
-		// when sandbox is busy (retrying wouldn't help - sandbox is still busy).
-		// Convert APIErrorResponse with status 409 to SandboxBusyError for clarity.
 		if (
 			error &&
 			typeof error === 'object' &&
 			'_tag' in error &&
 			(error as { _tag: string })._tag === 'APIErrorResponse' &&
-			'status' in error &&
-			(error as { status: number }).status === 409
+			'status' in error
 		) {
-			throw new SandboxBusyError({
-				message:
-					'Sandbox is currently busy executing another command. Please wait for the current execution to complete before submitting a new one.',
-				sandboxId,
-			});
+			const status = (error as { status: number }).status;
+
+			// Detect 404 Not Found — sandbox may not exist or may still be initializing.
+			// The server normally handles the creating→idle wait transparently, but this
+			// provides a clear typed error if a 404 reaches the SDK for any reason.
+			if (status === 404) {
+				throw new SandboxNotFoundError({
+					message:
+						'Sandbox not found. If you just created this sandbox, it may still be initializing. The server should handle this automatically — if this persists, the sandbox may have been destroyed.',
+					sandboxId,
+				});
+			}
+
+			// Detect 409 Conflict (sandbox busy) and throw a specific error.
+			// The sandbox API client is configured with maxRetries: 0 to fail fast
+			// when sandbox is busy (retrying wouldn't help - sandbox is still busy).
+			// Convert APIErrorResponse with status 409 to SandboxBusyError for clarity.
+			if (status === 409) {
+				throw new SandboxBusyError({
+					message:
+						'Sandbox is currently busy executing another command. Please wait for the current execution to complete before submitting a new one.',
+					sandboxId,
+				});
+			}
 		}
 		throw error;
 	}
@@ -127,6 +157,8 @@ export async function sandboxExecute(
 			durationMs: resp.data.durationMs,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			outputTruncated: resp.data.outputTruncated,
+			autoResumed: resp.autoResumed,
 		};
 	}
 

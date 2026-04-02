@@ -10,22 +10,22 @@ Agentuity is a full-stack deployment platform for TypeScript applications. It pr
 
 ## Platform Services
 
-| Service          | What It Does                         | Documentation                                            |
-| ---------------- | ------------------------------------ | -------------------------------------------------------- |
-| Compute          | Bun-based runtime for agents and APIs | https://agentuity.dev/get-started/what-is-agentuity.md  |
-| Database         | Managed PostgreSQL instances         | https://agentuity.dev/services/database.md               |
-| KV Storage       | Fast key-value store                 | https://agentuity.dev/services/storage/key-value.md      |
-| Vector Storage   | Semantic search with embeddings      | https://agentuity.dev/services/storage/vector.md         |
-| Object Storage   | S3-compatible file storage           | https://agentuity.dev/services/storage/object.md         |
-| Durable Streams  | Ordered, persistent message streams  | https://agentuity.dev/services/storage/durable-streams.md |
-| Sandboxes        | Isolated code execution environments | https://agentuity.dev/services/sandbox.md                |
-| Queues           | Async job processing                 | https://agentuity.dev/services/queues.md                 |
-| Schedules        | Cron-style scheduled tasks           | https://agentuity.dev/services/schedules.md              |
-| Email            | Send and receive email               | https://agentuity.dev/services/email.md                  |
-| Webhooks         | Receive external webhooks            | https://agentuity.dev/services/webhooks.md               |
-| Tasks            | Background task execution            | https://agentuity.dev/services/tasks.md                  |
-| AI Gateway       | LLM routing (OpenAI, Anthropic, etc.) — no API keys needed | https://agentuity.dev/agents/ai-gateway.md |
-| Observability    | Logging, tracing, web analytics      | https://agentuity.dev/services/observability.md          |
+| Service         | What It Does                                               | Documentation                                             |
+| --------------- | ---------------------------------------------------------- | --------------------------------------------------------- |
+| Compute         | Bun-based runtime for agents and APIs                      | https://agentuity.dev/get-started/what-is-agentuity.md    |
+| Database        | Managed PostgreSQL instances                               | https://agentuity.dev/services/database.md                |
+| KV Storage      | Fast key-value store                                       | https://agentuity.dev/services/storage/key-value.md       |
+| Vector Storage  | Semantic search with embeddings                            | https://agentuity.dev/services/storage/vector.md          |
+| Object Storage  | S3-compatible file storage                                 | https://agentuity.dev/services/storage/object.md          |
+| Durable Streams | Ordered, persistent message streams                        | https://agentuity.dev/services/storage/durable-streams.md |
+| Sandboxes       | Isolated code execution environments                       | https://agentuity.dev/services/sandbox.md                 |
+| Queues          | Async job processing                                       | https://agentuity.dev/services/queues.md                  |
+| Schedules       | Cron-style scheduled tasks                                 | https://agentuity.dev/services/schedules.md               |
+| Email           | Send and receive email                                     | https://agentuity.dev/services/email.md                   |
+| Webhooks        | Receive external webhooks                                  | https://agentuity.dev/services/webhooks.md                |
+| Tasks           | Background task execution                                  | https://agentuity.dev/services/tasks.md                   |
+| AI Gateway      | LLM routing (OpenAI, Anthropic, etc.) — no API keys needed | https://agentuity.dev/agents/ai-gateway.md                |
+| Observability   | Logging, tracing, web analytics                            | https://agentuity.dev/services/observability.md           |
 
 ## SDK Packages
 

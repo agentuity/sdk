@@ -8,10 +8,71 @@
  * - Organization Management
  */
 
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { authClient } from './auth-client';
-import { useAPI } from '@agentuity/react';
 import { useAuth } from '@agentuity/auth/react';
+
+// Simple fetch-based hook to replace useAPI for auth testing
+function useFetch<T>(url: string) {
+	const [data, setData] = useState<T | undefined>(undefined);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<Error | null>(null);
+
+	const refetch = useCallback(async () => {
+		setIsLoading(true);
+		try {
+			const res = await fetch(url, { credentials: 'include' });
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			setData(await res.json());
+			setError(null);
+		} catch (e) {
+			setError(e instanceof Error ? e : new Error(String(e)));
+		} finally {
+			setIsLoading(false);
+		}
+	}, [url]);
+
+	useEffect(() => {
+		refetch();
+	}, [refetch]);
+
+	return { data, isLoading, error, refetch };
+}
+
+function usePost<T>(url: string) {
+	const [data, setData] = useState<T | undefined>(undefined);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+
+	const invoke = useCallback(
+		async (input?: unknown) => {
+			setIsLoading(true);
+			setError(null);
+			try {
+				const res = await fetch(url, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: input ? JSON.stringify(input) : undefined,
+					credentials: 'include',
+				});
+				if (!res.ok) {
+					throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+				}
+				const result = await res.json();
+				setData(result);
+				return result;
+			} catch (err) {
+				setError(err instanceof Error ? err : new Error('Unknown error'));
+				throw err;
+			} finally {
+				setIsLoading(false);
+			}
+		},
+		[url]
+	);
+
+	return { data, invoke, isLoading, error };
+}
 
 // =============================================================================
 // Shared Styles
@@ -185,7 +246,7 @@ export function LoginForm() {
 
 export function UserProfile() {
 	const { user, isPending, isAuthenticated } = useAuth();
-	const { data: meData, refetch } = useAPI('GET /api/me');
+	const { data: meData, refetch } = useFetch<any>('/api/me');
 
 	const userData = meData as
 		| { id?: string; name?: string; email?: string; authMethod?: string }
@@ -292,8 +353,8 @@ export function ApiKeyManager() {
 		data: apiKeys,
 		refetch: refetchKeys,
 		isLoading: loadingKeys,
-	} = useAPI('GET /api/api-keys');
-	const { invoke: createKey, isLoading: creating } = useAPI('POST /api/api-keys');
+	} = useFetch<any>('/api/api-keys');
+	const { invoke: createKey, isLoading: creating } = usePost<any>('/api/api-keys');
 
 	const handleCreateKey = async () => {
 		setError(null);
@@ -497,10 +558,10 @@ export function OrganizationManager() {
 		data: orgs,
 		refetch: refetchOrgs,
 		isLoading: loadingOrgs,
-	} = useAPI('GET /api/organizations');
-	const { data: activeOrg, refetch: refetchActive } = useAPI('GET /api/organizations/active');
-	const { invoke: createOrg, isLoading: creating } = useAPI('POST /api/organizations');
-	const { data: whoami, refetch: refetchWhoami } = useAPI('GET /api/whoami');
+	} = useFetch<any>('/api/organizations');
+	const { data: activeOrg, refetch: refetchActive } = useFetch<any>('/api/organizations/active');
+	const { invoke: createOrg, isLoading: creating } = usePost<any>('/api/organizations');
+	const { data: whoami, refetch: refetchWhoami } = useFetch<any>('/api/whoami');
 
 	const organizations = (orgs as unknown as Organization[]) || [];
 	const activeOrgData = activeOrg as unknown as Organization | { message?: string } | undefined;
@@ -743,7 +804,7 @@ export function OrganizationManager() {
 // =============================================================================
 
 export function JwtTokenDisplay() {
-	const { data: jwtData, refetch, isLoading } = useAPI('GET /api/jwt');
+	const { data: jwtData, refetch, isLoading } = useFetch<any>('/api/jwt');
 	const [copied, setCopied] = useState(false);
 
 	const jwt = jwtData as { token?: string; jwksUrl?: string; usage?: string } | undefined;

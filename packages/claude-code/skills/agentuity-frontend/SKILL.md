@@ -1,7 +1,7 @@
 ---
 name: agentuity-frontend
 description: When building website or app frontends that connect to Agentuity agents and services. Covers @agentuity/react hooks, @agentuity/auth for login flows, @agentuity/frontend for WebRTC and real-time communication, and @agentuity/workbench for the agent testing UI.
-version: 1.0.0
+version: 2.0.0
 ---
 
 # Agentuity Frontend Reference
@@ -10,20 +10,84 @@ version: 1.0.0
 
 | Package                | Purpose                                               |
 | ---------------------- | ----------------------------------------------------- |
-| `@agentuity/react`     | React hooks for calling agents (useAPI, useWebsocket) |
+| `@agentuity/react`     | React hooks for context, auth, WebRTC, and analytics |
 | `@agentuity/frontend`  | Framework-agnostic web utilities                      |
 | `@agentuity/auth`      | Authentication (server + client)                      |
 | `@agentuity/workbench` | Dev UI for testing agents                             |
 
 ## Key Concepts
 
+- Use `hc<AppRouter>()` from `hono/client` for type-safe API calls — `useAPI` and `createClient` were removed in v2
+- Chained Hono methods (`.get().post()`) are required for type inference with `hc()`
+- `useAuth()` for authentication state, `useAnalytics()` for tracking
 - Wrap app with `<AgentuityProvider>` (and `<AuthProvider>` if using auth)
-- `useAPI('POST /api/chat')` for calling routes that invoke agents (auto-typed, handles loading/error)
-- `useWebsocket('/ws/chat')` for real-time communication (auto-reconnect, message queuing)
-- `useAuth()` for authentication state
-- Auth tokens auto-injected into useAPI and useWebsocket when AuthProvider is in tree
+- Auth tokens from `useAuth()` must be passed to `hc()` calls manually
 - `baseUrl` prop only needed if frontend is hosted separately from Agentuity
 - Server auth via `createAuth()`, `createSessionMiddleware()`, `mountAuthRoutes()` from `@agentuity/auth`
+- Build config goes in standard `vite.config.ts` (not `agentuity.config.ts`)
+
+## Type-Safe API Calls (v2)
+
+v2 removed `useAPI`, `createClient`, and `RPCRouteRegistry`. Use Hono's `hc()` client for fully typed API calls:
+
+```tsx
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api';
+
+const client = hc<AppRouter>('/api');
+
+// Fully typed — routes inferred from your Hono router
+const res = await client.hello.$get();
+const data = await res.json();
+```
+
+For richer data fetching (caching, background updates), pair with TanStack Query, SWR, or any library you prefer — v2 doesn't prescribe a data fetching approach.
+
+## Authentication
+
+### Server Setup
+
+```typescript
+import { createAuth, createSessionMiddleware, mountAuthRoutes } from '@agentuity/auth';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+
+const auth = createAuth({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const router = new Hono<Env>()
+  .on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth))
+  .use('/api/*', createSessionMiddleware(auth));
+```
+
+### Client Setup
+
+```tsx
+import { AuthProvider, AgentuityProvider, useAuth } from '@agentuity/react';
+
+function App() {
+  return (
+    <AuthProvider>
+      <AgentuityProvider>
+        <MyApp />
+      </AgentuityProvider>
+    </AuthProvider>
+  );
+}
+```
+
+### Using Auth in Agent Handlers
+
+When auth middleware is active, `ctx.auth` is available:
+
+```typescript
+handler: async (ctx, input) => {
+  if (!ctx.auth) return { error: 'Please sign in' };
+  const user = await ctx.auth.getUser();
+  return { message: `Hello ${user.name}` };
+}
+```
 
 ## Documentation Links
 
@@ -37,36 +101,20 @@ version: 1.0.0
 | Static Rendering | https://agentuity.dev/frontend/static-rendering.md |
 | Deployment Scenarios | https://agentuity.dev/frontend/deployment-scenarios.md |
 | Workbench | https://agentuity.dev/frontend/workbench.md |
+| Migration Guide | https://agentuity.dev/reference/migration-guide.md |
 
 ## Common Mistakes
 
 | Mistake                                   | Better Approach            | Why                                             |
 | ----------------------------------------- | -------------------------- | ----------------------------------------------- |
+| Using `useAPI` or `createClient` (v1)     | Use `hc<AppRouter>()` from `hono/client` | These were removed in v2 — use Hono's typed client |
+| Using mutating router style (`.get()`)    | Use chained style (`.get().post()`) | Only chained methods preserve types for `hc()` |
 | Adding `baseUrl` inside Agentuity project | Omit `baseUrl`             | Auto-detected in full-stack projects            |
-| Using `fetch` directly for agents         | Use `useAPI` hook          | Type inference, auth injection, loading states  |
 | Manual WebSocket management               | Use `useWebsocket` hook    | Auto-reconnect, auth injection, message queuing |
 | Missing AuthProvider                      | Wrap app with AuthProvider | Required for auth token injection               |
 | Calling `/agent/<name>` from frontend     | Call `/api/<name>` routes instead | Agents aren't HTTP endpoints — call the API route that wraps the agent |
 | Putting secrets in frontend env vars      | Only use `AGENTUITY_PUBLIC_*`, `VITE_*`, or `PUBLIC_*` prefixes | These prefixes are exposed to the browser — never put API keys in them |
-
-## Example
-
-```tsx
-import { AgentuityProvider, useAPI } from '@agentuity/react';
-
-function App() {
-	return (
-		<AgentuityProvider>
-			<Chat />
-		</AgentuityProvider>
-	);
-}
-
-function Chat() {
-	const { data, invoke, isLoading } = useAPI('POST /api/chat');
-	return <button onClick={() => invoke({ message: 'Hello' })}>Send</button>;
-}
-```
+| Vite config in `agentuity.config.ts`      | Use standard `vite.config.ts` | v2 moved build config to standard Vite config |
 
 ## Environment Variables for Frontend
 
@@ -84,3 +132,4 @@ If you're unsure about any hook, provider, or pattern, **check the documentation
 - Full docs: https://agentuity.dev
 - LLM-friendly index: https://agentuity.dev/llms.txt
 - React Hooks: https://agentuity.dev/frontend/react-hooks.md
+- Migration Guide: https://agentuity.dev/reference/migration-guide.md

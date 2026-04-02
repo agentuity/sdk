@@ -7,7 +7,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const deleteNamespaceSubcommand = createCommand({
 	name: 'delete-namespace',
-	aliases: ['rm-namespace'],
+	aliases: ['rm-namespace', 'del-namespace', 'remove-namespace'],
 	description: 'Delete a vector namespace and all its vectors',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,

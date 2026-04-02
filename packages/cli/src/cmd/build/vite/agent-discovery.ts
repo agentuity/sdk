@@ -1,191 +1,20 @@
 /**
- * Agent Discovery - READ-ONLY AST analysis
+ * Agent Discovery — import-based
  *
- * Discovers agents by scanning src/agent/**\/*.ts files
- * Extracts metadata WITHOUT mutating source files
+ * Discovers agents by scanning src/agent/**\/*.ts files and importing them
+ * at build time. The agent instance already knows its own metadata, schemas,
+ * and evals — no AST parsing needed.
  */
 
-import * as acornLoose from 'acorn-loose';
-import { generate } from 'astring';
 import { dirname, join, relative } from 'node:path';
-import { existsSync } from 'node:fs';
 import type { Logger } from '../../../types';
-import { formatSchemaCode } from '../format-schema';
+import { StructuredError } from '@agentuity/core';
 import { toForwardSlash } from '../../../utils/normalize-path';
 
-interface ASTNode {
-	type: string;
-	start?: number;
-	end?: number;
-}
-
-interface ASTNodeIdentifier extends ASTNode {
-	name: string;
-}
-
-interface ASTPropertyNode {
-	type: string;
-	kind: string;
-	key: ASTNodeIdentifier;
-	value: ASTNode;
-	shorthand?: boolean;
-	method?: boolean;
-	computed?: boolean;
-}
-
-interface ASTObjectExpression extends ASTNode {
-	properties: ASTPropertyNode[];
-}
-
-interface ASTLiteral extends ASTNode {
-	value: string | number | boolean | null;
-	raw?: string;
-}
-
-interface ASTCallExpression extends ASTNode {
-	arguments: unknown[];
-	callee: ASTNode;
-}
-
-interface ASTMemberExpression extends ASTNode {
-	object: ASTNode;
-	property: ASTNode;
-	computed?: boolean;
-}
-
-interface ASTVariableDeclarator extends ASTNode {
-	id: ASTNode;
-	init?: ASTNode;
-}
-
-interface ASTVariableDeclaration extends ASTNode {
-	declarations: ASTVariableDeclarator[];
-}
-
-interface ASTExportNamedDeclaration extends ASTNode {
-	declaration?: ASTNode;
-}
-
-interface ASTProgram {
-	type: string;
-	body: ASTNode[];
-}
-
-/**
- * Type for identifier resolver function
- */
-type IdentifierResolver = (name: string) => ASTNode | undefined;
-
-/**
- * Build a file-local identifier resolver that maps top-level variable names
- * to their initializer AST nodes. This allows resolving schema variable references.
- */
-function buildIdentifierResolver(program: ASTProgram): IdentifierResolver {
-	const initMap = new Map<string, ASTNode>();
-
-	for (const node of program.body) {
-		// const x = ... or let x = ... or var x = ...
-		if (node.type === 'VariableDeclaration') {
-			const decl = node as unknown as ASTVariableDeclaration;
-			for (const d of decl.declarations) {
-				if (d.id.type === 'Identifier' && d.init) {
-					const id = d.id as ASTNodeIdentifier;
-					initMap.set(id.name, d.init);
-				}
-			}
-		}
-
-		// export const x = ...
-		if (node.type === 'ExportNamedDeclaration') {
-			const exp = node as unknown as ASTExportNamedDeclaration;
-			if (exp.declaration && exp.declaration.type === 'VariableDeclaration') {
-				const decl = exp.declaration as unknown as ASTVariableDeclaration;
-				for (const d of decl.declarations) {
-					if (d.id.type === 'Identifier' && d.init) {
-						const id = d.id as ASTNodeIdentifier;
-						initMap.set(id.name, d.init);
-					}
-				}
-			}
-		}
-	}
-
-	return (name: string) => initMap.get(name);
-}
-
-/**
- * Get the property name from an AST node (Identifier or Literal).
- */
-function getPropertyName(node: ASTNode): string | undefined {
-	if (node.type === 'Identifier') {
-		return (node as ASTNodeIdentifier).name;
-	}
-	if (node.type === 'Literal') {
-		const lit = node as ASTLiteral;
-		return typeof lit.value === 'string' ? lit.value : undefined;
-	}
-	return undefined;
-}
-
-/**
- * Resolve an expression by following identifier references and member access chains.
- * Applies a recursion limit to prevent infinite loops from cyclic references.
- *
- * Supported patterns:
- * - Identifiers: `AgentInput` -> resolves to variable definition
- * - Member access: `configs.agent1.schema` -> traverses object literals
- */
-function resolveExpression(
-	node: ASTNode,
-	resolveIdentifier: IdentifierResolver,
-	depth = 0
-): ASTNode {
-	if (!node) return node;
-	if (depth > 8) return node; // Prevent cycles / deep alias chains
-
-	// Follow identifiers to their definitions
-	if (node.type === 'Identifier') {
-		const id = node as ASTNodeIdentifier;
-		const resolved = resolveIdentifier(id.name);
-		if (resolved) {
-			return resolveExpression(resolved, resolveIdentifier, depth + 1);
-		}
-	}
-
-	// Follow member expressions: configs.agent1.schema, baseSchemas.shared
-	if (node.type === 'MemberExpression') {
-		const memberExpr = node as unknown as ASTMemberExpression;
-
-		// Skip computed properties like configs[agentName]
-		if (memberExpr.computed) return node;
-
-		const propName = getPropertyName(memberExpr.property);
-		if (!propName) return node;
-
-		// First resolve the object side (e.g., configs -> { agent1: {...} })
-		const resolvedObj = resolveExpression(memberExpr.object, resolveIdentifier, depth + 1);
-
-		// If we got an object literal, look up the property
-		if (resolvedObj.type === 'ObjectExpression') {
-			const obj = resolvedObj as ASTObjectExpression;
-			for (const prop of obj.properties) {
-				// Skip spread elements
-				if (!prop || !('key' in prop) || !prop.key) continue;
-
-				const keyName = getPropertyName(prop.key);
-				if (keyName === propName && prop.value) {
-					// Recurse into the property value
-					return resolveExpression(prop.value as ASTNode, resolveIdentifier, depth + 1);
-				}
-			}
-		}
-
-		// Couldn't resolve - return original node
-		return node;
-	}
-
-	return node;
-}
+const DuplicateEvalNameError = StructuredError('DuplicateEvalNameError')<{
+	agent: string;
+	filename: string;
+}>();
 
 export interface AgentMetadata {
 	filename: string;
@@ -215,13 +44,13 @@ export interface EvalMetadata {
  */
 function hash(...val: string[]): string {
 	const hasher = new Bun.CryptoHasher('sha256');
-	val.forEach((v) => hasher.update(v));
+	for (const v of val) hasher.update(v);
 	return hasher.digest().toHex();
 }
 
 function hashSHA1(...val: string[]): string {
 	const hasher = new Bun.CryptoHasher('sha1');
-	val.forEach((v) => hasher.update(v));
+	for (const v of val) hasher.update(v);
 	return hasher.digest().toHex();
 }
 
@@ -253,448 +82,230 @@ function generateStableEvalId(projectId: string, agentId: string, name: string):
 }
 
 /**
- * Check if a property key matches a given name.
- * Handles both Identifier keys (schema) and Literal keys ('schema').
+ * Convert a StandardSchemaV1-compatible schema to a JSON Schema string.
+ * Dynamically imports toJSONSchema from @agentuity/schema (available in user's project).
  */
-function isKeyNamed(prop: ASTPropertyNode, name: 'schema' | 'input' | 'output'): boolean {
-	if (!prop || !prop.key) return false;
-
-	if (prop.key.type === 'Identifier') {
-		return (prop.key as ASTNodeIdentifier).name === name;
-	}
-	if (prop.key.type === 'Literal') {
-		const lit = prop.key as unknown as ASTLiteral;
-		return typeof lit.value === 'string' && lit.value === name;
-	}
-	return false;
-}
-
-/**
- * Extract schema code from createAgent call arguments.
- * Resolves variable references to their actual definitions when possible.
- *
- * Supported patterns:
- * - Inline schema: `schema: { input: s.object({...}), output: s.object({...}) }`
- * - Variable reference: `schema: { input: AgentInput, output: AgentOutput }`
- * - Schema object variable: `schema: schemaVar` where schemaVar is a top-level const
- * - Shorthand: `schema: { input, output }` where input/output are top-level consts
- *
- * Unsupported patterns (returns empty or partial result):
- * - Config alias: `createAgent('x', configVar)` - config must be inline object
- * - Schema from member access: `schema: configs.agent1.schema`
- * - Schema from function call: `schema: getSchema()`
- * - Destructured variables: `const { schema } = config`
- * - Cross-file imports (falls back to identifier name)
- */
-function extractSchemaCode(
-	callargexp: ASTObjectExpression,
-	resolveIdentifier: IdentifierResolver
-): {
-	inputSchemaCode?: string;
-	outputSchemaCode?: string;
-} {
-	let schemaObj: ASTObjectExpression | undefined;
-
-	// Find the schema property
-	for (const prop of callargexp.properties) {
-		// Skip spread elements or any non-Property nodes
-		if (!prop || !('key' in prop) || !prop.key) continue;
-
-		if (isKeyNamed(prop, 'schema')) {
-			// Resolve the schema value if it's an identifier (e.g., schema: schemaVar)
-			let valueNode = prop.value as ASTNode;
-			valueNode = resolveExpression(valueNode, resolveIdentifier);
-
-			if (valueNode.type === 'ObjectExpression') {
-				schemaObj = valueNode as ASTObjectExpression;
-				break;
-			}
-		}
-	}
-
-	if (!schemaObj) {
-		return {};
-	}
-
-	let inputSchemaCode: string | undefined;
-	let outputSchemaCode: string | undefined;
-
-	// Extract input and output schema code
-	for (const prop of schemaObj.properties) {
-		// Skip spread elements or any non-Property nodes
-		if (!prop || !('key' in prop) || !prop.key) continue;
-
-		if (isKeyNamed(prop, 'input') && prop.value) {
-			// Resolve variable reference if the value is an identifier
-			const resolvedValue = resolveExpression(prop.value as ASTNode, resolveIdentifier);
-			inputSchemaCode = formatSchemaCode(generate(resolvedValue));
-		} else if (isKeyNamed(prop, 'output') && prop.value) {
-			// Resolve variable reference if the value is an identifier
-			const resolvedValue = resolveExpression(prop.value as ASTNode, resolveIdentifier);
-			outputSchemaCode = formatSchemaCode(generate(resolvedValue));
-		}
-	}
-
-	return { inputSchemaCode, outputSchemaCode };
-}
-
-/**
- * Parse object expression to extract metadata
- */
-function parseObjectExpressionToMap(expr: ASTObjectExpression): Map<string, string> {
-	const result = new Map<string, string>();
-	for (const prop of expr.properties) {
-		if (prop.value.type === 'Literal') {
-			const value = prop.value as ASTLiteral;
-			result.set(prop.key.name, String(value.value));
-		}
-	}
-	return result;
-}
-
-/**
- * Extract metadata from createAgent call (READ-ONLY)
- */
-function extractAgentMetadata(
-	code: string,
-	filename: string,
-	projectId: string,
-	deploymentId: string
-): AgentMetadata | null {
-	const ast = acornLoose.parse(code, {
-		ecmaVersion: 'latest',
-		sourceType: 'module',
-	}) as ASTProgram;
-
-	// Build identifier resolver for resolving schema variable references
-	const resolveIdentifier = buildIdentifierResolver(ast);
-
-	// Calculate file version (hash of contents)
-	const version = hash(code);
-
-	// Find createAgent calls
-	for (const node of ast.body) {
-		if (node.type === 'ExportDefaultDeclaration') {
-			const declaration = (node as unknown as { declaration: ASTNode }).declaration;
-
-			if (declaration.type === 'CallExpression') {
-				const callExpr = declaration as ASTCallExpression;
-
-				if (
-					callExpr.callee.type === 'Identifier' &&
-					(callExpr.callee as ASTNodeIdentifier).name === 'createAgent' &&
-					callExpr.arguments.length >= 2
-				) {
-					// First arg is agent name
-					const nameArg = callExpr.arguments[0] as ASTLiteral;
-					const name = String(nameArg.value);
-
-					// Second arg is config object
-					const callargexp = callExpr.arguments[1] as ASTObjectExpression;
-
-					// Extract schemas (with variable resolution)
-					const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(
-						callargexp,
-						resolveIdentifier
-					);
-
-					// Extract description from either direct property or metadata object
-					let description: string | undefined;
-					for (const prop of callargexp.properties) {
-						// Check for direct description property
-						if (prop.key.name === 'description' && prop.value.type === 'Literal') {
-							description = String((prop.value as ASTLiteral).value);
-							break; // Direct description takes precedence
-						}
-						// Also check metadata.description for backwards compat
-						if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
-							const metadataMap = parseObjectExpressionToMap(
-								prop.value as ASTObjectExpression
-							);
-							if (!description) {
-								description = metadataMap.get('description');
-							}
-							break;
-						}
-					}
-
-					// Generate IDs
-					const id = getAgentId(projectId, deploymentId, filename, version);
-					const agentId = generateStableAgentId(projectId, name);
-
-					return {
-						filename,
-						name,
-						id,
-						agentId,
-						version,
-						description,
-						inputSchemaCode,
-						outputSchemaCode,
-					};
-				}
-			}
-		}
-
-		// Also check variable declarations (e.g., const agent = createAgent(...))
-		if (node.type === 'VariableDeclaration') {
-			const declarations = (node as unknown as { declarations: ASTVariableDeclarator[] })
-				.declarations;
-			for (const decl of declarations) {
-				if (decl.init && decl.init.type === 'CallExpression') {
-					const callExpr = decl.init as ASTCallExpression;
-
-					if (
-						callExpr.callee.type === 'Identifier' &&
-						(callExpr.callee as ASTNodeIdentifier).name === 'createAgent' &&
-						callExpr.arguments.length >= 2
-					) {
-						const nameArg = callExpr.arguments[0] as ASTLiteral;
-						const name = String(nameArg.value);
-
-						const callargexp = callExpr.arguments[1] as ASTObjectExpression;
-						const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(
-							callargexp,
-							resolveIdentifier
-						);
-
-						let description: string | undefined;
-						for (const prop of callargexp.properties) {
-							// Check for direct description property
-							if (prop.key.name === 'description' && prop.value.type === 'Literal') {
-								description = String((prop.value as ASTLiteral).value);
-								break; // Direct description takes precedence
-							}
-							// Also check metadata.description for backwards compat
-							if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
-								const metadataMap = parseObjectExpressionToMap(
-									prop.value as ASTObjectExpression
-								);
-								if (!description) {
-									description = metadataMap.get('description');
-								}
-								break;
-							}
-						}
-
-						const id = getAgentId(projectId, deploymentId, filename, version);
-						const agentId = generateStableAgentId(projectId, name);
-
-						return {
-							filename,
-							name,
-							id,
-							agentId,
-							version,
-							description,
-							inputSchemaCode,
-							outputSchemaCode,
-						};
-					}
-				}
-			}
-		}
-	}
-
-	return null;
-}
-
-/**
- * Extract evals from a file (READ-ONLY)
- * Finds createEval calls regardless of whether they're exported or not
- */
-async function extractEvalMetadata(
-	evalsPath: string,
-	relativeEvalsPath: string,
-	agentId: string,
-	projectId: string,
-	deploymentId: string,
+async function schemaToJsonString(
+	schema: unknown,
+	rootDir: string,
 	logger: Logger
-): Promise<EvalMetadata[]> {
-	const evalsFile = Bun.file(evalsPath);
-	if (!(await evalsFile.exists())) {
-		return [];
-	}
+): Promise<string | undefined> {
+	if (!schema) return undefined;
 
 	try {
-		const evalsSource = await evalsFile.text();
-		return extractEvalsFromSource(
-			evalsSource,
-			relativeEvalsPath,
-			agentId,
-			projectId,
-			deploymentId,
-			logger
-		);
+		// Resolve @agentuity/schema from the user's project and import its public entry point.
+		// The CLI doesn't declare @agentuity/schema as its own dependency — it lives in the
+		// user's node_modules, so we resolve the path dynamically.
+		const schemaPackageDir = join(rootDir, 'node_modules', '@agentuity', 'schema');
+		if (!(await Bun.file(join(schemaPackageDir, 'package.json')).exists())) {
+			logger.debug('[agent-discovery] @agentuity/schema not found in user project');
+			return undefined;
+		}
+
+		const { toJSONSchema } = await import(schemaPackageDir);
+		const jsonSchema = toJSONSchema(schema);
+		return JSON.stringify(jsonSchema);
 	} catch (error) {
-		logger.warn(`Failed to parse evals from ${evalsPath}: ${error}`);
-		return [];
+		logger.debug(
+			'[agent-discovery] Failed to convert schema to JSON Schema: %s',
+			error instanceof Error ? error.message : String(error)
+		);
+		return undefined;
 	}
 }
 
 /**
- * Extract evals from source code (READ-ONLY)
- * Finds all createEval calls in the source, exported or not
+ * Import an agent file and extract metadata from the agent instance.
  */
-function extractEvalsFromSource(
-	source: string,
-	filename: string,
-	agentId: string,
+async function importAgentMetadata(
+	filePath: string,
+	relativeFilename: string,
+	rootDir: string,
 	projectId: string,
 	deploymentId: string,
 	logger: Logger
-): EvalMetadata[] {
-	// Quick check - skip if no createEval in source
-	if (!source.includes('createEval')) {
-		return [];
-	}
-
+): Promise<AgentMetadata | null> {
 	try {
-		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
-		const contents = transpiler.transformSync(source);
-		const version = hash(contents);
+		const source = await Bun.file(filePath).text();
+		const version = hash(source);
 
-		const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
+		// Import the agent file — Bun handles TS natively
+		// No source-level gate: files may re-export agents created elsewhere
+		const mod = await import(filePath);
+		const agent = mod.default;
+
+		if (!agent?.metadata?.name) {
+			logger.debug('[agent-discovery] No valid agent found in %s', relativeFilename);
+			return null;
+		}
+
+		const name = agent.metadata.name;
+		const description = agent.metadata.description;
+		const id = getAgentId(projectId, deploymentId, relativeFilename, version);
+		const agentId = generateStableAgentId(projectId, name);
+
+		// Extract schemas as JSON Schema strings
+		const inputSchemaCode = await schemaToJsonString(agent.inputSchema, rootDir, logger);
+		const outputSchemaCode = await schemaToJsonString(agent.outputSchema, rootDir, logger);
+
+		// Extract evals from agent.evals array (self-registered by createEval())
 		const evals: EvalMetadata[] = [];
+		if (agent.evals && Array.isArray(agent.evals) && agent.evals.length > 0) {
+			for (const evalItem of agent.evals) {
+				const evalName = evalItem.metadata?.name ?? evalItem.name;
+				if (!evalName) continue;
 
-		// Recursively find all createEval calls in the AST
-		function findCreateEvalCalls(node: unknown): void {
-			if (!node || typeof node !== 'object') return;
+				const evalDescription = evalItem.metadata?.description ?? evalItem.description;
+				const evalVersion = version; // same file version
+				const evalId = getEvalId(
+					projectId,
+					deploymentId,
+					relativeFilename,
+					evalName,
+					evalVersion
+				);
+				const evalIdentifier = generateStableEvalId(projectId, agentId, evalName);
 
-			const n = node as Record<string, unknown>;
+				logger.trace(
+					'Found eval "%s" in %s (identifier: %s)',
+					evalName,
+					relativeFilename,
+					evalIdentifier
+				);
 
-			// Check if this is a createEval call (either direct or method call)
-			// Direct: createEval('name', {...})
-			// Method: agent.createEval('name', {...})
-			let isCreateEvalCall = false;
+				evals.push({
+					id: evalId,
+					identifier: evalIdentifier,
+					name: evalName,
+					filename: relativeFilename,
+					version: evalVersion,
+					description: evalDescription,
+					agentIdentifier: agentId,
+					projectId,
+				});
+			}
+		}
 
-			if (n.type === 'CallExpression' && n.callee && typeof n.callee === 'object') {
-				const callee = n.callee as ASTNode & { property?: ASTNodeIdentifier };
+		// Also check for evals in separate eval.ts file in same directory
+		const agentDir = dirname(filePath);
+		const evalsPath = join(agentDir, 'eval.ts');
+		if (await Bun.file(evalsPath).exists()) {
+			const evalsSource = await Bun.file(evalsPath).text();
+			if (evalsSource.includes('createEval')) {
+				try {
+					await import(evalsPath);
+					// After importing, the evals self-register on the agent via agent.createEval()
+					// Re-check agent.evals for any newly registered evals
+					if (agent.evals && Array.isArray(agent.evals)) {
+						const relativeEvalsPath = toForwardSlash(relative(join(rootDir), evalsPath));
+						const evalVersion = hash(evalsSource);
 
-				// Direct function call: createEval(...)
-				if (
-					callee.type === 'Identifier' &&
-					(callee as ASTNodeIdentifier).name === 'createEval'
-				) {
-					isCreateEvalCall = true;
-				}
+						for (const evalItem of agent.evals) {
+							const evalName = evalItem.metadata?.name ?? evalItem.name;
+							if (!evalName) continue;
 
-				// Method call: someAgent.createEval(...)
-				if (
-					callee.type === 'MemberExpression' &&
-					callee.property &&
-					callee.property.type === 'Identifier' &&
-					callee.property.name === 'createEval'
-				) {
-					isCreateEvalCall = true;
+							// Skip if already collected from agent file
+							if (evals.some((e) => e.name === evalName)) continue;
+
+							const evalDescription = evalItem.metadata?.description ?? evalItem.description;
+							const evalId = getEvalId(
+								projectId,
+								deploymentId,
+								relativeEvalsPath,
+								evalName,
+								evalVersion
+							);
+							const evalIdentifier = generateStableEvalId(projectId, agentId, evalName);
+
+							logger.trace(
+								'Found eval "%s" in eval.ts for agent %s (identifier: %s)',
+								evalName,
+								name,
+								evalIdentifier
+							);
+
+							evals.push({
+								id: evalId,
+								identifier: evalIdentifier,
+								name: evalName,
+								filename: relativeEvalsPath,
+								version: evalVersion,
+								description: evalDescription,
+								agentIdentifier: agentId,
+								projectId,
+							});
+						}
+					}
+				} catch (error) {
+					logger.warn(
+						'[agent-discovery] Failed to import evals from %s: %s',
+						evalsPath,
+						error instanceof Error ? error.message : String(error)
+					);
 				}
 			}
+		}
 
-			if (isCreateEvalCall) {
-				const callExpr = n as unknown as ASTCallExpression;
-				let evalName: string | undefined;
-				let description: string | undefined;
-
-				if (callExpr.arguments.length >= 2) {
-					// Format: agent.createEval('name', { config })
-					const nameArg = callExpr.arguments[0] as ASTLiteral;
-					evalName = String(nameArg.value);
-
-					const callargexp = callExpr.arguments[1] as ASTObjectExpression;
-					if (callargexp.properties) {
-						for (const prop of callargexp.properties) {
-							if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
-								const metadataMap = parseObjectExpressionToMap(
-									prop.value as ASTObjectExpression
-								);
-								description = metadataMap.get('description');
-								break;
-							}
-						}
-					}
-				} else if (callExpr.arguments.length === 1) {
-					// Format: agent.createEval(presetEval({ name: '...', ... }))
-					// or: agent.createEval(presetEval()) - uses preset's default name
-					// or: agent.createEval({ name: '...', ... })
-					const arg = callExpr.arguments[0] as ASTNode;
-
-					// Handle CallExpression: presetEval({ name: '...' }) or presetEval()
-					if (arg.type === 'CallExpression') {
-						const innerCall = arg as unknown as ASTCallExpression;
-
-						// Try to get name from the call arguments first
-						if (innerCall.arguments.length >= 1) {
-							const configArg = innerCall.arguments[0] as ASTObjectExpression;
-							if (configArg.type === 'ObjectExpression' && configArg.properties) {
-								const configMap = parseObjectExpressionToMap(configArg);
-								evalName = configMap.get('name');
-								description = configMap.get('description');
-							}
-						}
-
-						// Fallback: use the callee name as the eval name (e.g., politeness())
-						if (!evalName && innerCall.callee) {
-							const callee = innerCall.callee as ASTNode;
-							if (callee.type === 'Identifier') {
-								evalName = (callee as ASTNodeIdentifier).name;
-							}
-						}
-					}
-
-					// Handle ObjectExpression: { name: '...', handler: ... }
-					if (arg.type === 'ObjectExpression') {
-						const configArg = arg as ASTObjectExpression;
-						if (configArg.properties) {
-							const configMap = parseObjectExpressionToMap(configArg);
-							evalName = configMap.get('name');
-							description = configMap.get('description');
-						}
-					}
-				}
-
-				if (evalName) {
-					const id = getEvalId(projectId, deploymentId, filename, evalName, version);
-					const identifier = generateStableEvalId(projectId, agentId, evalName);
-
-					logger.trace(`Found eval '${evalName}' in ${filename} (identifier: ${identifier})`);
-
-					evals.push({
-						id,
-						identifier,
-						name: evalName,
-						filename,
-						version,
-						description,
-						agentIdentifier: agentId,
-						projectId,
+		// Check for duplicate eval names across sources (agent file + eval.ts).
+		// Same name + same agent = same stable identifier → duplicate key error
+		// on the backend database.
+		if (evals.length > 1) {
+			const seen = new Map<string, string>();
+			for (const evalItem of evals) {
+				const prev = seen.get(evalItem.name);
+				if (prev && prev !== evalItem.filename) {
+					throw new DuplicateEvalNameError({
+						message:
+							`Duplicate eval name '${evalItem.name}' for agent '${name}': ` +
+							`defined in both '${prev}' and '${evalItem.filename}'. ` +
+							'Eval names must be unique per agent.',
+						agent: name,
+						filename: evalItem.filename,
 					});
 				}
-			}
-
-			// Recursively search child nodes
-			for (const key of Object.keys(n)) {
-				const value = n[key];
-				if (Array.isArray(value)) {
-					for (const item of value) {
-						findCreateEvalCalls(item);
-					}
-				} else if (value && typeof value === 'object') {
-					findCreateEvalCalls(value);
-				}
+				seen.set(evalItem.name, evalItem.filename);
 			}
 		}
 
-		findCreateEvalCalls(ast);
-
-		return evals;
+		return {
+			filename: relativeFilename,
+			name,
+			id,
+			agentId,
+			version,
+			description,
+			inputSchemaCode,
+			outputSchemaCode,
+			evals: evals.length > 0 ? evals : undefined,
+		};
 	} catch (error) {
-		logger.warn(`Failed to parse evals from ${filename}: ${error}`);
-		return [];
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		throw new Error(
+			`Failed to import agent at ${relativeFilename}:\n` +
+				`  ${errorMsg}\n\n` +
+				`Agent files are imported at build time to extract metadata. Code that ` +
+				`runs at module scope (outside of setup() or handler()) will execute ` +
+				`during the build — including SDK client constructors that require API ` +
+				`keys or environment variables.\n\n` +
+				`To fix this, move initialization code into setup() or handler():\n\n` +
+				`  // ❌ Don't do this — runs at import time:\n` +
+				`  const client = new OpenAI();\n` +
+				`  export default createAgent('my-agent', { handler: async (ctx) => { ... } });\n\n` +
+				`  // ✅ Do this instead — runs at request time:\n` +
+				`  export default createAgent('my-agent', {\n` +
+				`    setup: (ctx) => ({ client: new OpenAI() }),\n` +
+				`    handler: async (ctx) => { const { client } = ctx.setup; ... },\n` +
+				`  });\n\n` +
+				`See https://agentuity.dev/docs/agents#setup for more information.`
+		);
 	}
 }
 
 /**
- * Discover all agents in src/agent directory (READ-ONLY)
+ * Discover all agents in src/agent directory.
+ *
+ * Imports each agent file at build time — the agent instance already knows
+ * its own metadata, schemas, and evals. No AST parsing needed.
  */
 export async function discoverAgents(
 	srcDir: string,
@@ -704,93 +315,63 @@ export async function discoverAgents(
 ): Promise<AgentMetadata[]> {
 	const agentsDir = join(srcDir, 'agent');
 	const agents: AgentMetadata[] = [];
+	const rootDir = join(srcDir, '..');
 
-	// Check if agent directory exists
-	if (!existsSync(agentsDir)) {
+	// Scan all .ts files in agent directory
+	const glob = new Bun.Glob('**/*.ts');
+	let files: string[];
+	try {
+		files = await Array.fromAsync(glob.scan(agentsDir));
+	} catch {
 		logger.trace('No agent directory found at %s', agentsDir);
 		return agents;
 	}
 
-	const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
+	// Track seen agent names to deduplicate — e.g., index.ts re-exporting agent.ts
+	const seenAgentNames = new Set<string>();
 
-	// Scan all .ts files in agent directory
-	const glob = new Bun.Glob('**/*.ts');
-	for await (const file of glob.scan(agentsDir)) {
+	for (const file of files) {
 		const filePath = join(agentsDir, file);
 
-		// Skip eval.ts files (processed separately)
+		// Skip eval.ts files (processed as part of agent discovery)
 		if (file.endsWith('/eval.ts') || file === 'eval.ts') {
 			continue;
 		}
 
-		try {
-			const source = await Bun.file(filePath).text();
-			const contents = transpiler.transformSync(source);
+		// Skip test files (*.test.ts, *.spec.ts) and test directories
+		if (
+			file.startsWith('test/') ||
+			file.includes('/test/') ||
+			file.startsWith('__tests__/') ||
+			file.includes('/__tests__/') ||
+			file.endsWith('.test.ts') ||
+			file.endsWith('.spec.ts')
+		) {
+			continue;
+		}
 
-			// Use 'src/' prefix for consistency with bun bundler and registry imports
-			const rootDir = join(srcDir, '..');
-			const relativeFilename = toForwardSlash(relative(rootDir, filePath));
-			const agentMetadata = extractAgentMetadata(
-				contents,
-				relativeFilename,
-				projectId,
-				deploymentId
-			);
+		const relativeFilename = toForwardSlash(relative(rootDir, filePath));
+		const agentMetadata = await importAgentMetadata(
+			filePath,
+			relativeFilename,
+			rootDir,
+			projectId,
+			deploymentId,
+			logger
+		);
 
-			if (agentMetadata) {
-				logger.trace('Discovered agent: %s at %s', agentMetadata.name, relativeFilename);
-
-				// Collect evals from multiple sources
-				const allEvals: EvalMetadata[] = [];
-
-				// 1. Extract evals from the agent file itself (agent.createEval() pattern)
-				const evalsInAgentFile = extractEvalsFromSource(
-					source,
-					relativeFilename,
-					agentMetadata.agentId,
-					projectId,
-					deploymentId,
-					logger
+		if (agentMetadata) {
+			if (seenAgentNames.has(agentMetadata.name)) {
+				logger.trace(
+					'Skipping duplicate agent %s from %s (already discovered)',
+					agentMetadata.name,
+					relativeFilename
 				);
-				if (evalsInAgentFile.length > 0) {
-					logger.trace(
-						'Found %d eval(s) in agent file for %s',
-						evalsInAgentFile.length,
-						agentMetadata.name
-					);
-					allEvals.push(...evalsInAgentFile);
-				}
-
-				// 2. Check for evals in separate eval.ts file in same directory
-				const agentDir = dirname(filePath);
-				const evalsPath = join(agentDir, 'eval.ts');
-				const relativeEvalsPath = toForwardSlash(relative(rootDir, evalsPath));
-				const evalsInSeparateFile = await extractEvalMetadata(
-					evalsPath,
-					relativeEvalsPath,
-					agentMetadata.agentId,
-					projectId,
-					deploymentId,
-					logger
-				);
-				if (evalsInSeparateFile.length > 0) {
-					logger.trace(
-						'Found %d eval(s) in eval.ts for agent %s',
-						evalsInSeparateFile.length,
-						agentMetadata.name
-					);
-					allEvals.push(...evalsInSeparateFile);
-				}
-
-				if (allEvals.length > 0) {
-					agentMetadata.evals = allEvals;
-					logger.trace('Total %d eval(s) for agent %s', allEvals.length, agentMetadata.name);
-				}
-
-				agents.push(agentMetadata);
+				continue;
 			}
-		} catch (error) {
-			logger.warn(`Failed to parse agent file ${filePath}: ${error}`);
+			seenAgentNames.add(agentMetadata.name);
+			logger.trace('Discovered agent: %s at %s', agentMetadata.name, relativeFilename);
+			agents.push(agentMetadata);
 		}
 	}
 

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { readdir, stat } from 'node:fs/promises';
 import type { Logger } from '../../../types';
 import type { BunPlugin, BuildOutput } from 'bun';
-import { generatePatches, applyPatch } from '../patch';
+import { generatePatches, applyPatch, buildPatchFilter } from '../patch';
 import { getLoaderForPath, rewriteBunImports, rewritePgImports } from './db-rewrite';
 
 /**
@@ -56,7 +56,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	logger.debug('[server-bundler] Starting server bundle process');
 
-	const entryPath = join(rootDir, 'src/generated/app.ts');
+	const entryPath = join(rootDir, 'app.ts');
 	const outDir = join(rootDir, '.agentuity');
 
 	logger.debug(`[server-bundler] Entry: ${entryPath}, OutDir: ${outDir}`);
@@ -291,13 +291,9 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		name: 'agentuity:patch',
 		setup(build) {
 			for (const [, patch] of patches) {
-				let modulePath = join('node_modules', patch.module, '.*');
-				if (patch.filename) {
-					modulePath = join('node_modules', patch.module, patch.filename + '.*');
-				}
 				build.onLoad(
 					{
-						filter: new RegExp(modulePath),
+						filter: buildPatchFilter(patch.module, patch.filename),
 						namespace: 'file',
 					},
 					async (args) => {

@@ -1,0 +1,230 @@
+---
+title: Threads API
+short_title: Threads
+description: Manage conversation threads for agent session state and user data
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Threads
+
+List conversation threads with optional filtering and pagination.
+
+<ApiEndpoint method="GET" path="/thread" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results, default 10"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'created' or 'updated'"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "'asc' or 'desc'"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by org"
+  },
+  {
+    "name": "projectId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter by project"
+  },
+  {
+    "name": "metadata",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "JSON-serialized metadata filter"
+  }
+]} />
+
+### Response
+
+Array of thread objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Threads returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": "the thread id",
+    "required": true
+  },
+  {
+    "name": "created_at",
+    "type": "string",
+    "description": "the creation timestamp",
+    "required": true
+  },
+  {
+    "name": "updated_at",
+    "type": "string",
+    "description": "the last update timestamp",
+    "required": true
+  },
+  {
+    "name": "deleted",
+    "type": "boolean",
+    "description": "whether the thread is deleted",
+    "required": true
+  },
+  {
+    "name": "deleted_at",
+    "type": "string | null",
+    "description": "the deletion timestamp",
+    "required": true
+  },
+  {
+    "name": "deleted_by",
+    "type": "string | null",
+    "description": "who deleted the thread",
+    "required": true
+  },
+  {
+    "name": "org_id",
+    "type": "string",
+    "description": "the organization id",
+    "required": true
+  },
+  {
+    "name": "project_id",
+    "type": "string",
+    "description": "the project id",
+    "required": true
+  },
+  {
+    "name": "user_data",
+    "type": "string | null",
+    "description": "the user data as JSON",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object | null",
+    "description": "unencrypted key-value metadata",
+    "required": false
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/thread?limit=10&sort=updated&direction=desc" />
+
+---
+
+## Get Thread
+
+Get a specific thread by ID.
+
+<ApiEndpoint method="GET" path="/thread/{id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Thread ID"
+  }
+]} />
+
+### Response
+
+Thread object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Thread returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Thread not found |
+
+### Example
+
+<ApiExample method="GET" path="/thread/thr_abc123" />
+
+---
+
+## Delete Thread
+
+Delete a specific thread by ID.
+
+<ApiEndpoint method="DELETE" path="/thread/{id}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "id",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Thread ID"
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Thread deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Thread not found |
+
+### Example
+
+<ApiExample method="DELETE" path="/thread/thr_abc123" />
+
+---

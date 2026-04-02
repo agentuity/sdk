@@ -124,7 +124,7 @@ export async function sandboxReadFile(
 	if (!response.ok) {
 		const text = await response.text().catch(() => 'Unknown error');
 		throw new SandboxResponseError({
-			message: `Failed to read file: ${response.status} ${text}`,
+			message: `Failed to read file "${path}": ${response.status} ${text}`,
 			sandboxId,
 			sessionId,
 		});
@@ -328,6 +328,8 @@ export const FileInfoSchema = z.object({
 	path: z.string().describe('File path relative to the listed directory'),
 	size: z.number().describe('File size in bytes'),
 	isDir: z.boolean().describe('Whether the entry is a directory'),
+	isSymlink: z.boolean().optional().describe('Whether the entry is a symbolic link'),
+	linkTarget: z.string().optional().describe('Target path of the symbolic link'),
 	mode: z.string().describe('Unix permissions as octal string (e.g., "0644")'),
 	modTime: z.string().describe('Modification time in RFC3339 format'),
 });

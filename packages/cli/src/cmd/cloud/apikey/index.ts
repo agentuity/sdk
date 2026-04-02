@@ -7,6 +7,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
 	name: 'apikey',
+	aliases: ['apikeys'],
 	description: 'Manage API keys',
 	tags: ['fast', 'requires-auth'],
 	examples: [

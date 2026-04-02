@@ -17,6 +17,7 @@ const CheckpointCreateResponseSchema = z.object({
 
 export const createSubcommand = createCommand({
 	name: 'create',
+	aliases: ['new'],
 	description: 'Create a disk checkpoint of the sandbox filesystem',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, apiClient: true },

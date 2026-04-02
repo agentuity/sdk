@@ -39,10 +39,21 @@ agentuity ai capabilities show
 agentuity ai prompt llm
 agentuity ai schema show
 
+# Coder Hub commands
+agentuity coder config set url https://hub.example.com
+agentuity coder config set apikey agc_...
+agentuity coder start
+agentuity coder ls
+agentuity coder inspect codesess_abc123
+
 # Global options
 agentuity --log-level=debug cloud keyvalue list
 agentuity --config=/custom/path/production.yaml project list
 ```
+
+Coder Hub commands use the active CLI profile for default Hub configuration. You can
+override the stored Hub URL per command with `--hub-url`, or use
+`AGENTUITY_CODER_HUB_URL` / `AGENTUITY_CODER_API_KEY` as environment overrides.
 
 ## Configuration
 

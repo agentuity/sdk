@@ -20,9 +20,11 @@ describe('lifecycle-generator', () => {
 		mkdirSync(srcDir, { recursive: true });
 
 		// Create fake node_modules/@agentuity/runtime for path resolution
-		const runtimeDir = join(rootDir, 'node_modules', '@agentuity', 'runtime', 'src');
+		const runtimePkgDir = join(rootDir, 'node_modules', '@agentuity', 'runtime');
+		const runtimeDir = join(runtimePkgDir, 'src');
 		mkdirSync(runtimeDir, { recursive: true });
-		// Create minimal index.ts
+		// Create minimal package.json and index.ts
+		Bun.write(join(runtimePkgDir, 'package.json'), '{"name":"@agentuity/runtime"}');
 		const indexPath = join(runtimeDir, 'index.ts');
 		Bun.write(indexPath, 'export function createRouter() {}');
 	});

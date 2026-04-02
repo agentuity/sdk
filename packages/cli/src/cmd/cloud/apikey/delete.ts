@@ -12,7 +12,7 @@ const APIKeyDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
-	aliases: ['del', 'rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete an API key (soft delete)',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,

@@ -1,647 +1,480 @@
 ---
-title: Migrating from v0 to v1
-description: Moving from v0? Here's everything you need to update.
+title: Migration Guide
+short_title: Migration Guide
+description: Migrate your Agentuity projects to the latest version.
 ---
 
-v0 support is ending. We recommend migrating to v1 for new features and continued updates.
+Upgrading from v1 to v2? v2 replaces auto-discovery with explicit wiring, drops the `createRouter()` wrapper for native Hono, and moves build config from `agentuity.config.ts` to standard `vite.config.ts`. This guide covers every breaking change and how to update your project.
 
-This guide covers the breaking changes and how to update your agents.
+## What's Changed in v2
 
-## What's New in v1?
+v2 introduces six fundamental architectural changes:
 
-<Callout type="success" title="No More Manual Agent Registration">
-In v0, agents had to be created via the CLI (`agentuity agent create`) to register them with unique IDs in the cloud. In v1, just create a folder in `src/agent/` with `agent.ts` — agents are auto-discovered and registered on deploy. No CLI commands or manual registration required.
+### 1. Agents are Declarative
+
+**v1**: Agents were auto-discovered from `src/agent/*/agent.ts` files at runtime.
+
+**v2**: Agents must be explicitly imported and passed to `createApp()`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import * as agents from './agent'; // Barrel export
+
+export default createApp({
+  agents, // Explicit declaration
+});
+```
+
+This gives you full control over which agents are registered and their import order.
+
+### 2. No More setup/shutdown Hooks
+
+**v1**: Lifecycle hooks in `createApp()`:
+
+```typescript
+createApp({
+  setup: async (ctx) => { /* initialize */ },
+  shutdown: async (ctx) => { /* cleanup */ }
+});
+```
+
+**v2**: Use standard patterns:
+- **Initialization**: Module-level code (runs when file loads)
+- **Cleanup**: Hono middleware or Bun's `process.on('beforeExit', ...)`
+
+### 3. Router is Required
+
+**v1**: File-based auto-discovery — routes in `src/api/*.ts` were automatically mounted.
+
+**v2**: You must explicitly provide a router to `createApp()`:
+
+```typescript
+import router from './api'; // Your Hono router
+
+export default createApp({
+  router, // Required — no more auto-discovery
+});
+```
+
+This means the old file-based approach no longer works. Routes must be composed into a barrel (`src/api/index.ts`) and exported as a Hono instance.
+
+### 4. Use Hono Directly (No createRouter)
+
+**v1**: `createRouter()` was a wrapper around Hono:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+router.get('/hello', async (c) => c.json({ msg: 'hi' }));
+```
+
+**v2**: Use Hono directly:
+
+```typescript
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+
+const router = new Hono<Env>()
+  .get('/hello', async (c) => c.json({ msg: 'hi' }));
+```
+
+<Callout type="warning" title="Chained Methods Required">
+Use chained methods (`.get().post()`) instead of mutating style (`router.get()`). Only chained methods preserve types for `hc<AppRouter>()`.
 </Callout>
 
-Key improvements in v1:
+### 5. React Helpers Removed
 
-- **Auto-Discovery**: Create agents by adding folders, no CLI registration needed
-- **Type-Safe Schemas**: Built-in support for Zod, Valibot, ArkType, and StandardSchema libraries
-- **Advanced Routing**: WebSocket, SSE, streaming, and cron routes via middleware
-- **Bun Runtime**: Native S3 storage and SQL database support
-- **Evaluations & Events**: Test agent outputs and monitor lifecycle
+**v1**: `@agentuity/react` exported `createClient`, `useAPI`, `RPCRouteRegistry` for API calls.
 
-<Callout type="info">
-**Workbench:** v0's "DevMode" is being rebranded to "Workbench", to better support agent development both locally and in production. The v0 `welcome()` function pattern for suggested prompts has been removed as part of this redesign.
+**v2**: These are removed. Use your preferred data fetching library:
+
+<Tabs items={["Hono Client", "TanStack Query"]}>
+<Tab value="Hono Client">
+```typescript
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api';
+
+const client = hc<AppRouter>('/api');
+
+// Direct usage
+const res = await client.hello.$get();
+const data = await res.json();
+```
+</Tab>
+<Tab value="TanStack Query">
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api';
+
+const client = hc<AppRouter>('/api');
+
+function useHello() {
+  return useQuery({
+    queryKey: ['hello'],
+    queryFn: async () => {
+      const res = await client.hello.$get();
+      return res.json();
+    },
+  });
+}
+```
+</Tab>
+</Tabs>
+
+<Callout type="info" title="Choose Your Stack">
+v2 doesn't prescribe a data fetching approach. Use whatever works for your app:
+- **TanStack Query** — caching, background updates, optimistic updates
+- **SWR** — stale-while-revalidate pattern
+- **RTK Query** — if you're already using Redux Toolkit
+- **Hono client directly** — simple cases without extra dependencies
+</Callout>
+
+### 6. Standard vite.config.ts
+
+**v1**: Vite config lived inside `agentuity.config.ts`:
+
+```typescript
+// agentuity.config.ts
+export default {
+  workbench: { route: '/workbench' },
+  // Vite plugins were added here too
+};
+```
+
+**v2**: Use standard `vite.config.ts` and move runtime settings to `createApp()`:
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()], // Add plugins for your frontend framework
+});
+```
+
+```typescript
+// app.ts
+import { createApp } from '@agentuity/runtime';
+
+export default createApp({
+  analytics: true,      // or { trackClicks: false, ... }
+  workbench: true,      // or '/debug' for custom route
+});
+```
+
+<Callout type="warning" title="Add Your Frontend Plugin">
+v2 doesn't include a default Vite plugin. You must add the plugin for your frontend framework:
+- **React**: `@vitejs/plugin-react`
+- **Vue**: `@vitejs/plugin-vue`
+- **Svelte**: `@sveltejs/vite-plugin-svelte`
+- **Solid**: `vite-plugin-solid`
+</Callout>
+
+<Callout type="success" title="Why These Changes?">
+These changes make v2 more explicit and predictable:
+- **Type safety**: Hono's RPC client (`hc<AppRouter>()`) gets full type inference
+- **Control**: You decide what's registered and in what order
+- **Simplicity**: No hidden magic — standard Hono/Bun patterns work everywhere
 </Callout>
 
 ---
 
-## Breaking Changes Overview
+## Usage
 
-### High Impact Changes
+```bash
+npx @agentuity/migrate [project-dir] [options]
+```
 
-These changes require code modifications in all agents:
+Run in your project root (or pass a path). The tool checks that your **git worktree is clean** before touching anything, so you can always `git diff` to review changes or `git checkout .` to roll back.
 
-1. **Handler Pattern**: Default export functions replaced with `createAgent()`
-2. **Request/Response**: New pattern using direct parameters and return values
-3. **Context Properties**: `runId` renamed to `sessionId`, new properties added
-4. **Package Structure**: SDK split into multiple packages (`@agentuity/runtime`, `@agentuity/core`, etc.)
-5. **Language Support**: v1 is TypeScript-only, optimized for Bun runtime
-6. **Trigger Configuration**: Cron schedules are now configured in code using the `cron()` middleware rather than in the cloud console UI
+## Options
 
----
-## Getting Started Quickly
+| Flag | Description |
+|---|---|
+| `--yes`, `-y` | Skip interactive confirmation |
+| `--dry-run` | Print the migration report without modifying files |
+| `--help`, `-h` | Show help |
 
-<CopyMigrationPrompt />
+## What it migrates
 
-If you want to migrate an existing v0 project without manually following every step, you can use the automated migration prompt above with a coding agent (Claude, Cursor, etc.).
+### Auto-fixable (fully automated)
 
-The prompt will:
-- Verify your Agentuity CLI is installed, up to date, and authenticated.
-- Read your v0 project **without modifying it**.
-- Create a new v1 project **at the same directory level** as your v0 project.
-- Migrate agents, tools, routes, and dependencies into the v1 structure.
+| Finding | Action |
+|---|---|
+| `src/generated/` directory | Deleted |
+| `bootstrapRuntimeEnv()` call in `app.ts` | Removed (createApp handles it) |
+| v1 `createRouter()` + mutating `.get()/.post()` route files | Rewritten to `new Hono<Env>()` chained style |
+| Missing `src/api/index.ts` barrel | Generated from discovered route files |
+| Missing `src/agent/index.ts` barrel | Generated from discovered agent files |
 
-### How to use it:
+### Guided (applied with your review)
 
-1. Copy the migration prompt above.
-2. Paste it into your coding agent.
-3. Replace **both occurrences** of `@<V0_PROJECT_FOLDER>` with the path to your v0 project.
-4. Let the agent run through the migration phases step by step.
+| Finding | What happens |
+|---|---|
+| `setup` in `createApp()` | Migration comment added — move init to module level |
+| `shutdown` in `createApp()` | Guidance to use Hono's lifecycle hooks instead |
+| No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
+| `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render/bundle |
+| `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
+| `agentuity.config.ts` empty | Can be deleted |
 
-Your original v0 project remains untouched.
-The new v1 project is created as a sibling directory with `-v1` appended to the name.
+### Manual (instructions only, no auto-transform)
+
+| Finding | Guidance |
+|---|---|
+| Frontend files using `createClient`, `useAPI`, `useAgentuity`, `RPCRouteRegistry` etc. | Replace with `hc<AppRouter>()` from `hono/client` or your preferred data fetching library |
 
 ---
 
 ## Step-by-Step Migration
 
-<Callout type="warning">
-The previous CLI version (v0.0.x) is not compatible with v1. Please uninstall the old version of the CLI before installing the update.
-</Callout>
-
-
-### Step 1: Create a Fresh v1 Project
-
-v1 has a different project structure, so we recommend creating a new project and migrating your agent code.
-
-Install the v1 CLI:
+### Step 1: Run the Migration Tool
 
 ```bash
-curl -sSL https://agentuity.sh | sh
+npx @agentuity/migrate
 ```
 
-Create a new v1 project:
+This will analyze your project and present a migration report. Use `--dry-run` first to preview changes without modifying files.
 
-```bash
-agentuity create
-```
+### Step 2: Review Auto-fixes
 
-This sets up the correct project structure with all dependencies. You'll migrate your agent logic into this new project using the patterns in the following steps.
+The tool will automatically:
+- Delete `src/generated/` directory (no longer needed in v2)
+- Remove `bootstrapRuntimeEnv()` calls (handled by `createApp()` now)
+- Rewrite route files from mutating style to chained Hono style
 
----
-
-### Step 2: Update Agent Handler Pattern
-
-The most significant change is how agents are created and exported.
-
-#### Basic Agent Handler
-
-**v0:**
-```typescript
-import { AgentHandler } from '@agentuity/sdk';
-
-const handler: AgentHandler = async (request, response, context) => {
-  const data = await request.data.json();
-
-  context.logger.info('Processing request', data);
-
-  return response.json({
-    message: 'Hello from my agent!',
-    data: data
-  });
-};
-
-export default handler;
-```
-
-**v1:**
-```typescript
-// src/agent/my-agent/agent.ts
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('My Agent', {
-  description: 'A simple agent',
-  handler: async (ctx, input) => {
-    ctx.logger.info('Processing request', input);
-
-    return {
-      message: 'Hello from my agent!',
-      data: input
-    };
-  }
-});
-
-export default agent;
-```
-
-**Key Changes:**
-1. Import from `@agentuity/runtime` instead of `@agentuity/sdk`
-2. Use `createAgent('Name', { ... })` with the name as the first argument
-3. Handler receives `(ctx, input)` instead of `(request, response, context)`
-4. Return values directly instead of using `response.json()`
-5. Export the agent (routes are defined separately in `src/api/`)
-
-**File Structure Change:**
-In v0, agents were typically single files. In v1, agents and routes are separated:
-- **`src/agent/my-agent/agent.ts`** - Contains the `createAgent()` call with your handler logic
-- **`src/api/index.ts`** - Contains all HTTP routes that import and call agents
-
-Routes import agents and call them via `agent.run(input)`. This separation keeps HTTP routing concerns separate from agent core logic, making agents reusable across different routes.
-
----
-
-#### Agent with Schema Validation
-
-v1 introduces optional schema validation for type safety:
-
-```typescript
-// src/agent/typed-agent/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
-
-const agent = createAgent('Typed Agent', {
-  description: 'An agent with type-safe inputs and outputs',
-  schema: {
-    input: z.object({
-      message: z.string(),
-      count: z.number().optional()
-    }),
-    output: z.object({
-      response: z.string(),
-      timestamp: z.number()
-    })
-  },
-  handler: async (ctx, input) => {
-    // input is fully typed as { message: string, count?: number }
-
-    return {
-      response: `Received: ${input.message}`,
-      timestamp: Date.now()
-    };
-    // Return type is validated automatically
-  }
-});
-
-export default agent;
-```
-
-```typescript
-// src/api/index.ts - All routes are consolidated here
-import { createRouter } from '@agentuity/runtime';
-import typedAgent from '@agent/typed-agent';
-
-const router = createRouter();
-
-// Routes are mounted at /api/* automatically
-router.post('/typed-agent', typedAgent.validator(), async (c) => {
-  const data = c.req.valid('json');
-  const result = await typedAgent.run(data);
-  return c.json(result);
-});
-
-export default router;
-```
-
-**Benefits:**
-- Full TypeScript autocomplete
-- Runtime validation of inputs and outputs
-- Automatic error handling for invalid data
-- Self-documenting API contracts
-
----
-
-### Step 3: Update Context Usage
-
-The context object has several changes and additions.
-
-#### Context Property Changes
-
-**v0:**
-```typescript
-const handler: AgentHandler = async (request, response, context) => {
-  // Access run ID
-  const id = context.runId;
-
-  // Access services
-  await context.kv.set('cache', 'key', data);
-
-  // Access logger
-  context.logger.info('Message');
-};
-```
-
-**v1:**
-```typescript
-const agent = createAgent('My Agent', {
-  handler: async (ctx, input) => {
-    // runId renamed to sessionId
-    const id = ctx.sessionId;
-
-    // Services work the same way
-    await ctx.kv.set('cache', 'key', data);
-
-    // Logger unchanged
-    ctx.logger.info('Message');
-
-    // NEW: State management
-    ctx.state.set('myKey', 'myValue');
-
-    // NEW: Session and thread objects
-    ctx.logger.info('Session:', ctx.session);
-    ctx.logger.info('Thread:', ctx.thread);
-
-    return { result: 'done' };
-  }
-});
-```
-
-**Key Changes:**
-- `context.runId` → `ctx.sessionId`
-- New `ctx.state` for temporary state storage
-- New `ctx.session` and `ctx.thread` for conversation management
-- Agent-to-agent communication uses imports (see Step 7)
-
----
-
-### Step 4: Update Request Handling
-
-Request handling is simplified in v1.
-
-#### Accessing Request Data
-
-**v0:**
-```typescript
-const handler: AgentHandler = async (request, response, context) => {
-  // Get JSON data
-  const data = await request.data.json();
-  
-  // Get text data
-  const text = await request.data.text();
-  
-  // Get binary data
-  const binary = await request.data.binary();
-  
-  // Get metadata
-  const userId = request.get('userId');
-  const trigger = request.trigger;
-};
-```
-
-**v1 (HTTP Routes):**
+**Before (v1 mutating style):**
 ```typescript
 import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.post('/my-agent', async (c) => {
-  // Get JSON body directly from Hono context
-  const data = await c.req.json();
-  
-  // Get text body
-  const text = await c.req.text();
-  
-  // Get headers
-  const userId = c.req.header('x-user-id');
-  
-  // Get query params
-  const param = c.req.query('param');
-  
-  return { processed: data };
-});
-
-export default router;
-```
-
-**v1 (Agent with Schema):**
-```typescript
-const agent = createAgent('My Agent', {
-  schema: {
-    input: z.object({ message: z.string() })
-  },
-  handler: async (ctx, input) => {
-    // Input is automatically parsed and validated
-    // No need to call request.data.json()
-    ctx.logger.info('Input message:', { message: input.message });
-
-    return { response: 'ok' };
-  }
-});
-```
-
----
-
-### Step 5: Update Response Handling
-
-Responses are now returned directly instead of using a response builder.
-
-#### Basic Responses
-
-**v0:**
-```typescript
-const handler: AgentHandler = async (request, response, context) => {
-  // JSON response
-  return response.json({ message: 'Hello' });
-  
-  // Text response
-  return response.text('Hello');
-  
-  // Binary response
-  return response.binary(buffer);
-  
-  // Empty response
-  return response.empty();
-};
-```
-
-**v1:**
-```typescript
-const agent = createAgent('My Agent', {
-  handler: async (ctx, input) => {
-    // JSON response - just return an object
-    return { message: 'Hello' };
-
-    // Text response - return a string
-    return 'Hello';
-  }
-});
-
-// For more control over responses, use routes in src/api/index.ts:
 router.get('/hello', async (c) => {
-  const result = await myAgent.run({ name: 'World' });
-  return c.json(result);      // JSON response
-  return c.text('Hello');     // Text response
-  return c.body(buffer);      // Binary response
+  return c.json({ message: 'Hello' });
 });
+
+router.post('/echo', async (c) => {
+  const body = await c.req.json();
+  return c.json(body);
+});
+
+export default router;
 ```
 
-**Key Changes:**
-1. No `response` object - return values directly from agent handler
-2. Objects are automatically JSON-serialized
-3. Use Hono context methods in routes for advanced responses
-4. For typed responses, define output schema
-
----
-
-### Step 6: Update Service Usage
-
-<Callout type="success">
-KV and Vector storage APIs are unchanged.
-</Callout>
-
-#### Object Storage → Bun S3
-
-Object storage has been replaced with Bun's native S3 APIs for better performance and simpler code:
-
-**v0/Early v1:**
+**After (v2 chained style):**
 ```typescript
-// Store file
-await context.objectstore.put('uploads', 'hello.txt', data, {
-  contentType: 'text/plain',
-});
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-// Get file
-const result = await context.objectstore.get('uploads', 'hello.txt');
-if (result.exists) {
-  const text = new TextDecoder().decode(result.data);
-}
-
-// Create public URL
-const url = await context.objectstore.createPublicURL('uploads', 'file.pdf', {
-  expiresDuration: 3600000,
-});
-
-// Delete file
-await context.objectstore.delete('uploads', 'hello.txt');
-```
-
-**v1 (Bun S3):**
-```typescript
-import { s3 } from "bun";
-
-// Store file
-const file = s3.file("uploads/hello.txt");
-await file.write("Hello, World!", { type: "text/plain" });
-
-// Get file
-if (await file.exists()) {
-  const text = await file.text();
-}
-
-// Presign URL (synchronous, no network request)
-const url = s3.presign("uploads/file.pdf", {
-  expiresIn: 3600, // seconds, not milliseconds
-});
-
-// Delete file
-await file.delete();
-```
-
-**Key Changes:**
-1. Import `s3` from `"bun"` instead of using `ctx.objectstore`
-2. Use `s3.file(path)` to create a lazy file reference
-3. `presign()` takes seconds, not milliseconds, and is synchronous
-4. File operations are methods on the file object: `file.write()`, `file.text()`, `file.delete()`
-5. Credentials are auto-injected via environment variables
-
-<Callout type="info" title="Credential Auto-Injection">
-Agentuity automatically injects S3 credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_ENDPOINT`) during development and deployment.
-</Callout>
-
-#### Database Support
-
-v1 adds SQL database support via Bun's native SQL APIs:
-
-```typescript
-import { sql } from "bun";
-
-// Query with automatic parameter escaping (prevents SQL injection)
-const users = await sql`SELECT * FROM users WHERE active = ${true}`;
-
-// Insert data
-await sql`INSERT INTO users (name, email) VALUES (${"Alice"}, ${"alice@example.com"})`;
-
-// Transactions
-await sql.begin(async (tx) => {
-  await tx`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromId}`;
-  await tx`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toId}`;
-});
-```
-
-<Callout type="info" title="Credential Auto-Injection">
-Agentuity automatically injects `DATABASE_URL` during development and deployment.
-</Callout>
-
----
-
-### Step 7: Update Agent-to-Agent Communication
-
-Agent-to-agent communication uses direct imports in v1.
-
-**v0:**
-```typescript
-const handler: AgentHandler = async (request, response, context) => {
-  // Get agent by ID
-  const agent = await context.getAgent({ id: 'agent_123' });
-
-  // Or by name
-  const agent = await context.getAgent({
-    name: 'other-agent',
-    projectId: 'proj_123'
+const router = new Hono<Env>()
+  .get('/hello', async (c) => {
+    return c.json({ message: 'Hello' });
+  })
+  .post('/echo', async (c) => {
+    const body = await c.req.json();
+    return c.json(body);
   });
 
-  // Run the agent
-  const result = await agent.run({
-    data: JSON.stringify({ message: 'Hello' }),
-    contentType: 'application/json'
-  });
+export default router;
+```
 
-  const output = await result.data.json();
+<Callout type="success" title="Enables Hono RPC Client">
+The chained style allows you to use `hc<AppRouter>()` from `hono/client` for fully typed API calls from your frontend:
+
+```typescript
+import { hc } from 'hono/client';
+import type { AppRouter } from './api';
+
+const client = hc<AppRouter>('/api');
+const res = await client.hello.$get(); // Fully typed!
+```
+</Callout>
+
+### Step 3: Handle Guided Migrations
+
+Review and apply the guided migrations:
+
+#### Setup/Shutdown Lifecycle
+
+<Callout type="info" title="Use Hono's Standard Patterns">
+v2 removes custom `setup`/`shutdown` hooks from `createApp()`. Use Hono's built-in patterns instead:
+- **Initialization**: Run at module level (executes when the file loads)
+- **Cleanup**: Use Hono's middleware or Bun's process hooks
+</Callout>
+
+**Before (v1):**
+```typescript
+// app.ts
+import { createApp } from '@agentuity/runtime';
+
+export default createApp({
+  setup: async (ctx) => {
+    // Initialize database, connections, etc.
+    ctx.app.db = await connectDB();
+  },
+  shutdown: async (ctx) => {
+    // Cleanup
+    await ctx.app.db.close();
+  }
+});
+```
+
+**After (v2):**
+```typescript
+// db.ts - Initialize at module level
+export const db = await connectDB();
+
+// app.ts
+import { createApp } from '@agentuity/runtime';
+import { db } from './db';
+
+// Handle cleanup with Bun's process hooks
+process.on('beforeExit', async () => {
+  await db.close();
+});
+
+export default createApp({
+  // No setup/shutdown — handled by Hono/Bun standard patterns
+});
+```
+
+#### Configuration Consolidation
+
+Move all configuration from `agentuity.config.ts` to either:
+- `createApp()` in `app.ts` for runtime config (analytics, workbench, cors, compression)
+- `vite.config.ts` for build config (plugins, define, render, bundle)
+
+**Before (v1):**
+```typescript
+// agentuity.config.ts
+export default {
+  workbench: { route: '/workbench' },
+  // plugins and other vite config
 };
 ```
 
-**v1:**
+**After (v2):**
 ```typescript
-// src/agent/coordinator/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import otherAgent from '@agent/other-agent';
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-const agent = createAgent('Coordinator', {
-  handler: async (ctx, input) => {
-    // Import and call agents directly
-    const result = await otherAgent.run({
-      message: 'Hello'
-    });
-
-    // Result is automatically typed if the agent has a schema
-    ctx.logger.info('Agent response:', { response: result });
-
-    return result;
-  }
+export default defineConfig({
+  plugins: [react()],
+  define: { 'process.env': {} }
 });
 
-export default agent;
+// app.ts
+import { createApp } from '@agentuity/runtime';
+
+export default createApp({
+  analytics: true,
+  workbench: true
+});
 ```
 
-**Key Changes:**
-1. Import agents using `import agent from '@agent/agent-name'`
-2. Call directly with `agent.run(input)`
-3. No need to JSON-stringify data
-4. Type-safe when using schemas
+### Step 4: Update API Client
 
----
+If your frontend uses the v1 API client:
 
-## Other v1 Features
+**Before (v1):**
+```typescript
+import { createClient, RPCRouteRegistry } from '@agentuity/react';
 
-These features are optional but can improve your agents.
+const client = createClient<RPCRouteRegistry>();
+const result = await client.api.hello.$get();
+```
 
-### Cron Routes
+**After (v2):**
+```typescript
+import { hc } from 'hono/client';
+import type { AppRouter } from '@agentuity/api';
 
-v1 adds cron routes via middleware. See [Routes documentation](/routes) for WebSocket, SSE, and streaming.
+const client = hc<AppRouter>('/api');
+const result = await client.hello.$get();
+```
+
+### Step 5: Wire Up Barrels
+
+The migration tool generates barrel files:
+
+**`src/api/index.ts`:**
+```typescript
+import helloRouter from './hello';
+import echoRouter from './echo';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+
+const api = new Hono<Env>()
+  .route('/hello', helloRouter)
+  .route('/echo', echoRouter);
+
+export default api;
+export type AppRouter = typeof api;
+```
+
+**`src/agent/index.ts`:**
+```typescript
+export { default as helloAgent } from './hello';
+export { default as echoAgent } from './echo';
+```
+
+Wire these into your `app.ts`:
 
 ```typescript
-import { cron } from '@agentuity/runtime';
+import { createApp } from '@agentuity/runtime';
+import router from './api';
+import * as agents from './agent';
 
-router.post('/daily-job', cron('0 0 * * *', async (c) => {
-  c.var.logger.info('Daily job running');
-  return { status: 'completed' };
-}));
+export default createApp({
+  router,
+  agents
+});
 ```
-
-### Evaluations
-
-Test agent outputs automatically with `agent.createEval()`. See [Evaluations](/agents/evaluations).
-
-### Event Listeners
-
-Monitor agent lifecycle with `agent.addEventListener('started' | 'completed' | 'errored', ...)`. See [Events](/agents/events-lifecycle).
-
-### Sessions and Threads
-
-Manage conversational state with `ctx.session` and `ctx.thread`. See [State Management](/agents/state-management).
 
 ---
 
 ## Troubleshooting
 
-#### Issue 1: "Cannot find module '@agentuity/sdk'"
+#### Issue 1: "Cannot find module '@agentuity/react' client exports"
 
-**Cause**: You haven't updated your imports from v0 to v1.
+**Cause**: v2 uses Hono's native RPC client instead.
 
-**Solution**: Change all imports from:
+**Solution**: Replace with `hc()` from `hono/client`:
 ```typescript
-import { ... } from '@agentuity/sdk';
-```
+import { hc } from 'hono/client';
+import type { AppRouter } from '@agentuity/api';
 
-To:
-```typescript
-import { ... } from '@agentuity/runtime';
-```
-
----
-
-#### Issue 2: "Property 'runId' does not exist on type 'AgentContext'"
-
-**Cause**: `runId` was renamed to `sessionId` in v1.
-
-**Solution**: Replace all instances of `context.runId` with `ctx.sessionId`.
-
----
-
-#### Issue 3: "Handler is not a function"
-
-**Cause**: You're not exporting the agent correctly.
-
-**Solution**: Export the agent from `agent.ts` and import it in your routes:
-```typescript
-// src/agent/my-agent/agent.ts
-const agent = createAgent('My Agent', { ... });
-export default agent;
-
-// src/api/index.ts
-import myAgent from '@agent/my-agent';
-router.post('/my-agent', async (c) => {
-  const result = await myAgent.run(await c.req.json());
-  return c.json(result);
-});
+const client = hc<AppRouter>('/api');
 ```
 
 ---
 
-#### Issue 4: "Input validation failed"
+#### Issue 2: "createRouter is not defined"
 
-**Cause**: You defined an input schema but the incoming data doesn't match it.
+**Cause**: v2 uses Hono directly instead of the wrapper.
 
-**Solution**: Check your schema definition and ensure incoming data matches:
+**Solution**: Use `new Hono<Env>()` instead:
 ```typescript
-const agent = createAgent('My Agent', {
-  schema: {
-    input: z.object({
-      message: z.string(),
-      // Make optional fields explicit
-      metadata: z.record(z.unknown()).optional()
-    })
-  },
-  handler: async (ctx, input) => {
-    // ...
-  }
-});
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+
+const router = new Hono<Env>();
 ```
 
 ---
 
-#### Issue 5: "Cannot find agent" or import errors
+#### Issue 3: "Property 'app' does not exist on context"
 
-**Cause**: Agent import path is incorrect.
+**Cause**: v2 removed the generic `ctx.app` state bag.
 
-**Solution**: Use the `@agent/` alias to import agents:
+**Solution**: Use module-level variables instead of storing state on context:
 ```typescript
-// Correct - use @agent/ alias
-import myAgent from '@agent/my-agent';
-
-// The alias maps to src/agent/
-// So @agent/my-agent resolves to src/agent/my-agent/agent.ts
+// Before: ctx.app.db
+// After: use imported db directly (module-level)
 ```
 
 ---
@@ -655,13 +488,3 @@ If you encounter issues not covered in this guide:
 3. **Community Support**: Join our [Discord community](https://discord.gg/agentuity) for help
 4. **Report Issues**: Open an issue on [GitHub](https://github.com/agentuity/sdk) if you find bugs
 
----
-
-## Next Steps
-
-After migrating your agents:
-
-1. **Add Schema Validation**: Improve type safety with [Schema Validation](/routes/http)
-2. **Implement Evaluations**: Ensure quality with [Evaluations](/agents/evaluations)
-3. **Use Advanced Routing**: Explore [WebSocket](/routes/websockets), [SSE](/routes/sse), and [other routes](/routes)
-4. **Add Event Listeners**: Monitor your agents with [Events & Lifecycle](/agents/events-lifecycle)

@@ -10,7 +10,7 @@ import {
 	APIClient as ServerAPIClient,
 } from '@agentuity/server';
 import { YAML } from 'bun';
-import JSON5 from 'json5';
+import { parseJSONC } from './utils/jsonc';
 import { z } from 'zod';
 import { clearProfileCache } from './cache';
 import { getCatalystUrl } from './catalyst';
@@ -28,6 +28,14 @@ import { ConfigSchema, ProjectSchema } from './types';
 export const defaultProfileName = 'production';
 
 export function getDefaultConfigDir(): string {
+	const configDirOverride = process.env.AGENTUITY_CONFIG_DIR?.trim();
+	if (configDirOverride) {
+		if (configDirOverride.startsWith('~/')) {
+			return resolve(join(homedir(), configDirOverride.slice(2)));
+		}
+		return resolve(configDirOverride);
+	}
+
 	return join(homedir(), '.config', 'agentuity');
 }
 
@@ -144,16 +152,22 @@ let cachedConfig: Config | null | undefined;
 // Track the resolved config path so saveConfig writes back to the same file
 let cachedConfigPath: string | undefined;
 
+export function resetConfigCache(): void {
+	cachedConfig = undefined;
+	cachedConfigPath = undefined;
+}
+
 export async function loadConfig(
 	customPath?: string,
 	skipCache = false,
 	profileFromFlag?: string
 ): Promise<Config | null> {
-	// Use cache if available and not skipped
-	if (!skipCache && cachedConfig !== undefined) {
+	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
+
+	// Use cache if available and not skipped, but only if the path matches
+	if (!skipCache && cachedConfig !== undefined && cachedConfigPath === configPath) {
 		return cachedConfig;
 	}
-	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
 
 	try {
 		const file = Bun.file(configPath);
@@ -265,8 +279,19 @@ function formatYAML(obj: unknown, indent = 0): string {
 		} else if (typeof value === 'string') {
 			if (value === '') {
 				lines.push(`${spaces}${key}: ""`);
-			} else if (value.includes(':') || value.includes('#') || value.includes(' ')) {
-				lines.push(`${spaces}${key}: "${value}"`);
+			} else if (
+				value.includes(':') ||
+				value.includes('#') ||
+				value.includes(' ') ||
+				value.includes('\\')
+			) {
+				// Use single quotes to avoid YAML escape-sequence processing.
+				// Double-quoted YAML strings interpret backslash sequences (\n, \t, etc.),
+				// which breaks Windows paths like C:\Users\... where \U would be invalid.
+				// Single-quoted strings treat backslashes literally.
+				// Escape any embedded single quotes by doubling them (YAML spec).
+				const escaped = value.replace(/'/g, "''");
+				lines.push(`${spaces}${key}: '${escaped}'`);
 			} else {
 				lines.push(`${spaces}${key}: ${value}`);
 			}
@@ -602,7 +627,7 @@ export async function loadProjectConfig(
 		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
 	}
 	const text = await file.text();
-	const parsedConfig = JSON5.parse(text);
+	const parsedConfig = parseJSONC(text);
 	const result = ProjectSchema.safeParse(parsedConfig);
 	if (!result.success) {
 		tui.error(`Invalid project config at ${configPath}:`);
@@ -707,7 +732,7 @@ export async function updateProjectConfig(
 	}
 
 	const text = await file.text();
-	const existing = JSON5.parse(text);
+	const existing = parseJSONC(text) as Record<string, unknown>;
 	const updated = { ...existing, ...updates };
 
 	const result = ProjectSchema.safeParse(updated);

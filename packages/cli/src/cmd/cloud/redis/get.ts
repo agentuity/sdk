@@ -11,7 +11,7 @@ const RedisGetResponseSchema = z.object({
 
 export const showSubcommand = createSubcommand({
 	name: 'show',
-	aliases: ['info'],
+	aliases: ['info', 'get'],
 	description: 'Show Redis connection URL',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, org: true, region: true },

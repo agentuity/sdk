@@ -1,13 +1,48 @@
 ---
 title: SDK Utilities for External Apps
+short_title: Server Utilities
 description: Use storage, queues, logging, and error handling utilities from external backends like Next.js or Express
 ---
 
-Use `@agentuity/server` and `@agentuity/core` utilities in external apps, scripts, or backends that integrate with Agentuity.
+Use Agentuity services in external apps, scripts, or backends. Standalone packages provide the simplest setup, or use `@agentuity/server` directly for custom configurations.
 
-## Storage Access
+## Standalone Packages
 
-Access Agentuity storage (KV, Vector, Stream) directly from your Next.js or Express backend using your SDK key.
+The fastest way to access Agentuity services from external apps. Each package handles authentication and configuration automatically.
+
+<Callout type="info" title="Environment Variables">
+Set `AGENTUITY_SDK_KEY` and `AGENTUITY_REGION` in your `.env` file. See [Standalone Packages](/reference/standalone-packages#configuration) for details.
+</Callout>
+
+```typescript title="lib/agentuity.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { VectorClient } from '@agentuity/vector';
+import { SandboxClient } from '@agentuity/sandbox';
+
+export const kv = new KeyValueClient();
+export const vector = new VectorClient();
+export const sandbox = new SandboxClient();
+```
+
+```typescript title="app/api/sessions/route.ts"
+import { kv } from '../../lib/agentuity';
+
+export async function GET(request: Request) {
+  const userId = new URL(request.url).searchParams.get('userId');
+  const result = await kv.get<{ messages: string[] }>('sessions', userId!);
+
+  if (result.exists) {
+    return Response.json(result.data);
+  }
+  return Response.json({ messages: [] });
+}
+```
+
+See [Standalone Packages](/reference/standalone-packages) for the full list of available packages and their APIs.
+
+## Manual Configuration
+
+For custom adapter configuration, direct service URL overrides, or when you need lower-level control, use `@agentuity/server` directly.
 
 Add these environment variables to your `.env`:
 
@@ -471,13 +506,15 @@ const jsonSchema = toJSONSchema(schema);
 
 ## Key Points
 
-- **Direct SDK** is the simplest way to access storage from external backends
+- **Standalone packages** are the simplest way to access services from external backends
+- **Manual configuration** with `@agentuity/server` supports custom adapters and service URL overrides
 - **Required env vars**: `AGENTUITY_SDK_KEY` and `AGENTUITY_REGION` (from `agentuity.json`)
 - **HTTP routes** are an alternative for centralized logic, middleware, or sharing across apps
 - **Works with any framework**: Next.js, Express, Remix, etc.
 
 ## See Also
 
+- [Standalone Packages](/reference/standalone-packages): Full list of service packages and their APIs
 - [Queues](/services/queues): Queue concepts and CLI commands
 - [HTTP Routes](/routes/http): Route creation with `createRouter`
 - [Route Middleware](/routes/middleware): Authentication patterns

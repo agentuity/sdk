@@ -20,6 +20,7 @@ import { HubOverlay } from './hub-overlay.ts';
 import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
 import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
+import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -136,9 +137,11 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 
 	if (httpUrl.includes('/api/ws')) {
-		httpUrl = httpUrl.replace('/api/ws', '/api/hub/tui/init');
+		httpUrl = httpUrl.replace('/api/ws', '/api/hub/init');
+	} else if (/\/ws\b/.test(httpUrl)) {
+		httpUrl = httpUrl.replace(/\/ws\b/, '/api/hub/init');
 	} else {
-		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/tui/init');
+		httpUrl = httpUrl.replace(/\/?$/, '/api/hub/init');
 	}
 
 	if (agentRole && agentRole !== 'lead') {
@@ -151,6 +154,7 @@ function buildInitUrl(hubUrl: string, agentRole?: string): string {
 function getHubHttpBaseUrl(hubUrl: string): string {
 	let httpUrl = hubUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://');
 	httpUrl = httpUrl.replace(/\/api\/ws\b.*$/, '');
+	httpUrl = httpUrl.replace(/\/ws\b.*$/, '');
 	return httpUrl.replace(/\/+$/, '');
 }
 
@@ -475,10 +479,88 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		}
 	};
 
+	function handleInboundRpcCommand(message: Record<string, unknown>): void {
+		const command = message.command as Record<string, unknown> | undefined;
+		if (!command) {
+			log('Ignoring inbound rpc_command without command payload');
+			return;
+		}
+
+		const commandType = typeof command.type === 'string' ? command.type : '';
+		if (commandType === 'abort') {
+			if (!footerCtx) {
+				log('Ignoring inbound abort before session context is ready');
+				return;
+			}
+			footerCtx.abort();
+			log('Handled inbound rpc abort');
+			return;
+		}
+
+		if (commandType !== 'prompt' && commandType !== 'follow_up' && commandType !== 'steer') {
+			log(`Ignoring unsupported inbound rpc command: ${commandType || 'unknown'}`);
+			return;
+		}
+
+		const promptText = buildInboundRpcPromptText(command);
+		if (!promptText) {
+			log(`Ignoring empty inbound rpc ${commandType}`);
+			return;
+		}
+
+		if (Array.isArray(command.attachments) && command.attachments.length > 0) {
+			log(`Inbound rpc ${commandType} included attachments; native TUI forwarding text only`);
+		}
+
+		const deliverAs = getInboundRpcDeliverAs(commandType, footerCtx?.isIdle() ?? true);
+		try {
+			if (deliverAs) {
+				pi.sendUserMessage(promptText, { deliverAs });
+			} else {
+				pi.sendUserMessage(promptText);
+			}
+			log(`Handled inbound rpc ${commandType}`);
+			return;
+		} catch (err) {
+			if (!deliverAs && commandType === 'prompt') {
+				try {
+					pi.sendUserMessage(promptText, { deliverAs: 'followUp' });
+					log('Handled inbound rpc prompt as follow-up after busy-state fallback');
+					return;
+				} catch (fallbackErr) {
+					log(
+						`Inbound rpc prompt fallback failed: ${
+							fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+						}`
+					);
+				}
+			}
+			log(
+				`Inbound rpc ${commandType} failed: ${err instanceof Error ? err.message : String(err)}`
+			);
+		}
+	}
+
 	// Handle unsolicited server messages (broadcast, presence)
 	// Updates observer state for footer display
 	client.onServerMessage = (message) => {
 		const msgType = message.type as string;
+		if (msgType === 'rpc_command') {
+			if (!remoteSessionId && !isSubAgent) {
+				handleInboundRpcCommand(message);
+			}
+			return;
+		}
+
+		if (msgType === 'rpc_command_error') {
+			log(
+				`Hub reported rpc_command_error: ${
+					typeof message.error === 'string' ? message.error : 'unknown error'
+				}`
+			);
+			return;
+		}
+
 		if (msgType === 'broadcast') {
 			const event = message.event as string;
 			if (event === 'session_join') {
@@ -544,8 +626,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			try {
 				// In remote mode, connect as a controller to the existing session
 				const connectOpts = remoteSessionId
-					? { sessionId: remoteSessionId, role: 'controller' }
-					: undefined;
+					? { sessionId: remoteSessionId, role: 'controller' as const }
+					: { origin: 'tui' as const };
 				const wsInitMsg = await client.connect(hubUrl!, connectOpts);
 				log('WebSocket connected');
 				applyInitMessage(wsInitMsg);
@@ -726,6 +808,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 				`Delegate a task to a specialized agent on your team. ` +
 				`Available agents: ${agentNames.join(', ')}. ` +
 				`Each agent runs independently with its own context window.`,
+			promptSnippet:
+				'Use task({ description, prompt, subagent_type }) to delegate one focused sub-task to a specialist agent.',
 			parameters: Type.Object({
 				description: Type.String({ description: 'Short 3-5 word task description' }),
 				prompt: Type.String({ description: 'Detailed task instructions for the agent' }),
@@ -929,6 +1013,8 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 			description:
 				`Run multiple agent tasks concurrently (max 4). ` +
 				`Available agents: ${agentNames.join(', ')}.`,
+			promptSnippet:
+				'Use parallel_tasks({ tasks: [...] }) when multiple independent specialist tasks can run at the same time.',
 			parameters: Type.Object({
 				tasks: Type.Array(
 					Type.Object({
@@ -1574,7 +1660,6 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 	// Try direct import first (works if packages are in module resolution path)
 	try {
 		const piSdk = await import('@mariozechner/pi-coding-agent');
-		// @ts-expect-error pi-ai is a runtime dependency available inside Pi's process
 		const piAi = await import('@mariozechner/pi-ai');
 		_piSdkCache = { piSdk, piAi };
 		return _piSdkCache;
@@ -1777,7 +1862,7 @@ async function runSubAgent(
 						return;
 					}
 
-					if (evt.type === 'tool_execution_start' || evt.type === 'tool_call') {
+					if (evt.type === 'tool_execution_start') {
 						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';
 						let toolArgs = '';
 						if (evt.args && typeof evt.args === 'object') {
@@ -1795,14 +1880,16 @@ async function runSubAgent(
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_start',
+							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
 							currentTool: toolName,
 							currentToolArgs: toolArgs,
 							elapsed,
 						});
-					} else if (evt.type === 'tool_execution_end' || evt.type === 'tool_result') {
+					} else if (evt.type === 'tool_execution_end') {
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_end',
+							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
 							elapsed,
 						});
 					}

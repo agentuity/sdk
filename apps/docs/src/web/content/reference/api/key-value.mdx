@@ -1,0 +1,543 @@
+---
+title: Key-Value Storage API
+short_title: Key-Value Storage
+description: Store and retrieve arbitrary data by key within namespaces
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Get Value
+
+Retrieve a stored value by its namespace and key. Returns the raw value with the original content type.
+
+<ApiEndpoint method="GET" path="/kv/{namespace}/{key}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The key to retrieve"
+  }
+]} />
+
+### Response
+
+Returns the raw stored value with the original content type. The response body is the value itself (not wrapped in JSON).
+
+| Status | Description |
+|--------|-------------|
+| 200 | Value found and returned |
+| 401 | Unauthorized — invalid or missing API key |
+| 404 | Key does not exist in the namespace |
+
+### Response Headers
+
+| Header | Description |
+|--------|-------------|
+| `Content-Type` | MIME type of the stored value (e.g., `application/json`, `text/plain`, `application/octet-stream`) |
+| `x-expires-at` | ISO 8601 expiration timestamp. Omitted if the key does not expire. |
+
+### Example
+
+<ApiExample method="GET" path="/kv/my-namespace/user-123" />
+
+---
+
+## Store Value
+
+Store a value in key-value storage. The namespace is auto-created if it doesn't exist. Set the Content-Type header to match your data format.
+
+<ApiEndpoint method="PUT" path="/kv/{namespace}/{key}[/{ttl}]" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name (auto-created if not exists)"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The key to store the value under"
+  },
+  {
+    "name": "ttl",
+    "type": "number",
+    "in": "path",
+    "required": false,
+    "description": "Optional TTL in seconds (60–31,536,000). Omit for namespace default. Use `0` for no expiration."
+  }
+]} />
+
+### Request Body
+
+The raw value to store. Can be any content type — JSON, text, or binary.
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Value stored successfully |
+| 401 | Unauthorized — invalid or missing API key |
+| 402 | Payment required — upgrade to a paid plan |
+
+### Notes
+
+TTL behavior:
+- **Omitted**: Key inherits namespace default TTL (7 days if not configured)
+- **`0`**: Key never expires
+- **60–31,536,000**: Expires after specified seconds (values outside range are clamped)
+
+### Example
+
+<ApiExample method="PUT" path="/kv/my-namespace/user-123" body={{
+  "name": "Alice",
+  "email": "alice@example.com"
+}} />
+
+---
+
+## Delete Value
+
+Delete a specific key from a namespace.
+
+<ApiEndpoint method="DELETE" path="/kv/{namespace}/{key}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name"
+  },
+  {
+    "name": "key",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The key to delete"
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Key deleted successfully |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="DELETE" path="/kv/my-namespace/user-123" />
+
+---
+
+## Search Keys
+
+Search for keys matching a keyword within a namespace. Returns matching keys with their values and metadata.
+
+<ApiEndpoint method="GET" path="/kv/search/{namespace}/{keyword}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace to search in"
+  },
+  {
+    "name": "keyword",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The keyword to search for in key names"
+  }
+]} />
+
+### Response
+
+JSON object mapping key names to their values and metadata.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Search results returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "{key}.value",
+    "type": "any",
+    "description": "The stored value (base64-encoded for binary)"
+  },
+  {
+    "name": "{key}.contentType",
+    "type": "string",
+    "description": "MIME type of the stored value"
+  },
+  {
+    "name": "{key}.size",
+    "type": "number",
+    "description": "Size in bytes"
+  },
+  {
+    "name": "{key}.expiresAt",
+    "type": "string | null",
+    "description": "ISO 8601 expiration timestamp"
+  },
+  {
+    "name": "{key}.firstUsed",
+    "type": "number | null",
+    "description": "Unix timestamp (ms) of first access"
+  },
+  {
+    "name": "{key}.lastUsed",
+    "type": "number | null",
+    "description": "Unix timestamp (ms) of last access"
+  },
+  {
+    "name": "{key}.count",
+    "type": "number | null",
+    "description": "Number of times accessed"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/kv/search/my-namespace/user" />
+
+---
+
+## List Keys
+
+Get all key names in a namespace.
+
+<ApiEndpoint method="GET" path="/kv/keys/{namespace}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace to list keys from"
+  }
+]} />
+
+### Response
+
+JSON array of key name strings.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Key list returned |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="GET" path="/kv/keys/my-namespace" />
+
+---
+
+## Get Namespace Stats
+
+Get statistics for a specific namespace including record count and size.
+
+<ApiEndpoint method="GET" path="/kv/stats/{namespace}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace to get stats for"
+  }
+]} />
+
+### Response
+
+JSON object with namespace statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stats returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sum",
+    "type": "number",
+    "description": "Total size in bytes for the namespace.",
+    "required": true
+  },
+  {
+    "name": "count",
+    "type": "number",
+    "description": "Number of records in the namespace.",
+    "required": true
+  },
+  {
+    "name": "createdAt",
+    "type": "number",
+    "description": "Unix timestamp (milliseconds) when the namespace was created.",
+    "required": false
+  },
+  {
+    "name": "lastUsedAt",
+    "type": "number",
+    "description": "Unix timestamp (milliseconds) when the namespace was last used.",
+    "required": false
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/kv/stats/my-namespace" />
+
+---
+
+## List All Namespace Stats
+
+Get statistics for all namespaces with optional pagination and filtering.
+
+<ApiEndpoint method="GET" path="/kv/stats" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum namespaces to return (default: 100, max: 1000)"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Number of namespaces to skip (default: 0)"
+  },
+  {
+    "name": "sort",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort field: `name`, `size`, `records`, `created`, or `lastUsed`"
+  },
+  {
+    "name": "direction",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Sort direction: `asc` or `desc` (default: `desc`)"
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Filter namespaces by name substring"
+  }
+]} />
+
+### Response
+
+Paginated response with namespace statistics.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stats returned |
+| 401 | Unauthorized |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "namespaces",
+    "type": "object",
+    "description": "Map of namespace names to their statistics"
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of namespaces across all pages"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Number of namespaces requested per page"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Number of namespaces skipped"
+  },
+  {
+    "name": "hasMore",
+    "type": "boolean",
+    "description": "Whether there are more namespaces available"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/kv/stats?limit=10&sort=size&direction=desc" />
+
+---
+
+## List Namespaces
+
+Get all namespace names (up to 1000, ordered by creation date, most recent first).
+
+<ApiEndpoint method="GET" path="/kv/namespaces" />
+
+
+
+### Response
+
+JSON array of namespace name strings.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Namespace list returned |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="GET" path="/kv/namespaces" />
+
+---
+
+## Create Namespace
+
+Create a new namespace with optional default TTL configuration.
+
+<ApiEndpoint method="POST" path="/kv/{namespace}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace name to create"
+  }
+]} />
+
+### Request Body
+
+Optional JSON body with namespace configuration.
+
+<ResponseFields fields={[
+  {
+    "name": "default_ttl_seconds",
+    "type": "number",
+    "description": "Default TTL for keys in this namespace (in seconds). If omitted, defaults to 7 days (604,800). Use 0 for keys that never expire.",
+    "required": false
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Namespace created successfully |
+| 401 | Unauthorized |
+| 402 | Payment required |
+
+### Example
+
+<ApiExample method="POST" path="/kv/my-namespace" body={{
+  "default_ttl_seconds": 86400
+}} />
+
+---
+
+## Delete Namespace
+
+Delete an entire namespace and all its keys.
+
+<ApiEndpoint method="DELETE" path="/kv/{namespace}" />
+
+### Parameters
+
+<ParamTable params={[
+  {
+    "name": "namespace",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "The namespace to delete"
+  }
+]} />
+
+### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Namespace deleted successfully |
+| 401 | Unauthorized |
+
+### Example
+
+<ApiExample method="DELETE" path="/kv/my-namespace" />
+
+---

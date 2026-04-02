@@ -319,9 +319,11 @@ export const MessageSchema = z
 export type Message = z.infer<typeof MessageSchema>;
 
 /**
- * Destination type schema. Currently only HTTP webhooks are supported.
+ * Destination type schema. Supports webhook, queue, sandbox, and email destinations.
  */
-export const DestinationTypeSchema = z.enum(['http']).describe('Destination type schema');
+export const DestinationTypeSchema = z
+	.enum(['http', 'url', 'webhook', 'queue', 'sandbox', 'email'])
+	.describe('Destination type schema');
 
 /**
  * Destination type.
@@ -425,6 +427,55 @@ export const DestinationStatsSchema = z
 export type DestinationStats = z.infer<typeof DestinationStatsSchema>;
 
 /**
+ * URL destination configuration schema.
+ */
+export const UrlDestinationConfigSchema = z
+	.object({
+		url: z.string().describe('The URL to send messages to.'),
+	})
+	.describe('URL destination config');
+
+/**
+ * Webhook destination configuration schema (same shape as HTTP).
+ */
+export const WebhookDestinationConfigSchema = HttpDestinationConfigSchema;
+
+/**
+ * Queue destination configuration schema.
+ */
+export const QueueDestinationConfigSchema = z
+	.object({
+		queue_id: z.string().describe('Target queue ID'),
+	})
+	.describe('Queue destination config');
+
+/**
+ * Sandbox destination configuration schema.
+ */
+export const SandboxDestinationConfigSchema = z
+	.object({
+		sandbox_id: z.string().describe('Target sandbox ID'),
+	})
+	.describe('Sandbox destination config');
+
+/**
+ * Email destination configuration schema.
+ */
+export const EmailDestinationConfigSchema = z
+	.object({
+		email_address: z.string().describe('Target email address'),
+	})
+	.describe('Email destination config');
+
+/**
+ * Generic destination configuration schema for destination types not yet fully implemented.
+ */
+export const GenericDestinationConfigSchema = z
+	.record(z.string(), z.unknown())
+	.optional()
+	.describe('Generic configuration for destination types not yet fully implemented.');
+
+/**
  * Destination schema representing a webhook endpoint for message delivery.
  *
  * Destinations are attached to queues and automatically receive messages when published.
@@ -448,10 +499,18 @@ export const DestinationSchema = z
 			.optional()
 			.describe('Optional description of the destination.'),
 		queue_id: z.string().describe('ID of the queue this destination is attached to.'),
-		destination_type: DestinationTypeSchema.describe(
-			"Type of destination (currently only 'http')."
-		),
-		config: HttpDestinationConfigSchema.describe('HTTP configuration for the destination.'),
+		destination_type: DestinationTypeSchema.describe('Type of destination.'),
+		config: z
+			.union([
+				HttpDestinationConfigSchema,
+				UrlDestinationConfigSchema,
+				WebhookDestinationConfigSchema,
+				QueueDestinationConfigSchema,
+				SandboxDestinationConfigSchema,
+				EmailDestinationConfigSchema,
+				GenericDestinationConfigSchema,
+			])
+			.describe('Configuration for the destination based on type.'),
 		enabled: z.boolean().describe('Whether the destination is enabled for delivery.'),
 		stats: DestinationStatsSchema.optional().describe(
 			'Delivery statistics for this destination.'
@@ -591,6 +650,7 @@ export const CreateQueueRequestSchema = z
 		name: z.string().optional().describe('Optional queue name (auto-generated if not provided).'),
 		description: z.string().optional().describe("Optional description of the queue's purpose."),
 		queue_type: QueueTypeSchema.describe('Type of queue to create.'),
+		internal: z.boolean().optional().describe('Whether the queue is system-managed.'),
 		settings: QueueSettingsSchemaBase.partial()
 			.optional()
 			.describe(
@@ -747,7 +807,9 @@ export const CreateDestinationRequestSchema = z
 		name: z.string().describe('Human-readable name for the destination.'),
 		description: z.string().optional().describe('Optional description of the destination.'),
 		destination_type: DestinationTypeSchema.describe('Type of destination to create.'),
-		config: HttpDestinationConfigSchema.describe('HTTP configuration for the destination.'),
+		config: z
+			.record(z.string(), z.unknown())
+			.describe('Configuration for the destination (type-specific).'),
 		enabled: z
 			.boolean()
 			.default(true)
@@ -769,9 +831,10 @@ export const UpdateDestinationRequestSchema = z
 			.nullable()
 			.optional()
 			.describe('Updated description of the destination.'),
-		config: HttpDestinationConfigSchema.partial()
+		config: z
+			.record(z.string(), z.unknown())
 			.optional()
-			.describe('HTTP configuration updates (partial update supported).'),
+			.describe('Configuration updates (partial update supported).'),
 		enabled: z.boolean().optional().describe('Enable or disable the destination.'),
 	})
 	.describe('Update destination request schema');
@@ -1664,3 +1727,115 @@ export const WebSocketMessageSchema = z
 	.describe('Web socket message schema');
 
 export type WebSocketMessage = z.infer<typeof WebSocketMessageSchema>;
+
+// ============================================================================
+// API Response Schemas
+// ============================================================================
+
+/**
+ * Response schema for the list-queues endpoint.
+ */
+export const ListQueuesResponseSchema = z.object({
+	/** Queues in the current page */
+	queues: z.array(QueueSchema).describe('Queues in the current page'),
+	/** Optional total queue count */
+	total: z.number().optional().describe('Optional total queue count'),
+});
+
+export type ListQueuesResponse = z.infer<typeof ListQueuesResponseSchema>;
+
+/**
+ * Response schema for the batch-publish endpoint.
+ */
+export const BatchPublishResponseSchema = z.object({
+	/** Published messages */
+	messages: z.array(MessageSchema).describe('Published messages'),
+	/** Indexes that failed */
+	failed: z.array(z.number()).optional().describe('Indexes that failed'),
+});
+
+export type BatchPublishResponse = z.infer<typeof BatchPublishResponseSchema>;
+
+/**
+ * Response schema for the list-messages endpoint.
+ */
+export const ListMessagesResponseSchema = z.object({
+	/** Messages in current page */
+	messages: z.array(MessageSchema).describe('Messages in current page'),
+	/** Optional total message count */
+	total: z.number().optional().describe('Optional total message count'),
+});
+
+export type ListMessagesResponse = z.infer<typeof ListMessagesResponseSchema>;
+
+/**
+ * Response schema for the consume-messages endpoint.
+ */
+export const ConsumeMessagesResponseSchema = z.object({
+	/** Consumed messages */
+	messages: z.array(MessageSchema).describe('Consumed messages'),
+});
+
+export type ConsumeMessagesResponse = z.infer<typeof ConsumeMessagesResponseSchema>;
+
+/**
+ * Response schema for the receive-message endpoint.
+ */
+export const ReceiveMessageResponseSchema = z.object({
+	/** Received message if available */
+	message: MessageSchema.nullable().describe('Received message if available'),
+});
+
+export type ReceiveMessageResponse = z.infer<typeof ReceiveMessageResponseSchema>;
+
+/**
+ * Response schema for the get-queue-head endpoint.
+ */
+export const GetQueueHeadResponseSchema = z.object({
+	/** Oldest message offset */
+	offset: z.number().describe('Oldest message offset'),
+});
+
+export type GetQueueHeadResponse = z.infer<typeof GetQueueHeadResponseSchema>;
+
+/**
+ * Response schema for the get-queue-tail endpoint.
+ */
+export const GetQueueTailResponseSchema = z.object({
+	/** Newest message offset */
+	offset: z.number().describe('Newest message offset'),
+});
+
+export type GetQueueTailResponse = z.infer<typeof GetQueueTailResponseSchema>;
+
+/**
+ * Response schema for the list-destinations endpoint.
+ */
+export const ListDestinationsResponseSchema = z.object({
+	/** Configured destinations */
+	destinations: z.array(DestinationSchema).describe('Configured destinations'),
+});
+
+export type ListDestinationsResponse = z.infer<typeof ListDestinationsResponseSchema>;
+
+/**
+ * Response schema for the list-delivery-logs endpoint.
+ */
+export const ListDeliveryLogsResponseSchema = z.object({
+	/** Delivery log entries */
+	deliveries: z.array(DeliveryLogSchema).describe('Delivery log entries'),
+});
+
+export type ListDeliveryLogsResponse = z.infer<typeof ListDeliveryLogsResponseSchema>;
+
+/**
+ * Response schema for the list-dlq-messages endpoint.
+ */
+export const ListDlqMessagesResponseSchema = z.object({
+	/** DLQ messages */
+	messages: z.array(DeadLetterMessageSchema).describe('DLQ messages'),
+	/** Optional total DLQ message count */
+	total: z.number().optional().describe('Optional total DLQ message count'),
+});
+
+export type ListDlqMessagesResponse = z.infer<typeof ListDlqMessagesResponseSchema>;

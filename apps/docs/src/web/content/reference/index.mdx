@@ -1,88 +1,68 @@
 ---
 title: Reference
-description: SDK reference and CLI documentation
+description: SDK, API, and CLI reference documentation
 ---
 
-import { Book, ArrowRight, Terminal, Play, Wrench, Rocket, HardDrive, Box, Settings, Bug, Sparkles, Plug } from 'lucide-react';
-
-Complete reference documentation for the SDK and CLI.
+import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'lucide-react';
 
 <Cards>
   <CardLink
     href="/reference/sdk-reference"
     title="SDK Reference"
-    description="Complete API reference for the SDK"
-    icon={<Book />}
+    description="TypeScript method signatures for agents, routes, and services"
+    icon={<Code />}
   />
+  <CardLink
+    href="/reference/api"
+    title="REST API Reference"
+    description="HTTP endpoints for platform services from any language"
+    icon={<Globe />}
+  />
+  <CardLink
+    href="/reference/cli"
+    title="CLI Reference"
+    description="Terminal commands for building, deploying, and managing projects"
+    icon={<Terminal />}
+  />
+  <CardLink
+    href="/reference/standalone-packages"
+    title="Standalone Packages"
+    description="Use platform services from any Node.js or Bun app"
+    icon={<Package />}
+  />
+</Cards>
+
+## When to Use What
+
+| I want to... | Use |
+|---|---|
+| Write an agent handler (`ctx.*`) | [SDK Reference](/reference/sdk-reference) |
+| Write an API route (`c.var.*`) | [SDK Reference](/reference/sdk-reference/router) |
+| Access services from Next.js, Express, or scripts | [Standalone Packages](/reference/standalone-packages) |
+| Call Agentuity services from any language via HTTP | [REST API Reference](/reference/api) |
+| Create, deploy, or manage projects from the terminal | [CLI Reference](/reference/cli) |
+
+## Additional Resources
+
+Other reference pages for platform infrastructure, upgrades, and integrations.
+
+<Cards>
   <CardLink
     href="/reference/migration-guide"
     title="Migration Guide"
     description="Upgrade between SDK versions"
     icon={<ArrowRight />}
   />
-</Cards>
-
-## CLI Reference
-
-<Cards>
   <CardLink
-    href="/reference/cli/getting-started"
-    title="Getting Started"
-    description="Install and configure the CLI"
-    icon={<Terminal />}
+    href="/reference/gravity-network"
+    title="Gravity Network"
+    description="Global infrastructure and edge routing"
+    icon={<Network />}
   />
   <CardLink
-    href="/reference/cli/development"
-    title="Development"
-    description="Dev server, hot reload, and testing"
-    icon={<Play />}
-  />
-  <CardLink
-    href="/reference/cli/build-configuration"
-    title="Build Configuration"
-    description="Configure Vite plugins and build options"
-    icon={<Wrench />}
-  />
-  <CardLink
-    href="/reference/cli/deployment"
-    title="Deployment"
-    description="Deploy to Agentuity cloud"
-    icon={<Rocket />}
-  />
-  <CardLink
-    href="/reference/cli/storage"
-    title="Storage"
-    description="Manage cloud storage resources"
-    icon={<HardDrive />}
-  />
-  <CardLink
-    href="/reference/cli/sandbox"
-    title="Sandbox"
-    description="Manage sandbox environments"
-    icon={<Box />}
-  />
-  <CardLink
-    href="/reference/cli/configuration"
-    title="Configuration"
-    description="CLI configuration options"
-    icon={<Settings />}
-  />
-  <CardLink
-    href="/reference/cli/debugging"
-    title="Debugging"
-    description="Debug agents and routes"
-    icon={<Bug />}
-  />
-  <CardLink
-    href="/reference/cli/ai-commands"
-    title="AI Commands"
-    description="AI-assisted development commands"
-    icon={<Sparkles />}
-  />
-  <CardLink
-    href="/reference/cli/opencode-plugin"
-    title="Opencode Plugin"
-    description="AI-assisted agent development"
-    icon={<Plug />}
+    href="/reference/github-app"
+    title="GitHub App"
+    description="Automatic deployments from GitHub"
+    icon={<Github />}
   />
 </Cards>

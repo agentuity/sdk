@@ -1,8 +1,8 @@
 /**
  * Static Renderer
  *
- * When `render: 'static'` is set in agentuity.config.ts, this module:
- * 1. Runs a Vite SSR build to create a server-side entry point
+ * When `src/web/entry-server.tsx` exists, this module:
+ * 1. Runs a Vite SSR build (as a subprocess to avoid in-process Bun/Vite issues)
  * 2. Imports the built entry-server.js
  * 3. Discovers routes to pre-render:
  *    - If `routeTree` is exported: auto-discovers all non-parameterized routes
@@ -14,10 +14,8 @@
  */
 
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import type { Logger } from '../../../types';
-import { hasFrameworkPlugin } from './config-loader';
 
 /** Minimal shape of a TanStack Router route tree node. */
 interface RouteTreeNode {
@@ -29,38 +27,53 @@ interface RouteTreeNode {
 /**
  * Walks a TanStack Router route tree and extracts all non-parameterized paths.
  * Skips layout routes (no path) and parameterized routes (containing $).
+ *
+ * Accumulates the full URL path through the parent chain, since child routes
+ * under layout routes have relative paths (e.g., '/key-value' under a
+ * '/reference/api' layout should resolve to '/reference/api/key-value').
  */
 function extractRoutePaths(node: RouteTreeNode): string[] {
 	const paths = new Set<string>();
 
-	function walk(route: RouteTreeNode) {
-		const path: string | undefined = route.path ?? route.options?.path;
-		if (path && !path.includes('$')) {
-			// Normalize: strip trailing slashes, ensure leading slash
-			const normalized = path === '/' ? '/' : path.replace(/\/+$/, '');
+	function walk(route: RouteTreeNode, parentPath: string) {
+		const segment: string | undefined = route.path ?? route.options?.path;
+
+		// Build the full path by accumulating segments from parent routes.
+		// - Layout routes have no path (undefined) and don't contribute to the URL.
+		// - Index routes have path '/' and resolve to the parent path itself.
+		// - Leaf/layout routes have paths like '/reference/api' or '/key-value'.
+		let currentPath = parentPath;
+		if (segment && segment !== '/') {
+			// Non-root segment: append to parent path.
+			// Segments always start with '/' (TanStack Router convention).
+			currentPath = parentPath === '/' ? segment : parentPath + segment;
+		}
+
+		// Add non-parameterized, non-empty paths
+		if (currentPath && !currentPath.includes('$')) {
+			const normalized = currentPath === '/' ? '/' : currentPath.replace(/\/+$/, '');
 			if (normalized) {
 				paths.add(normalized);
 			}
 		}
 
-		// Recurse into children (TanStack Router stores them as an object)
+		// Recurse into children, passing the accumulated path
 		const children = route.children;
 		if (children && typeof children === 'object') {
 			for (const child of Object.values(children)) {
-				if (child) walk(child);
+				if (child) walk(child, currentPath);
 			}
 		}
 	}
 
-	walk(node);
+	walk(node, '');
 	return [...paths].sort();
 }
 
 export interface StaticRenderOptions {
 	rootDir: string;
 	logger: Logger;
-	/** User plugins from agentuity.config.ts */
-	userPlugins: import('vite').PluginOption[];
+	dev?: boolean;
 }
 
 export interface StaticRenderResult {
@@ -69,7 +82,7 @@ export interface StaticRenderResult {
 }
 
 export async function runStaticRender(options: StaticRenderOptions): Promise<StaticRenderResult> {
-	const { rootDir, logger, userPlugins } = options;
+	const { rootDir, logger, dev = false } = options;
 	const started = Date.now();
 
 	const clientDir = join(rootDir, '.agentuity/client');
@@ -93,49 +106,39 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 		);
 	}
 
-	// Step 1: Vite SSR build
-	// This resolves import.meta.glob, MDX imports, and other Vite-specific APIs
-	logger.debug('Running Vite SSR build for static rendering...');
+	// Step 1: Vite SSR build (subprocess)
+	// Run as a subprocess to avoid in-process Bun/Vite module resolution issues
+	// that cause @mdx-js/rollup and other plugins to fail during SSR builds.
+	// This matches the approach used for client builds in vite-builder.ts.
+	logger.debug('Running Vite SSR build for static rendering (subprocess)...');
 
-	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	let vitePath = 'vite';
-	let reactPluginPath = '@vitejs/plugin-react';
-	try {
-		vitePath = projectRequire.resolve('vite');
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
-	} catch {
-		// Use CLI's bundled version
+	const buildMode = dev ? 'development' : 'production';
+
+	const viteProcess = Bun.spawn(
+		[
+			'bun',
+			'x',
+			'vite',
+			'build',
+			'--ssr',
+			entryServerPath,
+			'--outDir',
+			ssrOutDir,
+			'--mode',
+			buildMode,
+		],
+		{
+			cwd: rootDir,
+			stdout: 'inherit',
+			stderr: 'inherit',
+		}
+	);
+
+	const exitCode = await viteProcess.exited;
+
+	if (exitCode !== 0) {
+		throw new Error(`Vite SSR build exited with code ${exitCode}`);
 	}
-
-	const { build: viteBuild } = await import(vitePath);
-	const reactModule = await import(reactPluginPath);
-	const react = reactModule.default;
-
-	// Build plugin list: auto-add React if no framework plugin present
-	const plugins = [...(userPlugins || [])];
-	if (plugins.length === 0 || !hasFrameworkPlugin(plugins)) {
-		plugins.unshift(react());
-	}
-
-	await viteBuild({
-		root: rootDir,
-		plugins,
-		build: {
-			ssr: entryServerPath,
-			outDir: ssrOutDir,
-			rollupOptions: {
-				output: {
-					format: 'esm',
-				},
-			},
-		},
-		ssr: {
-			// Bundle all dependencies for SSR — we need import.meta.glob, MDX, etc.
-			// resolved at build time. Node built-ins are still externalized.
-			noExternal: true,
-		},
-		logLevel: 'warn',
-	});
 
 	// Steps 2–4: wrapped in try-finally so SSR artifacts are always cleaned up,
 	// even if an exception is thrown during module import, validation, or rendering.

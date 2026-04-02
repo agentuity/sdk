@@ -41,7 +41,7 @@ export async function getSandboxRegion(
 		config
 	);
 
-	const sandbox = await sandboxGet(globalClient, { sandboxId, orgId });
+	const sandbox = await sandboxGet(globalClient, { sandboxId, orgId, includeDeleted: true });
 	if (!sandbox.region) {
 		tui.fatal(`Sandbox '${sandboxId}' has no region information`, ErrorCode.RESOURCE_NOT_FOUND);
 	}

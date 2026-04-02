@@ -4,21 +4,22 @@
  * GET /  - Returns greeting with default name "World"
  * POST / - Returns greeting with custom name from JSON body
  */
-import { createRouter } from '@agentuity/runtime';
+import { type Env } from '@agentuity/runtime';
 import helloAgent from '../../agent/hello/agent';
+import { Hono } from 'hono';
 
-const router = createRouter();
+const router = new Hono<Env>()
 
-router.get('/', async (c) => {
-	const text = await helloAgent.run({ name: 'World' });
-	return c.text(text);
-});
+	.get('/', async (c) => {
+		const text = await helloAgent.run({ name: 'World' });
+		return c.text(text);
+	})
 
-// validator() auto-validates request body against agent's input schema
-router.post('/', helloAgent.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const text = await helloAgent.run(data);
-	return c.text(text);
-});
+	// validator() auto-validates request body against agent's input schema
+	.post('/', helloAgent.validator(), async (c) => {
+		const data = c.req.valid('json');
+		const text = await helloAgent.run(data);
+		return c.text(text);
+	});
 
 export default router;

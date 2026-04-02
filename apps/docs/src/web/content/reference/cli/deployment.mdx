@@ -1,5 +1,6 @@
 ---
 title: Deploying to the Cloud
+short_title: Deployment
 description: Deploy your agents to Agentuity Cloud with automatic infrastructure provisioning.
 ---
 
@@ -27,13 +28,13 @@ bun run deploy
 ```
 
 The deploy command:
-1. Syncs environment variables from `.env.production` (or `.env` as fallback)
+1. Syncs environment variables from `.env`
 2. Builds and packages your project
 3. Encrypts and uploads the deployment bundle securely
 4. Provisions your deployment on Agentuity's infrastructure
 5. Activates your deployment
 
-After deployment, view your environment variables and secrets in the [Agentuity App](https://app-v1.agentuity.com) under **Project > Settings**.
+After deployment, view your environment variables and secrets in the [Web App](https://app.agentuity.com) under **Project > Settings**.
 
 **Example output:**
 
@@ -49,7 +50,7 @@ Your project was deployed!
 → Deployment ID:  dep_abc123xyz
 → Deployment URL: https://dep-abc123xyz.agentuity.cloud
 → Project URL:    https://proj-456def.agentuity.cloud
-→ Dashboard:      https://app-v1.agentuity.com/deployments/dep_abc123xyz
+→ Dashboard:      https://app.agentuity.com/deployments/dep_abc123xyz
 ```
 
 The Dashboard URL links directly to the deployment details in the Agentuity App.
@@ -245,11 +246,13 @@ Removing a deployment permanently deletes it. You cannot rollback to a removed d
 
 ## Preview Environments
 
-Deploy pull requests to isolated preview environments for testing before merging. Enable this feature in the [Agentuity App](https://app-v1.agentuity.com):
+Deploy pull requests to isolated preview environments for testing before merging. Enable previews when linking your repository:
 
-1. Navigate to your project's **Settings** page
-2. Under **GitHub**, find the **Preview Environments** toggle
-3. Enable "Deploy PRs to preview environments for this repository"
+```bash
+agentuity git link --preview true
+```
+
+Or toggle it in the Web App under your project's **Settings > GitHub > Preview Environments**.
 
 Once enabled, every pull request to your connected repository automatically deploys to a unique preview URL. This allows you to:
 - Test changes in an isolated environment before merging
@@ -258,8 +261,8 @@ Once enabled, every pull request to your connected repository automatically depl
 
 Preview environments are automatically cleaned up when the pull request is closed or merged.
 
-<Callout type="info" title="GitHub Connection Required">
-Preview environments require a connected GitHub repository. Connect your repo in **Project > Settings > GitHub**.
+<Callout type="warning" title="GitHub Connection Required">
+Preview environments require a connected GitHub repository. See [Agentuity GitHub App](/reference/github-app) for how automated deployments work, or [Setting Up Git Integration](/reference/cli/git-integration) for CLI setup.
 </Callout>
 
 ## Regions
@@ -387,8 +390,8 @@ Configure CPU, memory, and disk limits in `agentuity.json`:
   "deployment": {
     "resources": {
       "cpu": "500m",
-      "memory": "512Mi",
-      "disk": "1Gi"
+      "memory": "500Mi",
+      "disk": "500Mi"
     },
     "domains": []
   }
@@ -399,12 +402,53 @@ Configure CPU, memory, and disk limits in `agentuity.json`:
 
 The `domains` array is empty by default. Add custom domains when needed (see [Custom Domains](#custom-domains)).
 
+## Configuring Build Resources
+
+`deployment.resources` controls how much CPU, memory, and disk your agent gets at runtime. `build` controls the sandbox resources available during the build step, when your project is compiled and bundled.
+
+```json
+{
+  "deployment": {
+    "resources": {
+      "cpu": "500m",
+      "memory": "500Mi",
+      "disk": "500Mi"
+    }
+  },
+  "build": {
+    "timeout": "30m",
+    "resources": {
+      "memory": "4Gi",
+      "cpu": "2",
+      "disk": "4Gi"
+    }
+  }
+}
+```
+
+Build resource defaults are platform-managed. Override them when builds require more capacity: large dependency trees, heavy compilation steps, or complex bundling.
+
+**Build fields:**
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `timeout` | Maximum time allowed for the build step | `"30m"` |
+| `resources.memory` | Memory available in the build sandbox | `"4Gi"` |
+| `resources.cpu` | CPU cores available in the build sandbox | `"2"` |
+| `resources.disk` | Disk space available in the build sandbox | `"4Gi"` |
+
+All fields are optional. Omit `build` entirely to use platform defaults.
+
+<Callout type="tip" title="When to Override Build Resources">
+If your build frequently times out or runs out of memory, increase `build.resources.memory` or `build.timeout` before adjusting runtime `deployment.resources`. Build and runtime environments are separate.
+</Callout>
+
 ## Environment Variables
 
-The deploy command syncs variables from `.env.production` (or `.env` as fallback):
+The deploy command syncs variables from your `.env` file.
 
 ```bash
-# .env.production
+# .env
 DATABASE_URL=postgres://...
 WEBHOOK_SECRET=secret123
 MY_CUSTOM_API_KEY=xxx
@@ -479,6 +523,33 @@ agentuity --dry-run deploy
 # Skip confirmation prompts (for CI/CD)
 agentuity deploy --confirm
 ```
+
+## Running Deploy Lifecycle Scripts
+
+`bun run deploy` follows standard npm/bun lifecycle script conventions. Add `predeploy` and `postdeploy` scripts to `package.json` to run steps automatically before and after the deploy command.
+
+```json title="package.json"
+{
+  "scripts": {
+    "predeploy": "bun run build:shared",
+    "deploy": "agentuity deploy",
+    "postdeploy": "echo 'Deploy complete'"
+  }
+}
+```
+
+`predeploy` runs before the deploy command and `postdeploy` runs after it completes.
+
+**Common use cases:**
+
+- `predeploy`: Install workspace dependencies, compile shared packages, run custom validation
+- `postdeploy`: Send a notification, update a changelog, trigger downstream systems
+
+<Callout type="warning" title="Local vs GitHub App Behavior">
+When you run `bun run deploy` locally, `predeploy` and `postdeploy` are standard npm lifecycle hooks. They do **not** run when calling `agentuity deploy` directly.
+
+When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), `predeploy` has additional meaning: if defined, it runs **instead of** the platform's automatic `bun install`. If you don't define `predeploy`, the platform installs dependencies for you. See [Build Process](/reference/github-app#build-process) for details.
+</Callout>
 
 ## CI/CD Pipelines
 

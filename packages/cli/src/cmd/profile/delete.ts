@@ -11,7 +11,7 @@ export const deleteCommand = createSubcommand({
 	description: 'Delete a configuration profile',
 	tags: ['destructive', 'deletes-resource', 'fast'],
 	idempotent: false,
-	aliases: ['remove', 'rm', 'del'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	examples: [
 		{ command: getCommand('profile delete staging'), description: 'Delete item' },
 		{

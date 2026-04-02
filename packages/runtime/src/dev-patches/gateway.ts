@@ -21,19 +21,17 @@ const GATEWAY_CONFIGS: GatewayConfig[] = [
 function warnMissingKey(envKey: string): void {
 	const isDev =
 		process.env.AGENTUITY_ENVIRONMENT === 'development' || process.env.NODE_ENV !== 'production';
+
+	// Align no-bundle runtime behavior with historical build-time expectations:
+	// in development, don't emit eager startup errors for every provider.
+	// Missing credentials should surface when/if that provider is actually used.
 	if (isDev) {
-		console.error('[ERROR] No credentials found for this AI provider. To fix this, either:');
-		console.error(
-			'  1. Login to Agentuity Cloud (agentuity auth login) to use the AI Gateway (recommended)'
-		);
-		console.error(`  2. Set ${envKey} in your .env file to use the provider directly`);
-	} else {
-		console.error(`[ERROR] The environment variable ${envKey} is required. Either:`);
-		console.error(
-			'  1. Use Agentuity Cloud AI Gateway by ensuring AGENTUITY_SDK_KEY is configured'
-		);
-		console.error(`  2. Set ${envKey} using "agentuity env set ${envKey}" and redeploy`);
+		return;
 	}
+
+	console.error(`[ERROR] The environment variable ${envKey} is required. Either:`);
+	console.error('  1. Use Agentuity Cloud AI Gateway by ensuring AGENTUITY_SDK_KEY is configured');
+	console.error(`  2. Set ${envKey} using "agentuity env set ${envKey}" and redeploy`);
 }
 
 /**
@@ -48,7 +46,7 @@ export function applyGatewayPatches(): void {
 	const gatewayUrl =
 		process.env.AGENTUITY_AIGATEWAY_URL ||
 		process.env.AGENTUITY_TRANSPORT_URL ||
-		(sdkKey ? 'https://agentuity.ai' : '');
+		(sdkKey ? 'https://catalyst.agentuity.cloud' : '');
 
 	for (const config of GATEWAY_CONFIGS) {
 		const currentKey = process.env[config.apiKeyEnv];

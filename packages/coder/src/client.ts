@@ -1,4 +1,4 @@
-import type { InitMessage, HubRequest, HubResponse } from './protocol.ts';
+import type { HubClientMessage, HubRequest, HubResponse, InitMessage } from './protocol.ts';
 
 /** How long to wait for a response before rejecting the pending promise (ms). */
 const SEND_TIMEOUT_MS = 30_000;
@@ -26,7 +26,7 @@ function log(message: string): void {
 
 export type ConnectionState = 'connected' | 'disconnected' | 'reconnecting' | 'closed';
 
-type FireAndForgetMessage = HubRequest | Record<string, unknown>;
+type FireAndForgetMessage = HubClientMessage | Record<string, unknown>;
 
 interface QueuedFireAndForgetMessage {
 	kind: 'fire-and-forget';
@@ -324,6 +324,11 @@ export class HubClient {
 					msgType === 'broadcast' ||
 					msgType === 'presence' ||
 					msgType === 'session_hydration' ||
+					msgType === 'session_resume' ||
+					msgType === 'session_stream_ready' ||
+					msgType === 'protocol_error' ||
+					msgType === 'rpc_command' ||
+					msgType === 'rpc_command_error' ||
 					msgType === 'rpc_event' ||
 					msgType === 'rpc_response' ||
 					msgType === 'rpc_ui_request'
@@ -371,7 +376,10 @@ export class HubClient {
 		});
 	}
 
-	async connect(url: string, opts?: { sessionId?: string; role?: string }): Promise<InitMessage> {
+	async connect(
+		url: string,
+		opts?: { sessionId?: string; role?: string; origin?: string }
+	): Promise<InitMessage> {
 		if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
 			throw new Error('Already connected or connecting — call close() first');
 		}
@@ -387,6 +395,10 @@ export class HubClient {
 		if (opts?.role) {
 			const separator = connectUrl.includes('?') ? '&' : '?';
 			connectUrl = `${connectUrl}${separator}role=${encodeURIComponent(opts.role)}`;
+		}
+		if (opts?.origin) {
+			const separator = connectUrl.includes('?') ? '&' : '?';
+			connectUrl = `${connectUrl}${separator}origin=${encodeURIComponent(opts.origin)}`;
 		}
 
 		this.lastConnectUrl = connectUrl;
@@ -461,7 +473,7 @@ export class HubClient {
 		return this.sendRequestNow(request);
 	}
 
-	sendNoWait(message: HubRequest | Record<string, unknown>): void {
+	sendNoWait(message: HubClientMessage | Record<string, unknown>): void {
 		if (this.connectionState === 'closed') {
 			log('Dropping fire-and-forget message because client is closed');
 			return;

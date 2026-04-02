@@ -13,11 +13,7 @@ import {
 	UpdateDestinationRequestSchema,
 } from './types.ts';
 import { buildQueueHeaders, QueueError, queueApiPath, withQueueErrorHandling } from './util.ts';
-import {
-	validateDestinationConfig,
-	validateDestinationId,
-	validateQueueName,
-} from './validation.ts';
+import { validateDestinationId, validateQueueName } from './validation.ts';
 
 export const DestinationResponseSchema = APIResponseSchema(
 	z.object({ destination: DestinationSchema })
@@ -63,10 +59,6 @@ export async function createDestination(
 	options?: QueueApiOptions
 ): Promise<Destination> {
 	validateQueueName(queueName);
-	if (params.config) {
-		validateDestinationConfig(params.config);
-	}
-
 	const url = queueApiPath('destinations/create', queueName);
 	const resp = await withQueueErrorHandling(
 		() =>
@@ -78,7 +70,7 @@ export async function createDestination(
 				undefined,
 				buildQueueHeaders(options?.orgId)
 			),
-		{ queueName, destinationUrl: params.config?.url }
+		{ queueName, destinationUrl: params.config?.url as string | undefined }
 	);
 
 	if (resp.success) {
@@ -181,10 +173,6 @@ export async function updateDestination(
 ): Promise<Destination> {
 	validateQueueName(queueName);
 	validateDestinationId(destinationId);
-	if (params.config) {
-		validateDestinationConfig(params.config);
-	}
-
 	const url = queueApiPath('destinations/update', queueName, destinationId);
 	const resp = await withQueueErrorHandling(
 		() =>

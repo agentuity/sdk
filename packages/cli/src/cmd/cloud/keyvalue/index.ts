@@ -13,7 +13,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
 	name: 'keyvalue',
-	aliases: ['kv'],
+	aliases: ['kv', 'keyvalues'],
 	description: 'Manage keyvalue storage for your projects',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [

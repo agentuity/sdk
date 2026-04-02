@@ -5,6 +5,7 @@ import { createEmailAdapter, EmailAddressSchema } from './util';
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get an email address by ID',
 	tags: ['read-only', 'requires-auth'],
 	requires: { auth: true },

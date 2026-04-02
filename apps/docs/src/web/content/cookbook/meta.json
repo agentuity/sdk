@@ -1,4 +1,4 @@
 {
-	"title": "Learn",
-	"pages": ["Cookbook"]
+	"title": "Cookbook",
+	"pages": ["tutorials", "patterns", "integrations"]
 }

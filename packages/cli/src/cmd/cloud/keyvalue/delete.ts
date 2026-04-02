@@ -12,7 +12,7 @@ const KVDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm', 'remove'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete a key from the keyvalue storage',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,

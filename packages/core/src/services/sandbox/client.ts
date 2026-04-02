@@ -5,9 +5,16 @@ import {
 	type SandboxInfo,
 	type SandboxStatus,
 	type Execution,
+	type ExecutionStatus,
 	type FileToWrite,
 	type SandboxRunOptions,
 	type SandboxRunResult,
+	type ListSandboxesParams,
+	type ListSandboxesResponse,
+	type ListRuntimesParams,
+	type ListRuntimesResponse,
+	type Job,
+	type CreateJobOptions,
 } from './types.ts';
 import type { Logger } from '../../logger.ts';
 import type { Readable, Writable } from 'node:stream';
@@ -30,18 +37,59 @@ import {
 import { sandboxPause } from './pause.ts';
 import { sandboxResume } from './resume.ts';
 import { sandboxRun } from './run.ts';
-import { executionGet, type ExecutionInfo } from './execution.ts';
+import {
+	executionGet,
+	executionList,
+	type ExecutionInfo,
+	type ExecutionListResponse,
+} from './execution.ts';
 import { createMinimalLogger } from '../logger.ts';
 import { getServiceUrls } from '../config.ts';
 import { writeAndDrain } from './util.ts';
+import { sandboxList } from './list.ts';
+import { runtimeList } from './runtime.ts';
+import { jobCreate, jobGet, jobList, jobStop, type JobListResponse } from './job.ts';
+import {
+	diskCheckpointCreate,
+	diskCheckpointList,
+	diskCheckpointRestore,
+	diskCheckpointDelete,
+	type DiskCheckpointInfo,
+} from './disk-checkpoint.ts';
+import {
+	snapshotCreate,
+	snapshotGet,
+	snapshotList,
+	snapshotDelete,
+	snapshotTag,
+	snapshotLineage,
+	type SnapshotInfo,
+	type SnapshotListResponse,
+	type SnapshotLineageResponse,
+	type SnapshotListParams,
+	type SnapshotLineageParams,
+} from './snapshot.ts';
+import { sandboxEventList, type SandboxEventListResponse } from './events.ts';
 
-// Server-side long-poll wait duration (max 5 minutes supported by server)
+// Server-side long-poll wait duration per iteration (max 5 minutes supported by server)
 const EXECUTION_WAIT_DURATION = '5m';
 
+/** Terminal execution statuses that indicate the command has finished. */
+const TERMINAL_STATUSES: Set<ExecutionStatus> = new Set([
+	'completed',
+	'failed',
+	'timeout',
+	'cancelled',
+]);
+
 /**
- * Wait for execution completion using server-side long-polling.
- * This is more efficient than client-side polling and provides immediate
- * error detection if the sandbox is terminated.
+ * Wait for execution completion using server-side long-polling with automatic retry.
+ *
+ * Each iteration asks the server to hold the connection for up to
+ * EXECUTION_WAIT_DURATION. If the execution is still running when the
+ * server-side wait expires, we loop and issue another long-poll request.
+ * This continues until the execution reaches a terminal state or the
+ * caller's AbortSignal fires.
  */
 async function waitForExecution(
 	client: APIClient,
@@ -49,17 +97,30 @@ async function waitForExecution(
 	orgId?: string,
 	signal?: AbortSignal
 ): Promise<ExecutionInfo> {
-	if (signal?.aborted) {
-		throw new DOMException('The operation was aborted.', 'AbortError');
-	}
+	while (true) {
+		if (signal?.aborted) {
+			throw new DOMException('The operation was aborted.', 'AbortError');
+		}
 
-	// Use server-side long-polling - the server will hold the connection
-	// until the execution reaches a terminal state or the wait duration expires
-	return executionGet(client, {
-		executionId,
-		orgId,
-		wait: EXECUTION_WAIT_DURATION,
-	});
+		// Use server-side long-polling - the server will hold the connection
+		// until the execution reaches a terminal state or the wait duration expires.
+		// The signal is forwarded so the in-flight fetch is cancelled immediately
+		// when the caller aborts, rather than waiting the full poll duration.
+		const result = await executionGet(client, {
+			executionId,
+			orgId,
+			wait: EXECUTION_WAIT_DURATION,
+			signal,
+		});
+
+		// If the execution reached a terminal state, return immediately
+		if (TERMINAL_STATUSES.has(result.status as ExecutionStatus)) {
+			return result;
+		}
+
+		// Non-terminal status (e.g., 'running', 'queued') — the server-side
+		// long-poll expired before the command finished. Loop to poll again.
+	}
 }
 
 /**
@@ -351,6 +412,117 @@ function createSandboxInstanceMethods(
 }
 
 /**
+ * A job instance returned by SandboxClient.createJob() or SandboxClient.getJob()
+ */
+export interface JobInstance {
+	/**
+	 * Unique job identifier
+	 */
+	readonly id: string;
+
+	/**
+	 * ID of the sandbox this job belongs to
+	 */
+	readonly sandboxId: string;
+
+	/**
+	 * Current job status
+	 */
+	readonly status: string;
+
+	/**
+	 * Get the current job status and details
+	 */
+	get(): Promise<Job>;
+
+	/**
+	 * Stop the job
+	 * @param force - Force termination with SIGKILL
+	 */
+	stop(force?: boolean): Promise<Job>;
+}
+
+/**
+ * Creates the method implementations for JobInstance
+ */
+function createJobInstanceMethods(
+	client: APIClient,
+	sandboxId: string,
+	jobId: string,
+	orgId?: string
+): Omit<JobInstance, 'id' | 'sandboxId' | 'status'> {
+	return {
+		async get(): Promise<Job> {
+			return jobGet(client, { sandboxId, jobId, orgId });
+		},
+
+		async stop(force?: boolean): Promise<Job> {
+			return jobStop(client, { sandboxId, jobId, force, orgId });
+		},
+	};
+}
+
+/**
+ * A disk checkpoint instance returned by SandboxClient.createDiskCheckpoint() or SandboxClient.getDiskCheckpoint()
+ */
+export interface DiskCheckpointInstance {
+	/**
+	 * Unique checkpoint identifier
+	 */
+	readonly id: string;
+
+	/**
+	 * User-provided checkpoint name
+	 */
+	readonly name: string;
+
+	/**
+	 * ID of the sandbox this checkpoint belongs to
+	 */
+	readonly sandboxId: string;
+
+	/**
+	 * ISO timestamp of creation
+	 */
+	readonly createdAt: string;
+
+	/**
+	 * Parent checkpoint name
+	 */
+	readonly parent: string;
+
+	/**
+	 * Restore the sandbox to this checkpoint
+	 */
+	restore(): Promise<void>;
+
+	/**
+	 * Delete this checkpoint
+	 */
+	delete(): Promise<void>;
+}
+
+/**
+ * Creates the method implementations for DiskCheckpointInstance
+ */
+function createDiskCheckpointInstanceMethods(
+	client: APIClient,
+	sandboxId: string,
+	checkpointId: string,
+	orgId?: string
+): Omit<DiskCheckpointInstance, 'id' | 'name' | 'sandboxId' | 'createdAt' | 'parent'> {
+	return {
+		async restore(): Promise<void> {
+			return diskCheckpointRestore(client, { sandboxId, checkpointId, orgId });
+		},
+
+		async delete(): Promise<void> {
+			return diskCheckpointDelete(client, { sandboxId, checkpointId, orgId });
+		},
+	};
+}
+
+/**
  * Convenience client for sandbox operations.
  *
  * @example
@@ -562,5 +734,263 @@ export class SandboxClient {
 	 */
 	async resume(sandboxId: string): Promise<void> {
 		return sandboxResume(this.#client, { sandboxId, orgId: this.#orgId });
+	}
+
+	// ===== List Operations =====
+
+	/**
+	 * List all sandboxes with optional filtering and pagination
+	 *
+	 * @param params - Optional parameters for filtering by project, status, and pagination
+	 * @returns Paginated list of sandboxes with total count
+	 */
+	async list(params?: ListSandboxesParams): Promise<ListSandboxesResponse> {
+		return sandboxList(this.#client, { ...params, orgId: this.#orgId });
+	}
+
+	/**
+	 * List available sandbox runtimes
+	 *
+	 * @param params - Optional parameters for pagination
+	 * @returns List of runtimes with total count
+	 */
+	async listRuntimes(params?: ListRuntimesParams): Promise<ListRuntimesResponse> {
+		return runtimeList(this.#client, { ...params, orgId: this.#orgId });
+	}
+
+	// ===== Job Operations =====
+
+	/**
+	 * Create a new job in a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID where the job should run
+	 * @param options - Job creation options including command
+	 * @returns A job instance with get() and stop() methods
+	 */
+	async createJob(sandboxId: string, options: CreateJobOptions): Promise<JobInstance> {
+		const job = await jobCreate(this.#client, { sandboxId, options, orgId: this.#orgId });
+
+		return {
+			id: job.jobId,
+			sandboxId,
+			status: job.status,
+			...createJobInstanceMethods(this.#client, sandboxId, job.jobId, this.#orgId),
+		};
+	}
+
+	/**
+	 * Get a job instance by ID
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param jobId - The job ID
+	 * @returns A job instance with get() and stop() methods
+	 */
+	async getJob(sandboxId: string, jobId: string): Promise<JobInstance> {
+		const job = await jobGet(this.#client, { sandboxId, jobId, orgId: this.#orgId });
+
+		return {
+			id: job.jobId,
+			sandboxId,
+			status: job.status,
+			...createJobInstanceMethods(this.#client, sandboxId, job.jobId, this.#orgId),
+		};
+	}
+
+	/**
+	 * List all jobs in a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param limit - Maximum number of results
+	 * @returns List of jobs
+	 */
+	async listJobs(sandboxId: string, limit?: number): Promise<JobListResponse> {
+		return jobList(this.#client, { sandboxId, limit, orgId: this.#orgId });
+	}
+
+	// ===== Disk Checkpoint Operations =====
+
+	/**
+	 * Create a disk checkpoint of a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param name - Name for the checkpoint
+	 * @returns A checkpoint instance with restore() and delete() methods
+	 */
+	async createDiskCheckpoint(sandboxId: string, name: string): Promise<DiskCheckpointInstance> {
+		const checkpoint = await diskCheckpointCreate(this.#client, {
+			sandboxId,
+			name,
+			orgId: this.#orgId,
+		});
+
+		return {
+			id: checkpoint.id,
+			name: checkpoint.name,
+			sandboxId,
+			createdAt: checkpoint.createdAt,
+			parent: checkpoint.parent,
+			...createDiskCheckpointInstanceMethods(
+				this.#client,
+				sandboxId,
+				checkpoint.id,
+				this.#orgId
+			),
+		};
+	}
+
+	/**
+	 * List all disk checkpoints for a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @returns List of checkpoint info objects
+	 */
+	async listDiskCheckpoints(sandboxId: string): Promise<DiskCheckpointInfo[]> {
+		return diskCheckpointList(this.#client, { sandboxId, orgId: this.#orgId });
+	}
+
+	/**
+	 * Get a disk checkpoint instance by ID
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param checkpointId - The checkpoint ID
+	 * @returns A checkpoint instance with restore() and delete() methods
+	 */
+	async getDiskCheckpoint(
+		sandboxId: string,
+		checkpointId: string
+	): Promise<DiskCheckpointInstance> {
+		const checkpoints = await diskCheckpointList(this.#client, {
+			sandboxId,
+			orgId: this.#orgId,
+		});
+		const checkpoint = checkpoints.find((c) => c.id === checkpointId);
+		if (!checkpoint) {
+			throw new Error(`Checkpoint ${checkpointId} not found in sandbox ${sandboxId}`);
+		}
+
+		return {
+			id: checkpoint.id,
+			name: checkpoint.name,
+			sandboxId,
+			createdAt: checkpoint.createdAt,
+			parent: checkpoint.parent,
+			...createDiskCheckpointInstanceMethods(
+				this.#client,
+				sandboxId,
+				checkpoint.id,
+				this.#orgId
+			),
+		};
+	}
+
+	// ===== Snapshot Operations =====
+
+	/**
+	 * Create a snapshot of a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID to snapshot
+	 * @param params - Optional snapshot parameters (name, tag, public, etc.)
+	 * @returns The created snapshot information
+	 */
+	async createSnapshot(
+		sandboxId: string,
+		params?: {
+			name?: string;
+			description?: string;
+			tag?: string;
+			public?: boolean;
+		}
+	): Promise<SnapshotInfo> {
+		return snapshotCreate(this.#client, { sandboxId, ...params, orgId: this.#orgId });
+	}
+
+	/**
+	 * Get snapshot information by ID
+	 *
+	 * @param snapshotId - The snapshot ID
+	 * @returns Snapshot information
+	 */
+	async getSnapshot(snapshotId: string): Promise<SnapshotInfo> {
+		return snapshotGet(this.#client, { snapshotId, orgId: this.#orgId });
+	}
+
+	/**
+	 * List snapshots with optional filtering and pagination
+	 *
+	 * @param params - Optional parameters for filtering and pagination
+	 * @returns Paginated list of snapshots
+	 */
+	async listSnapshots(params?: SnapshotListParams): Promise<SnapshotListResponse> {
+		return snapshotList(this.#client, { ...params, orgId: this.#orgId });
+	}
+
+	/**
+	 * Delete a snapshot
+	 *
+	 * @param snapshotId - The snapshot ID to delete
+	 */
+	async deleteSnapshot(snapshotId: string): Promise<void> {
+		return snapshotDelete(this.#client, { snapshotId, orgId: this.#orgId });
+	}
+
+	/**
+	 * Update the tag on a snapshot
+	 *
+	 * @param snapshotId - The snapshot ID
+	 * @param tag - New tag (or null to remove)
+	 * @returns Updated snapshot information
+	 */
+	async tagSnapshot(snapshotId: string, tag: string | null): Promise<SnapshotInfo> {
+		return snapshotTag(this.#client, { snapshotId, tag, orgId: this.#orgId });
+	}
+
+	/**
+	 * Get the lineage (ancestry chain) of a snapshot
+	 *
+	 * @param params - Parameters specifying which snapshot to get lineage for
+	 * @returns Ordered list of snapshots in the lineage
+	 */
+	async getSnapshotLineage(params?: SnapshotLineageParams): Promise<SnapshotLineageResponse> {
+		return snapshotLineage(this.#client, { ...params, orgId: this.#orgId });
+	}
+
+	// ===== Execution Operations =====
+
+	/**
+	 * Get execution information by ID
+	 *
+	 * @param executionId - The execution ID
+	 * @param wait - Optional wait duration for long-polling (e.g., "5m")
+	 * @returns Execution information
+	 */
+	async getExecution(executionId: string, wait?: string): Promise<ExecutionInfo> {
+		return executionGet(this.#client, { executionId, wait, orgId: this.#orgId });
+	}
+
+	/**
+	 * List executions for a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param limit - Maximum number of results
+	 * @returns List of executions
+	 */
+	async listExecutions(sandboxId: string, limit?: number): Promise<ExecutionListResponse> {
+		return executionList(this.#client, { sandboxId, limit, orgId: this.#orgId });
+	}
+
+	// ===== Event Operations =====
+
+	/**
+	 * List events for a sandbox
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param params - Optional parameters for limit and sort direction
+	 * @returns List of sandbox events
+	 */
+	async listEvents(
+		sandboxId: string,
+		params?: { limit?: number; direction?: 'asc' | 'desc' }
+	): Promise<SandboxEventListResponse> {
+		return sandboxEventList(this.#client, { sandboxId, ...params, orgId: this.#orgId });
 	}
 }

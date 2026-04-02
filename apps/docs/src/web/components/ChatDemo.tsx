@@ -1,5 +1,4 @@
-import { useAPI } from '@agentuity/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Markdown from 'react-markdown';
 import { Button, Input, Separator } from './ui';
 import { ChatCodeBlock } from './ChatCodeBlock';
@@ -23,7 +22,23 @@ export function ChatDemo() {
 	const messagesContainerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	const { invoke, isLoading: running } = useAPI('POST /api/chat');
+	const [running, setRunning] = useState(false);
+	const invoke = useCallback(async (input: { message: string; command?: string }) => {
+		setRunning(true);
+		try {
+			const res = await fetch('/api/chat', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(input),
+			});
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+			}
+			return await res.json();
+		} finally {
+			setRunning(false);
+		}
+	}, []);
 
 	// Load conversation history on mount
 	useEffect(() => {

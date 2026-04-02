@@ -1,12 +1,12 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { readFileSync } from 'node:fs';
+import { createWriteStream, readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { getLogSessionsInCurrentWindow } from '../../internal-logger';
 import * as tui from '../../tui';
 import { randomBytes } from 'node:crypto';
-import AdmZip from 'adm-zip';
+import archiver from 'archiver';
 import { APIResponseSchema } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
 
@@ -61,10 +61,19 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 		throw NoSessionDirectoriesError();
 	}
 
-	// Create zip in temp directory
+	// Create zip in temp directory, streaming to disk instead of buffering in memory
 	const tempZip = join(tmpdir(), `agentuity-report-${randomBytes(8).toString('hex')}.zip`);
 
-	const zip = new AdmZip();
+	const output = createWriteStream(tempZip);
+	const zip = archiver('zip', { zlib: { level: 9 } });
+
+	const writeDone = new Promise<void>((resolve, reject) => {
+		output.on('close', resolve);
+		output.on('error', reject);
+		zip.on('error', reject);
+	});
+
+	zip.pipe(output);
 
 	for (const sessionDir of sessionDirs) {
 		const sessionFile = join(sessionDir, 'session.json');
@@ -75,14 +84,15 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 
 		// Add files with session ID prefix to avoid conflicts
 		if (await Bun.file(sessionFile).exists()) {
-			zip.addLocalFile(sessionFile, sessionId);
+			zip.file(sessionFile, { name: `${sessionId}/session.json` });
 		}
 		if (await Bun.file(logsFile).exists()) {
-			zip.addLocalFile(logsFile, sessionId);
+			zip.file(logsFile, { name: `${sessionId}/logs.jsonl` });
 		}
 	}
 
-	zip.writeZip(tempZip);
+	await zip.finalize();
+	await writeDone;
 
 	return tempZip;
 }
@@ -95,14 +105,15 @@ async function uploadReport(
 	zipPath: string,
 	logger: import('../../types').Logger
 ): Promise<void> {
-	const fileBuffer = readFileSync(zipPath);
+	// Use Bun.file() to stream the zip to S3 without loading it into memory.
+	// Bun automatically sets Content-Length from the file size.
+	const file = Bun.file(zipPath);
 
 	const response = await fetch(presignedUrl, {
 		method: 'PUT',
-		body: fileBuffer,
+		body: file,
 		headers: {
 			'Content-Type': 'application/zip',
-			'Content-Length': fileBuffer.length.toString(),
 		},
 	});
 

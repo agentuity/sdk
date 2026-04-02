@@ -79,6 +79,7 @@ export const getSubcommand = createCommand({
 		const result = await sandboxGet(client, {
 			sandboxId: args.sandboxId,
 			orgId: sandboxInfo.orgId,
+			includeDeleted: true,
 		});
 
 		// Cache the region for future lookups

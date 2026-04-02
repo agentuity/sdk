@@ -6,6 +6,7 @@ import { EmailInboundSchema } from './schemas';
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get a received email by ID',
 	tags: ['read-only', 'requires-auth'],
 	requires: { auth: true },

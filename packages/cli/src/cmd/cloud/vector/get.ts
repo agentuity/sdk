@@ -15,6 +15,7 @@ const VectorGetResponseSchema = z.object({
 
 export const getSubcommand = createCommand({
 	name: 'get',
+	aliases: ['show', 'info'],
 	description: 'Get a specific vector entry by key',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, region: true },

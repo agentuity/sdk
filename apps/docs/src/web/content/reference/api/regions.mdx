@@ -1,0 +1,225 @@
+---
+title: Regions API
+short_title: Regions
+description: List available cloud regions and manage per-region resources
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Regions
+
+List all available cloud regions.
+
+<ApiEndpoint method="GET" path="/cli/region" />
+
+
+
+### Response
+
+Array of region objects.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Regions returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "region",
+    "type": "string",
+    "description": "Region identifier"
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Human-readable region name"
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/cli/region" />
+
+---
+
+## Resource Management
+
+### List Region Resources
+
+List resources provisioned in a specific region for an organization.
+
+<ApiEndpoint method="GET" path="/resource/{orgId}/{region}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  }
+]} />
+
+#### Response
+
+Returns S3 buckets, databases, and optional Redis resources for the specified region.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Region resources returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization or region not found |
+
+#### Example
+
+<ApiExample method="GET" path="/resource/org_abc123/usw" />
+
+---
+
+### Create Resources
+
+Create resources in a specific region for an organization.
+
+<ApiEndpoint method="POST" path="/resource/{orgId}/{region}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  }
+]} />
+
+#### Request Body
+
+Resource creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "resources",
+    "type": "array",
+    "description": "Array of { type: 'db'|'s3', name?, description? }",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Created resource objects.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Resources created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization or region not found |
+
+#### Example
+
+<ApiExample method="POST" path="/resource/org_abc123/usw" body={{
+  "resources": [
+    {
+      "type": "db",
+      "name": "mydb"
+    }
+  ]
+}} />
+
+---
+
+### Delete Resources
+
+Delete resources in a specific region for an organization.
+
+<ApiEndpoint method="DELETE" path="/resource/{orgId}/{region}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Organization ID"
+  },
+  {
+    "name": "region",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Region identifier"
+  }
+]} />
+
+#### Request Body
+
+Resource deletion payload.
+
+<ResponseFields fields={[
+  {
+    "name": "resources",
+    "type": "array",
+    "description": "Array of { type: 'db'|'s3', name }",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Resources deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Organization or region not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/resource/org_abc123/usw" body={{
+  "resources": [
+    {
+      "type": "db",
+      "name": "mydb"
+    }
+  ]
+}} />
+
+---

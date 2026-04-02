@@ -1,53 +1,21 @@
 import { z } from 'zod';
-import { existsSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { resolveHubWsUrl, resolveHubUrl, hubFetchHeaders } from './hub-url';
-
-/**
- * Resolve the Coder extension path.
- *
- * Priority:
- *   1. --extension flag (explicit override)
- *   2. AGENTUITY_CODER_EXTENSION env var
- *   3. Installed @agentuity/coder package (node_modules)
- *   4. Local dev path relative to CLI package (SDK monorepo)
- */
-function resolveExtensionPath(flagPath?: string): string | null {
-	// 1. Explicit flag
-	if (flagPath) {
-		const resolved = resolve(flagPath);
-		if (existsSync(resolved)) return resolved;
-		return null;
-	}
-
-	// 2. Env var
-	const envPath = process.env.AGENTUITY_CODER_EXTENSION;
-	if (envPath) {
-		const resolved = resolve(envPath);
-		if (existsSync(resolved)) return resolved;
-	}
-
-	// 3. Installed npm package in cwd
-	const cwdNodeModules = resolve(process.cwd(), 'node_modules', '@agentuity', 'coder');
-	if (existsSync(cwdNodeModules)) return cwdNodeModules;
-
-	// 4. SDK monorepo sibling (for development)
-	// This file is at packages/cli/src/cmd/coder/start.ts — 5 levels up to SDK root
-	try {
-		const cliDir = dirname(new URL(import.meta.url).pathname);
-		const sdkRoot = resolve(cliDir, '..', '..', '..', '..', '..');
-		const coderPath = join(sdkRoot, 'packages', 'coder');
-		if (existsSync(join(coderPath, 'src', 'index.ts'))) return coderPath;
-	} catch {
-		// Not in SDK monorepo
-	}
-
-	return null;
-}
+import {
+	clearStoredHubApiKeyOnUnauthorized,
+	formatHubUnauthorizedMessage,
+	formatMissingHubUrlMessage,
+	getHubResponseErrorMessage,
+	hubFetchHeaders,
+	isHubUnauthorizedStatus,
+	resolveHubApiKey,
+	resolveHubUrl,
+	toHubWsUrl,
+} from './hub-url';
+import { resolveExtensionPath, resolveExtensionRuntimeModulePath } from './extension-path';
+import { probeHubInitAccess } from './tui-init';
 
 /**
  * Find the `pi` binary.
@@ -66,6 +34,7 @@ function resolvePiBinary(flagPath?: string): string {
 
 export const startSubcommand = createSubcommand({
 	name: 'start',
+	aliases: ['run'],
 	description: 'Start a Pi coding session connected to the Coder Hub',
 	tags: ['fast', 'requires-auth'],
 	examples: [
@@ -86,7 +55,7 @@ export const startSubcommand = createSubcommand({
 			description: 'Start as a specific agent role',
 		},
 		{
-			command: getCommand('coder start --remote codesess_abc123'),
+			command: getCommand('coder start --remote codesess_abc123456789'),
 			description: 'Connect to an existing sandbox session remotely',
 		},
 		{
@@ -126,27 +95,75 @@ export const startSubcommand = createSubcommand({
 		}),
 	},
 	async handler(ctx) {
-		const { opts, options } = ctx;
+		const { opts, options, config } = ctx;
 
 		// Resolve Hub URL
-		const hubWsUrl = await resolveHubWsUrl(opts?.hubUrl);
-		if (!hubWsUrl) {
+		const hubHttpUrl = await resolveHubUrl(opts?.hubUrl, config);
+		if (!hubHttpUrl) {
+			tui.fatal(formatMissingHubUrlMessage(), ErrorCode.NETWORK_ERROR);
+			return;
+		}
+		const hubWsUrl = toHubWsUrl(hubHttpUrl);
+		const resolvedHubApiKey = await resolveHubApiKey(config);
+
+		const handleUnauthorizedResponse = async (
+			response: Response,
+			errorCode: ErrorCode = ErrorCode.NETWORK_ERROR
+		): Promise<void> => {
+			const message = await getHubResponseErrorMessage(response);
+			const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
+				response.status,
+				resolvedHubApiKey,
+				config
+			);
 			tui.fatal(
-				'Could not find a running Coder Hub.\n\nEither:\n  - Start the Hub with: bun run dev\n  - Set AGENTUITY_CODER_HUB_URL environment variable\n  - Pass --hub-url flag',
+				formatHubUnauthorizedMessage(hubHttpUrl, message, { clearedStoredKey }),
+				errorCode
+			);
+		};
+
+		const initProbe = await probeHubInitAccess(hubHttpUrl, {
+			apiKey: resolvedHubApiKey.apiKey,
+		});
+		if (!initProbe.ok) {
+			if (initProbe.code === 'unauthorized') {
+				const clearedStoredKey =
+					resolvedHubApiKey.source === 'stored'
+						? await clearStoredHubApiKeyOnUnauthorized(401, resolvedHubApiKey, config)
+						: false;
+				tui.fatal(
+					formatHubUnauthorizedMessage(hubHttpUrl, initProbe.message, { clearedStoredKey }),
+					ErrorCode.NETWORK_ERROR
+				);
+				return;
+			}
+
+			tui.fatal(
+				`Could not bootstrap the Coder Hub at ${hubHttpUrl}: ${initProbe.message}`,
 				ErrorCode.NETWORK_ERROR
 			);
 			return;
 		}
 
 		// Resolve extension path
-		const extensionPath = resolveExtensionPath(opts?.extension);
+		const extensionPath = await resolveExtensionPath(opts?.extension);
 		if (!extensionPath) {
 			tui.fatal(
-				'Could not find the Agentuity Coder extension.\n\nEither:\n  - Install it: npm install @agentuity/coder\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
+				'Could not find the Agentuity Coder extension.\n\nThis CLI install should include it automatically. Try:\n  - Reinstall or update @agentuity/cli\n  - Install it locally: npm install @agentuity/coder\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
 				ErrorCode.CONFIG_INVALID
 			);
 			return;
 		}
+
+		const loadRemoteTui = async () => {
+			const modulePath = await resolveExtensionRuntimeModulePath(extensionPath);
+			if (!modulePath) {
+				throw new Error(
+					`Coder extension at ${extensionPath} is missing the remote TUI entrypoint`
+				);
+			}
+			return import(modulePath);
+		};
 
 		// Resolve pi binary
 		const piBinary = resolvePiBinary(opts?.pi);
@@ -160,11 +177,6 @@ export const startSubcommand = createSubcommand({
 				remoteSessionId = remoteValue;
 			} else {
 				// No session ID — fetch connectable sessions and show picker
-				const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
-				if (!hubHttpUrl) {
-					tui.fatal('Could not find Hub URL for session picker.', ErrorCode.NETWORK_ERROR);
-					return;
-				}
 				try {
 					type SessionInfo = {
 						id: string;
@@ -178,11 +190,15 @@ export const startSubcommand = createSubcommand({
 						message: 'Fetching connectable sessions…',
 						callback: async () => {
 							const resp = await fetch(`${hubHttpUrl}/api/hub/sessions/connectable`, {
-								headers: hubFetchHeaders(),
+								headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
 								signal: AbortSignal.timeout(10_000),
 							});
+							if (isHubUnauthorizedStatus(resp.status)) {
+								await handleUnauthorizedResponse(resp);
+								throw new Error('Hub authentication failed');
+							}
 							if (!resp.ok) {
-								throw new Error(`${resp.status} ${resp.statusText}`);
+								throw new Error(`${resp.status} ${await getHubResponseErrorMessage(resp)}`);
 							}
 							const data = (await resp.json()) as { sessions: SessionInfo[] };
 							return data.sessions;
@@ -191,7 +207,7 @@ export const startSubcommand = createSubcommand({
 
 					if (sessions.length === 0) {
 						tui.fatal(
-							'No connectable sandbox sessions found.\n\nCreate one with: ag-dev coder session create --task "your task"',
+							`No connectable sandbox sessions found.\n\nCreate one with:\n  ${getCommand('coder start --sandbox "your task"')}`,
 							ErrorCode.CONFIG_INVALID
 						);
 						return;
@@ -215,7 +231,7 @@ export const startSubcommand = createSubcommand({
 					});
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
-					if (msg === 'User cancelled') return;
+					if (msg === 'User cancelled' || msg === 'Hub authentication failed') return;
 					tui.fatal(`Failed to fetch connectable sessions: ${msg}`, ErrorCode.NETWORK_ERROR);
 					return;
 				}
@@ -236,7 +252,7 @@ export const startSubcommand = createSubcommand({
 			}
 
 			try {
-				const { runRemoteTui } = await import(join(extensionPath, 'src', 'remote-tui.ts'));
+				const { runRemoteTui } = await loadRemoteTui();
 				await runRemoteTui({
 					hubWsUrl,
 					sessionId: remoteSessionId,
@@ -259,12 +275,6 @@ export const startSubcommand = createSubcommand({
 				return;
 			}
 
-			const hubHttpUrl = await resolveHubUrl(opts?.hubUrl);
-			if (!hubHttpUrl) {
-				tui.fatal('Could not find Hub URL for sandbox creation.', ErrorCode.NETWORK_ERROR);
-				return;
-			}
-
 			// Build request body
 			const body: Record<string, unknown> = { task };
 			if (opts?.repo) {
@@ -279,14 +289,20 @@ export const startSubcommand = createSubcommand({
 			try {
 				const resp = await fetch(`${hubHttpUrl}/api/hub/session`, {
 					method: 'POST',
-					headers: hubFetchHeaders({ 'Content-Type': 'application/json' }),
+					headers: hubFetchHeaders(
+						{ 'Content-Type': 'application/json' },
+						resolvedHubApiKey.apiKey
+					),
 					body: JSON.stringify(body),
 					signal: AbortSignal.timeout(10_000),
 				});
+				if (isHubUnauthorizedStatus(resp.status)) {
+					await handleUnauthorizedResponse(resp);
+					return;
+				}
 				if (!resp.ok) {
-					const errText = await resp.text();
 					tui.fatal(
-						`Failed to create sandbox session: ${resp.status} ${errText}`,
+						`Failed to create sandbox session: ${resp.status} ${await getHubResponseErrorMessage(resp)}`,
 						ErrorCode.NETWORK_ERROR
 					);
 					return;
@@ -314,9 +330,13 @@ export const startSubcommand = createSubcommand({
 				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
 				try {
 					const pollResp = await fetch(`${hubHttpUrl}/api/hub/session/${sessionId}`, {
-						headers: hubFetchHeaders(),
+						headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
 						signal: AbortSignal.timeout(5_000),
 					});
+					if (isHubUnauthorizedStatus(pollResp.status)) {
+						await handleUnauthorizedResponse(pollResp);
+						return;
+					}
 					if (pollResp.ok) {
 						const data = (await pollResp.json()) as {
 							participants?: Array<{ role: string }>;
@@ -343,7 +363,7 @@ export const startSubcommand = createSubcommand({
 			tui.newline();
 
 			try {
-				const { runRemoteTui } = await import(join(extensionPath, 'src', 'remote-tui.ts'));
+				const { runRemoteTui } = await loadRemoteTui();
 				await runRemoteTui({
 					hubWsUrl,
 					sessionId,
@@ -360,9 +380,7 @@ export const startSubcommand = createSubcommand({
 			...(process.env as Record<string, string>),
 			AGENTUITY_CODER_HUB_URL: hubWsUrl,
 		};
-		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
-		const cliApiKey = process.env.AGENTUITY_CODER_API_KEY;
-		if (cliApiKey) env.AGENTUITY_CODER_API_KEY = cliApiKey;
+		if (resolvedHubApiKey.apiKey) env.AGENTUITY_CODER_API_KEY = resolvedHubApiKey.apiKey;
 
 		if (opts?.agent) {
 			env.AGENTUITY_CODER_AGENT = opts.agent;

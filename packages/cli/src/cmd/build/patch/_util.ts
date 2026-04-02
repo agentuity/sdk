@@ -49,7 +49,7 @@ export function generateGatewayEnvGuard(
 ): string {
 	return `{
     const _agentuity_sdk_key = process.env.AGENTUITY_SDK_KEY;
-    const _agentuity_url = process.env.AGENTUITY_AIGATEWAY_URL || process.env.AGENTUITY_TRANSPORT_URL || (_agentuity_sdk_key ? 'https://agentuity.ai' : '');
+    const _agentuity_url = process.env.AGENTUITY_AIGATEWAY_URL || process.env.AGENTUITY_TRANSPORT_URL || (_agentuity_sdk_key ? 'https://catalyst.agentuity.cloud' : '');
     if (_agentuity_url && _agentuity_sdk_key) {
         process.env.${apikey} = _agentuity_sdk_key;
         process.env.${apibase} = _agentuity_url + '/gateway/${provider}';
@@ -59,6 +59,25 @@ export function generateGatewayEnvGuard(
     }
 }
 `;
+}
+
+/**
+ * Build a RegExp filter for a Bun build plugin that matches a patch module's
+ * file path inside node_modules. The pattern matches both forward-slash (Unix)
+ * and backslash (Windows) path separators.
+ */
+export function buildPatchFilter(module: string, filename?: string): RegExp {
+	let pattern: string;
+	if (filename) {
+		pattern = `node_modules/${module}/${filename}.*`;
+	} else {
+		pattern = `node_modules/${module}/.*`;
+	}
+	// Replace / with [\\/] to match both Unix and Windows path separators.
+	// Using path.join() here would produce backslashes on Windows, which are
+	// interpreted as regex escape sequences and silently break the filter.
+	pattern = pattern.replace(/\//g, '[\\\\/]');
+	return new RegExp(pattern);
 }
 
 export function searchBackwards(contents: string, offset: number, val: string): number {

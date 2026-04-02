@@ -16,6 +16,10 @@ import {
 	sandboxRun,
 	sandboxSetEnv,
 	sandboxWriteFiles,
+	jobCreate,
+	jobGet,
+	jobList,
+	jobStop,
 	snapshotCreate,
 	snapshotGet,
 	snapshotList,
@@ -34,6 +38,7 @@ import type {
 	ListSandboxesResponse,
 	ExecuteOptions,
 	Execution,
+	ExecutionStatus,
 	StreamReader,
 	SandboxStatus,
 	FileToWrite,
@@ -42,10 +47,21 @@ import type {
 	SnapshotInfo,
 	SnapshotListParams,
 	SnapshotListResponse,
+	CreateJobOptions,
+	Job,
+	JobListResponse,
 } from '@agentuity/core';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 
 const TRACER_NAME = 'agentuity.sandbox';
+
+/** Terminal execution statuses that indicate the command has finished. */
+const TERMINAL_STATUSES: Set<ExecutionStatus> = new Set([
+	'completed',
+	'failed',
+	'timeout',
+	'cancelled',
+]);
 
 async function withSpan<T>(
 	name: string,
@@ -145,11 +161,22 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 						options,
 						signal: options.signal,
 					});
-					// Wait for execution to reach a terminal state via long-polling
-					const final = await executionGet(client, {
-						executionId: initial.executionId,
-						wait: '60s',
-					});
+					// Wait for execution to reach a terminal state via long-polling.
+					// The server holds each request for up to 60s; if the execution
+					// is still running we loop and issue another long-poll request.
+					// The caller's signal is forwarded into every fetch so that
+					// cancellation aborts the in-flight request immediately.
+					let final: Awaited<ReturnType<typeof executionGet>>;
+					do {
+						if (options.signal?.aborted) {
+							throw new DOMException('The operation was aborted.', 'AbortError');
+						}
+						final = await executionGet(client, {
+							executionId: initial.executionId,
+							wait: '60s',
+							signal: options.signal,
+						});
+					} while (!TERMINAL_STATUSES.has(final.status as ExecutionStatus));
 					return {
 						executionId: final.executionId,
 						status: final.status,
@@ -253,6 +280,36 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 		async destroy(): Promise<void> {
 			await withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
 				sandboxDestroy(client, { sandboxId })
+			);
+		},
+
+		async createJob(options: CreateJobOptions): Promise<Job> {
+			return withSpan(
+				'agentuity.sandbox.createJob',
+				{ 'sandbox.id': sandboxId, 'sandbox.command': options.command?.join(' ') ?? '' },
+				() => jobCreate(client, { sandboxId, options })
+			);
+		},
+
+		async getJob(jobId: string): Promise<Job> {
+			return withSpan(
+				'agentuity.sandbox.getJob',
+				{ 'sandbox.id': sandboxId, 'job.id': jobId },
+				() => jobGet(client, { sandboxId, jobId })
+			);
+		},
+
+		async listJobs(limit?: number): Promise<JobListResponse> {
+			return withSpan('agentuity.sandbox.listJobs', { 'sandbox.id': sandboxId }, () =>
+				jobList(client, { sandboxId, limit })
+			);
+		},
+
+		async stopJob(jobId: string, force?: boolean): Promise<Job> {
+			return withSpan(
+				'agentuity.sandbox.stopJob',
+				{ 'sandbox.id': sandboxId, 'job.id': jobId },
+				() => jobStop(client, { sandboxId, jobId, force })
 			);
 		},
 	};

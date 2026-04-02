@@ -16,7 +16,7 @@ export const deleteSubcommand = createSubcommand({
 			description: 'Delete a thread by ID',
 		},
 	],
-	aliases: ['rm'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	requires: { auth: true },
 	schema: {
 		args: z.object({

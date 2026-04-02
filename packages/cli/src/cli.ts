@@ -30,9 +30,14 @@ import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser';
 import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
-import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
+import { ErrorCode, ExitCode, createError, exitWithError, formatErrorJSON } from './errors';
 import { getCommand } from './command-prefix';
-import { isValidateMode, outputValidation, type ValidationResult } from './output';
+import {
+	getOutputOptions,
+	isValidateMode,
+	outputValidation,
+	type ValidationResult,
+} from './output';
 import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref';
 import { generateIntroPrompt } from './cmd/ai/intro';
@@ -536,6 +541,11 @@ export async function createCLI(version: string): Promise<Command> {
 			'Filter JSON output to specified fields (comma-separated, dot notation for nested)'
 		);
 
+	// Note: We intentionally do NOT add a global --org alias for --org-id because
+	// some subcommands (like env commands) define their own --org option with
+	// different semantics (boolean for "use org scope" vs string for specific org ID).
+	// Adding a global --org would shadow the subcommand's --org option.
+
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
 		'Skip version compatibility check (dev only)'
@@ -557,6 +567,16 @@ export async function createCLI(version: string): Promise<Command> {
 	// Handle unknown commands
 	program.on('command:*', (operands: string[]) => {
 		const unknownCommand = operands[0];
+		const opts = getOutputOptions();
+		if (opts?.json || opts?.errorFormat === 'json') {
+			console.error(
+				formatErrorJSON(
+					createError(ErrorCode.UNKNOWN_COMMAND, `unknown command '${unknownCommand}'`)
+				)
+			);
+			process.exit(1);
+			return;
+		}
 		console.error(`error: unknown command '${unknownCommand}'`);
 		console.error();
 		const availableCommands = program.commands.map((cmd) => cmd.name());
@@ -571,11 +591,50 @@ export async function createCLI(version: string): Promise<Command> {
 		process.exit(1);
 	});
 
+	// Track whether a JSON error was already emitted by outputError
+	// so we can suppress Commander's help-after-error text in JSON mode
+	let jsonErrorEmitted = false;
+
 	// Custom error handling for argument/command parsing errors
 	program.configureOutput({
+		writeErr: (str) => {
+			// In JSON mode, suppress Commander's help-after-error text
+			// (we already emitted a structured JSON error in outputError)
+			const opts = getOutputOptions();
+			if (jsonErrorEmitted && (opts?.json || opts?.errorFormat === 'json')) {
+				return;
+			}
+			process.stderr.write(str);
+		},
 		outputError: (str, write) => {
 			// Suppress "unknown option '--help'" error since we handle help flags specially
 			if (str.includes("unknown option '--help'")) {
+				return;
+			}
+			// In JSON mode, output structured JSON errors for all Commander parsing errors
+			const opts = getOutputOptions();
+			if (opts?.json || opts?.errorFormat === 'json') {
+				// Strip "error: " prefix and trailing newline for clean message
+				let message = str.replace(/^error:\s*/, '').replace(/\n$/, '');
+				let code = ErrorCode.INVALID_OPTION;
+				if (str.includes('unknown command') || str.includes('too many arguments')) {
+					code = ErrorCode.UNKNOWN_COMMAND;
+				} else if (str.includes('missing required argument')) {
+					code = ErrorCode.MISSING_ARGUMENT;
+				}
+				// Extract Commander's "Did you mean" suggestion into a separate field
+				let suggestions: string[] | undefined;
+				const suggestionMatch = message.match(/\n\(Did you mean (.+)\?\)/);
+				if (suggestionMatch?.[1] != null) {
+					suggestions = [suggestionMatch[1] as string];
+					message = message.replace(/\n\(Did you mean .+\?\)/, '');
+				}
+				// Write directly to stderr (not via write/writeErr) to avoid
+				// self-suppression — writeErr suppresses output when jsonErrorEmitted is true
+				jsonErrorEmitted = true;
+				process.stderr.write(
+					formatErrorJSON(createError(code, message, undefined, suggestions)) + '\n'
+				);
 				return;
 			}
 			// Intercept commander.js error messages
@@ -1238,6 +1297,17 @@ async function registerSubcommand(
 	// Add --org-id if command requires/optional org and doesn't define it in schema
 	if (_deferOrgIdFlag && !hasOrgIdInSchema) {
 		cmd.option('--org-id <id>', 'organization ID');
+		// Add hidden --org alias, but only if schema doesn't define its own --org option
+		// (e.g., env commands use --org for "org scope" which is different from --org-id)
+		const schemaDefinesOrg = subcommand.schema?.options
+			? parseOptionsSchema(subcommand.schema.options).some((o) => o.name === 'org')
+			: false;
+		if (!schemaDefinesOrg) {
+			// Use [id] (optional) to allow --org without argument for default org
+			const orgAlias = cmd.createOption('--org [id]', 'Alias for --org-id');
+			orgAlias.hideHelp();
+			cmd.addOption(orgAlias);
+		}
 	}
 
 	// Add --project-id if command requires/optional project and doesn't define it in schema
@@ -1249,6 +1319,19 @@ async function registerSubcommand(
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
+
+		// Normalize --org to --org-id for downstream code
+		// The --org [id] option is parsed into options.org, but code uses options.orgId
+		// Handle: --org (true -> undefined for default org), --org org_123 (string -> string)
+		if (options.org !== undefined && options.orgId === undefined) {
+			if (options.org === true) {
+				// --org without argument: mark as explicitly requested (use default org)
+				// Set to undefined so org resolution falls through to preference/env/prompt
+				options.orgId = undefined;
+			} else if (typeof options.org === 'string') {
+				options.orgId = options.org;
+			}
+		}
 
 		// Handle --describe mode: output command schema and exit
 		if (baseCtx.options.describe) {
@@ -1277,7 +1360,10 @@ async function registerSubcommand(
 		// so subcommand-level options may not have them. Only merge when the user
 		// explicitly passed the flag on the CLI (not from env var defaults).
 		const argv = process.argv;
-		const hasExplicitOrgId = argv.some((a) => a === '--org-id' || a.startsWith('--org-id='));
+		const hasExplicitOrgId = argv.some(
+			(a) =>
+				a === '--org-id' || a.startsWith('--org-id=') || a === '--org' || a.startsWith('--org=')
+		);
 		const hasExplicitProjectId = argv.some(
 			(a) => a === '--project-id' || a.startsWith('--project-id=')
 		);

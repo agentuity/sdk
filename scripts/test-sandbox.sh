@@ -443,16 +443,16 @@ section "CP Command Tests"
 # ============================================
 
 # Test: Upload single file
-info "Test: sandbox cp - upload file"
-UPLOAD_OUTPUT=$($CLI cloud sandbox cp "$TEST_DIR/test.txt" "$SANDBOX_ID:test.txt" 2>&1) || true
+info "Test: sandbox fs cp - upload file"
+UPLOAD_OUTPUT=$($CLI cloud sandbox fs cp "$TEST_DIR/test.txt" "$SANDBOX_ID:test.txt" 2>&1) || true
 if echo "$UPLOAD_OUTPUT" | grep -q "Copied" && echo "$UPLOAD_OUTPUT" | grep -q "21 bytes"; then
-	pass "sandbox cp uploads file with correct byte count"
+	pass "sandbox fs cp uploads file with correct byte count"
 else
-	fail "sandbox cp upload failed or wrong byte count" "$UPLOAD_OUTPUT"
+	fail "sandbox fs cp upload failed or wrong byte count" "$UPLOAD_OUTPUT"
 fi
 
 # Verify file content in sandbox
-info "Test: sandbox cp - verify uploaded content"
+info "Test: sandbox fs cp - verify uploaded content"
 VERIFY_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
 if echo "$VERIFY_OUTPUT" | grep -q "Hello from test file"; then
 	pass "uploaded file has correct content"
@@ -461,24 +461,24 @@ else
 fi
 
 # Test: Download file (using relative path)
-info "Test: sandbox cp - download file"
+info "Test: sandbox fs cp - download file"
 rm -f "$TEST_DIR/downloaded.txt"
-DOWNLOAD_OUTPUT=$($CLI cloud sandbox cp "$SANDBOX_ID:test.txt" "$TEST_DIR/downloaded.txt" 2>&1) || true
+DOWNLOAD_OUTPUT=$($CLI cloud sandbox fs cp "$SANDBOX_ID:test.txt" "$TEST_DIR/downloaded.txt" 2>&1) || true
 if [ -f "$TEST_DIR/downloaded.txt" ]; then
 	DOWNLOADED_CONTENT=$(cat "$TEST_DIR/downloaded.txt")
 	if [ "$DOWNLOADED_CONTENT" = "Hello from test file" ]; then
-		pass "sandbox cp downloads file with correct content"
+		pass "sandbox fs cp downloads file with correct content"
 	else
 		fail "downloaded file has wrong content" "$DOWNLOADED_CONTENT"
 	fi
 else
-	fail "sandbox cp did not create downloaded file" "$DOWNLOAD_OUTPUT"
+	fail "sandbox fs cp did not create downloaded file" "$DOWNLOAD_OUTPUT"
 fi
 
 # Test: Binary file integrity
-info "Test: sandbox cp - binary file integrity"
-$CLI cloud sandbox cp "$TEST_DIR/binary.bin" "$SANDBOX_ID:binary.bin" 2>&1 || true
-$CLI cloud sandbox cp "$SANDBOX_ID:binary.bin" "$TEST_DIR/downloaded.bin" 2>&1 || true
+info "Test: sandbox fs cp - binary file integrity"
+$CLI cloud sandbox fs cp "$TEST_DIR/binary.bin" "$SANDBOX_ID:binary.bin" 2>&1 || true
+$CLI cloud sandbox fs cp "$SANDBOX_ID:binary.bin" "$TEST_DIR/downloaded.bin" 2>&1 || true
 if cmp -s "$TEST_DIR/binary.bin" "$TEST_DIR/downloaded.bin"; then
 	pass "binary file maintains integrity through upload/download"
 else
@@ -486,16 +486,16 @@ else
 fi
 
 # Test: Directory upload with -r
-info "Test: sandbox cp -r - upload directory"
-DIR_UPLOAD=$($CLI cloud sandbox cp -r "$TEST_DIR/testdir" "$SANDBOX_ID:testdir" 2>&1) || true
+info "Test: sandbox fs cp -r - upload directory"
+DIR_UPLOAD=$($CLI cloud sandbox fs cp -r "$TEST_DIR/testdir" "$SANDBOX_ID:testdir" 2>&1) || true
 if echo "$DIR_UPLOAD" | grep -q "3 files"; then
-	pass "sandbox cp -r uploads directory with correct file count"
+	pass "sandbox fs cp -r uploads directory with correct file count"
 else
-	fail "sandbox cp -r wrong file count" "$DIR_UPLOAD"
+	fail "sandbox fs cp -r wrong file count" "$DIR_UPLOAD"
 fi
 
 # Verify directory structure
-info "Test: sandbox cp -r - verify structure"
+info "Test: sandbox fs cp -r - verify structure"
 STRUCT_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- find /home/agentuity/testdir -name "*.txt" 2>&1) || true
 if echo "$STRUCT_OUTPUT" | grep -q "a.txt" && echo "$STRUCT_OUTPUT" | grep -q "b.txt" && echo "$STRUCT_OUTPUT" | grep -q "c.txt"; then
 	pass "directory structure preserved"
@@ -504,11 +504,11 @@ else
 fi
 
 # Test: Directory download with -r (using relative path)
-info "Test: sandbox cp -r - download directory"
+info "Test: sandbox fs cp -r - download directory"
 rm -rf "$TEST_DIR/downloaded-dir"
-DIR_DOWNLOAD=$($CLI cloud sandbox cp -r "$SANDBOX_ID:testdir" "$TEST_DIR/downloaded-dir" 2>&1) || true
+DIR_DOWNLOAD=$($CLI cloud sandbox fs cp -r "$SANDBOX_ID:testdir" "$TEST_DIR/downloaded-dir" 2>&1) || true
 if [ -f "$TEST_DIR/downloaded-dir/a.txt" ] && [ -f "$TEST_DIR/downloaded-dir/subdir/b.txt" ] && [ -f "$TEST_DIR/downloaded-dir/subdir/c.txt" ]; then
-	pass "sandbox cp -r downloads directory with correct structure"
+	pass "sandbox fs cp -r downloads directory with correct structure"
 else
 	fail "downloaded directory structure incorrect" "Command output: $DIR_DOWNLOAD\nDirectory listing: $(ls -laR "$TEST_DIR/downloaded-dir" 2>&1)"
 fi
@@ -516,20 +516,20 @@ fi
 # Test: Absolute path upload (inside /home/agentuity)
 # NOTE: This test requires updated Hadron with /home/agentuity path support
 # Skipping until Hadron is deployed with the path normalization fix
-info "Test: sandbox cp - absolute path (skipped - requires Hadron update)"
-pass "sandbox cp absolute path test skipped"
+info "Test: sandbox fs cp - absolute path (skipped - requires Hadron update)"
+pass "sandbox fs cp absolute path test skipped"
 
 # ============================================
 section "MKDIR Command Tests"
 # ============================================
 
 # Test: Create directory
-info "Test: sandbox mkdir"
-MKDIR_OUTPUT=$($CLI cloud sandbox mkdir "$SANDBOX_ID" /home/agentuity/newdir 2>&1) || true
+info "Test: sandbox fs mkdir"
+MKDIR_OUTPUT=$($CLI cloud sandbox fs mkdir "$SANDBOX_ID" /home/agentuity/newdir 2>&1) || true
 if echo "$MKDIR_OUTPUT" | grep -qi "Created directory"; then
-	pass "sandbox mkdir creates directory"
+	pass "sandbox fs mkdir creates directory"
 else
-	fail "sandbox mkdir failed" "$MKDIR_OUTPUT"
+	fail "sandbox fs mkdir failed" "$MKDIR_OUTPUT"
 fi
 
 # Verify directory exists
@@ -541,12 +541,12 @@ else
 fi
 
 # Test: Create nested directories with -p
-info "Test: sandbox mkdir -p (recursive)"
-MKDIR_P_OUTPUT=$($CLI cloud sandbox mkdir "$SANDBOX_ID" /home/agentuity/nested/deep/dir -p 2>&1) || true
+info "Test: sandbox fs mkdir -p (recursive)"
+MKDIR_P_OUTPUT=$($CLI cloud sandbox fs mkdir "$SANDBOX_ID" /home/agentuity/nested/deep/dir -p 2>&1) || true
 if echo "$MKDIR_P_OUTPUT" | grep -qi "Created directory"; then
-	pass "sandbox mkdir -p creates nested directories"
+	pass "sandbox fs mkdir -p creates nested directories"
 else
-	fail "sandbox mkdir -p failed" "$MKDIR_P_OUTPUT"
+	fail "sandbox fs mkdir -p failed" "$MKDIR_P_OUTPUT"
 fi
 
 # Verify nested structure
@@ -562,54 +562,54 @@ section "LS Command Tests"
 # ============================================
 
 # Test: List files in directory
-info "Test: sandbox files"
-LS_OUTPUT=$($CLI cloud sandbox files "$SANDBOX_ID" /home/agentuity 2>&1) || true
+info "Test: sandbox fs ls"
+LS_OUTPUT=$($CLI cloud sandbox fs ls "$SANDBOX_ID" /home/agentuity 2>&1) || true
 if echo "$LS_OUTPUT" | grep -q "test.txt" && echo "$LS_OUTPUT" | grep -q "testdir"; then
-	pass "sandbox files shows files and directories"
+	pass "sandbox fs ls shows files and directories"
 else
-	fail "sandbox files missing expected entries" "$LS_OUTPUT"
+	fail "sandbox fs ls missing expected entries" "$LS_OUTPUT"
 fi
 
 # Test: List with JSON output
-info "Test: sandbox files --json"
-LS_JSON=$($CLI cloud sandbox files "$SANDBOX_ID" /home/agentuity --json 2>&1) || true
+info "Test: sandbox fs ls --json"
+LS_JSON=$($CLI cloud sandbox fs ls "$SANDBOX_ID" /home/agentuity --json 2>&1) || true
 if echo "$LS_JSON" | grep -q '"files"' && echo "$LS_JSON" | grep -q '"total"'; then
-	pass "sandbox files --json returns structured data"
+	pass "sandbox fs ls --json returns structured data"
 else
-	fail "sandbox files --json missing expected fields" "$LS_JSON"
+	fail "sandbox fs ls --json missing expected fields" "$LS_JSON"
 fi
 
 # Verify directory indicator
 if echo "$LS_OUTPUT" | grep -q "d.*testdir"; then
-	pass "sandbox files shows directory indicator"
+	pass "sandbox fs ls shows directory indicator"
 else
 	# May have different format, just check it works
-	pass "sandbox files output format acceptable"
+	pass "sandbox fs ls output format acceptable"
 fi
 
 # Test: List with long format
-info "Test: sandbox files -l (long format)"
-LS_LONG=$($CLI cloud sandbox files "$SANDBOX_ID" /home/agentuity -l 2>&1) || true
+info "Test: sandbox fs ls -l (long format)"
+LS_LONG=$($CLI cloud sandbox fs ls "$SANDBOX_ID" /home/agentuity -l 2>&1) || true
 if echo "$LS_LONG" | grep -q "0644\|0755"; then
-	pass "sandbox files -l shows file permissions"
+	pass "sandbox fs ls -l shows file permissions"
 else
-	fail "sandbox files -l missing permissions" "$LS_LONG"
+	fail "sandbox fs ls -l missing permissions" "$LS_LONG"
 fi
 
 # Verify long format includes modification time
 if echo "$LS_LONG" | grep -q "[A-Z][a-z][a-z]"; then
-	pass "sandbox files -l shows modification time"
+	pass "sandbox fs ls -l shows modification time"
 else
-	fail "sandbox files -l missing modification time" "$LS_LONG"
+	fail "sandbox fs ls -l missing modification time" "$LS_LONG"
 fi
 
 # Test: Long format with JSON includes mode and modTime
-info "Test: sandbox files --json includes mode and modTime"
-LS_JSON_LONG=$($CLI cloud sandbox files "$SANDBOX_ID" /home/agentuity --json 2>&1) || true
+info "Test: sandbox fs ls --json includes mode and modTime"
+LS_JSON_LONG=$($CLI cloud sandbox fs ls "$SANDBOX_ID" /home/agentuity --json 2>&1) || true
 if echo "$LS_JSON_LONG" | grep -q '"mode"' && echo "$LS_JSON_LONG" | grep -q '"modTime"'; then
-	pass "sandbox files --json includes mode and modTime fields"
+	pass "sandbox fs ls --json includes mode and modTime fields"
 else
-	fail "sandbox files --json missing mode/modTime fields" "$LS_JSON_LONG"
+	fail "sandbox fs ls --json missing mode/modTime fields" "$LS_JSON_LONG"
 fi
 
 # ============================================
@@ -617,12 +617,12 @@ section "RMDIR Command Tests"
 # ============================================
 
 # Test: Remove empty directory
-info "Test: sandbox rmdir (empty dir)"
-RMDIR_OUTPUT=$($CLI cloud sandbox rmdir "$SANDBOX_ID" /home/agentuity/newdir 2>&1) || true
+info "Test: sandbox fs rmdir (empty dir)"
+RMDIR_OUTPUT=$($CLI cloud sandbox fs rmdir "$SANDBOX_ID" /home/agentuity/newdir 2>&1) || true
 if echo "$RMDIR_OUTPUT" | grep -qi "Removed directory"; then
-	pass "sandbox rmdir removes empty directory"
+	pass "sandbox fs rmdir removes empty directory"
 else
-	fail "sandbox rmdir failed" "$RMDIR_OUTPUT"
+	fail "sandbox fs rmdir failed" "$RMDIR_OUTPUT"
 fi
 
 # Verify directory removed
@@ -634,12 +634,12 @@ else
 fi
 
 # Test: Remove directory recursively
-info "Test: sandbox rmdir -r (recursive)"
-RMDIR_R_OUTPUT=$($CLI cloud sandbox rmdir "$SANDBOX_ID" /home/agentuity/nested -r 2>&1) || true
+info "Test: sandbox fs rmdir -r (recursive)"
+RMDIR_R_OUTPUT=$($CLI cloud sandbox fs rmdir "$SANDBOX_ID" /home/agentuity/nested -r 2>&1) || true
 if echo "$RMDIR_R_OUTPUT" | grep -qi "Removed directory"; then
-	pass "sandbox rmdir -r removes directory tree"
+	pass "sandbox fs rmdir -r removes directory tree"
 else
-	fail "sandbox rmdir -r failed" "$RMDIR_R_OUTPUT"
+	fail "sandbox fs rmdir -r failed" "$RMDIR_R_OUTPUT"
 fi
 
 # Verify recursive removal
@@ -665,12 +665,12 @@ else
 fi
 
 # Test: Remove a file
-info "Test: sandbox rm"
-RM_OUTPUT=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/todelete.txt 2>&1) || true
+info "Test: sandbox fs rm"
+RM_OUTPUT=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/todelete.txt 2>&1) || true
 if echo "$RM_OUTPUT" | grep -qi "Removed file"; then
-	pass "sandbox rm removes file"
+	pass "sandbox fs rm removes file"
 else
-	fail "sandbox rm failed" "$RM_OUTPUT"
+	fail "sandbox fs rm failed" "$RM_OUTPUT"
 fi
 
 # Verify file removed
@@ -682,60 +682,60 @@ else
 fi
 
 # Test: Remove non-existent file (should fail gracefully)
-info "Test: sandbox rm - non-existent file"
-RM_NOFILE=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/nonexistent.txt 2>&1) || true
+info "Test: sandbox fs rm - non-existent file"
+RM_NOFILE=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/nonexistent.txt 2>&1) || true
 if echo "$RM_NOFILE" | grep -qi "not found\|error\|fail"; then
-	pass "sandbox rm reports error for non-existent file"
+	pass "sandbox fs rm reports error for non-existent file"
 else
-	fail "sandbox rm did not report error for non-existent file" "$RM_NOFILE"
+	fail "sandbox fs rm did not report error for non-existent file" "$RM_NOFILE"
 fi
 
 # Test: rm on directory should fail (use rmdir instead)
-info "Test: sandbox rm - fails on directory"
-$CLI cloud sandbox mkdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1 || true
-RM_DIR=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/testrmdir 2>&1) || true
+info "Test: sandbox fs rm - fails on directory"
+$CLI cloud sandbox fs mkdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1 || true
+RM_DIR=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/testrmdir 2>&1) || true
 if echo "$RM_DIR" | grep -qi "directory\|error\|fail"; then
-	pass "sandbox rm correctly fails on directory"
+	pass "sandbox fs rm correctly fails on directory"
 else
-	fail "sandbox rm should fail on directory" "$RM_DIR"
+	fail "sandbox fs rm should fail on directory" "$RM_DIR"
 fi
 # Clean up test directory
-$CLI cloud sandbox rmdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1 || true
+$CLI cloud sandbox fs rmdir "$SANDBOX_ID" /home/agentuity/testrmdir >/dev/null 2>&1 || true
 
 # Test: JSON output
-info "Test: sandbox rm --json"
+info "Test: sandbox fs rm --json"
 RM_JSON_READY=0
 set +e
 RM_JSON_CREATE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "json test" > /home/agentuity/jsontest.txt' 2>&1)
 RM_JSON_CREATE_EXIT=$?
 set -e
 if [ "$RM_JSON_CREATE_EXIT" -ne 0 ]; then
-	fail "sandbox rm --json setup failed to create file (exit code $RM_JSON_CREATE_EXIT)" "$RM_JSON_CREATE"
+	fail "sandbox fs rm --json setup failed to create file (exit code $RM_JSON_CREATE_EXIT)" "$RM_JSON_CREATE"
 else
 	set +e
 	RM_JSON_EXISTS=$($CLI cloud sandbox exec "$SANDBOX_ID" -- test -f /home/agentuity/jsontest.txt 2>&1)
 	RM_JSON_EXISTS_EXIT=$?
 	set -e
 	if [ "$RM_JSON_EXISTS_EXIT" -ne 0 ]; then
-		fail "sandbox rm --json setup could not verify file exists" "$RM_JSON_EXISTS"
+		fail "sandbox fs rm --json setup could not verify file exists" "$RM_JSON_EXISTS"
 	else
 		RM_JSON_READY=1
 	fi
 fi
 if [ "$RM_JSON_READY" -eq 1 ]; then
 	set +e
-	RM_JSON=$($CLI cloud sandbox rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1)
+	RM_JSON=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/jsontest.txt --json 2>&1)
 	RM_JSON_EXIT=$?
 	set -e
 	if [ "$RM_JSON_EXIT" -ne 0 ]; then
-		fail "sandbox rm --json failed to remove file (exit code $RM_JSON_EXIT)" "$RM_JSON"
+		fail "sandbox fs rm --json failed to remove file (exit code $RM_JSON_EXIT)" "$RM_JSON"
 	else
-		pass "sandbox rm --json exits successfully"
+		pass "sandbox fs rm --json exits successfully"
 	fi
 	if echo "$RM_JSON" | grep -q '"success"' && echo "$RM_JSON" | grep -q '"path"'; then
-		pass "sandbox rm --json returns structured data"
+		pass "sandbox fs rm --json returns structured data"
 	else
-		fail "sandbox rm --json missing expected fields" "$RM_JSON"
+		fail "sandbox fs rm --json missing expected fields" "$RM_JSON"
 	fi
 fi
 
@@ -801,13 +801,13 @@ section "DOWNLOAD/UPLOAD Archive Tests"
 # ============================================
 
 # Test: Download as tar.gz
-info "Test: sandbox download (tar.gz)"
+info "Test: sandbox fs download (tar.gz)"
 rm -f "$TEST_DIR/sandbox-archive.tar.gz"
-DOWNLOAD_OUTPUT=$($CLI cloud sandbox download "$SANDBOX_ID" "$TEST_DIR/sandbox-archive.tar.gz" 2>&1) || true
+DOWNLOAD_OUTPUT=$($CLI cloud sandbox fs download "$SANDBOX_ID" "$TEST_DIR/sandbox-archive.tar.gz" 2>&1) || true
 if [ -f "$TEST_DIR/sandbox-archive.tar.gz" ] && echo "$DOWNLOAD_OUTPUT" | grep -qi "Downloaded"; then
-	pass "sandbox download creates tar.gz archive"
+	pass "sandbox fs download creates tar.gz archive"
 else
-	fail "sandbox download failed" "$DOWNLOAD_OUTPUT"
+	fail "sandbox fs download failed" "$DOWNLOAD_OUTPUT"
 fi
 
 # Verify archive is valid
@@ -818,13 +818,13 @@ else
 fi
 
 # Test: Download as zip
-info "Test: sandbox download --format zip"
+info "Test: sandbox fs download --format zip"
 rm -f "$TEST_DIR/sandbox-archive.zip"
-DOWNLOAD_ZIP=$($CLI cloud sandbox download "$SANDBOX_ID" "$TEST_DIR/sandbox-archive.zip" --format zip 2>&1) || true
+DOWNLOAD_ZIP=$($CLI cloud sandbox fs download "$SANDBOX_ID" "$TEST_DIR/sandbox-archive.zip" --format zip 2>&1) || true
 if [ -f "$TEST_DIR/sandbox-archive.zip" ] && echo "$DOWNLOAD_ZIP" | grep -qi "Downloaded"; then
-	pass "sandbox download creates zip archive"
+	pass "sandbox fs download creates zip archive"
 else
-	fail "sandbox download zip failed" "$DOWNLOAD_ZIP"
+	fail "sandbox fs download zip failed" "$DOWNLOAD_ZIP"
 fi
 
 # Verify zip is valid
@@ -835,13 +835,13 @@ else
 fi
 
 # Test: Download specific path
-info "Test: sandbox download --path"
+info "Test: sandbox fs download --path"
 rm -f "$TEST_DIR/subdir-archive.tar.gz"
-DOWNLOAD_PATH=$($CLI cloud sandbox download "$SANDBOX_ID" "$TEST_DIR/subdir-archive.tar.gz" --path /home/agentuity/testdir 2>&1) || true
+DOWNLOAD_PATH=$($CLI cloud sandbox fs download "$SANDBOX_ID" "$TEST_DIR/subdir-archive.tar.gz" --path /home/agentuity/testdir 2>&1) || true
 if [ -f "$TEST_DIR/subdir-archive.tar.gz" ]; then
-	pass "sandbox download --path creates archive"
+	pass "sandbox fs download --path creates archive"
 else
-	fail "sandbox download --path failed" "$DOWNLOAD_PATH"
+	fail "sandbox fs download --path failed" "$DOWNLOAD_PATH"
 fi
 
 # Create a fresh sandbox to test upload
@@ -854,12 +854,12 @@ if [ -n "$UPLOAD_SANDBOX_ID" ]; then
 	sleep 3
 	
 	# Test: Upload tar.gz archive
-	info "Test: sandbox upload (tar.gz)"
-	UPLOAD_OUTPUT=$($CLI cloud sandbox upload "$UPLOAD_SANDBOX_ID" "$TEST_DIR/sandbox-archive.tar.gz" 2>&1) || true
+	info "Test: sandbox fs upload (tar.gz)"
+	UPLOAD_OUTPUT=$($CLI cloud sandbox fs upload "$UPLOAD_SANDBOX_ID" "$TEST_DIR/sandbox-archive.tar.gz" 2>&1) || true
 	if echo "$UPLOAD_OUTPUT" | grep -qi "Uploaded"; then
-		pass "sandbox upload extracts tar.gz archive"
+		pass "sandbox fs upload extracts tar.gz archive"
 	else
-		fail "sandbox upload failed" "$UPLOAD_OUTPUT"
+		fail "sandbox fs upload failed" "$UPLOAD_OUTPUT"
 	fi
 	
 	# Verify files were extracted
@@ -1548,11 +1548,11 @@ else
 	fail "snapshot build --public did not detect malware" "$MALWARE_BUILD"
 fi
 
-# Verify exit code is 10 (SECURITY_ERROR)
-if [ "$MALWARE_EXIT" -eq 10 ]; then
-	pass "snapshot build --public with malware exits with code 10 (SECURITY_ERROR)"
+# Verify exit code is 18 (SECURITY_ERROR)
+if [ "$MALWARE_EXIT" -eq 18 ]; then
+	pass "snapshot build --public with malware exits with code 18 (SECURITY_ERROR)"
 else
-	fail "snapshot build --public with malware should exit with code 10, got $MALWARE_EXIT" ""
+	fail "snapshot build --public with malware should exit with code 18, got $MALWARE_EXIT" ""
 fi
 
 # Verify error box mentions virus name
@@ -1590,11 +1590,11 @@ else
 	fail "snapshot build --public --json missing error field" "$MALWARE_JSON"
 fi
 
-# Verify JSON exit code is 1 (JSON mode uses exit 1)
-if [ "$MALWARE_JSON_EXIT" -eq 1 ]; then
-	pass "snapshot build --public --json with malware exits with code 1"
+# Verify JSON exit code is 18 (SECURITY_ERROR)
+if [ "$MALWARE_JSON_EXIT" -eq 18 ]; then
+	pass "snapshot build --public --json with malware exits with code 18 (SECURITY_ERROR)"
 else
-	fail "snapshot build --public --json with malware should exit with code 1, got $MALWARE_JSON_EXIT" ""
+	fail "snapshot build --public --json with malware should exit with code 18, got $MALWARE_JSON_EXIT" ""
 fi
 
 # Test: Clean public snapshot succeeds
@@ -1705,7 +1705,7 @@ fi
 if [ -n "$PYTHON_SANDBOX_ID" ]; then
 	echo 'print("Hello from Python")' > "$TEST_DIR/test.py"
 	info "Test: upload .py file to python sandbox"
-	PY_UPLOAD=$($CLI cloud sandbox cp "$TEST_DIR/test.py" "$PYTHON_SANDBOX_ID:test.py" 2>&1) || true
+	PY_UPLOAD=$($CLI cloud sandbox fs cp "$TEST_DIR/test.py" "$PYTHON_SANDBOX_ID:test.py" 2>&1) || true
 	if echo "$PY_UPLOAD" | grep -qi "Copied"; then
 		pass "uploaded test.py to python sandbox"
 	else
@@ -1732,7 +1732,7 @@ if [ -n "$PYTHON_SANDBOX_ID" ]; then
 
 	# Test: Verify uploaded file appears in file listing
 	info "Test: verify .py file appears in sandbox file listing"
-	PY_FILES=$($CLI cloud sandbox files "$PYTHON_SANDBOX_ID" /home/agentuity --json 2>&1) || true
+	PY_FILES=$($CLI cloud sandbox fs ls "$PYTHON_SANDBOX_ID" /home/agentuity --json 2>&1) || true
 	if echo "$PY_FILES" | grep -q "test.py"; then
 		pass "test.py visible in python sandbox file listing"
 	else
@@ -1816,15 +1816,41 @@ section "SNAPSHOT WITH FILES IN SUBDIRECTORIES Tests"
 # ============================================
 # Uses the existing SANDBOX_ID (main test sandbox, bun runtime)
 # Tests that nested directory structures are properly included in snapshots
+#
+# NOTE: SANDBOX_ID may have been idle for several minutes during BUILD,
+# MALWARE, and PYTHON tests. Verify it's still alive before proceeding.
+
+# Keepalive check: verify sandbox is still responsive after the long gap
+info "Test: verify main sandbox is still alive"
+KEEPALIVE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- echo "sandbox-alive" 2>&1) || true
+if echo "$KEEPALIVE" | grep -q "sandbox-alive"; then
+	pass "main sandbox is still responsive"
+else
+	fail "main sandbox may have been reaped by idle timeout (was idle during BUILD/MALWARE/PYTHON tests)" "$KEEPALIVE"
+fi
 
 # Test: Create nested directory structure with various file types
+# Use a single combined command to avoid multiple round-trips and reduce flakiness
 info "Test: create nested directory structure in sandbox"
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/src' >/dev/null 2>&1 || true
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/config' >/dev/null 2>&1 || true
+MKDIR_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'mkdir -p /home/agentuity/project/src /home/agentuity/project/config && echo "dirs-created"' 2>&1) || true
+if echo "$MKDIR_OUTPUT" | grep -q "dirs-created"; then
+	pass "nested directories created successfully"
+else
+	fail "failed to create nested directories" "$MKDIR_OUTPUT"
+fi
 
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "def main(): print(\"hello\")" > /home/agentuity/project/src/main.py' >/dev/null 2>&1 || true
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "def helper(): return 42" > /home/agentuity/project/src/utils.py' >/dev/null 2>&1 || true
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo "{\"debug\": true}" > /home/agentuity/project/config/settings.json' >/dev/null 2>&1 || true
+# Write files - capture output to detect errors instead of silently swallowing them
+WRITE_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c '
+	echo "def main(): print(\"hello\")" > /home/agentuity/project/src/main.py &&
+	echo "def helper(): return 42" > /home/agentuity/project/src/utils.py &&
+	echo "{\"debug\": true}" > /home/agentuity/project/config/settings.json &&
+	echo "files-written"
+' 2>&1) || true
+if echo "$WRITE_OUTPUT" | grep -q "files-written"; then
+	pass "nested files written successfully"
+else
+	fail "failed to write nested files" "$WRITE_OUTPUT"
+fi
 
 # Verify files were created
 NESTED_VERIFY=$($CLI cloud sandbox exec "$SANDBOX_ID" -- find /home/agentuity/project -type f 2>&1) || true
@@ -1981,6 +2007,15 @@ section "SNAPSHOT RE-SNAPSHOT LIFECYCLE Tests"
 # ============================================
 # Uses the existing SANDBOX_ID (main test sandbox)
 # Tests that incremental snapshots properly capture new files
+
+# Keepalive check: verify sandbox is still responsive
+info "Test: verify main sandbox is still alive for lifecycle tests"
+LIFECYCLE_KEEPALIVE=$($CLI cloud sandbox exec "$SANDBOX_ID" -- echo "lifecycle-alive" 2>&1) || true
+if echo "$LIFECYCLE_KEEPALIVE" | grep -q "lifecycle-alive"; then
+	pass "main sandbox is still responsive for lifecycle tests"
+else
+	fail "main sandbox may have been reaped by idle timeout before lifecycle tests" "$LIFECYCLE_KEEPALIVE"
+fi
 
 # Test: Create initial snapshot
 info "Test: create initial snapshot for re-snapshot lifecycle"

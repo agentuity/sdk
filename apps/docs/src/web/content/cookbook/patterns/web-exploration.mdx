@@ -1,0 +1,249 @@
+---
+title: Web Exploration with Sandboxes
+description: Run a headless browser in a sandbox to let agents browse, screenshot, and extract web content
+---
+
+Agents sometimes need to interact with live websites: take screenshots, click buttons, fill forms, and extract content. [Sandboxes](/services/sandbox/sdk-usage) provide isolated browser environments for this, keeping your agent's host clean and secure.
+
+## The Pattern
+
+Create a sandbox with the `agent-browser` runtime, then use AI SDK tool calling to let the model decide what to do on each page. The agent takes screenshots to observe the page, interacts with elements, and stores findings in [KV storage](/services/storage/key-value) for memory across sessions.
+
+```typescript title="src/lib/explorer.ts"
+import { generateText, tool, hasToolCall } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+import type { Sandbox } from '@agentuity/core';
+```
+
+## Creating the Sandbox
+
+The `agent-browser:latest` runtime includes headless Chromium and a Playwright CLI. Network access is required for web browsing.
+
+```typescript title="src/lib/explorer.ts"
+const sandbox = await ctx.sandbox.create({
+  runtime: 'agent-browser:latest',
+  network: { enabled: true }, // [!code highlight]
+  resources: { memory: '1Gi', cpu: '1000m' },
+  timeout: { idle: '10m', execution: '30s' },
+});
+```
+
+The `execution` timeout applies per command (each screenshot or click), while `idle` controls how long the sandbox stays alive between commands. This lets the agent take its time planning without the sandbox disappearing mid-session.
+
+## Defining Browser Tools
+
+The model needs tools to interact with the page. A single `browser` tool handles all actions through a dispatch pattern, while `store_finding` and `finish_exploration` control the research loop.
+
+```typescript title="src/lib/explorer.ts"
+const tools = {
+  browser: tool({
+    description: 'Control the sandbox browser. Use screenshot to see the page and get element refs.',
+    inputSchema: z.object({
+      action: z.enum([
+        'screenshot', 'click', 'fill', 'scroll',
+        'navigate', 'back', 'press', 'hover', 'eval', 'wait',
+      ]),
+      ref: z.string().nullable()
+        .describe('Element ref like @e5. Required for: click, fill, hover'),
+      value: z.string().nullable()
+        .describe('Text for fill, key for press, URL for navigate, JS for eval'),
+      direction: z.enum(['up', 'down']).nullable()
+        .describe('Scroll direction. Required for: scroll'),
+      reason: z.string()
+        .describe('Why this action'),
+    }),
+    strict: true,
+    execute: async ({ action, ref, value, direction, reason }) => {
+      if (action === 'screenshot') {
+        return handleScreenshot(sandbox, ctx);
+      }
+      // Dispatch to the appropriate handler
+      const handler = BROWSER_DISPATCH[action];
+      if (!handler) return `Unknown action: ${action}`;
+      return handler.run(sandbox, ref, value, direction);
+    },
+  }),
+
+  store_finding: tool({
+    description: 'Save what you learned about the current feature, then move to a new section.',
+    inputSchema: z.object({
+      title: z.string().describe('Short title for this finding'),
+      observation: z.string().describe('What you discovered'),
+    }),
+    strict: true,
+    execute: async ({ title, observation }) => {
+      await storeVisit(ctx, { url: currentUrl, title, observation });
+      return `Stored: ${title}. Navigate to a new section or call finish_exploration.`;
+    },
+  }),
+
+  finish_exploration: tool({
+    description: 'End the exploration and deliver your summary.',
+    inputSchema: z.object({
+      summary: z.string().describe('2-3 sentence summary of your exploration'),
+    }),
+    strict: true,
+    // No execute -- stops the loop via hasToolCall()
+  }),
+};
+```
+
+The `finish_exploration` tool has no `execute` function. It acts as a structured output mechanism: when the model calls it, `hasToolCall('finish_exploration')` stops the `generateText` loop and the summary is extracted from the tool call input.
+
+## Running the Exploration Loop
+
+With the tools defined, the exploration is a single `generateText` call. The model decides when to stop.
+
+```typescript title="src/lib/explorer.ts"
+const result = await generateText({
+  model: openai('gpt-5-nano'),
+  system: buildSystemPrompt(url),
+  prompt: `Begin exploring ${url}. Take a screenshot first, then interact with features.`,
+  tools,
+  stopWhen: [hasToolCall('finish_exploration')], // [!code highlight]
+});
+
+// Extract summary from the finish_exploration tool call
+let summary = result.text || '';
+for (const step of result.steps) {
+  for (const tc of step.toolCalls) {
+    if (tc.toolName === 'finish_exploration') {
+      summary = (tc.input as { summary: string }).summary; // [!code highlight]
+    }
+  }
+}
+```
+
+## Executing Browser Commands
+
+Each browser action runs a command inside the sandbox using `sandbox.execute()`. Screenshots are captured as images, encoded to base64, and uploaded to [object storage](/services/storage/object) for durable URLs.
+
+```typescript title="src/lib/explorer.ts"
+async function handleScreenshot(sandbox: Sandbox, ctx: ExplorerContext): Promise<string> {
+  const filename = `step-${Date.now()}.png`;
+
+  // Capture screenshot inside the sandbox
+  await sandbox.execute({ command: ['agent-browser', 'screenshot', filename] });
+
+  // Read the file as base64
+  const b64Exec = await sandbox.execute({ command: ['base64', filename] });
+  const base64 = (await readStdout(b64Exec)).trim();
+  const buffer = Buffer.from(base64, 'base64');
+
+  // Upload to object storage for a durable URL
+  const screenshotUrl = await uploadScreenshot(`screenshots/${filename}`, buffer);
+
+  // Get accessibility tree for element refs (@e1, @e2, etc.)
+  const snapshotExec = await sandbox.execute({ command: ['agent-browser', 'snapshot', '-i'] });
+  const elements = await readStdout(snapshotExec);
+
+  return `Screenshot captured. URL: ${screenshotUrl}\n\nInteractive elements:\n${elements}`;
+}
+```
+
+The accessibility tree returned by `agent-browser snapshot -i` contains element refs like `@e1`, `@e5` that the model uses in subsequent `click` or `fill` actions.
+
+## KV Memory for Visit History
+
+Storing visits in KV lets the agent remember what it has already explored. On repeat visits to the same domain, past findings are loaded and injected into the prompt so the model focuses on new areas.
+
+```typescript title="src/lib/explorer.ts"
+const KV_NAMESPACE = 'web-explorer';
+
+async function storeVisit(
+  ctx: ExplorerContext,
+  params: { url: string; title: string; observation: string }
+): Promise<void> {
+  const normalized = normalizeUrl(params.url);
+
+  // Store visit record with 24h TTL
+  await ctx.kv.set(KV_NAMESPACE, `visit:${normalized}`, { // [!code highlight]
+    ...params,
+    visitedAt: new Date().toISOString(),
+  }, { ttl: 86400 }); // [!code highlight]
+
+  // Update domain index so we can load all visits for a domain
+  const domain = new URL(params.url).hostname;
+  const indexResult = await ctx.kv.get<string[]>(KV_NAMESPACE, `domain:${domain}`);
+  const urls = indexResult.exists ? indexResult.data : [];
+  if (!urls.includes(normalized)) {
+    urls.push(normalized);
+    await ctx.kv.set(KV_NAMESPACE, `domain:${domain}`, urls, { ttl: 86400 * 7 });
+  }
+}
+
+async function loadPastVisits(ctx: ExplorerContext, url: string): Promise<MemoryVisit[]> {
+  const domain = new URL(url).hostname;
+  const indexResult = await ctx.kv.get<string[]>(KV_NAMESPACE, `domain:${domain}`);
+  if (!indexResult.exists) return [];
+
+  const visits: MemoryVisit[] = [];
+  for (const normalizedUrl of indexResult.data) {
+    const result = await ctx.kv.get<VisitRecord>(KV_NAMESPACE, `visit:${normalizedUrl}`);
+    if (result.exists && result.data.observation) {
+      visits.push(result.data);
+    }
+  }
+  return visits;
+}
+```
+
+When past visits exist, they are formatted and added to the model's prompt:
+
+```typescript
+const pastVisits = await loadPastVisits(ctx, url);
+const memoryContext = pastVisits
+  .map((v) => `- ${v.url}: ${v.observation}`)
+  .join('\n');
+
+const prompt = memoryContext
+  ? `Begin exploring ${url}.\n\nAlready explored (do not revisit):\n${memoryContext}`
+  : `Begin exploring ${url}. Take a screenshot first.`;
+```
+
+## Cleanup
+
+Always destroy the sandbox when finished, even if the exploration fails.
+
+```typescript title="src/agent/web-explorer/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { explore } from '@lib/explorer';
+
+const agent = createAgent('web-explorer', {
+  description: 'Explores a URL in a headless browser sandbox with AI-guided actions',
+  schema: {
+    input: AgentInput,
+    output: AgentOutput,
+  },
+  handler: async (ctx, input) => {
+    return explore(
+      { logger: ctx.logger, kv: ctx.kv, sandbox: ctx.sandbox },
+      { url: input.url, maxSteps: input.maxSteps },
+    );
+  },
+});
+
+export default agent;
+```
+
+Inside `explore()`, the sandbox is destroyed in a `finally` block so it is always cleaned up:
+
+```typescript
+try {
+  return await exploreWithSandbox(ctx, sandbox, options);
+} finally {
+  await sandbox.destroy(); // [!code highlight]
+}
+```
+
+<Callout type="tip" title="Full Working Example">
+See the [Web Explorer](https://github.com/agentuity/examples/tree/main/features/web-explorer) example for the complete implementation with SSE streaming, session resume, S3 screenshot uploads, and a React timeline UI.
+</Callout>
+
+## Next Steps
+
+- [Sandbox SDK Usage](/services/sandbox/sdk-usage): Full sandbox API for creating, executing, and managing sandboxes
+- [Snapshots](/services/sandbox/snapshots): Pre-warm sandboxes with dependencies for faster cold starts
+- [Key-Value Storage](/services/storage/key-value): KV operations, TTL, and namespace patterns
+- [Object Storage](/services/storage/object): Upload and serve files with presigned URLs

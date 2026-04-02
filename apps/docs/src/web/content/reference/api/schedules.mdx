@@ -1,0 +1,850 @@
+---
+title: Schedules API
+short_title: Schedules
+description: Create and manage cron-based scheduled jobs with destinations and delivery tracking
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Schedule Management
+
+### Create Schedule
+
+Create a new cron-based schedule with optional destinations.
+
+<ApiEndpoint method="POST" path="/schedule/create" />
+
+
+
+#### Request Body
+
+Schedule creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Human-readable name for the schedule.",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Optional description of the schedule's purpose.",
+    "required": false
+  },
+  {
+    "name": "expression",
+    "type": "string",
+    "description": "Cron expression defining when the schedule fires",
+    "required": true
+  },
+  {
+    "name": "internal",
+    "type": "boolean",
+    "description": "Whether this is a system-managed schedule.",
+    "required": false
+  },
+  {
+    "name": "destinations",
+    "type": "object[]",
+    "description": "Optional array of destinations to create alongside the schedule.",
+    "required": false
+  },
+  {
+    "name": "destinations[].type",
+    "type": "string",
+    "description": "The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution.",
+    "required": true
+  },
+  {
+    "name": "destinations[].config",
+    "type": "object",
+    "description": "Type-specific destination configuration.",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created schedule and its destinations.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Schedule created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "schedule",
+    "type": "object",
+    "description": "The newly created schedule record.",
+    "required": true
+  },
+  {
+    "name": "schedule.id",
+    "type": "string",
+    "description": "Unique identifier for the schedule.",
+    "required": true
+  },
+  {
+    "name": "schedule.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was created.",
+    "required": true
+  },
+  {
+    "name": "schedule.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was last modified.",
+    "required": true
+  },
+  {
+    "name": "schedule.created_by",
+    "type": "string",
+    "description": "ID of the user who created the schedule.",
+    "required": true
+  },
+  {
+    "name": "schedule.name",
+    "type": "string",
+    "description": "Human-readable name for the schedule.",
+    "required": true
+  },
+  {
+    "name": "schedule.description",
+    "type": "string | null",
+    "description": "Optional description of the schedule's purpose.",
+    "required": true
+  },
+  {
+    "name": "schedule.expression",
+    "type": "string",
+    "description": "A cron expression defining the schedule's firing interval",
+    "required": true
+  },
+  {
+    "name": "schedule.due_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp of the next scheduled execution.",
+    "required": true
+  },
+  {
+    "name": "schedule.internal",
+    "type": "boolean",
+    "description": "Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted users.",
+    "required": true
+  },
+  {
+    "name": "destinations",
+    "type": "object[]",
+    "description": "Array of destinations that were created alongside the schedule.",
+    "required": true
+  },
+  {
+    "name": "destinations[].id",
+    "type": "string",
+    "description": "Unique identifier for the destination.",
+    "required": true
+  },
+  {
+    "name": "destinations[].schedule_id",
+    "type": "string",
+    "description": "The ID of the parent schedule.",
+    "required": true
+  },
+  {
+    "name": "destinations[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the destination was created.",
+    "required": true
+  },
+  {
+    "name": "destinations[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the destination was last updated.",
+    "required": true
+  },
+  {
+    "name": "destinations[].created_by",
+    "type": "string",
+    "description": "ID of the user who created the destination.",
+    "required": true
+  },
+  {
+    "name": "destinations[].type",
+    "type": "string",
+    "description": "The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution.",
+    "required": true
+  },
+  {
+    "name": "destinations[].config",
+    "type": "object",
+    "description": "Type-specific destination configuration.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/schedule/create" body={{
+  "name": "Daily Report",
+  "expression": "0 9 * * *",
+  "destinations": [
+    {
+      "type": "url",
+      "config": {
+        "url": "https://example.com/webhook"
+      }
+    }
+  ]
+}} />
+
+---
+
+### List Schedules
+
+List all schedules with optional pagination.
+
+<ApiEndpoint method="GET" path="/schedule/list" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Max results (max 500)"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns paginated list of schedules.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Schedules returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "schedules",
+    "type": "object[]",
+    "description": "Array of schedule records for the current page.",
+    "required": true
+  },
+  {
+    "name": "schedules[].id",
+    "type": "string",
+    "description": "Unique identifier for the schedule.",
+    "required": true
+  },
+  {
+    "name": "schedules[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was created.",
+    "required": true
+  },
+  {
+    "name": "schedules[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was last modified.",
+    "required": true
+  },
+  {
+    "name": "schedules[].created_by",
+    "type": "string",
+    "description": "ID of the user who created the schedule.",
+    "required": true
+  },
+  {
+    "name": "schedules[].name",
+    "type": "string",
+    "description": "Human-readable name for the schedule.",
+    "required": true
+  },
+  {
+    "name": "schedules[].description",
+    "type": "string | null",
+    "description": "Optional description of the schedule's purpose.",
+    "required": true
+  },
+  {
+    "name": "schedules[].expression",
+    "type": "string",
+    "description": "A cron expression defining the schedule's firing interval",
+    "required": true
+  },
+  {
+    "name": "schedules[].due_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp of the next scheduled execution.",
+    "required": true
+  },
+  {
+    "name": "schedules[].internal",
+    "type": "boolean",
+    "description": "Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted users.",
+    "required": true
+  },
+  {
+    "name": "total",
+    "type": "number",
+    "description": "Total number of schedules across all pages.",
+    "required": true
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/schedule/list" />
+
+---
+
+### Get Schedule
+
+Get a specific schedule by ID.
+
+<ApiEndpoint method="GET" path="/schedule/get/{scheduleId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID (sch_ prefix)"
+  }
+]} />
+
+#### Response
+
+Returns the schedule object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Schedule returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "schedule",
+    "type": "object",
+    "description": "The schedule record."
+  },
+  {
+    "name": "schedule.id",
+    "type": "string",
+    "description": "Unique identifier for the schedule."
+  },
+  {
+    "name": "schedule.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was created."
+  },
+  {
+    "name": "schedule.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was last modified."
+  },
+  {
+    "name": "schedule.created_by",
+    "type": "string",
+    "description": "ID of the user who created the schedule."
+  },
+  {
+    "name": "schedule.name",
+    "type": "string",
+    "description": "Human-readable name for the schedule."
+  },
+  {
+    "name": "schedule.description",
+    "type": "string | null",
+    "description": "Optional description of the schedule's purpose."
+  },
+  {
+    "name": "schedule.expression",
+    "type": "string",
+    "description": "A cron expression defining the schedule's firing interval"
+  },
+  {
+    "name": "schedule.due_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp of the next scheduled execution."
+  },
+  {
+    "name": "schedule.internal",
+    "type": "boolean",
+    "description": "Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted users."
+  },
+  {
+    "name": "destinations",
+    "type": "object[]",
+    "description": "Array of destinations configured for this schedule."
+  },
+  {
+    "name": "destinations[].id",
+    "type": "string",
+    "description": "Unique identifier for the destination."
+  },
+  {
+    "name": "destinations[].schedule_id",
+    "type": "string",
+    "description": "The ID of the parent schedule."
+  },
+  {
+    "name": "destinations[].created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the destination was created."
+  },
+  {
+    "name": "destinations[].updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the destination was last updated."
+  },
+  {
+    "name": "destinations[].created_by",
+    "type": "string",
+    "description": "ID of the user who created the destination."
+  },
+  {
+    "name": "destinations[].type",
+    "type": "string",
+    "description": "The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution."
+  },
+  {
+    "name": "destinations[].config",
+    "type": "object",
+    "description": "Type-specific destination configuration."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/schedule/get/sch_abc123" />
+
+---
+
+### Update Schedule
+
+Update a schedule's name, description, or cron expression.
+
+<ApiEndpoint method="PUT" path="/schedule/update/{scheduleId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  }
+]} />
+
+#### Request Body
+
+Fields to update.
+
+<ResponseFields fields={[
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Updated human-readable name for the schedule.",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Updated description.",
+    "required": false
+  },
+  {
+    "name": "expression",
+    "type": "string",
+    "description": "Updated cron expression. If changed, the `due_date` is automatically recomputed.",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated schedule.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Schedule updated |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "schedule",
+    "type": "object",
+    "description": "The updated schedule record."
+  },
+  {
+    "name": "schedule.id",
+    "type": "string",
+    "description": "Unique identifier for the schedule."
+  },
+  {
+    "name": "schedule.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was created."
+  },
+  {
+    "name": "schedule.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the schedule was last modified."
+  },
+  {
+    "name": "schedule.created_by",
+    "type": "string",
+    "description": "ID of the user who created the schedule."
+  },
+  {
+    "name": "schedule.name",
+    "type": "string",
+    "description": "Human-readable name for the schedule."
+  },
+  {
+    "name": "schedule.description",
+    "type": "string | null",
+    "description": "Optional description of the schedule's purpose."
+  },
+  {
+    "name": "schedule.expression",
+    "type": "string",
+    "description": "A cron expression defining the schedule's firing interval"
+  },
+  {
+    "name": "schedule.due_date",
+    "type": "string",
+    "description": "ISO 8601 timestamp of the next scheduled execution."
+  },
+  {
+    "name": "schedule.internal",
+    "type": "boolean",
+    "description": "Whether this is a system-managed schedule. Internal schedules cannot be modified or deleted users."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="PUT" path="/schedule/update/sch_abc123" body={{
+  "expression": "0 */6 * * *"
+}} />
+
+---
+
+### Delete Schedule
+
+Delete a schedule and all associated destinations and delivery history.
+
+<ApiEndpoint method="DELETE" path="/schedule/delete/{scheduleId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  }
+]} />
+
+#### Response
+
+Deletes the schedule and all associated destinations and delivery history.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Schedule deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/schedule/delete/sch_abc123" />
+
+---
+
+## Destinations
+
+### Create Destination
+
+Add a destination to a schedule.
+
+<ApiEndpoint method="POST" path="/schedule/destinations/create/{scheduleId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  }
+]} />
+
+#### Request Body
+
+Destination creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "type",
+    "type": "string",
+    "description": "The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution.",
+    "required": true
+  },
+  {
+    "name": "config",
+    "type": "object",
+    "description": "Type-specific destination configuration.",
+    "required": true
+  }
+]} />
+
+#### Response
+
+Returns the created destination.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Destination created |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "destination",
+    "type": "object",
+    "description": "The newly created destination record."
+  },
+  {
+    "name": "destination.id",
+    "type": "string",
+    "description": "Unique identifier for the destination."
+  },
+  {
+    "name": "destination.schedule_id",
+    "type": "string",
+    "description": "The ID of the parent schedule."
+  },
+  {
+    "name": "destination.created_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the destination was created."
+  },
+  {
+    "name": "destination.updated_at",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the destination was last updated."
+  },
+  {
+    "name": "destination.created_by",
+    "type": "string",
+    "description": "ID of the user who created the destination."
+  },
+  {
+    "name": "destination.type",
+    "type": "string",
+    "description": "The destination type: `'url'` for HTTP endpoints or `'sandbox'` for Agentuity sandbox execution."
+  },
+  {
+    "name": "destination.config",
+    "type": "object",
+    "description": "Type-specific destination configuration."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/schedule/destinations/create/sch_abc123" body={{
+  "type": "url",
+  "config": {
+    "url": "https://example.com/callback",
+    "method": "POST"
+  }
+}} />
+
+---
+
+### Delete Destination
+
+Delete a destination from a schedule.
+
+<ApiEndpoint method="DELETE" path="/schedule/destinations/delete/{destinationId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "destinationId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Destination ID (sdst_ prefix)"
+  }
+]} />
+
+#### Response
+
+Empty response on success.
+
+| Status | Description |
+|--------|-------------|
+| 204 | Destination deleted |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Destination not found |
+
+#### Example
+
+<ApiExample method="DELETE" path="/schedule/destinations/delete/sdst_abc123" />
+
+---
+
+## Deliveries
+
+### List Deliveries
+
+List delivery attempts for a schedule.
+
+<ApiEndpoint method="GET" path="/schedule/deliveries/{scheduleId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "scheduleId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Schedule ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  }
+]} />
+
+#### Response
+
+Returns delivery attempts with status, retries, and error details.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Deliveries returned |
+| 401 | Unauthorized — invalid or missing Bearer token |
+| 404 | Schedule not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "deliveries",
+    "type": "object[]",
+    "description": "Array of delivery attempt records."
+  },
+  {
+    "name": "deliveries[].id",
+    "type": "string",
+    "description": "Unique identifier for the delivery attempt."
+  },
+  {
+    "name": "deliveries[].date",
+    "type": "string",
+    "description": "ISO 8601 timestamp when the delivery was attempted."
+  },
+  {
+    "name": "deliveries[].schedule_id",
+    "type": "string",
+    "description": "The ID of the schedule that triggered this delivery."
+  },
+  {
+    "name": "deliveries[].schedule_destination_id",
+    "type": "string",
+    "description": "The ID of the destination this delivery was sent to."
+  },
+  {
+    "name": "deliveries[].status",
+    "type": "string",
+    "description": "Delivery status: `'pending'` (queued), `'success'` (delivered), or `'failed'` (delivery error)."
+  },
+  {
+    "name": "deliveries[].retries",
+    "type": "number",
+    "description": "Number of retry attempts made for this delivery."
+  },
+  {
+    "name": "deliveries[].error",
+    "type": "string | null",
+    "description": "Error message if the delivery failed, `null` on success."
+  },
+  {
+    "name": "deliveries[].response",
+    "type": "object | null",
+    "description": "The response received from the destination, or `null` if no response."
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/schedule/deliveries/sch_abc123" />
+
+---

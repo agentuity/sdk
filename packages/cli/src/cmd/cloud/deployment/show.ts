@@ -60,7 +60,7 @@ export const showSubcommand = createSubcommand({
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-deployment'],
 	examples: [
 		{
-			command: `${getCommand('cloud deployment show')} dep_abc123xyz`,
+			command: `${getCommand('cloud deployment show')} deploy_abc123xyz`,
 			description: 'Show deployment details by ID',
 		},
 		{

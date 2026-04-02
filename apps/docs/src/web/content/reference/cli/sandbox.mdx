@@ -1,5 +1,6 @@
 ---
 title: Sandbox Commands
+short_title: Sandbox
 description: Create and manage isolated execution environments from the CLI
 ---
 
@@ -19,21 +20,30 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox get <id>` | Get sandbox details |
 | `sandbox delete <id>` | Destroy sandbox |
 | `sandbox exec <id> -- <cmd>` | Execute in existing sandbox |
-| `sandbox cp` | Copy files to/from sandbox |
-| `sandbox files <id>` | List files in sandbox |
-| `sandbox mkdir <id> <path>` | Create directory |
-| `sandbox rmdir <id> <path>` | Remove directory |
-| `sandbox rm <id> <path>` | Remove file |
-| `sandbox download <id> <output>` | Download as archive |
-| `sandbox upload <id> <archive>` | Upload and extract archive |
+| `sandbox fs cp` | Copy files to/from sandbox |
+| `sandbox fs ls <id>` | List files in sandbox |
+| `sandbox fs mkdir <id> <path>` | Create directory |
+| `sandbox fs rmdir <id> <path>` | Remove directory |
+| `sandbox fs rm <id> <path>` | Remove file |
+| `sandbox fs download <id> <output>` | Download as archive |
+| `sandbox fs upload <id> <archive>` | Upload and extract archive |
 | `sandbox snapshot` | Manage snapshots |
 | `sandbox snapshot build <dir>` | Build snapshot from declarative file |
 | `sandbox snapshot generate` | Generate template snapshot build file |
 | `sandbox execution` | View execution history |
+| `sandbox events <id>` | List sandbox lifecycle events |
 | `sandbox runtime list` | List available runtimes |
 | `sandbox env <id>` | Manage environment variables |
+| `sandbox job` | Manage background jobs |
 
-**Alias:** `sb` (e.g., `agentuity cloud sb list`)
+**Aliases:**
+- `sb` → `sandbox` (e.g., `agentuity cloud sb list`)
+- `sandbox rm` → `sandbox delete` (e.g., `agentuity cloud sandbox rm sbx_abc123`)
+- `sandbox delete` also accepts: `rm`, `del`, `remove`, `destroy`, `terminate`
+- `sandbox fs` also accepts: `files`, `file`
+- All `get` commands also accept: `show`, `info`
+- All `list` commands also accept: `ls`
+- All `create` commands also accept: `new`
 
 ## SSH Access
 
@@ -78,6 +88,7 @@ agentuity cloud sandbox run [options] -- <command>
 | `--file <sandbox:local>` | Files to create (repeatable) |
 | `--project-id <id>` | Associate with project |
 | `--json` | JSON output |
+| `--timestamps` | Include timestamps in stream output |
 
 ### Examples
 
@@ -146,6 +157,10 @@ agentuity cloud sandbox create --project-id proj_abc123
 agentuity cloud sandbox exec <sandbox-id> [options] -- <command>
 ```
 
+| Option | Description |
+|--------|-------------|
+| `--timestamps` | Include timestamps in stream output |
+
 ```bash
 # Run commands in sequence
 agentuity cloud sandbox exec sbx_abc123 -- npm init -y
@@ -197,10 +212,19 @@ Shows sandbox status, creation time, resource usage, and execution count.
 agentuity cloud sandbox delete <sandbox-id> [--confirm]
 ```
 
+**Aliases:** `rm`, `del`, `remove`, `destroy`, `terminate`
+
 ```bash
 agentuity cloud sandbox delete sbx_abc123
 agentuity cloud sandbox delete sbx_abc123 --confirm  # Skip prompt
+
+# Using alias
+agentuity cloud sandbox rm sbx_abc123
 ```
+
+<Callout type="info" title="sandbox rm vs sandbox fs rm">
+`sandbox rm <sandbox-id>` deletes the sandbox itself (alias for `sandbox delete`). To remove a file *inside* a sandbox, use `sandbox fs rm <sandbox-id> <path>`.
+</Callout>
 
 ## Port Mapping
 
@@ -219,61 +243,103 @@ Port constraints:
 
 ### Access the Public URL
 
-After creating a sandbox with a port, use `get` to retrieve the public URL:
+When you create a sandbox with `--port`, the public URL is returned directly in the create response:
+
+```bash
+agentuity cloud sandbox create --port 3000 --network --name my-server --json
+# { "sandboxId": "sbx_abc123", "status": "creating", "url": "https://my-server-abc123.agentuity.cloud", ... }
+```
+
+In human-readable output, the URL is displayed after creation:
+
+```
+✓ created sandbox sbx_abc123 in 1200ms
+ℹ url: https://my-server-abc123.agentuity.cloud
+```
+
+You can also retrieve the URL later with `get`:
 
 ```bash
 agentuity cloud sandbox get sbx_abc123
-```
-
-The output includes the public URL when a port is configured:
-
-```
-ID:       sbx_abc123
-Status:   running
-Port:     3000
-URL:      https://my-server-abc123.agentuity.cloud
 ```
 
 ### Example: Run a Web Server
 
 ```bash
-# Create sandbox with port 3000
+# Create sandbox with port 3000 — the URL is returned immediately
 agentuity cloud sandbox create --port 3000 --network --name my-api
-# sbx_abc123
+# ✓ created sandbox sbx_abc123 in 1200ms
+# ℹ url: https://my-api-abc123.agentuity.cloud
 
 # Upload server code
-agentuity cloud sandbox cp ./server.js sbx_abc123:/home/agentuity/
+agentuity cloud sandbox fs cp ./server.js sbx_abc123:/home/agentuity/
 
 # Start the server
 agentuity cloud sandbox exec sbx_abc123 -- bun run /home/agentuity/server.js
 
-# Get the public URL
-agentuity cloud sandbox get sbx_abc123
-# URL: https://my-api-abc123.agentuity.cloud
-
-# Test from anywhere
+# Test from anywhere using the URL from create
 curl https://my-api-abc123.agentuity.cloud/api/health
 ```
 
 ## File Operations
 
+File operations are grouped under the `sandbox fs` subcommand.
+
 ### Copy Files
 
-Copy individual files or directories to and from sandboxes.
+Copy individual files or directories to and from sandboxes. Parent directories are automatically created if they don't exist, similar to `mkdir -p`.
 
 ```bash
-agentuity cloud sandbox cp <source> <destination>
+agentuity cloud sandbox fs cp <source> <destination> [options]
 ```
+
+| Option | Description |
+|--------|-------------|
+| `-r, --recursive` | Copy directories recursively |
+| `--strict` | Fail if target parent directory doesn't exist (disables auto-creation) |
+| `--timeout <duration>` | Operation timeout (e.g., `5m`, `1h`) |
+| `--json` | JSON output |
 
 ```bash
 # Upload a file
-agentuity cloud sandbox cp ./local-file.txt sbx_abc123:/workspace/file.txt
+agentuity cloud sandbox fs cp ./local-file.txt sbx_abc123:/workspace/file.txt
 
 # Download a file
-agentuity cloud sandbox cp sbx_abc123:/workspace/output.json ./output.json
+agentuity cloud sandbox fs cp sbx_abc123:/workspace/output.json ./output.json
 
-# Upload a directory
-agentuity cloud sandbox cp ./src sbx_abc123:/workspace/src
+# Upload a directory recursively
+agentuity cloud sandbox fs cp -r ./src sbx_abc123:/workspace/src
+
+# Upload to a path with non-existent parent directories (auto-created)
+agentuity cloud sandbox fs cp ./config.json sbx_abc123:/home/agentuity/app/config/settings.json
+
+# Strict mode — fail if target directory doesn't exist
+agentuity cloud sandbox fs cp --strict ./file.txt sbx_abc123:/home/agentuity/must-exist/file.txt
+```
+
+<Callout type="info" title="Automatic Parent Directory Creation">
+Unlike POSIX `cp`, `sandbox fs cp` automatically creates parent directories if they don't exist. For example, copying to `sbx_id:/home/agentuity/new/nested/path/file.txt` will create `/home/agentuity/new` and `/home/agentuity/new/nested/path` automatically. Use `--json` to see which directories were created in the `directoriesCreated` field. Use `--strict` to disable this behavior and fail if the target directory doesn't exist.
+</Callout>
+
+#### JSON Output
+
+When using `--json`, the response includes details about auto-created directories:
+
+```bash
+agentuity cloud sandbox fs cp ./file.txt sbx_abc123:/home/agentuity/new/path/file.txt --json
+```
+
+```json
+{
+  "source": "./file.txt",
+  "destination": "sbx_abc123:/home/agentuity/new/path/file.txt",
+  "bytesTransferred": 1024,
+  "filesTransferred": 1,
+  "directoriesCreated": [
+    "/home/agentuity/new",
+    "/home/agentuity/new/path"
+  ]
+}
 ```
 
 ### List Files
@@ -281,7 +347,7 @@ agentuity cloud sandbox cp ./src sbx_abc123:/workspace/src
 List files and directories in a sandbox.
 
 ```bash
-agentuity cloud sandbox files <sandbox-id> [path] [options]
+agentuity cloud sandbox fs ls <sandbox-id> [path] [options]
 ```
 
 | Option | Description |
@@ -289,23 +355,21 @@ agentuity cloud sandbox files <sandbox-id> [path] [options]
 | `-l, --long` | Show permissions and timestamps |
 | `--json` | JSON output |
 
-**Alias:** `lsf`
-
 ```bash
 # List root directory
-agentuity cloud sandbox files sbx_abc123
+agentuity cloud sandbox fs ls sbx_abc123
 
 # List specific directory
-agentuity cloud sandbox files sbx_abc123 /workspace/src
+agentuity cloud sandbox fs ls sbx_abc123 /workspace/src
 
 # Long format with details
-agentuity cloud sandbox files sbx_abc123 -l
+agentuity cloud sandbox fs ls sbx_abc123 -l
 ```
 
 ### Create Directory
 
 ```bash
-agentuity cloud sandbox mkdir <sandbox-id> <path> [options]
+agentuity cloud sandbox fs mkdir <sandbox-id> <path> [options]
 ```
 
 | Option | Description |
@@ -314,20 +378,22 @@ agentuity cloud sandbox mkdir <sandbox-id> <path> [options]
 
 ```bash
 # Create a directory
-agentuity cloud sandbox mkdir sbx_abc123 /workspace/output
+agentuity cloud sandbox fs mkdir sbx_abc123 /workspace/output
 
 # Create nested directories
-agentuity cloud sandbox mkdir sbx_abc123 /workspace/data/processed -p
+agentuity cloud sandbox fs mkdir sbx_abc123 /workspace/data/processed -p
 ```
 
 ### Remove Files and Directories
 
+Use `sandbox fs rm` to remove individual files and `sandbox fs rmdir` to remove directories. The `rmdir` command requires the `-r` flag to remove directories that contain files.
+
 ```bash
 # Remove a file
-agentuity cloud sandbox rm <sandbox-id> <path>
+agentuity cloud sandbox fs rm <sandbox-id> <path>
 
 # Remove a directory
-agentuity cloud sandbox rmdir <sandbox-id> <path> [options]
+agentuity cloud sandbox fs rmdir <sandbox-id> <path> [options]
 ```
 
 | Option | Description |
@@ -336,13 +402,13 @@ agentuity cloud sandbox rmdir <sandbox-id> <path> [options]
 
 ```bash
 # Remove a file
-agentuity cloud sandbox rm sbx_abc123 /workspace/temp.txt
+agentuity cloud sandbox fs rm sbx_abc123 /workspace/temp.txt
 
 # Remove empty directory
-agentuity cloud sandbox rmdir sbx_abc123 /workspace/old
+agentuity cloud sandbox fs rmdir sbx_abc123 /workspace/old
 
 # Remove directory with contents
-agentuity cloud sandbox rmdir sbx_abc123 /workspace/cache -r
+agentuity cloud sandbox fs rmdir sbx_abc123 /workspace/cache -r
 ```
 
 ### Download Archive
@@ -350,7 +416,7 @@ agentuity cloud sandbox rmdir sbx_abc123 /workspace/cache -r
 Download sandbox files as a compressed archive.
 
 ```bash
-agentuity cloud sandbox download <sandbox-id> <output-file> [options]
+agentuity cloud sandbox fs download <sandbox-id> <output-file> [options]
 ```
 
 | Option | Description |
@@ -362,13 +428,13 @@ agentuity cloud sandbox download <sandbox-id> <output-file> [options]
 
 ```bash
 # Download entire sandbox
-agentuity cloud sandbox download sbx_abc123 ./backup.tar.gz
+agentuity cloud sandbox fs download sbx_abc123 ./backup.tar.gz
 
 # Download as zip
-agentuity cloud sandbox download sbx_abc123 ./backup.zip --format zip
+agentuity cloud sandbox fs download sbx_abc123 ./backup.zip --format zip
 
 # Download specific directory
-agentuity cloud sandbox download sbx_abc123 ./src.tar.gz --path /workspace/src
+agentuity cloud sandbox fs download sbx_abc123 ./src.tar.gz --path /workspace/src
 ```
 
 ### Upload Archive
@@ -376,7 +442,7 @@ agentuity cloud sandbox download sbx_abc123 ./src.tar.gz --path /workspace/src
 Upload and extract an archive into a sandbox.
 
 ```bash
-agentuity cloud sandbox upload <sandbox-id> <archive-file> [options]
+agentuity cloud sandbox fs upload <sandbox-id> <archive-file> [options]
 ```
 
 | Option | Description |
@@ -388,10 +454,10 @@ agentuity cloud sandbox upload <sandbox-id> <archive-file> [options]
 
 ```bash
 # Upload and extract to root
-agentuity cloud sandbox upload sbx_abc123 ./project.tar.gz
+agentuity cloud sandbox fs upload sbx_abc123 ./project.tar.gz
 
 # Upload to specific directory
-agentuity cloud sandbox upload sbx_abc123 ./deps.zip --path /workspace/node_modules
+agentuity cloud sandbox fs upload sbx_abc123 ./deps.zip --path /workspace/node_modules
 ```
 
 ## Snapshot Commands
@@ -593,6 +659,35 @@ agentuity cloud sandbox execution get <execution-id>
 
 Shows command, exit code, duration, and stream URLs for stdout/stderr.
 
+## Events
+
+View lifecycle events for a sandbox. Events are displayed in chronological order (oldest first) by default.
+
+### List Events
+
+```bash
+agentuity cloud sandbox events <sandbox-id> [options]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--limit <n>` | Maximum number of results (default: 50, max: 100) |
+| `--reverse` | Show newest events first |
+| `--json` | Output as JSON |
+
+```bash
+# List events oldest first (default)
+agentuity cloud sandbox events sbx_abc123
+
+# List events newest first
+agentuity cloud sandbox events sbx_abc123 --reverse
+
+# Limit to last 10 events
+agentuity cloud sandbox events sbx_abc123 --limit 10
+```
+
+Events include lifecycle state changes such as `create`, `destroy`, `pause`, `resume`, `lifecycle:started`, `lifecycle:completed`, `lifecycle:failed`, and `lifecycle:terminated`.
+
 ## Common Workflows
 
 ### Set Up a Development Environment
@@ -622,11 +717,11 @@ agentuity cloud sandbox create --snapshot python-ml
 # sbx_def456
 
 # Upload and run code
-agentuity cloud sandbox cp ./analysis.py sbx_def456:/workspace/
+agentuity cloud sandbox fs cp ./analysis.py sbx_def456:/workspace/
 agentuity cloud sandbox exec sbx_def456 -- python3 /workspace/analysis.py
 
 # Download results
-agentuity cloud sandbox cp sbx_def456:/workspace/output.csv ./results.csv
+agentuity cloud sandbox fs cp sbx_def456:/workspace/output.csv ./results.csv
 
 # Clean up
 agentuity cloud sandbox delete sbx_def456
@@ -712,6 +807,81 @@ agentuity cloud sandbox env sbx_abc123 --delete MY_VAR
 # Delete multiple variables
 agentuity cloud sandbox env sbx_abc123 -d VAR1 -d VAR2
 ```
+
+## Background Jobs
+
+Run long-running commands in a sandbox without blocking. Jobs execute in parallel and continue even after the command that created them returns.
+
+### Create Job
+
+```bash
+agentuity cloud sandbox job create <sandbox-id> -- <command>
+```
+
+```bash
+# Create a background job
+agentuity cloud sandbox job create sbx_abc123 -- bun run build
+
+# Run npm install in background
+agentuity cloud sandbox job create sbx_abc123 -- npm install
+```
+
+### List Jobs
+
+```bash
+agentuity cloud sandbox job list <sandbox-id>
+```
+
+```bash
+agentuity cloud sandbox job list sbx_abc123
+```
+
+### Get Job Status
+
+```bash
+agentuity cloud sandbox job get <sandbox-id> <job-id>
+```
+
+Shows job status, exit code, start/completion times, and stream URLs for stdout/stderr.
+
+### Stop Job
+
+```bash
+agentuity cloud sandbox job destroy <sandbox-id> <job-id> [--force]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--force` | Force kill with SIGKILL instead of SIGTERM |
+
+```bash
+# Graceful stop
+agentuity cloud sandbox job destroy sbx_abc123 job_xyz789
+
+# Force kill
+agentuity cloud sandbox job destroy sbx_abc123 job_xyz789 --force
+```
+
+### Job Statuses
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Job created but not yet started |
+| `running` | Job is actively executing |
+| `completed` | Job finished successfully (exit code 0) |
+| `failed` | Job failed (non-zero exit code) |
+| `cancelled` | Job was terminated by user |
+
+### Use Cases
+
+- **Build processes**: Run builds in background while continuing other work
+- **Long-running tests**: Execute test suites without blocking
+- **Data processing**: Process large datasets asynchronously
+- **Service daemons**: Run background services within a sandbox
+
+<Callout type="info" title="Job Output">
+Job stdout and stderr are captured to streams. Use the stream URLs from `job get` to retrieve output via the Pulse API.
+</Callout>
 
 ## Next Steps
 

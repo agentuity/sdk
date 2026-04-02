@@ -1,11 +1,12 @@
 ---
 title: Creating and Using Snapshots
+short_title: Snapshots
 description: Save and restore sandbox filesystem states for faster cold starts
 ---
 
 Skip slow dependency installation on every run by saving sandbox filesystem states as snapshots.
 
-Manage snapshots via the [Web App](https://app-v1.agentuity.com) under **Services > Sandbox > Snapshots**, the [SDK](/services/sandbox/sdk-usage), or [CLI](/reference/cli/sandbox).
+Manage snapshots via the [Web App](https://app.agentuity.com) under **Services > Sandbox > Snapshots**, the [SDK](/services/sandbox/sdk-usage), or [CLI](/reference/cli/sandbox).
 
 <Callout type="warning" title="Snapshots Are Not Executable">
 A snapshot captures the filesystem state of a sandbox at a point in time. You create new sandboxes *from* snapshots, not run them directly.

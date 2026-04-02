@@ -1,13 +1,16 @@
 {
 	"title": "Patterns",
 	"pages": [
+		"autonomous-research",
 		"background-tasks",
 		"chat-with-history",
 		"cron-with-storage",
+		"hono-rpc-tanstack-query",
 		"llm-as-a-judge",
 		"server-utilities",
 		"product-search",
 		"tailwind-setup",
+		"web-exploration",
 		"webhook-handler"
 	]
 }

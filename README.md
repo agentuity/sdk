@@ -66,17 +66,26 @@ The structure of this mono repository:
 - `packages/claude-code` - Claude Code plugin with multi-agent coding team
 - `packages/cli` - the Agentuity command line tool
 - `packages/core` - Shared utilities used by most packages
+- `packages/db` - Database service client for querying and managing databases
 - `packages/drizzle` - Drizzle ORM integration with resilient PostgreSQL connections
+- `packages/email` - Email service client for managing email addresses and sending emails
 - `packages/evals` - Reusable Evaluation Presets
 - `packages/frontend` - Reusable code for web frontends including WebRTC peer connections
-- `packages/opencode` - Opencoder agent plugins for Agentuity
+- `packages/keyvalue` - Key-value storage service client
+- `packages/opencode` - Opencode agent plugins for Agentuity
 - `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
+- `packages/queue` - Queue service client for publishing messages to queues
 - `packages/react` - React package for the Browser including WebRTC hooks
 - `packages/runtime` - Server-side package for the Agent runtime with WebRTC signaling
+- `packages/sandbox` - Sandbox service client for managing code execution environments
+- `packages/schedule` - Schedule service client for managing cron-based scheduled tasks
 - `packages/schema` - Schema validation library similar to zod and arktype
 - `packages/server` - Runtime-agnostic server-side SDK (Node.js & Bun)
+- `packages/task` - Task management service client for tasks, comments, and attachments
 - `packages/test-utils` - Internal test utilities that can be used by packages
+- `packages/vector` - Vector search service client for semantic search
 - `packages/vscode` - VS Code extension for Agentuity
+- `packages/webhook` - Webhook service client for managing webhooks and destinations
 - `packages/workbench` - Workbench UI component
 
 Each package is its own published npm package but all packages are versioned and published together.

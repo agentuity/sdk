@@ -11,7 +11,6 @@ import React, { useEffect, createContext, useContext, useState, useMemo } from '
 import { createAuthClient as createBetterAuthClient } from 'better-auth/react';
 import { organizationClient } from 'better-auth/client/plugins';
 import { apiKeyClient } from '@better-auth/api-key/client';
-import { useAuth as useAgentuityReactAuth, useAnalytics } from '@agentuity/react';
 import type { BetterAuthClientPlugin } from 'better-auth/client';
 
 import type { AuthSession, AuthUser } from './types';
@@ -227,28 +226,96 @@ export interface AuthProviderProps {
 	 * ```
 	 */
 	tokenEndpoint?: string | false;
+
+	/**
+	 * Callback to set the auth header for API calls.
+	 * Called with the Bearer token when authenticated, or null when not.
+	 *
+	 * @example
+	 * ```tsx
+	 * const [authHeader, setAuthHeader] = useState<string | null>(null);
+	 *
+	 * <AuthProvider authClient={authClient} onAuthHeaderChange={setAuthHeader}>
+	 * ```
+	 */
+	onAuthHeaderChange?: (authHeader: string | null) => void;
+
+	/**
+	 * Callback when auth loading state changes.
+	 *
+	 * @example
+	 * ```tsx
+	 * const [authLoading, setAuthLoading] = useState(false);
+	 *
+	 * <AuthProvider authClient={authClient} onAuthLoadingChange={setAuthLoading}>
+	 * ```
+	 */
+	onAuthLoadingChange?: (loading: boolean) => void;
+
+	/**
+	 * Callback to identify the user for analytics.
+	 * Called with userId and optional traits when a user signs in.
+	 *
+	 * @example With @agentuity/frontend analytics
+	 * ```tsx
+	 * import { getAnalytics } from '@agentuity/frontend';
+	 *
+	 * <AuthProvider
+	 *   authClient={authClient}
+	 *   onIdentify={(userId, traits) => getAnalytics().identify(userId, traits)}
+	 * >
+	 * ```
+	 */
+	onIdentify?: (userId: string, traits?: Record<string, unknown>) => void;
 }
 
 /**
  * Auth provider component.
  *
- * This component integrates Auth with Agentuity's React context,
- * automatically injecting auth tokens into API calls via useAgent and useWebsocket.
+ * This component manages authentication state and can optionally:
+ * - Set auth headers for API calls via `onAuthHeaderChange`
+ * - Report loading state via `onAuthLoadingChange`
+ * - Identify users for analytics via `onIdentify`
  *
- * Must be a child of AgentuityProvider.
- *
- * @example
+ * @example Basic usage
  * ```tsx
- * import { AgentuityProvider } from '@agentuity/react';
  * import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
  *
  * const authClient = createAuthClient();
  *
- * <AgentuityProvider>
- *   <AuthProvider authClient={authClient}>
- *     <App />
- *   </AuthProvider>
- * </AgentuityProvider>
+ * <AuthProvider authClient={authClient}>
+ *   <App />
+ * </AuthProvider>
+ * ```
+ *
+ * @example With auth header injection for API calls
+ * ```tsx
+ * import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
+ *
+ * const authClient = createAuthClient();
+ *
+ * function App() {
+ *   const [authHeader, setAuthHeader] = useState<string | null>(null);
+ *
+ *   // Use authHeader in your API client
+ *   const apiClient = useMemo(() => createApiClient({ authHeader }), [authHeader]);
+ *
+ *   return (
+ *     <AuthProvider authClient={authClient} onAuthHeaderChange={setAuthHeader}>
+ *       <MyApp apiClient={apiClient} />
+ *     </AuthProvider>
+ *   );
+ * }
+ * ```
+ *
+ * @example With analytics integration
+ * ```tsx
+ * import { getAnalytics } from '@agentuity/frontend';
+ *
+ * <AuthProvider
+ *   authClient={authClient}
+ *   onIdentify={(userId, traits) => getAnalytics().identify(userId, traits)}
+ * >
  * ```
  */
 export function AuthProvider({
@@ -256,20 +323,19 @@ export function AuthProvider({
 	authClient,
 	refreshInterval = 3600000,
 	tokenEndpoint = '/token',
+	onAuthHeaderChange,
+	onAuthLoadingChange,
+	onIdentify,
 }: AuthProviderProps) {
-	const { setAuthHeader, setAuthLoading } = useAgentuityReactAuth();
-	const { identify } = useAnalytics();
 	const [user, setUser] = useState<AuthUser | null>(null);
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const [isPending, setIsPending] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 
 	useEffect(() => {
-		if (!setAuthHeader || !setAuthLoading) return;
-
 		const fetchAuthState = async () => {
 			try {
-				setAuthLoading(true);
+				onAuthLoadingChange?.(true);
 				setIsPending(true);
 				setError(null);
 
@@ -281,8 +347,8 @@ export function AuthProvider({
 					setUser(authUser);
 					setSession((result.data.session as AuthSession) ?? null);
 
-					// Identify user for analytics
-					identify(authUser.id, {
+					// Identify user for analytics (if callback provided)
+					onIdentify?.(authUser.id, {
 						email: authUser.email || '',
 						name: authUser.name || '',
 					});
@@ -293,30 +359,30 @@ export function AuthProvider({
 							const tokenResult = await authClient.$fetch(tokenEndpoint, { method: 'GET' });
 							const tokenData = tokenResult.data as { token?: string } | undefined;
 							if (tokenData?.token) {
-								setAuthHeader(`Bearer ${tokenData.token}`);
+								onAuthHeaderChange?.(`Bearer ${tokenData.token}`);
 							} else {
-								setAuthHeader(null);
+								onAuthHeaderChange?.(null);
 							}
 						} catch {
 							// Token endpoint might not exist, that's okay
-							setAuthHeader(null);
+							onAuthHeaderChange?.(null);
 						}
 					} else {
-						setAuthHeader(null);
+						onAuthHeaderChange?.(null);
 					}
 				} else {
 					setUser(null);
 					setSession(null);
-					setAuthHeader(null);
+					onAuthHeaderChange?.(null);
 				}
 			} catch (err) {
 				console.error('[AuthProvider] Failed to get auth state:', err);
 				setError(err instanceof Error ? err : new Error('Failed to get auth state'));
 				setUser(null);
 				setSession(null);
-				setAuthHeader(null);
+				onAuthHeaderChange?.(null);
 			} finally {
-				setAuthLoading(false);
+				onAuthLoadingChange?.(false);
 				setIsPending(false);
 			}
 		};
@@ -329,9 +395,9 @@ export function AuthProvider({
 		authClient,
 		refreshInterval,
 		tokenEndpoint,
-		setAuthHeader,
-		setAuthLoading, // Identify user for analytics
-		identify,
+		onAuthHeaderChange,
+		onAuthLoadingChange,
+		onIdentify,
 	]);
 
 	const contextValue = useMemo(

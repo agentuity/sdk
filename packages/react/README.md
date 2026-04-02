@@ -1,5 +1,51 @@
 # @agentuity/react
 
+> ⚠️ **DEPRECATED** — This package is deprecated in v2 and will not receive further updates.
+>
+> ## Migration Guide
+>
+> ### Authentication
+> Use your auth provider directly instead of `AgentuityProvider`:
+> - **better-auth**: `import { createAuthClient } from 'better-auth/react'`
+> - **Clerk**: `import { ClerkProvider } from '@clerk/clerk-react'`
+> - **Auth0**: `import { Auth0Provider } from '@auth0/auth0-react'`
+>
+> ### API Calls
+> Use Hono's `hc()` client for type-safe API calls:
+> ```tsx
+> import { hc } from 'hono/client';
+> import type router from './src/api';
+>
+> const client = hc<typeof router>('/');
+> const res = await client.api.hello.$post({ json: { name: 'World' } });
+> ```
+>
+> ### WebSocket / EventStream / WebRTC
+> Import directly from `@agentuity/frontend`:
+> ```tsx
+> import { WebSocketManager, EventStreamManager, WebRTCManager } from '@agentuity/frontend';
+> ```
+>
+> ### Analytics
+> Use `@agentuity/frontend` directly:
+> ```tsx
+> import { getAnalytics, track } from '@agentuity/frontend';
+>
+> // In a React component, create your own hook:
+> function useAnalytics() {
+>   return getAnalytics();
+> }
+> ```
+>
+> ### What's Removed
+> - `AgentuityProvider` / `AgentuityContext` — Use your auth provider's context
+> - `useAuth()` — Use your auth provider's hooks
+> - `useAPI()` — Use Hono `hc()` client directly
+> - `createClient()` — Use Hono `hc()` client directly
+> - `RouteRegistry` / `RPCRouteRegistry` types — Derive from Hono router
+
+---
+
 React hooks and components for building Agentuity web applications.
 
 ## Installation
@@ -8,206 +54,52 @@ React hooks and components for building Agentuity web applications.
 bun add @agentuity/react
 ```
 
-## Overview
-
-`@agentuity/react` provides React hooks and context providers for seamlessly integrating with Agentuity agents from your frontend application.
-
-## Features
-
-- **Type-safe agent calls** - Fully typed React hooks for calling agents
-- **WebSocket support** - Real-time bidirectional communication with agents
-- **Context provider** - Simple setup with React Context
-- **Automatic data management** - Built-in state management for agent responses
-
 ## Quick Start
 
-### 1. Setup Provider
-
-Wrap your app with the `AgentuityProvider`:
-
 ```tsx
-import { AgentuityProvider } from '@agentuity/react';
+import { AgentuityProvider, useAuth } from '@agentuity/react';
 
 function App() {
-	return (
-		<AgentuityProvider baseUrl="http://localhost:3500">
-			<YourApp />
-		</AgentuityProvider>
-	);
+   return (
+      <AgentuityProvider>
+         <MyComponent />
+      </AgentuityProvider>
+   );
 }
-```
-
-### 2. Use Agents
-
-Call agents with type-safety using the `useAgent` hook:
-
-```tsx
-import { useAgent } from '@agentuity/react';
 
 function MyComponent() {
-	const { data, run } = useAgent('myAgent');
-
-	const handleClick = async () => {
-		const result = await run({ message: 'Hello' });
-		console.log(result);
-	};
-
-	return (
-		<div>
-			<button onClick={handleClick}>Call Agent</button>
-			{data && <div>Response: {JSON.stringify(data)}</div>}
-		</div>
-	);
+   const { isAuthenticated } = useAuth();
+   return <div>{isAuthenticated ? 'Logged in' : 'Not logged in'}</div>;
 }
 ```
 
-### 3. WebSocket Communication
+## Type-Safe API Calls
 
-For real-time communication:
+Use Hono's `hc()` client for type-safe API calls:
 
 ```tsx
-import { useWebsocket } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { AppType } from './src/api/router';
 
-function ChatComponent() {
-	const { connected, send, setHandler } = useWebsocket('/chat');
-
-	useEffect(() => {
-		setHandler((message) => {
-			console.log('Received:', message);
-		});
-	}, []);
-
-	const sendMessage = () => {
-		send({ text: 'Hello, agent!' });
-	};
-
-	return (
-		<div>
-			<div>Status: {connected ? 'Connected' : 'Disconnected'}</div>
-			<button onClick={sendMessage} disabled={!connected}>
-				Send Message
-			</button>
-		</div>
-	);
-}
+const client = hc<AppType>('/');
+const res = await client.api.hello.$post({ json: { name: 'World' } });
+const data = await res.json();
 ```
 
-### 4. WebRTC Communication
+## Available Hooks
 
-For peer-to-peer video/audio calls and data channels:
+- `useAgentuity()` - Access base URL and context
+- `useAuth()` - Authentication state management
+- `useWebRTCCall()` - WebRTC connections
+- `useAnalytics()` - Event tracking
+- `useTrackOnMount()` - Track event on component mount
+- `useJsonMemo()` - Deep equality memoization
 
-```tsx
-import { useWebRTCCall } from '@agentuity/react';
+## Re-exported Utilities
 
-function VideoChat() {
-	const {
-		state,
-		localVideoRef,
-		remoteStreams,
-		remotePeerIds,
-		connect,
-		hangup,
-		muteAudio,
-		muteVideo,
-		sendJSON,
-		isAudioMuted,
-		isVideoMuted,
-	} = useWebRTCCall({
-		roomId: 'my-room',
-		signalUrl: '/api/webrtc/signal',
-		media: { video: true, audio: true },
-		dataChannels: [{ label: 'chat' }],
-	});
+From `@agentuity/frontend`:
 
-	return (
-		<div>
-			<div>Status: {state}</div>
-			<video ref={localVideoRef} autoPlay muted playsInline />
-			{remotePeerIds.map((peerId) => (
-				<video
-					key={peerId}
-					ref={(el) => el && (el.srcObject = remoteStreams.get(peerId) || null)}
-					autoPlay
-					playsInline
-				/>
-			))}
-			<button onClick={connect}>Join</button>
-			<button onClick={hangup}>Leave</button>
-			<button onClick={() => muteAudio(!isAudioMuted)}>
-				{isAudioMuted ? 'Unmute' : 'Mute'}
-			</button>
-			<button onClick={() => sendJSON('chat', { text: 'Hello!' })}>Send</button>
-		</div>
-	);
-}
-```
-
-For detailed architecture, see [docs/webrtc-architecture.md](../../docs/webrtc-architecture.md).
-
-## API Reference
-
-### AgentuityProvider
-
-Context provider for Agentuity configuration.
-
-**Props:**
-
-- `baseUrl?: string` - Base URL for agent API calls (defaults to current origin)
-- `children: ReactNode` - Child components
-
-### useAgent
-
-Hook for calling agents via HTTP.
-
-```typescript
-const { data, run } = useAgent<TName>(name);
-```
-
-**Parameters:**
-
-- `name: string` - Agent name
-
-**Returns:**
-
-- `data?: TOutput` - Last response data
-- `run: (input: TInput, options?: RunArgs) => Promise<TOutput>` - Function to invoke the agent
-
-**RunArgs:**
-
-- `query?: URLSearchParams` - Query parameters
-- `headers?: Record<string, string>` - Custom headers
-- `subpath?: string` - Subpath to append to agent URL
-- `method?: string` - HTTP method (default: POST)
-- `signal?: AbortSignal` - Abort signal for cancellation
-
-### useWebsocket
-
-Hook for WebSocket connections to agents.
-
-```typescript
-const { connected, send, setHandler, readyState, close } = useWebsocket<TInput, TOutput>(
-	path,
-	options
-);
-```
-
-**Parameters:**
-
-- `path: string` - WebSocket path
-- `options?: WebsocketArgs` - Connection options
-
-**Returns:**
-
-- `connected: boolean` - Connection status
-- `send: (data: TInput) => void` - Send data to server
-- `setHandler: (handler: (data: TOutput) => void) => void` - Set message handler
-- `readyState: number` - WebSocket ready state
-- `close: () => void` - Close connection
-
-## TypeScript
-
-All hooks are fully typed and will infer input/output types from your agent definitions when using the generated types.
-
-## License
-
-Apache 2.0
+- `WebSocketManager` - Framework-agnostic WebSocket manager
+- `EventStreamManager` - Framework-agnostic SSE manager
+- `WebRTCManager` - Framework-agnostic WebRTC manager
+- `buildUrl`, `defaultBaseUrl`, `deserializeData`, `jsonEqual`

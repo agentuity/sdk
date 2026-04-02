@@ -10,7 +10,7 @@ const DeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['rm', 'del'],
+	aliases: ['rm', 'del', 'remove', 'terminate'],
 	description: 'Delete an email address',
 	tags: ['destructive', 'deletes-resource', 'requires-auth'],
 	requires: { auth: true },

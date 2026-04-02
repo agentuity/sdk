@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix';
 import { getCatalystAPIClient } from '../../../../config';
 import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
-import { ErrorCode } from '../../../../errors';
+import { ErrorCode, getExitCode } from '../../../../errors';
 import * as tui from '../../../../tui';
 import { createCommand } from '../../../../types';
 import { validateAptDependencies } from '../../../../utils/apt-validator';
@@ -941,7 +941,7 @@ export const buildSubcommand = createCommand({
 									2
 								)
 							);
-							process.exit(ErrorCode.MALWARE_DETECTED);
+							process.exit(getExitCode(ErrorCode.MALWARE_DETECTED));
 						}
 
 						console.log('');

@@ -7,11 +7,11 @@
  * generated entry file and the route consolidation migration.
  */
 
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe, test, expect } from 'bun:test';
 import { Hono } from 'hono';
 import { createRouter } from '../src/router';
 import type { AppConfig, RouteMount } from '../src/app';
-import { getUserRouter } from '../src/app';
+import { normalizeRouterConfig } from '../src/app';
 
 describe('createRouter - sub-router compatibility', () => {
 	test('createRouter produces a Hono instance that can be used as sub-router', () => {
@@ -187,12 +187,6 @@ describe('createRouter - sub-router compatibility', () => {
 });
 
 describe('createApp({ router }) - user-provided router', () => {
-	afterEach(() => {
-		// Clean up globals
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		delete (globalThis as any).__AGENTUITY_USER_ROUTER__;
-	});
-
 	test('AppConfig accepts a plain Hono router (mounted at /api)', () => {
 		const router = createRouter();
 		const _config: AppConfig = { router };
@@ -222,45 +216,32 @@ describe('createApp({ router }) - user-provided router', () => {
 		expect(_config.router).toBeUndefined();
 	});
 
-	test('getUserRouter returns undefined when no user router is set', () => {
-		expect(getUserRouter()).toBeUndefined();
-	});
-
-	test('getUserRouter returns normalized RouteMount[] for plain Hono', () => {
+	test('normalizeRouterConfig wraps plain Hono at /api', () => {
 		const router = createRouter();
-		// Simulate what createApp does internally: normalize and store
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [{ path: '/api', router }];
-
-		const result = getUserRouter();
+		const result = normalizeRouterConfig(router);
 		expect(result).toHaveLength(1);
-		expect(result![0].path).toBe('/api');
-		expect(result![0].router).toBe(router);
+		expect(result[0].path).toBe('/api');
+		expect(result[0].router).toBe(router);
 	});
 
-	test('getUserRouter returns normalized RouteMount[] for RouteMount input', () => {
+	test('normalizeRouterConfig passes through RouteMount object', () => {
 		const router = createRouter();
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [{ path: '/v1', router }];
-
-		const result = getUserRouter();
+		const result = normalizeRouterConfig({ path: '/v1', router });
 		expect(result).toHaveLength(1);
-		expect(result![0].path).toBe('/v1');
+		expect(result[0].path).toBe('/v1');
+		expect(result[0].router).toBe(router);
 	});
 
-	test('getUserRouter returns normalized RouteMount[] for array input', () => {
+	test('normalizeRouterConfig passes through RouteMount array', () => {
 		const r1 = createRouter();
 		const r2 = createRouter();
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_USER_ROUTER__ = [
+		const result = normalizeRouterConfig([
 			{ path: '/api/v1', router: r1 },
 			{ path: '/api/v2', router: r2 },
-		];
-
-		const result = getUserRouter();
+		]);
 		expect(result).toHaveLength(2);
-		expect(result![0].path).toBe('/api/v1');
-		expect(result![1].path).toBe('/api/v2');
+		expect(result[0].path).toBe('/api/v1');
+		expect(result[1].path).toBe('/api/v2');
 	});
 
 	test('plain router mounts at /api by entry file', async () => {

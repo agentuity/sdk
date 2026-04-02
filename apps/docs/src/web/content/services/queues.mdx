@@ -5,6 +5,10 @@ description: Publish messages for async processing, webhooks, and event-driven w
 
 Queues enable asynchronous message processing for background tasks, webhooks, and event-driven workflows. Publish messages from agents and consume them with workers or webhook destinations.
 
+<Callout type="tip" title="Not inside an agent or route?">
+Use the [`@agentuity/queue`](/reference/standalone-packages#message-queues) standalone package to access this service from any Node.js or Bun app without the runtime.
+</Callout>
+
 ## When to Use Queues
 
 | Pattern | Best For |
@@ -36,8 +40,59 @@ The Queue API is identical in all contexts. `ctx.queue.publish()` and `c.var.que
 
 | Type | Behavior |
 |------|----------|
-| `worker` | Each message is processed by exactly one consumer. Use for background jobs. |
-| `pubsub` | Messages are broadcast to all subscribers. Use for event notifications. |
+| `worker` | Point-to-point delivery. Each message is consumed by exactly one consumer and requires acknowledgment. Use for background jobs and task processing. |
+| `pubsub` | Broadcast delivery. Every subscriber receives every message. Use for event notifications and fan-out patterns. |
+
+## Creating Queues
+
+Create a queue from an agent or route using `ctx.queue.createQueue()`:
+
+```typescript
+// Inside an agent handler or route
+const result = await ctx.queue.createQueue('notifications', { // [!code highlight]
+  queueType: 'worker',
+  description: 'Order notifications',
+  settings: {
+    defaultTtlSeconds: 86400,   // messages expire after 24 hours
+    defaultMaxRetries: 3,
+  },
+}); // [!code highlight]
+```
+
+```typescript
+interface QueueCreateResult {
+  name: string;      // Queue name
+  queueType: string; // 'worker' or 'pubsub'
+}
+```
+
+All parameters are optional. Omitting `queueType` defaults to `worker`.
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `queueType` | `'worker' \| 'pubsub'` | Worker for point-to-point, pubsub for broadcast (optional, defaults to `worker`) |
+| `description` | `string` | Human-readable description (optional) |
+| `settings.defaultTtlSeconds` | `number` | Message expiration window in seconds (optional) |
+| `settings.defaultVisibilityTimeoutSeconds` | `number` | Visibility timeout after a message is received, before it returns to the queue (optional) |
+| `settings.defaultMaxRetries` | `number` | Delivery retry limit before moving to DLQ (optional) |
+| `settings.maxInFlightPerClient` | `number` | Concurrent message limit per consumer (optional) |
+| `settings.retentionSeconds` | `number` | Retention period for acknowledged messages (optional) |
+
+<Callout type="info" title="Idempotent Creation">
+`createQueue` is safe to call multiple times. If the queue already exists, it returns successfully without error. The SDK caches creation within the current request context, so duplicate calls in the same handler return immediately without additional API requests.
+</Callout>
+
+## Deleting Queues
+
+Delete a queue and all its messages with `ctx.queue.deleteQueue()`:
+
+```typescript
+await ctx.queue.deleteQueue('old-notifications');
+```
+
+<Callout type="warning" title="Permanent Deletion">
+Deleting a queue is irreversible. All pending messages are lost immediately. If the queue does not exist, a `QueueNotFoundError` is thrown.
+</Callout>
 
 ## Publishing Messages
 
@@ -130,6 +185,19 @@ const agent = createAgent('CriticalProcessor', {
 Synchronous publishing blocks until the message is persisted. Use it only when you need confirmation that the message was accepted. For most use cases, async publishing is faster and more resilient.
 </Callout>
 
+### CLI Publishing
+
+```bash
+# Publish a message via CLI
+agentuity cloud queue publish order-processing '{"orderId": "123"}'
+
+# With options
+agentuity cloud queue publish order-processing '{"orderId": "123"}' \
+  --partition-key customer-456 \
+  --idempotency-key order-123 \
+  --ttl 3600
+```
+
 ## Using in Routes
 
 Routes have the same queue access via `c.var.queue`:
@@ -221,12 +289,22 @@ Create and manage queues using the CLI or `@agentuity/server` package.
 ### CLI Commands
 
 ```bash
-# Create a worker queue
+# Create a worker queue (--name is optional, auto-generated if omitted)
 agentuity cloud queue create worker --name order-processing
 
 # Create a pubsub queue for broadcasting
 agentuity cloud queue create pubsub --name events
+```
 
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Queue name (optional, auto-generated if omitted) |
+| `--description <desc>` | Queue description |
+| `--ttl <seconds>` | Default message TTL in seconds |
+| `--visibility-timeout <seconds>` | Default visibility timeout (worker queues) |
+| `--max-retries <count>` | Maximum retry attempts before moving to DLQ |
+
+```bash
 # List all queues
 agentuity cloud queue list
 
@@ -263,7 +341,7 @@ agentuity cloud queue pause order-processing
 agentuity cloud queue resume order-processing
 
 # Delete a queue
-agentuity cloud queue delete order-processing
+agentuity cloud queue delete order-processing --confirm
 ```
 
 For programmatic queue management, see [SDK Utilities for External Apps](/cookbook/patterns/server-utilities#queue-management).
@@ -272,16 +350,124 @@ For programmatic queue management, see [SDK Utilities for External Apps](/cookbo
 
 ### Webhook Destinations
 
-Configure webhook destinations to automatically deliver messages to HTTP endpoints. Set these up in the [App](https://app-v1.agentuity.com) or [programmatically](/cookbook/patterns/server-utilities#webhook-destinations).
+Configure webhook destinations to automatically deliver messages to HTTP endpoints. Set these up in the [Web App](https://app.agentuity.com/services/queue) or [programmatically](/cookbook/patterns/server-utilities#webhook-destinations).
 
 Webhook destinations support:
 - Custom headers and authentication
 - Configurable timeouts (up to 30 seconds)
 - Retry policies with exponential backoff
 
+```bash
+# Add a webhook destination
+agentuity cloud queue destinations create order-processing --url https://example.com/webhook
+
+# List destinations
+agentuity cloud queue destinations list order-processing
+
+# Delete a destination
+agentuity cloud queue destinations delete order-processing <destination_id>
+```
+
 ### Pull-Based Consumption
 
 For workers that pull and process messages, see [Pull-Based Consumption](/cookbook/patterns/server-utilities#pull-based-consumption). This pattern is useful for long-running workers that need fine-grained control over message processing.
+
+```bash
+# Receive a message from a worker queue
+agentuity cloud queue receive order-processing
+
+# Acknowledge a processed message
+agentuity cloud queue ack order-processing <message_id>
+
+# Return a message to the queue for retry
+agentuity cloud queue nack order-processing <message_id>
+```
+
+### Real-Time Subscriptions
+
+When you need to process messages as they arrive rather than polling, use the WebSocket subscription API from `@agentuity/server`.
+
+#### Callback-Based API
+
+```typescript
+import { createQueueWebSocket } from '@agentuity/server';
+
+const connection = createQueueWebSocket({
+  queueName: 'order-processing',
+  baseUrl: 'https://catalyst.agentuity.cloud',
+  onMessage: (message) => {
+    console.log('Received:', message.id, message.payload);
+  },
+  onOpen: () => console.log('Connected'),
+  onClose: (code, reason) => console.log('Closed:', code, reason),
+  onError: (error) => console.error('Error:', error),
+});
+
+// Later: close the connection
+connection.close();
+```
+
+The connection handle exposes `state`, `clientId`, and `lastOffset` properties for monitoring and session resumption.
+
+#### Async Iterator API
+
+For `for await...of` consumption, use `subscribeToQueue`:
+
+```typescript
+import { subscribeToQueue } from '@agentuity/server';
+
+const controller = new AbortController();
+
+for await (const message of subscribeToQueue({
+  queueName: 'order-processing',
+  baseUrl: 'https://catalyst.agentuity.cloud',
+  signal: controller.signal,
+})) {
+  console.log('Received:', message.id, message.payload);
+}
+
+// To stop: controller.abort()
+```
+
+#### Session Resumption
+
+Save `clientId` and `lastOffset` from a connection and pass them back on reconnect to avoid reprocessing messages:
+
+```typescript
+import { createQueueWebSocket } from '@agentuity/server';
+
+// Save state from a previous connection
+const savedClientId = previousConnection.clientId;
+const savedOffset = previousConnection.lastOffset;
+
+// Resume from where you left off
+const connection = createQueueWebSocket({
+  queueName: 'order-processing',
+  baseUrl: 'https://catalyst.agentuity.cloud',
+  clientId: savedClientId,     // Resume this subscription
+  lastOffset: savedOffset,     // Skip already-processed messages
+  onMessage: (message) => {
+    console.log('Received:', message.id, message.payload);
+  },
+});
+```
+
+#### Connection Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `autoReconnect` | `true` | Automatically reconnect on disconnection |
+| `maxReconnectAttempts` | `Infinity` | Maximum reconnection attempts before giving up |
+| `reconnectDelayMs` | `1000` | Initial reconnection delay (uses exponential backoff with jitter) |
+| `maxReconnectDelayMs` | `30000` | Maximum reconnection delay cap |
+
+#### Connection States
+
+The connection transitions through these states:
+
+`connecting` → `authenticating` → `connected`
+
+On disconnection with `autoReconnect` enabled, it cycles through `reconnecting` → `connecting` → `authenticating` → `connected`. Authentication failures are terminal and do not trigger reconnection.
 
 ## Dead Letter Queue
 
@@ -289,26 +475,52 @@ Messages that exceed the retry limit are moved to the dead letter queue (DLQ). I
 
 ```bash
 # List failed messages
-agentuity cloud queue dlq order-processing
+agentuity cloud queue dlq list order-processing
 
 # Replay a message back to the queue
-agentuity cloud queue dlq replay order-processing --message-id msg_abc123
+agentuity cloud queue dlq replay order-processing msg_abc123
 
 # Purge all DLQ messages
-agentuity cloud queue dlq purge order-processing
+agentuity cloud queue dlq purge order-processing --confirm
 ```
+
+DLQ list supports `--limit` and `--offset` for pagination.
 
 For programmatic DLQ access, see [Dead Letter Queue Operations](/cookbook/patterns/server-utilities#dead-letter-queue-operations).
 
 ## HTTP Ingestion Sources
 
-Create public HTTP endpoints to ingest data into queues from external services. Configure these in the [App](https://app-v1.agentuity.com) or [programmatically](/cookbook/patterns/server-utilities#http-ingestion-sources).
+Create public HTTP endpoints to ingest data into queues from external services. Configure these in the [Web App](https://app.agentuity.com/services/queue) or [programmatically](/cookbook/patterns/server-utilities#http-ingestion-sources).
 
 | Auth Type | Description |
 |-----------|-------------|
 | `none` | No authentication |
 | `basic` | HTTP Basic Auth (`username:password`) |
 | `header` | Custom header value (`Bearer token`) |
+
+```bash
+# Create an HTTP ingestion source
+agentuity cloud queue sources create order-processing \
+  --name stripe-ingest \
+  --auth-type basic \
+  --auth-value user:pass
+
+# List sources
+agentuity cloud queue sources list order-processing
+```
+
+## Monitoring
+
+```bash
+# View queue statistics
+agentuity cloud queue stats order-processing
+
+# Live stats with auto-refresh
+agentuity cloud queue stats order-processing --live
+
+# List messages in a queue
+agentuity cloud queue messages order-processing
+```
 
 ## Queue Settings
 

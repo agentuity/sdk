@@ -26,7 +26,7 @@ import WaitUntilHandler from './_waituntil';
 import { registerServices, createServices } from './_services';
 import { getAgentAsyncLocalStorage } from './_context';
 import { getLogger, getTracer, setGlobalLogger, setGlobalTracer } from './_server';
-import { getAppState } from './app';
+
 import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 
@@ -100,12 +100,7 @@ function initializeStandaloneRuntime(): void {
 	setGlobalLogger(logger);
 	setGlobalTracer(tracer);
 
-	// Set minimal app state if not already set
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	if (!(globalThis as any).__AGENTUITY_APP_STATE__) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).__AGENTUITY_APP_STATE__ = {};
-	}
+	// App state is already initialized as {} in _server.ts module-level var
 
 	// Initialize services (will use local services since not authenticated)
 	const serverUrl = `http://127.0.0.1:${process.env.PORT || '3500'}`;
@@ -214,7 +209,7 @@ export class StandaloneAgentContext<
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
-	auth: import('@agentuity/auth/types').AuthInterface | null;
+	auth: import('@agentuity/core').AuthInterface | null;
 	[AGENT_IDS]?: Set<string>;
 
 	// Immutable options stored from constructor
@@ -226,7 +221,7 @@ export class StandaloneAgentContext<
 		// Auto-initialize if not inside agent runtime and globals are not set
 		let logger = getLogger();
 		let tracer = getTracer();
-		let app = getAppState();
+		let app = {} as Record<string, unknown>;
 
 		if (!logger || !tracer) {
 			// Check if we're inside the agent runtime (dev server or cloud)
@@ -244,7 +239,7 @@ export class StandaloneAgentContext<
 			// Re-fetch globals after initialization
 			logger = getLogger()!;
 			tracer = getTracer()!;
-			app = getAppState();
+			app = {};
 		}
 
 		this.logger = logger;

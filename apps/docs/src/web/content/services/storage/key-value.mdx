@@ -1,9 +1,14 @@
 ---
 title: Key-Value Storage
+short_title: Key-Value
 description: Fast, ephemeral storage for caching, session data, and configuration
 ---
 
 Key-value ("KV") storage provides fast data access for agents. Use it for caching, configuration, rate limiting, and data that needs quick lookups.
+
+<Callout type="tip" title="Not inside an agent or route?">
+Use the [`@agentuity/keyvalue`](/reference/standalone-packages#key-value-storage) standalone package to access this service from any Node.js or Bun app without the runtime.
+</Callout>
 
 ## When to Use Key-Value Storage
 
@@ -30,7 +35,7 @@ Use built-in state (`ctx.state`, `ctx.thread.state`, `ctx.session.state`) for da
 | Frontend | Via routes | [React Hooks](/frontend/react-hooks) |
 
 <Callout type="info" title="Same API Everywhere">
-The KV API is identical in all contexts. `ctx.kv.get()` and `c.var.kv.get()` work the same way. See [Accessing Services](/reference/sdk-reference#accessing-services) for the full reference.
+The KV API is identical in all contexts. `ctx.kv.get()` and `c.var.kv.get()` work the same way. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the full reference.
 </Callout>
 
 ## Basic Operations

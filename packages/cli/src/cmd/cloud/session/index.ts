@@ -6,6 +6,7 @@ import { getCommand } from '../../../command-prefix';
 
 export const sessionCommand = createCommand({
 	name: 'session',
+	aliases: ['sessions'],
 	description: 'Manage sessions',
 	tags: ['requires-auth'],
 	examples: [
