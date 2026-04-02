@@ -82,7 +82,7 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 				queue_type: 'worker',
 				settings: {
 					default_max_retries: 2,
-					default_visibility_timeout_seconds: 5,
+					default_visibility_timeout_seconds: 1,
 				},
 			});
 			return c.json({

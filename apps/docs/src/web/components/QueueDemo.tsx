@@ -263,7 +263,7 @@ export function QueueDemo() {
 			if (result.success) {
 				addEvent(
 					'nack',
-					`Nacked ${receivedMessage.id} — will be visible again in ~5s`,
+					`Nacked ${receivedMessage.id} — returned to queue`,
 					receivedMessage.id
 				);
 				setReceivedMessage(null);
@@ -620,9 +620,8 @@ export function QueueDemo() {
 			<div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg px-4 py-3">
 				<p className="text-zinc-600 dark:text-zinc-400 text-xs">
 					<span className="text-cyan-600 dark:text-cyan-400 font-medium">Tip:</span> Publish a
-					message, receive it, then nack it. Wait for the visibility timeout (5s), then receive
-					and nack again. After 3 failed attempts the message moves to the Dead Letter Queue.
-					Use Replay to return it to the main queue.
+					message, then receive and nack it 2 times to move it to the Dead Letter Queue. Replay
+					returns it to the main queue.
 				</p>
 			</div>
 		</div>

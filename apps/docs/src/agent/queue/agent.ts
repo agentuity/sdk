@@ -73,7 +73,7 @@ const QUEUE_SETTINGS = {
 	queueType: 'worker' as const,
 	settings: {
 		defaultMaxRetries: 2,
-		defaultVisibilityTimeoutSeconds: 5,
+		defaultVisibilityTimeoutSeconds: 1,
 	},
 };
 
