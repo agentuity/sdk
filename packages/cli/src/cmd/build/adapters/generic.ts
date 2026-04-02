@@ -10,7 +10,7 @@
  * and is also the base logic that specific adapters build on.
  */
 
-import { join } from 'node:path';
+import { join, resolve, relative } from 'node:path';
 import { cpSync, existsSync, mkdirSync } from 'node:fs';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types';
 import { getRunCommand } from '../detect/util';
@@ -139,11 +139,30 @@ export const genericAdapter: BuildAdapter = {
 		}
 
 		// Step 3: Copy build output to output directory
-		const buildOutputPath = join(projectDir, framework.buildOutput);
-		if (existsSync(buildOutputPath) && buildOutputPath !== outputDir) {
-			logger.debug(`Copying build output from ${buildOutputPath} to ${outputDir}`);
-			mkdirSync(outputDir, { recursive: true });
-			cpSync(buildOutputPath, outputDir, { recursive: true });
+		const buildOutputPath = resolve(projectDir, framework.buildOutput);
+		const resolvedOutputDir = resolve(outputDir);
+
+		// Only copy if the build output is a distinct directory from the output dir
+		// AND the output dir is not inside the build output (which would cause infinite recursion)
+		const shouldCopy =
+			existsSync(buildOutputPath) &&
+			buildOutputPath !== resolvedOutputDir &&
+			!resolvedOutputDir.startsWith(buildOutputPath + '/');
+
+		if (shouldCopy) {
+			logger.debug(`Copying build output from ${buildOutputPath} to ${resolvedOutputDir}`);
+			mkdirSync(resolvedOutputDir, { recursive: true });
+			cpSync(buildOutputPath, resolvedOutputDir, {
+				recursive: true,
+				filter: (src) => {
+					// Never copy the output dir into itself
+					const rel = relative(resolvedOutputDir, src);
+					return rel.startsWith('..');
+				},
+			});
+		} else {
+			// Ensure output dir exists even when we skip the copy
+			mkdirSync(resolvedOutputDir, { recursive: true });
 		}
 
 		// Step 4: Copy package.json and node_modules for server mode
