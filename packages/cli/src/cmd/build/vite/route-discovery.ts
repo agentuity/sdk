@@ -180,6 +180,13 @@ export async function discoverRoutes(
 					version
 				);
 
+				// Extract type-specific config from route metadata
+				const meta =
+					typeof route.handler === 'function'
+						? (route.handler as any)[Symbol.for('agentuity:route-meta')]
+						: undefined;
+				const config = meta?.schedule ? { expression: meta.schedule } : undefined;
+
 				routes.push({
 					id,
 					filename: toForwardSlash(relative(rootDir, mount.routerFile)),
@@ -187,6 +194,7 @@ export async function discoverRoutes(
 					method,
 					version,
 					type: routeType,
+					config,
 				});
 			}
 
