@@ -22,6 +22,8 @@ export function ChatDemo() {
 	const messagesContainerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	// `input` is intentionally plain useState — draft text is ephemeral and
+	// should not survive page reloads or tab restores.
 	const [running, setRunning] = useState(false);
 	const invoke = useCallback(async (input: { message: string; command?: string }) => {
 		setRunning(true);

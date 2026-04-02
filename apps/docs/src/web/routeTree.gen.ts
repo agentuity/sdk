@@ -16,13 +16,16 @@ import { Route as DemoIndexRouteImport } from './routes/demo/index';
 import { Route as ExplorerVectorStorageRouteImport } from './routes/explorer/vector-storage';
 import { Route as ExplorerStreamingRouteImport } from './routes/explorer/streaming';
 import { Route as ExplorerSseStreamRouteImport } from './routes/explorer/sse-stream';
+import { Route as ExplorerQueueRouteImport } from './routes/explorer/queue';
 import { Route as ExplorerObjectStorageRouteImport } from './routes/explorer/object-storage';
 import { Route as ExplorerModelArenaRouteImport } from './routes/explorer/model-arena';
 import { Route as ExplorerKeyValueRouteImport } from './routes/explorer/key-value';
 import { Route as ExplorerHelloRouteImport } from './routes/explorer/hello';
 import { Route as ExplorerHandlerContextRouteImport } from './routes/explorer/handler-context';
 import { Route as ExplorerEvalsRouteImport } from './routes/explorer/evals';
+import { Route as ExplorerEmailRouteImport } from './routes/explorer/email';
 import { Route as ExplorerDurableStreamRouteImport } from './routes/explorer/durable-stream';
+import { Route as ExplorerDatabaseRouteImport } from './routes/explorer/database';
 import { Route as ExplorerCronRouteImport } from './routes/explorer/cron';
 import { Route as ExplorerChatRouteImport } from './routes/explorer/chat';
 import { Route as ExplorerAiGatewayRouteImport } from './routes/explorer/ai-gateway';
@@ -214,6 +217,11 @@ const ExplorerSseStreamRoute = ExplorerSseStreamRouteImport.update({
 	path: '/explorer/sse-stream',
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ExplorerQueueRoute = ExplorerQueueRouteImport.update({
+	id: '/explorer/queue',
+	path: '/explorer/queue',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const ExplorerObjectStorageRoute = ExplorerObjectStorageRouteImport.update({
 	id: '/explorer/object-storage',
 	path: '/explorer/object-storage',
@@ -244,9 +252,19 @@ const ExplorerEvalsRoute = ExplorerEvalsRouteImport.update({
 	path: '/explorer/evals',
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ExplorerEmailRoute = ExplorerEmailRouteImport.update({
+	id: '/explorer/email',
+	path: '/explorer/email',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const ExplorerDurableStreamRoute = ExplorerDurableStreamRouteImport.update({
 	id: '/explorer/durable-stream',
 	path: '/explorer/durable-stream',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ExplorerDatabaseRoute = ExplorerDatabaseRouteImport.update({
+	id: '/explorer/database',
+	path: '/explorer/database',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const ExplorerCronRoute = ExplorerCronRouteImport.update({
@@ -1062,13 +1080,16 @@ export interface FileRoutesByFullPath {
 	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
 	'/explorer/chat': typeof ExplorerChatRoute;
 	'/explorer/cron': typeof ExplorerCronRoute;
+	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
+	'/explorer/email': typeof ExplorerEmailRoute;
 	'/explorer/evals': typeof ExplorerEvalsRoute;
 	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
 	'/explorer/hello': typeof ExplorerHelloRoute;
 	'/explorer/key-value': typeof ExplorerKeyValueRoute;
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
+	'/explorer/queue': typeof ExplorerQueueRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
@@ -1233,13 +1254,16 @@ export interface FileRoutesByTo {
 	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
 	'/explorer/chat': typeof ExplorerChatRoute;
 	'/explorer/cron': typeof ExplorerCronRoute;
+	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
+	'/explorer/email': typeof ExplorerEmailRoute;
 	'/explorer/evals': typeof ExplorerEvalsRoute;
 	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
 	'/explorer/hello': typeof ExplorerHelloRoute;
 	'/explorer/key-value': typeof ExplorerKeyValueRoute;
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
+	'/explorer/queue': typeof ExplorerQueueRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
@@ -1404,13 +1428,16 @@ export interface FileRoutesById {
 	'/explorer/ai-gateway': typeof ExplorerAiGatewayRoute;
 	'/explorer/chat': typeof ExplorerChatRoute;
 	'/explorer/cron': typeof ExplorerCronRoute;
+	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
+	'/explorer/email': typeof ExplorerEmailRoute;
 	'/explorer/evals': typeof ExplorerEvalsRoute;
 	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
 	'/explorer/hello': typeof ExplorerHelloRoute;
 	'/explorer/key-value': typeof ExplorerKeyValueRoute;
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
+	'/explorer/queue': typeof ExplorerQueueRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
@@ -1577,13 +1604,16 @@ export interface FileRouteTypes {
 		| '/explorer/ai-gateway'
 		| '/explorer/chat'
 		| '/explorer/cron'
+		| '/explorer/database'
 		| '/explorer/durable-stream'
+		| '/explorer/email'
 		| '/explorer/evals'
 		| '/explorer/handler-context'
 		| '/explorer/hello'
 		| '/explorer/key-value'
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
+		| '/explorer/queue'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
@@ -1748,13 +1778,16 @@ export interface FileRouteTypes {
 		| '/explorer/ai-gateway'
 		| '/explorer/chat'
 		| '/explorer/cron'
+		| '/explorer/database'
 		| '/explorer/durable-stream'
+		| '/explorer/email'
 		| '/explorer/evals'
 		| '/explorer/handler-context'
 		| '/explorer/hello'
 		| '/explorer/key-value'
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
+		| '/explorer/queue'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
@@ -1918,13 +1951,16 @@ export interface FileRouteTypes {
 		| '/explorer/ai-gateway'
 		| '/explorer/chat'
 		| '/explorer/cron'
+		| '/explorer/database'
 		| '/explorer/durable-stream'
+		| '/explorer/email'
 		| '/explorer/evals'
 		| '/explorer/handler-context'
 		| '/explorer/hello'
 		| '/explorer/key-value'
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
+		| '/explorer/queue'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
@@ -2091,13 +2127,16 @@ export interface RootRouteChildren {
 	ExplorerAiGatewayRoute: typeof ExplorerAiGatewayRoute;
 	ExplorerChatRoute: typeof ExplorerChatRoute;
 	ExplorerCronRoute: typeof ExplorerCronRoute;
+	ExplorerDatabaseRoute: typeof ExplorerDatabaseRoute;
 	ExplorerDurableStreamRoute: typeof ExplorerDurableStreamRoute;
+	ExplorerEmailRoute: typeof ExplorerEmailRoute;
 	ExplorerEvalsRoute: typeof ExplorerEvalsRoute;
 	ExplorerHandlerContextRoute: typeof ExplorerHandlerContextRoute;
 	ExplorerHelloRoute: typeof ExplorerHelloRoute;
 	ExplorerKeyValueRoute: typeof ExplorerKeyValueRoute;
 	ExplorerModelArenaRoute: typeof ExplorerModelArenaRoute;
 	ExplorerObjectStorageRoute: typeof ExplorerObjectStorageRoute;
+	ExplorerQueueRoute: typeof ExplorerQueueRoute;
 	ExplorerSseStreamRoute: typeof ExplorerSseStreamRoute;
 	ExplorerStreamingRoute: typeof ExplorerStreamingRoute;
 	ExplorerVectorStorageRoute: typeof ExplorerVectorStorageRoute;
@@ -2156,6 +2195,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof ExplorerSseStreamRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		'/explorer/queue': {
+			id: '/explorer/queue';
+			path: '/explorer/queue';
+			fullPath: '/explorer/queue';
+			preLoaderRoute: typeof ExplorerQueueRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		'/explorer/object-storage': {
 			id: '/explorer/object-storage';
 			path: '/explorer/object-storage';
@@ -2198,11 +2244,25 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof ExplorerEvalsRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		'/explorer/email': {
+			id: '/explorer/email';
+			path: '/explorer/email';
+			fullPath: '/explorer/email';
+			preLoaderRoute: typeof ExplorerEmailRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		'/explorer/durable-stream': {
 			id: '/explorer/durable-stream';
 			path: '/explorer/durable-stream';
 			fullPath: '/explorer/durable-stream';
 			preLoaderRoute: typeof ExplorerDurableStreamRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/explorer/database': {
+			id: '/explorer/database';
+			path: '/explorer/database';
+			fullPath: '/explorer/database';
+			preLoaderRoute: typeof ExplorerDatabaseRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/explorer/cron': {
@@ -3639,13 +3699,16 @@ const rootRouteChildren: RootRouteChildren = {
 	ExplorerAiGatewayRoute: ExplorerAiGatewayRoute,
 	ExplorerChatRoute: ExplorerChatRoute,
 	ExplorerCronRoute: ExplorerCronRoute,
+	ExplorerDatabaseRoute: ExplorerDatabaseRoute,
 	ExplorerDurableStreamRoute: ExplorerDurableStreamRoute,
+	ExplorerEmailRoute: ExplorerEmailRoute,
 	ExplorerEvalsRoute: ExplorerEvalsRoute,
 	ExplorerHandlerContextRoute: ExplorerHandlerContextRoute,
 	ExplorerHelloRoute: ExplorerHelloRoute,
 	ExplorerKeyValueRoute: ExplorerKeyValueRoute,
 	ExplorerModelArenaRoute: ExplorerModelArenaRoute,
 	ExplorerObjectStorageRoute: ExplorerObjectStorageRoute,
+	ExplorerQueueRoute: ExplorerQueueRoute,
 	ExplorerSseStreamRoute: ExplorerSseStreamRoute,
 	ExplorerStreamingRoute: ExplorerStreamingRoute,
 	ExplorerVectorStorageRoute: ExplorerVectorStorageRoute,
