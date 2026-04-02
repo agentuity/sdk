@@ -1,7 +1,7 @@
 ---
 name: agentuity-ops
 description: When running Agentuity CLI commands for deploying, managing databases, creating sandboxes, configuring storage, queues, cron jobs, email, or any cloud resource. Also activates for SSH debugging, environment variables, and non-interactive automation.
-version: 1.0.0
+version: 2.0.0
 ---
 
 # Agentuity CLI & Operations Reference
@@ -48,6 +48,7 @@ These work on any command with a confirmation prompt (deploy, create, delete, et
 | List regions     | `agentuity region list`          |
 | Get help         | `agentuity <command> --help`     |
 | Full CLI schema  | `agentuity ai schema show`       |
+| Migrate to v2    | `npx @agentuity/migrate`         |
 
 ## Cloud Services
 
@@ -75,6 +76,7 @@ These work on any command with a confirmation prompt (deploy, create, delete, et
 | Configuration      | https://agentuity.dev/reference/cli/configuration.md     |
 | Git Integration    | https://agentuity.dev/reference/cli/git-integration.md   |
 | GitHub App         | https://agentuity.dev/reference/github-app.md            |
+| Migration Guide    | https://agentuity.dev/reference/migration-guide.md       |
 
 ## Common Mistakes
 
@@ -86,6 +88,7 @@ These work on any command with a confirmation prompt (deploy, create, delete, et
 | Making up CLI flags                | Run `--help` first    | Flags change between versions        |
 | Fabricating deployment URLs        | Read actual output    | URLs are generated dynamically       |
 | Using `expect`/`yes |` for prompts | Use `--yes` or `--force` flag | Built-in flag support is cleaner and more reliable |
+| Running v1 project without migrating | Run `npx @agentuity/migrate` first | v2 requires explicit agent/router wiring |
 
 ## When In Doubt, Check the Docs
 

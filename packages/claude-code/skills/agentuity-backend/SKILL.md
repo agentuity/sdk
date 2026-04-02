@@ -1,7 +1,7 @@
 ---
 name: agentuity-backend
 description: When building AI agents, backend APIs, or server-side logic with Agentuity. Covers @agentuity/runtime for agent handlers and HTTP routing, @agentuity/schema for validation, @agentuity/drizzle and @agentuity/postgres for database access, and @agentuity/evals for testing agent quality.
-version: 1.0.0
+version: 2.0.0
 ---
 
 # Agentuity Backend Reference
@@ -29,6 +29,7 @@ version: 1.0.0
 | `zod`                  | `@agentuity/schema`   | Lightweight, built-in, StandardSchemaV1              |
 | `console.log`          | `ctx.logger`          | Structured, observable, OpenTelemetry                |
 | Generic SQL clients    | Bun's native `sql`    | Bun-native, auto-credentials                         |
+| `createRouter()` wrapper | `new Hono<Env>()` directly | Chained methods enable hc<AppRouter>() type safety |
 
 **Note:** Both Zod and @agentuity/schema implement StandardSchemaV1, so agent schemas accept either.
 
@@ -69,6 +70,7 @@ Both approaches work identically — the AI Gateway intercepts requests automati
 ## Key Concepts
 
 - Agents are created with `createAgent('name', { description, schema, handler })` from `@agentuity/runtime`
+- Agents must be barrel-exported from `src/agent/index.ts` and passed to `createApp({ agents })`
 - Handler receives `ctx` (AgentContext) and typed `input`
 - `ctx` provides: logger, tracer, kv, vector, stream, sandbox, auth, thread, session, state, config
 - Schemas use `@agentuity/schema` (or Zod — both implement StandardSchemaV1)
@@ -77,21 +79,20 @@ Both approaches work identically — the AI Gateway intercepts requests automati
 
 ## Agents Need API Routes
 
-**Agents are NOT HTTP endpoints.** To expose an agent over HTTP, create a route in `src/api/` that calls it. Use `agent.validator()` for schema validation:
+**Agents are NOT HTTP endpoints.** To expose an agent over HTTP, create a route in `src/api/` that calls it. Use Hono directly with chained methods for type safety:
 
 ```typescript
-// src/api/index.ts — routes are relative to the mount point in app.ts
-// If mounted at '/api', this route becomes /api/chat
-import { createRouter } from '@agentuity/runtime';
+// src/api/index.ts — compose all routes into a single Hono instance
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import chat from '@agent/chat';
 
-const router = createRouter();
-
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  const result = await chat.run(data);
-  return c.json(result);
-});
+const router = new Hono<Env>()
+  .post('/chat', chat.validator(), async (c) => {
+    const data = c.req.valid('json');
+    const result = await chat.run(data);
+    return c.json(result);
+  });
 
 export default router;
 ```
@@ -99,15 +100,16 @@ export default router;
 For streaming responses, use the `stream()` middleware:
 
 ```typescript
-import { createRouter, stream } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import { stream } from '@agentuity/runtime';
 import chat from '@agent/chat';
 
-const router = createRouter();
-
-router.post('/chat', stream(async (c) => {
-  const body = await c.req.json();
-  return chat.run(body);
-}));
+const router = new Hono<Env>()
+  .post('/chat', stream(async (c) => {
+    const body = await c.req.json();
+    return chat.run(body);
+  }));
 
 export default router;
 ```
@@ -115,20 +117,20 @@ export default router;
 For routes that don't call agents, use the standalone `validator()` for schema validation:
 
 ```typescript
-import { createRouter, validator } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import { validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const OutputSchema = s.object({
   history: s.array(s.object({ text: s.string(), timestamp: s.string() })),
 });
 
-const router = createRouter();
-
-// Access thread state in routes via c.var.thread
-router.get('/history', validator({ output: OutputSchema }), async (c) => {
-  const history = (await c.var.thread.state.get('history')) ?? [];
-  return c.json({ history });
-});
+const router = new Hono<Env>()
+  .get('/history', validator({ output: OutputSchema }), async (c) => {
+    const history = (await c.var.thread.state.get('history')) ?? [];
+    return c.json({ history });
+  });
 
 export default router;
 ```
@@ -185,6 +187,10 @@ Place eval files alongside the agent: `src/agent/<name>/eval.ts`.
 
 - Docs: https://agentuity.dev/agents/evaluations.md
 
+## v2 Migration
+
+If upgrading from v1, run `npx @agentuity/migrate` to auto-convert `createRouter()` to chained Hono style and generate barrel files. See the [Migration Guide](https://agentuity.dev/reference/migration-guide.md).
+
 ## Documentation Links
 
 | Topic | Link |
@@ -201,6 +207,7 @@ Place eval files alongside the agent: `src/agent/<name>/eval.ts`.
 | Drizzle ORM | https://agentuity.dev/services/database/drizzle.md |
 | Postgres Client | https://agentuity.dev/services/database/postgres.md |
 | SDK Reference | https://agentuity.dev/reference/sdk-reference.md |
+| Migration Guide | https://agentuity.dev/reference/migration-guide.md |
 
 ## Common Mistakes
 
@@ -215,6 +222,8 @@ Place eval files alongside the agent: `src/agent/<name>/eval.ts`.
 | Using `ctx.logger` in route handlers                 | Use `c.var.logger` in routes                     | Agent context and route context have different APIs |
 | Exposing agents without routes                       | Create API routes in `src/api/`                  | Agents are not HTTP endpoints  |
 | Skipping agent evaluations                           | Add eval.ts alongside agent index.ts             | Evals catch regressions and validate quality    |
+| Using mutating router style (.get() separately)     | Use chained Hono methods (.get().post())        | Chained style required for hc<AppRouter>() types |
+| Missing agent barrel file                             | Create src/agent/index.ts re-exporting agents    | v2 requires explicit agent registration          |
 
 ## Example
 
