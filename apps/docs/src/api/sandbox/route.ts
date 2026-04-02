@@ -33,6 +33,7 @@ const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
+const SSE_HEARTBEAT_INTERVAL_MS = 5_000;
 
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
@@ -46,6 +47,21 @@ function cleanOutput(content: string): string {
 		.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[ \t]*/gm, '')
 		.replace(/\\"/g, '"')
 		.replace(/\\n/g, '\n');
+}
+
+async function withHeartbeat<T>(
+	stream: { writeSSE: (event: { event: string; data: string }) => Promise<void> },
+	operation: () => Promise<T>
+): Promise<T> {
+	const interval = setInterval(() => {
+		void stream.writeSSE({ event: 'heartbeat', data: String(Date.now()) }).catch(() => {});
+	}, SSE_HEARTBEAT_INTERVAL_MS);
+
+	try {
+		return await operation();
+	} finally {
+		clearInterval(interval);
+	}
 }
 
 const router = new Hono<Env>().get(
@@ -110,6 +126,7 @@ const router = new Hono<Env>().get(
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
+		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
 		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;
 		if (process.env.S3_ENDPOINT) envVars.S3_ENDPOINT = process.env.S3_ENDPOINT;
 		if (process.env.S3_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
@@ -134,7 +151,10 @@ const router = new Hono<Env>().get(
 					logger?.info('Reusing sandbox', { sandboxId, threadId, script: scriptName });
 
 					try {
-						const output = await executeOnSandbox(client, sandboxId, command, orgId);
+						await stream.writeSSE({ event: 'status', data: 'running' });
+						const output = await withHeartbeat(stream, () =>
+							executeOnSandbox(client, sandboxId, command, orgId)
+						);
 						await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 						await sendOutput(stream, output);
 						return;
@@ -169,7 +189,10 @@ const router = new Hono<Env>().get(
 
 				await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 
-				const output = await executeOnSandbox(client, sandboxId, command, orgId);
+				await stream.writeSSE({ event: 'status', data: 'running' });
+				const output = await withHeartbeat(stream, () =>
+					executeOnSandbox(client, sandboxId, command, orgId)
+				);
 				await sendOutput(stream, output);
 				return;
 			}
@@ -183,7 +206,6 @@ const router = new Hono<Env>().get(
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		let detectedExitCode: number | null = null;
-		let sentRunningStatus = false;
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
 				const raw = chunk.toString();
@@ -196,18 +218,7 @@ const router = new Hono<Env>().get(
 
 				if (text.length > 0) {
 					const encoded = text.replace(/\n/g, '\\n');
-					// Send 'running' status once on first output, then stdout
-					if (!sentRunningStatus) {
-						sentRunningStatus = true;
-						stream
-							.writeSSE({ event: 'status', data: 'running' })
-							.then(() => stream.writeSSE({ event: 'stdout', data: encoded }))
-							.then(() => callback(), callback);
-					} else {
-						stream
-							.writeSSE({ event: 'stdout', data: encoded })
-							.then(() => callback(), callback);
-					}
+					stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
 				} else {
 					callback();
 				}
@@ -216,22 +227,25 @@ const router = new Hono<Env>().get(
 
 		try {
 			logger?.info('Running sandbox script (one-shot)', { script: scriptName });
+			await stream.writeSSE({ event: 'status', data: 'running' });
 
-			const result = await sandboxRun(client, {
-				options: {
-					snapshot: SNAPSHOT_ID,
-					command: { exec: command },
-					network: { enabled: true },
-					timeout: { execution: SANDBOX_EXEC_TIMEOUT },
-					env: envVars,
-				},
-				orgId,
-				region,
-				apiKey,
-				stdout: sseWritable,
-				stderr: sseWritable,
-				logger,
-			});
+			const result = await withHeartbeat(stream, () =>
+				sandboxRun(client, {
+					options: {
+						snapshot: SNAPSHOT_ID,
+						command: { exec: command },
+						network: { enabled: true },
+						timeout: { execution: SANDBOX_EXEC_TIMEOUT },
+						env: envVars,
+					},
+					orgId,
+					region,
+					apiKey,
+					stdout: sseWritable,
+					stderr: sseWritable,
+					logger,
+				})
+			);
 
 			const exitCode = detectedExitCode ?? result.exitCode;
 			logger?.info('Sandbox completed', {
@@ -330,8 +344,6 @@ async function sendOutput(
 	stream: { writeSSE: (event: { event: string; data: string }) => Promise<void> },
 	result: { output: string; exitCode: number }
 ): Promise<void> {
-	await stream.writeSSE({ event: 'status', data: 'running' });
-
 	if (result.output) {
 		const cleaned = cleanOutput(result.output);
 		if (cleaned) {
