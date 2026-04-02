@@ -309,6 +309,14 @@ export interface QueueService {
 export const QueuePublishError = StructuredError('QueuePublishError');
 
 /**
+ * Error thrown when a queue creation operation fails.
+ *
+ * This is a general error for create failures that aren't specifically
+ * validation, not-found, or conflict (409) errors.
+ */
+export const QueueCreateError = StructuredError('QueueCreateError');
+
+/**
  * Error thrown when a queue is not found.
  *
  * @example
@@ -609,11 +617,17 @@ export class QueueStorageService implements QueueService {
 
 		if (res.ok) {
 			const data = unwrapApiResponse<Record<string, unknown>>(res.data, 'queue');
-			this.#knownQueues.add(queueName);
-			return {
-				name: (data.name as string) ?? queueName,
-				queueType: (data.queue_type as string) ?? params?.queueType ?? 'worker',
-			};
+			const result = QueueCreateResultSchema.safeParse({
+				name: data.name,
+				queueType: data.queue_type,
+			});
+			if (result.success) {
+				this.#knownQueues.add(queueName);
+				return result.data;
+			}
+			throw new QueueCreateError({
+				message: `Queue create returned an unexpected response format: ${result.error.message}`,
+			});
 		}
 
 		if (res.response.status === 409) {
