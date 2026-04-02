@@ -7,26 +7,15 @@
  */
 
 /**
- * Known framework identifiers.
+ * Framework identifier.
  *
- * 'agentuity' — Native Agentuity app (app.ts + @agentuity/runtime)
- * 'nextjs'    — Next.js (next.config.*)
- * 'vite'      — Vite SPA or SSR (vite.config.*)
- * 'sveltekit' — SvelteKit (svelte.config.*)
- * 'astro'     — Astro (astro.config.*)
- * 'nuxt'      — Nuxt (nuxt.config.*)
- * 'remix'     — Remix (remix.config.* or @remix-run/*)
- * 'generic'   — Fallback: has package.json with build/start scripts
+ * This is a string rather than a union type because the framework database
+ * (derived from @vercel/frameworks) contains 25+ slugs and may grow.
+ * Special values:
+ * - 'agentuity' — Native Agentuity app (app.ts + @agentuity/runtime)
+ * - 'generic'   — Fallback: has package.json with build/start scripts
  */
-export type FrameworkName =
-	| 'agentuity'
-	| 'nextjs'
-	| 'vite'
-	| 'sveltekit'
-	| 'astro'
-	| 'nuxt'
-	| 'remix'
-	| 'generic';
+export type FrameworkName = string;
 
 /**
  * Runtime that executes the built application.
