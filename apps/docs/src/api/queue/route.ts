@@ -6,7 +6,8 @@
  * matching the pattern in src/api/sandbox/route.ts.
  *
  * POST /publish     - Publish a message via the agent
- * POST /setup       - Create/ensure queue exists via the agent
+ * POST /setup       - Create or ensure the demo queue via the agent
+ * POST /reset       - Delete and recreate the demo queue
  * GET  /status      - Queue stats (message count, DLQ count)
  * GET  /receive     - Receive next message
  * POST /ack/:id     - Acknowledge a message
@@ -23,6 +24,7 @@ import {
 	receiveMessage,
 	ackMessage,
 	nackMessage,
+	deleteQueue,
 	getQueue,
 	listDeadLetterMessages,
 	replayDeadLetterMessage,
@@ -66,6 +68,17 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 		}
 	})
 
+	.post('/reset', async (c) => {
+		try {
+			await deleteQueue(c.var.queueClient, c.var.queueName).catch(() => {});
+			const result = await queueAgent.run({ action: 'setup', queueName: c.var.queueName });
+			return c.json(result);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			return c.json({ success: false, message }, 500);
+		}
+	})
+
 	.post('/publish', async (c) => {
 		try {
 			const body = await c.req.json();
@@ -85,12 +98,15 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 
 	.get('/status', async (c) => {
 		try {
-			const queue = await getQueue(c.var.queueClient, c.var.queueName);
+			const [queue, dlq] = await Promise.all([
+				getQueue(c.var.queueClient, c.var.queueName),
+				listDeadLetterMessages(c.var.queueClient, c.var.queueName),
+			]);
 			return c.json({
 				success: true,
 				data: {
 					message_count: queue.message_count ?? 0,
-					dlq_count: queue.dlq_count ?? 0,
+					dlq_count: dlq.total ?? dlq.messages.length,
 					name: queue.name,
 					queue_type: queue.queue_type,
 				},

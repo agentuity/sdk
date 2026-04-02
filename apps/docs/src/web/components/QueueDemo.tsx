@@ -4,7 +4,7 @@ import { Badge, Button, Separator } from './ui';
 
 const MESSAGE_PAYLOAD = { task: 'process-order', orderId: 'order-123' };
 
-type ActionType = 'setup' | 'publish' | 'receive' | 'ack' | 'nack' | 'dlq' | 'replay';
+type ActionType = 'setup' | 'reset' | 'publish' | 'receive' | 'ack' | 'nack' | 'dlq' | 'replay';
 
 interface QueueEvent {
 	id: number;
@@ -67,6 +67,14 @@ export function QueueDemo() {
 		]);
 	}, []);
 
+	const clearDemoState = useCallback(() => {
+		setReceivedMessage(null);
+		setDlqMessages([]);
+		setStats(null);
+		setEvents([]);
+		eventIdRef.current = 0;
+	}, []);
+
 	const refreshStats = useCallback(async () => {
 		try {
 			const result = await api<{ success: boolean; data?: QueueStats }>('/status');
@@ -78,21 +86,33 @@ export function QueueDemo() {
 		}
 	}, []);
 
-	// Auto-fetch DLQ messages when stats change
-	// biome-ignore lint/correctness/useExhaustiveDependencies: only re-fetch when dlq_count changes
-	useEffect(() => {
-		if (stats && stats.dlq_count > 0) {
-			api<{ success: boolean; data?: { messages: DlqMessage[]; total?: number } }>('/dlq')
-				.then((result) => {
-					if (result.success && result.data) {
-						setDlqMessages(result.data.messages);
-					}
-				})
-				.catch(() => {});
-		} else {
-			setDlqMessages([]);
+	const refreshDlq = useCallback(async () => {
+		try {
+			const result = await api<{ success: boolean; data?: { messages: DlqMessage[] } }>('/dlq');
+			if (result.success && result.data) {
+				setDlqMessages(result.data.messages);
+			}
+		} catch {
+			// DLQ refresh is best-effort
 		}
-	}, [stats?.dlq_count]);
+	}, []);
+
+	const refreshQueueState = useCallback(async () => {
+		await Promise.allSettled([refreshStats(), refreshDlq()]);
+	}, [refreshDlq, refreshStats]);
+
+	useEffect(() => {
+		if (!queueReady) {
+			return;
+		}
+
+		void refreshQueueState();
+		const intervalId = window.setInterval(() => {
+			void refreshQueueState();
+		}, 2000);
+
+		return () => window.clearInterval(intervalId);
+	}, [queueReady, refreshQueueState]);
 
 	// Scroll events to bottom on new events
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when events change
@@ -108,14 +128,37 @@ export function QueueDemo() {
 				method: 'POST',
 			});
 			if (result.success) {
+				clearDemoState();
 				setQueueReady(true);
 				addEvent('setup', result.message);
-				await refreshStats();
+				await refreshQueueState();
 			} else {
 				setError(result.message);
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to setup queue');
+		} finally {
+			setLoading(null);
+		}
+	};
+
+	const handleReset = async () => {
+		setLoading('reset');
+		setError(null);
+		try {
+			const result = await api<{ success: boolean; message: string }>('/reset', {
+				method: 'POST',
+			});
+			if (result.success) {
+				clearDemoState();
+				setQueueReady(true);
+				addEvent('reset', result.message);
+				await refreshQueueState();
+			} else {
+				setError(result.message);
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to reset queue');
 		} finally {
 			setLoading(null);
 		}
@@ -134,8 +177,13 @@ export function QueueDemo() {
 				}
 			);
 			if (result.success) {
-				addEvent('publish', result.message, result.data?.id);
-				await refreshStats();
+				const messageId = result.data?.id;
+				addEvent(
+					'publish',
+					messageId ? `Published message ${messageId}` : result.message,
+					messageId
+				);
+				await refreshQueueState();
 			} else {
 				setError(result.message);
 			}
@@ -158,7 +206,7 @@ export function QueueDemo() {
 			if (result.success && result.data) {
 				setReceivedMessage(result.data);
 				addEvent('receive', `Received ${result.data.id}`, result.data.id);
-				await refreshStats();
+				await refreshQueueState();
 			} else {
 				addEvent('receive', result.message || 'No messages available');
 			}
@@ -181,7 +229,7 @@ export function QueueDemo() {
 			if (result.success) {
 				addEvent('ack', `Acknowledged ${receivedMessage.id}`, receivedMessage.id);
 				setReceivedMessage(null);
-				await refreshStats();
+				await refreshQueueState();
 			} else {
 				setError(result.message);
 			}
@@ -204,7 +252,7 @@ export function QueueDemo() {
 			if (result.success) {
 				addEvent('nack', `Nacked ${receivedMessage.id} (retry/DLQ)`, receivedMessage.id);
 				setReceivedMessage(null);
-				await refreshStats();
+				await refreshQueueState();
 			} else {
 				setError(result.message);
 			}
@@ -225,7 +273,7 @@ export function QueueDemo() {
 			if (result.success) {
 				addEvent('replay', `Replayed ${messageId}`, messageId);
 				setDlqMessages((prev) => prev.filter((m) => m.id !== messageId));
-				await refreshStats();
+				await refreshQueueState();
 			} else {
 				setError(result.message);
 			}
@@ -239,6 +287,7 @@ export function QueueDemo() {
 	const getEventColor = (action: ActionType) => {
 		switch (action) {
 			case 'setup':
+			case 'reset':
 				return 'text-zinc-400';
 			case 'publish':
 				return 'text-cyan-400';
@@ -258,6 +307,7 @@ export function QueueDemo() {
 	const getEventBorder = (action: ActionType) => {
 		switch (action) {
 			case 'setup':
+			case 'reset':
 				return 'border-zinc-300 dark:border-zinc-800';
 			case 'publish':
 				return 'border-cyan-300 dark:border-cyan-500/30';
@@ -384,6 +434,15 @@ export function QueueDemo() {
 									>
 										<Inbox className="size-3.5" />
 										Receive Next
+									</Button>
+									<Button
+										onClick={handleReset}
+										disabled={!!loading}
+										variant="ghost"
+										size="sm"
+									>
+										<RotateCcw className="size-3.5" />
+										Reset
 									</Button>
 								</div>
 							</>
@@ -546,9 +605,9 @@ export function QueueDemo() {
 			<div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg px-4 py-3">
 				<p className="text-zinc-600 dark:text-zinc-400 text-xs">
 					<span className="text-cyan-600 dark:text-cyan-400 font-medium">Tip:</span> Publish a
-					message, receive it, then nack it. Wait a few seconds, then receive again. After 2
-					attempts it moves to the Dead Letter Queue. Use Replay to return it to the main
-					queue.
+					message, receive it, then nack it. Wait for the visibility timeout (5s), then receive
+					and nack again. After 3 failed attempts the message moves to the Dead Letter Queue.
+					Use Replay to return it to the main queue.
 				</p>
 			</div>
 		</div>

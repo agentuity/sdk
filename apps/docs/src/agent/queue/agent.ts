@@ -17,6 +17,66 @@ import { s } from '@agentuity/schema';
 
 const DEFAULT_QUEUE_NAME = 'explorer-demo';
 
+function asObject(value: unknown): Record<string, unknown> | null {
+	return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function asString(value: unknown): string | undefined {
+	return typeof value === 'string' ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+	return typeof value === 'number' ? value : undefined;
+}
+
+function getQueueInfo(result: unknown, fallbackName: string) {
+	const direct = asObject(result);
+	const data = asObject(direct?.data);
+	const queue = asObject(data?.queue);
+
+	return {
+		name: asString(direct?.name) ?? asString(queue?.name) ?? fallbackName,
+		queueType:
+			asString(direct?.queueType) ??
+			asString(direct?.queue_type) ??
+			asString(queue?.queueType) ??
+			asString(queue?.queue_type) ??
+			'worker',
+	};
+}
+
+function getPublishedMessage(result: unknown) {
+	const direct = asObject(result);
+	const data = asObject(direct?.data);
+	const message = asObject(data?.message);
+	const id = asString(direct?.id) ?? asString(message?.id);
+
+	if (!id) {
+		return null;
+	}
+
+	const offset = asNumber(direct?.offset) ?? asNumber(message?.offset);
+	const publishedAt =
+		asString(direct?.publishedAt) ??
+		asString(direct?.published_at) ??
+		asString(message?.publishedAt) ??
+		asString(message?.published_at);
+
+	return {
+		id,
+		...(offset !== undefined ? { offset } : {}),
+		...(publishedAt ? { publishedAt } : {}),
+	};
+}
+
+const QUEUE_SETTINGS = {
+	queueType: 'worker' as const,
+	settings: {
+		defaultMaxRetries: 2,
+		defaultVisibilityTimeoutSeconds: 5,
+	},
+};
+
 const InputSchema = s.union(
 	s.object({
 		action: s.literal('setup'),
@@ -45,17 +105,12 @@ const agent = createAgent('queue', {
 		switch (input.action) {
 			case 'setup': {
 				try {
-					const result = await ctx.queue.createQueue(queueName, {
-						queueType: 'worker',
-						settings: {
-							defaultMaxRetries: 2,
-							defaultVisibilityTimeoutSeconds: 5,
-						},
-					});
+					const result = await ctx.queue.createQueue(queueName, QUEUE_SETTINGS);
+					const queue = getQueueInfo(result, queueName);
 					return {
 						success: true,
-						message: `Queue "${result.name}" ready (${result.queueType})`,
-						data: result,
+						message: `Queue "${queue.name}" ready (${queue.queueType})`,
+						data: queue,
 					};
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
@@ -72,11 +127,12 @@ const agent = createAgent('queue', {
 
 			case 'publish': {
 				try {
-					const result = await ctx.queue.publish(queueName, input.payload, { sync: true });
+					const result = await ctx.queue.publish(queueName, input.payload);
+					const message = getPublishedMessage(result);
 					return {
 						success: true,
-						message: `Published message ${result.id}`,
-						data: result,
+						message: message ? `Published message ${message.id}` : 'Message published',
+						data: message ?? result,
 					};
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);

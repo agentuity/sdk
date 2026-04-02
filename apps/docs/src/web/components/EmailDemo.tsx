@@ -51,7 +51,10 @@ export function EmailDemo() {
 				body: JSON.stringify(body),
 			});
 			if (!res.ok) {
-				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+				// Read the error body for a more descriptive message
+				const errorBody = await res.json().catch(() => null);
+				const message = errorBody?.error || `Request failed: ${res.status} ${res.statusText}`;
+				throw new Error(message);
 			}
 			setResult(await res.json());
 			setSendCount((prev) => prev + 1);
