@@ -34,6 +34,7 @@ const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
 const SSE_HEARTBEAT_INTERVAL_MS = 5_000;
+const SANDBOX_SERVICE_SCOPES = ['services:read', 'services:write'];
 
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
@@ -186,6 +187,7 @@ const router = new Hono<Env>().get(
 						network: { enabled: true },
 						timeout: { idle: SANDBOX_IDLE_TIMEOUT },
 						env: envVars,
+						scopes: SANDBOX_SERVICE_SCOPES,
 					},
 					orgId,
 				});
@@ -243,6 +245,7 @@ const router = new Hono<Env>().get(
 						network: { enabled: true },
 						timeout: { execution: SANDBOX_EXEC_TIMEOUT },
 						env: envVars,
+						scopes: SANDBOX_SERVICE_SCOPES,
 					},
 					orgId,
 					region,
