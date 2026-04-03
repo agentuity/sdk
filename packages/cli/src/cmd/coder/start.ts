@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { z } from 'zod';
 import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
@@ -15,12 +16,20 @@ import { probeHubInitAccess } from './tui-init';
  * Priority:
  *   1. --pi flag (explicit override)
  *   2. AGENTUITY_CODER_PI_PATH env var
- *   3. `pi` on PATH (default)
+ *   3. Bundled pi from coder-tui's node_modules/.bin/pi
+ *   4. `pi` on PATH (fallback)
  */
-function resolvePiBinary(flagPath?: string): string {
+function resolvePiBinary(flagPath?: string, extensionDir?: string): string {
 	if (flagPath) return flagPath;
 	const envPath = process.env.AGENTUITY_CODER_PI_PATH;
 	if (envPath) return envPath;
+
+	// Look for pi bundled with the coder-tui extension
+	if (extensionDir) {
+		const bundledPi = resolve(extensionDir, 'node_modules', '.bin', 'pi');
+		if (Bun.file(bundledPi).size > 0) return bundledPi;
+	}
+
 	return 'pi';
 }
 
@@ -143,7 +152,7 @@ export const startSubcommand = createSubcommand({
 		};
 
 		// Resolve pi binary
-		const piBinary = resolvePiBinary(opts?.pi);
+		const piBinary = resolvePiBinary(opts?.pi, extensionPath);
 
 		// ── Remote mode: resolve session ID ──
 		let remoteSessionId: string | undefined;
@@ -339,7 +348,19 @@ export const startSubcommand = createSubcommand({
 				stderr: 'inherit',
 			});
 
+			// Forward signals to the child process so Ctrl+C exits cleanly
+			const forwardSignal = (signal: NodeJS.Signals) => {
+				proc.kill(signal === 'SIGINT' ? 2 : 15);
+			};
+			process.on('SIGINT', () => forwardSignal('SIGINT'));
+			process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+
 			const exitCode = await proc.exited;
+
+			// Clean up signal handlers
+			process.removeAllListeners('SIGINT');
+			process.removeAllListeners('SIGTERM');
+
 			process.exit(exitCode);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
