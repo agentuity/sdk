@@ -8,7 +8,7 @@ import { ErrorCode } from '../../errors';
 
 export const replaySubcommand = createSubcommand({
 	name: 'replay',
-	description: 'Get replay data for a Coder Hub session',
+	description: 'Get replay data for a Coder session',
 	tags: ['read-only', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true, org: true },

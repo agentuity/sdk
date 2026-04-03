@@ -4,12 +4,12 @@ import { normalizeCoderUrl } from './util.ts';
 
 export const DiscoverCoderUrlDataSchema = z
 	.object({
-		url: z.string().describe('Discovered base URL for the organization coder hub API'),
+		url: z.string().describe('Discovered base URL for the organization Coder URL'),
 	})
 	.describe('Response payload for coder URL discovery');
 
 /**
- * Discovers the org-specific Coder Hub URL through Catalyst.
+ * Discovers the org-specific Coder URL.
  *
  * Calls `GET /coder` on the Catalyst API. The org is resolved server-side
  * from the API key's auth context (not via query parameters).

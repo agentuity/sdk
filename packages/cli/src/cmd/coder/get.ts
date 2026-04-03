@@ -39,7 +39,7 @@ function formatDuration(ms: number): string {
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	aliases: ['show', 'inspect'],
-	description: 'Show detailed information about a Coder Hub session',
+	description: 'Show detailed information about a Coder session',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, org: true },
 	examples: [

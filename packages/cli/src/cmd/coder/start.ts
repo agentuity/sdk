@@ -54,9 +54,9 @@ function logValidationIssues(
 }
 
 export const startSubcommand = createSubcommand({
-	name: 'start',
-	aliases: ['run'],
-	description: 'Start a Pi coding session connected to the Coder Hub',
+	name: 'tui',
+	aliases: ['run', 'start'],
+	description: 'Start a coding session connected to Coder',
 	tags: ['fast', 'requires-auth'],
 	requires: { auth: true, org: true },
 	examples: [
@@ -66,7 +66,7 @@ export const startSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand('coder start --url ws://127.0.0.1:3500/api/ws'),
-			description: 'Start with explicit Hub URL',
+			description: 'Start with explicit Coder URL',
 		},
 		{
 			command: getCommand('coder start --extension ~/repos/agentuity/sdk/packages/coder-tui'),
@@ -132,10 +132,11 @@ export const startSubcommand = createSubcommand({
 
 		const initProbe = await probeHubInitAccess(hubHttpUrl, {
 			apiKey: ctx.auth.apiKey,
+			orgId: ctx.orgId,
 		});
 		if (!initProbe.ok) {
 			tui.fatal(
-				`Could not bootstrap the Coder Hub at ${hubHttpUrl}: ${initProbe.message}`,
+				`Could not bootstrap the Coder at ${hubHttpUrl}: ${initProbe.message}`,
 				ErrorCode.NETWORK_ERROR
 			);
 			return;

@@ -71,7 +71,7 @@ import { normalizeCoderUrl } from './util.ts';
 export const CoderClientOptionsSchema = z
 	.object({
 		apiKey: z.string().optional().describe('API key for authentication'),
-		url: z.string().optional().describe('Base URL for the Coder Hub HTTP API'),
+		url: z.string().optional().describe('Base URL for the Coder HTTP API'),
 		region: z.string().optional().describe('Region used for Catalyst URL resolution'),
 		orgId: z.string().optional().describe('Organization ID for multi-tenant operations'),
 		logger: z.custom<Logger>().optional().describe('Custom logger implementation'),
@@ -80,7 +80,7 @@ export const CoderClientOptionsSchema = z
 export type CoderClientOptions = z.infer<typeof CoderClientOptionsSchema>;
 
 /**
- * Ergonomic client for Coder Hub session management APIs.
+ * Ergonomic client for Coder session management APIs.
  *
  * URL resolution strategy:
  * 1) options.url
