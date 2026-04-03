@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Badge, Button, Input, Separator, Skeleton } from './ui';
 
 interface SearchMatch {
@@ -19,7 +20,16 @@ interface SearchResult {
 const SAMPLE_DOCS = [{ name: 'products.json', description: 'Office furniture catalog' }] as const;
 
 export function VectorSearch() {
-	const [query, setQuery] = useState('');
+	const [query, setQuery] = usePersistentDemoState<string>('vector-storage', 'query', {
+		defaultValue: '',
+		storage: 'session',
+	});
+	const [lastSearchedQuery, setLastSearchedQuery, clearLastSearchedQuery] = usePersistentDemoState<
+		string | null
+	>('vector-storage', 'last-search', {
+		defaultValue: null,
+		storage: 'session',
+	});
 	const [result, setResult] = useState<SearchResult | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [searching, setSearching] = useState(false);
@@ -44,6 +54,70 @@ export function VectorSearch() {
 		checkStatus();
 	}, [checkStatus]);
 
+	const search = useCallback(
+		async (
+			queryToRun: string = query,
+			options: { persist?: boolean; allowAutoSeed?: boolean } = {}
+		) => {
+			const normalizedQuery = queryToRun.trim();
+			if (!normalizedQuery) return;
+
+			setLoading(true);
+			setSearching(true);
+			setError(null);
+			try {
+				// Auto-seed on first search if not already seeded
+				if (!seeded) {
+					if (options.allowAutoSeed === false) {
+						return;
+					}
+
+					const seedResponse = await fetch('/api/vector-storage/seed', { method: 'POST' });
+					if (!seedResponse.ok) {
+						throw new Error('Failed to auto-seed data');
+					}
+					const seedData = await seedResponse.json();
+					if (!seedData.success) {
+						throw new Error(seedData.error || 'Failed to auto-seed data');
+					}
+					setSeeded(true);
+				}
+
+				const response = await fetch('/api/vector-storage/search', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ query: normalizedQuery }),
+				});
+				if (!response.ok) {
+					throw new Error(`Search failed: HTTP ${response.status}`);
+				}
+				const data = await response.json();
+				if (data.matches) {
+					setResult(data);
+					if (options.persist !== false) {
+						setLastSearchedQuery(normalizedQuery);
+					}
+				} else {
+					setError(data.error || 'Search failed');
+				}
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Unknown error');
+			} finally {
+				setLoading(false);
+				setSearching(false);
+			}
+		},
+		[query, seeded, setLastSearchedQuery]
+	);
+
+	useEffect(() => {
+		if (!seeded || !lastSearchedQuery || result || loading) {
+			return;
+		}
+
+		void search(lastSearchedQuery, { persist: false, allowAutoSeed: false });
+	}, [lastSearchedQuery, loading, result, search, seeded]);
+
 	const seedData = async () => {
 		setLoading(true);
 		setError(null);
@@ -62,52 +136,11 @@ export function VectorSearch() {
 		}
 	};
 
-	const search = async () => {
-		if (!query.trim()) return;
-
-		setLoading(true);
-		setSearching(true);
-		setError(null);
-		try {
-			// Auto-seed on first search if not already seeded
-			if (!seeded) {
-				const seedResponse = await fetch('/api/vector-storage/seed', { method: 'POST' });
-				if (!seedResponse.ok) {
-					throw new Error('Failed to auto-seed data');
-				}
-				const seedData = await seedResponse.json();
-				if (!seedData.success) {
-					throw new Error(seedData.error || 'Failed to auto-seed data');
-				}
-				setSeeded(true);
-			}
-
-			const response = await fetch('/api/vector-storage/search', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ query }),
-			});
-			if (!response.ok) {
-				throw new Error(`Search failed: HTTP ${response.status}`);
-			}
-			const data = await response.json();
-			if (data.matches) {
-				setResult(data);
-			} else {
-				setError(data.error || 'Search failed');
-			}
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Unknown error');
-		} finally {
-			setLoading(false);
-			setSearching(false);
-		}
-	};
-
 	const clearResults = () => {
 		setResult(null);
 		setQuery('');
 		setError(null);
+		clearLastSearchedQuery();
 	};
 
 	return (
@@ -181,10 +214,20 @@ export function VectorSearch() {
 						placeholder="Search for products... (e.g., 'comfortable office chair', 'budget option', 'gaming')"
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
-						onKeyDown={(e) => e.key === 'Enter' && search()}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') {
+								void search();
+							}
+						}}
 						className="flex-1"
 					/>
-					<Button onClick={search} disabled={loading || !query.trim()} variant="outline">
+					<Button
+						onClick={() => {
+							void search();
+						}}
+						disabled={loading || !query.trim()}
+						variant="outline"
+					>
 						<span className="relative">
 							<span className={searching ? 'invisible' : ''}>Search</span>
 							{searching && (

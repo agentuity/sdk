@@ -1,9 +1,9 @@
 {
 	"name": "@agentuity/claude-code",
-	"version": "2.0.7",
+	"version": "2.0.9",
 	"license": "Apache-2.0",
-	"author": "Agentuity employees and contributors",
-	"description": "Agentuity Coder plugin for Claude Code with specialized AI coding agents",
+	"author": "Agentuity",
+	"description": "Claude Code plugin for deploying websites, apps, and AI agents to Agentuity — with managed databases, storage, sandboxes, queues, cron, email, and more",
 	"type": "module",
 	"main": "./dist/install.js",
 	"module": "./dist/install.js",
@@ -13,10 +13,8 @@
 		"README.md",
 		"LICENSE",
 		".claude-plugin",
-		"agents",
-		"skills",
 		"hooks",
-		"commands",
+		"skills",
 		"src",
 		"dist"
 	],
@@ -35,7 +33,8 @@
 		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",
-		"prepublishOnly": "bun run clean && bun run build"
+		"prepublishOnly": "bun run clean && bun run build",
+		"zip": "zip -r ../agentuity-claude-code.zip . -x '*.DS_Store' -x '*node_modules/*' -x 'dist/*' -x '*.tsbuildinfo' -x 'PLAN.md' -x 'FEEDBACK.md' -x 'TEST.md'"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

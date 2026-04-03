@@ -26,19 +26,36 @@ export async function resolveExtensionPath(
 		return resolve(cwd, envPath);
 	}
 
-	// 3. Bundled with CLI package
+	// 3. Bundled with CLI package (require.resolve)
 	try {
 		const cliDir = fileURLToPath(new URL('.', moduleUrl));
-		const entryPath = require.resolve('@agentuity/coder', { paths: [cliDir] });
+		const entryPath = require.resolve('@agentuity/coder-tui', { paths: [cliDir] });
 		let dir = dirname(entryPath);
 		while (dir !== dirname(dir)) {
 			if (await Bun.file(resolve(dir, 'package.json')).exists()) return dir;
 			dir = dirname(dir);
 		}
-		return null;
 	} catch {
-		return null;
+		// require.resolve may fail in workspace/worktree setups — fall through to direct lookup
 	}
+
+	// 4. Direct node_modules lookup (workspace symlink fallback)
+	try {
+		const cliDir = fileURLToPath(new URL('.', moduleUrl));
+		// Walk up from this file to the CLI package root, then check node_modules
+		let dir = cliDir;
+		for (let i = 0; i < 10; i++) {
+			const candidate = resolve(dir, 'node_modules', '@agentuity', 'coder-tui');
+			if (await Bun.file(resolve(candidate, 'package.json')).exists()) return candidate;
+			const parent = dirname(dir);
+			if (parent === dir) break;
+			dir = parent;
+		}
+	} catch {
+		// ignore
+	}
+
+	return null;
 }
 
 export async function resolveExtensionRuntimeModulePath(

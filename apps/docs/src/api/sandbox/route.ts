@@ -20,6 +20,7 @@ import {
 	getServiceUrls,
 	SandboxNotFoundError,
 	SandboxTerminatedError,
+	type ExecutionStatus,
 } from '@agentuity/server';
 import { Writable } from 'node:stream';
 import { SCRIPT_NAMES, SCRIPT_DEFAULTS } from './scripts';
@@ -32,6 +33,11 @@ const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
+const SSE_HEARTBEAT_INTERVAL_MS = 5_000;
+const SANDBOX_SERVICE_SCOPES = ['services:read', 'services:write'];
+
+// Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
+const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
 
 // ANSI escape sequence regex for stripping terminal colors
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
@@ -42,6 +48,21 @@ function cleanOutput(content: string): string {
 		.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[ \t]*/gm, '')
 		.replace(/\\"/g, '"')
 		.replace(/\\n/g, '\n');
+}
+
+async function withHeartbeat<T>(
+	stream: { writeSSE: (event: { event: string; data: string }) => Promise<void> },
+	operation: () => Promise<T>
+): Promise<T> {
+	const interval = setInterval(() => {
+		void stream.writeSSE({ event: 'heartbeat', data: String(Date.now()) }).catch(() => {});
+	}, SSE_HEARTBEAT_INTERVAL_MS);
+
+	try {
+		return await operation();
+	} finally {
+		clearInterval(interval);
+	}
 }
 
 const router = new Hono<Env>().get(
@@ -106,6 +127,11 @@ const router = new Hono<Env>().get(
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
+		// Exclude org/project identity — triggers session telemetry that sandbox
+		// tokens can't authorize, producing spurious errors on successful runs.
+		if (process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID)
+			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
+		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
 		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;
 		if (process.env.S3_ENDPOINT) envVars.S3_ENDPOINT = process.env.S3_ENDPOINT;
 		if (process.env.S3_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
@@ -130,7 +156,10 @@ const router = new Hono<Env>().get(
 					logger?.info('Reusing sandbox', { sandboxId, threadId, script: scriptName });
 
 					try {
-						const output = await executeOnSandbox(client, sandboxId, command, orgId);
+						await stream.writeSSE({ event: 'status', data: 'running' });
+						const output = await withHeartbeat(stream, () =>
+							executeOnSandbox(client, sandboxId, command, orgId)
+						);
 						await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 						await sendOutput(stream, output);
 						return;
@@ -156,6 +185,7 @@ const router = new Hono<Env>().get(
 						network: { enabled: true },
 						timeout: { idle: SANDBOX_IDLE_TIMEOUT },
 						env: envVars,
+						scopes: SANDBOX_SERVICE_SCOPES,
 					},
 					orgId,
 				});
@@ -165,7 +195,10 @@ const router = new Hono<Env>().get(
 
 				await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 
-				const output = await executeOnSandbox(client, sandboxId, command, orgId);
+				await stream.writeSSE({ event: 'status', data: 'running' });
+				const output = await withHeartbeat(stream, () =>
+					executeOnSandbox(client, sandboxId, command, orgId)
+				);
 				await sendOutput(stream, output);
 				return;
 			}
@@ -179,7 +212,6 @@ const router = new Hono<Env>().get(
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		let detectedExitCode: number | null = null;
-		let sentRunningStatus = false;
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
 				const raw = chunk.toString();
@@ -192,18 +224,7 @@ const router = new Hono<Env>().get(
 
 				if (text.length > 0) {
 					const encoded = text.replace(/\n/g, '\\n');
-					// Send 'running' status once on first output, then stdout
-					if (!sentRunningStatus) {
-						sentRunningStatus = true;
-						stream
-							.writeSSE({ event: 'status', data: 'running' })
-							.then(() => stream.writeSSE({ event: 'stdout', data: encoded }))
-							.then(() => callback(), callback);
-					} else {
-						stream
-							.writeSSE({ event: 'stdout', data: encoded })
-							.then(() => callback(), callback);
-					}
+					stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
 				} else {
 					callback();
 				}
@@ -212,22 +233,26 @@ const router = new Hono<Env>().get(
 
 		try {
 			logger?.info('Running sandbox script (one-shot)', { script: scriptName });
+			await stream.writeSSE({ event: 'status', data: 'running' });
 
-			const result = await sandboxRun(client, {
-				options: {
-					snapshot: SNAPSHOT_ID,
-					command: { exec: command },
-					network: { enabled: true },
-					timeout: { execution: SANDBOX_EXEC_TIMEOUT },
-					env: envVars,
-				},
-				orgId,
-				region,
-				apiKey,
-				stdout: sseWritable,
-				stderr: sseWritable,
-				logger,
-			});
+			const result = await withHeartbeat(stream, () =>
+				sandboxRun(client, {
+					options: {
+						snapshot: SNAPSHOT_ID,
+						command: { exec: command },
+						network: { enabled: true },
+						timeout: { execution: SANDBOX_EXEC_TIMEOUT },
+						env: envVars,
+						scopes: SANDBOX_SERVICE_SCOPES,
+					},
+					orgId,
+					region,
+					apiKey,
+					stdout: sseWritable,
+					stderr: sseWritable,
+					logger,
+				})
+			);
 
 			const exitCode = detectedExitCode ?? result.exitCode;
 			logger?.info('Sandbox completed', {
@@ -250,6 +275,8 @@ const router = new Hono<Env>().get(
 
 /**
  * Execute a command on an existing sandbox and return the output.
+ * Polls executionGet until the execution reaches a terminal status before
+ * fetching output streams, so we don't read partial data.
  */
 async function executeOnSandbox(
 	client: APIClient,
@@ -263,22 +290,45 @@ async function executeOnSandbox(
 		orgId,
 	});
 
-	// Fetch output and wait for completion in parallel
-	// The fetch blocks until data is available (when execution completes)
-	const [result, stdout, stderr] = await Promise.all([
-		executionGet(client, {
+	// Poll until execution reaches a terminal state.
+	// executionGet with `wait` uses server-side long-polling, but may return
+	// a non-terminal status if the wait duration expires before completion.
+	let result = await executionGet(client, {
+		executionId: execution.executionId,
+		orgId,
+		wait: '5m',
+	});
+
+	// Guard against stuck-queued executions that never start
+	const MAX_POLL_ITERATIONS = 6;
+	let pollIterations = 0;
+
+	while (!TERMINAL_STATUSES.has(result.status)) {
+		if (++pollIterations > MAX_POLL_ITERATIONS) {
+			throw new Error(
+				`Execution ${execution.executionId} did not complete after ${MAX_POLL_ITERATIONS} poll attempts`
+			);
+		}
+		result = await executionGet(client, {
 			executionId: execution.executionId,
 			orgId,
 			wait: '5m',
-		}),
-		fetchOutput(execution.stdoutStreamUrl),
-		fetchOutput(execution.stderrStreamUrl),
-	]);
+		});
+	}
 
-	// Combine stdout and stderr (stderr often has logger output)
+	// Fetch output after completion (prefer URLs from result, fall back to execution)
+	const stdoutUrl = result.stdoutStreamUrl ?? execution.stdoutStreamUrl;
+	const stderrUrl = result.stderrStreamUrl ?? execution.stderrStreamUrl;
+
+	// If stdout and stderr are the same stream, fetch once to avoid duplicates
+	const isCombined = stdoutUrl && stderrUrl && stdoutUrl === stderrUrl;
+	const [stdout, stderr] = isCombined
+		? [await fetchOutput(stdoutUrl), '']
+		: await Promise.all([fetchOutput(stdoutUrl), fetchOutput(stderrUrl)]);
+
 	const output = [stdout, stderr].filter(Boolean).join('\n');
 
-	return { output, exitCode: result.exitCode ?? 0 };
+	return { output, exitCode: result.exitCode ?? (result.status === 'completed' ? 0 : 1) };
 }
 
 /**
@@ -301,8 +351,6 @@ async function sendOutput(
 	stream: { writeSSE: (event: { event: string; data: string }) => Promise<void> },
 	result: { output: string; exitCode: number }
 ): Promise<void> {
-	await stream.writeSSE({ event: 'status', data: 'running' });
-
 	if (result.output) {
 		const cleaned = cleanOutput(result.output);
 		if (cleaned) {

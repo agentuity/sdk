@@ -6,21 +6,37 @@
 	},
 	"metadata": {
 		"description": "Agentuity plugins for Claude Code",
-		"version": "2.0.7"
+		"version": "2.0.9"
 	},
 	"plugins": [
 		{
-			"name": "agentuity-coder",
+			"name": "agentuity",
 			"source": "./packages/claude-code",
-			"description": "Agentuity Coder - a team of specialized AI agents for code assistance with persistent memory via Agentuity Cloud",
-			"version": "2.0.7",
+			"description": "Deploy websites, apps, and AI agents to Agentuity — with managed databases, storage, queues, and more",
+			"version": "2.0.9",
 			"author": {
 				"name": "Agentuity"
 			},
 			"homepage": "https://agentuity.dev",
 			"repository": "https://github.com/agentuity/sdk",
 			"license": "Apache-2.0",
-			"keywords": ["coding", "agents", "memory", "cloud", "agentuity"],
+			"keywords": [
+				"agentuity",
+				"deploy",
+				"hosting",
+				"agents",
+				"websites",
+				"apps",
+				"database",
+				"storage",
+				"sandbox",
+				"queues",
+				"cron",
+				"email",
+				"webhooks",
+				"cloud",
+				"platform"
+			],
 			"category": "development"
 		}
 	]

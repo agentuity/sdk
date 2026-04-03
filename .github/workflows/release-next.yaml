@@ -96,6 +96,7 @@ jobs:
         run: |
           bun run --filter='./packages/claude-code' build
           bun run --filter='./packages/coder' build
+          bun run --filter='./packages/coder-tui' build
           bun run --filter='./packages/db' build
           bun run --filter='./packages/email' build
           bun run --filter='./packages/keyvalue' build
@@ -117,6 +118,7 @@ jobs:
             "packages/postgres"
             "packages/claude-code"
             "packages/coder"
+            "packages/coder-tui"
             "packages/frontend"
             "packages/schema"
             "packages/server"

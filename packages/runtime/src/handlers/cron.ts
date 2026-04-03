@@ -129,7 +129,7 @@ export function cron<E extends Env = Env>(
 		return returnResponse(c, result);
 	};
 
-	return tagRoute(cronHandler, { type: 'cron' });
+	return tagRoute(cronHandler, { type: 'cron', schedule: _schedule });
 }
 
 /**

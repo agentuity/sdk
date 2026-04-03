@@ -11,9 +11,9 @@ The project configuration file:
 
 ```json
 {
-  "name": "my-project",
+  "projectId": "proj_...",
   "orgId": "org_...",
-  "projectId": "proj_..."
+  "region": "use"
 }
 ```
 
@@ -21,14 +21,22 @@ No agent definitions, no trigger configurations. Those live in your code.
 
 ## app.ts
 
-The app entry point configures your application:
+The app entry point wires agents, routes, and configuration together:
 
 ```typescript
 import { createApp } from '@agentuity/runtime';
+import agents from './src/agent';
+import api from './src/api';
 
-const { server, logger } = await createApp();
+const app = await createApp({
+  router: { path: '/api', router: api },
+  agents,
+  workbench: { route: '/workbench' },
+});
 
-logger.debug('Running %s', server.url);
+app.logger.debug('Running %s', app.server.url);
+
+export default app;
 ```
 
 ### With Startup and Cleanup Logic
@@ -44,21 +52,31 @@ registerShutdownHook(async () => {
   await db.close();
 });
 
-const { server, logger } = await createApp();
+const app = await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
 
-logger.debug('Running %s', server.url);
+app.logger.debug('Running %s', app.server.url);
+
+export default app;
 ```
 
-### With Custom Services
+### With Additional Options
 
 ```typescript
 import { createApp } from '@agentuity/runtime';
+import agents from './src/agent';
+import api from './src/api';
 
-const { server, logger } = await createApp({
+const app = await createApp({
+  router: { path: '/api', router: api },
+  agents,
+
   // CORS configuration
   cors: {
-    origin: ['https://myapp.com'],
-    credentials: true,
+    sameOrigin: true,
+    allowedOrigins: ['https://myapp.com'],
   },
 
   // Response compression (gzip/deflate)
@@ -72,6 +90,8 @@ const { server, logger } = await createApp({
     vector: myCustomVector,
   },
 });
+
+export default app;
 ```
 
 #### Compression Options
@@ -86,37 +106,43 @@ Compression automatically bypasses WebSocket upgrades and requests without `Acce
 
 ### Event Listeners
 
-Listen for agent and session lifecycle events:
+Listen for agent lifecycle events using the top-level `addEventListener`:
 
 ```typescript
-import { addEventListener, createApp } from '@agentuity/runtime';
+import { addEventListener } from '@agentuity/runtime';
 
-const app = await createApp();
-const { logger } = app;
-
-addEventListener('agent.started', (event, agent, ctx) => {
-  logger.info('Agent started', { name: agent.metadata.name });
+addEventListener('agent.started', (eventName, agent, ctx) => {
+  ctx.logger.info('Agent started', { name: agent.metadata.name });
 });
 
-addEventListener('agent.completed', (event, agent, ctx) => {
-  logger.info('Agent completed', { session: ctx.sessionId });
+addEventListener('agent.completed', (eventName, agent, ctx) => {
+  ctx.logger.info('Agent completed', { session: ctx.sessionId });
 });
 ```
 
 ## Build Configuration
 
-For advanced build customization, create an `agentuity.config.ts` file in your project root:
+Use `vite.config.ts` for build settings (plugins, entry point, rollup options). Runtime settings like workbench and analytics belong in `createApp()`.
 
-```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+```typescript title="vite.config.ts"
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vite';
+import { join } from 'node:path';
 
-export default {
-  // Configuration options here
-} satisfies AgentuityConfig;
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  root: '.',
+  build: {
+    rollupOptions: {
+      input: join(import.meta.dirname, 'src/web/index.html'),
+    },
+  },
+});
 ```
 
-<Callout type="info" title="When to Use This">
-Use build configuration to add Vite plugins (like Tailwind CSS), define build-time constants, or bundle extra files (data, templates, models) into your deployment.
+<Callout type="info" title="When to Customize">
+Most projects only need to change `plugins` in `vite.config.ts`. The default template includes React and Tailwind CSS. Replace them with your framework of choice (e.g., `@sveltejs/vite-plugin-svelte`).
 </Callout>
 
 See the [reference page](/reference/cli/build-configuration) for all options and examples.
@@ -191,7 +217,7 @@ AGENTUITY_SDK_KEY=...        # API key for Agentuity services
 
 # Optional
 AGENTUITY_LOG_LEVEL=info     # trace, debug, info, warn, error
-AGENTUITY_PORT=3500          # Dev server port (default: 3500)
+PORT=3500                    # Dev server port (default: 3500)
 
 # Resource Credentials (auto-added by CLI when creating resources)
 DATABASE_URL=postgresql://...   # Added by: agentuity cloud db create
@@ -261,27 +287,27 @@ Unlike traditional platforms, Agentuity defines infrastructure in your route fil
 
 ```typescript
 // src/api/index.ts
-import { createRouter, cron, websocket } from '@agentuity/runtime';
-import scheduler from '@agent/scheduler';
-import chatHandler from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import { cron, websocket } from '@agentuity/runtime';
+import scheduler from '@agent/scheduler/agent';
+import chatHandler from '@agent/chat/agent';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  // Cron job - runs every hour
+  .post('/cleanup', cron('0 * * * *', { auth: true }, async (c) => {
+    await scheduler.run({ task: 'cleanup' });
+    return c.text('OK');
+  }))
+  // WebSocket endpoint
+  .get('/chat', websocket((c, ws) => {
+    ws.onMessage(async (event) => {
+      const result = await chatHandler.run({ message: event.data as string });
+      ws.send(JSON.stringify(result));
+    });
+  }));
 
-// Cron job - runs every hour
-router.post('/cleanup', cron('0 * * * *', async (c) => {
-  await scheduler.run({ task: 'cleanup' });
-  return c.text('OK');
-}));
-
-// WebSocket endpoint
-router.get('/chat', websocket((c, ws) => {
-  ws.onMessage(async (event) => {
-    const response = await chatHandler.run({ message: event.data as string });
-    ws.send(response);
-  });
-}));
-
-export default router;
+export default api;
 ```
 
 This approach means:

@@ -1,7 +1,7 @@
 {
-	"name": "agentuity-coder",
-	"version": "2.0.7",
-	"description": "Agentuity Coder - a team of specialized AI agents for code assistance with persistent memory via Agentuity Cloud",
+	"name": "agentuity",
+	"version": "2.0.9",
+	"description": "Deploy websites, apps, and AI agents to Agentuity — with managed databases, storage, queues, and more",
 	"author": {
 		"name": "Agentuity",
 		"url": "https://agentuity.dev"
@@ -9,5 +9,21 @@
 	"homepage": "https://agentuity.dev",
 	"repository": "https://github.com/agentuity/sdk",
 	"license": "Apache-2.0",
-	"keywords": ["coding", "agents", "memory", "cloud", "agentuity"]
+	"keywords": [
+		"agentuity",
+		"deploy",
+		"hosting",
+		"agents",
+		"websites",
+		"apps",
+		"database",
+		"storage",
+		"sandbox",
+		"queues",
+		"cron",
+		"email",
+		"webhooks",
+		"cloud",
+		"platform"
+	]
 }

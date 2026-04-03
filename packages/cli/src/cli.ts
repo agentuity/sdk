@@ -1195,8 +1195,10 @@ async function registerSubcommand(
 				// Add -y short alias for --confirm
 				flagSpec = `-y, --${flag}`;
 			} else if (optAliases.length > 0) {
-				const shortFlags = optAliases.map((a) => `-${a}`).join(', ');
-				flagSpec = `${shortFlags}, --${flag}`;
+				const aliasFlags = optAliases
+					.map((a) => (a.length === 1 ? `-${a}` : `--${a}`))
+					.join(', ');
+				flagSpec = `${aliasFlags}, --${flag}`;
 			}
 			if (opt.type === 'boolean') {
 				if (opt.hasDefault) {

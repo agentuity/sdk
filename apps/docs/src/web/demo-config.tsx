@@ -13,6 +13,9 @@ import { PersistentStreamDemo } from './components/PersistentStreamDemo';
 import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
+import { QueueDemo } from './components/QueueDemo';
+import { DatabaseDemo } from './components/DatabaseDemo';
+import { EmailDemo } from './components/EmailDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -29,7 +32,10 @@ export type DemoId =
 	| 'cron'
 	| 'agent-calls'
 	| 'object-storage'
-	| 'evals';
+	| 'evals'
+	| 'queue'
+	| 'email'
+	| 'database';
 
 export const explorerHref = (id: DemoId) => `/explorer/${id}` as const;
 
@@ -476,6 +482,85 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'evals',
 		sandboxInput: { question: 'What is Agentuity and what are its main features?' },
+	},
+	{
+		id: 'queue',
+		title: 'Queues',
+		subtitle: 'Publish & Consume',
+		description: 'Publish messages, receive with ack/nack, and explore the dead letter queue.',
+		explanation: (
+			<>
+				Message queues decouple producers from consumers. Publish a message and a worker picks
+				it up later, processes it, and acknowledges completion.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					If processing fails, the message retries automatically
+				</span>
+				. After exhausting retries, it moves to the <em>dead letter queue</em> (DLQ) for
+				inspection and replay. Agents use <em>ctx.queue</em> to create queues and publish.
+				Server routes consume with receive/ack/nack.
+			</>
+		),
+		docsUrl: '/services/queues',
+		category: 'services',
+		component: QueueDemo,
+		codeExample: CODE_EXAMPLES.queue,
+		sandboxEnabled: true,
+		sandboxScript: 'queue',
+	},
+	{
+		id: 'email',
+		title: 'Email',
+		subtitle: 'Send & Receive',
+		description: 'Preview the email, send it to your inbox, and inspect delivery status.',
+		explanation: (
+			<>
+				Send transactional emails using <em>ctx.email.send()</em> with full control over HTML
+				content, recipients, and attachments.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Preview the exact HTML first, then send it to an address you control
+				</span>
+				. The same API also supports managed inboxes, destinations, and inbound message
+				inspection, so you can pair outbound sends with receive workflows when you need them.
+			</>
+		),
+		docsUrl: '/services/email',
+		category: 'services',
+		component: EmailDemo,
+		codeExample: CODE_EXAMPLES.email,
+		sandboxEnabled: true,
+		sandboxScript: 'email',
+		sandboxInput: { template: 'welcome' },
+	},
+	{
+		id: 'database',
+		title: 'Database',
+		subtitle: 'Drizzle ORM',
+		description: 'Query a PostgreSQL database with type-safe Drizzle ORM.',
+		explanation: (
+			<>
+				Query a real PostgreSQL database using <em>Drizzle ORM</em> for type-safe, composable
+				queries.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Define your schema in TypeScript and query with full autocompletion
+				</span>
+				. The same chairs from the{' '}
+				<a
+					href="/explorer/vector-storage"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					Vector Search
+				</a>{' '}
+				demo are stored here in a relational table. Vector found them by meaning, this finds
+				them by exact criteria: price ranges, ratings, and keywords.
+			</>
+		),
+		docsUrl: '/services/database',
+		category: 'services',
+		component: DatabaseDemo,
+		codeExample: CODE_EXAMPLES.database,
+		sandboxEnabled: true,
+		sandboxScript: 'database',
+		sandboxInput: { query: 'summary', seedData: true },
 	},
 ];
 

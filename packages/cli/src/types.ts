@@ -61,16 +61,6 @@ export const ConfigSchema = zod.object({
 		})
 		.optional()
 		.describe('User preferences'),
-	coder: zod
-		.object({
-			hubUrl: zod.string().optional().describe('Default Coder Hub URL'),
-			apiKey: zod
-				.string()
-				.optional()
-				.describe('Stored Coder Hub API key when secure keychain storage is unavailable'),
-		})
-		.optional()
-		.describe('Coder Hub configuration managed by coder config commands'),
 	gravity: zod
 		.object({
 			version: zod.string().optional().describe('The current gravity version'),
