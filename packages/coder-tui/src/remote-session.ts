@@ -91,9 +91,10 @@ export class RemoteSession {
 	/** Session label (populated after connection) */
 	public label: string = '';
 
-	/** API key for Hub authentication */
-	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+	/** API key for Hub authentication (Hub API key or CLI/platform key) */
 	public apiKey: string | null = null;
+	/** Organization ID for CLI/platform key auth (sent as x-agentuity-orgid header) */
+	public orgId: string | null = null;
 
 	constructor(sessionId: string) {
 		this.sessionId = sessionId;
@@ -251,12 +252,23 @@ export class RemoteSession {
 			url.searchParams.set('role', 'controller');
 
 			log(`${isReconnect ? 'Reconnecting' : 'Connecting'} to ${url.toString()}`);
-			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
-			this.ws = this.apiKey
-				? new WebSocket(url.toString(), {
-						headers: { 'x-agentuity-auth-api-key': this.apiKey },
-					})
-				: new WebSocket(url.toString());
+			const wsHeaders: Record<string, string> = {};
+			if (this.apiKey) {
+				if (this.apiKey.startsWith('agc_')) {
+					// Hub API key — use legacy header
+					wsHeaders['x-agentuity-auth-api-key'] = this.apiKey;
+				} else {
+					// CLI/platform key — use Bearer auth + orgId header
+					wsHeaders['Authorization'] = `Bearer ${this.apiKey}`;
+					if (this.orgId) {
+						wsHeaders['x-agentuity-orgid'] = this.orgId;
+					}
+				}
+			}
+			this.ws =
+				Object.keys(wsHeaders).length > 0
+					? new WebSocket(url.toString(), { headers: wsHeaders })
+					: new WebSocket(url.toString());
 
 			const connectTimeout = setTimeout(() => {
 				reject(new Error('Remote session connection timed out'));
