@@ -66,8 +66,10 @@ function log(msg: string): void {
 export async function runRemoteTui(options: {
 	hubWsUrl: string;
 	sessionId: string;
+	apiKey?: string;
+	orgId?: string;
 }): Promise<void> {
-	const { hubWsUrl, sessionId } = options;
+	const { hubWsUrl, sessionId, apiKey, orgId } = options;
 
 	log(`Starting remote TUI for session ${sessionId}`);
 	log(`Hub URL: ${hubWsUrl}`);
@@ -82,8 +84,9 @@ export async function runRemoteTui(options: {
 	// We register all handlers BEFORE connecting so that the hydration
 	// message from the Hub (sent immediately after init) is captured.
 	const remote = new RemoteSession(sessionId);
-	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
-	remote.apiKey = process.env.AGENTUITY_CODER_API_KEY || null;
+	// Resolve API key: explicit option → env var → null
+	remote.apiKey = apiKey || process.env.AGENTUITY_CODER_API_KEY || null;
+	remote.orgId = orgId || process.env.AGENTUITY_ORGID || null;
 	let hydrationStreamingDetected = false;
 	let sessionResumeSeen = false;
 

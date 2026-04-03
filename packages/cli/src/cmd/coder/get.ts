@@ -1,22 +1,20 @@
 import { z } from 'zod';
+import {
+	CoderClient,
+	CoderSessionArchivedError,
+	CoderSessionNotFoundError,
+} from '@agentuity/core/coder';
+import { ValidationOutputError } from '@agentuity/core';
+
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import {
-	clearStoredHubApiKeyOnUnauthorized,
-	formatHubUnauthorizedMessage,
-	formatMissingHubUrlMessage,
-	getHubResponseErrorMessage,
-	getHubUrlSetupGuidance,
-	hubFetchHeaders,
-	isHubUnauthorizedStatus,
-	resolveHubApiKey,
-	resolveHubUrl,
-} from './hub-url';
 
 function formatRelativeTime(isoDate: string): string {
-	const diffMs = Date.now() - new Date(isoDate).getTime();
+	const parsed = new Date(isoDate).getTime();
+	if (Number.isNaN(parsed)) return 'unknown';
+	const diffMs = Math.max(0, Date.now() - parsed);
 	const seconds = Math.floor(diffMs / 1000);
 	if (seconds < 60) return `${seconds}s ago`;
 	const minutes = Math.floor(seconds / 60);
@@ -38,18 +36,19 @@ function formatDuration(ms: number): string {
 	return `${hours}h ${remainMin}m`;
 }
 
-export const inspectSubcommand = createSubcommand({
-	name: 'inspect',
-	aliases: ['get', 'show'],
+export const getSubcommand = createSubcommand({
+	name: 'get',
+	aliases: ['show', 'inspect'],
 	description: 'Show detailed information about a Coder Hub session',
 	tags: ['read-only', 'fast', 'requires-auth'],
+	requires: { auth: true, org: true },
 	examples: [
 		{
-			command: getCommand('coder inspect codesess_abc123'),
-			description: 'Inspect a session by ID',
+			command: getCommand('coder get codesess_abc123'),
+			description: 'Get a session by ID',
 		},
 		{
-			command: getCommand('coder inspect codesess_abc123 --json'),
+			command: getCommand('coder get codesess_abc123 --json'),
 			description: 'Get session details as JSON',
 		},
 	],
@@ -59,20 +58,17 @@ export const inspectSubcommand = createSubcommand({
 			session_id: z.string().describe('Coder session ID to inspect'),
 		}),
 		options: z.object({
-			hubUrl: z.string().optional().describe('Hub URL override'),
+			url: z.string().optional().describe('Coder API URL override'),
 		}),
 	},
 	async handler(ctx) {
-		const { args, options, opts, config } = ctx;
+		const { args, options, opts } = ctx;
 		const sessionId = args.session_id;
-		const hubUrl = await resolveHubUrl(opts?.hubUrl, config);
-
-		if (!hubUrl) {
-			tui.fatal(formatMissingHubUrlMessage(), ErrorCode.NETWORK_ERROR);
-			return;
-		}
-
-		const resolvedHubApiKey = await resolveHubApiKey(config);
+		const client = new CoderClient({
+			apiKey: ctx.auth.apiKey,
+			url: opts?.url,
+			orgId: ctx.orgId,
+		});
 
 		let data: {
 			sessionId: string;
@@ -80,18 +76,18 @@ export const inspectSubcommand = createSubcommand({
 			status: string;
 			createdAt: string;
 			mode: string;
-			context: {
+			context?: {
 				branch?: string;
 				workingDirectory?: string;
 			};
-			participants: Array<{
+			participants?: Array<{
 				id: string;
 				role: string;
 				transport: string;
 				connectedAt: string;
 				idle: boolean;
 			}>;
-			tasks: Array<{
+			tasks?: Array<{
 				taskId: string;
 				agent: string;
 				status: string;
@@ -100,7 +96,7 @@ export const inspectSubcommand = createSubcommand({
 				startedAt: string;
 				completedAt?: string;
 			}>;
-			agentActivity: Record<
+			agentActivity?: Record<
 				string,
 				{
 					name: string;
@@ -113,46 +109,23 @@ export const inspectSubcommand = createSubcommand({
 		};
 
 		try {
-			const resp = await fetch(`${hubUrl}/api/hub/session/${encodeURIComponent(sessionId)}`, {
-				headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
-				signal: AbortSignal.timeout(10_000),
-			});
-			if (isHubUnauthorizedStatus(resp.status)) {
-				const message = await getHubResponseErrorMessage(resp);
-				const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
-					resp.status,
-					resolvedHubApiKey,
-					config
-				);
-				tui.fatal(
-					formatHubUnauthorizedMessage(hubUrl, message, { clearedStoredKey }),
-					ErrorCode.API_ERROR
-				);
-				return;
-			}
-			if (resp.status === 404) {
+			data = (await client.getSession(sessionId)) as unknown as typeof data;
+		} catch (err) {
+			if (err instanceof CoderSessionNotFoundError) {
 				tui.fatal(`Session not found: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
 			}
-			if (resp.status === 410) {
+			if (err instanceof CoderSessionArchivedError) {
 				tui.fatal(`Session has shut down: ${sessionId}`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
 			}
-			if (!resp.ok) {
-				const message = await getHubResponseErrorMessage(resp);
-				tui.fatal(
-					`Hub returned ${resp.status}: ${message}. Is the Coder Hub running at ${hubUrl}?`,
-					ErrorCode.API_ERROR
-				);
-				return;
+
+			if (err instanceof ValidationOutputError) {
+				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
+				ctx.logger.trace('Validation issues: %s', JSON.stringify(err.issues, null, 2));
 			}
-			data = (await resp.json()) as typeof data;
-		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			tui.fatal(
-				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\n${getHubUrlSetupGuidance()}`,
-				ErrorCode.NETWORK_ERROR
-			);
+			tui.fatal(`Failed to inspect Coder session ${sessionId}: ${msg}`, ErrorCode.NETWORK_ERROR);
 			return;
 		}
 
@@ -165,17 +138,18 @@ export const inspectSubcommand = createSubcommand({
 		console.log();
 		console.log(`  Session: ${label} (${data.sessionId})`);
 		const parts = [`Status: ${data.status}`, `Mode: ${data.mode}`];
-		if (data.context.branch) parts.push(`Branch: ${data.context.branch}`);
+		if (data.context?.branch) parts.push(`Branch: ${data.context.branch}`);
 		console.log(`  ${parts.join(' | ')}`);
 		console.log(`  Created: ${data.createdAt}`);
 
 		// Participants
 		console.log();
 		console.log('  Participants:');
-		if (data.participants.length === 0) {
+		const participants = data.participants ?? [];
+		if (participants.length === 0) {
 			console.log('    (none)');
 		} else {
-			for (const p of data.participants) {
+			for (const p of participants) {
 				const idle = p.idle ? '  (idle)' : '';
 				const connected = p.connectedAt
 					? `  connected ${formatRelativeTime(p.connectedAt)}`
@@ -187,10 +161,11 @@ export const inspectSubcommand = createSubcommand({
 		}
 
 		// Tasks
-		if (data.tasks.length > 0) {
+		const tasks = data.tasks ?? [];
+		if (tasks.length > 0) {
 			console.log();
 			console.log('  Tasks:');
-			for (const t of data.tasks) {
+			for (const t of tasks) {
 				const dur = t.duration ? formatDuration(t.duration) : '-';
 				const prompt = t.prompt.length > 40 ? t.prompt.slice(0, 37) + '...' : t.prompt;
 				console.log(
@@ -200,7 +175,7 @@ export const inspectSubcommand = createSubcommand({
 		}
 
 		// Agent Activity
-		const agents = Object.values(data.agentActivity);
+		const agents = Object.values(data.agentActivity ?? {});
 		if (agents.length > 0) {
 			console.log();
 			console.log('  Agent Activity:');

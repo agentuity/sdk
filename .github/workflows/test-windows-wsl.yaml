@@ -108,7 +108,7 @@ jobs:
 
               CLI="bun packages/cli/bin/cli.ts"
               # Use GitHub expressions directly — env vars like GITHUB_RUN_ID
-              # and GITHUB_BASE_REF are NOT available inside WSL, but ${{ }}
+              # and GITHUB_BASE_REF are NOT available inside WSL, but
               # expressions are resolved at workflow parse time.
               PROJECT_NAME="test-wsl-${{ github.run_id }}"
               TEMPLATE_BRANCH="${{ github.head_ref || github.ref_name }}"

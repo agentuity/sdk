@@ -1,8 +1,18 @@
 import { createCommand } from '../../types';
-import { configSubcommand } from './config';
 import { listSubcommand } from './list';
-import { inspectSubcommand } from './inspect';
+import { getSubcommand } from './get';
 import { startSubcommand } from './start';
+import { createCoderSubcommand } from './create';
+import { deleteSubcommand } from './delete';
+import { archiveSubcommand } from './archive';
+import { updateSubcommand } from './update';
+import { usersSubcommand } from './users';
+import { loopSubcommand } from './loop';
+import { replaySubcommand } from './replay';
+import { participantsSubcommand } from './participants';
+import { eventsSubcommand } from './events';
+import { workspaceCommand } from './workspace';
+import { skillCommand } from './skill';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -15,18 +25,53 @@ export const command = createCommand({
 			description: 'Start a Pi session connected to the Coder Hub',
 		},
 		{
+			command: getCommand('coder create "Build a REST API"'),
+			description: 'Create a new Coder session with a task',
+		},
+		{
 			command: getCommand('coder ls'),
 			description: 'List all active Coder Hub sessions',
 		},
 		{
-			command: getCommand('coder inspect <session-id>'),
+			command: getCommand('coder get <session-id>'),
 			description: 'Show detailed session information',
 		},
 		{
-			command: getCommand('coder config set url https://hub.example.com'),
-			description: 'Set the default Coder Hub URL for this profile',
+			command: getCommand('coder users'),
+			description: 'List known Coder Hub users',
+		},
+		{
+			command: getCommand('coder loop <session-id>'),
+			description: 'Get loop state for a session',
+		},
+		{
+			command: getCommand('coder events <session-id> --limit 100'),
+			description: 'Show recent event history for a session',
+		},
+		{
+			command: getCommand('coder workspace list'),
+			description: 'List Coder workspaces',
+		},
+		{
+			command: getCommand('coder skill list'),
+			description: 'List saved skills',
 		},
 	],
-	subcommands: [startSubcommand, listSubcommand, inspectSubcommand, configSubcommand],
-	optional: { auth: true },
+	subcommands: [
+		startSubcommand,
+		createCoderSubcommand,
+		listSubcommand,
+		getSubcommand,
+		updateSubcommand,
+		deleteSubcommand,
+		archiveSubcommand,
+		usersSubcommand,
+		loopSubcommand,
+		replaySubcommand,
+		participantsSubcommand,
+		eventsSubcommand,
+		workspaceCommand,
+		skillCommand,
+	],
+	requires: { auth: true, org: true },
 });
