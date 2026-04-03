@@ -3,6 +3,7 @@ import {
 	QueueStorageService,
 	QueueValidationError,
 	QueueNotFoundError,
+	QueuePublishResultSchema,
 } from '../src/services/queue/service.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 import { ServiceException } from '../src/services/exception.ts';
@@ -11,11 +12,16 @@ describe('QueueStorageService', () => {
 	const baseUrl = 'https://api.example.com';
 
 	describe('publish', () => {
-		test('should publish message and return result from top-level response fields', async () => {
+		test('should publish message and return result from API envelope', async () => {
 			const mockData = {
-				id: 'qmsg_abc123',
-				offset: 42,
-				published_at: '2026-02-13T14:32:37.283Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_abc123',
+						offset: 42,
+						published_at: '2026-02-13T14:32:37.283Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -31,17 +37,21 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should handle response with additional fields (like real API)', async () => {
-			// Simulate the actual API response which includes extra fields
 			const mockData = {
-				id: 'qmsg_5k9lwhcsbk83nhwuhnbpdxnh',
-				queue_id: 'queue_v0g3a41tl9ngvk36t3nrjp',
-				offset: -1,
-				payload: { test: true },
-				size: 13,
-				state: 'pending',
-				delivery_attempts: 0,
-				published_at: '2026-02-13T14:32:37.283892318Z',
-				created_at: '2026-02-13T14:32:37.283892318Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_5k9lwhcsbk83nhwuhnbpdxnh',
+						queue_id: 'queue_v0g3a41tl9ngvk36t3nrjp',
+						offset: -1,
+						payload: { test: true },
+						size: 13,
+						state: 'pending',
+						delivery_attempts: 0,
+						published_at: '2026-02-13T14:32:37.283892318Z',
+						created_at: '2026-02-13T14:32:37.283892318Z',
+					},
+				},
 			};
 			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -55,9 +65,14 @@ describe('QueueStorageService', () => {
 
 		test('should publish string payload', async () => {
 			const mockData = {
-				id: 'qmsg_str1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_str1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -71,9 +86,14 @@ describe('QueueStorageService', () => {
 
 		test('should publish object payload', async () => {
 			const mockData = {
-				id: 'qmsg_obj1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_obj1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -87,9 +107,14 @@ describe('QueueStorageService', () => {
 
 		test('should include metadata when provided', async () => {
 			const mockData = {
-				id: 'qmsg_meta1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_meta1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -104,9 +129,14 @@ describe('QueueStorageService', () => {
 
 		test('should include partition_key when provided', async () => {
 			const mockData = {
-				id: 'qmsg_pk1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_pk1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -121,9 +151,14 @@ describe('QueueStorageService', () => {
 
 		test('should include idempotency_key when provided', async () => {
 			const mockData = {
-				id: 'qmsg_ik1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_ik1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -138,9 +173,14 @@ describe('QueueStorageService', () => {
 
 		test('should include ttl_seconds when provided', async () => {
 			const mockData = {
-				id: 'qmsg_ttl1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_ttl1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -153,9 +193,14 @@ describe('QueueStorageService', () => {
 
 		test('should include project_id when provided', async () => {
 			const mockData = {
-				id: 'qmsg_proj1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_proj1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -170,9 +215,14 @@ describe('QueueStorageService', () => {
 
 		test('should include agent_id when provided', async () => {
 			const mockData = {
-				id: 'qmsg_agent1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_agent1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -187,9 +237,14 @@ describe('QueueStorageService', () => {
 
 		test('should append sync=true query param when sync is true', async () => {
 			const mockData = {
-				id: 'qmsg_sync1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_sync1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -201,9 +256,14 @@ describe('QueueStorageService', () => {
 
 		test('should not append sync query param when sync is not set', async () => {
 			const mockData = {
-				id: 'qmsg_nosync1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_nosync1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -215,9 +275,14 @@ describe('QueueStorageService', () => {
 
 		test('should URL-encode queue name', async () => {
 			const mockData = {
-				id: 'qmsg_enc1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_enc1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -229,9 +294,14 @@ describe('QueueStorageService', () => {
 
 		test('should set content type to application/json', async () => {
 			const mockData = {
-				id: 'qmsg_ct1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_ct1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -243,9 +313,14 @@ describe('QueueStorageService', () => {
 
 		test('should set timeout signal', async () => {
 			const mockData = {
-				id: 'qmsg_sig1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_sig1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -257,9 +332,14 @@ describe('QueueStorageService', () => {
 
 		test('should set telemetry attributes', async () => {
 			const mockData = {
-				id: 'qmsg_tel1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_tel1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -332,9 +412,14 @@ describe('QueueStorageService', () => {
 
 		test('should accept valid queue names', async () => {
 			const mockData = {
-				id: 'qmsg_valid1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_valid1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter } = createMockAdapter([
 				{ ok: true, data: mockData },
@@ -392,9 +477,14 @@ describe('QueueStorageService', () => {
 
 		test('should allow zero TTL', async () => {
 			const mockData = {
-				id: 'qmsg_ttl0',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_ttl0',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 
@@ -410,9 +500,14 @@ describe('QueueStorageService', () => {
 		test('should call onBefore for publish operation', async () => {
 			const onBeforeCalls: { url: string; method: string }[] = [];
 			const mockData = {
-				id: 'qmsg_hook1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_hook1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter, beforeCalls } = createMockAdapter([{ ok: true, data: mockData }], {
 				onBefore: async (url, options, invoke) => {
@@ -435,9 +530,14 @@ describe('QueueStorageService', () => {
 		test('should call onAfter on successful publish', async () => {
 			const afterCalls: { status: number; hasError: boolean }[] = [];
 			const mockData = {
-				id: 'qmsg_after1',
-				offset: 0,
-				published_at: '2026-02-13T00:00:00Z',
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_after1',
+						offset: 0,
+						published_at: '2026-02-13T00:00:00Z',
+					},
+				},
 			};
 			const { adapter } = createMockAdapter([{ ok: true, data: mockData }], {
 				onAfter: async (response, error) => {
@@ -472,7 +572,10 @@ describe('QueueStorageService', () => {
 
 	describe('createQueue', () => {
 		test('should create queue and return result', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			const result = await service.createQueue('my_queue');
@@ -484,7 +587,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should create pubsub queue when specified', async () => {
-			const mockData = { name: 'events', queue_type: 'pubsub' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'events', queue_type: 'pubsub' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			const result = await service.createQueue('events', { queueType: 'pubsub' });
@@ -494,7 +600,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should default to worker queue type', async () => {
-			const mockData = { name: 'tasks', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'tasks', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('tasks');
@@ -503,7 +612,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should include description when provided', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('my_queue', { description: 'Test queue' });
@@ -512,7 +624,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should include settings when provided', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('my_queue', {
@@ -529,7 +644,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should handle null defaultTtlSeconds in settings', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('my_queue', {
@@ -549,7 +667,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should cache known queues and skip API call on second create', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 
@@ -586,7 +707,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should set content type to application/json', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('my_queue');
@@ -594,7 +718,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should set telemetry attributes', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('my_queue');
@@ -603,7 +730,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should set timeout signal', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockData }]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await service.createQueue('my_queue');
@@ -649,7 +779,10 @@ describe('QueueStorageService', () => {
 		});
 
 		test('should remove queue from known queues cache after delete', async () => {
-			const mockData = { name: 'my_queue', queue_type: 'worker' };
+			const mockData = {
+				success: true,
+				data: { queue: { name: 'my_queue', queue_type: 'worker' } },
+			};
 			const { adapter, calls } = createMockAdapter<unknown>([
 				{ ok: true, data: mockData }, // createQueue response
 				{ ok: true, data: {} }, // deleteQueue response
@@ -742,6 +875,290 @@ describe('QueueStorageService', () => {
 			const { adapter } = createMockAdapter([]);
 			const service = new QueueStorageService(baseUrl, adapter);
 			await expect(service.deleteQueue('1queue')).rejects.toThrow(QueueValidationError);
+		});
+	});
+
+	describe('publish - response envelope handling (P0)', () => {
+		test('should correctly unwrap API envelope format', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_envelope_test',
+						offset: 99,
+						published_at: '2026-04-02T12:00:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.id).toBe('qmsg_envelope_test');
+			expect(result.offset).toBe(99);
+			expect(result.publishedAt).toBe('2026-04-02T12:00:00Z');
+		});
+
+		test('should handle flat response format (backward compat)', async () => {
+			const mockData = {
+				id: 'qmsg_flat_test',
+				offset: 7,
+				published_at: '2026-04-02T13:00:00Z',
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.id).toBe('qmsg_flat_test');
+			expect(result.offset).toBe(7);
+			expect(result.publishedAt).toBe('2026-04-02T13:00:00Z');
+		});
+
+		test('should never return undefined fields (regression for #1330)', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_no_undef',
+						offset: 0,
+						published_at: '2026-04-02T14:00:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.id).toBeDefined();
+			expect(result.offset).toBeDefined();
+			expect(result.publishedAt).toBeDefined();
+			expect(JSON.stringify(result)).not.toBe('{}');
+		});
+
+		test('should return correct field types', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_types_test',
+						offset: 42,
+						published_at: '2026-04-02T15:00:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(typeof result.id).toBe('string');
+			expect(typeof result.offset).toBe('number');
+			expect(typeof result.publishedAt).toBe('string');
+		});
+
+		test('should throw on response missing required fields', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+
+			await expect(service.publish('my_queue', 'test')).rejects.toThrow();
+		});
+
+		test('should throw on completely empty response body', async () => {
+			const mockData = {};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+
+			await expect(service.publish('my_queue', 'test')).rejects.toThrow();
+		});
+	});
+
+	describe('publish - field mapping (P1)', () => {
+		test('should map published_at to publishedAt', async () => {
+			const timestamp = '2026-04-02T16:30:45.123Z';
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_map1',
+						offset: 1,
+						published_at: timestamp,
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.publishedAt).toBe(timestamp);
+			expect((result as Record<string, unknown>)['published_at']).toBeUndefined();
+		});
+
+		test('should ignore extra fields from server response', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_extra',
+						queue_id: 'queue_should_be_ignored',
+						offset: 5,
+						payload: { data: true },
+						size: 42,
+						state: 'pending',
+						delivery_attempts: 0,
+						published_at: '2026-04-02T17:00:00Z',
+						created_at: '2026-04-02T17:00:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.id).toBe('qmsg_extra');
+			expect(result.offset).toBe(5);
+			expect(result.publishedAt).toBe('2026-04-02T17:00:00Z');
+			// Should only have the 3 expected fields
+			const keys = Object.keys(result);
+			expect(keys).toContain('id');
+			expect(keys).toContain('offset');
+			expect(keys).toContain('publishedAt');
+			expect(keys).not.toContain('queue_id');
+			expect(keys).not.toContain('state');
+			expect(keys).not.toContain('size');
+		});
+
+		test('should handle offset of -1 for async publish', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_async',
+						offset: -1,
+						published_at: '2026-04-02T18:00:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.offset).toBe(-1);
+		});
+
+		test('should handle offset of 0', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_zero',
+						offset: 0,
+						published_at: '2026-04-02T18:30:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			expect(result.offset).toBe(0);
+		});
+	});
+
+	describe('publish - schema validation (P1)', () => {
+		test('should return result matching QueuePublishResultSchema', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_schema_test',
+						offset: 10,
+						published_at: '2026-04-02T19:00:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			// Validate against the schema
+			const validation = QueuePublishResultSchema.safeParse(result);
+			expect(validation.success).toBe(true);
+		});
+
+		test('should serialize to non-empty JSON', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					message: {
+						id: 'qmsg_json_test',
+						offset: 20,
+						published_at: '2026-04-02T19:30:00Z',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.publish('my_queue', 'test');
+
+			const json = JSON.parse(JSON.stringify(result));
+			expect(json.id).toBe('qmsg_json_test');
+			expect(json.offset).toBe(20);
+			expect(json.publishedAt).toBe('2026-04-02T19:30:00Z');
+		});
+	});
+
+	describe('createQueue - response envelope handling (P0)', () => {
+		test('should correctly unwrap API envelope format', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					queue: {
+						name: 'envelope_queue',
+						queue_type: 'pubsub',
+						id: 'queue_xxx',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.createQueue('envelope_queue', { queueType: 'pubsub' });
+
+			expect(result.name).toBe('envelope_queue');
+			expect(result.queueType).toBe('pubsub');
+		});
+
+		test('should handle flat response format (backward compat)', async () => {
+			const mockData = { name: 'flat_queue', queue_type: 'worker' };
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			const result = await service.createQueue('flat_queue');
+
+			expect(result.name).toBe('flat_queue');
+			expect(result.queueType).toBe('worker');
+		});
+
+		test('should use server values, not fallback defaults (regression)', async () => {
+			const mockData = {
+				success: true,
+				data: {
+					queue: {
+						name: 'server_name',
+						queue_type: 'pubsub',
+					},
+				},
+			};
+			const { adapter } = createMockAdapter([{ ok: true, data: mockData }]);
+			const service = new QueueStorageService(baseUrl, adapter);
+			// Pass different defaults to verify server values take precedence
+			const result = await service.createQueue('server_name', { queueType: 'worker' });
+
+			expect(result.name).toBe('server_name');
+			expect(result.queueType).toBe('pubsub'); // Server says pubsub, not the default worker
 		});
 	});
 });

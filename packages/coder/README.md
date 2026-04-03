@@ -1,57 +1,95 @@
 # @agentuity/coder
 
-Lightweight [Pi TUI](https://github.com/mariozechner/pi-coding-agent) extension that connects to the Agentuity Coder Hub.
+Standalone package for the Agentuity Coder service. Provides a simple, ergonomic client for managing Coder Hub sessions, participants, replay data, loop state, and users.
 
-## Purpose
+## Installation
 
-This package is a **pure protocol adapter** between Pi's extension API and the Coder Hub server. It contains zero hardcoded tool schemas or agent definitions — everything is driven by the server's `InitMessage` at startup.
+```bash
+npm install @agentuity/coder
+```
 
-The extension runs inside **Pi's Node.js process**, not the Agentuity runtime.
+## Quick Start
 
-## Architecture
+```typescript
+import { CoderClient } from '@agentuity/coder';
 
-| File | Lines | Role |
-|------|-------|------|
-| `src/index.ts` | ~660 | Main extension entry — tool/event registration, sub-agent execution |
-| `src/handlers.ts` | ~100 | Action processing (ACK, BLOCK, RETURN, NOTIFY, CONFIRM, etc.) |
-| `src/protocol.ts` | ~130 | TypeBox protocol types (InitMessage, requests, actions, responses) |
-| `src/client.ts` | ~145 | HubClient — WebSocket client with request/response correlation |
+const client = new CoderClient();
 
-## Connection Flow
+// List sessions
+const { sessions } = await client.listSessions({ limit: 10 });
+for (const session of sessions) {
+  console.log(`${session.sessionId}: ${session.label} (${session.status})`);
+}
 
-1. **Extension loads** — `agentuityCoderHub(pi)` is called by Pi
-2. **Sync bootstrap** — `fetchInitMessageSync()` calls Hub's REST `/api/hub/init` endpoint via `curl` + `execFileSync` to discover available tools and agents _before_ registration returns
-3. **Tool registration** — Hub tools (memory, context7, etc.) are registered with Pi using server-provided JSON Schemas
-4. **Lazy WebSocket** — On first event (`session_start`), a persistent WebSocket connection is established for runtime communication
-5. **Event proxy** — Pi lifecycle events are forwarded to Hub; Hub responds with actions (ACK, BLOCK, SYSTEM_PROMPT, etc.)
-6. **Tool execution** — When Pi invokes a Hub tool, the request is sent over WebSocket and the RETURN action result is passed back
+// Create a new session
+const session = await client.createSession({
+  task: 'Implement feature X',
+  workflowMode: 'standard',
+});
+console.log(`Created session: ${session.sessionId}`);
 
-## Sub-Agent Flow
+// Get session details
+const details = await client.getSession(session.sessionId);
+console.log(`Task: ${details.task}`);
 
-1. **Lead delegates** — Lead agent calls the `task` or `parallel_tasks` tool
-2. **In-process session** — `runSubAgent()` creates a Pi `createAgentSession()` inside the same process (no subprocess spawning)
-3. **Hub tools via extensionFactories** — Sub-agents receive Hub tools (memory, context7, etc.) through Pi's `extensionFactories` mechanism, sharing the parent's WebSocket connection
-4. **Isolation** — Sub-agents run with `noExtensions: true` to prevent recursive task tool registration
-5. **Output limits** — Results are truncated to 200KB / 5K lines to prevent context bloat
+// Archive a session
+await client.archiveSession(session.sessionId);
+```
 
-## Requirements
+## Configuration
 
-- **`curl` binary** — Required for the synchronous REST bootstrap (`fetchInitMessageSync`). Available by default on macOS, Linux, and Windows 10+.
-- **Pi coding agent** — This extension is loaded by Pi's extension system.
+```typescript
+const client = new CoderClient({
+  apiKey: 'your-api-key',
+  url: 'https://your-coder-hub-url.example.com',
+  orgId: 'your-org-id',
+});
+```
 
-## Environment Variables
+### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `AGENTUITY_CODER_HUB_URL` | Yes | WebSocket URL for the Coder Hub (e.g., `ws://localhost:3000/api/ws`) |
-| `AGENTUITY_CODER_AGENT` | No | Agent role name. If set, the extension runs as a sub-agent (not lead). |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AGENTUITY_SDK_KEY` | API key for authentication | Required |
+| `AGENTUITY_REGION` | Region for API endpoints | `usc` |
+| `AGENTUITY_CODER_URL` | Override Coder Hub API URL | Auto-discovered via Catalyst |
 
-## Design Decisions
+## API Reference
 
-### Why `curl` + `execFileSync`?
+### `CoderClient`
 
-Pi's extension registration is **synchronous** — tools must be registered before the extension function returns. Node's `fetch()` is async-only, and `Bun.spawnSync` isn't available in Pi's Node.js runtime. Using `curl` via `execFileSync` is the simplest way to make a synchronous HTTP request without adding dependencies.
+Main client for interacting with the Coder Hub API.
 
-### Why no hardcoded schemas?
+#### Constructor
 
-The Hub server is the single source of truth for tool definitions, agent configurations, and system prompts. This keeps the extension thin and allows the Hub to evolve without extension updates.
+```typescript
+new CoderClient(options?: CoderClientOptions)
+```
+
+Options:
+- `apiKey` - API key (defaults to `AGENTUITY_SDK_KEY` env var)
+- `url` - Coder Hub API URL (defaults to `AGENTUITY_CODER_URL` env var, or auto-discovered)
+- `region` - Region for Catalyst URL resolution (defaults to `AGENTUITY_REGION` env var)
+- `orgId` - Organization ID for multi-tenant operations
+- `logger` - Custom logger instance
+
+#### Methods
+
+- `getUrl()` - Get the resolved Coder Hub base URL
+- `createSession(body)` - Create a new coder session
+- `getSession(sessionId)` - Get session details
+- `updateSession(sessionId, body)` - Update a session
+- `listSessions(params?)` - List sessions with optional filtering
+- `deleteSession(sessionId)` - Permanently delete a session
+- `archiveSession(sessionId)` - Archive an active session
+- `resumeSession(sessionId)` - Resume an archived session
+- `listConnectableSessions(params?)` - List sessions the caller can connect to
+- `getReplay(sessionId, params?)` - Get replay data for a session
+- `listParticipants(sessionId, params?)` - List session participants
+- `listEventHistory(sessionId, params?)` - List historical events for a session
+- `getLoopState(sessionId, params?)` - Get loop-mode state for a session
+- `listUsers(params?)` - List known users in the coder hub
+
+## License
+
+Apache-2.0

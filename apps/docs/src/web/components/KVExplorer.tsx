@@ -1,16 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Separator } from './ui';
 
 export function KVExplorer() {
 	const [keys, setKeys] = useState<string[]>([]);
-	const [selectedKey, setSelectedKey] = useState<string | null>(null);
+	const [selectedKey, setSelectedKey] = usePersistentDemoState<string | null>(
+		'key-value',
+		'selectedKey',
+		{ defaultValue: null, storage: 'session' }
+	);
 	const [selectedValue, setSelectedValue] = useState<unknown>(null);
 	const [loading, setLoading] = useState(false);
 	const [seeding, setSeeding] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [seeded, setSeeded] = useState(false);
 
-	const fetchKeys = useCallback(async () => {
+	const fetchKeys = useCallback(async (): Promise<string[] | null> => {
 		setLoading(true);
 		setError(null);
 		try {
@@ -23,19 +28,54 @@ export function KVExplorer() {
 				if (keysList.length > 0) {
 					setSeeded(true);
 				}
-			} else {
-				setError('Failed to fetch keys');
+				return keysList;
 			}
+			setError('Failed to fetch keys');
+			return null;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Unknown error');
+			return null;
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
+	// Capture the initial persisted key so the mount effect can restore it
+	// without adding selectedKey to deps (which would re-trigger on every selection).
+	const initialKeyRef = useRef(selectedKey);
+
 	useEffect(() => {
-		fetchKeys();
-	}, [fetchKeys]);
+		const keyToRestore = initialKeyRef.current;
+		fetchKeys().then(async (loadedKeys) => {
+			if (loadedKeys === null) return;
+			if (keyToRestore) {
+				if (!loadedKeys.includes(keyToRestore)) {
+					// Persisted key no longer exists in loaded keys, clear stale state
+					setSelectedKey(null);
+					setSelectedValue(null);
+					return;
+				}
+				try {
+					const response = await fetch(
+						`/api/key-value/get/${encodeURIComponent(keyToRestore)}`
+					);
+					const data = await response.json();
+					if (data.success) {
+						setSelectedKey(keyToRestore);
+						setSelectedValue(data.value);
+					} else {
+						// Fetch failed, clear stale persisted key
+						setSelectedKey(null);
+						setSelectedValue(null);
+					}
+				} catch {
+					// Restore failed, clear stale state
+					setSelectedKey(null);
+					setSelectedValue(null);
+				}
+			}
+		});
+	}, [fetchKeys, setSelectedKey]);
 
 	const fetchValue = async (key: string) => {
 		setLoading(true);

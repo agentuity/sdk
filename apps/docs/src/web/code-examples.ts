@@ -186,14 +186,14 @@ ctx.logger.info("Cleaned up", { filename, existsAfter });`,
 
 	'sse-stream': `// Server-Sent Events (SSE) for real-time streaming to clients.
 // Perfect for LLM token streaming, progress updates, and live feeds.
-import { createRouter, sse } from "@agentuity/runtime";
+import { Hono } from "hono";
+import { type Env, sse } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = createRouter();
-
-// sse() middleware with flattened (c, stream) signature
-router.get("/stream", sse(async (c, stream) => {
+const router = new Hono<Env>()
+  // sse() middleware with flattened (c, stream) signature
+  .get("/stream", sse(async (c, stream) => {
   const prompt = c.req.query("prompt") ?? "Tell me a story";
 
   c.var.logger?.info("SSE stream started", { prompt });
@@ -224,15 +224,15 @@ router.get("/stream", sse(async (c, stream) => {
 
 	streaming: `// Raw streaming for simple text responses.
 // Simpler than SSE - just returns a ReadableStream directly.
-import { createRouter, stream } from "@agentuity/runtime";
+import { Hono } from "hono";
+import { type Env, stream } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = createRouter();
-
-// stream() middleware wraps your handler and pipes the ReadableStream
-// Clients consume with fetch + getReader()
-router.post("/stream", stream(async (c) => {
+const router = new Hono<Env>()
+  // stream() middleware wraps your handler and pipes the ReadableStream
+  // Clients consume with fetch + getReader()
+  .post("/stream", stream(async (c) => {
   const { prompt } = await c.req.json();
 
   c.var.logger?.info("Streaming started", { prompt });
@@ -297,13 +297,13 @@ router.post("/hourly-task", cron("0 * * * *", async (c) => {
 
 	'durable-stream': `// Create durable content with shareable URLs.
 // Unlike ephemeral streams, content persists forever.
-import { createRouter } from "@agentuity/runtime";
+import { Hono } from "hono";
+import type { Env } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = createRouter();
-
-router.post("/generate", async (c) => {
+const router = new Hono<Env>()
+  .post("/generate", async (c) => {
   // Create stream - returns a public URL
   const stream = await c.var.stream.create("summary", {
     contentType: "text/plain",
@@ -311,7 +311,7 @@ router.post("/generate", async (c) => {
   });
 
   // Write content in background
-  c.var.waitUntil(async () => {
+  c.waitUntil(async () => {
     const { textStream } = streamText({
       model: openai("gpt-5-nano"),
       prompt: "Write a summary of what Agentuity is.",
@@ -323,18 +323,17 @@ router.post("/generate", async (c) => {
     await stream.close();
   });
 
-  // Return URL immediately - shareable with anyone
-  return c.json({
-    url: stream.url,    // Public, permanent URL
-    id: stream.id,
-  });
-});
-
-// List all generated summaries
-router.get("/list", async (c) => {
-  const { streams } = await c.var.stream.list({ name: "summary" });
-  return c.json(streams);
-});`,
+    // Return URL immediately - shareable with anyone
+    return c.json({
+      url: stream.url,    // Public, permanent URL
+      id: stream.id,
+    });
+  })
+  // List all generated summaries
+  .get("/list", async (c) => {
+    const { streams } = await c.var.stream.list({ name: "summary" });
+    return c.json(streams);
+  });`,
 
 	chat: `// Multi-turn chat with thread and session state
 // Demonstrates: thread state, session state APIs
@@ -497,4 +496,118 @@ export const factualClaimsEval = agent.createEval("factual-claims", {
     };
   },
 });`,
+
+	queue: `// Message Queue: publish messages for async processing.
+// Agents publish via ctx.queue. Workers receive and ack/nack.
+
+// CREATE a queue with worker type and retry settings
+const queueName = "task-queue";
+await ctx.queue.createQueue(queueName, {
+  queueType: "worker",
+  settings: {
+    defaultMaxRetries: 3,
+    defaultVisibilityTimeoutSeconds: 30,
+  },
+});
+
+// PUBLISH a message (sync mode returns the published message)
+const result = await ctx.queue.publish(queueName, {
+  task: "process-order",
+  orderId: "order-123",
+  priority: "high",
+}, {
+  sync: true,
+  metadata: { source: "checkout" },
+  idempotencyKey: "order-123-v1",
+});
+
+ctx.logger.info("Published", {
+  id: result.id,
+  offset: result.offset,
+});
+
+// PUBLISH another message (fire-and-forget, no sync)
+await ctx.queue.publish(queueName, {
+  task: "send-receipt",
+  orderId: "order-123",
+});
+
+// CLEANUP
+await ctx.queue.deleteQueue(queueName);
+ctx.logger.info("Queue deleted");`,
+
+	email: `import { createAgent } from "@agentuity/runtime";
+import { s } from "@agentuity/schema";
+
+const agent = createAgent("email-sender", {
+  description: "Send a welcome email",
+  schema: {
+    input: s.object({
+      template: s.literal("welcome"),
+    }),
+    output: s.object({
+      id: s.string(),
+      status: s.string(),
+    }),
+  },
+  handler: async (ctx, { template }) => {
+    // ctx.email.send() handles delivery via the platform
+    const result = await ctx.email.send({
+      from: "hello-explorer@agentuity.email",
+      to: ["inbox-explorer@agentuity.email"],
+      subject: "Welcome to Agentuity!",
+      text: "Hi, welcome to the platform.",
+      html: "<h1>Welcome!</h1><p>Get started with Agentuity.</p>",
+    });
+
+    ctx.logger.info("Email sent", { id: result.id });
+    return { id: result.id, status: result.status };
+  },
+});`,
+
+	database: `// Database: type-safe PostgreSQL queries with Drizzle ORM.
+// Same chairs as the vector demo — found by exact criteria instead of meaning.
+import { createPostgresDrizzle, pgTable, text, real, serial, lt, gte, ilike, sql } from "@agentuity/drizzle";
+
+// Define your schema in TypeScript
+const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  sku: text("sku").notNull().unique(),
+  name: text("name").notNull(),
+  price: real("price").notNull(),
+  avg_rating: real("avg_rating").notNull(),
+  description: text("description").notNull(),
+  customer_feedback: text("customer_feedback").notNull(),
+});
+
+// Connect (uses DATABASE_URL by default)
+const { db, close } = createPostgresDrizzle({ schema: { products } });
+
+// All products
+const all = await db.select().from(products);
+ctx.logger.info("All products", { count: all.length });
+
+// Budget chairs (under $200)
+const budget = await db.select().from(products).where(lt(products.price, 200));
+ctx.logger.info("Budget chairs", { count: budget.length });
+
+// Top rated (4.5+)
+const topRated = await db.select().from(products).where(gte(products.avg_rating, 4.5));
+ctx.logger.info("Top rated", { count: topRated.length });
+
+// Search by keyword
+const search = await db.select().from(products).where(ilike(products.name, "%Ergo%"));
+ctx.logger.info("Search results", { count: search.length });
+
+// Aggregates (raw SQL for functions not in the Drizzle re-exports)
+const result = await db.execute(sql\`
+  SELECT ROUND(AVG(price)::numeric, 2) AS "avgPrice",
+         MIN(price) AS "minPrice", MAX(price) AS "maxPrice",
+         COUNT(*)::int AS "total"
+  FROM products
+\`);
+const summary = result.rows[0];
+ctx.logger.info("Price summary", summary);
+
+await close();`,
 };

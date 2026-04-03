@@ -1,22 +1,19 @@
 import { z } from 'zod';
+import {
+	CoderClient,
+	type CoderSessionListItem,
+	CoderSessionListItemSchema,
+} from '@agentuity/core/coder';
+import { ValidationOutputError } from '@agentuity/core';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import {
-	clearStoredHubApiKeyOnUnauthorized,
-	formatHubUnauthorizedMessage,
-	formatMissingHubUrlMessage,
-	getHubResponseErrorMessage,
-	getHubUrlSetupGuidance,
-	hubFetchHeaders,
-	isHubUnauthorizedStatus,
-	resolveHubApiKey,
-	resolveHubUrl,
-} from './hub-url';
 
 function formatRelativeTime(isoDate: string): string {
-	const diffMs = Date.now() - new Date(isoDate).getTime();
+	const parsed = new Date(isoDate).getTime();
+	if (Number.isNaN(parsed)) return 'unknown';
+	const diffMs = Math.max(0, Date.now() - parsed);
 	const seconds = Math.floor(diffMs / 1000);
 	if (seconds < 60) return `${seconds}s ago`;
 	const minutes = Math.floor(seconds / 60);
@@ -26,20 +23,6 @@ function formatRelativeTime(isoDate: string): string {
 	const days = Math.floor(hours / 24);
 	return `${days}d ago`;
 }
-
-const SessionListResponseSchema = z.array(
-	z.object({
-		sessionId: z.string().describe('Session ID'),
-		label: z.string().describe('Human-readable session label'),
-		status: z.string().describe('Session status'),
-		mode: z.string().describe('Session mode (sandbox or tui)'),
-		createdAt: z.string().describe('Creation timestamp'),
-		taskCount: z.number().describe('Number of tasks'),
-		subAgentCount: z.number().describe('Number of sub-agents'),
-		observerCount: z.number().describe('Number of observers'),
-		participantCount: z.number().describe('Total participant count'),
-	})
-);
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
@@ -57,74 +40,33 @@ export const listSubcommand = createSubcommand({
 	],
 	aliases: ['ls'],
 	idempotent: true,
+	requires: { auth: true, org: true },
 	schema: {
 		options: z.object({
-			hubUrl: z.string().optional().describe('Hub URL override'),
+			url: z.string().optional().describe('Coder API URL override'),
 		}),
-		response: SessionListResponseSchema,
+		response: z.array(CoderSessionListItemSchema),
 	},
 	async handler(ctx) {
-		const { options, opts, config } = ctx;
-		const hubUrl = await resolveHubUrl(opts?.hubUrl, config);
+		const { options, opts } = ctx;
+		const client = new CoderClient({
+			apiKey: ctx.auth.apiKey,
+			url: opts?.url,
+			orgId: ctx.orgId,
+		});
 
-		if (!hubUrl) {
-			tui.fatal(formatMissingHubUrlMessage(), ErrorCode.NETWORK_ERROR);
-		}
-
-		const resolvedHubApiKey = await resolveHubApiKey(config);
-
-		let data: {
-			sessions: {
-				websocket: Array<{
-					sessionId: string;
-					label: string;
-					status: string;
-					mode: string;
-					createdAt: string;
-					taskCount: number;
-					subAgentCount: number;
-					observerCount: number;
-					participantCount: number;
-				}>;
-				sandbox: Array<Record<string, unknown>>;
-			};
-			total: number;
-		};
-
+		let sessions: CoderSessionListItem[] = [];
 		try {
-			const resp = await fetch(`${hubUrl}/api/hub/sessions`, {
-				headers: hubFetchHeaders(undefined, resolvedHubApiKey.apiKey),
-				signal: AbortSignal.timeout(10_000),
-			});
-			if (!resp.ok) {
-				const message = await getHubResponseErrorMessage(resp);
-				if (isHubUnauthorizedStatus(resp.status)) {
-					const clearedStoredKey = await clearStoredHubApiKeyOnUnauthorized(
-						resp.status,
-						resolvedHubApiKey,
-						config
-					);
-					tui.fatal(
-						formatHubUnauthorizedMessage(hubUrl, message, { clearedStoredKey }),
-						ErrorCode.API_ERROR
-					);
-				}
-
-				tui.fatal(
-					`Hub returned ${resp.status}: ${message}. Is the Coder Hub running at ${hubUrl}?`,
-					ErrorCode.API_ERROR
-				);
-			}
-			data = (await resp.json()) as typeof data;
+			const response = await client.listSessions();
+			sessions = response.sessions;
 		} catch (err) {
+			if (err instanceof ValidationOutputError) {
+				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
+				ctx.logger.trace('Validation issues: %s', JSON.stringify(err.issues, null, 2));
+			}
 			const msg = err instanceof Error ? err.message : String(err);
-			tui.fatal(
-				`Could not connect to Coder Hub at ${hubUrl}: ${msg}\n\n${getHubUrlSetupGuidance()}`,
-				ErrorCode.NETWORK_ERROR
-			);
+			tui.fatal(`Failed to list Coder sessions: ${msg}`, ErrorCode.NETWORK_ERROR);
 		}
-
-		const sessions = data.sessions.websocket;
 
 		if (options.json) {
 			return sessions;
@@ -140,6 +82,7 @@ export const listSubcommand = createSubcommand({
 			Label: s.label || '-',
 			Status: s.status,
 			Mode: s.mode,
+			Owner: s.owner?.name ?? s.owner?.userId ?? '-',
 			Observers: String(s.observerCount),
 			Agents: String(s.subAgentCount),
 			Tasks: String(s.taskCount),
@@ -151,6 +94,7 @@ export const listSubcommand = createSubcommand({
 			{ name: 'Label', alignment: 'left' },
 			{ name: 'Status', alignment: 'center' },
 			{ name: 'Mode', alignment: 'center' },
+			{ name: 'Owner', alignment: 'left' },
 			{ name: 'Observers', alignment: 'right' },
 			{ name: 'Agents', alignment: 'right' },
 			{ name: 'Tasks', alignment: 'right' },

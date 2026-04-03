@@ -681,13 +681,13 @@ else
 	fail "rm file still exists" "$RM_VERIFY"
 fi
 
-# Test: Remove non-existent file (should fail gracefully)
+# Test: Remove non-existent file (idempotent - succeeds with warning)
 info "Test: sandbox fs rm - non-existent file"
 RM_NOFILE=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/nonexistent.txt 2>&1) || true
-if echo "$RM_NOFILE" | grep -qi "not found\|error\|fail"; then
-	pass "sandbox fs rm reports error for non-existent file"
+if echo "$RM_NOFILE" | grep -qi "not found"; then
+	pass "sandbox fs rm warns file not found for non-existent file"
 else
-	fail "sandbox fs rm did not report error for non-existent file" "$RM_NOFILE"
+	fail "sandbox fs rm did not warn about non-existent file" "$RM_NOFILE"
 fi
 
 # Test: rm on directory should fail (use rmdir instead)
