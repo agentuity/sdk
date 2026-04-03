@@ -4,7 +4,7 @@ import { normalizeCoderUrl } from './util.ts';
 
 export const DiscoverCoderUrlDataSchema = z
 	.object({
-		url: z.string().describe('Discovered base URL for the organization coder hub API'),
+		url: z.string().describe('Discovered base URL for the organization Coder URL'),
 	})
 	.describe('Response payload for coder URL discovery');
 
