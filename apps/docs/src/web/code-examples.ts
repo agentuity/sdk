@@ -510,8 +510,8 @@ await ctx.queue.createQueue(queueName, {
   },
 });
 
-// PUBLISH a message (sync mode returns the published message)
-const result = await ctx.queue.publish(queueName, {
+// PUBLISH a message
+const published = await ctx.queue.publish(queueName, {
   task: "process-order",
   orderId: "order-123",
   priority: "high",
@@ -521,10 +521,13 @@ const result = await ctx.queue.publish(queueName, {
   idempotencyKey: "order-123-v1",
 });
 
-ctx.logger.info("Published", {
-  id: result.id,
-  offset: result.offset,
-});
+ctx.logger.info("Published processing job");
+
+// If you need queue metadata:
+// ctx.logger.info("Message metadata", {
+//   id: published.id,
+//   offset: published.offset,
+// });
 
 // PUBLISH another message (fire-and-forget, no sync)
 await ctx.queue.publish(queueName, {
@@ -540,28 +543,53 @@ ctx.logger.info("Queue deleted");`,
 import { s } from "@agentuity/schema";
 
 const agent = createAgent("email-sender", {
-  description: "Send a welcome email",
+  description: "Send a demo email",
   schema: {
     input: s.object({
       template: s.literal("welcome"),
+      to: s.string().email(),
     }),
     output: s.object({
-      id: s.string(),
       status: s.string(),
+      subject: s.string(),
+      to: s.array(s.string()),
+      from: s.string(),
     }),
   },
-  handler: async (ctx, { template }) => {
-    // ctx.email.send() handles delivery via the platform
-    const result = await ctx.email.send({
-      from: "hello-explorer@agentuity.email",
-      to: ["inbox-explorer@agentuity.email"],
-      subject: "Welcome to Agentuity!",
-      text: "Hi, welcome to the platform.",
-      html: "<h1>Welcome!</h1><p>Get started with Agentuity.</p>",
+  handler: async (ctx, { template, to }) => {
+    const subject = "Hello from the Agentuity SDK Explorer";
+    const from = "hello-explorer@agentuity.email";
+
+    ctx.logger.info("Sending email demo", {
+      subject,
+      to: [to],
     });
 
-    ctx.logger.info("Email sent", { id: result.id });
-    return { id: result.id, status: result.status };
+    const result = await ctx.email.send({
+      from,
+      to: [to],
+      subject,
+      text: "This is a demo email from Agentuity's SDK Explorer.",
+      html: "<p>This is a demo email from Agentuity's SDK Explorer, sent with <code>ctx.email.send()</code>.</p>",
+    });
+
+    // send() returns immediately with a pending record.
+    const outbound = await ctx.email.getOutbound(result.id);
+
+    // If you need the outbound record later:
+    // const outboundId = result.id;
+    // const fullRecord = await ctx.email.getOutbound(result.id);
+
+    // Inbound is a separate flow:
+    // const inbox = await ctx.email.listInbound("eaddr_abc123");
+    // const reply = await ctx.email.getInbound("einb_abc123");
+
+    return {
+      status: outbound?.status ?? result.status,
+      subject,
+      to: [to],
+      from,
+    };
   },
 });`,
 
@@ -599,7 +627,7 @@ ctx.logger.info("Top rated", { count: topRated.length });
 const search = await db.select().from(products).where(ilike(products.name, "%Ergo%"));
 ctx.logger.info("Search results", { count: search.length });
 
-// Aggregates (raw SQL for functions not in the Drizzle re-exports)
+// Aggregates are a good sandbox default because they keep output compact.
 const result = await db.execute(sql\`
   SELECT ROUND(AVG(price)::numeric, 2) AS "avgPrice",
          MIN(price) AS "minPrice", MAX(price) AS "maxPrice",

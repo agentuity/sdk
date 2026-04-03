@@ -511,17 +511,16 @@ export const DEMOS: DemoConfig[] = [
 		id: 'email',
 		title: 'Email',
 		subtitle: 'Send & Receive',
-		description: 'Send templated emails and preview delivery.',
+		description: 'Preview the email, send it to your inbox, and inspect delivery status.',
 		explanation: (
 			<>
 				Send transactional emails using <em>ctx.email.send()</em> with full control over HTML
 				content, recipients, and attachments.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					Choose a template and watch the email get sent and previewed
+					Preview the exact HTML first, then send it to an address you control
 				</span>
-				. Under the hood, the platform handles delivery, bounce tracking, and DNS configuration.
-				For receiving emails, configure <em>email destinations</em> to route inbound messages to
-				your agent handlers.
+				. The same API also supports managed inboxes, destinations, and inbound message
+				inspection, so you can pair outbound sends with receive workflows when you need them.
 			</>
 		),
 		docsUrl: '/services/email',
@@ -561,7 +560,7 @@ export const DEMOS: DemoConfig[] = [
 		codeExample: CODE_EXAMPLES.database,
 		sandboxEnabled: true,
 		sandboxScript: 'database',
-		sandboxInput: { query: 'all', seedData: true },
+		sandboxInput: { query: 'summary', seedData: true },
 	},
 ];
 

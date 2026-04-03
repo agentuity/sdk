@@ -1,7 +1,9 @@
-import { type ChangeEvent, useCallback, useRef, useState } from 'react';
-import { EMAIL_FROM, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { EMAIL_FROM, generateEmailContent, isValidEmail } from '../../lib/email-templates';
 import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Badge, Button, Input, Separator } from './ui';
+
+type EmailDeliveryState = 'queued' | 'delivered' | 'failed';
 
 interface EmailResult {
 	id: string;
@@ -10,12 +12,50 @@ interface EmailResult {
 	to: string[];
 	from: string;
 	html: string;
+	deliveryState: EmailDeliveryState;
+	deliveryError: string | null;
 }
 
 type Tab = 'preview' | 'setup';
 
 const SESSION_EMAIL_CAP = 5;
 const SEND_COOLDOWN_MS = 12_000;
+
+function getDeliveryBadgeVariant(state: EmailDeliveryState) {
+	switch (state) {
+		case 'delivered':
+			return 'success' as const;
+		case 'failed':
+			return 'destructive' as const;
+		default:
+			return 'secondary' as const;
+	}
+}
+
+function getDeliveryLabel(state: EmailDeliveryState) {
+	switch (state) {
+		case 'delivered':
+			return 'delivered';
+		case 'failed':
+			return 'delivery failed';
+		default:
+			return 'queued';
+	}
+}
+
+function getDeliveryDetail(result: EmailResult) {
+	if (result.deliveryState === 'failed') {
+		return result.deliveryError ?? 'The email service could not deliver this message.';
+	}
+
+	const recipient = result.to[0] ?? 'your inbox';
+
+	if (result.deliveryState === 'delivered') {
+		return `Accepted for delivery to ${recipient}`;
+	}
+
+	return `Queued for delivery to ${recipient}`;
+}
 
 export function EmailDemo() {
 	const [tab, setTab] = usePersistentDemoState<Tab>('email', 'tab', {
@@ -26,7 +66,6 @@ export function EmailDemo() {
 		defaultValue: '',
 		storage: 'session',
 	});
-	const [useCustomEmail, setUseCustomEmail] = useState(false);
 	const [hasSent, setHasSent] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
@@ -37,21 +76,32 @@ export function EmailDemo() {
 	const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const limitReached = sendCount >= SESSION_EMAIL_CAP;
+	const trimmedEmail = userEmail.trim();
+	const hasRecipient = trimmedEmail.length > 0;
+	const hasValidEmail = isValidEmail(trimmedEmail);
+	const displayTo = trimmedEmail || 'you@example.com';
 
-	const invoke = useCallback(async (to?: string) => {
+	useEffect(() => {
+		return () => {
+			if (cooldownTimerRef.current) {
+				clearTimeout(cooldownTimerRef.current);
+			}
+		};
+	}, []);
+
+	const invoke = useCallback(async (to: string) => {
 		setIsLoading(true);
 		setError(null);
 		setResult(null);
 		setShowCloudHint(false);
 		try {
-			const body: Record<string, string> = { template: 'welcome' };
-			if (to) {
-				body.to = to;
-			}
 			const res = await fetch('/api/email', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(body),
+				body: JSON.stringify({
+					template: 'welcome',
+					to,
+				}),
 			});
 			if (!res.ok) {
 				// Read the error body for a more descriptive message
@@ -65,7 +115,7 @@ export function EmailDemo() {
 		} catch (err) {
 			const nextError = err instanceof Error ? err : new Error('Unknown error');
 			setError(nextError);
-			if (!nextError.message.toLowerCase().includes('invalid email format')) {
+			if (!nextError.message.toLowerCase().includes('valid email address')) {
 				setShowCloudHint(true);
 			}
 		} finally {
@@ -74,13 +124,11 @@ export function EmailDemo() {
 	}, []);
 
 	const handleSend = () => {
-		if (limitReached || cooldown || isLoading) return;
+		if (limitReached || cooldown || isLoading || !hasValidEmail) return;
 
 		setHasSent(true);
 		setTab('preview');
-
-		const to = useCustomEmail && userEmail.trim() ? userEmail.trim() : undefined;
-		invoke(to);
+		invoke(trimmedEmail);
 
 		// Start cooldown
 		setCooldown(true);
@@ -95,23 +143,27 @@ export function EmailDemo() {
 
 	const preview = generateEmailContent();
 	const showResult = hasSent;
-	const displayTo = useCustomEmail && userEmail.trim() ? userEmail.trim() : EMAIL_TO[0];
+	const renderedEmailHtml = showResult && result ? result.html : preview.html;
+	const deliveryLabel = result ? getDeliveryLabel(result.deliveryState) : null;
+	const deliveryDetail = result ? getDeliveryDetail(result) : null;
 
 	const setupCode = `await ctx.email.send({
   from: "${EMAIL_FROM}",
   to: ["${displayTo}"],
-  subject: "Hello from the SDK Explorer",
+  subject: "${preview.subject}",
   html: "<p>This email was sent by an agent...</p>",
   text: "This email was sent by an Agentuity agent...",
 });`;
 
 	// Determine if send button should be disabled
-	const sendDisabled = isLoading || cooldown || limitReached;
+	const sendDisabled = isLoading || cooldown || limitReached || !hasValidEmail;
 
 	// Send button label
 	let sendLabel = 'Send Email';
 	if (cooldown) sendLabel = 'Please wait...';
 	if (limitReached) sendLabel = 'Limit reached';
+	if (!hasRecipient) sendLabel = 'Enter email';
+	if (hasRecipient && !hasValidEmail) sendLabel = 'Use valid email';
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -128,47 +180,30 @@ export function EmailDemo() {
 					<Separator />
 					<div className="flex items-center gap-3 text-xs">
 						<span className="text-zinc-500 dark:text-zinc-400 w-14 shrink-0">To</span>
-						<div className="flex-1 grid min-w-0">
-							{/* Custom email input -- always rendered to reserve height */}
-							<div
-								className={`col-start-1 row-start-1 flex items-center gap-2 ${useCustomEmail ? '' : 'invisible'}`}
+						<div className="flex-1 min-w-0 space-y-1.5">
+							<Input
+								type="email"
+								value={userEmail}
+								onChange={(e: ChangeEvent<HTMLInputElement>) =>
+									setUserEmail(e.currentTarget.value)
+								}
+								placeholder="you@example.com"
+								className="h-7 text-xs font-mono"
+								disabled={isLoading}
+							/>
+							<p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+								Send this demo to an inbox you can check. The Preview tab matches the
+								delivered HTML.
+							</p>
+							<p
+								className={`text-[11px] ${
+									hasRecipient && !hasValidEmail
+										? 'text-red-600 dark:text-red-400'
+										: 'invisible'
+								}`}
 							>
-								<Input
-									type="email"
-									value={userEmail}
-									onChange={(e: ChangeEvent<HTMLInputElement>) =>
-										setUserEmail(e.currentTarget.value)
-									}
-									placeholder="you@example.com"
-									className="h-7 text-xs font-mono flex-1"
-									disabled={isLoading}
-									tabIndex={useCustomEmail ? 0 : -1}
-								/>
-								<button
-									type="button"
-									onClick={() => setUseCustomEmail(false)}
-									className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xs shrink-0 cursor-pointer"
-									tabIndex={useCustomEmail ? 0 : -1}
-								>
-									Reset
-								</button>
-							</div>
-							{/* Default address -- always rendered to reserve height */}
-							<div
-								className={`col-start-1 row-start-1 flex items-center justify-between ${useCustomEmail ? 'invisible' : ''}`}
-							>
-								<span className="text-zinc-700 dark:text-zinc-300 font-mono truncate">
-									{EMAIL_TO[0]}
-								</span>
-								<button
-									type="button"
-									onClick={() => setUseCustomEmail(true)}
-									className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 text-xs shrink-0 ml-3 cursor-pointer"
-									tabIndex={useCustomEmail ? -1 : 0}
-								>
-									Use your email
-								</button>
-							</div>
+								Enter a valid email address.
+							</p>
 						</div>
 					</div>
 					<Separator />
@@ -198,11 +233,6 @@ export function EmailDemo() {
 							)}
 						</span>
 					</Button>
-					{sendCount > 0 && (
-						<span className="text-zinc-500 dark:text-zinc-600 text-xs">
-							{sendCount}/{SESSION_EMAIL_CAP} sent this session
-						</span>
-					)}
 					{limitReached && (
 						<span className="text-amber-600 dark:text-amber-400 text-xs">
 							Session limit reached. Reload to reset.
@@ -211,20 +241,14 @@ export function EmailDemo() {
 
 					{/* Result status inline */}
 					{showResult && result && !isLoading && (
-						<div className="flex items-center gap-3 ml-auto">
+						<div className="flex items-center gap-3 ml-auto min-w-0">
 							<Badge
-								variant={
-									result.status === 'sent' || result.status === 'pending'
-										? 'success'
-										: 'secondary'
-								}
-								className="text-[10px]"
+								variant={getDeliveryBadgeVariant(result.deliveryState)}
+								className="text-[10px] shrink-0"
 							>
-								{result.status}
+								{deliveryLabel}
 							</Badge>
-							<span className="text-zinc-500 font-mono text-[10px] truncate max-w-[200px]">
-								{result.id}
-							</span>
+							<p className="text-zinc-500 text-[10px] truncate">{deliveryDetail}</p>
 						</div>
 					)}
 				</div>
@@ -298,13 +322,30 @@ export function EmailDemo() {
 
 						{/* Rendered email */}
 						{(!showResult || (showResult && result && !isLoading)) && (
-							<div
-								className="p-4 max-h-[350px] overflow-y-auto text-sm [&_p]:text-sm [&_p]:leading-relaxed"
-								// biome-ignore lint/security/noDangerouslySetInnerHtml: HTML generated by our templates, not user input
-								dangerouslySetInnerHTML={{
-									__html: showResult && result ? result.html : preview.html,
-								}}
-							/>
+							<div className="p-4 max-h-[350px] overflow-y-auto space-y-4">
+								{showResult && result && (
+									<div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-3">
+										<div className="flex flex-wrap items-center gap-2">
+											<Badge
+												variant={getDeliveryBadgeVariant(result.deliveryState)}
+												className="text-[10px]"
+											>
+												{deliveryLabel}
+											</Badge>
+											<span className="text-xs text-zinc-500 dark:text-zinc-400">
+												{deliveryDetail}
+											</span>
+										</div>
+									</div>
+								)}
+								<div
+									className="text-sm [&_p]:text-sm [&_p]:leading-relaxed"
+									// biome-ignore lint/security/noDangerouslySetInnerHtml: HTML generated by our templates, not user input
+									dangerouslySetInnerHTML={{
+										__html: renderedEmailHtml,
+									}}
+								/>
+							</div>
 						)}
 					</div>
 				</div>

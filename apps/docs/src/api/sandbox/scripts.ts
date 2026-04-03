@@ -34,7 +34,7 @@ export const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	'ai-gateway': { prompt: 'Tell me a joke' },
 	chat: { message: 'Hello!' },
 	cron: {},
-	database: { query: 'all', seedData: true },
+	database: { query: 'summary', seedData: true },
 	'durable-stream': {},
 	email: { template: 'welcome' },
 	evals: { question: 'What is TypeScript?' },

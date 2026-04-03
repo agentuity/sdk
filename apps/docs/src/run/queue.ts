@@ -13,6 +13,30 @@ const ctx = createAgentContext();
 
 const queueName = `explorer-sandbox-${Date.now().toString(36)}`;
 
+function asObject(value: unknown): Record<string, unknown> | null {
+	return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function asNumber(value: unknown): number | undefined {
+	return typeof value === 'number' ? value : undefined;
+}
+
+function getPublishedOffset(result: unknown): number | undefined {
+	const direct = asObject(result);
+	const data = asObject(direct?.data);
+	const message = asObject(data?.message);
+
+	return asNumber(direct?.offset) ?? asNumber(message?.offset);
+}
+
+function formatPublishedMessage(task: string, offset?: number): string {
+	if (offset !== undefined) {
+		return `Published: ${task} (offset ${offset})`;
+	}
+
+	return `Published: ${task}`;
+}
+
 try {
 	// CREATE queue
 	ctx.logger.info('Creating queue', { name: queueName });
@@ -28,24 +52,26 @@ try {
 	// PUBLISH two messages with different payloads
 	ctx.logger.info('Publishing messages');
 
-	const msg1 = await ctx.queue.publish(
+	const firstPublish = await ctx.queue.publish(
 		queueName,
 		{ task: 'process-data', priority: 'normal' },
 		{ sync: true }
 	);
-	ctx.logger.info('Published message 1', { id: msg1.id });
+	const firstOffset = getPublishedOffset(firstPublish);
+	ctx.logger.info('Published process-data job');
 
-	const msg2 = await ctx.queue.publish(
+	const secondPublish = await ctx.queue.publish(
 		queueName,
 		{ task: 'generate-report', priority: 'high' },
 		{ sync: true, metadata: { source: 'explorer' } }
 	);
-	ctx.logger.info('Published message 2', { id: msg2.id });
+	const secondOffset = getPublishedOffset(secondPublish);
+	ctx.logger.info('Published generate-report job');
 
 	console.log('---OUTPUT---');
 	console.log(`Created: "${queue.name}" (${queue.queueType})`);
-	console.log(`Published: ${msg1.id} at offset ${msg1.offset}`);
-	console.log(`Published: ${msg2.id} at offset ${msg2.offset}`);
+	console.log(formatPublishedMessage('process-data', firstOffset));
+	console.log(formatPublishedMessage('generate-report', secondOffset));
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
