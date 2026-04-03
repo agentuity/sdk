@@ -7,7 +7,9 @@ import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
 function formatRelativeTime(isoDate: string): string {
-	const diffMs = Date.now() - new Date(isoDate).getTime();
+	const parsed = new Date(isoDate).getTime();
+	if (Number.isNaN(parsed)) return 'unknown';
+	const diffMs = Math.max(0, Date.now() - parsed);
 	const seconds = Math.floor(diffMs / 1000);
 	if (seconds < 60) return `${seconds}s ago`;
 	const minutes = Math.floor(seconds / 60);
@@ -61,6 +63,21 @@ export const bucketsSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { opts, options } = ctx;
+
+		// Validate mutually exclusive actions
+		if (opts?.create && opts?.delete) {
+			tui.fatal('Cannot use --create and --delete together.', ErrorCode.VALIDATION_FAILED);
+		}
+		if (opts?.create && !opts.create.trim()) {
+			tui.fatal('--create requires a non-empty bucket name.', ErrorCode.VALIDATION_FAILED);
+		}
+		if (opts?.delete && !opts.delete.trim()) {
+			tui.fatal('--delete requires a non-empty bucket ID.', ErrorCode.VALIDATION_FAILED);
+		}
+		if (opts?.description && !opts?.create) {
+			tui.fatal('--description can only be used with --create.', ErrorCode.VALIDATION_FAILED);
+		}
+
 		const client = new CoderClient({
 			apiKey: ctx.auth.apiKey,
 			url: opts?.url,

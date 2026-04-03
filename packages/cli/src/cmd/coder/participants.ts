@@ -7,7 +7,9 @@ import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 
 function formatRelativeTime(isoDate: string): string {
-	const diffMs = Date.now() - new Date(isoDate).getTime();
+	const parsed = new Date(isoDate).getTime();
+	if (Number.isNaN(parsed)) return 'unknown';
+	const diffMs = Math.max(0, Date.now() - parsed);
 	const seconds = Math.floor(diffMs / 1000);
 	if (seconds < 60) return `${seconds}s ago`;
 	const minutes = Math.floor(seconds / 60);

@@ -95,6 +95,7 @@ export const createWorkspaceSubcommand = createSubcommand({
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
 				ctx.logger.trace('Validation issues: %s', JSON.stringify(err.issues, null, 2));
+				tui.fatal(`Failed to create workspace: ${err.message}`, ErrorCode.VALIDATION_FAILED);
 			}
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to create workspace: ${msg}`, ErrorCode.NETWORK_ERROR);

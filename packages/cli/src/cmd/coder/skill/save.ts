@@ -21,7 +21,7 @@ export const saveSkillSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand(
-				'coder skill save --repo my-org/my-repo --skill-id sk_abc123 --name "My Skill" --description "Useful skill" --url https://example.com --json'
+				'coder skill save --repo my-org/my-repo --skill-id sk_abc123 --name "My Skill" --description "Useful skill" --skill-url https://example.com --json'
 			),
 			description: 'Save a skill with all options and return JSON',
 		},
@@ -51,10 +51,10 @@ export const saveSkillSubcommand = createSubcommand({
 				repo: opts.repo,
 				skillId: opts.skillId,
 				name: opts.name,
-				...(opts?.description && { description: opts.description }),
-				...(opts?.skillUrl && { url: opts.skillUrl }),
-				...(opts?.source && { source: opts.source }),
-				...(opts?.content && { content: opts.content }),
+				...(opts?.description !== undefined && { description: opts.description }),
+				...(opts?.skillUrl !== undefined && { url: opts.skillUrl }),
+				...(opts?.source !== undefined && { source: opts.source }),
+				...(opts?.content !== undefined && { content: opts.content }),
 			});
 
 			if (options.json) {
@@ -75,6 +75,7 @@ export const saveSkillSubcommand = createSubcommand({
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
 				ctx.logger.trace('Validation issues: %s', JSON.stringify(err.issues, null, 2));
+				tui.fatal(`Failed to save skill: ${err.message}`, ErrorCode.VALIDATION_FAILED);
 			}
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to save skill: ${msg}`, ErrorCode.NETWORK_ERROR);
