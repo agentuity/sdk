@@ -216,6 +216,33 @@ export const startSubcommand = createSubcommand({
 		// with the coder extension loaded for Hub UI (footer, /hub, commands).
 		// Agent.emit() drives native rendering — no [remote_message] blocks.
 		if (remoteSessionId) {
+			try {
+				const session = await tui.spinner({
+					message: 'Preparing remote session…',
+					callback: async () => client.prepareSessionForRemoteAttach(remoteSessionId!),
+				});
+
+				if (session.historyOnly === true) {
+					tui.fatal(
+						`Session ${remoteSessionId} is history-only and cannot be attached remotely.`,
+						ErrorCode.CONFIG_INVALID
+					);
+					return;
+				}
+
+				if (session.runtimeAvailable === false) {
+					tui.fatal(
+						`Session ${remoteSessionId} is offline and could not be resumed for remote attach.`,
+						ErrorCode.NETWORK_ERROR
+					);
+					return;
+				}
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				tui.fatal(`Failed to prepare remote session: ${msg}`, ErrorCode.NETWORK_ERROR);
+				return;
+			}
+
 			if (!options.json) {
 				tui.newline();
 				tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
