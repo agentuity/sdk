@@ -19,7 +19,7 @@ import { probeHubInitAccess } from './tui-init';
  *   3. Bundled pi from coder-tui's node_modules/.bin/pi
  *   4. `pi` on PATH (fallback)
  */
-function resolvePiBinary(flagPath?: string, extensionDir?: string): string {
+async function resolvePiBinary(flagPath?: string, extensionDir?: string): Promise<string> {
 	if (flagPath) return flagPath;
 	const envPath = process.env.AGENTUITY_CODER_PI_PATH;
 	if (envPath) return envPath;
@@ -27,7 +27,7 @@ function resolvePiBinary(flagPath?: string, extensionDir?: string): string {
 	// Look for pi bundled with the coder-tui extension
 	if (extensionDir) {
 		const bundledPi = resolve(extensionDir, 'node_modules', '.bin', 'pi');
-		if (Bun.file(bundledPi).size > 0) return bundledPi;
+		if (await Bun.file(bundledPi).exists()) return bundledPi;
 	}
 
 	return 'pi';
@@ -152,7 +152,7 @@ export const startSubcommand = createSubcommand({
 		};
 
 		// Resolve pi binary
-		const piBinary = resolvePiBinary(opts?.pi, extensionPath);
+		const piBinary = await resolvePiBinary(opts?.pi, extensionPath);
 
 		// ── Remote mode: resolve session ID ──
 		let remoteSessionId: string | undefined;
@@ -277,9 +277,7 @@ export const startSubcommand = createSubcommand({
 			while (Date.now() - pollStart < POLL_TIMEOUT) {
 				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
 				try {
-					const data = (await client.getSession(sessionId)) as unknown as {
-						participants?: Array<{ role: string }>;
-					};
+					const data = await client.listParticipants(sessionId);
 					if (data.participants?.some((p) => p.role === 'lead')) {
 						driverConnected = true;
 						break;
@@ -349,17 +347,16 @@ export const startSubcommand = createSubcommand({
 			});
 
 			// Forward signals to the child process so Ctrl+C exits cleanly
-			const forwardSignal = (signal: NodeJS.Signals) => {
-				proc.kill(signal === 'SIGINT' ? 2 : 15);
-			};
-			process.on('SIGINT', () => forwardSignal('SIGINT'));
-			process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+			const onSigInt = () => proc.kill(2);
+			const onSigTerm = () => proc.kill(15);
+			process.on('SIGINT', onSigInt);
+			process.on('SIGTERM', onSigTerm);
 
 			const exitCode = await proc.exited;
 
-			// Clean up signal handlers
-			process.removeAllListeners('SIGINT');
-			process.removeAllListeners('SIGTERM');
+			// Clean up only our signal handlers (preserve other modules' listeners)
+			process.removeListener('SIGINT', onSigInt);
+			process.removeListener('SIGTERM', onSigTerm);
 
 			process.exit(exitCode);
 		} catch (err) {
