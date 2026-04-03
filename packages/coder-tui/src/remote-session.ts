@@ -246,25 +246,33 @@ export class RemoteSession {
 			const isReconnect = this.reconnectAttempts > 0;
 			this.applyLifecycle({ type: 'connect_start', reconnect: isReconnect });
 
-			// Build URL with controller params
+			// Build URL with controller params + auth query params
+			// Auth is sent as both headers AND query params because WebSocket
+			// upgrade requests may not reliably forward custom headers across
+			// all runtimes and proxies.
 			const url = new URL(this.hubWsUrl);
 			url.searchParams.set('sessionId', this.sessionId);
 			url.searchParams.set('role', 'controller');
 
-			log(`${isReconnect ? 'Reconnecting' : 'Connecting'} to ${url.toString()}`);
 			const wsHeaders: Record<string, string> = {};
 			if (this.apiKey) {
+				// Send auth as query param (reliable across all runtimes)
+				url.searchParams.set('token', this.apiKey);
 				if (this.apiKey.startsWith('agc_')) {
-					// Hub API key — use legacy header
+					// Hub API key — also send as header for backward compat
 					wsHeaders['x-agentuity-auth-api-key'] = this.apiKey;
+					url.searchParams.set('apiKey', this.apiKey);
 				} else {
-					// CLI/platform key — use Bearer auth + orgId header
+					// CLI/platform key — also send as header for backward compat
 					wsHeaders['Authorization'] = `Bearer ${this.apiKey}`;
-					if (this.orgId) {
-						wsHeaders['x-agentuity-orgid'] = this.orgId;
-					}
 				}
 			}
+			if (this.orgId) {
+				url.searchParams.set('orgId', this.orgId);
+				wsHeaders['x-agentuity-orgid'] = this.orgId;
+			}
+
+			log(`${isReconnect ? 'Reconnecting' : 'Connecting'} to ${url.toString()}`);
 			this.ws =
 				Object.keys(wsHeaders).length > 0
 					? new WebSocket(url.toString(), { headers: wsHeaders })
