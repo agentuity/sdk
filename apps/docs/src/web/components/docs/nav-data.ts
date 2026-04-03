@@ -100,6 +100,21 @@ export const navData: NavSection[] = [
 				url: '/explorer/evals',
 				description: 'Run evaluations after your agent responds',
 			},
+			{
+				title: 'Queues',
+				url: '/explorer/queue',
+				description: 'Publish, consume, retry, and inspect dead-letter messages',
+			},
+			{
+				title: 'Email',
+				url: '/explorer/email',
+				description: 'Send transactional emails with platform-managed delivery',
+			},
+			{
+				title: 'Database',
+				url: '/explorer/database',
+				description: 'Query PostgreSQL with Drizzle ORM and typed schema definitions',
+			},
 		],
 	},
 	{

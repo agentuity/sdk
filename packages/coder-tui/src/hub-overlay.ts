@@ -2253,7 +2253,7 @@ export class HubOverlay implements Component, Focusable {
 		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
 		const body: string[] = [];
 
-		lines.push(buildTopBorder(width, 'Coder Hub Sessions'));
+		lines.push(buildTopBorder(width, 'Coder Sessions'));
 		lines.push(this.contentLine('', inner));
 
 		if (this.loadingList) {
@@ -2298,7 +2298,7 @@ export class HubOverlay implements Component, Focusable {
 		body.push(this.contentLine(this.theme.bold('  Teams / Observers'), inner));
 
 		if (this.sessions.length === 0 && !this.loadingList && !this.listError) {
-			body.push(this.contentLine(this.theme.fg('muted', '  No active Hub sessions'), inner));
+			body.push(this.contentLine(this.theme.fg('muted', '  No active Coder sessions'), inner));
 		} else if (!this.loadingList && !this.listError) {
 			const listBudget = Math.max(1, contentBudget - body.length);
 			const [start, end] = getVisibleRange(this.sessions.length, this.selectedIndex, listBudget);

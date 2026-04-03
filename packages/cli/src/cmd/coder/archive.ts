@@ -8,7 +8,7 @@ import { ErrorCode } from '../../errors';
 
 export const archiveSubcommand = createSubcommand({
 	name: 'archive',
-	description: 'Archive a Coder Hub session',
+	description: 'Archive a Coder session',
 	tags: ['mutating', 'requires-auth'],
 	requires: { auth: true, org: true },
 	examples: [

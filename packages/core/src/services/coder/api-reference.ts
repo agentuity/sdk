@@ -13,7 +13,7 @@ const service: Service = {
 	name: 'Coder',
 	slug: 'coder',
 	description:
-		'Manage Coder Hub sessions, session data, loop state, and known users through the HTTP API',
+		'Manage Coder sessions, session data, loop state, and known users through the HTTP API',
 	hasPublicEndpoints: false,
 	endpoints: [
 		{
@@ -22,13 +22,13 @@ const service: Service = {
 			sectionTitle: 'Discovery',
 			method: 'GET',
 			path: '/coder',
-			description: 'Discovers the org-specific Coder Hub base URL via Catalyst.',
+			description: 'Discovers the org-specific Coder base URL.',
 			pathParams: [],
 			queryParams: [
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
 			],
 			requestBody: null,
-			responseDescription: 'Returns the discovered Coder Hub URL.',
+			responseDescription: 'Returns the discovered Coder URL.',
 			statuses: [
 				{ code: 200, description: 'Coder URL discovered' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },

@@ -8,7 +8,7 @@ import { ErrorCode } from '../../errors';
 
 export const loopSubcommand = createSubcommand({
 	name: 'loop',
-	description: 'Get loop-mode state for a Coder Hub session',
+	description: 'Get loop-mode state for a Coder session',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true, org: true },

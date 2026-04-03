@@ -1,6 +1,6 @@
 {
 	"name": "docs",
-	"version": "2.0.8",
+	"version": "2.0.9",
 	"license": "Apache-2.0",
 	"private": true,
 	"module": ".agentuity/app.js",
@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
+		"@agentuity/drizzle": "workspace:*",
 		"@agentuity/evals": "workspace:*",
 		"@agentuity/frontend": "workspace:*",
 		"@agentuity/react": "workspace:*",

@@ -9,7 +9,7 @@ import { ErrorCode } from '../../errors';
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	aliases: ['rm', 'del', 'remove'],
-	description: 'Delete a Coder Hub session',
+	description: 'Delete a Coder session',
 	tags: ['destructive', 'deletes-resource', 'requires-auth'],
 	requires: { auth: true, org: true },
 	examples: [

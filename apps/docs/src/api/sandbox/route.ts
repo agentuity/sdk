@@ -126,6 +126,12 @@ const router = new Hono<Env>().get(
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
+		if (process.env.AGENTUITY_CLOUD_ORG_ID)
+			envVars.AGENTUITY_CLOUD_ORG_ID = process.env.AGENTUITY_CLOUD_ORG_ID;
+		if (process.env.AGENTUITY_CLOUD_PROJECT_ID)
+			envVars.AGENTUITY_CLOUD_PROJECT_ID = process.env.AGENTUITY_CLOUD_PROJECT_ID;
+		if (process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID)
+			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
 		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;
 		if (process.env.S3_ENDPOINT) envVars.S3_ENDPOINT = process.env.S3_ENDPOINT;
