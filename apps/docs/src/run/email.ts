@@ -13,7 +13,14 @@ const ctx = createAgentContext();
 try {
 	const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
 	const result = await ctx.invoke(() => emailAgent.run(input));
-	const outbound = await ctx.email.getOutbound(result.id);
+	const outbound = await ctx.email.getOutbound(result.id).catch((error) => {
+		ctx.logger.warn('Email delivery lookup failed', {
+			error: error instanceof Error ? error.message : String(error),
+			emailId: result.id,
+		});
+
+		return null;
+	});
 
 	console.log('---OUTPUT---');
 	console.log(

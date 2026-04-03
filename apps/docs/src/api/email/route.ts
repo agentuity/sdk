@@ -9,8 +9,10 @@ import { s } from '@agentuity/schema';
 import { EMAIL_ADDRESS_SCHEMA } from '../../lib/email-templates';
 import emailAgent from '../../agent/email/agent';
 
+type EmailOutboundRecord = { status?: string; error?: string } | null;
+
 type EmailServiceLike = {
-	getOutbound(id: string): Promise<{ status?: string; error?: string } | null>;
+	getOutbound(id: string): Promise<EmailOutboundRecord>;
 };
 
 type EmailDeliveryState = 'queued' | 'delivered' | 'failed';
@@ -29,33 +31,48 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function waitForOutboundStatus(email: EmailServiceLike, outboundId: string) {
-	let outbound = await email.getOutbound(outboundId);
+	let outbound: EmailOutboundRecord = null;
 
 	for (let attempt = 0; attempt < OUTBOUND_POLL_ATTEMPTS; attempt += 1) {
-		if (!outbound || (outbound.status && outbound.status !== 'pending')) {
+		outbound = await email.getOutbound(outboundId);
+		if (outbound?.status && outbound.status !== 'pending') {
 			return outbound;
 		}
 
-		await sleep(POLL_INTERVAL_MS);
-		outbound = await email.getOutbound(outboundId);
+		if (attempt < OUTBOUND_POLL_ATTEMPTS - 1) {
+			await sleep(POLL_INTERVAL_MS);
+		}
 	}
 
 	return outbound;
 }
 
+function normalizeEmailDemoRequest(body: unknown): unknown {
+	if (typeof body !== 'object' || body === null) {
+		return body;
+	}
+
+	const candidate = body as Record<string, unknown>;
+	if (typeof candidate.to !== 'string') {
+		return body;
+	}
+
+	return {
+		...candidate,
+		to: candidate.to.trim(),
+	};
+}
+
 const router = new Hono<Env>().post('/', async (c) => {
 	try {
 		const body = await c.req.json<unknown>();
-		const parsed = EmailDemoRequestSchema.safeParse(body);
+		const parsed = EmailDemoRequestSchema.safeParse(normalizeEmailDemoRequest(body));
 		if (!parsed.success) {
 			return c.json({ error: 'Enter a valid email address to send this demo.' }, 400);
 		}
 		const data = parsed.data;
 
-		const result = await emailAgent.run({
-			...data,
-			to: data.to.trim(),
-		});
+		const result = await emailAgent.run(data);
 
 		let outbound = null;
 		try {
