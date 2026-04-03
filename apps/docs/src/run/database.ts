@@ -3,7 +3,7 @@
  *
  * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
  *
- * Usage: bun run src/run/database.ts '{"query":"all","seedData":true}'
+ * Usage: bun run src/run/database.ts '{"query":"summary","seedData":true}'
  */
 import { createAgentContext } from '@agentuity/runtime';
 import databaseAgent from '../agent/database/agent';
@@ -11,7 +11,7 @@ import databaseAgent from '../agent/database/agent';
 const ctx = createAgentContext();
 
 try {
-	const input = JSON.parse(process.argv[2] ?? '{"query":"all","seedData":true}');
+	const input = JSON.parse(process.argv[2] ?? '{"query":"summary","seedData":true}');
 	ctx.logger.info('Running database query', { query: input.query, seedData: input.seedData });
 	const result = await ctx.invoke(() => databaseAgent.run(input));
 

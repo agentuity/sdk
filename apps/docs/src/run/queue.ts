@@ -17,42 +17,24 @@ function asObject(value: unknown): Record<string, unknown> | null {
 	return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
 }
 
-function asString(value: unknown): string | undefined {
-	return typeof value === 'string' ? value : undefined;
-}
-
 function asNumber(value: unknown): number | undefined {
 	return typeof value === 'number' ? value : undefined;
 }
 
-function getPublishedMessage(result: unknown) {
+function getPublishedOffset(result: unknown): number | undefined {
 	const direct = asObject(result);
 	const data = asObject(direct?.data);
 	const message = asObject(data?.message);
-	const id = asString(direct?.id) ?? asString(message?.id);
 
-	if (!id) {
-		return null;
-	}
-
-	const offset = asNumber(direct?.offset) ?? asNumber(message?.offset);
-
-	return {
-		id,
-		...(offset !== undefined ? { offset } : {}),
-	};
+	return asNumber(direct?.offset) ?? asNumber(message?.offset);
 }
 
-function formatPublishedMessage(message: ReturnType<typeof getPublishedMessage>): string {
-	if (!message) {
-		return 'Published: acknowledged';
+function formatPublishedMessage(task: string, offset?: number): string {
+	if (offset !== undefined) {
+		return `Published: ${task} (offset ${offset})`;
 	}
 
-	if (message.offset !== undefined) {
-		return `Published: ${message.id} at offset ${message.offset}`;
-	}
-
-	return `Published: ${message.id}`;
+	return `Published: ${task}`;
 }
 
 try {
@@ -70,26 +52,26 @@ try {
 	// PUBLISH two messages with different payloads
 	ctx.logger.info('Publishing messages');
 
-	const msg1 = await ctx.queue.publish(
+	const firstPublish = await ctx.queue.publish(
 		queueName,
 		{ task: 'process-data', priority: 'normal' },
 		{ sync: true }
 	);
-	const published1 = getPublishedMessage(msg1);
-	ctx.logger.info('Published message 1', { id: published1?.id ?? 'acknowledged' });
+	const firstOffset = getPublishedOffset(firstPublish);
+	ctx.logger.info('Published process-data job');
 
-	const msg2 = await ctx.queue.publish(
+	const secondPublish = await ctx.queue.publish(
 		queueName,
 		{ task: 'generate-report', priority: 'high' },
 		{ sync: true, metadata: { source: 'explorer' } }
 	);
-	const published2 = getPublishedMessage(msg2);
-	ctx.logger.info('Published message 2', { id: published2?.id ?? 'acknowledged' });
+	const secondOffset = getPublishedOffset(secondPublish);
+	ctx.logger.info('Published generate-report job');
 
 	console.log('---OUTPUT---');
 	console.log(`Created: "${queue.name}" (${queue.queueType})`);
-	console.log(formatPublishedMessage(published1));
-	console.log(formatPublishedMessage(published2));
+	console.log(formatPublishedMessage('process-data', firstOffset));
+	console.log(formatPublishedMessage('generate-report', secondOffset));
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);

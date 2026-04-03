@@ -12,11 +12,22 @@ const ctx = createAgentContext();
 
 try {
 	const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
-	ctx.logger.info('Sending email', { template: input.template });
 	const result = await ctx.invoke(() => emailAgent.run(input));
+	const outbound = await ctx.email.getOutbound(result.id);
 
 	console.log('---OUTPUT---');
-	console.log(JSON.stringify(result, null, 2));
+	console.log(
+		JSON.stringify(
+			{
+				status: outbound?.status ?? result.status,
+				subject: result.subject,
+				to: result.to,
+				from: result.from,
+			},
+			null,
+			2
+		)
+	);
 	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');

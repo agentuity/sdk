@@ -14,7 +14,12 @@
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { EMAIL_FROM, EMAIL_REGEX, EMAIL_TO, generateEmailContent } from '../../lib/email-templates';
+import {
+	EMAIL_ADDRESS_SCHEMA,
+	EMAIL_FROM,
+	EMAIL_TO,
+	generateEmailContent,
+} from '../../lib/email-templates';
 
 const agent = createAgent('email-sender', {
 	description: 'Send templated emails via the Agentuity email service',
@@ -22,7 +27,7 @@ const agent = createAgent('email-sender', {
 	schema: {
 		input: s.object({
 			template: s.literal('welcome'),
-			to: s.optional(s.string()),
+			to: s.optional(EMAIL_ADDRESS_SCHEMA),
 		}),
 		output: s.object({
 			id: s.string(),
@@ -35,18 +40,16 @@ const agent = createAgent('email-sender', {
 	},
 
 	handler: async (ctx, { template, to }) => {
-		// Determine recipient: user-provided override or default self-loop address
+		// The left-side demo always passes a user email. Keep the Explorer inbox fallback
+		// for standalone sandbox/reference runs where the code is prewritten.
 		let recipients = EMAIL_TO;
 		if (to) {
-			if (!EMAIL_REGEX.test(to)) {
-				throw new Error(`Invalid email format: ${to}`);
-			}
 			recipients = [to];
 		}
 
 		const { subject, html, text } = generateEmailContent();
 
-		ctx.logger.info('Sending email', { template, subject, to: recipients });
+		ctx.logger.info('Sending email demo', { subject, to: recipients });
 
 		const result = await ctx.email.send({
 			from: EMAIL_FROM,
@@ -55,8 +58,6 @@ const agent = createAgent('email-sender', {
 			html,
 			text,
 		});
-
-		ctx.logger.info('Email sent', { id: result.id, status: result.status });
 
 		return {
 			id: result.id,
