@@ -26,14 +26,13 @@ When running CLI commands programmatically (in Claude Code, CI, or scripts), ski
 
 | Flag | Short | Behavior |
 | --- | --- | --- |
-| `--confirm` | — | Skip confirmation prompts |
-| `--yes` | `-y` | Alias for `--confirm` |
+| `--confirm` | `-y` | Skip confirmation prompts |
 | `--force` | — | Alias for `--confirm` (when command doesn't have its own `--force`) |
 
 These work on any command with a confirmation prompt (deploy, create, delete, etc.).
 
 **Special cases:**
-- `agentuity project import` — requires BOTH `--name` and `--yes` for non-interactive use
+- `agentuity project import` — requires BOTH `--name` and `-y` (or `--confirm`) for non-interactive use
 - `agentuity cloud env push` — has its own `--force` flag (overwrites remote values); `--force` does NOT alias `--confirm` here
 - `agentuity cloud deployment remove/undeploy` — has its own `--force` flag for the same reason
 
@@ -87,7 +86,7 @@ These work on any command with a confirmation prompt (deploy, create, delete, et
 | Hardcoding sandbox paths as `/app` | Use `/home/agentuity` | That's the default working directory |
 | Making up CLI flags                | Run `--help` first    | Flags change between versions        |
 | Fabricating deployment URLs        | Read actual output    | URLs are generated dynamically       |
-| Using `expect`/`yes` piping for prompts | Use `--yes` or `--force` flag | Built-in flag support is cleaner and more reliable |
+| Using `expect`/`yes` piping for prompts | Use `-y` or `--confirm` flag | Built-in flag support is cleaner and more reliable |
 | Running v1 project without migrating | Run `npx @agentuity/migrate` first | v2 requires explicit agent/router wiring |
 
 ## When In Doubt, Check the Docs

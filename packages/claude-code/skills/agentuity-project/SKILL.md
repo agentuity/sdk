@@ -66,10 +66,10 @@ When deploying or setting up infrastructure, **run the CLI commands yourself**. 
    mkdir -p ~/.npm-global && npm config set prefix ~/.npm-global
    npm install -g @agentuity/cli bun
    export PATH="$HOME/.npm-global/bin:$PATH"
-   agentuity create --name my-app --yes --dir /sessions/<session>/mnt/<workspace>/my-app
+   agentuity create --name my-app -y --dir /sessions/<session>/mnt/<workspace>/my-app
    ```
 
-   Then tell the user to run auth-required commands from their own terminal: `agentuity auth login`, `agentuity project import --name <name> --yes`, `agentuity deploy`.
+   Then tell the user to run auth-required commands from their own terminal: `agentuity auth login`, `agentuity project import --name <name> -y`, `agentuity deploy`.
 
 ---
 
@@ -77,7 +77,7 @@ When deploying or setting up infrastructure, **run the CLI commands yourself**. 
 
 **Choose the right path:**
 
-- **New project (no existing code):** Use `agentuity create --name my-app --yes` — see "Creating a New Project" below.
+- **New project (no existing code):** Use `agentuity create --name my-app -y` — see "Creating a New Project" below.
 - **Existing codebase to deploy:** Restructure in-place, then use `agentuity project import` — see "Migrating an Existing Project" below. Do NOT run `agentuity create` inside an existing project.
 
 ---
@@ -85,7 +85,7 @@ When deploying or setting up infrastructure, **run the CLI commands yourself**. 
 ## Creating a New Project (Greenfield Only)
 
 ```bash
-agentuity create --name my-app --yes
+agentuity create --name my-app -y
 ```
 
 This scaffolds a new project directory with the correct structure, dependencies, and config.
@@ -383,7 +383,7 @@ my-project/
 Once the code is restructured into the correct layout (including `agentuity.config.ts` and `@agentuity/runtime` in dependencies), register it:
 
 ```bash
-agentuity project import --name <project-name> --yes
+agentuity project import --name <project-name> -y
 ```
 
 This generates the `agentuity.json` file that deployment requires. Use the current directory/folder name as the project name, or ask the user what they'd like to call it.
@@ -391,11 +391,11 @@ This generates the `agentuity.json` file that deployment requires. Use the curre
 **Options:**
 
 - `--name <name>` — set the project name (REQUIRED for non-interactive use)
-- `--yes` (or `--force`) — skip confirmation prompts (REQUIRED for non-interactive use)
+- `-y` (or `--confirm`) — skip confirmation prompts (REQUIRED for non-interactive use)
 - `--deploy` — deploy immediately after importing
 - `--dir <path>` — specify the project directory (defaults to current directory)
 
-**Non-interactive execution:** Both `--name` and `--yes` are required when running outside a TTY (like Claude Code). Without `--yes`, the command fails with "Project import requires interactive mode."
+**Non-interactive execution:** Both `--name` and `-y` (or `--confirm`) are required when running outside a TTY (like Claude Code). Without `-y`, the command fails with "Project import requires interactive mode."
 
 **Do NOT run `agentuity create` for existing projects** — that scaffolds a new project as a subdirectory, which is wrong. `agentuity project import` registers the existing project in-place.
 
@@ -424,10 +424,10 @@ This generates the `agentuity.json` file that deployment requires. Use the curre
 agentuity deploy
 ```
 
-Execute this command directly — do not just tell the user to run it. If the CLI prompts for region confirmation, add `--yes` (or `--force`) to skip it:
+Execute this command directly — do not just tell the user to run it. If the CLI prompts for region confirmation, add `-y` (or `--confirm`) to skip it:
 
 ```bash
-agentuity deploy --yes
+agentuity deploy -y
 ```
 
 Read the command output for the deployment URL.
@@ -480,9 +480,9 @@ Read the command output for the deployment URL.
 | Curling `/agent/<name>` directly                       | Create an API route in `src/api/` that calls the agent                          | Agents are not HTTP endpoints — they need an API route wrapper                           |
 | Putting agents outside `src/agent/`                    | Use `src/agent/<name>/index.ts`                                                 | Convention requires this path — barrel file re-exports from here                         |
 | Skipping `agentuity auth login`                        | Always verify auth first                                                        | CLI commands fail without auth                                                           |
-| Not using `--yes` for confirmations                    | Add `--yes` or `--force` to skip prompts                                        | Non-interactive environments need explicit confirmation bypass                           |
+| Not using `-y` for confirmations                       | Add `-y` or `--confirm` to skip prompts                                         | Non-interactive environments need explicit confirmation bypass                           |
 
-| Running `project import` without `--yes`               | Always use `--name <name> --yes` together                                       | Both flags are required for non-interactive execution                                    |
+| Running `project import` without `-y`                  | Always use `--name <name> -y` together                                          | Both flags are required for non-interactive execution                                    |
 | Asking user for OpenAI/Anthropic API keys              | Use the AI Gateway (works with SDK key)                                         | LLM requests route through Agentuity automatically — no extra keys needed                |
 | Building project in sandbox VM filesystem              | Install CLI via npm, run `agentuity create` on the user's actual machine        | Sandbox files don't exist on the user's machine — mount their directory first            |
 | Duplicating `/api` prefix in routes                    | If mounted at `/api` in app.ts, define routes as `/weather` not `/api/weather`  | Route paths are relative to the mount point — doubling up gives `/api/api/weather` (404) |
