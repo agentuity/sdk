@@ -249,7 +249,16 @@ export class CoderClient {
 
 			while (Date.now() < deadline) {
 				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-				session = await this.getSession(sessionId);
+				try {
+					session = await this.getSession(sessionId);
+				} catch (err) {
+					this.#logger.debug(
+						'coder remote attach poll failed for %s: %s',
+						sessionId,
+						err instanceof Error ? err.message : String(err)
+					);
+					continue;
+				}
 				if (session.historyOnly === true || session.runtimeAvailable !== false) {
 					return session;
 				}

@@ -214,11 +214,19 @@ export interface CoderLifecycleResponse {
 }
 
 function isConnectableSession(session: CoderSessionListItem): boolean {
-	return (
-		session.mode === 'sandbox' &&
-		session.historyOnly !== true &&
-		(session.bucket === 'running' || session.bucket === 'paused')
-	);
+	if (session.mode !== 'sandbox' || session.historyOnly === true) {
+		return false;
+	}
+
+	if (session.bucket === 'running') {
+		return true;
+	}
+
+	if (session.bucket === 'paused') {
+		return session.runtimeAvailable === true || session.wakeAvailable === true;
+	}
+
+	return false;
 }
 
 export async function coderArchiveSession(
@@ -247,13 +255,13 @@ export async function coderListConnectableSessions(
 		orgId: params?.orgId,
 	});
 	const connectable = raw.sessions.filter(isConnectableSession);
-	const offset = Math.max(0, params?.offset ?? 0);
-	const limit = params?.limit ?? connectable.length;
+	const normalizedOffset = Math.max(0, params?.offset ?? 0);
+	const normalizedLimit = Math.max(0, params?.limit ?? connectable.length);
 
 	return {
-		sessions: connectable.slice(offset, offset + limit),
+		sessions: connectable.slice(normalizedOffset, normalizedOffset + normalizedLimit),
 		total: connectable.length,
-		...(params?.limit !== undefined ? { limit: params.limit } : {}),
-		...(params?.offset !== undefined ? { offset: params.offset } : {}),
+		...(params?.limit !== undefined ? { limit: normalizedLimit } : {}),
+		...(params?.offset !== undefined ? { offset: normalizedOffset } : {}),
 	};
 }

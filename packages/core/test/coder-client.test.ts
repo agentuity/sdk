@@ -154,7 +154,73 @@ describe('CoderClient remote attach helpers', () => {
 		expect(getCount).toBe(3);
 	});
 
-	test('listConnectableSessions filters the general session list to running and paused sandbox sessions', async () => {
+	test('prepareSessionForRemoteAttach retries transient getSession failures while polling', async () => {
+		let getCount = 0;
+
+		mockFetch(async (url, init) => {
+			if (
+				url === 'https://coder.example/api/hub/session/codesess_retry' &&
+				init?.method === 'GET'
+			) {
+				getCount += 1;
+				if (getCount === 2) {
+					return new Response(JSON.stringify({ code: 'CODER_SESSION_NOT_FOUND' }), {
+						status: 404,
+						headers: { 'content-type': 'application/json' },
+					});
+				}
+				const runtimeAvailable = getCount >= 3;
+				return new Response(
+					JSON.stringify(
+						makeSession({
+							sessionId: 'codesess_retry',
+							status: runtimeAvailable ? 'active' : 'paused',
+							bucket: runtimeAvailable ? 'running' : 'paused',
+							runtimeAvailable,
+							controlAvailable: runtimeAvailable,
+							liveExpected: runtimeAvailable,
+						})
+					),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}
+				);
+			}
+
+			if (
+				url === 'https://coder.example/api/hub/session/codesess_retry/resume' &&
+				init?.method === 'POST'
+			) {
+				return new Response(
+					JSON.stringify({ sessionId: 'codesess_retry', status: 'resuming' }),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}
+				);
+			}
+
+			throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const session = await client.prepareSessionForRemoteAttach('codesess_retry', {
+			timeoutMs: 100,
+			pollIntervalMs: 1,
+		});
+
+		expect(session.runtimeAvailable).toBe(true);
+		expect(session.status).toBe('active');
+		expect(getCount).toBe(3);
+	});
+
+	test('listConnectableSessions filters the general session list to attachable sandbox sessions', async () => {
 		mockFetch(async (url) => {
 			expect(url).toBe('https://coder.example/api/hub/sessions?includeArchived=true');
 			return new Response(
@@ -171,6 +237,11 @@ describe('CoderClient remote attach helpers', () => {
 							}),
 							makeSession({
 								sessionId: 'codesess_paused',
+							}),
+							makeSession({
+								sessionId: 'codesess_paused_dead',
+								wakeAvailable: false,
+								runtimeAvailable: false,
 							}),
 							makeSession({
 								sessionId: 'codesess_history',
@@ -213,5 +284,52 @@ describe('CoderClient remote attach helpers', () => {
 			'codesess_running',
 			'codesess_paused',
 		]);
+	});
+
+	test('listConnectableSessions normalizes negative offset and limit values', async () => {
+		mockFetch(async (url) => {
+			expect(url).toBe('https://coder.example/api/hub/sessions?includeArchived=true');
+			return new Response(
+				JSON.stringify({
+					sessions: {
+						websocket: [
+							makeSession({
+								sessionId: 'codesess_running',
+								status: 'active',
+								bucket: 'running',
+								runtimeAvailable: true,
+								controlAvailable: true,
+								liveExpected: true,
+							}),
+							makeSession({
+								sessionId: 'codesess_paused',
+							}),
+						],
+						sandbox: [],
+					},
+					total: 2,
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const response = await client.listConnectableSessions({
+			limit: -2,
+			offset: -5,
+		});
+
+		expect(response.sessions).toHaveLength(0);
+		expect(response.limit).toBe(0);
+		expect(response.offset).toBe(0);
+		expect(response.total).toBe(2);
 	});
 });
