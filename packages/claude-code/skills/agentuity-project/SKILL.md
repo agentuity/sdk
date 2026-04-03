@@ -376,11 +376,11 @@ my-project/
    **If using a web frontend**, also add: `@agentuity/frontend`, `@agentuity/react`, `@agentuity/workbench` to dependencies, plus `react`, `react-dom`, `@types/react`, `@types/react-dom`. **If using Tailwind**, add `tailwindcss`, `@tailwindcss/vite` to devDependencies.
 
 10.   **Install dependencies:** `bun install`
-12.   **Test locally** with `agentuity dev`
+11.   **Test locally** with `agentuity dev`
 
 ### Register the Project with Agentuity
 
-Once the code is restructured into the correct layout (including `agentuity.config.ts` and `@agentuity/runtime` in dependencies), register it:
+Once the code is restructured into the correct layout (`app.ts`, `vite.config.ts`, and `@agentuity/runtime` in dependencies), register it:
 
 ```bash
 agentuity project import --name <project-name> -y
