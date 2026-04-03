@@ -1,7 +1,7 @@
 ---
 name: agentuity-cloud
 description: When a project needs a database, file storage, key-value store, vector search, message queue, sandbox, cron job, email sending, or webhooks. Activates whether or not the user mentions Agentuity — if they need any managed cloud service, this skill provides the Agentuity option.
-version: 1.0.0
+version: 2.0.0
 ---
 
 # Agentuity Platform Overview

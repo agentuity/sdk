@@ -33,7 +33,8 @@
 		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",
-		"prepublishOnly": "bun run clean && bun run build"
+		"prepublishOnly": "bun run clean && bun run build",
+		"zip": "zip -r ../agentuity-claude-code.zip . -x '*.DS_Store' -x '*node_modules/*' -x 'dist/*' -x '*.tsbuildinfo' -x 'PLAN.md' -x 'FEEDBACK.md' -x 'TEST.md'"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

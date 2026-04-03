@@ -35,34 +35,42 @@ version: 2.0.0
 
 ## AI Gateway (Default — No API Keys Needed)
 
-LLM requests (OpenAI, Anthropic, Groq, etc.) automatically route through Agentuity's **AI Gateway** using your SDK key. **Do not ask users for LLM provider API keys.** Just use the AI SDK normally:
+LLM requests automatically route through Agentuity's **AI Gateway** when running via `agentuity dev` or deployed. **Do not ask users for LLM provider API keys.** The gateway supports models from any provider (OpenAI, Anthropic, Groq, etc.) — use the provider SDK that matches the model:
 
 ```typescript
+// For OpenAI models (gpt-5-mini, gpt-5, etc.) — use the OpenAI SDK
+import OpenAI from 'openai';
+const openai = new OpenAI();
+const res = await openai.chat.completions.create({
+  model: 'gpt-5-mini',
+  messages: [{ role: 'user', content: input.message }],
+});
+```
+
+```typescript
+// For Anthropic models (claude-sonnet-4-6, etc.) — use the Anthropic SDK
+import Anthropic from '@anthropic-ai/sdk';
+const anthropic = new Anthropic();
+const res = await anthropic.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{ role: 'user', content: input.message }],
+});
+```
+
+```typescript
+// Or use the Vercel AI SDK for a provider-agnostic approach
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
-
 const { text } = await generateText({
   model: openai('gpt-5-mini'),
   prompt: input.message,
 });
 ```
 
-This works out of the box — no `OPENAI_API_KEY` needed. The AI Gateway provides unified billing, monitoring, and provider fallback.
+No API keys needed — the gateway sets provider base URLs automatically. **Match the SDK to the model provider** — don't pass Anthropic model names to the OpenAI client or vice versa.
 
-Or use the provider SDK directly:
-
-```typescript
-import OpenAI from 'openai';
-
-const client = new OpenAI(); // No API key needed — routes through AI Gateway
-
-const completion = await client.chat.completions.create({
-  model: 'gpt-5-mini',
-  messages: [{ role: 'user', content: input.message }],
-});
-```
-
-Both approaches work identically — the AI Gateway intercepts requests automatically.
+**Important:** The AI Gateway only works when running via `agentuity dev` or when deployed to Agentuity. It does NOT work with raw `bun run app.ts`.
 
 - Docs: https://agentuity.dev/agents/ai-gateway.md
 - Docs: https://agentuity.dev/agents/ai-sdk-integration.md
@@ -153,6 +161,26 @@ export default router;
 
 - Docs: https://agentuity.dev/agents/creating-agents.md
 
+## KV Storage API
+
+**`ctx.kv` requires a namespace and key — NOT just a key.** Returns a `DataResult<T>` discriminated union, not `T | null`:
+
+```typescript
+// GET — check .exists before accessing .data
+const result = await ctx.kv.get<MyType>('my-namespace', 'my-key');
+const data: MyType[] = result.exists ? result.data : [];
+
+// SET — namespace, key, value, optional params
+await ctx.kv.set('my-namespace', 'my-key', { count: 42 }, { ttl: 3600 });
+
+// DELETE
+await ctx.kv.delete('my-namespace', 'my-key');
+```
+
+Namespaces are auto-created on first write with a 7-day default TTL. Override per-key via `{ ttl: seconds }` (min 60s, max 365 days). In routes, use `c.var.kv` instead of `ctx.kv` — same API.
+
+- Docs: https://agentuity.dev/services/storage/key-value.md
+
 ## Agent Evaluations
 
 Use `@agentuity/evals` for preset evaluations and `agent.createEval()` for custom ones:
@@ -224,6 +252,9 @@ If upgrading from v1, run `npx @agentuity/migrate` to auto-convert `createRouter
 | Skipping agent evaluations                           | Add eval.ts alongside agent index.ts             | Evals catch regressions and validate quality    |
 | Using mutating router style (.get() separately)     | Use chained Hono methods (.get().post())        | Chained style required for hc<AppRouter>() types |
 | Missing agent barrel file                             | Create src/agent/index.ts re-exporting agents    | v2 requires explicit agent registration          |
+| `ctx.kv.get('key')` (missing namespace)               | `ctx.kv.get<T>('namespace', 'key')` — check `.exists` | KV requires namespace + key, returns DataResult not T |
+| Passing Claude model to `new OpenAI()`                | Use `new Anthropic()` for Claude models              | Match the SDK to the model provider — gateway routes automatically |
+| Running `new OpenAI()` outside `agentuity dev`        | Always run via `agentuity dev` or deploy first       | AI Gateway only sets provider base URLs in the Agentuity runtime |
 
 ## Example
 
