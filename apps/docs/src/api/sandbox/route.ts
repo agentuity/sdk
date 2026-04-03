@@ -34,6 +34,7 @@ const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
 const SSE_HEARTBEAT_INTERVAL_MS = 5_000;
+const SANDBOX_SERVICE_SCOPES = ['services:read', 'services:write'];
 
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
@@ -126,10 +127,8 @@ const router = new Hono<Env>().get(
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
-		if (process.env.AGENTUITY_CLOUD_ORG_ID)
-			envVars.AGENTUITY_CLOUD_ORG_ID = process.env.AGENTUITY_CLOUD_ORG_ID;
-		if (process.env.AGENTUITY_CLOUD_PROJECT_ID)
-			envVars.AGENTUITY_CLOUD_PROJECT_ID = process.env.AGENTUITY_CLOUD_PROJECT_ID;
+		// Exclude org/project identity — triggers session telemetry that sandbox
+		// tokens can't authorize, producing spurious errors on successful runs.
 		if (process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID)
 			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
@@ -186,6 +185,7 @@ const router = new Hono<Env>().get(
 						network: { enabled: true },
 						timeout: { idle: SANDBOX_IDLE_TIMEOUT },
 						env: envVars,
+						scopes: SANDBOX_SERVICE_SCOPES,
 					},
 					orgId,
 				});
@@ -243,6 +243,7 @@ const router = new Hono<Env>().get(
 						network: { enabled: true },
 						timeout: { execution: SANDBOX_EXEC_TIMEOUT },
 						env: envVars,
+						scopes: SANDBOX_SERVICE_SCOPES,
 					},
 					orgId,
 					region,
