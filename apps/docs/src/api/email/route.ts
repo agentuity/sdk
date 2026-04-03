@@ -68,7 +68,18 @@ const router = new Hono<Env>().post('/', async (c) => {
 		const body = await c.req.json<unknown>();
 		const parsed = EmailDemoRequestSchema.safeParse(normalizeEmailDemoRequest(body));
 		if (!parsed.success) {
-			return c.json({ error: 'Enter a valid email address to send this demo.' }, 400);
+			const recipientOnlyIssues =
+				parsed.error.issues.length > 0 &&
+				parsed.error.issues.every((issue) => issue.path?.[0] === 'to');
+
+			return c.json(
+				{
+					error: recipientOnlyIssues
+						? 'Enter a valid email address to send this demo.'
+						: 'Invalid email demo request.',
+				},
+				400
+			);
 		}
 		const data = parsed.data;
 
