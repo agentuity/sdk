@@ -8,6 +8,7 @@ import { sandboxRmFile, sandboxResolve } from '@agentuity/server';
 const RmFileResponseSchema = z.object({
 	success: z.boolean(),
 	path: z.string(),
+	found: z.boolean(),
 });
 
 export const rmSubcommand = createCommand({
@@ -40,17 +41,21 @@ export const rmSubcommand = createCommand({
 
 		const client = createSandboxClient(logger, auth, region);
 
-		await sandboxRmFile(client, {
+		const result = await sandboxRmFile(client, {
 			sandboxId: args.sandboxId,
 			path: args.path,
 			orgId,
 		});
 
 		if (!options.json) {
-			tui.success(`Removed file: ${args.path}`);
+			if (result.found) {
+				tui.success(`Removed file: ${args.path}`);
+			} else {
+				tui.warning(`File not found: ${args.path} (already removed)`);
+			}
 		}
 
-		return { success: true, path: args.path };
+		return { success: true, path: args.path, found: result.found };
 	},
 });
 
