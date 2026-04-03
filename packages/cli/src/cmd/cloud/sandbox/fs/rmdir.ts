@@ -8,6 +8,7 @@ import { sandboxRmDir, sandboxResolve } from '@agentuity/server';
 const RmDirResponseSchema = z.object({
 	success: z.boolean(),
 	path: z.string(),
+	found: z.boolean(),
 });
 
 export const rmdirSubcommand = createCommand({
@@ -52,7 +53,7 @@ export const rmdirSubcommand = createCommand({
 
 		const client = createSandboxClient(logger, auth, region);
 
-		await sandboxRmDir(client, {
+		const result = await sandboxRmDir(client, {
 			sandboxId: args.sandboxId,
 			path: args.path,
 			recursive: opts.recursive,
@@ -60,10 +61,14 @@ export const rmdirSubcommand = createCommand({
 		});
 
 		if (!options.json) {
-			tui.success(`Removed directory: ${args.path}`);
+			if (result.found) {
+				tui.success(`Removed directory: ${args.path}`);
+			} else {
+				tui.warning(`Directory not found: ${args.path} (already removed)`);
+			}
 		}
 
-		return { success: true, path: args.path };
+		return { success: true, path: args.path, found: result.found };
 	},
 });
 

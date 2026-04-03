@@ -217,6 +217,13 @@ export const RmDirResponseSchema = z.discriminatedUnion('success', [
 	}),
 	z.object({
 		success: z.literal<true>(true),
+		found: z
+			.boolean()
+			.optional()
+			.default(true)
+			.describe(
+				'Whether the directory existed before removal. False when already removed (idempotent).'
+			),
 	}),
 ]);
 
@@ -235,9 +242,13 @@ export type RmDirParams = z.infer<typeof RmDirParamsSchema>;
  *
  * @param client - The API client to use for the request
  * @param params - Parameters including sandbox ID, path, and recursive flag
+ * @returns Object with `found` indicating whether the directory existed before removal
  * @throws {SandboxResponseError} If the rmdir request fails
  */
-export async function sandboxRmDir(client: APIClient, params: RmDirParams): Promise<void> {
+export async function sandboxRmDir(
+	client: APIClient,
+	params: RmDirParams
+): Promise<{ found: boolean }> {
 	const { sandboxId, path, recursive, orgId, signal } = params;
 
 	const body: z.infer<typeof RmDirRequestSchema> = {
@@ -263,6 +274,8 @@ export async function sandboxRmDir(client: APIClient, params: RmDirParams): Prom
 	if (!resp.success) {
 		throwSandboxError(resp, { sandboxId });
 	}
+
+	return { found: resp.found };
 }
 
 export const RmFileRequestSchema = z
@@ -278,6 +291,13 @@ export const RmFileResponseSchema = z.discriminatedUnion('success', [
 	}),
 	z.object({
 		success: z.literal<true>(true),
+		found: z
+			.boolean()
+			.optional()
+			.default(true)
+			.describe(
+				'Whether the file existed before removal. False when already removed (idempotent).'
+			),
 	}),
 ]);
 
@@ -295,9 +315,13 @@ export type RmFileParams = z.infer<typeof RmFileParamsSchema>;
  *
  * @param client - The API client to use for the request
  * @param params - Parameters including sandbox ID and path
+ * @returns Object with `found` indicating whether the file existed before removal
  * @throws {SandboxResponseError} If the rm request fails
  */
-export async function sandboxRmFile(client: APIClient, params: RmFileParams): Promise<void> {
+export async function sandboxRmFile(
+	client: APIClient,
+	params: RmFileParams
+): Promise<{ found: boolean }> {
 	const { sandboxId, path, orgId, signal } = params;
 
 	const body: z.infer<typeof RmFileRequestSchema> = {
@@ -322,6 +346,8 @@ export async function sandboxRmFile(client: APIClient, params: RmFileParams): Pr
 	if (!resp.success) {
 		throwSandboxError(resp, { sandboxId });
 	}
+
+	return { found: resp.found };
 }
 
 export const FileInfoSchema = z.object({

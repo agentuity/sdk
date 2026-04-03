@@ -236,8 +236,8 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			);
 		},
 
-		async rmFile(path: string): Promise<void> {
-			await withSpan(
+		async rmFile(path: string): Promise<{ found: boolean }> {
+			return withSpan(
 				'agentuity.sandbox.rmFile',
 				{
 					'sandbox.id': sandboxId,
@@ -247,8 +247,8 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			);
 		},
 
-		async rmDir(path: string, recursive?: boolean): Promise<void> {
-			await withSpan(
+		async rmDir(path: string, recursive?: boolean): Promise<{ found: boolean }> {
+			return withSpan(
 				'agentuity.sandbox.rmDir',
 				{
 					'sandbox.id': sandboxId,
