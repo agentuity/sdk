@@ -23,7 +23,7 @@ function formatRelativeTime(isoDate: string): string {
 export const usersSubcommand = createSubcommand({
 	name: 'users',
 	aliases: ['user'],
-	description: 'List known Coder Hub users',
+	description: 'List known Coder users',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true, org: true },

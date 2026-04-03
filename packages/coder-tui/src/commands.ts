@@ -1,5 +1,5 @@
 /**
- * Slash commands for routing to specific Coder Hub agents.
+ * Slash commands for routing to specific Coder agents.
  *
  * Registers /lead, /memory, /product, etc. that prefix the user's
  * message with routing instructions so the lead agent delegates
@@ -57,7 +57,7 @@ export function registerAgentCommands(
 
 	// Register the /agents command that lists all available agents
 	pi.registerCommand('agents', {
-		description: 'List all available Coder Hub agents',
+		description: 'List all available Coder agents',
 		handler: async (_args, ctx) => {
 			if (ctx.hasUI && openAgentManager) {
 				await openAgentManager(ctx);
@@ -102,8 +102,8 @@ export function registerAgentCommands(
 		handler: async (_args, ctx) => {
 			const hubStatus = getHubStatus();
 			const lines: string[] = [];
-			lines.push('Coder Hub Status');
-			lines.push(`  Hub: ${hubStatus}`);
+			lines.push('Coder Status');
+			lines.push(`  Status: ${hubStatus}`);
 			lines.push(`  Agents: ${agents.length} available`);
 			lines.push(
 				`  ${agents

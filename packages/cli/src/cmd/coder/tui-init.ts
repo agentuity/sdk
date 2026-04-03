@@ -21,6 +21,7 @@ export async function probeHubInitAccess(
 	hubHttpUrl: string,
 	options?: {
 		apiKey?: string | null;
+		orgId?: string | null;
 		fetchImpl?: typeof fetch;
 	}
 ): Promise<HubInitProbeResult> {
@@ -29,7 +30,14 @@ export async function probeHubInitAccess(
 		accept: 'application/json',
 	};
 	if (options?.apiKey) {
-		headers['x-agentuity-auth-api-key'] = options.apiKey;
+		if (options.apiKey.startsWith('agc_')) {
+			headers['x-agentuity-auth-api-key'] = options.apiKey;
+		} else {
+			headers['authorization'] = `Bearer ${options.apiKey}`;
+		}
+	}
+	if (options?.orgId) {
+		headers['x-agentuity-orgid'] = options.orgId;
 	}
 
 	try {

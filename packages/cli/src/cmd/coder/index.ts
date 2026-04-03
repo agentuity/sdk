@@ -17,12 +17,12 @@ import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
 	name: 'coder',
-	description: 'Coder Hub session management commands',
+	description: 'Coder session management commands',
 	tags: ['requires-auth'],
 	examples: [
 		{
 			command: getCommand('coder start'),
-			description: 'Start a Pi session connected to the Coder Hub',
+			description: 'Start a coding session connected to Coder',
 		},
 		{
 			command: getCommand('coder create "Build a REST API"'),
@@ -30,7 +30,7 @@ export const command = createCommand({
 		},
 		{
 			command: getCommand('coder ls'),
-			description: 'List all active Coder Hub sessions',
+			description: 'List all active Coder sessions',
 		},
 		{
 			command: getCommand('coder get <session-id>'),
@@ -38,7 +38,7 @@ export const command = createCommand({
 		},
 		{
 			command: getCommand('coder users'),
-			description: 'List known Coder Hub users',
+			description: 'List known Coder users',
 		},
 		{
 			command: getCommand('coder loop <session-id>'),

@@ -26,7 +26,7 @@ function formatRelativeTime(isoDate: string): string {
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
-	description: 'List active Coder Hub sessions',
+	description: 'List active Coder sessions',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
 		{
@@ -73,7 +73,7 @@ export const listSubcommand = createSubcommand({
 		}
 
 		if (sessions.length === 0) {
-			tui.info('No active Coder Hub sessions.');
+			tui.info('No active Coder sessions.');
 			return [];
 		}
 

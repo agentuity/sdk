@@ -2253,7 +2253,7 @@ export class HubOverlay implements Component, Focusable {
 		const contentBudget = Math.max(5, maxLines - headerRows - footerRows);
 		const body: string[] = [];
 
-		lines.push(buildTopBorder(width, 'Coder Hub Sessions'));
+		lines.push(buildTopBorder(width, 'Coder Sessions'));
 		lines.push(this.contentLine('', inner));
 
 		if (this.loadingList) {

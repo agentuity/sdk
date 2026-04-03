@@ -1290,7 +1290,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	if (!isSubAgent) {
 		pi.registerCommand('hub', {
-			description: 'Open Coder Hub overlay (sessions, detail, feed)',
+			description: 'Open Coder overlay (sessions, detail, feed)',
 			handler: async (_args, ctx) => {
 				if (!ctx.hasUI) return;
 				await openHubOverlay(ctx, currentSessionId);
@@ -1334,7 +1334,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		});
 
 		pi.registerCommand('sync-hub-skills', {
-			description: 'Sync skills from Coder Hub to local .agents/skills/ directory',
+			description: 'Sync skills from Coder to local .agents/skills/ directory',
 			handler: async (_args, ctx) => {
 				const baseUrl = getHubHttpBaseUrl(hubUrl);
 				const url = `${baseUrl}/api/hub/skills`;
