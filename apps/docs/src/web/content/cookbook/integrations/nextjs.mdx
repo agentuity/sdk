@@ -1,50 +1,42 @@
 ---
 title: Adding Agentuity to a Next.js App
 short_title: Next.js
-description: Connect a Next.js frontend to an Agentuity backend using API rewrites
+description: Connect a Next.js frontend to an Agentuity backend using rewrites and direct router types
 ---
 
-Already have a [Next.js](https://nextjs.org/docs) app? You don't need to rewrite it. Add Agentuity agents alongside your existing frontend, and your Next.js app gets access to agent-native infrastructure: persistent state, storage, observability, and an AI gateway. The two services run side by side, connected through API rewrites.
+Already have a [Next.js](https://nextjs.org/docs) app? Keep the frontend where it is and run Agentuity in an `agentuity/` subdirectory. Next.js rewrites `/api/*` to the Agentuity dev server, and your frontend imports the backend router type directly for `hc<ApiRouter>()`.
 
 ## Project Structure
 
-The Agentuity backend lives in an `agentuity/` subdirectory inside your Next.js project:
-
 ```text
 my-nextjs-app/
-├── app/                          # Next.js frontend
-│   ├── components/App.tsx        # UI using hc() for type-safe API calls
-│   ├── layout.tsx
+├── app/
+│   ├── components/EchoDemo.tsx    # Client component using hc<ApiRouter>()
 │   └── page.tsx
-├── agentuity/                    # Agentuity backend
-│   ├── src/agent/translate/      # Agent with handler + evals
-│   ├── src/api/index.ts          # HTTP routes
-│   └── src/generated/routes.ts   # Generated route types
-├── next.config.ts                # /api/* rewrite to backend
-├── tsconfig.json                 # @agentuity/routes alias
+├── agentuity/
+│   ├── app.ts                     # createApp({ router, agents })
+│   ├── src/agent/echo/agent.ts
+│   └── src/api/index.ts           # Exports ApiRouter
+├── next.config.ts                 # Rewrites /api/* to Agentuity
 └── package.json
 ```
 
-## Rewrite Configuration
+## Rewrite `/api` to Agentuity
 
-In development, Next.js rewrites proxy `/api/*` requests to the Agentuity backend running on a separate port:
+Add a rewrite that proxies API traffic to `agentuity dev`. The SDK testing app runs Next.js on `3001` and Agentuity on `3501` to avoid conflicts:
 
 ```typescript title="next.config.ts"
 import type { NextConfig } from 'next';
-
-const agentuityProxyTarget = process.env.AGENTUITY_PROXY_TARGET
-  ?? (process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3500'
-    : undefined);
+import { join } from 'path';
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    if (!agentuityProxyTarget) return [];
+  outputFileTracingRoot: join(__dirname, '../../../..'),
 
+  async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${agentuityProxyTarget}/api/:path*`, // [!code highlight]
+        destination: 'http://localhost:3501/api/:path*', // [!code highlight]
       },
     ];
   },
@@ -53,76 +45,81 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 ```
 
-<Callout type="info" title="Two runtimes in development">
-`bun run dev` starts both runtimes concurrently. The frontend waits for the backend health check at `http://127.0.0.1:3500/api/health` before launching Next.js.
+<Callout type="info" title="No generated route registry">
+This pattern does not use `@agentuity/routes` or `src/generated/routes.ts`. The frontend imports `type ApiRouter` directly from the backend source file, and `hc()` infers requests from that type.
 </Callout>
 
-## Path Alias Setup
+## Import the Router Type Directly
 
-Add the `@agentuity/routes` alias in `tsconfig.json` so TypeScript resolves the generated route types:
+Export a router type from the backend:
 
-```json title="tsconfig.json"
-{
-  "compilerOptions": {
-    "paths": {
-      "@agentuity/routes": ["./agentuity/src/generated/routes"]
-    }
-  }
-}
+```typescript title="agentuity/src/api/index.ts"
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import echoAgent from '@agents/echo/agent';
+
+const router = new Hono<Env>()
+  .get('/health', (c) => {
+    return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+  })
+  .post('/echo', echoAgent.validator(), async (c) => {
+    const input = c.req.valid('json');
+    return c.json(await echoAgent.run(input));
+  });
+
+export type ApiRouter = typeof router; // [!code highlight]
+export default router;
 ```
 
-## Type-Safe API Calls
+Use that type in your Next.js client component:
 
-Import the route types and use `hc()` from `hono/client` for type-safe requests to your Agentuity backend:
-
-```tsx title="app/components/TranslateDemo.tsx"
+```tsx title="app/components/EchoDemo.tsx"
 'use client';
 
-import { AgentuityProvider } from '@agentuity/react';
 import { hc } from 'hono/client'; // [!code highlight]
-import type { ApiRouter } from '@agentuity/src/api'; // [!code highlight]
-import { useState, useEffect } from 'react';
+import type { ApiRouter } from '../../agentuity/src/api/index'; // [!code highlight]
+import { useState } from 'react';
 
-const client = hc<ApiRouter>('https://your-project.agentuity.cloud'); // [!code highlight]
+const client = hc<ApiRouter>('/api'); // [!code highlight]
 
-function TranslateDemoInner() {
-  const [data, setData] = useState<{ translation: string } | null>(null);
-  const [history, setHistory] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+export default function EchoDemo() {
+  const [message, setMessage] = useState('Hello from Next.js!');
+  const [response, setResponse] = useState<{ echo: string; timestamp: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    client.api.translate.history.$get().then(r => r.json()).then(setHistory);
-  }, []);
+  const sendEcho = async () => {
+    setError(null);
 
-  const onTranslate = async () => {
-    setIsLoading(true);
-    const res = await client.api.translate.$post({ json: { text: 'Hello world', toLanguage: 'Spanish' } }); // [!code highlight]
-    setData(await res.json());
-    setIsLoading(false);
-    refetch(); // Refresh history after translation
+    const res = await client.echo.$post({ json: { message } });
+    if (!res.ok) {
+      setError(`Echo request failed with ${res.status}`);
+      return;
+    }
+
+    setResponse(await res.json());
   };
 
   return (
     <div>
-      <button onClick={onTranslate} disabled={isLoading}>Translate</button>
-      {data?.translation && <p>{data.translation}</p>}
+      <input
+        onChange={(e) => setMessage(e.target.value)}
+        value={message}
+      />
+      <button onClick={sendEcho} type="button">Send Echo</button>
+      {error && <p>{error}</p>}
+      {response && <p>{response.echo}</p>}
     </div>
-  );
-}
-
-// Wrap with AgentuityProvider at the top level
-export default function TranslateDemo() {
-  return (
-    <AgentuityProvider baseUrl={process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL}>
-      <TranslateDemoInner />
-    </AgentuityProvider>
   );
 }
 ```
 
-- `hc<ApiRouter>()` creates a type-safe client from your route definitions
-- GET requests use `.$get()` and POST requests use `.$post({ json: ... })`
-- All request bodies and responses are fully typed from the route definition
+<Callout type="tip" title="Keep the import type-only">
+Use `import type { ApiRouter } ...` so the backend file is erased from the client bundle while `hc()` still gets full RPC inference.
+</Callout>
+
+<Callout type="tip" title="Add AgentuityProvider only when you need hooks">
+Plain `hc()` calls do not require `AgentuityProvider`. Add the provider when you want auth, analytics, or WebRTC hooks from `@agentuity/react`.
+</Callout>
 
 ## Running Locally
 
@@ -130,27 +127,29 @@ Run from the project root (not from inside `agentuity/`):
 
 ```bash
 bun install
-bun run build:agent    # Generate route types
-bun run dev            # Start both runtimes
+bun run dev
 ```
 
 - Frontend: `http://localhost:3001`
-- Backend: `http://localhost:3500`
-- Workbench: `http://localhost:3500/workbench`
+- Backend API: `http://localhost:3501/api`
+- Workbench: `http://localhost:3501/workbench`
+
+`bun run dev` starts both runtimes. There is no separate client route-generation step in v2. The frontend imports the router type from source, and `agentuity dev` serves the backend.
 
 ## Deployment
 
-When deployed, configure routing at the host level:
+If you keep same-origin routing in production, keep `hc<ApiRouter>('/api')` and route `/api/*` to your Agentuity service at the host or CDN layer.
 
-1. **Preferred**: Route `/api/*` traffic to the Agentuity backend at the load balancer, matching the local rewrite behavior.
-2. **Fallback**: Set `NEXT_PUBLIC_AGENTUITY_BASE_URL` to the backend URL and pass it through `AgentuityProvider baseUrl`. Enable CORS with `AGENTUITY_CORS_ALLOWED_ORIGINS` on the backend.
+If the frontend and backend live on different origins, point `hc()` at the deployed backend instead:
 
-## Full Example
+```tsx
+const client = hc<ApiRouter>(process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL!);
+```
 
-[Next.js + Agentuity Example](https://github.com/agentuity/examples/tree/main/existing-apps/nextjs): translate agent, evals, history management, and type-safe routes.
+Then enable CORS in [App Configuration](/get-started/app-configuration).
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks
-- [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration options
-- [HTTP Routes](/routes/http): Defining backend API routes
+- [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
+- [Provider Setup](/frontend/provider-setup): Add auth, analytics, or WebRTC hooks
+- [HTTP Routes](/routes/http): Define the backend API router you export to the frontend

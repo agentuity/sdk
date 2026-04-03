@@ -18,18 +18,22 @@ Both agents and routes live in your Agentuity project. Routes handle HTTP reques
 
 ## What's the Same
 
-Agents and routes share the same platform services. Everything available through `ctx.*` in an agent is also available through `c.var.*` in a route:
+Agents and routes share the same built-in platform services. These services are available through `ctx.*` in an agent and `c.var.*` in a route:
 
 | Service | In an agent (`ctx`) | In a route (`c.var`) |
 |---------|---------------------|----------------------|
 | Key-Value storage | `ctx.kv` | `c.var.kv` |
 | Vector search | `ctx.vector` | `c.var.vector` |
-| Object storage | `ctx.storage` | `c.var.storage` |
+| Durable streams | `ctx.stream` | `c.var.stream` |
 | Logger | `ctx.logger` | `c.var.logger` |
 | Tracer | `ctx.tracer` | `c.var.tracer` |
 | Queue | `ctx.queue` | `c.var.queue` |
 | Email | `ctx.email` | `c.var.email` |
 | Sandbox | `ctx.sandbox` | `c.var.sandbox` |
+
+<Callout type="info" title="Database and Object Storage">
+Database and object storage use Bun's native `sql` and `s3` APIs instead of `ctx.*` or `c.var.*`.
+</Callout>
 
 <Callout type="info" title="Same APIs, different access pattern">
 `ctx.kv.set('bucket', 'key', value)` in an agent does the same thing as `c.var.kv.set('bucket', 'key', value)` in a route. If your logic only needs these services, a route works fine on its own.

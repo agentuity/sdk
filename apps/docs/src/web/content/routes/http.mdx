@@ -320,11 +320,11 @@ c.redirect('/other');      // Redirect
 import myAgent from '@agent/my-agent/agent';
 await myAgent.run(input);     // Call an agent
 
-c.var.kv.get('bucket', 'key');       // Key-value storage
-c.var.vector.search('ns', opts);     // Vector search
-c.var.stream.create('name', opts);   // Durable streams
-c.var.logger.info('message');        // Logging
-c.var.sandbox.run({ ... });          // Code execution sandbox
+await c.var.kv.get('bucket', 'key');       // Key-value storage
+await c.var.vector.search('ns', opts);     // Vector search
+await c.var.stream.create('name', opts);   // Durable streams
+c.var.logger.info('message');              // Logging
+await c.var.sandbox.run({ ... });          // Code execution sandbox
 ```
 
 **Thread and session (for stateful routes):**

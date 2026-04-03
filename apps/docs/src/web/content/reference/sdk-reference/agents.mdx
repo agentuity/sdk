@@ -26,13 +26,13 @@ Creates a new agent with schema validation and type inference.
     - `output`: Schema for validating outgoing data
     - `stream`: Enable streaming responses (boolean, defaults to false)
   - `handler`: The agent function that processes inputs and returns outputs
-  - `setup` (optional): Async function called once on app startup, returns agent-specific config accessible via `ctx.config`
-  - `shutdown` (optional): Async cleanup function called on app shutdown
+  - `setup` (optional): Async function called once on app startup. Return agent-specific config for `ctx.config`
+  - `shutdown` (optional): Async cleanup function called on app shutdown with the setup result
 
 **Return Value**
 
 Returns an `AgentRunner` object with the following properties:
-- `metadata`: Agent metadata (id, identifier, filename, version, name, description)
+- `metadata`: Agent metadata (`id`, `agentId`, `filename`, `version`, `name`, `description`)
 - `run(input?)`: Execute the agent with optional input
 - `createEval(name, config)`: Create quality evaluations for this agent
 - `addEventListener(eventName, callback)`: Attach lifecycle event listeners
@@ -53,21 +53,21 @@ Agents can define `setup` and `shutdown` functions for initialization and cleanu
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('CachedProcessor', {
   schema: {
-    input: z.object({ key: z.string() }),
-    output: z.object({ value: z.string() }),
+    input: s.object({ key: s.string() }),
+    output: s.object({ value: s.string() }),
   },
-  // Called once when app starts - return value available via ctx.config
-  setup: async (app) => {
+  // Called once when the app starts. Return value is available via ctx.config.
+  setup: async () => {
     const cache = new Map<string, string>();
     const client = await initializeExternalService();
     return { cache, client };
   },
-  // Called when app shuts down
-  shutdown: async (app, config) => {
+  // Called when the app shuts down.
+  shutdown: async (_app, config) => {
     await config.client.disconnect();
     config.cache.clear();
   },
@@ -91,6 +91,10 @@ The `setup` function runs once when the app starts and returns agent-specific co
 - Agent-specific caches or connection pools
 - Pre-computed data or models
 - External service clients
+
+<Callout type="info" title="Shared App State Today">
+Agent `setup()` and `shutdown()` are current and useful. The type system still includes app-level state plumbing, but the current `createApp()` guidance is better centered on module-scoped shared dependencies plus `registerShutdownHook()` than on new examples built around `ctx.app`.
+</Callout>
 
 ### agent.validator()
 

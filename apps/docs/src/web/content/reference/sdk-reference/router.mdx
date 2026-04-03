@@ -4,11 +4,11 @@ short_title: Router
 description: HTTP endpoints, middleware, WebSocket, SSE, and cron handlers
 ---
 
-The SDK provides a Hono-based routing system for creating HTTP endpoints. Routes are defined in `src/api/index.ts` and provide full control over HTTP request handling.
+The SDK uses Hono for HTTP routes. Define routes in `src/api/index.ts`, mount them from your root `app.ts`, and export the router type when you want typed clients with `hc()`.
 
 ## Creating Routes
 
-Routes are created using `new Hono<Env>()` from `hono` and `@agentuity/runtime`.
+Routes are typically created with `new Hono<Env>()`, using `Env` from `@agentuity/runtime`.
 
 **Basic Setup:**
 
@@ -17,12 +17,12 @@ Routes are created using `new Hono<Env>()` from `hono` and `@agentuity/runtime`.
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
 
-const router = new Hono<Env>();
+const router = new Hono<Env>()
+  .get('/', (c) => {
+    return c.json({ message: 'Hello from route' });
+  });
 
-// Define routes
-router.get('/', (c) => {
-  return c.json({ message: 'Hello from route' });
-});
+export type ApiRouter = typeof router;
 
 export default router;
 ```
@@ -38,19 +38,20 @@ Agentuity uses two distinct context types based on where you're writing code:
 - **AgentContext**: Used in `agent.ts` files for business logic (no HTTP access)
 - **Router Context (Hono)**: Used in `src/api/index.ts` for HTTP handling (has HTTP + agent services)
 
-Both commonly use `c` as the variable name in SDK examples. The distinction is **type-based**, not name-based.
+Route examples typically use `c`, while agent examples typically use `ctx`. The distinction is still **type-based**, not name-based.
 
-Both contexts provide access to Agentuity services, but through different access patterns.
+Both contexts expose the same built-in services, but through different access patterns.
 
 **Router Context Interface:**
 
 ```typescript
-interface RouterContext {
+interface RouterContext<TAppState = Record<string, never>> {
   // Request
-  req: Request;                       // Hono request object with .param(), .query(), .header(), .json()
+  req: HonoRequest;                  // Hono request object with .param(), .query(), .header(), .json()
 
   // Agentuity Services (via c.var)
   var: {
+    sessionId: string;                // Request/session identifier
     kv: KeyValueStorage;              // Key-value storage
     vector: VectorStorage;            // Vector storage
     stream: StreamStorage;            // Stream storage
@@ -61,7 +62,12 @@ interface RouterContext {
     sandbox: SandboxService;          // Isolated code execution
     logger: Logger;                   // Structured logging
     tracer: Tracer;                   // OpenTelemetry tracing
+    thread: Thread;                   // Thread context
+    session: Session;                 // Session context
+    app: TAppState;                   // App-level state from createApp()
   };
+
+  waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void;
 
   // Response Helpers
   json(data: any, status?: number): Response;
@@ -82,7 +88,7 @@ interface RouterContext {
 | **Response** | Builder methods (`.json()`, `.text()`) | Direct returns |
 | **Services** | `c.var.kv`, `c.var.logger`, etc. | `ctx.kv`, `ctx.logger`, etc. |
 | **Agent calling** | Import and call: `agent.run()` | Import and call: `agent.run()` |
-| **State management** | Via Hono middleware | Built-in (`.state`, `.session`, `.thread`) |
+| **State management** | `c.var.thread`, `c.var.session`, `c.var.app` | `ctx.state`, `ctx.thread`, `ctx.session`, `ctx.app` |
 
 **Example Usage:**
 
@@ -112,6 +118,10 @@ router.post('/process', processor.validator(), async (c) => {
 
 Agentuity services (storage, logging, tracing) are available in multiple contexts. The API is identical; only the access pattern differs.
 
+<Callout type="info" title="No `c.var.state` in routes">
+Routes do not get the request-local `ctx.state` map that agents receive. Use local variables, Hono middleware, or one of the built-in storage services when route handlers need shared state.
+</Callout>
+
 ### Quick Reference
 
 | Service | In Agents | In Routes | In Standalone |
@@ -129,6 +139,7 @@ Agentuity services (storage, logging, tracing) are available in multiple context
 | State | `ctx.state` | N/A | `ctx.state` |
 | Thread | `ctx.thread` | `c.var.thread` | `ctx.thread` |
 | Session | `ctx.session` | `c.var.session` | `ctx.session` |
+| App state | `ctx.app` | `c.var.app` | `ctx.app` |
 
 ### From Agents
 
@@ -214,16 +225,22 @@ See [SDK Utilities for External Apps](/cookbook/patterns/server-utilities) for t
 
 ### From Frontend
 
-Frontend code accesses services through routes using `hc()` from `hono/client` or `fetch`:
+Frontend code reaches Agentuity services through routes. For type-safe clients, export `ApiRouter` and use `hc()` from `hono/client`:
 
 ```tsx
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api/index';
+
+const client = hc<ApiRouter>('/api');
 
 function SessionView({ id }: { id: string }) {
   const [data, setData] = useState<{ message: string } | null>(null);
 
   useEffect(() => {
-    fetch(`/api/sessions/${id}`).then(r => r.json()).then(setData);
+    client.sessions[':id'].$get({ param: { id } })
+      .then((res) => res.ok ? res.json() : null)
+      .then(setData);
   }, [id]);
 
   if (!data) return <div>Loading...</div>;
@@ -231,7 +248,7 @@ function SessionView({ id }: { id: string }) {
 }
 ```
 
-See [RPC Client](/frontend/rpc-client) for type-safe `hc()` patterns and [React Hooks](/frontend/react-hooks) for auth and analytics hooks.
+See [RPC Client](/frontend/rpc-client) for `hc()` patterns in React, Next.js, and other frontend environments.
 
 ## HTTP Methods
 

@@ -15,7 +15,7 @@ There are two ways to run scheduled work:
 - [Cron routes](/routes/cron) are route handlers in your app, triggered on a schedule via HTTP POST. The schedule is defined in code and deployed with your project.
 - **Schedules** are platform-managed resources. The platform calls your destinations (HTTP URLs or sandboxes) on schedule, with per-delivery tracking and automatic retries.
 
-Use cron routes when you want in-process scheduling with direct access to agent context. Use Schedules when you need delivery tracking, multiple destination types, or want to manage job timing independently of deployments.
+Use cron routes when you want in-process scheduling with route services on `c.var.*`. Use Schedules when you need delivery tracking, multiple destination types, or want to manage job timing independently of deployments.
 </Callout>
 
 ## When to Use Schedules
@@ -23,7 +23,7 @@ Use cron routes when you want in-process scheduling with direct access to agent 
 | Approach | Best For |
 |----------|----------|
 | **Schedules** | Platform-managed recurring jobs with delivery tracking and multiple destination types |
-| [Cron Routes](/routes/cron) | In-process scheduled handlers with direct access to agent context |
+| [Cron Routes](/routes/cron) | In-process scheduled handlers with access to route services on `c.var.*` |
 | [Queues](/services/queues) | Event-driven async processing, not time-based |
 
 ## Managing Schedules

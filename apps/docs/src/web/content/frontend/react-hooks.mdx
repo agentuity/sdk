@@ -1,12 +1,12 @@
 ---
 title: React Hooks
-description: Authentication, analytics, and WebRTC hooks from @agentuity/react
+description: Provider, auth, analytics, and WebRTC hooks from @agentuity/react
 ---
 
-React hooks from `@agentuity/react` provide authentication state, analytics tracking, and WebRTC capabilities. For API calls, use `hc()` from `hono/client` or standard `fetch`.
+Use `@agentuity/react` when you want React-aware access to Agentuity frontend state: provider context, transport auth state, analytics, and WebRTC. For route calls, use `hc()` from `hono/client` or plain `fetch`.
 
-<Callout type="tip" title="API Calls">
-For type-safe API calls, use Hono's `hc()` client. See [RPC Client](/frontend/rpc-client) for the full pattern.
+<Callout type="tip" title="Route Calls Use hc()">
+`@agentuity/react` does not ship a generated route client. Export your router type from `src/api/index.ts` and call routes with `hc<ApiRouter>()`. See [RPC Client](/frontend/rpc-client) for the full pattern.
 </Callout>
 
 ## Installation
@@ -17,14 +17,14 @@ bun add @agentuity/react
 
 ## Calling API Routes
 
-Use `hc()` from `hono/client` for type-safe API calls, or plain `fetch` for simple cases:
+Use `hc()` from `hono/client` for type-safe route calls, or plain `fetch` for simple cases:
 
 ```tsx
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 import { useState } from 'react';
 
-const client = hc<ApiRouter>('/'); // [!code highlight]
+const client = hc<ApiRouter>('/api'); // [!code highlight]
 
 function ChatForm() {
   const [data, setData] = useState<{ response: string } | null>(null);
@@ -39,7 +39,7 @@ function ChatForm() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await client.api.chat.$post({ json: { message } }); // [!code highlight]
+      const res = await client.chat.$post({ json: { message } }); // [!code highlight]
       setData(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -72,14 +72,30 @@ const res = await fetch('/api/chat', {
 const data = await res.json();
 ```
 
-## Auth State with useAuth
+## Reading Provider State with useAgentuity
 
-Access authentication state for protected components or custom auth logic:
+Use `useAgentuity()` when you need the resolved backend URL inside your own helpers or components:
+
+```tsx
+import { useAgentuity } from '@agentuity/react';
+
+function ApiBaseBadge() {
+  const { baseUrl } = useAgentuity();
+
+  return <code>{baseUrl}</code>;
+}
+```
+
+This is useful when your frontend and Agentuity app live on different origins and you want to build an absolute `hc()` client or show which backend you are connected to.
+
+## Transport Auth with useAuth
+
+Use `useAuth()` from `@agentuity/react` to read the transport auth state managed by `AgentuityProvider`:
 
 ```tsx
 import { useAuth } from '@agentuity/react';
 
-function ProtectedContent() {
+function ProtectedBanner() {
   const { isAuthenticated, authLoading } = useAuth();
 
   if (authLoading) {
@@ -90,7 +106,7 @@ function ProtectedContent() {
     return <p>Please sign in to continue.</p>;
   }
 
-  return <p>Welcome! You have access.</p>;
+  return <p>Authenticated and ready to call protected routes.</p>;
 }
 ```
 
@@ -104,13 +120,46 @@ function ProtectedContent() {
 | `setAuthHeader` | `(token: string \| null) => void` | Manually set the auth header |
 | `setAuthLoading` | `(loading: boolean) => void` | Control the loading state |
 
-<Callout type="info" title="useAuth vs useAgentuity">
-`useAuth` provides auth-specific state. For non-auth context like `baseUrl`, use `useAgentuity()` instead. See [Authentication](/frontend/authentication) for integrating with identity providers.
+<Callout type="info" title="Two Different useAuth Hooks">
+`@agentuity/react` and `@agentuity/auth/react` both export `useAuth()`. The React package exposes the transport auth header used by Agentuity helpers. The auth package exposes signed-in user and session state. Alias the imports when you use both in the same file.
 </Callout>
 
 ## WebRTC with useWebRTCCall
 
-For peer-to-peer audio, video, and data channels, see [WebRTC](/routes/webrtc) for the full API.
+Use `useWebRTCCall()` for peer-to-peer audio, video, and data channels:
+
+```tsx
+import { useWebRTCCall } from '@agentuity/react';
+
+function CallPanel({ roomId }: { roomId: string }) {
+  const {
+    state,
+    localVideoRef,
+    connect,
+    hangup,
+    isAudioMuted,
+    muteAudio,
+  } = useWebRTCCall({
+    roomId,
+    signalUrl: '/api/call/signal',
+    autoConnect: false,
+  });
+
+  return (
+    <div>
+      <video ref={localVideoRef} autoPlay muted playsInline />
+      <p>State: {state}</p>
+      <button onClick={connect}>Join</button>
+      <button onClick={() => muteAudio(!isAudioMuted)}>
+        {isAudioMuted ? 'Unmute' : 'Mute'}
+      </button>
+      <button onClick={hangup}>Leave</button>
+    </div>
+  );
+}
+```
+
+For signaling routes, rooms, data channels, and media options, see [WebRTC](/routes/webrtc).
 
 ## Analytics Hooks
 
@@ -140,7 +189,7 @@ A `withPageTracking` HOC is also available for class components or simpler page-
 
 ## Real-Time Communication
 
-For real-time features, use standard browser APIs:
+Use the transport that matches the route you are calling:
 
 | Pattern | API | Use Case |
 |---------|-----|----------|
@@ -153,7 +202,7 @@ See [WebSockets](/routes/websockets), [SSE](/routes/sse), and [WebRTC](/routes/w
 
 ## Next Steps
 
-- [Provider Setup](/frontend/provider-setup): Configure `AgentuityProvider` for deployments
-- [Advanced Hooks](/frontend/advanced-hooks): WebRTC data channels and custom handlers
+- [Provider Setup](/frontend/provider-setup): Configure `AgentuityProvider` and transport auth state
+- [Advanced Hooks](/frontend/advanced-hooks): Use low-level managers for custom WebSocket and SSE clients
 - [RPC Client](/frontend/rpc-client): Type-safe API calls with `hc()`
 - [Web Analytics](/services/observability/web-analytics): Track page views and custom events

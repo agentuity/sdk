@@ -192,17 +192,31 @@ Create an HTTP endpoint to call your agent:
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import researchAgent from '@agent/researcher/agent';
+import researchAgent from '@agent/researcher';
 
-const router = new Hono<Env>();
+const api = new Hono<Env>()
+  .post('/research', researchAgent.validator(), async (c) => { // [!code highlight]
+    const { topic } = c.req.valid('json'); // [!code highlight]
+    const result = await researchAgent.run({ topic }); // [!code highlight]
+    return c.json(result);
+  });
 
-router.post('/research', researchAgent.validator(), async (c) => { // [!code highlight]
-  const { topic } = c.req.valid('json'); // [!code highlight]
-  const result = await researchAgent.run({ topic }); // [!code highlight]
-  return c.json(result);
+export type ApiRouter = typeof api;
+
+export default api;
+```
+
+Mount that router in your project-root `app.ts`:
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import researchAgent from './src/agent/researcher/agent';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents: [researchAgent],
 });
-
-export default router;
 ```
 </Step>
 
@@ -218,7 +232,7 @@ agentuity dev
 ### Using curl
 
 ```bash
-curl -X POST http://localhost:3500/research \
+curl -X POST http://localhost:3500/api/research \
   -H "Content-Type: application/json" \
   -d '{"topic": "how do AI agents work"}'
 ```
@@ -228,22 +242,34 @@ curl -X POST http://localhost:3500/research \
 Create a simple frontend to interact with your agent:
 
 ```tsx title="src/web/App.tsx"
+import { hc } from 'hono/client';
 import { useState } from 'react';
+import type { ApiRouter } from '../api';
+
+const client = hc<ApiRouter>('/api');
 
 export function App() {
   const [topic, setTopic] = useState('');
   const [data, setData] = useState<{ summary: string; sourcesUsed: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleResearch = async () => { // [!code highlight]
     setIsLoading(true); // [!code highlight]
-    const res = await fetch('/api/research', { // [!code highlight]
-      method: 'POST', // [!code highlight]
-      headers: { 'Content-Type': 'application/json' }, // [!code highlight]
-      body: JSON.stringify({ topic }), // [!code highlight]
-    }); // [!code highlight]
-    setData(await res.json()); // [!code highlight]
-    setIsLoading(false); // [!code highlight]
+    setError(null); // [!code highlight]
+
+    try {
+      const res = await client.research.$post({ json: { topic } }); // [!code highlight]
+      if (!res.ok) {
+        throw new Error(`Research request failed with ${res.status}`);
+      }
+
+      setData(await res.json()); // [!code highlight]
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setIsLoading(false); // [!code highlight]
+    }
   }; // [!code highlight]
 
   return (
@@ -264,6 +290,8 @@ export function App() {
         </button>
       </div>
 
+      {error && <p>{error}</p>}
+
       {data && (
         <div style={{ padding: '1rem', background: '#f5f5f5', borderRadius: '4px' }}>
           <p>{data.summary}</p>
@@ -275,22 +303,21 @@ export function App() {
 }
 ```
 
-Wrap your app with `AgentuityProvider` in the entry point:
+Because this page uses `hc()` directly, you can render the app normally in your entry point:
 
 ```tsx title="src/web/frontend.tsx"
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AgentuityProvider } from '@agentuity/react';
 import { App } from './App';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AgentuityProvider>
-      <App />
-    </AgentuityProvider>
+    <App />
   </StrictMode>
 );
 ```
+
+Add `AgentuityProvider` later if you need `@agentuity/react` auth, analytics, or WebRTC hooks.
 
 Check the logs to see the agent loop in action: the search tool being called, results being processed, and the final summary being generated.
 </Step>

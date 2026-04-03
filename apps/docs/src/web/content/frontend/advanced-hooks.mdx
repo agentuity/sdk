@@ -1,142 +1,208 @@
 ---
 title: Advanced Hooks
-description: Connect to custom WebSocket and SSE endpoints with useWebsocket and useEventStream
+description: Advanced WebRTC callbacks plus low-level WebSocket and SSE client utilities
 ---
 
-For custom endpoints that aren't agents, use the low-level hooks directly.
+For most frontend work, `hc()` and `useWebRTCCall()` are enough. This page covers the lower-level patterns that stay current in the SDK today: advanced `useWebRTCCall()` callbacks, plus the `WebSocketManager` and `EventStreamManager` utilities re-exported from `@agentuity/react`.
 
-<Callout type="info" title="Standard Hooks">
-For most use cases, `hc()` from `hono/client` or standard `fetch` work directly with your routes. These advanced patterns are for WebRTC and custom real-time integrations.
+<Callout type="info" title="Use the Simplest Transport First">
+For Agentuity WebSocket routes, `hc<ApiRouter>()` gives you `.$ws()`. For SSE routes, the standard `EventSource` API usually does the job. Reach for these managers when you want reconnection, message buffering, or a reusable abstraction around a custom endpoint.
 </Callout>
 
-## useWebsocket
+In the manager-based examples below, `useEffect` is only for opening and disposing the connection. Keep `send()` and other user-triggered work in event handlers.
 
-Connect to any WebSocket endpoint:
+## Advanced WebRTC Callbacks
+
+`useWebRTCCall()` accepts the same advanced connection options and callback hooks exposed by the underlying `WebRTCManager`, while still giving you React state for the common case:
 
 ```tsx
-import { useWebsocket } from '@agentuity/react';
-import { useEffect } from 'react';
+import { useState } from 'react';
+import { useWebRTCCall } from '@agentuity/react';
 
-function CustomWebSocket() {
-  const { isConnected, send, data, setHandler, close } = useWebsocket<
-    { action: string },  // Input type
-    { result: string }   // Output type
-  >('/custom/websocket');
+export function ModeratedRoom({ roomId }: { roomId: string }) {
+  const [events, setEvents] = useState<string[]>([]);
 
-  // Set a custom message handler
+  const { state, remotePeerIds, connect, hangup, sendJSON } = useWebRTCCall({
+    roomId,
+    signalUrl: '/api/call/signal',
+    autoConnect: false,
+    media: false,
+    dataChannels: [{ label: 'presence', ordered: true }],
+    callbacks: {
+      onStateChange: (from, to) => {
+        setEvents((prev) => [`${from} -> ${to}`, ...prev]);
+      },
+      onPeerJoin: (peerId) => {
+        setEvents((prev) => [`peer joined: ${peerId}`, ...prev]);
+      },
+      onDataChannelMessage: (peerId, label, data) => {
+        setEvents((prev) => [`${label} from ${peerId}: ${String(data)}`, ...prev]);
+      },
+    },
+  });
+
+  return (
+    <div>
+      <p>State: {state}</p>
+      <p>Peers: {remotePeerIds.join(', ') || 'none yet'}</p>
+      <button onClick={connect}>Join room</button>
+      <button onClick={() => sendJSON('presence', { type: 'ping' })}>
+        Send presence event
+      </button>
+      <button onClick={hangup}>Leave</button>
+      <pre>{events.join('\n')}</pre>
+    </div>
+  );
+}
+```
+
+Use this pattern when you need richer call telemetry, custom data channel flows, or room-specific UX beyond the basic examples on [WebRTC](/routes/webrtc).
+
+## WebSocketManager
+
+Use `WebSocketManager` to manage a custom WebSocket connection with reconnect handling and a typed message callback.
+
+```tsx
+import { WebSocketManager } from '@agentuity/react';
+import { useEffect, useRef, useState } from 'react';
+
+type OutboundMessage = { message: string };
+type InboundMessage = { echo: string; timestamp: number };
+
+export function CustomWebSocket() {
+  const managerRef = useRef<WebSocketManager<OutboundMessage, InboundMessage> | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [messages, setMessages] = useState<InboundMessage[]>([]);
+
   useEffect(() => {
-    setHandler((message) => {
-      console.log('Received:', message);
-      // Process message as needed
-    });
-  }, [setHandler]);
+    const url = `${window.location.origin.replace(/^http/, 'ws')}/api/echo`;
 
-  const handleClick = () => {
-    send({ action: 'ping' });
-  };
+    const manager = new WebSocketManager<OutboundMessage, InboundMessage>({
+      url,
+      callbacks: {
+        onConnect: () => setIsConnected(true),
+        onDisconnect: () => setIsConnected(false),
+        onMessage: (message) => {
+          setMessages((prev) => [...prev, message]);
+        },
+      },
+    });
+
+    managerRef.current = manager;
+    manager.connect();
+
+    return () => {
+      manager.dispose();
+    };
+  }, []);
 
   return (
     <div>
       <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-      <button onClick={handleClick} disabled={!isConnected}>
+      <button
+        onClick={() => managerRef.current?.send({ message: 'ping' })}
+        disabled={!isConnected}
+      >
         Send Ping
       </button>
-      <button onClick={close}>Disconnect</button>
+      <pre>{JSON.stringify(messages, null, 2)}</pre>
     </div>
   );
 }
 ```
 
-**Return values:**
+<Callout type="warning" title="Low-Level Managers Do Not Read Provider Context">
+`WebSocketManager` and `EventStreamManager` are transport utilities. They do not automatically read `AgentuityProvider` state. Pass the full URL yourself, and use the auth mechanism your endpoint expects.
+</Callout>
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | True when WebSocket is open |
-| `send` | `(data: TInput) => void` | Send a message |
-| `data` | `TOutput \| undefined` | Last received message |
-| `setHandler` | `(fn: (data: TOutput) => void) => void` | Custom message handler |
-| `readyState` | `number` | WebSocket ready state |
-| `close` | `() => void` | Close the connection |
-| `reset` | `() => void` | Clear error state |
-| `error` | `Error \| null` | Connection error |
+**What you get:**
 
-## useEventStream
+| Capability | Notes |
+|-----------|-------|
+| `connect()` | Opens the socket and starts reconnect handling |
+| `send(data)` | Sends typed outbound messages, or queues them until the socket opens |
+| `setMessageHandler(handler)` | Registers a typed message handler and flushes buffered messages |
+| `getState()` | Returns `isConnected`, `readyState`, and error state |
+| `close()` / `dispose()` | Cleans up the connection and stops reconnects |
 
-Connect to any Server-Sent Events endpoint:
+## EventStreamManager
+
+Use `EventStreamManager` for long-lived SSE connections when you want the same typed callback and reconnect behavior:
 
 ```tsx
-import { useEventStream } from '@agentuity/react';
-import { useEffect } from 'react';
+import { EventStreamManager } from '@agentuity/react';
+import { useEffect, useRef, useState } from 'react';
 
-function CustomEventStream() {
-  const { isConnected, data, setHandler, close, error } = useEventStream<
-    { event: string; timestamp: number }
-  >('/custom/events');
+type StatusEvent = { event: string; count: number };
+
+export function CustomEventStream() {
+  const managerRef = useRef<EventStreamManager<StatusEvent> | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [latestEvent, setLatestEvent] = useState<StatusEvent | null>(null);
 
   useEffect(() => {
-    setHandler((event) => {
-      console.log('Event received:', event);
+    const manager = new EventStreamManager<StatusEvent>({
+      url: `${window.location.origin}/api/events`,
+      callbacks: {
+        onConnect: () => setIsConnected(true),
+        onDisconnect: () => setIsConnected(false),
+        onMessage: (message) => setLatestEvent(message),
+      },
     });
-  }, [setHandler]);
 
-  if (error) {
-    return <p>Error: {error.message}</p>;
-  }
+    managerRef.current = manager;
+    manager.connect();
+
+    return () => {
+      manager.dispose();
+    };
+  }, []);
 
   return (
     <div>
       <p>Stream: {isConnected ? 'Active' : 'Connecting...'}</p>
-      <p>Last event: {data?.event ?? 'None'}</p>
-      <button onClick={close}>Stop Stream</button>
+      <pre>{JSON.stringify(latestEvent, null, 2)}</pre>
+      <button onClick={() => managerRef.current?.close()}>Stop Stream</button>
     </div>
   );
 }
 ```
 
-**Return values:**
+## Route-Native Patterns
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | True when stream is active |
-| `data` | `TOutput \| undefined` | Last received event |
-| `setHandler` | `(fn: (data: TOutput) => void) => void` | Custom event handler |
-| `readyState` | `number` | Connection state |
-| `close` | `() => void` | Close the stream |
-| `reset` | `() => void` | Clear error state |
-| `error` | `Error \| null` | Connection error |
-
-## Options
-
-Both hooks accept options for customizing the connection:
+For Agentuity routes, you often do not need the managers:
 
 ```tsx
-const { isConnected, send } = useWebsocket('/path', {
-  query: new URLSearchParams({ token: 'abc123' }),
-  subpath: '/room/1',  // Appends to path
-  signal: abortController.signal,
-});
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api/index';
+
+const client = hc<ApiRouter>('/api');
+
+// WebSocket route
+const ws = client.echo.$ws();
+
+// SSE route
+const events = new EventSource('/api/events');
 ```
 
-## Reconnection Behavior
+These route-native APIs are the best fit when you already control both ends of the connection.
 
-Both hooks automatically reconnect when the connection drops using exponential backoff (delays increase between attempts, capped at 30 seconds).
+If you are not in React, import the same low-level managers directly from `@agentuity/frontend`.
 
-<Callout type="tip" title="Cleanup">
-Connections are automatically closed when the component unmounts. You don't need to manually call `close()` in a cleanup effect.
-</Callout>
+## When to Use What
 
-## When to Use These
-
-| Use Case | Recommended Hook |
+| Use Case | Recommended API |
 |----------|------------------|
-| HTTP API routes | `hc()` from `hono/client` or `fetch` |
-| WebSocket routes | `useWebsocket` |
-| SSE routes | `useEventStream` |
-| Third-party WebSocket | `useWebsocket` with custom handler |
-| Custom SSE endpoint | `useEventStream` with custom handler |
+| Standard HTTP routes | `hc()` or `fetch` |
+| Agentuity WebSocket route | `client.route.$ws()` from `hc()` |
+| Agentuity SSE route | `EventSource` |
+| Custom or third-party WebSocket endpoint | `WebSocketManager` |
+| Custom or third-party SSE endpoint | `EventStreamManager` |
+| Peer-to-peer audio/video/data | `useWebRTCCall` |
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): Agent-specific hooks for common use cases
-- [WebSockets](/routes/websockets): Create WebSocket routes in your agents
-- [Server-Sent Events](/routes/sse): Create SSE routes in your agents
+- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks from `@agentuity/react`
+- [RPC Client](/frontend/rpc-client): Type-safe route calls with `hc()`
+- [WebSockets](/routes/websockets): Server-side WebSocket routes
+- [Server-Sent Events](/routes/sse): Server-side SSE routes

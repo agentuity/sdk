@@ -4,54 +4,55 @@ short_title: Context API
 description: Storage, logging, and services available via the ctx.* object
 ---
 
-The `AgentContext` provides access to various capabilities and services within your agent handler, including storage APIs, logging, tracing, agent communication, and state management.
+`AgentContext` is what your agent handler and agent-scoped event listeners receive. It combines request-scoped state, conversation state, platform services, observability, and metadata about the current agent run.
 
 ## Context Properties
 
 The context object passed to your agent handler contains the following properties:
 
 ```typescript
-interface AgentContext<TConfig = unknown, TAppState = unknown> {
-  // Identifiers
-  sessionId: string;                  // Unique ID for this agent execution
-  current: {                          // Current agent metadata
-    name: string;                     // Agent name from createAgent()
-    agentId: string;                  // Stable across deployments
-    id: string;                       // Changes each deployment
-    filename: string;                 // Path to agent file
-    version: string;                  // Changes when code changes
-  };
-
-  // Agent Calling (use imports instead)
-  // import otherAgent from '@agent/other-agent/agent';
-  // await otherAgent.run(input);
-
-  // Configuration
-  config: TConfig;                    // Agent-specific config from agent setup()
-
-  // State Management
-  session: Session;                   // Session object for cross-request state
-  thread: Thread;                     // Thread object for conversation state
-  state: Map<string, unknown>;        // Request-scoped state storage
-
-  // Storage Services
-  kv: KeyValueStorage;                // Key-value storage
-  vector: VectorStorage;              // Vector database for embeddings
-  stream: StreamStorage;              // Stream storage
-
-  // Platform Services (see individual service pages for full API)
-  queue: QueueService;                // Message queue publishing and management
-  task: TaskService;                  // Work item tracking with lifecycle management
-  email: EmailService;                // Email addresses, sending, and destinations
-  schedule: ScheduleService;          // Platform-managed cron jobs
-  sandbox: SandboxService;            // Code execution in isolated containers
-
-  // Observability
-  logger: Logger;                     // Structured logging
-  tracer: Tracer;                     // OpenTelemetry tracing
-
+interface AgentContext<TConfig = unknown, TAppState = Record<string, never>> {
   // Lifecycle
   waitUntil(promise: Promise<void> | (() => void | Promise<void>)): void;
+
+  // Observability
+  logger: Logger;
+  tracer: Tracer;
+
+  // Identifiers
+  sessionId: string;
+  current: {
+    name: string;
+    agentId: string;
+    id: string;
+    filename: string;
+    version: string;
+    description?: string;
+    inputSchemaCode?: string;
+    outputSchemaCode?: string;
+  };
+
+  // State
+  state: Map<string, unknown>;        // Request-scoped scratch state
+  session: Session;                   // Request-scoped session object
+  thread: Thread;                     // Conversation-scoped state
+
+  // Agent and app config
+  config: TConfig;                    // Returned from this agent's setup()
+  app: TAppState;                     // App-level state when your runtime wiring provides it
+
+  // Services
+  kv: KeyValueStorage;
+  stream: StreamStorage;
+  vector: VectorStorage;
+  sandbox: SandboxService;
+  queue: QueueService;
+  email: EmailService;
+  schedule: ScheduleService;
+  task: TaskStorage;
+
+  // Auth
+  auth: AuthInterface | null;
 }
 ```
 
@@ -64,22 +65,24 @@ Each service on the context object is documented on its own reference page:
 | Key-Value Storage | `ctx.kv` | [Storage APIs](/reference/sdk-reference/storage) |
 | Vector Search | `ctx.vector` | [Storage APIs](/reference/sdk-reference/storage) |
 | Durable Streams | `ctx.stream` | [Storage APIs](/reference/sdk-reference/storage) |
-| Object Storage | `ctx.storage` | [Storage APIs](/reference/sdk-reference/storage) |
-| Database | `ctx.db` | [Storage APIs](/reference/sdk-reference/storage) |
 | Message Queues | `ctx.queue` | [Queue Service](/reference/sdk-reference/queue-service) |
 | Tasks | `ctx.task` | [Task Service](/reference/sdk-reference/task-service) |
 | Email | `ctx.email` | [Email Service](/reference/sdk-reference/email-service) |
 | Schedules | `ctx.schedule` | [Schedule Service](/reference/sdk-reference/schedule-service) |
 | Sandbox | `ctx.sandbox` | [Sandbox Service](/reference/sdk-reference/sandbox-service) |
 
+<Callout type="info" title="Database and Object Storage">
+Database and object storage use Bun's native `sql` and `s3` APIs rather than `ctx.*` properties.
+</Callout>
+
 ## Service Access
 
 All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalone scripts. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete access pattern reference.
 
-**Key Properties Explained:**
+**Key Properties Explained**
 
 **Identifiers:**
-- `sessionId`: Unique identifier for this agent execution. Use for tracking and correlating logs.
+- `sessionId`: Unique identifier for the current request. Sub-agent calls within that same request share it.
 - `current`: Metadata about the currently executing agent:
   - `name`: The name passed to `createAgent()`.
   - `agentId`: Stays the same across deployments. Use for state keys (e.g., `${ctx.current.agentId}_counter`).
@@ -92,6 +95,7 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 
 **Configuration:**
 - `config`: Agent-specific configuration returned from the agent's `setup()` function. Fully typed based on what setup returns.
+- `app`: App-level shared state if your runtime wiring provides it. For new code, prefer module-scoped shared dependencies plus `registerShutdownHook()` rather than centering examples on `ctx.app`.
 
 **Agent Calling:**
 - Import agents directly: `import otherAgent from '@agent/other-agent/agent'`
@@ -100,41 +104,38 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 For orchestration patterns, see [Calling Other Agents](/agents/calling-other-agents).
 
 **State Management:**
-- `session`: Persistent session object that spans multiple agent calls.
-- `thread`: Thread object for managing conversation state.
-- `state`: Map for storing request-scoped data that persists throughout the handler execution.
+- `session`: Request-scoped session object for the current execution and its sub-agent calls.
+- `thread`: Conversation-scoped object for data that persists across related requests.
+- `state`: In-memory scratch `Map` for the current handler execution.
 
 **Example Usage:**
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('QueryProcessor', {
   schema: {
-    input: z.object({ query: z.string() }),
-    output: z.object({ result: z.string() }),
+    input: s.object({ query: s.string() }),
+    output: s.object({
+      result: s.string(),
+      queryCount: s.number(),
+    }),
   },
+  setup: async () => ({ prefix: 'Processed' }),
   handler: async (ctx, input) => {
-    // Access session ID
     ctx.logger.info(`Session ID: ${ctx.sessionId}`);
 
-    // Use storage services
     await ctx.kv.set('cache', 'last-query', input.query);
-
-    // Store request-scoped data
     ctx.state.set('startTime', Date.now());
 
-    // Call another agent (import at top of file)
-    // import enrichmentAgent from '@agent/enrichment/agent';
-    const enrichedData = await enrichmentAgent.run({ text: input.query });
+    const queryCount = (await ctx.thread.state.get<number>('queryCount')) ?? 0;
+    await ctx.thread.state.set('queryCount', queryCount + 1);
 
-    // Use session state
-    ctx.session.state.set('queryCount',
-      (ctx.session.state.get('queryCount') as number || 0) + 1
-    );
-
-    return { result: enrichedData.output };
+    return {
+      result: `${ctx.config.prefix}: ${input.query}`,
+      queryCount: queryCount + 1,
+    };
   },
 });
 ```
@@ -264,7 +265,7 @@ await ctx.thread.state.push('messages', newMessage, 100);
 await ctx.thread.setMetadata({ userId: user.id, topic: 'support' });
 ```
 
-**`ctx.session`** is scoped to a single request-response cycle. Each HTTP request creates a new session within the same thread. Session state is a synchronous `Map<string, unknown>`.
+**`ctx.session`** is scoped to a single request-response cycle. Each HTTP request creates a new session within the same thread. Session state is a synchronous `Map<string, unknown>` and does not persist into later requests.
 
 ```typescript
 // Track timing for this request only
@@ -291,18 +292,18 @@ For a complete chat example, see [Chat with Conversation History](/cookbook/patt
 | Scope | Persisted | Async | Use case |
 |-------|-----------|-------|----------|
 | `ctx.thread.state` | Yes, across requests | Yes (lazy-loaded) | Conversation history, user preferences |
-| `ctx.session.state` | For this request | No (synchronous Map) | Request timing, intermediate results |
+| `ctx.session.state` | No, request only | No (synchronous Map) | Request timing, data needed in `session.completed` listeners |
 | `ctx.state` | No | No (synchronous Map) | Passing data within the handler |
 
 ## Session Interface
 
-The `Session` object is available via `ctx.session`. It represents the current request's session within a thread.
+The `Session` object is available via `ctx.session`. It represents the current request's session within a thread. Session state is request-scoped only, even when the thread continues across later requests.
 
 ```typescript
 interface Session {
   id: string;                      // Unique session identifier
   thread: Thread;                  // Reference to the current thread
-  state: Map<string, unknown>;     // Session-scoped state (synchronous)
+  state: Map<string, unknown>;     // Request-scoped state (synchronous)
   metadata: Record<string, unknown>; // Unencrypted metadata for querying
 
   // Lifecycle event: fires when the session completes
@@ -325,6 +326,8 @@ The `Thread` object is available via `ctx.thread`. It persists across multiple s
 interface Thread {
   id: string;                      // Unique thread identifier
   state: ThreadState;              // Async lazy-loaded state
+  getMetadata(): Promise<Record<string, unknown>>;
+  setMetadata(metadata: Record<string, unknown>): Promise<void>;
 
   // Lifecycle event: fires when the thread is destroyed
   addEventListener(
@@ -338,9 +341,7 @@ interface Thread {
 
   // Remove the thread and all its state
   destroy(): Promise<void>;
-
-  // Store unencrypted metadata for filtering and querying
-  setMetadata(metadata: Record<string, unknown>): Promise<void>;
+  empty(): Promise<boolean>;
 }
 ```
 
@@ -365,3 +366,7 @@ export default createAgent('my-agent', {
   },
 });
 ```
+
+<Callout type="info" title="Shared App State Today">
+`ctx.config` is the stable, documented place for agent-local setup results. The runtime types still include `ctx.app`, but the current `createApp()` API is best documented with module-scoped shared dependencies plus `registerShutdownHook()` for cleanup rather than new examples built around app-level setup state.
+</Callout>

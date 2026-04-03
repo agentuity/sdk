@@ -38,6 +38,12 @@ router.post('/daily-report', cron('0 9 * * *', { auth: true }, async (c) => {
 export default router;
 ```
 
+`cron()` wraps a standard Hono route handler. Your callback receives route context (`c`) with Agentuity services on `c.var.*`.
+
+<Callout type="info" title="Current Signature">
+Use the 3-argument form `cron(schedule, { auth }, handler)`. The older 2-argument form still works for backwards compatibility, but it defaults to `auth: false`.
+</Callout>
+
 ## Cron Syntax
 
 Standard five-field cron format:
@@ -111,7 +117,7 @@ If your cron route uses `{ auth: false }`, you can call it directly with curl:
 curl -X POST http://localhost:3000/daily-report
 ```
 
-If your cron route uses `{ auth: true }`, the request must include a valid cron signature header. In deployed environments, Agentuity adds these headers automatically. For local testing, temporarily set `{ auth: false }` or use the Agentuity CLI to trigger the route.
+If your cron route uses `{ auth: true }`, the request must include valid `X-Agentuity-Cron-Signature` and `X-Agentuity-Cron-Timestamp` headers. In deployed environments, Agentuity adds these headers automatically. For local testing, temporarily set `{ auth: false }` or send a correctly signed request from a script.
 
 <Callout type="info" title="Auth in Deployed Environments">
 `{ auth: true }` verifies the cron signature in all environments, including local development. Use `{ auth: false }` only for routes you're comfortable accepting unauthenticated POST requests against.

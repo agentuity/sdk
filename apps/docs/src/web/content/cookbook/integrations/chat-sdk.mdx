@@ -18,7 +18,7 @@ import { Chat, type Adapter } from 'chat';
 import { createSlackAdapter } from '@chat-adapter/slack';
 import { createDiscordAdapter } from '@chat-adapter/discord';
 import { createMemoryState } from '@chat-adapter/state-memory';
-import chatAgent from '@agent/chat/agent';
+import chatAgent from '@agent/chat';
 
 const adapters = {
   ...(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET
@@ -135,26 +135,27 @@ import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
 import { bot } from '@lib/bot';
 
-const api = new Hono<Env>();
+const api = new Hono<Env>()
+  .all('/webhooks/:platform', async (c) => {
+    const platform = c.req.param('platform');
+    const webhookHandler = bot.webhooks[platform as keyof typeof bot.webhooks];
 
-api.all('/webhooks/:platform', async (c) => {
-  const platform = c.req.param('platform');
-  const webhookHandler = bot.webhooks[platform as keyof typeof bot.webhooks];
+    if (!webhookHandler) {
+      return c.json({ error: `Unknown platform: ${platform}` }, 404);
+    }
 
-  if (!webhookHandler) {
-    return c.json({ error: `Unknown platform: ${platform}` }, 404);
-  }
-
-  return await webhookHandler(c.req.raw, {
-    waitUntil: (promise) => { // [!code highlight]
-      c.waitUntil(async () => {
-        await promise.catch((err) => {
-          c.var.logger.error(`Webhook processing error (${platform})`, { error: err });
+    return await webhookHandler(c.req.raw, {
+      waitUntil: (promise) => { // [!code highlight]
+        c.waitUntil(async () => {
+          await promise.catch((err) => {
+            c.var.logger.error(`Webhook processing error (${platform})`, { error: err });
+          });
         });
-      });
-    },
+      },
+    });
   });
-});
+
+export default api;
 ```
 
 Slack sends verification challenges and event payloads to `/api/webhooks/slack`. Discord sends interaction payloads to `/api/webhooks/discord`. Chat SDK handles signature verification and event parsing for each platform.
@@ -165,9 +166,14 @@ Discord's Gateway API uses a persistent WebSocket connection for real-time event
 
 ```typescript title="app.ts"
 import { createApp, registerShutdownHook } from '@agentuity/runtime';
+import api from './src/api/index';
+import chatAgent from './src/agent/chat/agent';
 import { bot } from '@lib/bot';
 
-const app = await createApp();
+const app = await createApp({
+  router: { path: '/api', router: api },
+  agents: [chatAgent],
+});
 
 registerShutdownHook(async () => {
   await bot.shutdown();

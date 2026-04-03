@@ -8,7 +8,7 @@ import { Lightbulb } from 'lucide-react';
 This guide walks you through building a chat agent from scratch using OpenAI.
 
 <Callout type="info" title="Default Template">
-When you create a project with `agentuity create`, you get a translation agent demonstrating:
+When you create a project with `agentuity project create`, you get a translation agent demonstrating:
 
 - **AI Gateway**: OpenAI SDK routed through Agentuity (unified billing, no separate API keys)
 - **Thread state**: Persistent translation history across requests
@@ -59,18 +59,33 @@ export default agent;
 Create `src/api/index.ts`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import chat from '@agent/chat';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chat.validator(), async (c) => {
+    const data = c.req.valid('json');
+    const result = await chat.run(data);
+    return c.json(result);
+  });
 
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  const result = await chat.run(data);
-  return c.json(result);
+export type ApiRouter = typeof api;
+
+export default api;
+```
+
+Wire that route and your agent into the project-root `app.ts`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import chat from './src/agent/chat/agent';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents: [chat],
 });
-
-export default router;
 ```
 
 ## 3. Run Your Agent
@@ -100,16 +115,20 @@ Response:
 
 ## 4. Test Locally with Workbench
 
-Workbench is a built-in UI for testing agents directly, without going through your frontend. Enable it by adding a `workbench` section to your `agentuity.config.ts`:
+Workbench is a built-in UI for testing agents directly, without going through your frontend. Enable it in `createApp()`:
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import chat from './src/agent/chat/agent';
 
-export default {
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents: [chat],
   workbench: {
     route: '/workbench',
   },
-} satisfies AgentuityConfig;
+});
 ```
 
 Open [http://localhost:3500/workbench](http://localhost:3500/workbench) to test your agents with raw JSON input. See [Testing with Workbench](/agents/workbench) for adding test prompts and configuration options.
@@ -119,12 +138,35 @@ Open [http://localhost:3500/workbench](http://localhost:3500/workbench) to test 
 Add a React UI in `src/web/` to call your agent. Here's a simple example:
 
 ```tsx
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
 import { useState } from 'react';
+import type { ApiRouter } from '../api';
+
+const client = hc<ApiRouter>('/api');
 
 export function App() {
   const [message, setMessage] = useState('');
-  const { data, invoke, isLoading } = useAPI('POST /api/chat');
+  const [data, setData] = useState<{ response: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await client.chat.$post({ json: { message } });
+      if (!res.ok) {
+        throw new Error(`Chat request failed with ${res.status}`);
+      }
+
+      setData(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -134,16 +176,17 @@ export function App() {
         placeholder="Ask something..."
         disabled={isLoading}
       />
-      <button onClick={() => invoke({ message })} disabled={isLoading}>
+      <button onClick={handleSubmit} disabled={isLoading}>
         {isLoading ? 'Thinking...' : 'Send'}
       </button>
+      {error && <p>{error}</p>}
       {data && <p>{data.response}</p>}
     </div>
   );
 }
 ```
 
-The `useAPI` hook provides type-safe access to your routes. It infers types from your agent's schema, so `data.response` is fully typed.
+Import your router type into the frontend and use `hc<ApiRouter>()` when you want end-to-end typed API calls without extra client code generation.
 
 ## 6. Add Streaming
 
@@ -176,17 +219,17 @@ export default agent;
 Update the route to use the `stream()` middleware:
 
 ```typescript
-import { createRouter, stream } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, stream } from '@agentuity/runtime';
 import chat from '@agent/chat';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chat.validator(), stream(async (c) => {
+    const data = c.req.valid('json');
+    return chat.run(data);
+  }));
 
-router.post('/chat', chat.validator(), stream(async (c) => {
-  const data = c.req.valid('json');
-  return chat.run(data);
-}));
-
-export default router;
+export default api;
 ```
 
 ## 7. Deploy
@@ -226,7 +269,7 @@ agentuity ai opencode install
 
 - [Build a multi-agent system](/agents/calling-other-agents): Routing, RAG, workflows
 - [Persist data](/agents/state-management): Use thread and session state
-- [Explore React Hooks](/frontend/react-hooks): WebSocket, SSE, and more patterns
+- [RPC Client](/frontend/rpc-client): Type-safe `hc()` patterns for browser and server code
 
 **Understand the platform:**
 

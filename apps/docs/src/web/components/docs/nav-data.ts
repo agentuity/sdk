@@ -244,7 +244,7 @@ export const navData: NavSection[] = [
 				title: 'Using Explicit Routing',
 				url: '/routes/explicit-routing',
 				description:
-					'Pass your own Hono router to createApp() for full control over route composition and mount paths',
+					'Pass your own Hono router to createApp() when you need custom mount paths or an exported router type',
 			},
 		],
 	},
@@ -255,19 +255,19 @@ export const navData: NavSection[] = [
 			{
 				title: 'React Hooks',
 				url: '/frontend/react-hooks',
-				description: 'Authentication, analytics, and WebRTC hooks from @agentuity/react',
+				description: 'Provider, auth, analytics, and WebRTC hooks from @agentuity/react',
 			},
 			{
 				title: 'RPC Client',
 				url: '/frontend/rpc-client',
 				description:
-					'Type-safe API calls from any JavaScript environment using hc() from hono/client',
+					'Type-safe route calls from any JavaScript environment using hc<ApiRouter>()',
 			},
 			{
 				title: 'Provider Setup',
 				url: '/frontend/provider-setup',
 				description:
-					'Configure AgentuityProvider for local development and production deployments',
+					'Configure AgentuityProvider baseUrl and transport auth state for React apps',
 			},
 			{
 				title: 'Authentication',
@@ -284,7 +284,7 @@ export const navData: NavSection[] = [
 				title: 'Deployment Scenarios',
 				url: '/frontend/deployment-scenarios',
 				description:
-					'Deploy your frontend alongside agents or separately on Vercel, Netlify, etc.',
+					'Deploy your frontend on the same origin as Agentuity or on a separate host',
 			},
 			{
 				title: 'Static Rendering',
@@ -296,7 +296,7 @@ export const navData: NavSection[] = [
 				title: 'Advanced Hooks',
 				url: '/frontend/advanced-hooks',
 				description:
-					'Connect to custom WebSocket and SSE endpoints with useWebsocket and useEventStream',
+					'Advanced WebRTC callbacks plus low-level WebSocket and SSE client utilities',
 			},
 		],
 	},
@@ -559,19 +559,19 @@ export const navData: NavSection[] = [
 						title: 'Next.js',
 						url: '/cookbook/integrations/nextjs',
 						description:
-							'Connect a Next.js frontend to an Agentuity backend using API rewrites',
+							'Connect a Next.js frontend to an Agentuity backend using rewrites and direct router types',
 					},
 					{
 						title: 'TanStack Start',
 						url: '/cookbook/integrations/tanstack-start',
 						description:
-							'Connect a TanStack Start frontend to an Agentuity backend using Vite proxy',
+							'Connect a TanStack Start frontend to an Agentuity backend using a Vite proxy and direct router types',
 					},
 					{
 						title: 'Turborepo',
 						url: '/cookbook/integrations/turborepo',
 						description:
-							'Add Agentuity agents as a workspace package alongside your existing apps, with shared types across packages',
+							'Add Agentuity as a workspace app, share schemas across packages, and import router types directly',
 					},
 				],
 			},
@@ -809,7 +809,7 @@ export const navData: NavSection[] = [
 						title: 'Application Entry',
 						url: '/reference/sdk-reference/application-entry',
 						description:
-							'Initialize your Agentuity app with createApp() and configure services',
+							'Initialize your Agentuity app with createApp() and configure the runtime entry file',
 					},
 					{
 						title: 'Agents',

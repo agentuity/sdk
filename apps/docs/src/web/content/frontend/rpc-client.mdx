@@ -3,7 +3,7 @@ title: RPC Client
 description: Type-safe API calls from any JavaScript environment using hc() from hono/client
 ---
 
-Call your API routes with full type safety using Hono's built-in RPC client.
+Call your API routes with full type safety using Hono's built-in RPC client. The type comes directly from your exported router, so there is no separate route registry to maintain.
 
 ## Setup
 
@@ -11,8 +11,9 @@ Call your API routes with full type safety using Hono's built-in RPC client.
 
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = new Hono()
+const router = new Hono<Env>()
   .post('/chat', async (c) => {
     const { message } = await c.req.json<{ message: string }>();
     return c.json({ response: `Echo: ${message}` });
@@ -31,16 +32,17 @@ export type ApiRouter = typeof router;
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
-const client = hc<ApiRouter>('/api');
+const sameOriginClient = hc<ApiRouter>('/api');
+const remoteClient = hc<ApiRouter>('https://your-project.agentuity.cloud/api');
 ```
 
 ## Basic Usage
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
 const client = hc<ApiRouter>('/api');
 
@@ -64,7 +66,7 @@ Hono's RPC client uses `$get`, `$post`, `$put`, `$delete`, and `$patch` to match
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
 const client = hc<ApiRouter>('/api');
 
@@ -80,7 +82,7 @@ Use `$ws()` for WebSocket routes:
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
 const client = hc<ApiRouter>('/api');
 const ws = client.chat.$ws();
@@ -122,13 +124,15 @@ events.addEventListener('error', () => {
 events.close();
 ```
 
+If your SSE endpoint needs authentication, prefer same-origin cookies or a signed URL. The browser `EventSource` API does not let you attach arbitrary request headers.
+
 ## Client Options
 
 Pass a custom `fetch` or base URL when creating the client:
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
 // With auth headers via a custom fetch wrapper
 const client = hc<ApiRouter>('/api', {
@@ -149,7 +153,7 @@ Pass an `AbortSignal` through the fetch option:
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
 const controller = new AbortController();
 
@@ -178,7 +182,7 @@ The client returns `Response` objects — check the status yourself:
 
 ```typescript
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
 const client = hc<ApiRouter>('/api');
 
@@ -203,7 +207,14 @@ console.log('Created:', user);
 The type for your router is derived directly from your route definitions — no code generation needed. Export the type from your API file and import it in your frontend:
 
 ```typescript
-// src/api/index.ts
+import { zValidator } from '@hono/zod-validator';
+import { Hono } from 'hono';
+import { z } from 'zod';
+
+const chatSchema = z.object({
+  message: z.string(),
+});
+
 const router = new Hono()
   .post('/chat', zValidator('json', chatSchema), async (c) => {
     const { message } = c.req.valid('json');
@@ -213,7 +224,7 @@ const router = new Hono()
 export type ApiRouter = typeof router; // Captures all route types
 ```
 
-The client infers input and output types from the router, so `$post({ json: ... })` is fully typed without a separate registry.
+The client infers input and output types from the router, so `$post({ json: ... })` is fully typed without `RPCRouteRegistry`, generated route files, or a separate client schema.
 
 <Callout type="info" title="Validator Middleware">
 Use Hono's `zValidator` or `vValidator` middleware to get input type inference on the client side. Without a validator, request body types default to `unknown`.
@@ -223,7 +234,7 @@ Use Hono's `zValidator` or `vValidator` middleware to get input type inference o
 
 | Use Case | Recommended |
 |----------|-------------|
-| React components | [React Hooks](/frontend/react-hooks) with `hc()` or `fetch` |
+| React components | `hc()` plus `useState` or your preferred data library |
 | Non-React apps (Vue, Svelte, vanilla JS) | `hc()` from `hono/client` |
 | Server-side JavaScript | `hc()` from `hono/client` |
 | CLI tools or scripts | `fetch` directly |

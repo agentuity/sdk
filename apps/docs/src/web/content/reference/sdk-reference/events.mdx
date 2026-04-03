@@ -4,11 +4,11 @@ short_title: Events
 description: Lifecycle hooks for monitoring agent, session, and thread events
 ---
 
-The SDK provides a comprehensive event system for hooking into agent, session, and thread lifecycles.
+The runtime exposes two event layers: agent-scoped listeners attached to a specific agent, and global listeners registered with the top-level event bus. Use agent listeners for local instrumentation and global listeners for app-wide analytics or cleanup.
 
 ## Agent Events
 
-Agents emit events during their lifecycle that you can listen to.
+Agents emit `started`, `completed`, and `errored` events during execution.
 
 **Available Events:**
 
@@ -27,16 +27,16 @@ agent.addEventListener('errored', (eventName, agent, ctx, error) => {
 });
 ```
 
-**Example: Logging Agent Lifecycle:**
+**Example: Logging Agent Lifecycle**
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('TaskRunner', {
   schema: {
-    input: z.object({ task: z.string() }),
-    output: z.object({ result: z.string() }),
+    input: s.object({ task: s.string() }),
+    output: s.object({ result: s.string() }),
   },
   handler: async (ctx, input) => {
     return { result: `Completed: ${input.task}` };
@@ -71,7 +71,7 @@ agent.addEventListener('errored', (eventName, agent, ctx, error) => {
 
 ## App Events
 
-Register global event listeners using the top-level `addEventListener` function.
+Register app-wide listeners with the top-level `addEventListener()` function. These listeners are global, so register them at module scope during startup rather than inside individual requests.
 
 **Available App Events:**
 
@@ -92,13 +92,17 @@ addEventListener('thread.created', (eventName, thread) => {});
 addEventListener('thread.destroyed', (eventName, thread) => {});
 ```
 
-**Example: Application-Wide Analytics:**
+Agent events receive `(eventName, agent, ctx)` or `(eventName, agent, ctx, error)`. Session and thread events receive only the `session` or `thread` object.
+
+**Example: App-Wide Metrics**
 
 ```typescript
 import { addEventListener } from '@agentuity/runtime';
 
 // Track agent executions
 let agentExecutions = 0;
+let completedSessions = 0;
+let activeThreads = 0;
 
 addEventListener('agent.started', (eventName, agent, ctx) => {
   agentExecutions++;
@@ -114,58 +118,77 @@ addEventListener('agent.errored', (eventName, agent, ctx, error) => {
   });
 });
 
-// Session analytics
-addEventListener('session.completed', (eventName, session) => {
-  console.log('Session completed', { sessionId: session.id });
+addEventListener('session.completed', () => {
+  completedSessions++;
 });
 
-// Thread cleanup
-addEventListener('thread.destroyed', (eventName, thread) => {
-  console.log('Thread destroyed', { threadId: thread.id });
+addEventListener('thread.created', () => {
+  activeThreads++;
+});
+
+addEventListener('thread.destroyed', () => {
+  activeThreads = Math.max(0, activeThreads - 1);
 });
 ```
 
 ## Event Handlers
 
-Event handlers can be added and removed dynamically.
+Both agent-scoped and global handlers can be added and removed dynamically. Keep a reference to the callback you register so you can remove it later.
 
 **Adding Event Listeners:**
 
 ```typescript
-// Agent-level
+import {
+  addEventListener,
+  createAgent,
+  removeEventListener,
+} from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const agent = createAgent('ActionHandler', {
+  schema: {
+    input: s.object({ action: s.string() }),
+    output: s.object({ success: s.boolean() }),
+  },
+  handler: async () => ({ success: true }),
+});
+
 const handler = (eventName, agent, ctx) => {
   ctx.logger.info('Agent started');
 };
 
 agent.addEventListener('started', handler);
 
-// App-level (top-level function)
-addEventListener('agent.completed', (eventName, agent, ctx) => {
+const completedHandler = (eventName, agent, ctx) => {
   ctx.logger.info(`${agent.metadata.name} completed`);
-});
+};
+
+addEventListener('agent.completed', completedHandler);
 ```
 
 **Removing Event Listeners:**
 
 ```typescript
-// Remove specific handler
 agent.removeEventListener('started', handler);
-
-// Note: You must keep a reference to the handler function
-// to remove it later
+removeEventListener('agent.completed', completedHandler);
 ```
 
 **Complete Example with Cleanup:**
 
 ```typescript
+import {
+  addEventListener,
+  createAgent,
+  removeEventListener,
+} from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
 const agent = createAgent('ActionHandler', {
   schema: {
-    input: z.object({ action: z.string() }),
-    output: z.object({ success: z.boolean() }),
+    input: s.object({ action: s.string() }),
+    output: s.object({ success: s.boolean() }),
   },
-  handler: async (ctx, input) => {
-    return { success: true };
-  },
+  handler: async () => ({ success: true }),
 });
 
 // Create handlers with references for cleanup
@@ -181,15 +204,23 @@ const erroredHandler = (eventName, agent, ctx, error) => {
   ctx.logger.error('Error occurred', { error });
 };
 
+const globalCompletedHandler = (eventName, completedAgent, ctx) => {
+  ctx.logger.info('Observed completion', {
+    agentName: completedAgent.metadata.name,
+  });
+};
+
 // Add listeners
 agent.addEventListener('started', startedHandler);
 agent.addEventListener('completed', completedHandler);
 agent.addEventListener('errored', erroredHandler);
+addEventListener('agent.completed', globalCompletedHandler);
 
 // Later, if needed, remove listeners
 // agent.removeEventListener('started', startedHandler);
 // agent.removeEventListener('completed', completedHandler);
 // agent.removeEventListener('errored', erroredHandler);
+// removeEventListener('agent.completed', globalCompletedHandler);
 ```
 
 For eval creation and lifecycle, see [Evaluations](/reference/sdk-reference/evaluations).

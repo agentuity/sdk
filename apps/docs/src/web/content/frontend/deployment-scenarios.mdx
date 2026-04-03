@@ -3,7 +3,7 @@ title: Deployment Scenarios
 description: Deploy your frontend alongside agents or separately on Vercel, Netlify, etc.
 ---
 
-Choose where your frontend lives based on your project needs.
+Choose the deployment shape that matches your app. The SDK supports both same-origin frontends bundled with your Agentuity app and separate frontends hosted elsewhere.
 
 ## All-in-One Deployment
 
@@ -30,14 +30,14 @@ When you run `agentuity deploy`, both your agents and frontend are bundled and d
 // src/web/App.tsx
 import { AgentuityProvider } from '@agentuity/react';
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../src/api';
+import type { ApiRouter } from '../api/index';
 
-const client = hc<ApiRouter>('/');
+const client = hc<ApiRouter>('/api');
 
 function Chat() {
   // Use hc() for type-safe API calls
   const handleSend = async (message: string) => {
-    const res = await client.api.chat.$post({ json: { message } });
+    const res = await client.chat.$post({ json: { message } });
     return res.json();
   };
   // ... your chat UI
@@ -74,17 +74,34 @@ Frontend (e.g., Vercel)                Agents (Agentuity)
 ```
 
 ```tsx
-// In your React app
 import { AgentuityProvider } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '@acme/agentuity-contract';
+
+const agentuityBaseUrl = 'https://your-project.agentuity.cloud';
+const client = hc<ApiRouter>(`${agentuityBaseUrl}/api`);
+
+function Chat() {
+  const send = async (message: string) => {
+    const res = await client.chat.$post({ json: { message } });
+    return res.json();
+  };
+
+  return <button onClick={() => send('Hello from Vercel')}>Send</button>;
+}
 
 export default function App() {
   return (
-    <AgentuityProvider baseUrl="https://your-project.agentuity.cloud">
-      <YourApp />
+    <AgentuityProvider baseUrl={agentuityBaseUrl}>
+      <Chat />
     </AgentuityProvider>
   );
 }
 ```
+
+<Callout type="info" title="Share the Router Type or Use fetch">
+If your frontend lives in a separate repo, put `ApiRouter` in a shared package or call the backend with plain `fetch`. `hc()` only needs the exported router type, not a generated registry.
+</Callout>
 
 **Best for:**
 - Existing projects adding AI agents
@@ -98,15 +115,14 @@ When your frontend and agents are on different domains, configure CORS in `app.t
 // app.ts
 import { createApp } from '@agentuity/runtime';
 
-const { server, logger } = await createApp({
+export default await createApp({
   cors: {
-    origin: ['https://your-frontend.com', 'http://localhost:3000'],
+    sameOrigin: true,
+    allowedOrigins: ['https://your-frontend.com', 'http://localhost:3000'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowHeaders: ['Content-Type', 'Authorization'],
   },
 });
-
-logger.debug('Running %s', server.url);
 ```
 
 <Callout type="warning" title="Required for Cross-Origin">
@@ -118,12 +134,14 @@ Without CORS configuration, browsers will block requests from your frontend to y
 | Aspect | All-in-One | Separate Frontend |
 |--------|------------|-------------------|
 | Deployment | Single `agentuity deploy` | Deploy frontend and agents separately |
-| Configuration | Minimal | Requires `baseUrl` and CORS |
+| Configuration | Minimal | Requires `baseUrl`, absolute API URLs, and CORS |
 | Scaling | Tied together | Independent scaling |
+| Type-safe client imports | Local relative import | Shared package or monorepo import |
 | Best for | New projects | Existing frontends |
 
 ## Next Steps
 
 - [React Hooks](/frontend/react-hooks): Call agents from your components
 - [Provider Setup](/frontend/provider-setup): Configure the provider for your environment
+- [RPC Client](/frontend/rpc-client): Build typed clients for same-origin or remote frontends
 - [App Configuration](/get-started/app-configuration): CORS and other app-level settings

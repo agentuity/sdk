@@ -4,7 +4,7 @@ short_title: Migration Guide
 description: Migrate from v1 to v2 for explicit routing, Hono-native routers, and standard Vite config.
 ---
 
-Upgrading from v1 to v2? v2 replaces auto-discovery with explicit wiring, favors `new Hono<Env>()` over the `createRouter()` wrapper, and moves build config from `agentuity.config.ts` to standard `vite.config.ts`. This guide covers every breaking change and how to update your project.
+Upgrading from v1 to v2? v2 replaces the old generated entry flow with an explicit `app.ts`, supports Hono-native routers, and moves build config into standard `vite.config.ts`. This guide focuses on the changes the current SDK actually requires and what the migration tool will rewrite for you.
 
 ## What's Changed in v2
 
@@ -14,18 +14,19 @@ v2 introduces six fundamental architectural changes:
 
 **v1**: Agents were auto-discovered from `src/agent/*/agent.ts` files at runtime.
 
-**v2**: Explicitly importing agents into `createApp()` is recommended, especially for type-safe `ctx.invoke()` calls. The build system still discovers agents from `src/agent/*/agent.ts` at build time, so the `agents` field is optional:
+**v2**: Import agents explicitly into `createApp()`. This keeps the registered agents visible in one place and ensures they are included for runtime registration, workbench metadata, and agent-to-agent calls:
 
 ```typescript
+// app.ts
 import { createApp } from '@agentuity/runtime';
-import agents from './agent'; // Default export (array)
+import agents from './src/agent';
 
 export default await createApp({
-  agents, // Recommended for type-safe invocations
+  agents,
 });
 ```
 
-This gives you full control over which agents are registered and their import order.
+Type safety for `ctx.invoke()` comes from direct imports. Listing agents in `createApp()` controls what the app registers and bundles.
 
 ### 2. No More setup/shutdown Hooks
 
@@ -40,25 +41,29 @@ createApp({
 
 **v2**: Use standard patterns:
 - **Initialization**: Module-level code (runs when file loads)
-- **Cleanup**: Hono middleware or Bun's `process.on('beforeExit', ...)`
+- **Cleanup**: `registerShutdownHook()` or Bun process hooks
 
-### 3. Explicit Router (Recommended)
+### 3. Explicit Router for Typed Mounts
 
 **v1**: File-based auto-discovery — routes in `src/api/*.ts` were automatically mounted.
 
-**v2**: Providing an explicit router to `createApp()` is recommended for type-safe `hc<AppRouter>()` usage. File-based routing still works as a build-time fallback, but explicit barrel exports give you full Hono RPC types:
+**v2**: If you want an exported router type for `hc<ApiRouter>()`, create a root router in `src/api/index.ts` and pass it to `createApp()`:
 
 ```typescript
-import router from './api'; // Your Hono router
+// app.ts
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import agents from './src/agent';
 
 export default await createApp({
-  router, // Recommended for hc<AppRouter>() type safety
+  router: { path: '/api', router: api },
+  agents,
 });
 ```
 
-Routes should be composed into a barrel (`src/api/index.ts`) and exported as a Hono instance for the best type inference.
+Compose route modules into a single exported router type when you want to import that type from a frontend or another app.
 
-### 4. Use Hono Directly (Prefer `new Hono<Env>()`)
+### 4. Use a Router Shape That Preserves Types
 
 **v1**: `createRouter()` was a wrapper around Hono:
 
@@ -69,7 +74,7 @@ const router = createRouter();
 router.get('/hello', async (c) => c.json({ msg: 'hi' }));
 ```
 
-**v2**: Use Hono directly. `createRouter()` still works but `new Hono<Env>()` is preferred for clarity:
+**v2**: Both `createRouter()` and `new Hono<Env>()` work. The key change is to keep the root router in a chained expression when you want to export its type for Hono RPC:
 
 ```typescript
 import { Hono } from 'hono';
@@ -80,22 +85,22 @@ const router = new Hono<Env>()
 ```
 
 <Callout type="warning" title="Chained Methods Required">
-Use chained methods (`.get().post()`) instead of mutating style (`router.get()`). Only chained methods preserve types for `hc<AppRouter>()`.
+Use chained methods (`.get().post()`) instead of mutating style (`router.get()`). Only chained methods preserve types for `hc<ApiRouter>()`.
 </Callout>
 
-### 5. React API Client Helpers Removed
+### 5. Legacy Transport Helpers Removed
 
-**v1**: `@agentuity/react` exported `createClient`, `useAPI`, and `RPCRouteRegistry` for type-safe API calls.
+**v1**: Older frontend code often relied on Agentuity-specific transport helpers and generated client types.
 
-**v2**: These three exports are removed. Use Hono's native RPC client or your preferred data fetching library instead. Other hooks (`useAuth`, `useAgentuity`, `useWebRTCCall`, analytics hooks) are unchanged:
+**v2**: Replace those legacy client patterns with Hono's native RPC client or your preferred data fetching library. If you're migrating older frontend code, look for imports from `@agentuity/react` that construct API clients or wrap route calls:
 
 <Tabs items={["Hono Client", "TanStack Query"]}>
 <Tab value="Hono Client">
 ```typescript
 import { hc } from 'hono/client';
-import type { AppRouter } from '../api';
+import type { ApiRouter } from '../api';
 
-const client = hc<AppRouter>('/api');
+const client = hc<ApiRouter>('/api');
 
 // Direct usage
 const res = await client.hello.$get();
@@ -106,9 +111,9 @@ const data = await res.json();
 ```typescript
 import { useQuery } from '@tanstack/react-query';
 import { hc } from 'hono/client';
-import type { AppRouter } from '../api';
+import type { ApiRouter } from '../api';
 
-const client = hc<AppRouter>('/api');
+const client = hc<ApiRouter>('/api');
 
 function useHello() {
   return useQuery({
@@ -175,7 +180,7 @@ v2 doesn't include a default Vite plugin. You must add the plugin for your front
 
 <Callout type="tip" title="Why These Changes?">
 These changes make v2 more explicit and predictable:
-- **Type safety**: Hono's RPC client (`hc<AppRouter>()`) gets full type inference
+- **Type safety**: Hono's RPC client (`hc<ApiRouter>()`) gets full type inference
 - **Control**: You decide what's registered and in what order
 - **Simplicity**: No hidden magic, standard Hono/Bun patterns work everywhere
 </Callout>
@@ -204,7 +209,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 
 | Finding | Action |
 |---|---|
-| `src/generated/` directory | Deleted |
+| v1-generated files under `src/generated/` | Deleted. Run `agentuity build` afterward so the current v2 build recreates any generated files it still needs |
 | `bootstrapRuntimeEnv()` call in `app.ts` | Removed (createApp handles it) |
 | v1 `createRouter()` + mutating `.get()/.post()` route files | Rewritten to `new Hono<Env>()` chained style |
 | Missing `src/api/index.ts` barrel | Generated from discovered route files |
@@ -215,7 +220,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 | Finding | What happens |
 |---|---|
 | `setup` in `createApp()` | Migration comment added — move init to module level |
-| `shutdown` in `createApp()` | Guidance to use Hono's lifecycle hooks instead |
+| `shutdown` in `createApp()` | Guidance to move cleanup into `registerShutdownHook()` or Bun process hooks |
 | No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
 | `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render/bundle |
 | `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
@@ -225,7 +230,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 
 | Finding | Guidance |
 |---|---|
-| Frontend files using `createClient`, `useAPI`, or `RPCRouteRegistry` | Replace with `hc<AppRouter>()` from `hono/client` or your preferred data fetching library. Other hooks (`useAuth`, `useAgentuity`, `useWebRTCCall`) are unchanged |
+| Frontend files using removed transport helpers or generated client registry types | Replace with `hc<ApiRouter>()` from `hono/client` or your preferred data fetching library |
 
 ---
 
@@ -242,9 +247,11 @@ This will analyze your project and present a migration report. Use `--dry-run` f
 ### Step 2: Review Auto-fixes
 
 The tool will automatically:
-- Delete `src/generated/` directory (no longer needed in v2)
+- Delete old v1-generated files under `src/generated/`
 - Remove `bootstrapRuntimeEnv()` calls (handled by `createApp()` now)
 - Rewrite route files from mutating style to chained Hono style
+
+After the migration finishes, run `agentuity build` so the current v2 build can recreate any generated files it still uses.
 
 **Before (v1 mutating style):**
 ```typescript
@@ -282,13 +289,13 @@ export default router;
 ```
 
 <Callout type="tip" title="Enables Hono RPC Client">
-The chained style allows you to use `hc<AppRouter>()` from `hono/client` for fully typed API calls from your frontend:
+The chained style allows you to use `hc<ApiRouter>()` from `hono/client` for fully typed API calls from your frontend:
 
 ```typescript
 import { hc } from 'hono/client';
-import type { AppRouter } from './api';
+import type { ApiRouter } from './api';
 
-const client = hc<AppRouter>('/api');
+const client = hc<ApiRouter>('/api');
 const res = await client.hello.$get(); // Fully typed!
 ```
 </Callout>
@@ -299,10 +306,10 @@ Review and apply the guided migrations:
 
 #### Setup/Shutdown Lifecycle
 
-<Callout type="info" title="Use Hono's Standard Patterns">
-v2 removes custom `setup`/`shutdown` hooks from `createApp()`. Use Hono's built-in patterns instead:
+<Callout type="info" title="Use Runtime and Bun Shutdown Hooks">
+v2 no longer expects the old app-level `setup`/`shutdown` flow from v1. Move startup work to modules or agent-level setup, and move cleanup into runtime or Bun shutdown hooks:
 - **Initialization**: Run at module level (executes when the file loads)
-- **Cleanup**: Use Hono's middleware or Bun's process hooks
+- **Cleanup**: Use `registerShutdownHook()` or Bun's process hooks
 </Callout>
 
 **Before (v1):**
@@ -328,16 +335,15 @@ export default createApp({
 export const db = await connectDB();
 
 // app.ts
-import { createApp } from '@agentuity/runtime';
+import { createApp, registerShutdownHook } from '@agentuity/runtime';
 import { db } from './db';
 
-// Handle cleanup with Bun's process hooks
-process.on('beforeExit', async () => {
+registerShutdownHook(async () => {
   await db.close();
 });
 
 export default await createApp({
-  // No setup/shutdown — handled by Hono/Bun standard patterns
+  // No app-level setup/shutdown hooks
 });
 ```
 
@@ -378,22 +384,14 @@ export default await createApp({
 
 ### Step 4: Update API Client
 
-If your frontend uses the v1 API client:
-
-**Before (v1):**
-```typescript
-import { createClient, RPCRouteRegistry } from '@agentuity/react';
-
-const client = createClient<RPCRouteRegistry>();
-const result = await client.api.hello.$get();
-```
+If your frontend still uses a v1-style client, remove the old Agentuity transport layer and switch to Hono's RPC client directly:
 
 **After (v2):**
 ```typescript
 import { hc } from 'hono/client';
-import type { AppRouter } from '../api';
+import type { ApiRouter } from '../api';
 
-const client = hc<AppRouter>('/api');
+const client = hc<ApiRouter>('/api');
 const result = await client.hello.$get();
 ```
 
@@ -413,7 +411,7 @@ const api = new Hono<Env>()
   .route('/echo', echoRouter);
 
 export default api;
-export type AppRouter = typeof api;
+export type ApiRouter = typeof api;
 ```
 
 **`src/agent/index.ts`:**
@@ -426,13 +424,13 @@ export default [helloAgent, echoAgent];
 
 Wire these into your `app.ts`:
 
-```typescript
+```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime';
-import router from './api';
-import agents from './agent';
+import api from './src/api/index';
+import agents from './src/agent';
 
 export default await createApp({
-  router,
+  router: { path: '/api', router: api },
   agents
 });
 ```
@@ -484,7 +482,7 @@ await client.create({
 ```
 
 <Callout type="info" title="Two Scheduling Approaches">
-- **Cron routes** (`cron()` from `@agentuity/runtime`): in-process handlers that run on a schedule with direct access to agent context
+- **Cron routes** (`cron()` from `@agentuity/runtime`): in-process route handlers that run on a schedule with route services on `c.var.*`
 - **Platform schedules** (`ScheduleClient` from `@agentuity/schedule`): managed by Agentuity with delivery tracking and multi-destination support
 
 These coexist and serve different use cases.
@@ -496,23 +494,23 @@ These coexist and serve different use cases.
 
 #### Issue 1: "Cannot find module '@agentuity/react' client exports"
 
-**Cause**: v2 removed `createClient`, `useAPI`, and `RPCRouteRegistry` from `@agentuity/react`. Other hooks (`useAuth`, `useAgentuity`, `useWebRTCCall`) still work.
+**Cause**: v2 removed the old transport helpers from `@agentuity/react`.
 
 **Solution**: Replace with `hc()` from `hono/client`:
 ```typescript
 import { hc } from 'hono/client';
-import type { AppRouter } from '../api';
+import type { ApiRouter } from '../api';
 
-const client = hc<AppRouter>('/api');
+const client = hc<ApiRouter>('/api');
 ```
 
 ---
 
-#### Issue 2: Switching from createRouter to `new Hono<Env>()`
+#### Issue 2: Exporting a Router Type for `hc<...>()`
 
-**Cause**: v2 prefers `new Hono<Env>()` over `createRouter()`. While `createRouter()` still works, using Hono directly gives you full control over the type parameters.
+**Cause**: Hono RPC works best when your root router is composed in a single chained expression and exported from `src/api/index.ts`.
 
-**Solution**: Replace with `new Hono<Env>()`:
+**Solution**: Export a single root router type. Both `createRouter()` and `new Hono<Env>()` work:
 ```typescript
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
@@ -524,9 +522,9 @@ const router = new Hono<Env>();
 
 #### Issue 3: "ctx.app is empty" or "ctx.app state not available"
 
-**Cause**: v2 removed the `setup()` hook from `createApp()`, which was the mechanism for populating `ctx.app` with shared state. The `ctx.app` property itself still exists on the context type, but without `setup()` nothing writes to it.
+**Cause**: v1 apps often populated shared dependencies through `ctx.app`. New v2 code should prefer module-level dependencies or explicit services instead of relying on that old pattern.
 
-**Solution**: Use module-level initialization instead of `setup()`:
+**Solution**: Initialize shared dependencies in modules and import them where needed:
 ```typescript
 // Before: setup() populated ctx.app
 // createApp({ setup: async (ctx) => { ctx.app.db = await connectDB(); } })
