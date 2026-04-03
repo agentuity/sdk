@@ -5,6 +5,7 @@
 		{ "path": "./packages/claude-code" },
 		{ "path": "./packages/cli" },
 		{ "path": "./packages/coder" },
+		{ "path": "./packages/coder-tui" },
 		{ "path": "./packages/core" },
 		{ "path": "./packages/db" },
 		{ "path": "./packages/drizzle" },

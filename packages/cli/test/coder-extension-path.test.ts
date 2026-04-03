@@ -24,7 +24,7 @@ async function createExtensionPackage(rootPath: string, options?: { withSource?:
 		join(rootPath, 'package.json'),
 		JSON.stringify(
 			{
-				name: '@agentuity/coder',
+				name: '@agentuity/coder-tui',
 				version: '2.0.7',
 				main: './dist/index.js',
 			},
@@ -81,7 +81,7 @@ describe('resolveExtensionPath', () => {
 	test('uses require.resolve fallback when no flag or env provided', async () => {
 		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-cli-coder-'));
 
-		const cliInstalledRoot = join(tempDir, 'node_modules', '@agentuity', 'coder');
+		const cliInstalledRoot = join(tempDir, 'node_modules', '@agentuity', 'coder-tui');
 		await createExtensionPackage(cliInstalledRoot);
 
 		const cliDir = join(tempDir, 'cli');
@@ -94,7 +94,7 @@ describe('resolveExtensionPath', () => {
 		});
 
 		expect(resolved).not.toBeNull();
-		expect(resolved!.endsWith('node_modules/@agentuity/coder')).toBe(true);
+		expect(resolved!.endsWith('node_modules/@agentuity/coder-tui')).toBe(true);
 	});
 
 	test('returns null when coder package cannot be resolved', async () => {
@@ -143,7 +143,7 @@ describe('resolveExtensionRuntimeModulePath', () => {
 		await mkdir(extensionRoot, { recursive: true });
 		await writeFile(
 			join(extensionRoot, 'package.json'),
-			JSON.stringify({ name: '@agentuity/coder', version: '2.0.7' }, null, 2)
+			JSON.stringify({ name: '@agentuity/coder-tui', version: '2.0.7' }, null, 2)
 		);
 
 		const modulePath = await resolveExtensionRuntimeModulePath(extensionRoot);

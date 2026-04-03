@@ -151,11 +151,11 @@ The handler receives a context object with:
 
 ```typescript
 handler: async (ctx, input) => {
-	await ctx.kv.set('user:123', { name: 'Alice', age: 30 });
-	const user = await ctx.kv.get('user:123');
-	await ctx.kv.delete('user:123');
-	const keys = await ctx.kv.list('user:*');
-	return user;
+	await ctx.kv.set('users', 'user:123', { name: 'Alice', age: 30 });
+	const result = await ctx.kv.get('users', 'user:123');
+	await ctx.kv.delete('users', 'user:123');
+	const keys = await ctx.kv.getKeys('users');
+	return result.exists ? result.data : null;
 };
 ```
 
@@ -188,7 +188,7 @@ handler: async (ctx, input) => {
 handler: async (ctx, input) => {
 	// Schedule background work that continues after response
 	ctx.waitUntil(async () => {
-		await ctx.kv.set('processed', Date.now());
+		await ctx.kv.set('state', 'processed', Date.now());
 		ctx.logger.info('Background task complete');
 	});
 
@@ -304,4 +304,4 @@ export default agent;
 - Import agents directly to call them (recommended approach)
 - Subagents are one level deep only (team/members/, not team/members/subagent/)
 
-<!-- prompt_hash: 93d6328b3fb415232e477b00c26496f3cff1f5f242f7652ddd4a1056f3914775 -->
+<!-- prompt_hash: 66e6086334a6a1e3f8b8226f517003dfef6655b2e5b2c21240a0dda1f2829a8f -->

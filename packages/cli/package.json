@@ -42,7 +42,7 @@
 	},
 	"dependencies": {
 		"@agentuity/auth": "workspace:*",
-		"@agentuity/coder": "workspace:*",
+		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/frontend": "workspace:*",
 		"@agentuity/server": "workspace:*",

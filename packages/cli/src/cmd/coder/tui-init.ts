@@ -1,5 +1,3 @@
-import { hubFetchHeaders } from './hub-url';
-
 export type HubInitProbeResult =
 	| { ok: true }
 	| {
@@ -27,10 +25,16 @@ export async function probeHubInitAccess(
 	}
 ): Promise<HubInitProbeResult> {
 	const fetchImpl = options?.fetchImpl ?? fetch;
+	const headers: Record<string, string> = {
+		accept: 'application/json',
+	};
+	if (options?.apiKey) {
+		headers['x-agentuity-auth-api-key'] = options.apiKey;
+	}
 
 	try {
 		const response = await fetchImpl(`${hubHttpUrl}/api/hub/init`, {
-			headers: hubFetchHeaders({ accept: 'application/json' }, options?.apiKey),
+			headers,
 			signal: AbortSignal.timeout(5_000),
 		});
 

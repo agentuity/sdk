@@ -9,6 +9,7 @@ export * from './task/index.ts';
 export * from './vector/index.ts';
 
 export * from './config.ts';
+export * from './coder/index.ts';
 export * from './env.ts';
 export * from './logger.ts';
 export * from './api.ts';
