@@ -1,5 +1,5 @@
 /**
- * @agentuity/claude-code - Agentuity Coder plugin for Claude Code
+ * @agentuity/claude-code - Agentuity plugin for Claude Code
  *
  * Install script that configures the plugin for the current project.
  * Sets up permissions for Agentuity Cloud CLI commands.
@@ -116,7 +116,7 @@ async function configurePermissions(): Promise<{ added: number }> {
 }
 
 /**
- * Install the Agentuity Coder plugin.
+ * Install the Agentuity plugin.
  * This is called when the plugin is first installed.
  */
 export async function install(): Promise<void> {
@@ -129,11 +129,9 @@ export async function install(): Promise<void> {
 	}
 
 	if (config.projectId) {
-		console.log(`Agentuity Coder configured for project: ${config.projectId}`);
+		console.log(`Agentuity plugin configured for project: ${config.projectId}`);
 	} else {
-		console.log(
-			'Agentuity Coder installed (no agentuity.json found - will use session-start hook for context)'
-		);
+		console.log('Agentuity plugin installed');
 	}
 }
 
