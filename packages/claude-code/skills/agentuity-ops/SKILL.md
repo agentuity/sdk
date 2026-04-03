@@ -87,7 +87,7 @@ These work on any command with a confirmation prompt (deploy, create, delete, et
 | Hardcoding sandbox paths as `/app` | Use `/home/agentuity` | That's the default working directory |
 | Making up CLI flags                | Run `--help` first    | Flags change between versions        |
 | Fabricating deployment URLs        | Read actual output    | URLs are generated dynamically       |
-| Using `expect`/`yes |` for prompts | Use `--yes` or `--force` flag | Built-in flag support is cleaner and more reliable |
+| Using `expect`/`yes` piping for prompts | Use `--yes` or `--force` flag | Built-in flag support is cleaner and more reliable |
 | Running v1 project without migrating | Run `npx @agentuity/migrate` first | v2 requires explicit agent/router wiring |
 
 ## When In Doubt, Check the Docs

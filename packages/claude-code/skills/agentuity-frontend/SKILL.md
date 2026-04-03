@@ -24,6 +24,7 @@ version: 2.0.0
 - Auth tokens from `useAuth()` must be passed to `hc()` calls manually
 - `baseUrl` prop only needed if frontend is hosted separately from Agentuity
 - Server auth via `createAuth()`, `createSessionMiddleware()`, `mountAuthRoutes()` from `@agentuity/auth`
+- `AuthProvider` is exported from `@agentuity/auth/react` (not `@agentuity/react`)
 - Build config goes in standard `vite.config.ts` (not `agentuity.config.ts`)
 
 ## Type-Safe API Calls (v2)
@@ -64,7 +65,8 @@ const router = new Hono<Env>()
 ### Client Setup
 
 ```tsx
-import { AuthProvider, AgentuityProvider, useAuth } from '@agentuity/react';
+import { AgentuityProvider, useAuth } from '@agentuity/react';
+import { AuthProvider } from '@agentuity/auth/react';
 
 function App() {
   return (

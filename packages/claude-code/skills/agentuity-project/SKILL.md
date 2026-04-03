@@ -113,7 +113,7 @@ bun install
 
 ## Project Structure
 
-```
+```text
 my-project/
 ├── agentuity.json        # Project manifest (created by CLI — do not write manually)
 ├── vite.config.ts        # Vite build config (plugins for your frontend framework)
@@ -257,7 +257,7 @@ my-project/
 
 1. **Create the Agentuity directory structure** in the existing project:
 
-   ```
+   ```bash
    mkdir -p src/agent src/api src/web
    ```
 

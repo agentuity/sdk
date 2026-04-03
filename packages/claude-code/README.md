@@ -60,7 +60,7 @@ bun run build
 
 ### Project Structure
 
-```
+```text
 packages/claude-code/
 ├── .claude-plugin/plugin.json   # Plugin manifest
 ├── hooks/                       # Session lifecycle hooks
