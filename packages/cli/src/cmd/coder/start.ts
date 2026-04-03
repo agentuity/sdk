@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
@@ -26,8 +26,18 @@ async function resolvePiBinary(flagPath?: string, extensionDir?: string): Promis
 
 	// Look for pi bundled with the coder-tui extension
 	if (extensionDir) {
-		const bundledPi = resolve(extensionDir, 'node_modules', '.bin', 'pi');
-		if (await Bun.file(bundledPi).exists()) return bundledPi;
+		// Prefer require.resolve via package.json — handles hoisted deps, Bun's .bun cache, etc.
+		try {
+			const pkgJson = require.resolve('@mariozechner/pi-coding-agent/package.json', {
+				paths: [extensionDir],
+			});
+			const piCli = resolve(dirname(pkgJson), 'dist', 'cli.js');
+			if (await Bun.file(piCli).exists()) return piCli;
+		} catch {
+			// Fallback: direct .bin symlink check
+			const bundledPi = resolve(extensionDir, 'node_modules', '.bin', 'pi');
+			if (await Bun.file(bundledPi).exists()) return bundledPi;
+		}
 	}
 
 	return 'pi';
