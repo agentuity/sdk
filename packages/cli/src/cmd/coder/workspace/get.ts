@@ -51,9 +51,53 @@ export const getWorkspaceSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let workspace;
 		try {
-			workspace = await client.getWorkspace(args.workspaceId);
+			const workspace = await client.getWorkspace(args.workspaceId);
+
+			if (options.json) {
+				return workspace;
+			}
+
+			tui.header(`Workspace: ${workspace.name}`);
+			tui.newline();
+			tui.output(`  ID:          ${workspace.id}`);
+			tui.output(`  Name:        ${tui.bold(workspace.name)}`);
+			if (workspace.description) {
+				tui.output(`  Description: ${workspace.description}`);
+			}
+			tui.output(`  Scope:       ${workspace.scope}`);
+			tui.output(`  Owner:       ${workspace.ownerUserId}`);
+			tui.output(`  Created:     ${formatRelativeTime(workspace.createdAt)}`);
+			tui.output(`  Updated:     ${formatRelativeTime(workspace.updatedAt)}`);
+			tui.newline();
+
+			if (workspace.repos.length > 0) {
+				tui.output(`  Repositories (${workspace.repoCount}):`);
+				for (const repo of workspace.repos) {
+					const name = repo.fullName || repo.name || repo.url || repo.cloneUrl || 'unknown';
+					const branch = repo.branch || repo.defaultBranch || '';
+					tui.output(`    - ${name}${branch ? ` (${branch})` : ''}`);
+				}
+				tui.newline();
+			}
+
+			if (workspace.savedSkillIds.length > 0) {
+				tui.output(`  Saved Skill IDs (${workspace.savedSkillIds.length}):`);
+				for (const id of workspace.savedSkillIds) {
+					tui.output(`    - ${id}`);
+				}
+				tui.newline();
+			}
+
+			if (workspace.skillBucketIds.length > 0) {
+				tui.output(`  Skill Bucket IDs (${workspace.skillBucketIds.length}):`);
+				for (const id of workspace.skillBucketIds) {
+					tui.output(`    - ${id}`);
+				}
+				tui.newline();
+			}
+
+			return workspace;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -61,52 +105,6 @@ export const getWorkspaceSubcommand = createSubcommand({
 			}
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to get workspace ${args.workspaceId}: ${msg}`, ErrorCode.NETWORK_ERROR);
-			return;
 		}
-
-		if (options.json) {
-			return workspace;
-		}
-
-		tui.header(`Workspace: ${workspace.name}`);
-		tui.newline();
-		tui.output(`  ID:          ${workspace.id}`);
-		tui.output(`  Name:        ${tui.bold(workspace.name)}`);
-		if (workspace.description) {
-			tui.output(`  Description: ${workspace.description}`);
-		}
-		tui.output(`  Scope:       ${workspace.scope}`);
-		tui.output(`  Owner:       ${workspace.ownerUserId}`);
-		tui.output(`  Created:     ${formatRelativeTime(workspace.createdAt)}`);
-		tui.output(`  Updated:     ${formatRelativeTime(workspace.updatedAt)}`);
-		tui.newline();
-
-		if (workspace.repos.length > 0) {
-			tui.output(`  Repositories (${workspace.repoCount}):`);
-			for (const repo of workspace.repos) {
-				const name = repo.fullName || repo.name || repo.url || repo.cloneUrl || 'unknown';
-				const branch = repo.branch || repo.defaultBranch || '';
-				tui.output(`    - ${name}${branch ? ` (${branch})` : ''}`);
-			}
-			tui.newline();
-		}
-
-		if (workspace.savedSkillIds.length > 0) {
-			tui.output(`  Saved Skill IDs (${workspace.savedSkillIds.length}):`);
-			for (const id of workspace.savedSkillIds) {
-				tui.output(`    - ${id}`);
-			}
-			tui.newline();
-		}
-
-		if (workspace.skillBucketIds.length > 0) {
-			tui.output(`  Skill Bucket IDs (${workspace.skillBucketIds.length}):`);
-			for (const id of workspace.skillBucketIds) {
-				tui.output(`    - ${id}`);
-			}
-			tui.newline();
-		}
-
-		return workspace;
 	},
 });

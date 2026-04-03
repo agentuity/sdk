@@ -37,9 +37,16 @@ export const archiveSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let session;
 		try {
-			session = await client.archiveSession(args.sessionId);
+			const session = await client.archiveSession(args.sessionId);
+			const result = session ?? { archived: true, sessionId: args.sessionId };
+
+			if (options.json) {
+				return result;
+			}
+
+			tui.success(`Session ${args.sessionId} archived.`);
+			return result;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -48,14 +55,5 @@ export const archiveSubcommand = createSubcommand({
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to archive session ${args.sessionId}: ${msg}`, ErrorCode.NETWORK_ERROR);
 		}
-
-		const result = session ?? { archived: true, sessionId: args.sessionId };
-
-		if (options.json) {
-			return result;
-		}
-
-		tui.success(`Session ${args.sessionId} archived.`);
-		return result;
 	},
 });

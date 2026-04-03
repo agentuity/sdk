@@ -174,9 +174,88 @@ export const createCoderSubcommand = createSubcommand({
 		if (opts?.workspaceId) body.workspaceId = opts.workspaceId;
 
 		// Create the session
-		let created;
 		try {
-			created = await client.createSession(body);
+			const created = await client.createSession(body);
+
+			// JSON mode: return result and stop
+			if (options.json) {
+				return created;
+			}
+
+			tui.success(`Session ${created.sessionId} created (status: ${created.status})`);
+
+			// If --connect, wait for provisioning then attach TUI
+			if (opts?.connect) {
+				tui.output('Waiting for session to provision...');
+
+				// Poll until session is active
+				let status = created.status;
+				const startTime = Date.now();
+				const POLL_TIMEOUT = 120_000;
+				const POLL_INTERVAL = 3_000;
+
+				while (Date.now() - startTime < POLL_TIMEOUT) {
+					if (status !== 'creating' && status !== 'provisioning') break;
+					await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+					try {
+						const detail = await client.getSession(created.sessionId);
+						status = detail.status;
+					} catch {
+						// Network blip — keep polling
+					}
+				}
+
+				if (status !== 'active') {
+					tui.fatal(
+						`Session did not become active (status: ${status})`,
+						ErrorCode.NETWORK_ERROR
+					);
+					return;
+				}
+
+				// Resolve extension and WS URL, then launch TUI
+				const hubHttpUrl = await client.getUrl();
+				const hubWsUrl = toCoderHubWsUrl(hubHttpUrl);
+
+				const extensionPath = await resolveExtensionPath(opts?.extension);
+				if (!extensionPath) {
+					tui.fatal(
+						'Could not find the Agentuity Coder extension.\n\nTry:\n  - Reinstall or update @agentuity/cli\n  - Install it locally: npm install @agentuity/coder-tui\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
+						ErrorCode.CONFIG_INVALID
+					);
+					return;
+				}
+
+				const remoteTuiPath = await resolveExtensionRuntimeModulePath(extensionPath);
+				if (!remoteTuiPath) {
+					tui.fatal(
+						`Coder extension at ${extensionPath} is missing the remote TUI entrypoint`,
+						ErrorCode.CONFIG_INVALID
+					);
+					return;
+				}
+
+				if (!options.json) {
+					tui.newline();
+					tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
+					tui.output(`  Extension: ${tui.bold(extensionPath)}`);
+					tui.output(`  Session:   ${tui.bold(created.sessionId)}`);
+					tui.newline();
+				}
+
+				try {
+					const { runRemoteTui } = await import(remoteTuiPath);
+					await runRemoteTui({
+						hubWsUrl,
+						sessionId: created.sessionId,
+						apiKey: ctx.auth.apiKey,
+						orgId: ctx.orgId,
+					});
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					tui.fatal(`Remote TUI failed: ${msg}`, ErrorCode.NETWORK_ERROR);
+				}
+			}
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -184,84 +263,6 @@ export const createCoderSubcommand = createSubcommand({
 			}
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to create Coder session: ${msg}`, ErrorCode.NETWORK_ERROR);
-			return;
-		}
-
-		// JSON mode: return result and stop
-		if (options.json) {
-			return created;
-		}
-
-		tui.success(`Session ${created.sessionId} created (status: ${created.status})`);
-
-		// If --connect, wait for provisioning then attach TUI
-		if (opts?.connect) {
-			tui.output('Waiting for session to provision...');
-
-			// Poll until session is active
-			let status = created.status;
-			const startTime = Date.now();
-			const POLL_TIMEOUT = 120_000;
-			const POLL_INTERVAL = 3_000;
-
-			while (Date.now() - startTime < POLL_TIMEOUT) {
-				if (status !== 'creating' && status !== 'provisioning') break;
-				await new Promise((r) => setTimeout(r, POLL_INTERVAL));
-				try {
-					const detail = await client.getSession(created.sessionId);
-					status = detail.status;
-				} catch {
-					// Network blip — keep polling
-				}
-			}
-
-			if (status !== 'active') {
-				tui.fatal(`Session did not become active (status: ${status})`, ErrorCode.NETWORK_ERROR);
-				return;
-			}
-
-			// Resolve extension and WS URL, then launch TUI
-			const hubHttpUrl = await client.getUrl();
-			const hubWsUrl = toCoderHubWsUrl(hubHttpUrl);
-
-			const extensionPath = await resolveExtensionPath(opts?.extension);
-			if (!extensionPath) {
-				tui.fatal(
-					'Could not find the Agentuity Coder extension.\n\nTry:\n  - Reinstall or update @agentuity/cli\n  - Install it locally: npm install @agentuity/coder-tui\n  - Set AGENTUITY_CODER_EXTENSION environment variable\n  - Pass --extension flag',
-					ErrorCode.CONFIG_INVALID
-				);
-				return;
-			}
-
-			const remoteTuiPath = await resolveExtensionRuntimeModulePath(extensionPath);
-			if (!remoteTuiPath) {
-				tui.fatal(
-					`Coder extension at ${extensionPath} is missing the remote TUI entrypoint`,
-					ErrorCode.CONFIG_INVALID
-				);
-				return;
-			}
-
-			if (!options.json) {
-				tui.newline();
-				tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
-				tui.output(`  Extension: ${tui.bold(extensionPath)}`);
-				tui.output(`  Session:   ${tui.bold(created.sessionId)}`);
-				tui.newline();
-			}
-
-			try {
-				const { runRemoteTui } = await import(remoteTuiPath);
-				await runRemoteTui({
-					hubWsUrl,
-					sessionId: created.sessionId,
-					apiKey: ctx.auth.apiKey,
-					orgId: ctx.orgId,
-				});
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
-				tui.fatal(`Remote TUI failed: ${msg}`, ErrorCode.NETWORK_ERROR);
-			}
 		}
 	},
 });

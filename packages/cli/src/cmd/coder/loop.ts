@@ -38,9 +38,38 @@ export const loopSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let state;
 		try {
-			state = await client.getLoopState(args.sessionId);
+			const state = await client.getLoopState(args.sessionId);
+
+			if (options.json) {
+				return state;
+			}
+
+			const rows: Array<{ Field: string; Value: string }> = [
+				{ Field: 'Session ID', Value: state.sessionId },
+				{ Field: 'Workflow Mode', Value: state.workflowMode },
+			];
+
+			if (!state.loop) {
+				rows.push({ Field: 'Loop Status', Value: 'not active' });
+			} else {
+				rows.push({ Field: 'Loop Status', Value: state.loop.status });
+				rows.push({ Field: 'Iteration', Value: String(state.loop.iteration) });
+				rows.push({
+					Field: 'Max Iterations',
+					Value: String(state.loop.maxIterations ?? '-'),
+				});
+				rows.push({ Field: 'Goal', Value: state.loop.goal ?? '-' });
+				rows.push({ Field: 'Summary', Value: state.loop.summary ?? '-' });
+				rows.push({ Field: 'Next Action', Value: state.loop.nextAction ?? '-' });
+			}
+
+			tui.table(rows, [
+				{ name: 'Field', alignment: 'left' },
+				{ name: 'Value', alignment: 'left' },
+			]);
+
+			return state;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -52,32 +81,5 @@ export const loopSubcommand = createSubcommand({
 				ErrorCode.NETWORK_ERROR
 			);
 		}
-
-		if (options.json) {
-			return state;
-		}
-
-		const rows: Array<{ Field: string; Value: string }> = [
-			{ Field: 'Session ID', Value: state.sessionId },
-			{ Field: 'Workflow Mode', Value: state.workflowMode },
-		];
-
-		if (!state.loop) {
-			rows.push({ Field: 'Loop Status', Value: 'not active' });
-		} else {
-			rows.push({ Field: 'Loop Status', Value: state.loop.status });
-			rows.push({ Field: 'Iteration', Value: String(state.loop.iteration) });
-			rows.push({ Field: 'Max Iterations', Value: String(state.loop.maxIterations ?? '-') });
-			rows.push({ Field: 'Goal', Value: state.loop.goal ?? '-' });
-			rows.push({ Field: 'Summary', Value: state.loop.summary ?? '-' });
-			rows.push({ Field: 'Next Action', Value: state.loop.nextAction ?? '-' });
-		}
-
-		tui.table(rows, [
-			{ name: 'Field', alignment: 'left' },
-			{ name: 'Value', alignment: 'left' },
-		]);
-
-		return state;
 	},
 });

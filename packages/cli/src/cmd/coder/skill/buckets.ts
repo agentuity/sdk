@@ -101,12 +101,25 @@ export const bucketsSubcommand = createSubcommand({
 
 		// Create a bucket
 		if (opts?.create) {
-			let created;
 			try {
-				created = await client.createSkillBucket({
+				const created = await client.createSkillBucket({
 					name: opts.create,
 					...(opts?.description && { description: opts.description }),
 				});
+
+				if (options.json) {
+					return created;
+				}
+
+				tui.success(`Skill bucket ${created.id} created.`);
+				tui.newline();
+				tui.output(`  Name:   ${tui.bold(created.name)}`);
+				if (created.description) {
+					tui.output(`  Desc:   ${created.description}`);
+				}
+				tui.output(`  Skills: ${created.skillCount}`);
+
+				return created;
 			} catch (err) {
 				if (err instanceof ValidationOutputError) {
 					ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -116,20 +129,6 @@ export const bucketsSubcommand = createSubcommand({
 				tui.fatal(`Failed to create skill bucket: ${msg}`, ErrorCode.NETWORK_ERROR);
 				return;
 			}
-
-			if (options.json) {
-				return created;
-			}
-
-			tui.success(`Skill bucket ${created.id} created.`);
-			tui.newline();
-			tui.output(`  Name:   ${tui.bold(created.name)}`);
-			if (created.description) {
-				tui.output(`  Desc:   ${created.description}`);
-			}
-			tui.output(`  Skills: ${created.skillCount}`);
-
-			return created;
 		}
 
 		// Default: list buckets

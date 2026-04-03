@@ -73,9 +73,24 @@ export const createWorkspaceSubcommand = createSubcommand({
 			}
 		}
 
-		let created;
 		try {
-			created = await client.createWorkspace(body);
+			const created = await client.createWorkspace(body);
+
+			if (options.json) {
+				return created;
+			}
+
+			tui.success(`Workspace ${created.id} created.`);
+			tui.newline();
+			tui.output(`  Name:        ${tui.bold(created.name)}`);
+			if (created.description) {
+				tui.output(`  Description: ${created.description}`);
+			}
+			tui.output(`  Scope:       ${created.scope}`);
+			tui.output(`  Repos:       ${created.repoCount}`);
+			tui.output(`  Skills:      ${created.selectionCount}`);
+
+			return created;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -83,23 +98,6 @@ export const createWorkspaceSubcommand = createSubcommand({
 			}
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to create workspace: ${msg}`, ErrorCode.NETWORK_ERROR);
-			return;
 		}
-
-		if (options.json) {
-			return created;
-		}
-
-		tui.success(`Workspace ${created.id} created.`);
-		tui.newline();
-		tui.output(`  Name:        ${tui.bold(created.name)}`);
-		if (created.description) {
-			tui.output(`  Description: ${created.description}`);
-		}
-		tui.output(`  Scope:       ${created.scope}`);
-		tui.output(`  Repos:       ${created.repoCount}`);
-		tui.output(`  Skills:      ${created.selectionCount}`);
-
-		return created;
 	},
 });

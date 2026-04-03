@@ -57,9 +57,38 @@ export const eventsSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let data;
 		try {
-			data = await client.listEventHistory(args.sessionId, { limit: opts?.limit ?? 50 });
+			const data = await client.listEventHistory(args.sessionId, {
+				limit: opts?.limit ?? 50,
+			});
+
+			if (options.json) {
+				return data;
+			}
+
+			if (data.events.length === 0) {
+				tui.info(`No events found for session ${args.sessionId}.`);
+				return data;
+			}
+
+			tui.table(
+				data.events.map((e) => ({
+					Event: e.event,
+					Category: e.category ?? '-',
+					Agent: e.agent ?? '-',
+					'Task ID': e.taskId ?? '-',
+					Occurred: e.occurredAt ? formatRelativeTime(e.occurredAt) : '-',
+				})),
+				[
+					{ name: 'Event', alignment: 'left' },
+					{ name: 'Category', alignment: 'left' },
+					{ name: 'Agent', alignment: 'left' },
+					{ name: 'Task ID', alignment: 'left' },
+					{ name: 'Occurred', alignment: 'right' },
+				]
+			);
+
+			return data;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -71,33 +100,5 @@ export const eventsSubcommand = createSubcommand({
 				ErrorCode.NETWORK_ERROR
 			);
 		}
-
-		if (options.json) {
-			return data;
-		}
-
-		if (data.events.length === 0) {
-			tui.info(`No events found for session ${args.sessionId}.`);
-			return data;
-		}
-
-		tui.table(
-			data.events.map((e) => ({
-				Event: e.event,
-				Category: e.category ?? '-',
-				Agent: e.agent ?? '-',
-				'Task ID': e.taskId ?? '-',
-				Occurred: e.occurredAt ? formatRelativeTime(e.occurredAt) : '-',
-			})),
-			[
-				{ name: 'Event', alignment: 'left' },
-				{ name: 'Category', alignment: 'left' },
-				{ name: 'Agent', alignment: 'left' },
-				{ name: 'Task ID', alignment: 'left' },
-				{ name: 'Occurred', alignment: 'right' },
-			]
-		);
-
-		return data;
 	},
 });

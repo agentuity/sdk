@@ -46,9 +46,8 @@ export const saveSkillSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let saved;
 		try {
-			saved = await client.saveSkill({
+			const saved = await client.saveSkill({
 				repo: opts.repo,
 				skillId: opts.skillId,
 				name: opts.name,
@@ -57,6 +56,21 @@ export const saveSkillSubcommand = createSubcommand({
 				...(opts?.source && { source: opts.source }),
 				...(opts?.content && { content: opts.content }),
 			});
+
+			if (options.json) {
+				return saved;
+			}
+
+			tui.success(`Skill ${saved.id} saved.`);
+			tui.newline();
+			tui.output(`  Name:   ${tui.bold(saved.name)}`);
+			tui.output(`  Repo:   ${saved.repo}`);
+			tui.output(`  Source: ${saved.source}`);
+			if (saved.description) {
+				tui.output(`  Desc:   ${saved.description}`);
+			}
+
+			return saved;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -64,22 +78,6 @@ export const saveSkillSubcommand = createSubcommand({
 			}
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to save skill: ${msg}`, ErrorCode.NETWORK_ERROR);
-			return;
 		}
-
-		if (options.json) {
-			return saved;
-		}
-
-		tui.success(`Skill ${saved.id} saved.`);
-		tui.newline();
-		tui.output(`  Name:   ${tui.bold(saved.name)}`);
-		tui.output(`  Repo:   ${saved.repo}`);
-		tui.output(`  Source: ${saved.source}`);
-		if (saved.description) {
-			tui.output(`  Desc:   ${saved.description}`);
-		}
-
-		return saved;
 	},
 });

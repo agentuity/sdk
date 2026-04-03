@@ -34,9 +34,15 @@ export const replaySubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let replay;
 		try {
-			replay = await client.getReplay(args.sessionId);
+			const replay = await client.getReplay(args.sessionId);
+
+			if (!options.json) {
+				tui.info('Replay data is shown as JSON because it is a complex payload.');
+				tui.output(JSON.stringify(replay, null, 2));
+			}
+
+			return replay;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -48,12 +54,5 @@ export const replaySubcommand = createSubcommand({
 				ErrorCode.NETWORK_ERROR
 			);
 		}
-
-		if (!options.json) {
-			tui.info('Replay data is shown as JSON because it is a complex payload.');
-			tui.output(JSON.stringify(replay, null, 2));
-		}
-
-		return replay;
 	},
 });

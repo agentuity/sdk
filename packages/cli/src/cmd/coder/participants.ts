@@ -51,9 +51,38 @@ export const participantsSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		let data;
 		try {
-			data = await client.listParticipants(args.sessionId);
+			const data = await client.listParticipants(args.sessionId);
+
+			if (options.json) {
+				return data;
+			}
+
+			if (data.participants.length === 0) {
+				tui.info(`No participants found for session ${args.sessionId}.`);
+				return data;
+			}
+
+			tui.table(
+				data.participants.map((p) => ({
+					ID: p.id,
+					Role: p.role,
+					'Agent Role': p.agentRole ?? '-',
+					Transport: p.transport ?? '-',
+					Connected: p.connectedAt ? formatRelativeTime(p.connectedAt) : '-',
+					'Last Activity': p.lastActivityAt ? formatRelativeTime(p.lastActivityAt) : '-',
+				})),
+				[
+					{ name: 'ID', alignment: 'left' },
+					{ name: 'Role', alignment: 'left' },
+					{ name: 'Agent Role', alignment: 'left' },
+					{ name: 'Transport', alignment: 'center' },
+					{ name: 'Connected', alignment: 'right' },
+					{ name: 'Last Activity', alignment: 'right' },
+				]
+			);
+
+			return data;
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
@@ -65,35 +94,5 @@ export const participantsSubcommand = createSubcommand({
 				ErrorCode.NETWORK_ERROR
 			);
 		}
-
-		if (options.json) {
-			return data;
-		}
-
-		if (data.participants.length === 0) {
-			tui.info(`No participants found for session ${args.sessionId}.`);
-			return data;
-		}
-
-		tui.table(
-			data.participants.map((p) => ({
-				ID: p.id,
-				Role: p.role,
-				'Agent Role': p.agentRole ?? '-',
-				Transport: p.transport ?? '-',
-				Connected: p.connectedAt ? formatRelativeTime(p.connectedAt) : '-',
-				'Last Activity': p.lastActivityAt ? formatRelativeTime(p.lastActivityAt) : '-',
-			})),
-			[
-				{ name: 'ID', alignment: 'left' },
-				{ name: 'Role', alignment: 'left' },
-				{ name: 'Agent Role', alignment: 'left' },
-				{ name: 'Transport', alignment: 'center' },
-				{ name: 'Connected', alignment: 'right' },
-				{ name: 'Last Activity', alignment: 'right' },
-			]
-		);
-
-		return data;
 	},
 });
