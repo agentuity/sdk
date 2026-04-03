@@ -10,6 +10,7 @@ dir: apps/docs
 
 files:
    - dist/run/**
+   - agentuity.metadata.json
 
 metadata:
    project: sdk-docs

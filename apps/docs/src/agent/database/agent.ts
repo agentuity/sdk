@@ -17,6 +17,13 @@ import { s } from '@agentuity/schema';
 import { products } from './schema';
 import sampleProducts from '../vector/sample-products.json';
 
+interface DatabaseSummaryRow {
+	avgPrice: number;
+	minPrice: number;
+	maxPrice: number;
+	total: number;
+}
+
 const agent = createAgent('database', {
 	description: 'Query a PostgreSQL database with type-safe Drizzle ORM',
 
@@ -33,7 +40,10 @@ const agent = createAgent('database', {
 	},
 
 	handler: async (ctx, { query, seedData }) => {
-		const { db, close } = createPostgresDrizzle({ schema: { products } });
+		const { db, close } = createPostgresDrizzle({
+			schema: { products },
+			driver: 'pg',
+		});
 
 		try {
 			// Seed data if requested: create table + upsert all products
@@ -89,15 +99,16 @@ const agent = createAgent('database', {
 
 				case 'summary': {
 					ctx.logger.info('Computing price summary');
-					const result = await db.execute(sql`
-						SELECT
-							ROUND(AVG(price)::numeric, 2) AS "avgPrice",
-							MIN(price) AS "minPrice",
-							MAX(price) AS "maxPrice",
-							COUNT(*)::int AS "total"
-						FROM products
-					`);
-					rows = result.rows as unknown[];
+					rows = (await db
+						.select({
+							avgPrice: sql<number>`ROUND(AVG(${products.price})::numeric, 2)`.mapWith(
+								Number
+							),
+							minPrice: sql<number>`MIN(${products.price})`.mapWith(Number),
+							maxPrice: sql<number>`MAX(${products.price})`.mapWith(Number),
+							total: sql<number>`COUNT(*)::int`.mapWith(Number),
+						})
+						.from(products)) satisfies DatabaseSummaryRow[];
 					break;
 				}
 
