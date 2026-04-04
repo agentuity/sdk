@@ -10,6 +10,7 @@ import {
 	type CoderCreateSessionRequest,
 	type CoderListSessionsParams,
 	type CoderSession,
+	type CoderSessionListItem,
 	type CoderSessionListResponse,
 	type CoderUpdateSessionRequest,
 } from './types.ts';
@@ -212,6 +213,22 @@ export interface CoderLifecycleResponse {
 	status?: string;
 }
 
+function isConnectableSession(session: CoderSessionListItem): boolean {
+	if (session.mode !== 'sandbox' || session.historyOnly === true) {
+		return false;
+	}
+
+	if (session.bucket === 'running') {
+		return true;
+	}
+
+	if (session.bucket === 'paused') {
+		return session.runtimeAvailable === true || session.wakeAvailable === true;
+	}
+
+	return false;
+}
+
 export async function coderArchiveSession(
 	client: APIClient,
 	params: CoderSessionIdParams
@@ -220,18 +237,31 @@ export async function coderArchiveSession(
 	return client.post<CoderLifecycleResponse>(path, undefined, CoderLifecycleResponseSchema);
 }
 
+export async function coderResumeSession(
+	client: APIClient,
+	params: CoderSessionIdParams
+): Promise<CoderLifecycleResponse> {
+	const path = `/hub/session/${encodeURIComponent(params.sessionId)}/resume`;
+	return client.post<CoderLifecycleResponse>(path, undefined, CoderLifecycleResponseSchema);
+}
+
 export async function coderListConnectableSessions(
 	client: APIClient,
 	params?: CoderListConnectableSessionsParams
 ): Promise<CoderSessionListResponse> {
-	const path = `/hub/sessions/connectable${buildListQuery(params)}`;
-	const raw = await client.get<z.infer<typeof CoderHubSessionListResponseSchema>>(
-		path,
-		CoderHubSessionListResponseSchema
-	);
-
-	return normalizeSessionList({
-		sessions: raw.sessions.websocket,
-		total: raw.total,
+	const raw = await coderListSessions(client, {
+		search: params?.search,
+		includeArchived: true,
+		orgId: params?.orgId,
 	});
+	const connectable = raw.sessions.filter(isConnectableSession);
+	const normalizedOffset = Math.max(0, params?.offset ?? 0);
+	const normalizedLimit = Math.max(0, params?.limit ?? connectable.length);
+
+	return {
+		sessions: connectable.slice(normalizedOffset, normalizedOffset + normalizedLimit),
+		total: connectable.length,
+		...(params?.limit !== undefined ? { limit: normalizedLimit } : {}),
+		...(params?.offset !== undefined ? { offset: normalizedOffset } : {}),
+	};
 }
