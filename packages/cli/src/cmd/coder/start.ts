@@ -1,4 +1,5 @@
 import { dirname, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { z } from 'zod';
 import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
@@ -65,6 +66,10 @@ export const startSubcommand = createSubcommand({
 			description: 'Start Pi with auto-detected Hub and extension',
 		},
 		{
+			command: getCommand('coder start ~/path/to/my/project'),
+			description: 'Start from a specific local project directory',
+		},
+		{
 			command: getCommand('coder start --url ws://127.0.0.1:3500/api/ws'),
 			description: 'Start with explicit Coder URL',
 		},
@@ -96,6 +101,9 @@ export const startSubcommand = createSubcommand({
 		},
 	],
 	schema: {
+		args: z.object({
+			path: z.string().optional().describe('Path to local project directory to start from'),
+		}),
 		options: z.object({
 			url: z.string().optional().describe('Coder API URL override'),
 			extension: z.string().optional().describe('Coder extension path override'),
@@ -120,7 +128,17 @@ export const startSubcommand = createSubcommand({
 		},
 	},
 	async handler(ctx) {
-		const { opts, options } = ctx;
+		const { args, opts, options } = ctx;
+
+		// Resolve working directory from optional path argument
+		let cwd = process.cwd();
+		if (args?.path) {
+			cwd = resolve(args.path);
+			if (!existsSync(cwd)) {
+				tui.fatal(`The specified path does not exist: ${cwd}`, ErrorCode.CONFIG_INVALID);
+				return;
+			}
+		}
 		const client = new CoderClient({
 			apiKey: ctx.auth.apiKey,
 			url: opts?.url,
@@ -364,12 +382,14 @@ export const startSubcommand = createSubcommand({
 
 		// Build pi command args
 		const piArgs = ['-e', extensionPath];
+		if (args?.path) piArgs.push(cwd);
 
 		if (!options.json) {
 			tui.newline();
 			tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
 			tui.output(`  Extension: ${tui.bold(extensionPath)}`);
 			tui.output(`  Pi:        ${tui.bold(piBinary)}`);
+			if (args?.path) tui.output(`  Path:      ${tui.bold(cwd)}`);
 			if (opts?.agent) tui.output(`  Agent:     ${tui.bold(opts.agent)}`);
 			tui.newline();
 		}
@@ -378,7 +398,7 @@ export const startSubcommand = createSubcommand({
 		try {
 			const proc = Bun.spawn([piBinary, ...piArgs], {
 				env,
-				cwd: process.cwd(),
+				cwd,
 				stdin: 'inherit',
 				stdout: 'inherit',
 				stderr: 'inherit',
