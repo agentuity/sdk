@@ -1,5 +1,6 @@
 import { dirname, resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { z } from 'zod';
 import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
@@ -133,10 +134,24 @@ export const startSubcommand = createSubcommand({
 		// Resolve working directory from optional path argument
 		let cwd = process.cwd();
 		if (args?.path) {
-			cwd = resolve(args.path);
-			if (!existsSync(cwd)) {
-				tui.fatal(`The specified path does not exist: ${cwd}`, ErrorCode.CONFIG_INVALID);
-				return;
+			// Warn if path is provided with --remote or --sandbox (path is ignored in those modes)
+			if (opts?.remote !== undefined || opts?.sandbox !== undefined) {
+				tui.warning('Path argument is ignored in remote/sandbox mode');
+			} else {
+				const raw = args.path.trim();
+				cwd =
+					raw === '~' || raw.startsWith('~/')
+						? resolve(homedir(), raw.slice(2))
+						: resolve(raw);
+
+				const st = await stat(cwd).catch(() => null);
+				if (!st?.isDirectory()) {
+					tui.fatal(
+						`The specified path is not a valid directory: ${cwd}`,
+						ErrorCode.CONFIG_INVALID
+					);
+					return;
+				}
 			}
 		}
 		const client = new CoderClient({
@@ -382,7 +397,6 @@ export const startSubcommand = createSubcommand({
 
 		// Build pi command args
 		const piArgs = ['-e', extensionPath];
-		if (args?.path) piArgs.push(cwd);
 
 		if (!options.json) {
 			tui.newline();
