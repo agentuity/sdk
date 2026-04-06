@@ -291,12 +291,12 @@ async function importAgentMetadata(
 				`  // ❌ Don't do this — runs at import time:\n` +
 				`  const client = new OpenAI();\n` +
 				`  export default createAgent('my-agent', { handler: async (ctx) => { ... } });\n\n` +
-				`  // ✅ Do this instead — runs at request time:\n` +
+				`  // ✅ Do this instead — runs at startup:\n` +
 				`  export default createAgent('my-agent', {\n` +
-				`    setup: (ctx) => ({ client: new OpenAI() }),\n` +
-				`    handler: async (ctx) => { const { client } = ctx.setup; ... },\n` +
+				`    setup: async () => ({ client: new OpenAI() }),\n` +
+				`    handler: async (ctx) => { const { client } = ctx.config; ... },\n` +
 				`  });\n\n` +
-				`See https://agentuity.dev/docs/agents#setup for more information.`
+				`See https://agentuity.dev/agents/creating-agents for more information.`
 		);
 	}
 }
