@@ -18,18 +18,24 @@ Both agents and routes live in your Agentuity project. Routes handle HTTP reques
 
 ## What's the Same
 
-Agents and routes share the same platform services. Everything available through `ctx.*` in an agent is also available through `c.var.*` in a route:
+Agents and routes share the same built-in platform services. These services are available through `ctx.*` in an agent and `c.var.*` in a route:
 
 | Service | In an agent (`ctx`) | In a route (`c.var`) |
 |---------|---------------------|----------------------|
 | Key-Value storage | `ctx.kv` | `c.var.kv` |
 | Vector search | `ctx.vector` | `c.var.vector` |
-| Object storage | `ctx.storage` | `c.var.storage` |
+| Durable streams | `ctx.stream` | `c.var.stream` |
 | Logger | `ctx.logger` | `c.var.logger` |
 | Tracer | `ctx.tracer` | `c.var.tracer` |
 | Queue | `ctx.queue` | `c.var.queue` |
 | Email | `ctx.email` | `c.var.email` |
 | Sandbox | `ctx.sandbox` | `c.var.sandbox` |
+| Schedule | `ctx.schedule` | `c.var.schedule` |
+| Task | `ctx.task` | `c.var.task` |
+
+<Callout type="info" title="Database and Object Storage">
+Database and object storage use Bun's native `sql` and `s3` APIs instead of `ctx.*` or `c.var.*`.
+</Callout>
 
 <Callout type="info" title="Same APIs, different access pattern">
 `ctx.kv.set('bucket', 'key', value)` in an agent does the same thing as `c.var.kv.set('bucket', 'key', value)` in a route. If your logic only needs these services, a route works fine on its own.
@@ -64,9 +70,10 @@ A route receives the HTTP request, applies middleware (authentication, rate limi
 A health endpoint doesn't need an agent:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Replace with your actual database health check
 const checkDatabase = async () => true;
@@ -84,16 +91,16 @@ export default router;
 For structured processing, create an agent and call it from your route:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
-
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json'); // Fully typed from agent schema
-  const result = await chat.run(data);
-  return c.json(result);
-});
+const router = new Hono<Env>()
+  .post('/chat', chat.validator(), async (c) => {
+    const data = c.req.valid('json'); // Fully typed from agent schema
+    const result = await chat.run(data);
+    return c.json(result);
+  });
 
 export default router;
 ```
@@ -105,29 +112,29 @@ The agent defines the schema, validates input, runs the handler, and fires lifec
 Webhooks verify signatures in the route, then hand off to an agent in the background:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import paymentProcessor from '@agent/payment-processor';
-
-const router = createRouter();
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import paymentProcessor from '@agent/payment-processor/agent';
 
 // Replace with your actual Stripe signature verification
 const verifyStripeSignature = (body: string, sig: string | undefined) => true;
 
-router.post('/webhooks/stripe', async (c) => {
-  const signature = c.req.header('stripe-signature');
-  const rawBody = await c.req.text();
+const router = new Hono<Env>()
+  .post('/webhooks/stripe', async (c) => {
+    const signature = c.req.header('stripe-signature');
+    const rawBody = await c.req.text();
 
-  if (!verifyStripeSignature(rawBody, signature)) {
-    return c.json({ error: 'Invalid signature' }, 401);
-  }
+    if (!verifyStripeSignature(rawBody, signature)) {
+      return c.json({ error: 'Invalid signature' }, 401);
+    }
 
-  // Respond fast, process in background
-  c.waitUntil(async () => {
-    await paymentProcessor.run(JSON.parse(rawBody));
+    // Respond fast, process in background
+    c.waitUntil(async () => {
+      await paymentProcessor.run(JSON.parse(rawBody));
+    });
+
+    return c.json({ received: true });
   });
-
-  return c.json({ received: true });
-});
 
 export default router;
 ```

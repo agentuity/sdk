@@ -3,7 +3,7 @@ title: Events & Lifecycle
 description: Lifecycle hooks for monitoring and extending agent behavior
 ---
 
-Events provide lifecycle hooks for monitoring agent execution. Use them for logging, metrics, analytics, and error tracking.
+Events give you lifecycle hooks for observability and lightweight coordination. Use them for logging, metrics, analytics, and cleanup that should stay close to the runtime.
 
 ## Agent Events
 
@@ -59,33 +59,31 @@ agent.addEventListener('errored', (event, agent, ctx, error) => {
 export default agent;
 ```
 
-Event listeners receive: event name, agent instance, context, and (for `errored`) the error object.
+Agent listeners receive the event name, agent instance, context, and for `errored`, the thrown error.
 
 ## App-Level Events
 
-Monitor all agents globally by registering listeners in `app.ts`:
+Monitor all agents, sessions, and threads globally with the top-level `addEventListener()` function. Register these listeners at module scope during startup.
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
-
-const app = await createApp();
+import { addEventListener } from '@agentuity/runtime';
 
 // Track all agent executions
-app.addEventListener('agent.started', (event, agent, ctx) => {
+addEventListener('agent.started', (event, agent, ctx) => {
   ctx.logger.info('Agent execution started', {
     agent: agent.metadata.name,
     sessionId: ctx.sessionId,
   });
 });
 
-app.addEventListener('agent.completed', (event, agent, ctx) => {
+addEventListener('agent.completed', (event, agent, ctx) => {
   ctx.logger.info('Agent execution completed', {
     agent: agent.metadata.name,
     sessionId: ctx.sessionId,
   });
 });
 
-app.addEventListener('agent.errored', (event, agent, ctx, error) => {
+addEventListener('agent.errored', (event, agent, ctx, error) => {
   ctx.logger.error('Agent execution failed', {
     agent: agent.metadata.name,
     error: error.message,
@@ -93,6 +91,8 @@ app.addEventListener('agent.errored', (event, agent, ctx, error) => {
   });
 });
 ```
+
+Agent events receive `(eventName, agent, ctx)` or `(eventName, agent, ctx, error)`. Session and thread events receive `(eventName, session)` or `(eventName, thread)`.
 
 ### Available App Events
 
@@ -104,53 +104,30 @@ app.addEventListener('agent.errored', (event, agent, ctx, error) => {
 | `session.started` | New session begins |
 | `session.completed` | Session ends |
 | `thread.created` | New thread created |
-| `thread.destroyed` | Thread expired or destroyed |
+| `thread.destroyed` | Thread is explicitly destroyed or removed by the active provider |
 
-## App Lifecycle Hooks
+## App Startup and Shutdown
 
-Use `setup` and `shutdown` hooks to initialize resources and manage typed app state:
+For shared resources, prefer module initialization plus `registerShutdownHook()`:
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
+import { createApp, registerShutdownHook } from '@agentuity/runtime';
+import api from './src/api/index';
+import agents from './src/agent';
+import { db } from './db';
 
-const { server, logger } = await createApp({
-  setup: async () => {
-    // Initialize resources when the app starts
-    const dbClient = await connectToDatabase();
+registerShutdownHook(async () => {
+  await db.close();
+});
 
-    // Return typed app state - available in all agents via ctx.app
-    return {
-      db: dbClient,
-      startedAt: new Date(),
-    };
-  },
-  shutdown: async (state) => {
-    // Cleanup when the app shuts down
-    // state is typed from setup's return value
-    await state.db.close();
-    logger.info('App ran for:', Date.now() - state.startedAt.getTime(), 'ms');
-  },
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
 });
 ```
 
-Access app state in any agent handler:
-
-```typescript
-const agent = createAgent('DataFetcher', {
-  handler: async (ctx, input) => {
-    // ctx.app is fully typed from setup's return value
-    const results = await ctx.app.db.query('SELECT * FROM users');
-    return { users: results };
-  },
-});
-```
-
-<Callout type="tip" title="Use Cases">
-Common uses for app lifecycle hooks:
-- Database connection pools
-- Cache initialization
-- External service clients
-- Metrics/telemetry setup
+<Callout type="info" title="Current Guidance">
+Agent-level `setup` and `shutdown` are still useful for agent-local config exposed through `ctx.config`. For shared app-wide dependencies, the current stable path is module-scoped initialization plus `registerShutdownHook()`, not new examples built around `ctx.app`.
 </Callout>
 
 ## Agent Lifecycle Hooks
@@ -159,20 +136,20 @@ Individual agents can also define `setup` and `shutdown` functions for agent-spe
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('CachedLookup', {
   schema: {
-    input: z.object({ key: z.string() }),
-    output: z.object({ value: z.string() }),
+    input: s.object({ key: s.string() }),
+    output: s.object({ value: s.string() }),
   },
-  // Called once when app starts - receives app state, returns agent config
-  setup: async (app) => {
+  // Called once when the app starts. Return value becomes ctx.config.
+  setup: async () => {
     const cache = new Map<string, string>();
     return { cache };
   },
-  // Called when app shuts down - receives app state and agent config
-  shutdown: async (app, config) => {
+  // Called when the app shuts down.
+  shutdown: async (_app, config) => {
     config.cache.clear();
   },
   handler: async (ctx, input) => {
@@ -192,19 +169,16 @@ const agent = createAgent('CachedLookup', {
 export default agent;
 ```
 
-**Key differences from app lifecycle:**
-- `setup` receives `app` state (from `createApp`) and returns agent-specific config
-- Config is accessed via `ctx.config` (not `ctx.app`)
-- Each agent can have its own isolated resources
+`setup` returns agent-specific config, exposed via `ctx.config`. Use it for agent-local caches, clients, or precomputed data that should stay scoped to that agent.
 
-<Callout type="tip" title="When to Use Agent vs App Setup">
-- **App setup (`createApp`)**: Shared resources like database pools, Redis clients
-- **Agent setup**: Agent-specific caches, pre-loaded models, isolated connections
+<Callout type="tip" title="When to Use Module Setup vs Agent Setup">
+- **Module setup**: Shared resources like database pools, Redis clients, or service singletons
+- **Agent setup**: Agent-local caches, preloaded models, or isolated clients exposed through `ctx.config`
 </Callout>
 
 ## Shared State
 
-Event handlers share state via `ctx.state`:
+Event handlers on the same request can share data through `ctx.state`:
 
 ```typescript
 agent.addEventListener('started', (event, agent, ctx) => {

@@ -16,16 +16,17 @@ Uses `stream()` middleware for direct streaming to the HTTP client. Data flows t
 
 ```typescript
 // In src/api/index.ts
-import { createRouter, stream } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, stream } from '@agentuity/runtime';
 import chatAgent from '@agent/chat';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chatAgent.validator(), stream(async (c) => {
+    const body = c.req.valid('json');
+    return chatAgent.run(body);
+  }));
 
-router.post('/', stream(async (c) => {
-  return await chatAgent.run({ message: '...' });
-}));
-
-export default router;
+export default api;
 ```
 
 ### Persistent Streaming
@@ -85,17 +86,19 @@ Use `stream()` middleware to handle streaming responses:
 
 ```typescript
 // src/api/index.ts
-import { createRouter, stream } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, stream } from '@agentuity/runtime';
 import chatAgent from '@agent/chat';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chatAgent.validator(), stream(async (c) => {
+    const body = c.req.valid('json');
+    return chatAgent.run(body);
+  }));
 
-router.post('/chat', chatAgent.validator(), stream(async (c) => {
-  const body = c.req.valid('json');
-  return chatAgent.run(body);
-}));
+export type ApiRouter = typeof api;
 
-export default router;
+export default api;
 ```
 
 <Callout type="info" title="Route Methods">
@@ -115,6 +118,10 @@ const response = await fetch('http://localhost:3500/api/chat', {
   body: JSON.stringify({ message: 'Tell me a story' }),
 });
 
+if (!response.ok) {
+  throw new Error(`Streaming request failed with ${response.status}`);
+}
+
 const reader = response.body?.getReader();
 const decoder = new TextDecoder();
 
@@ -130,16 +137,42 @@ while (reader) {
 
 ### With React
 
-Use the `useAPI` hook from `@agentuity/react`:
+Use `hc<ApiRouter>()` when you want typed request bodies and direct access to the `Response` stream:
 
 ```tsx
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import { useState } from 'react';
+import type { ApiRouter } from '../api';
+
+const client = hc<ApiRouter>('/api');
 
 function Chat() {
-  const { data, isLoading, invoke } = useAPI('POST /api/chat');
+  const [data, setData] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (message: string) => {
-    await invoke({ message });
+    setIsLoading(true);
+    setData('');
+
+    try {
+      const res = await client.chat.$post({ json: { message } });
+      if (!res.ok) {
+        throw new Error(`Streaming request failed with ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) return;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setData((prev) => prev + decoder.decode(value, { stream: true }));
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -152,7 +185,7 @@ function Chat() {
 }
 ```
 
-For streaming with React, see [Frontend Hooks](/frontend/react-hooks).
+For type-safe API calls, see [RPC Client](/frontend/rpc-client).
 
 ## Streaming with System Prompts
 

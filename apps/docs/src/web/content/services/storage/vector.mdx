@@ -289,9 +289,10 @@ const ragAgent = createAgent('RAG', {
 Routes have the same vector access via `c.var.vector`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/search', async (c) => {
   const { query } = await c.req.json();
@@ -311,12 +312,13 @@ export default router;
 Build a RAG endpoint that searches vectors and generates responses:
 
 ```typescript
-import { createRouter, validator } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, validator } from '@agentuity/runtime';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const questionSchema = z.object({
   question: z.string().describe('User question'),
@@ -378,7 +380,8 @@ Use vector storage in background jobs or external scripts with `createAgentConte
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 
-await createApp();
+const app = await createApp();
+export default app;
 
 // CLI tool to index documents
 async function indexDocuments(files: string[]) {

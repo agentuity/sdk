@@ -22,9 +22,10 @@ All routes live in `src/api/`. The signaling endpoint is a WebSocket route that 
 The server side is one line. The `webrtc()` middleware creates a signaling server that manages rooms, relays SDP offers/answers, and forwards ICE candidates:
 
 ```typescript title="src/api/call/route.ts"
-import { createRouter, webrtc } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, webrtc } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Registered as /signal here; the file path (src/api/call/) + this path = /api/call/signal
 router.get('/signal', webrtc());
@@ -33,6 +34,10 @@ export default router;
 ```
 
 The middleware manages room membership, SDP/ICE relay, and automatic cleanup when peers disconnect.
+
+<Callout type="info" title="React Examples Use @agentuity/react">
+The React examples below use `useWebRTCCall()` from `@agentuity/react`, which is the highest-level hook for WebRTC UI state. For lower-level browser transports, media sources, or non-React usage, import `WebRTCManager` and related utilities from `@agentuity/frontend`.
+</Callout>
 
 ## Client: Data Channels
 
@@ -360,7 +365,7 @@ for (const [streamId, blob] of blobs) {
 By default `useWebRTCCall` calls `getUserMedia({ video: true, audio: true })` to acquire the local stream. Pass a `TrackSource` instance to the `media` option when you need a different source:
 
 ```typescript
-import { UserMediaSource, DisplayMediaSource, CustomStreamSource } from '@agentuity/react';
+import { UserMediaSource, DisplayMediaSource, CustomStreamSource } from '@agentuity/frontend';
 ```
 
 | Source | Default constraints | Use case |
@@ -397,4 +402,4 @@ const { connect } = useWebRTCCall({
 
 - [WebSockets](/routes/websockets): Server-mediated bidirectional communication
 - [SSE](/routes/sse): One-way streaming from server to client
-- [React Hooks](/frontend/react-hooks): All available hooks including `useWebRTCCall`
+- [React Hooks](/frontend/react-hooks): `useWebRTCCall` and other hooks from `@agentuity/react`

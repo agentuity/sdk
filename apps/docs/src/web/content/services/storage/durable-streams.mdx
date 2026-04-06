@@ -387,9 +387,10 @@ async function moderateContent(text: string): Promise<boolean> {
 Routes have the same stream access via `c.var.stream`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/export', async (c) => {
   const { data } = await c.req.json();
@@ -424,7 +425,8 @@ Create streams from background processes with `createAgentContext()`:
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 
-await createApp();
+const app = await createApp();
+export default app;
 
 // Background job to generate reports
 async function generateDailyReport() {

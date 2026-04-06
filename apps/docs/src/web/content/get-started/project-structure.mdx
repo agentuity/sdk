@@ -130,7 +130,9 @@ Use simple routes (without calling an agent) for lightweight endpoints like heal
 
 Place frontend code in `src/web/` to deploy alongside your agents. The CLI bundles and serves it automatically.
 
-React is supported out of the box. Use Hono's `hc()` client for type-safe API calls, and `@agentuity/react` for auth, analytics, and WebRTC hooks.
+React is supported out of the box. Use Hono's `hc()` client for type-safe API calls. For browser utilities, prefer `@agentuity/frontend` and `@agentuity/auth/react`; the older `@agentuity/react` package remains available as a compatibility layer.
+
+Point `hc()` at the same `/api` mount path you configured in `app.ts`, then import your router type from `src/api/index.ts`.
 
 ```tsx
 // src/web/App.tsx

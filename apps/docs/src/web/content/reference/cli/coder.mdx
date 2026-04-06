@@ -1,0 +1,201 @@
+---
+title: Coder Commands
+short_title: Coder
+description: Start and manage AI coding sessions connected to the Coder Hub
+---
+
+Start coding sessions where AI agents work in cloud sandboxes. The `agentuity coder` commands connect to a Coder Hub that orchestrates sessions, tools, and participants.
+
+<Callout type="info" title="Global JSON Flag">
+All commands accept `--json` for machine-readable output. This is a global CLI flag, not listed per-command.
+</Callout>
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `coder start` | Start a Pi coding session |
+| `coder create <task>` | Create a new session |
+| `coder list` | List active sessions |
+| `coder get <id>` | Show session details |
+| `coder update <id>` | Update a session |
+| `coder delete <id>` | Delete a session |
+| `coder archive <id>` | Archive a session |
+| `coder loop <id>` | Get loop-mode state |
+| `coder replay <id>` | Get replay data |
+| `coder participants <id>` | List session participants |
+| `coder events <id>` | List event history |
+| `coder users` | List known Coder users |
+| `coder workspace` | Manage workspaces |
+| `coder skill` | Manage saved skills |
+
+**Aliases:**
+- `ls` → `list`
+- `show`, `inspect` → `get`
+- `new` → `create`
+- `rm`, `del`, `remove` → `delete`
+- `run`, `tui` → `start`
+
+## Starting a Session
+
+```bash
+agentuity coder start
+```
+
+Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The CLI auto-detects the Hub URL and extension path.
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Coder API URL override |
+| `--extension <path>` | Coder extension path override |
+| `--pi <path>` | Path to [Pi](https://pi.dev/) binary override |
+| `--agent <role>` | Agent role (e.g., `scout`, `builder`) |
+| `--task <description>` | Initial task to execute |
+| `--remote [session-id]` | Connect to an existing sandbox session. Paused sessions are auto-resumed. Omit the ID to browse available sessions |
+| `--sandbox <task>` | Create a new sandbox session with the given task and attach |
+| `--repo <url>` | Git repo URL to clone in the sandbox (used with `--sandbox`) |
+
+### Examples
+
+```bash
+# Start with auto-detection
+agentuity coder start
+
+# Start as a specific agent role
+agentuity coder start --agent scout
+
+# Connect to an existing sandbox session
+agentuity coder start --remote codesess_abc123
+
+# Browse and select a sandbox session
+agentuity coder start --remote
+
+# Create a new sandbox session with a task
+agentuity coder start --sandbox "Build an auth system"
+
+# Create a sandbox with a git repo cloned
+agentuity coder start --sandbox "Build auth" --repo https://github.com/org/repo
+```
+
+## Creating a Session
+
+```bash
+agentuity coder create "Build a REST API"
+```
+
+Creates a new Coder session. Pass `--connect` to attach immediately after creation.
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Coder API URL override |
+| `--connect` | Connect to the session after creation |
+| `--label <text>` | Human-readable session label |
+| `--agent <role>` | Default agent role |
+| `--visibility <level>` | `private`, `org`, or `collaborate` |
+| `--workflow-mode <mode>` | `standard` or `loop` |
+| `--loop-goal <text>` | Goal for loop mode |
+| `--loop-max-iterations <n>` | Maximum loop iterations |
+| `--loop-auto-continue` | Auto-continue without manual approval |
+| `--loop-allow-detached` | Continue when no client is attached |
+| `--repo <url>` | Git repo URL to clone |
+| `--repo-branch <branch>` | Branch to checkout |
+| `--workspace-id <id>` | Workspace to use |
+| `--tags <list>` | Comma-separated tags |
+
+## Listing Sessions
+
+```bash
+agentuity coder list
+```
+
+Shows all active sessions on the connected Hub.
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Coder API URL override |
+
+### Output Fields
+
+| Field | Description |
+|-------|-------------|
+| `sessionId` | Session identifier |
+| `label` | Human-readable session label |
+| `status` | Current session status |
+| `mode` | Session mode (`sandbox`, `tui`, or `remote`) |
+| `createdAt` | Creation timestamp |
+| `taskCount` | Number of tasks |
+| `subAgentCount` | Number of sub-agents |
+| `observerCount` | Number of observers |
+| `participantCount` | Total participants connected |
+
+## Inspecting a Session
+
+```bash
+agentuity coder get <session-id>
+```
+
+Shows detailed information about a specific session, including participants, tasks, and agent activity.
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Coder API URL override |
+
+## Workspaces
+
+Manage reusable workspace configurations that bundle repositories and skills.
+
+```bash
+# List workspaces
+agentuity coder workspace list
+
+# Create a workspace
+agentuity coder workspace create "Auth System" --repo https://github.com/org/repo
+
+# Show workspace details
+agentuity coder workspace get ws_abc123
+
+# Delete a workspace
+agentuity coder workspace delete ws_abc123
+```
+
+## Skills
+
+Manage saved skills and skill buckets in your library.
+
+```bash
+# List saved skills
+agentuity coder skill list
+
+# Save a skill
+agentuity coder skill save --repo my-org/skills --skill-id code-review --name "Code Review"
+
+# List skill buckets
+agentuity coder skill buckets
+
+# Delete a skill
+agentuity coder skill delete skill_abc123
+```
+
+## URL Resolution
+
+Coder commands resolve the Hub URL in this order:
+
+1. `--url`
+2. `AGENTUITY_CODER_URL`
+3. Hub discovery through the authenticated Agentuity API
+
+Authentication comes from your normal CLI login session or the standard CLI auth environment variables.
+
+## Next Steps
+
+- [Coder Service](/services/coder): Overview and SDK usage with `@agentuity/coder`
+- [Claude Code Plugin](/reference/cli/claude-code-plugin): AI-assisted development from Claude Code
+- [Sandbox Commands](/reference/cli/sandbox): Manage sandbox environments directly

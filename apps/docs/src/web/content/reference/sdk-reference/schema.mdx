@@ -58,7 +58,7 @@ const agent = createAgent('SearchAgent', {
 });
 
 // When calling the agent from another agent:
-import searchAgent from '@agent/search';
+import searchAgent from '@agent/search/agent';
 
 const result = await searchAgent.run({
   query: 'agentic AI',

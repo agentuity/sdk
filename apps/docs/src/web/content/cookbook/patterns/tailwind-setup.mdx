@@ -27,15 +27,15 @@ bun add -D tailwindcss @tailwindcss/vite
 
 ## Step 2: Create Build Configuration
 
-Create `agentuity.config.ts` in your project root:
+Add the Tailwind plugin to your `vite.config.ts`:
 
-```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+```typescript title="vite.config.ts"
+import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
-export default {
+export default defineConfig({
   plugins: [tailwindcss()],
-} satisfies AgentuityConfig;
+});
 ```
 
 ## Step 3: Import Tailwind in Your CSS

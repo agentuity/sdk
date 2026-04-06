@@ -4,24 +4,25 @@ short_title: Router
 description: HTTP endpoints, middleware, WebSocket, SSE, and cron handlers
 ---
 
-The SDK provides a Hono-based routing system for creating HTTP endpoints. Routes are defined in `src/api/index.ts` and provide full control over HTTP request handling.
+The SDK uses Hono for HTTP routes. Define routes in `src/api/index.ts`, mount them from your root `app.ts`, and export the router type when you want typed clients with `hc()`.
 
 ## Creating Routes
 
-Routes are created using the `createRouter()` function from `@agentuity/server`.
+Create routes with `createRouter()` from `@agentuity/runtime` (which returns `new Hono<Env>()` with the correct environment type), or use `new Hono<Env>()` directly. Both work the same way for `hc()` type inference.
 
 **Basic Setup:**
 
 ```typescript
 // src/api/index.ts
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>()
+  .get('/', (c) => {
+    return c.json({ message: 'Hello from route' });
+  });
 
-// Define routes
-router.get('/', (c) => {
-  return c.json({ message: 'Hello from route' });
-});
+export type ApiRouter = typeof router;
 
 export default router;
 ```
@@ -37,19 +38,24 @@ Agentuity uses two distinct context types based on where you're writing code:
 - **AgentContext**: Used in `agent.ts` files for business logic (no HTTP access)
 - **Router Context (Hono)**: Used in `src/api/index.ts` for HTTP handling (has HTTP + agent services)
 
-Both commonly use `c` as the variable name in SDK examples. The distinction is **type-based**, not name-based.
+Route examples typically use `c`, while agent examples typically use `ctx`. The distinction is still **type-based**, not name-based.
 
-Both contexts provide access to Agentuity services, but through different access patterns.
+Both contexts expose the same built-in services, but through different access patterns.
+
+<Callout type="info" title="About c.var.app">
+`c.var.app` and `ctx.app` default to an empty object. Treat them as reserved app-state plumbing unless your own runtime wiring populates them.
+</Callout>
 
 **Router Context Interface:**
 
 ```typescript
-interface RouterContext {
+interface RouterContext<TAppState = Record<string, never>> {
   // Request
-  req: Request;                       // Hono request object with .param(), .query(), .header(), .json()
+  req: HonoRequest;                  // Hono request object with .param(), .query(), .header(), .json()
 
   // Agentuity Services (via c.var)
   var: {
+    sessionId: string;                // Request/session identifier
     kv: KeyValueStorage;              // Key-value storage
     vector: VectorStorage;            // Vector storage
     stream: StreamStorage;            // Stream storage
@@ -60,7 +66,12 @@ interface RouterContext {
     sandbox: SandboxService;          // Isolated code execution
     logger: Logger;                   // Structured logging
     tracer: Tracer;                   // OpenTelemetry tracing
+    thread: Thread;                   // Thread context
+    session: Session;                 // Session context
+    app: TAppState;                   // App-level state from createApp()
   };
+
+  waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void;
 
   // Response Helpers
   json(data: any, status?: number): Response;
@@ -81,12 +92,12 @@ interface RouterContext {
 | **Response** | Builder methods (`.json()`, `.text()`) | Direct returns |
 | **Services** | `c.var.kv`, `c.var.logger`, etc. | `ctx.kv`, `ctx.logger`, etc. |
 | **Agent calling** | Import and call: `agent.run()` | Import and call: `agent.run()` |
-| **State management** | Via Hono middleware | Built-in (`.state`, `.session`, `.thread`) |
+| **State management** | `c.var.thread`, `c.var.session`, `c.var.app` | `ctx.state`, `ctx.thread`, `ctx.session`, `ctx.app` |
 
 **Example Usage:**
 
 ```typescript
-import processor from '@agent/processor';
+import processor from '@agent/processor/agent';
 
 router.post('/process', processor.validator(), async (c) => {
   // Access request
@@ -111,6 +122,10 @@ router.post('/process', processor.validator(), async (c) => {
 
 Agentuity services (storage, logging, tracing) are available in multiple contexts. The API is identical; only the access pattern differs.
 
+<Callout type="info" title="No `c.var.state` in routes">
+Routes do not get the request-local `ctx.state` map that agents receive. Use local variables, Hono middleware, or one of the built-in storage services when route handlers need shared state.
+</Callout>
+
 ### Quick Reference
 
 | Service | In Agents | In Routes | In Standalone |
@@ -128,6 +143,7 @@ Agentuity services (storage, logging, tracing) are available in multiple context
 | State | `ctx.state` | N/A | `ctx.state` |
 | Thread | `ctx.thread` | `c.var.thread` | `ctx.thread` |
 | Session | `ctx.session` | `c.var.session` | `ctx.session` |
+| App state | `ctx.app` | `c.var.app` | `ctx.app` |
 
 ### From Agents
 
@@ -146,9 +162,10 @@ export default createAgent('cache-manager', {
 ### From Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/cache', async (c) => {
   await c.var.kv.set('cache', 'key', { data: 'value' });
@@ -166,7 +183,7 @@ For Discord bots, CLI tools, or queue workers running within the Agentuity runti
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 
-await createApp();
+export default await createApp();
 
 const ctx = createAgentContext();
 await ctx.invoke(async () => {
@@ -182,9 +199,10 @@ See [Running Agents Without HTTP](/agents/standalone-execution) for Discord bots
 External backends cannot access Agentuity services directly. Create authenticated routes that expose storage operations, then call them via HTTP:
 
 ```typescript title="Agentuity route: src/api/sessions/route.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/:id', async (c) => {
   const result = await c.var.kv.get('sessions', c.req.param('id'));
@@ -211,20 +229,30 @@ See [SDK Utilities for External Apps](/cookbook/patterns/server-utilities) for t
 
 ### From Frontend
 
-Frontend code accesses services through routes using `useAPI` or `fetch`:
+Frontend code reaches Agentuity services through routes. For type-safe clients, export `ApiRouter` and use `hc()` from `hono/client`:
 
 ```tsx
-import { useAPI } from '@agentuity/react';
+import { useEffect, useState } from 'react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api/index';
+
+const client = hc<ApiRouter>('/api');
 
 function SessionView({ id }: { id: string }) {
-  const { data, isLoading } = useAPI(`GET /api/sessions/${id}`);
+  const [data, setData] = useState<{ message: string } | null>(null);
 
-  if (isLoading) return <div>Loading...</div>;
-  return <div>{data?.message}</div>;
+  useEffect(() => {
+    client.sessions[':id'].$get({ param: { id } })
+      .then((res) => res.ok ? res.json() : null)
+      .then(setData);
+  }, [id]);
+
+  if (!data) return <div>Loading...</div>;
+  return <div>{data.message}</div>;
 }
 ```
 
-See [React Hooks](/frontend/react-hooks) for `useAPI`, `useWebsocket`, and `useEventStream`.
+See [RPC Client](/frontend/rpc-client) for `hc()` patterns in React, Next.js, and other frontend environments.
 
 ## HTTP Methods
 
@@ -278,7 +306,7 @@ router.delete('/users/:id', (c) => {
 Import agents and call them directly:
 
 ```typescript
-import processorAgent from '@agent/processor';
+import processorAgent from '@agent/processor/agent';
 
 router.post('/process', processorAgent.validator(), async (c) => {
   const input = c.req.valid('json');
@@ -322,10 +350,11 @@ interface WebSocketConnection {
 **Example:**
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
-import chatAgent from '@agent/chat';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
+import chatAgent from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/chat', websocket((c, ws) => {
   ws.onOpen((event) => {
@@ -378,10 +407,11 @@ interface SSEStream {
 **Example:**
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
-import longRunningAgent from '@agent/long-running';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
+import longRunningAgent from '@agent/long-running/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/updates', sse(async (c, stream) => {
   // Send initial connection message
@@ -425,10 +455,11 @@ type StreamHandler = (c: Context) => ReadableStream<any> | Promise<ReadableStrea
 **Example:**
 
 ```typescript
-import { createRouter, stream } from '@agentuity/runtime';
-import dataGenerator from '@agent/data-generator';
+import { Hono } from 'hono';
+import { type Env, stream } from '@agentuity/runtime';
+import dataGenerator from '@agent/data-generator/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/data', stream(async (c) => {
   // Create a readable stream
@@ -484,14 +515,15 @@ type CronHandler = (c: Context) => any | Promise<any>;
 **Example:**
 
 ```typescript
-import { createRouter, cron } from '@agentuity/runtime';
-import reportGenerator from '@agent/report-generator';
-import healthCheck from '@agent/health-check';
+import { Hono } from 'hono';
+import { type Env, cron } from '@agentuity/runtime';
+import reportGenerator from '@agent/report-generator/agent';
+import healthCheck from '@agent/health-check/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Run daily at 9am
-router.post('/daily-report', cron('0 9 * * *', async (c) => {
+router.post('/daily-report', cron('0 9 * * *', { auth: true }, async (c) => {
   c.var.logger.info('Running daily report');
 
   const report = await reportGenerator.run({
@@ -506,7 +538,7 @@ router.post('/daily-report', cron('0 9 * * *', async (c) => {
 }));
 
 // Run every 5 minutes
-router.post('/health-check', cron('*/5 * * * *', async (c) => {
+router.post('/health-check', cron('*/5 * * * *', { auth: true }, async (c) => {
   await healthCheck.run({});
   return c.json({ checked: true });
 }));
