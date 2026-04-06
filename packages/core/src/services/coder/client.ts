@@ -14,6 +14,7 @@ import {
 	coderGetSession,
 	coderListConnectableSessions,
 	coderListSessions,
+	coderResumeSession,
 	coderUpdateSession,
 	type CoderCreateSessionParams,
 	type CoderUpdateSessionResponse,
@@ -78,6 +79,11 @@ export const CoderClientOptionsSchema = z
 	})
 	.describe('Configuration options for constructing a CoderClient');
 export type CoderClientOptions = z.infer<typeof CoderClientOptionsSchema>;
+
+export interface CoderRemoteAttachPreparationOptions {
+	timeoutMs?: number;
+	pollIntervalMs?: number;
+}
 
 /**
  * Ergonomic client for Coder session management APIs.
@@ -212,6 +218,54 @@ export class CoderClient {
 	async archiveSession(sessionId: string): Promise<CoderLifecycleResponse> {
 		const client = await this.#getClient();
 		return coderArchiveSession(client, { sessionId, orgId: this.#orgId });
+	}
+
+	/**
+	 * Requests that a wakeable sandbox session be resumed.
+	 */
+	async resumeSession(sessionId: string): Promise<CoderLifecycleResponse> {
+		const client = await this.#getClient();
+		return coderResumeSession(client, { sessionId, orgId: this.#orgId });
+	}
+
+	/**
+	 * Makes sure a paused remote session is attachable before opening the controller socket.
+	 */
+	async prepareSessionForRemoteAttach(
+		sessionId: string,
+		options: CoderRemoteAttachPreparationOptions = {}
+	): Promise<CoderSession> {
+		const timeoutMs = options.timeoutMs ?? 30_000;
+		const pollIntervalMs = options.pollIntervalMs ?? 1_000;
+		let session = await this.getSession(sessionId);
+
+		if (session.historyOnly === true) {
+			return session;
+		}
+
+		if (session.wakeAvailable === true && session.runtimeAvailable === false) {
+			await this.resumeSession(sessionId);
+			const deadline = Date.now() + timeoutMs;
+
+			while (Date.now() < deadline) {
+				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+				try {
+					session = await this.getSession(sessionId);
+				} catch (err) {
+					this.#logger.debug(
+						'coder remote attach poll failed for %s: %s',
+						sessionId,
+						err instanceof Error ? err.message : String(err)
+					);
+					continue;
+				}
+				if (session.historyOnly === true || session.runtimeAvailable !== false) {
+					return session;
+				}
+			}
+		}
+
+		return session;
 	}
 
 	/**

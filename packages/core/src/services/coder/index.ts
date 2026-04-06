@@ -20,6 +20,7 @@ export {
 	coderGetSession,
 	coderListConnectableSessions,
 	coderListSessions,
+	coderResumeSession,
 	coderUpdateSession,
 	CoderCreateSessionParamsSchema,
 	CoderGetSessionParamsSchema,
@@ -53,7 +54,7 @@ export { coderGetLoopState, CoderGetLoopStateParamsSchema } from './loop-state.t
 export type { CoderListUsersParamsWithOrg } from './users.ts';
 export { coderListUsers, CoderListUsersParamsWithOrgSchema } from './users.ts';
 
-export type { CoderClientOptions } from './client.ts';
+export type { CoderClientOptions, CoderRemoteAttachPreparationOptions } from './client.ts';
 export { CoderClient, CoderClientOptionsSchema } from './client.ts';
 
 export type { CoderErrorCode, CoderErrorContext } from './util.ts';
