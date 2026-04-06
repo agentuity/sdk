@@ -87,6 +87,9 @@ await client.updateSession('codesess_abc123', {
 // Archive a completed session (preserves transcript for replay)
 await client.archiveSession('codesess_abc123');
 
+// Resume a paused session (wakes the sandbox)
+await client.resumeSession('codesess_abc123');
+
 // Permanently delete a session
 await client.deleteSession('codesess_abc123');
 ```
@@ -193,6 +196,7 @@ See [Coder CLI Commands](/reference/cli/coder) for the full command reference.
 | **Created** | Session initialized, waiting for agent to connect |
 | **Active** | Agent is connected and working |
 | **Idle** | Agent has finished the current task, waiting for new instructions |
+| **Paused** | Agent disconnected, sandbox suspended. Resume with `resumeSession()` or `--remote` |
 | **Archived** | Session ended, transcript preserved for replay |
 
 ## Connecting via Plugins
