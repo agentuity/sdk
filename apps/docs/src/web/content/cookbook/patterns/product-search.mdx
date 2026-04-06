@@ -150,10 +150,11 @@ export default agent;
 ## Route with Query Parameters
 
 ```typescript title="src/api/products/route.ts"
-import { createRouter } from '@agentuity/runtime';
-import productSearch from '@agent/product-search';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import productSearch from '@agent/product-search/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/search', async (c) => {
   const query = c.req.query('q') || '';

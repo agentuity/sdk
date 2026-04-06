@@ -129,9 +129,10 @@ Logs are also visible in the Agentuity App session timeline.
 In route handlers, the logger is available on `c.var.logger` instead of `ctx.logger`. The API is identical: same methods, same structured data support.
 
 ```typescript title="src/api/users/route.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/:id', async (c) => {
   const userId = c.req.param('id');

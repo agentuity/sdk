@@ -80,10 +80,11 @@ const agent = createAgent('UserQuery', {
 ## Using in Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { sql } from "bun";
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/users', async (c) => {
   const limit = parseInt(c.req.query('limit') || '10');

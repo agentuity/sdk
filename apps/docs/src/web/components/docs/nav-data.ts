@@ -223,7 +223,7 @@ export const navData: NavSection[] = [
 			{
 				title: 'HTTP',
 				url: '/routes/http',
-				description: 'Define GET, POST, and other HTTP endpoints with createRouter()',
+				description: 'Define GET, POST, and other HTTP endpoints with Hono',
 			},
 			{
 				title: 'Middleware',
@@ -259,7 +259,7 @@ export const navData: NavSection[] = [
 				title: 'Using Explicit Routing',
 				url: '/routes/explicit-routing',
 				description:
-					'Pass your own Hono router to createApp() for full control over route composition and mount paths',
+					'Pass your own Hono router to createApp() when you need custom mount paths or an exported router type',
 			},
 		],
 	},
@@ -270,20 +270,18 @@ export const navData: NavSection[] = [
 			{
 				title: 'React Hooks',
 				url: '/frontend/react-hooks',
-				description:
-					'Call your API routes from React with useAPI, useWebsocket, and useEventStream',
+				description: 'Provider, auth, analytics, and WebRTC hooks from @agentuity/react',
 			},
 			{
 				title: 'RPC Client',
 				url: '/frontend/rpc-client',
 				description:
-					'Type-safe API calls from any JavaScript environment using createAPIClient',
+					'Type-safe API calls from any JavaScript environment using hc() from hono/client',
 			},
 			{
 				title: 'Provider Setup',
 				url: '/frontend/provider-setup',
-				description:
-					'Configure AgentuityProvider for local development and production deployments',
+				description: 'Legacy AgentuityProvider setup for @agentuity/react apps',
 			},
 			{
 				title: 'Authentication',
@@ -312,7 +310,7 @@ export const navData: NavSection[] = [
 				title: 'Advanced Hooks',
 				url: '/frontend/advanced-hooks',
 				description:
-					'Connect to custom WebSocket and SSE endpoints with useWebsocket and useEventStream',
+					'Advanced WebRTC callbacks plus low-level WebSocket and SSE client utilities',
 			},
 		],
 	},
@@ -403,6 +401,11 @@ export const navData: NavSection[] = [
 				title: 'Authentication',
 				url: '/services/authentication',
 				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+			},
+			{
+				title: 'Coder',
+				url: '/services/coder',
+				description: 'Run AI coding sessions in managed sandboxes with real-time collaboration',
 			},
 			{
 				title: 'Observability',
@@ -575,19 +578,19 @@ export const navData: NavSection[] = [
 						title: 'Next.js',
 						url: '/cookbook/integrations/nextjs',
 						description:
-							'Connect a Next.js frontend to an Agentuity backend using API rewrites',
+							'Connect a Next.js frontend to an Agentuity backend using rewrites and direct router types',
 					},
 					{
 						title: 'TanStack Start',
 						url: '/cookbook/integrations/tanstack-start',
 						description:
-							'Connect a TanStack Start frontend to an Agentuity backend using Vite proxy',
+							'Connect a TanStack Start frontend to an Agentuity backend using a Vite proxy and direct router types',
 					},
 					{
 						title: 'Turborepo',
 						url: '/cookbook/integrations/turborepo',
 						description:
-							'Add Agentuity agents as a workspace package alongside your existing apps, with shared types across packages',
+							'Add Agentuity as a workspace app, share schemas across packages, and import router types directly',
 					},
 				],
 			},
@@ -804,10 +807,15 @@ export const navData: NavSection[] = [
 							'Monitor machine health and resource usage from the CLI in real time or as a snapshot',
 					},
 					{
+						title: 'Coder',
+						url: '/reference/cli/coder',
+						description: 'Start and manage AI coding sessions connected to the Coder Hub',
+					},
+					{
 						title: 'Claude Code Plugin',
 						url: '/reference/cli/claude-code-plugin',
 						description:
-							'Install the Agentuity Coder plugin for Claude Code to get specialized agents with persistent memory.',
+							'Install the Agentuity plugin for Claude Code to get auto-activated skills for deploying and building on Agentuity.',
 					},
 					{
 						title: 'OpenCode Plugin',
@@ -825,7 +833,7 @@ export const navData: NavSection[] = [
 						title: 'Application Entry',
 						url: '/reference/sdk-reference/application-entry',
 						description:
-							'Initialize your Agentuity app with createApp() and configure services',
+							'Initialize your Agentuity app with createApp() and configure the runtime entry file',
 					},
 					{
 						title: 'Agents',
@@ -927,7 +935,8 @@ export const navData: NavSection[] = [
 			{
 				title: 'Migration Guide',
 				url: '/reference/migration-guide',
-				description: 'Migrate your Agentuity projects to the latest version.',
+				description:
+					'Migrate from v1 to v2 for explicit routing, Hono-native routers, and standard Vite config.',
 			},
 		],
 	},

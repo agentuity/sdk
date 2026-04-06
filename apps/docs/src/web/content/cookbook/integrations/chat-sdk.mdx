@@ -131,29 +131,31 @@ The sliding window caps history at 20 messages (10 turns), keeping the LLM token
 Incoming platform webhooks hit a single Agentuity route that dispatches to the correct Chat SDK adapter:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { bot } from '@lib/bot';
 
-const api = createRouter();
+const api = new Hono<Env>()
+  .all('/webhooks/:platform', async (c) => {
+    const platform = c.req.param('platform');
+    const webhookHandler = bot.webhooks[platform as keyof typeof bot.webhooks];
 
-api.all('/webhooks/:platform', async (c) => {
-  const platform = c.req.param('platform');
-  const webhookHandler = bot.webhooks[platform as keyof typeof bot.webhooks];
+    if (!webhookHandler) {
+      return c.json({ error: `Unknown platform: ${platform}` }, 404);
+    }
 
-  if (!webhookHandler) {
-    return c.json({ error: `Unknown platform: ${platform}` }, 404);
-  }
-
-  return await webhookHandler(c.req.raw, {
-    waitUntil: (promise) => { // [!code highlight]
-      c.waitUntil(async () => {
-        await promise.catch((err) => {
-          c.var.logger.error(`Webhook processing error (${platform})`, { error: err });
+    return await webhookHandler(c.req.raw, {
+      waitUntil: (promise) => { // [!code highlight]
+        c.waitUntil(async () => {
+          await promise.catch((err) => {
+            c.var.logger.error(`Webhook processing error (${platform})`, { error: err });
+          });
         });
-      });
-    },
+      },
+    });
   });
-});
+
+export default api;
 ```
 
 Slack sends verification challenges and event payloads to `/api/webhooks/slack`. Discord sends interaction payloads to `/api/webhooks/discord`. Chat SDK handles signature verification and event parsing for each platform.
@@ -164,12 +166,17 @@ Discord's Gateway API uses a persistent WebSocket connection for real-time event
 
 ```typescript title="app.ts"
 import { createApp, registerShutdownHook } from '@agentuity/runtime';
+import api from './src/api/index';
+import chatAgent from './src/agent/chat/agent';
 import { bot } from '@lib/bot';
 
-const { server, logger } = await createApp({
-  shutdown: async () => {
-    await bot.shutdown();
-  },
+const app = await createApp({
+  router: { path: '/api', router: api },
+  agents: [chatAgent],
+});
+
+registerShutdownHook(async () => {
+  await bot.shutdown();
 });
 
 if (process.env.DISCORD_BOT_TOKEN) {
@@ -193,6 +200,8 @@ if (process.env.DISCORD_BOT_TOKEN) {
     registerShutdownHook(() => abortController.abort()); // [!code highlight]
   }
 }
+
+export default app;
 ```
 
 The Gateway listener forwards Discord events to the local webhook endpoint. When the 24-hour session expires, it automatically restarts. `registerShutdownHook` cancels the listener during graceful shutdown.

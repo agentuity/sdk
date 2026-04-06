@@ -54,10 +54,11 @@ const agent = createAgent('SessionExample', {
 In routes:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import myAgent from '@agent/my-agent';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import myAgent from '@agent/my-agent/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/', myAgent.validator(), async (c) => {
   const input = c.req.valid('json');

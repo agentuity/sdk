@@ -14,7 +14,7 @@ Sometimes your agent logic needs to run without an incoming HTTP request. `creat
 
 ```typescript
 import { createAgentContext } from '@agentuity/runtime';
-import chatAgent from '@agent/chat';
+import chatAgent from '@agent/chat/agent';
 
 const ctx = createAgentContext();
 const result = await ctx.run(chatAgent, { message: 'Hello' });
@@ -49,7 +49,7 @@ For scheduled tasks managed outside of Agentuity:
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 import cron from 'node-cron';
-import cleanupAgent from '@agent/cleanup';
+import cleanupAgent from '@agent/cleanup/agent';
 
 await createApp();
 
@@ -183,7 +183,7 @@ Use `inAgentContext()` to check if code is running inside an agent handler with 
 
 ```typescript
 import { inAgentContext, createAgentContext } from '@agentuity/runtime';
-import myAgent from '@agent/my-agent';
+import myAgent from '@agent/my-agent/agent';
 
 async function processRequest(data: unknown) {
   if (inAgentContext()) {

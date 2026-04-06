@@ -8,7 +8,7 @@ import { Lightbulb } from 'lucide-react';
 This guide walks you through building a chat agent from scratch using OpenAI.
 
 <Callout type="info" title="Default Template">
-When you create a project with `agentuity create`, you get a translation agent demonstrating:
+When you create a project with `agentuity project create`, you get a translation agent demonstrating:
 
 - **AI Gateway**: OpenAI SDK routed through Agentuity (unified billing, no separate API keys)
 - **Thread state**: Persistent translation history across requests
@@ -82,6 +82,19 @@ const api = new Hono<Env>()
 export type ApiRouter = typeof api;
 
 export default api;
+```
+
+Wire the route and your agent into the project-root `app.ts`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import agents from './src/agent';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
 ```
 
 ## 4. Run Your Agent
@@ -253,7 +266,7 @@ agentuity ai opencode install
 
 - [Build a multi-agent system](/agents/calling-other-agents): Routing, RAG, workflows
 - [Persist data](/agents/state-management): Use thread and session state
-- [Explore React Hooks](/frontend/react-hooks): WebSocket, SSE, and more patterns
+- [RPC Client](/frontend/rpc-client): Type-safe `hc()` patterns for browser and server code
 
 **Understand the platform:**
 

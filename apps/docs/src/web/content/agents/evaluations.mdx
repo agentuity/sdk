@@ -52,7 +52,7 @@ export const adversarialEval = agent.createEval('adversarial', { // [!code highl
     ctx.logger.info('Running adversarial check', { inputLength: input.question.length });
 
     const { object } = await generateObject({
-      model: openai('gpt-5-nano'),
+      model: openai('gpt-5.4-nano'),
       schema: z.object({
         passed: z.boolean(),
         reason: z.string(),
@@ -69,7 +69,7 @@ export const adversarialEval = agent.createEval('adversarial', { // [!code highl
 <Callout type="warning" title="Use Named Exports">
 Evals must use named exports (`export const evalName = ...`). Default exports won't work.
 
-The runtime auto-discovers `eval.ts` files next to your agents, so you don't need any special imports in your routes.
+Eval files are discovered automatically from `eval.ts` files next to your agents, so you don't need any special imports in your routes.
 </Callout>
 
 ## Basic Example
@@ -117,7 +117,7 @@ export const helpfulnessEval = agent.createEval('is-helpful', {
   description: 'Uses LLM to judge helpfulness',
   handler: async (ctx, input, output) => {
     const completion = await client.chat.completions.create({
-      model: 'gpt-5-nano',
+      model: 'gpt-5.4-nano',
       response_format: {
         type: 'json_schema',
         json_schema: {
@@ -167,7 +167,7 @@ export const relevanceEval = agent.createEval('relevance-score', {
   description: 'Scores how relevant the answer is to the question',
   handler: async (ctx, input, output) => {
     const { object } = await generateObject({
-      model: openai('gpt-5-nano'),
+      model: openai('gpt-5.4-nano'),
       schema: z.object({
         score: z.number().min(0).max(1),
         reason: z.string(),
@@ -212,7 +212,7 @@ export const hallucinationEval = ragAgent.createEval('hallucination-check', {
     const retrievedDocs = ctx.state.get('retrievedDocs') as string[];
 
     const completion = await client.chat.completions.create({
-      model: 'gpt-5-nano',
+      model: 'gpt-5.4-nano',
       response_format: {
         type: 'json_schema',
         json_schema: {
@@ -286,7 +286,7 @@ const agent = createAgent('Story Generator', {
 
     // Inline LLM-as-judge: scores returned with response
     const { object: scores } = await generateObject({
-      model: openai('gpt-5-nano'),
+      model: openai('gpt-5.4-nano'),
       schema: ScoresSchema,
       prompt: `Score this ${input.tone} story (0-1 for scores, boolean for tone match):
 
@@ -324,7 +324,7 @@ export const relevanceEval = agent.createEval('relevance', {
     ctx.logger.info('Running relevance check');
 
     const { object } = await generateObject({
-      model: openai('gpt-5-nano'),
+      model: openai('gpt-5.4-nano'),
       schema: z.object({
         score: z.number().min(0).max(1),
         reason: z.string(),
@@ -352,7 +352,7 @@ Errors in one eval don't affect others. Each runs independently.
 
 ## Error Handling
 
-Return `success: false` when an eval can't complete:
+Throw when an eval can't complete. The runtime records the error without affecting agent responses:
 
 ```typescript title="src/agent/my-agent/eval.ts"
 import agent from './agent';
@@ -368,14 +368,14 @@ export const externalValidationEval = agent.createEval('external-validation', {
       });
 
       if (!response.ok) {
-        return { success: false, passed: false, error: `Service error: ${response.status}` };
+        throw new Error(`Service error: ${response.status}`);
       }
 
       const result = await response.json();
       return { passed: result.isValid };
     } catch (error) {
       ctx.logger.error('Validation failed', { error });
-      return { success: false, passed: false, error: error.message };
+      throw error;
     }
   },
 });
@@ -435,7 +435,7 @@ import { openai } from '@ai-sdk/openai';
 // Override model and threshold
 export const politenessCheck = agent.createEval(politeness({
   name: 'politeness-strict',
-  model: openai('gpt-5-nano'),
+  model: openai('gpt-5.4-nano'),
   threshold: 0.9,  // Stricter passing threshold
 }));
 ```
@@ -482,9 +482,8 @@ Preset evals expect a standard input/output format:
 When your agent uses different schemas, provide middleware to transform between them:
 
 ```typescript title="src/agent/calculator/eval.ts"
-import agent from './agent';
+import agent, { AgentInput, AgentOutput } from './agent';
 import { politeness } from '@agentuity/evals';
-import type { AgentInput, AgentOutput } from './agent';
 
 // Agent schema: { value: number } -> { result: number, doubled: boolean }
 // Eval expects: { request: string } -> { response: string }

@@ -68,7 +68,7 @@ export const confidenceEval = agent.createEval('confidence-check', {
 });
 ```
 
-The runtime auto-discovers `eval.ts` files next to your agents. No special imports needed in your routes.
+Eval files are discovered at build time from `eval.ts` files next to your agents. No special imports needed in your routes.
 
 For agent creation with evals, see [Creating Agents](/agents/creating-agents).
 
@@ -79,9 +79,13 @@ Evals can return different result types depending on the evaluation needs.
 **Result Types:**
 
 ```typescript
-type EvalRunResult =
-  | { passed: boolean; reason?: string; score?: number; metadata?: object }                // Success
-  | { success: false; passed: false; error: string; reason?: string; metadata?: object };  // Error
+type EvalHandlerResult = {
+  passed: boolean;
+  score?: number;    // 0.0-1.0
+  reason?: string;
+  metadata?: object;
+}
+// On error: throw — the runtime wraps it automatically
 ```
 
 **Binary Pass/Fail Eval:**
@@ -148,11 +152,8 @@ export const externalEval = agent.createEval('external-validation', {
         reason: isValid ? 'Validation passed' : 'Validation failed',
       };
     } catch (error) {
-      return {
-        success: false,
-        passed: false,
-        error: `Validation service error: ${error.message}`,
-      };
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Validation service error: ${message}`);
     }
   },
 });
