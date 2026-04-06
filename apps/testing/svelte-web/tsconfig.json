@@ -1,12 +1,13 @@
 {
-	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
-		"lib": ["ESNext", "DOM", "DOM.Iterable"],
-		"types": ["bun-types"],
-		"outDir": "./.agentuity",
-		"rootDir": ".",
-		"verbatimModuleSyntax": true
+		"strict": true,
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"types": ["bun"]
 	},
-	"include": ["src/**/*", "src/**/*.svelte", "app.ts"],
-	"exclude": ["node_modules", ".agentuity"]
+	"include": ["src"],
+	"exclude": ["node_modules"]
 }
