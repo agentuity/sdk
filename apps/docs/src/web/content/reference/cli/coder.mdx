@@ -4,7 +4,7 @@ short_title: Coder
 description: Start and manage AI coding sessions connected to the Coder Hub
 ---
 
-Start Pi coding sessions where AI agents work in cloud sandboxes. The `agentuity coder` commands connect to a Coder Hub that orchestrates sessions, tools, and participants.
+Start coding sessions where AI agents work in cloud sandboxes. The `agentuity coder` commands connect to a Coder Hub that orchestrates sessions, tools, and participants.
 
 <Callout type="info" title="Global JSON Flag">
 All commands accept `--json` for machine-readable output. This is a global CLI flag, not listed per-command.
@@ -28,8 +28,6 @@ All commands accept `--json` for machine-readable output. This is a global CLI f
 | `coder users` | List known Coder users |
 | `coder workspace` | Manage workspaces |
 | `coder skill` | Manage saved skills |
-| `coder config set url` | Store default Hub URL |
-| `coder config set apikey` | Store default Hub API key |
 
 **Aliases:**
 - `ls` → `list`
@@ -44,7 +42,7 @@ All commands accept `--json` for machine-readable output. This is a global CLI f
 agentuity coder start
 ```
 
-Launches a Pi coding session connected to the Coder Hub. The CLI auto-detects the Hub URL and extension path.
+Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The CLI auto-detects the Hub URL and extension path.
 
 ### Options
 
@@ -52,7 +50,7 @@ Launches a Pi coding session connected to the Coder Hub. The CLI auto-detects th
 |--------|-------------|
 | `--url <url>` | Coder API URL override |
 | `--extension <path>` | Coder extension path override |
-| `--pi <path>` | Path to Pi binary override |
+| `--pi <path>` | Path to [Pi](https://pi.dev/) binary override |
 | `--agent <role>` | Agent role (e.g., `scout`, `builder`) |
 | `--task <description>` | Initial task to execute |
 | `--remote [session-id]` | Connect to an existing sandbox session. Paused sessions are auto-resumed. Omit the ID to browse available sessions |
@@ -186,19 +184,15 @@ agentuity coder skill buckets
 agentuity coder skill delete skill_abc123
 ```
 
-## Configuration
+## URL Resolution
 
-Store default Hub settings so you don't need to pass `--url` on every command. Each subcommand (`url`, `apikey`) is separate:
+Coder commands resolve the Hub URL in this order:
 
-```bash
-# Set the default Hub URL
-agentuity coder config set url https://coder.example.com
+1. `--url`
+2. `AGENTUITY_CODER_URL`
+3. Hub discovery through the authenticated Agentuity API
 
-# Set the default Hub API key
-agentuity coder config set apikey agc_...
-```
-
-Configuration is stored per CLI profile, so different profiles can point to different Hubs.
+Authentication comes from your normal CLI login session or the standard CLI auth environment variables.
 
 ## Next Steps
 

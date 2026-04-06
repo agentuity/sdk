@@ -1,9 +1,13 @@
 ---
 title: Provider Setup
-description: Configure AgentuityProvider for local development and production deployments
+description: Legacy AgentuityProvider setup for @agentuity/react apps
 ---
 
-Wrap your app in `AgentuityProvider` to share the backend base URL and optional auth header state with Agentuity's React helpers.
+This page covers the `AgentuityProvider` compatibility layer from `@agentuity/react`. For new apps, use `hc()` directly and keep auth state in `@agentuity/auth/react` or your framework's auth provider.
+
+<Callout type="warning" title="Compatibility Layer">
+`@agentuity/react` is deprecated. Use this provider only when you already depend on its transport auth, analytics, or WebRTC hooks.
+</Callout>
 
 ## Basic Setup
 
@@ -92,7 +96,7 @@ function ChatButton() {
 
 ## Authentication Integration
 
-For apps with user authentication, keep `AgentuityProvider` and `AuthProvider` separate. Wrapping both is fine, but `AgentuityProvider` does not automatically consume tokens from `AuthProvider`.
+For apps with user authentication, keep `AgentuityProvider` and `AuthProvider` separate. `AgentuityProvider` does not automatically consume tokens from `AuthProvider`.
 
 Use `AuthProvider` callbacks to mirror the current bearer token into `AgentuityProvider`:
 
@@ -143,6 +147,6 @@ The typed client comes from your exported router type. If route inference looks 
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks
+- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks from `@agentuity/react`
 - [Deployment Scenarios](/frontend/deployment-scenarios): Choose where your frontend lives
 - [Adding Authentication](/frontend/authentication): Configure sign-in, sessions, and API protection

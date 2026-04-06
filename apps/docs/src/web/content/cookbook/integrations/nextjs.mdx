@@ -117,8 +117,8 @@ export default function EchoDemo() {
 Use `import type { ApiRouter } ...` so the backend file is erased from the client bundle while `hc()` still gets full RPC inference.
 </Callout>
 
-<Callout type="tip" title="Add AgentuityProvider only when you need hooks">
-Plain `hc()` calls do not require `AgentuityProvider`. Add the provider when you want auth, analytics, or WebRTC hooks from `@agentuity/react`.
+<Callout type="tip" title="AgentuityProvider Is Optional">
+Plain `hc()` calls do not require `AgentuityProvider`. Add it only if you use `@agentuity/react` hooks for transport auth, analytics, or WebRTC.
 </Callout>
 
 ## Running Locally
@@ -131,7 +131,7 @@ bun run dev
 ```
 
 - Frontend: `http://localhost:3001`
-- Backend API: `http://localhost:3501/api`
+- Backend: `http://localhost:3501`
 - Workbench: `http://localhost:3501/workbench`
 
 `bun run dev` starts both runtimes. There is no separate client route-generation step in v2. The frontend imports the router type from source, and `agentuity dev` serves the backend.

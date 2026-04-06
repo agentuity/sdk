@@ -28,7 +28,6 @@ When you run `agentuity deploy`, both your agents and frontend are bundled and d
 
 ```tsx
 // src/web/App.tsx
-import { AgentuityProvider } from '@agentuity/react';
 import { hc } from 'hono/client';
 import type { ApiRouter } from '../api/index';
 
@@ -44,16 +43,12 @@ function Chat() {
 }
 
 export default function App() {
-  return (
-    <AgentuityProvider>
-      <Chat />
-    </AgentuityProvider>
-  );
+  return <Chat />;
 }
 ```
 
 <Callout type="info" title="No baseUrl Needed">
-When frontend and agents are deployed together, you don't need to set `baseUrl`. The provider automatically connects to the same origin.
+When frontend and agents are deployed together, `hc<ApiRouter>('/api')` automatically targets the same origin. Add `AgentuityProvider` only if you use `@agentuity/react` hooks (see [Provider Setup](/frontend/provider-setup)).
 </Callout>
 
 **Best for:**
@@ -74,7 +69,6 @@ Frontend (e.g., Vercel)                Agents (Agentuity)
 ```
 
 ```tsx
-import { AgentuityProvider } from '@agentuity/react';
 import { hc } from 'hono/client';
 import type { ApiRouter } from '@acme/agentuity-contract';
 
@@ -91,11 +85,7 @@ function Chat() {
 }
 
 export default function App() {
-  return (
-    <AgentuityProvider baseUrl={agentuityBaseUrl}>
-      <Chat />
-    </AgentuityProvider>
-  );
+  return <Chat />;
 }
 ```
 
@@ -139,7 +129,7 @@ Without CORS configuration, browsers will block requests from your frontend to y
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): Call agents from your components
-- [Provider Setup](/frontend/provider-setup): Configure the provider for your environment
+- [React Hooks](/frontend/react-hooks): Auth, analytics, and WebRTC hooks from `@agentuity/react`
+- [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration for `@agentuity/react` apps
 - [RPC Client](/frontend/rpc-client): Build typed clients for same-origin or remote frontends
 - [App Configuration](/get-started/app-configuration): CORS and other app-level settings

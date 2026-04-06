@@ -356,19 +356,16 @@ export function App() {
 }
 ```
 
-Wrap your app with `AgentuityProvider`:
+Render the app directly. Add `AgentuityProvider` only if you later use `@agentuity/react` hooks:
 
 ```tsx title="src/web/frontend.tsx"
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AgentuityProvider } from '@agentuity/react';
 import { App } from './App';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AgentuityProvider>
-      <App />
-    </AgentuityProvider>
+    <App />
   </StrictMode>
 );
 ```

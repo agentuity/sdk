@@ -8,7 +8,7 @@ The SDK uses Hono for HTTP routes. Define routes in `src/api/index.ts`, mount th
 
 ## Creating Routes
 
-Routes are typically created with `new Hono<Env>()`, using `Env` from `@agentuity/runtime`.
+Create routes with `createRouter()` from `@agentuity/runtime` (which returns `new Hono<Env>()` with the correct environment type), or use `new Hono<Env>()` directly. Both work the same way for `hc()` type inference.
 
 **Basic Setup:**
 
@@ -41,6 +41,10 @@ Agentuity uses two distinct context types based on where you're writing code:
 Route examples typically use `c`, while agent examples typically use `ctx`. The distinction is still **type-based**, not name-based.
 
 Both contexts expose the same built-in services, but through different access patterns.
+
+<Callout type="info" title="About c.var.app">
+`c.var.app` and `ctx.app` default to an empty object. Treat them as reserved app-state plumbing unless your own runtime wiring populates them.
+</Callout>
 
 **Router Context Interface:**
 

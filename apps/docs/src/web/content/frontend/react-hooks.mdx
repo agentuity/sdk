@@ -3,7 +3,11 @@ title: React Hooks
 description: Provider, auth, analytics, and WebRTC hooks from @agentuity/react
 ---
 
-Use `@agentuity/react` when you want React-aware access to Agentuity frontend state: provider context, transport auth state, analytics, and WebRTC. For route calls, use `hc()` from `hono/client` or plain `fetch`.
+This page covers the `@agentuity/react` package. If you are maintaining code that already uses it, these hooks still work. For new apps, prefer `hc()` for route calls, `@agentuity/auth/react` for auth state, and `@agentuity/frontend` for browser-level utilities.
+
+<Callout type="warning" title="@agentuity/react Is Deprecated">
+This package is deprecated. Keep using it only when you already rely on `AgentuityProvider`, `useWebRTCCall()`, or the compatibility hooks documented here.
+</Callout>
 
 <Callout type="tip" title="Route Calls Use hc()">
 `@agentuity/react` does not ship a generated route client. Export your router type from `src/api/index.ts` and call routes with `hc<ApiRouter>()`. See [RPC Client](/frontend/rpc-client) for the full pattern.
@@ -202,7 +206,7 @@ See [WebSockets](/routes/websockets), [SSE](/routes/sse), and [WebRTC](/routes/w
 
 ## Next Steps
 
-- [Provider Setup](/frontend/provider-setup): Configure `AgentuityProvider` and transport auth state
-- [Advanced Hooks](/frontend/advanced-hooks): Use low-level managers for custom WebSocket and SSE clients
+- [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration for existing apps
+- [Advanced Hooks](/frontend/advanced-hooks): `WebSocketManager` and `EventStreamManager` from `@agentuity/frontend`
 - [RPC Client](/frontend/rpc-client): Type-safe API calls with `hc()`
 - [Web Analytics](/services/observability/web-analytics): Track page views and custom events

@@ -281,8 +281,7 @@ export const navData: NavSection[] = [
 			{
 				title: 'Provider Setup',
 				url: '/frontend/provider-setup',
-				description:
-					'Configure AgentuityProvider for local development and production deployments',
+				description: 'Legacy AgentuityProvider setup for @agentuity/react apps',
 			},
 			{
 				title: 'Authentication',
@@ -402,6 +401,11 @@ export const navData: NavSection[] = [
 				title: 'Authentication',
 				url: '/services/authentication',
 				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+			},
+			{
+				title: 'Coder',
+				url: '/services/coder',
+				description: 'Run AI coding sessions in managed sandboxes with real-time collaboration',
 			},
 			{
 				title: 'Observability',

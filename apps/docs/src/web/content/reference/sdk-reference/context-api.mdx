@@ -39,7 +39,7 @@ interface AgentContext<TConfig = unknown, TAppState = Record<string, never>> {
 
   // Agent and app config
   config: TConfig;                    // Returned from this agent's setup()
-  app: TAppState;                     // App-level state when your runtime wiring provides it
+  app: TAppState;                     // Reserved app-level state. Defaults to {}
 
   // Services
   kv: KeyValueStorage;
@@ -95,7 +95,7 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 
 **Configuration:**
 - `config`: Agent-specific configuration returned from the agent's `setup()` function. Fully typed based on what setup returns.
-- `app`: App-level shared state if your runtime wiring provides it. For new code, prefer module-scoped shared dependencies plus `registerShutdownHook()` rather than centering examples on `ctx.app`.
+- `app`: Reserved app-level shared state. Defaults to `{}`, so prefer module-scoped dependencies, service objects, or `registerShutdownHook()` in new code.
 
 **Agent Calling:**
 - Import agents directly: `import otherAgent from '@agent/other-agent/agent'`
@@ -368,5 +368,5 @@ export default createAgent('my-agent', {
 ```
 
 <Callout type="info" title="Shared App State Today">
-`ctx.config` is the stable, documented place for agent-local setup results. The runtime types still include `ctx.app`, but the current `createApp()` API is best documented with module-scoped shared dependencies plus `registerShutdownHook()` for cleanup rather than new examples built around app-level setup state.
+`ctx.config` is the stable, documented place for agent-local setup results. The runtime types still include `ctx.app`, but it defaults to `{}`. Prefer module-scoped shared dependencies plus `registerShutdownHook()` for cleanup instead of new examples built around app-level setup state.
 </Callout>

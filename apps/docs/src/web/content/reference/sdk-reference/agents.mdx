@@ -93,7 +93,7 @@ The `setup` function runs once when the app starts and returns agent-specific co
 - External service clients
 
 <Callout type="info" title="Shared App State Today">
-Agent `setup()` and `shutdown()` are current and useful. The type system still includes app-level state plumbing, but the current `createApp()` guidance is better centered on module-scoped shared dependencies plus `registerShutdownHook()` than on new examples built around `ctx.app`.
+Agent `setup()` and `shutdown()` are current and useful. The type system still includes app-level state plumbing, but `ctx.app` defaults to `{}`. Prefer module-scoped shared dependencies plus `registerShutdownHook()` instead of new examples built around `ctx.app`.
 </Callout>
 
 ### agent.validator()

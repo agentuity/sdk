@@ -3,7 +3,7 @@ title: Advanced Hooks
 description: Advanced WebRTC callbacks plus low-level WebSocket and SSE client utilities
 ---
 
-For most frontend work, `hc()` and `useWebRTCCall()` are enough. This page covers the lower-level patterns that stay current in the SDK today: advanced `useWebRTCCall()` callbacks, plus the `WebSocketManager` and `EventStreamManager` utilities re-exported from `@agentuity/react`.
+For most frontend work, `hc()` is enough. This page covers lower-level patterns: advanced `useWebRTCCall()` callbacks for `@agentuity/react` apps, plus the `WebSocketManager` and `EventStreamManager` utilities from `@agentuity/frontend` for custom transports. These managers are also re-exported by `@agentuity/react`, so existing imports still work.
 
 <Callout type="info" title="Use the Simplest Transport First">
 For Agentuity WebSocket routes, `hc<ApiRouter>()` gives you `.$ws()`. For SSE routes, the standard `EventSource` API usually does the job. Reach for these managers when you want reconnection, message buffering, or a reusable abstraction around a custom endpoint.
@@ -63,7 +63,7 @@ Use this pattern when you need richer call telemetry, custom data channel flows,
 Use `WebSocketManager` to manage a custom WebSocket connection with reconnect handling and a typed message callback.
 
 ```tsx
-import { WebSocketManager } from '@agentuity/react';
+import { WebSocketManager } from '@agentuity/frontend';
 import { useEffect, useRef, useState } from 'react';
 
 type OutboundMessage = { message: string };
@@ -130,7 +130,7 @@ export function CustomWebSocket() {
 Use `EventStreamManager` for long-lived SSE connections when you want the same typed callback and reconnect behavior:
 
 ```tsx
-import { EventStreamManager } from '@agentuity/react';
+import { EventStreamManager } from '@agentuity/frontend';
 import { useEffect, useRef, useState } from 'react';
 
 type StatusEvent = { event: string; count: number };

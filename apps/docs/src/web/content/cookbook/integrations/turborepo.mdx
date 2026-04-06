@@ -34,7 +34,7 @@ Define schemas once in `packages/shared`, then import them from both the agent a
 import { s } from '@agentuity/schema';
 
 export const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-export const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
+export const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
 
 export type Language = (typeof LANGUAGES)[number];
 export type Model = (typeof MODELS)[number];
@@ -105,7 +105,7 @@ export default createAgent('translate', {
     input: TranslateInputSchema,
     output: TranslateOutputSchema,
   },
-  handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5-nano' }) => {
+  handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5.4-nano' }) => {
     ctx.logger.info('Translation request', { toLanguage, model });
 
     const completion = await client.chat.completions.create({
@@ -257,7 +257,7 @@ bun run dev
 ```
 
 - Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:3500/api`
+- Backend: `http://localhost:3500`
 - Workbench: `http://localhost:3500/workbench`
 
 There is no separate client route-generation step in v2. The web app imports the router type from the workspace source, and `agentuity dev` serves the backend.
