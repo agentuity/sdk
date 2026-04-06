@@ -120,7 +120,7 @@ export const getSubcommand = createCommand({
 				console.log(`Size:      ${tui.formatBytes(sizeBytes)}`);
 				console.log(`URL:       ${tui.link(stream.url ?? 'unknown')}`);
 				if (stream.metadata && Object.keys(stream.metadata).length > 0) {
-					console.log('Metadata:');
+					console.log(`Metadata:`);
 					for (const [key, value] of Object.entries(stream.metadata)) {
 						console.log(`  ${key}: ${value}`);
 					}

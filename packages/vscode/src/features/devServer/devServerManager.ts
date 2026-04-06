@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { spawn, exec, type ChildProcess } from 'node:child_process';
+import { spawn, exec, type ChildProcess } from 'child_process';
 import { getCurrentProject } from '../../core/project';
 import { getCliClient } from '../../core/cliClient';
 

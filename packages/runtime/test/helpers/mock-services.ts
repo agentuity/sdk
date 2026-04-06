@@ -31,6 +31,7 @@ import type {
  * Create a mock KeyValueStorage implementation with in-memory Map-based storage.
  */
 export function createMockKeyValueStorage(): KeyValueStorage {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const stores = new Map<string, Map<string, any>>();
 
 	return {
@@ -70,6 +71,7 @@ export function createMockKeyValueStorage(): KeyValueStorage {
 			const storeData = stores.get(store);
 			if (!storeData) return {};
 
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const results: Record<string, any> = {};
 			for (const [key, value] of storeData.entries()) {
 				if (key.includes(keyword) || JSON.stringify(value).includes(keyword)) {
@@ -123,6 +125,7 @@ export function createMockStreamStorage(): StreamStorage {
 			id: string;
 			url: string;
 			contentType: string;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			metadata: any;
 			data: Uint8Array[];
 		}
@@ -238,6 +241,7 @@ export function createMockVectorStorage(): VectorStorage {
 				key: string;
 				vector: number[];
 				document: string | null;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				metadata: any;
 			}
 		>

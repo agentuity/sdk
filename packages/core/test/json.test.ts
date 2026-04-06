@@ -70,6 +70,7 @@ describe('safeStringify', () => {
 
 	describe('circular reference handling', () => {
 		test('should handle simple circular reference', () => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const obj: any = { name: 'test' };
 			obj.self = obj;
 			const result = safeStringify(obj);
@@ -77,6 +78,7 @@ describe('safeStringify', () => {
 		});
 
 		test('should handle nested circular reference', () => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const obj: any = { level1: { level2: {} } };
 			obj.level1.level2.back = obj;
 			const result = safeStringify(obj);
@@ -84,6 +86,7 @@ describe('safeStringify', () => {
 		});
 
 		test('should handle multiple circular references', () => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const obj: any = { a: {}, b: {} };
 			obj.a.root = obj;
 			obj.b.root = obj;
@@ -92,6 +95,7 @@ describe('safeStringify', () => {
 		});
 
 		test('should handle array with circular reference', () => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const arr: any = [1, 2];
 			arr.push(arr);
 			const result = safeStringify(arr);

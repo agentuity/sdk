@@ -17,6 +17,7 @@ import { nullable } from '../utils/nullable.ts';
  * schema.parse({ a: 'invalid' }); // throws ValidationError
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class RecordSchema<K extends Schema<string, string>, V extends Schema<any, any>>
 	implements Schema<Record<Infer<K>, Infer<V>>, Record<Infer<K>, Infer<V>>>
 {
@@ -43,6 +44,7 @@ export class RecordSchema<K extends Schema<string, string>, V extends Schema<any
 				return failure([createIssue(`Expected record, got ${typeof value}`)]);
 			}
 
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const result: Record<string, any> = {};
 			const issues: ReturnType<typeof createIssue>[] = [];
 
@@ -119,6 +121,7 @@ export class RecordSchema<K extends Schema<string, string>, V extends Schema<any
  * const metadata = metadataSchema.parse({ any: 'data', here: 123 });
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function record<K extends Schema<string, string>, V extends Schema<any, any>>(
 	keySchema: K,
 	valueSchema: V

@@ -295,7 +295,7 @@ async function uploadSingleFile(
 			if (execInfo.exitCode !== 0) {
 				logger.fatal(
 					`Target directory does not exist: ${parentDir}\n` +
-						'Use without --strict to auto-create parent directories, or create it first with:\n' +
+						`Use without --strict to auto-create parent directories, or create it first with:\n` +
 						`  ${getCommand(`cloud sandbox fs mkdir ${sandboxId} ${parentDir} -p`)}`
 				);
 			}
@@ -363,7 +363,7 @@ async function uploadDirectory(
 			if (execInfo.exitCode !== 0) {
 				logger.fatal(
 					`Target directory does not exist: ${parentDir}\n` +
-						'Use without --strict to auto-create parent directories, or create it first with:\n' +
+						`Use without --strict to auto-create parent directories, or create it first with:\n` +
 						`  ${getCommand(`cloud sandbox fs mkdir ${sandboxId} ${parentDir} -p`)}`
 				);
 			}
@@ -518,7 +518,7 @@ async function downloadDirectory(
 	let totalBytes = 0;
 
 	for (const remoteFile of fileList) {
-		const relativePath = remoteFile.startsWith(`${baseRemotePath}/`)
+		const relativePath = remoteFile.startsWith(baseRemotePath + '/')
 			? remoteFile.slice(baseRemotePath.length + 1)
 			: basename(remoteFile);
 
@@ -545,6 +545,7 @@ async function downloadDirectory(
 			}
 		} catch (err) {
 			logger.warn(`Failed to read file: ${remoteFile}, skipping: ${err}`);
+			continue;
 		}
 	}
 
@@ -593,6 +594,7 @@ async function waitForExecution(
 				throw err;
 			}
 			logger.debug('poll error: %s', err);
+			continue;
 		}
 	}
 

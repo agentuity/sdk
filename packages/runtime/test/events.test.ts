@@ -10,7 +10,9 @@ import { TestAgentContext } from './helpers/test-context';
 describe('Agent Event Listeners', () => {
 	test('agent fires started event', async () => {
 		let startedFired = false;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let capturedAgent: any;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let capturedContext: any;
 
 		const agent = createAgent('event-test', {

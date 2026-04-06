@@ -29,14 +29,14 @@ describe('HonoContext Property Access Error Messages', () => {
 					throw new Error(
 						`In route handlers, use c.var.${property} instead of c.${property}. ` +
 							`The property '${property}' is available on AgentContext (for agent handlers) ` +
-							'but must be accessed via c.var in HonoContext (route handlers).'
+							`but must be accessed via c.var in HonoContext (route handlers).`
 					);
 				},
 				set() {
 					throw new Error(
 						`In route handlers, use c.var.${property} instead of c.${property}. ` +
 							`The property '${property}' is available on AgentContext (for agent handlers) ` +
-							'but must be accessed via c.var in HonoContext (route handlers).'
+							`but must be accessed via c.var in HonoContext (route handlers).`
 					);
 				},
 				configurable: true,

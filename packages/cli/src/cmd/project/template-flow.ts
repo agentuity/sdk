@@ -245,7 +245,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 				label: t.name.padEnd(maxLength),
 				hint:
 					t.description.length > winWidth
-						? `${t.description.substring(0, winWidth - 3)}...`
+						? t.description.substring(0, winWidth - 3) + '...'
 						: t.description,
 			})),
 		});

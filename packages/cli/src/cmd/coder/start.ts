@@ -288,7 +288,7 @@ export const startSubcommand = createSubcommand({
 
 			// Create sandbox session via Hub API
 			tui.newline();
-			tui.output('  Creating sandbox session...');
+			tui.output(`  Creating sandbox session...`);
 
 			let sessionId: string;
 			try {
@@ -304,7 +304,7 @@ export const startSubcommand = createSubcommand({
 			tui.output(`  Session:   ${tui.bold(sessionId)}`);
 			tui.output(`  Task:      ${task.slice(0, 80)}`);
 			if (opts?.repo) tui.output(`  Repo:      ${opts.repo}`);
-			tui.output('  Waiting for sandbox driver to connect...');
+			tui.output(`  Waiting for sandbox driver to connect...`);
 
 			// Poll until driver (lead) connects
 			const POLL_TIMEOUT = 120_000; // 2 min (matches Hub's DRIVER_CONNECT_TIMEOUT)
@@ -333,7 +333,7 @@ export const startSubcommand = createSubcommand({
 				return;
 			}
 
-			tui.output('  Driver connected. Attaching...');
+			tui.output(`  Driver connected. Attaching...`);
 			tui.newline();
 
 			try {

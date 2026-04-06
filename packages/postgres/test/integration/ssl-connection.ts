@@ -16,7 +16,7 @@
  * See: https://github.com/agentuity/sdk/issues/921
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync } from 'fs';
 import { SQL, postgres, PostgresClient, PostgresPool } from '../../src/index';
 import { StructuredError, isStructuredError } from '@agentuity/core';
 
@@ -466,7 +466,7 @@ async function main() {
 	await testPostgresPool();
 
 	// Summary
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log(`📊 Results: ${passed} passed, ${failed} failed`);
 	console.log('═'.repeat(60));
 

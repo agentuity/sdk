@@ -5,8 +5,8 @@
  * Uses Bun.spawn for subprocess execution with JSON output parsing.
  */
 
-import { resolve, join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { resolve, join } from 'path';
+import { existsSync, readFileSync } from 'fs';
 
 // Debug logging - only enabled in CI
 const DEBUG = process.env.CI === 'true';

@@ -81,7 +81,7 @@ async function readJSON(path: string) {
 }
 
 async function writeJSON(path: string, data: unknown) {
-	await writeFile(path, `${JSON.stringify(data, null, '\t')}\n`);
+	await writeFile(path, JSON.stringify(data, null, '\t') + '\n');
 }
 
 function isPrerelease(version: string): boolean {
@@ -194,7 +194,7 @@ async function updateVersions(version: string) {
 		await writeJSON(marketplacePath, marketplace);
 		console.log(`✓ Updated .claude-plugin/marketplace.json to ${version}`);
 	} catch {
-		console.log('⊘ Skipped .claude-plugin/marketplace.json (not found)');
+		console.log(`⊘ Skipped .claude-plugin/marketplace.json (not found)`);
 	}
 
 	// Update packages/claude-code/.claude-plugin/plugin.json
@@ -205,7 +205,7 @@ async function updateVersions(version: string) {
 		await writeJSON(pluginJsonPath, pluginJson);
 		console.log(`✓ Updated packages/claude-code/.claude-plugin/plugin.json to ${version}`);
 	} catch {
-		console.log('⊘ Skipped packages/claude-code/.claude-plugin/plugin.json (not found)');
+		console.log(`⊘ Skipped packages/claude-code/.claude-plugin/plugin.json (not found)`);
 	}
 
 	// Update packages/*
@@ -671,7 +671,7 @@ async function createOrUpdateGitHubRelease(
 		await $`gh ${args}`.cwd(rootDir);
 		console.log(`✓ Created GitHub release ${tag}`);
 	} catch (err) {
-		console.error('✗ Failed to create GitHub release:', err);
+		console.error(`✗ Failed to create GitHub release:`, err);
 		throw err;
 	}
 

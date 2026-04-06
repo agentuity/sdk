@@ -6,7 +6,7 @@ import {
 } from './_util';
 
 function generateAISDKPatch(patches: Map<string, PatchModule>) {
-	const vercelTelemetryPatch = generateJSArgsPatch(0, ' ' + '');
+	const vercelTelemetryPatch = generateJSArgsPatch(0, ` ` + '');
 
 	const enableTelemetryPatch = `
 		// Enable experimental telemetry to capture response text

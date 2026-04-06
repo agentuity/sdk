@@ -52,7 +52,7 @@ function mdxPathToUrlPath(mdxPath: string): string {
 	} else if (urlPath === 'index') {
 		urlPath = '';
 	}
-	return `/${urlPath}`;
+	return '/' + urlPath;
 }
 
 function urlPathToMdOutputPath(urlPath: string): string {
@@ -63,7 +63,7 @@ function urlPathToMdOutputPath(urlPath: string): string {
 	if (cleaned === '') {
 		return 'index.md';
 	}
-	return `${cleaned}.md`;
+	return cleaned + '.md';
 }
 
 /**
@@ -931,7 +931,7 @@ The documentation covers:
 
 	const links = pages.map((page) => `[${page.title}](${BASE_URL}${page.urlPath}.md)`).join('\n');
 
-	return `${preamble + links}\n`;
+	return preamble + links + '\n';
 }
 
 function generateLlmsFullTxt(pages: DocPage[]): string {
@@ -974,7 +974,7 @@ ${page.content.replace(/^# .+\n\n.+\n\n/, '')}
 		})
 		.join('\n\n');
 
-	return `${preamble + sections}\n`;
+	return preamble + sections + '\n';
 }
 
 function generateSitemapXml(pages: DocPage[]): string {

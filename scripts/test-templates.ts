@@ -210,10 +210,10 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 			if (verifyResult.success) {
 				const indexContent = verifyResult.stdout;
 				if (!indexContent.includes('createClient')) {
-					logWarning('⚠️  Packed tarball for frontend does NOT contain createClient export!');
+					logWarning(`⚠️  Packed tarball for frontend does NOT contain createClient export!`);
 					logWarning(`Content (first 500): ${indexContent.substring(0, 500)}`);
 				} else {
-					logInfo('✓ Packed tarball for frontend contains createClient export');
+					logInfo(`✓ Packed tarball for frontend contains createClient export`);
 				}
 			}
 		}
@@ -432,10 +432,10 @@ async function buildProjectDev(projectDir: string): Promise<{ success: boolean; 
 	if (!result.success) {
 		// Log full error output for debugging
 		if (result.stderr) {
-			console.error(`\n${result.stderr}`);
+			console.error('\n' + result.stderr);
 		}
 		if (result.stdout) {
-			console.log(`\n${result.stdout}`);
+			console.log('\n' + result.stdout);
 		}
 		return { success: false, error: result.stderr || result.stdout };
 	}
@@ -456,10 +456,10 @@ async function buildProject(projectDir: string): Promise<{ success: boolean; err
 	if (!result.success) {
 		// Log full error output for debugging
 		if (result.stderr) {
-			console.error(`\n${result.stderr}`);
+			console.error('\n' + result.stderr);
 		}
 		if (result.stdout) {
-			console.log(`\n${result.stdout}`);
+			console.log('\n' + result.stdout);
 		}
 		return { success: false, error: result.stderr || result.stdout };
 	}

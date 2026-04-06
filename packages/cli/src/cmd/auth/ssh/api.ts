@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { APIResponseSchema } from '@agentuity/server';
 import type { APIClient } from '../../../api';
-import { createHash } from 'node:crypto';
+import { createHash } from 'crypto';
 import { StructuredError } from '@agentuity/core';
 
 // Zod schemas for API validation

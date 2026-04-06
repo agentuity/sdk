@@ -201,7 +201,7 @@ export async function writeEnvFile(
 		lines.push(`${key}=${value}`);
 	}
 
-	const content = `${lines.join('\n')}\n`;
+	const content = lines.join('\n') + '\n';
 	await Bun.write(path, content);
 }
 

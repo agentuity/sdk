@@ -536,7 +536,7 @@ describe('KeyValueStorageService', () => {
 			let modifiedUrl = '';
 			const { adapter } = createMockAdapter([{ ok: true, data: 'test' }], {
 				onBefore: async (url, _options, invoke) => {
-					modifiedUrl = `${url}?modified=true`;
+					modifiedUrl = url + '?modified=true';
 					await invoke();
 				},
 			});

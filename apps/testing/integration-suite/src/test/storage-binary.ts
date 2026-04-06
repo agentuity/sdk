@@ -12,7 +12,7 @@
 import { test } from '@test/suite';
 import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers';
 import binaryStorageAgent from '@agents/storage/binary/upload-download';
-import crypto from 'node:crypto';
+import crypto from 'crypto';
 
 // Helper: Generate random binary data
 function generateRandomBytes(size: number): Uint8Array {

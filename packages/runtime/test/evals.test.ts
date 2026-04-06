@@ -78,7 +78,9 @@ describe('Eval Creation', () => {
 describe('Eval Execution', () => {
 	test('eval runs after agent completes', async () => {
 		let evalRan = false;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let evalInput: any;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let evalOutput: any;
 
 		const agent = createAgent('eval-test', {
@@ -454,6 +456,7 @@ describe('Eval Result Types', () => {
 	});
 
 	test('eval returns score with metadata', async () => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let scoreResult: any;
 
 		const agent = createAgent('score-eval', {

@@ -122,7 +122,7 @@ function buildReviewPrompt(context: string, diff: string, stats: DiffStats): str
 	// Truncate diff if too large
 	let diffContent = diff;
 	if (diff.length > MAX_DIFF_SIZE) {
-		diffContent = `${diff.slice(0, MAX_DIFF_SIZE)}\n\n[Diff truncated - too large for review]`;
+		diffContent = diff.slice(0, MAX_DIFF_SIZE) + '\n\n[Diff truncated - too large for review]';
 	}
 
 	return `${header}${excludedNote}\n\n\`\`\`diff\n${diffContent}\n\`\`\`\n\nPlease review these changes for:\n1. Correctness and potential bugs\n2. Security concerns\n3. Code quality and best practices\n4. Performance implications`;
@@ -166,7 +166,7 @@ export async function handleReview(
 	} else if (mode.includes('uncommitted')) {
 		const staged = execGitDiff(['--cached']);
 		const unstaged = execGitDiff([]);
-		diff = `${staged}\n${unstaged}`;
+		diff = staged + '\n' + unstaged;
 		if (!diff.trim()) {
 			ctx.ui.notify('No uncommitted changes found', 'warning');
 			return;

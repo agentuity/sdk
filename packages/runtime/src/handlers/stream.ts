@@ -80,11 +80,14 @@ export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<
 		};
 
 		// Expose completion tracking to middleware
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(c as any).set(STREAM_DONE_PROMISE_KEY, donePromise);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(c as any).set(IS_STREAMING_RESPONSE_KEY, true);
 
 		c.header('Content-Type', 'application/octet-stream');
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		return honoStream(c, async (s: any) => {
 			const runInContext = async () => {
 				try {

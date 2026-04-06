@@ -92,6 +92,7 @@ const createWorkbenchExecutionMetadataMiddleware = (): MiddlewareHandler => {
 		}
 
 		// Get execution context set by the handler
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const executionCtx = (ctx as any).var.workbenchExecution as
 			| { agentId: string; input: unknown; result: unknown }
 			| undefined;
@@ -199,12 +200,15 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			// so the handler can access it via getAgentContext()
 			let result: unknown;
 			if (agentObj.inputSchema) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				result = await (agentObj as any).handler(input);
 			} else {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				result = await (agentObj as any).handler();
 			}
 
 			// Store execution context for the metadata middleware to save with tokens/duration
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(ctx as any).set('workbenchExecution', { agentId, input, result });
 
 			return ctx.json({ success: true, data: result ?? null });

@@ -143,7 +143,7 @@ export const searchSubcommand = createCommand({
 						ID: result.id,
 						Similarity: `${(result.similarity * 100).toFixed(1)}%`,
 						Metadata:
-							metadataStr.length > 50 ? `${metadataStr.substring(0, 47)}...` : metadataStr,
+							metadataStr.length > 50 ? metadataStr.substring(0, 47) + '...' : metadataStr,
 					};
 				});
 

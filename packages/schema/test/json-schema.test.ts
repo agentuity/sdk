@@ -251,6 +251,7 @@ describe('JSON Schema Conversion', () => {
 		});
 	});
 
+	/* eslint-disable @typescript-eslint/no-explicit-any */
 	describe('SCHEMA_KIND (minification-safe type detection)', () => {
 		test('all primitive schemas should have SCHEMA_KIND tag', () => {
 			expect((s.string() as any)[SCHEMA_KIND]).toBe('StringSchema');
@@ -401,4 +402,5 @@ describe('JSON Schema Conversion', () => {
 			expect((dateJson as any).format).toBe('date-time');
 		});
 	});
+	/* eslint-enable @typescript-eslint/no-explicit-any */
 });

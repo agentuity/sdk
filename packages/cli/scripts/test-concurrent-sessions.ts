@@ -179,11 +179,11 @@ async function main() {
 	const pids = sessions.map((s) => s.pid);
 	const uniquePids = new Set(pids);
 	if (uniquePids.size !== sessions.length) {
-		console.error('❌ Duplicate PIDs found!');
+		console.error(`❌ Duplicate PIDs found!`);
 		process.exit(1);
 	}
 
-	console.log('✅ All PIDs are unique');
+	console.log(`✅ All PIDs are unique`);
 
 	// Verify session.json has required fields
 	for (const session of sessions) {
@@ -201,7 +201,7 @@ async function main() {
 		}
 	}
 
-	console.log('✅ All sessions have required fields (bucket, pid, ppid)');
+	console.log(`✅ All sessions have required fields (bucket, pid, ppid)`);
 
 	// Test getLogSessionsInCurrentWindow by importing and calling it
 	console.log();
@@ -213,12 +213,12 @@ async function main() {
 	console.log(`  Found ${windowSessions.length} sessions in current window`);
 
 	if (windowSessions.length < NUM_CONCURRENT) {
-		console.error('❌ getLogSessionsInCurrentWindow() returned fewer sessions than expected');
+		console.error(`❌ getLogSessionsInCurrentWindow() returned fewer sessions than expected`);
 		console.error(`   Expected at least ${NUM_CONCURRENT}, got ${windowSessions.length}`);
 		process.exit(1);
 	}
 
-	console.log('✅ getLogSessionsInCurrentWindow() returns all sessions');
+	console.log(`✅ getLogSessionsInCurrentWindow() returns all sessions`);
 
 	// Test cleanup behavior - create a fake old bucket directory and verify it gets cleaned up
 	console.log();
@@ -249,7 +249,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log('✅ Old bucket directory was cleaned up');
+	console.log(`✅ Old bucket directory was cleaned up`);
 
 	console.log();
 	console.log('='.repeat(60));

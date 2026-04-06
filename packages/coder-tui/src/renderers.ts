@@ -21,7 +21,7 @@ import { Box, Text, Container, type Component } from '@mariozechner/pi-tui';
 /** Pre-render safety net — truncate lines before they reach render(). Reduced from 200 to 160. */
 const SAFE_LINE_WIDTH = 160;
 function safeLine(line: string): string {
-	return line.length > SAFE_LINE_WIDTH ? `${line.slice(0, SAFE_LINE_WIDTH - 3)}...` : line;
+	return line.length > SAFE_LINE_WIDTH ? line.slice(0, SAFE_LINE_WIDTH - 3) + '...' : line;
 }
 
 /**
@@ -36,6 +36,7 @@ export function truncateToWidth(line: string, maxWidth: number): string {
 	if (normalized.length <= maxWidth && !normalized.includes('\x1b')) return normalized;
 
 	// Strip ANSI to measure visible length
+	// eslint-disable-next-line no-control-regex
 	const visible = normalized.replace(/\x1b\[[0-9;]*m/g, '');
 	if (visible.length <= maxWidth) return normalized;
 
@@ -57,7 +58,7 @@ export function truncateToWidth(line: string, maxWidth: number): string {
 			i++;
 		}
 	}
-	return `${normalized.slice(0, i)}\x1b[0m...`;
+	return normalized.slice(0, i) + '\x1b[0m...';
 }
 
 // ──────────────────────────────────────────────
@@ -121,7 +122,7 @@ function tryParseJson(text: string): unknown | undefined {
 /** Truncate a string to a max length, appending '\u2026' when truncated. */
 function truncate(str: string, max: number): string {
 	if (str.length <= max) return str;
-	return `${str.slice(0, max - 1)}\u2026`;
+	return str.slice(0, max - 1) + '\u2026';
 }
 
 // ──────────────────────────────────────────────
@@ -153,7 +154,7 @@ function memorySearchRenderers(): ToolRenderers {
 							: '';
 					return `  ${theme.fg('accent', key)}${theme.fg('muted', score)}`;
 				});
-				text += `\n${lines.join('\n')}`;
+				text += '\n' + lines.join('\n');
 				if (items.length > 10)
 					text += theme.fg('muted', `\n  \u2026and ${items.length - 10} more`);
 			}
@@ -202,7 +203,7 @@ function memoryGetRenderers(): ToolRenderers {
 								.map(safeLine)
 								.join('\n')
 						: String(parsed);
-				text += `\n${theme.fg('toolOutput', truncate(preview, 500))}`;
+				text += '\n' + theme.fg('toolOutput', truncate(preview, 500));
 			}
 			return new SimpleText(text);
 		},
@@ -265,7 +266,7 @@ function memoryListRenderers(): ToolRenderers {
 				const lines = keys
 					.slice(0, 15)
 					.map((k: unknown) => `  ${theme.fg('accent', truncate(String(k), 120))}`);
-				text += `\n${lines.join('\n')}`;
+				text += '\n' + lines.join('\n');
 				if (keys.length > 15)
 					text += theme.fg('muted', `\n  \u2026and ${keys.length - 15} more`);
 			}
@@ -280,7 +281,7 @@ function context7SearchRenderers(): ToolRenderers {
 			const library = String(args['libraryId'] ?? args['library'] ?? '');
 			const query = String(args['query'] ?? '');
 			let text = theme.fg('toolTitle', theme.bold('context7 '));
-			if (library) text += theme.fg('accent', `${truncate(library, 30)} \u2014 `);
+			if (library) text += theme.fg('accent', truncate(library, 30) + ' \u2014 ');
 			text += theme.fg('text', truncate(query, 50));
 			return new SimpleText(text);
 		},
@@ -303,7 +304,7 @@ function context7SearchRenderers(): ToolRenderers {
 					const title = String(snip['title'] ?? snip['name'] ?? '');
 					return `  ${theme.fg('accent', truncate(title, 80))}`;
 				});
-				text += `\n${lines.join('\n')}`;
+				text += '\n' + lines.join('\n');
 				if (snippets.length > 5)
 					text += theme.fg('muted', `\n  \u2026and ${snippets.length - 5} more`);
 			}
@@ -344,7 +345,7 @@ function grepAppSearchRenderers(): ToolRenderers {
 					const path = String(match['path'] ?? match['file'] ?? match['repo'] ?? '');
 					return `  ${theme.fg('accent', truncate(path, 80))}`;
 				});
-				text += `\n${lines.join('\n')}`;
+				text += '\n' + lines.join('\n');
 				if (matches.length > 8)
 					text += theme.fg('muted', `\n  \u2026and ${matches.length - 8} more`);
 			}
@@ -393,7 +394,7 @@ function sessionTodoCreateRenderers(): ToolRenderers {
 			let text = theme.fg('success', `${status} ${display}`);
 			text += theme.fg('dim', ` (${truncate(id, 20)} prio:${priority})`);
 			if (expanded && title.length > 0) {
-				text += `\n${theme.fg('accent', truncate(title, 120))}`;
+				text += '\n' + theme.fg('accent', truncate(title, 120));
 			}
 			return new SimpleText(text);
 		},
@@ -486,7 +487,7 @@ function sessionTodoListRenderers(): ToolRenderers {
 							: '';
 					return `  ${marker} ${theme.fg('dim', id)} ${title}${theme.fg('muted', owner)}`;
 				});
-				text += `\n${lines.join('\n')}`;
+				text += '\n' + lines.join('\n');
 				if (todos.length > 20)
 					text += theme.fg('muted', `\n  \u2026and ${todos.length - 20} more`);
 			}
@@ -576,11 +577,12 @@ function taskRenderers(): ToolRenderers {
 				const box = new Box(1, 0, bgFn);
 				let errorContent = theme.fg('error', 'failed');
 				if (expanded) {
-					errorContent += `\n${theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'))}`;
+					errorContent +=
+						'\n' + theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'));
 				} else {
 					// Show first line of error in collapsed view
 					const firstLine = raw.split('\n')[0] || '';
-					errorContent += theme.fg('dim', `  ${firstLine.slice(0, 80)}`);
+					errorContent += theme.fg('dim', '  ' + firstLine.slice(0, 80));
 					errorContent += theme.fg('muted', '  ctrl+h  ctrl+shift+v|alt+shift+v');
 				}
 				box.addChild(new Text(errorContent, 0, 0));
@@ -610,7 +612,7 @@ function taskRenderers(): ToolRenderers {
 			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
-				text += `\n${theme.fg('dim', preview)}`;
+				text += '\n' + theme.fg('dim', preview);
 				if (lineCount > 20) text += theme.fg('muted', '\n...more  ctrl+shift+v|alt+shift+v');
 			}
 			return new Text(text, 0, 0);

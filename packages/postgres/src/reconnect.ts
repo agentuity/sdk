@@ -31,7 +31,7 @@ export function computeBackoff(attempt: number, config: Partial<ReconnectConfig>
 	} = config;
 
 	// Calculate exponential delay
-	const exponentialDelay = initialDelayMs * multiplier ** attempt;
+	const exponentialDelay = initialDelayMs * Math.pow(multiplier, attempt);
 
 	// Cap at maximum delay
 	const cappedDelay = Math.min(exponentialDelay, maxDelayMs);

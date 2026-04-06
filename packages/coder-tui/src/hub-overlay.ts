@@ -336,6 +336,7 @@ function extractMessageSegments(data: Record<string, unknown> | undefined): Mess
 			}
 			if (type === 'thinking' && typeof block.thinking === 'string') {
 				thinkingParts.push(block.thinking);
+				continue;
 			}
 		}
 	}
@@ -1841,7 +1842,7 @@ export class HubOverlay implements Component, Focusable {
 		sseEvent: string,
 		dataText: string
 	): void {
-		let payload: unknown;
+		let payload: unknown = undefined;
 		if (dataText) {
 			try {
 				payload = JSON.parse(dataText);
@@ -1956,17 +1957,17 @@ export class HubOverlay implements Component, Focusable {
 		if (eventName === 'message_end') {
 			const segments = extractMessageSegments(data);
 			if (segments.thinking) {
-				this.appendBufferText(sessionId, 'thinking', `${segments.thinking}\n\n`, taskId);
+				this.appendBufferText(sessionId, 'thinking', segments.thinking + '\n\n', taskId);
 			}
 			if (segments.output) {
-				this.appendBufferText(sessionId, 'output', `${segments.output}\n\n`, taskId);
+				this.appendBufferText(sessionId, 'output', segments.output + '\n\n', taskId);
 			}
 			return;
 		}
 
 		if (eventName === 'thinking_end') {
 			const text = typeof data?.text === 'string' ? data.text : '';
-			if (text) this.appendBufferText(sessionId, 'thinking', `${text}\n\n`, taskId);
+			if (text) this.appendBufferText(sessionId, 'thinking', text + '\n\n', taskId);
 			return;
 		}
 
@@ -1989,7 +1990,7 @@ export class HubOverlay implements Component, Focusable {
 
 		if (eventName === 'task_complete') {
 			const result = typeof data?.result === 'string' ? data.result : '';
-			if (result) this.appendBufferText(sessionId, 'output', `${result}\n\n`, taskId);
+			if (result) this.appendBufferText(sessionId, 'output', result + '\n\n', taskId);
 			return;
 		}
 

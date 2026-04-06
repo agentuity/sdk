@@ -1,3 +1,4 @@
+/* eslint-disable */
 // @ts-nocheck
 /**
  * TSC Output Parser
@@ -449,6 +450,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseMain(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any, s3: any;
 
 		const key = peg$currPos * 13 + 0;
@@ -493,6 +495,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseItem(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any, s3: any, s4: any, s5: any, s6: any, s7: any, s8: any;
 
 		const key = peg$currPos * 13 + 1;
@@ -578,6 +581,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseMessage(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any, s3: any;
 
 		const key = peg$currPos * 13 + 2;
@@ -616,6 +620,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseMessageExtraLine(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any;
 
 		const key = peg$currPos * 13 + 3;
@@ -649,6 +654,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseMessageExtraLineStart(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any;
 
 		const key = peg$currPos * 13 + 4;
@@ -681,6 +687,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseTsError(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any, s3: any;
 
 		const key = peg$currPos * 13 + 5;
@@ -728,6 +735,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseTsErrorType(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any;
 
 		const key = peg$currPos * 13 + 6;
@@ -771,6 +779,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseCursor(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any, s3: any, s4: any, s5: any, s6: any, s7: any, s8: any, s9: any;
 
 		const key = peg$currPos * 13 + 7;
@@ -870,6 +879,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parsePath(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any;
 
 		const key = peg$currPos * 13 + 8;
@@ -919,6 +929,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseTextLine(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any, s3: any;
 
 		const key = peg$currPos * 13 + 9;
@@ -982,6 +993,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseAnyCharExceptNewLine(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any;
 
 		const key = peg$currPos * 13 + 10;
@@ -1008,6 +1020,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parseInteger(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any;
 
 		const key = peg$currPos * 13 + 11;
@@ -1057,6 +1070,7 @@ function peg$parse(input: string, options?: IParseOptions): GrammarItem[] {
 	}
 
 	function peg$parse_(): unknown {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let s0: any, s1: any, s2: any;
 
 		const key = peg$currPos * 13 + 12;

@@ -167,5 +167,5 @@ export function registerDevModeRoutes(router: Hono) {
 		return c.body(body, 200, { 'Content-Type': 'text/javascript' });
 	});
 
-	return `${overlay}<script type="module" src="/__dev__/reload.js"></script>`;
+	return overlay + '<script type="module" src="/__dev__/reload.js"></script>';
 }

@@ -67,9 +67,8 @@ export class ValidationError extends Error {
 				const path = issue.path
 					? `[${issue.path
 							.map((p) =>
-								typeof p === 'object' && p !== null && 'key' in p
-									? String((p as { key: PropertyKey }).key)
-									: String(p)
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								typeof p === 'object' ? (p as any).key : p
 							)
 							.join('.')}]`
 					: '';
@@ -121,16 +120,19 @@ export interface Schema<Input = unknown, Output = Input> extends StandardSchemaV
  * type User = Infer<typeof User>;  // { name: string; age: number }
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Infer<T extends Schema<any, any>> = StandardSchemaV1.InferOutput<T>;
 
 /**
  * Extract the input type from a schema.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type InferInput<T extends Schema<any, any>> = StandardSchemaV1.InferInput<T>;
 
 /**
  * Extract the output type from a schema (alias for Infer).
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type InferOutput<T extends Schema<any, any>> = StandardSchemaV1.InferOutput<T>;
 
 /**
@@ -163,6 +165,7 @@ export function failure(issues: ValidationIssue[]): StandardSchemaV1.FailureResu
  */
 export function createParseMethods<Output>() {
 	return {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		parse(this: Schema<any, Output>, value: unknown): Output {
 			const result = this['~standard'].validate(value);
 			if (result instanceof Promise) {
@@ -173,6 +176,7 @@ export function createParseMethods<Output>() {
 			}
 			return result.value;
 		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		safeParse(this: Schema<any, Output>, value: unknown): SafeParseResult<Output> {
 			const result = this['~standard'].validate(value);
 			if (result instanceof Promise) {

@@ -31,7 +31,7 @@ async function main() {
 	// ============================================================
 	// Test 2: Send an email
 	// ============================================================
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('Test 2: Send an email');
 	console.log('═'.repeat(60));
 
@@ -47,7 +47,7 @@ async function main() {
 	// ============================================================
 	// Test 3: Send an HTML email
 	// ============================================================
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('Test 3: Send an HTML email');
 	console.log('═'.repeat(60));
 
@@ -63,7 +63,7 @@ async function main() {
 	// ============================================================
 	// Test 4: Send email with multiple recipients
 	// ============================================================
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('Test 4: Send email with multiple recipients');
 	console.log('═'.repeat(60));
 
@@ -76,7 +76,7 @@ async function main() {
 	});
 	console.log('   ✅ Multi-recipient email sent');
 
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('✨ Email test completed successfully!');
 	console.log('═'.repeat(60));
 }

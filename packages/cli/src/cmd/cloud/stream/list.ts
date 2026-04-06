@@ -158,7 +158,7 @@ export const listSubcommand = createCommand({
 						ID: stream.id,
 						Size: tui.formatBytes(sizeBytes),
 						Metadata:
-							metadataStr.length > 40 ? `${metadataStr.substring(0, 37)}...` : metadataStr,
+							metadataStr.length > 40 ? metadataStr.substring(0, 37) + '...' : metadataStr,
 						URL: tui.link(stream.url),
 					};
 				});

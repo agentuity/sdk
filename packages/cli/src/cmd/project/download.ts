@@ -111,7 +111,7 @@ async function mergePackageJson(dest: string, overlayDir: string) {
 	}
 
 	// Write merged package.json
-	await Bun.write(basePackagePath, `${JSON.stringify(basePackage, null, '\t')}\n`);
+	await Bun.write(basePackagePath, JSON.stringify(basePackage, null, '\t') + '\n');
 }
 
 async function _cleanup(sourceDir: string, dest: string) {

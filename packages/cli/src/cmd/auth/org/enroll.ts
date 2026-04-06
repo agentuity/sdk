@@ -4,7 +4,7 @@ import * as tui from '../../../tui';
 import { orgAuthEnroll } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { readFileSync } from 'node:fs';
+import { readFileSync } from 'fs';
 
 const EnrollResponseSchema = z.object({
 	success: z.boolean().describe('Whether the enrollment succeeded'),

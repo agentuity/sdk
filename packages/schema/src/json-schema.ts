@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Schema } from './base.ts';
 import { SCHEMA_KIND } from './base.ts';
 import { string } from './primitives/string.ts';

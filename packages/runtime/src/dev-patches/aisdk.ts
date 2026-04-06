@@ -7,6 +7,8 @@
  * 2. Route AI SDK provider factory functions through the AI Gateway
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 function warnMissingKey(envKey: string): void {
 	const isDev =
 		process.env.AGENTUITY_ENVIRONMENT === 'development' || process.env.NODE_ENV !== 'production';

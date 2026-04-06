@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex */
 import { writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { toPascalCase } from '../../utils/string';

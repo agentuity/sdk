@@ -648,7 +648,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 			} else {
 				// Subdirectory: only show direct children
 				// File must start with dirPath/
-				if (!filePath.startsWith(`${dirPath}/`)) {
+				if (!filePath.startsWith(dirPath + '/')) {
 					return false;
 				}
 				// The remaining part after dirPath/ should not contain another '/'

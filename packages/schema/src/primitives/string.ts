@@ -44,14 +44,14 @@ export class StringSchema implements Schema<string, string> {
 				// Basic email regex - matches most valid emails
 				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 				if (!emailRegex.test(value)) {
-					return failure([createIssue('Invalid email format')]);
+					return failure([createIssue(`Invalid email format`)]);
 				}
 			}
 			if (this._url) {
 				try {
 					new URL(value);
 				} catch {
-					return failure([createIssue('Invalid URL format')]);
+					return failure([createIssue(`Invalid URL format`)]);
 				}
 			}
 			return success(value);

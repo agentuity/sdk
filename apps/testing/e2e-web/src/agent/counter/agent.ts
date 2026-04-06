@@ -36,6 +36,7 @@ const agent = createAgent('counter', {
 			case 'reset':
 				count = 0;
 				break;
+			case 'get':
 			default:
 				break;
 		}

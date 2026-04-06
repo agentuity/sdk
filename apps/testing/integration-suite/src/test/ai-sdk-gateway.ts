@@ -52,7 +52,7 @@ test('ai-sdk-gateway', 'create-provider-no-apikey', async () => {
 	} else {
 		// Without gateway config, we expect it to fail with API key error
 		// This is expected behavior when not connected to cloud
-		console.log('[ai-sdk-gateway] Skipping assertion - no gateway config');
+		console.log(`[ai-sdk-gateway] Skipping assertion - no gateway config`);
 		console.log(`[ai-sdk-gateway] Result: ${result.message}`);
 	}
 });
@@ -69,7 +69,7 @@ test('ai-sdk-gateway', 'create-model-instance', async () => {
 			`Model creation should succeed: ${result.error || result.message}`
 		);
 	} else {
-		console.log('[ai-sdk-gateway] Skipping model test - no gateway config');
+		console.log(`[ai-sdk-gateway] Skipping model test - no gateway config`);
 	}
 });
 

@@ -122,7 +122,7 @@ export const listSubcommand = createSubcommand({
 					Updated: new Date(t.updated_at).toLocaleString(),
 					'User Data': t.user_data
 						? t.user_data.length > 50
-							? `${t.user_data.substring(0, 47)}...`
+							? t.user_data.substring(0, 47) + '...'
 							: t.user_data
 						: '-',
 				};

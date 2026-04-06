@@ -190,7 +190,7 @@ export async function checkCustomDomainForDNS(
 						aRecordTarget,
 						recordType: 'CNAME',
 						success: false,
-						error: 'DNS lookup timed out after 5 seconds. Please check your DNS configuration.',
+						error: `DNS lookup timed out after 5 seconds. Please check your DNS configuration.`,
 					} as DNSError;
 				}
 				if (_ex.code !== 'ENOTFOUND') {

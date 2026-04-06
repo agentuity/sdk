@@ -205,7 +205,7 @@ export const MonitorWebSocketError = StructuredError('MonitorWebSocketError')<{
 }>();
 
 export async function listMonitorNodes(client: APIClient): Promise<MachineMonitorState[]> {
-	const resp = await client.get('/monitor/nodes', MonitorNodesListResponseSchema);
+	const resp = await client.get(`/monitor/nodes`, MonitorNodesListResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}
@@ -230,7 +230,7 @@ export async function getMonitorNode(
 }
 
 export async function listDistressedNodes(client: APIClient): Promise<MachineMonitorState[]> {
-	const resp = await client.get('/monitor/nodes/distressed', MonitorNodesListResponseSchema);
+	const resp = await client.get(`/monitor/nodes/distressed`, MonitorNodesListResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}

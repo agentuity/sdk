@@ -130,7 +130,7 @@ export const downloadSubcommand = createSubcommand({
 				console.log(tui.bold('File:          ') + args.filename);
 				console.log(tui.bold('Bucket:        ') + args.name);
 				if (metadata.size) {
-					console.log(`${tui.bold('Size:          ') + metadata.size} bytes`);
+					console.log(tui.bold('Size:          ') + metadata.size + ' bytes');
 				}
 				if (metadata.type) {
 					console.log(tui.bold('Content Type:  ') + metadata.type);

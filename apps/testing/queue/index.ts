@@ -31,7 +31,7 @@ async function main() {
 		// ============================================================
 		// Test 2: Publish messages
 		// ============================================================
-		console.log(`\n${'═'.repeat(60)}`);
+		console.log('\n' + '═'.repeat(60));
 		console.log('Test 2: Publish messages');
 		console.log('═'.repeat(60));
 
@@ -59,7 +59,7 @@ async function main() {
 		});
 		console.log(`   ✅ Message published: id=${result3.id}, offset=${result3.offset}`);
 
-		console.log(`\n${'═'.repeat(60)}`);
+		console.log('\n' + '═'.repeat(60));
 		console.log('✨ Queue test completed successfully!');
 		console.log('═'.repeat(60));
 	} finally {

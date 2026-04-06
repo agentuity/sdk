@@ -34,7 +34,7 @@ async function main() {
 	// ============================================================
 	// Test 2: Add comments to the task
 	// ============================================================
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('Test 2: Add comments to the task');
 	console.log('═'.repeat(60));
 
@@ -57,7 +57,7 @@ async function main() {
 	// ============================================================
 	// Test 3: Create a medium-priority task
 	// ============================================================
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('Test 3: Create a medium-priority task');
 	console.log('═'.repeat(60));
 
@@ -76,7 +76,7 @@ async function main() {
 	// ============================================================
 	// Test 4: Create a low-priority task
 	// ============================================================
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('Test 4: Create a low-priority task');
 	console.log('═'.repeat(60));
 
@@ -92,7 +92,7 @@ async function main() {
 	console.log(`   Title: ${task3.title}`);
 	console.log(`   Priority: ${task3.priority}`);
 
-	console.log(`\n${'═'.repeat(60)}`);
+	console.log('\n' + '═'.repeat(60));
 	console.log('✨ Task test completed successfully!');
 	console.log('═'.repeat(60));
 }

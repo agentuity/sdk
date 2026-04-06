@@ -46,6 +46,7 @@ function createSilentLogger(): Logger {
 		error: noop,
 		fatal: ((msg: string) => {
 			throw new Error(msg);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		}) as any,
 		child: () => createSilentLogger(),
 	};
@@ -218,12 +219,15 @@ export class TestAgentContext<TConfig = unknown, TAppState = Record<string, neve
 	registerAgent(agent: { metadata?: { name?: string }; evals?: unknown }): void {
 		const name = agent.metadata?.name;
 		if (name && agent.evals) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			this[AGENT_RUNTIME].agents.set(name, agent as any);
 
 			// Copy event listeners if they exist
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
 			const { agentEventListeners } = require('../../src/agent');
 			const listeners = agentEventListeners?.get(agent);
 			if (listeners) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				this[AGENT_RUNTIME].agentEventListeners.set(agent as any, listeners);
 			}
 		}

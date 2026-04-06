@@ -51,7 +51,7 @@ export const listSubcommand = createSubcommand({
 	webUrl: (ctx) => {
 		// If --org flag is used, link to org settings; otherwise link to project settings
 		if (ctx.opts?.org) {
-			return '/settings/organization/env';
+			return `/settings/organization/env`;
 		}
 		return ctx.project
 			? `/projects/${encodeURIComponent(ctx.project.projectId)}/settings`

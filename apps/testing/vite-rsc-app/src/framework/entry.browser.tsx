@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 
 async function main(): Promise<Root> {
 	// Fetch and deserialize RSC stream back to React VDOM
-	const rscResponse = fetch(`${window.location.href}.rsc`);
+	const rscResponse = fetch(window.location.href + '.rsc');
 	const root = (await createFromFetch(rscResponse)) as ReactNode;
 
 	// Hydrate (or mount) the React tree into the existing DOM
@@ -21,7 +21,7 @@ hydratedRootPromise.catch((err) => {
 if (import.meta.hot) {
 	import.meta.hot.on('rsc:update', async () => {
 		const { createFromFetch: refetch } = await import('@vitejs/plugin-rsc/browser');
-		const rscPayload = (await refetch(fetch(`${window.location.href}.rsc`))) as ReactNode;
+		const rscPayload = (await refetch(fetch(window.location.href + '.rsc'))) as ReactNode;
 		(await hydratedRootPromise).render(rscPayload);
 	});
 }

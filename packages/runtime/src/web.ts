@@ -58,11 +58,11 @@ export async function createWebRouter(): Promise<Hono> {
 		// Compute relative paths for serveStatic (it expects relative paths from cwd)
 		let relClientDir = relative(process.cwd(), clientDir);
 		if (!relClientDir.startsWith('.')) {
-			relClientDir = `./${relClientDir}`;
+			relClientDir = './' + relClientDir;
 		}
 		let relIndexPath = relative(process.cwd(), indexHtmlPath);
 		if (!relIndexPath.startsWith('.')) {
-			relIndexPath = `./${relIndexPath}`;
+			relIndexPath = './' + relIndexPath;
 		}
 
 		// Serve static files from .agentuity/client/

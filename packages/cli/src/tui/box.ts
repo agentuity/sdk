@@ -10,11 +10,11 @@ import { getTerminalWidth } from '../tui';
  */
 function stringWidth(str: string): number {
 	// Remove ANSI escape codes (colors, etc.)
-	// biome-ignore-start lint/suspicious/noControlCharactersInRegex: ANSI escape sequences for terminal control
+	// eslint-disable-next-line no-control-regex
 	let cleaned = str.replace(/\x1b\[[0-9;]*m/g, '');
 	// Remove OSC 8 hyperlink sequences
+	// eslint-disable-next-line no-control-regex
 	cleaned = cleaned.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
-	// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
 	// Use Bun.stringWidth for proper Unicode width calculation
 	return Bun.stringWidth(cleaned);
 }
@@ -33,7 +33,7 @@ function wrapText(text: string, width: number): string[] {
 			if (currentLine) lines.push(currentLine);
 			// Truncate long words with ellipsis if width allows, otherwise just slice
 			if (width >= 4) {
-				lines.push(`${word.slice(0, width - 3)}...`);
+				lines.push(word.slice(0, width - 3) + '...');
 			} else {
 				lines.push(word.slice(0, Math.max(0, width)));
 			}

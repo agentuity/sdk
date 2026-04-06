@@ -22,6 +22,7 @@ import { GravityNetworkDiagram } from './gravity-network-diagram';
 import { CopyMigrationPrompt } from './copy-migration-prompt';
 import { RegionPicker, ApiEndpoint, ApiExample, ParamTable, ResponseFields } from './api';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MDXComponents = Record<string, React.ComponentType<any>>;
 
 // Extended props for rehype-pretty-code output

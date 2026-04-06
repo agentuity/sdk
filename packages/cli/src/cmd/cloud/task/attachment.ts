@@ -1,4 +1,4 @@
-import { basename, join } from 'node:path';
+import { basename, join } from 'path';
 import { stat as fsStat } from 'node:fs/promises';
 import { z } from 'zod';
 import { createCommand } from '../../../types';

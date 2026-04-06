@@ -193,7 +193,7 @@ export async function checkAndUpgradeDependencies(
 			}
 
 			if (modified) {
-				writeFileSync(packageJsonPath, `${JSON.stringify(updatedPackageJson, null, 2)}\n`);
+				writeFileSync(packageJsonPath, JSON.stringify(updatedPackageJson, null, 2) + '\n');
 				logger.debug('Restored original version specifiers in package.json');
 			}
 		} catch (_error) {

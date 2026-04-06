@@ -18,7 +18,7 @@
  */
 
 import { $ } from 'bun';
-import { join, dirname } from 'node:path';
+import { join, dirname } from 'path';
 import {
 	APIClient,
 	createResources,

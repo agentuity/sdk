@@ -163,16 +163,16 @@ export function displayEnvDiff(diff: EnvDiff, options: DisplayEnvDiffOptions): v
 
 		if (entry.status === 'new') {
 			const line = `  ${tui.colorSuccess('+')} ${tui.bold(entry.key)}=${val} ${tui.colorMuted(`(new, ${typeLabel})`)}`;
-			process.stderr.write(`${line}\n`);
+			process.stderr.write(line + '\n');
 		} else if (entry.status === 'changed') {
 			const oldVal = displayValue(entry.targetValue!, entry.targetIsSecret ?? false);
 			// For push: show "remote_old → local_new" (replacing remote with local)
 			// For pull: show "local_old → cloud_new" (replacing local with cloud)
 			const line = `  ${tui.colorWarning('~')} ${tui.bold(entry.key)}=${oldVal} → ${val} ${tui.colorMuted(`(changed, ${typeLabel})`)}`;
-			process.stderr.write(`${line}\n`);
+			process.stderr.write(line + '\n');
 		} else {
 			const line = `  ${tui.colorMuted(`= ${entry.key}=${val} (unchanged, ${typeLabel})`)}`;
-			process.stderr.write(`${line}\n`);
+			process.stderr.write(line + '\n');
 		}
 	}
 

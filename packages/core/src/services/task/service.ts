@@ -1819,7 +1819,7 @@ export class TaskStorageService implements TaskStorage {
 			);
 		}
 
-		const url = buildUrl(this.#baseUrl, '/task/delete/batch');
+		const url = buildUrl(this.#baseUrl, `/task/delete/batch`);
 		const signal = AbortSignal.timeout(60_000);
 
 		const body: Record<string, unknown> = {};

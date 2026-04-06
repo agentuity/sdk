@@ -47,6 +47,7 @@ function unwrapSchema(schema: unknown): unknown {
 	let current = schema as ZodTypeInternal | undefined;
 
 	while (current?._def) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const typeId = current._def.typeName || current._def.type || (current as any).type;
 
 		if ((typeId === 'ZodEffects' || typeId === 'effects') && current._def.schema) {
@@ -73,6 +74,7 @@ function unwrapSchema(schema: unknown): unknown {
  */
 function isBooleanStringUnion(schema: unknown): boolean {
 	const unwrapped = unwrapSchema(schema) as ZodTypeInternal;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const def = unwrapped?._def as any;
 	// Zod 3 uses typeName, Zod 4 uses type
 	const typeId = def?.typeName || def?.type;
@@ -82,6 +84,7 @@ function isBooleanStringUnion(schema: unknown): boolean {
 	}
 
 	// Zod 3 uses _def.options, Zod 4 uses .options directly on the schema or _def.options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const options = def?.options || (unwrapped as any)?.options;
 	if (!Array.isArray(options) || options.length !== 2) {
 		return false;
@@ -114,6 +117,7 @@ function getShape(schema: ZodType): Record<string, unknown> {
 	}
 
 	if (typeId === 'ZodIntersection' || typeId === 'intersection') {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const def = (unwrapped as any)._def;
 		const leftShape = def.left ? getShape(def.left as ZodType) : {};
 		const rightShape = def.right ? getShape(def.right as ZodType) : {};
@@ -121,6 +125,7 @@ function getShape(schema: ZodType): Record<string, unknown> {
 	}
 
 	if (typeId === 'ZodTuple' || typeId === 'tuple') {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const items = (unwrapped as any)._def?.items as unknown[];
 		if (Array.isArray(items)) {
 			const result: Record<string, unknown> = {};
@@ -158,6 +163,7 @@ export function parseArgsSchema(schema: ZodType): ParsedArgs {
 	for (const [key, value] of Object.entries(shape)) {
 		names.push(key);
 
+		/* eslint-disable @typescript-eslint/no-explicit-any */
 		const typeId =
 			(value as ZodTypeInternal)?._def?.typeName ||
 			(value as any)._def?.type ||
@@ -165,6 +171,7 @@ export function parseArgsSchema(schema: ZodType): ParsedArgs {
 		const unwrapped = unwrapSchema(value) as ZodTypeInternal;
 		const unwrappedTypeId =
 			unwrapped?._def?.typeName || (unwrapped as any)?._def?.type || (unwrapped as any)?.type;
+		/* eslint-enable @typescript-eslint/no-explicit-any */
 
 		const isOptional = typeId === 'ZodOptional' || typeId === 'optional';
 		const isVariadic = unwrappedTypeId === 'ZodArray' || unwrappedTypeId === 'array';
@@ -186,9 +193,11 @@ function extractDefaultInfo(schema: unknown): {
 	let current = schema as ZodTypeInternal | undefined;
 
 	while (current?._def) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const typeId = current._def.typeName || (current as any)._def?.type;
 
 		if (typeId === 'ZodDefault' || typeId === 'default') {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const rawDefaultValue = (current as any)._def?.defaultValue;
 			const defaultIsFunction = typeof rawDefaultValue === 'function';
 
@@ -232,8 +241,10 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			(unwrapped as ZodTypeInternal)?._def?.description ??
 			(value as unknown as { description?: string })?.description ??
 			(value as ZodTypeInternal)?._def?.description;
+		/* eslint-disable @typescript-eslint/no-explicit-any */
 		const typeId =
 			unwrapped?._def?.typeName || (unwrapped as any)?._def?.type || (unwrapped as any)?.type;
+		/* eslint-enable @typescript-eslint/no-explicit-any */
 
 		// Extract default info using helper that walks the wrapper chain
 		const defaultInfo = extractDefaultInfo(value);
@@ -262,6 +273,7 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			type = 'array';
 		} else if (typeId === 'ZodEnum' || typeId === 'enum') {
 			// Extract enum values from Zod 4's def.entries
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const def = (unwrapped as any)?._def;
 			if (def?.entries && typeof def.entries === 'object') {
 				enumValues = Object.values(def.entries as Record<string, string>);

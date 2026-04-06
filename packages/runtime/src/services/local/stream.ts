@@ -84,14 +84,14 @@ export class LocalStreamStorage implements StreamStorage {
 
 		// Add filters (map namespace to name for the database)
 		if (params?.namespace) {
-			query += ' AND name = ?';
+			query += ` AND name = ?`;
 			queryParams.push(params.namespace);
 		}
 
 		if (params?.metadata) {
 			// Simple JSON matching - check if metadata contains all key-value pairs
 			for (const [key, value] of Object.entries(params.metadata)) {
-				query += ' AND metadata LIKE ?';
+				query += ` AND metadata LIKE ?`;
 				queryParams.push(`%"${key}":"${value}"%`);
 			}
 		}
@@ -103,7 +103,7 @@ export class LocalStreamStorage implements StreamStorage {
 		const { count } = countQuery.get(...queryParams) as { count: number };
 
 		// Add pagination
-		query += ' ORDER BY created_at DESC';
+		query += ` ORDER BY created_at DESC`;
 		if (params?.limit) {
 			query += ` LIMIT ${params.limit}`;
 		}

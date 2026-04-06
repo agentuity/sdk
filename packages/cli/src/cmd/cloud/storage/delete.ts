@@ -152,7 +152,7 @@ export const deleteSubcommand = createSubcommand({
 			const filePath = args.filename;
 
 			// Check if path represents a folder by listing objects under it
-			const folderPrefix = filePath.endsWith('/') ? filePath : `${filePath}/`;
+			const folderPrefix = filePath.endsWith('/') ? filePath : filePath + '/';
 			const folderContents: Array<{ key: string }> = [];
 			let continuationToken: string | undefined;
 			let isTruncated = false;

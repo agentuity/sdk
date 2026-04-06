@@ -76,7 +76,7 @@ async function testBunSql() {
 		await setup(sql);
 
 		await test('SELECT works', async () => {
-			const rows = await sql.unsafe('SELECT 1 AS one');
+			const rows = await sql.unsafe(`SELECT 1 AS one`);
 			if (rows[0].one !== 1) throw new Error(`Expected 1, got ${rows[0].one}`);
 		});
 

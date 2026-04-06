@@ -74,6 +74,7 @@ const SPINNER_FRAMES = [
 
 /** Strip ANSI escape sequences to get visible character count. */
 function visibleLength(str: string): number {
+	// eslint-disable-next-line no-control-regex
 	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
 
@@ -108,9 +109,9 @@ function buildFooter(left: string, rightText: string, width: number): string {
 	if (total > safeWidth) {
 		const maxLeft = safeWidth - rightLen - 1;
 		if (maxLeft > 0) {
-			return `${truncateAnsi(left, maxLeft)} ${rightText}`;
+			return truncateAnsi(left, maxLeft) + ' ' + rightText;
 		}
-		return truncateAnsi(`${left} ${rightText}`, safeWidth);
+		return truncateAnsi(left + ' ' + rightText, safeWidth);
 	}
 
 	const gap = safeWidth - leftLen - rightLen;

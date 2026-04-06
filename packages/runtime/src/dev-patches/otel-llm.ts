@@ -6,6 +6,8 @@
  * model, tokens, latency, and streaming support.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/api';
 

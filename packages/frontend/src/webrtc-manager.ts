@@ -1462,11 +1462,13 @@ export class WebRTCManager {
 		return summary;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private findMatchingReport(stats: RTCStatsReport, id: string): any {
 		return this.getStatReport(stats, id);
 	}
 
 	// RTCStatsReport extends Map but bun-types may not expose .get() properly
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private getStatReport(stats: RTCStatsReport, id: string): any {
 		// Use Map.prototype.get via cast
 		const mapLike = stats as unknown as Map<string, unknown>;

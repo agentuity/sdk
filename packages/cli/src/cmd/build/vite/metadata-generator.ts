@@ -272,7 +272,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 				addAsset(entry.file, 'client', isEntry);
 
 				// Add sourcemap if it exists
-				const sourcemapPath = `${entry.file}.map`;
+				const sourcemapPath = entry.file + '.map';
 				const fullSourcemapPath = join(agentuityDir, 'client', sourcemapPath);
 				if (existsSync(fullSourcemapPath)) {
 					addAsset(sourcemapPath, 'client');
@@ -282,7 +282,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 					entry.css.forEach((css) => {
 						addAsset(css, 'client');
 						// Add CSS sourcemap if it exists
-						const cssMapPath = `${css}.map`;
+						const cssMapPath = css + '.map';
 						const fullCssMapPath = join(agentuityDir, 'client', cssMapPath);
 						if (existsSync(fullCssMapPath)) {
 							addAsset(cssMapPath, 'client');
@@ -311,7 +311,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 				addAsset(entry.file, 'workbench', isEntry);
 
 				// Add sourcemap if it exists
-				const sourcemapPath = `${entry.file}.map`;
+				const sourcemapPath = entry.file + '.map';
 				const fullSourcemapPath = join(agentuityDir, 'workbench', sourcemapPath);
 				if (existsSync(fullSourcemapPath)) {
 					addAsset(sourcemapPath, 'workbench');
@@ -321,7 +321,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 					entry.css.forEach((css) => {
 						addAsset(css, 'workbench');
 						// Add CSS sourcemap if it exists
-						const cssMapPath = `${css}.map`;
+						const cssMapPath = css + '.map';
 						const fullCssMapPath = join(agentuityDir, 'workbench', cssMapPath);
 						if (existsSync(fullCssMapPath)) {
 							addAsset(cssMapPath, 'workbench');

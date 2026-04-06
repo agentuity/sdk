@@ -354,7 +354,7 @@ function safeStringify(obj: unknown): string {
 		}
 
 		const s = getSession();
-		const vid = localStorage.getItem('agentuity_visitor_id') || `vid_${generateId()}`;
+		const vid = localStorage.getItem('agentuity_visitor_id') || 'vid_' + generateId();
 		try {
 			localStorage.setItem('agentuity_visitor_id', vid);
 		} catch {
@@ -480,7 +480,7 @@ function safeStringify(obj: unknown): string {
 		try {
 			pv.time_on_page = Date.now() - pageStart;
 			const s = getSession();
-			const vid = localStorage.getItem('agentuity_visitor_id') || `vid_${generateId()}`;
+			const vid = localStorage.getItem('agentuity_visitor_id') || 'vid_' + generateId();
 			const payload = {
 				org_id: c.orgId,
 				project_id: c.projectId,
@@ -658,7 +658,7 @@ function safeStringify(obj: unknown): string {
 				if (pv.custom_events.length < MAX_CUSTOM_EVENTS) {
 					pv.custom_events.push({
 						timestamp: Date.now(),
-						name: `click:${analyticsEl.getAttribute('data-analytics')}`,
+						name: 'click:' + analyticsEl.getAttribute('data-analytics'),
 						data: '',
 					});
 				}

@@ -71,7 +71,7 @@ async function readSettings(path: string): Promise<ClaudeSettings> {
  * Write a Claude Code settings JSON file.
  */
 async function writeSettings(path: string, settings: ClaudeSettings): Promise<void> {
-	await Bun.write(path, `${JSON.stringify(settings, null, 2)}\n`);
+	await Bun.write(path, JSON.stringify(settings, null, 2) + '\n');
 }
 
 /**

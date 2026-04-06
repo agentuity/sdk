@@ -37,28 +37,28 @@ export function generateBanner(version?: string, compact?: true): string {
 	const docsLabel = ' Docs:           ';
 	const docsLink = LINKS
 		? link('https://agentuity.dev', 'agentuity.dev', WHITE!)
-		: `${WHITE}https://agentuity.dev${RESET}`;
+		: WHITE + 'https://agentuity.dev' + RESET;
 	const docsWidth = getDisplayWidth(stripAnsi(docsLink));
 	const docsPadding = width - docsLabel.length - docsWidth - 1;
 
 	const communityLabel = ' Community:      ';
 	const communityLink = LINKS
 		? link('https://discord.gg/agentuity', 'discord.gg/agentuity', WHITE!)
-		: `${WHITE}https://discord.gg/agentuity${RESET}`;
+		: WHITE + 'https://discord.gg/agentuity' + RESET;
 	const communityWidth = getDisplayWidth(stripAnsi(communityLink));
 	const communityPadding = width - communityLabel.length - communityWidth - 1;
 
 	const dashboardLabel = ' Dashboard:      ';
 	const dashboardLink = LINKS
 		? link('https://app.agentuity.com', 'app.agentuity.com', WHITE!)
-		: `${WHITE}https://app.agentuity.com${RESET}`;
+		: WHITE + 'https://app.agentuity.com' + RESET;
 	const dashboardWidth = getDisplayWidth(stripAnsi(dashboardLink));
 	const dashboardPadding = width - dashboardLabel.length - dashboardWidth - 1;
 
 	const lines = [
-		`${CYAN}╭────────────────────────────────────────────────────╮${RESET}`,
-		`${CYAN}│ ⨺ Agentuity  ${WHITE}The full-stack platform for AI agents${CYAN} │${RESET}`,
-		compact ? undefined : `${CYAN}│                                                    │${RESET}`,
+		CYAN + '╭────────────────────────────────────────────────────╮' + RESET,
+		CYAN + `│ ⨺ Agentuity  ${WHITE}The full-stack platform for AI agents${CYAN} │` + RESET,
+		compact ? undefined : CYAN + '│                                                    │' + RESET,
 		compact
 			? undefined
 			: CYAN +
@@ -66,7 +66,7 @@ export function generateBanner(version?: string, compact?: true): string {
 				RESET,
 		compact
 			? undefined
-			: `${CYAN}│${docsLabel}${docsLink + ''.padEnd(docsPadding) + CYAN} │${RESET}`,
+			: CYAN + `│${docsLabel}${docsLink + ''.padEnd(docsPadding) + CYAN} │` + RESET,
 		compact
 			? undefined
 			: CYAN +
@@ -77,7 +77,7 @@ export function generateBanner(version?: string, compact?: true): string {
 			: CYAN +
 				`│${dashboardLabel}${dashboardLink + ''.padEnd(dashboardPadding) + CYAN} │` +
 				RESET,
-		`${CYAN}╰────────────────────────────────────────────────────╯${RESET}`,
+		CYAN + '╰────────────────────────────────────────────────────╯' + RESET,
 	].filter(Boolean) as string[];
 
 	return lines.join('\n');

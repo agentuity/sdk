@@ -83,7 +83,7 @@ export const getSubcommand = createSubcommand({
 						break;
 					}
 				}
-				console.log(`  ${(`${key}:`).padEnd(15, ' ')} ${v}`);
+				console.log(`  ${(key + ':').padEnd(15, ' ')} ${v}`);
 			}
 		}
 

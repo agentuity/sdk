@@ -27,6 +27,7 @@ export async function group<T>(
 	prompts: PromptGroup<T>,
 	opts?: PromptGroupOptions<T>
 ): Promise<Prettify<PromptGroupAwaitedReturn<T>>> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const results: any = {};
 	const promptNames = Object.keys(prompts);
 

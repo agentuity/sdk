@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { StructuredError, type InferOutput, type StandardSchemaV1 } from '@agentuity/core';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
@@ -73,6 +74,7 @@ export interface RouteValidator {
 		any,
 		any,
 		{
+			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: { json: InferOutput<TOutput> };
 		}
@@ -99,6 +101,7 @@ export interface RouteValidator {
 		any,
 		any,
 		{
+			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: {
 				json: InferOutput<TInput>;

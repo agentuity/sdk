@@ -70,7 +70,7 @@ export class JSONLMetricExporter implements PushMetricExporter {
 				})),
 			};
 
-			const line = `${JSON.stringify(record)}\n`;
+			const line = JSON.stringify(record) + '\n';
 			try {
 				appendFileSync(file, line, 'utf-8');
 			} catch (err) {

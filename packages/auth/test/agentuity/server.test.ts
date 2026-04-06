@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
 import { createSessionMiddleware, mountAuthRoutes } from '../../src/agentuity/server';

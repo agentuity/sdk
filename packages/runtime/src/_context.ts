@@ -88,6 +88,7 @@ export class RequestAgentContext<
 		// Prefer HTTP context var.auth if available (allows late-binding from route middleware)
 		if (inHTTPContext()) {
 			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const httpCtx = httpAsyncLocalStorage.getStore() as any;
 				if (httpCtx?.var && 'auth' in httpCtx.var) {
 					return httpCtx.var.auth ?? null;
@@ -129,6 +130,7 @@ export class RequestAgentContext<
 	}
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const agentAsyncLocalStorage = new AsyncLocalStorage<AgentContext<any, any, any>>();
 const httpAsyncLocalStorage = new AsyncLocalStorage<HonoContext>();
 
@@ -147,6 +149,7 @@ const AgentContextNotAvailableError = StructuredError(
 	'AgentContext is not available'
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getAgentContext = (): AgentContext<any, any, any> => {
 	const context = agentAsyncLocalStorage.getStore();
 	if (!context) {
@@ -180,6 +183,7 @@ export const getCurrentAgentMetadata = (): AgentRunner['metadata'] | undefined =
 	const context = agentAsyncLocalStorage.getStore();
 	if (!context) return undefined;
 	// Access internal symbol property
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return (context as any)[CURRENT_AGENT]?.metadata;
 };
 
@@ -231,5 +235,6 @@ export const runInHTTPContext = async <HonoContext>(
 	ctx: HonoContext,
 	next: () => Promise<void>
 ) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return httpAsyncLocalStorage.run(ctx as any, next);
 };

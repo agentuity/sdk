@@ -1,5 +1,5 @@
 import { listOrgResources } from '@agentuity/server';
-import { basename } from 'node:path';
+import { basename } from 'path';
 import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache';
 import { getCommand } from '../../../command-prefix';

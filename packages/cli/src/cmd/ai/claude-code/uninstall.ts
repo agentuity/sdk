@@ -80,7 +80,7 @@ export const uninstallSubcommand = createSubcommand({
 					}
 
 					if (removedPermissions) {
-						writeFileSync(CLAUDE_SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`);
+						writeFileSync(CLAUDE_SETTINGS_FILE, JSON.stringify(settings, null, 2) + '\n');
 						if (!jsonMode) {
 							tui.success('Removed Agentuity permissions from Claude Code settings');
 						}

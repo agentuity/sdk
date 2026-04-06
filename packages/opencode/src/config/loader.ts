@@ -117,7 +117,7 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 
 		return mergeConfig(getDefaultConfig(), result.data);
 	} catch (error) {
-		console.warn('Warning: Could not read Agentuity config:', error);
+		console.warn(`Warning: Could not read Agentuity config:`, error);
 		return getDefaultConfig();
 	}
 }

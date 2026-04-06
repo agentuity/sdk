@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import { join } from 'node:path';
+import { join } from 'path';
 
 const nextConfig: NextConfig = {
 	// Set workspace root to suppress lockfile detection warning

@@ -423,7 +423,7 @@ export class GetHealthSummaryTool implements vscode.LanguageModelTool<GetHealthS
 				failed,
 				successRate:
 					sessions.length > 0
-						? `${((successful / sessions.length) * 100).toFixed(1)}%`
+						? ((successful / sessions.length) * 100).toFixed(1) + '%'
 						: 'N/A',
 				recentFailures: sessions
 					.filter((s) => !s.success)

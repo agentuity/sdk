@@ -55,7 +55,7 @@ export function appendLog(message: string): void {
 	const file = getCleanLogsFile();
 	if (file) {
 		try {
-			appendFileSync(file, `${message}\n`);
+			appendFileSync(file, message + '\n');
 		} catch (err) {
 			disableLogCollection(err);
 		}
@@ -69,7 +69,7 @@ export function appendLogs(messages: string[]): void {
 	const file = getCleanLogsFile();
 	if (file) {
 		try {
-			appendFileSync(file, `${messages.join('\n')}\n`);
+			appendFileSync(file, messages.join('\n') + '\n');
 		} catch (err) {
 			disableLogCollection(err);
 		}

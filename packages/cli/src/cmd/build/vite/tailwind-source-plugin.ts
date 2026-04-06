@@ -43,7 +43,7 @@ export function tailwindSourcePlugin(): Plugin {
 			if (relPath === '') {
 				relPath = '.';
 			} else if (!relPath.startsWith('.')) {
-				relPath = `./${relPath}`;
+				relPath = './' + relPath;
 			}
 
 			// Transform @import "tailwindcss" → @import "tailwindcss" source(none)

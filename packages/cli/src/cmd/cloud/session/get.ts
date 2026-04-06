@@ -91,7 +91,7 @@ function printTimeline(node: SpanNode, prefix: string, isLast = true): void {
 	let extra = '';
 	if (node.operation.startsWith('agentuity.')) {
 		if ('name' in node.attributes && 'key' in node.attributes) {
-			extra = `${tui.colorSuccess(`${node.attributes.name} ${node.attributes.key}`)} `;
+			extra = tui.colorSuccess(`${node.attributes.name} ${node.attributes.key}`) + ' ';
 		}
 	}
 	if (node.operation.startsWith('HTTP ') && 'http.url' in node.attributes) {

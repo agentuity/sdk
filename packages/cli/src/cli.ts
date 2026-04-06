@@ -337,6 +337,7 @@ type Normalized = {
  * Uses Commander's _getCommandAndAncestors to traverse the command hierarchy.
  */
 function getFullCommandPath(cmd: Command): string {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const ancestors = (cmd as any)._getCommandAndAncestors() as Command[];
 	// ancestors is [current, parent, grandparent, ...root] - reverse and skip root program name
 	const names = ancestors.map((c) => c.name()).reverse();
@@ -348,6 +349,7 @@ function getFullCommandPath(cmd: Command): string {
 }
 
 function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalized {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const d: any = def as any;
 	const requires = d.requires as Requires | undefined;
 	const optional = d.optional as Optional | undefined;
@@ -463,7 +465,7 @@ async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectC
 			// Truncate and pad name for alignment
 			const displayName =
 				p.name.length > maxNameLength
-					? `${p.name.substring(0, maxNameLength - 1)}…`
+					? p.name.substring(0, maxNameLength - 1) + '…'
 					: p.name.padEnd(maxNameLength);
 
 			return {
@@ -631,7 +633,7 @@ export async function createCLI(version: string): Promise<Command> {
 				// self-suppression — writeErr suppresses output when jsonErrorEmitted is true
 				jsonErrorEmitted = true;
 				process.stderr.write(
-					`${formatErrorJSON(createError(code, message, undefined, suggestions))}\n`
+					formatErrorJSON(createError(code, message, undefined, suggestions)) + '\n'
 				);
 				return;
 			}
@@ -668,6 +670,7 @@ export async function createCLI(version: string): Promise<Command> {
 				const commands = helper.visibleCommands(cmd);
 
 				// Extract examples if available
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const cmdAny = cmd as any;
 				const examples = cmdAny._examples || [];
 
@@ -733,6 +736,7 @@ export async function createCLI(version: string): Promise<Command> {
 
 			// Show banner (full for root, compact for subcommands)
 			// Skip banner when running from an AI coding agent
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const isRootCommand = !(cmd as any).parent;
 			if (!agent) {
 				if (isRootCommand) {
@@ -1002,7 +1006,7 @@ export async function resolveRegion(opts: ResolveRegionOptions): Promise<string 
 				{ availableRegions: regions.map((r) => r.region) },
 				[
 					`Use --region with one of: ${regions.map((r) => r.region).join(', ')}`,
-					'Or set AGENTUITY_REGION environment variable',
+					`Or set AGENTUITY_REGION environment variable`,
 				]
 			),
 			logger,
@@ -1047,6 +1051,7 @@ async function registerSubcommand(
 	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
 	// Allow pass-through args for commands that need to forward unknown options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	if ((subcommand as any).passThroughArgs) {
 		cmd.allowUnknownOption();
 		cmd.allowExcessArguments();
@@ -1061,11 +1066,13 @@ async function registerSubcommand(
 	}
 
 	// Add examples to help text (skip in JSON mode)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const examples = (subcommand as any).examples as
 		| Array<{ command: string; description: string }>
 		| undefined;
 	if (examples && examples.length > 0) {
 		// Store examples for JSON help generation
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(cmd as any)._examples = examples;
 
 		// Add formatted examples to text help
@@ -1082,7 +1089,7 @@ async function registerSubcommand(
 				const padding = ' '.repeat(maxLength - ex.command.length + 1);
 				return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
 			});
-			return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n${formatted.join('\n')}`;
+			return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n');
 		});
 	}
 
@@ -1345,7 +1352,7 @@ async function registerSubcommand(
 			if (!hasAgentSeenInputHint(detectedAgent)) {
 				markAgentInputHintSeen(detectedAgent);
 				console.error(
-					'[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.'
+					`[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.`
 				);
 			}
 		}
@@ -1798,6 +1805,7 @@ async function registerSubcommand(
 
 					// If --json flag is set
 					if (baseCtx.options.json) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const hasResponseSchema = !!(subcommand as any).schema?.response;
 
 						// If command has a response schema but returned nothing, that's an error
@@ -2086,6 +2094,7 @@ async function registerSubcommand(
 
 					// If --json flag is set
 					if (baseCtx.options.json) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const hasResponseSchema = !!(subcommand as any).schema?.response;
 
 						// If command has a response schema but returned nothing, that's an error
@@ -2233,6 +2242,7 @@ async function registerSubcommand(
 
 					// If --json flag is set
 					if (baseCtx.options.json) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const hasResponseSchema = !!(subcommand as any).schema?.response;
 
 						// If command has a response schema but returned nothing, that's an error
@@ -2278,11 +2288,13 @@ export async function registerCommands(
 			}
 
 			// Add examples to help text (skip in JSON mode)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const examples = (cmdDef as any).examples as
 				| Array<{ command: string; description: string }>
 				| undefined;
 			if (examples && examples.length > 0) {
 				// Store examples for JSON help generation
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				(cmd as any)._examples = examples;
 
 				// Add formatted examples to text help
@@ -2299,7 +2311,7 @@ export async function registerCommands(
 						const padding = ' '.repeat(maxLength - ex.command.length + 1);
 						return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
 					});
-					return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n${formatted.join('\n')}`;
+					return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n');
 				});
 			}
 

@@ -669,7 +669,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 
 				const items = messages.map((msg) => {
 					const item = new DataTreeItem(
-						`${msg.id.substring(0, 16)}...`,
+						msg.id.substring(0, 16) + '...',
 						vscode.TreeItemCollapsibleState.None,
 						'queueMessage',
 						'queue',
@@ -740,7 +740,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 
 				const items = messages.map((msg) => {
 					const item = new DataTreeItem(
-						`${msg.id.substring(0, 16)}...`,
+						msg.id.substring(0, 16) + '...',
 						vscode.TreeItemCollapsibleState.None,
 						'dlqMessage',
 						'queue',

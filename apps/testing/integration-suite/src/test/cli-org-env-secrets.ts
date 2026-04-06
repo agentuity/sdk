@@ -231,7 +231,7 @@ test('cli-org-env-secrets', 'org-env-list-no-mask-shows-secrets', async () => {
 	assert(setResult.success, `Set secret should succeed: ${setResult.stderr}`);
 
 	// List with --no-mask
-	console.log('[DEBUG] no-mask-test: Listing with --no-mask');
+	console.log(`[DEBUG] no-mask-test: Listing with --no-mask`);
 	const listResult = await cliAgent.run({
 		command: 'cloud env list --org --no-mask',
 	});
@@ -630,7 +630,7 @@ test('cli-org-env-secrets', 'org-env-list-env-only-filter', async () => {
 	assert(setSecretResult.success, `Set secret should succeed: ${setSecretResult.stderr}`);
 
 	// List with --env-only filter
-	console.log('[DEBUG] env-only-test: Listing with --env-only');
+	console.log(`[DEBUG] env-only-test: Listing with --env-only`);
 	const listResult = await cliAgent.run({
 		command: 'cloud env list --org --env-only',
 	});

@@ -168,7 +168,7 @@ async function prepareError(
 		`error[${error.errorCode}]`,
 		getColor('error')
 	);
-	const header = `  ${url}${colorMuted(': ')}${bold(error.message)}`;
+	const header = '  ' + url + colorMuted(': ') + bold(error.message);
 
 	// File location
 	const vscodelink = sourceLink(
@@ -315,7 +315,7 @@ function renderError(prepared: PreparedError, boxContentWidth: number): string {
 		lines.push(colorMuted('  (source not available)'));
 	}
 
-	return `${lines.join('\n')}\n`;
+	return lines.join('\n') + '\n';
 }
 
 /**

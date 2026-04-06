@@ -54,6 +54,7 @@ function createMockLogger(): Logger {
 		error: noop,
 		fatal: ((msg: string) => {
 			throw new Error(msg);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		}) as any,
 		child: () => createMockLogger(),
 	};
@@ -110,16 +111,20 @@ function createMockSession(): Session {
  */
 export function createMockContext<TConfig = unknown, TAppState = Record<string, never>>(
 	options?: CreateMockContextOptions<TConfig, TAppState>
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): AgentContext<AgentRegistry, any, any, TConfig, TAppState> {
 	const waitUntilPromises: Promise<void>[] = [];
 
 	// Create a mock runtime state
 	const runtime: AgentRuntimeState = {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		agents: new Map<string, any>(),
 		agentConfigs: new Map<string, unknown>(),
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		agentEventListeners: new WeakMap<any, any>(),
 	};
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const context: AgentContext<AgentRegistry, any, any, TConfig, TAppState> = {
 		// Core identification
 		sessionId: options?.sessionId ?? 'mock-session',
@@ -162,6 +167,7 @@ export function createMockContext<TConfig = unknown, TAppState = Record<string, 
 	};
 
 	// Add helper to wait for all background tasks (useful in tests)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(context as any).__waitForBackgroundTasks = async () => {
 		await Promise.all(waitUntilPromises);
 	};
@@ -172,7 +178,9 @@ export function createMockContext<TConfig = unknown, TAppState = Record<string, 
 /**
  * Type-safe helper to access the waitForBackgroundTasks method
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function waitForBackgroundTasks(ctx: AgentContext<any, any, any, any, any>) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const anyCtx = ctx as any;
 	if (anyCtx.__waitForBackgroundTasks) {
 		await anyCtx.__waitForBackgroundTasks();
@@ -190,6 +198,7 @@ export async function waitForBackgroundTasks(ctx: AgentContext<any, any, any, an
  */
 export async function runAgentWithContext<TInput, TOutput>(
 	agent: { run: (input?: TInput) => Promise<TOutput> },
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	ctx: AgentContext<any, any, any, any, any>,
 	input?: TInput
 ): Promise<TOutput> {
@@ -198,6 +207,7 @@ export async function runAgentWithContext<TInput, TOutput>(
 
 	return storage.run(ctx, async () => {
 		if (input !== undefined) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			return await (agent.run as any)(input);
 		} else {
 			return await agent.run();

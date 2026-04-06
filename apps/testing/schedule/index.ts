@@ -41,7 +41,7 @@ async function main() {
 		// ============================================================
 		// Test 2: Create a schedule (daily at midnight)
 		// ============================================================
-		console.log(`\n${'═'.repeat(60)}`);
+		console.log('\n' + '═'.repeat(60));
 		console.log('Test 2: Create a daily schedule');
 		console.log('═'.repeat(60));
 
@@ -64,7 +64,7 @@ async function main() {
 		// ============================================================
 		// Test 3: Create a schedule (every 5 minutes)
 		// ============================================================
-		console.log(`\n${'═'.repeat(60)}`);
+		console.log('\n' + '═'.repeat(60));
 		console.log('Test 3: Create a frequent schedule');
 		console.log('═'.repeat(60));
 
@@ -84,7 +84,7 @@ async function main() {
 		console.log(`   Name: ${schedule3.name}`);
 		console.log(`   Expression: ${schedule3.expression}`);
 
-		console.log(`\n${'═'.repeat(60)}`);
+		console.log('\n' + '═'.repeat(60));
 		console.log('✨ Schedule test completed successfully!');
 		console.log('═'.repeat(60));
 	} finally {

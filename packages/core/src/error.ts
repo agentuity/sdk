@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // NOTE: these ideas are borrowed from https://github.com/Effect-TS/effect
 
 import { safeStringify } from './json.ts';
@@ -105,6 +107,7 @@ export class RichError extends Error {
 		const lines: string[] = [];
 		const visited = new Set<Error>();
 
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		let cur: Error | undefined = this;
 		let depth = 0;
 		while (cur && cur instanceof Error && !visited.has(cur)) {
@@ -117,7 +120,7 @@ export class RichError extends Error {
 			// include stack if present (limit to first line of stack header for brevity)
 			if (cur.stack) {
 				lines.push('');
-				lines.push(`${spacer}stack trace:`);
+				lines.push(spacer + 'stack trace:');
 				const stackLines = String(cur.stack).split('\n').slice(1); // drop first line (it's message)
 				if (stackLines.length > 0) {
 					// indent stack
@@ -154,16 +157,16 @@ export class RichError extends Error {
 				const jsonlines = argsStr
 					.split('\n')
 					.filter(Boolean)
-					.map((l: string) => `${spacer + spacer + l}\n`)
+					.map((l: string) => spacer + spacer + l + '\n')
 					.join('');
 				lines.push('');
-				lines.push(`${spacer}context:\n${jsonlines}`);
+				lines.push(spacer + 'context:\n' + jsonlines);
 			}
 
 			// include cause summary if non-Error (could be object)
 			const c: unknown = cur.cause ?? curAny[_causeSym];
 			if (c && !(c instanceof Error)) {
-				lines.push(`${spacer}cause: ${safeStringify(c, space)}`);
+				lines.push(spacer + 'cause: ' + safeStringify(c, space));
 			}
 
 			cur = c instanceof Error ? c : undefined;

@@ -15,6 +15,7 @@ export const showSubcommand = createSubcommand({
 		const { logger } = ctx;
 
 		// Access the schema stored in the global context
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const schema = (global as any).__CLI_SCHEMA__;
 
 		if (!schema) {

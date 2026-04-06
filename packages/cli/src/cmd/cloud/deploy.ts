@@ -650,7 +650,7 @@ export const deploySubcommand = createSubcommand({
 								if (opts.reportFile) {
 									await collector.forceWrite();
 								}
-								return stepError(`Typecheck failed\n\n${typeResult.output}`);
+								return stepError('Typecheck failed\n\n' + typeResult.output);
 							}
 							try {
 								const bundleResult = await viteBundle({

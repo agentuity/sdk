@@ -254,6 +254,7 @@ export type { RouteSchema, GetRouteSchema } from './_validation';
  * **Note:** If you're not seeing type hints for `ctx.app`, make sure you've run `bun run build`
  * to generate the type augmentations.
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AppState {}
 
 // Re-export bootstrapRuntimeEnv and mimeTypes from @agentuity/server for convenience

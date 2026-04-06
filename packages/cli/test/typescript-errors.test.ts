@@ -68,7 +68,7 @@ describe('TypeScript Error Formatting', () => {
 	describe('Box alignment with tabs', () => {
 		test('renders aligned box for code with tab indentation', async () => {
 			const sourceFile = join(tempDir, 'tabs.ts');
-			await Bun.write(sourceFile, 'const config = {\n\t// enable workbench\n\tworkbench,\n};\n');
+			await Bun.write(sourceFile, `const config = {\n\t// enable workbench\n\tworkbench,\n};\n`);
 
 			const items: GrammarItem[] = [
 				createMockError('tabs.ts', 3, 2, 'TS2353', "Property 'workbench' does not exist."),
@@ -89,7 +89,7 @@ describe('TypeScript Error Formatting', () => {
 
 		test('tabs are expanded to spaces in output', async () => {
 			const sourceFile = join(tempDir, 'tab-expand.ts');
-			await Bun.write(sourceFile, 'const x = {\n\tfoo: 1,\n};\n');
+			await Bun.write(sourceFile, `const x = {\n\tfoo: 1,\n};\n`);
 
 			const items: GrammarItem[] = [
 				createMockError('tab-expand.ts', 2, 2, 'TS2322', 'Type error'),
@@ -147,7 +147,7 @@ describe('TypeScript Error Formatting', () => {
 
 		test('carets align with identifier in tab-indented code', async () => {
 			const sourceFile = join(tempDir, 'caret-tabs.ts');
-			await Bun.write(sourceFile, 'const obj = {\n\tbadProperty,\n};\n');
+			await Bun.write(sourceFile, `const obj = {\n\tbadProperty,\n};\n`);
 
 			const items: GrammarItem[] = [
 				createMockError('caret-tabs.ts', 2, 2, 'TS2304', "Cannot find name 'badProperty'."),
@@ -180,7 +180,7 @@ describe('TypeScript Error Formatting', () => {
 
 		test('caret length matches identifier length', async () => {
 			const sourceFile = join(tempDir, 'caret-length.ts');
-			await Bun.write(sourceFile, 'const x = unknownVariable;\n');
+			await Bun.write(sourceFile, `const x = unknownVariable;\n`);
 
 			const items: GrammarItem[] = [
 				createMockError(
@@ -272,7 +272,7 @@ const c = baz;
 
 		test('handles very long error messages', async () => {
 			const sourceFile = join(tempDir, 'long-msg.ts');
-			await Bun.write(sourceFile, 'const x = 1;\n');
+			await Bun.write(sourceFile, `const x = 1;\n`);
 
 			const longMessage =
 				"Object literal may only specify known properties, and 'foo' does not exist in type '{ a?: string; b?: number; c?: boolean; d?: object; e?: array; f?: function; g?: symbol; h?: undefined; i?: null; }'.";
