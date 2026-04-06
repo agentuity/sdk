@@ -254,7 +254,7 @@ Use separate `.env` files instead of commenting/uncommenting variables when swit
 | `agentuity dev` / local profile | `.env.{profile}` → `.env.development` → `.env` |
 | Production build or non-local profile | `.env.{profile}` → `.env` → `.env.production` |
 
-For generated environment types, later files override earlier ones. That means `.env` currently wins over `.env.development` if both define the same key during local development.
+Files loaded later in the chain override earlier ones. During local development the loading order is `.env.development` then `.env`, so `.env` is loaded last and its values take precedence when both files define the same key.
 
 **Example setup:**
 
@@ -272,7 +272,7 @@ TRUSTED_ORIGINS=http://localhost:3000
 ```
 
 <Callout type="info" title="Separate Files, Not Comments">
-Instead of commenting out lines when switching contexts, put shared defaults in `.env` and values that only exist in local development in `.env.development`. Be careful with duplicate keys: today the CLI reads `.env.development` before `.env`, so `.env` wins when both define the same variable.
+Instead of commenting out lines when switching contexts, put shared defaults in `.env` and values that only exist in local development in `.env.development`. Be careful with duplicate keys: the CLI loads `.env.development` before `.env`, so `.env` (loaded last) wins when both define the same variable.
 </Callout>
 
 **Additional files:**

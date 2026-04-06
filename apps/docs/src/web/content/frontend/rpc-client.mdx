@@ -11,11 +11,13 @@ Call your API routes with full type safety using Hono's built-in RPC client. The
 
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import type { Env } from '@agentuity/runtime';
 
 const router = new Hono<Env>()
-  .post('/chat', async (c) => {
-    const { message } = await c.req.json<{ message: string }>();
+  .post('/chat', zValidator('json', z.object({ message: z.string() })), async (c) => {
+    const { message } = c.req.valid('json');
     return c.json({ response: `Echo: ${message}` });
   })
   .get('/users', async (c) => {
@@ -46,7 +48,7 @@ import type { ApiRouter } from '../api/index';
 
 const client = hc<ApiRouter>('/api');
 
-// POST with JSON body — fully typed
+// POST with JSON body — fully typed from the zValidator schema
 const res = await client.chat.$post({ json: { message: 'Hello' } });
 const data = await res.json();
 console.log(data.response);
@@ -195,11 +197,10 @@ if (!res.ok) {
   } else {
     console.error('Server error:', res.status, error);
   }
-  return;
+} else {
+  const user = await res.json();
+  console.log('Created:', user);
 }
-
-const user = await res.json();
-console.log('Created:', user);
 ```
 
 ## Type Safety

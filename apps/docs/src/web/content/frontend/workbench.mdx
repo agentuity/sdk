@@ -20,10 +20,15 @@ const app = await createApp({
 export default app;
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `route` | `string` | Custom route path (default: `/workbench`) |
-| `headers` | `Record<string, string>` | Custom headers for API requests |
+The `workbench` option accepts three forms:
+
+| Value | Type | Description |
+|-------|------|-------------|
+| `true` | `boolean` | Enable Workbench at `/workbench` |
+| `'/path'` | `string` | Enable Workbench at a custom route |
+| `{ route?, headers? }` | `WorkbenchOptions` | Full configuration object |
+
+When using the object form, `route` sets the path (default: `/workbench`) and `headers` adds custom headers to workbench responses.
 
 ### Custom Route
 

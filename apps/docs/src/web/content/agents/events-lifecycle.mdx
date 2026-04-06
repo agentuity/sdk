@@ -92,7 +92,7 @@ addEventListener('agent.errored', (event, agent, ctx, error) => {
 });
 ```
 
-Agent events receive `(eventName, agent, ctx)` or `(eventName, agent, ctx, error)`. Session and thread events receive only the `session` or `thread` object.
+Agent events receive `(eventName, agent, ctx)` or `(eventName, agent, ctx, error)`. Session and thread events receive `(eventName, session)` or `(eventName, thread)`.
 
 ### Available App Events
 

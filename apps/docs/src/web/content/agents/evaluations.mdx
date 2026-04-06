@@ -368,7 +368,7 @@ export const externalValidationEval = agent.createEval('external-validation', {
       });
 
       if (!response.ok) {
-        return { passed: false, reason: `Service error: ${response.status}` };
+        throw new Error(`Service error: ${response.status}`);
       }
 
       const result = await response.json();

@@ -82,7 +82,7 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 **Key Properties Explained**
 
 **Identifiers:**
-- `sessionId`: Unique identifier for the current request. Sub-agent calls within that same request share it.
+- `sessionId`: Unique identifier for the current request. Sub-agent calls within that same request share it. This is the same value as `ctx.session.id`.
 - `current`: Metadata about the currently executing agent:
   - `name`: The name passed to `createAgent()`.
   - `agentId`: Stays the same across deployments. Use for state keys (e.g., `${ctx.current.agentId}_counter`).
@@ -301,7 +301,7 @@ The `Session` object is available via `ctx.session`. It represents the current r
 
 ```typescript
 interface Session {
-  id: string;                      // Unique session identifier
+  id: string;                      // Unique session identifier (same as ctx.sessionId)
   thread: Thread;                  // Reference to the current thread
   state: Map<string, unknown>;     // Request-scoped state (synchronous)
   metadata: Record<string, unknown>; // Unencrypted metadata for querying

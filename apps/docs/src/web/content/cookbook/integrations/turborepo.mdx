@@ -200,11 +200,14 @@ export function TranslateDemo() {
 
   const onTranslate = async () => {
     setIsLoading(true);
-    const res = await client.translate.$post({ // [!code highlight]
-      json: { text: 'Hello world', toLanguage, model },
-    });
-    setData(await res.json());
-    setIsLoading(false);
+    try {
+      const res = await client.translate.$post({ // [!code highlight]
+        json: { text: 'Hello world', toLanguage, model },
+      });
+      setData(await res.json());
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

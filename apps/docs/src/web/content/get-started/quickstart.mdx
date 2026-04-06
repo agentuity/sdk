@@ -89,11 +89,11 @@ Wire the route and your agent into the project-root `app.ts`:
 ```typescript
 import { createApp } from '@agentuity/runtime';
 import api from './src/api/index';
-import chat from './src/agent/chat/agent';
+import agents from './src/agent';
 
 export default await createApp({
   router: { path: '/api', router: api },
-  agents: [chat],
+  agents,
 });
 ```
 

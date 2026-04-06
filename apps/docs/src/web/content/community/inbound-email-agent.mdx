@@ -140,7 +140,7 @@ Create the route handler in `src/api/index.ts`:
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import email from '../agent/email';
+import email from '@agent/email/agent';
 // See https://inbound.new/docs/quickstart/getting-started for Inbound SDK setup
 import { Inbound } from 'inboundemail';
 

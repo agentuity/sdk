@@ -184,10 +184,13 @@ See [Coder CLI Commands](/reference/cli/coder) for the full command reference.
 
 ### Session Modes
 
+Running `agentuity coder start` with no extra flags launches a local TUI session. Using `--sandbox <task>` creates a cloud sandbox session with the provided task description. Using `--remote <session_id>` connects to an existing remote session.
+
 | Mode | Description |
 |------|-------------|
-| `sandbox` | Agent works in a cloud sandbox. You observe via CLI or web |
 | `tui` | Agent runs in your local terminal (interactive mode) |
+| `sandbox` | Agent works in a cloud sandbox. You observe via CLI or web |
+| `remote` | Connect to an existing session via `--remote` |
 
 ## Session Lifecycle
 

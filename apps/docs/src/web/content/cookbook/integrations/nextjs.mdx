@@ -30,6 +30,8 @@ import type { NextConfig } from 'next';
 import { join } from 'path';
 
 const nextConfig: NextConfig = {
+  // Only needed in monorepo/workspace setups where Next.js must trace
+  // dependencies above the app directory. Omit for single-repo projects.
   outputFileTracingRoot: join(__dirname, '../../../..'),
 
   async rewrites() {

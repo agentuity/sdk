@@ -117,6 +117,7 @@ agent.validator(options: { input: Schema; output?: Schema }): MiddlewareHandler
 
 ```typescript
 import { Hono } from 'hono';
+import { z } from 'zod';
 import type { Env } from '@agentuity/runtime';
 import agent from './agent';
 

@@ -35,7 +35,7 @@ const result = await kv.get('cache', 'user:123');
 Agentuity services are accessible four ways, depending on where your code runs:
 
 - **Agent handler** (`ctx.*`): Inside a `createAgent` handler. Services are pre-configured on the context object.
-- **Route handler** (`c.var.*`): Inside a `new Hono<Env>()` route. Same services, accessed via Hono context variables.
+- **Route handler** (`c.var.*`): Inside a `new Hono<Env>()` route (`import type { Env } from '@agentuity/runtime'`). Same services, accessed via Hono context variables.
 - **Standalone package**: From any Node.js or Bun app (Next.js, Express, scripts). Install one package, set an env var.
 - **REST API**: Direct HTTP access from any language or environment.
 

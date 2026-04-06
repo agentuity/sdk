@@ -286,17 +286,31 @@ interface KnowledgeResult {
 export function App() {
   const [question, setQuestion] = useState('');
   const [data, setData] = useState<KnowledgeResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSearch = async () => { // [!code highlight]
+    if (!question.trim()) return; // [!code highlight]
     setIsLoading(true); // [!code highlight]
-    const res = await fetch('/api/knowledge', { // [!code highlight]
-      method: 'POST', // [!code highlight]
-      headers: { 'Content-Type': 'application/json' }, // [!code highlight]
-      body: JSON.stringify({ question }), // [!code highlight]
-    }); // [!code highlight]
-    setData(await res.json()); // [!code highlight]
-    setIsLoading(false); // [!code highlight]
+    setError(null); // [!code highlight]
+    try { // [!code highlight]
+      const res = await fetch('/api/knowledge', { // [!code highlight]
+        method: 'POST', // [!code highlight]
+        headers: { 'Content-Type': 'application/json' }, // [!code highlight]
+        body: JSON.stringify({ question }), // [!code highlight]
+      }); // [!code highlight]
+      if (!res.ok) { // [!code highlight]
+        setData(null); // [!code highlight]
+        setError(`Search failed (${res.status})`); // [!code highlight]
+        return; // [!code highlight]
+      } // [!code highlight]
+      setData(await res.json()); // [!code highlight]
+    } catch { // [!code highlight]
+      setData(null); // [!code highlight]
+      setError('Network error'); // [!code highlight]
+    } finally { // [!code highlight]
+      setIsLoading(false); // [!code highlight]
+    } // [!code highlight]
   }; // [!code highlight]
 
   return (
@@ -320,6 +334,8 @@ export function App() {
           {isLoading ? 'Searching...' : 'Search'}
         </button>
       </div>
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       {data && (
         <div>

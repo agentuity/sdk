@@ -222,7 +222,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 | `setup` in `createApp()` | Migration comment added — move init to module level |
 | `shutdown` in `createApp()` | Guidance to move cleanup into `registerShutdownHook()` or Bun process hooks |
 | No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
-| `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render/bundle |
+| `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render |
 | `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
 | `agentuity.config.ts` empty | Can be deleted |
 
@@ -351,7 +351,7 @@ export default await createApp({
 
 Move all configuration from `agentuity.config.ts` to either:
 - `createApp()` in `app.ts` for runtime config (analytics, workbench, cors, compression)
-- `vite.config.ts` for build config (plugins, define, render, bundle)
+- `vite.config.ts` for build config (plugins, define, render)
 
 **Before (v1):**
 ```typescript
@@ -545,6 +545,6 @@ import { db } from '../db';
 If you encounter issues not covered in this guide:
 
 1. **Check the Documentation**: Visit the [SDK Reference](/reference/sdk-reference) for detailed API docs on agents, routes, storage, and context
-2. **Review Examples**: Browse the [Cookbook](/cookbook/overview) for working patterns like chat with history, cron with storage, and webhook handlers
+2. **Review Examples**: Browse the [Cookbook](/cookbook) for working patterns like chat with history, cron with storage, and webhook handlers
 3. **Community Support**: Join our [Discord community](https://discord.gg/agentuity) for help
 4. **Report Issues**: Open an issue on [GitHub](https://github.com/agentuity/sdk) if you find bugs
