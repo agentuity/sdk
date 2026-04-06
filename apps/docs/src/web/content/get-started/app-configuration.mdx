@@ -254,7 +254,7 @@ Use separate `.env` files instead of commenting/uncommenting variables when swit
 | `agentuity dev` / local profile | `.env.{profile}` → `.env.development` → `.env` |
 | Production build or non-local profile | `.env.{profile}` → `.env` → `.env.production` |
 
-Files loaded later in the chain override earlier ones. During local development the loading order is `.env.development` then `.env`, so `.env` is loaded last and its values take precedence when both files define the same key.
+Files loaded later in the chain override earlier ones. For `agentuity dev`, the order is `.env.{profile}` then `.env.development` then `.env`, so `.env` wins when keys conflict. For deployed or non-local profiles, the order is `.env.{profile}` then `.env` then `.env.production`, so `.env.production` wins.
 
 **Example setup:**
 

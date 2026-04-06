@@ -145,7 +145,7 @@ If you keep same-origin routing in production, keep `hc<ApiRouter>('/api')` and 
 If the frontend and backend live on different origins, point `hc()` at the deployed backend instead:
 
 ```tsx
-const client = hc<ApiRouter>(process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL!);
+const client = hc<ApiRouter>(`${process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL!}/api`);
 ```
 
 Then enable CORS in [App Configuration](/get-started/app-configuration).
