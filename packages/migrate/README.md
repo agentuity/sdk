@@ -33,7 +33,8 @@ createApp({
 ```
 
 **v2**: Use standard patterns:
-- **Initialization**: Module-level code (runs when file loads)
+- **Initialization**: Module-level code only for env-independent setup
+  (for env-dependent SDK clients, initialize inside agent `setup()`)
 - **Cleanup**: `registerShutdownHook()` from `@agentuity/runtime`, or Bun's `process.on('beforeExit', ...)`
 
 ### 3. Explicit Router Configuration
@@ -137,7 +138,7 @@ export default await createApp({
 ```
 
 > **Note**: v2 doesn't include a default Vite plugin. You must add the plugin for your frontend framework (React, Vue, Svelte, Solid, etc.).
-
+>
 > **Note**: If your frontend entry is at `src/web/index.html` (not the project root), either add `build.rollupOptions.input` to your config, or omit `vite.config.ts` entirely and let the CLI generate a correct fallback.
 
 ### 7. Build-Time Agent Imports
@@ -228,4 +229,4 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 
 **Setup/shutdown lifecycle**
 - v1: `createApp({ setup, shutdown })` with generic state via `ctx.app`
-- v2: Use module-level initialization and `registerShutdownHook()` from `@agentuity/runtime`
+- v2: Module-level init for env-independent setup; agent `setup()` for SDK clients; `registerShutdownHook()` for cleanup
