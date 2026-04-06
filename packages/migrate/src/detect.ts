@@ -543,7 +543,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 			findings.push({
 				id: `route-v1:${relFile}`,
 				severity: 'auto',
-				message: `Route file uses v1 mutable createRouter() style`,
+				message: 'Route file uses v1 mutable createRouter() style',
 				file: relFile,
 				hint:
 					'Will be rewritten to chained new Hono<Env>().get().post()… style.\n' +

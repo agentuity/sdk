@@ -21,7 +21,7 @@ import { Box, Text, Container, type Component } from '@mariozechner/pi-tui';
 /** Pre-render safety net — truncate lines before they reach render(). Reduced from 200 to 160. */
 const SAFE_LINE_WIDTH = 160;
 function safeLine(line: string): string {
-	return line.length > SAFE_LINE_WIDTH ? line.slice(0, SAFE_LINE_WIDTH - 3) + '...' : line;
+	return line.length > SAFE_LINE_WIDTH ? `${line.slice(0, SAFE_LINE_WIDTH - 3)}...` : line;
 }
 
 /**
@@ -58,7 +58,7 @@ export function truncateToWidth(line: string, maxWidth: number): string {
 			i++;
 		}
 	}
-	return normalized.slice(0, i) + '\x1b[0m...';
+	return `${normalized.slice(0, i)}\x1b[0m...`;
 }
 
 // ──────────────────────────────────────────────
@@ -122,7 +122,7 @@ function tryParseJson(text: string): unknown | undefined {
 /** Truncate a string to a max length, appending '\u2026' when truncated. */
 function truncate(str: string, max: number): string {
 	if (str.length <= max) return str;
-	return str.slice(0, max - 1) + '\u2026';
+	return `${str.slice(0, max - 1)}\u2026`;
 }
 
 // ──────────────────────────────────────────────
@@ -132,8 +132,8 @@ function truncate(str: string, max: number): string {
 function memorySearchRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const query = String(args['query'] ?? '');
-			const limit = args['limit'] as number | undefined;
+			const query = String(args.query ?? '');
+			const limit = args.limit as number | undefined;
 			let text = theme.fg('toolTitle', theme.bold('memory search '));
 			text += theme.fg('accent', truncate(query, 60));
 			if (limit) text += theme.fg('muted', ` (limit ${limit})`);
@@ -147,14 +147,12 @@ function memorySearchRenderers(): ToolRenderers {
 			let text = theme.fg('success', `${items.length} result${items.length !== 1 ? 's' : ''}`);
 			if (expanded && items.length > 0) {
 				const lines = items.slice(0, 10).map((item: Record<string, unknown>) => {
-					const key = truncate(String(item['key'] ?? item['id'] ?? '?'), 120);
+					const key = truncate(String(item.key ?? item.id ?? '?'), 120);
 					const score =
-						typeof item['score'] === 'number'
-							? ` (${(item['score'] as number).toFixed(2)})`
-							: '';
+						typeof item.score === 'number' ? ` (${(item.score as number).toFixed(2)})` : '';
 					return `  ${theme.fg('accent', key)}${theme.fg('muted', score)}`;
 				});
-				text += '\n' + lines.join('\n');
+				text += `\n${lines.join('\n')}`;
 				if (items.length > 10)
 					text += theme.fg('muted', `\n  \u2026and ${items.length - 10} more`);
 			}
@@ -166,7 +164,7 @@ function memorySearchRenderers(): ToolRenderers {
 function memoryStoreRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const key = String(args['key'] ?? '');
+			const key = String(args.key ?? '');
 			let text = theme.fg('toolTitle', theme.bold('memory store '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
@@ -181,7 +179,7 @@ function memoryStoreRenderers(): ToolRenderers {
 function memoryGetRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const key = String(args['key'] ?? '');
+			const key = String(args.key ?? '');
 			let text = theme.fg('toolTitle', theme.bold('memory get '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
@@ -203,7 +201,7 @@ function memoryGetRenderers(): ToolRenderers {
 								.map(safeLine)
 								.join('\n')
 						: String(parsed);
-				text += '\n' + theme.fg('toolOutput', truncate(preview, 500));
+				text += `\n${theme.fg('toolOutput', truncate(preview, 500))}`;
 			}
 			return new SimpleText(text);
 		},
@@ -213,7 +211,7 @@ function memoryGetRenderers(): ToolRenderers {
 function memoryUpdateRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const key = String(args['key'] ?? '');
+			const key = String(args.key ?? '');
 			let text = theme.fg('toolTitle', theme.bold('memory update '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
@@ -228,7 +226,7 @@ function memoryUpdateRenderers(): ToolRenderers {
 function memoryDeleteRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const key = String(args['key'] ?? '');
+			const key = String(args.key ?? '');
 			let text = theme.fg('toolTitle', theme.bold('memory delete '));
 			text += theme.fg('accent', truncate(key, 60));
 			return new SimpleText(text);
@@ -243,8 +241,8 @@ function memoryDeleteRenderers(): ToolRenderers {
 function memoryListRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const namespace = String(args['namespace'] ?? '');
-			const prefix = args['prefix'] as string | undefined;
+			const namespace = String(args.namespace ?? '');
+			const prefix = args.prefix as string | undefined;
 			let text = theme.fg('toolTitle', theme.bold('memory list'));
 			if (namespace) text += theme.fg('accent', ` ${truncate(namespace, 30)}`);
 			if (prefix) text += theme.fg('accent', ` ${truncate(prefix, 40)}`);
@@ -258,15 +256,15 @@ function memoryListRenderers(): ToolRenderers {
 				? parsed
 				: parsed &&
 						typeof parsed === 'object' &&
-						Array.isArray((parsed as Record<string, unknown>)['keys'])
-					? ((parsed as Record<string, unknown>)['keys'] as unknown[])
+						Array.isArray((parsed as Record<string, unknown>).keys)
+					? ((parsed as Record<string, unknown>).keys as unknown[])
 					: [];
 			let text = theme.fg('success', `${keys.length} key${keys.length !== 1 ? 's' : ''}`);
 			if (expanded && keys.length > 0) {
 				const lines = keys
 					.slice(0, 15)
 					.map((k: unknown) => `  ${theme.fg('accent', truncate(String(k), 120))}`);
-				text += '\n' + lines.join('\n');
+				text += `\n${lines.join('\n')}`;
 				if (keys.length > 15)
 					text += theme.fg('muted', `\n  \u2026and ${keys.length - 15} more`);
 			}
@@ -278,10 +276,10 @@ function memoryListRenderers(): ToolRenderers {
 function context7SearchRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const library = String(args['libraryId'] ?? args['library'] ?? '');
-			const query = String(args['query'] ?? '');
+			const library = String(args.libraryId ?? args.library ?? '');
+			const query = String(args.query ?? '');
 			let text = theme.fg('toolTitle', theme.bold('context7 '));
-			if (library) text += theme.fg('accent', truncate(library, 30) + ' \u2014 ');
+			if (library) text += theme.fg('accent', `${truncate(library, 30)} \u2014 `);
 			text += theme.fg('text', truncate(query, 50));
 			return new SimpleText(text);
 		},
@@ -293,18 +291,18 @@ function context7SearchRenderers(): ToolRenderers {
 				? parsed
 				: parsed &&
 						typeof parsed === 'object' &&
-						Array.isArray((parsed as Record<string, unknown>)['snippets'])
-					? ((parsed as Record<string, unknown>)['snippets'] as unknown[])
+						Array.isArray((parsed as Record<string, unknown>).snippets)
+					? ((parsed as Record<string, unknown>).snippets as unknown[])
 					: [];
 			const count = snippets.length || (raw.length > 0 ? '?' : '0');
 			let text = theme.fg('success', `${count} snippet${count !== 1 ? 's' : ''}`);
 			if (expanded && snippets.length > 0) {
 				const lines = snippets.slice(0, 5).map((s: unknown) => {
 					const snip = s as Record<string, unknown>;
-					const title = String(snip['title'] ?? snip['name'] ?? '');
+					const title = String(snip.title ?? snip.name ?? '');
 					return `  ${theme.fg('accent', truncate(title, 80))}`;
 				});
-				text += '\n' + lines.join('\n');
+				text += `\n${lines.join('\n')}`;
 				if (snippets.length > 5)
 					text += theme.fg('muted', `\n  \u2026and ${snippets.length - 5} more`);
 			}
@@ -316,8 +314,8 @@ function context7SearchRenderers(): ToolRenderers {
 function grepAppSearchRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const query = String(args['query'] ?? '');
-			const lang = args['language'] as string[] | string | undefined;
+			const query = String(args.query ?? '');
+			const lang = args.language as string[] | string | undefined;
 			let text = theme.fg('toolTitle', theme.bold('grep.app '));
 			text += theme.fg('accent', truncate(query, 50));
 			if (lang) {
@@ -334,18 +332,18 @@ function grepAppSearchRenderers(): ToolRenderers {
 				? parsed
 				: parsed &&
 						typeof parsed === 'object' &&
-						Array.isArray((parsed as Record<string, unknown>)['results'])
-					? ((parsed as Record<string, unknown>)['results'] as unknown[])
+						Array.isArray((parsed as Record<string, unknown>).results)
+					? ((parsed as Record<string, unknown>).results as unknown[])
 					: [];
 			const count = matches.length || (raw.length > 0 ? '?' : '0');
 			let text = theme.fg('success', `${count} match${count !== 1 ? 'es' : ''}`);
 			if (expanded && matches.length > 0) {
 				const lines = matches.slice(0, 8).map((m: unknown) => {
 					const match = m as Record<string, unknown>;
-					const path = String(match['path'] ?? match['file'] ?? match['repo'] ?? '');
+					const path = String(match.path ?? match.file ?? match.repo ?? '');
 					return `  ${theme.fg('accent', truncate(path, 80))}`;
 				});
-				text += '\n' + lines.join('\n');
+				text += `\n${lines.join('\n')}`;
 				if (matches.length > 8)
 					text += theme.fg('muted', `\n  \u2026and ${matches.length - 8} more`);
 			}
@@ -371,7 +369,7 @@ function sessionDashboardRenderers(): ToolRenderers {
 function sessionTodoCreateRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const title = String(args['title'] ?? '');
+			const title = String(args.title ?? '');
 			let text = theme.fg('toolTitle', theme.bold('session todo create '));
 			text += theme.fg('accent', truncate(title, 60));
 			return new SimpleText(text);
@@ -382,19 +380,19 @@ function sessionTodoCreateRenderers(): ToolRenderers {
 			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
 			const task =
 				parsed && typeof parsed === 'object'
-					? (parsed['task'] as Record<string, unknown> | undefined)
+					? (parsed.task as Record<string, unknown> | undefined)
 					: undefined;
 			if (!task)
 				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
-			const id = String(task['id'] ?? '');
-			const status = String(task['status'] ?? 'open');
-			const priority = String(task['priority'] ?? 'none');
-			const title = String(task['title'] ?? '').trim();
+			const id = String(task.id ?? '');
+			const status = String(task.status ?? 'open');
+			const priority = String(task.priority ?? 'none');
+			const title = String(task.title ?? '').trim();
 			const display = title.length > 0 ? truncate(title, 72) : truncate(id, 28);
 			let text = theme.fg('success', `${status} ${display}`);
 			text += theme.fg('dim', ` (${truncate(id, 20)} prio:${priority})`);
 			if (expanded && title.length > 0) {
-				text += '\n' + theme.fg('accent', truncate(title, 120));
+				text += `\n${theme.fg('accent', truncate(title, 120))}`;
 			}
 			return new SimpleText(text);
 		},
@@ -404,9 +402,8 @@ function sessionTodoCreateRenderers(): ToolRenderers {
 function sessionTodoUpdateRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const id = String(args['id'] ?? '');
-			const nextStatus =
-				typeof args['status'] === 'string' ? ` -> ${String(args['status'])}` : '';
+			const id = String(args.id ?? '');
+			const nextStatus = typeof args.status === 'string' ? ` -> ${String(args.status)}` : '';
 			return new SimpleText(
 				theme.fg('toolTitle', theme.bold('session todo update ')) +
 					theme.fg('accent', truncate(id, 24)) +
@@ -419,13 +416,13 @@ function sessionTodoUpdateRenderers(): ToolRenderers {
 			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
 			const task =
 				parsed && typeof parsed === 'object'
-					? (parsed['task'] as Record<string, unknown> | undefined)
+					? (parsed.task as Record<string, unknown> | undefined)
 					: undefined;
 			if (!task)
 				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
-			const id = String(task['id'] ?? '');
-			const status = String(task['status'] ?? 'open');
-			const title = String(task['title'] ?? '').trim();
+			const id = String(task.id ?? '');
+			const status = String(task.status ?? 'open');
+			const title = String(task.title ?? '').trim();
 			const display = title.length > 0 ? truncate(title, 72) : truncate(id, 28);
 			return new SimpleText(
 				theme.fg('success', `${status} ${display}`) + theme.fg('dim', ` (${truncate(id, 20)})`)
@@ -437,9 +434,9 @@ function sessionTodoUpdateRenderers(): ToolRenderers {
 function sessionTodoListRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const status = args['status'] ? ` status:${String(args['status'])}` : '';
-			const assignee = args['assignee'] ? ` owner:${String(args['assignee'])}` : '';
-			const scope = args['scope'] ? ` scope:${String(args['scope'])}` : '';
+			const status = args.status ? ` status:${String(args.status)}` : '';
+			const assignee = args.assignee ? ` owner:${String(args.assignee)}` : '';
+			const scope = args.scope ? ` scope:${String(args.scope)}` : '';
 			return new SimpleText(
 				theme.fg('toolTitle', theme.bold('session todos')) +
 					theme.fg('dim', `${scope}${status}${assignee}`)
@@ -453,24 +450,24 @@ function sessionTodoListRenderers(): ToolRenderers {
 				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 120)));
 			}
 
-			const count = typeof parsed['count'] === 'number' ? parsed['count'] : 0;
+			const count = typeof parsed.count === 'number' ? parsed.count : 0;
 			const summary =
-				parsed['summary'] && typeof parsed['summary'] === 'object'
-					? (parsed['summary'] as Record<string, unknown>)
+				parsed.summary && typeof parsed.summary === 'object'
+					? (parsed.summary as Record<string, unknown>)
 					: {};
-			const todos = Array.isArray(parsed['todos'])
-				? (parsed['todos'] as Array<Record<string, unknown>>)
+			const todos = Array.isArray(parsed.todos)
+				? (parsed.todos as Array<Record<string, unknown>>)
 				: [];
 
 			let text = theme.fg('success', `${count} todo${count === 1 ? '' : 's'}`);
 			text += theme.fg(
 				'dim',
-				`  o:${Number(summary['open'] ?? 0)} ip:${Number(summary['in_progress'] ?? 0)} d:${Number(summary['done'] ?? 0) + Number(summary['closed'] ?? 0)} x:${Number(summary['cancelled'] ?? 0)}`
+				`  o:${Number(summary.open ?? 0)} ip:${Number(summary.in_progress ?? 0)} d:${Number(summary.done ?? 0) + Number(summary.closed ?? 0)} x:${Number(summary.cancelled ?? 0)}`
 			);
 
 			if (expanded && todos.length > 0) {
 				const lines = todos.slice(0, 20).map((todo) => {
-					const status = String(todo['status'] ?? 'open');
+					const status = String(todo.status ?? 'open');
 					const marker =
 						status === 'done' || status === 'closed'
 							? theme.fg('success', '✓')
@@ -479,15 +476,15 @@ function sessionTodoListRenderers(): ToolRenderers {
 								: status === 'cancelled'
 									? theme.fg('error', 'x')
 									: theme.fg('warning', '○');
-					const id = truncate(String(todo['id'] ?? ''), 18);
-					const title = truncate(String(todo['title'] ?? ''), 72);
+					const id = truncate(String(todo.id ?? ''), 18);
+					const title = truncate(String(todo.title ?? ''), 72);
 					const owner =
-						typeof todo['assignee'] === 'string' && (todo['assignee'] as string).length > 0
-							? ` @${todo['assignee']}`
+						typeof todo.assignee === 'string' && (todo.assignee as string).length > 0
+							? ` @${todo.assignee}`
 							: '';
 					return `  ${marker} ${theme.fg('dim', id)} ${title}${theme.fg('muted', owner)}`;
 				});
-				text += '\n' + lines.join('\n');
+				text += `\n${lines.join('\n')}`;
 				if (todos.length > 20)
 					text += theme.fg('muted', `\n  \u2026and ${todos.length - 20} more`);
 			}
@@ -499,7 +496,7 @@ function sessionTodoListRenderers(): ToolRenderers {
 function sessionTodoCommentRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const id = String(args['id'] ?? '');
+			const id = String(args.id ?? '');
 			return new SimpleText(
 				theme.fg('toolTitle', theme.bold('session todo comment ')) +
 					theme.fg('accent', truncate(id, 32))
@@ -509,9 +506,8 @@ function sessionTodoCommentRenderers(): ToolRenderers {
 			if (isPartial) return new SimpleText(theme.fg('warning', 'Adding comment\u2026'));
 			const raw = resultText(result);
 			const parsed = tryParseJson(raw) as Record<string, unknown> | undefined;
-			if (parsed && parsed['commented'] === true) {
-				const taskId =
-					typeof parsed['taskId'] === 'string' ? truncate(parsed['taskId'], 20) : '';
+			if (parsed && parsed.commented === true) {
+				const taskId = typeof parsed.taskId === 'string' ? truncate(parsed.taskId, 20) : '';
 				return new SimpleText(
 					theme.fg('success', `Comment saved${taskId ? ` (${taskId})` : ''}`)
 				);
@@ -524,8 +520,8 @@ function sessionTodoCommentRenderers(): ToolRenderers {
 function sessionTodoAttachRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const id = String(args['id'] ?? '');
-			const name = String(args['name'] ?? '');
+			const id = String(args.id ?? '');
+			const name = String(args.name ?? '');
 			let text = theme.fg('toolTitle', theme.bold('session todo attach '));
 			text += theme.fg('accent', truncate(id, 24));
 			if (name) text += theme.fg('dim', ` ${truncate(name, 40)}`);
@@ -539,13 +535,13 @@ function sessionTodoAttachRenderers(): ToolRenderers {
 				return new SimpleText(theme.fg('toolOutput', truncate(raw.replace(/\n/g, ' '), 100)));
 			}
 			const count =
-				typeof parsed['attachmentCount'] === 'number' ? parsed['attachmentCount'] : undefined;
+				typeof parsed.attachmentCount === 'number' ? parsed.attachmentCount : undefined;
 			const task =
-				parsed['task'] && typeof parsed['task'] === 'object'
-					? (parsed['task'] as Record<string, unknown>)
+				parsed.task && typeof parsed.task === 'object'
+					? (parsed.task as Record<string, unknown>)
 					: undefined;
-			const title = typeof task?.['title'] === 'string' ? truncate(task['title'], 56) : '';
-			const id = typeof task?.['id'] === 'string' ? truncate(task['id'], 20) : '';
+			const title = typeof task?.title === 'string' ? truncate(task.title, 56) : '';
+			const id = typeof task?.id === 'string' ? truncate(task.id, 20) : '';
 			const text =
 				count !== undefined ? `Attachment saved (${count} total)` : 'Attachment saved';
 			const suffix = title ? ` ${title}${id ? ` (${id})` : ''}` : id ? ` (${id})` : '';
@@ -559,8 +555,8 @@ function sessionTodoAttachRenderers(): ToolRenderers {
 function taskRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const agent = String(args['subagent_type'] ?? '?');
-			const desc = String(args['description'] ?? '');
+			const agent = String(args.subagent_type ?? '?');
+			const desc = String(args.description ?? '');
 			let text = theme.fg('accent', safeLine(agent));
 			if (desc) text += theme.fg('dim', ` — ${truncate(desc, 60)}`);
 			return new Text(text, 0, 0);
@@ -577,12 +573,11 @@ function taskRenderers(): ToolRenderers {
 				const box = new Box(1, 0, bgFn);
 				let errorContent = theme.fg('error', 'failed');
 				if (expanded) {
-					errorContent +=
-						'\n' + theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'));
+					errorContent += `\n${theme.fg('error', raw.split('\n').slice(0, 10).map(safeLine).join('\n'))}`;
 				} else {
 					// Show first line of error in collapsed view
 					const firstLine = raw.split('\n')[0] || '';
-					errorContent += theme.fg('dim', '  ' + firstLine.slice(0, 80));
+					errorContent += theme.fg('dim', `  ${firstLine.slice(0, 80)}`);
 					errorContent += theme.fg('muted', '  ctrl+h  ctrl+shift+v|alt+shift+v');
 				}
 				box.addChild(new Text(errorContent, 0, 0));
@@ -612,7 +607,7 @@ function taskRenderers(): ToolRenderers {
 			}
 			if (expanded) {
 				const preview = raw.split('\n').slice(0, 20).map(safeLine).join('\n');
-				text += '\n' + theme.fg('dim', preview);
+				text += `\n${theme.fg('dim', preview)}`;
 				if (lineCount > 20) text += theme.fg('muted', '\n...more  ctrl+shift+v|alt+shift+v');
 			}
 			return new Text(text, 0, 0);
@@ -623,8 +618,8 @@ function taskRenderers(): ToolRenderers {
 function parallelTasksRenderers(): ToolRenderers {
 	return {
 		renderCall(args, theme) {
-			const tasks = (args['tasks'] as Array<Record<string, unknown>>) ?? [];
-			const agents = tasks.map((t) => String(t['subagent_type'] ?? '?'));
+			const tasks = (args.tasks as Array<Record<string, unknown>>) ?? [];
+			const agents = tasks.map((t) => String(t.subagent_type ?? '?'));
 			const text = theme.fg('accent', agents.join(' + '));
 			return new Text(safeLine(text), 0, 0);
 		},

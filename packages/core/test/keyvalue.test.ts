@@ -536,7 +536,7 @@ describe('KeyValueStorageService', () => {
 			let modifiedUrl = '';
 			const { adapter } = createMockAdapter([{ ok: true, data: 'test' }], {
 				onBefore: async (url, _options, invoke) => {
-					modifiedUrl = url + '?modified=true';
+					modifiedUrl = `${url}?modified=true`;
 					await invoke();
 				},
 			});
@@ -565,7 +565,7 @@ describe('KeyValueStorageService', () => {
 			expect(calls).toHaveLength(1);
 			expect(calls[0].options.headers).toBeDefined();
 			expect(calls[0].options.headers?.['X-Custom-Header']).toBe('test-value');
-			expect(calls[0].options.headers?.['Authorization']).toBe('Bearer token123');
+			expect(calls[0].options.headers?.Authorization).toBe('Bearer token123');
 		});
 	});
 

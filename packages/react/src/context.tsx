@@ -1,4 +1,5 @@
-import React, { useState, useLayoutEffect, useMemo, useCallback } from 'react';
+import type React from 'react';
+import { useState, useLayoutEffect, useMemo, useCallback } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
 
@@ -73,7 +74,7 @@ export interface AgentuityHookValue {
  */
 export function useAgentuity(): AgentuityHookValue {
 	const context = useContext(AgentuityContext);
-	if (!context || !context.baseUrl) {
+	if (!context?.baseUrl) {
 		throw new Error('useAgentuity must be used within AgentuityProvider');
 	}
 
@@ -106,7 +107,7 @@ export interface AuthContextValue {
  */
 export function useAuth(): AuthContextValue {
 	const context = useContext(AgentuityContext);
-	if (!context || !context.baseUrl) {
+	if (!context?.baseUrl) {
 		throw new Error('useAuth must be used within AgentuityProvider');
 	}
 

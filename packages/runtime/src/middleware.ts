@@ -83,7 +83,7 @@ function installContextPropertyHelpers(c: any): void {
 				throw new Error(
 					`In route handlers, use c.var.${property} instead of c.${property}. ` +
 						`The property '${property}' is available on AgentContext (for agent handlers) ` +
-						`but must be accessed via c.var in HonoContext (route handlers).`
+						'but must be accessed via c.var in HonoContext (route handlers).'
 				);
 			},
 			configurable: true,
@@ -577,7 +577,7 @@ export function createOtelMiddleware() {
 							// track the streaming finalization work in telemetry
 							handler.waitUntil(async () => {
 								// Track if stream ended with error so we can update finalization status
-								let streamError: unknown = undefined;
+								let streamError: unknown;
 
 								try {
 									await streamDone;
@@ -714,7 +714,7 @@ export function createOtelMiddleware() {
 							}
 
 							handler.waitUntil(async () => {
-								let wsError: unknown = undefined;
+								let wsError: unknown;
 
 								try {
 									await wsDone;

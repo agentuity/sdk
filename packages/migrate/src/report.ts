@@ -74,7 +74,7 @@ function renderFinding(f: Finding, index: number): string {
 	const icon = SEVERITY_ICON[f.severity];
 	const num = dim(`${String(index + 1).padStart(2, ' ')}.`);
 	const file = f.file ? dim(` [${f.file}]`) : '';
-	const hint = f.hint ? `\n       ${dim('↳ ' + f.hint.replace(/\n/g, '\n         '))}` : '';
+	const hint = f.hint ? `\n       ${dim(`↳ ${f.hint.replace(/\n/g, '\n         ')}`)}` : '';
 
 	return `  ${num} [${label}] ${icon} ${f.message}${file}${hint}`;
 }
@@ -96,7 +96,7 @@ export function printReport(detection: DetectionResult): void {
 	if (findings.length === 0) {
 		console.log(
 			`\n${green('✓')} ${bold('No v1 patterns detected!')} ` +
-				`This project may already be on v2.\n`
+				'This project may already be on v2.\n'
 		);
 		return;
 	}

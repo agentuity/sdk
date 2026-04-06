@@ -49,7 +49,7 @@ interface PackageVersion {
  */
 function extractMajor(version: string): number {
 	const match = version.match(/^(\d+)\.\d+\.\d+/);
-	return match && match[1] ? parseInt(match[1], 10) : 0;
+	return match?.[1] ? parseInt(match[1], 10) : 0;
 }
 
 /**

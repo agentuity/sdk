@@ -153,7 +153,7 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 	return async (ctx: Context) => {
 		// Content-type validation
 		const contentType = ctx.req.header('Content-Type');
-		if (!contentType || !contentType.includes('application/json')) {
+		if (!contentType?.includes('application/json')) {
 			return ctx.json({ error: 'Content-Type must be application/json' }, { status: 400 });
 		}
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api.ts';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 import { SessionSchema, type Session } from './list.ts';
 import { SessionResponseError } from './util.ts';
 

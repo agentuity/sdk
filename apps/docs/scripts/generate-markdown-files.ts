@@ -52,7 +52,7 @@ function mdxPathToUrlPath(mdxPath: string): string {
 	} else if (urlPath === 'index') {
 		urlPath = '';
 	}
-	return '/' + urlPath;
+	return `/${urlPath}`;
 }
 
 function urlPathToMdOutputPath(urlPath: string): string {
@@ -63,7 +63,7 @@ function urlPathToMdOutputPath(urlPath: string): string {
 	if (cleaned === '') {
 		return 'index.md';
 	}
-	return cleaned + '.md';
+	return `${cleaned}.md`;
 }
 
 /**
@@ -246,7 +246,7 @@ function stripSelfClosingJSX(text: string): string {
 		if (!foundEnd || !isSelfClosing) {
 			// Not a self-closing tag or malformed. Replace the < with a sentinel
 			// to avoid infinite loop, then restore later.
-			result = result.slice(0, start) + '\x00' + result.slice(start + 1);
+			result = `${result.slice(0, start)}\x00${result.slice(start + 1)}`;
 			continue;
 		}
 
@@ -723,7 +723,7 @@ function transformCallouts(text: string): string {
 		if (innerContent) {
 			const contentLines = innerContent.split('\n');
 			const quotedLines = contentLines.map((line) => (line === '' ? '>' : `> ${line}`));
-			blockquote += '\n' + quotedLines.join('\n');
+			blockquote += `\n${quotedLines.join('\n')}`;
 		}
 
 		const afterClose = closeIdx + closeTag.length;
@@ -931,7 +931,7 @@ The documentation covers:
 
 	const links = pages.map((page) => `[${page.title}](${BASE_URL}${page.urlPath}.md)`).join('\n');
 
-	return preamble + links + '\n';
+	return `${preamble + links}\n`;
 }
 
 function generateLlmsFullTxt(pages: DocPage[]): string {
@@ -974,7 +974,7 @@ ${page.content.replace(/^# .+\n\n.+\n\n/, '')}
 		})
 		.join('\n\n');
 
-	return preamble + sections + '\n';
+	return `${preamble + sections}\n`;
 }
 
 function generateSitemapXml(pages: DocPage[]): string {

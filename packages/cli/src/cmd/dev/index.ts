@@ -257,7 +257,7 @@ export const command = createCommand({
 				} else {
 					// Non-TTY: fatal error with instruction
 					logger.fatal(
-						`Authentication required for this project.\n` +
+						'Authentication required for this project.\n' +
 							`Run "${getCommand('auth login')}" to login to Agentuity`,
 						ErrorCode.AUTH_REQUIRED
 					);
@@ -475,7 +475,7 @@ export const command = createCommand({
 				(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
 				'\n' +
 				(interactive
-					? '\n' + tui.muted('Press ') + tui.bold('h') + tui.muted(' for keyboard shortcuts')
+					? `\n${tui.muted('Press ')}${tui.bold('h')}${tui.muted(' for keyboard shortcuts')}`
 					: '');
 
 			tui.banner('⨺ Agentuity DevMode', devmodebody, {
@@ -1056,10 +1056,10 @@ export const command = createCommand({
 				process.stdin.setEncoding('utf8');
 
 				const showHelp = () => {
-					console.log('\n' + tui.bold('Keyboard Shortcuts:'));
-					console.log(tui.muted('  h') + ' - show this help');
-					console.log(tui.muted('  c') + ' - clear console');
-					console.log(tui.muted('  q') + ' - quit\n');
+					console.log(`\n${tui.bold('Keyboard Shortcuts:')}`);
+					console.log(`${tui.muted('  h')} - show this help`);
+					console.log(`${tui.muted('  c')} - clear console`);
+					console.log(`${tui.muted('  q')} - quit\n`);
 				};
 
 				stdinDataHandler = (data) => {

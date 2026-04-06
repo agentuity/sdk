@@ -35,7 +35,7 @@ export async function applyPatch(
 			let index = contents.indexOf(fnname);
 			let isConstVariable = false;
 			if (index === -1) {
-				fnname = 'const ' + fn + ' = ';
+				fnname = `const ${fn} = `;
 				index = contents.indexOf(fnname);
 				isConstVariable = true;
 				if (index === -1) {
@@ -49,26 +49,26 @@ export async function applyPatch(
 			const prefix = contents.substring(eol + 1, index).trim();
 			const isAsync = prefix.includes('async');
 			const isExport = prefix.includes('export');
-			const newname = '__agentuity_' + fn;
+			const newname = `__agentuity_${fn}`;
 			let newfnname: string;
 			if (isConstVariable) {
-				newfnname = 'const ' + newname + ' = ';
+				newfnname = `const ${newname} = `;
 			} else {
-				newfnname = 'function ' + newname;
+				newfnname = `function ${newname}`;
 			}
 			let fnprefix = '';
 			if (isAsync) {
 				fnprefix = 'async ';
 			}
 			if (isExport) {
-				fnprefix += 'export ' + fnprefix;
+				fnprefix += `export ${fnprefix}`;
 			}
 			contents = contents.replace(fnname, newfnname);
 			if (isJS) {
-				suffix += fnprefix + 'function ' + fn + '() {\n';
+				suffix += `${fnprefix}function ${fn}() {\n`;
 				suffix += 'let args = arguments;\n';
 			} else {
-				suffix += fnprefix + fnname + '(...args) {\n';
+				suffix += `${fnprefix + fnname}(...args) {\n`;
 			}
 			suffix += '\tlet _args = args;\n';
 
@@ -79,10 +79,10 @@ export async function applyPatch(
 
 			if (isJS) {
 				// For JS: use .apply to preserve 'this' context
-				suffix += '\tlet result = ' + newname + '.apply(this, _args);\n';
+				suffix += `\tlet result = ${newname}.apply(this, _args);\n`;
 			} else {
 				// For TS: use spread operator
-				suffix += '\tlet result = ' + newname + '(..._args);\n';
+				suffix += `\tlet result = ${newname}(..._args);\n`;
 			}
 
 			if (isAsync) {
@@ -96,14 +96,14 @@ export async function applyPatch(
 			}
 			suffix += '\treturn result;\n';
 			suffix += '}\n';
-			contents = contents + '\n' + suffix;
+			contents = `${contents}\n${suffix}`;
 		}
 	}
 	if (patch.body?.before) {
-		contents = patch.body.before + '\n' + contents;
+		contents = `${patch.body.before}\n${contents}`;
 	}
 	if (patch.body?.after) {
-		contents = contents + '\n' + patch.body.after;
+		contents = `${contents}\n${patch.body.after}`;
 	}
 	return [contents, isJS ? 'js' : 'ts'];
 }

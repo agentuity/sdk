@@ -1,9 +1,9 @@
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import {
-	type SessionEventProvider,
-	type SessionStartEvent,
-	type SessionCompleteEvent,
+import type {
+	SessionEventProvider,
+	SessionStartEvent,
+	SessionCompleteEvent,
 } from '@agentuity/core';
 
 /**
@@ -25,7 +25,7 @@ export class JSONSessionEventProvider implements SessionEventProvider {
 	 */
 	async start(event: SessionStartEvent): Promise<void> {
 		const filename = this.makeFilename('start');
-		const payload = JSON.stringify({ ...event, timestamp: new Date() }) + '\n';
+		const payload = `${JSON.stringify({ ...event, timestamp: new Date() })}\n`;
 		await Bun.file(filename).write(payload);
 	}
 
@@ -36,7 +36,7 @@ export class JSONSessionEventProvider implements SessionEventProvider {
 	 */
 	async complete(event: SessionCompleteEvent): Promise<void> {
 		const filename = this.makeFilename('complete');
-		const payload = JSON.stringify({ ...event, timestamp: new Date() }) + '\n';
+		const payload = `${JSON.stringify({ ...event, timestamp: new Date() })}\n`;
 		await Bun.file(filename).write(payload);
 	}
 }

@@ -1,4 +1,4 @@
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import docProcessingAgent from '@agent/doc_processing';
 import { bearerTokenAuth } from '../../middleware/auth';
 import { Hono } from 'hono';

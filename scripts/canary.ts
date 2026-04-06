@@ -21,7 +21,7 @@ async function readJSON(path: string) {
 }
 
 async function writeJSON(path: string, data: unknown) {
-	await writeFile(path, JSON.stringify(data, null, '\t') + '\n');
+	await writeFile(path, `${JSON.stringify(data, null, '\t')}\n`);
 }
 
 async function getShortSha(): Promise<string> {
@@ -75,7 +75,7 @@ async function updatePackageVersions(version: string, packages: PackageInfo[]) {
 	const rootPkg = await readJSON(rootPkgPath);
 	rootPkg.version = version;
 	await writeJSON(rootPkgPath, rootPkg);
-	console.log(`  ✓ Updated root package.json`);
+	console.log('  ✓ Updated root package.json');
 
 	for (const pkg of packages) {
 		const pkgJsonPath = join(pkg.path, 'package.json');
@@ -99,7 +99,7 @@ async function updatePackageVersions(version: string, packages: PackageInfo[]) {
 }
 
 async function packPackages(packages: PackageInfo[]): Promise<PackageInfo[]> {
-	console.log(`\n📦 Packing packages...\n`);
+	console.log('\n📦 Packing packages...\n');
 
 	await mkdir(distDir, { recursive: true });
 
@@ -134,7 +134,7 @@ async function createManifest(version: string, packages: PackageInfo[]) {
 	};
 
 	await writeJSON(join(distDir, 'manifest.json'), manifest);
-	console.log(`\n✓ Created manifest.json`);
+	console.log('\n✓ Created manifest.json');
 }
 
 async function uploadPackagesToS3(version: string, dryRun: boolean) {
@@ -255,7 +255,7 @@ async function main() {
 		const baseVersion = await getBaseVersion();
 		const prereleaseVersion = `${baseVersion}-${shortSha}`;
 
-		console.log(`📌 Version Info:`);
+		console.log('📌 Version Info:');
 		console.log(`   Base version: ${baseVersion}`);
 		console.log(`   Short SHA: ${shortSha}`);
 		console.log(`   Prerelease version: ${prereleaseVersion}`);

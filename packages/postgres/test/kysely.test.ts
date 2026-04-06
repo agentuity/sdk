@@ -5,7 +5,7 @@
  * with Kysely without needing to access the `.raw` property.
  */
 import { describe, it, expect } from 'bun:test';
-import { Kysely, PostgresDialect, Generated, Selectable } from 'kysely';
+import { Kysely, PostgresDialect, type Generated, type Selectable } from 'kysely';
 import type { PostgresPool as KyselyPostgresPool } from 'kysely';
 import { PostgresPool, Pool } from '../src/pool';
 

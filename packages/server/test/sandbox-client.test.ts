@@ -1596,7 +1596,7 @@ describe('SandboxClient', () => {
 			expect(result.exitCode).toBe(0);
 
 			// Verify all chunks were captured and concatenated
-			const expectedOutput = Array.from({ length: 10 }, (_, i) => `Line ${i}`).join('\n') + '\n';
+			const expectedOutput = `${Array.from({ length: 10 }, (_, i) => `Line ${i}`).join('\n')}\n`;
 			expect(result.stdout).toBe(expectedOutput);
 			expect(result.stderr).toBe('');
 		});

@@ -1,4 +1,4 @@
-import { FetchAdapter } from '../adapter.ts';
+import type { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException } from '../_util.ts';
 import { StructuredError } from '../../error.ts';
 import { safeStringify } from '../../json.ts';
@@ -1819,7 +1819,7 @@ export class TaskStorageService implements TaskStorage {
 			);
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/delete/batch`);
+		const url = buildUrl(this.#baseUrl, '/task/delete/batch');
 		const signal = AbortSignal.timeout(60_000);
 
 		const body: Record<string, unknown> = {};
@@ -1914,7 +1914,7 @@ export class TaskStorageService implements TaskStorage {
 			);
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/update/batch`);
+		const url = buildUrl(this.#baseUrl, '/task/update/batch');
 		const signal = AbortSignal.timeout(60_000);
 
 		const body: Record<string, unknown> = {};
@@ -2010,7 +2010,7 @@ export class TaskStorageService implements TaskStorage {
 			);
 		}
 
-		const url = buildUrl(this.#baseUrl, `/task/close/batch`);
+		const url = buildUrl(this.#baseUrl, '/task/close/batch');
 		const signal = AbortSignal.timeout(60_000);
 
 		const body: Record<string, unknown> = {};

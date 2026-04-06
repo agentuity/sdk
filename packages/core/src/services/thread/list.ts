@@ -1,6 +1,6 @@
 import { SortDirectionSchema } from '../pagination.ts';
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api.ts';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 import { ThreadResponseError } from './util.ts';
 
 export const ThreadSchema = z.object({

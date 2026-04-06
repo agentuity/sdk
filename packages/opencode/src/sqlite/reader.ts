@@ -230,7 +230,7 @@ function mapTextPart(row: PartRow): DBTextPart | null {
 
 function mapNonTextPart(row: PartRow): DBNonTextPart | null {
 	const payload = safeParseJSON<PartData>(row.data);
-	if (!payload || !payload.type || payload.type === 'text') return null;
+	if (!payload?.type || payload.type === 'text') return null;
 
 	return {
 		id: row.id,

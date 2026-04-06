@@ -5,7 +5,7 @@
  * POST /search - Searches products by query and returns AI recommendation
  * GET /status  - Checks if vector store contains data
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import vectorAgent from '../../agent/vector/agent';
 import { Hono } from 'hono';
 

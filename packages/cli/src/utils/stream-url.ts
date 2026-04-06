@@ -136,10 +136,10 @@ export async function streamUrlToWritable(
 						stream: label,
 						message: line,
 					};
-					await writeAndDrain(writable, Buffer.from(JSON.stringify(obj) + '\n'));
+					await writeAndDrain(writable, Buffer.from(`${JSON.stringify(obj)}\n`));
 				} else {
 					const formatted = timestamps ? formatLineWithTimestamp(line) : line;
-					await writeAndDrain(writable, Buffer.from(formatted + '\n'));
+					await writeAndDrain(writable, Buffer.from(`${formatted}\n`));
 				}
 			};
 

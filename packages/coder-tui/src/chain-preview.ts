@@ -409,7 +409,7 @@ export class ChainEditorOverlay implements Component, Focusable {
 		const hintRun = this.steps.length >= 2 ? '[Enter] Run' : '[Enter] Run (needs 2+ steps)';
 		const footer: string[] = [
 			this.contentLine(
-				this.theme.fg('dim', `  [↑↓] Navigate  [e] Edit task  [d] Remove`),
+				this.theme.fg('dim', '  [↑↓] Navigate  [e] Edit task  [d] Remove'),
 				inner
 			),
 			this.contentLine(

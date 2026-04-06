@@ -255,7 +255,7 @@ export type { RouteSchema, GetRouteSchema } from './_validation';
  * to generate the type augmentations.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface AppState {}
+export type AppState = {};
 
 // Re-export bootstrapRuntimeEnv and mimeTypes from @agentuity/server for convenience
 // This allows generated code to import from @agentuity/runtime instead of having

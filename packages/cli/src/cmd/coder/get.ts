@@ -167,7 +167,7 @@ export const getSubcommand = createSubcommand({
 			console.log('  Tasks:');
 			for (const t of tasks) {
 				const dur = t.duration ? formatDuration(t.duration) : '-';
-				const prompt = t.prompt.length > 40 ? t.prompt.slice(0, 37) + '...' : t.prompt;
+				const prompt = t.prompt.length > 40 ? `${t.prompt.slice(0, 37)}...` : t.prompt;
 				console.log(
 					`    ${t.taskId.padEnd(10)} ${t.agent.padEnd(10)} ${t.status.padEnd(10)} ${prompt.padEnd(42)} ${dur}`
 				);

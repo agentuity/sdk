@@ -15,7 +15,7 @@ import {
 	isRetryableError,
 } from './errors.ts';
 import { computeBackoff, sleep, mergeReconnectConfig } from './reconnect.ts';
-import { Transaction, ReservedConnection } from './transaction.ts';
+import { Transaction, type ReservedConnection } from './transaction.ts';
 import { registerClient, unregisterClient } from './registry.ts';
 import { injectSslMode } from './tls.ts';
 import { isMutationStatement } from './mutation.ts';

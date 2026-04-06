@@ -59,8 +59,14 @@
  * every error path is authenticated-failure-safe.
  */
 
-import { createCipheriv, createDecipheriv, createECDH, randomBytes, KeyObject } from 'node:crypto';
-import { Readable, Writable } from 'node:stream';
+import {
+	createCipheriv,
+	createDecipheriv,
+	createECDH,
+	randomBytes,
+	type KeyObject,
+} from 'node:crypto';
+import type { Readable, Writable } from 'node:stream';
 import { createHash } from 'node:crypto';
 import { StructuredError } from '@agentuity/core';
 

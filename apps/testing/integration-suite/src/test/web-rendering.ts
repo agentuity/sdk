@@ -112,7 +112,7 @@ test('web-rendering', 'spa-fallback-routes', async () => {
 	const routes = ['/dashboard', '/users', '/settings/profile', '/app/nested/route'];
 
 	for (const route of routes) {
-		const res = await fetch('http://127.0.0.1:3500' + route);
+		const res = await fetch(`http://127.0.0.1:3500${route}`);
 
 		// In production with static files, these routes might 404 if no SPA routing is set up
 		// What we're testing is that IF they return 200, they return HTML (not caught by asset 404)
@@ -142,7 +142,7 @@ test('web-rendering', 'asset-404-not-caught', async () => {
 	];
 
 	for (const path of assetPaths) {
-		const res = await fetch('http://127.0.0.1:3500' + path);
+		const res = await fetch(`http://127.0.0.1:3500${path}`);
 		assertEqual(res.status, 404, `Asset ${path} should return 404`);
 
 		const contentType = res.headers.get('content-type');

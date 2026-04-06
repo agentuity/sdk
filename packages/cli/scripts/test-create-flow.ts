@@ -218,7 +218,7 @@ async function linkLocalPackages(): Promise<boolean> {
 		packageJson.overrides[pkgName] = `file:${packagePaths[i]}`;
 	}
 
-	await Bun.write(packageJsonPath, JSON.stringify(packageJson, null, '\t') + '\n');
+	await Bun.write(packageJsonPath, `${JSON.stringify(packageJson, null, '\t')}\n`);
 
 	// Install other dependencies first
 	await Bun.$`bun install`.cwd(TEST_PROJECT_PATH);
@@ -330,7 +330,7 @@ async function verifyGitInit(): Promise<boolean> {
 	const output = (await new Response(result.stdout).text()).trim();
 	const lines = output.split('\n');
 	const lastCommitMessage = lines[lines.length - 1]; // First commit is last in log
-	if (lastCommitMessage && lastCommitMessage.includes('Initial Setup')) {
+	if (lastCommitMessage?.includes('Initial Setup')) {
 		logSuccess('Initial commit message is "Initial Setup"');
 		return true;
 	}

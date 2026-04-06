@@ -58,7 +58,7 @@ export function generateAgentBarrel(projectDir: string): string | null {
 
 	const exportList = agents.map(({ importName }) => `\t${importName},`).join('\n');
 
-	return `${imports}\n\n` + `const agents = [\n${exportList}\n];\n\n` + `export default agents;\n`;
+	return `${imports}\n\nconst agents = [\n${exportList}\n];\n\nexport default agents;\n`;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,13 +126,13 @@ export function generateApiBarrel(projectDir: string): string | null {
 	//   const res = await client.hello.$post({ json: { name: 'World' } });
 	return (
 		`${imports}\n\n` +
-		`// Routes are chained in a single expression so TypeScript can accumulate\n` +
+		'// Routes are chained in a single expression so TypeScript can accumulate\n' +
 		`// every sub-router's schema into AppRouter — required for Hono RPC typing.\n` +
 		`const router = new Hono<Env>()\n${chain};\n\n` +
-		`// AppRouter is the fully-typed entry point for the Hono client.\n` +
+		'// AppRouter is the fully-typed entry point for the Hono client.\n' +
 		`// Import it in your frontend:  import type { AppRouter } from '../api';\n` +
 		`// Then use:  hc<AppRouter>(window.location.origin + '/api')\n` +
-		`export type AppRouter = typeof router;\n\n` +
-		`export default router;\n`
+		'export type AppRouter = typeof router;\n\n' +
+		'export default router;\n'
 	);
 }

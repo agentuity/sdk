@@ -9,7 +9,7 @@
  * GET /logger     - Demonstrates logger at different levels
  * GET /background - Demonstrates waitUntil() for background tasks
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import contextAgent from '../../agent/context/agent';
 import { formatTimestamps } from '../../lib/utils';
 import { Hono } from 'hono';

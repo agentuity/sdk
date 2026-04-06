@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { AgentCodeLensProvider, type AgentCodeLensInfo } from './agentCodeLensProvider';
 import { getDevServerManager } from '../devServer';
 import { getCurrentProject } from '../../core/project';

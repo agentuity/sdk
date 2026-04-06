@@ -182,9 +182,9 @@ function updateSample(
 }
 
 async function main() {
-	console.log(`\n📊 Heap Trace Deploy`);
+	console.log('\n📊 Heap Trace Deploy');
 	console.log(`   Project: ${projectPath}`);
-	console.log(`   Command: bunx agentuity deploy`);
+	console.log('   Command: bunx agentuity deploy');
 	console.log(`   Sample interval: ${sampleIntervalMs}ms`);
 	console.log(`   Output: ${outputPath}\n`);
 
@@ -278,7 +278,7 @@ async function main() {
 	console.log(`${'═'.repeat(60)}`);
 
 	if (all.length > 0) {
-		console.log(`\n  Top processes by peak RSS:`);
+		console.log('\n  Top processes by peak RSS:');
 		console.log(
 			`  ${'PID'.padEnd(8)}${'DEPTH'.padEnd(7)}${'PEAK RSS'.padEnd(14)}${'LIFETIME'.padEnd(12)}COMMAND`
 		);

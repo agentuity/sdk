@@ -117,22 +117,22 @@ export const getSubcommand = createCommand({
 				Sandbox: tui.bold(result.sandboxId),
 			};
 
-			if (result.name) tableData['Name'] = result.name;
-			if (result.description) tableData['Description'] = result.description;
-			tableData['Status'] = statusColor(result.status);
-			tableData['Created'] = result.createdAt;
-			if (result.runtime?.name) tableData['Runtime'] = result.runtime.name;
-			if (result.region) tableData['Region'] = result.region;
+			if (result.name) tableData.Name = result.name;
+			if (result.description) tableData.Description = result.description;
+			tableData.Status = statusColor(result.status);
+			tableData.Created = result.createdAt;
+			if (result.runtime?.name) tableData.Runtime = result.runtime.name;
+			if (result.region) tableData.Region = result.region;
 			if (result.snapshot?.id) {
 				const snapshotDisplay =
 					result.snapshot.public && result.snapshot.fullName
 						? result.snapshot.fullName
 						: result.snapshot.tag || result.snapshot.id;
-				tableData['Snapshot'] = snapshotDisplay;
+				tableData.Snapshot = snapshotDisplay;
 			}
-			tableData['Executions'] = result.executions;
+			tableData.Executions = result.executions;
 			if (streamDisplay) {
-				tableData['Stream'] = streamDisplay;
+				tableData.Stream = streamDisplay;
 			} else {
 				if (result.stdoutStreamUrl)
 					tableData['Stream (stdout)'] = tui.link(result.stdoutStreamUrl);
@@ -140,16 +140,16 @@ export const getSubcommand = createCommand({
 					tableData['Stream (stderr)'] = tui.link(result.stderrStreamUrl);
 			}
 			if (result.dependencies && result.dependencies.length > 0) {
-				tableData['Dependencies'] = result.dependencies.join(', ');
+				tableData.Dependencies = result.dependencies.join(', ');
 			}
 			if (result.packages && result.packages.length > 0) {
-				tableData['Packages'] = result.packages.join(', ');
+				tableData.Packages = result.packages.join(', ');
 			}
 			if (resourceParts.length > 0) {
-				tableData['Resources'] = resourceParts.join(', ');
+				tableData.Resources = resourceParts.join(', ');
 			}
 			if (result.url) {
-				tableData['URL'] = tui.link(result.url);
+				tableData.URL = tui.link(result.url);
 			}
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });

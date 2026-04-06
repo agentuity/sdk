@@ -19,7 +19,7 @@ export interface TreeDataProviderState {
 export abstract class BaseTreeDataProvider<T extends BaseTreeItem>
 	implements vscode.TreeDataProvider<T>
 {
-	protected _onDidChangeTreeData = new vscode.EventEmitter<T | undefined | null | void>();
+	protected _onDidChangeTreeData = new vscode.EventEmitter<T | undefined | null | undefined>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
 	protected loading = false;

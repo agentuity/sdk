@@ -47,7 +47,7 @@ export const generateSubcommand = createSubcommand({
 		if (!mergedSchema.properties) {
 			mergedSchema.properties = {};
 		}
-		mergedSchema.properties['$schema'] = {
+		mergedSchema.properties.$schema = {
 			type: 'string',
 		};
 

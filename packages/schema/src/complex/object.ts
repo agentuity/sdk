@@ -1,6 +1,6 @@
 import type { Schema, Infer } from '../base.ts';
 import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base.ts';
-import { optional, OptionalSchema } from '../utils/optional.ts';
+import { optional, type OptionalSchema } from '../utils/optional.ts';
 import { nullable } from '../utils/nullable.ts';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

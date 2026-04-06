@@ -54,10 +54,10 @@ describe('@agentuity/core subpath exports', () => {
 		if (!pkgJson.typesVersions['*']) return;
 
 		// Verify workbench types are mapped
-		expect(pkgJson.typesVersions['*']['workbench']).toBeDefined();
-		if (!pkgJson.typesVersions['*']['workbench']) return;
+		expect(pkgJson.typesVersions['*'].workbench).toBeDefined();
+		if (!pkgJson.typesVersions['*'].workbench) return;
 
-		expect(pkgJson.typesVersions['*']['workbench']).toContain('./dist/workbench.d.ts');
+		expect(pkgJson.typesVersions['*'].workbench).toContain('./dist/workbench.d.ts');
 	});
 
 	test('dist/workbench.js exists and is valid', async () => {

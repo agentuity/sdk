@@ -91,7 +91,7 @@ function printTimeline(node: SpanNode, prefix: string, isLast = true): void {
 	let extra = '';
 	if (node.operation.startsWith('agentuity.')) {
 		if ('name' in node.attributes && 'key' in node.attributes) {
-			extra = tui.colorSuccess(`${node.attributes.name} ${node.attributes.key}`) + ' ';
+			extra = `${tui.colorSuccess(`${node.attributes.name} ${node.attributes.key}`)} `;
 		}
 	}
 	if (node.operation.startsWith('HTTP ') && 'http.url' in node.attributes) {
@@ -185,31 +185,30 @@ export const getSubcommand = createSubcommand({
 				Start: new Date(session.start_time).toLocaleString(),
 			};
 			if (session.end_time) {
-				tableData['End'] = new Date(session.end_time).toLocaleString();
+				tableData.End = new Date(session.end_time).toLocaleString();
 			}
 			if (session.duration != null && session.end_time != null) {
-				tableData['Duration'] = `${(session.duration / 1_000_000).toFixed(0)}ms`;
+				tableData.Duration = `${(session.duration / 1_000_000).toFixed(0)}ms`;
 			}
-			tableData['Method'] = session.method ?? '-';
-			tableData['URL'] = session.url ? tui.link(session.url, session.url) : '-';
-			tableData['Trigger'] = session.trigger;
+			tableData.Method = session.method ?? '-';
+			tableData.URL = session.url ? tui.link(session.url, session.url) : '-';
+			tableData.Trigger = session.trigger;
 			if (session.env !== 'production') {
-				tableData['Environment'] = session.env;
+				tableData.Environment = session.env;
 			}
 			tableData['Dev Mode'] = session.devmode ? 'Yes' : 'No';
-			tableData['Success'] = session.success ? tui.colorSuccess('✓') : tui.colorError('✗');
-			tableData['Pending'] = session.pending ? 'Yes' : 'No';
+			tableData.Success = session.success ? tui.colorSuccess('✓') : tui.colorError('✗');
+			tableData.Pending = session.pending ? 'Yes' : 'No';
 			if (session.error) {
-				tableData['Error'] = tui.colorError(session.error);
+				tableData.Error = tui.colorError(session.error);
 			}
 			if (enriched.agents.length > 0) {
-				tableData['Agents'] = enriched.agents
+				tableData.Agents = enriched.agents
 					.map((agent: AgentInfo) => `${agent.name} ${tui.muted(`(${agent.identifier})`)}`)
 					.join(', ');
 			}
 			if (enriched.route) {
-				tableData['Route'] =
-					`${enriched.route.method.toUpperCase()} ${enriched.route.path} ${tui.muted(`(${enriched.route.id})`)}`;
+				tableData.Route = `${enriched.route.method.toUpperCase()} ${enriched.route.path} ${tui.muted(`(${enriched.route.id})`)}`;
 			} else {
 				tableData['Route ID'] = session.route_id ?? '-';
 			}

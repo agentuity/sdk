@@ -139,39 +139,39 @@ export const getSubcommand = createCommand({
 			};
 
 			if (task.description) {
-				tableData['Description'] = task.description;
+				tableData.Description = task.description;
 			}
 
 			if (task.creator) {
-				tableData['Creator'] = `${task.creator.name} (${task.creator.id})`;
+				tableData.Creator = `${task.creator.name} (${task.creator.id})`;
 			}
 			if (task.assignee) {
-				tableData['Assigned'] = `${task.assignee.name} (${task.assignee.id})`;
+				tableData.Assigned = `${task.assignee.name} (${task.assignee.id})`;
 			}
 			if (task.project) {
-				tableData['Project'] = `${task.project.name} (${task.project.id})`;
+				tableData.Project = `${task.project.name} (${task.project.id})`;
 			}
 			if (task.parent_id) {
-				tableData['Parent'] = task.parent_id;
+				tableData.Parent = task.parent_id;
 			}
 			if (task.closer) {
 				tableData['Closed By'] = `${task.closer.name} (${task.closer.id})`;
 			}
 
-			tableData['Created'] = new Date(task.created_at).toLocaleString();
-			tableData['Updated'] = new Date(task.updated_at).toLocaleString();
+			tableData.Created = new Date(task.created_at).toLocaleString();
+			tableData.Updated = new Date(task.updated_at).toLocaleString();
 
 			if (task.open_date) {
-				tableData['Opened'] = new Date(task.open_date).toLocaleString();
+				tableData.Opened = new Date(task.open_date).toLocaleString();
 			}
 			if (task.in_progress_date) {
 				tableData['In Progress'] = new Date(task.in_progress_date).toLocaleString();
 			}
 			if (task.closed_date) {
-				tableData['Closed'] = new Date(task.closed_date).toLocaleString();
+				tableData.Closed = new Date(task.closed_date).toLocaleString();
 			}
 			if (task.cancelled_date) {
-				tableData['Cancelled'] = new Date(task.cancelled_date).toLocaleString();
+				tableData.Cancelled = new Date(task.cancelled_date).toLocaleString();
 			}
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 

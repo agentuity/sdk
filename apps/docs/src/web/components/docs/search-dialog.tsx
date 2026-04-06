@@ -358,7 +358,7 @@ function AISearchContent({
 			if (url && url !== '#' && url.startsWith('/')) {
 				onOpenChange(false);
 				void navigate({ to: url });
-			} else if (url && url.startsWith('http')) {
+			} else if (url?.startsWith('http')) {
 				window.open(url, '_blank', 'noopener');
 			}
 		},

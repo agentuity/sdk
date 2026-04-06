@@ -147,7 +147,7 @@ export async function discoverRoutes(
 				continue;
 			}
 
-			const relFile = './' + toForwardSlash(relative(srcDir, mount.routerFile));
+			const relFile = `./${toForwardSlash(relative(srcDir, mount.routerFile))}`;
 			const version = await generateFileVersion(mount.routerFile);
 
 			// Filter to actual route handlers (not middleware — middleware uses '*' or ALL method)
@@ -160,7 +160,7 @@ export async function discoverRoutes(
 				// Combine mount path with route path
 				let fullPath = route.path;
 				if (mount.path !== '/' && !fullPath.startsWith(mount.path)) {
-					fullPath = mount.path + (fullPath.startsWith('/') ? fullPath : '/' + fullPath);
+					fullPath = mount.path + (fullPath.startsWith('/') ? fullPath : `/${fullPath}`);
 				}
 
 				// Deduplicate (Hono may register same route multiple times for middleware)

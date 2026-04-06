@@ -1,4 +1,4 @@
-import { type APIClient } from '../api.ts';
+import type { APIClient } from '../api.ts';
 import {
 	CoderGitHubAccountListResponseSchema,
 	type CoderGitHubAccountListResponse,

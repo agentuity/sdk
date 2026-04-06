@@ -194,7 +194,7 @@ async function findRuntimePackage(rootDir: string, logger: Logger): Promise<stri
 
 	throw new RuntimePackageNotFound({
 		message:
-			`@agentuity/runtime package not found.\n` +
+			'@agentuity/runtime package not found.\n' +
 			`Searched paths:\n${searchedPaths.map((p) => `  - ${p}`).join('\n')}\n` +
 			`Make sure dependencies are installed by running 'bun install' or 'npm install'`,
 	});
@@ -314,7 +314,7 @@ async function updateTsconfigPathMapping(
 		}
 
 		if (JSON.stringify(tsconfig) === before) return;
-		await Bun.write(tsconfigPath, JSON.stringify(tsconfig, null, '\t') + '\n');
+		await Bun.write(tsconfigPath, `${JSON.stringify(tsconfig, null, '\t')}\n`);
 	} catch (error) {
 		logger.warn('Failed to update tsconfig.json:', error);
 	}

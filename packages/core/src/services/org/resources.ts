@@ -1,6 +1,6 @@
 import { SortDirectionSchema } from '../pagination.ts';
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api.ts';
+import { APIResponseSchema, type APIClient } from '../api.ts';
 import { OrgResourceResponseError } from './util.ts';
 
 export const OrgS3Resource = z.object({

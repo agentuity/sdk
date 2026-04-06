@@ -1,7 +1,7 @@
-import {
-	type SessionCompleteEvent,
-	type SessionEventProvider,
-	type SessionStartEvent,
+import type {
+	SessionCompleteEvent,
+	SessionEventProvider,
+	SessionStartEvent,
 } from '@agentuity/core';
 
 /**

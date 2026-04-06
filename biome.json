@@ -45,9 +45,7 @@
 		"rules": {
 			"recommended": true,
 			"correctness": {
-				"noUnusedVariables": "warn",
 				"noUnusedImports": "error",
-				"noUnusedFunctionParameters": "warn",
 				"useExhaustiveDependencies": "warn",
 				"useHookAtTopLevel": "warn",
 				"useParseIntRadix": "error",
@@ -55,44 +53,28 @@
 			},
 			"style": {
 				"noNonNullAssertion": "off",
-				"noUnusedTemplateLiteral": "off",
-				"useTemplate": "off",
-				"useImportType": "off",
-				"useNodejsImportProtocol": "off",
-				"useExponentiationOperator": "off",
+				"noUnusedTemplateLiteral": "error",
 				"useShorthandFunctionType": "error",
 				"useExportType": "error"
 			},
 			"suspicious": {
 				"noExplicitAny": "off",
-				"noEmptyInterface": "off",
-				"noConfusingVoidType": "off",
 				"noControlCharactersInRegex": "off",
 				"noGlobalIsNan": "error",
 				"noGlobalIsFinite": "error",
 				"noGlobalAssign": "warn",
 				"noArrayIndexKey": "warn",
 				"noAssignInExpressions": "warn",
-				"noTemplateCurlyInString": "warn",
 				"noImplicitAnyLet": "warn",
-				"noDocumentCookie": "warn",
 				"useIterableCallbackReturn": "off"
 			},
 			"complexity": {
-				"useLiteralKeys": "off",
-				"useOptionalChain": "off",
 				"noBannedTypes": "off",
-				"noUselessSwitchCase": "off",
-				"noUselessUndefinedInitialization": "off",
-				"noUselessContinue": "off",
 				"noUselessTernary": "error",
 				"noUselessFragments": "warn",
 				"useIndexOf": "error",
 				"noUselessEscapeInRegex": "error",
 				"useArrowFunction": "error"
-			},
-			"performance": {
-				"noAccumulatingSpread": "warn"
 			},
 			"a11y": {
 				"useButtonType": "off",

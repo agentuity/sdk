@@ -50,7 +50,7 @@ import type { RpcEvent } from './remote-session.ts';
 import { agentuityCoderHub } from './index.ts';
 import { handleRemoteUiRequest, REMOTE_FIRE_AND_FORGET_UI_METHODS } from './remote-ui-handler.ts';
 
-const DEBUG = !!process.env['AGENTUITY_DEBUG'];
+const DEBUG = !!process.env.AGENTUITY_DEBUG;
 
 function log(msg: string): void {
 	if (DEBUG) console.error(`[remote-tui] ${msg}`);
@@ -453,7 +453,7 @@ export async function runRemoteTui(options: {
 			const msg = (rpcEvent as any).message;
 			if (msg?.role === 'assistant') {
 				if (assistantStreamActive) {
-					log(`Dedup: skipping duplicate assistant message_start (stream already active)`);
+					log('Dedup: skipping duplicate assistant message_start (stream already active)');
 					return;
 				}
 				assistantStreamActive = true;

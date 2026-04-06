@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DataTreeDataProvider, DataTreeItem } from './dataTreeData';
+import { DataTreeDataProvider, type DataTreeItem } from './dataTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged } from '../../core/project';
 import { getCliClient } from '../../core/cliClient';
@@ -124,7 +124,7 @@ export function registerDataExplorer(context: vscode.ExtensionContext): DataTree
 						.map((log) => {
 							const timestamp = new Date(log.timestamp).toLocaleString();
 							const duration = `${log.duration}ms`;
-							const sql = log.sql.length > 200 ? log.sql.substring(0, 200) + '...' : log.sql;
+							const sql = log.sql.length > 200 ? `${log.sql.substring(0, 200)}...` : log.sql;
 							const errorLine = log.error ? `\n  ERROR: ${log.error}` : '';
 							return `[${timestamp}] [${log.command}] (${duration})\n  ${sql}${errorLine}`;
 						})

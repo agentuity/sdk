@@ -1,5 +1,5 @@
-import { z } from 'zod/v4';
-import { type APIClient } from '../api.ts';
+import type { z } from 'zod/v4';
+import type { APIClient } from '../api.ts';
 import {
 	CoderSessionDataQuerySchema,
 	CoderSessionEventHistorySchema,

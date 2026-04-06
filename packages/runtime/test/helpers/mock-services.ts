@@ -44,7 +44,7 @@ export function createMockKeyValueStorage(): KeyValueStorage {
 
 		async get<T>(name: string, key: string): Promise<DataResult<T>> {
 			const storeData = stores.get(name);
-			if (!storeData || !storeData.has(key)) {
+			if (!storeData?.has(key)) {
 				return { exists: false, data: undefined as never };
 			}
 			return {
@@ -286,7 +286,7 @@ export function createMockVectorStorage(): VectorStorage {
 			key: string
 		): Promise<VectorResult<T>> {
 			const store = stores.get(name);
-			if (!store || !store.has(key)) {
+			if (!store?.has(key)) {
 				return { exists: false, data: undefined as never };
 			}
 			const vec = store.get(key)!;

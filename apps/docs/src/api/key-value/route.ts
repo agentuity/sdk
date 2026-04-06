@@ -5,7 +5,7 @@
  * GET /get/:key  - Retrieves value for specified key
  * POST /seed     - Seeds KV store with sample data
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import kvAgent from '../../agent/kv/agent';
 import { Hono } from 'hono';
 

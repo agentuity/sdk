@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api.ts';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 import { ThreadSchema, type Thread } from './list.ts';
 import { ThreadResponseError } from './util.ts';
 

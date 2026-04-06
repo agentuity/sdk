@@ -32,7 +32,7 @@ export async function createTools(state: ToolState, agentContext: any) {
 			// Validate tutorial exists before starting
 			const tutorialResponse = await getTutorialMeta(tutorialId, agentContext);
 			if (!tutorialResponse.success || !tutorialResponse.data) {
-				return `Error fetching tutorial information`;
+				return 'Error fetching tutorial information';
 			}
 
 			const data = tutorialResponse.data;

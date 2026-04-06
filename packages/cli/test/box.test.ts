@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll } from 'bun:test';
-import { generateKeyPairSync, KeyObject } from 'node:crypto';
+import { generateKeyPairSync, type KeyObject } from 'node:crypto';
 import { Readable, Writable } from 'node:stream';
 import { encryptFIPSKEMDEMStream, decryptFIPSKEMDEMStream } from '../src/crypto/box';
 

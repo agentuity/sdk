@@ -968,7 +968,7 @@ export class WebRTCManager {
 		candidate: RTCIceCandidateInit
 	): Promise<void> {
 		const session = this.peers.get(fromPeerId);
-		if (!session || !session.hasRemoteDescription) {
+		if (!session?.hasRemoteDescription) {
 			if (session) {
 				session.pendingCandidates.push(candidate);
 			}

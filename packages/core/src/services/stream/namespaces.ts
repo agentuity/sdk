@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient } from '../api.ts';
+import type { APIClient } from '../api.ts';
 import { StreamResponseError } from './util.ts';
 
 // --- Schemas ---

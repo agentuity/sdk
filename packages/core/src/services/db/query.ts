@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIError } from '../api.ts';
+import { type APIClient, APIError } from '../api.ts';
 import { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
 export const QueryColumnSchema = z.object({

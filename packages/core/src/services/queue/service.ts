@@ -18,7 +18,7 @@
  * ```
  */
 
-import { FetchAdapter } from '../adapter.ts';
+import type { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException, toPayload } from '../_util.ts';
 import { StructuredError } from '../../error.ts';
 import { z } from 'zod';

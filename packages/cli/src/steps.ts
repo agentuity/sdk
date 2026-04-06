@@ -331,7 +331,7 @@ function installInterruptHandlers(onInterrupt: () => void): () => void {
 
 	// TTY raw mode fallback
 	const stdin = process.stdin as unknown as NodeJS.ReadStream;
-	if (stdin && stdin.isTTY) {
+	if (stdin?.isTTY) {
 		const onData = (buf: Buffer) => {
 			if (buf.length === 1 && buf[0] === 0x03) onInterrupt();
 		};
@@ -409,7 +409,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 			process.stdout.write('\x1B[0G');
 		}
 		process.stdout.write('\x1B[0J');
-		process.stdout.write(rendered.output + '\n');
+		process.stdout.write(`${rendered.output}\n`);
 
 		totalLinesFromLastRender = rendered.totalLines;
 	};
@@ -423,7 +423,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 
 		// Initial render
 		const initialRender = renderAllSteps(state, -1);
-		process.stdout.write(initialRender.output + '\n');
+		process.stdout.write(`${initialRender.output}\n`);
 		totalLinesFromLastRender = initialRender.totalLines;
 
 		// Execute steps
@@ -456,7 +456,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 					process.stdout.write('\x1B[0G'); // Move to column 0 (using absolute positioning)
 				}
 				process.stdout.write('\x1B[0J'); // Clear from cursor to end
-				process.stdout.write(rendered.output + '\n');
+				process.stdout.write(`${rendered.output}\n`);
 
 				totalLinesFromLastRender = rendered.totalLines;
 				currentFrameIndex++;
@@ -481,7 +481,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 					process.stdout.write('\x1B[0G');
 				}
 				process.stdout.write('\x1B[0J');
-				process.stdout.write(rendered.output + '\n');
+				process.stdout.write(`${rendered.output}\n`);
 
 				totalLinesFromLastRender = rendered.totalLines;
 			};
@@ -536,7 +536,7 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				process.stdout.write('\x1B[0G');
 			}
 			process.stdout.write('\x1B[0J');
-			process.stdout.write(finalRender.output + '\n');
+			process.stdout.write(`${finalRender.output}\n`);
 
 			totalLinesFromLastRender = finalRender.totalLines;
 

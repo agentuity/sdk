@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { type APIClient } from '../api.ts';
+import type { APIClient } from '../api.ts';
 import { normalizeCoderUrl } from './util.ts';
 
 export const DiscoverCoderUrlDataSchema = z

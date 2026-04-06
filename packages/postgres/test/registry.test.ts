@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import { shutdownAll, getClientCount, getClients, hasActiveClients } from '../src/registry';
-import { PostgresClient } from '../src/client';
+import type { PostgresClient } from '../src/client';
 
 // Symbol used by the registry
 const REGISTRY_KEY = Symbol.for('@agentuity/postgres:registry');

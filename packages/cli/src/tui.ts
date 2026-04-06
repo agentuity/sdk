@@ -9,10 +9,10 @@ import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
-import * as readline from 'readline';
+import * as readline from 'node:readline';
 import type { ColorScheme } from './terminal';
 import type { Profile } from './types';
-import { type APIClient as APIClientType } from './api';
+import type { APIClient as APIClientType } from './api';
 import { getExitCode } from './errors';
 import { maskSecret } from './env-util';
 import { getExecutingAgent } from './agent-detection';
@@ -671,8 +671,8 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 
 	// If required content width exceeds terminal width, skip box and print plain text
 	if (requiredContentWidth + 4 > termWidth) {
-		console.log('\n' + bold(title));
-		console.log(body + '\n');
+		console.log(`\n${bold(title)}`);
+		console.log(`${body}\n`);
 		return;
 	}
 
@@ -716,7 +716,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 		);
 	} else {
 		const titleRightPadding = Math.max(0, innerWidth - titleDisplayWidth);
-		const titleLine = `${titleColor}${bold(title)}${reset}` + ' '.repeat(titleRightPadding);
+		const titleLine = `${titleColor}${bold(title)}${reset}${' '.repeat(titleRightPadding)}`;
 		lines.push(
 			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
 		);
@@ -751,7 +751,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 	);
 
 	// Print the banner
-	console.log('\n' + lines.join('\n') + '\n');
+	console.log(`\n${lines.join('\n')}\n`);
 }
 
 /**
@@ -908,7 +908,7 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
-		`║ ⨺ Unauthenticated (local mode)               ║`,
+		'║ ⨺ Unauthenticated (local mode)               ║',
 		'║                                              ║',
 		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
 		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
@@ -935,7 +935,7 @@ export function showLocalOnlyWarning(): void {
 
 	const lines = [
 		'╔═══════════════════════════════════════════════════════════════╗',
-		`║ ⨺ Local-only mode                                             ║`,
+		'║ ⨺ Local-only mode                                             ║',
 		'║                                                               ║',
 		`║ ${TEXT}This project is not registered with Agentuity Cloud.${YELLOW}          ║`,
 		`║ ${TEXT}The following features are disabled:${YELLOW}                          ║`,
@@ -1268,7 +1268,7 @@ export async function spinner<T>(
 						? await options.callback((logMessage: string) => {
 								// In JSON mode, don't write logs to stdout
 								if (!isJsonMode) {
-									process.stdout.write(logMessage + '\n');
+									process.stdout.write(`${logMessage}\n`);
 								}
 							})
 						: options.type === 'countdown'
@@ -1620,7 +1620,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	const red = getColor('error');
 	const cmdColor =
 		currentColorScheme === 'light'
-			? '\x1b[1m' + (Bun.color('#00008B', 'ansi') || '\x1b[34m')
+			? `\x1b[1m${Bun.color('#00008B', 'ansi') || '\x1b[34m'}`
 			: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
 	const mutedColor = Bun.color('#808080', 'ansi') || '\x1b[90m';
 	const reset = getColor('reset');
@@ -2137,7 +2137,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 		}
 	}
 
-	return lines.join('\n') + '\n';
+	return `${lines.join('\n')}\n`;
 }
 
 /**
@@ -2159,7 +2159,7 @@ export function table<T extends Record<string, unknown>>(
 	data: T[],
 	columns?: (keyof T)[] | TableColumn[],
 	options?: TableOptions
-): string | void {
+): string | undefined {
 	if (!data || data.length === 0) {
 		return options?.render ? '' : undefined;
 	}

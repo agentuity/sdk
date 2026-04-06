@@ -120,13 +120,13 @@ export class RichError extends Error {
 			// include stack if present (limit to first line of stack header for brevity)
 			if (cur.stack) {
 				lines.push('');
-				lines.push(spacer + 'stack trace:');
+				lines.push(`${spacer}stack trace:`);
 				const stackLines = String(cur.stack).split('\n').slice(1); // drop first line (it's message)
 				if (stackLines.length > 0) {
 					// indent stack
 					let s = stackLines.map((s) => spacer + spacer + s.trim());
 					const lastLine = s[s.length - 1];
-					if (lastLine && lastLine.includes('processTicksAndRejections')) {
+					if (lastLine?.includes('processTicksAndRejections')) {
 						s = s.slice(0, s.length - 1);
 					}
 					lines.push(...s);
@@ -157,16 +157,16 @@ export class RichError extends Error {
 				const jsonlines = argsStr
 					.split('\n')
 					.filter(Boolean)
-					.map((l: string) => spacer + spacer + l + '\n')
+					.map((l: string) => `${spacer + spacer + l}\n`)
 					.join('');
 				lines.push('');
-				lines.push(spacer + 'context:\n' + jsonlines);
+				lines.push(`${spacer}context:\n${jsonlines}`);
 			}
 
 			// include cause summary if non-Error (could be object)
 			const c: unknown = cur.cause ?? curAny[_causeSym];
 			if (c && !(c instanceof Error)) {
-				lines.push(spacer + 'cause: ' + safeStringify(c, space));
+				lines.push(`${spacer}cause: ${safeStringify(c, space)}`);
 			}
 
 			cur = c instanceof Error ? c : undefined;

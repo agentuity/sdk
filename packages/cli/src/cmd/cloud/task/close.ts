@@ -197,7 +197,7 @@ export const closeSubcommand = createCommand({
 				} else if (content && Array.isArray((content as { ids?: string[] }).ids)) {
 					explicitIds = (content as { ids: string[] }).ids;
 				} else {
-					tui.fatal(`Invalid IDs file format. Expected array of IDs or { ids: [...] }`);
+					tui.fatal('Invalid IDs file format. Expected array of IDs or { ids: [...] }');
 				}
 			} catch (err) {
 				tui.fatal(`Failed to parse IDs file: ${err}`);

@@ -57,7 +57,7 @@ export const showCommand = createSubcommand({
 			const content = ctx.config;
 			if (!content) {
 				return logger.fatal(
-					`Failed to load profile configuration`,
+					'Failed to load profile configuration',
 					ErrorCode.INTERNAL_ERROR
 				) as never;
 			}

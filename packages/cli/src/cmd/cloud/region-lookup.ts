@@ -74,7 +74,7 @@ export async function getIdentifierRegion(
 	if (identifierType === 'project') {
 		if (!apiClient) {
 			tui.fatal(
-				`API client required for project region lookup. This is an internal error.`,
+				'API client required for project region lookup. This is an internal error.',
 				ErrorCode.INVALID_ARGUMENT
 			);
 		}
@@ -83,7 +83,7 @@ export async function getIdentifierRegion(
 	} else if (identifierType === 'deployment') {
 		if (!apiClient) {
 			tui.fatal(
-				`API client required for deployment region lookup. This is an internal error.`,
+				'API client required for deployment region lookup. This is an internal error.',
 				ErrorCode.INVALID_ARGUMENT
 			);
 		}
@@ -121,7 +121,7 @@ export async function getIdentifierRegion(
 		// sandbox - use CLI API to resolve across all orgs the user has access to
 		if (!apiClient) {
 			tui.fatal(
-				`API client required for sandbox region lookup. This is an internal error.`,
+				'API client required for sandbox region lookup. This is an internal error.',
 				ErrorCode.INVALID_ARGUMENT
 			);
 		}
@@ -136,7 +136,7 @@ export async function getIdentifierRegion(
 		// We still look up the webhook to validate it exists and cache the orgId.
 		if (!apiClient) {
 			tui.fatal(
-				`API client required for webhook region lookup. This is an internal error.`,
+				'API client required for webhook region lookup. This is an internal error.',
 				ErrorCode.INVALID_ARGUMENT
 			);
 		}

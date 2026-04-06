@@ -7,7 +7,7 @@
  * GET /list              - Lists all files in sdk-explorer bucket
  * POST /presign/:filename - Generates presigned URL for temporary access
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import { s3 } from 'bun';
 import objectstoreAgent from '../../agent/objectstore/agent';
 import { Hono } from 'hono';

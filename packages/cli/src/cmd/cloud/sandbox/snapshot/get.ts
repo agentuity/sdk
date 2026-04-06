@@ -115,25 +115,25 @@ export const getSubcommand = createCommand({
 				Name: snapshot.name,
 			};
 			if (snapshot.tag) {
-				tableData['Tag'] = snapshot.tag;
+				tableData.Tag = snapshot.tag;
 			}
 			if (snapshot.message) {
-				tableData['Message'] = snapshot.message;
+				tableData.Message = snapshot.message;
 			}
-			tableData['Size'] = tui.formatBytes(snapshot.sizeBytes);
-			tableData['Files'] = snapshot.fileCount;
+			tableData.Size = tui.formatBytes(snapshot.sizeBytes);
+			tableData.Files = snapshot.fileCount;
 			if (snapshot.public) {
-				tableData['Public'] = 'Yes';
+				tableData.Public = 'Yes';
 				if (snapshot.fullName) {
 					tableData['Full Name'] = snapshot.fullName;
 				}
 				if (snapshot.orgName) {
-					tableData['Publisher'] = snapshot.orgName;
+					tableData.Publisher = snapshot.orgName;
 				}
 			}
-			tableData['Created'] = snapshot.createdAt;
+			tableData.Created = snapshot.createdAt;
 			if (snapshot.parentSnapshotId) {
-				tableData['Parent'] = snapshot.parentSnapshotId;
+				tableData.Parent = snapshot.parentSnapshotId;
 			}
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });

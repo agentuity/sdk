@@ -1,5 +1,5 @@
 import { StructuredError } from '@agentuity/core';
-import { ProjectConfig } from '../../../types';
+import type { ProjectConfig } from '../../../types';
 
 const ProjectIDRequiredError = StructuredError(
 	'ProjectIDRequiredError',

@@ -76,25 +76,25 @@ export const getSubcommand = createCommand({
 				tableData['Exit Code'] = exitCodeColor(String(result.exitCode));
 			}
 			if (result.durationMs !== undefined) {
-				tableData['Duration'] = `${result.durationMs}ms`;
+				tableData.Duration = `${result.durationMs}ms`;
 			}
 			if (result.startedAt) {
-				tableData['Started'] = result.startedAt;
+				tableData.Started = result.startedAt;
 			}
 			if (result.completedAt) {
-				tableData['Completed'] = result.completedAt;
+				tableData.Completed = result.completedAt;
 			}
 			if (result.error) {
-				tableData['Error'] = tui.colorError(result.error);
+				tableData.Error = tui.colorError(result.error);
 			}
 			if (result.stdoutStreamUrl) {
-				tableData['Stdout'] = result.stdoutStreamUrl;
+				tableData.Stdout = result.stdoutStreamUrl;
 			}
 			if (result.stderrStreamUrl) {
-				tableData['Stderr'] = result.stderrStreamUrl;
+				tableData.Stderr = result.stderrStreamUrl;
 			}
 			if (result.command && result.command.length > 0) {
-				tableData['Command'] = result.command.join(' ');
+				tableData.Command = result.command.join(' ');
 			}
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });

@@ -151,8 +151,8 @@ function displayQueueAnalytics(analytics: QueueAnalytics): void {
 			const total = d.success_count + d.failure_count;
 			const errorRate = total > 0 ? (d.failure_count / total) * 100 : 0;
 			return {
-				ID: d.id.slice(0, 12) + '...',
-				URL: d.url.length > 40 ? d.url.slice(0, 37) + '...' : d.url,
+				ID: `${d.id.slice(0, 12)}...`,
+				URL: d.url.length > 40 ? `${d.url.slice(0, 37)}...` : d.url,
 				Success: formatNumber(d.success_count),
 				Failed: formatNumber(d.failure_count),
 				'Avg Response': d.avg_response_time_ms ? formatLatency(d.avg_response_time_ms) : '-',

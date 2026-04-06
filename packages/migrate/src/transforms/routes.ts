@@ -114,7 +114,7 @@ export function transformRouteFile(source: string): RouteTransformResult {
 			source: null,
 			complexityError:
 				`Route file calls createRouter() ${createRouterCount} times. ` +
-				`Only a single top-level router variable is supported by the auto-migration.`,
+				'Only a single top-level router variable is supported by the auto-migration.',
 			changes: [],
 		};
 	}
@@ -128,7 +128,7 @@ export function transformRouteFile(source: string): RouteTransformResult {
 			source: null,
 			complexityError:
 				`Router variable '${routerVarName}' appears to be re-assigned. ` +
-				`This pattern cannot be automatically migrated.`,
+				'This pattern cannot be automatically migrated.',
 			changes: [],
 		};
 	}
@@ -257,7 +257,7 @@ export function transformRouteFile(source: string): RouteTransformResult {
 	// This lets the barrel (src/api/index.ts) compose routers in a
 	// fully-typed way, and downstream consumers can reference sub-router types.
 	const exportDefaultPattern = new RegExp(`export\\s+default\\s+${routerVarName}\\s*;?`);
-	if (exportDefaultPattern.test(out) && !out.includes(`export type`)) {
+	if (exportDefaultPattern.test(out) && !out.includes('export type')) {
 		out = out.replace(
 			exportDefaultPattern,
 			`export type ${capitalize(routerVarName)}Type = typeof ${routerVarName};\n\nexport default ${routerVarName};`

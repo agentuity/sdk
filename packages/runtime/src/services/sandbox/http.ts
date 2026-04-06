@@ -1,5 +1,5 @@
 import {
-	APIClient,
+	type APIClient,
 	executionGet,
 	sandboxCreate,
 	sandboxDestroy,

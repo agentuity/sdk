@@ -111,9 +111,9 @@ describe('enrichContextWithTraceState', () => {
 
 			// TraceState has both old and new entries
 			const ts = parseTraceState(sctx.traceState);
-			expect(ts['existing']).toBe('value');
-			expect(ts['pid']).toBe('proj_123');
-			expect(ts['oid']).toBe('org_456');
+			expect(ts.existing).toBe('value');
+			expect(ts.pid).toBe('proj_123');
+			expect(ts.oid).toBe('org_456');
 		});
 
 		test('preserves isRemote flag from parent', () => {
@@ -155,9 +155,9 @@ describe('enrichContextWithTraceState', () => {
 
 			// TraceState has the entries
 			const ts = parseTraceState(sctx.traceState);
-			expect(ts['pid']).toBe('proj_abc');
-			expect(ts['oid']).toBe('org_xyz');
-			expect(ts['d']).toBe('1');
+			expect(ts.pid).toBe('proj_abc');
+			expect(ts.oid).toBe('org_xyz');
+			expect(ts.d).toBe('1');
 		});
 	});
 
@@ -170,9 +170,9 @@ describe('enrichContextWithTraceState', () => {
 			});
 
 			const ts = parseTraceState(trace.getSpan(enriched)!.spanContext().traceState);
-			expect(ts['pid']).toBe('proj_1');
-			expect(ts['did']).toBe('dep_1');
-			expect(ts['oid']).toBeUndefined();
+			expect(ts.pid).toBe('proj_1');
+			expect(ts.did).toBe('dep_1');
+			expect(ts.oid).toBeUndefined();
 		});
 
 		test('skips empty string values', () => {
@@ -182,8 +182,8 @@ describe('enrichContextWithTraceState', () => {
 			});
 
 			const ts = parseTraceState(trace.getSpan(enriched)!.spanContext().traceState);
-			expect(ts['pid']).toBeUndefined();
-			expect(ts['oid']).toBe('org_1');
+			expect(ts.pid).toBeUndefined();
+			expect(ts.oid).toBe('org_1');
 		});
 
 		test('handles empty entries (no-op)', () => {
@@ -237,10 +237,10 @@ describe('Recording span inheritance (integration)', () => {
 
 		// The critical assertion: the exported span's traceState has our entries
 		const ts = parseTraceState(exported.spanContext().traceState);
-		expect(ts['pid']).toBe('proj_export_test');
-		expect(ts['oid']).toBe('org_export_test');
-		expect(ts['did']).toBe('dep_export_test');
-		expect(ts['d']).toBe('1');
+		expect(ts.pid).toBe('proj_export_test');
+		expect(ts.oid).toBe('org_export_test');
+		expect(ts.did).toBe('dep_export_test');
+		expect(ts.d).toBe('1');
 	});
 
 	test('startActiveSpan inherits traceState from enriched parent (no incoming traceparent)', () => {
@@ -267,8 +267,8 @@ describe('Recording span inheritance (integration)', () => {
 
 		// The critical assertion: exported span carries traceState
 		const ts = parseTraceState(exported.spanContext().traceState);
-		expect(ts['pid']).toBe('proj_root');
-		expect(ts['oid']).toBe('org_root');
+		expect(ts.pid).toBe('proj_root');
+		expect(ts.oid).toBe('org_root');
 	});
 
 	test('startActiveSpan (4-arg overload) inherits traceState', async () => {
@@ -288,15 +288,15 @@ describe('Recording span inheritance (integration)', () => {
 		});
 
 		// Verify from inside the callback
-		expect(capturedTraceState['pid']).toBe('proj_4arg');
-		expect(capturedTraceState['aid']).toBe('agent_123');
+		expect(capturedTraceState.pid).toBe('proj_4arg');
+		expect(capturedTraceState.aid).toBe('agent_123');
 
 		// Also verify the exported span
 		const exportedSpans = exporter.getFinishedSpans();
 		expect(exportedSpans).toHaveLength(1);
 		const ts = parseTraceState(exportedSpans[0].spanContext().traceState);
-		expect(ts['pid']).toBe('proj_4arg');
-		expect(ts['aid']).toBe('agent_123');
+		expect(ts.pid).toBe('proj_4arg');
+		expect(ts.aid).toBe('agent_123');
 	});
 
 	test('child span inherits traceState from parent recording span', async () => {
@@ -320,8 +320,8 @@ describe('Recording span inheritance (integration)', () => {
 		// Both parent and child should have the same traceState
 		for (const exported of exportedSpans) {
 			const ts = parseTraceState(exported.spanContext().traceState);
-			expect(ts['pid']).toBe('proj_child');
-			expect(ts['oid']).toBe('org_child');
+			expect(ts.pid).toBe('proj_child');
+			expect(ts.oid).toBe('org_child');
 		}
 
 		// And they should share the same traceId
@@ -362,16 +362,16 @@ describe('Recording span inheritance (integration)', () => {
 		// Server span should have pid/oid but NOT aid
 		const serverExported = exportedSpans.find((s) => s.name === 'http-server-span')!;
 		const serverTs = parseTraceState(serverExported.spanContext().traceState);
-		expect(serverTs['pid']).toBe('proj_mid');
-		expect(serverTs['oid']).toBe('org_mid');
-		expect(serverTs['aid']).toBeUndefined();
+		expect(serverTs.pid).toBe('proj_mid');
+		expect(serverTs.oid).toBe('org_mid');
+		expect(serverTs.aid).toBeUndefined();
 
 		// Agent span should have pid/oid AND aid
 		const agentExported = exportedSpans.find((s) => s.name === 'agent.run')!;
 		const agentTs = parseTraceState(agentExported.spanContext().traceState);
-		expect(agentTs['pid']).toBe('proj_mid');
-		expect(agentTs['oid']).toBe('org_mid');
-		expect(agentTs['aid']).toBe('agent_42');
+		expect(agentTs.pid).toBe('proj_mid');
+		expect(agentTs.oid).toBe('org_mid');
+		expect(agentTs.aid).toBe('agent_42');
 	});
 });
 

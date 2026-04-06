@@ -268,7 +268,7 @@ export class TmuxSessionManager {
 		this.log(`onSessionDeleted called for ${event.sessionId}`);
 
 		if (!this.isEnabled()) {
-			this.log(`Skipping delete - tmux not enabled`);
+			this.log('Skipping delete - tmux not enabled');
 			return;
 		}
 

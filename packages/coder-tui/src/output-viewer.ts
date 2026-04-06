@@ -391,7 +391,7 @@ export class OutputViewerOverlay implements Component, Focusable {
 		for (let i = this.scrollOffset; i < sliceEnd; i++) {
 			const line = contentLines[i] ?? '';
 			content.push(
-				this.contentLine('   ' + truncateToWidth(line, Math.max(0, inner - 3)), inner)
+				this.contentLine(`   ${truncateToWidth(line, Math.max(0, inner - 3))}`, inner)
 			);
 		}
 

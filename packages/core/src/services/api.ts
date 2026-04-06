@@ -394,7 +394,7 @@ export class APIClient {
 
 		// Only set Accept header for JSON requests (not binary uploads)
 		if (!contentType || contentType === 'application/json') {
-			headers['Accept'] = 'application/json';
+			headers.Accept = 'application/json';
 		}
 
 		if (this.#config?.userAgent) {
@@ -404,7 +404,7 @@ export class APIClient {
 		}
 
 		if (this.#apiKey) {
-			headers['Authorization'] = `Bearer ${this.#apiKey}`;
+			headers.Authorization = `Bearer ${this.#apiKey}`;
 		}
 
 		if (this.#config?.headers) {
@@ -775,7 +775,7 @@ export class APIClient {
 
 	#getRetryDelay(attempt: number, baseDelayMs: number): number {
 		// Exponential backoff with jitter: delay = base * 2^attempt * (0.5 + random(0, 0.5))
-		const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
+		const exponentialDelay = baseDelayMs * 2 ** attempt;
 		const jitter = 0.5 + Math.random() * 0.5;
 		return Math.floor(exponentialDelay * jitter);
 	}

@@ -1,5 +1,11 @@
 import type { Logger, GlobalOptions } from './types';
-import { exitWithError, type StructuredError, ErrorCode, createError, getExitCode } from './errors';
+import {
+	exitWithError,
+	type StructuredError,
+	type ErrorCode,
+	createError,
+	getExitCode,
+} from './errors';
 
 /**
  * Enhanced logger wrapper that supports structured errors

@@ -468,7 +468,7 @@ describe('agent.validator()', () => {
 		// Security middleware that checks credentials BEFORE parsing body
 		const authMiddleware = async (c: Context, next: Next) => {
 			const authHeader = c.req.header('Authorization');
-			if (!authHeader || !authHeader.startsWith('Bearer ')) {
+			if (!authHeader?.startsWith('Bearer ')) {
 				return c.json({ error: 'Unauthorized' }, 401);
 			}
 			await next();

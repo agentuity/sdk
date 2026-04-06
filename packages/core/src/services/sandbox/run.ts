@@ -2,7 +2,7 @@ import type { Logger } from '../../logger.ts';
 import type { Readable, Writable } from 'node:stream';
 import { PassThrough } from 'node:stream';
 import { z } from 'zod';
-import { APIClient, PaymentRequiredError } from '../api.ts';
+import { type APIClient, PaymentRequiredError } from '../api.ts';
 import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';
 import { sandboxGetStatus } from './getStatus.ts';
@@ -68,7 +68,7 @@ export async function sandboxRun(
 ): Promise<SandboxRunResult> {
 	const { options, orgId, region, apiKey, signal, stdin, stdout, stderr, logger } = params;
 	const started = Date.now();
-	if (timingLogsEnabled) console.error(`[TIMING] +0ms: sandbox run started`);
+	if (timingLogsEnabled) console.error('[TIMING] +0ms: sandbox run started');
 
 	let stdinStreamId: string | undefined;
 	let stdinStreamUrl: string | undefined;

@@ -135,7 +135,7 @@ async function main() {
 	// Test list()
 	await runTest('list() - list objects', async () => {
 		const result = await s3Client.list({ prefix: 'test-' });
-		if (!result || !result.contents) {
+		if (!result?.contents) {
 			throw new Error('list() should return contents array');
 		}
 		const found = result.contents.some((obj: { key?: string }) => obj.key === testKey);

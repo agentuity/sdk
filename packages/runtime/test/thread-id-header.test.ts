@@ -201,8 +201,8 @@ describe('Thread ID Validation', () => {
 	});
 
 	test('isValidThreadId rejects thread IDs that are too long', () => {
-		expect(isValidThreadId('thrd_' + 'a'.repeat(60))).toBe(false); // 65 chars
-		expect(isValidThreadId('thrd_' + 'a'.repeat(100))).toBe(false);
+		expect(isValidThreadId(`thrd_${'a'.repeat(60)}`)).toBe(false); // 65 chars
+		expect(isValidThreadId(`thrd_${'a'.repeat(100)}`)).toBe(false);
 	});
 
 	test('isValidThreadId rejects thread IDs with invalid characters', () => {

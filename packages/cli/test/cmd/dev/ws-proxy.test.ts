@@ -33,7 +33,7 @@ function createEchoServer(port: number, label: string): Promise<Server> {
 		const server = createServer((socket) => {
 			socket.on('data', (data) => {
 				// Echo back with label prefix
-				socket.write(`[${label}] ` + data.toString());
+				socket.write(`[${label}] ${data.toString()}`);
 			});
 		});
 

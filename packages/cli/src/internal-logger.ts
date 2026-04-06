@@ -203,7 +203,7 @@ function getCurrentBucket(): number {
  */
 function parseBucketFromDirName(dirName: string): number | null {
 	const match = dirName.match(/^(\d+)-/);
-	if (match && match[1]) {
+	if (match?.[1]) {
 		return parseInt(match[1], 10);
 	}
 	return null;
@@ -406,7 +406,7 @@ export class InternalLogger implements Logger {
 				});
 				// Append any remaining args
 				if (argIndex < args.length) {
-					formattedMessage += ' ' + args.slice(argIndex).map(String).join(' ');
+					formattedMessage += ` ${args.slice(argIndex).map(String).join(' ')}`;
 				}
 			} else {
 				formattedMessage = [message, ...args].map(String).join(' ');
@@ -432,7 +432,7 @@ export class InternalLogger implements Logger {
 				...(Object.keys(context).length > 0 && { context }),
 			};
 
-			appendFileSync(this.logsFile, JSON.stringify(entry) + '\n');
+			appendFileSync(this.logsFile, `${JSON.stringify(entry)}\n`);
 		} catch (err) {
 			// If write fails, disable the logger to prevent repeated errors
 			console.debug(`Failed to write log entry: ${err}`);

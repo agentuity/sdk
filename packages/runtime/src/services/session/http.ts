@@ -1,4 +1,4 @@
-import { APIClient, APIResponseSchemaNoData } from '@agentuity/server';
+import { type APIClient, APIResponseSchemaNoData } from '@agentuity/server';
 import {
 	type SessionEventProvider,
 	type SessionStartEvent,

@@ -39,7 +39,7 @@ export class DeploymentTreeItem extends vscode.TreeItem {
 
 export class DeploymentTreeDataProvider implements vscode.TreeDataProvider<DeploymentTreeItem> {
 	private _onDidChangeTreeData = new vscode.EventEmitter<
-		DeploymentTreeItem | undefined | null | void
+		DeploymentTreeItem | undefined | null | undefined
 	>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 

@@ -1,4 +1,4 @@
-import { APIClient } from '../api.ts';
+import type { APIClient } from '../api.ts';
 import { OAuthOrgMembersResponseSchema, type OAuthOrgMember } from './types.ts';
 import { OAuthResponseError } from './util.ts';
 

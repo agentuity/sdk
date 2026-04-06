@@ -182,8 +182,8 @@ export async function ensureAuthDependencies(options: {
 	logger: Logger;
 }): Promise<boolean> {
 	const { projectDir } = options;
-	const fs = await import('fs');
-	const path = await import('path');
+	const fs = await import('node:fs');
+	const path = await import('node:path');
 
 	const packageJsonPath = path.join(projectDir, 'package.json');
 
@@ -365,7 +365,7 @@ export function splitSqlStatements(sql: string): string[] {
 			continue;
 		}
 
-		current += line + '\n';
+		current += `${line}\n`;
 
 		// If line ends with semicolon, it's end of statement
 		if (trimmed.endsWith(';')) {

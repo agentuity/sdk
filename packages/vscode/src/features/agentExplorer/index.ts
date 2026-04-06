@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
-import { AgentTreeDataProvider, AgentTreeItem } from './agentTreeData';
+import * as path from 'node:path';
+import { AgentTreeDataProvider, type AgentTreeItem } from './agentTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged, getCurrentProject } from '../../core/project';
 import { getSessionsUrl } from '../../core/urls';

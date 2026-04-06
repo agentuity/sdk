@@ -78,22 +78,22 @@ export const getSubcommand = createSubcommand({
 				tableData['Eval Name'] = evalRunData.evalName;
 			}
 			if (evalRunData.agentIdentifier) {
-				tableData['Agent'] = evalRunData.agentIdentifier;
+				tableData.Agent = evalRunData.agentIdentifier;
 			}
 			tableData['Session ID'] = evalRunData.sessionId;
-			tableData['Project'] = evalRunData.projectId;
-			tableData['Organization'] = evalRunData.orgId;
-			tableData['Devmode'] = evalRunData.devmode ? '✓ Yes' : '✗ No';
-			tableData['Success'] = evalRunData.success ? tui.colorSuccess('✓') : tui.colorError('✗');
-			tableData['Pending'] = evalRunData.pending ? '⏳ Yes' : '✓ No';
+			tableData.Project = evalRunData.projectId;
+			tableData.Organization = evalRunData.orgId;
+			tableData.Devmode = evalRunData.devmode ? '✓ Yes' : '✗ No';
+			tableData.Success = evalRunData.success ? tui.colorSuccess('✓') : tui.colorError('✗');
+			tableData.Pending = evalRunData.pending ? '⏳ Yes' : '✓ No';
 			if (evalRunData.result?.reason) {
-				tableData['Reason'] = evalRunData.result.reason;
+				tableData.Reason = evalRunData.result.reason;
 			}
 			if (evalRunData.error) {
-				tableData['Error'] = tui.colorError(evalRunData.error);
+				tableData.Error = tui.colorError(evalRunData.error);
 			}
-			tableData['Created'] = new Date(evalRunData.createdAt).toLocaleString();
-			tableData['Updated'] = new Date(evalRunData.updatedAt).toLocaleString();
+			tableData.Created = new Date(evalRunData.createdAt).toLocaleString();
+			tableData.Updated = new Date(evalRunData.updatedAt).toLocaleString();
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 

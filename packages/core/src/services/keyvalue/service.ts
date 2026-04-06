@@ -1,4 +1,4 @@
-import { FetchAdapter } from '../adapter.ts';
+import type { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException, toPayload } from '../_util.ts';
 import { ListParamsSchema, SortDirectionSchema } from '../pagination.ts';
 import { z } from 'zod';

@@ -127,12 +127,12 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[], workbenchPath?
 				// Skip workbench path (served by Bun)
 				if (
 					workbenchPath &&
-					(pathname === workbenchPath || pathname.startsWith(workbenchPath + '/'))
+					(pathname === workbenchPath || pathname.startsWith(`${workbenchPath}/`))
 				) {
 					return next();
 				}
 				for (const rp of routePaths) {
-					if (pathname === rp || pathname.startsWith(rp + '/')) return next();
+					if (pathname === rp || pathname.startsWith(`${rp}/`)) return next();
 				}
 
 				// If this isn't clearly a document navigation, still allow SPA fallback

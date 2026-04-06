@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
-import { join } from 'path';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
+import { join } from 'node:path';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { generatePatches, applyPatch } from '../../src/cmd/build/patch';
 import type { BunPlugin } from 'bun';
 
@@ -85,7 +85,7 @@ export async function runAgent() {
 				for (const [, patch] of patches) {
 					let modulePath = join('node_modules', patch.module, '.*');
 					if (patch.filename) {
-						modulePath = join('node_modules', patch.module, patch.filename + '.*');
+						modulePath = join('node_modules', patch.module, `${patch.filename}.*`);
 					}
 					build.onLoad(
 						{
@@ -144,7 +144,7 @@ export async function runAgent() {
 				for (const [, patch] of patches) {
 					let modulePath = join('node_modules', patch.module, '.*');
 					if (patch.filename) {
-						modulePath = join('node_modules', patch.module, patch.filename + '.*');
+						modulePath = join('node_modules', patch.module, `${patch.filename}.*`);
 					}
 					build.onLoad(
 						{
@@ -209,7 +209,7 @@ export { openai };
 				for (const [, patch] of patches) {
 					let modulePath = join('node_modules', patch.module, '.*');
 					if (patch.filename) {
-						modulePath = join('node_modules', patch.module, patch.filename + '.*');
+						modulePath = join('node_modules', patch.module, `${patch.filename}.*`);
 					}
 					build.onLoad(
 						{

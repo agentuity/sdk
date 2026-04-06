@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api.ts';
+import { type APIClient, APIResponseSchema } from '../api.ts';
 import { APIKeyResponseError } from './util.ts';
 
 export const APIKeySchema = z.object({

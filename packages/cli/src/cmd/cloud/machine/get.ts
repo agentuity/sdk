@@ -74,19 +74,19 @@ export const getSubcommand = createSubcommand({
 				if (machine.availabilityZone) {
 					tableData['Availability Zone'] = machine.availabilityZone;
 				}
-				tableData['Deployments'] = (machine.deploymentCount ?? 0).toString();
-				tableData['Created'] = new Date(machine.createdAt).toLocaleString();
+				tableData.Deployments = (machine.deploymentCount ?? 0).toString();
+				tableData.Created = new Date(machine.createdAt).toLocaleString();
 				if (machine.updatedAt) {
-					tableData['Updated'] = new Date(machine.updatedAt).toLocaleString();
+					tableData.Updated = new Date(machine.updatedAt).toLocaleString();
 				}
 				if (machine.startedAt) {
-					tableData['Started'] = new Date(machine.startedAt).toLocaleString();
+					tableData.Started = new Date(machine.startedAt).toLocaleString();
 				}
 				if (machine.stoppedAt) {
-					tableData['Stopped'] = new Date(machine.stoppedAt).toLocaleString();
+					tableData.Stopped = new Date(machine.stoppedAt).toLocaleString();
 				}
 				if (machine.error) {
-					tableData['Error'] = machine.error;
+					tableData.Error = machine.error;
 				}
 
 				tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });

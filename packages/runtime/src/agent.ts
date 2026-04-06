@@ -943,7 +943,7 @@ type InferStreamOutput<TOutput, TStream extends boolean> = TStream extends true
 		: ReadableStream<unknown>
 	: TOutput extends StandardSchemaV1
 		? InferOutput<TOutput>
-		: void;
+		: undefined;
 
 type SchemaInput<TSchema> = TSchema extends { input: infer I } ? I : undefined;
 type SchemaOutput<TSchema> = TSchema extends { output: infer O } ? O : undefined;
@@ -960,7 +960,7 @@ type SchemaHandlerReturn<TSchema> =
 			: ReadableStream<unknown>
 		: SchemaOutput<TSchema> extends StandardSchemaV1
 			? InferOutput<SchemaOutput<TSchema>>
-			: void;
+			: undefined;
 
 // Handler signature based on schema + setup result (no self-reference)
 type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
@@ -1381,7 +1381,7 @@ export type AgentName = keyof AgentRegistry extends never ? string : keyof Agent
  * This interface is augmented by generated code to provide strongly-typed agent access.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface AgentRegistry {}
+export type AgentRegistry = {};
 
 export const registerAgent = (name: AgentName, agent: Agent<any, any, any, any, any>): void => {
 	agents.set(name, agent);
@@ -1647,7 +1647,7 @@ export function createAgent<
 	const evalsArray: Eval[] = [];
 
 	const handler = async (input?: any) => {
-		let validatedInput: any = undefined;
+		let validatedInput: any;
 
 		if (inputSchema) {
 			const inputResult = await inputSchema['~standard'].validate(input);
@@ -1905,8 +1905,8 @@ export function createAgent<
 	if (!metadata.id && !metadata.agentId && runtimeConfig.getProjectId()) {
 		throw new Error(
 			`Agent "${name}" has no metadata IDs (id and agentId are empty). ` +
-				`This will result in empty agent_ids in session events. ` +
-				`Ensure agentuity.metadata.json exists in the runtime directory ` +
+				'This will result in empty agent_ids in session events. ' +
+				'Ensure agentuity.metadata.json exists in the runtime directory ' +
 				`(checked: ${process.cwd()}/agentuity.metadata.json and ${process.cwd()}/.agentuity/agentuity.metadata.json). ` +
 				`Run 'agentuity build' to generate the metadata file.`
 		);
@@ -2046,7 +2046,7 @@ export function createAgent<
 									if (result.issues) {
 										throw new ValidationError({
 											issues: result.issues,
-											message: `Eval input validation failed`,
+											message: 'Eval input validation failed',
 										});
 									}
 									evalValidatedInput = result.value;
@@ -2058,7 +2058,7 @@ export function createAgent<
 									if (result.issues) {
 										throw new ValidationError({
 											issues: result.issues,
-											message: `Eval output validation failed`,
+											message: 'Eval output validation failed',
 										});
 									}
 									evalValidatedOutput = result.value;
@@ -2177,7 +2177,7 @@ export function createAgent<
 								if (result.issues) {
 									throw new ValidationError({
 										issues: result.issues,
-										message: `Eval input validation failed`,
+										message: 'Eval input validation failed',
 									});
 								}
 								evalValidatedInput = result.value;
@@ -2188,7 +2188,7 @@ export function createAgent<
 								if (result.issues) {
 									throw new ValidationError({
 										issues: result.issues,
-										message: `Eval output validation failed`,
+										message: 'Eval output validation failed',
 									});
 								}
 								evalValidatedOutput = result.value;

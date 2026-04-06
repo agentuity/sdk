@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DeploymentTreeDataProvider, DeploymentTreeItem } from './deploymentTreeData';
+import { DeploymentTreeDataProvider, type DeploymentTreeItem } from './deploymentTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged } from '../../core/project';
 import { getCliClient } from '../../core/cliClient';

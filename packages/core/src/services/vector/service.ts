@@ -1,4 +1,4 @@
-import { FetchAdapter } from '../adapter.ts';
+import type { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException } from '../_util.ts';
 import { ListParamsSchema } from '../pagination.ts';
 import { safeStringify } from '../../json.ts';

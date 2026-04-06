@@ -308,7 +308,7 @@ describe('createApp({ router }) - user-provided router', () => {
 
 		// Simulate entry file: apply middleware to each prefix
 		for (const mount of mounts) {
-			const prefix = mount.path + '/*';
+			const prefix = `${mount.path}/*`;
 			app.use(prefix, async (c, next) => {
 				intercepted.push(c.req.path);
 				await next();

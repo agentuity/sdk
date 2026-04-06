@@ -129,7 +129,9 @@ export class DataTreeItem extends vscode.TreeItem {
 }
 
 export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeItem> {
-	private _onDidChangeTreeData = new vscode.EventEmitter<DataTreeItem | undefined | null | void>();
+	private _onDidChangeTreeData = new vscode.EventEmitter<
+		DataTreeItem | undefined | null | undefined
+	>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
 	private vectorSearchGroups: VectorSearchGroup[] = [];
@@ -669,7 +671,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 
 				const items = messages.map((msg) => {
 					const item = new DataTreeItem(
-						msg.id.substring(0, 16) + '...',
+						`${msg.id.substring(0, 16)}...`,
 						vscode.TreeItemCollapsibleState.None,
 						'queueMessage',
 						'queue',
@@ -740,7 +742,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 
 				const items = messages.map((msg) => {
 					const item = new DataTreeItem(
-						msg.id.substring(0, 16) + '...',
+						`${msg.id.substring(0, 16)}...`,
 						vscode.TreeItemCollapsibleState.None,
 						'dlqMessage',
 						'queue',

@@ -31,14 +31,14 @@ const agent = createAgent('hello', {
 		if (email) {
 			greeting += ` Your email is ${email}.`;
 		} else {
-			greeting += ` (No auth session available)`;
+			greeting += ' (No auth session available)';
 		}
 
 		if (org) {
 			greeting += ` You're a ${org.role} in ${org.name}.`;
 		}
 
-		greeting += ` Welcome to Agentuity 🤖.`;
+		greeting += ' Welcome to Agentuity 🤖.';
 
 		// If the user wants a poem, hand off to the poem agent
 		if (wantPoem && email) {

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { type Env as HonoEnv } from 'hono';
+import type { Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
 import type { compress } from 'hono/compress';
 import type { Logger } from './logger';
@@ -612,7 +612,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 	if (config?.router) {
 		const mounts = normalizeRouterConfig(config.router);
 		for (const mount of mounts) {
-			const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
+			const prefix = mount.path.endsWith('/') ? `${mount.path}*` : `${mount.path}/*`;
 			app.use(prefix, createCorsMiddleware(config?.cors));
 			app.use(prefix, createOtelMiddleware());
 			app.use(prefix, createAgentMiddleware(''));

@@ -33,7 +33,7 @@ async function main() {
 	// ============================================================
 	// Test 2: Run a simple query
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 2: Run a simple query');
 	console.log('═'.repeat(60));
 
@@ -45,7 +45,7 @@ async function main() {
 	// ============================================================
 	// Test 3: Run a query with parameters
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 3: Run a more complex query');
 	console.log('═'.repeat(60));
 
@@ -57,7 +57,7 @@ async function main() {
 	// ============================================================
 	// Test 4: Query with LIMIT
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 4: Query tables with LIMIT');
 	console.log('═'.repeat(60));
 
@@ -76,7 +76,7 @@ async function main() {
 		console.log('\n   ⏭️  Skipping (no tables found)');
 	}
 
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('✨ Database test completed successfully!');
 	console.log('═'.repeat(60));
 }

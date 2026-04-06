@@ -135,7 +135,7 @@ export const listSubcommand = createSubcommand({
 					Pending: r.pending ? '⏳' : '✓',
 					Reason: reason
 						? reason.length > 30
-							? reason.substring(0, 27) + '...'
+							? `${reason.substring(0, 27)}...`
 							: reason
 						: '-',
 					Created: new Date(r.createdAt).toLocaleString(),

@@ -178,7 +178,6 @@ export function StreamingDemo() {
 				return 'success';
 			case 'error':
 				return 'error';
-			case 'idle':
 			default:
 				return 'idle';
 		}

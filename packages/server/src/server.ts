@@ -217,7 +217,7 @@ function logAPIDebug(
 	} else {
 		// Append to file
 		try {
-			appendFileSync(output, content + '\n');
+			appendFileSync(output, `${content}\n`);
 		} catch {
 			// If file write fails, fall back to console.error
 			console.error(`[API DEBUG] Failed to write to ${output}, falling back to console`);
@@ -269,7 +269,7 @@ const redactHeaders = (kv: Record<string, string>): string => {
 			values.push(`${_k}=${v}`);
 		}
 	}
-	return '[' + values.join(',') + ']';
+	return `[${values.join(',')}]`;
 };
 
 class ServerFetchAdapter implements FetchAdapter {
@@ -312,8 +312,8 @@ class ServerFetchAdapter implements FetchAdapter {
 			headers['Content-Type'] = 'application/octet-stream';
 		}
 		// Ensure we request JSON responses for proper error handling
-		if (!headers['Accept'] && !headers['accept']) {
-			headers['Accept'] = 'application/json';
+		if (!headers.Accept && !headers.accept) {
+			headers.Accept = 'application/json';
 		}
 		const method: HttpMethod = options.method ?? 'POST';
 		this.#logger.trace('sending %s to %s with headers: %s', method, url, redactHeaders(headers));
@@ -378,8 +378,8 @@ class ServerFetchAdapter implements FetchAdapter {
 		const finalUrl = this.#buildUrl(url);
 
 		if (this.#config.onBefore) {
-			let result: FetchResponse<T> | undefined = undefined;
-			let err: Error | undefined = undefined;
+			let result: FetchResponse<T> | undefined;
+			let err: Error | undefined;
 			await this.#config.onBefore(finalUrl, options, async () => {
 				try {
 					result = await this._invoke(finalUrl, options);

@@ -187,7 +187,7 @@ function extractTextDeltas(text: string): string {
  */
 function extractTutorialData(text: string): TutorialData | null {
 	const match = text.match(/"type":"tutorial-data","tutorialData":(\{[^}]+\})/);
-	if (match && match[1]) {
+	if (match?.[1]) {
 		try {
 			return JSON.parse(match[1]) as TutorialData;
 		} catch {
@@ -202,7 +202,7 @@ function extractTutorialData(text: string): TutorialData | null {
  */
 function extractSources(text: string): Source[] {
 	const match = text.match(/"type":"sources","sources":(\[[^\]]*\])/);
-	if (match && match[1]) {
+	if (match?.[1]) {
 		try {
 			return JSON.parse(match[1]) as Source[];
 		} catch {

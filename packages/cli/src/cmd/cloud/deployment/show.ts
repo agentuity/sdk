@@ -99,25 +99,25 @@ export const showSubcommand = createSubcommand({
 					Created: new Date(deployment.createdAt).toLocaleString(),
 				};
 				if (deployment.updatedAt) {
-					tableData['Updated'] = new Date(deployment.updatedAt).toLocaleString();
+					tableData.Updated = new Date(deployment.updatedAt).toLocaleString();
 				}
 				if (deployment.message) {
-					tableData['Message'] = deployment.message;
+					tableData.Message = deployment.message;
 				}
 				if (deployment.tags.length > 0) {
-					tableData['Tags'] = deployment.tags.join(', ');
+					tableData.Tags = deployment.tags.join(', ');
 				}
 				if (deployment.customDomains && deployment.customDomains.length > 0) {
-					tableData['Domains'] = deployment.customDomains.join(', ');
+					tableData.Domains = deployment.customDomains.join(', ');
 				}
 				if (deployment.cloudRegion) {
-					tableData['Region'] = deployment.cloudRegion;
+					tableData.Region = deployment.cloudRegion;
 				}
 				if (deployment.resourceDb) {
-					tableData['Database'] = deployment.resourceDb;
+					tableData.Database = deployment.resourceDb;
 				}
 				if (deployment.resourceStorage) {
-					tableData['Storage'] = deployment.resourceStorage;
+					tableData.Storage = deployment.resourceStorage;
 				}
 				if (deployment.deploymentLogsURL) {
 					tableData['Deployment Logs'] = tui.link(deployment.deploymentLogsURL);
@@ -135,19 +135,19 @@ export const showSubcommand = createSubcommand({
 				const git = deployment.metadata?.git;
 				if (git) {
 					const gitData: Record<string, string> = {};
-					if (git.repo) gitData['Repo'] = git.repo;
-					if (git.branch) gitData['Branch'] = git.branch;
-					if (git.commit) gitData['Commit'] = git.commit;
-					if (git.message) gitData['Message'] = git.message;
-					if (git.url) gitData['URL'] = git.url;
-					if (git.trigger) gitData['Trigger'] = git.trigger;
-					if (git.provider) gitData['Provider'] = git.provider;
-					if (git.event) gitData['Event'] = git.event;
+					if (git.repo) gitData.Repo = git.repo;
+					if (git.branch) gitData.Branch = git.branch;
+					if (git.commit) gitData.Commit = git.commit;
+					if (git.message) gitData.Message = git.message;
+					if (git.url) gitData.URL = git.url;
+					if (git.trigger) gitData.Trigger = git.trigger;
+					if (git.provider) gitData.Provider = git.provider;
+					if (git.event) gitData.Event = git.event;
 					if (git.pull_request) {
-						gitData['PR'] = `#${git.pull_request.number}`;
+						gitData.PR = `#${git.pull_request.number}`;
 						if (git.pull_request.url) gitData['PR URL'] = git.pull_request.url;
 					}
-					if (git.buildUrl) gitData['Build'] = git.buildUrl;
+					if (git.buildUrl) gitData.Build = git.buildUrl;
 
 					if (Object.keys(gitData).length > 0) {
 						tui.newline();
@@ -163,10 +163,10 @@ export const showSubcommand = createSubcommand({
 				const build = deployment.metadata?.build;
 				if (build) {
 					const buildData: Record<string, string> = {};
-					if (build.agentuity) buildData['Agentuity'] = build.agentuity;
-					if (build.bun) buildData['Bun'] = build.bun;
-					if (build.platform) buildData['Platform'] = build.platform;
-					if (build.arch) buildData['Arch'] = build.arch;
+					if (build.agentuity) buildData.Agentuity = build.agentuity;
+					if (build.bun) buildData.Bun = build.bun;
+					if (build.platform) buildData.Platform = build.platform;
+					if (build.arch) buildData.Arch = build.arch;
 
 					if (Object.keys(buildData).length > 0) {
 						tui.newline();

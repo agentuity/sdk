@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchemaNoData } from '../api.ts';
+import { type APIClient, APIResponseSchemaNoData } from '../api.ts';
 import { OrgResponseError } from './util.ts';
 
 export const OrgEnvDeleteRequestSchema = z.object({

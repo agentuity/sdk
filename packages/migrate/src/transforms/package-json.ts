@@ -34,7 +34,7 @@ export function transformPackageJson(
 		for (const outdated of outdatedPackages) {
 			const { name, section } = outdated;
 
-			if (pkg[section] && pkg[section][name]) {
+			if (pkg[section]?.[name]) {
 				pkg[section][name] = '^2.0.0';
 				updated.push(`${name}: ${outdated.currentVersion} → ^2.0.0`);
 			}
@@ -46,7 +46,7 @@ export function transformPackageJson(
 
 		// Format with indentation (matching typical package.json style)
 		return {
-			content: JSON.stringify(pkg, null, '\t') + '\n',
+			content: `${JSON.stringify(pkg, null, '\t')}\n`,
 			updated,
 		};
 	} catch {

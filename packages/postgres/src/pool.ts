@@ -212,7 +212,7 @@ export class PostgresPool extends EventEmitter implements Registrable {
 		text: string | pg.QueryConfig<unknown[]>,
 		values?: unknown[] | ((err: Error | null, result?: pg.QueryResult<T>) => void),
 		callback?: (err: Error | null, result?: pg.QueryResult<T>) => void
-	): Promise<pg.QueryResult<T>> | void {
+	): Promise<pg.QueryResult<T>> | undefined {
 		const handler = typeof values === 'function' ? values : callback;
 		const queryValues = typeof values === 'function' ? undefined : values;
 
@@ -263,7 +263,7 @@ export class PostgresPool extends EventEmitter implements Registrable {
 			client?: pg.PoolClient,
 			release?: (err?: Error) => void
 		) => void
-	): Promise<pg.PoolClient> | void {
+	): Promise<pg.PoolClient> | undefined {
 		if (callback) {
 			void this._executeWithRetry(async () => {
 				const pool = await this._ensureConnectedAsync();

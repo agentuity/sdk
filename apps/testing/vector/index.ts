@@ -56,7 +56,7 @@ async function main() {
 	// ============================================================
 	// Test 2: Search for similar vectors
 	// ============================================================
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('Test 2: Search for similar vectors');
 	console.log('═'.repeat(60));
 
@@ -90,7 +90,7 @@ async function main() {
 		console.log(`   - ${result.key} (score: ${result.similarity?.toFixed(4)})`);
 	}
 
-	console.log('\n' + '═'.repeat(60));
+	console.log(`\n${'═'.repeat(60)}`);
 	console.log('✨ Vector test completed successfully!');
 	console.log('═'.repeat(60));
 }

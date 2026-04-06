@@ -7,7 +7,8 @@
  * @module agentuity/react
  */
 
-import React, { useEffect, createContext, useContext, useState, useMemo } from 'react';
+import type React from 'react';
+import { useEffect, createContext, useContext, useState, useMemo } from 'react';
 import { createAuthClient as createBetterAuthClient } from 'better-auth/react';
 import { organizationClient } from 'better-auth/client/plugins';
 import { apiKeyClient } from '@better-auth/api-key/client';

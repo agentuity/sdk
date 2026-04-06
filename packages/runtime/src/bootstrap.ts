@@ -14,7 +14,7 @@ import { mimeTypes } from '@agentuity/server';
 
 import { runShutdown } from './app';
 import type { AnalyticsOptions, WorkbenchOptions } from './app';
-import { createRouter } from './router';
+import type { createRouter } from './router';
 import { createWebSessionMiddleware } from './middleware';
 import { enableProcessExitProtection } from './_process-protection';
 import { hasWaitUntilPending } from './_waituntil';
@@ -122,7 +122,7 @@ function injectAnalytics(
 	const injection = configScript + sessionScript + beaconScript;
 
 	if (html.includes('</head>')) {
-		return html.replace('</head>', injection + '</head>');
+		return html.replace('</head>', `${injection}</head>`);
 	}
 	if (html.includes('<body')) {
 		return html.replace(/<body([^>]*)>/, `<body$1>${injection}`);

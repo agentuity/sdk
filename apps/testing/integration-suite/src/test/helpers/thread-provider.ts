@@ -177,7 +177,7 @@ export class InMemoryThreadProvider implements ThreadProvider {
 		// Get thread ID from cookie, or generate new one
 		let threadId = getCookie(ctx, THREAD_COOKIE_NAME);
 
-		if (!threadId || !threadId.startsWith('thrd_')) {
+		if (!threadId?.startsWith('thrd_')) {
 			// Must match runtime thread id constraints: min 32 chars including prefix,
 			// and [a-zA-Z0-9-] after 'thrd_'.
 			threadId = `thrd_${crypto.randomUUID().replaceAll('-', '')}`;

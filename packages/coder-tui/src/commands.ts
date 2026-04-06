@@ -15,7 +15,7 @@ import { handleReview } from './review.ts';
 
 type HubStatus = 'connected' | 'reconnecting' | 'offline';
 
-const DEBUG = !!process.env['AGENTUITY_DEBUG'];
+const DEBUG = !!process.env.AGENTUITY_DEBUG;
 
 function log(msg: string): void {
 	if (DEBUG) console.error(`[agentuity-coder] ${msg}`);

@@ -18,7 +18,7 @@ const MAX_QUEUED_MESSAGES = 1_000;
 /** How long queued requests may wait for reconnection before failing. */
 const QUEUED_REQUEST_TIMEOUT_MS = 120_000;
 
-const DEBUG = !!process.env['AGENTUITY_DEBUG'];
+const DEBUG = !!process.env.AGENTUITY_DEBUG;
 
 function log(message: string): void {
 	if (DEBUG) console.error(`[agentuity-coder] ${message}`);
@@ -81,11 +81,11 @@ export class HubClient {
 	private buildWebSocketUrl(url: string): string {
 		let wsUrl = url;
 		if (wsUrl.startsWith('http://')) {
-			wsUrl = 'ws://' + wsUrl.slice(7);
+			wsUrl = `ws://${wsUrl.slice(7)}`;
 		} else if (wsUrl.startsWith('https://')) {
-			wsUrl = 'wss://' + wsUrl.slice(8);
+			wsUrl = `wss://${wsUrl.slice(8)}`;
 		} else if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-			wsUrl = 'ws://' + wsUrl;
+			wsUrl = `ws://${wsUrl}`;
 		}
 		return wsUrl;
 	}

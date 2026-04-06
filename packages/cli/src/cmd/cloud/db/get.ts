@@ -199,16 +199,16 @@ export const getSubcommand = createSubcommand({
 				Name: tui.bold(db.name),
 			};
 			if (db.org_name || db.org_id) {
-				tableData['Organization'] = db.org_name || db.org_id;
+				tableData.Organization = db.org_name || db.org_id;
 			}
 			if (db.description) {
-				tableData['Description'] = db.description;
+				tableData.Description = db.description;
 			}
 			if (db.cloud_region) {
-				tableData['Region'] = db.cloud_region;
+				tableData.Region = db.cloud_region;
 			}
 			if (db.url) {
-				tableData['URL'] = shouldMask ? tui.maskSecret(db.url) : db.url;
+				tableData.URL = shouldMask ? tui.maskSecret(db.url) : db.url;
 			}
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });

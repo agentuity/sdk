@@ -1,4 +1,4 @@
-import { basename, join } from 'path';
+import { basename, join } from 'node:path';
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
@@ -240,19 +240,19 @@ export const createSubcommand = createCommand({
 			};
 
 			if (task.description) {
-				tableData['Description'] = task.description;
+				tableData.Description = task.description;
 			}
 
 			if (task.tags?.length) {
-				tableData['Tags'] = task.tags.map((t) => t.name).join(', ');
+				tableData.Tags = task.tags.map((t) => t.name).join(', ');
 			}
 
 			if (project) {
-				tableData['Project'] = project.name;
+				tableData.Project = project.name;
 			}
 
 			if (attachmentInfo) {
-				tableData['Attachment'] = `${attachmentInfo.filename} (${attachmentInfo.id})`;
+				tableData.Attachment = `${attachmentInfo.filename} (${attachmentInfo.id})`;
 			}
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });

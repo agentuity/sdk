@@ -688,7 +688,7 @@ export function isValidThreadId(threadId: string): boolean {
  */
 export function validateThreadIdOrThrow(threadId: string): void {
 	if (!threadId) {
-		throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
+		throw new Error('the ThreadIDProvider returned an empty thread id for getThreadId');
 	}
 	if (!threadId.startsWith('thrd_')) {
 		throw new Error(
@@ -1466,7 +1466,7 @@ export class ThreadWebSocketClient {
 							const rejectFn = this.initialConnectReject || reject;
 							this.initialConnectResolve = null;
 							this.initialConnectReject = null;
-							rejectFn(new Error(`WebSocket error`));
+							rejectFn(new Error('WebSocket error'));
 						}
 					}
 				});
@@ -1498,7 +1498,7 @@ export class ThreadWebSocketClient {
 					if (this.reconnectAttempts < this.maxReconnectAttempts) {
 						this.reconnectAttempts++;
 						const delay = Math.min(
-							this.reconnectBaseDelayMs * Math.pow(2, this.reconnectAttempts),
+							this.reconnectBaseDelayMs * 2 ** this.reconnectAttempts,
 							this.reconnectMaxDelayMs
 						);
 

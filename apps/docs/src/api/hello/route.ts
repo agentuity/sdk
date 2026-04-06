@@ -4,7 +4,7 @@
  * GET /  - Returns greeting with default name "World"
  * POST / - Returns greeting with custom name from JSON body
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import helloAgent from '../../agent/hello/agent';
 import { Hono } from 'hono';
 

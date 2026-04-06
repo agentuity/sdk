@@ -526,14 +526,14 @@ async function handleStatus(stream: vscode.ChatResponseStream): Promise<vscode.C
 			`✓ Logged in as **${authStatus.user.firstName} ${authStatus.user.lastName}**\n\n`
 		);
 	} else {
-		stream.markdown(`✗ Not logged in\n\n`);
+		stream.markdown('✗ Not logged in\n\n');
 		stream.button({ title: 'Login', command: 'agentuity.login' });
 	}
 
 	// Show current CLI profile
 	const profileResult = await cli.getCurrentProfile();
 	if (profileResult.success && profileResult.data) {
-		stream.markdown(`### CLI Profile\n`);
+		stream.markdown('### CLI Profile\n');
 		stream.markdown(`Active: \`${profileResult.data}\`\n\n`);
 	}
 

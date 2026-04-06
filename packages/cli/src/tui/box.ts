@@ -33,7 +33,7 @@ function wrapText(text: string, width: number): string[] {
 			if (currentLine) lines.push(currentLine);
 			// Truncate long words with ellipsis if width allows, otherwise just slice
 			if (width >= 4) {
-				lines.push(word.slice(0, width - 3) + '...');
+				lines.push(`${word.slice(0, width - 3)}...`);
 			} else {
 				lines.push(word.slice(0, Math.max(0, width)));
 			}

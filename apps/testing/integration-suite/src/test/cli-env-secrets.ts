@@ -180,7 +180,7 @@ test('cli-env-secrets', 'env-set-secret-allows-whitelisted-agentuity-auth-secret
 	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes('AGENTUITY_AUTH_SECRET'));
 	assert(
-		Boolean(keyLine && keyLine.includes('[secret]')),
+		Boolean(keyLine?.includes('[secret]')),
 		`AGENTUITY_AUTH_SECRET should be listed as secret: ${keyLine || 'not found'}`
 	);
 
@@ -419,10 +419,7 @@ test('cli-env-secrets', 'env-set-secret-allows-valid-key', async () => {
 	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(
-		Boolean(keyLine && keyLine.includes('[secret]')),
-		`${testKey} should be listed as secret`
-	);
+	assert(Boolean(keyLine?.includes('[secret]')), `${testKey} should be listed as secret`);
 
 	// Cleanup
 	await cliAgent.run({
@@ -463,10 +460,7 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-key-name', async () => {
 	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(
-		Boolean(keyLine && keyLine.includes('[secret]')),
-		`${testKey} should be listed as secret`
-	);
+	assert(Boolean(keyLine?.includes('[secret]')), `${testKey} should be listed as secret`);
 
 	// Cleanup
 	await cliAgent.run({
@@ -508,10 +502,7 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-value', async () => {
 	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(
-		Boolean(keyLine && keyLine.includes('[secret]')),
-		`${testKey} should be listed as secret`
-	);
+	assert(Boolean(keyLine?.includes('[secret]')), `${testKey} should be listed as secret`);
 
 	// Cleanup
 	await cliAgent.run({
@@ -718,7 +709,7 @@ test('cli-env-secrets', 'env-secret-preserves-status-on-update', async () => {
 	const linesBefore = listBeforeOutput.split('\n');
 	const keyLineBefore = linesBefore.find((l) => l.includes(testKey));
 	assert(
-		Boolean(keyLineBefore && keyLineBefore.includes('[secret]')),
+		Boolean(keyLineBefore?.includes('[secret]')),
 		`Should be listed as secret initially: ${keyLineBefore || 'key not found'}`
 	);
 
@@ -735,7 +726,7 @@ test('cli-env-secrets', 'env-secret-preserves-status-on-update', async () => {
 	const linesAfter = listAfterOutput.split('\n');
 	const keyLineAfter = linesAfter.find((l) => l.includes(testKey));
 	assert(
-		Boolean(keyLineAfter && keyLineAfter.includes('[secret]')),
+		Boolean(keyLineAfter?.includes('[secret]')),
 		`Should still be a secret after update without --secret flag: ${keyLineAfter || 'key not found'}`
 	);
 

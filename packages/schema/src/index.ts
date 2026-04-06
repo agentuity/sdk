@@ -61,8 +61,8 @@ import { coerceBoolean } from './coerce/boolean.ts';
 import { coerceDate } from './coerce/date.ts';
 
 import type { Infer as InferType, Schema } from './base.ts';
-import { LiteralSchema } from './utils/literal.ts';
-import { UnionSchema } from './utils/union.ts';
+import type { LiteralSchema } from './utils/literal.ts';
+import type { UnionSchema } from './utils/union.ts';
 
 /**
  * Create an enum schema (union of literal values).

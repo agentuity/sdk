@@ -1,4 +1,4 @@
-import * as React from 'react';
+import type * as React from 'react';
 import { cn } from '../../lib/utils';
 
 function Input({ className, type, autoComplete = 'off', ...props }: React.ComponentProps<'input'>) {

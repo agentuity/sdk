@@ -4,7 +4,7 @@
  * POST / - Send message to chat agent (with optional command)
  * GET  / - Usage information
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import chatAgent from '../../agent/chat/agent';
 import { Hono } from 'hono';
 

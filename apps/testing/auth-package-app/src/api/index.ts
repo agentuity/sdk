@@ -224,7 +224,7 @@ api.post(
 			id: result.id,
 			name: result.name,
 			key: result.key, // Only shown once!
-			keyPreview: result.key?.slice(0, 10) + '...',
+			keyPreview: `${result.key?.slice(0, 10)}...`,
 			expiresAt: result.expiresAt,
 			permissions: permissions ?? null,
 		});

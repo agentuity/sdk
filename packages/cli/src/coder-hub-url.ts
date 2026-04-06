@@ -1,8 +1,8 @@
 export function normalizeCoderHubHttpUrl(url: string): string {
 	let normalized = url.trim().replace(/\/+$/, '');
 
-	if (normalized.startsWith('ws://')) normalized = 'http://' + normalized.slice(5);
-	else if (normalized.startsWith('wss://')) normalized = 'https://' + normalized.slice(6);
+	if (normalized.startsWith('ws://')) normalized = `http://${normalized.slice(5)}`;
+	else if (normalized.startsWith('wss://')) normalized = `https://${normalized.slice(6)}`;
 
 	normalized = normalized.replace(/\/api\/ws\b.*$/, '');
 	normalized = normalized.replace(/\/ws\b.*$/, '');
@@ -13,8 +13,8 @@ export function normalizeCoderHubHttpUrl(url: string): string {
 
 export function toCoderHubWsUrl(hubHttpUrl: string): string {
 	let wsUrl = hubHttpUrl;
-	if (wsUrl.startsWith('http://')) wsUrl = 'ws://' + wsUrl.slice(7);
-	else if (wsUrl.startsWith('https://')) wsUrl = 'wss://' + wsUrl.slice(8);
+	if (wsUrl.startsWith('http://')) wsUrl = `ws://${wsUrl.slice(7)}`;
+	else if (wsUrl.startsWith('https://')) wsUrl = `wss://${wsUrl.slice(8)}`;
 
 	try {
 		const parsed = new URL(wsUrl);

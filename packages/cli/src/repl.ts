@@ -303,7 +303,7 @@ export async function createRepl(config: ReplConfig): Promise<void> {
 
 				tui.newline();
 				console.log(`  ${tui.bold('exit')} ${tui.muted('(quit, q)')}`);
-				console.log(`    Exit the REPL`);
+				console.log('    Exit the REPL');
 			},
 		};
 		commandMap.set('help', helpCommand);
@@ -499,7 +499,7 @@ export async function createRepl(config: ReplConfig): Promise<void> {
 				return formatter(msg); // debug messages have no icon
 			}
 
-			return `${formatter(icon + ' ' + msg)}`;
+			return `${formatter(`${icon} ${msg}`)}`;
 		};
 
 		// Create abort controller for this command
@@ -662,7 +662,7 @@ function getAutocompleteSuggestion(
 
 		// Add argument placeholders if schema exists
 		if (cmd?.schema?.argNames) {
-			suggestion += ' ' + cmd.schema.argNames.map((name) => `<${name}>`).join(' ');
+			suggestion += ` ${cmd.schema.argNames.map((name) => `<${name}>`).join(' ')}`;
 		}
 		// Add subcommand hint if this command has subcommands
 		else if (cmd?.subcommands && cmd.subcommands.length > 0) {
@@ -687,7 +687,7 @@ function getAutocompleteSuggestion(
 
 		// Add argument placeholders for subcommand
 		if (subcommand?.schema?.argNames) {
-			suggestion += ' ' + subcommand.schema.argNames.map((name) => `<${name}>`).join(' ');
+			suggestion += ` ${subcommand.schema.argNames.map((name) => `<${name}>`).join(' ')}`;
 		}
 
 		return suggestion;
@@ -843,7 +843,7 @@ async function showCommandPicker(
 	// Calculate max command text length for padding
 	const maxCmdLength = Math.max(
 		...commands.map((cmd) => {
-			const cmdText = `${cmd.name}${cmd.argHint ? ' ' + cmd.argHint : ''}`;
+			const cmdText = `${cmd.name}${cmd.argHint ? ` ${cmd.argHint}` : ''}`;
 			return cmdText.length;
 		})
 	);
@@ -854,7 +854,7 @@ async function showCommandPicker(
 
 		// Draw header
 		console.log(
-			tui.bold('Command Picker') + ' ' + tui.muted('(↑/↓ navigate, Enter select, Esc cancel)')
+			`${tui.bold('Command Picker')} ${tui.muted('(↑/↓ navigate, Enter select, Esc cancel)')}`
 		);
 
 		// Draw commands
@@ -866,7 +866,7 @@ async function showCommandPicker(
 			const style = isSelected ? '\x1b[7m' : ''; // Reverse video for selected
 			const reset = isSelected ? '\x1b[0m' : '';
 
-			const cmdText = `${cmd.name}${cmd.argHint ? ' ' + cmd.argHint : ''}`;
+			const cmdText = `${cmd.name}${cmd.argHint ? ` ${cmd.argHint}` : ''}`;
 			const paddedCmdText = cmdText.padEnd(maxCmdLength);
 			const description = tui.muted(cmd.description);
 
@@ -1030,10 +1030,7 @@ async function readLine(
 		const searchHistory = (query: string, startFrom: number): number => {
 			for (let i = startFrom - 1; i >= 0; i--) {
 				const historyEntry = history[i];
-				if (
-					historyEntry !== undefined &&
-					historyEntry.toLowerCase().includes(query.toLowerCase())
-				) {
+				if (historyEntry?.toLowerCase().includes(query.toLowerCase())) {
 					return i;
 				}
 			}
@@ -1167,7 +1164,7 @@ async function readLine(
 
 				// Move back up to prompt line
 				process.stdout.write('\x1b[A'); // Move up one line
-				process.stdout.write(`\r`); // Go to start of line
+				process.stdout.write('\r'); // Go to start of line
 				process.stdout.write(promptWithBuffer); // Redraw prompt
 
 				// Position cursor at correct location

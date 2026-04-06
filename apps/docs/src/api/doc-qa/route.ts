@@ -1,4 +1,4 @@
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import docQAAgent from '@agent/doc_qa';
 import { documentPathToUrl } from '../../lib/doc-urls';
 import { Hono } from 'hono';

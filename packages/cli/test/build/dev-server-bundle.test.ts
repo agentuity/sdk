@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { join } from 'path';
+import { join } from 'node:path';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 
 /**

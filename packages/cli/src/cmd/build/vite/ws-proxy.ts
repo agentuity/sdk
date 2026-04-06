@@ -77,7 +77,7 @@ export function startWsProxy(options: WsProxyOptions): Promise<Server> {
 					const pathname = (pathMatch?.[1] ?? '/').split('?')[0] ?? '/';
 
 					const isBackendPath = wsPathPrefixes.some(
-						(prefix) => pathname === prefix || pathname.startsWith(prefix + '/')
+						(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
 					);
 
 					if (isBackendPath) {

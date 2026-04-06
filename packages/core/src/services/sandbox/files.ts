@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient } from '../api.ts';
+import type { APIClient } from '../api.ts';
 import { SandboxResponseError, throwSandboxError } from './util.ts';
 import type { FileToWrite } from './types.ts';
 

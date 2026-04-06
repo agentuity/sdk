@@ -1,5 +1,5 @@
 import {
-	APIClient,
+	type APIClient,
 	APIResponseSchemaNoData,
 	ValidationInputError,
 	ValidationOutputError,

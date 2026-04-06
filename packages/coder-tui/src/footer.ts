@@ -109,9 +109,9 @@ function buildFooter(left: string, rightText: string, width: number): string {
 	if (total > safeWidth) {
 		const maxLeft = safeWidth - rightLen - 1;
 		if (maxLeft > 0) {
-			return truncateAnsi(left, maxLeft) + ' ' + rightText;
+			return `${truncateAnsi(left, maxLeft)} ${rightText}`;
 		}
-		return truncateAnsi(left + ' ' + rightText, safeWidth);
+		return truncateAnsi(`${left} ${rightText}`, safeWidth);
 	}
 
 	const gap = safeWidth - leftLen - rightLen;

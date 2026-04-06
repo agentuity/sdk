@@ -73,7 +73,7 @@ export async function httpRequest(
 	jar?: CookieJar
 ): Promise<Response> {
 	// Add cookies from jar if provided
-	if (jar && jar.getCookieHeader()) {
+	if (jar?.getCookieHeader()) {
 		options.headers = {
 			...options.headers,
 			Cookie: jar.getCookieHeader(),

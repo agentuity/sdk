@@ -1,7 +1,7 @@
-import {
-	type EvalRunEventProvider,
-	type EvalRunStartEvent,
-	type EvalRunCompleteEvent,
+import type {
+	EvalRunEventProvider,
+	EvalRunStartEvent,
+	EvalRunCompleteEvent,
 } from '@agentuity/core';
 
 /**

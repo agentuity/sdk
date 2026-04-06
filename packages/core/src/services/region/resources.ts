@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api.ts';
+import { APIResponseSchema, type APIClient } from '../api.ts';
 import { RegionResponseError } from './util.ts';
 
 export const ResourceListResponse = z.object({

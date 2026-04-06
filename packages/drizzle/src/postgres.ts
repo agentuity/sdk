@@ -1,4 +1,4 @@
-import { SQL as BunSQL, type SQL as BunSQLClient, type SQLOptions } from 'bun';
+import type { SQL as BunSQL, SQL as BunSQLClient, SQLOptions } from 'bun';
 import { drizzle as upstreamDrizzle, type BunSQLDatabase } from 'drizzle-orm/bun-sql';
 import {
 	drizzle as nodePgDrizzle,

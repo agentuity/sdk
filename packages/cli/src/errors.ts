@@ -186,15 +186,6 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		// Upgrade required - CLI version too old
 		case ErrorCode.UPGRADE_REQUIRED:
 			return ExitCode.UPGRADE_REQUIRED;
-
-		// Resource conflicts and other errors
-		case ErrorCode.RESOURCE_ALREADY_EXISTS:
-		case ErrorCode.RESOURCE_CONFLICT:
-		case ErrorCode.ORG_REQUIRED:
-		case ErrorCode.REGION_REQUIRED:
-		case ErrorCode.RUNTIME_ERROR:
-		case ErrorCode.INTERNAL_ERROR:
-		case ErrorCode.NOT_IMPLEMENTED:
 		default:
 			return ExitCode.GENERAL_ERROR;
 	}

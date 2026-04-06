@@ -251,7 +251,7 @@ export async function migrate(opts: MigrateOptions = {}): Promise<MigrateResult>
 			writeFileSync(detection.appTsPath, result.source, 'utf8');
 			changedFiles.push('app.ts');
 			allChangeSummary.push({ file: 'app.ts', changes: result.changes });
-			printStepDone(result.changes.length + ' change(s)');
+			printStepDone(`${result.changes.length} change(s)`);
 		} else {
 			printStepSkipped('no mechanical changes needed');
 		}
@@ -263,7 +263,7 @@ export async function migrate(opts: MigrateOptions = {}): Promise<MigrateResult>
 	if (detection.v1RouteFiles.length > 0) {
 		console.log(`\n  Transforming ${detection.v1RouteFiles.length} route file(s):`);
 		for (const routeFile of detection.v1RouteFiles) {
-			const relPath = routeFile.replace(projectDir + '/', '');
+			const relPath = routeFile.replace(`${projectDir}/`, '');
 			printStep(relPath);
 
 			const src = await Bun.file(routeFile).text();
@@ -395,7 +395,7 @@ export async function migrate(opts: MigrateOptions = {}): Promise<MigrateResult>
 	if (changedFiles.length > 0) {
 		printSuccess(
 			`Migration complete! ${changedFiles.length} file(s) modified.\n` +
-				`  Review the changes with: git diff`
+				'  Review the changes with: git diff'
 		);
 	} else {
 		printSuccess('Migration complete! No files needed to be changed.');

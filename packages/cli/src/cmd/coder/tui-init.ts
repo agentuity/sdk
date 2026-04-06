@@ -33,7 +33,7 @@ export async function probeHubInitAccess(
 		if (options.apiKey.startsWith('agc_')) {
 			headers['x-agentuity-auth-api-key'] = options.apiKey;
 		} else {
-			headers['authorization'] = `Bearer ${options.apiKey}`;
+			headers.authorization = `Bearer ${options.apiKey}`;
 		}
 	}
 	if (options?.orgId) {

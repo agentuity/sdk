@@ -147,7 +147,7 @@ export async function startViteAssetServer(
 	const actualPort = availablePort;
 
 	logger.debug(`Vite dev server running on port ${actualPort} (primary)`);
-	logger.debug(`Frontend: HMR, React transformation, source maps (native)`);
+	logger.debug('Frontend: HMR, React transformation, source maps (native)');
 	logger.debug(`Backend: proxying to Bun on port ${backendPort}`);
 
 	return { server, port: actualPort };

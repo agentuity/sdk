@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api.ts';
+import { APIResponseSchema, APIResponseSchemaNoData, type APIClient } from '../api.ts';
 import { MachineResponseError } from './util.ts';
 
 // TODO: The old /cli/auth/machine/* endpoints should be aliased to redirect

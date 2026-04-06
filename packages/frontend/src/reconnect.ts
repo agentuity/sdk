@@ -40,7 +40,7 @@ export function createReconnectManager(opts: ReconnectOptions): ReconnectManager
 		const factor = opts.factor ?? 2;
 		const max = opts.maxDelay ?? 30000;
 		const jitterMax = opts.jitter ?? 250;
-		const backoff = Math.min(base * Math.pow(factor, attemptAfterThreshold), max);
+		const backoff = Math.min(base * factor ** attemptAfterThreshold, max);
 		const jitter = jitterMax > 0 ? Math.random() * jitterMax : 0;
 		return backoff + jitter;
 	};

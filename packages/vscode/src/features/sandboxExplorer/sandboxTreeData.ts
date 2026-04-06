@@ -400,7 +400,7 @@ export class SandboxTreeItem extends vscode.TreeItem {
  */
 export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxTreeItem> {
 	private _onDidChangeTreeData = new vscode.EventEmitter<
-		SandboxTreeItem | undefined | null | void
+		SandboxTreeItem | undefined | null | undefined
 	>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -648,7 +648,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 			} else {
 				// Subdirectory: only show direct children
 				// File must start with dirPath/
-				if (!filePath.startsWith(dirPath + '/')) {
+				if (!filePath.startsWith(`${dirPath}/`)) {
 					return false;
 				}
 				// The remaining part after dirPath/ should not contain another '/'

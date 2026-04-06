@@ -98,7 +98,7 @@ export async function loadAliasMap(projectDir: string, logger: Logger): Promise<
 		const content = await lockfile.text();
 		const parsed = parseBunLockFile(content);
 
-		if (!parsed || !parsed.packages) {
+		if (!parsed?.packages) {
 			return aliasMap;
 		}
 

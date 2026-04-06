@@ -131,11 +131,11 @@ export class WorkflowService {
 		const url = this.#createUrl('/workflow/list');
 		const signal = createTimeoutSignal();
 		const queryParams: Record<string, string> = {};
-		if (params?.limit !== undefined) queryParams['limit'] = String(params.limit);
-		if (params?.offset !== undefined) queryParams['offset'] = String(params.offset);
-		if (params?.status) queryParams['status'] = params.status;
-		if (params?.source_type) queryParams['source_type'] = params.source_type;
-		if (params?.filter) queryParams['filter'] = params.filter;
+		if (params?.limit !== undefined) queryParams.limit = String(params.limit);
+		if (params?.offset !== undefined) queryParams.offset = String(params.offset);
+		if (params?.status) queryParams.status = params.status;
+		if (params?.source_type) queryParams.source_type = params.source_type;
+		if (params?.filter) queryParams.filter = params.filter;
 
 		const qs = new URLSearchParams(queryParams);
 		const qsStr = qs.toString();
@@ -468,7 +468,7 @@ export class WorkflowService {
 		const url = this.#createUrl('/workflow/activity');
 		const signal = createTimeoutSignal();
 		const queryParams: Record<string, string> = {};
-		if (days !== undefined) queryParams['days'] = String(days);
+		if (days !== undefined) queryParams.days = String(days);
 
 		const qs = new URLSearchParams(queryParams);
 		const qsStr = qs.toString();

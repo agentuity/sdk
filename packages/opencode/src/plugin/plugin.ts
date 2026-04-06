@@ -622,7 +622,7 @@ function createTools(dbReader?: OpenCodeDBReader): Hooks['tool'] {
 			session_id: s.string().describe('Parent session ID to inspect'),
 		},
 		async execute(args) {
-			if (!dbReader || !dbReader.isAvailable()) {
+			if (!dbReader?.isAvailable()) {
 				const err = new OpenCodeDashboardUnavailableError();
 				return JSON.stringify({
 					success: false,
@@ -840,7 +840,7 @@ function getCurrentActivity(reader: OpenCodeDBReader, sessionId: string): string
 	const firstPart = textParts[0];
 	if (firstPart) {
 		const text = firstPart.text.trim();
-		if (text.length > 80) return text.substring(0, 77) + '...';
+		if (text.length > 80) return `${text.substring(0, 77)}...`;
 		return text;
 	}
 

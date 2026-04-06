@@ -706,7 +706,7 @@ export class StreamStorageService implements StreamStorage {
 			props.contentType = 'application/octet-stream';
 		}
 		if (props?.metadata) {
-			attributes['metadata'] = JSON.stringify(props.metadata);
+			attributes.metadata = JSON.stringify(props.metadata);
 		}
 		if (props?.contentType) {
 			attributes['stream.content_type'] = props.contentType;
@@ -762,19 +762,19 @@ export class StreamStorageService implements StreamStorage {
 			if (params.limit <= 0 || params.limit > 1000) {
 				throw new StreamLimitInvalidError();
 			}
-			attributes['limit'] = String(params.limit);
+			attributes.limit = String(params.limit);
 		}
 		if (params?.offset !== undefined) {
-			attributes['offset'] = String(params.offset);
+			attributes.offset = String(params.offset);
 		}
 		if (params?.namespace) {
-			attributes['namespace'] = params.namespace;
+			attributes.namespace = params.namespace;
 		}
 		if (params?.name) {
-			attributes['name'] = params.name;
+			attributes.name = params.name;
 		}
 		if (params?.metadata) {
-			attributes['metadata'] = JSON.stringify(params.metadata);
+			attributes.metadata = JSON.stringify(params.metadata);
 		}
 
 		// Map namespace to name for the API (backend still uses 'name')

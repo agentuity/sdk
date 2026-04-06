@@ -5,7 +5,7 @@
  * POST /             - Generates content and runs evaluations
  * GET /session/:id   - Fetches eval results from KV storage
  */
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import evalsAgent from '../../agent/evals/agent';
 import { EVAL_BUCKET, EVAL_NAMES } from '../../agent/evals/eval';
 import { Hono } from 'hono';

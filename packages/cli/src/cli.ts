@@ -465,7 +465,7 @@ async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectC
 			// Truncate and pad name for alignment
 			const displayName =
 				p.name.length > maxNameLength
-					? p.name.substring(0, maxNameLength - 1) + '…'
+					? `${p.name.substring(0, maxNameLength - 1)}…`
 					: p.name.padEnd(maxNameLength);
 
 			return {
@@ -633,7 +633,7 @@ export async function createCLI(version: string): Promise<Command> {
 				// self-suppression — writeErr suppresses output when jsonErrorEmitted is true
 				jsonErrorEmitted = true;
 				process.stderr.write(
-					formatErrorJSON(createError(code, message, undefined, suggestions)) + '\n'
+					`${formatErrorJSON(createError(code, message, undefined, suggestions))}\n`
 				);
 				return;
 			}
@@ -1006,7 +1006,7 @@ export async function resolveRegion(opts: ResolveRegionOptions): Promise<string 
 				{ availableRegions: regions.map((r) => r.region) },
 				[
 					`Use --region with one of: ${regions.map((r) => r.region).join(', ')}`,
-					`Or set AGENTUITY_REGION environment variable`,
+					'Or set AGENTUITY_REGION environment variable',
 				]
 			),
 			logger,
@@ -1089,7 +1089,7 @@ async function registerSubcommand(
 				const padding = ' '.repeat(maxLength - ex.command.length + 1);
 				return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
 			});
-			return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n');
+			return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n${formatted.join('\n')}`;
 		});
 	}
 
@@ -1352,7 +1352,7 @@ async function registerSubcommand(
 			if (!hasAgentSeenInputHint(detectedAgent)) {
 				markAgentInputHintSeen(detectedAgent);
 				console.error(
-					`[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.`
+					'[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.'
 				);
 			}
 		}
@@ -2311,7 +2311,7 @@ export async function registerCommands(
 						const padding = ' '.repeat(maxLength - ex.command.length + 1);
 						return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
 					});
-					return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n');
+					return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n${formatted.join('\n')}`;
 				});
 			}
 

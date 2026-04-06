@@ -64,20 +64,20 @@ export function transformAppTs(source: string, detection: DetectionResult): AppT
 			source: null,
 			complexityError:
 				`app.ts appears to be the v1 CLI-generated entry file (detected ${markerCount} internal ` +
-				`framework markers). This file cannot be automatically migrated.\n` +
-				`\n` +
-				`Action required:\n` +
-				`  Replace app.ts with a clean v2 entry:\n` +
-				`\n` +
+				'framework markers). This file cannot be automatically migrated.\n' +
+				'\n' +
+				'Action required:\n' +
+				'  Replace app.ts with a clean v2 entry:\n' +
+				'\n' +
 				`     import { createApp } from '@agentuity/runtime';\n` +
 				`     import router from './src/api';\n` +
 				`     import agents from './src/agent';\n` +
-				`\n` +
-				`     const { server, logger } = await createApp({\n` +
+				'\n' +
+				'     const { server, logger } = await createApp({\n' +
 				`       router: { path: '/api', router },\n` +
-				`       agents,\n` +
-				`     });\n` +
-				`\n` +
+				'       agents,\n' +
+				'     });\n' +
+				'\n' +
 				`     logger.debug('Running %s', server.url);\n`,
 			changes: [],
 		};
@@ -120,16 +120,16 @@ export function transformAppTs(source: string, detection: DetectionResult): AppT
 		// We do NOT remove setup/shutdown — they require human judgment.
 		// Instead, prepend a prominent comment block.
 		const comment =
-			`// ⚠️  MIGRATION REQUIRED — setup/shutdown removed in v2\n` +
-			`//\n` +
-			`// Move initialisation logic to module-level code (top of this file).\n` +
+			'// ⚠️  MIGRATION REQUIRED — setup/shutdown removed in v2\n' +
+			'//\n' +
+			'// Move initialisation logic to module-level code (top of this file).\n' +
 			`// For cleanup, use Hono's standard patterns or Bun's process hooks:\n` +
-			`//\n` +
+			'//\n' +
 			`//   process.on('beforeExit', async () => {\n` +
-			`//     // your cleanup here\n` +
-			`//   });\n` +
-			`//\n` +
-			`// Then remove the setup and shutdown props from createApp().\n`;
+			'//     // your cleanup here\n' +
+			'//   });\n' +
+			'//\n' +
+			'// Then remove the setup and shutdown props from createApp().\n';
 
 		// Insert just before the createApp call
 		// Match: const { a, b } = await createApp  OR  const foo = await createApp  OR  export default await createApp

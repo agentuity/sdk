@@ -995,7 +995,7 @@ describe('QueueStorageService', () => {
 			const result = await service.publish('my_queue', 'test');
 
 			expect(result.publishedAt).toBe(timestamp);
-			expect((result as Record<string, unknown>)['published_at']).toBeUndefined();
+			expect((result as Record<string, unknown>).published_at).toBeUndefined();
 		});
 
 		test('should ignore extra fields from server response', async () => {

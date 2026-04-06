@@ -163,7 +163,7 @@ export function createCadenceHooks(
 
 			// Fallback: try to extract iteration from loose "iteration: N" pattern
 			const iterMatch = messageText.match(/iteration[:\s]+(\d+)/i);
-			if (iterMatch && iterMatch[1]) {
+			if (iterMatch?.[1]) {
 				const newIteration = parseInt(iterMatch[1], 10);
 				if (newIteration !== state.iteration) {
 					state.iteration = newIteration;
@@ -548,7 +548,7 @@ function buildSqliteDashboardSummary(
 	dbReader: OpenCodeDBReader | undefined,
 	parentSessionId: string
 ): string | undefined {
-	if (!dbReader || !dbReader.isAvailable()) return undefined;
+	if (!dbReader?.isAvailable()) return undefined;
 
 	const dashboard = dbReader.getSessionDashboard(parentSessionId);
 	if (!dashboard.sessions.length) return undefined;

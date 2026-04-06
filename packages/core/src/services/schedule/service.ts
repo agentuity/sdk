@@ -1,4 +1,4 @@
-import { FetchAdapter } from '../adapter.ts';
+import type { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException } from '../_util.ts';
 import { z } from 'zod';
 

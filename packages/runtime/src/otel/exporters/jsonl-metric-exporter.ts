@@ -3,7 +3,7 @@ import {
 	type PushMetricExporter,
 	type ResourceMetrics,
 	AggregationTemporality,
-	InstrumentType,
+	type InstrumentType,
 } from '@opentelemetry/sdk-metrics';
 import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -70,7 +70,7 @@ export class JSONLMetricExporter implements PushMetricExporter {
 				})),
 			};
 
-			const line = JSON.stringify(record) + '\n';
+			const line = `${JSON.stringify(record)}\n`;
 			try {
 				appendFileSync(file, line, 'utf-8');
 			} catch (err) {

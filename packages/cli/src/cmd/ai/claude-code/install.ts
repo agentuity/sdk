@@ -26,7 +26,7 @@ async function readClaudeSettings(): Promise<ClaudeSettings> {
 
 function writeClaudeSettings(settings: ClaudeSettings): void {
 	mkdirSync(CLAUDE_DIR, { recursive: true });
-	writeFileSync(CLAUDE_SETTINGS_FILE, JSON.stringify(settings, null, 2) + '\n');
+	writeFileSync(CLAUDE_SETTINGS_FILE, `${JSON.stringify(settings, null, 2)}\n`);
 }
 
 function configurePermissions(settings: ClaudeSettings): number {
