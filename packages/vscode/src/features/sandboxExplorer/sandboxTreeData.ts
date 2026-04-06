@@ -415,7 +415,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 	private filesCache: Map<string, SandboxFileInfo[]> = new Map();
 
 	refresh(): void {
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	getTreeItem(element: SandboxTreeItem): vscode.TreeItem {

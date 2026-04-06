@@ -26,7 +26,7 @@ export abstract class BaseTreeDataProvider<T extends BaseTreeItem>
 	protected error: string | undefined;
 
 	refresh(): void {
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	getTreeItem(element: T): vscode.TreeItem {

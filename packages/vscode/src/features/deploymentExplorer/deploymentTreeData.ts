@@ -48,7 +48,7 @@ export class DeploymentTreeDataProvider implements vscode.TreeDataProvider<Deplo
 	private error: string | undefined;
 
 	refresh(): void {
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	getTreeItem(element: DeploymentTreeItem): vscode.TreeItem {

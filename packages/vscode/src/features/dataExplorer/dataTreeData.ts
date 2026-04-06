@@ -140,25 +140,25 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 	private readonly MESSAGE_PAGE_SIZE = 25;
 
 	refresh(): void {
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	refreshQueueMessages(queueName: string): void {
 		this.messageLimits.delete(queueName);
 		this.dlqLimits.delete(queueName);
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	loadMoreMessages(queueName: string): void {
 		const currentLimit = this.messageLimits.get(queueName) || this.MESSAGE_PAGE_SIZE;
 		this.messageLimits.set(queueName, currentLimit + this.MESSAGE_PAGE_SIZE);
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	loadMoreDlqMessages(queueName: string): void {
 		const currentLimit = this.dlqLimits.get(queueName) || this.MESSAGE_PAGE_SIZE;
 		this.dlqLimits.set(queueName, currentLimit + this.MESSAGE_PAGE_SIZE);
-		this._onDidChangeTreeData.fire();
+		this._onDidChangeTreeData.fire(undefined);
 	}
 
 	addVectorSearchGroup(group: VectorSearchGroup): void {
