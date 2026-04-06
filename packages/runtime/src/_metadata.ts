@@ -136,6 +136,13 @@ export function loadBuildMetadata(): BuildMetadata | undefined {
 
 	if (!existsSync(metadataPath)) {
 		internal.info('[metadata] agentuity.metadata.json not found at %s', metadataPath);
+		// In dev mode, don't cache "not found" — the dev server generates
+		// the metadata file after createApp() has already been called.
+		// Caching undefined would permanently prevent the workbench from
+		// finding agents once the file is later written.
+		if (process.env.NODE_ENV === 'development') {
+			return undefined;
+		}
 		_metadataCache = undefined;
 		return undefined;
 	}
@@ -194,11 +201,11 @@ let _agentReloadAttempted = false;
  */
 function ensureAgentMaps(): void {
 	if (_agentsByName !== null) {
-		internal.info('[metadata] ensureAgentMaps: already initialized, skipping');
+		internal.info(`[metadata] ensureAgentMaps: already initialized, skipping`);
 		return;
 	}
 
-	internal.info('[metadata] ensureAgentMaps: initializing agent and eval maps');
+	internal.info(`[metadata] ensureAgentMaps: initializing agent and eval maps`);
 
 	_agentsByName = new Map();
 	_agentsByAgentId = new Map();
@@ -207,7 +214,14 @@ function ensureAgentMaps(): void {
 
 	const metadata = loadBuildMetadata();
 	if (!metadata?.agents) {
-		internal.info('[metadata] ensureAgentMaps: no metadata or no agents found');
+		internal.info(`[metadata] ensureAgentMaps: no metadata or no agents found`);
+		// In dev mode, don't cache empty maps — metadata file may appear later
+		if (process.env.NODE_ENV === 'development') {
+			_agentsByName = null;
+			_agentsByAgentId = null;
+			_evalsByAgentName = null;
+			_evalsByAgentId = null;
+		}
 		return;
 	}
 
@@ -257,7 +271,7 @@ export function getAgentMetadataByName(agentName: string): BuildMetadataAgent | 
 	if (_agentsByName?.size === 0 && !_agentReloadAttempted) {
 		_agentReloadAttempted = true;
 		internal.info(
-			'[metadata] getAgentMetadataByName: agent map is empty, attempting cache clear and reload'
+			`[metadata] getAgentMetadataByName: agent map is empty, attempting cache clear and reload`
 		);
 		clearMetadataCache();
 		ensureAgentMaps();
@@ -291,7 +305,7 @@ export function getEvalMetadata(
 	if (_evalsByAgentName?.size === 0 && !_evalReloadAttempted) {
 		_evalReloadAttempted = true;
 		internal.info(
-			'[metadata] getEvalMetadata: eval map is empty, attempting cache clear and reload'
+			`[metadata] getEvalMetadata: eval map is empty, attempting cache clear and reload`
 		);
 		clearMetadataCache();
 		ensureAgentMaps();

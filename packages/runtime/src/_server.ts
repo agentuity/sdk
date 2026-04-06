@@ -1,6 +1,10 @@
 /**
  * Minimal server globals for Vite-native architecture
  * The server is managed by Vite (dev) or Bun.serve in the generated entry file (prod)
+ *
+ * These module-level variables persist across bun --hot reloads (since this
+ * module is not re-evaluated unless it changes). createApp() updates them
+ * via setters on each reload.
  */
 
 import type { Logger } from './logger';

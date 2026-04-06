@@ -1,5 +1,3 @@
-import { hubFetchHeaders } from './hub-url';
-
 export type HubInitProbeResult =
 	| { ok: true }
 	| {
@@ -21,11 +19,30 @@ function normalizeErrorMessage(payload: unknown, fallback: string): string {
 
 export async function probeHubInitAccess(
 	hubHttpUrl: string,
-	fetchImpl: typeof fetch = fetch
+	options?: {
+		apiKey?: string | null;
+		orgId?: string | null;
+		fetchImpl?: typeof fetch;
+	}
 ): Promise<HubInitProbeResult> {
+	const fetchImpl = options?.fetchImpl ?? fetch;
+	const headers: Record<string, string> = {
+		accept: 'application/json',
+	};
+	if (options?.apiKey) {
+		if (options.apiKey.startsWith('agc_')) {
+			headers['x-agentuity-auth-api-key'] = options.apiKey;
+		} else {
+			headers['authorization'] = `Bearer ${options.apiKey}`;
+		}
+	}
+	if (options?.orgId) {
+		headers['x-agentuity-orgid'] = options.orgId;
+	}
+
 	try {
 		const response = await fetchImpl(`${hubHttpUrl}/api/hub/init`, {
-			headers: hubFetchHeaders({ accept: 'application/json' }),
+			headers,
 			signal: AbortSignal.timeout(5_000),
 		});
 

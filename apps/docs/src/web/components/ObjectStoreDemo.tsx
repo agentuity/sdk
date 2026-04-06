@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Separator } from './ui';
 
 interface FileInfo {
@@ -35,11 +36,18 @@ const SAMPLE_DOC = { name: 'hello.txt', description: 'Sample text file' };
 export function ObjectStoreDemo() {
 	const [files, setFiles] = useState<FileInfo[]>([]);
 	const [presignInfo, setPresignInfo] = useState<PresignInfo | null>(null);
+	const [lastPresignedFile, setLastPresignedFile, clearLastPresignedFile] = usePersistentDemoState<
+		string | null
+	>('object-storage', 'last-presigned-file', {
+		defaultValue: null,
+		storage: 'session',
+	});
 	const [copied, setCopied] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [seeding, setSeeding] = useState(false);
 	const [seeded, setSeeded] = useState(false);
+	const restoredPresignRef = useRef(false);
 
 	// Stable fetch function
 	const fetchFiles = useCallback(async () => {
@@ -105,34 +113,55 @@ export function ObjectStoreDemo() {
 		}
 	};
 
-	const handlePresign = async (fileToPresign: string) => {
-		setError(null);
-		setCopied(false);
-		try {
-			const response = await fetch(
-				`/api/object-storage/presign/${encodeURIComponent(fileToPresign)}`,
-				{ method: 'POST' }
-			);
+	const handlePresign = useCallback(
+		async (fileToPresign: string, options: { persist?: boolean } = {}) => {
+			setError(null);
+			setCopied(false);
+			try {
+				const response = await fetch(
+					`/api/object-storage/presign/${encodeURIComponent(fileToPresign)}`,
+					{ method: 'POST' }
+				);
 
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}`);
+				}
+
+				const result: PresignResult = await response.json();
+
+				if (result.success) {
+					setPresignInfo({
+						url: result.url,
+						expiresIn: result.expiresIn,
+						filename: result.filename,
+					});
+					if (options.persist !== false) {
+						setLastPresignedFile(result.filename);
+					}
+				} else {
+					setError(result.error || 'Presign failed');
+				}
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Presign failed');
 			}
+		},
+		[setLastPresignedFile]
+	);
 
-			const result: PresignResult = await response.json();
-
-			if (result.success) {
-				setPresignInfo({
-					url: result.url,
-					expiresIn: result.expiresIn,
-					filename: result.filename,
-				});
-			} else {
-				setError(result.error || 'Presign failed');
-			}
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Presign failed');
+	useEffect(() => {
+		if (restoredPresignRef.current || !lastPresignedFile || files.length === 0) {
+			return;
 		}
-	};
+
+		restoredPresignRef.current = true;
+
+		if (!files.some((file) => file.filename === lastPresignedFile)) {
+			clearLastPresignedFile();
+			return;
+		}
+
+		void handlePresign(lastPresignedFile, { persist: false });
+	}, [clearLastPresignedFile, files, handlePresign, lastPresignedFile]);
 
 	const copyToClipboard = async () => {
 		if (presignInfo?.url) {

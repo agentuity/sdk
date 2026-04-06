@@ -155,6 +155,8 @@ export const OAuthPermissionLevelSchema = z.object({
 	label: z.string(),
 	value: z.string(),
 	scopes: z.array(z.string()),
+	warning: z.boolean().optional(),
+	warningTitle: z.string().optional(),
 });
 
 export type OAuthPermissionLevel = z.infer<typeof OAuthPermissionLevelSchema>;
@@ -311,6 +313,7 @@ export const OAuthUserInfoSchema = z
 		name: z.string().optional(),
 		given_name: z.string().optional(),
 		family_name: z.string().optional(),
+		picture: z.string().optional(),
 		email: z.string().optional(),
 		email_verified: z.boolean().optional(),
 	})

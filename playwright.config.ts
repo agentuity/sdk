@@ -27,7 +27,7 @@ export default defineConfig({
 	],
 	webServer: {
 		command: 'cd apps/testing/e2e-web && bun run dev',
-		url: 'http://localhost:3500',
+		url: 'http://127.0.0.1:3500',
 		reuseExistingServer: !process.env.CI,
 		timeout: 120000,
 		stdout: 'pipe',

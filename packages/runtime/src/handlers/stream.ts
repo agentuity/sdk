@@ -1,9 +1,9 @@
 import type { Context, Handler } from 'hono';
 import { stream as honoStream } from 'hono/streaming';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
-import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './sse';
+import { tagRoute } from './_route-meta';
 
 /**
  * Handler function for streaming responses.
@@ -57,10 +57,7 @@ export type StreamHandler<E extends Env = Env> = (
  * @returns Hono handler for streaming response
  */
 export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<E> {
-	return (c: Context<E>) => {
-		const asyncLocalStorage = getAgentAsyncLocalStorage();
-		const capturedContext = asyncLocalStorage.getStore();
-
+	const streamHandler: Handler<E> = (c: Context<E>) => {
 		// Track stream completion for deferred session/thread saving
 		// This promise resolves when the stream completes (pipe finishes or errors)
 		let resolveDone: (() => void) | undefined;
@@ -113,13 +110,9 @@ export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<
 			// our OTEL fetch wrapper use the original unpatched fetch.
 			// See: https://github.com/agentuity/sdk/issues/471
 			// See: https://github.com/oven-sh/bun/issues/24766
-			await otelContext.with(ROOT_CONTEXT, async () => {
-				if (capturedContext) {
-					await asyncLocalStorage.run(capturedContext, runInContext);
-				} else {
-					await runInContext();
-				}
-			});
+			await otelContext.with(ROOT_CONTEXT, runInContext);
 		});
 	};
+
+	return tagRoute(streamHandler, { type: 'stream' });
 }

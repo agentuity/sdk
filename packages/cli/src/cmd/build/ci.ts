@@ -7,7 +7,7 @@ import { ErrorCode } from '../../errors';
 import * as tui from '../../tui';
 
 export interface CIBuildOptions {
-	url: string;
+	url?: string;
 	directory?: string;
 	trigger?: string;
 	event?: string;
@@ -22,44 +22,18 @@ export interface CIBuildOptions {
 	logsUrl?: string;
 }
 
-async function streamProcessOutput(proc: ReturnType<typeof spawn>): Promise<void> {
-	const forwardStream = async (
-		stream: ReadableStream<Uint8Array> | number | undefined,
-		isStderr: boolean
-	) => {
-		if (typeof stream === 'number') return;
-		if (!stream) return;
-		const reader = stream.getReader();
-		const target = isStderr ? process.stderr : process.stdout;
-
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			target.write(value);
-		}
-	};
-
-	await Promise.all([
-		forwardStream(proc.stdout, false),
-		forwardStream(proc.stderr, true),
-		proc.exited,
-	]);
-}
-
 async function runCommand(cmd: string[], cwd: string): Promise<number> {
 	const proc = spawn({
 		cmd,
 		cwd,
 		env: { ...process.env, CI: 'true' },
 		stdin: 'ignore',
-		stdout: 'pipe',
-		stderr: 'pipe',
+		stdout: 'inherit',
+		stderr: 'inherit',
 	});
-
-	await streamProcessOutput(proc);
+	await proc.exited;
 	return proc.exitCode ?? 1;
 }
-
 async function downloadSource(url: string, targetPath: string): Promise<void> {
 	let lastError: unknown;
 
@@ -105,60 +79,77 @@ function buildDeployArgs(opts: CIBuildOptions): string[] {
 
 export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise<void> {
 	let tempDir = '';
+	// Track subprocess exit code so we can clean up in finally before calling process.exit().
+	// Bun does not reliably honor process.exitCode, so an explicit process.exit() is required.
+	let pendingExitCode: number | undefined;
 
 	try {
-		tempDir = await mkdtemp(join(tmpdir(), 'agentuity-ci-build-'));
-		const sourceZipPath = join(tempDir, 'source.zip');
-		const extractPath = join(tempDir, 'build');
+		let projectDir: string;
 
-		tui.info('1️⃣ Downloading source code from GitHub...');
-		await downloadSource(opts.url, sourceZipPath);
+		if (opts.url) {
+			// Download and extract source from URL
+			tempDir = await mkdtemp(join(tmpdir(), 'agentuity-ci-build-'));
+			const sourceZipPath = join(tempDir, 'source.zip');
+			const extractPath = join(tempDir, 'build');
 
-		tui.info('2️⃣ Unzipping source code from GitHub...');
-		await mkdir(extractPath, { recursive: true });
-		const unzipExit = await runCommand(
-			['unzip', '-q', sourceZipPath, '-d', extractPath],
-			tempDir
-		);
-		if (unzipExit !== 0 && unzipExit !== 1) {
-			tui.fatal(`Failed to unzip source archive (exit ${unzipExit})`, ErrorCode.BUILD_FAILED);
-		}
+			tui.info('1️⃣ Downloading source code from GitHub...');
+			await downloadSource(opts.url, sourceZipPath);
 
-		const extractedEntries = await readdir(extractPath, { withFileTypes: true });
-		const extractedDirs = extractedEntries.filter((entry) => entry.isDirectory());
-		if (extractedDirs.length !== 1) {
-			tui.fatal(
-				`Expected one root directory after unzip, found ${extractedDirs.length}`,
-				ErrorCode.BUILD_FAILED
+			tui.info('2️⃣ Unzipping source code from GitHub...');
+			await mkdir(extractPath, { recursive: true });
+			const unzipExit = await runCommand(
+				['unzip', '-q', sourceZipPath, '-d', extractPath],
+				tempDir
 			);
-		}
+			if (unzipExit !== 0 && unzipExit !== 1) {
+				tui.error(`Failed to unzip source archive (exit ${unzipExit})`);
+				pendingExitCode = unzipExit;
+				return;
+			}
 
-		const sourceRoot = extractedDirs.at(0);
-		if (!sourceRoot) {
-			tui.fatal('Could not determine extracted source directory', ErrorCode.BUILD_FAILED);
-		}
+			const extractedEntries = await readdir(extractPath, { withFileTypes: true });
+			const extractedDirs = extractedEntries.filter((entry) => entry.isDirectory());
+			if (extractedDirs.length !== 1) {
+				tui.fatal(
+					`Expected one root directory after unzip, found ${extractedDirs.length}`,
+					ErrorCode.BUILD_FAILED
+				);
+			}
 
-		const sourceRootDir = join(extractPath, sourceRoot.name);
-		let projectDir = sourceRootDir;
-		if (opts.directory) {
-			projectDir = join(sourceRootDir, opts.directory);
-		}
+			const sourceRoot = extractedDirs.at(0);
+			if (!sourceRoot) {
+				tui.fatal('Could not determine extracted source directory', ErrorCode.BUILD_FAILED);
+			}
 
-		const projectStats = await stat(projectDir).catch(() => null);
-		if (!projectStats?.isDirectory()) {
-			tui.fatal(`Build directory not found: ${projectDir}`, ErrorCode.CONFIG_INVALID);
-		}
+			const sourceRootDir = join(extractPath, sourceRoot.name);
+			projectDir = sourceRootDir;
+			if (opts.directory) {
+				projectDir = join(sourceRootDir, opts.directory);
+			}
 
-		// Resolve symlinks and verify the project dir is within the source root
-		const realProjectDir = await realpath(projectDir).catch(() => null);
-		const realSourceRoot = await realpath(sourceRootDir).catch(() => null);
-		if (!realProjectDir || !realSourceRoot || !realProjectDir.startsWith(realSourceRoot)) {
-			tui.fatal(
-				'Directory path escapes the source root (path traversal denied)',
-				ErrorCode.CONFIG_INVALID
-			);
+			const projectStats = await stat(projectDir).catch(() => null);
+			if (!projectStats?.isDirectory()) {
+				tui.fatal(`Build directory not found: ${projectDir}`, ErrorCode.CONFIG_INVALID);
+			}
+
+			// Resolve symlinks and verify the project dir is within the source root
+			const realProjectDir = await realpath(projectDir).catch(() => null);
+			const realSourceRoot = await realpath(sourceRootDir).catch(() => null);
+			if (!realProjectDir || !realSourceRoot || !realProjectDir.startsWith(realSourceRoot)) {
+				tui.fatal(
+					'Directory path escapes the source root (path traversal denied)',
+					ErrorCode.CONFIG_INVALID
+				);
+			}
+			projectDir = realProjectDir;
+		} else {
+			// No URL — use current working directory (source already present, e.g. snapshot-based deploy)
+			tui.info('1️⃣ Using local source (no download URL provided)...');
+			projectDir = process.cwd();
+			if (opts.directory) {
+				projectDir = join(projectDir, opts.directory);
+			}
 		}
-		projectDir = realProjectDir;
 
 		const sdkKey = process.env.AGENTUITY_SDK_KEY;
 		if (sdkKey) {
@@ -168,7 +159,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		tui.info('3️⃣ Installing your project dependencies...');
 		const installExit = await runCommand(['bun', 'install'], projectDir);
 		if (installExit !== 0) {
-			tui.fatal(`Dependency installation failed (exit ${installExit})`, ErrorCode.BUILD_FAILED);
+			tui.error(`Dependency installation failed (exit ${installExit})`);
+			pendingExitCode = installExit;
+			return;
 		}
 
 		const packageJsonPath = join(projectDir, 'package.json');
@@ -185,7 +178,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 			tui.info('🔧 Running predeploy script...');
 			const predeployExit = await runCommand(['bun', 'run', '--bun', 'predeploy'], projectDir);
 			if (predeployExit !== 0) {
-				tui.fatal(`Predeploy failed (exit ${predeployExit})`, ErrorCode.BUILD_FAILED);
+				tui.error(`Predeploy failed (exit ${predeployExit})`);
+				pendingExitCode = predeployExit;
+				return;
 			}
 		}
 
@@ -200,14 +195,18 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		tui.info(`Using CLI: ${cliExists ? localCliBin : 'bunx --bun agentuity'}`);
 		const deployExit = await runCommand(deployCmd, projectDir);
 		if (deployExit !== 0) {
-			tui.fatal(`Deploy failed (exit ${deployExit})`, ErrorCode.BUILD_FAILED);
+			tui.error(`Deploy failed (exit ${deployExit})`);
+			pendingExitCode = deployExit;
+			return;
 		}
 
 		if (scripts?.postdeploy) {
 			tui.info('🔧 Running postdeploy script...');
 			const postdeployExit = await runCommand(['bun', 'run', '--bun', 'postdeploy'], projectDir);
 			if (postdeployExit !== 0) {
-				tui.fatal(`Postdeploy failed (exit ${postdeployExit})`, ErrorCode.BUILD_FAILED);
+				tui.error(`Postdeploy failed (exit ${postdeployExit})`);
+				pendingExitCode = postdeployExit;
+				return;
 			}
 		}
 
@@ -218,6 +217,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 	} finally {
 		if (tempDir) {
 			await rm(tempDir, { recursive: true, force: true });
+		}
+		if (pendingExitCode !== undefined) {
+			process.exit(pendingExitCode);
 		}
 	}
 }

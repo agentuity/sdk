@@ -3,8 +3,8 @@
  * Tests agents in isolation without requiring HTTP server or real services.
  */
 
-import { test, expect, describe } from 'bun:test';
-import { createAgent, runInAgentContext } from '../src/agent';
+import { test, expect, describe, beforeEach, afterEach } from 'bun:test';
+import { createAgent, runInAgentContext, setAgentConfig, getAgents } from '../src/agent';
 import { z } from 'zod';
 import { TestAgentContext } from './helpers/test-context';
 import { createMockLoggerWithCapture } from '@agentuity/test-utils';
@@ -253,6 +253,121 @@ describe('Agent Setup and Shutdown', () => {
 
 		const result = await runInAgentContext(ctx, agent);
 		expect(result).toBe('1.0.0');
+	});
+});
+
+describe('Agent Config Isolation', () => {
+	// Clean up registered agents between tests
+	const registeredNames: string[] = [];
+
+	beforeEach(() => {
+		// Clear any configs from previous tests
+		for (const name of registeredNames) {
+			getAgents().delete(name);
+		}
+	});
+
+	afterEach(() => {
+		// Clean up agents registered during tests
+		for (const name of registeredNames) {
+			getAgents().delete(name);
+		}
+		registeredNames.length = 0;
+	});
+
+	test("agent gets its own config from setup, not the context's initial config", async () => {
+		type ConfigA = { source: string; secretA: string };
+		type ConfigB = { source: string; secretB: string };
+
+		const _agentA = createAgent('config-test-a', {
+			setup: async () => ({ source: 'agent-a-setup', secretA: 'secret-from-a' }),
+			schema: { output: z.string() },
+			handler: async (ctx) => {
+				const cfg = ctx.config as ConfigA;
+				return `agent-a: source=${cfg.source}, secretA=${cfg.secretA}`;
+			},
+		});
+		registeredNames.push('config-test-a');
+
+		const agentB = createAgent('config-test-b', {
+			setup: async () => ({ source: 'agent-b-setup', secretB: 'secret-from-b' }),
+			schema: { output: z.string() },
+			handler: async (ctx) => {
+				const cfg = ctx.config as ConfigB;
+				return `agent-b: source=${cfg.source}, secretB=${cfg.secretB}`;
+			},
+		});
+		registeredNames.push('config-test-b');
+
+		// Simulate setup phase - store configs from setup()
+		setAgentConfig('config-test-a', { source: 'agent-a-setup', secretA: 'secret-from-a' });
+		setAgentConfig('config-test-b', { source: 'agent-b-setup', secretB: 'secret-from-b' });
+
+		// Create context with WRONG config (simulates agent A's context)
+		const ctx = new TestAgentContext<ConfigA>({
+			config: { source: 'wrong-context-config', secretA: 'wrong-secret' },
+		});
+
+		// Run agent B in agent A's context - it should get its OWN config
+		const result = await runInAgentContext(ctx, agentB);
+		expect(result).toBe('agent-b: source=agent-b-setup, secretB=secret-from-b');
+	});
+
+	test('agent-to-agent call: each agent gets its own config', async () => {
+		type ConfigA = { dbName: string };
+		type ConfigB = { apiKey: string };
+
+		const agentB = createAgent('nested-config-b', {
+			setup: async () => ({ apiKey: 'key-from-b-setup' }),
+			schema: { output: z.string() },
+			handler: async (ctx) => {
+				const cfg = ctx.config as ConfigB;
+				return `agentB-apiKey=${cfg.apiKey}`;
+			},
+		});
+		registeredNames.push('nested-config-b');
+
+		const agentA = createAgent('nested-config-a', {
+			setup: async () => ({ dbName: 'db-from-a-setup' }),
+			schema: { output: z.object({ aConfig: z.string(), bResult: z.string() }) },
+			handler: async (ctx) => {
+				const cfg = ctx.config as ConfigA;
+				const bResult = await agentB.run();
+				return { aConfig: `agentA-dbName=${cfg.dbName}`, bResult };
+			},
+		});
+		registeredNames.push('nested-config-a');
+
+		// Simulate setup phase
+		setAgentConfig('nested-config-a', { dbName: 'db-from-a-setup' });
+		setAgentConfig('nested-config-b', { apiKey: 'key-from-b-setup' });
+
+		// Create context with empty config (simulates user router scenario)
+		const ctx = new TestAgentContext<{}>({ config: {} });
+
+		// Run agent A which calls agent B
+		const result = await runInAgentContext(ctx, agentA);
+		expect(result.aConfig).toBe('agentA-dbName=db-from-a-setup');
+		expect(result.bResult).toBe('agentB-apiKey=key-from-b-setup');
+	});
+
+	test('agent without setup gets empty config if not stored', async () => {
+		const agent = createAgent('no-setup-config-test', {
+			// No setup function
+			schema: { output: z.string() },
+			handler: async (ctx) => {
+				return `config=${JSON.stringify(ctx.config)}`;
+			},
+		});
+		registeredNames.push('no-setup-config-test');
+
+		// Don't store any config for this agent
+		// Context has some other config
+		const ctx = new TestAgentContext<{ other: string }>({ config: { other: 'value' } });
+
+		const result = await runInAgentContext(ctx, agent);
+		// Agent should keep the context's config since no stored config exists
+		expect(result).toBe('config={"other":"value"}');
 	});
 });
 

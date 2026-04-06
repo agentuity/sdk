@@ -1,5 +1,7 @@
-import { useAnalytics, useAPI } from '@agentuity/react';
-import { type ChangeEvent, Fragment, useCallback, useState } from 'react';
+import { useAnalytics } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api/index';
+import { type ChangeEvent, Fragment, useCallback, useEffect, useState } from 'react';
 import './App.css';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
@@ -8,38 +10,53 @@ const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.';
 
+const client = hc<ApiRouter>('/api');
+
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
 	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5-nano');
 
-	// RESTful API hooks for translation operations
-	const { data: historyData, refetch: refetchHistory } = useAPI('GET /api/translate/history');
-
-	const { data: translateResult, invoke: translate, isLoading } = useAPI('POST /api/translate');
-
-	const { invoke: clearHistory } = useAPI('DELETE /api/translate/history');
+	const [historyData, setHistoryData] = useState<{
+		history: any[];
+		threadId?: string;
+		translationCount: number;
+	} | null>(null);
+	const [translateResult, setTranslateResult] = useState<any>(null);
+	const [isLoading, setIsLoading] = useState(false);
 
 	const { track } = useAnalytics();
+
+	// Fetch history on mount
+	const fetchHistory = useCallback(async () => {
+		const res = await client.translate.history.$get();
+		setHistoryData(await res.json());
+	}, []);
+
+	useEffect(() => {
+		fetchHistory();
+	}, [fetchHistory]);
 
 	// Prefer fresh data from translation, fall back to initial fetch
 	const history = translateResult?.history ?? historyData?.history ?? [];
 	const threadId = translateResult?.threadId ?? historyData?.threadId;
 
 	const handleTranslate = useCallback(async () => {
-		track('translate', {
-			text,
-			toLanguage,
-			model,
-		});
-		await translate({ text, toLanguage, model });
-	}, [text, toLanguage, model, translate, track]);
+		track('translate', { text, toLanguage, model });
+		setIsLoading(true);
+		try {
+			const res = await client.translate.$post({ json: { text, toLanguage, model } });
+			setTranslateResult(await res.json());
+		} finally {
+			setIsLoading(false);
+		}
+	}, [text, toLanguage, model, track]);
 
 	const handleClearHistory = useCallback(async () => {
 		track('clear_history');
-		await clearHistory();
-		await refetchHistory();
-	}, [clearHistory, refetchHistory, track]);
+		await client.translate.history.$delete();
+		await fetchHistory();
+	}, [fetchHistory, track]);
 
 	return (
 		<div className="text-white flex font-sans justify-center min-h-screen">

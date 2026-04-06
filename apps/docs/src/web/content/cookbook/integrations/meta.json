@@ -1,0 +1,13 @@
+{
+	"title": "Integrations",
+	"pages": [
+		"mastra",
+		"langchain",
+		"openai-agents",
+		"claude-agent",
+		"chat-sdk",
+		"nextjs",
+		"tanstack-start",
+		"turborepo"
+	]
+}

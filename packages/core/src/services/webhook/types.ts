@@ -213,6 +213,7 @@ export const CreateWebhookRequestSchema = z
 	.object({
 		name: z.string().describe('Human-readable name for the webhook'),
 		description: z.string().optional().describe("Optional description of the webhook's purpose"),
+		internal: z.boolean().optional().describe('Whether the webhook is system-managed.'),
 	})
 	.describe('Request for creating a new webhook');
 

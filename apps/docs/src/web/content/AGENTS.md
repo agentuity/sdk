@@ -20,6 +20,7 @@ Before writing a new page, read these as reference implementations:
 - **Cookbook pattern**: `cookbook/patterns/chat-with-history.mdx` -- concise, code highlights, thread state
 - **Getting started**: `get-started/quickstart.mdx` -- step-by-step, CardLinks, tips
 - **Reference**: `agents/ai-gateway.mdx` -- provider tables, how-it-works flow
+- **SDK Reference**: `reference/sdk-reference/storage.mdx` -- hybrid narrative + structured method docs
 
 ## Page Types
 
@@ -30,12 +31,54 @@ Before writing a new page, read these as reference implementations:
 | **Service doc**      | When-to-use table, access patterns, operations   | `services/storage/key-value.mdx` |
 | **Cookbook pattern** | Problem statement, complete solution, variations | `cookbook/patterns/*.mdx`        |
 | **Reference**        | Factual, tables, complete flag/option lists      | `reference/cli/*.mdx`            |
+| **SDK Reference**    | Narrative intro, then structured method docs     | `reference/sdk-reference/storage.mdx` |
+
+### SDK Reference Page Convention
+
+SDK Reference pages use a hybrid format: narrative intro followed by structured method documentation.
+
+**Page structure:**
+
+```
+---
+title: Descriptive Title
+short_title: Short Sidebar Label
+description: One sentence about ctx.X usage
+---
+
+Brief intro (1-2 sentences), standalone callout if applicable, cross-link to how-to page.
+
+### methodName
+
+`methodName(param: string, options?: Options): Promise<Result>`
+
+One sentence describing what this method does.
+
+**Parameters:**
+- `param`: What it is
+- `options` (optional): What it configures
+
+**Returns:** `Promise<Result>`
+
+(Interface block if return type is complex)
+
+**Example:**
+
+\```typescript
+const result = await ctx.service.methodName('value', 'key');
+\```
+```
+
+Each method gets: **parameters + return type + example**. Mark optional parameters explicitly. Use param tables (`| Param | Type | Required | Description |`) for methods with many parameters.
+
+**Exemplars:** `reference/sdk-reference/storage.mdx`, `reference/sdk-reference/agents.mdx`
 
 ## Page Structure
 
 ```
 ---
 title: Action-Oriented Title (e.g., "Calling Other Agents" not "Agent Communication")
+short_title: Concise Sidebar Label (optional, falls back to title if omitted)
 description: One sentence explaining what readers will learn
 ---
 
@@ -55,6 +98,34 @@ Brief context: what is this for, when do you use it? (1-2 sentences)
 ## Next Steps
 - [Related Topic](path): When you need X
 ```
+
+## Sidebar Navigation
+
+The sidebar is auto-generated at build time by `scripts/generate-nav-data.ts`. Page ordering within each section is controlled by the `meta.json` file in the same directory. When adding a new page, add its slug to the `pages` array in the relevant `meta.json`.
+
+## Adding a New Page
+
+Every new page requires **three things**:
+
+1. **MDX content file** in `src/web/content/` (the page content)
+2. **Route file** in `src/web/routes/_docs/` (TanStack Router needs this to serve the page)
+3. **meta.json entry** in the same content directory (controls sidebar ordering)
+
+Without the route file, the page shows "Not Found" at runtime even though the build passes. The `scripts/validate-routes.ts` script runs during prebuild and auto-generates any missing route files.
+
+Route file template (generated automatically, but for reference):
+
+```typescript
+import { createFileRoute } from '@tanstack/react-router';
+import { MDXPage } from '../../../components/docs/mdx-page';
+
+export const Route = createFileRoute('/_docs/section/page-name')({
+	component: () => <MDXPage route="section/page-name" />,
+	staticData: { crumb: 'Page Title' },
+});
+```
+
+The import depth for `MDXPage` varies by nesting level. Run `bun run scripts/validate-routes.ts` to generate correct route files, or use `--check` to validate without generating.
 
 ## Provider Documentation
 
@@ -81,6 +152,13 @@ General rules:
 - Strip boilerplate: show only the feature being demonstrated
 - Use a balance of raw SDK providers and AI SDK providers (`openai()`, `anthropic()`) in examples
 - Prefer `s` from `@agentuity/schema` for schemas. Other StandardSchema libraries (Zod, ArkType, Valibot) are equally valid and should appear across examples to show the SDK is schema-agnostic
+
+## Static Assets
+
+Images and other static files live in `src/web/public/`. Vite copies these to the build root, so reference them **without** the `/public/` prefix:
+
+- Correct: `/images/integrations/openai.svg`
+- Wrong: `/public/images/integrations/openai.svg`
 
 ## MDX Components
 

@@ -42,80 +42,102 @@ interface MetaJson {
 // SDK Explorer (hardcoded — demo routes, not content pages)
 // ---------------------------------------------------------------------------
 
+const HOME: NavSection = {
+	title: 'Home',
+	url: '/',
+	hideItems: true,
+	items: [],
+};
+
 const SDK_EXPLORER: NavSection = {
 	title: 'SDK Explorer',
-	url: '/',
+	url: '/explorer',
 	hideItems: true,
 	items: [
 		{
 			title: 'Hello Agent',
-			url: '/demo/hello',
+			url: '/explorer/hello',
 			description: 'Your first agent - send input, get output',
 		},
 		{
 			title: 'Handler Context',
-			url: '/demo/handler-context',
+			url: '/explorer/handler-context',
 			description: "See what's available inside your agent handler",
 		},
 		{
 			title: 'Chat',
-			url: '/demo/chat',
+			url: '/explorer/chat',
 			description: 'Conversation memory that persists across messages',
 		},
 		{
 			title: 'KV Storage',
-			url: '/demo/key-value',
+			url: '/explorer/key-value',
 			description: 'Store and retrieve data by key, with auto-expiration',
 		},
 		{
 			title: 'Vector Search',
-			url: '/demo/vector-storage',
+			url: '/explorer/vector-storage',
 			description: 'Find content by meaning, not just keywords',
 		},
 		{
 			title: 'Object Storage',
-			url: '/demo/object-storage',
+			url: '/explorer/object-storage',
 			description: 'Store files with presigned URLs for sharing',
 		},
 		{
 			title: 'AI Gateway',
-			url: '/demo/ai-gateway',
+			url: '/explorer/ai-gateway',
 			description: 'Use any AI provider with a single API key',
 		},
 		{
 			title: 'Text Stream',
-			url: '/demo/streaming',
+			url: '/explorer/streaming',
 			description: "Stream responses as they're generated",
 		},
 		{
 			title: 'SSE Stream',
-			url: '/demo/sse-stream',
+			url: '/explorer/sse-stream',
 			description: 'Structured streaming with event types and auto-reconnect',
 		},
 		{
 			title: 'Durable Streams',
-			url: '/demo/durable-stream',
+			url: '/explorer/durable-stream',
 			description: 'Generate content and get a permanent, shareable URL',
 		},
 		{
 			title: 'Agent Calls',
-			url: '/demo/agent-calls',
+			url: '/explorer/agent-calls',
 			description: 'Call agents from routes or other agents',
 		},
 		{
 			title: 'Cron Jobs',
-			url: '/demo/cron',
+			url: '/explorer/cron',
 			description: 'Run tasks on a schedule with cron expressions',
 		},
 		{
 			title: 'Model Arena',
-			url: '/demo/model-arena',
+			url: '/explorer/model-arena',
 			description: 'Compare AI models using another AI as judge',
 		},
 		{
 			title: 'Evals',
-			url: '/demo/evals',
+			url: '/explorer/evals',
 			description: 'Run evaluations after your agent responds',
+		},
+		{
+			title: 'Queues',
+			url: '/explorer/queue',
+			description: 'Publish, consume, retry, and inspect dead-letter messages',
+		},
+		{
+			title: 'Email',
+			url: '/explorer/email',
+			description: 'Send transactional emails with platform-managed delivery',
+		},
+		{
+			title: 'Database',
+			url: '/explorer/database',
+			description: 'Query PostgreSQL with Drizzle ORM and typed schema definitions',
 		},
 	],
 };
@@ -412,7 +434,7 @@ export function hasActiveChild(items: NavItem[], currentUrl: string): boolean {
 async function main() {
 	const rootMeta = await readMetaJson(CONTENT_DIR);
 	const sectionSlugs = rootMeta.sections || [];
-	const sections: NavSection[] = [SDK_EXPLORER];
+	const sections: NavSection[] = [HOME, SDK_EXPLORER];
 
 	for (const slug of sectionSlugs) {
 		const sectionDir = join(CONTENT_DIR, slug);

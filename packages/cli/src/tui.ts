@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
-import * as readline from 'node:readline';
+import * as readline from 'readline';
 import type { ColorScheme } from './terminal';
 import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
@@ -25,6 +25,12 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Only write ANSI escape sequences when stderr is a real terminal.
+		// Writing to non-TTY streams (pipes, command substitution, etc.)
+		// pollutes captured output with invisible control characters.
+		if (!process.stderr.isTTY) {
+			return;
+		}
 		// Skip cursor restoration in CI - terminals don't support these sequences
 		if (process.env.CI) {
 			return;
@@ -293,8 +299,13 @@ export function getSeverityColor(severity: string): (text: string) => string {
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	// Clear line first to ensure no leftover content from previous output
-	process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
+	if (process.stderr.isTTY) {
+		// Clear line first to ensure no leftover content from previous output
+		process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
+	} else {
+		// No ANSI control sequences for non-TTY streams (pipes, command substitution)
+		process.stderr.write(`${ICONS.success} ${message}\n`);
+	}
 }
 
 /**
@@ -500,7 +511,7 @@ export function output(message: string): void {
  */
 export function getDisplayWidth(str: string): number {
 	// Remove OSC-8 hyperlink sequences using Unicode escapes (\u001b = ESC, \u0007 = BEL) to satisfy linter
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: OSC 8 hyperlink escape sequences for terminal hyperlinks
+	// eslint-disable-next-line no-control-regex
 	const withoutOSC8 = str.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
 	return Bun.stringWidth(withoutOSC8);
 }
@@ -509,12 +520,12 @@ export function getDisplayWidth(str: string): number {
  * Strip all ANSI escape sequences from a string
  */
 export function stripAnsi(str: string): string {
-	// biome-ignore-start lint/suspicious/noControlCharactersInRegex: Various ANSI escape sequences for terminal control
+	/* eslint-disable no-control-regex */
 	return str
 		.replace(/\u001b\[[0-9;]*m/g, '') // SGR sequences (colors, bold, etc.)
 		.replace(/\u001b\[\?[0-9;]*[a-zA-Z]/g, '') // DEC private mode (cursor show/hide, etc.)
 		.replace(/\u001b\]8;;[^\u0007]*\u0007/g, ''); // OSC 8 hyperlinks
-	// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
+	/* eslint-enable no-control-regex */
 }
 
 /**
@@ -562,7 +573,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 	while (i < str.length && visibleIndex < cutIndex) {
 		// Check for ANSI escape sequence
 		if (str[i] === '\u001b') {
-			// biome-ignore-start lint/suspicious/noControlCharactersInRegex: Various ANSI escape sequences for terminal control
+			/* eslint-disable no-control-regex */
 			// Copy entire SGR sequence (colors, bold, etc.)
 			const match = str.slice(i).match(/^\u001b\[[0-9;]*m/);
 			if (match) {
@@ -586,7 +597,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 				i += oscMatch[0].length;
 				continue;
 			}
-			// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
+			/* eslint-enable no-control-regex */
 		}
 
 		// Copy visible character
@@ -660,8 +671,8 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 
 	// If required content width exceeds terminal width, skip box and print plain text
 	if (requiredContentWidth + 4 > termWidth) {
-		console.log(`\n${bold(title)}`);
-		console.log(`${body}\n`);
+		console.log('\n' + bold(title));
+		console.log(body + '\n');
 		return;
 	}
 
@@ -705,7 +716,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 		);
 	} else {
 		const titleRightPadding = Math.max(0, innerWidth - titleDisplayWidth);
-		const titleLine = `${titleColor}${bold(title)}${reset}${' '.repeat(titleRightPadding)}`;
+		const titleLine = `${titleColor}${bold(title)}${reset}` + ' '.repeat(titleRightPadding);
 		lines.push(
 			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
 		);
@@ -740,7 +751,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 	);
 
 	// Print the banner
-	console.log(`\n${lines.join('\n')}\n`);
+	console.log('\n' + lines.join('\n') + '\n');
 }
 
 /**
@@ -897,7 +908,7 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
-		'║ ⨺ Unauthenticated (local mode)               ║',
+		`║ ⨺ Unauthenticated (local mode)               ║`,
 		'║                                              ║',
 		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
 		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
@@ -924,7 +935,7 @@ export function showLocalOnlyWarning(): void {
 
 	const lines = [
 		'╔═══════════════════════════════════════════════════════════════╗',
-		'║ ⨺ Local-only mode                                             ║',
+		`║ ⨺ Local-only mode                                             ║`,
 		'║                                                               ║',
 		`║ ${TEXT}This project is not registered with Agentuity Cloud.${YELLOW}          ║`,
 		`║ ${TEXT}The following features are disabled:${YELLOW}                          ║`,
@@ -999,7 +1010,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
  */
 function extractLeadingAnsiCodes(str: string): string {
 	// Match ANSI escape sequences at the start of the string
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
+	// eslint-disable-next-line no-control-regex
 	const match = str.match(/^(\x1b\[[0-9;]*m)+/);
 	return match ? match[0] : '';
 }
@@ -1009,11 +1020,11 @@ function extractLeadingAnsiCodes(str: string): string {
  */
 function stripAnsiCodes(str: string): string {
 	// Remove all ANSI escape sequences
-	// biome-ignore-start lint/suspicious/noControlCharactersInRegex: Various ANSI escape sequences for terminal control
+	/* eslint-disable no-control-regex */
 	return str
 		.replace(/\x1b\[[0-9;]*m/g, '') // SGR sequences
 		.replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, ''); // DEC private mode
-	// biome-ignore-end lint/suspicious/noControlCharactersInRegex: end suppression
+	/* eslint-enable no-control-regex */
 }
 
 /**
@@ -1242,18 +1253,23 @@ export async function spinner<T>(
 	const { getOutputOptions, shouldDisableProgress } = await import('./output');
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
+	const isJsonMode = outputOptions?.json === true;
 
-	// If no interactive TTY-like environment or progress disabled, just execute
-	// the callback without animation
-	if (!isTTYLike() || noProgress) {
+	// If stderr is not a real terminal or progress disabled, just execute
+	// the callback without animation. We check stderr specifically because
+	// the spinner writes ANSI sequences to stderr — isTTYLike() may return
+	// true when stdout is a TTY but stderr is piped (e.g. 2>&1 in $()).
+	if (!process.stderr.isTTY || noProgress) {
 		try {
 			const result =
 				options.type === 'progress'
 					? await options.callback(() => {})
 					: options.type === 'logger'
 						? await options.callback((logMessage: string) => {
-								// In non-TTY mode, just write logs directly to stdout
-								process.stdout.write(`${logMessage}\n`);
+								// In JSON mode, don't write logs to stdout
+								if (!isJsonMode) {
+									process.stdout.write(logMessage + '\n');
+								}
 							})
 						: options.type === 'countdown'
 							? await options.callback()
@@ -1263,7 +1279,6 @@ export async function spinner<T>(
 
 			// If clearOnSuccess is true, don't show success message
 			// Also skip success message in JSON mode
-			const isJsonMode = outputOptions?.json === true;
 			if (!options.clearOnSuccess && !isJsonMode) {
 				const successColor = getColor('success');
 				console.error(`${successColor}${ICONS.success} ${message}${reset}`);
@@ -1273,7 +1288,7 @@ export async function spinner<T>(
 		} catch (err) {
 			const clearOnError =
 				(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
-			if (!clearOnError) {
+			if (!clearOnError && !isJsonMode) {
 				const errorColor = getColor('error');
 				console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
 			}
@@ -1605,7 +1620,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	const red = getColor('error');
 	const cmdColor =
 		currentColorScheme === 'light'
-			? `\x1b[1m${Bun.color('#00008B', 'ansi') || '\x1b[34m'}`
+			? '\x1b[1m' + (Bun.color('#00008B', 'ansi') || '\x1b[34m')
 			: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
 	const mutedColor = Bun.color('#808080', 'ansi') || '\x1b[90m';
 	const reset = getColor('reset');
@@ -2122,7 +2137,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 		}
 	}
 
-	return `${lines.join('\n')}\n`;
+	return lines.join('\n') + '\n';
 }
 
 /**
@@ -2182,6 +2197,7 @@ export function table<T extends Record<string, unknown>>(
 	if (useVertical) {
 		output = renderVerticalTable(data, columnNames, options?.padStart);
 	} else {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const Table = require('cli-table3') as new (options?: {
 			head?: string[];
 			colAligns?: Array<'left' | 'right' | 'center'>;

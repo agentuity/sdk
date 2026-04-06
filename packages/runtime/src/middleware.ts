@@ -10,7 +10,7 @@ import { setSignedCookie } from 'hono/cookie';
 import type { Env, CompressionConfig, CorsConfig } from './app';
 import { createTrustedCorsOrigin } from './cors';
 import type { Logger } from './logger';
-import { getAppConfig } from './app';
+
 import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
@@ -71,6 +71,7 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'app',
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function installContextPropertyHelpers(c: any): void {
 	for (const property of AGENT_CONTEXT_PROPERTIES) {
 		if (Object.hasOwn(c, property)) {
@@ -82,7 +83,7 @@ function installContextPropertyHelpers(c: any): void {
 				throw new Error(
 					`In route handlers, use c.var.${property} instead of c.${property}. ` +
 						`The property '${property}' is available on AgentContext (for agent handlers) ` +
-						'but must be accessed via c.var in HonoContext (route handlers).'
+						`but must be accessed via c.var in HonoContext (route handlers).`
 				);
 			},
 			configurable: true,
@@ -102,6 +103,7 @@ export interface MiddlewareConfig {
  * Create base middleware that sets up context variables
  */
 export function createBaseMiddleware(config: MiddlewareConfig) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		c.set('logger', config.logger);
 		c.set('tracer', config.tracer);
@@ -109,10 +111,6 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 
 		// Import services dynamically to avoid circular deps
 		const { getServices } = await import('./_services');
-		const { getAppState } = await import('./app');
-
-		c.set('app', getAppState());
-
 		const services = getServices();
 		c.set('kv', services.kv);
 		c.set('stream', services.stream);
@@ -197,14 +195,9 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
  * ```
  */
 export function createCorsMiddleware(staticOptions?: CorsConfig) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
-		// Lazy resolve: merge app config with static options
-		const appConfig = getAppConfig();
-		const appCors = appConfig?.cors;
-		const corsOptions = {
-			...appCors,
-			...staticOptions,
-		};
+		const corsOptions = { ...staticOptions };
 
 		// Extract Agentuity-specific options
 		const { sameOrigin, allowedOrigins, ...honoCorsOptions } = corsOptions;
@@ -281,6 +274,7 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
  * This is the critical middleware that creates AgentContext
  */
 export function createOtelMiddleware() {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Skip thread/session setup entirely for lightweight endpoints
 		if (OTEL_FULL_SKIP_PATHS.has(c.req.path)) {
@@ -355,9 +349,12 @@ export function createOtelMiddleware() {
 					c.set('sessionId', sessionId);
 					c.set('thread', thread);
 					c.set('session', session);
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('waitUntilHandler', handler);
 					const agentIds = new Set<string>();
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('agentIds', agentIds);
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('trigger', isWsUpgrade ? 'websocket' : 'api');
 
 					// Send session start event (so evalruns can reference this session)
@@ -445,6 +442,7 @@ export function createOtelMiddleware() {
 									'[session] sending session complete event, userData: %s',
 									userData ? `${userData.length} bytes` : 'none'
 								);
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
 								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
 								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
 								internal.info('[session] agentIds: %o', agentIds);
@@ -498,16 +496,20 @@ export function createOtelMiddleware() {
 						);
 
 						// Check if this is a streaming response that needs deferred finalization
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const streamDone = (c as any).get(STREAM_DONE_PROMISE_KEY) as
 							| Promise<void>
 							| undefined;
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
 
 						// Check if this is a WebSocket response that needs deferred finalization
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const wsDone = (c as any).get(WS_DONE_PROMISE_KEY) as Promise<void> | undefined;
 
 						// Check if Hono caught an error (c.error is set by Hono's error handler)
 						// or if the response status indicates an error
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						const honoError = (c as any).error as Error | undefined;
 						responseStatus = c.res?.status ?? 200;
 						const isError = honoError || responseStatus >= 500;
@@ -575,7 +577,7 @@ export function createOtelMiddleware() {
 							// track the streaming finalization work in telemetry
 							handler.waitUntil(async () => {
 								// Track if stream ended with error so we can update finalization status
-								let streamError: unknown;
+								let streamError: unknown = undefined;
 
 								try {
 									await streamDone;
@@ -677,18 +679,27 @@ export function createOtelMiddleware() {
 								}
 							});
 						} else if (wsDone) {
-							// WebSocket connection — defer finalization until onClose fires
+							// WebSocket upgrade — end the span immediately (short-lived upgrade span)
+							// Per OTel conventions, spans should be short-lived. The HTTP upgrade
+							// request is a discrete event that completes in milliseconds. Keeping
+							// a span open for the entire WS connection lifetime (minutes/hours) is
+							// non-standard and causes issues with OTel backends.
 							internal.info(
-								'[request] %s %s - websocket response, deferring finalization until close (session: %s)',
+								'[request] %s %s - websocket upgrade, ending span immediately (session: %s)',
 								method,
 								url.pathname,
 								sessionId
 							);
 
-							// For WebSocket, we end the span inside waitUntil after the connection closes
-							shouldEndSpanInFinally = false;
+							// End the upgrade span now with the upgrade duration
+							const upgradeDurationNs = Math.round(handlerDurationMs * 1_000_000);
+							span.setAttribute('@agentuity/request.duration', upgradeDurationNs);
+							span.setAttribute('http.status_code', responseStatus);
+							span.setStatus({ code: SpanStatusCode.OK });
+							span.end();
+							shouldEndSpanInFinally = false; // already ended
 
-							// Capture pending promises BEFORE adding finalization waitUntil to avoid deadlock
+							// Session finalization still defers until WS close, but without holding a span
 							const pendingPromises = handler.getPendingSnapshot();
 							const hasPendingTasks = pendingPromises.length > 0;
 
@@ -702,13 +713,8 @@ export function createOtelMiddleware() {
 								);
 							}
 
-							// Capture values needed for span attributes
-							const capturedResponseStatus = responseStatus;
-							const capturedErrorMessage = errorMessage;
-
-							// Use waitUntil to handle WebSocket close and finalization
 							handler.waitUntil(async () => {
-								let wsError: unknown;
+								let wsError: unknown = undefined;
 
 								try {
 									await wsDone;
@@ -729,81 +735,43 @@ export function createOtelMiddleware() {
 									);
 								}
 
-								// Record duration now that WebSocket is closed
-								const wsDurationMs = performance.now() - requestStartTime;
-								const durationNs = Math.round(wsDurationMs * 1_000_000);
-								internal.info(
-									'[request] %s %s - recording websocket duration: %sms (session: %s)',
-									method,
-									url.pathname,
-									wsDurationMs.toFixed(2),
-									sessionId
-								);
-
-								// Determine final status
-								const finalStatus = wsError ? 500 : capturedResponseStatus;
+								const finalStatus = wsError ? 500 : responseStatus;
 								const finalErrorMessage = wsError
 									? wsError instanceof Error
 										? (wsError.stack ?? wsError.message)
 										: String(wsError)
-									: capturedErrorMessage;
+									: errorMessage;
 
-								try {
-									// Wait for pending tasks captured BEFORE this waitUntil was added
-									if (hasPendingTasks) {
-										internal.info(
-											'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
-											method,
-											url.pathname,
-											pendingPromises.length,
-											sessionId
-										);
-										const logger = c.get('logger');
-										await handler.waitForPromises(pendingPromises, logger, sessionId);
-										internal.info(
-											'[request] %s %s - all waitUntil tasks complete (session: %s)',
-											method,
-											url.pathname,
-											sessionId
-										);
-									}
-
-									// Finalize session after WebSocket closes
-									await finalizeSession(
-										finalStatus >= 500 ? finalStatus : undefined,
-										finalErrorMessage
-									);
+								// Wait for pending tasks captured BEFORE this waitUntil was added
+								if (hasPendingTasks) {
 									internal.info(
-										'[request] %s %s - websocket session finalization complete (session: %s)',
+										'[request] %s %s - waiting for %d pending waitUntil tasks (session: %s)',
 										method,
 										url.pathname,
+										pendingPromises.length,
 										sessionId
 									);
-								} finally {
-									// Set span attributes and end span AFTER all work is done
-									span.setAttribute('@agentuity/request.duration', durationNs);
-									span.setAttribute('http.status_code', finalStatus);
-
-									if (wsError) {
-										span.setStatus({
-											code: SpanStatusCode.ERROR,
-											message: finalErrorMessage ?? 'WebSocket ended with error',
-										});
-										if (wsError instanceof Error) {
-											span.recordException(wsError);
-										}
-									} else {
-										span.setStatus({ code: SpanStatusCode.OK });
-									}
-
-									span.end();
+									const logger = c.get('logger');
+									await handler.waitForPromises(pendingPromises, logger, sessionId);
 									internal.info(
-										'[request] %s %s - websocket span ended (session: %s)',
+										'[request] %s %s - all waitUntil tasks complete (session: %s)',
 										method,
 										url.pathname,
 										sessionId
 									);
 								}
+
+								// Finalize session after WebSocket closes
+								await finalizeSession(
+									finalStatus >= 500 ? finalStatus : undefined,
+									finalErrorMessage
+								);
+								internal.info(
+									'[request] %s %s - websocket session finalization complete (session: %s)',
+									method,
+									url.pathname,
+									sessionId
+								);
 							});
 						} else {
 							// Non-streaming: record duration immediately
@@ -1029,29 +997,15 @@ export function createOtelMiddleware() {
  * });
  * ```
  */
-export function createCompressionMiddleware(
-	staticConfig?: CompressionConfig,
-	/**
-	 * Optional config resolver for testing. When provided, this is used instead of getAppConfig().
-	 * @internal
-	 */
-	configResolver?: () => { compression?: CompressionConfig | false } | undefined
-) {
+export function createCompressionMiddleware(staticConfig?: CompressionConfig | false) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
-		// Lazy resolve: merge app config with static config
-		const appConfig = configResolver ? configResolver() : getAppConfig();
-		const appCompressionConfig = appConfig?.compression;
-
 		// Check if compression is explicitly disabled
-		if (appCompressionConfig === false || staticConfig?.enabled === false) {
+		if (staticConfig === false || staticConfig?.enabled === false) {
 			return next();
 		}
 
-		// Merge configs: static config takes precedence over app config
-		const config: CompressionConfig = {
-			...(typeof appCompressionConfig === 'object' ? appCompressionConfig : {}),
-			...staticConfig,
-		};
+		const config: CompressionConfig = { ...staticConfig };
 
 		const { enabled = true, threshold = 1024, filter, honoOptions } = config;
 
@@ -1102,6 +1056,7 @@ export function createCompressionMiddleware(
  * - Thread cookie (atid_a): Analytics-readable copy, 1-week expiry
  */
 export function createWebSessionMiddleware() {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider } = await import('./_services');

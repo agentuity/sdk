@@ -65,6 +65,12 @@ export const runSubcommand = createCommand({
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
 			projectId: z.string().optional().describe('Project ID to associate this sandbox with'),
+			scope: z
+				.array(z.string())
+				.optional()
+				.describe(
+					'Permission scopes for service access (e.g., kv:read, aigateway, services:write)'
+				),
 		}),
 		response: SandboxRunResponseSchema,
 	},
@@ -177,6 +183,7 @@ export const runSubcommand = createCommand({
 					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
 					snapshot: opts.snapshot,
 					dependencies: opts.dependency,
+					scopes: opts.scope,
 				},
 				orgId,
 				region,

@@ -43,6 +43,8 @@ echo "Payload size: $(wc -c < "$TEMP_FILE") bytes" >&2
 
 # Build curl command using temporary file
 curl_args=(
+    --http1.1
+    --max-time 90
     -X POST
     -H "Content-Type: application/json"
     --data-binary "@$TEMP_FILE"

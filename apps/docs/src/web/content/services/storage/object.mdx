@@ -16,8 +16,47 @@ Object storage provides durable file storage for documents, images, media, and b
 | [Database](/services/database) | Structured data, complex queries, transactions |
 | [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
 
-<Callout type="info" title="Credentials Auto-Injected">
-Agentuity automatically injects S3 credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_ENDPOINT`) during development and deployment. No manual configuration required.
+## Setup
+
+Object storage requires a storage bucket linked to your project.
+
+### New Projects
+
+When you run `agentuity project create`, the CLI prompts you to create a storage bucket. If you opt in, the bucket is created, linked, and credentials are written to `.env` automatically.
+
+### Existing Projects
+
+For projects that don't have a bucket yet:
+
+1. Create a bucket using the CLI or the [Agentuity dashboard](https://app.agentuity.com/services/storage):
+
+```bash
+agentuity cloud storage create
+```
+
+2. Link it to your project:
+
+```bash
+agentuity project add storage
+```
+
+`agentuity project add storage` links the bucket and writes credentials to `.env`. `agentuity cloud storage create` also writes credentials if run from a project directory.
+
+The credentials written to `.env`:
+
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+- `S3_BUCKET`
+- `S3_ENDPOINT`
+
+<Callout type="warning" title="Dev Mode Credentials">
+`agentuity dev` reads S3 credentials from `.env`. If you see `ERR_S3_MISSING_CREDENTIALS`, run `agentuity project add storage` to link a bucket and write the credentials.
+
+After cloning a project where `.env` is not checked in, run `agentuity project add storage` to re-link the bucket. Alternatively, if the project has been deployed before, run `agentuity cloud env pull` to restore all project environment variables from the cloud.
+</Callout>
+
+<Callout type="info" title="Cloud Deployment">
+When deployed to Agentuity Cloud, S3 credentials for linked buckets are available automatically.
 </Callout>
 
 ## Quick Start
@@ -67,10 +106,11 @@ const agent = createAgent('FileProcessor', {
 ## Using in Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { s3 } from "bun";
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // File upload
 router.post('/upload/:filename', async (c) => {

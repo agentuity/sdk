@@ -21,6 +21,7 @@ import { emailCommand } from './email';
 import taskCommand from './task';
 import sandboxCommand from './sandbox';
 import scheduleCommand from './schedule';
+import workflowCommand from './workflow';
 import servicesCommand from './services';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
@@ -51,6 +52,7 @@ export const command = createCommand({
 		vectorCommand,
 		sandboxCommand,
 		scheduleCommand,
+		workflowCommand,
 		envCommand,
 		evalCommand,
 		evalRunCommand,

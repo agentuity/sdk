@@ -83,6 +83,12 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
 			metadata: z.string().optional().describe('JSON object of user-defined metadata'),
+			scope: z
+				.array(z.string())
+				.optional()
+				.describe(
+					'Permission scopes for service access (e.g., kv:read, aigateway, services:write)'
+				),
 			port: z
 				.number()
 				.int()
@@ -195,6 +201,7 @@ export const createSubcommand = createCommand({
 				snapshot: opts.snapshot,
 				dependencies: opts.dependency,
 				metadata,
+				scopes: opts.scope,
 			},
 			orgId,
 		});

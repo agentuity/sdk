@@ -1,4 +1,5 @@
 export * from './adapter.ts';
+export * from './auth/index.ts';
 export * from './email/index.ts';
 export * from './exception.ts';
 export * from './keyvalue/index.ts';
@@ -8,6 +9,7 @@ export * from './task/index.ts';
 export * from './vector/index.ts';
 
 export * from './config.ts';
+export * from './coder/index.ts';
 export * from './env.ts';
 export * from './logger.ts';
 export * from './api.ts';
@@ -30,5 +32,6 @@ export * from './stream/index.ts';
 export * from './thread/index.ts';
 export * from './user/index.ts';
 export * from './webhook/index.ts';
+export * from './workflow/index.ts';
 
 export { buildUrl, fromResponse, toPayload, toServiceException } from './_util.ts';

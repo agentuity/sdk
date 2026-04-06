@@ -1,4 +1,6 @@
-import { createRouter, websocket, type WebSocketConnection } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { websocket, type WebSocketConnection } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import { s, type Schema } from '@agentuity/schema';
 import type { Context } from 'hono';
 
@@ -50,9 +52,7 @@ function validateMessage<T>(
 	return validation.data;
 }
 
-const router = createRouter();
-
-router.get(
+const router = new Hono<Env>().get(
 	'/',
 	websocket((c, ws) => {
 		ws.onMessage((event) => {

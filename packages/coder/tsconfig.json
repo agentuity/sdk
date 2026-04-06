@@ -3,10 +3,9 @@
 	"compilerOptions": {
 		"composite": true,
 		"outDir": "./dist",
-		"rootDir": "./src",
-		"rewriteRelativeImportExtensions": true
+		"rootDir": "./src"
 	},
 	"include": ["src/**/*"],
-	"exclude": ["test/**/*"],
-	"references": []
+	"exclude": ["node_modules", "dist"],
+	"references": [{ "path": "../core" }, { "path": "../server" }]
 }

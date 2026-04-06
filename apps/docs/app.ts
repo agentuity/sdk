@@ -1,17 +1,30 @@
 import { createApp } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import router from './src/api';
+import agents from './src/agent';
 
-const { server, logger } = await createApp({
-	setup: async () => {
-		// anything you return from this will be automatically
-		// available in the ctx.app. this allows you to initialize
-		// global resources and make them available to routes and
-		// agents in a typesafe way
-	},
-	shutdown: async (_state) => {
-		// the state variable will be the same value was what you
-		// return from setup above. you can use this callback to
-		// close any resources or other shutdown related tasks
-	},
+const redirects = new Hono()
+	// Demo routes → Explorer
+	.get('/demo/', (c) => c.redirect('/explorer', 301))
+	.get('/demo/:rest{.+}', (c) => {
+		return c.redirect(`/explorer/${c.req.param('rest')}`, 301);
+	})
+	.get('/demo', (c) => c.redirect('/explorer', 301))
+	// Permanent server-side redirects for legacy docs URLs.
+	// Matching TanStack routes handle the same redirects during SPA navigation.
+	.get('/apis/calling-agents', (c) => c.redirect('/routes/calling-agents', 301))
+	.get('/apis/when-to-use', (c) => c.redirect('/agents/when-to-use', 301))
+	.get('/apis/', (c) => c.redirect('/agents', 301))
+	.get('/apis', (c) => c.redirect('/agents', 301));
+
+const app = await createApp({
+	router: [
+		{ path: '/', router: redirects },
+		{ path: '/api', router },
+	],
+	agents,
 });
 
-logger.debug('Running %s', server.url);
+app.logger.debug('Running %s', app.server.url);
+
+export default app;

@@ -5,6 +5,8 @@ description: Build multi-agent systems with type-safe agent-to-agent communicati
 
 Break complex tasks into focused, reusable agents that communicate with type safety. Instead of building one large agent, create specialized agents that each handle a single responsibility.
 
+For method signatures and the agent registry API, see the [Communication Reference](/reference/sdk-reference/communication).
+
 ## Basic Usage
 
 Import and call other agents directly:
@@ -12,7 +14,7 @@ Import and call other agents directly:
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import enrichmentAgent from '@agent/enrichment';
+import enrichmentAgent from '@agent/enrichment/agent';
 
 const coordinator = createAgent('Coordinator', {
   schema: {
@@ -47,9 +49,9 @@ Process data through a series of agents where each step depends on the previous 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import validatorAgent from '@agent/validator';
-import enrichmentAgent from '@agent/enrichment';
-import analysisAgent from '@agent/analysis';
+import validatorAgent from '@agent/validator/agent';
+import enrichmentAgent from '@agent/enrichment/agent';
+import analysisAgent from '@agent/analysis/agent';
 
 const pipeline = createAgent('Pipeline', {
   schema: {
@@ -86,9 +88,9 @@ Run multiple agents simultaneously when their operations are independent:
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import webSearchAgent from '@agent/web-search';
-import databaseAgent from '@agent/database';
-import vectorSearchAgent from '@agent/vector-search';
+import webSearchAgent from '@agent/web-search/agent';
+import databaseAgent from '@agent/database/agent';
+import vectorSearchAgent from '@agent/vector-search/agent';
 
 const searchAgent = createAgent('Search', {
   schema: {
@@ -121,7 +123,7 @@ Use `ctx.waitUntil()` for fire-and-forget operations that continue after returni
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import analyticsAgent from '@agent/analytics';
+import analyticsAgent from '@agent/analytics/agent';
 
 const processor = createAgent('Processor', {
   schema: {
@@ -157,9 +159,9 @@ Use `ctx.waitUntil()` for analytics, logging, notifications, or any operation wh
 Use an LLM to classify intent and route to the appropriate agent:
 
 ```typescript
-import supportAgent from '@agent/support';
-import salesAgent from '@agent/sales';
-import technicalAgent from '@agent/technical';
+import supportAgent from '@agent/support/agent';
+import salesAgent from '@agent/sales/agent';
+import technicalAgent from '@agent/technical/agent';
 
 handler: async (ctx, input) => {
   // Classify with a fast model, using Groq (via AI Gateway)
@@ -196,8 +198,8 @@ An orchestrator is a coordinator agent that delegates work to specialized agents
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import writerAgent from '@agent/writer';
-import evaluatorAgent from '@agent/evaluator';
+import writerAgent from '@agent/writer/agent';
+import evaluatorAgent from '@agent/evaluator/agent';
 
 const orchestrator = createAgent('Orchestrator', {
   schema: {
@@ -276,8 +278,8 @@ export default agent;
 By default, errors propagate through the call chain:
 
 ```typescript
-import validatorAgent from '@agent/validator';
-import processorAgent from '@agent/processor';
+import validatorAgent from '@agent/validator/agent';
+import processorAgent from '@agent/processor/agent';
 
 const pipeline = createAgent('Pipeline', {
   handler: async (ctx, input) => {
@@ -299,8 +301,8 @@ This is the recommended pattern for critical operations where later steps cannot
 For optional operations, catch errors and continue:
 
 ```typescript
-import enrichmentAgent from '@agent/enrichment';
-import processorAgent from '@agent/processor';
+import enrichmentAgent from '@agent/enrichment/agent';
+import processorAgent from '@agent/processor/agent';
 
 const resilientProcessor = createAgent('Resilient Processor', {
   handler: async (ctx, input) => {
@@ -329,7 +331,7 @@ const resilientProcessor = createAgent('Resilient Processor', {
 Implement retry logic for unreliable operations:
 
 ```typescript
-import externalServiceAgent from '@agent/external-service';
+import externalServiceAgent from '@agent/external-service/agent';
 
 async function callWithRetry<T>(
   fn: () => Promise<T>,
@@ -365,7 +367,7 @@ const retryHandler = createAgent('Retry Handler', {
 Handle mixed success/failure results with `Promise.allSettled()`:
 
 ```typescript
-import processingAgent from '@agent/processing';
+import processingAgent from '@agent/processing/agent';
 
 const batchProcessor = createAgent('Batch Processor', {
   handler: async (ctx, input) => {
@@ -417,7 +419,7 @@ Focused agents are easier to test, reuse, and maintain.
 Define schemas on all agents for type-safe communication. See [Creating Agents](/agents/creating-agents) to learn more about using schemas.
 
 ```typescript
-import sourceAgent from '@agent/source';
+import sourceAgent from '@agent/source/agent';
 
 // Source agent with output schema
 const source = createAgent('Source', {
@@ -450,7 +452,7 @@ const consumer = createAgent('Consumer', {
 Agent calls share the same session context:
 
 ```typescript
-import processingAgent from '@agent/processing';
+import processingAgent from '@agent/processing/agent';
 
 const coordinator = createAgent('Coordinator', {
   handler: async (ctx, input) => {
@@ -479,11 +481,11 @@ import { createAgent } from '@agentuity/runtime';
 import { generateObject } from 'ai';
 import { groq } from '@ai-sdk/groq';
 import { z } from 'zod';
-import supportAgent from '@agent/support';
-import salesAgent from '@agent/sales';
-import billingAgent from '@agent/billing';
-import generalAgent from '@agent/general';
-import analyticsAgent from '@agent/analytics';
+import supportAgent from '@agent/support/agent';
+import salesAgent from '@agent/sales/agent';
+import billingAgent from '@agent/billing/agent';
+import generalAgent from '@agent/general/agent';
+import analyticsAgent from '@agent/analytics/agent';
 
 const IntentSchema = z.object({
   agentType: z.enum(['support', 'sales', 'billing', 'general']),

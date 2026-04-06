@@ -43,6 +43,7 @@ import { getTracer } from './_server';
 import { populateAgentsRegistry } from './agent.js';
 import { getSDKVersion, isAuthenticated, isProduction } from './_config';
 import type { AppConfig } from './app';
+import { localServicesLogged } from './_globals';
 import {
 	DefaultSessionProvider,
 	DefaultThreadProvider,
@@ -191,6 +192,7 @@ let thread: ThreadProvider;
 let sessionEvent: SessionEventProvider;
 let evalRunEvent: EvalRunEventProvider;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let localRouter: any | null = null;
 
 const ServerUrlMissingError = StructuredError(
@@ -198,7 +200,8 @@ const ServerUrlMissingError = StructuredError(
 	'serverUrl is required when using local services'
 );
 
-export function createServices(logger: Logger, config?: AppConfig<any>, serverUrl?: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createServices(logger: Logger, config?: AppConfig, serverUrl?: string) {
 	const authenticated = isAuthenticated();
 	const useLocal = config?.services?.useLocal ?? false;
 	adapter = createFetchAdapter(logger);
@@ -215,7 +218,10 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 			throw new ServerUrlMissingError();
 		}
 
-		logger.info('Using local services (development only)');
+		if (!localServicesLogged.get()) {
+			localServicesLogged.set(true);
+			logger.info('Using local services (development only)');
+		}
 
 		kv = config?.services?.keyvalue || new LocalKeyValueStorage(db, projectPath);
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
@@ -293,6 +299,7 @@ export function getSessionProvider(): SessionProvider {
 	return session;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getLocalRouter(): any | null {
 	return localRouter;
 }
@@ -309,6 +316,7 @@ export function getServices() {
 	return { kv, stream, vector, sandbox, queue, email, schedule, task };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerServices(o: any, includeAgents = false) {
 	Object.defineProperty(o, 'kv', {
 		get: () => kv,
@@ -354,6 +362,7 @@ export function registerServices(o: any, includeAgents = false) {
 	// Also register agent registry if requested
 	if (includeAgents) {
 		// Cache the populated registry to avoid re-creating on every access
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let cachedRegistry: any;
 		Object.defineProperty(o, 'agent', {
 			get: () => {

@@ -1,13 +1,13 @@
 {
 	"name": "@agentuity/coder",
-	"version": "1.0.56",
-	"description": "Agentuity Coder Hub extension for Pi coding agent",
+	"version": "2.0.9",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
+		"AGENTS.md",
 		"README.md",
 		"src",
 		"dist"
@@ -20,21 +20,18 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build",
+		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
-	"peerDependencies": {
-		"@mariozechner/pi-coding-agent": "^0.62.0",
-		"@mariozechner/pi-tui": "^0.62.0",
-		"@sinclair/typebox": "^0.34.48"
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/server": "workspace:*"
 	},
 	"devDependencies": {
-		"@mariozechner/pi-coding-agent": "^0.62.0",
-		"@mariozechner/pi-tui": "^0.62.0",
-		"@sinclair/typebox": "^0.34.48",
-		"@types/bun": "^1.3.9",
-		"bun-types": "^1.3.9",
+		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
+		"bun-types": "latest",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {

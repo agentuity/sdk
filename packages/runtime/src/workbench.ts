@@ -1,5 +1,6 @@
 import type { Context, Handler, MiddlewareHandler } from 'hono';
 import { toJSONSchema } from '@agentuity/server';
+import type { JSONSchema } from '@agentuity/schema';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
 import { websocket, type WebSocketConnection } from './handlers/websocket';
@@ -515,24 +516,31 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 				// Try to find runtime agent by name to get JSON schemas
 				const runtimeAgent = agentsByName.get(agent.name);
 
+				const inputJsonSchema = runtimeAgent?.inputSchema
+					? toJSONSchema(runtimeAgent.inputSchema)
+					: undefined;
+				const outputJsonSchema = runtimeAgent?.outputSchema
+					? toJSONSchema(runtimeAgent.outputSchema)
+					: undefined;
+
 				schemas.agents[agent.id] = {
 					schema: {
-						input: agent.schema?.input
+						input: inputJsonSchema
 							? {
-									code: agent.schema.input,
-									json: runtimeAgent?.inputSchema
-										? toJSONSchema(runtimeAgent.inputSchema)
-										: undefined,
+									code: jsonSchemaToTypeScript(inputJsonSchema),
+									json: inputJsonSchema,
 								}
-							: undefined,
-						output: agent.schema?.output
+							: agent.schema?.input
+								? { code: agent.schema.input, json: undefined }
+								: undefined,
+						output: outputJsonSchema
 							? {
-									code: agent.schema.output,
-									json: runtimeAgent?.outputSchema
-										? toJSONSchema(runtimeAgent.outputSchema)
-										: undefined,
+									code: jsonSchemaToTypeScript(outputJsonSchema),
+									json: outputJsonSchema,
 								}
-							: undefined,
+							: agent.schema?.output
+								? { code: agent.schema.output, json: undefined }
+								: undefined,
 					},
 					metadata: {
 						id: agent.id,
@@ -596,3 +604,118 @@ export const createWorkbenchWebsocketHandler = () => {
  * @deprecated Use createWorkbenchWebsocketHandler instead
  */
 export const createWorkbenchWebsocketRoute = createWorkbenchWebsocketHandler;
+
+/**
+ * Convert a JSON Schema object to a TypeScript type string for display.
+ * Produces clean, readable type notation for the workbench schema panel.
+ *
+ * @example
+ * ```typescript
+ * jsonSchemaToTypeScript({
+ *   type: 'object',
+ *   properties: { name: { type: 'string' }, age: { type: 'number' } },
+ *   required: ['name', 'age'],
+ * });
+ * // "{\n  name: string;\n  age: number;\n}"
+ * ```
+ */
+/** Escape a string for use inside a double-quoted TypeScript string literal. */
+function escapeString(s: string): string {
+	return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+/** Check if a property key is a valid unquoted TypeScript identifier. */
+function isValidIdentifier(key: string): boolean {
+	return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
+}
+
+function jsonSchemaToTypeScript(schema: JSONSchema, indent = 0): string {
+	const pad = '  '.repeat(indent);
+	const inner = '  '.repeat(indent + 1);
+
+	// Handle const (literal type)
+	if (schema.const !== undefined) {
+		return typeof schema.const === 'string'
+			? `"${escapeString(schema.const)}"`
+			: String(schema.const);
+	}
+
+	// Handle enum (union of literals)
+	if (schema.enum) {
+		return schema.enum
+			.map((v) => (typeof v === 'string' ? `"${escapeString(String(v))}"` : String(v)))
+			.join(' | ');
+	}
+
+	// Handle anyOf / oneOf (union types)
+	const unionSchemas = schema.anyOf ?? schema.oneOf;
+	if (unionSchemas) {
+		// Nullable pattern: anyOf with one type and one null
+		if (unionSchemas.length === 2) {
+			const nullIdx = unionSchemas.findIndex((s) => s.type === 'null');
+			if (nullIdx !== -1) {
+				const other = unionSchemas[nullIdx === 0 ? 1 : 0];
+				if (other) {
+					return `${jsonSchemaToTypeScript(other, indent)} | null`;
+				}
+			}
+		}
+		return unionSchemas.map((s) => jsonSchemaToTypeScript(s, indent)).join(' | ');
+	}
+
+	// Handle allOf (intersection types)
+	if (schema.allOf) {
+		return schema.allOf.map((s) => jsonSchemaToTypeScript(s, indent)).join(' & ');
+	}
+
+	switch (schema.type) {
+		case 'string':
+			return 'string';
+		case 'number':
+		case 'integer':
+			return 'number';
+		case 'boolean':
+			return 'boolean';
+		case 'null':
+			return 'null';
+
+		case 'array': {
+			if (!schema.items) return 'unknown[]';
+			const itemType = jsonSchemaToTypeScript(schema.items, indent);
+			// Wrap union types in parens: (A | B)[]
+			return itemType.includes(' | ') ? `(${itemType})[]` : `${itemType}[]`;
+		}
+
+		case 'object': {
+			if (!schema.properties || Object.keys(schema.properties).length === 0) {
+				if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+					return `Record<string, ${jsonSchemaToTypeScript(schema.additionalProperties, indent)}>`;
+				}
+				return 'Record<string, unknown>';
+			}
+
+			const required = new Set(schema.required ?? []);
+			const lines: string[] = ['{'];
+
+			for (const [key, propSchema] of Object.entries(schema.properties)) {
+				const optional = !required.has(key);
+				const propType = jsonSchemaToTypeScript(propSchema, indent + 1);
+				const desc = propSchema.description ? ` // ${propSchema.description}` : '';
+				const quotedKey = isValidIdentifier(key) ? key : `"${escapeString(key)}"`;
+				lines.push(`${inner}${quotedKey}${optional ? '?' : ''}: ${propType};${desc}`);
+			}
+
+			lines.push(`${pad}}`);
+			return lines.join('\n');
+		}
+
+		default:
+			if (schema.properties) {
+				return jsonSchemaToTypeScript({ ...schema, type: 'object' }, indent);
+			}
+			if (schema.items) {
+				return jsonSchemaToTypeScript({ ...schema, type: 'array' }, indent);
+			}
+			return 'unknown';
+	}
+}

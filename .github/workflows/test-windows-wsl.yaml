@@ -4,6 +4,7 @@ on:
    push:
       branches:
          - main
+         - v2
       paths:
          - 'packages/cli/**'
          - 'packages/core/**'
@@ -106,7 +107,13 @@ jobs:
               cd ~/sdk
 
               CLI="bun packages/cli/bin/cli.ts"
-              PROJECT_NAME="test-wsl-${GITHUB_RUN_ID:-local}"
+              # Use GitHub expressions directly — env vars like GITHUB_RUN_ID
+              # and GITHUB_BASE_REF are NOT available inside WSL, but
+              # expressions are resolved at workflow parse time.
+              PROJECT_NAME="test-wsl-${{ github.run_id }}"
+              TEMPLATE_BRANCH="${{ github.head_ref || github.ref_name }}"
+
+              echo "Using template branch: $TEMPLATE_BRANCH"
 
               # Verify authentication
               $CLI auth whoami
@@ -116,6 +123,7 @@ jobs:
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --template default \
+                --template-branch "$TEMPLATE_BRANCH" \
                 --database skip \
                 --storage skip \
                 --confirm

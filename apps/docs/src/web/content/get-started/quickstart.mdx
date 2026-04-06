@@ -8,7 +8,7 @@ import { Lightbulb } from 'lucide-react';
 This guide walks you through building a chat agent from scratch using OpenAI.
 
 <Callout type="info" title="Default Template">
-When you create a project with `agentuity create`, you get a translation agent demonstrating:
+When you create a project with `agentuity project create`, you get a translation agent demonstrating:
 
 - **AI Gateway**: OpenAI SDK routed through Agentuity (unified billing, no separate API keys)
 - **Thread state**: Persistent translation history across requests
@@ -43,7 +43,7 @@ const agent = createAgent('Chat', {
     ctx.logger.info('Received message', { message: input.message });
 
     const { text } = await generateText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-nano'),
       prompt: input.message,
     });
 
@@ -54,26 +54,50 @@ const agent = createAgent('Chat', {
 export default agent;
 ```
 
-## 2. Add a Route
+## 2. Register the Agent
+
+Add the agent to the registry in `src/agent/index.ts`:
+
+```typescript
+import chat from './chat/agent';
+
+export default [chat];
+```
+
+## 3. Add a Route
 
 Create `src/api/index.ts`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chat.validator(), async (c) => {
+    const data = c.req.valid('json');
+    return c.json(await chat.run(data));
+  });
 
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  const result = await chat.run(data);
-  return c.json(result);
-});
+export type ApiRouter = typeof api;
 
-export default router;
+export default api;
 ```
 
-## 3. Run Your Agent
+Wire the route and your agent into the project-root `app.ts`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import agents from './src/agent';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
+```
+
+## 4. Run Your Agent
 
 Start the dev server:
 
@@ -98,33 +122,46 @@ Response:
 }
 ```
 
-## 4. Test Locally with Workbench
+## 5. Test Locally with Workbench
 
-Workbench is a built-in UI for testing agents directly, without going through your frontend. Enable it by adding a `workbench` section to your `agentuity.config.ts`:
+Workbench is a built-in UI for testing agents directly, without going through your frontend. The default template comes with Workbench pre-configured in `app.ts`:
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
-
-export default {
-  workbench: {
-    route: '/workbench',
-  },
-} satisfies AgentuityConfig;
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+  workbench: { route: '/workbench' },
+});
 ```
 
 Open [http://localhost:3500/workbench](http://localhost:3500/workbench) to test your agents with raw JSON input. See [Testing with Workbench](/agents/workbench) for adding test prompts and configuration options.
 
-## 5. Add a Frontend
+## 6. Add a Frontend
 
-Add a React UI in `src/web/` to call your agent. Here's a simple example:
+Add a React UI in `src/web/` to call your agent. Use Hono's `hc()` client for type-safe API calls:
 
 ```tsx
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api';
 import { useState } from 'react';
+
+const client = hc<ApiRouter>('/api');
 
 export function App() {
   const [message, setMessage] = useState('');
-  const { data, invoke, isLoading } = useAPI('POST /api/chat');
+  const [response, setResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSend = async () => {
+    setIsLoading(true);
+    try {
+      const res = await client.chat.$post({ json: { message } });
+      const data = await res.json();
+      setResponse(data.response);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -134,18 +171,18 @@ export function App() {
         placeholder="Ask something..."
         disabled={isLoading}
       />
-      <button onClick={() => invoke({ message })} disabled={isLoading}>
+      <button onClick={handleSend} disabled={isLoading}>
         {isLoading ? 'Thinking...' : 'Send'}
       </button>
-      {data && <p>{data.response}</p>}
+      {response && <p>{response}</p>}
     </div>
   );
 }
 ```
 
-The `useAPI` hook provides type-safe access to your routes. It infers types from your agent's schema, so `data.response` is fully typed.
+The `hc()` client infers types from your router, so `data.response` is fully typed.
 
-## 6. Add Streaming
+## 7. Add Streaming
 
 For real-time responses, return a stream instead:
 
@@ -155,14 +192,14 @@ import { streamText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent('Chat', {
+const agent = createAgent('chat', {
   schema: {
     input: s.object({ message: s.string() }),
     stream: true,
   },
   handler: async (ctx, input) => {
     const { textStream } = streamText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-nano'),
       prompt: input.message,
     });
 
@@ -173,23 +210,26 @@ const agent = createAgent('Chat', {
 export default agent;
 ```
 
-Update the route to use the `stream()` middleware:
+Update the route to use the `stream()` handler:
 
 ```typescript
-import { createRouter, stream } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import { stream } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chat.validator(), stream(async (c) => {
+    const data = c.req.valid('json');
+    return chat.run(data);
+  }));
 
-router.post('/chat', chat.validator(), stream(async (c) => {
-  const data = c.req.valid('json');
-  return chat.run(data);
-}));
+export type ApiRouter = typeof api;
 
-export default router;
+export default api;
 ```
 
-## 7. Deploy
+## 8. Deploy
 
 When you're ready, deploy to Agentuity:
 
@@ -198,7 +238,7 @@ agentuity deploy
 # or: bun run deploy
 ```
 
-Your agent is now live with a public URL. View deployments, logs, and more in the [App](https://app-v1.agentuity.com).
+Your agent is now live with a public URL. View deployments, logs, and more in the [Web App](https://app.agentuity.com).
 
 <Callout type="info" title="What You'll See in the App">
 After your first deployment, the App populates with:
@@ -226,7 +266,7 @@ agentuity ai opencode install
 
 - [Build a multi-agent system](/agents/calling-other-agents): Routing, RAG, workflows
 - [Persist data](/agents/state-management): Use thread and session state
-- [Explore React Hooks](/frontend/react-hooks): WebSocket, SSE, and more patterns
+- [RPC Client](/frontend/rpc-client): Type-safe `hc()` patterns for browser and server code
 
 **Understand the platform:**
 

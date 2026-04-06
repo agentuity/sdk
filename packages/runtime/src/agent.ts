@@ -394,7 +394,7 @@ export interface AgentContext<
 	 * }
 	 * ```
 	 */
-	auth: import('@agentuity/auth').AuthInterface | null;
+	auth: import('@agentuity/core').AuthInterface | null;
 }
 
 type InternalAgentMetadata = {
@@ -1661,7 +1661,17 @@ export function createAgent<
 		(agentCtx as any)[CURRENT_AGENT] = agent;
 
 		// Expose current agent metadata on the context
-		(agentCtx as any).current = agent.metadata;
+		agentCtx.current = agent.metadata;
+
+		// Update ctx.config with this agent's setup() return value.
+		// This ensures correct config when:
+		// - Agent is called via user router (createAgentMiddleware(''))
+		// - Agent A calls Agent B (agentB.run() inside handler)
+		// - Agent is called via runInAgentContext() in tests
+		const agentConfig = getAgentConfig(agent.metadata.name as AgentName);
+		if (agentConfig !== undefined) {
+			agentCtx.config = agentConfig as TConfig;
+		}
 
 		const attrs = {
 			'@agentuity/agentId': agent.metadata.agentId, // stable ID (agent_*) - consistent across deployments
@@ -1934,7 +1944,7 @@ export function createAgent<
 		);
 
 		if (agentEvals && agentEvals.length > 0) {
-			internal.info(`Executing ${agentEvals.length} eval(s) after agent run`);
+			internal.info(`Executing ${agentEvals.length} evaluations after agent run`);
 
 			// Get validated input/output from context state
 			const validatedInput = ctx.state.get('_evalInput');
@@ -2377,6 +2387,7 @@ export function createAgent<
 		inputSchema: inputSchema as TInput,
 		outputSchema: outputSchema as TOutput,
 		stream: (config.schema?.stream as TStream) || (false as TStream),
+		evals: agent.evals,
 		createEval,
 		addEventListener: agent.addEventListener,
 		removeEventListener: agent.removeEventListener,

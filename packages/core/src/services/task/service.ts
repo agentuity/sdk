@@ -138,6 +138,7 @@ export const TaskSchema = z.object({
 	created_id: z.string().describe('ID of the user who created the task.'),
 	assigned_id: z.string().optional().describe('ID of the user the task is assigned to.'),
 	closed_id: z.string().optional().describe('ID of the user who closed the task.'),
+	deleted: z.boolean().optional().describe('Whether this task has been soft-deleted.'),
 	creator: z
 		.lazy(() => UserEntityRefSchema)
 		.optional()
@@ -372,6 +373,21 @@ export const UpdateTaskParamsSchema = z.object({
 export type UpdateTaskParams = z.infer<typeof UpdateTaskParamsSchema>;
 
 /**
+ * Additional fields to include in the task list response.
+ * By default, list returns a reduced summary shape for performance.
+ */
+export const TaskIncludeFieldSchema = z.enum([
+	'description',
+	'metadata',
+	'tags',
+	'subtask_count',
+	'created_id',
+	'deleted',
+]);
+
+export type TaskIncludeField = z.infer<typeof TaskIncludeFieldSchema>;
+
+/**
  * Parameters for filtering and paginating the task list.
  */
 export const ListTasksParamsSchema = z.object({
@@ -405,6 +421,16 @@ export const ListTasksParamsSchema = z.object({
 	 * @default false
 	 */
 	deleted: z.boolean().optional().describe('Filter for soft-deleted tasks.'),
+
+	/**
+	 * Additional fields to include in the response.
+	 * By default, list returns a reduced summary shape.
+	 * Use this to include: description, metadata, tags, subtask_count, created_id, deleted.
+	 */
+	include: z
+		.array(TaskIncludeFieldSchema)
+		.optional()
+		.describe('Additional fields to include in the response.'),
 
 	/**
 	 * Sort field. Prefix with `-` for descending order.
@@ -521,6 +547,207 @@ export const BatchDeleteTasksResultSchema = z.object({
 });
 
 export type BatchDeleteTasksResult = z.infer<typeof BatchDeleteTasksResultSchema>;
+
+/**
+ * Parameters for batch-updating tasks by filter.
+ * At least one filter must be provided. At least one update field must be provided.
+ */
+export const BatchUpdateTasksParamsSchema = z.object({
+	/** Filter by task status. */
+	status: TaskStatusSchema.optional().describe('Filter by task status.'),
+
+	/** Filter by task type. */
+	type: TaskTypeSchema.optional().describe('Filter by task type.'),
+
+	/** Filter by priority level. */
+	priority: TaskPrioritySchema.optional().describe('Filter by priority level.'),
+
+	/** Filter by parent task ID. */
+	parent_id: z.string().optional().describe('Filter by parent task ID.'),
+
+	/** Filter by creator ID. */
+	created_id: z.string().optional().describe('Filter by creator ID.'),
+
+	/** Filter by assigned user ID. */
+	assigned_id: z.string().optional().describe('Filter by assigned user ID.'),
+
+	/** Filter by project ID. */
+	project_id: z.string().optional().describe('Filter by project ID.'),
+
+	/** Filter by tag ID. */
+	tag_id: z.string().optional().describe('Filter by tag ID.'),
+
+	/**
+	 * Filter for tasks older than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	older_than: z.string().optional().describe('Filter for tasks older than this duration.'),
+
+	/** Specific task IDs to update (alternative to filters). */
+	ids: z.array(z.string()).optional().describe('Specific task IDs to update.'),
+
+	/**
+	 * Maximum number of tasks to update.
+	 * @default 50
+	 * @maximum 200
+	 */
+	limit: z.number().optional().describe('Maximum number of tasks to update.'),
+
+	// Update fields - at least one must be provided
+	/** New status to set. */
+	new_status: TaskStatusSchema.optional().describe('New status to set.'),
+
+	/** New priority to set. */
+	new_priority: TaskPrioritySchema.optional().describe('New priority to set.'),
+
+	/** New assigned user ID to set. */
+	new_assigned_id: z.string().optional().describe('New assigned user ID to set.'),
+
+	/** New assignee entity reference. */
+	new_assignee: UserEntityRefSchema.optional().describe('New assignee entity reference.'),
+
+	/** New title to set. */
+	new_title: z.string().optional().describe('New title to set.'),
+
+	/** New description to set. */
+	new_description: z.string().optional().describe('New description to set.'),
+
+	/** New metadata to set (merged with existing). */
+	new_metadata: z.record(z.string(), z.unknown()).optional().describe('New metadata to set.'),
+
+	/** New type to set. */
+	new_type: TaskTypeSchema.optional().describe('New type to set.'),
+
+	/**
+	 * Filter for tasks newer than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	newer_than: z.string().optional().describe('Filter for tasks newer than this duration.'),
+
+	/** Whether this is a dry run (preview only). */
+	dry_run: z.boolean().optional().describe('Whether this is a dry run (preview only).'),
+});
+
+export type BatchUpdateTasksParams = z.infer<typeof BatchUpdateTasksParamsSchema>;
+
+/**
+ * A single task that was updated in a batch operation.
+ */
+export const BatchUpdatedTaskSchema = z.object({
+	id: z.string().describe('The ID of the updated task.'),
+	title: z.string().describe('The title of the updated task.'),
+	status: TaskStatusSchema.describe('The new status of the task.'),
+	priority: TaskPrioritySchema.describe('The new priority of the task.'),
+});
+
+export type BatchUpdatedTask = z.infer<typeof BatchUpdatedTaskSchema>;
+
+/**
+ * Result of a batch update operation.
+ */
+export const BatchUpdateTasksResultSchema = z.object({
+	/** Array of tasks that were updated. */
+	updated: z.array(BatchUpdatedTaskSchema).describe('Array of tasks that were updated.'),
+
+	/** Total number of tasks updated. */
+	count: z.number().describe('Total number of tasks updated.'),
+
+	/** Whether this was a dry run. */
+	dry_run: z.boolean().describe('Whether this was a dry run.'),
+});
+
+export type BatchUpdateTasksResult = z.infer<typeof BatchUpdateTasksResultSchema>;
+
+/**
+ * Parameters for batch-closing tasks by filter.
+ * At least one filter must be provided.
+ */
+export const BatchCloseTasksParamsSchema = z.object({
+	/** Filter by task status. */
+	status: TaskStatusSchema.optional().describe('Filter by task status.'),
+
+	/** Filter by task type. */
+	type: TaskTypeSchema.optional().describe('Filter by task type.'),
+
+	/** Filter by priority level. */
+	priority: TaskPrioritySchema.optional().describe('Filter by priority level.'),
+
+	/** Filter by parent task ID. */
+	parent_id: z.string().optional().describe('Filter by parent task ID.'),
+
+	/** Filter by creator ID. */
+	created_id: z.string().optional().describe('Filter by creator ID.'),
+
+	/** Filter by assigned user ID. */
+	assigned_id: z.string().optional().describe('Filter by assigned user ID.'),
+
+	/** Filter by project ID. */
+	project_id: z.string().optional().describe('Filter by project ID.'),
+
+	/** Filter by tag ID. */
+	tag_id: z.string().optional().describe('Filter by tag ID.'),
+
+	/**
+	 * Filter for tasks older than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	older_than: z.string().optional().describe('Filter for tasks older than this duration.'),
+
+	/**
+	 * Filter for tasks newer than this duration.
+	 * Accepts Go-style duration strings: `'30m'`, `'24h'`, `'7d'`, `'2w'`.
+	 */
+	newer_than: z.string().optional().describe('Filter for tasks newer than this duration.'),
+
+	/** Specific task IDs to close (alternative to filters). */
+	ids: z.array(z.string()).optional().describe('Specific task IDs to close.'),
+
+	/**
+	 * Maximum number of tasks to close.
+	 * @default 50
+	 * @maximum 200
+	 */
+	limit: z.number().optional().describe('Maximum number of tasks to close.'),
+
+	/** ID of the user closing the tasks. */
+	closed_id: z.string().optional().describe('ID of the user closing the tasks.'),
+
+	/** Closer entity reference. */
+	closer: UserEntityRefSchema.optional().describe('Closer entity reference.'),
+
+	/** Whether this is a dry run (preview only). */
+	dry_run: z.boolean().optional().describe('Whether this is a dry run (preview only).'),
+});
+
+export type BatchCloseTasksParams = z.infer<typeof BatchCloseTasksParamsSchema>;
+
+/**
+ * A single task that was closed in a batch operation.
+ */
+export const BatchClosedTaskSchema = z.object({
+	id: z.string().describe('The ID of the closed task.'),
+	title: z.string().describe('The title of the closed task.'),
+	status: TaskStatusSchema.describe('The status of the task (done).'),
+	closed_date: z.string().optional().describe('ISO 8601 timestamp when the task was closed.'),
+});
+
+export type BatchClosedTask = z.infer<typeof BatchClosedTaskSchema>;
+
+/**
+ * Result of a batch close operation.
+ */
+export const BatchCloseTasksResultSchema = z.object({
+	/** Array of tasks that were closed. */
+	closed: z.array(BatchClosedTaskSchema).describe('Array of tasks that were closed.'),
+
+	/** Total number of tasks closed. */
+	count: z.number().describe('Total number of tasks closed.'),
+
+	/** Whether this was a dry run. */
+	dry_run: z.boolean().describe('Whether this was a dry run.'),
+});
+
+export type BatchCloseTasksResult = z.infer<typeof BatchCloseTasksResultSchema>;
 
 /**
  * Paginated list of changelog entries for a task.
@@ -768,6 +995,24 @@ export interface TaskStorage {
 	 * @returns The list of deleted tasks and count
 	 */
 	batchDelete(params: BatchDeleteTasksParams): Promise<BatchDeleteTasksResult>;
+
+	/**
+	 * Batch update tasks matching the given filters.
+	 * At least one filter must be provided. At least one update field must be provided.
+	 *
+	 * @param params - Filters to select tasks and fields to update
+	 * @returns The list of updated tasks and count
+	 */
+	batchUpdate(params: BatchUpdateTasksParams): Promise<BatchUpdateTasksResult>;
+
+	/**
+	 * Batch close tasks matching the given filters.
+	 * At least one filter must be provided. Sets status to done and records closed_date.
+	 *
+	 * @param params - Filters to select which tasks to close
+	 * @returns The list of closed tasks and count
+	 */
+	batchClose(params: BatchCloseTasksParams): Promise<BatchCloseTasksResult>;
 
 	/**
 	 * Get the changelog (audit trail) for a task.
@@ -1295,6 +1540,9 @@ export class TaskStorageService implements TaskStorage {
 		if (params?.project_id) queryParams.set('project_id', params.project_id);
 		if (params?.tag_id) queryParams.set('tag_id', params.tag_id);
 		if (params?.deleted !== undefined) queryParams.set('deleted', String(params.deleted));
+		if (params?.include && params.include.length > 0) {
+			queryParams.set('include', params.include.join(','));
+		}
 		if (params?.sort) queryParams.set('sort', params.sort);
 		if (params?.order) queryParams.set('order', params.order);
 		if (params?.limit !== undefined) queryParams.set('limit', String(params.limit));
@@ -1594,6 +1842,204 @@ export class TaskStorageService implements TaskStorage {
 					...(params.status ? { status: normalizeTaskStatus(params.status) } : {}),
 					...(params.type ? { type: params.type } : {}),
 					...(params.older_than ? { older_than: params.older_than } : {}),
+				},
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Batch update tasks matching the given filters.
+	 * At least one filter (or ids) must be provided. At least one update field must be provided.
+	 *
+	 * @param params - Filters to select tasks and fields to update
+	 * @returns The list of updated tasks and count
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await tasks.batchUpdate({
+	 *   status: 'open',
+	 *   new_status: 'in_progress',
+	 *   new_priority: 'high',
+	 *   limit: 50,
+	 * });
+	 * console.log(`Updated ${result.count} tasks`);
+	 * ```
+	 */
+	async batchUpdate(params: BatchUpdateTasksParams): Promise<BatchUpdateTasksResult> {
+		const hasFilter =
+			params.status ||
+			params.type ||
+			params.priority ||
+			params.parent_id ||
+			params.created_id ||
+			params.assigned_id ||
+			params.project_id ||
+			params.tag_id ||
+			params.older_than ||
+			params.newer_than ||
+			(params.ids && params.ids.length > 0);
+		if (!hasFilter) {
+			throw new Error('At least one filter or ids is required for batch update');
+		}
+
+		const hasUpdate =
+			params.new_status ||
+			params.new_priority ||
+			params.new_assigned_id ||
+			params.new_assignee ||
+			params.new_title ||
+			params.new_description ||
+			params.new_metadata ||
+			params.new_type;
+		if (!hasUpdate) {
+			throw new Error('At least one update field is required for batch update');
+		}
+
+		if (params.limit !== undefined && params.limit > MAX_BATCH_DELETE_LIMIT) {
+			throw new Error(
+				`Batch update limit must not exceed ${MAX_BATCH_DELETE_LIMIT} (got ${params.limit})`
+			);
+		}
+
+		const url = buildUrl(this.#baseUrl, `/task/update/batch`);
+		const signal = AbortSignal.timeout(60_000);
+
+		const body: Record<string, unknown> = {};
+		if (params.status) body.status = normalizeTaskStatus(params.status);
+		if (params.type) body.type = params.type;
+		if (params.priority) body.priority = params.priority;
+		if (params.parent_id) body.parent_id = params.parent_id;
+		if (params.created_id) body.created_id = params.created_id;
+		if (params.assigned_id) body.assigned_id = params.assigned_id;
+		if (params.project_id) body.project_id = params.project_id;
+		if (params.tag_id) body.tag_id = params.tag_id;
+		if (params.older_than) body.older_than = params.older_than;
+		if (params.newer_than) body.newer_than = params.newer_than;
+		if (params.ids && params.ids.length > 0) body.ids = params.ids;
+		if (params.limit !== undefined) body.limit = params.limit;
+		if (params.new_status) body.new_status = normalizeTaskStatus(params.new_status);
+		if (params.new_priority) body.new_priority = params.new_priority;
+		if (params.new_assigned_id) body.new_assigned_id = params.new_assigned_id;
+		if (params.new_assignee) body.new_assignee = params.new_assignee;
+		if (params.new_title) body.new_title = params.new_title;
+		if (params.new_description) body.new_description = params.new_description;
+		if (params.new_metadata) body.new_metadata = params.new_metadata;
+		if (params.new_type) body.new_type = params.new_type;
+		if (params.dry_run !== undefined) body.dry_run = params.dry_run;
+
+		const res = await this.#adapter.invoke<TaskResponse<BatchUpdateTasksResult>>(url, {
+			method: 'POST',
+			body: safeStringify(body),
+			headers: { 'Content-Type': 'application/json' },
+			signal,
+			telemetry: {
+				name: 'agentuity.task.batchUpdate',
+				attributes: {
+					...(params.status ? { status: normalizeTaskStatus(params.status) } : {}),
+					...(params.new_status ? { new_status: normalizeTaskStatus(params.new_status) } : {}),
+					...(params.dry_run !== undefined ? { dry_run: String(params.dry_run) } : {}),
+				},
+			},
+		});
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
+			}
+			throw new TaskStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('POST', url, res.response);
+	}
+
+	/**
+	 * Batch close tasks matching the given filters.
+	 * At least one filter (or ids) must be provided. Sets status to done and records closed_date.
+	 *
+	 * @param params - Filters to select which tasks to close
+	 * @returns The list of closed tasks and count
+	 * @throws {@link ServiceException} if the API request fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await tasks.batchClose({
+	 *   status: 'in_progress',
+	 *   older_than: '7d',
+	 *   limit: 50,
+	 *   dry_run: true,
+	 * });
+	 * console.log(`Would close ${result.count} tasks`);
+	 * ```
+	 */
+	async batchClose(params: BatchCloseTasksParams): Promise<BatchCloseTasksResult> {
+		const hasFilter =
+			params.status ||
+			params.type ||
+			params.priority ||
+			params.parent_id ||
+			params.created_id ||
+			params.assigned_id ||
+			params.project_id ||
+			params.tag_id ||
+			params.older_than ||
+			params.newer_than ||
+			(params.ids && params.ids.length > 0);
+		if (!hasFilter) {
+			throw new Error('At least one filter or ids is required for batch close');
+		}
+
+		if (params.limit !== undefined && params.limit > MAX_BATCH_DELETE_LIMIT) {
+			throw new Error(
+				`Batch close limit must not exceed ${MAX_BATCH_DELETE_LIMIT} (got ${params.limit})`
+			);
+		}
+
+		const url = buildUrl(this.#baseUrl, `/task/close/batch`);
+		const signal = AbortSignal.timeout(60_000);
+
+		const body: Record<string, unknown> = {};
+		if (params.status) body.status = normalizeTaskStatus(params.status);
+		if (params.type) body.type = params.type;
+		if (params.priority) body.priority = params.priority;
+		if (params.parent_id) body.parent_id = params.parent_id;
+		if (params.created_id) body.created_id = params.created_id;
+		if (params.assigned_id) body.assigned_id = params.assigned_id;
+		if (params.project_id) body.project_id = params.project_id;
+		if (params.tag_id) body.tag_id = params.tag_id;
+		if (params.older_than) body.older_than = params.older_than;
+		if (params.newer_than) body.newer_than = params.newer_than;
+		if (params.ids && params.ids.length > 0) body.ids = params.ids;
+		if (params.limit !== undefined) body.limit = params.limit;
+		if (params.closed_id) body.closed_id = params.closed_id;
+		if (params.closer) body.closer = params.closer;
+		if (params.dry_run !== undefined) body.dry_run = params.dry_run;
+
+		const res = await this.#adapter.invoke<TaskResponse<BatchCloseTasksResult>>(url, {
+			method: 'POST',
+			body: safeStringify(body),
+			headers: { 'Content-Type': 'application/json' },
+			signal,
+			telemetry: {
+				name: 'agentuity.task.batchClose',
+				attributes: {
+					...(params.status ? { status: normalizeTaskStatus(params.status) } : {}),
+					...(params.dry_run !== undefined ? { dry_run: String(params.dry_run) } : {}),
 				},
 			},
 		});

@@ -1,4 +1,6 @@
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { sse } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 export const outputSchema = s.object({
@@ -6,9 +8,7 @@ export const outputSchema = s.object({
 	count: s.number(),
 });
 
-const router = createRouter();
-
-router.get(
+const router = new Hono<Env>().get(
 	'/',
 	sse(async (_c, stream) => {
 		let count = 0;

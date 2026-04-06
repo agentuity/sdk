@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useAPI, AgentuityProvider } from '@agentuity/react';
-import '@agentuity/routes';
+import { AgentuityProvider } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../../agentuity/src/api/index';
+
+const client = hc<ApiRouter>('/api');
 
 function AgentuityLogo() {
 	return (
@@ -77,7 +80,22 @@ function ViteLogo() {
 
 function EchoDemoInner() {
 	const [message, setMessage] = useState('Hello from Vite RSC!');
-	const { data, invoke, isLoading, error } = useAPI('POST /api/echo');
+	const [data, setData] = useState<{ echo: string; timestamp: string } | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+
+	const invoke = async (input: { message: string }) => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			const res = await client.echo.$post({ json: input });
+			setData((await res.json()) as any);
+		} catch (e) {
+			setError(e instanceof Error ? e : new Error(String(e)));
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	return (
 		<div className="app-container">
@@ -151,7 +169,8 @@ export default function EchoDemo() {
 
 // Client Component (runs in browser)
 'use client';
-const { data, invoke } = useAPI('POST /api/echo');`}</code>
+const client = hc<ApiRouter>('/api');
+const res = await client.echo.$post({ json: { message } });`}</code>
 					</div>
 				</div>
 			</div>

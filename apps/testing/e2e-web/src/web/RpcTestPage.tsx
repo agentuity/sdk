@@ -1,9 +1,9 @@
 import { type ChangeEvent, useState } from 'react';
-import { createAPIClient } from '@agentuity/react';
-
-const api = createAPIClient();
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
 
 export function RpcTestPage() {
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [name, setName] = useState('RPC');
 	const [apiResult, setApiResult] = useState<string>('');
 	const [wsMessages, setWsMessages] = useState<string[]>([]);
@@ -12,7 +12,8 @@ export function RpcTestPage() {
 
 	const testAPI = async () => {
 		try {
-			const result = await api.hello.post({ name });
+			const res = await client.hello.$post({ json: { name } });
+			const result = await res.text();
 			setApiResult(result);
 		} catch (err) {
 			setError(`API Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -24,22 +25,22 @@ export function RpcTestPage() {
 			setWsMessages([]);
 			setError(null);
 
-			const ws = api.echo.websocket();
+			const ws = client.echo.$ws();
 
-			ws.on('open', () => {
+			ws.addEventListener('open', () => {
 				setWsMessages((prev) => [...prev, 'Connected']);
-				ws.send({ message: `Hello from ${name}` });
+				ws.send(JSON.stringify({ message: `Hello from ${name}` }));
 			});
 
-			ws.on('message', (data: unknown) => {
-				setWsMessages((prev) => [...prev, `Received: ${JSON.stringify(data)}`]);
+			ws.addEventListener('message', (event: MessageEvent) => {
+				setWsMessages((prev) => [...prev, `Received: ${event.data}`]);
 			});
 
-			ws.on('error', () => {
+			ws.addEventListener('error', () => {
 				setWsMessages((prev) => [...prev, 'Error occurred']);
 			});
 
-			ws.on('close', () => {
+			ws.addEventListener('close', () => {
 				setWsMessages((prev) => [...prev, 'Disconnected']);
 			});
 		} catch (err) {
@@ -50,14 +51,18 @@ export function RpcTestPage() {
 	const testSSE = () => {
 		try {
 			setSseEvents([]);
-			const es = api.events.eventstream();
 
-			es.on('message', (event: MessageEvent) => {
+			// SSE uses native EventSource — Hono doesn't have a typed SSE client
+			const baseUrl = window.location.origin;
+			const es = new EventSource(`${baseUrl}/api/events`);
+
+			es.addEventListener('message', (event: MessageEvent) => {
 				setSseEvents((prev) => [...prev, event.data]);
 			});
 
-			es.on('error', () => {
+			es.addEventListener('error', () => {
 				setError('SSE error');
+				es.close();
 			});
 		} catch (err) {
 			setError(`SSE Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -66,7 +71,7 @@ export function RpcTestPage() {
 
 	return (
 		<div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-			<h1>RPC Client Test Page</h1>
+			<h1>Hono Client Test Page</h1>
 			<a href="/">← Back to Home</a>
 
 			{error && (
@@ -102,7 +107,7 @@ export function RpcTestPage() {
 					borderRadius: '0.5rem',
 				}}
 			>
-				<h2>1. API (.run)</h2>
+				<h2>1. API (hc client.$post)</h2>
 				<button onClick={testAPI} data-testid="api-button" style={{ padding: '0.5rem 1rem' }}>
 					Test API
 				</button>
@@ -120,7 +125,7 @@ export function RpcTestPage() {
 					borderRadius: '0.5rem',
 				}}
 			>
-				<h2>2. WebSocket (.websocket)</h2>
+				<h2>2. WebSocket (hc client.$ws)</h2>
 				<button
 					onClick={testWebSocket}
 					data-testid="ws-button"
@@ -145,7 +150,7 @@ export function RpcTestPage() {
 					borderRadius: '0.5rem',
 				}}
 			>
-				<h2>3. Server-Sent Events (.eventstream)</h2>
+				<h2>3. Server-Sent Events (native EventSource)</h2>
 				<button onClick={testSSE} data-testid="sse-button" style={{ padding: '0.5rem 1rem' }}>
 					Test SSE
 				</button>

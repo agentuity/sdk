@@ -1,8 +1,8 @@
 /**
  * Static Renderer
  *
- * When `render: 'static'` is set in agentuity.config.ts, this module:
- * 1. Runs a Vite SSR build to create a server-side entry point
+ * When `src/web/entry-server.tsx` exists, this module:
+ * 1. Runs a Vite SSR build (as a subprocess to avoid in-process Bun/Vite issues)
  * 2. Imports the built entry-server.js
  * 3. Discovers routes to pre-render:
  *    - If `routeTree` is exported: auto-discovers all non-parameterized routes
@@ -14,10 +14,8 @@
  */
 
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import type { Logger } from '../../../types';
-import { hasFrameworkPlugin } from './config-loader';
 
 /** Minimal shape of a TanStack Router route tree node. */
 interface RouteTreeNode {
@@ -75,8 +73,7 @@ function extractRoutePaths(node: RouteTreeNode): string[] {
 export interface StaticRenderOptions {
 	rootDir: string;
 	logger: Logger;
-	/** User plugins from agentuity.config.ts */
-	userPlugins: import('vite').PluginOption[];
+	dev?: boolean;
 }
 
 export interface StaticRenderResult {
@@ -85,7 +82,7 @@ export interface StaticRenderResult {
 }
 
 export async function runStaticRender(options: StaticRenderOptions): Promise<StaticRenderResult> {
-	const { rootDir, logger, userPlugins } = options;
+	const { rootDir, logger, dev = false } = options;
 	const started = Date.now();
 
 	const clientDir = join(rootDir, '.agentuity/client');
@@ -109,59 +106,39 @@ export async function runStaticRender(options: StaticRenderOptions): Promise<Sta
 		);
 	}
 
-	const isViteDebug =
-		process.env.AGENTUITY_VITE_DEBUG === '1' || process.env.AGENTUITY_VITE_DEBUG === 'true';
-	if (isViteDebug) {
-		logger.debug('Vite debug logging enabled via AGENTUITY_VITE_DEBUG');
-		const existing = process.env.DEBUG || '';
-		if (!existing.includes('vite:')) {
-			process.env.DEBUG = existing ? `${existing},vite:*` : 'vite:*';
+	// Step 1: Vite SSR build (subprocess)
+	// Run as a subprocess to avoid in-process Bun/Vite module resolution issues
+	// that cause @mdx-js/rollup and other plugins to fail during SSR builds.
+	// This matches the approach used for client builds in vite-builder.ts.
+	logger.debug('Running Vite SSR build for static rendering (subprocess)...');
+
+	const buildMode = dev ? 'development' : 'production';
+
+	const viteProcess = Bun.spawn(
+		[
+			'bun',
+			'x',
+			'vite',
+			'build',
+			'--ssr',
+			entryServerPath,
+			'--outDir',
+			ssrOutDir,
+			'--mode',
+			buildMode,
+		],
+		{
+			cwd: rootDir,
+			stdout: 'inherit',
+			stderr: 'inherit',
 		}
+	);
+
+	const exitCode = await viteProcess.exited;
+
+	if (exitCode !== 0) {
+		throw new Error(`Vite SSR build exited with code ${exitCode}`);
 	}
-
-	// Step 1: Vite SSR build
-	// This resolves import.meta.glob, MDX imports, and other Vite-specific APIs
-	logger.debug('Running Vite SSR build for static rendering...');
-
-	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	let vitePath = 'vite';
-	let reactPluginPath = '@vitejs/plugin-react';
-	try {
-		vitePath = projectRequire.resolve('vite');
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
-	} catch {
-		// Use CLI's bundled version
-	}
-
-	const { build: viteBuild } = await import(vitePath);
-	const reactModule = await import(reactPluginPath);
-	const react = reactModule.default;
-
-	// Build plugin list: auto-add React if no framework plugin present
-	const plugins = [...(userPlugins || [])];
-	if (plugins.length === 0 || !hasFrameworkPlugin(plugins)) {
-		plugins.unshift(react());
-	}
-
-	await viteBuild({
-		root: rootDir,
-		plugins,
-		build: {
-			ssr: entryServerPath,
-			outDir: ssrOutDir,
-			rollupOptions: {
-				output: {
-					format: 'esm',
-				},
-			},
-		},
-		ssr: {
-			// Bundle all dependencies for SSR — we need import.meta.glob, MDX, etc.
-			// resolved at build time. Node built-ins are still externalized.
-			noExternal: true,
-		},
-		logLevel: isViteDebug ? 'info' : 'warn',
-	});
 
 	// Steps 2–4: wrapped in try-finally so SSR artifacts are always cleaned up,
 	// even if an exception is thrown during module import, validation, or rendering.

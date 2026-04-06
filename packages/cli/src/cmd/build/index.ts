@@ -7,6 +7,7 @@ import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 import { typecheck } from './typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
+import { detectVersionMismatch, formatVersionMismatchWarning } from '../../utils/version-mismatch';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -57,10 +58,6 @@ export const command = createCommand({
 		const { opts, projectDir, project } = ctx;
 
 		if (opts.ci) {
-			if (!opts.url) {
-				tui.fatal('--url is required when using --ci mode', ErrorCode.CONFIG_INVALID);
-			}
-
 			const { runCIBuild } = await import('./ci');
 			await runCIBuild(
 				{
@@ -98,6 +95,15 @@ export const command = createCommand({
 		}
 
 		const absoluteProjectDir = resolve(projectDir);
+
+		// Check for version mismatches (v1 vs v2 SDK packages)
+		const versionMismatch = detectVersionMismatch(absoluteProjectDir, ctx.logger);
+		if (versionMismatch.hasV1Packages || versionMismatch.hasMajorMismatches) {
+			tui.newline();
+			tui.warning(formatVersionMismatchWarning(versionMismatch));
+			tui.newline();
+		}
+
 		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
 
 		try {

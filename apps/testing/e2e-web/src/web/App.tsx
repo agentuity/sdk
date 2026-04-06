@@ -1,4 +1,5 @@
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api/router';
 import { type ChangeEvent, useState } from 'react';
 import { StreamsPage } from './StreamsPage';
 import { RpcPage } from './RpcPage';
@@ -13,9 +14,26 @@ export function App() {
 	// Simple client-side routing
 	const path = window.location.pathname;
 
-	// Hooks must be called before any conditional returns (React rules of hooks)
+	const client = hc<AppRouter>(`${window.location.origin}/api`);
 	const [name, setName] = useState('World');
-	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
+	const [greeting, setGreeting] = useState<string | null>(null);
+	const [running, setRunning] = useState(false);
+
+	const invoke = async (input: { name: string }) => {
+		setRunning(true);
+		try {
+			const res = await client.hello.$post({ json: input });
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+			}
+			const data = await res.text();
+			setGreeting(data);
+		} catch (err) {
+			setGreeting(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		} finally {
+			setRunning(false);
+		}
+	};
 
 	if (path === '/streams') {
 		return <StreamsPage />;

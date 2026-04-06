@@ -1,21 +1,50 @@
 import type { Logger } from './types';
 
 /**
- * Standard exit codes for the CLI
+ * Standard exit codes for the CLI.
+ *
+ * Values start at 10 to avoid collisions with Unix signal numbers (1-9)
+ * and shell conventions (e.g. 2 = misuse of builtins, 9 = SIGKILL/OOM).
+ * Range 10-125 is safe — below shell-reserved 126-128 and signal-death
+ * codes 128+N.
+ *
+ * 0 and 1 are kept as universal success/failure codes.
  */
 export enum ExitCode {
 	SUCCESS = 0,
 	GENERAL_ERROR = 1,
-	VALIDATION_ERROR = 2,
-	AUTH_ERROR = 3,
-	NOT_FOUND = 4,
-	PERMISSION_ERROR = 5,
-	NETWORK_ERROR = 6,
-	FILE_ERROR = 7,
-	USER_CANCELLED = 8,
-	BUILD_FAILED = 9,
-	SECURITY_ERROR = 10,
+	VALIDATION_ERROR = 10,
+	AUTH_ERROR = 11,
+	NOT_FOUND = 12,
+	PERMISSION_ERROR = 13,
+	NETWORK_ERROR = 14,
+	FILE_ERROR = 15,
+	USER_CANCELLED = 16,
+	BUILD_FAILED = 17,
+	SECURITY_ERROR = 18,
+	PAYMENT_REQUIRED = 19,
+	UPGRADE_REQUIRED = 20,
 }
+
+/**
+ * Human-readable descriptions for each exit code.
+ * This is the single source of truth consumed by the schema generator and AI help.
+ */
+export const exitCodeDescriptions: Record<number, string> = {
+	[ExitCode.SUCCESS]: 'Success',
+	[ExitCode.GENERAL_ERROR]: 'General error',
+	[ExitCode.VALIDATION_ERROR]: 'Validation error (invalid arguments or options)',
+	[ExitCode.AUTH_ERROR]: 'Authentication error (login required or credentials invalid)',
+	[ExitCode.NOT_FOUND]: 'Resource not found (project, file, deployment, etc.)',
+	[ExitCode.PERMISSION_ERROR]: 'Permission denied (insufficient access rights)',
+	[ExitCode.NETWORK_ERROR]: 'Network error (API unreachable or timeout)',
+	[ExitCode.FILE_ERROR]: 'File system error (file read/write failed)',
+	[ExitCode.USER_CANCELLED]: 'User cancelled (operation aborted by user)',
+	[ExitCode.BUILD_FAILED]: 'Build failed',
+	[ExitCode.SECURITY_ERROR]: 'Security error (malware detected)',
+	[ExitCode.PAYMENT_REQUIRED]: 'Payment required (plan upgrade needed)',
+	[ExitCode.UPGRADE_REQUIRED]: 'Upgrade required (CLI version too old)',
+};
 
 /**
  * Standard error codes for the CLI
@@ -152,7 +181,20 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 
 		// Payment required - user needs to upgrade their plan
 		case ErrorCode.PAYMENT_REQUIRED:
-			return ExitCode.GENERAL_ERROR;
+			return ExitCode.PAYMENT_REQUIRED;
+
+		// Upgrade required - CLI version too old
+		case ErrorCode.UPGRADE_REQUIRED:
+			return ExitCode.UPGRADE_REQUIRED;
+
+		// Resource conflicts and other errors
+		case ErrorCode.RESOURCE_ALREADY_EXISTS:
+		case ErrorCode.RESOURCE_CONFLICT:
+		case ErrorCode.ORG_REQUIRED:
+		case ErrorCode.REGION_REQUIRED:
+		case ErrorCode.RUNTIME_ERROR:
+		case ErrorCode.INTERNAL_ERROR:
+		case ErrorCode.NOT_IMPLEMENTED:
 		default:
 			return ExitCode.GENERAL_ERROR;
 	}

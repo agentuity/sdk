@@ -28,6 +28,14 @@ import { ConfigSchema, ProjectSchema } from './types';
 export const defaultProfileName = 'production';
 
 export function getDefaultConfigDir(): string {
+	const configDirOverride = process.env.AGENTUITY_CONFIG_DIR?.trim();
+	if (configDirOverride) {
+		if (configDirOverride.startsWith('~/')) {
+			return resolve(join(homedir(), configDirOverride.slice(2)));
+		}
+		return resolve(configDirOverride);
+	}
+
 	return join(homedir(), '.config', 'agentuity');
 }
 
@@ -144,16 +152,22 @@ let cachedConfig: Config | null | undefined;
 // Track the resolved config path so saveConfig writes back to the same file
 let cachedConfigPath: string | undefined;
 
+export function resetConfigCache(): void {
+	cachedConfig = undefined;
+	cachedConfigPath = undefined;
+}
+
 export async function loadConfig(
 	customPath?: string,
 	skipCache = false,
 	profileFromFlag?: string
 ): Promise<Config | null> {
-	// Use cache if available and not skipped
-	if (!skipCache && cachedConfig !== undefined) {
+	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
+
+	// Use cache if available and not skipped, but only if the path matches
+	if (!skipCache && cachedConfig !== undefined && cachedConfigPath === configPath) {
 		return cachedConfig;
 	}
-	const configPath = customPath ? expandTilde(customPath) : await getProfile(profileFromFlag);
 
 	try {
 		const file = Bun.file(configPath);

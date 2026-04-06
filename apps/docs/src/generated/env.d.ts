@@ -5,8 +5,10 @@
 declare global {
 	namespace NodeJS {
 		interface ProcessEnv {
+		readonly AGENTUITY_ORG_ID: string;
 		readonly AGENTUITY_SDK_KEY: string;
 		readonly AGENT_BEARER_TOKEN: string;
+		readonly DATABASE_URL: string;
 		readonly S3_ACCESS_KEY_ID: string;
 		readonly S3_BUCKET: string;
 		readonly S3_ENDPOINT: string;

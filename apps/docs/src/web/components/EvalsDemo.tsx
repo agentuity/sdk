@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Separator } from './ui';
 
 interface EvalResultData {
@@ -33,58 +34,123 @@ const EVAL_CONFIG: Record<string, { name: string; type: 'score' | 'binary' }> = 
 const MAX_POLL_ATTEMPTS = 15;
 
 export function EvalsDemo() {
+	const [generatedContent, setGeneratedContent] = usePersistentDemoState<string>(
+		'evals',
+		'generatedContent',
+		{ defaultValue: '', storage: 'session' }
+	);
+	const [sessionId, setSessionId] = usePersistentDemoState<string>('evals', 'sessionId', {
+		defaultValue: '',
+		storage: 'session',
+	});
+	const [evalResults, setEvalResults] = usePersistentDemoState<EvalRun[]>('evals', 'evalResults', {
+		defaultValue: [],
+		storage: 'session',
+	});
 	const [status, setStatus] = useState<Status>('idle');
-	const [generatedContent, setGeneratedContent] = useState('');
-	const [sessionId, setSessionId] = useState('');
-	const [evalResults, setEvalResults] = useState<EvalRun[]>([]);
 	const [error, setError] = useState('');
 	const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pollCountRef = useRef(0);
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const currentSessionRef = useRef('');
+
+	// Capture initial persisted values for mount-only effect
+	const initialSessionIdRef = useRef(sessionId);
+	const initialEvalResultsRef = useRef(evalResults);
+	const initialGeneratedContentRef = useRef(generatedContent);
 
 	useEffect(() => {
 		return () => {
 			if (pollingRef.current) clearTimeout(pollingRef.current);
 			abortControllerRef.current?.abort();
+			currentSessionRef.current = '';
 		};
 	}, []);
 
-	const pollSession = useCallback(async (sid: string) => {
-		// Check max polling attempts
-		pollCountRef.current++;
-		if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
-			setError('Evaluation timed out after 30 seconds');
-			setStatus('error');
-			return;
-		}
-
-		try {
-			const response = await fetch(`/api/evals/session/${sid}`, {
-				signal: abortControllerRef.current?.signal,
-			});
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-			const data: SessionResponse = await response.json();
-			setEvalResults(data.evalResults);
-
-			const allDone = data.evalResults.every((r) => !r.pending);
-			if (allDone && data.evalResults.length > 0) {
-				setStatus('done');
-			} else {
-				pollingRef.current = setTimeout(() => pollSession(sid), 2000);
+	const pollSession = useCallback(
+		async (sid: string): Promise<void> => {
+			// Check max polling attempts
+			pollCountRef.current++;
+			if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
+				setError('Evaluation timed out after 30 seconds');
+				setStatus('error');
+				pollingRef.current = null;
+				return;
 			}
-		} catch (err) {
-			// Ignore abort errors (component unmounted)
-			if (err instanceof Error && err.name === 'AbortError') return;
-			setError(err instanceof Error ? err.message : 'Polling failed');
-			setStatus('error');
+
+			try {
+				const response = await fetch(`/api/evals/session/${sid}`, {
+					signal: abortControllerRef.current?.signal,
+				});
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+				const data: SessionResponse = await response.json();
+				if (currentSessionRef.current !== sid) {
+					return;
+				}
+				setEvalResults(data.evalResults);
+
+				const allDone = data.evalResults.every((r) => !r.pending);
+				if (allDone && data.evalResults.length > 0) {
+					setStatus('done');
+					pollingRef.current = null;
+				} else {
+					pollingRef.current = setTimeout(() => pollSession(sid), 2000);
+				}
+			} catch (err) {
+				// Ignore abort errors (component unmounted)
+				if (err instanceof Error && err.name === 'AbortError') return;
+				if (currentSessionRef.current !== sid) {
+					return;
+				}
+				setError(err instanceof Error ? err.message : 'Polling failed');
+				setStatus('error');
+				pollingRef.current = null;
+			}
+		},
+		[setEvalResults]
+	);
+
+	// Resume polling on mount if session has incomplete evals
+	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-only effect — refs capture initial values
+	useEffect(() => {
+		const sid = initialSessionIdRef.current;
+		const results = initialEvalResultsRef.current;
+		const content = initialGeneratedContentRef.current;
+
+		if (sid && results.length > 0) {
+			const hasPending = results.some((r) => r.pending);
+			if (hasPending) {
+				abortControllerRef.current = new AbortController();
+				currentSessionRef.current = sid;
+				pollCountRef.current = 0;
+				setStatus('polling');
+				pollSession(sid);
+			} else {
+				// All evals complete, show done state
+				setStatus('done');
+			}
+		} else if (sid && content) {
+			// Had content and session but no results yet — resume polling
+			abortControllerRef.current = new AbortController();
+			currentSessionRef.current = sid;
+			pollCountRef.current = 0;
+			setStatus('polling');
+			pollSession(sid);
 		}
 	}, []);
 
 	const generate = useCallback(async () => {
+		// Cancel any existing polling timer before starting a new run
+		if (pollingRef.current) {
+			clearTimeout(pollingRef.current);
+			pollingRef.current = null;
+		}
+
 		// Abort any previous request and reset state
 		abortControllerRef.current?.abort();
 		abortControllerRef.current = new AbortController();
+		currentSessionRef.current = '';
 		pollCountRef.current = 0;
 
 		setStatus('generating');
@@ -104,6 +170,7 @@ export function EvalsDemo() {
 			const data = await response.json();
 			setGeneratedContent(data.content);
 			setSessionId(data.sessionId);
+			currentSessionRef.current = data.sessionId;
 			setStatus('polling');
 			pollSession(data.sessionId);
 		} catch (err) {
@@ -112,7 +179,7 @@ export function EvalsDemo() {
 			setError(err instanceof Error ? err.message : 'Generation failed');
 			setStatus('error');
 		}
-	}, [pollSession]);
+	}, [pollSession, setGeneratedContent, setSessionId, setEvalResults]);
 
 	const getEvalConfig = (evalId: string) =>
 		EVAL_CONFIG[evalId] ?? { name: evalId, type: 'binary' };

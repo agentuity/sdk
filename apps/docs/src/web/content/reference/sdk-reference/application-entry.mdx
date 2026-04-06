@@ -1,0 +1,231 @@
+---
+title: Application Entry Point
+short_title: Application Entry
+description: Initialize your Agentuity app with createApp() and configure the runtime entry file
+---
+
+Every Agentuity v2 app starts in a root `app.ts` file. `createApp()` wires up your router, agents, middleware, services, and Bun server integration in one place.
+
+## createApp
+
+`createApp(config?: AppConfig): Promise<AppResult>`
+
+Use `createApp()` to bootstrap the runtime and export the result as your default app entry:
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import agents from './src/agent';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
+```
+
+### AppConfig
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cors` | `CorsConfig` | Override the default CORS behavior |
+| `compression` | `CompressionConfig \| false` | Configure or disable response compression |
+| `requestTimeout` | `number` | Maximum request duration in seconds. `0` means no timeout |
+| `services` | `object` | Override built-in service implementations |
+| `analytics` | `boolean \| AnalyticsOptions` | Enable analytics with defaults or provide custom options |
+| `workbench` | `boolean \| string \| WorkbenchOptions` | Enable Workbench in development mode, choose a custom route, or provide full options |
+| `router` | `Hono \| RouteMount \| RouteMount[]` | Experimental explicit router mounting |
+| `agents` | `Agent[]` | Explicit list of agents to include in the app |
+
+`router` accepts three forms:
+
+```typescript
+// Mount at /api
+router: apiRouter
+
+// Mount at a custom path
+router: { path: '/v1', router: apiRouter }
+
+// Mount multiple routers
+router: [
+  { path: '/api/v1', router: v1Router },
+  { path: '/api/v2', router: v2Router },
+]
+```
+
+<Callout type="warning" title="Explicit Routers Are Experimental">
+The `router` option is marked experimental in the runtime. It works today, but the API may still change.
+</Callout>
+
+### services
+
+Use `services` when you need to swap an implementation, such as local storage for development or a custom provider:
+
+| Field | Type |
+|-------|------|
+| `useLocal` | `boolean` |
+| `keyvalue` | `KeyValueStorage` |
+| `vector` | `VectorStorage` |
+| `stream` | `StreamStorage` |
+| `task` | `TaskStorage` |
+| `thread` | `ThreadProvider` |
+| `session` | `SessionProvider` |
+| `sessionEvent` | `SessionEventProvider` |
+| `evalRunEvent` | `EvalRunEventProvider` |
+| `email` | `EmailService` |
+
+## AppResult
+
+`createApp()` resolves to an `AppResult`:
+
+```typescript
+interface AppResult {
+  config?: AppConfig;
+  router: Hono<Env>;
+  server: { url: string };
+  logger: Logger;
+  fetch: (req: Request, ...args: any[]) => Response | Promise<Response>;
+  port: number;
+  hostname: string;
+  websocket?: any;
+}
+```
+
+Most apps use `server.url` and `logger` directly:
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+const app = await createApp();
+
+app.logger.info('Server ready', { url: app.server.url });
+
+export default app;
+```
+
+## Common Patterns
+
+### Configure analytics and Workbench
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+export default await createApp({
+  analytics: true,
+  workbench: { route: '/workbench' },
+});
+```
+
+`analytics` accepts `true`, `false`, or an options object. `workbench` accepts `true`, a custom route string like `'/debug'`, or a full config object. Workbench is only active in development when you opt in.
+
+### Restrict CORS to trusted origins
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+export default await createApp({
+  cors: {
+    sameOrigin: true,
+    allowedOrigins: ['https://admin.example.com'],
+  },
+});
+```
+
+When `sameOrigin` is enabled, trusted origins are derived from Agentuity environment variables and merged with anything you include in `allowedOrigins`.
+
+### Register cleanup logic
+
+Use `registerShutdownHook()` for app-level cleanup:
+
+```typescript
+import { createApp, registerShutdownHook } from '@agentuity/runtime';
+
+const pool = await connectDatabase();
+
+registerShutdownHook(async () => {
+  await pool.end();
+});
+
+export default await createApp();
+```
+
+## Lifecycle Events
+
+App-wide lifecycle events use the global event API, not methods on `AppResult`:
+
+```typescript title="app.ts"
+import { addEventListener, createApp } from '@agentuity/runtime';
+
+const app = await createApp();
+
+addEventListener('agent.started', (eventName, agent, ctx) => {
+  app.logger.info('Agent started', {
+    eventName,
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+addEventListener('agent.completed', (eventName, agent, ctx) => {
+  app.logger.info('Agent completed', {
+    eventName,
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+export default app;
+```
+
+Current app-wide event names include:
+
+- `agent.started`
+- `agent.completed`
+- `agent.errored`
+- `session.started`
+- `session.completed`
+- `thread.created`
+- `thread.destroyed`
+
+See [Event System](/reference/sdk-reference/events) for the full event API.
+
+## Runtime Helpers
+
+### isDevMode
+
+Use `isDevMode()` when you need to branch on whether the app is running through `agentuity dev`:
+
+```typescript
+import { isDevMode } from '@agentuity/runtime';
+
+if (isDevMode()) {
+  // Enable additional local diagnostics
+}
+```
+
+### isInsideAgentRuntime
+
+Use `isInsideAgentRuntime()` to detect whether your code is running inside the Agentuity runtime or in a standalone process:
+
+```typescript
+import { isInsideAgentRuntime } from '@agentuity/runtime';
+
+if (!isInsideAgentRuntime()) {
+  // Initialize services manually for a standalone script
+}
+```
+
+## Environment Variables
+
+`createApp()` reads standard environment variables from `process.env`. In development, the CLI loads values from your `.env` files before the runtime starts.
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+if (!process.env.AGENTUITY_SDK_KEY) {
+  throw new Error('Missing AGENTUITY_SDK_KEY');
+}
+
+export default await createApp();
+```
+
+For file loading order and `.env` guidance, see [App Configuration](/get-started/app-configuration).

@@ -3,9 +3,9 @@ title: Routes
 description: Define HTTP endpoints, triggers, and real-time connections
 ---
 
-import { Globe, Layers, Clock, Plug, Radio } from 'lucide-react';
+import { Globe, Layers, Clock, Plug, Radio, GitMerge, Phone, Video } from 'lucide-react';
 
-Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebSockets, and Server-Sent Events.
+Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebSockets, and Server-Sent Events. For guidance on when to use agents vs handling requests directly, see [Agents vs Routes](/agents/when-to-use).
 
 <Cards>
   <CardLink
@@ -15,10 +15,22 @@ Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebS
     icon={<Globe />}
   />
   <CardLink
+    href="/routes/explicit-routing"
+    title="Explicit Routing"
+    description="Compose and mount your own Hono routers"
+    icon={<GitMerge />}
+  />
+  <CardLink
     href="/routes/middleware"
     title="Middleware"
     description="Add authentication, validation, and more"
     icon={<Layers />}
+  />
+  <CardLink
+    href="/routes/calling-agents"
+    title="Calling Agents"
+    description="Import and invoke agents from your routes"
+    icon={<Phone />}
   />
   <CardLink
     href="/routes/cron"
@@ -37,5 +49,11 @@ Routes define how your agents get invoked: HTTP endpoints, scheduled tasks, WebS
     title="SSE"
     description="Server-Sent Events for streaming"
     icon={<Radio />}
+  />
+  <CardLink
+    href="/routes/webrtc"
+    title="WebRTC"
+    description="Peer-to-peer audio, video, and data channels"
+    icon={<Video />}
   />
 </Cards>

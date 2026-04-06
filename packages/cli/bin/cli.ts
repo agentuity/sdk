@@ -151,6 +151,7 @@ if (!hasHelp) {
 	parsedOperands = parsed.operands;
 }
 const earlyOpts = program.opts();
+
 // Normalize --org alias → orgId (agents prefer --org over --org-id)
 if (earlyOpts.org !== undefined && earlyOpts.orgId === undefined) {
 	earlyOpts.orgId = earlyOpts.org;

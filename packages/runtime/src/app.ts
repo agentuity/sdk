@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
 import type { compress } from 'hono/compress';
@@ -123,7 +124,47 @@ export interface CompressionConfig {
 	honoOptions?: HonoCompressOptions;
 }
 
-export interface AppConfig<TAppState = Record<string, never>> {
+/**
+ * Web analytics configuration options.
+ */
+export interface AnalyticsOptions {
+	/** Enable/disable analytics @default true */
+	enabled?: boolean;
+	/** Require explicit user consent before tracking @default false */
+	requireConsent?: boolean;
+	/** Track click events on elements with data-analytics attribute @default true */
+	trackClicks?: boolean;
+	/** Track scroll depth @default true */
+	trackScroll?: boolean;
+	/** Track outbound link clicks @default true */
+	trackOutboundLinks?: boolean;
+	/** Track form submissions @default false */
+	trackForms?: boolean;
+	/** Track Core Web Vitals (LCP, FID, CLS) @default true */
+	trackWebVitals?: boolean;
+	/** Track JavaScript errors @default true */
+	trackErrors?: boolean;
+	/** Track SPA navigation changes @default true */
+	trackSPANavigation?: boolean;
+	/** Sampling rate (0-1) @default 1 */
+	sampleRate?: number;
+	/** URL patterns to exclude from tracking */
+	excludePatterns?: string[];
+	/** Global properties attached to every event */
+	globalProperties?: Record<string, unknown>;
+}
+
+/**
+ * Workbench UI configuration options.
+ */
+export interface WorkbenchOptions {
+	/** Route path for the workbench UI @default '/workbench' */
+	route?: string;
+	/** Custom headers to include in workbench responses */
+	headers?: Record<string, string>;
+}
+
+export interface AppConfig {
 	/**
 	 * Configure CORS (Cross-Origin Resource Sharing) settings.
 	 *
@@ -210,21 +251,62 @@ export interface AppConfig<TAppState = Record<string, never>> {
 		email?: EmailService;
 	};
 	/**
-	 * Optional setup function called before server starts
-	 * Returns app state that will be available in all agents and routes
-	 */
-	setup?: () => Promise<TAppState> | TAppState;
-	/**
-	 * Optional shutdown function called when server is stopping
-	 * Receives the app state returned from setup
-	 */
-	shutdown?: (state: TAppState) => Promise<void> | void;
-
-	/**
 	 * Optional request timeout in seconds. If not provided, will default
 	 * to zero which will cause the request to wait indefinitely.
 	 */
 	requestTimeout?: number;
+
+	/**
+	 * Configure web analytics for frontend tracking.
+	 *
+	 * Set to `true` to enable with defaults, `false` to disable, or provide
+	 * a configuration object to customize tracking behavior.
+	 *
+	 * @default true
+	 *
+	 * @example
+	 * ```typescript
+	 * // Enable with defaults
+	 * const app = await createApp({ analytics: true });
+	 *
+	 * // Disable analytics
+	 * const app = await createApp({ analytics: false });
+	 *
+	 * // Custom configuration
+	 * const app = await createApp({
+	 *   analytics: {
+	 *     trackClicks: false,
+	 *     sampleRate: 0.5,
+	 *   }
+	 * });
+	 * ```
+	 */
+	analytics?: boolean | AnalyticsOptions;
+
+	/**
+	 * Configure the workbench UI for agent testing.
+	 *
+	 * Set to `true` to enable at `/workbench`, a string to set a custom route,
+	 * or an object for full configuration. Only active in development mode.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Enable at default route (/workbench)
+	 * const app = await createApp({ workbench: true });
+	 *
+	 * // Custom route
+	 * const app = await createApp({ workbench: '/debug' });
+	 *
+	 * // Full configuration
+	 * const app = await createApp({
+	 *   workbench: {
+	 *     route: '/debug',
+	 *     headers: { 'X-Custom': 'value' },
+	 *   }
+	 * });
+	 * ```
+	 */
+	workbench?: boolean | string | WorkbenchOptions;
 
 	/**
 	 * **Experimental** — Optional user-provided router(s) to use instead of file-based routing.
@@ -270,7 +352,33 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * });
 	 * ```
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router?: import('hono').Hono<any, any, any> | RouteMount | RouteMount[];
+
+	/**
+	 * Agents to register with this application.
+	 *
+	 * Each agent is a value returned by `createAgent()`. Importing the agent
+	 * module triggers self-registration; listing them here ensures they are
+	 * included in the build and available for workbench metadata, setup/shutdown
+	 * lifecycle, and agent-to-agent calls via `ctx.invoke()`.
+	 *
+	 * Type safety for agent calls comes from direct imports — use
+	 * `ctx.invoke(() => myAgent.run(input))` for fully typed invocations.
+	 *
+	 * @example
+	 * ```typescript
+	 * import greeting from './agent/greeting/agent';
+	 * import session from './agent/session/agent';
+	 *
+	 * export default await createApp({
+	 *   agents: [greeting, session],
+	 *   router,
+	 * });
+	 * ```
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	agents?: import('./agent').AgentRunner<any, any, any>[];
 }
 
 /**
@@ -287,6 +395,7 @@ export interface RouteMount {
 	/**
 	 * The Hono router to mount.
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router: import('hono').Hono<any, any, any>;
 }
 
@@ -334,12 +443,7 @@ export function getApp(): null {
 
 // Re-export event functions from _events
 export { fireEvent } from './_events';
-import {
-	addEventListener as globalAddEventListener,
-	removeEventListener as globalRemoveEventListener,
-} from './_events';
-import type { AppEventMap } from './_events';
-import { getLogger, getRouter } from './_server';
+
 import type { Hono } from 'hono';
 
 // ============================================================================
@@ -356,180 +460,217 @@ export interface Server {
 	url: string;
 }
 
-export interface AppResult<TAppState = Record<string, never>> {
+export interface AppResult {
 	/**
-	 * The application state returned from setup
+	 * App configuration
 	 */
-	state: TAppState;
+	config?: AppConfig;
 	/**
-	 * Shutdown function to call when server stops
+	 * The Hono router instance
 	 */
-	shutdown?: (state: TAppState) => Promise<void> | void;
+	router: import('hono').Hono<Env>;
 	/**
-	 * App configuration (for middleware setup)
-	 */
-	config?: AppConfig<TAppState>;
-	/**
-	 * The router instance (for backwards compatibility)
-	 */
-	router: import('hono').Hono<Env<TAppState>>;
-	/**
-	 * Server information (for backwards compatibility)
+	 * Server information
 	 */
 	server: Server;
 	/**
-	 * Logger instance (for backwards compatibility)
+	 * Logger instance
 	 */
 	logger: Logger;
 	/**
-	 * Add an event listener for app events
+	 * Fetch handler for the application.
+	 * Bun --hot uses this on the default export to hot-swap the running server's
+	 * request handler without restarting the process.
 	 */
-	addEventListener<K extends keyof AppEventMap<TAppState>>(
-		eventName: K,
-		callback: (eventName: K, ...args: AppEventMap<TAppState>[K]) => void | Promise<void>
-	): void;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	fetch: (req: Request, ...args: any[]) => Response | Promise<Response>;
 	/**
-	 * Remove an event listener for app events
+	 * Port the server listens on.
+	 * Used by Bun --hot alongside `fetch` to configure the server.
 	 */
-	removeEventListener<K extends keyof AppEventMap<TAppState>>(
-		eventName: K,
-		callback: (eventName: K, ...args: AppEventMap<TAppState>[K]) => void | Promise<void>
-	): void;
+	port: number;
+	/**
+	 * Hostname the server binds to.
+	 */
+	hostname: string;
+	/**
+	 * WebSocket handler for Bun.serve().
+	 * Required by Bun --hot to enable WebSocket upgrade support.
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	websocket?: any;
 }
 
 /**
- * Create an Agentuity application with lifecycle management.
+ * Create and start an Agentuity application.
  *
- * In Vite-native architecture:
- * - This only handles setup/shutdown lifecycle
- * - Router creation and middleware are handled by the generated entry file
- * - Server is managed by Vite (dev) or Bun.serve (prod)
- *
- * @template TAppState - Type of application state from setup()
+ * This is the single entry point for the entire server lifecycle:
+ * OTel, middleware, route mounting, services, and Bun.serve().
  *
  * @example
  * ```typescript
- * // app.ts
  * import { createApp } from '@agentuity/runtime';
+ * import router from './src/api/router';
+ * import agents from './src/agent';
  *
- * const app = await createApp({
- *   setup: async () => {
- *     const db = await connectDB();
- *     return { db };
- *   },
- *   shutdown: async (state) => {
- *     await state.db.close();
- *   }
+ * export default await createApp({
+ *   router: { path: '/api', router },
+ *   agents,
  * });
- *
- * // Access state in agents via ctx.app.db
  * ```
  */
-export async function createApp<TAppState = Record<string, never>>(
-	config?: AppConfig<TAppState>
-): Promise<AppResult<TAppState>> {
-	// Run setup to get app state
-	const state = config?.setup ? await config.setup() : ({} as TAppState);
+export async function createApp(config?: AppConfig): Promise<AppResult> {
+	// --- Imports (lazy to avoid circular deps) ---
+	const { bootstrapRuntimeEnv } = await import('@agentuity/server');
+	const { register } = await import('./otel/config');
+	const { setGlobalLogger, setGlobalTracer, setGlobalRouter, getSpanProcessors } = await import(
+		'./_server'
+	);
+	const { createServices, getThreadProvider, getSessionProvider } = await import('./_services');
+	const {
+		createBaseMiddleware,
+		createCorsMiddleware,
+		createOtelMiddleware,
+		createCompressionMiddleware,
+	} = await import('./middleware');
+	const { runAgentSetups, createAgentMiddleware } = await import('./agent');
+	const { loadBuildMetadata } = await import('./_metadata');
+	const { patchBunS3ForStorageDev } = await import('./bun-s3-patch');
+	const { createWorkbenchRouter } = await import('./workbench');
+	const {
+		isDevelopment,
+		resolveAnalyticsConfig,
+		resolveWorkbenchConfig,
+		registerHealthRoutes,
+		registerAnalyticsRoutes,
+		registerWebRoutes,
+		registerWorkbenchUI,
+		startServer,
+	} = await import('./bootstrap');
+	const { websocket } = await import('hono/bun');
 
-	// Store state and config globally for generated entry file to access
-	(globalThis as any).__AGENTUITY_APP_STATE__ = state;
-	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
-
-	// Store user-provided router(s) normalized as RouteMount[] for the entry file.
-	// When set, the entry file mounts these instead of auto-discovered route files.
-	if (config?.router) {
-		(globalThis as any).__AGENTUITY_USER_ROUTER__ = normalizeRouterConfig(config.router);
+	// --- Step 0: Environment ---
+	if (isDevelopment()) {
+		bootstrapRuntimeEnv();
 	}
-
-	// Store shutdown function for cleanup
-	const shutdown = config?.shutdown;
-	if (shutdown) {
-		(globalThis as any).__AGENTUITY_SHUTDOWN__ = shutdown;
+	if (isDevelopment() && process.env.AGENTUITY_NO_BUNDLE === 'true') {
+		const { applyDevPatches } = await import('./dev-patches');
+		await applyDevPatches();
 	}
+	loadBuildMetadata();
+	patchBunS3ForStorageDev();
 
-	// Return a logger proxy that lazily resolves to the global logger
-	// This is necessary because Vite bundling inlines and reorders module code,
-	// causing app.ts to execute before entry file sets the global logger.
-	// The proxy ensures logger works correctly when actually used (in handlers/callbacks).
-	const logger: Logger = {
-		trace: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.trace(...args);
-		},
-		debug: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.debug(...args);
-		},
-		info: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.info(...args);
-			else console.log('[INFO]', ...args);
-		},
-		warn: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.warn(...args);
-			else console.warn('[WARN]', ...args);
-		},
-		error: (...args) => {
-			const gl = getLogger();
-			if (gl) gl.error(...args);
-			else console.error('[ERROR]', ...args);
-		},
-		fatal: (...args): never => {
-			const gl = getLogger();
-			if (gl) return gl.fatal(...args);
-			// Fallback: log to console but let the real logger handle exit
-			console.error('[FATAL]', ...args);
-			throw new Error('Fatal error');
-		},
-		child: (bindings) => {
-			const gl = getLogger();
-			return gl ? gl.child(bindings) : logger;
-		},
-	};
+	// --- Step 1: Telemetry ---
+	const otel = register({
+		processors: getSpanProcessors(),
+		logLevel: (process.env.AGENTUITY_LOG_LEVEL || 'info') as import('@agentuity/core').LogLevel,
+	});
+	setGlobalLogger(otel.logger);
+	setGlobalTracer(otel.tracer);
 
-	// Create server info from environment
+	// --- Step 1b: Version consistency check ---
+	const { checkVersionConsistency } = await import('./version-check');
+	checkVersionConsistency(otel.logger);
+
+	// --- Step 2: Router + middleware ---
+	const { createRouter } = await import('./router');
+	const app = createRouter();
+	setGlobalRouter(app);
+
+	app.use('*', createCompressionMiddleware(config?.compression));
+	app.use(
+		'*',
+		createBaseMiddleware({
+			logger: otel.logger,
+			tracer: otel.tracer,
+			meter: otel.meter,
+		})
+	);
+	app.use('/_agentuity/workbench/*', createOtelMiddleware());
+
+	// --- Step 3: Services ---
 	const port = process.env.PORT || '3500';
-	const server: Server = {
-		url: `http://127.0.0.1:${port}`,
-	};
+	const serverUrl = `http://127.0.0.1:${port}`;
+	createServices(otel.logger, config, serverUrl);
 
-	// Get router from global (set by entry file before app.ts import)
-	// In dev mode, router may not be available during bundling
-	const globalRouter = getRouter();
-	if (!globalRouter) {
-		throw new Error(
-			'Router is not available. Ensure router is initialized before calling createApp(). This typically happens during bundling or when the entry file has not properly set up the router.'
-		);
+	const threadProvider = getThreadProvider();
+	const sessionProvider = getSessionProvider();
+	await threadProvider.initialize({});
+	await sessionProvider.initialize({});
+
+	// --- Step 4: Routes ---
+	const analyticsConfig = resolveAnalyticsConfig(config?.analytics);
+	const workbenchConfig = resolveWorkbenchConfig(config?.workbench);
+
+	registerHealthRoutes(app);
+
+	if (analyticsConfig.enabled) {
+		registerAnalyticsRoutes(app, analyticsConfig);
 	}
-	const router = globalRouter as Hono<Env<TAppState>>;
 
-	return {
-		state,
-		shutdown,
+	// Mount user routers
+	if (config?.router) {
+		const mounts = normalizeRouterConfig(config.router);
+		for (const mount of mounts) {
+			const prefix = mount.path.endsWith('/') ? mount.path + '*' : mount.path + '/*';
+			app.use(prefix, createCorsMiddleware(config?.cors));
+			app.use(prefix, createOtelMiddleware());
+			app.use(prefix, createAgentMiddleware(''));
+			app.route(mount.path, mount.router);
+		}
+	}
+
+	// Workbench
+	const workbenchRouter = createWorkbenchRouter();
+	app.route('/', workbenchRouter);
+	registerWorkbenchUI(app, workbenchConfig);
+
+	// Web (production static serving)
+	registerWebRoutes(app, analyticsConfig);
+
+	// --- Step 5: Agent lifecycle + server ---
+	await runAgentSetups({});
+
+	// In dev mode with --hot, Bun manages the server via the default export's
+	// `fetch` property. In production, we start Bun.serve() explicitly.
+	if (!isDevelopment()) {
+		startServer(app, { requestTimeout: config?.requestTimeout });
+	}
+
+	// Only log on first startup, not on --hot reloads
+	const { serverStarted } = await import('./_globals');
+	if (!serverStarted.get()) {
+		serverStarted.set(true);
+		otel.logger.debug('Server listening on %s', serverUrl);
+	}
+
+	const portNumber = parseInt(port, 10);
+
+	const result: AppResult = {
 		config,
-		router,
-		server,
-		logger,
-		addEventListener: globalAddEventListener,
-		removeEventListener: globalRemoveEventListener,
+		router: app as Hono<Env>,
+		server: { url: serverUrl },
+		logger: otel.logger,
+		// Bun --hot picks up `fetch` and `port` on the default export to
+		// hot-swap the running server's request handler without restarting.
+		fetch: app.fetch,
+		port: portNumber,
+		hostname: '127.0.0.1',
+		websocket,
 	};
-}
 
-/**
- * Get the global app state
- * Used by generated entry file and middleware
- */
-export function getAppState<TAppState = any>(): TAppState {
-	return (globalThis as any).__AGENTUITY_APP_STATE__ || ({} as TAppState);
-}
+	// In production, startServer() already called Bun.serve(). If we leave
+	// `fetch` + `port` on the default export, Bun v1.2+ auto-serves from it
+	// too — causing EADDRINUSE. Strip those properties so only the explicit
+	// Bun.serve() is active.
+	if (!isDevelopment()) {
+		delete (result as unknown as Record<string, unknown>).fetch;
+		delete (result as unknown as Record<string, unknown>).port;
+		delete (result as unknown as Record<string, unknown>).hostname;
+		delete (result as unknown as Record<string, unknown>).websocket;
+	}
 
-/**
- * Get the global app config
- * Used by generated entry file for middleware setup
- */
-export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefined {
-	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
+	return result;
 }
 
 /**
@@ -539,7 +680,8 @@ export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefine
  * - [{ path, router }, ...] → as-is
  * @internal
  */
-function normalizeRouterConfig(
+export function normalizeRouterConfig(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	router: import('hono').Hono<any, any, any> | RouteMount | RouteMount[]
 ): RouteMount[] {
 	if (Array.isArray(router)) {
@@ -548,35 +690,9 @@ function normalizeRouterConfig(
 	if ('router' in router && 'path' in router) {
 		return [router as RouteMount];
 	}
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return [{ path: '/api', router: router as import('hono').Hono<any, any, any> }];
 }
-
-/**
- * Get the user-provided router mounts from createApp({ router }).
- * Returns undefined if no user router was provided (file-based routing).
- * Used by generated entry file to skip file-based route discovery.
- * @internal
- */
-export function getUserRouter(): RouteMount[] | undefined {
-	return (globalThis as any).__AGENTUITY_USER_ROUTER__;
-}
-
-/**
- * Set the global app config (for testing purposes)
- * @internal
- */
-export function setAppConfig<TAppState = any>(config: AppConfig<TAppState> | undefined): void {
-	if (config === undefined) {
-		delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
-	} else {
-		(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
-	}
-}
-
-/**
- * Symbol used to store shutdown hooks in globalThis.
- */
-const SHUTDOWN_HOOKS_KEY = Symbol.for('@agentuity/runtime:shutdown-hooks');
 
 /**
  * A shutdown hook function.
@@ -587,11 +703,13 @@ export type ShutdownHook = () => Promise<void> | void;
  * Gets the global shutdown hooks registry.
  */
 function getShutdownHooks(): ShutdownHook[] {
-	const global = globalThis as Record<symbol, ShutdownHook[]>;
-	if (!global[SHUTDOWN_HOOKS_KEY]) {
-		global[SHUTDOWN_HOOKS_KEY] = [];
+	const key = Symbol.for('@agentuity/runtime:shutdown-hooks');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const g = globalThis as any;
+	if (!g[key]) {
+		g[key] = [];
 	}
-	return global[SHUTDOWN_HOOKS_KEY];
+	return g[key];
 }
 
 /**
@@ -632,22 +750,12 @@ export function registerShutdownHook(hook: ShutdownHook): () => void {
 }
 
 /**
- * Run the global shutdown function and all registered shutdown hooks.
- * Called by generated entry file on cleanup.
+ * Run all registered shutdown hooks.
+ * Called during graceful shutdown (SIGTERM/SIGINT).
  *
- * Shutdown order:
- * 1. App's shutdown callback (if defined)
- * 2. Registered shutdown hooks (in reverse order - LIFO)
+ * Hooks are called in reverse order of registration (LIFO).
  */
 export async function runShutdown(): Promise<void> {
-	// Run app's shutdown callback first
-	const shutdown = (globalThis as any).__AGENTUITY_SHUTDOWN__;
-	if (shutdown) {
-		const state = getAppState();
-		await shutdown(state);
-	}
-
-	// Run registered shutdown hooks in reverse order (LIFO)
 	const hooks = getShutdownHooks();
 	for (let i = hooks.length - 1; i >= 0; i--) {
 		const hook = hooks[i];

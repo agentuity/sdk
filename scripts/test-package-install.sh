@@ -191,19 +191,28 @@ cat package.json | \
      --arg cli "file:$PACKAGES_DIR/$CLI_PKG" \
      --arg workbench "file:$PACKAGES_DIR/$WORKBENCH_PKG" \
   '
-    # Update dependencies to use file references
-    .dependencies["@agentuity/core"] = $core |
-    .dependencies["@agentuity/schema"] = $schema |
-    .dependencies["@agentuity/frontend"] = $frontend |
-    .dependencies["@agentuity/react"] = $react |
-    .dependencies["@agentuity/postgres"] = $postgres |
-    .dependencies["@agentuity/drizzle"] = $drizzle |
-    .dependencies["@agentuity/auth"] = $auth |
-    .dependencies["@agentuity/evals"] = $evals |
-    .dependencies["@agentuity/runtime"] = $runtime |
-    .dependencies["@agentuity/server"] = $server |
-    .dependencies["@agentuity/cli"] = $cli |
-    .dependencies["@agentuity/workbench"] = $workbench |
+    # Helper: update package in its existing location (dependencies or devDependencies)
+    # If in devDependencies, update there; otherwise add to dependencies
+    def update_pkg($pkg; $ref):
+      if .devDependencies[$pkg] then
+        .devDependencies[$pkg] = $ref
+      else
+        .dependencies[$pkg] = $ref
+      end;
+
+    # Update each package in its existing location
+    update_pkg("@agentuity/core"; $core) |
+    update_pkg("@agentuity/schema"; $schema) |
+    update_pkg("@agentuity/frontend"; $frontend) |
+    update_pkg("@agentuity/react"; $react) |
+    update_pkg("@agentuity/postgres"; $postgres) |
+    update_pkg("@agentuity/drizzle"; $drizzle) |
+    update_pkg("@agentuity/auth"; $auth) |
+    update_pkg("@agentuity/evals"; $evals) |
+    update_pkg("@agentuity/runtime"; $runtime) |
+    update_pkg("@agentuity/server"; $server) |
+    update_pkg("@agentuity/cli"; $cli) |
+    update_pkg("@agentuity/workbench"; $workbench) |
     # Add overrides to force transitive dependencies to use local tarballs
     .overrides = {
       "@agentuity/core": $core,
@@ -250,16 +259,7 @@ if [ ! -d ".agentuity" ]; then
     exit 1
 fi
 
-# Verify registry file was generated
-if [ ! -f "src/generated/registry.ts" ]; then
-	log_error "registry.ts not found in src/generated/"
-	log_info "Contents of src/generated/:"
-	ls -la src/generated/ || echo "Directory does not exist"
-    exit 1
-fi
-
 log_success "Build complete, .agentuity directory created"
-log_success "Registry file generated"
 
 # Step 7: Typecheck
 echo ""

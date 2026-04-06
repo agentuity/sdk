@@ -169,7 +169,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 					}
 				}
 			}
-			this.logger.debug('Previous metadata found with %d eval(s)', prevEvalCount);
+			this.logger.debug('Previous metadata found with %d evaluations', prevEvalCount);
 		} else {
 			this.logger.debug('No previous metadata, all evals will be treated as new');
 		}
@@ -182,7 +182,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			if (agent.evals) {
 				currentEvalCount += agent.evals.length;
 				this.logger.debug(
-					'[CLI EVAL SYNC] Agent "%s" has %d eval(s)',
+					'[CLI EVAL SYNC] Agent "%s" has %d evaluations',
 					agent.name,
 					agent.evals.length
 				);
@@ -196,7 +196,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				}
 			}
 		}
-		this.logger.debug('[CLI EVAL SYNC] Total current eval(s): %d', currentEvalCount);
+		this.logger.debug('[CLI EVAL SYNC] Total current evaluations: %d', currentEvalCount);
 
 		// Get agents and evals to sync using shared diff logic
 		const { create: agentsToCreate, delete: agentsToDelete } = getAgentsToSync(
@@ -241,7 +241,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			}
 			if (evalsToCreate.length > 0 || evalsToDelete.length > 0) {
 				this.logger.debug(
-					'Successfully bulk synced %d eval(s) to create, %d eval(s) to delete',
+					'Successfully bulk synced %d evaluations to create, %d evaluations to delete',
 					evalsToCreate.length,
 					evalsToDelete.length
 				);
@@ -369,7 +369,7 @@ class MockDevmodeSyncService implements IDevmodeSyncService {
 
 		if (evalsToCreate.length > 0 || evalsToDelete.length > 0) {
 			this.logger.debug(
-				'[MOCK] Would make request: POST /cli/devmode/eval with %d eval(s) to create, %d eval(s) to delete',
+				'[MOCK] Would make request: POST /cli/devmode/eval with %d evaluations to create, %d evaluations to delete',
 				evalsToCreate.length,
 				evalsToDelete.length
 			);

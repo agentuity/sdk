@@ -10,6 +10,7 @@ import type { LogLevel } from './types';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
 import { clearLastLines, isTTYLike } from './tui';
 import { appendLog, isLogCollectionEnabled } from './log-collector';
+import { getOutputOptions, isJSONMode } from './output';
 
 /**
  * Error thrown when step execution is interrupted by a signal (e.g., Ctrl+C).
@@ -698,6 +699,43 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
  * Run a series of steps with animated progress
  */
 export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
+	const outputOptions = getOutputOptions();
+
+	// In JSON mode, skip all UI rendering
+	if (outputOptions && isJSONMode(outputOptions)) {
+		const abortController = new AbortController();
+		for (const step of steps) {
+			if (abortController.signal.aborted) break;
+			if (step) {
+				const ctx: StepContext = {
+					signal: abortController.signal,
+					progress: () => {},
+				};
+				let outcome: StepOutcome;
+				try {
+					outcome = await step.run(ctx);
+				} catch (err) {
+					if (err instanceof Error && err.name === 'AbortError') {
+						throw new StepInterruptError();
+					}
+					outcome = {
+						status: 'error',
+						message: err instanceof Error ? err.message : String(err),
+						cause: err instanceof Error ? err : undefined,
+					};
+				}
+				if (outcome.status === 'error') {
+					if (outcome.cause instanceof Error && outcome.cause.name === 'AbortError') {
+						throw new StepInterruptError();
+					}
+					const errorMsg = outcome.message || 'An unknown error occurred';
+					throw new Error(errorMsg);
+				}
+			}
+		}
+		return;
+	}
+
 	const useTUI = isTTYLike() && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
 
 	if (useTUI) {

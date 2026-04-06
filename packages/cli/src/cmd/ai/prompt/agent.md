@@ -7,7 +7,6 @@ This folder contains AI agents for your Agentuity application. Each agent is org
 The `src/generated/` folder contains auto-generated TypeScript files:
 
 - `registry.ts` - Agent registry with strongly-typed agent definitions and schema types
-- `routes.ts` - Route registry for API, WebSocket, and SSE endpoints
 - `app.ts` - Application entry point (regenerated on every build)
 
 **Important:** Never edit files in `src/generated/` - they are overwritten on every build.
@@ -152,11 +151,11 @@ The handler receives a context object with:
 
 ```typescript
 handler: async (ctx, input) => {
-	await ctx.kv.set('user:123', { name: 'Alice', age: 30 });
-	const user = await ctx.kv.get('user:123');
-	await ctx.kv.delete('user:123');
-	const keys = await ctx.kv.list('user:*');
-	return user;
+	await ctx.kv.set('users', 'user:123', { name: 'Alice', age: 30 });
+	const result = await ctx.kv.get('users', 'user:123');
+	await ctx.kv.delete('users', 'user:123');
+	const keys = await ctx.kv.getKeys('users');
+	return result.exists ? result.data : null;
 };
 ```
 
@@ -189,7 +188,7 @@ handler: async (ctx, input) => {
 handler: async (ctx, input) => {
 	// Schedule background work that continues after response
 	ctx.waitUntil(async () => {
-		await ctx.kv.set('processed', Date.now());
+		await ctx.kv.set('state', 'processed', Date.now());
 		ctx.logger.info('Background task complete');
 	});
 

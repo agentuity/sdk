@@ -1,7 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../components/docs/mdx-page';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { RedirectFallback } from '../../../components/docs/RedirectFallback';
+
+const target = '/agents';
 
 export const Route = createFileRoute('/_docs/apis/')({
-	component: () => <MDXPage route="apis" />,
-	staticData: { crumb: 'APIs' },
+	beforeLoad: () => {
+		if (typeof window !== 'undefined') {
+			throw redirect({ to: target, replace: true });
+		}
+	},
+	component: () => <RedirectFallback target={target} />,
 });

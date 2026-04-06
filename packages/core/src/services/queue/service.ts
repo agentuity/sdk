@@ -309,6 +309,14 @@ export interface QueueService {
 export const QueuePublishError = StructuredError('QueuePublishError');
 
 /**
+ * Error thrown when a queue creation operation fails.
+ *
+ * This is a general error for create failures that aren't specifically
+ * validation, not-found, or conflict (409) errors.
+ */
+export const QueueCreateError = StructuredError('QueueCreateError');
+
+/**
  * Error thrown when a queue is not found.
  *
  * @example
@@ -387,6 +395,33 @@ function validatePayloadInternal(payload: string): void {
 			value: payload.length,
 		});
 	}
+}
+
+/**
+ * Unwraps the standard API response envelope.
+ *
+ * The queue server returns responses wrapped in:
+ *   { success: true, data: { [key]: { ...actual data... } } }
+ *
+ * Since `fromResponse()` parses the raw JSON body, `res.data` from the
+ * adapter is the full envelope. This helper extracts the nested data by key.
+ *
+ * Falls back to treating the input as already-unwrapped data (e.g., in tests
+ * using mock adapters that provide flat data directly).
+ *
+ * @internal
+ */
+function unwrapApiResponse<T>(data: unknown, key: string): T {
+	if (data !== null && typeof data === 'object') {
+		const body = data as Record<string, unknown>;
+		if (body.success === true && typeof body.data === 'object' && body.data !== null) {
+			const envelope = body.data as Record<string, unknown>;
+			if (key in envelope) {
+				return envelope[key] as T;
+			}
+		}
+	}
+	return data as T;
 }
 
 // ============================================================================
@@ -496,16 +531,18 @@ export class QueueStorageService implements QueueService {
 		});
 
 		if (res.ok) {
-			const data = res.data as unknown as {
-				id: string;
-				offset: number;
-				published_at: string;
-			};
-			return {
+			const data = unwrapApiResponse<Record<string, unknown>>(res.data, 'message');
+			const result = QueuePublishResultSchema.safeParse({
 				id: data.id,
 				offset: data.offset,
 				publishedAt: data.published_at,
-			};
+			});
+			if (result.success) {
+				return result.data;
+			}
+			throw new QueuePublishError({
+				message: `Queue publish returned an unexpected response format: ${result.error.message}`,
+			});
 		}
 
 		if (res.response.status === 404) {
@@ -579,12 +616,18 @@ export class QueueStorageService implements QueueService {
 		});
 
 		if (res.ok) {
-			const data = res.data as unknown as Record<string, unknown>;
-			this.#knownQueues.add(queueName);
-			return {
-				name: (data.name as string) ?? queueName,
-				queueType: (data.queue_type as string) ?? params?.queueType ?? 'worker',
-			};
+			const data = unwrapApiResponse<Record<string, unknown>>(res.data, 'queue');
+			const result = QueueCreateResultSchema.safeParse({
+				name: data.name,
+				queueType: data.queue_type,
+			});
+			if (result.success) {
+				this.#knownQueues.add(queueName);
+				return result.data;
+			}
+			throw new QueueCreateError({
+				message: `Queue create returned an unexpected response format: ${result.error.message}`,
+			});
 		}
 
 		if (res.response.status === 409) {

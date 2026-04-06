@@ -328,6 +328,13 @@ export const SandboxCreateOptionsSchema = z.object({
 		.record(z.string(), z.unknown())
 		.optional()
 		.describe('Optional user-defined metadata to associate with the sandbox.'),
+	/** Permission scopes for automatic service access (e.g., "services:read", "services:write"). */
+	scopes: z
+		.array(z.string())
+		.optional()
+		.describe(
+			'Permission scopes for automatic service access (e.g., "services:read", "services:write").'
+		),
 });
 export type SandboxCreateOptions = z.infer<typeof SandboxCreateOptionsSchema>;
 
@@ -376,14 +383,16 @@ export const SandboxSchema = z.object({
 	mkDir: z
 		.custom<(path: string, recursive?: boolean) => Promise<void>>()
 		.describe('Create a directory in the sandbox workspace.'),
-	/** Remove a file from the sandbox workspace. */
+	/** Remove a file from the sandbox workspace. Returns whether the file was found. */
 	rmFile: z
-		.custom<(path: string) => Promise<void>>()
-		.describe('Remove a file from the sandbox workspace.'),
-	/** Remove a directory from the sandbox workspace. */
+		.custom<(path: string) => Promise<{ found: boolean }>>()
+		.describe('Remove a file from the sandbox workspace. Returns whether the file was found.'),
+	/** Remove a directory from the sandbox workspace. Returns whether the directory was found. */
 	rmDir: z
-		.custom<(path: string, recursive?: boolean) => Promise<void>>()
-		.describe('Remove a directory from the sandbox workspace.'),
+		.custom<(path: string, recursive?: boolean) => Promise<{ found: boolean }>>()
+		.describe(
+			'Remove a directory from the sandbox workspace. Returns whether the directory was found.'
+		),
 	/** Set environment variables on the sandbox. Pass null to delete a variable. */
 	setEnv: z
 		.custom<(env: Record<string, string | null>) => Promise<Record<string, string>>>()

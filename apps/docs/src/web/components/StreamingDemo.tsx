@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import {
 	Button,
 	Select,
@@ -53,7 +54,10 @@ function getProviderColor(provider: string): string {
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
 
 export function StreamingDemo() {
-	const [model, setModel] = useState('gpt-5-nano');
+	const [model, setModel] = usePersistentDemoState<string>('streaming', 'model', {
+		defaultValue: 'gpt-5-nano',
+		storage: 'session',
+	});
 	const [state, setState] = useState<StreamState>({
 		status: 'idle',
 		content: '',

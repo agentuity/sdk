@@ -26,12 +26,13 @@ bun add @tanstack/react-query hono
 
 ## Server: Define Typed Routes
 
-Use method chaining on `createRouter()` so TypeScript can infer the full route tree:
+Use method chaining on `new Hono<Env>()` so TypeScript can infer the full route tree:
 
 ```typescript title="src/api/users.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter()
+const router = new Hono<Env>()
    .get('/users', async (c) => {
       // In a real app, query your database here
       const users = [
@@ -63,7 +64,7 @@ export default router;
 ```
 
 <Callout type="info" title="Chain Your Methods">
-Chain `.get()`, `.post()`, etc. directly on `createRouter()`. If you use separate `router.get(...)` statements, TypeScript can't infer the combined type.
+Chain `.get()`, `.post()`, etc. directly on `new Hono<Env>()`. If you use separate `router.get(...)` statements, TypeScript can't infer the combined type.
 </Callout>
 
 ## Safely Exporting Types to the Client
@@ -249,9 +250,10 @@ export function UserList() {
 When you have multiple route files, export all types from a shared file:
 
 ```typescript title="src/api/posts.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter()
+const router = new Hono<Env>()
    .get('/posts', async (c) => {
       return c.json({ posts: [] });
    })
@@ -279,11 +281,12 @@ export const postsClient = hc<PostsRoute>('/api'); // [!code highlight]
 Or with the explicit routing API, compose them into a single typed router and export one type:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import users from './users'; // [!code highlight]
 import posts from './posts'; // [!code highlight]
 
-const router = createRouter()
+const router = new Hono<Env>()
    .route('/users', users) // [!code highlight]
    .route('/posts', posts); // [!code highlight]
 
@@ -311,11 +314,12 @@ export const client = hc<AppRoute>('/api'); // [!code highlight]
 If you're using `createApp({ router })`, export the type from the shared types file:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import users from './users';
 import posts from './posts';
 
-const router = createRouter()
+const router = new Hono<Env>()
    .route('/users', users)
    .route('/posts', posts);
 
@@ -327,7 +331,9 @@ export default router;
 import { createApp } from '@agentuity/runtime'; // [!code highlight]
 import router from './api/index'; // [!code highlight]
 
-export const app = await createApp({ router }); // [!code highlight]
+const app = await createApp({ router }); // [!code highlight]
+
+export default app;
 ```
 
 ```typescript title="src/shared/api-types.ts"
@@ -345,9 +351,14 @@ export const client = hc<AppRoute>('/api');
 For custom mount paths:
 
 ```typescript title="src/app.ts"
-export const app = await createApp({
+import { createApp } from '@agentuity/runtime';
+import myRouter from './api/index';
+
+const app = await createApp({
    router: { path: '/v1', router: myRouter }, // [!code highlight]
 });
+
+export default app;
 ```
 
 ```typescript title="src/web/api.ts"
@@ -363,7 +374,8 @@ bun add zod @hono/zod-validator
 ```
 
 ```typescript title="src/api/users.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator'; // [!code highlight]
 import { z } from 'zod'; // [!code highlight]
 
@@ -372,7 +384,7 @@ const createUserSchema = z.object({ // [!code highlight]
    email: z.string().email(), // [!code highlight]
 }); // [!code highlight]
 
-const router = createRouter()
+const router = new Hono<Env>()
    .get('/users', async (c) => {
       return c.json({ users: [] });
    })
@@ -397,7 +409,7 @@ createUser.mutate({ wrong: 'field' }); // compile-time error
 
 ## Tips
 
-- **Chain methods** on `createRouter()` — separate statements lose type inference
+- **Chain methods** on `new Hono<Env>()` — separate statements lose type inference
 - **Never import server files from client code** — use `src/shared/api-types.ts` with `export type` to avoid leaking server code into the client bundle
 - **Match mount paths** — the `hc()` base URL must match where the router is mounted
 - **Error handling** — always check `res.ok` before calling `res.json()` in query functions

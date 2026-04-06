@@ -5,46 +5,130 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import type { InlineConfig, Plugin } from 'vite';
+import type { InlineConfig } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
-import { browserEnvPlugin } from './browser-env-plugin';
-import { tailwindSourcePlugin } from './tailwind-source-plugin';
-import { beaconPlugin } from './beacon-plugin';
-import { publicAssetPathPlugin } from './public-asset-path-plugin';
 import type { BuildReportCollector } from '../../../build-report';
 
 /**
- * Vite plugin to flatten the output structure for index.html
- *
- * When root is set to the project root (for TanStack Router compatibility),
- * Vite outputs index.html to .agentuity/client/src/web/index.html instead of
- * .agentuity/client/index.html. This plugin moves it to the expected location.
+ * Read the pre-built beacon script from @agentuity/frontend package.
+ * Tries multiple resolution strategies for workspace/installed/symlink scenarios.
  */
-function flattenHtmlOutputPlugin(outDir: string): Plugin {
-	return {
-		name: 'agentuity:flatten-html-output',
-		apply: 'build',
-		closeBundle() {
-			const nestedHtmlPath = join(outDir, 'src', 'web', 'index.html');
-			const targetHtmlPath = join(outDir, 'index.html');
+async function readBeaconScript(projectRoot: string): Promise<string> {
+	let frontendPath: string | null = null;
 
-			if (existsSync(nestedHtmlPath)) {
-				renameSync(nestedHtmlPath, targetHtmlPath);
+	try {
+		frontendPath = await Bun.resolve('@agentuity/frontend', projectRoot);
+	} catch {
+		// Not found from project root
+	}
 
-				// Clean up empty src/web directory structure
-				const srcWebDir = join(outDir, 'src', 'web');
-				const srcDir = join(outDir, 'src');
-				try {
-					rmSync(srcWebDir, { recursive: true, force: true });
-					rmSync(srcDir, { recursive: true, force: true });
-				} catch {
-					// Ignore cleanup errors
-				}
-			}
-		},
-	};
+	if (!frontendPath) {
+		try {
+			const thisDir = new URL('.', import.meta.url).pathname;
+			frontendPath = await Bun.resolve('@agentuity/frontend', thisDir);
+		} catch {
+			// Not found from CLI directory
+		}
+	}
+
+	if (!frontendPath) {
+		try {
+			const projectRequire = createRequire(join(projectRoot, 'package.json'));
+			frontendPath = projectRequire.resolve('@agentuity/frontend');
+		} catch {
+			// Not found via createRequire
+		}
+	}
+
+	if (!frontendPath) {
+		throw new Error(
+			'Could not resolve @agentuity/frontend. Ensure the package is installed and built.'
+		);
+	}
+
+	const packageDir = join(frontendPath, '..');
+	const beaconPath = join(packageDir, 'beacon.js');
+
+	const beaconFile = Bun.file(beaconPath);
+	if (!(await beaconFile.exists())) {
+		throw new Error(
+			`Beacon script not found at ${beaconPath}. Run "bun run build" in @agentuity/frontend first.`
+		);
+	}
+
+	return beaconFile.text();
+}
+
+/**
+ * Post-build step: inject the analytics beacon into the built index.html.
+ *
+ * 1. Reads the beacon script from @agentuity/frontend
+ * 2. Writes it as a content-hashed asset file
+ * 3. Injects a <script data-agentuity-beacon> tag into the HTML
+ *
+ * This runs after `vite build` completes so it works regardless of the
+ * user's vite.config.ts — no Vite plugin required.
+ */
+async function injectBeacon(rootDir: string, cdnBaseUrl: string, logger: Logger): Promise<void> {
+	const clientDir = join(rootDir, '.agentuity/client');
+	const indexHtmlPath = join(clientDir, 'index.html');
+
+	if (!existsSync(indexHtmlPath)) {
+		logger.debug('No index.html found, skipping beacon injection');
+		return;
+	}
+
+	let beaconCode: string;
+	try {
+		beaconCode = await readBeaconScript(rootDir);
+	} catch (error) {
+		logger.warn(
+			'Failed to read beacon script, skipping injection: %s',
+			error instanceof Error ? error.message : String(error)
+		);
+		return;
+	}
+
+	// Write beacon as a content-hashed asset (matches Vite's naming convention)
+	const hash = createHash('sha256').update(beaconCode).digest('hex').slice(0, 8);
+	const beaconFileName = `agentuity-beacon-${hash}.js`;
+	const assetsDir = join(clientDir, 'assets');
+	mkdirSync(assetsDir, { recursive: true });
+	writeFileSync(join(assetsDir, beaconFileName), beaconCode);
+
+	// If a Vite manifest exists, add the beacon so the metadata generator
+	// includes it in the asset list. When no manifest exists, the directory
+	// scanner in metadata-generator.ts picks up assets/ directly.
+	const manifestPath = join(clientDir, '.vite', 'manifest.json');
+	if (existsSync(manifestPath)) {
+		const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+		manifest['agentuity-beacon'] = { file: `assets/${beaconFileName}` };
+		writeFileSync(manifestPath, JSON.stringify(manifest));
+	}
+
+	// Build the beacon URL using the CDN base
+	const normalizedBase = cdnBaseUrl.endsWith('/') ? cdnBaseUrl : `${cdnBaseUrl}/`;
+	const beaconUrl = `${normalizedBase}assets/${beaconFileName}`;
+
+	// Inject the script tag into index.html
+	// The script must be sync (no async/defer) to patch history API before router loads.
+	// The data-agentuity-beacon attribute is the marker the runtime looks for.
+	const beaconScript = `<script data-agentuity-beacon src="${beaconUrl}"></script>`;
+
+	let html = readFileSync(indexHtmlPath, 'utf-8');
+	if (html.includes('</head>')) {
+		html = html.replace('</head>', `${beaconScript}</head>`);
+	} else if (html.includes('<body')) {
+		html = html.replace(/<body([^>]*)>/, `<body$1>${beaconScript}`);
+	} else {
+		html = beaconScript + html;
+	}
+
+	writeFileSync(indexHtmlPath, html);
+	logger.debug('Injected analytics beacon: %s', beaconUrl);
 }
 
 export interface ViteBuildOptions {
@@ -75,25 +159,7 @@ export interface ViteBuildOptions {
  * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const {
-		rootDir,
-		mode,
-		dev = false,
-		projectId = '',
-		deploymentId = '',
-		logger,
-		profile,
-	} = options;
-
-	const isViteDebug =
-		process.env.AGENTUITY_VITE_DEBUG === '1' || process.env.AGENTUITY_VITE_DEBUG === 'true';
-	if (isViteDebug) {
-		logger.debug('Vite debug logging enabled via AGENTUITY_VITE_DEBUG');
-		const existing = process.env.DEBUG || '';
-		if (!existing.includes('vite:')) {
-			process.env.DEBUG = existing ? `${existing},vite:*` : 'vite:*';
-		}
-	}
+	const { rootDir, mode, dev = false, logger, profile } = options;
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
@@ -126,24 +192,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			profile,
 		});
 
-		// Load workbench config for entry file generation
-		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
-		const config = await loadAgentuityConfig(rootDir, logger);
-		const workbenchConfig = getWorkbenchConfig(config, dev);
-
-		// Then, generate the entry file
-		const { generateEntryFile } = await import('../entry-generator');
-		await generateEntryFile({
-			rootDir,
-			projectId,
-			deploymentId: deploymentId || '',
-			logger,
-			mode: dev ? 'dev' : 'prod',
-			workbench: workbenchConfig.configured ? workbenchConfig : undefined,
-			analytics: config?.analytics,
-		});
-
-		// Finally, build with Bun.build
+		// Build with Bun.build (app.ts is the entrypoint)
 		const { installExternalsAndBuild } = await import('./server-bundler');
 		await installExternalsAndBuild({
 			rootDir,
@@ -153,137 +202,102 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite and react plugin
-	// Try project's node_modules first (for custom vite configs), fall back to CLI's
-	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	let vitePath = 'vite';
-	let reactPluginPath = '@vitejs/plugin-react';
-	try {
-		vitePath = projectRequire.resolve('vite');
-		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
-	} catch {
-		// Project doesn't have vite, use CLI's bundled version
-	}
-	const { build: viteBuild } = await import(vitePath);
-	const reactModule = await import(reactPluginPath);
-	const react = reactModule.default;
+	// Dynamically import vite for workbench builds
+	const { build: viteBuild } = await import('vite');
 
-	// For client/workbench, use inline config (no agentuity plugin needed)
+	// For client/workbench, use inline config with vite.config.ts loading
 	let viteConfig: InlineConfig;
 
 	if (mode === 'client') {
-		// Vite needs index.html as entry point for web apps
-		const htmlPath = join(rootDir, 'src', 'web', 'index.html');
-
-		// Use workbench config passed from runAllBuilds
-		const {
-			workbenchEnabled = false,
-			workbenchRoute = '/workbench',
-			analyticsEnabled = false,
-		} = options;
-
-		// Determine CDN base URL for production builds
-		// Use CDN for all non-dev builds with a deploymentId (including local region)
-		const isLocalRegion = options.region === 'local';
-		const cdnDomain = isLocalRegion
-			? 'localstack-static-assets.t3.storageapi.dev'
-			: 'cdn.agentuity.com';
-		const cdnBaseUrl =
-			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
-
-		// Load custom user plugins from agentuity.config.ts if it exists
+		// For client builds, spawn vite as a subprocess.
+		// This avoids issues with Bun's module loading that cause problems
+		// with certain plugins like @sveltejs/vite-plugin-svelte.
+		// The vite.config.ts in the project handles all configuration.
+		const buildMode = dev ? 'development' : 'production';
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		const { loadAgentuityConfig, hasFrameworkPlugin } = await import('./config-loader');
-		const userConfig = await loadAgentuityConfig(rootDir, logger);
-		const userPlugins = userConfig?.plugins || [];
 
-		// Auto-add React plugin if no framework plugin is present (backwards compatibility)
-		if (userPlugins.length === 0 || !hasFrameworkPlugin(userPlugins)) {
-			logger.debug(
-				'No framework plugin found in agentuity.config.ts plugins, adding React automatically'
-			);
-			userPlugins.unshift(react());
+		// Ensure vite.config.ts exists (fallback for projects created before v2 template update)
+		const viteConfigPath = join(rootDir, 'vite.config.ts');
+		if (!existsSync(viteConfigPath)) {
+			logger.debug('Generating fallback vite.config.ts');
+			const fallbackConfig = `import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import { join } from 'node:path';
+
+export default defineConfig({
+	plugins: [react()],
+	root: '.',
+	build: {
+		rollupOptions: {
+			input: join(__dirname, 'src/web/index.html'),
+		},
+	},
+});
+`;
+			await Bun.write(viteConfigPath, fallbackConfig);
 		}
 
-		if (userPlugins.length > 0) {
-			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
-		}
+		// Construct CDN base URL for production builds so Vite prefixes all
+		// asset URLs (CSS, JS chunks) with the CDN origin instead of "/".
+		const cdnBaseUrl =
+			!dev && options.deploymentId
+				? `https://${options.region === 'local' ? 'localstack-static-assets.t3.storageapi.dev' : 'cdn.agentuity.com'}/${options.deploymentId}/client/`
+				: undefined;
 
-		const plugins = [
-			tailwindSourcePlugin(),
-			...userPlugins,
-			browserEnvPlugin(),
-			// Fix incorrect public asset paths and rewrite to CDN URLs
-			publicAssetPathPlugin({ cdnBaseUrl }),
-			flattenHtmlOutputPlugin(clientOutDir),
-			// Emit analytics beacon as hashed CDN asset (prod builds only)
-			beaconPlugin({ enabled: analyticsEnabled && !dev }),
+		const args = [
+			'bun',
+			'x',
+			'vite',
+			'build',
+			'--mode',
+			buildMode,
+			'--outDir',
+			clientOutDir,
+			'--logLevel',
+			'error',
+			'--clearScreen',
+			'false',
 		];
-
-		// Merge custom define values from user config
-		const userDefine = userConfig?.define || {};
-		if (Object.keys(userDefine).length > 0) {
-			logger.debug(
-				'Loaded %d custom define(s) from agentuity.config.ts',
-				Object.keys(userDefine).length
-			);
+		if (cdnBaseUrl) {
+			args.push('--base', cdnBaseUrl);
 		}
 
-		viteConfig = {
-			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
-			// from the repo root, matching where agentuity.config.ts is located
-			root: rootDir,
-			plugins,
-			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-			publicDir: join(rootDir, 'src', 'web', 'public'),
-			base: cdnBaseUrl, // CDN URL for production assets
-			define: {
-				// Merge user-defined constants first
-				...userDefine,
-				// Then add default defines (these will override any user-defined protected keys)
-				// Set workbench path if enabled (use import.meta.env for client code)
-				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
-					? JSON.stringify(workbenchRoute)
-					: 'undefined',
-			},
-			build: {
-				outDir: clientOutDir,
-				rollupOptions: {
-					input: htmlPath,
-				},
-				manifest: true,
-				emptyOutDir: true,
-				// Copy public files to output for CDN upload (production builds only)
-				// In dev mode, Vite serves them directly from src/web/public/
-				copyPublicDir: !dev,
-			},
-			logLevel: isViteDebug ? 'info' : 'warn',
-		};
+		logger.debug('Spawning vite build for client (subprocess mode)');
+		logger.debug('  outDir: %s', clientOutDir);
+		logger.debug('  mode: %s', buildMode);
+		if (cdnBaseUrl) {
+			logger.debug('  base (CDN): %s', cdnBaseUrl);
+		}
+
+		const viteProcess = Bun.spawn(args, {
+			cwd: rootDir,
+			stdout: 'inherit',
+			stderr: 'inherit',
+		});
+
+		const exitCode = await viteProcess.exited;
+
+		if (exitCode !== 0) {
+			throw new Error(`Vite build exited with code ${exitCode}`);
+		}
+
+		logger.debug('Vite build complete for mode: client');
+		return;
 	} else if (mode === 'workbench') {
 		const { workbenchRoute = '/workbench' } = options;
 		// Ensure route ends with / for Vite base
 		const base = workbenchRoute.endsWith('/') ? workbenchRoute : `${workbenchRoute}/`;
 
-		// Load custom user config for define values (same as client mode)
-		const { loadAgentuityConfig } = await import('./config-loader');
-		const userConfig = await loadAgentuityConfig(rootDir, logger);
-		const userDefine = userConfig?.define || {};
-		if (Object.keys(userDefine).length > 0) {
-			logger.debug(
-				'Loaded %d custom define(s) from agentuity.config.ts for workbench',
-				Object.keys(userDefine).length
-			);
-		}
+		// Workbench is built with React (internal UI)
+		// Use CLI's bundled React plugin since workbench is our code
+		const reactModule = await import('@vitejs/plugin-react');
+		const react = reactModule.default;
 
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
 			plugins: [react()],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-			define: {
-				// Merge user-defined constants
-				...userDefine,
-			},
 			build: {
 				outDir: join(rootDir, '.agentuity/workbench'),
 				rollupOptions: {
@@ -292,14 +306,13 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				manifest: true,
 				emptyOutDir: true,
 			},
-			logLevel: isViteDebug ? 'info' : 'warn',
+			logLevel: 'warn',
 		};
 	} else {
 		throw new Error(`Unknown build mode: ${mode}`);
 	}
 
-	// Build with Vite
-	// Force the build to use the correct mode
+	// For workbench mode, use programmatic vite build
 	const buildMode = dev ? 'development' : 'production';
 
 	await viteBuild({
@@ -334,21 +347,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		static: { included: false, duration: 0, routes: 0 },
 	};
 
-	// Load config to check if workbench is enabled (dev mode only)
-	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
-	const config = await loadAgentuityConfig(rootDir, logger);
+	// Load runtime config from createApp() in app.ts (v2 approach)
+	const { getWorkbenchConfig, loadRuntimeConfig } = await import('./config-loader');
+	const runtimeConfig = await loadRuntimeConfig(rootDir, logger);
 
-	// Copy bundle files if configured (before build so build output takes priority)
-	if (config?.bundle?.length) {
-		const { copyBundleFiles } = await import('./bundle-files');
-		const outDir = join(rootDir, '.agentuity');
-		const count = await copyBundleFiles(rootDir, outDir, config.bundle, logger);
-		if (count > 0) {
-			logger.debug(`Copied ${count} bundle file(s) to .agentuity`);
-		}
-	}
-
-	const workbenchConfig = getWorkbenchConfig(config, dev);
+	const workbenchConfig = getWorkbenchConfig(dev, runtimeConfig);
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {
 		logger.debug('Workbench enabled (dev mode), generating files before build...');
@@ -358,7 +361,6 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 1. Discover agents and routes BEFORE builds
 	logger.debug('Discovering agents and routes...');
-	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
 	const { discoverAgents } = await import('./agent-discovery');
 	const { discoverRoutes } = await import('./route-discovery');
 
@@ -369,24 +371,18 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		options.deploymentId || '',
 		logger
 	);
-	const { routes, routeInfoList } = await discoverRoutes(
-		srcDir,
-		projectId,
-		options.deploymentId || '',
-		logger
-	);
+	const { routes } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
 
-	// Generate agent and route registries for type augmentation BEFORE builds
-	// (TypeScript needs these files to exist during type checking)
-	generateAgentRegistry(srcDir, agentMetadata);
-	await generateRouteRegistry(srcDir, routeInfoList);
-	logger.debug('Agent and route registries generated');
+	// Agent metadata is used for metadata.json generation (no registry codegen needed)
 
 	// Check if web frontend exists
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
 
 	// Check if analytics is enabled
-	const analyticsEnabled = config?.analytics !== false;
+	// v2: analytics config comes from createApp()
+	const analyticsFromRuntime = runtimeConfig?.analytics;
+	const analyticsEnabled =
+		analyticsFromRuntime !== undefined ? analyticsFromRuntime !== false : true;
 
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
@@ -400,6 +396,36 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 			workbenchRoute: workbenchConfig.route,
 			analyticsEnabled,
 		});
+
+		// Normalize index.html location: vite may output to src/web/index.html
+		// depending on the project's vite.config.ts configuration
+		const clientDir = join(rootDir, '.agentuity/client');
+		const nestedIndexHtml = join(clientDir, 'src/web/index.html');
+		const rootIndexHtml = join(clientDir, 'index.html');
+		if (existsSync(nestedIndexHtml) && !existsSync(rootIndexHtml)) {
+			const { renameSync, mkdirSync: mkdirSyncFs } = await import('node:fs');
+			// Ensure target directory exists
+			mkdirSyncFs(clientDir, { recursive: true });
+			renameSync(nestedIndexHtml, rootIndexHtml);
+			logger.debug('Moved index.html from src/web/ to client root');
+		}
+
+		// Post-build: inject analytics beacon into the built HTML.
+		// Must run AFTER the index.html normalization above (Vite may
+		// output to src/web/index.html which gets moved to the client root).
+		const isLocalRegion = options.region === 'local';
+		const cdnDomain = isLocalRegion
+			? 'localstack-static-assets.t3.storageapi.dev'
+			: 'cdn.agentuity.com';
+		const cdnBaseUrl =
+			!dev && options.deploymentId
+				? `https://${cdnDomain}/${options.deploymentId}/client/`
+				: undefined;
+
+		if (cdnBaseUrl && analyticsEnabled) {
+			await injectBeacon(rootDir, cdnBaseUrl, logger);
+		}
+
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
 		endClientDiagnostic?.();
@@ -407,15 +433,16 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
 
-	// 2b. Static rendering (if configured)
-	if (config?.render === 'static' && hasWebFrontend) {
+	// 2b. Static rendering (if entry-server.tsx exists)
+	const entryServerPath = join(rootDir, 'src', 'web', 'entry-server.tsx');
+	if (existsSync(entryServerPath) && hasWebFrontend) {
 		logger.debug('Running static rendering (pre-rendering all routes)...');
 		const endStaticDiagnostic = collector?.startDiagnostic('static-render');
 		const { runStaticRender } = await import('./static-renderer');
 		const staticResult = await runStaticRender({
 			rootDir,
 			logger,
-			userPlugins: config?.plugins || [],
+			dev,
 		});
 		result.static.included = true;
 		result.static.duration = staticResult.duration;

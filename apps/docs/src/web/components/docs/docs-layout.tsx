@@ -26,9 +26,7 @@ function HeaderBreadcrumb({
 	onNavigate: (path: string) => void;
 }) {
 	const chain =
-		currentPage === 'home'
-			? [{ title: 'SDK Explorer', url: '/' }]
-			: findBreadcrumbChain(currentPage);
+		currentPage === 'home' ? [{ title: 'Home', url: '/' }] : findBreadcrumbChain(currentPage);
 
 	if (chain.length === 0) return null;
 
@@ -76,23 +74,33 @@ export function DocsLayout() {
 	// Convert pathname to currentPage format for backward compatibility
 	const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
 
-	// React 19 hoists <title> and <meta> tags to <head>
 	const fm = getFrontmatterForRoute(location.pathname);
 	const pageTitle = fm?.title
 		? `${fm.title} — Agentuity Documentation`
 		: 'Agentuity Documentation';
-	const pageDescription = fm?.description || 'Agentuity SDK documentation for building AI agents.';
 
-	// Scroll to top on route change
+	// Scroll to top on non-hash route changes; hash scrolling is handled by TanStack Router
 	// biome-ignore lint/correctness/useExhaustiveDependencies: location.pathname is used as a trigger to scroll to top on route change
 	React.useLayoutEffect(() => {
-		mainRef.current?.scrollTo(0, 0);
-	}, [location.pathname]);
+		if (!location.hash) {
+			mainRef.current?.scrollTo(0, 0);
+		}
+	}, [location.pathname, location.hash]);
 
 	const handleNavigate = React.useCallback(
 		(path: string) => {
-			const to = path === 'home' ? '/' : `/${path}`;
-			void navigate({ to });
+			if (path === 'home') {
+				void navigate({ to: '/' });
+				return;
+			}
+			const hashIndex = path.indexOf('#');
+			if (hashIndex >= 0) {
+				const to = `/${path.slice(0, hashIndex)}`;
+				const hash = path.slice(hashIndex + 1);
+				void navigate({ to, hash, resetScroll: false });
+			} else {
+				void navigate({ to: `/${path}` });
+			}
 		},
 		[navigate]
 	);
@@ -123,10 +131,6 @@ export function DocsLayout() {
 	return (
 		<SidebarProvider className="min-h-0! h-full">
 			<title>{pageTitle}</title>
-			<meta property="og:title" content={pageTitle} />
-			<meta property="og:description" content={pageDescription} />
-			<meta property="og:image" content="https://agentuity.com/og-image.png" />
-			<meta property="og:type" content="article" />
 			<AppSidebar
 				currentPage={currentPage}
 				onNavigate={handleNavigate}

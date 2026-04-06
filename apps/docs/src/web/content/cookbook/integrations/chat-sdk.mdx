@@ -1,0 +1,220 @@
+---
+title: Using Chat SDK with Agentuity
+short_title: Chat SDK
+description: Build multi-platform chatbots for Slack and Discord with Chat SDK and Agentuity agents
+---
+
+[Chat SDK](https://chat-sdk.dev) handles platform connections: authenticating with Slack and Discord, receiving webhooks, normalizing messages, and posting responses. Agentuity provides the agent runtime, [KV storage](/services/storage/key-value) for conversation history, and the [AI Gateway](/agents/ai-gateway) for LLM calls. One `handleMessage` function serves both platforms.
+
+## The Integration Pattern
+
+Chat SDK manages platform adapters and webhook routing. The Agentuity agent handles the AI logic: loading history, generating responses, and persisting state. The two connect through a simple `chatAgent.run()` call.
+
+Set up Chat SDK with platform adapters:
+
+```tsx title="src/lib/bot.tsx"
+/** @jsxImportSource chat */
+import { Chat, type Adapter } from 'chat';
+import { createSlackAdapter } from '@chat-adapter/slack';
+import { createDiscordAdapter } from '@chat-adapter/discord';
+import { createMemoryState } from '@chat-adapter/state-memory';
+import chatAgent from '@agent/chat';
+
+const adapters = {
+  ...(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET
+    ? { slack: createSlackAdapter() }
+    : {}),
+  ...(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_PUBLIC_KEY
+    ? { discord: createDiscordAdapter() }
+    : {}),
+} satisfies Record<string, Adapter>;
+
+export const bot = new Chat({
+  userName: 'agentuity-bot',
+  adapters,
+  state: createMemoryState(),
+});
+```
+
+Adapters are conditionally enabled based on environment variables. Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` for Slack, or `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` for Discord. You only need to configure the platforms you want to use.
+
+## Handling Messages
+
+A single handler serves both platforms. Chat SDK normalizes the incoming message format, so `message.text` and `thread.id` work regardless of whether the message came from Slack or Discord:
+
+```tsx title="src/lib/bot.tsx"
+async function handleMessage(thread: Thread, message: Message) {
+  if (!message.text.trim()) return;
+  await thread.startTyping();
+
+  try {
+    const result = await chatAgent.run({ text: message.text, threadId: thread.id }); // [!code highlight]
+    await thread.post(result.response);
+  } catch (err) {
+    console.error('[chat-bot] agent invocation failed', err);
+    await thread.post('Sorry, I ran into an error. Please try again.');
+  }
+}
+
+// Subscribe to new @mentions and follow-up messages
+bot.onNewMention(async (thread, message) => { // [!code highlight]
+  await thread.subscribe();
+  await handleMessage(thread, message);
+});
+
+bot.onSubscribedMessage(async (thread, message) => {
+  await handleMessage(thread, message);
+});
+```
+
+`chatAgent.run()` calls the Agentuity agent directly. Chat SDK handles threading, typing indicators, and response posting. The bot subscribes to a thread on the first @mention, then receives all follow-up messages automatically.
+
+## Conversation Memory with KV
+
+The agent stores conversation history in [Agentuity KV](/services/storage/key-value) rather than `ctx.thread.state` or Chat SDK's built-in state. This gives longer retention (24 hours vs. 1 hour), visibility in the Agentuity dashboard, and works with webhook-based bots that don't have browser cookies:
+
+```typescript title="src/agent/chat/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import { generateText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
+
+export default createAgent('chat', {
+  schema: {
+    input: s.object({
+      text: s.string(),
+      threadId: s.string(),
+    }),
+    output: s.object({ response: s.string() }),
+  },
+  handler: async (ctx, { text, threadId }) => {
+    ctx.logger.info('Chat request', { messageLength: text.length, threadId });
+
+    // KV keyed by Chat SDK thread ID: browsable in dashboard, 24h retention
+    const history = await ctx.kv.get('chat-sdk-conversations', threadId); // [!code highlight]
+    const messages = history.exists
+      ? (history.data as { messages: Array<{ role: 'user' | 'assistant'; content: string }> }).messages
+      : [];
+
+    const result = await generateText({
+      model: anthropic('claude-haiku-4-5'),
+      system: 'You are a helpful assistant deployed across Slack and Discord.',
+      messages: [
+        ...messages.slice(-20),
+        { role: 'user', content: text },
+      ],
+    });
+
+    // Sliding window: 20 messages (10 turns), 24-hour TTL
+    messages.push({ role: 'user', content: text });
+    messages.push({ role: 'assistant', content: result.text });
+    await ctx.kv.set( // [!code highlight]
+      'chat-sdk-conversations',
+      threadId,
+      { messages: messages.slice(-20) },
+      { ttl: 86400 },
+    );
+
+    return { response: result.text };
+  },
+});
+```
+
+The sliding window caps history at 20 messages (10 turns), keeping the LLM token budget bounded. Every conversation is browsable in the Agentuity dashboard under Key Value Stores, keyed by platform and thread ID.
+
+<Callout type="tip" title="Why KV instead of thread state?">
+`ctx.thread.state` uses cookie-based thread IDs, which webhook bots don't have. KV lets you use Chat SDK's `thread.id` as the key, gives 24-hour retention (vs. 1 hour for thread state), and provides dashboard visibility for inspecting what the bot remembers.
+</Callout>
+
+## Webhook Routing
+
+Incoming platform webhooks hit a single Agentuity route that dispatches to the correct Chat SDK adapter:
+
+```typescript title="src/api/index.ts"
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import { bot } from '@lib/bot';
+
+const api = new Hono<Env>()
+  .all('/webhooks/:platform', async (c) => {
+    const platform = c.req.param('platform');
+    const webhookHandler = bot.webhooks[platform as keyof typeof bot.webhooks];
+
+    if (!webhookHandler) {
+      return c.json({ error: `Unknown platform: ${platform}` }, 404);
+    }
+
+    return await webhookHandler(c.req.raw, {
+      waitUntil: (promise) => { // [!code highlight]
+        c.waitUntil(async () => {
+          await promise.catch((err) => {
+            c.var.logger.error(`Webhook processing error (${platform})`, { error: err });
+          });
+        });
+      },
+    });
+  });
+
+export default api;
+```
+
+Slack sends verification challenges and event payloads to `/api/webhooks/slack`. Discord sends interaction payloads to `/api/webhooks/discord`. Chat SDK handles signature verification and event parsing for each platform.
+
+## Discord Gateway
+
+Discord's Gateway API uses a persistent WebSocket connection for real-time events. Agentuity's long-running runtime keeps this connection alive without needing external process managers:
+
+```typescript title="app.ts"
+import { createApp, registerShutdownHook } from '@agentuity/runtime';
+import api from './src/api/index';
+import chatAgent from './src/agent/chat/agent';
+import { bot } from '@lib/bot';
+
+const app = await createApp({
+  router: { path: '/api', router: api },
+  agents: [chatAgent],
+});
+
+registerShutdownHook(async () => {
+  await bot.shutdown();
+});
+
+if (process.env.DISCORD_BOT_TOKEN) {
+  await bot.initialize();
+  const discord = bot.getAdapter('discord');
+
+  if (discord) {
+    const webhookUrl = `http://127.0.0.1:${process.env.PORT || '3500'}/api/webhooks/discord`;
+    const abortController = new AbortController();
+
+    const startListener = () => {
+      discord.startGatewayListener(
+        { waitUntil: (promise) => { /* auto-restart on expiry */ } },
+        24 * 60 * 60 * 1000, // 24-hour sessions
+        abortController.signal,
+        webhookUrl,
+      );
+    };
+
+    startListener();
+    registerShutdownHook(() => abortController.abort()); // [!code highlight]
+  }
+}
+
+export default app;
+```
+
+The Gateway listener forwards Discord events to the local webhook endpoint. When the 24-hour session expires, it automatically restarts. `registerShutdownHook` cancels the listener during graceful shutdown.
+
+## Full Example
+
+[Chat SDK Integration](https://github.com/agentuity/examples/tree/main/integrations/chat-sdk): Slack and Discord adapters, AI chat agent, webhook routing, and Discord Gateway setup.
+
+Chat SDK also supports [GitHub, Teams, Google Chat, and Linear](https://chat-sdk.dev/docs/adapters) adapters with the same pattern.
+
+## Next Steps
+
+- [Key-Value Storage](/services/storage/key-value): Full KV API with namespaces, TTL, and dashboard access
+- [AI Gateway](/agents/ai-gateway): Route LLM calls through a single API with observability
+- [Standalone Execution](/agents/standalone-execution): Run agents from bots, CLI tools, and background workers
+- [Chat with History](/cookbook/patterns/chat-with-history): The same conversation memory pattern using thread state
