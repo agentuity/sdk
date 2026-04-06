@@ -74,7 +74,6 @@ const SPINNER_FRAMES = [
 
 /** Strip ANSI escape sequences to get visible character count. */
 function visibleLength(str: string): number {
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 	return str.replace(/\x1b\[[0-9;]*m/g, '').length;
 }
 

@@ -74,7 +74,6 @@ interface HubOverlayOptions {
 
 type ScreenMode = 'list' | 'detail' | 'feed' | 'task';
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 const POLL_MS = 4_000;
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -228,14 +227,11 @@ function wrapText(text: string, width: number): string[] {
 }
 
 function toSingleLine(text: string): string {
-	return (
-		text
-			.replace(/[\r\n\t]+/g, ' ')
-			// biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally strips control chars for single-line output
-			.replace(/[\x00-\x1f\x7f]/g, '')
-			.replace(/\s+/g, ' ')
-			.trim()
-	);
+	return text
+		.replace(/[\r\n\t]+/g, ' ')
+		.replace(/[\x00-\x1f\x7f]/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
 }
 
 interface MessageSegments {

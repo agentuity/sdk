@@ -21,7 +21,6 @@ interface Focusable {
 type DoneFn = (result: AgentManagerResult | undefined) => void;
 type Screen = 'list' | 'detail';
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 function visibleWidth(text: string): number {

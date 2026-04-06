@@ -36,7 +36,6 @@ export function truncateToWidth(line: string, maxWidth: number): string {
 	if (normalized.length <= maxWidth && !normalized.includes('\x1b')) return normalized;
 
 	// Strip ANSI to measure visible length
-	// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 	const visible = normalized.replace(/\x1b\[[0-9;]*m/g, '');
 	if (visible.length <= maxWidth) return normalized;
 

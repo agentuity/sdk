@@ -39,7 +39,7 @@ const agent = createAgent('email-sender', {
 		}),
 	},
 
-	handler: async (ctx, { template, to }) => {
+	handler: async (ctx, { to }) => {
 		// The left-side demo always passes a user email. Keep the Explorer inbox fallback
 		// for standalone sandbox/reference runs where the code is prewritten.
 		let recipients = EMAIL_TO;

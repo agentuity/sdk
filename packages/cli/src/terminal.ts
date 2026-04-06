@@ -88,7 +88,6 @@ async function queryTerminalBackground(): Promise<RGBColor | null> {
 			// Pattern 2: ESC ] 11 ; rgb:RRRR/GGGG/BBBB BEL (xterm with BEL terminator)
 			// The color values can be 8-bit (RR), 12-bit (RRR), or 16-bit (RRRR)
 			const match = response.match(
-				// biome-ignore lint/suspicious/noControlCharactersInRegex: OSC 11 query for terminal background color (xterm)
 				/\x1b\]11;rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)(?:\x1b\\|\x07)/i
 			);
 			if (match) {

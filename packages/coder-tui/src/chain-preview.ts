@@ -30,7 +30,6 @@ type DoneFn = (result: ChainResult | undefined) => void;
 type Mode = 'sequential' | 'parallel';
 type ScreenMode = 'compose' | 'picker' | 'edit';
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 function visibleWidth(text: string): number {

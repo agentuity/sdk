@@ -40,7 +40,6 @@ const SANDBOX_SERVICE_SCOPES = ['services:read', 'services:write'];
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
 
 // ANSI escape sequence regex for stripping terminal colors
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR escape sequences for terminal colors/styles
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*m/g;
 
 function cleanOutput(content: string): string {
