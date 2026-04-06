@@ -60,7 +60,12 @@ import { validateAptDependencies } from '../../utils/apt-validator';
 import { extractDependencies } from '../../utils/deps';
 import { zipDir } from '../../utils/zip';
 import { typecheck } from '../build/typecheck';
-import { viteBundle } from '../build/vite-bundler';
+import { detectFrameworkWithPackageJson } from '../build/detect';
+import { getAdapter } from '../build/adapters';
+import { packageBuildOutput } from '../build/package';
+import type { BuildResult } from '../build/adapters/types';
+import type { PackageResult } from '../build/package';
+import { generateDeployMetadata } from '../../deploy-metadata';
 import { getProjectGithubStatus } from '../git/api';
 import { runGitLink } from '../git/link';
 import { runForkedDeploy } from './deploy-fork';
@@ -267,6 +272,7 @@ export const deploySubcommand = createSubcommand({
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
+		let buildOutputDir: string | undefined;
 		let instructions: DeploymentInstructions | undefined;
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
@@ -620,7 +626,7 @@ export const deploySubcommand = createSubcommand({
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
-							let capturedOutput: string[] = [];
+							const capturedOutput: string[] = [];
 							const rootDir = resolve(projectDir);
 
 							// Run typecheck with collector for error reporting
@@ -642,20 +648,85 @@ export const deploySubcommand = createSubcommand({
 								return stepError('Typecheck failed\n\n' + typeResult.output);
 							}
 							try {
-								const bundleResult = await viteBundle({
-									rootDir,
-									dev: false,
-									deploymentId: deployment.id,
-									orgId: deployment.orgId,
-									projectId: project.projectId,
-									region: project.region,
+								// Step 1: Detect framework
+								const { framework, packageJson } =
+									await detectFrameworkWithPackageJson(rootDir);
+
+								if (!framework) {
+									return stepError(
+										'Could not detect a JS framework. Ensure package.json exists with a build script.'
+									);
+								}
+
+								const frameworkLabel = framework.version
+									? `${framework.name} v${framework.version}`
+									: framework.name;
+								capturedOutput.push(
+									tui.muted(`✓ Detected ${frameworkLabel} (${framework.runtime})`)
+								);
+
+								// Step 2: Get adapter and build
+								const outDir = join(rootDir, '.agentuity');
+								const adapter = getAdapter(framework.name);
+
+								const endBuildDiagnostic = collector.startDiagnostic('build');
+								const buildResult: BuildResult = await adapter.build({
+									projectDir: rootDir,
+									framework,
+									packageJson: packageJson!,
+									outputDir: outDir,
 									logger: ctx.logger,
+									collector,
+									dev: false,
+									projectId: project.projectId,
+									orgId: deployment.orgId,
+									region: project.region,
+									deploymentId: deployment.id,
 									deploymentOptions: opts,
 									deploymentConfig: project.deployment,
-									collector,
 								});
-								capturedOutput = [...capturedOutput, ...bundleResult.output];
-								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
+								endBuildDiagnostic();
+
+								capturedOutput.push(...buildResult.logs);
+								buildOutputDir = buildResult.outputDir;
+
+								// Step 3: Package output (launch.json, Procfile, .agentuity-build)
+								const packageResult: PackageResult = packageBuildOutput(
+									framework,
+									buildResult,
+									buildResult.outputDir
+								);
+
+								// Step 4: Generate deploy metadata
+								const isAgentuity = framework.name === 'agentuity';
+
+								if (isAgentuity) {
+									// Agentuity native: the Vite pipeline writes agentuity.metadata.json
+									// with full routes, agents, and assets — load it and add launch metadata
+									build = await loadBuildMetadata(buildResult.outputDir);
+									build.launch = packageResult.launch;
+								} else {
+									// Non-Agentuity: generate metadata from build result
+									build = await generateDeployMetadata({
+										buildResult,
+										packageResult,
+										projectDir: rootDir,
+										projectId: project.projectId,
+										orgId: deployment.orgId,
+										region: project.region,
+										deploymentId: deployment.id,
+										deploymentConfig: project.deployment,
+										deploymentOptions: opts,
+										logger: ctx.logger,
+									});
+								}
+
+								ctx.logger.debug(
+									'Launch metadata: %s',
+									JSON.stringify(build.launch, null, 2)
+								);
+
+								// Step 5: Send metadata to API to get upload URLs
 								instructions = await projectDeploymentUpdate(
 									apiClient,
 									deployment.id,
@@ -735,9 +806,10 @@ export const deploySubcommand = createSubcommand({
 							const endZipDiagnostic = collector.startDiagnostic('zip-package');
 							progress(5);
 							ctx.logger.trace('Starting deployment zip creation');
-							// zip up the assets folder
+							// zip up the build output directory
+							const zipSourceDir = buildOutputDir ?? join(projectDir, '.agentuity');
 							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
-							await zipDir(join(projectDir, '.agentuity'), deploymentZip, {
+							await zipDir(zipSourceDir, deploymentZip, {
 								filter: (_filename: string, relative: string) => {
 									if (relative.startsWith('.vite/')) {
 										return false;
@@ -866,7 +938,8 @@ export const deploySubcommand = createSubcommand({
 										}
 
 										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
-										const filePath = join(projectDir, '.agentuity', asset.filename);
+										const assetBaseDir = buildOutputDir ?? join(projectDir, '.agentuity');
+										const filePath = join(assetBaseDir, asset.filename);
 
 										const headers: Record<string, string> = {
 											'Content-Type': asset.contentType,

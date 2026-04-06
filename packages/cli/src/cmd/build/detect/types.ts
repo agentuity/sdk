@@ -28,11 +28,6 @@ export type RuntimeName = 'node' | 'bun';
 export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn';
 
 /**
- * Whether the app is static-only (CDN/file serving) or has a server process.
- */
-export type AppMode = 'server' | 'static';
-
-/**
  * Result of framework detection.
  *
  * This is the output of the detect phase and input to the adapter/build phase.
@@ -49,9 +44,6 @@ export interface DetectedFramework {
 
 	/** Detected package manager */
 	packageManager: PackageManager;
-
-	/** Whether the app is server-rendered or static */
-	mode: AppMode;
 
 	/** The build command to execute (e.g., "next build", "vite build") */
 	buildCommand: string;

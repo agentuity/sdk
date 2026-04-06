@@ -67,7 +67,7 @@ function parseProcfile(content: string): Record<string, string> {
  * Validate the buildpack output contract for a given directory.
  * Returns an array of violations (empty = valid).
  */
-function validateBuildpackContract(outputDir: string, expectedMode: 'server' | 'static'): string[] {
+function validateBuildpackContract(outputDir: string): string[] {
 	const violations: string[] = [];
 
 	// 1. launch.json must exist and be valid JSON
@@ -93,18 +93,16 @@ function validateBuildpackContract(outputDir: string, expectedMode: 'server' | '
 				violations.push('launch.json: build.date must be a string');
 			}
 
-			// For server mode, must have at least one web process
-			if (expectedMode === 'server') {
-				const webProcess = launch.processes.find((p) => p.type === 'web');
-				if (!webProcess) {
-					violations.push('launch.json: server app must have a "web" process');
-				} else {
-					if (typeof webProcess.command !== 'string' || webProcess.command.length === 0) {
-						violations.push('launch.json: web process must have a non-empty command');
-					}
-					if (webProcess.default !== true) {
-						violations.push('launch.json: web process must be default');
-					}
+			// Every build must produce at least one web process
+			const webProcess = launch.processes.find((p) => p.type === 'web');
+			if (!webProcess) {
+				violations.push('launch.json: must have a "web" process');
+			} else {
+				if (typeof webProcess.command !== 'string' || webProcess.command.length === 0) {
+					violations.push('launch.json: web process must have a non-empty command');
+				}
+				if (webProcess.default !== true) {
+					violations.push('launch.json: web process must be default');
 				}
 			}
 		} catch {
@@ -119,8 +117,8 @@ function validateBuildpackContract(outputDir: string, expectedMode: 'server' | '
 	} else {
 		const content = readFileSync(procfilePath, 'utf-8');
 		const processes = parseProcfile(content);
-		if (expectedMode === 'server' && !processes.web) {
-			violations.push('Procfile: server app must have a "web" process type');
+		if (!processes.web) {
+			violations.push('Procfile: must have a "web" process type');
 		}
 		// Validate that Procfile commands are non-empty
 		for (const [type, cmd] of Object.entries(processes)) {
@@ -145,9 +143,6 @@ function validateBuildpackContract(outputDir: string, expectedMode: 'server' | '
 			}
 			if (typeof marker.runtime !== 'string') {
 				violations.push('.agentuity-build: runtime must be a string');
-			}
-			if (marker.mode !== 'server' && marker.mode !== 'static') {
-				violations.push('.agentuity-build: mode must be "server" or "static"');
 			}
 		} catch {
 			violations.push('.agentuity-build: invalid JSON');
@@ -215,7 +210,6 @@ describe('Buildpack Contract — End-to-End', () => {
 		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
 		expect(framework).not.toBeNull();
 		expect(framework!.name).toBe('generic');
-		expect(framework!.mode).toBe('server');
 
 		// Build
 		const adapter = getAdapter(framework!.name);
@@ -231,7 +225,7 @@ describe('Buildpack Contract — End-to-End', () => {
 		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		// Validate contract
-		const violations = validateBuildpackContract(buildResult.outputDir, 'server');
+		const violations = validateBuildpackContract(buildResult.outputDir);
 		expect(violations).toEqual([]);
 
 		// Validate consistency
@@ -255,7 +249,8 @@ describe('Buildpack Contract — End-to-End', () => {
 		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
 		expect(framework).not.toBeNull();
 		expect(framework!.name).toBe('generic');
-		expect(framework!.mode).toBe('static');
+		// No start command — generic adapter will inject a static file server
+		expect(framework!.startCommand).toBeUndefined();
 
 		// Build
 		const adapter = getAdapter(framework!.name);
@@ -267,11 +262,14 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
+		// The adapter should have injected a start command
+		expect(buildResult.startCommand).toBeDefined();
+
 		// Package
 		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
-		// Validate contract
-		const violations = validateBuildpackContract(buildResult.outputDir, 'static');
+		// Validate contract — should still produce a valid buildpack output
+		const violations = validateBuildpackContract(buildResult.outputDir);
 		expect(violations).toEqual([]);
 	}, 30_000);
 
@@ -466,7 +464,6 @@ describe('Buildpack Contract — End-to-End', () => {
 		expect(marker.version).toBe(1);
 		expect(typeof marker.framework).toBe('string');
 		expect(typeof marker.runtime).toBe('string');
-		expect(['server', 'static']).toContain(marker.mode);
 		expect(typeof marker.buildDate).toBe('string');
 		expect(() => new Date(marker.buildDate).toISOString()).not.toThrow();
 	}, 30_000);
@@ -509,9 +506,6 @@ describe('Buildpack Contract — End-to-End', () => {
 		// Runtime must match
 		expect(launch.runtime.name).toBe(marker.runtime);
 		expect(launch.runtime.name).toBe(framework!.runtime);
-
-		// Mode must match
-		expect(marker.mode).toBe(framework!.mode);
 	}, 30_000);
 
 	// ── Build failure propagation ──
@@ -540,11 +534,11 @@ describe('Buildpack Contract — End-to-End', () => {
 		).rejects.toThrow(/Build failed/);
 	}, 30_000);
 
-	// ── No node_modules for static builds ──
+	// ── Static builds inject a file server ──
 
-	test('static build does not copy node_modules', async () => {
+	test('build with no start script injects a static file server', async () => {
 		writePackageJson(testDir, {
-			name: 'test-static-no-nm',
+			name: 'test-static-inject',
 			version: '1.0.0',
 			scripts: {
 				build: 'mkdir -p dist && echo "<h1>Hello</h1>" > dist/index.html',
@@ -552,7 +546,7 @@ describe('Buildpack Contract — End-to-End', () => {
 		});
 
 		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
-		expect(framework!.mode).toBe('static');
+		expect(framework!.startCommand).toBeUndefined();
 
 		const adapter = getAdapter(framework!.name);
 		const buildResult = await adapter.build({
@@ -563,8 +557,9 @@ describe('Buildpack Contract — End-to-End', () => {
 			logger,
 		});
 
-		// Static builds should NOT copy node_modules to output
-		expect(existsSync(join(buildResult.outputDir, 'node_modules'))).toBe(false);
+		// Adapter should inject a start command and the server script
+		expect(buildResult.startCommand).toBe('node _serve.js');
+		expect(existsSync(join(buildResult.outputDir, '_serve.js'))).toBe(true);
 	}, 30_000);
 
 	// ── Build duration is reasonable ──

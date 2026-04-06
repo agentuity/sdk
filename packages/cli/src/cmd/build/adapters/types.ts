@@ -6,7 +6,7 @@
  */
 
 import type { DetectedFramework, PackageJsonData } from '../detect/types';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import type { BuildReportCollector } from '../../../build-report';
 
 /**
@@ -68,6 +68,15 @@ export interface BuildAdapterOptions {
 
 	/** Region (for Agentuity metadata) */
 	region?: string;
+
+	/** Deployment ID (for Agentuity metadata) */
+	deploymentId?: string;
+
+	/** Deployment options from CLI (git info, trigger, etc.) */
+	deploymentOptions?: DeployOptions;
+
+	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
+	deploymentConfig?: Record<string, unknown>;
 }
 
 /**
