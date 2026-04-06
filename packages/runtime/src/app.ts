@@ -483,16 +483,16 @@ export interface AppResult {
 	 * request handler without restarting the process.
 	 */
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	fetch: (req: Request, ...args: any[]) => Response | Promise<Response>;
+	fetch?: (req: Request, ...args: any[]) => Response | Promise<Response>;
 	/**
 	 * Port the server listens on.
 	 * Used by Bun --hot alongside `fetch` to configure the server.
 	 */
-	port: number;
+	port?: number;
 	/**
 	 * Hostname the server binds to.
 	 */
-	hostname: string;
+	hostname?: string;
 	/**
 	 * WebSocket handler for Bun.serve().
 	 * Required by Bun --hot to enable WebSocket upgrade support.
