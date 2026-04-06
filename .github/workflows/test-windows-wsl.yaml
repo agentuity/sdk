@@ -110,10 +110,10 @@ jobs:
               # Use GitHub expressions directly — env vars like GITHUB_RUN_ID
               # and GITHUB_BASE_REF are NOT available inside WSL, but
               # expressions are resolved at workflow parse time.
-              PROJECT_NAME="test-wsl-${{ github.run_id }}"
-              TEMPLATE_BRANCH="main"
+              PROJECT_NAME="test-wsl-${{ github.run_id }}-${{ github.run_attempt }}"
+              TEMPLATE_DIR="$HOME/sdk/templates"
 
-              echo "Using template branch: $TEMPLATE_BRANCH"
+              echo "Using local templates from: $TEMPLATE_DIR"
 
               # Verify authentication
               $CLI auth whoami
@@ -123,7 +123,7 @@ jobs:
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --template default \
-                --template-branch "$TEMPLATE_BRANCH" \
+                --template-dir "$TEMPLATE_DIR" \
                 --database skip \
                 --storage skip \
                 --confirm
