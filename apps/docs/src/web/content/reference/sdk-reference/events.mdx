@@ -92,7 +92,7 @@ addEventListener('thread.created', (eventName, thread) => {});
 addEventListener('thread.destroyed', (eventName, thread) => {});
 ```
 
-Agent events receive `(eventName, agent, ctx)` or `(eventName, agent, ctx, error)`. Session and thread events receive only the `session` or `thread` object.
+Agent events receive `(eventName, agent, ctx)` or `(eventName, agent, ctx, error)`. Session and thread event callbacks receive `(eventName, session)` or `(eventName, thread)`.
 
 **Example: App-Wide Metrics**
 
@@ -118,15 +118,15 @@ addEventListener('agent.errored', (eventName, agent, ctx, error) => {
   });
 });
 
-addEventListener('session.completed', () => {
+addEventListener('session.completed', (eventName, session) => {
   completedSessions++;
 });
 
-addEventListener('thread.created', () => {
+addEventListener('thread.created', (eventName, thread) => {
   activeThreads++;
 });
 
-addEventListener('thread.destroyed', () => {
+addEventListener('thread.destroyed', (eventName, thread) => {
   activeThreads = Math.max(0, activeThreads - 1);
 });
 ```

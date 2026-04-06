@@ -30,6 +30,8 @@ Agents and routes share the same built-in platform services. These services are 
 | Queue | `ctx.queue` | `c.var.queue` |
 | Email | `ctx.email` | `c.var.email` |
 | Sandbox | `ctx.sandbox` | `c.var.sandbox` |
+| Schedule | `ctx.schedule` | `c.var.schedule` |
+| Task | `ctx.task` | `c.var.task` |
 
 <Callout type="info" title="Database and Object Storage">
 Database and object storage use Bun's native `sql` and `s3` APIs instead of `ctx.*` or `c.var.*`.

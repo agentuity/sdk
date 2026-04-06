@@ -72,7 +72,7 @@ const router = new Hono<Env>();
 
 router.post('/chat', chatAgent.validator(), async (c) => {
   const { message } = c.req.valid('json');
-  return chatAgent.run({ message });
+  return new Response(await chatAgent.run({ message }));
 });
 
 // Reset conversation

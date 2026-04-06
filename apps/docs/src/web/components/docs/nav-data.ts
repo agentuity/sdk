@@ -276,13 +276,13 @@ export const navData: NavSection[] = [
 				title: 'RPC Client',
 				url: '/frontend/rpc-client',
 				description:
-					'Type-safe route calls from any JavaScript environment using hc<ApiRouter>()',
+					'Type-safe API calls from any JavaScript environment using hc() from hono/client',
 			},
 			{
 				title: 'Provider Setup',
 				url: '/frontend/provider-setup',
 				description:
-					'Configure AgentuityProvider baseUrl and transport auth state for React apps',
+					'Configure AgentuityProvider for local development and production deployments',
 			},
 			{
 				title: 'Authentication',
@@ -299,7 +299,7 @@ export const navData: NavSection[] = [
 				title: 'Deployment Scenarios',
 				url: '/frontend/deployment-scenarios',
 				description:
-					'Deploy your frontend on the same origin as Agentuity or on a separate host',
+					'Deploy your frontend alongside agents or separately on Vercel, Netlify, etc.',
 			},
 			{
 				title: 'Static Rendering',
@@ -803,10 +803,15 @@ export const navData: NavSection[] = [
 							'Monitor machine health and resource usage from the CLI in real time or as a snapshot',
 					},
 					{
+						title: 'Coder',
+						url: '/reference/cli/coder',
+						description: 'Start and manage AI coding sessions connected to the Coder Hub',
+					},
+					{
 						title: 'Claude Code Plugin',
 						url: '/reference/cli/claude-code-plugin',
 						description:
-							'Install the Agentuity Coder plugin for Claude Code to get specialized agents with persistent memory.',
+							'Install the Agentuity plugin for Claude Code to get auto-activated skills for deploying and building on Agentuity.',
 					},
 					{
 						title: 'OpenCode Plugin',

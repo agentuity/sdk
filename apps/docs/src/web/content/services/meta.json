@@ -9,6 +9,7 @@
 		"schedules",
 		"tasks",
 		"authentication",
+		"coder",
 		"observability",
 		"sandbox"
 	]

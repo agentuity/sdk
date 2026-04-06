@@ -246,6 +246,10 @@ curl -N https://your-project.agentuity.cloud/agent-name
 
 Use SSE to stream AI SDK responses to clients:
 
+<Callout type="info" title="POST-based SSE">
+This example uses `router.post()` with `fetch()` on the client side, not `EventSource`. The browser's `EventSource` API only supports GET requests. Use `router.get()` with query params when you need `EventSource` compatibility.
+</Callout>
+
 ```typescript
 import { Hono } from 'hono';
 import { type Env, sse } from '@agentuity/runtime';

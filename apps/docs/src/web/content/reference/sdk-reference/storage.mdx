@@ -33,6 +33,7 @@ Returns a Promise that resolves to a `DataResult<T>` object with:
 - `exists`: boolean indicating if the value was found
 - `data`: the actual value of type T (only present when exists is true)
 - `contentType`: the content type of the stored value
+- `expiresAt` (optional): ISO 8601 expiration timestamp, undefined if the key does not expire
 
 **Example**
 
@@ -122,11 +123,14 @@ Returns a map of keys to items with metadata:
 
 ```typescript
 interface KeyValueItemWithMetadata<T> {
-  value: T;              // The stored value
-  contentType: string;   // MIME type of the value
-  size: number;          // Size in bytes
-  created_at: string;    // ISO timestamp
-  updated_at: string;    // ISO timestamp
+  value: T;                      // The stored value
+  contentType: string;           // MIME type of the value
+  contentEncoding?: string | null;
+  size: number;                  // Size in bytes
+  expiresAt?: string | null;     // ISO 8601 expiration timestamp, null/undefined if no expiry
+  firstUsed?: number | null;     // Unix timestamp (ms) of first access
+  lastUsed?: number | null;      // Unix timestamp (ms) of last access
+  count?: number | null;         // Number of times accessed
 }
 ```
 
@@ -141,7 +145,7 @@ for (const [key, item] of Object.entries(matches)) {
     key,
     value: item.value,
     size: item.size,
-    updatedAt: item.updated_at,
+    lastUsed: item.lastUsed,
   });
 }
 ```
@@ -211,14 +215,27 @@ for (const [namespace, stats] of Object.entries(allStats)) {
 
 ### createNamespace
 
-`createNamespace(name: string): Promise<void>`
+`createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>`
 
-Creates a new namespace.
+Creates a new namespace with an optional default TTL.
+
+```typescript
+interface CreateNamespaceParams {
+  defaultTTLSeconds?: number;  // 0 = no expiry; 60-31,536,000 = custom TTL in seconds
+}
+```
 
 **Example**
 
 ```typescript
+// Create with default server TTL (7 days)
 await ctx.kv.createNamespace('tenant-123');
+
+// Create with keys that never expire by default
+await ctx.kv.createNamespace('tenant-123', { defaultTTLSeconds: 0 });
+
+// Create with a 30-day default TTL
+await ctx.kv.createNamespace('tenant-123', { defaultTTLSeconds: 2592000 });
 ```
 
 ### deleteNamespace

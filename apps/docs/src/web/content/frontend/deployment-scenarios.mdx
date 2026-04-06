@@ -118,9 +118,7 @@ import { createApp } from '@agentuity/runtime';
 export default await createApp({
   cors: {
     sameOrigin: true,
-    allowedOrigins: ['https://your-frontend.com', 'http://localhost:3000'],
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowedOrigins: ['https://your-frontend.com'],
   },
 });
 ```

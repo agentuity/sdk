@@ -32,7 +32,7 @@ export function ModeratedRoom({ roomId }: { roomId: string }) {
       onStateChange: (from, to) => {
         setEvents((prev) => [`${from} -> ${to}`, ...prev]);
       },
-      onPeerJoin: (peerId) => {
+      onPeerJoined: (peerId) => {
         setEvents((prev) => [`peer joined: ${peerId}`, ...prev]);
       },
       onDataChannelMessage: (peerId, label, data) => {

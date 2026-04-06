@@ -65,6 +65,10 @@ router.get('/path', websocket((c, ws) => {
 }));
 ```
 
+<Callout type="warning" title="Synchronous Handler">
+The outer `websocket()` handler must be synchronous. If you make it `async`, event registrations (`ws.onMessage`, etc.) may be lost. Put async work inside the event callbacks instead.
+</Callout>
+
 ## WebSocket Events
 
 | Event | Trigger | Example Use Case |

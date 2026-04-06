@@ -428,8 +428,7 @@ const router = new Hono<Env>();
 
 router.post('/chat', stream(async (c) => {
   const body = await c.req.json();
-  const { textStream } = chatAgent.run(body); // textStream is a ReadableStream
-  return textStream;
+  return chatAgent.run(body); // agent.run() returns a ReadableStream when stream: true
 }));
 
 export default router;

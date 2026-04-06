@@ -276,7 +276,7 @@ agentuity project import --dir ./my-existing-project
 agentuity project import --validate-only
 ```
 
-The import command verifies that the directory contains a valid Agentuity project (requires `@agentuity/runtime` dependency and an `agentuity.json` file).
+The import command verifies that the directory contains a valid Agentuity project. If an `agentuity.json` already exists, it validates cloud access. If no `agentuity.json` exists, it checks for `@agentuity/runtime` and an `agentuity.config.ts` file (either in the root or in an `agentuity/` subdirectory for parent-project layouts).
 
 <Callout type="info" title="Automatic Reconciliation">
 When you run `agentuity dev` or `agentuity deploy` on an unregistered project while authenticated, the CLI will prompt you to import it automatically.
