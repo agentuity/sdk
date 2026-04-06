@@ -8,7 +8,7 @@
  */
 
 import { createAgentContext } from '@agentuity/runtime';
-import { app } from './app';
+import './app';
 import greetingAgent from './agents/greeting';
 
 console.log('🚀 Starting standalone context test...\n');
@@ -16,7 +16,6 @@ console.log('🚀 Starting standalone context test...\n');
 // Wait for app initialization
 await new Promise((resolve) => setTimeout(resolve, 100));
 
-console.log('📦 App state initialized:', app.state);
 console.log('');
 
 // Example 1: Simple one-off execution

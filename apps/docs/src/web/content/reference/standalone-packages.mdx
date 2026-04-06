@@ -19,6 +19,7 @@ Need to use Agentuity services from a Next.js route, Express server, or standalo
 | [`@agentuity/webhook`](#webhooks) | `bun add @agentuity/webhook` | Manage webhook endpoints and track deliveries |
 | [`@agentuity/schedule`](#schedules) | `bun add @agentuity/schedule` | Create cron-based scheduled jobs |
 | [`@agentuity/task`](#tasks) | `bun add @agentuity/task` | Track work items with comments, tags, and attachments |
+| [`@agentuity/coder`](#coder) | `bun add @agentuity/coder` | Manage Coder sessions, participants, and replay data |
 
 ## Quick Example
 
@@ -50,6 +51,7 @@ Agentuity services are accessible four ways, depending on where your code runs:
 | [Webhooks](/services/webhooks) | N/A | N/A | `@agentuity/webhook` | [API](/reference/api/webhooks) |
 | [Schedules](/services/schedules) | `ctx.schedule` | `c.var.schedule` | `@agentuity/schedule` | [API](/reference/api/schedules) |
 | [Tasks](/services/tasks) | `ctx.task` | `c.var.task` | `@agentuity/task` | [API](/reference/api/tasks) |
+| [Coder](/services/coder) | N/A | N/A | `@agentuity/coder` | N/A |
 
 <Callout type="info" title="Additional ctx.* services">
 Services like Streams, Logger, Tracer, Thread, and Session are also available via `ctx.*` and `c.var.*` but don't have standalone packages. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete reference.
@@ -405,6 +407,55 @@ const list = await tasks.list({ status: 'open' });
 | `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
 | `logger` | `Logger` | Minimal logger | Custom logger instance |
 
+## Coder
+
+Manage Coder Hub sessions, participants, replay data, and loop state.
+
+```bash
+bun add @agentuity/coder
+```
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const client = new CoderClient();
+
+// List sessions
+const { sessions } = await client.listSessions({ limit: 10 });
+for (const session of sessions) {
+  console.log(`${session.sessionId}: ${session.label}`);
+}
+
+// Create a new session
+const session = await client.createSession({
+  task: 'Implement feature X',
+  workflowMode: 'standard',
+});
+console.log(`Created session: ${session.sessionId}`);
+
+// Get replay data for a session
+const replay = await client.getReplay(session.sessionId);
+
+// List participants
+const { participants } = await client.listParticipants(session.sessionId);
+
+// Archive a session when done
+await client.archiveSession(session.sessionId);
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Discovered via Catalyst | Base URL for the Coder API |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+<Callout type="tip" title="Full Coder Reference">
+For the complete Coder API including workspaces, skill library, and GitHub integration, see [Coder](/services/coder).
+</Callout>
+
 ## Configuration
 
 All standalone packages share the same configuration pattern. Set environment variables once, and every client picks them up automatically.
@@ -433,6 +484,7 @@ Each service also supports a URL override variable for custom deployments:
 | `AGENTUITY_WEBHOOK_URL` | Webhooks |
 | `AGENTUITY_SCHEDULE_URL` | Schedules |
 | `AGENTUITY_TASK_URL` | Tasks |
+| `AGENTUITY_CODER_URL` | Coder |
 
 ### Shared Constructor Pattern
 
