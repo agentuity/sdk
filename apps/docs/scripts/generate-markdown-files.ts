@@ -908,7 +908,7 @@ function generateLlmsTxt(pages: DocPage[]): string {
 	const pagesByUrl = new Map(pages.map((p) => [p.urlPath, p]));
 	const emitted = new Set<string>();
 	const missing = new Set<string>();
-	const lines: string[] = [getLlmsPreamble(pages), ''];
+	const lines: string[] = [getLlmsPreamble(), ''];
 
 	const fmt = (p: DocPage) => {
 		const link = `- [${p.title}](${BASE_URL}${p.urlPath}.md)`;
@@ -983,7 +983,7 @@ function generateLlmsTxt(pages: DocPage[]): string {
 }
 
 function generateLlmsFullTxt(pages: DocPage[]): string {
-	const preamble = `${getLlmsPreamble(pages)}
+	const preamble = `${getLlmsPreamble()}
 
 ---
 
@@ -1006,14 +1006,38 @@ ${page.content.replace(/^# .+\n\n.+\n\n/, '')}
 	return preamble + sections + '\n';
 }
 
-function getLlmsPreamble(pages: DocPage[]): string {
-	const overview =
-		pages.find((page) => page.urlPath === '/get-started/what-is-agentuity')?.description ||
-		'The full-stack platform for building, deploying, and operating AI agents';
-
+function getLlmsPreamble(): string {
 	return `# Agentuity Documentation
 
-> ${overview}`;
+> The full-stack platform for AI agents.
+
+Agentuity is a cloud platform for building, deploying, and operating AI agents.
+The TypeScript SDK provides a Bun-native runtime, schema validation, and React
+hooks. Use the \`agentuity\` CLI for local development and deployment.
+
+## Built-in services
+
+Services include, but are not limited to:
+
+- **Routes and APIs**: type-safe Hono routes with auth, rate limiting, SSE, and WebSockets
+- **Frontend**: end-to-end type safety from agent schemas to React hooks
+- **Data and storage**: Postgres, key-value, vector, object storage, and durable streams
+- **Sandboxes**: isolated runtimes for untrusted or generated code
+- **Messaging and scheduling**: queues, webhooks, email, and cron-style schedules
+- **Authentication**: sessions, API keys, bearer tokens, and OAuth apps
+- **AI Gateway**: LLM provider routing with usage and cost visibility
+- **Observability**: OpenTelemetry traces, structured logs, and session analytics
+- **Evals**: evaluation runs attached to real sessions and traces
+- **Agent-to-agent communication**: type-safe calls between agents with context propagation
+- **Workbench**: interactive testing for local and deployed agents
+
+## Notes
+
+- This covers the Agentuity platform. General AI agent concepts may require
+  outside sources.
+- Bun is the supported runtime, so examples assume TypeScript and Bun.
+- LLM requests route through the Agentuity AI Gateway by default, so no
+  separate provider API keys are required.`;
 }
 
 function generateSitemapXml(pages: DocPage[]): string {

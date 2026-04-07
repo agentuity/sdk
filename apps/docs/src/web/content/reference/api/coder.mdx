@@ -1,0 +1,859 @@
+---
+title: Coder API
+short_title: Coder
+description: Manage Coder sessions, session data, loop state, and known users through the HTTP API
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker />
+
+## Authentication
+
+All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## Discovery
+
+### Discover Coder URL
+
+Discovers the org-specific Coder base URL.
+
+<ApiEndpoint method="GET" path="/coder" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the discovered Coder URL.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Coder URL discovered |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="GET" path="/coder" />
+
+---
+
+## Sessions
+
+### Create Session
+
+Creates a new coder session.
+
+<ApiEndpoint method="POST" path="/hub/session" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Request Body
+
+Session creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "task",
+    "type": "string",
+    "description": "Primary task prompt for the session",
+    "required": true
+  },
+  {
+    "name": "label",
+    "type": "string",
+    "description": "Human-readable session label",
+    "required": false
+  },
+  {
+    "name": "agent",
+    "type": "string",
+    "description": "Default agent identifier to use for execution",
+    "required": false
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Session visibility setting",
+    "required": false
+  },
+  {
+    "name": "workflowMode",
+    "type": "string",
+    "description": "Workflow execution mode",
+    "required": false
+  },
+  {
+    "name": "loop",
+    "type": "object",
+    "description": "Loop mode settings for the session",
+    "required": false
+  },
+  {
+    "name": "loop.goal",
+    "type": "string",
+    "description": "High-level goal for loop mode execution",
+    "required": false
+  },
+  {
+    "name": "loop.maxIterations",
+    "type": "number",
+    "description": "Maximum loop iterations before completion",
+    "required": false
+  },
+  {
+    "name": "loop.autoContinue",
+    "type": "boolean",
+    "description": "Whether the loop auto-continues without manual approval",
+    "required": false
+  },
+  {
+    "name": "loop.allowDetached",
+    "type": "boolean",
+    "description": "Whether loop execution can continue when no client is actively attached",
+    "required": false
+  },
+  {
+    "name": "tags",
+    "type": "string[]",
+    "description": "Tags applied to the session for filtering",
+    "required": false
+  },
+  {
+    "name": "savedSkillIds",
+    "type": "string[]",
+    "description": "Saved skill IDs to attach to the session on creation",
+    "required": false
+  },
+  {
+    "name": "skillBucketIds",
+    "type": "string[]",
+    "description": "Skill bucket IDs to attach to the session on creation",
+    "required": false
+  },
+  {
+    "name": "skills",
+    "type": "object[]",
+    "description": "Skill definitions attached to the session",
+    "required": false
+  },
+  {
+    "name": "skills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier",
+    "required": true
+  },
+  {
+    "name": "skills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source",
+    "required": true
+  },
+  {
+    "name": "skills[].name",
+    "type": "string",
+    "description": "Human-readable skill name",
+    "required": false
+  },
+  {
+    "name": "skills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page",
+    "required": false
+  },
+  {
+    "name": "repo",
+    "type": "object",
+    "description": "Primary repository mounted for the session",
+    "required": false
+  },
+  {
+    "name": "repo.repoId",
+    "type": "string",
+    "description": "Repository identifier when available",
+    "required": false
+  },
+  {
+    "name": "repo.type",
+    "type": "string",
+    "description": "Repository type (e.g., github, gitlab)",
+    "required": false
+  },
+  {
+    "name": "repo.provider",
+    "type": "string",
+    "description": "Git provider identifier",
+    "required": false
+  },
+  {
+    "name": "repo.owner",
+    "type": "string",
+    "description": "Repository owner or organization",
+    "required": false
+  },
+  {
+    "name": "repo.name",
+    "type": "string",
+    "description": "Repository name",
+    "required": false
+  },
+  {
+    "name": "repo.fullName",
+    "type": "string",
+    "description": "Fully qualified repository name",
+    "required": false
+  },
+  {
+    "name": "repo.url",
+    "type": "string",
+    "description": "Repository web URL",
+    "required": false
+  },
+  {
+    "name": "repo.cloneUrl",
+    "type": "string",
+    "description": "Repository clone URL",
+    "required": false
+  },
+  {
+    "name": "repo.defaultBranch",
+    "type": "string",
+    "description": "Default branch for the repository",
+    "required": false
+  },
+  {
+    "name": "repo.branch",
+    "type": "string",
+    "description": "Selected branch for the session workspace",
+    "required": false
+  },
+  {
+    "name": "repo.ref",
+    "type": "string",
+    "description": "Selected ref for the session workspace",
+    "required": false
+  },
+  {
+    "name": "repo.commit",
+    "type": "string",
+    "description": "Pinned commit SHA for the session workspace",
+    "required": false
+  },
+  {
+    "name": "repo.path",
+    "type": "string",
+    "description": "Subpath of the repository mounted in session",
+    "required": false
+  },
+  {
+    "name": "repo.rootPath",
+    "type": "string",
+    "description": "Absolute workspace root path for the repository",
+    "required": false
+  },
+  {
+    "name": "repos",
+    "type": "object[]",
+    "description": "Multiple repositories mounted for the session",
+    "required": false
+  },
+  {
+    "name": "repos[].repoId",
+    "type": "string",
+    "description": "Repository identifier when available",
+    "required": false
+  },
+  {
+    "name": "repos[].type",
+    "type": "string",
+    "description": "Repository type (e.g., github, gitlab)",
+    "required": false
+  },
+  {
+    "name": "repos[].provider",
+    "type": "string",
+    "description": "Git provider identifier",
+    "required": false
+  },
+  {
+    "name": "repos[].owner",
+    "type": "string",
+    "description": "Repository owner or organization",
+    "required": false
+  },
+  {
+    "name": "repos[].name",
+    "type": "string",
+    "description": "Repository name",
+    "required": false
+  },
+  {
+    "name": "repos[].fullName",
+    "type": "string",
+    "description": "Fully qualified repository name",
+    "required": false
+  },
+  {
+    "name": "repos[].url",
+    "type": "string",
+    "description": "Repository web URL",
+    "required": false
+  },
+  {
+    "name": "repos[].cloneUrl",
+    "type": "string",
+    "description": "Repository clone URL",
+    "required": false
+  },
+  {
+    "name": "repos[].defaultBranch",
+    "type": "string",
+    "description": "Default branch for the repository",
+    "required": false
+  },
+  {
+    "name": "repos[].branch",
+    "type": "string",
+    "description": "Selected branch for the session workspace",
+    "required": false
+  },
+  {
+    "name": "repos[].ref",
+    "type": "string",
+    "description": "Selected ref for the session workspace",
+    "required": false
+  },
+  {
+    "name": "repos[].commit",
+    "type": "string",
+    "description": "Pinned commit SHA for the session workspace",
+    "required": false
+  },
+  {
+    "name": "repos[].path",
+    "type": "string",
+    "description": "Subpath of the repository mounted in session",
+    "required": false
+  },
+  {
+    "name": "repos[].rootPath",
+    "type": "string",
+    "description": "Absolute workspace root path for the repository",
+    "required": false
+  },
+  {
+    "name": "workspaceId",
+    "type": "string",
+    "description": "Workspace identifier associated with the session",
+    "required": false
+  },
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Environment variables injected into session runtime",
+    "required": false
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Arbitrary metadata associated with the session",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created session.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/hub/session" body={{
+  "task": "Implement feature X",
+  "workflowMode": "standard"
+}} />
+
+---
+
+### List Sessions
+
+Lists sessions with optional filters and pagination.
+
+<ApiEndpoint method="GET" path="/hub/sessions" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "search",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Search query"
+  },
+  {
+    "name": "includeArchived",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Include archived sessions"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns a session list.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Sessions returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "search",
+    "type": "string",
+    "description": "Search query for session title, task, or metadata"
+  },
+  {
+    "name": "includeArchived",
+    "type": "boolean",
+    "description": "Whether archived sessions should be included"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum number of sessions to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Number of sessions to skip for pagination"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Optional org id for CLI auth context"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/sessions?limit=20&offset=0" />
+
+---
+
+## Loop
+
+### Get Loop State
+
+Returns loop workflow state for a session.
+
+<ApiEndpoint method="GET" path="/hub/session/{sessionId}/loop" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns loop state payload including iteration and status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Loop state returned |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session identifier for the loop state payload"
+  },
+  {
+    "name": "workflowMode",
+    "type": "string",
+    "description": "Workflow mode for the target session"
+  },
+  {
+    "name": "loop",
+    "type": "object | null",
+    "description": "Loop state details, or null when not in loop mode"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/session/sess_123/loop" />
+
+---
+
+## Users
+
+### List Users
+
+Lists known coder users with optional search.
+
+<ApiEndpoint method="GET" path="/hub/users" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "search",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Search query"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns known users.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Users returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "search",
+    "type": "string",
+    "description": "Search query to filter users by display name"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum number of users to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Number of users to skip for pagination"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Optional org id for CLI auth context"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/users?search=jane" />
+
+---
+
+## Session Data
+
+### Session Data Endpoints
+
+Retrieve replay, participant list, or historical events for a session.
+
+<ApiEndpoint method="GET" path="/hub/session/{sessionId}/(replay|participants|events/history)" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum records"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the requested session data payload.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session data returned |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session identifier"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum number of records to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Number of records to skip for pagination"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Optional org id for CLI auth context"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/session/sess_123/replay" />
+
+---
+
+## Sessions
+
+### Session Lifecycle Endpoints
+
+Archives an existing session.
+
+<ApiEndpoint method="POST" path="/hub/session/{sessionId}/archive" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns success and optionally updated session payload.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Lifecycle action applied |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Coder session identifier"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Optional org id for CLI auth context"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/hub/session/sess_123/archive" />
+
+---
+
+### List Connectable Sessions
+
+Lists sessions the authenticated user can connect to.
+
+<ApiEndpoint method="GET" path="/hub/sessions/connectable" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "search",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Search query"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Maximum results"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "in": "query",
+    "required": false,
+    "description": "Pagination offset"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns connectable sessions.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Connectable sessions returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "search",
+    "type": "string",
+    "description": "Search query for connectable sessions"
+  },
+  {
+    "name": "limit",
+    "type": "number",
+    "description": "Maximum number of sessions to return"
+  },
+  {
+    "name": "offset",
+    "type": "number",
+    "description": "Number of sessions to skip for pagination"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "description": "Optional org id for CLI auth context"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/sessions/connectable" />
+
+---
