@@ -1,12 +1,13 @@
-import { CoderCreateSessionRequestSchema, CoderLoopStateResponseSchema } from './types.ts';
 import {
-	CoderCreateSessionParamsSchema,
-	CoderListConnectableSessionsParamsSchema,
-	CoderListSessionsParamsWithOrgSchema,
-	CoderSessionIdParamsSchema,
-} from './sessions.ts';
-import { CoderSessionDataQuerySchema } from './types.ts';
-import { CoderListUsersParamsWithOrgSchema } from './users.ts';
+	CoderCreateSessionRequestSchema,
+	CoderListUsersResponseSchema,
+	CoderLoopStateResponseSchema,
+	CoderSessionEventHistorySchema,
+	CoderSessionListResponseSchema,
+	CoderSessionParticipantsSchema,
+	CoderSessionReplaySchema,
+} from './types.ts';
+import { CoderCreateSessionParamsSchema, CoderLifecycleResponseSchema } from './sessions.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -80,7 +81,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns a session list.',
-			responseFields: { schema: CoderListSessionsParamsWithOrgSchema, stripRequired: true },
+			responseFields: { schema: CoderSessionListResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Sessions returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -125,7 +126,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns known users.',
-			responseFields: { schema: CoderListUsersParamsWithOrgSchema, stripRequired: true },
+			responseFields: { schema: CoderListUsersResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Users returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -133,12 +134,12 @@ const service: Service = {
 			examplePath: '/hub/users?search=jane',
 		},
 		{
-			id: 'session-data',
-			title: 'Session Data Endpoints',
+			id: 'get-session-replay',
+			title: 'Get Session Replay',
 			sectionTitle: 'Session Data',
 			method: 'GET',
-			path: '/hub/session/{sessionId}/(replay|participants|events/history)',
-			description: 'Retrieve replay, participant list, or historical events for a session.',
+			path: '/hub/session/{sessionId}/replay',
+			description: 'Retrieve replay data for a session.',
 			pathParams: [
 				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
 			],
@@ -148,13 +149,61 @@ const service: Service = {
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
 			],
 			requestBody: null,
-			responseDescription: 'Returns the requested session data payload.',
-			responseFields: { schema: CoderSessionDataQuerySchema, stripRequired: true },
+			responseDescription: 'Returns replay data for the session.',
+			responseFields: { schema: CoderSessionReplaySchema, stripRequired: true },
 			statuses: [
-				{ code: 200, description: 'Session data returned' },
+				{ code: 200, description: 'Replay returned' },
 				{ code: 404, description: 'Session not found' },
 			],
 			examplePath: '/hub/session/sess_123/replay',
+		},
+		{
+			id: 'list-session-participants',
+			title: 'List Session Participants',
+			sectionTitle: 'Session Data',
+			method: 'GET',
+			path: '/hub/session/{sessionId}/participants',
+			description: 'Retrieve participants for a session.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'limit', type: 'number', description: 'Maximum records', required: false },
+				{ name: 'offset', type: 'number', description: 'Pagination offset', required: false },
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns participants for the session.',
+			responseFields: { schema: CoderSessionParticipantsSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Participants returned' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123/participants',
+		},
+		{
+			id: 'list-session-event-history',
+			title: 'List Session Event History',
+			sectionTitle: 'Session Data',
+			method: 'GET',
+			path: '/hub/session/{sessionId}/events/history',
+			description: 'Retrieve historical events for a session.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'limit', type: 'number', description: 'Maximum records', required: false },
+				{ name: 'offset', type: 'number', description: 'Pagination offset', required: false },
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns session event history.',
+			responseFields: { schema: CoderSessionEventHistorySchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Event history returned' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123/events/history?limit=50&offset=0',
 		},
 		{
 			id: 'session-lifecycle',
@@ -171,7 +220,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns success and optionally updated session payload.',
-			responseFields: { schema: CoderSessionIdParamsSchema, stripRequired: true },
+			responseFields: { schema: CoderLifecycleResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Lifecycle action applied' },
 				{ code: 404, description: 'Session not found' },
@@ -194,7 +243,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns connectable sessions.',
-			responseFields: { schema: CoderListConnectableSessionsParamsSchema, stripRequired: true },
+			responseFields: { schema: CoderSessionListResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Connectable sessions returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
