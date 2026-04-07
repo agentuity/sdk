@@ -124,6 +124,7 @@ import { Route as DocsReferenceSdkReferenceEvaluationsRouteImport } from './rout
 import { Route as DocsReferenceSdkReferenceEmailServiceRouteImport } from './routes/_docs/reference/sdk-reference/email-service';
 import { Route as DocsReferenceSdkReferenceContextApiRouteImport } from './routes/_docs/reference/sdk-reference/context-api';
 import { Route as DocsReferenceSdkReferenceCommunicationRouteImport } from './routes/_docs/reference/sdk-reference/communication';
+import { Route as DocsReferenceSdkReferenceCoderRouteImport } from './routes/_docs/reference/sdk-reference/coder';
 import { Route as DocsReferenceSdkReferenceApplicationEntryRouteImport } from './routes/_docs/reference/sdk-reference/application-entry';
 import { Route as DocsReferenceSdkReferenceAgentsRouteImport } from './routes/_docs/reference/sdk-reference/agents';
 import { Route as DocsReferenceSdkReferenceAdvancedRouteImport } from './routes/_docs/reference/sdk-reference/advanced';
@@ -770,6 +771,11 @@ const DocsReferenceSdkReferenceCommunicationRoute =
 		path: '/communication',
 		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 	} as any);
+const DocsReferenceSdkReferenceCoderRoute = DocsReferenceSdkReferenceCoderRouteImport.update({
+	id: '/coder',
+	path: '/coder',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
 const DocsReferenceSdkReferenceApplicationEntryRoute =
 	DocsReferenceSdkReferenceApplicationEntryRouteImport.update({
 		id: '/application-entry',
@@ -1225,6 +1231,7 @@ export interface FileRoutesByFullPath {
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
 	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
 	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/coder': typeof DocsReferenceSdkReferenceCoderRoute;
 	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
 	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -1399,6 +1406,7 @@ export interface FileRoutesByTo {
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
 	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
 	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/coder': typeof DocsReferenceSdkReferenceCoderRoute;
 	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
 	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -1577,6 +1585,7 @@ export interface FileRoutesById {
 	'/_docs/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
 	'/_docs/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
 	'/_docs/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/_docs/reference/sdk-reference/coder': typeof DocsReferenceSdkReferenceCoderRoute;
 	'/_docs/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/_docs/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
 	'/_docs/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -1755,6 +1764,7 @@ export interface FileRouteTypes {
 		| '/reference/sdk-reference/advanced'
 		| '/reference/sdk-reference/agents'
 		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/coder'
 		| '/reference/sdk-reference/communication'
 		| '/reference/sdk-reference/context-api'
 		| '/reference/sdk-reference/email-service'
@@ -1929,6 +1939,7 @@ export interface FileRouteTypes {
 		| '/reference/sdk-reference/advanced'
 		| '/reference/sdk-reference/agents'
 		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/coder'
 		| '/reference/sdk-reference/communication'
 		| '/reference/sdk-reference/context-api'
 		| '/reference/sdk-reference/email-service'
@@ -2106,6 +2117,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/sdk-reference/advanced'
 		| '/_docs/reference/sdk-reference/agents'
 		| '/_docs/reference/sdk-reference/application-entry'
+		| '/_docs/reference/sdk-reference/coder'
 		| '/_docs/reference/sdk-reference/communication'
 		| '/_docs/reference/sdk-reference/context-api'
 		| '/_docs/reference/sdk-reference/email-service'
@@ -2975,6 +2987,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceSdkReferenceCommunicationRouteImport;
 			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
+		'/_docs/reference/sdk-reference/coder': {
+			id: '/_docs/reference/sdk-reference/coder';
+			path: '/coder';
+			fullPath: '/reference/sdk-reference/coder';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceCoderRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
 		'/_docs/reference/sdk-reference/application-entry': {
 			id: '/_docs/reference/sdk-reference/application-entry';
 			path: '/application-entry';
@@ -3456,6 +3475,7 @@ interface DocsReferenceSdkReferenceRouteRouteChildren {
 	DocsReferenceSdkReferenceAdvancedRoute: typeof DocsReferenceSdkReferenceAdvancedRoute;
 	DocsReferenceSdkReferenceAgentsRoute: typeof DocsReferenceSdkReferenceAgentsRoute;
 	DocsReferenceSdkReferenceApplicationEntryRoute: typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	DocsReferenceSdkReferenceCoderRoute: typeof DocsReferenceSdkReferenceCoderRoute;
 	DocsReferenceSdkReferenceCommunicationRoute: typeof DocsReferenceSdkReferenceCommunicationRoute;
 	DocsReferenceSdkReferenceContextApiRoute: typeof DocsReferenceSdkReferenceContextApiRoute;
 	DocsReferenceSdkReferenceEmailServiceRoute: typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -3476,6 +3496,7 @@ const DocsReferenceSdkReferenceRouteRouteChildren: DocsReferenceSdkReferenceRout
 	DocsReferenceSdkReferenceAdvancedRoute: DocsReferenceSdkReferenceAdvancedRoute,
 	DocsReferenceSdkReferenceAgentsRoute: DocsReferenceSdkReferenceAgentsRoute,
 	DocsReferenceSdkReferenceApplicationEntryRoute: DocsReferenceSdkReferenceApplicationEntryRoute,
+	DocsReferenceSdkReferenceCoderRoute: DocsReferenceSdkReferenceCoderRoute,
 	DocsReferenceSdkReferenceCommunicationRoute: DocsReferenceSdkReferenceCommunicationRoute,
 	DocsReferenceSdkReferenceContextApiRoute: DocsReferenceSdkReferenceContextApiRoute,
 	DocsReferenceSdkReferenceEmailServiceRoute: DocsReferenceSdkReferenceEmailServiceRoute,

@@ -409,7 +409,11 @@ const list = await tasks.list({ status: 'open' });
 
 ## Coder
 
-Manage Coder Hub sessions, participants, replay data, and loop state.
+Manage Coder sessions, participants, workspaces, replay data, and loop state from any Node.js or Bun app.
+
+<Callout type="info" title="Discovery before Hub requests">
+Coder has no single static base URL. When `url` and `AGENTUITY_CODER_URL` are unset, `CoderClient` calls the Agentuity API for your org's Hub address, then routes session and workspace requests against it. Use the client to skip implementing that flow yourself, or pass an explicit `url` to skip discovery.
+</Callout>
 
 ```bash
 bun add @agentuity/coder
@@ -448,12 +452,13 @@ await client.archiveSession(session.sessionId);
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
-| `url` | `string` | Discovered via Catalyst | Base URL for the Coder API |
+| `url` | `string` | Auto-discovered via Agentuity API | Base URL for the Coder Hub. Set explicitly to skip discovery |
+| `region` | `string` | `AGENTUITY_REGION` or `usc` | Region used during discovery. Ignored when `url` or `AGENTUITY_CODER_URL` is set |
 | `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
 | `logger` | `Logger` | Minimal logger | Custom logger instance |
 
 <Callout type="tip" title="Full Coder Reference">
-For the complete Coder API including workspaces, skill library, and GitHub integration, see [Coder](/services/coder).
+For every `CoderClient` method with signatures, parameters, and return types, see [CoderClient Reference](/reference/sdk-reference/coder). For concepts, session lifecycle, and workflow guidance, see [Coder](/services/coder).
 </Callout>
 
 ## Configuration

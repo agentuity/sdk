@@ -3,7 +3,7 @@ title: CLI Reference
 description: Command-line tools for building, deploying, and managing agents
 ---
 
-import { Terminal, Play, Wrench, Rocket, GitBranch, HardDrive, Box, Settings, Bug, Sparkles, KeyRound, Activity } from 'lucide-react';
+import { Terminal, Play, Wrench, Rocket, GitBranch, HardDrive, Box, Settings, Bug, Sparkles, KeyRound, Activity, BrainCircuit } from 'lucide-react';
 
 Build, deploy, and manage agents from the terminal. Install with `curl -sSL https://agentuity.sh | sh`, then see [Getting Started](/reference/cli/getting-started) for authentication and first steps.
 
@@ -79,6 +79,12 @@ Build, deploy, and manage agents from the terminal. Install with `curl -sSL http
     title="Monitoring"
     description="Health checks and deployment status"
     icon={<Activity />}
+  />
+  <CardLink
+    href="/reference/cli/coder"
+    title="Coder"
+    description="Start and manage AI coding sessions in cloud sandboxes"
+    icon={<BrainCircuit />}
   />
   <CardLink
     href="/reference/cli/claude-code-plugin"

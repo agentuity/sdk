@@ -752,7 +752,7 @@ export const navData: NavSection[] = [
 						title: 'Build Configuration',
 						url: '/reference/cli/build-configuration',
 						description:
-							'Customize the build process with Vite plugins, build-time constants, and file bundling',
+							'Customize the build process with Vite plugins and build-time constants',
 					},
 					{
 						title: 'Deployment',
@@ -890,6 +890,11 @@ export const navData: NavSection[] = [
 						title: 'Sandbox Service',
 						url: '/reference/sdk-reference/sandbox-service',
 						description: 'Run code in isolated containers with ctx.sandbox',
+					},
+					{
+						title: 'Coder',
+						url: '/reference/sdk-reference/coder',
+						description: 'Manage AI coding sessions, workspaces, and skills with CoderClient',
 					},
 					{
 						title: 'Observability',
