@@ -752,7 +752,7 @@ export const navData: NavSection[] = [
 						title: 'Build Configuration',
 						url: '/reference/cli/build-configuration',
 						description:
-							'Customize the build process with Vite plugins, build-time constants, and file bundling',
+							'Customize the build process with Vite plugins and build-time constants',
 					},
 					{
 						title: 'Deployment',

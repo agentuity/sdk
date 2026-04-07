@@ -6,7 +6,7 @@ description: Run AI coding sessions in managed sandboxes with real-time collabor
 Agentuity Coder runs AI-assisted coding sessions in cloud sandboxes. Each session connects an AI agent (powered by [Pi](https://pi.dev/)) to a managed environment where it can write code, run builds, execute tests, and iterate autonomously, while you watch or collaborate in real time.
 
 <Callout type="tip" title="Standalone Package">
-Use the [`@agentuity/coder`](/reference/standalone-packages) package to manage sessions from any Node.js or Bun application without the full runtime.
+Use the [`@agentuity/coder`](/reference/standalone-packages#coder) package to manage sessions from any Node.js or Bun application without the full runtime.
 </Callout>
 
 ## When to Use Coder
@@ -27,6 +27,10 @@ Use Coder when you want an AI agent to work independently in a cloud sandbox: bu
 | **SDK** (`CoderClient`) | Programmatic session management from agents, scripts, or external apps |
 | **CLI** (`agentuity coder`) | Interactive session management and local development |
 | **[Web App](https://app.agentuity.com)** | Observing sessions, viewing transcripts, browsing history |
+
+<Callout type="info" title="Hub URL is discovered first">
+Coder has HTTP endpoints, but no single static base URL. Clients first call the Agentuity API to discover your org's Hub address, then route session and workspace requests to that Hub. [`@agentuity/coder`](/reference/standalone-packages#coder) and `agentuity coder` handle discovery, auth, and routing for you.
+</Callout>
 
 ## How It Works
 
@@ -149,17 +153,20 @@ const { skills } = await client.listSavedSkills();
 import { CoderClient } from '@agentuity/coder';
 
 const client = new CoderClient({
-  url: 'https://coder.example.com',   // Override Hub URL
-  apiKey: 'sk_...',                    // Override API key
-  region: 'usc',                       // Region for URL discovery (default: 'usc')
-  orgId: 'org_...',                    // Organization scope
+  url: 'https://coder.example.com',     // Override Hub URL (skips discovery)
+  apiKey: 'agentuity_sk_...',           // Override AGENTUITY_SDK_KEY
+  region: 'usc',                        // Region for Hub URL discovery
+  orgId: 'org_...',                     // Organization scope
 });
 ```
 
 The client resolves the Hub URL in this order:
+
 1. `options.url` (explicit)
 2. `AGENTUITY_CODER_URL` environment variable
 3. Auto-discovery via the Agentuity API
+
+Most apps only need the API key. Set `AGENTUITY_SDK_KEY` and let the client discover the rest.
 
 ## CLI Usage
 
@@ -188,9 +195,9 @@ Running `agentuity coder start` with no extra flags launches a local TUI session
 
 | Mode | Description |
 |------|-------------|
-| `tui` | Agent runs in your local terminal (interactive mode) |
-| `sandbox` | Agent works in a cloud sandbox. You observe via CLI or web |
-| `remote` | Connect to an existing session via `--remote` |
+| `tui` | Interactive agent in your local terminal |
+| `sandbox` | Agent runs in a cloud sandbox; observe via CLI or web |
+| `remote` | Attach to a running cloud session by ID |
 
 ## Session Lifecycle
 
@@ -212,5 +219,6 @@ The Claude Code and OpenCode plugins integrate with the Coder ecosystem:
 ## Next Steps
 
 - [Coder CLI Commands](/reference/cli/coder): Full command reference
+- [`@agentuity/coder` Package](/reference/standalone-packages#coder): Standalone package reference
 - [Sandbox](/services/sandbox): Manage sandbox environments directly
 - [Claude Code Plugin](/reference/cli/claude-code-plugin): AI-assisted local development
