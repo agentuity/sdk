@@ -163,6 +163,7 @@ import { Route as DocsReferenceApiKeyValueRouteImport } from './routes/_docs/ref
 import { Route as DocsReferenceApiEvaluationsRouteImport } from './routes/_docs/reference/api/evaluations';
 import { Route as DocsReferenceApiEmailRouteImport } from './routes/_docs/reference/api/email';
 import { Route as DocsReferenceApiDatabaseRouteImport } from './routes/_docs/reference/api/database';
+import { Route as DocsReferenceApiCoderRouteImport } from './routes/_docs/reference/api/coder';
 import { Route as DocsReferenceApiApiKeysRouteImport } from './routes/_docs/reference/api/api-keys';
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents';
 import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent';
@@ -968,6 +969,11 @@ const DocsReferenceApiDatabaseRoute = DocsReferenceApiDatabaseRouteImport.update
 	path: '/database',
 	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
+const DocsReferenceApiCoderRoute = DocsReferenceApiCoderRouteImport.update({
+	id: '/coder',
+	path: '/coder',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
 const DocsReferenceApiApiKeysRoute = DocsReferenceApiApiKeysRouteImport.update({
 	id: '/api-keys',
 	path: '/api-keys',
@@ -1193,6 +1199,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
 	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
 	'/reference/api/email': typeof DocsReferenceApiEmailRoute;
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
@@ -1368,6 +1375,7 @@ export interface FileRoutesByTo {
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
 	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
 	'/reference/api/email': typeof DocsReferenceApiEmailRoute;
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
@@ -1547,6 +1555,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
 	'/_docs/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/_docs/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/_docs/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
 	'/_docs/reference/api/email': typeof DocsReferenceApiEmailRoute;
 	'/_docs/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
@@ -1726,6 +1735,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
 		| '/reference/api/api-keys'
+		| '/reference/api/coder'
 		| '/reference/api/database'
 		| '/reference/api/email'
 		| '/reference/api/evaluations'
@@ -1901,6 +1911,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
 		| '/reference/api/api-keys'
+		| '/reference/api/coder'
 		| '/reference/api/database'
 		| '/reference/api/email'
 		| '/reference/api/evaluations'
@@ -2079,6 +2090,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/tutorials/rag-agent'
 		| '/_docs/cookbook/tutorials/understanding-agents'
 		| '/_docs/reference/api/api-keys'
+		| '/_docs/reference/api/coder'
 		| '/_docs/reference/api/database'
 		| '/_docs/reference/api/email'
 		| '/_docs/reference/api/evaluations'
@@ -3260,6 +3272,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceApiDatabaseRouteImport;
 			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
+		'/_docs/reference/api/coder': {
+			id: '/_docs/reference/api/coder';
+			path: '/coder';
+			fullPath: '/reference/api/coder';
+			preLoaderRoute: typeof DocsReferenceApiCoderRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/reference/api/api-keys': {
 			id: '/_docs/reference/api/api-keys';
 			path: '/api-keys';
@@ -3419,6 +3438,7 @@ declare module '@tanstack/react-router' {
 
 interface DocsReferenceApiRouteRouteChildren {
 	DocsReferenceApiApiKeysRoute: typeof DocsReferenceApiApiKeysRoute;
+	DocsReferenceApiCoderRoute: typeof DocsReferenceApiCoderRoute;
 	DocsReferenceApiDatabaseRoute: typeof DocsReferenceApiDatabaseRoute;
 	DocsReferenceApiEmailRoute: typeof DocsReferenceApiEmailRoute;
 	DocsReferenceApiEvaluationsRoute: typeof DocsReferenceApiEvaluationsRoute;
@@ -3444,6 +3464,7 @@ interface DocsReferenceApiRouteRouteChildren {
 
 const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
 	DocsReferenceApiApiKeysRoute: DocsReferenceApiApiKeysRoute,
+	DocsReferenceApiCoderRoute: DocsReferenceApiCoderRoute,
 	DocsReferenceApiDatabaseRoute: DocsReferenceApiDatabaseRoute,
 	DocsReferenceApiEmailRoute: DocsReferenceApiEmailRoute,
 	DocsReferenceApiEvaluationsRoute: DocsReferenceApiEvaluationsRoute,
