@@ -115,6 +115,7 @@ export const CoderWorkspaceDetailSchema = z
 		repoCount: z.number().describe('Number of repositories'),
 		savedSkillIds: z.array(z.string()).describe('Saved skill IDs in workspace'),
 		skillBucketIds: z.array(z.string()).describe('Skill bucket IDs in workspace'),
+		agentSlugs: z.array(z.string()).describe('Published custom agent slugs in workspace'),
 		selectionCount: z.number().describe('Total number of selections'),
 		createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
 		updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
@@ -155,6 +156,7 @@ export const CoderCreateWorkspaceRequestSchema = z
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
+		agentSlugs: z.array(z.string()).optional().describe('Published custom agent slugs'),
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
@@ -209,10 +211,18 @@ export const CoderCreateSessionRequestSchema = z
 		task: z.string().describe('Primary task prompt for the session'),
 		label: z.string().optional().describe('Human-readable session label'),
 		agent: z.string().optional().describe('Default agent identifier to use for execution'),
+		defaultAgent: z
+			.string()
+			.optional()
+			.describe('Preferred default agent identifier for routing session prompts'),
 		visibility: CoderSessionVisibilitySchema.optional().describe('Session visibility setting'),
 		workflowMode: CoderWorkflowModeSchema.optional().describe('Workflow execution mode'),
 		loop: CoderSessionLoopConfigSchema.optional().describe('Loop mode settings for the session'),
 		tags: z.array(z.string()).optional().describe('Tags applied to the session for filtering'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.describe('Published custom agent slugs to include in the session'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
@@ -252,10 +262,15 @@ export const CoderUpdateSessionRequestSchema = z
 	.object({
 		label: z.string().optional().describe('Updated session label'),
 		agent: z.string().optional().describe('Updated default agent identifier'),
+		defaultAgent: z.string().optional().describe('Updated preferred default agent identifier'),
 		visibility: CoderSessionVisibilitySchema.optional().describe('Updated visibility setting'),
 		workflowMode: CoderWorkflowModeSchema.optional().describe('Updated workflow mode'),
 		loop: CoderSessionLoopConfigSchema.optional().describe('Updated loop mode configuration'),
 		tags: z.array(z.string()).optional().describe('Updated set of tags for the session'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.describe('Updated published custom agent slugs included in the session'),
 		skills: z
 			.array(CoderSkillRefSchema)
 			.optional()
@@ -337,6 +352,9 @@ export const CoderSessionListItemSchema = z
 		participantCount: z.number().describe('Total number of participants in the session'),
 		tags: z.array(z.string()).describe('Tag values attached to the session'),
 		skills: z.array(CoderSkillRefSchema).describe('Skills attached to the session'),
+		agentSlugs: z
+			.array(z.string())
+			.describe('Published custom agent slugs attached to the session'),
 		defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
 		bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
 		runtimeAvailable: z.boolean().describe('Whether runtime is currently reachable'),
