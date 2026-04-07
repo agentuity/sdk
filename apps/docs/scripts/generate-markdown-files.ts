@@ -10,6 +10,7 @@
 import { readdir, readFile, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import matter from 'gray-matter';
+import { navData, type NavItem } from '../src/web/components/docs/nav-data.ts';
 
 const BASE_URL = 'https://agentuity.dev';
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
@@ -904,57 +905,73 @@ async function main() {
 }
 
 function generateLlmsTxt(pages: DocPage[]): string {
-	const preamble = `# Agentuity SDK Documentation
+	const pagesByUrl = new Map(pages.map((p) => [p.urlPath, p]));
+	const emitted = new Set<string>();
+	const missing = new Set<string>();
+	const lines: string[] = [getLlmsPreamble(pages), ''];
 
-## About
+	const fmt = (p: DocPage) => {
+		const link = `- [${p.title}](${BASE_URL}${p.urlPath}.md)`;
+		return p.description ? `${link}: ${p.description}` : link;
+	};
 
-Agentuity is a TypeScript SDK for building AI agents with automatic schema validation, built-in storage, and seamless deployment.
+	const emitUrl = (url: string | undefined) => {
+		if (!url || emitted.has(url)) return;
+		const page = pagesByUrl.get(url);
+		if (!page) {
+			missing.add(url);
+			return;
+		}
+		emitted.add(url);
+		lines.push(fmt(page));
+	};
 
-## Capabilities
+	const walk = (items: NavItem[], level: number) => {
+		for (const item of items) {
+			if (item.items && item.items.length > 0) {
+				lines.push(`${'#'.repeat(level)} ${item.title}`, '');
+				emitUrl(item.url);
+				walk(item.items, level + 1);
+				lines.push('');
+			} else {
+				emitUrl(item.url);
+			}
+		}
+	};
 
-The documentation covers:
-- General cloud and account information
-- CLI usage and commands
-- SDK integration
-- Examples, tutorials, and sample implementations
-- Troubleshooting and best practices
+	for (const section of navData) {
+		if (section.hideItems) continue;
+		lines.push(`## ${section.title}`, '');
+		emitUrl(section.url);
+		walk(section.items, 3);
+		lines.push('');
+	}
 
-## Limitations
+	if (missing.size > 0) {
+		console.error(
+			`[generateLlmsTxt] Missing pages for nav URLs: ${Array.from(missing).join(', ')}`
+		);
+	}
 
-- The documentation primarily focuses on Agentuity services and may not cover all aspects of AI agent development
-- Some advanced features may require additional knowledge of AI frameworks
-- Examples are provided for common use cases but may need adaptation for specific requirements
+	const orphanPages = pages.filter((page) => !emitted.has(page.urlPath));
+	if (orphanPages.length > 0) {
+		console.error(
+			`[generateLlmsTxt] Found orphan pages not present in nav-data.ts: ${orphanPages
+				.map((page) => page.urlPath)
+				.join(', ')}`
+		);
+		lines.push('## Other', '');
+		for (const page of orphanPages) {
+			lines.push(fmt(page));
+		}
+		lines.push('');
+	}
 
-## Documentation Pages
-
-`;
-
-	const links = pages.map((page) => `[${page.title}](${BASE_URL}${page.urlPath}.md)`).join('\n');
-
-	return preamble + links + '\n';
+	return lines.join('\n').trimEnd() + '\n';
 }
 
 function generateLlmsFullTxt(pages: DocPage[]): string {
-	const preamble = `# Agentuity SDK Documentation
-
-## About
-
-Agentuity is a TypeScript SDK for building AI agents with automatic schema validation, built-in storage, and seamless deployment.
-
-## Capabilities
-
-The documentation covers:
-- General cloud and account information
-- CLI usage and commands
-- SDK integration
-- Examples, tutorials, and sample implementations
-- Troubleshooting and best practices
-
-## Limitations
-
-- The documentation primarily focuses on Agentuity services and may not cover all aspects of AI agent development
-- Some advanced features may require additional knowledge of AI frameworks
-- Examples are provided for common use cases but may need adaptation for specific requirements
+	const preamble = `${getLlmsPreamble(pages)}
 
 ---
 
@@ -975,6 +992,18 @@ ${page.content.replace(/^# .+\n\n.+\n\n/, '')}
 		.join('\n\n');
 
 	return preamble + sections + '\n';
+}
+
+function getLlmsPreamble(pages: DocPage[]): string {
+	const overview =
+		pages.find((page) => page.urlPath === '/get-started/what-is-agentuity')?.description ||
+		'The full-stack platform for building, deploying, and operating AI agents';
+
+	return `# Agentuity Documentation
+
+> ${overview}
+>
+> Full content: ${BASE_URL}/llms-full.txt`;
 }
 
 function generateSitemapXml(pages: DocPage[]): string {
