@@ -259,7 +259,7 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
   <CardLink
     href="/reference/api/coder"
     title="Coder"
-    description="AI coding sessions in managed sandboxes"
+    description="Manage Coder sessions, session data, loop state, and known users through the HTTP API"
     icon={<BrainCircuit className="size-5" />}
   />
   <CardLink
