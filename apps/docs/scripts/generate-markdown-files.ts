@@ -927,15 +927,27 @@ function generateLlmsTxt(pages: DocPage[]): string {
 	};
 
 	const walk = (items: NavItem[], level: number) => {
-		for (const item of items) {
-			if (item.items && item.items.length > 0) {
-				lines.push(`${'#'.repeat(level)} ${item.title}`, '');
-				emitUrl(item.url);
-				walk(item.items, level + 1);
+		// Partition into flat items (no children) and grouped items (with children).
+		// Emit all flats first as direct bullets under the current parent heading,
+		// then emit groups with their own sub-headings. This keeps flat siblings
+		// from being visually orphaned between sub-sections when nav-data mixes
+		// both kinds at the same level.
+		const flats = items.filter((item) => !item.items || item.items.length === 0);
+		const groups = items.filter((item) => item.items && item.items.length > 0);
+
+		for (const item of flats) {
+			emitUrl(item.url);
+		}
+
+		for (const item of groups) {
+			// Ensure a blank line separates the previous content from a sub-heading.
+			if (lines.length > 0 && lines[lines.length - 1] !== '') {
 				lines.push('');
-			} else {
-				emitUrl(item.url);
 			}
+			const children = item.items ?? [];
+			lines.push(`${'#'.repeat(level)} ${item.title}`, '');
+			emitUrl(item.url);
+			walk(children, level + 1);
 		}
 	};
 
@@ -1001,9 +1013,7 @@ function getLlmsPreamble(pages: DocPage[]): string {
 
 	return `# Agentuity Documentation
 
-> ${overview}
->
-> Full content: ${BASE_URL}/llms-full.txt`;
+> ${overview}`;
 }
 
 function generateSitemapXml(pages: DocPage[]): string {
