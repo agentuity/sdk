@@ -892,6 +892,11 @@ export const navData: NavSection[] = [
 						description: 'Run code in isolated containers with ctx.sandbox',
 					},
 					{
+						title: 'Coder',
+						url: '/reference/sdk-reference/coder',
+						description: 'Manage AI coding sessions, workspaces, and skills with CoderClient',
+					},
+					{
 						title: 'Observability',
 						url: '/reference/sdk-reference/observability',
 						description:

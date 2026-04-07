@@ -1,0 +1,426 @@
+---
+title: Coder Client
+short_title: Coder
+description: Manage AI coding sessions, workspaces, and skills with CoderClient
+---
+
+Method reference for `CoderClient` from the standalone [`@agentuity/coder`](/reference/standalone-packages#coder) package. Coder is not a `ctx.*` service; the client is used from agents, scripts, or external apps.
+
+<Callout type="info" title="Hub URL is discovered first">
+Coder has HTTP endpoints, but no single static base URL. `CoderClient` calls the Agentuity API to discover your org's Hub address, then routes session and workspace requests there. For concepts, session lifecycle, and workflows, see [Coder](/services/coder).
+</Callout>
+
+## Install
+
+```bash
+bun add @agentuity/coder
+```
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const client = new CoderClient();
+```
+
+## Constructor
+
+`new CoderClient(options?: CoderClientOptions)`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-discovered | Explicit Hub base URL. Set to skip discovery |
+| `region` | `string` | `AGENTUITY_REGION` or `'usc'` | Region used for Hub URL discovery |
+| `orgId` | `string` | - | Organization scope for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+The client resolves the Hub URL in this order:
+
+1. `options.url` (explicit)
+2. `AGENTUITY_CODER_URL` environment variable
+3. Auto-discovery via the Agentuity API
+
+Most apps only need the API key. Set `AGENTUITY_SDK_KEY` and let the client discover the rest.
+
+## Sessions
+
+### createSession(body)
+
+Create a new coder session.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.task` | `string` | yes | Primary task prompt for the session |
+| `body.label` | `string` | no | Human-readable session label |
+| `body.agent` | `string` | no | Default agent identifier |
+| `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Session visibility |
+| `body.workflowMode` | `'standard' \| 'loop'` | no | Workflow execution mode |
+| `body.loop` | `CoderSessionLoopConfig` | no | Loop-mode configuration (`goal`, `maxIterations`, `autoContinue`, `allowDetached`) |
+| `body.tags` | `string[]` | no | Tags for filtering |
+| `body.savedSkillIds` | `string[]` | no | Saved skill IDs to attach |
+| `body.skillBucketIds` | `string[]` | no | Skill bucket IDs to attach |
+| `body.skills` | `CoderSkillRef[]` | no | Inline skill definitions attached to the session |
+| `body.repo` | `CoderSessionRepositoryRef` | no | Primary repository to mount |
+| `body.repos` | `CoderSessionRepositoryRef[]` | no | Multiple repositories to mount |
+| `body.workspaceId` | `string` | no | Workspace to attach to the session |
+| `body.env` | `Record<string, string>` | no | Environment variables injected into the runtime |
+| `body.metadata` | `Record<string, string>` | no | Arbitrary metadata |
+
+**Returns:** `Promise<CoderCreateSessionResponse>`
+
+```typescript
+const session = await client.createSession({
+  task: 'Implement OAuth login with GitHub provider',
+  workflowMode: 'standard',
+  tags: ['auth', 'feature'],
+});
+console.log(session.sessionId);
+```
+
+### getSession(sessionId)
+
+Retrieve a session by ID.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `sessionId` | `string` | yes | Session identifier |
+
+**Returns:** `Promise<CoderSession>`
+
+```typescript
+const session = await client.getSession('codesess_abc123');
+```
+
+### updateSession(sessionId, body)
+
+Update an existing session.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `sessionId` | `string` | yes | Session identifier |
+| `body.label` | `string` | no | Updated label |
+| `body.agent` | `string` | no | Updated default agent |
+| `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Updated visibility |
+| `body.workflowMode` | `'standard' \| 'loop'` | no | Updated workflow mode |
+| `body.loop` | `CoderSessionLoopConfig` | no | Updated loop configuration |
+| `body.tags` | `string[]` | no | Updated tag set |
+| `body.skills` | `CoderSkillRef[]` | no | Updated attached skills for the session |
+| `body.metadata` | `Record<string, string>` | no | Updated metadata |
+
+**Returns:** `Promise<CoderUpdateSessionResponse>`
+
+```typescript
+await client.updateSession('codesess_abc123', {
+  label: 'Auth feature - phase 2',
+  tags: ['auth', 'feature', 'phase-2'],
+});
+```
+
+### listSessions(params?)
+
+List sessions with optional filtering and pagination.
+
+**`params` fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `search` | `string` | Search query across title, task, and metadata |
+| `includeArchived` | `boolean` | Include archived sessions |
+| `limit` | `number` | Max sessions to return |
+| `offset` | `number` | Pagination offset |
+
+**Returns:** `Promise<CoderSessionListResponse>`
+
+```typescript
+const { sessions, total } = await client.listSessions({ limit: 20 });
+for (const s of sessions) {
+  console.log(`${s.sessionId}: ${s.label} (${s.status})`);
+}
+```
+
+### listConnectableSessions(params?)
+
+List sessions the caller can currently connect to. Archived and history-only sessions are filtered out.
+
+**`params` fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `search` | `string` | Search query for connectable sessions |
+| `limit` | `number` | Max sessions to return |
+| `offset` | `number` | Pagination offset |
+
+**Returns:** `Promise<CoderSessionListResponse>`
+
+### deleteSession(sessionId)
+
+Permanently delete a session.
+
+**Returns:** `Promise<void>`
+
+```typescript
+await client.deleteSession('codesess_abc123');
+```
+
+### archiveSession(sessionId)
+
+Archive an active session. The transcript is preserved for replay.
+
+**Returns:** `Promise<CoderLifecycleResponse>`
+
+```typescript
+await client.archiveSession('codesess_abc123');
+```
+
+### resumeSession(sessionId)
+
+Wake a paused sandbox session.
+
+**Returns:** `Promise<CoderLifecycleResponse>`
+
+```typescript
+await client.resumeSession('codesess_abc123');
+```
+
+### prepareSessionForRemoteAttach(sessionId, options?)
+
+Ensure a paused remote session is attachable before opening a controller socket. If the session is history-only, returns immediately. If the session is wakeable and the runtime is unavailable, calls `resumeSession` and polls `getSession` until the runtime is back or the timeout elapses.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `sessionId` | `string` | yes | Session identifier |
+| `options.timeoutMs` | `number` | no | Max time to wait for the runtime to come back. Default `30000` |
+| `options.pollIntervalMs` | `number` | no | Interval between `getSession` polls while waking. Default `1000` |
+
+**Returns:** `Promise<CoderSession>` — the latest session detail (which may still be detached if the timeout elapsed)
+
+```typescript
+const session = await client.prepareSessionForRemoteAttach('codesess_abc123', {
+  timeoutMs: 60_000,
+});
+if (session.runtimeAvailable) {
+  // Safe to open the controller socket
+}
+```
+
+## Session Data
+
+### getReplay(sessionId, params?)
+
+Retrieve replay data (transcript and events) for a session.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `sessionId` | `string` | yes | Session identifier |
+| `params.limit` | `number` | no | Max records to return |
+| `params.offset` | `number` | no | Pagination offset |
+
+**Returns:** `Promise<CoderSessionReplay>`
+
+```typescript
+const replay = await client.getReplay('codesess_abc123');
+```
+
+### listParticipants(sessionId, params?)
+
+List participants for a session (primary agents, sub-agents, and observers).
+
+**Returns:** `Promise<CoderSessionParticipants>`
+
+```typescript
+const { participants } = await client.listParticipants('codesess_abc123');
+```
+
+### listEventHistory(sessionId, params?)
+
+List historical events for a session.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `sessionId` | `string` | yes | Session identifier |
+| `params.limit` | `number` | no | Max events to return |
+| `params.offset` | `number` | no | Pagination offset |
+
+**Returns:** `Promise<CoderSessionEventHistory>`
+
+```typescript
+const history = await client.listEventHistory('codesess_abc123', { limit: 50 });
+```
+
+## Loop State
+
+### getLoopState(sessionId, params?)
+
+Get loop-mode state for an autonomous session. Returns `null` loop when the session is not in loop mode.
+
+**Returns:** `Promise<CoderLoopStateResponse>`
+
+```typescript
+const { loop } = await client.getLoopState('codesess_abc123');
+if (loop) {
+  console.log(`Status: ${loop.status}, iteration ${loop.iteration}`);
+}
+```
+
+The loop state includes `status`, `iteration`, `maxIterations`, `goal`, `summary`, `nextAction`, and timing fields. Status values: `idle`, `starting`, `running`, `paused`, `completed`, `cancelled`, `blocked`, `awaiting_input`.
+
+## Workspaces
+
+Workspaces group repositories and skills into reusable configurations attachable to sessions.
+
+### createWorkspace(body)
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.name` | `string` | yes | Workspace name |
+| `body.description` | `string` | no | Workspace description |
+| `body.scope` | `'user' \| 'org'` | no | Ownership scope |
+| `body.repos` | `CoderSessionRepositoryRef[]` | no | Repositories to include |
+| `body.savedSkillIds` | `string[]` | no | Saved skill IDs |
+| `body.skillBucketIds` | `string[]` | no | Skill bucket IDs |
+
+**Returns:** `Promise<CoderWorkspaceDetail>`
+
+```typescript
+const workspace = await client.createWorkspace({
+  name: 'Auth System',
+  description: 'OAuth and session management',
+});
+```
+
+### listWorkspaces()
+
+List all available workspaces.
+
+**Returns:** `Promise<CoderWorkspaceListResponse>`
+
+### getWorkspace(workspaceId)
+
+Retrieve a workspace by ID.
+
+**Returns:** `Promise<CoderWorkspaceDetail>`
+
+### deleteWorkspace(workspaceId)
+
+Delete a workspace.
+
+**Returns:** `Promise<void>`
+
+## Skills
+
+### saveSkill(body)
+
+Save a reusable skill to the caller's library.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.repo` | `string` | yes | Repository identifier for the skill |
+| `body.skillId` | `string` | yes | Skill identifier within the repository |
+| `body.name` | `string` | yes | Human-readable name |
+| `body.description` | `string` | no | Skill description |
+| `body.url` | `string` | no | Canonical skill URL |
+| `body.source` | `string` | no | Skill source (default: `'registry'`) |
+| `body.content` | `string` | no | Inline skill content |
+
+**Returns:** `Promise<CoderSavedSkill>`
+
+```typescript
+const skill = await client.saveSkill({
+  repo: 'my-org/my-skills',
+  skillId: 'code-review',
+  name: 'code-review',
+  description: 'Review code for security issues',
+  content: 'Review the changes for OWASP top 10 vulnerabilities...',
+});
+```
+
+### listSavedSkills()
+
+List saved skills in the caller's library.
+
+**Returns:** `Promise<CoderSavedSkillListResponse>`
+
+### deleteSavedSkill(skillId)
+
+Delete a saved skill.
+
+**Returns:** `Promise<void>`
+
+### createSkillBucket(body)
+
+Group saved skills into a bucket that can be attached to sessions.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.name` | `string` | yes | Bucket name |
+| `body.description` | `string` | no | Bucket description |
+| `body.savedSkillIds` | `string[]` | no | Saved skill IDs to include |
+
+**Returns:** `Promise<CoderSkillBucket>`
+
+### listSkillBuckets()
+
+List all skill buckets.
+
+**Returns:** `Promise<CoderSkillBucketListResponse>`
+
+### deleteSkillBucket(bucketId)
+
+Delete a skill bucket.
+
+**Returns:** `Promise<void>`
+
+## GitHub
+
+### listGitHubAccounts()
+
+List GitHub accounts available via the caller's GitHub App installations. The response includes connection status, the connected GitHub username, and all available accounts.
+
+**Returns:** `Promise<CoderGitHubAccountListResponse>`
+
+```typescript
+const { connected, accounts } = await client.listGitHubAccounts();
+if (!connected) {
+  console.log('Connect GitHub first');
+}
+```
+
+### listGitHubRepos(accountId)
+
+List repositories accessible under a specific GitHub account.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `accountId` | `string` | yes | GitHub account ID from `listGitHubAccounts` |
+
+**Returns:** `Promise<CoderGitHubRepositoryListResponse>`
+
+```typescript
+const { repositories } = await client.listGitHubRepos('12345');
+```
+
+## Users
+
+### listUsers(params?)
+
+List known users in the Coder Hub. Supports search and pagination.
+
+**`params` fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `search` | `string` | Search query to filter by display name |
+| `limit` | `number` | Max users to return |
+| `offset` | `number` | Pagination offset |
+
+**Returns:** `Promise<CoderListUsersResponse>`
+
+```typescript
+const { users } = await client.listUsers({ search: 'alice', limit: 10 });
+```
+
+## Next Steps
+
+- [Coder](/services/coder): Concepts, session lifecycle, and workflow guidance
+- [`@agentuity/coder` Package](/reference/standalone-packages#coder): Install and constructor overview
+- [Coder CLI Commands](/reference/cli/coder): Full `agentuity coder` command reference
