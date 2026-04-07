@@ -621,6 +621,12 @@ export const navData: NavSection[] = [
 						description: 'Create and manage API keys for authentication',
 					},
 					{
+						title: 'Coder',
+						url: '/reference/api/coder',
+						description:
+							'Manage Coder sessions, session data, loop state, and known users through the HTTP API',
+					},
+					{
 						title: 'Databases',
 						url: '/reference/api/database',
 						description: 'Execute queries, inspect tables, and monitor database performance',

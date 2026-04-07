@@ -10,6 +10,7 @@ import type {
 } from '../../../packages/core/src/services/api-reference.ts';
 import { resolveFields } from '../../../packages/core/src/services/api-reference.ts';
 import apiKeysService from '../../../packages/core/src/services/apikey/api-reference.ts';
+import coderService from '../../../packages/core/src/services/coder/api-reference.ts';
 import databaseService from '../../../packages/core/src/services/db/api-reference.ts';
 import emailService from '../../../packages/core/src/services/email/api-reference.ts';
 import evaluationsService from '../../../packages/core/src/services/eval/api-reference.ts';
@@ -33,6 +34,7 @@ import webhooksService from '../../../packages/core/src/services/webhook/api-ref
 
 const services: Service[] = [
 	apiKeysService,
+	coderService,
 	databaseService,
 	streamsService,
 	emailService,
@@ -243,7 +245,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, Building, CheckCircle, Clock, Code, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
@@ -331,6 +333,12 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
     title="Sandboxes"
     description="Create and manage isolated execution environments with full lifecycle, file system, snapshot, and checkpoint support"
     icon={<Box className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/coder"
+    title="Coder"
+    description="AI coding sessions in managed sandboxes"
+    icon={<Code className="size-5" />}
   />
   <CardLink
     href="/reference/api/schedules"
