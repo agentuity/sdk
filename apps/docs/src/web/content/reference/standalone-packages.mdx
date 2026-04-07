@@ -412,7 +412,7 @@ const list = await tasks.list({ status: 'open' });
 Manage Coder sessions, participants, workspaces, replay data, and loop state from any Node.js or Bun app.
 
 <Callout type="info" title="Discovery before Hub requests">
-Coder resolves your org's Hub URL dynamically. `CoderClient` calls the Agentuity API for the Hub address, then routes session and workspace requests against it. Use the client to skip implementing discovery and auth yourself.
+Coder has no single static base URL. When `url` and `AGENTUITY_CODER_URL` are unset, `CoderClient` calls the Agentuity API for your org's Hub address, then routes session and workspace requests against it. Use the client to skip implementing that flow yourself, or pass an explicit `url` to skip discovery.
 </Callout>
 
 ```bash
@@ -453,7 +453,7 @@ await client.archiveSession(session.sessionId);
 |--------|------|---------|-------------|
 | `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
 | `url` | `string` | Auto-discovered via Agentuity API | Base URL for the Coder Hub. Set explicitly to skip discovery |
-| `region` | `string` | `AGENTUITY_REGION` or `usc` | Region used for Hub URL discovery |
+| `region` | `string` | `AGENTUITY_REGION` or `usc` | Region used during discovery. Ignored when `url` or `AGENTUITY_CODER_URL` is set |
 | `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
 | `logger` | `Logger` | Minimal logger | Custom logger instance |
 

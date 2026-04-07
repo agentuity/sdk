@@ -30,7 +30,7 @@ const client = new CoderClient();
 |--------|------|---------|-------------|
 | `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
 | `url` | `string` | Auto-discovered | Explicit Hub base URL. Set to skip discovery |
-| `region` | `string` | `AGENTUITY_REGION` or `'usc'` | Region used for Hub URL discovery |
+| `region` | `string` | `AGENTUITY_REGION` or `'usc'` | Region used during discovery. Ignored when `url` or `AGENTUITY_CODER_URL` is set |
 | `orgId` | `string` | - | Organization scope for multi-tenant operations (optional) |
 | `logger` | `Logger` | Minimal logger | Custom logger instance |
 
