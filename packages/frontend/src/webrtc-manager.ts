@@ -841,20 +841,17 @@ export class WebRTCManager {
 				return;
 			}
 
+			// Serialize local offer generation so negotiationneeded does not race
+			// against the explicit initial offer path or another in-flight renegotiation.
+			if (this.hasOfferCollision(session)) {
+				return;
+			}
+
 			try {
-				session.makingOffer = true;
-				await pc.setLocalDescription();
-				this.send({
-					t: 'sdp',
-					from: this.peerId!,
-					to: remotePeerId,
-					description: pc.localDescription!,
-				});
+				await this.createOffer(session);
 			} catch (err) {
 				const error = err instanceof Error ? err : new Error(String(err));
 				this.callbacks.onError?.(error, this._state);
-			} finally {
-				session.makingOffer = false;
 			}
 		};
 
@@ -921,7 +918,7 @@ export class WebRTCManager {
 		const pc = session.pc;
 		const isOffer = description.type === 'offer';
 		const polite = this.basePolite ?? !this.isOffererFor(fromPeerId);
-		const offerCollision = isOffer && (session.makingOffer || pc.signalingState !== 'stable');
+		const offerCollision = isOffer && this.hasOfferCollision(session);
 
 		session.ignoreOffer = !polite && offerCollision;
 		if (session.ignoreOffer) return;
@@ -957,6 +954,10 @@ export class WebRTCManager {
 		}
 
 		this.callbacks.onNegotiationComplete?.(fromPeerId);
+	}
+
+	private hasOfferCollision(session: Pick<PeerSession, 'makingOffer' | 'pc'>): boolean {
+		return session.makingOffer || session.pc.signalingState !== 'stable';
 	}
 
 	private isOffererFor(remotePeerId: string): boolean {
