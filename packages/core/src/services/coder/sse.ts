@@ -204,7 +204,15 @@ async function buildSSEUrl(
 			const catalystClient = new APIClient(catalystUrl, logger, options.apiKey ?? '', {
 				headers,
 			});
-			baseUrl = await discoverUrl(catalystClient);
+			try {
+				baseUrl = await discoverUrl(catalystClient);
+			} catch (err) {
+				throw new CoderSSEError({
+					message: `Failed to discover Coder URL: ${err instanceof Error ? err.message : String(err)}`,
+					code: 'connection_failed',
+					sessionId,
+				});
+			}
 		}
 	}
 
@@ -342,6 +350,7 @@ export class CoderSSEClient {
 			return;
 		}
 		this.#intentionallyClosed = false;
+		this.#reconnectAttempts = 0;
 		if (this.#reconnectTimer !== null) {
 			clearTimeout(this.#reconnectTimer);
 			this.#reconnectTimer = null;
@@ -383,7 +392,8 @@ export class CoderSSEClient {
 				const result = ObserverSseMessageSchema.safeParse(payload);
 
 				if (result.success) {
-					const sseEvent: CoderSSEEvent = { event: eventName, data: result.data };
+					const semanticEvent = typeOverride || result.data.type;
+					const sseEvent: CoderSSEEvent = { event: semanticEvent, data: result.data };
 					this.#options.onEvent?.(sseEvent);
 
 					if (result.data.type === 'snapshot') {
@@ -427,6 +437,10 @@ export class CoderSSEClient {
 		} catch (err) {
 			this.#setState('closed');
 			this.#options.onError?.(err as Error);
+			return;
+		}
+
+		if (this.#intentionallyClosed || this.#state === 'closed') {
 			return;
 		}
 
@@ -621,13 +635,28 @@ export async function* streamCoderSessionSSE(
 						buffer.shift();
 						logger.debug('SSE buffer full, dropped oldest event');
 					}
-					buffer.push({ event: eventName, data: result.data });
+					const semanticEvent = typeOverride || result.data.type;
+					buffer.push({ event: semanticEvent, data: result.data });
 					wake();
 				} else {
-					logger.debug('Invalid SSE %s event format', eventName);
+					terminalError = new CoderSSEError({
+						message: `Invalid SSE ${eventName} event format`,
+						code: 'parse_error',
+						sessionId: options.sessionId,
+					});
+					done = true;
+					wake();
+					return;
 				}
 			} catch (err) {
-				logger.debug('Failed to parse SSE %s event: %s', eventName, err);
+				terminalError = new CoderSSEError({
+					message: `Failed to parse SSE ${eventName} event: ${err instanceof Error ? err.message : String(err)}`,
+					code: 'parse_error',
+					sessionId: options.sessionId,
+				});
+				done = true;
+				wake();
+				return;
 			}
 		});
 	};
@@ -650,6 +679,12 @@ export async function* streamCoderSessionSSE(
 			return;
 		}
 
+		if (signal?.aborted) {
+			done = true;
+			wake();
+			return;
+		}
+
 		// Workaround for bun-types EventSource constructor typing issue (see above).
 		try {
 			const EventSourceCtor: typeof EventSource = EventSource;
@@ -660,6 +695,13 @@ export async function* streamCoderSessionSSE(
 				code: 'connection_failed',
 				sessionId: options.sessionId,
 			});
+			done = true;
+			wake();
+			return;
+		}
+
+		if (signal?.aborted) {
+			cleanup();
 			done = true;
 			wake();
 			return;
@@ -715,8 +757,6 @@ export async function* streamCoderSessionSSE(
 		handleSSEEvent('message');
 	};
 
-	await connect();
-
 	const onAbort = () => {
 		done = true;
 		cleanup();
@@ -724,6 +764,8 @@ export async function* streamCoderSessionSSE(
 	};
 
 	signal?.addEventListener('abort', onAbort, { once: true });
+
+	await connect();
 
 	try {
 		while (!done) {

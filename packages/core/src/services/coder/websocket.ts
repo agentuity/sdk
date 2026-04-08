@@ -412,7 +412,12 @@ export class CoderHubWebSocketClient {
 		this.#intentionallyClosed = true;
 		this.#clearTimers();
 		if (this.#ws) {
-			this.#ws.close(code ?? 1000, reason ?? 'Client closed');
+			const ws = this.#ws;
+			ws.onopen = null;
+			ws.onmessage = null;
+			ws.onerror = null;
+			ws.onclose = null;
+			ws.close(code ?? 1000, reason ?? 'Client closed');
 			this.#ws = null;
 		}
 		this.#setState('closed');
@@ -538,7 +543,13 @@ export class CoderHubWebSocketClient {
 	#rejectAllPendingRequests(reason: string): void {
 		for (const [, pending] of this.#pendingRequests) {
 			clearTimeout(pending.timeout);
-			pending.reject(new Error(reason));
+			pending.reject(
+				new CoderHubWebSocketError({
+					message: reason,
+					code: 'connection_error',
+					sessionId: this.sessionId,
+				})
+			);
 		}
 		this.#pendingRequests.clear();
 	}
@@ -626,9 +637,12 @@ export class CoderHubWebSocketClient {
 			return;
 		}
 
-		this.#ws.onopen = () => {
+		const ws = this.#ws;
+
+		ws.onopen = () => {
+			if (ws !== this.#ws) return;
 			this.#setState('authenticating');
-			this.#ws!.send(
+			ws.send(
 				JSON.stringify({
 					authorization: this.#options.apiKey,
 					org_id: this.#options.orgId,
@@ -636,7 +650,8 @@ export class CoderHubWebSocketClient {
 			);
 		};
 
-		this.#ws.onmessage = (event: MessageEvent) => {
+		ws.onmessage = (event: MessageEvent) => {
+			if (ws !== this.#ws) return;
 			this.#lastInboundTimestamp = Date.now();
 			const raw = typeof event.data === 'string' ? event.data : String(event.data);
 
@@ -661,7 +676,7 @@ export class CoderHubWebSocketClient {
 							})
 						);
 						this.#intentionallyClosed = true;
-						this.#ws?.close(4401, 'Auth failed');
+						ws.close(4401, 'Auth failed');
 						return;
 					}
 
@@ -677,7 +692,7 @@ export class CoderHubWebSocketClient {
 							})
 						);
 						this.#intentionallyClosed = true;
-						this.#ws?.close(4401, 'Auth failed');
+						ws.close(4401, 'Auth failed');
 						return;
 					}
 				}
@@ -714,12 +729,21 @@ export class CoderHubWebSocketClient {
 					this.#pendingRequests.delete(message.id);
 					if ('actions' in message) {
 						pending.resolve(message as CoderHubResponse);
+					} else {
+						pending.reject(
+							new CoderHubWebSocketError({
+								message: `Malformed response for request ${message.id}: missing actions`,
+								code: 'invalid_response',
+								sessionId: this.sessionId,
+							})
+						);
 					}
 				}
 			}
 		};
 
-		this.#ws.onerror = () => {
+		ws.onerror = () => {
+			if (ws !== this.#ws) return;
 			this.#options.onError(
 				new CoderHubWebSocketError({
 					message: 'WebSocket connection error',
@@ -729,7 +753,8 @@ export class CoderHubWebSocketClient {
 			);
 		};
 
-		this.#ws.onclose = (event: CloseEvent) => {
+		ws.onclose = (event: CloseEvent) => {
+			if (ws !== this.#ws) return;
 			this.#ws = null;
 			this.#clearTimers();
 			this.#setState('closed');
@@ -875,6 +900,7 @@ export async function* subscribeToCoderHub(
 			) {
 				terminalError = error;
 				done = true;
+				wake();
 			}
 			options.onError?.(error);
 		},
