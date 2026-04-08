@@ -2,6 +2,7 @@
 	"title": "API Reference",
 	"pages": [
 		"api-keys",
+		"coder",
 		"database",
 		"email",
 		"evaluations",

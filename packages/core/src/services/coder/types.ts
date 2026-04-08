@@ -55,7 +55,7 @@ export type CoderSkillRef = z.infer<typeof CoderSkillRefSchema>;
 export const CoderSessionRepositoryRefSchema = z
 	.object({
 		repoId: z.string().optional().describe('Repository identifier when available'),
-		type: z.string().optional().describe('Repository type (e.g., github, gitlab)'),
+		type: z.string().optional().describe('Repository type (e.g., GitHub, GitLab)'),
 		provider: z.string().optional().describe('Git provider identifier'),
 		owner: z.string().optional().describe('Repository owner or organization'),
 		name: z.string().optional().describe('Repository name'),

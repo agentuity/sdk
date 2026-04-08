@@ -10,6 +10,7 @@
 import { readdir, readFile, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import matter from 'gray-matter';
+import { navData, type NavItem } from '../src/web/components/docs/nav-data.ts';
 
 const BASE_URL = 'https://agentuity.dev';
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
@@ -904,57 +905,85 @@ async function main() {
 }
 
 function generateLlmsTxt(pages: DocPage[]): string {
-	const preamble = `# Agentuity SDK Documentation
+	const pagesByUrl = new Map(pages.map((p) => [p.urlPath, p]));
+	const emitted = new Set<string>();
+	const missing = new Set<string>();
+	const lines: string[] = [getLlmsPreamble(), ''];
 
-## About
+	const fmt = (p: DocPage) => {
+		const link = `- [${p.title}](${BASE_URL}${p.urlPath}.md)`;
+		return p.description ? `${link}: ${p.description}` : link;
+	};
 
-Agentuity is a TypeScript SDK for building AI agents with automatic schema validation, built-in storage, and seamless deployment.
+	const emitUrl = (url: string | undefined) => {
+		if (!url || emitted.has(url)) return;
+		const page = pagesByUrl.get(url);
+		if (!page) {
+			missing.add(url);
+			return;
+		}
+		emitted.add(url);
+		lines.push(fmt(page));
+	};
 
-## Capabilities
+	const walk = (items: NavItem[], level: number) => {
+		// Partition into flat items (no children) and grouped items (with children).
+		// Emit all flats first as direct bullets under the current parent heading,
+		// then emit groups with their own sub-headings. This keeps flat siblings
+		// from being visually orphaned between sub-sections when nav-data mixes
+		// both kinds at the same level.
+		const flats = items.filter((item) => !item.items || item.items.length === 0);
+		const groups = items.filter((item) => item.items && item.items.length > 0);
 
-The documentation covers:
-- General cloud and account information
-- CLI usage and commands
-- SDK integration
-- Examples, tutorials, and sample implementations
-- Troubleshooting and best practices
+		for (const item of flats) {
+			emitUrl(item.url);
+		}
 
-## Limitations
+		for (const item of groups) {
+			// Ensure a blank line separates the previous content from a sub-heading.
+			if (lines.length > 0 && lines[lines.length - 1] !== '') {
+				lines.push('');
+			}
+			const children = item.items ?? [];
+			lines.push(`${'#'.repeat(level)} ${item.title}`, '');
+			emitUrl(item.url);
+			walk(children, level + 1);
+		}
+	};
 
-- The documentation primarily focuses on Agentuity services and may not cover all aspects of AI agent development
-- Some advanced features may require additional knowledge of AI frameworks
-- Examples are provided for common use cases but may need adaptation for specific requirements
+	for (const section of navData) {
+		if (section.hideItems) continue;
+		lines.push(`## ${section.title}`, '');
+		emitUrl(section.url);
+		walk(section.items, 3);
+		lines.push('');
+	}
 
-## Documentation Pages
+	if (missing.size > 0) {
+		console.error(
+			`[generateLlmsTxt] Missing pages for nav URLs: ${Array.from(missing).join(', ')}`
+		);
+	}
 
-`;
+	const orphanPages = pages.filter((page) => !emitted.has(page.urlPath));
+	if (orphanPages.length > 0) {
+		console.error(
+			`[generateLlmsTxt] Found orphan pages not present in nav-data.ts: ${orphanPages
+				.map((page) => page.urlPath)
+				.join(', ')}`
+		);
+		lines.push('## Other', '');
+		for (const page of orphanPages) {
+			lines.push(fmt(page));
+		}
+		lines.push('');
+	}
 
-	const links = pages.map((page) => `[${page.title}](${BASE_URL}${page.urlPath}.md)`).join('\n');
-
-	return preamble + links + '\n';
+	return lines.join('\n').trimEnd() + '\n';
 }
 
 function generateLlmsFullTxt(pages: DocPage[]): string {
-	const preamble = `# Agentuity SDK Documentation
-
-## About
-
-Agentuity is a TypeScript SDK for building AI agents with automatic schema validation, built-in storage, and seamless deployment.
-
-## Capabilities
-
-The documentation covers:
-- General cloud and account information
-- CLI usage and commands
-- SDK integration
-- Examples, tutorials, and sample implementations
-- Troubleshooting and best practices
-
-## Limitations
-
-- The documentation primarily focuses on Agentuity services and may not cover all aspects of AI agent development
-- Some advanced features may require additional knowledge of AI frameworks
-- Examples are provided for common use cases but may need adaptation for specific requirements
+	const preamble = `${getLlmsPreamble()}
 
 ---
 
@@ -975,6 +1004,40 @@ ${page.content.replace(/^# .+\n\n.+\n\n/, '')}
 		.join('\n\n');
 
 	return preamble + sections + '\n';
+}
+
+function getLlmsPreamble(): string {
+	return `# Agentuity Documentation
+
+> The full-stack platform for AI agents.
+
+Agentuity is a cloud platform for building, deploying, and operating AI agents.
+The TypeScript SDK provides a Bun-native runtime, schema validation, and React
+hooks. Use the \`agentuity\` CLI for local development and deployment.
+
+## Built-in services
+
+Services include, but are not limited to:
+
+- **Routes and APIs**: type-safe Hono routes with auth, rate limiting, SSE, and WebSockets
+- **Frontend**: end-to-end type safety from agent schemas to React hooks
+- **Data and storage**: Postgres, key-value, vector, object storage, and durable streams
+- **Sandboxes**: isolated runtimes for untrusted or generated code
+- **Messaging and scheduling**: queues, webhooks, email, and cron-style schedules
+- **Authentication**: sessions, API keys, bearer tokens, and OAuth apps
+- **AI Gateway**: LLM provider routing with usage and cost visibility
+- **Observability**: OpenTelemetry traces, structured logs, and session analytics
+- **Evals**: evaluation runs attached to real sessions and traces
+- **Agent-to-agent communication**: type-safe calls between agents with context propagation
+- **Workbench**: interactive testing for local and deployed agents
+
+## Notes
+
+- This covers the Agentuity platform. General AI agent concepts may require
+  outside sources.
+- Bun is the supported runtime, so examples assume TypeScript and Bun.
+- LLM requests route through the Agentuity AI Gateway by default, so no
+  separate provider API keys are required.`;
 }
 
 function generateSitemapXml(pages: DocPage[]): string {
