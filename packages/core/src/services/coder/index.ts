@@ -31,6 +31,7 @@ export {
 } from './sessions.ts';
 
 export * from './skills.ts';
+export * from './agents.ts';
 export * from './workspaces.ts';
 export * from './github.ts';
 

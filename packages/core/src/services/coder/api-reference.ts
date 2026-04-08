@@ -1,12 +1,16 @@
 import { z } from 'zod/v4';
 import {
+	CoderCreateCustomAgentRequestSchema,
 	CoderCreateSessionRequestSchema,
+	CoderCustomAgentListResponseSchema,
+	CoderCustomAgentVersionListResponseSchema,
 	CoderListUsersResponseSchema,
 	CoderLoopStateResponseSchema,
 	CoderSessionEventSchema,
 	CoderSessionListItemSchema,
 	CoderSessionParticipantsSchema,
 	CoderSessionSchema,
+	CoderUpdateCustomAgentRequestSchema,
 	CoderUpdateSessionRequestSchema,
 } from './types.ts';
 import { CoderCreateSessionParamsSchema, CoderLifecycleResponseSchema } from './sessions.ts';
@@ -82,7 +86,7 @@ const service: Service = {
 	name: 'Coder',
 	slug: 'coder',
 	description:
-		'Manage Coder sessions, session data, loop state, and known users through the HTTP API',
+		'Manage Coder sessions, custom agents, session data, loop state, and known users through the HTTP API',
 	hasPublicEndpoints: false,
 	endpoints: [
 		{
@@ -395,6 +399,173 @@ const service: Service = {
 				{ code: 404, description: 'Session not found' },
 			],
 			examplePath: '/hub/session/sess_123/events/history?limit=50&beforeId=1234',
+		},
+		{
+			id: 'list-custom-agents',
+			title: 'List Custom Agents',
+			sectionTitle: 'Agents',
+			method: 'GET',
+			path: '/hub/agents',
+			description: 'Lists custom agents visible to the caller.',
+			pathParams: [],
+			queryParams: [
+				{
+					name: 'includeArchived',
+					type: 'boolean',
+					description: 'Include archived custom agents',
+					required: false,
+				},
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns custom agents visible to the caller.',
+			responseFields: { schema: CoderCustomAgentListResponseSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Custom agents returned' },
+				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
+			],
+			examplePath: '/hub/agents?includeArchived=true',
+		},
+		{
+			id: 'create-custom-agent',
+			title: 'Create Custom Agent',
+			sectionTitle: 'Agents',
+			method: 'POST',
+			path: '/hub/agents',
+			description: 'Creates a new custom-agent draft.',
+			pathParams: [],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: {
+				description: 'Custom-agent creation payload.',
+				fields: { schema: CoderCreateCustomAgentRequestSchema },
+			},
+			responseDescription: 'Returns the created custom agent.',
+			statuses: [
+				{ code: 201, description: 'Custom agent created' },
+				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
+			],
+			examplePath: '/hub/agents',
+			exampleBody: {
+				slug: 'code-review',
+				displayName: 'Code Review',
+				instructions: 'Focus on correctness, regressions, and missing tests.',
+				piTools: ['read', 'grep', 'ls'],
+				hubToolNames: ['session_todo_list', 'session_todo_update'],
+			},
+		},
+		{
+			id: 'get-custom-agent',
+			title: 'Get Custom Agent',
+			sectionTitle: 'Agents',
+			method: 'GET',
+			path: '/hub/agents/{agentIdOrSlug}',
+			description: 'Fetches a custom agent by id or slug.',
+			pathParams: [
+				{
+					name: 'agentIdOrSlug',
+					type: 'string',
+					description: 'Custom agent id or slug',
+					required: true,
+				},
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns the requested custom agent.',
+			statuses: [
+				{ code: 200, description: 'Custom agent returned' },
+				{ code: 404, description: 'Custom agent not found' },
+			],
+			examplePath: '/hub/agents/code-review',
+		},
+		{
+			id: 'update-custom-agent',
+			title: 'Update Custom Agent',
+			sectionTitle: 'Agents',
+			method: 'PATCH',
+			path: '/hub/agents/{agentIdOrSlug}',
+			description: 'Updates an owned custom-agent draft.',
+			pathParams: [
+				{
+					name: 'agentIdOrSlug',
+					type: 'string',
+					description: 'Custom agent id or slug',
+					required: true,
+				},
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: {
+				description: 'Custom-agent update payload.',
+				fields: { schema: CoderUpdateCustomAgentRequestSchema },
+			},
+			responseDescription: 'Returns the updated custom agent.',
+			statuses: [
+				{ code: 200, description: 'Custom agent updated' },
+				{ code: 404, description: 'Custom agent not found' },
+			],
+			examplePath: '/hub/agents/code-review',
+			exampleBody: { displayName: 'Code Review Draft' },
+		},
+		{
+			id: 'custom-agent-lifecycle',
+			title: 'Custom Agent Lifecycle Endpoints',
+			sectionTitle: 'Agents',
+			method: 'POST',
+			path: '/hub/agents/{agentIdOrSlug}/(publish|archive)',
+			description: 'Publishes or archives an owned custom agent.',
+			pathParams: [
+				{
+					name: 'agentIdOrSlug',
+					type: 'string',
+					description: 'Custom agent id or slug',
+					required: true,
+				},
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns the updated custom agent.',
+			statuses: [
+				{ code: 200, description: 'Lifecycle action applied' },
+				{ code: 404, description: 'Custom agent not found' },
+			],
+			examplePath: '/hub/agents/code-review/publish',
+		},
+		{
+			id: 'list-custom-agent-versions',
+			title: 'List Custom Agent Versions',
+			sectionTitle: 'Agents',
+			method: 'GET',
+			path: '/hub/agents/{agentIdOrSlug}/versions',
+			description: 'Lists immutable published versions for a custom agent.',
+			pathParams: [
+				{
+					name: 'agentIdOrSlug',
+					type: 'string',
+					description: 'Custom agent id or slug',
+					required: true,
+				},
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns published versions for the custom agent.',
+			responseFields: {
+				schema: CoderCustomAgentVersionListResponseSchema,
+				stripRequired: true,
+			},
+			statuses: [
+				{ code: 200, description: 'Custom agent versions returned' },
+				{ code: 404, description: 'Custom agent not found' },
+			],
+			examplePath: '/hub/agents/code-review/versions',
 		},
 	],
 };
