@@ -22,6 +22,15 @@ import {
 	type CoderListSessionsParamsWithOrg,
 } from './sessions.ts';
 import {
+	coderArchiveCustomAgent,
+	coderCreateCustomAgent,
+	coderGetCustomAgent,
+	coderListCustomAgents,
+	coderListCustomAgentVersions,
+	coderPublishCustomAgent,
+	coderUpdateCustomAgent,
+} from './agents.ts';
+import {
 	coderCreateSkillBucket,
 	coderDeleteSavedSkill,
 	coderDeleteSkillBucket,
@@ -49,6 +58,10 @@ import { coderListUsers, type CoderListUsersParamsWithOrg } from './users.ts';
 import type {
 	CoderGitHubAccountListResponse,
 	CoderGitHubRepositoryListResponse,
+	CoderCustomAgent,
+	CoderCustomAgentListResponse,
+	CoderCustomAgentVersionListResponse,
+	CoderCreateCustomAgentRequest,
 	CoderListUsersResponse,
 	CoderSavedSkill,
 	CoderSavedSkillListResponse,
@@ -61,6 +74,7 @@ import type {
 	CoderSkillBucket,
 	CoderSkillBucketListResponse,
 	CoderCreateSkillBucketRequest,
+	CoderUpdateCustomAgentRequest,
 	CoderCreateWorkspaceRequest,
 	CoderWorkspaceDetail,
 	CoderWorkspaceListResponse,
@@ -308,6 +322,67 @@ export class CoderClient {
 	async deleteWorkspace(workspaceId: string): Promise<void> {
 		const client = await this.#getClient();
 		return coderDeleteWorkspace(client, { workspaceId });
+	}
+
+	/**
+	 * Lists custom agents in the org library.
+	 */
+	async listCustomAgents(options?: {
+		includeArchived?: boolean;
+	}): Promise<CoderCustomAgentListResponse> {
+		const client = await this.#getClient();
+		return coderListCustomAgents(client, { ...options, orgId: this.#orgId });
+	}
+
+	/**
+	 * Retrieves a custom agent by id or slug.
+	 */
+	async getCustomAgent(agentIdOrSlug: string): Promise<CoderCustomAgent> {
+		const client = await this.#getClient();
+		return coderGetCustomAgent(client, { agentIdOrSlug, orgId: this.#orgId });
+	}
+
+	/**
+	 * Creates a new custom-agent draft.
+	 */
+	async createCustomAgent(body: CoderCreateCustomAgentRequest): Promise<CoderCustomAgent> {
+		const client = await this.#getClient();
+		return coderCreateCustomAgent(client, { body, orgId: this.#orgId });
+	}
+
+	/**
+	 * Updates an existing custom-agent draft.
+	 */
+	async updateCustomAgent(
+		agentIdOrSlug: string,
+		body: CoderUpdateCustomAgentRequest,
+	): Promise<CoderCustomAgent> {
+		const client = await this.#getClient();
+		return coderUpdateCustomAgent(client, { agentIdOrSlug, body, orgId: this.#orgId });
+	}
+
+	/**
+	 * Publishes the latest custom-agent draft as a new immutable version.
+	 */
+	async publishCustomAgent(agentIdOrSlug: string): Promise<CoderCustomAgent> {
+		const client = await this.#getClient();
+		return coderPublishCustomAgent(client, { agentIdOrSlug, orgId: this.#orgId });
+	}
+
+	/**
+	 * Archives a custom agent from the org library.
+	 */
+	async archiveCustomAgent(agentIdOrSlug: string): Promise<CoderCustomAgent> {
+		const client = await this.#getClient();
+		return coderArchiveCustomAgent(client, { agentIdOrSlug, orgId: this.#orgId });
+	}
+
+	/**
+	 * Lists published versions for a custom agent.
+	 */
+	async listCustomAgentVersions(agentIdOrSlug: string): Promise<CoderCustomAgentVersionListResponse> {
+		const client = await this.#getClient();
+		return coderListCustomAgentVersions(client, { agentIdOrSlug, orgId: this.#orgId });
 	}
 
 	/**

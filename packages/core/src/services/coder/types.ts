@@ -124,6 +124,89 @@ export const CoderWorkspaceDetailSchema = z
 	.describe('Workspace detail returned by coder hub');
 export type CoderWorkspaceDetail = z.infer<typeof CoderWorkspaceDetailSchema>;
 
+export const CoderCustomAgentThinkingLevelSchema = z
+	.enum(['off', 'minimal', 'low', 'medium', 'high', 'xhigh'])
+	.describe('Thinking level override for a custom agent');
+export type CoderCustomAgentThinkingLevel = z.infer<typeof CoderCustomAgentThinkingLevelSchema>;
+
+export const CoderCustomAgentSnapshotSchema = z
+	.object({
+		slug: z.string().describe('Stable custom agent slug'),
+		displayName: z.string().describe('Human-readable custom agent name'),
+		description: z.string().optional().describe('Optional custom agent description'),
+		preset: z.string().describe('Built-in preset used as the instruction baseline'),
+		toolProfile: z.string().describe('Built-in tool profile used for tool gating'),
+		instructions: z.string().describe('Custom instruction overlay'),
+		model: z.string().optional().describe('Optional model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
+			'Optional thinking level override'
+		),
+		headlessCompatible: z
+			.boolean()
+			.describe('Whether the custom agent is safe for non-interactive callers'),
+		savedSkills: z
+			.array(CoderSkillRefSchema)
+			.describe('Frozen saved-skill refs attached to the custom agent snapshot'),
+	})
+	.passthrough()
+	.describe('Custom agent snapshot returned by coder hub');
+export type CoderCustomAgentSnapshot = z.infer<typeof CoderCustomAgentSnapshotSchema>;
+
+export const CoderCustomAgentVersionSchema = CoderCustomAgentSnapshotSchema.extend({
+	id: z.string().describe('Published custom agent version identifier'),
+	agentId: z.string().describe('Parent custom agent identifier'),
+	version: z.number().int().describe('Published version number'),
+	createdByUserId: z.string().describe('User who published the version'),
+	createdAt: z.string().describe('Version creation timestamp (ISO-8601)'),
+})
+	.passthrough()
+	.describe('Published custom agent version returned by coder hub');
+export type CoderCustomAgentVersion = z.infer<typeof CoderCustomAgentVersionSchema>;
+
+export const CoderCustomAgentSchema = CoderCustomAgentSnapshotSchema.extend({
+	id: z.string().describe('Custom agent record identifier'),
+	ownerUserId: z.string().describe('Owner user identifier'),
+	lifecycle: z
+		.enum(['draft', 'published', 'archived'])
+		.describe('Current lifecycle state for the custom agent'),
+	visibility: z
+		.enum(['org', 'private_draft'])
+		.describe('Visibility tier for the custom agent'),
+	createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
+	updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
+	hasPublishedVersion: z.boolean().describe('Whether the agent has at least one published version'),
+	hasUnpublishedChanges: z
+		.boolean()
+		.describe('Whether the current draft differs from the latest published version'),
+	latestPublishedVersion: z.number().int().optional().describe('Latest published version number'),
+	latestPublishedAt: z.string().optional().describe('Latest published timestamp (ISO-8601)'),
+	published: CoderCustomAgentVersionSchema.optional().describe('Latest published version snapshot'),
+	draft: CoderCustomAgentSnapshotSchema.optional().describe('Owner-visible draft snapshot'),
+})
+	.passthrough()
+	.describe('Custom agent record returned by coder hub');
+export type CoderCustomAgent = z.infer<typeof CoderCustomAgentSchema>;
+
+export const CoderCustomAgentListResponseSchema = z
+	.object({
+		agents: z.array(CoderCustomAgentSchema).describe('Custom agents returned by coder hub'),
+	})
+	.passthrough()
+	.describe('Response payload for listing custom agents');
+export type CoderCustomAgentListResponse = z.infer<typeof CoderCustomAgentListResponseSchema>;
+
+export const CoderCustomAgentVersionListResponseSchema = z
+	.object({
+		versions: z
+			.array(CoderCustomAgentVersionSchema)
+			.describe('Published custom agent versions returned by coder hub'),
+	})
+	.passthrough()
+	.describe('Response payload for listing custom agent versions');
+export type CoderCustomAgentVersionListResponse = z.infer<
+	typeof CoderCustomAgentVersionListResponseSchema
+>;
+
 export const CoderSavedSkillListResponseSchema = z
 	.object({
 		skills: z.array(CoderSavedSkillSchema).describe('Saved skills returned by coder hub'),
@@ -160,6 +243,55 @@ export const CoderCreateWorkspaceRequestSchema = z
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
+
+export const CoderCreateCustomAgentRequestSchema = z
+	.object({
+		slug: z.string().describe('Stable custom agent slug'),
+		displayName: z.string().describe('Human-readable custom agent name'),
+		description: z.string().optional().describe('Optional custom agent description'),
+		preset: z.string().describe('Built-in preset used as the instruction baseline'),
+		toolProfile: z.string().optional().describe('Built-in tool profile used for tool gating'),
+		instructions: z.string().describe('Custom instruction overlay'),
+		model: z.string().optional().describe('Optional model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
+			'Optional thinking level override'
+		),
+		headlessCompatible: z
+			.boolean()
+			.optional()
+			.describe('Whether the custom agent is safe for non-interactive callers'),
+		savedSkillIds: z
+			.array(z.string())
+			.optional()
+			.describe('Saved skill row ids to snapshot onto the custom agent'),
+	})
+	.describe('Request body for creating a custom agent draft');
+export type CoderCreateCustomAgentRequest = z.infer<typeof CoderCreateCustomAgentRequestSchema>;
+
+export const CoderUpdateCustomAgentRequestSchema = z
+	.object({
+		slug: z.string().optional().describe('Stable custom agent slug'),
+		displayName: z.string().optional().describe('Human-readable custom agent name'),
+		description: z.string().nullable().optional().describe('Optional custom agent description'),
+		preset: z.string().optional().describe('Built-in preset used as the instruction baseline'),
+		toolProfile: z.string().optional().describe('Built-in tool profile used for tool gating'),
+		instructions: z.string().optional().describe('Custom instruction overlay'),
+		model: z.string().nullable().optional().describe('Optional model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema
+			.nullable()
+			.optional()
+			.describe('Optional thinking level override'),
+		headlessCompatible: z
+			.boolean()
+			.optional()
+			.describe('Whether the custom agent is safe for non-interactive callers'),
+		savedSkillIds: z
+			.array(z.string())
+			.optional()
+			.describe('Saved skill row ids to snapshot onto the custom agent'),
+	})
+	.describe('Request body for updating a custom agent draft');
+export type CoderUpdateCustomAgentRequest = z.infer<typeof CoderUpdateCustomAgentRequestSchema>;
 
 export const CoderSaveSkillRequestSchema = z
 	.object({
