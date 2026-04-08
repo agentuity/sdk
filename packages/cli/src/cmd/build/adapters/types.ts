@@ -22,7 +22,7 @@ export interface BuildResult {
 	/** Server entrypoint file (relative to outputDir) */
 	serverEntry?: string;
 
-	/** Static assets directory (absolute path) */
+	/** Static/CDN assets directory (absolute path), for CDN upload enumeration */
 	staticDir?: string;
 
 	/** Port the app listens on */

@@ -191,13 +191,40 @@ export const genericAdapter: BuildAdapter = {
 			cpSync(nodeModulesSrc, nodeModulesDst, { recursive: true });
 		}
 
-		const staticDir = framework.staticDir ? join(outputDir, framework.staticDir) : undefined;
+		// Step 6: Resolve static asset directory for CDN upload
+		// staticDir is relative to the project root (set by framework detection).
+		// If it matches buildOutput, the files are already in outputDir from the copy.
+		// Otherwise, copy the static assets into the output so deploy can find them.
+		let resolvedStaticDir: string | undefined;
+
+		if (framework.staticDir) {
+			const staticSrcPath = resolve(projectDir, framework.staticDir);
+			const buildOutputPath = resolve(projectDir, framework.buildOutput);
+
+			// Check if the static dir is inside the build output (already copied)
+			if (staticSrcPath.startsWith(buildOutputPath + '/') || staticSrcPath === buildOutputPath) {
+				// Static assets are within the copied build output
+				const relativeToOutput = relative(buildOutputPath, staticSrcPath);
+				resolvedStaticDir = relativeToOutput
+					? join(resolvedOutputDir, relativeToOutput)
+					: resolvedOutputDir;
+			} else if (existsSync(staticSrcPath)) {
+				// Static assets are outside the build output — copy them into the output
+				const staticDstPath = join(resolvedOutputDir, framework.staticDir);
+				logger.debug(`Copying static assets from ${staticSrcPath} to ${staticDstPath}`);
+				mkdirSync(staticDstPath, { recursive: true });
+				cpSync(staticSrcPath, staticDstPath, { recursive: true });
+				resolvedStaticDir = staticDstPath;
+				logs.push(`✓ Copied static assets from ${framework.staticDir}`);
+			}
+		}
 
 		return {
 			outputDir,
 			startCommand,
 			serverEntry,
-			staticDir: staticDir && existsSync(staticDir) ? staticDir : undefined,
+			staticDir:
+				resolvedStaticDir && existsSync(resolvedStaticDir) ? resolvedStaticDir : undefined,
 			port: framework.port,
 			duration: Date.now() - started,
 			logs,

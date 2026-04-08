@@ -57,7 +57,12 @@ export interface DetectedFramework {
 	/** Server entrypoint file (relative to buildOutput) */
 	serverEntry?: string;
 
-	/** Static assets directory (relative to buildOutput), if separate from server */
+	/**
+	 * Static/CDN asset directory (relative to project root).
+	 * After the build runs, this directory contains files suitable for CDN upload.
+	 * For pure SSGs/SPAs this equals buildOutput (entire output is static).
+	 * For SSR frameworks this is a subdirectory (e.g., `.next/static`, `.output/public`).
+	 */
 	staticDir?: string;
 
 	/** Environment variables needed at build time */
