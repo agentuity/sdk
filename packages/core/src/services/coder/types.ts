@@ -242,18 +242,20 @@ export const CoderCustomAgentSchema = CoderCustomAgentSnapshotSchema.extend({
 	lifecycle: z
 		.enum(['draft', 'published', 'archived'])
 		.describe('Current lifecycle state for the custom agent'),
-	visibility: z
-		.enum(['org', 'private_draft'])
-		.describe('Visibility tier for the custom agent'),
+	visibility: z.enum(['org', 'private_draft']).describe('Visibility tier for the custom agent'),
 	createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
 	updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
-	hasPublishedVersion: z.boolean().describe('Whether the agent has at least one published version'),
+	hasPublishedVersion: z
+		.boolean()
+		.describe('Whether the agent has at least one published version'),
 	hasUnpublishedChanges: z
 		.boolean()
 		.describe('Whether the current draft differs from the latest published version'),
 	latestPublishedVersion: z.number().int().optional().describe('Latest published version number'),
 	latestPublishedAt: z.string().optional().describe('Latest published timestamp (ISO-8601)'),
-	published: CoderCustomAgentVersionSchema.optional().describe('Latest published version snapshot'),
+	published: CoderCustomAgentVersionSchema.optional().describe(
+		'Latest published version snapshot'
+	),
 	draft: CoderCustomAgentSnapshotSchema.optional().describe('Owner-visible draft snapshot'),
 })
 	.passthrough()
@@ -354,8 +356,7 @@ export const CoderUpdateCustomAgentRequestSchema = z
 		description: z.string().nullable().optional().describe('Optional custom agent description'),
 		instructions: z.string().optional().describe('Standalone custom-agent system prompt'),
 		model: z.string().nullable().optional().describe('Optional model override'),
-		thinkingLevel: CoderCustomAgentThinkingLevelSchema
-			.nullable()
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.nullable()
 			.optional()
 			.describe('Optional thinking level override'),
 		headlessCompatible: z

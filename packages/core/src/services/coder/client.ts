@@ -355,7 +355,7 @@ export class CoderClient {
 	 */
 	async updateCustomAgent(
 		agentIdOrSlug: string,
-		body: CoderUpdateCustomAgentRequest,
+		body: CoderUpdateCustomAgentRequest
 	): Promise<CoderCustomAgent> {
 		const client = await this.#getClient();
 		return coderUpdateCustomAgent(client, { agentIdOrSlug, body, orgId: this.#orgId });
@@ -380,7 +380,9 @@ export class CoderClient {
 	/**
 	 * Lists published versions for a custom agent.
 	 */
-	async listCustomAgentVersions(agentIdOrSlug: string): Promise<CoderCustomAgentVersionListResponse> {
+	async listCustomAgentVersions(
+		agentIdOrSlug: string
+	): Promise<CoderCustomAgentVersionListResponse> {
 		const client = await this.#getClient();
 		return coderListCustomAgentVersions(client, { agentIdOrSlug, orgId: this.#orgId });
 	}

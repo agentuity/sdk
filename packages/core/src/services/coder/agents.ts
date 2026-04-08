@@ -67,7 +67,7 @@ function buildAgentListQuery(params?: CoderListCustomAgentsParams): string {
 
 export async function coderListCustomAgents(
 	client: APIClient,
-	params?: CoderListCustomAgentsParams,
+	params?: CoderListCustomAgentsParams
 ): Promise<CoderCustomAgentListResponse> {
 	const path = `/hub/agents${buildAgentListQuery(params)}`;
 	return client.get<CoderCustomAgentListResponse>(path, CoderCustomAgentListResponseSchema);
@@ -75,84 +75,74 @@ export async function coderListCustomAgents(
 
 export async function coderGetCustomAgent(
 	client: APIClient,
-	params: CoderCustomAgentIdParams,
+	params: CoderCustomAgentIdParams
 ): Promise<CoderCustomAgent> {
 	const path = `/hub/agents/${encodeURIComponent(params.agentIdOrSlug)}`;
 	const resp = await client.get<z.infer<typeof CustomAgentResponseSchema>>(
 		path,
-		CustomAgentResponseSchema,
+		CustomAgentResponseSchema
 	);
 	return resp.agent;
 }
 
 export async function coderCreateCustomAgent(
 	client: APIClient,
-	params: CoderCreateCustomAgentParams,
+	params: CoderCreateCustomAgentParams
 ): Promise<CoderCustomAgent> {
 	const resp = await client.post<
 		z.infer<typeof CustomAgentResponseSchema>,
 		CoderCreateCustomAgentRequest
-	>(
-		'/hub/agents',
-		params.body,
-		CustomAgentResponseSchema,
-		CoderCreateCustomAgentRequestSchema,
-	);
+	>('/hub/agents', params.body, CustomAgentResponseSchema, CoderCreateCustomAgentRequestSchema);
 
 	return resp.agent;
 }
 
 export async function coderUpdateCustomAgent(
 	client: APIClient,
-	params: CoderUpdateCustomAgentParams,
+	params: CoderUpdateCustomAgentParams
 ): Promise<CoderCustomAgent> {
 	const path = `/hub/agents/${encodeURIComponent(params.agentIdOrSlug)}`;
 	const resp = await client.patch<
 		z.infer<typeof CustomAgentResponseSchema>,
 		CoderUpdateCustomAgentRequest
-	>(
-		path,
-		params.body,
-		CustomAgentResponseSchema,
-		CoderUpdateCustomAgentRequestSchema,
-	);
+	>(path, params.body, CustomAgentResponseSchema, CoderUpdateCustomAgentRequestSchema);
 
 	return resp.agent;
 }
 
 export async function coderPublishCustomAgent(
 	client: APIClient,
-	params: CoderCustomAgentIdParams,
+	params: CoderCustomAgentIdParams
 ): Promise<CoderCustomAgent> {
 	const path = `/hub/agents/${encodeURIComponent(params.agentIdOrSlug)}/publish`;
 	const resp = await client.post<z.infer<typeof CustomAgentResponseSchema>>(
 		path,
 		undefined,
-		CustomAgentResponseSchema,
+		CustomAgentResponseSchema
 	);
 	return resp.agent;
 }
 
 export async function coderArchiveCustomAgent(
 	client: APIClient,
-	params: CoderCustomAgentIdParams,
+	params: CoderCustomAgentIdParams
 ): Promise<CoderCustomAgent> {
 	const path = `/hub/agents/${encodeURIComponent(params.agentIdOrSlug)}/archive`;
 	const resp = await client.post<z.infer<typeof CustomAgentResponseSchema>>(
 		path,
 		undefined,
-		CustomAgentResponseSchema,
+		CustomAgentResponseSchema
 	);
 	return resp.agent;
 }
 
 export async function coderListCustomAgentVersions(
 	client: APIClient,
-	params: CoderCustomAgentIdParams,
+	params: CoderCustomAgentIdParams
 ): Promise<CoderCustomAgentVersionListResponse> {
 	const path = `/hub/agents/${encodeURIComponent(params.agentIdOrSlug)}/versions`;
 	return client.get<CoderCustomAgentVersionListResponse>(
 		path,
-		CoderCustomAgentVersionListResponseSchema,
+		CoderCustomAgentVersionListResponseSchema
 	);
 }

@@ -383,14 +383,16 @@ describe('CoderClient custom agent helpers', () => {
 			orgId: 'org_test',
 		});
 
-		await expect(client.createCustomAgent({
-			slug: 'code-review',
-			displayName: 'Code Review',
-			instructions: 'Focus on correctness, regressions, and missing tests.',
-			piTools: ['read', 'grep', 'ls'],
-			hubToolNames: ['session_todo_list', 'session_todo_update'],
-			savedSkillIds: ['saved_1'],
-		})).resolves.toMatchObject({
+		await expect(
+			client.createCustomAgent({
+				slug: 'code-review',
+				displayName: 'Code Review',
+				instructions: 'Focus on correctness, regressions, and missing tests.',
+				piTools: ['read', 'grep', 'ls'],
+				hubToolNames: ['session_todo_list', 'session_todo_update'],
+				savedSkillIds: ['saved_1'],
+			})
+		).resolves.toMatchObject({
 			slug: 'code-review',
 			displayName: 'Code Review',
 		});
@@ -421,17 +423,20 @@ describe('CoderClient custom agent helpers', () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/agents/code-review/publish');
 			expect(init?.method).toBe('POST');
-			return new Response(JSON.stringify({
-				agent: makeCustomAgent({
-					lifecycle: 'published',
-					visibility: 'org',
-					hasPublishedVersion: true,
-					latestPublishedVersion: 1,
+			return new Response(
+				JSON.stringify({
+					agent: makeCustomAgent({
+						lifecycle: 'published',
+						visibility: 'org',
+						hasPublishedVersion: true,
+						latestPublishedVersion: 1,
+					}),
 				}),
-			}), {
-				status: 200,
-				headers: { 'content-type': 'application/json' },
-			});
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
 		});
 
 		const client = new CoderClient({
