@@ -20,6 +20,7 @@ export const OAuthClientSchema = z.object({
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()),
 	internal: z.boolean().optional().default(false),
+	is_public: z.boolean().default(true),
 	created_at: z.string(),
 	updated_at: z.string(),
 });
@@ -50,6 +51,7 @@ export const OAuthClientCreateRequestSchema = z.object({
 	refresh_token_lifetime_seconds: z.number().optional(),
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()).optional(),
+	is_public: z.boolean().optional(),
 });
 
 export type OAuthClientCreateRequest = z.infer<typeof OAuthClientCreateRequestSchema>;
@@ -77,6 +79,7 @@ export const OAuthClientUpdateRequestSchema = z.object({
 	refresh_token_lifetime_seconds: z.number().optional(),
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()).optional(),
+	is_public: z.boolean().optional(),
 });
 
 export type OAuthClientUpdateRequest = z.infer<typeof OAuthClientUpdateRequestSchema>;
