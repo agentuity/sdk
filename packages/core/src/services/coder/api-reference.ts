@@ -1,17 +1,51 @@
+import { z } from 'zod/v4';
 import {
 	CoderCreateSessionRequestSchema,
 	CoderListUsersResponseSchema,
 	CoderLoopStateResponseSchema,
-	CoderSessionEventHistorySchema,
+	CoderSessionEventSchema,
+	CoderSessionListItemSchema,
 	CoderSessionParticipantsSchema,
-	CoderSessionReplaySchema,
 } from './types.ts';
-import {
-	CoderCreateSessionParamsSchema,
-	CoderHubSessionListResponseSchema,
-	CoderLifecycleResponseSchema,
-} from './sessions.ts';
+import { CoderCreateSessionParamsSchema, CoderLifecycleResponseSchema } from './sessions.ts';
 import type { Service } from '../api-reference.ts';
+
+// Docs-only wire schemas: the REST reference documents raw hub payloads,
+// while the public Coder client continues to use the schemas from ./types.ts.
+const CoderHubSessionListWireSchema = z.object({
+	sessions: z
+		.object({
+			websocket: z
+				.array(CoderSessionListItemSchema)
+				.describe('Websocket-backed sessions returned by the hub'),
+			sandbox: z
+				.array(z.unknown())
+				.describe('Non-websocket session entries returned by the hub'),
+		})
+		.describe('Sessions grouped by transport'),
+	total: z.number().describe('Total sessions matching the query'),
+});
+
+const CoderSessionReplayWireSchema = z.object({
+	sessionId: z.string().describe('Session identifier for replay payload'),
+	entriesSource: z
+		.enum(['durable_stream', 'session_entries', 'event_history', 'none'])
+		.describe('Source used to reconstruct replay entries'),
+	sourceCounts: z
+		.object({
+			durableStream: z.number().describe('Replay entries loaded from durable stream storage'),
+			sessionEntries: z.number().describe('Replay entries loaded from session entry storage'),
+			eventHistory: z.number().describe('Replay entries synthesized from event history'),
+		})
+		.optional()
+		.describe('Counts of replay entries by source'),
+	entries: z.array(z.unknown()).describe('Replay conversation entries for the session'),
+});
+
+const CoderSessionEventHistoryWireSchema = z.object({
+	sessionId: z.string().describe('Session identifier for event history payload'),
+	events: z.array(CoderSessionEventSchema).describe('Event history items for the session'),
+});
 
 const service: Service = {
 	name: 'Coder',
@@ -84,7 +118,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns a session list.',
-			responseFields: { schema: CoderHubSessionListResponseSchema, stripRequired: true },
+			responseFields: { schema: CoderHubSessionListWireSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Sessions returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -105,7 +139,7 @@ const service: Service = {
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
 			],
 			requestBody: null,
-			responseDescription: 'Returns success and optionally updated session payload.',
+			responseDescription: 'Returns the session identifier and optional updated status.',
 			responseFields: { schema: CoderLifecycleResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Lifecycle action applied' },
@@ -175,7 +209,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns replay data for the session.',
-			responseFields: { schema: CoderSessionReplaySchema, stripRequired: true },
+			responseFields: { schema: CoderSessionReplayWireSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Replay returned' },
 				{ code: 404, description: 'Session not found' },
@@ -223,7 +257,7 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns session event history.',
-			responseFields: { schema: CoderSessionEventHistorySchema, stripRequired: true },
+			responseFields: { schema: CoderSessionEventHistoryWireSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Event history returned' },
 				{ code: 404, description: 'Session not found' },
