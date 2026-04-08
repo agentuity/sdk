@@ -225,10 +225,10 @@ const service: Service = {
 					required: false,
 				},
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
-				],
-				requestBody: null,
-				responseDescription: 'Returns custom agents visible to the caller.',
-				responseFields: { schema: CoderCustomAgentListResponseSchema, stripRequired: true },
+			],
+			requestBody: null,
+			responseDescription: 'Returns custom agents visible to the caller.',
+			responseFields: { schema: CoderCustomAgentListResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Custom agents returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
@@ -361,18 +361,18 @@ const service: Service = {
 					required: true,
 				},
 			],
-				queryParams: [
-					{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
-				],
-				requestBody: null,
-				responseDescription: 'Returns published versions for the custom agent.',
-				responseFields: {
-					schema: CoderCustomAgentVersionListResponseSchema,
-					stripRequired: true,
-				},
-				statuses: [
-					{ code: 200, description: 'Custom agent versions returned' },
-					{ code: 404, description: 'Custom agent not found' },
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns published versions for the custom agent.',
+			responseFields: {
+				schema: CoderCustomAgentVersionListResponseSchema,
+				stripRequired: true,
+			},
+			statuses: [
+				{ code: 200, description: 'Custom agent versions returned' },
+				{ code: 404, description: 'Custom agent not found' },
 			],
 			examplePath: '/hub/agents/code-review/versions',
 		},

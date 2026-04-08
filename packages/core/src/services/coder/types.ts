@@ -115,7 +115,11 @@ export const CoderWorkspaceDetailSchema = z
 		repoCount: z.number().describe('Number of repositories'),
 		savedSkillIds: z.array(z.string()).describe('Saved skill IDs in workspace'),
 		skillBucketIds: z.array(z.string()).describe('Skill bucket IDs in workspace'),
-		agentSlugs: z.array(z.string()).describe('Published custom agent slugs in workspace'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.default([])
+			.describe('Published custom agent slugs in workspace'),
 		selectionCount: z.number().describe('Total number of selections'),
 		createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
 		updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
@@ -561,17 +565,17 @@ export const CoderSessionListItemSchema = z
 		lastActivityAt: z.string().describe('Timestamp of most recent activity (ISO-8601)'),
 		taskCount: z.number().describe('Number of tasks associated with the session'),
 		subAgentCount: z.number().describe('Number of sub-agents associated with the session'),
-			observerCount: z.number().describe('Number of observer participants in the session'),
-			participantCount: z.number().describe('Total number of participants in the session'),
-			tags: z.array(z.string()).describe('Tag values attached to the session'),
-			skills: z.array(CoderSkillRefSchema).describe('Skills attached to the session'),
-			agentSlugs: z
-				.array(z.string())
-				.optional()
-				.default([])
-				.describe('Published custom agent slugs attached to the session'),
-			defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
-			bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
+		observerCount: z.number().describe('Number of observer participants in the session'),
+		participantCount: z.number().describe('Total number of participants in the session'),
+		tags: z.array(z.string()).describe('Tag values attached to the session'),
+		skills: z.array(CoderSkillRefSchema).describe('Skills attached to the session'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.default([])
+			.describe('Published custom agent slugs attached to the session'),
+		defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
+		bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
 		runtimeAvailable: z.boolean().describe('Whether runtime is currently reachable'),
 		controlAvailable: z.boolean().describe('Whether control operations are currently available'),
 		manageAvailable: z
