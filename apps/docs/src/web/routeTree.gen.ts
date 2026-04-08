@@ -45,6 +45,7 @@ import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/t
 import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules';
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues';
 import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email';
+import { Route as DocsServicesCoderRouteImport } from './routes/_docs/services/coder';
 import { Route as DocsServicesAuthenticationRouteImport } from './routes/_docs/services/authentication';
 import { Route as DocsRoutesWebsocketsRouteImport } from './routes/_docs/routes/websockets';
 import { Route as DocsRoutesWebrtcRouteImport } from './routes/_docs/routes/webrtc';
@@ -123,6 +124,7 @@ import { Route as DocsReferenceSdkReferenceEvaluationsRouteImport } from './rout
 import { Route as DocsReferenceSdkReferenceEmailServiceRouteImport } from './routes/_docs/reference/sdk-reference/email-service';
 import { Route as DocsReferenceSdkReferenceContextApiRouteImport } from './routes/_docs/reference/sdk-reference/context-api';
 import { Route as DocsReferenceSdkReferenceCommunicationRouteImport } from './routes/_docs/reference/sdk-reference/communication';
+import { Route as DocsReferenceSdkReferenceCoderRouteImport } from './routes/_docs/reference/sdk-reference/coder';
 import { Route as DocsReferenceSdkReferenceApplicationEntryRouteImport } from './routes/_docs/reference/sdk-reference/application-entry';
 import { Route as DocsReferenceSdkReferenceAgentsRouteImport } from './routes/_docs/reference/sdk-reference/agents';
 import { Route as DocsReferenceSdkReferenceAdvancedRouteImport } from './routes/_docs/reference/sdk-reference/advanced';
@@ -137,6 +139,7 @@ import { Route as DocsReferenceCliDevelopmentRouteImport } from './routes/_docs/
 import { Route as DocsReferenceCliDeploymentRouteImport } from './routes/_docs/reference/cli/deployment';
 import { Route as DocsReferenceCliDebuggingRouteImport } from './routes/_docs/reference/cli/debugging';
 import { Route as DocsReferenceCliConfigurationRouteImport } from './routes/_docs/reference/cli/configuration';
+import { Route as DocsReferenceCliCoderRouteImport } from './routes/_docs/reference/cli/coder';
 import { Route as DocsReferenceCliClaudeCodePluginRouteImport } from './routes/_docs/reference/cli/claude-code-plugin';
 import { Route as DocsReferenceCliBuildConfigurationRouteImport } from './routes/_docs/reference/cli/build-configuration';
 import { Route as DocsReferenceCliAiCommandsRouteImport } from './routes/_docs/reference/cli/ai-commands';
@@ -160,6 +163,7 @@ import { Route as DocsReferenceApiKeyValueRouteImport } from './routes/_docs/ref
 import { Route as DocsReferenceApiEvaluationsRouteImport } from './routes/_docs/reference/api/evaluations';
 import { Route as DocsReferenceApiEmailRouteImport } from './routes/_docs/reference/api/email';
 import { Route as DocsReferenceApiDatabaseRouteImport } from './routes/_docs/reference/api/database';
+import { Route as DocsReferenceApiCoderRouteImport } from './routes/_docs/reference/api/coder';
 import { Route as DocsReferenceApiApiKeysRouteImport } from './routes/_docs/reference/api/api-keys';
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents';
 import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent';
@@ -360,6 +364,11 @@ const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
 const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
 	id: '/services/email',
 	path: '/services/email',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesCoderRoute = DocsServicesCoderRouteImport.update({
+	id: '/services/coder',
+	path: '/services/coder',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsServicesAuthenticationRoute = DocsServicesAuthenticationRouteImport.update({
@@ -763,6 +772,11 @@ const DocsReferenceSdkReferenceCommunicationRoute =
 		path: '/communication',
 		getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
 	} as any);
+const DocsReferenceSdkReferenceCoderRoute = DocsReferenceSdkReferenceCoderRouteImport.update({
+	id: '/coder',
+	path: '/coder',
+	getParentRoute: () => DocsReferenceSdkReferenceRouteRoute,
+} as any);
 const DocsReferenceSdkReferenceApplicationEntryRoute =
 	DocsReferenceSdkReferenceApplicationEntryRouteImport.update({
 		id: '/application-entry',
@@ -832,6 +846,11 @@ const DocsReferenceCliDebuggingRoute = DocsReferenceCliDebuggingRouteImport.upda
 const DocsReferenceCliConfigurationRoute = DocsReferenceCliConfigurationRouteImport.update({
 	id: '/reference/cli/configuration',
 	path: '/reference/cli/configuration',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceCliCoderRoute = DocsReferenceCliCoderRouteImport.update({
+	id: '/reference/cli/coder',
+	path: '/reference/cli/coder',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsReferenceCliClaudeCodePluginRoute = DocsReferenceCliClaudeCodePluginRouteImport.update({
@@ -948,6 +967,11 @@ const DocsReferenceApiEmailRoute = DocsReferenceApiEmailRouteImport.update({
 const DocsReferenceApiDatabaseRoute = DocsReferenceApiDatabaseRouteImport.update({
 	id: '/database',
 	path: '/database',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
+const DocsReferenceApiCoderRoute = DocsReferenceApiCoderRouteImport.update({
+	id: '/coder',
+	path: '/coder',
 	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
 const DocsReferenceApiApiKeysRoute = DocsReferenceApiApiKeysRouteImport.update({
@@ -1138,6 +1162,7 @@ export interface FileRoutesByFullPath {
 	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
 	'/services/authentication': typeof DocsServicesAuthenticationRoute;
+	'/services/coder': typeof DocsServicesCoderRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
@@ -1174,6 +1199,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
 	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
 	'/reference/api/email': typeof DocsReferenceApiEmailRoute;
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
@@ -1197,6 +1223,7 @@ export interface FileRoutesByFullPath {
 	'/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute;
 	'/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute;
 	'/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute;
+	'/reference/cli/coder': typeof DocsReferenceCliCoderRoute;
 	'/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute;
 	'/reference/cli/debugging': typeof DocsReferenceCliDebuggingRoute;
 	'/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute;
@@ -1211,6 +1238,7 @@ export interface FileRoutesByFullPath {
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
 	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
 	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/coder': typeof DocsReferenceSdkReferenceCoderRoute;
 	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
 	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -1310,6 +1338,7 @@ export interface FileRoutesByTo {
 	'/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/routes/websockets': typeof DocsRoutesWebsocketsRoute;
 	'/services/authentication': typeof DocsServicesAuthenticationRoute;
+	'/services/coder': typeof DocsServicesCoderRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
@@ -1346,6 +1375,7 @@ export interface FileRoutesByTo {
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
 	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
 	'/reference/api/email': typeof DocsReferenceApiEmailRoute;
 	'/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
@@ -1369,6 +1399,7 @@ export interface FileRoutesByTo {
 	'/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute;
 	'/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute;
 	'/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute;
+	'/reference/cli/coder': typeof DocsReferenceCliCoderRoute;
 	'/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute;
 	'/reference/cli/debugging': typeof DocsReferenceCliDebuggingRoute;
 	'/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute;
@@ -1383,6 +1414,7 @@ export interface FileRoutesByTo {
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
 	'/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
 	'/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/reference/sdk-reference/coder': typeof DocsReferenceSdkReferenceCoderRoute;
 	'/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
 	'/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -1486,6 +1518,7 @@ export interface FileRoutesById {
 	'/_docs/routes/webrtc': typeof DocsRoutesWebrtcRoute;
 	'/_docs/routes/websockets': typeof DocsRoutesWebsocketsRoute;
 	'/_docs/services/authentication': typeof DocsServicesAuthenticationRoute;
+	'/_docs/services/coder': typeof DocsServicesCoderRoute;
 	'/_docs/services/email': typeof DocsServicesEmailRoute;
 	'/_docs/services/queues': typeof DocsServicesQueuesRoute;
 	'/_docs/services/schedules': typeof DocsServicesSchedulesRoute;
@@ -1522,6 +1555,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
 	'/_docs/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
+	'/_docs/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/_docs/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
 	'/_docs/reference/api/email': typeof DocsReferenceApiEmailRoute;
 	'/_docs/reference/api/evaluations': typeof DocsReferenceApiEvaluationsRoute;
@@ -1545,6 +1579,7 @@ export interface FileRoutesById {
 	'/_docs/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute;
 	'/_docs/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute;
 	'/_docs/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute;
+	'/_docs/reference/cli/coder': typeof DocsReferenceCliCoderRoute;
 	'/_docs/reference/cli/configuration': typeof DocsReferenceCliConfigurationRoute;
 	'/_docs/reference/cli/debugging': typeof DocsReferenceCliDebuggingRoute;
 	'/_docs/reference/cli/deployment': typeof DocsReferenceCliDeploymentRoute;
@@ -1559,6 +1594,7 @@ export interface FileRoutesById {
 	'/_docs/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
 	'/_docs/reference/sdk-reference/agents': typeof DocsReferenceSdkReferenceAgentsRoute;
 	'/_docs/reference/sdk-reference/application-entry': typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	'/_docs/reference/sdk-reference/coder': typeof DocsReferenceSdkReferenceCoderRoute;
 	'/_docs/reference/sdk-reference/communication': typeof DocsReferenceSdkReferenceCommunicationRoute;
 	'/_docs/reference/sdk-reference/context-api': typeof DocsReferenceSdkReferenceContextApiRoute;
 	'/_docs/reference/sdk-reference/email-service': typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -1662,6 +1698,7 @@ export interface FileRouteTypes {
 		| '/routes/webrtc'
 		| '/routes/websockets'
 		| '/services/authentication'
+		| '/services/coder'
 		| '/services/email'
 		| '/services/queues'
 		| '/services/schedules'
@@ -1698,6 +1735,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
 		| '/reference/api/api-keys'
+		| '/reference/api/coder'
 		| '/reference/api/database'
 		| '/reference/api/email'
 		| '/reference/api/evaluations'
@@ -1721,6 +1759,7 @@ export interface FileRouteTypes {
 		| '/reference/cli/ai-commands'
 		| '/reference/cli/build-configuration'
 		| '/reference/cli/claude-code-plugin'
+		| '/reference/cli/coder'
 		| '/reference/cli/configuration'
 		| '/reference/cli/debugging'
 		| '/reference/cli/deployment'
@@ -1735,6 +1774,7 @@ export interface FileRouteTypes {
 		| '/reference/sdk-reference/advanced'
 		| '/reference/sdk-reference/agents'
 		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/coder'
 		| '/reference/sdk-reference/communication'
 		| '/reference/sdk-reference/context-api'
 		| '/reference/sdk-reference/email-service'
@@ -1834,6 +1874,7 @@ export interface FileRouteTypes {
 		| '/routes/webrtc'
 		| '/routes/websockets'
 		| '/services/authentication'
+		| '/services/coder'
 		| '/services/email'
 		| '/services/queues'
 		| '/services/schedules'
@@ -1870,6 +1911,7 @@ export interface FileRouteTypes {
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
 		| '/reference/api/api-keys'
+		| '/reference/api/coder'
 		| '/reference/api/database'
 		| '/reference/api/email'
 		| '/reference/api/evaluations'
@@ -1893,6 +1935,7 @@ export interface FileRouteTypes {
 		| '/reference/cli/ai-commands'
 		| '/reference/cli/build-configuration'
 		| '/reference/cli/claude-code-plugin'
+		| '/reference/cli/coder'
 		| '/reference/cli/configuration'
 		| '/reference/cli/debugging'
 		| '/reference/cli/deployment'
@@ -1907,6 +1950,7 @@ export interface FileRouteTypes {
 		| '/reference/sdk-reference/advanced'
 		| '/reference/sdk-reference/agents'
 		| '/reference/sdk-reference/application-entry'
+		| '/reference/sdk-reference/coder'
 		| '/reference/sdk-reference/communication'
 		| '/reference/sdk-reference/context-api'
 		| '/reference/sdk-reference/email-service'
@@ -2009,6 +2053,7 @@ export interface FileRouteTypes {
 		| '/_docs/routes/webrtc'
 		| '/_docs/routes/websockets'
 		| '/_docs/services/authentication'
+		| '/_docs/services/coder'
 		| '/_docs/services/email'
 		| '/_docs/services/queues'
 		| '/_docs/services/schedules'
@@ -2045,6 +2090,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/tutorials/rag-agent'
 		| '/_docs/cookbook/tutorials/understanding-agents'
 		| '/_docs/reference/api/api-keys'
+		| '/_docs/reference/api/coder'
 		| '/_docs/reference/api/database'
 		| '/_docs/reference/api/email'
 		| '/_docs/reference/api/evaluations'
@@ -2068,6 +2114,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/cli/ai-commands'
 		| '/_docs/reference/cli/build-configuration'
 		| '/_docs/reference/cli/claude-code-plugin'
+		| '/_docs/reference/cli/coder'
 		| '/_docs/reference/cli/configuration'
 		| '/_docs/reference/cli/debugging'
 		| '/_docs/reference/cli/deployment'
@@ -2082,6 +2129,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/sdk-reference/advanced'
 		| '/_docs/reference/sdk-reference/agents'
 		| '/_docs/reference/sdk-reference/application-entry'
+		| '/_docs/reference/sdk-reference/coder'
 		| '/_docs/reference/sdk-reference/communication'
 		| '/_docs/reference/sdk-reference/context-api'
 		| '/_docs/reference/sdk-reference/email-service'
@@ -2396,6 +2444,13 @@ declare module '@tanstack/react-router' {
 			path: '/services/email';
 			fullPath: '/services/email';
 			preLoaderRoute: typeof DocsServicesEmailRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/coder': {
+			id: '/_docs/services/coder';
+			path: '/services/coder';
+			fullPath: '/services/coder';
+			preLoaderRoute: typeof DocsServicesCoderRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/services/authentication': {
@@ -2944,6 +2999,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceSdkReferenceCommunicationRouteImport;
 			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
 		};
+		'/_docs/reference/sdk-reference/coder': {
+			id: '/_docs/reference/sdk-reference/coder';
+			path: '/coder';
+			fullPath: '/reference/sdk-reference/coder';
+			preLoaderRoute: typeof DocsReferenceSdkReferenceCoderRouteImport;
+			parentRoute: typeof DocsReferenceSdkReferenceRouteRoute;
+		};
 		'/_docs/reference/sdk-reference/application-entry': {
 			id: '/_docs/reference/sdk-reference/application-entry';
 			path: '/application-entry';
@@ -3040,6 +3102,13 @@ declare module '@tanstack/react-router' {
 			path: '/reference/cli/configuration';
 			fullPath: '/reference/cli/configuration';
 			preLoaderRoute: typeof DocsReferenceCliConfigurationRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/cli/coder': {
+			id: '/_docs/reference/cli/coder';
+			path: '/reference/cli/coder';
+			fullPath: '/reference/cli/coder';
+			preLoaderRoute: typeof DocsReferenceCliCoderRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/reference/cli/claude-code-plugin': {
@@ -3203,6 +3272,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceApiDatabaseRouteImport;
 			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
+		'/_docs/reference/api/coder': {
+			id: '/_docs/reference/api/coder';
+			path: '/coder';
+			fullPath: '/reference/api/coder';
+			preLoaderRoute: typeof DocsReferenceApiCoderRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/reference/api/api-keys': {
 			id: '/_docs/reference/api/api-keys';
 			path: '/api-keys';
@@ -3362,6 +3438,7 @@ declare module '@tanstack/react-router' {
 
 interface DocsReferenceApiRouteRouteChildren {
 	DocsReferenceApiApiKeysRoute: typeof DocsReferenceApiApiKeysRoute;
+	DocsReferenceApiCoderRoute: typeof DocsReferenceApiCoderRoute;
 	DocsReferenceApiDatabaseRoute: typeof DocsReferenceApiDatabaseRoute;
 	DocsReferenceApiEmailRoute: typeof DocsReferenceApiEmailRoute;
 	DocsReferenceApiEvaluationsRoute: typeof DocsReferenceApiEvaluationsRoute;
@@ -3387,6 +3464,7 @@ interface DocsReferenceApiRouteRouteChildren {
 
 const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
 	DocsReferenceApiApiKeysRoute: DocsReferenceApiApiKeysRoute,
+	DocsReferenceApiCoderRoute: DocsReferenceApiCoderRoute,
 	DocsReferenceApiDatabaseRoute: DocsReferenceApiDatabaseRoute,
 	DocsReferenceApiEmailRoute: DocsReferenceApiEmailRoute,
 	DocsReferenceApiEvaluationsRoute: DocsReferenceApiEvaluationsRoute,
@@ -3418,6 +3496,7 @@ interface DocsReferenceSdkReferenceRouteRouteChildren {
 	DocsReferenceSdkReferenceAdvancedRoute: typeof DocsReferenceSdkReferenceAdvancedRoute;
 	DocsReferenceSdkReferenceAgentsRoute: typeof DocsReferenceSdkReferenceAgentsRoute;
 	DocsReferenceSdkReferenceApplicationEntryRoute: typeof DocsReferenceSdkReferenceApplicationEntryRoute;
+	DocsReferenceSdkReferenceCoderRoute: typeof DocsReferenceSdkReferenceCoderRoute;
 	DocsReferenceSdkReferenceCommunicationRoute: typeof DocsReferenceSdkReferenceCommunicationRoute;
 	DocsReferenceSdkReferenceContextApiRoute: typeof DocsReferenceSdkReferenceContextApiRoute;
 	DocsReferenceSdkReferenceEmailServiceRoute: typeof DocsReferenceSdkReferenceEmailServiceRoute;
@@ -3438,6 +3517,7 @@ const DocsReferenceSdkReferenceRouteRouteChildren: DocsReferenceSdkReferenceRout
 	DocsReferenceSdkReferenceAdvancedRoute: DocsReferenceSdkReferenceAdvancedRoute,
 	DocsReferenceSdkReferenceAgentsRoute: DocsReferenceSdkReferenceAgentsRoute,
 	DocsReferenceSdkReferenceApplicationEntryRoute: DocsReferenceSdkReferenceApplicationEntryRoute,
+	DocsReferenceSdkReferenceCoderRoute: DocsReferenceSdkReferenceCoderRoute,
 	DocsReferenceSdkReferenceCommunicationRoute: DocsReferenceSdkReferenceCommunicationRoute,
 	DocsReferenceSdkReferenceContextApiRoute: DocsReferenceSdkReferenceContextApiRoute,
 	DocsReferenceSdkReferenceEmailServiceRoute: DocsReferenceSdkReferenceEmailServiceRoute,
@@ -3503,6 +3583,7 @@ interface DocsRouteRouteChildren {
 	DocsRoutesWebrtcRoute: typeof DocsRoutesWebrtcRoute;
 	DocsRoutesWebsocketsRoute: typeof DocsRoutesWebsocketsRoute;
 	DocsServicesAuthenticationRoute: typeof DocsServicesAuthenticationRoute;
+	DocsServicesCoderRoute: typeof DocsServicesCoderRoute;
 	DocsServicesEmailRoute: typeof DocsServicesEmailRoute;
 	DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute;
 	DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute;
@@ -3541,6 +3622,7 @@ interface DocsRouteRouteChildren {
 	DocsReferenceCliAiCommandsRoute: typeof DocsReferenceCliAiCommandsRoute;
 	DocsReferenceCliBuildConfigurationRoute: typeof DocsReferenceCliBuildConfigurationRoute;
 	DocsReferenceCliClaudeCodePluginRoute: typeof DocsReferenceCliClaudeCodePluginRoute;
+	DocsReferenceCliCoderRoute: typeof DocsReferenceCliCoderRoute;
 	DocsReferenceCliConfigurationRoute: typeof DocsReferenceCliConfigurationRoute;
 	DocsReferenceCliDebuggingRoute: typeof DocsReferenceCliDebuggingRoute;
 	DocsReferenceCliDeploymentRoute: typeof DocsReferenceCliDeploymentRoute;
@@ -3618,6 +3700,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsRoutesWebrtcRoute: DocsRoutesWebrtcRoute,
 	DocsRoutesWebsocketsRoute: DocsRoutesWebsocketsRoute,
 	DocsServicesAuthenticationRoute: DocsServicesAuthenticationRoute,
+	DocsServicesCoderRoute: DocsServicesCoderRoute,
 	DocsServicesEmailRoute: DocsServicesEmailRoute,
 	DocsServicesQueuesRoute: DocsServicesQueuesRoute,
 	DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,
@@ -3656,6 +3739,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceCliAiCommandsRoute: DocsReferenceCliAiCommandsRoute,
 	DocsReferenceCliBuildConfigurationRoute: DocsReferenceCliBuildConfigurationRoute,
 	DocsReferenceCliClaudeCodePluginRoute: DocsReferenceCliClaudeCodePluginRoute,
+	DocsReferenceCliCoderRoute: DocsReferenceCliCoderRoute,
 	DocsReferenceCliConfigurationRoute: DocsReferenceCliConfigurationRoute,
 	DocsReferenceCliDebuggingRoute: DocsReferenceCliDebuggingRoute,
 	DocsReferenceCliDeploymentRoute: DocsReferenceCliDeploymentRoute,

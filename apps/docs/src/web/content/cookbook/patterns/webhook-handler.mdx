@@ -10,12 +10,13 @@ Process webhooks from external services (Stripe, GitHub, Slack) with proper sign
 Webhooks require quick responses (usually under 3 seconds). Use `waitUntil` to acknowledge immediately and process in the background.
 
 ```typescript title="src/api/webhooks/route.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import crypto from 'crypto';
-import paymentProcessor from '@agent/payment-processor';
-import subscriptionHandler from '@agent/subscription-handler';
+import paymentProcessor from '@agent/payment-processor/agent';
+import subscriptionHandler from '@agent/subscription-handler/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/stripe', async (c) => {
   // Get raw body for signature verification
@@ -103,7 +104,7 @@ export default router;
 ## Slack Webhook Example
 
 ```typescript title="src/api/webhooks/route.ts"
-import slackHandler from '@agent/slack-handler';
+import slackHandler from '@agent/slack-handler/agent';
 
 router.post('/slack', async (c) => {
   // Slack retries on failure - skip duplicates

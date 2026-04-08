@@ -312,9 +312,10 @@ try {
 Routes access sandbox through `c.var.sandbox`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/execute', async (c) => {
   const { language, code } = await c.req.json();

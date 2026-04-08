@@ -10,9 +10,10 @@ Schedule tasks to run automatically and cache results for later retrieval. The p
 Fetch external data on a schedule and store it in KV. A separate GET endpoint retrieves the cached results.
 
 ```typescript title="src/api/hn/route.ts"
-import { createRouter, cron } from '@agentuity/runtime'; // [!code highlight]
+import { Hono } from 'hono';
+import { type Env, cron } from '@agentuity/runtime'; // [!code highlight]
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 interface Story {
   id: number;
@@ -23,7 +24,7 @@ interface Story {
 }
 
 // Runs every hour - fetches top HN stories and caches them
-router.post('/digest', cron('0 * * * *', async (c) => { // [!code highlight]
+router.post('/digest', cron('0 * * * *', { auth: true }, async (c) => { // [!code highlight]
   c.var.logger.info('Fetching HN stories');
 
   // Get top story IDs

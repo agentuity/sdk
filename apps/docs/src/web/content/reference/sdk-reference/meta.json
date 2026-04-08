@@ -13,6 +13,7 @@
 		"email-service",
 		"schedule-service",
 		"sandbox-service",
+		"coder",
 		"observability",
 		"evaluations",
 		"events",

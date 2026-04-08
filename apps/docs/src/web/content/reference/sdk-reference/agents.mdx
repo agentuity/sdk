@@ -12,7 +12,7 @@ Agents are created using the `createAgent()` function, which provides type-safe 
 
 ### createAgent
 
-`createAgent(name: string, config: AgentConfig): AgentRunner`
+`createAgent(name: string, config: CreateAgentConfig): AgentRunner`
 
 Creates a new agent with schema validation and type inference.
 
@@ -26,14 +26,14 @@ Creates a new agent with schema validation and type inference.
     - `output`: Schema for validating outgoing data
     - `stream`: Enable streaming responses (boolean, defaults to false)
   - `handler`: The agent function that processes inputs and returns outputs
-  - `setup` (optional): Async function called once on app startup, returns agent-specific config accessible via `ctx.config`
-  - `shutdown` (optional): Async cleanup function called on app shutdown
+  - `setup` (optional): Async function called once on app startup. Return agent-specific config for `ctx.config`
+  - `shutdown` (optional): Async cleanup function called on app shutdown with the setup result
 
 **Return Value**
 
 Returns an `AgentRunner` object with the following properties:
-- `metadata`: Agent metadata (id, identifier, filename, version, name, description)
-- `run(input?)`: Execute the agent with optional input
+- `metadata`: Agent metadata (`id`, `agentId`, `filename`, `version`, `name`, `description`)
+- `run(input)`: Execute the agent. Input is required when the agent has an input schema, omitted otherwise.
 - `createEval(name, config)`: Create quality evaluations for this agent
 - `addEventListener(eventName, callback)`: Attach lifecycle event listeners
 - `removeEventListener(eventName, callback)`: Remove event listeners
@@ -45,7 +45,7 @@ See [Event System](/reference/sdk-reference/events) for available events and usa
 - `outputSchema` (conditional): Present if output schema is defined
 - `stream` (conditional): Present if streaming is enabled
 
-**Note**: To call agents from other agents, import them directly: `import otherAgent from '@agent/other'; otherAgent.run(input)` (see [Agent Communication](/reference/sdk-reference/communication)).
+**Note**: To call agents from other agents, import them directly: `import otherAgent from '@agent/other/agent'; otherAgent.run(input)` (see [Agent Communication](/reference/sdk-reference/communication)).
 
 ### Agent Setup and Shutdown
 
@@ -53,21 +53,21 @@ Agents can define `setup` and `shutdown` functions for initialization and cleanu
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('CachedProcessor', {
   schema: {
-    input: z.object({ key: z.string() }),
-    output: z.object({ value: z.string() }),
+    input: s.object({ key: s.string() }),
+    output: s.object({ value: s.string() }),
   },
-  // Called once when app starts - return value available via ctx.config
-  setup: async (app) => {
+  // Called once when the app starts. Return value is available via ctx.config.
+  setup: async () => {
     const cache = new Map<string, string>();
     const client = await initializeExternalService();
     return { cache, client };
   },
-  // Called when app shuts down
-  shutdown: async (app, config) => {
+  // Called when the app shuts down.
+  shutdown: async (_app, config) => {
     await config.client.disconnect();
     config.cache.clear();
   },
@@ -87,10 +87,14 @@ const agent = createAgent('CachedProcessor', {
 export default agent;
 ```
 
-The `setup` function receives the app state (from `createApp`'s setup) and returns agent-specific configuration. This is useful for:
+The `setup` function runs once when the app starts and returns agent-specific configuration available via `ctx.config`. This is useful for:
 - Agent-specific caches or connection pools
 - Pre-computed data or models
 - External service clients
+
+<Callout type="info" title="Shared App State Today">
+Agent `setup()` and `shutdown()` are current and useful. The type system still includes app-level state plumbing, but `ctx.app` defaults to `{}`. Prefer module-scoped shared dependencies plus `registerShutdownHook()` instead of new examples built around `ctx.app`.
+</Callout>
 
 ### agent.validator()
 
@@ -112,10 +116,12 @@ agent.validator(options: { input: Schema; output?: Schema }): MiddlewareHandler
 **Example**
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { z } from 'zod';
+import type { Env } from '@agentuity/runtime';
 import agent from './agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Use agent's schema
 router.post('/', agent.validator(), async (c) => {
@@ -426,10 +432,11 @@ For streaming patterns with routes, see [HTTP Routes](/routes/http).
 Streaming agents require the `stream()` middleware in the route handler. Without it the response may be buffered:
 
 ```typescript
-import { createRouter, stream } from '@agentuity/runtime';
-import chatAgent from '@agent/chat-stream';
+import { Hono } from 'hono';
+import { type Env, stream } from '@agentuity/runtime';
+import chatAgent from '@agent/chat-stream/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/chat', chatAgent.validator(), stream(async (c) => {
   const body = c.req.valid('json');

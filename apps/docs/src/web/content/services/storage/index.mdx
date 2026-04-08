@@ -48,26 +48,30 @@ Agentuity provides multiple storage options to match different data access patte
 
 ## Built-in State vs Storage
 
-Agents have built-in state that persists across requests:
+Agents have built-in state for request-local work and thread-level conversation history:
 
 | State Type | Scope | Use For |
 |------------|-------|---------|
-| `ctx.state` | Agent instance | Request-local data |
-| `ctx.thread.state` | Thread | Conversation context |
-| `ctx.session.state` | Session | User preferences |
+| `ctx.state` | Request | Temporary values used inside the current handler |
+| `ctx.session.state` | Request | Values needed during the current request or session-completion callbacks |
+| `ctx.thread.state` | Thread | Conversation context across requests |
 
 Use storage services when you need:
 - Custom TTL or expiration
 - Data shared across agents
-- Persistent data beyond sessions
+- Durable data beyond thread state
 - External system integration
 
 ## Access Patterns
 
-| Context | KV | Vector | Object |
-|---------|----|----|--------|
-| Agents | `ctx.kv` | `ctx.vectors` | `ctx.storage` |
-| Routes | `c.var.kv` | `c.var.vectors` | `c.var.storage` |
+| Context | KV | Vector | Stream |
+|---------|----|--------|--------|
+| Agents | `ctx.kv` | `ctx.vector` | `ctx.stream` |
+| Routes | `c.var.kv` | `c.var.vector` | `c.var.stream` |
+
+<Callout type="info" title="Object and Database Storage Use Bun APIs">
+Database and object storage are not exposed on `ctx.*` or `c.var.*`. Use Bun's native `sql` and `s3` APIs for those services. See [Storage APIs](/reference/sdk-reference/storage) for the current breakdown.
+</Callout>
 
 ## Custom Storage
 

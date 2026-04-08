@@ -13,10 +13,11 @@ For guidance on when to use agents vs handling requests directly in routes, see 
 Import an agent and call it in your route:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/chat', async (c) => {
   const { message } = await c.req.json();
@@ -34,10 +35,11 @@ The agent receives validated input (if it has a schema) and returns typed output
 Use `agent.validator()` for type-safe request validation:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/chat', chat.validator(), async (c) => {
   const data = c.req.valid('json'); // Fully typed from agent schema
@@ -53,12 +55,13 @@ export default router;
 Import and use multiple agents in the same route file:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
-import summarizer from '@agent/summarizer';
-import teamMembers from '@agent/team/members';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
+import summarizer from '@agent/summarizer/agent';
+import teamMembers from '@agent/team/members/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/process', async (c) => {
   const input = await c.req.json();
@@ -79,12 +82,13 @@ export default router;
 Run multiple agents concurrently when they don't depend on each other:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import sentimentAnalyzer from '@agent/sentiment-analyzer';
-import topicExtractor from '@agent/topic-extractor';
-import summarizer from '@agent/summarizer';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import sentimentAnalyzer from '@agent/sentiment-analyzer/agent';
+import topicExtractor from '@agent/topic-extractor/agent';
+import summarizer from '@agent/summarizer/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/analyze', async (c) => {
   const { content } = await c.req.json();
@@ -107,10 +111,11 @@ export default router;
 Use `c.waitUntil()` to run agents after responding to the client:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import webhookProcessor from '@agent/webhook-processor';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import webhookProcessor from '@agent/webhook-processor/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/webhook', async (c) => {
   const payload = await c.req.json();
@@ -137,10 +142,11 @@ Webhook providers expect fast responses (usually under 3 seconds). Use `c.waitUn
 Wrap agent calls in try-catch for graceful error handling:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/safe-chat', async (c) => {
   const { message } = await c.req.json();
@@ -169,15 +175,16 @@ export default router;
 Combine authentication, validation, and multiple agent calls:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import { s } from '@agentuity/schema';
-import chat from '@agent/chat';
-import summarizer from '@agent/summarizer';
-import sentimentAnalyzer from '@agent/sentiment-analyzer';
-import entityExtractor from '@agent/entity-extractor';
+import chat from '@agent/chat/agent';
+import summarizer from '@agent/summarizer/agent';
+import sentimentAnalyzer from '@agent/sentiment-analyzer/agent';
+import entityExtractor from '@agent/entity-extractor/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Auth middleware
 const authMiddleware = createMiddleware(async (c, next) => {
@@ -274,10 +281,11 @@ export default createAgent('Chat', {
 ```
 
 ```typescript title="src/api/chat/route.ts"
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/chat', async (c) => {
   const result = await chat.run({ message: 'Hello' });

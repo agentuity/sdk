@@ -64,14 +64,15 @@ export default agent;
 ## Route Example
 
 ```typescript title="src/api/chat/route.ts"
-import { createRouter } from '@agentuity/runtime';
-import chatAgent from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chatAgent from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/chat', chatAgent.validator(), async (c) => {
   const { message } = c.req.valid('json');
-  return chatAgent.run({ message });
+  return new Response(await chatAgent.run({ message }));
 });
 
 // Reset conversation

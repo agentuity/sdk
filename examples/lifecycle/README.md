@@ -1,13 +1,13 @@
 # Agent Lifecycle Example
 
-Demonstrates agent setup and shutdown lifecycle hooks for resource management.
+Demonstrates agent-level `setup()` and `shutdown()` lifecycle hooks for resource management.
 
 ## Features
 
-- `setup()` - Initialize resources on app startup
-- `shutdown()` - Cleanup resources on app shutdown
-- Config access in handler via `ctx.config`
-- Resource management patterns
+- `setup()` - Initialize resources once when the agent starts; return value is available as `ctx.config`
+- `shutdown()` - Clean up resources when the agent stops
+- `ctx.config` - Typed access to everything returned by `setup()`
+- Event listeners for `started` and `completed` events
 
 ## Running
 
@@ -28,25 +28,25 @@ curl http://localhost:3500/agent/lifecycle
 
 ### Setup Hook
 
-Initialize resources once when the app starts:
+Called once when the agent initializes. Return an object and it becomes `ctx.config` in the handler, fully typed.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('lifecycle-example', {
-	setup: async (app) => {
-		// Initialize resources
+	setup: async () => {
+		// Open connections, load config, allocate resources
 		const db = await connectDatabase();
 		const cache = new Map();
 
 		console.log('Agent initialized');
 
-		// Return config accessible in handler
+		// Return value is available as ctx.config
 		return { db, cache };
 	},
 
-	handler: async (ctx) => {
-		// Access setup config
+	handler: async (ctx, input) => {
+		// ctx.config is typed from the setup return value
 		const { db, cache } = ctx.config;
 
 		const data = await db.query('SELECT * FROM users');
@@ -55,8 +55,8 @@ export default createAgent('lifecycle-example', {
 		return data;
 	},
 
-	shutdown: async (app, config) => {
-		// Cleanup resources
+	shutdown: async (_app, config) => {
+		// Cleanup resources when the agent stops
 		await config.db.close();
 		config.cache.clear();
 
@@ -75,8 +75,8 @@ export default createAgent('lifecycle-example', {
 
 ## Best Practices
 
-1. **Keep setup fast** - App won't start until all setups complete
+1. **Keep setup fast** - The agent won't handle requests until setup completes
 2. **Handle errors** - Setup/shutdown failures should be logged
 3. **Cleanup thoroughly** - Always close connections in shutdown
-4. **Use ctx.config** - Access setup results via context
-5. **Avoid global state** - Use setup config instead
+4. **Use ctx.config** - Access setup results via context rather than module-level globals
+5. **Avoid global state** - Use the setup return value instead

@@ -265,9 +265,10 @@ const agent = createAgent('SessionManager', {
 Routes have the same KV access via `c.var.kv`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/session/:id', async (c) => {
   const sessionId = c.req.param('id');
@@ -294,7 +295,8 @@ Use KV storage outside of agent handlers with `createAgentContext()`:
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 
-await createApp();
+const app = await createApp();
+export default app;
 
 // Discord bot example
 client.on('messageCreate', async (message) => {

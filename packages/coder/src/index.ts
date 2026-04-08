@@ -48,4 +48,37 @@ export {
 	type CoderGitHubRepository,
 	type CoderGitHubAccountListResponse,
 	type CoderGitHubRepositoryListResponse,
+	// WebSocket client
+	CoderHubWebSocketClient,
+	type CoderHubWebSocketOptions,
+	type CoderHubWebSocketState,
+	CoderHubWebSocketOptionsSchema,
+	CoderHubWebSocketError,
+	subscribeToCoderHub,
+	// SSE client
+	CoderSSEClient,
+	type CoderSSEOptions,
+	type CoderSSEClientOptions,
+	type CoderSSEEvent,
+	type CoderSSEState,
+	CoderSSEOptionsSchema,
+	CoderSSEClientOptionsSchema,
+	CoderSSEError,
+	streamCoderSessionSSE,
+	// Protocol types
+	type ClientMessage,
+	type ServerMessage,
+	type CoderHubInitMessage,
+	type CoderHubResponse,
+	type ObserverSseMessage,
+	type BroadcastEventMessage,
+	type PresenceEventMessage,
+	type ConnectionParams,
+	// Close codes
+	CODER_WS_CLOSE_CODE,
+	type CoderWsCloseCode,
+	isTerminalCloseCode,
 } from '@agentuity/core/coder';
+
+// Passthrough export for full protocol surface
+export * from '@agentuity/core/coder';

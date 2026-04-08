@@ -4,13 +4,17 @@ short_title: Storage
 description: KV, Vector, Database, Object, and Stream storage reference
 ---
 
-The SDK provides five storage options: Key-Value, Vector, Database (SQL), Object (S3), and Stream. Built-in services (KV, Vector, Stream) are accessed through the agent context (`ctx.*`), while Database and Object storage use Bun's native APIs (`sql`, `s3`).
+The SDK provides five storage options: Key-Value, Vector, Database (SQL), Object (S3), and Stream. KV, Vector, and Stream are built into the runtime and are available as `ctx.*` in agents and `c.var.*` in routes. Database and Object storage use Bun's native APIs (`sql`, `s3`) instead.
+
+<Callout type="info" title="Built-in services vs Bun-native APIs">
+Use `ctx.kv` / `c.var.kv`, `ctx.vector` / `c.var.vector`, and `ctx.stream` / `c.var.stream` for the runtime-managed storage services. Use Bun's `sql` and `s3` directly for database and object storage.
+</Callout>
 
 ## Key-Value Storage
 
 For caching patterns, TTL strategies, and best practices, see [Key-Value Storage](/services/storage/key-value).
 
-The Key-Value Storage API provides a simple way to store and retrieve data. It is accessed through the `ctx.kv` object.
+The Key-Value Storage API provides a simple way to store and retrieve data. Use `ctx.kv` in agents and `c.var.kv` in routes.
 
 ### get
 
@@ -29,6 +33,7 @@ Returns a Promise that resolves to a `DataResult<T>` object with:
 - `exists`: boolean indicating if the value was found
 - `data`: the actual value of type T (only present when exists is true)
 - `contentType`: the content type of the stored value
+- `expiresAt` (optional): ISO 8601 expiration timestamp, undefined if the key does not expire
 
 **Example**
 
@@ -45,7 +50,7 @@ if (result.exists) {
 
 ### set
 
-`set(name: string, key: string, value: ArrayBuffer | string | Json, ttl?: number): Promise<void>`
+`set<T = unknown>(name: string, key: string, value: T, params?: KeyValueStorageSetParams): Promise<void>`
 
 Stores a value in the key-value storage.
 
@@ -53,8 +58,10 @@ Stores a value in the key-value storage.
 
 - `name`: The name of the key-value storage
 - `key`: The key to store the value under
-- `value`: The value to store (can be an ArrayBuffer, string, or JSON object)
-- `ttl` (optional): Time-to-live in seconds (minimum 60 seconds)
+- `value`: The value to store
+- `params` (optional): Storage options
+  - `ttl`: Time-to-live in seconds. Use `null` or `0` for no expiration
+  - `contentType`: Override the detected content type for the stored value
 
 **Return Value**
 
@@ -116,11 +123,14 @@ Returns a map of keys to items with metadata:
 
 ```typescript
 interface KeyValueItemWithMetadata<T> {
-  value: T;              // The stored value
-  contentType: string;   // MIME type of the value
-  size: number;          // Size in bytes
-  created_at: string;    // ISO timestamp
-  updated_at: string;    // ISO timestamp
+  value: T;                      // The stored value
+  contentType: string;           // MIME type of the value
+  contentEncoding?: string | null;
+  size: number;                  // Size in bytes
+  expiresAt?: string | null;     // ISO 8601 expiration timestamp, null/undefined if no expiry
+  firstUsed?: number | null;     // Unix timestamp (ms) of first access
+  lastUsed?: number | null;      // Unix timestamp (ms) of last access
+  count?: number | null;         // Number of times accessed
 }
 ```
 
@@ -135,7 +145,7 @@ for (const [key, item] of Object.entries(matches)) {
     key,
     value: item.value,
     size: item.size,
-    updatedAt: item.updated_at,
+    lastUsed: item.lastUsed,
   });
 }
 ```
@@ -205,14 +215,27 @@ for (const [namespace, stats] of Object.entries(allStats)) {
 
 ### createNamespace
 
-`createNamespace(name: string): Promise<void>`
+`createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>`
 
-Creates a new namespace.
+Creates a new namespace with an optional default TTL.
+
+```typescript
+interface CreateNamespaceParams {
+  defaultTTLSeconds?: number;  // 0 = no expiry; 60-31,536,000 = custom TTL in seconds
+}
+```
 
 **Example**
 
 ```typescript
+// Create with default server TTL (7 days)
 await ctx.kv.createNamespace('tenant-123');
+
+// Create with keys that never expire by default
+await ctx.kv.createNamespace('tenant-123', { defaultTTLSeconds: 0 });
+
+// Create with a 30-day default TTL
+await ctx.kv.createNamespace('tenant-123', { defaultTTLSeconds: 2592000 });
 ```
 
 ### deleteNamespace
@@ -231,7 +254,7 @@ await ctx.kv.deleteNamespace('old-cache');
 
 For semantic search patterns, RAG examples, and metadata filtering, see [Vector Storage](/services/storage/vector).
 
-The Vector Storage API provides a way to store and search for data using vector embeddings. It is accessed through the `ctx.vector` object.
+The Vector Storage API provides a way to store and search for data using vector embeddings. Use `ctx.vector` in agents and `c.var.vector` in routes.
 
 ### upsert
 
@@ -577,7 +600,7 @@ await ctx.vector.deleteNamespace('old-products');
 
 ## Database (Bun SQL)
 
-Database storage uses [Bun's native SQL APIs](https://bun.sh/docs/runtime/sql). Agentuity auto-injects credentials (`DATABASE_URL`) for PostgreSQL.
+Database storage uses [Bun's native SQL APIs](https://bun.sh/docs/runtime/sql), not `ctx.*` or `c.var.*`. Agentuity auto-injects credentials (`DATABASE_URL`) for PostgreSQL.
 
 ```typescript
 import { sql } from 'bun';
@@ -638,7 +661,7 @@ import { SQL } from "bun";
 
 // PostgreSQL
 const postgres = new SQL({
-  url: process.env.POSTGRES_URL,
+  url: process.env.DATABASE_URL,
   max: 20,
   idleTimeout: 30,
 });
@@ -654,7 +677,7 @@ For Agentuity-specific patterns, see [Database](/services/database). For the com
 
 ## Object Storage (Bun S3)
 
-Object storage uses [Bun's native S3 APIs](https://bun.sh/docs/runtime/s3). To use S3, link a storage bucket to your project: new projects can add one during `agentuity project create`, and existing projects can follow the [Object Storage setup](/services/storage/object#setup). Credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_ENDPOINT`) are written to `.env` by the CLI. When deployed to Agentuity Cloud, credentials for linked buckets are available automatically.
+Object storage uses [Bun's native S3 APIs](https://bun.sh/docs/runtime/s3), not `ctx.*` or `c.var.*`. To use S3, link a storage bucket to your project: new projects can add one during `agentuity project create`, and existing projects can follow the [Object Storage setup](/services/storage/object#setup). Credentials (`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_ENDPOINT`) are written to `.env` by the CLI. When deployed to Agentuity Cloud, credentials for linked buckets are available automatically.
 
 ```typescript
 import { s3 } from 'bun';
@@ -749,17 +772,17 @@ For Agentuity-specific patterns, see [Object Storage](/services/storage/object).
 
 For streaming patterns and the dual-stream approach, see [Durable Streams](/services/storage/durable-streams).
 
-The Stream Storage API provides first-class support for creating and managing server-side streams. Streams are accessible via the `ctx.stream` object.
+The Stream Storage API provides first-class support for creating and managing server-side streams. Use `ctx.stream` in agents and `c.var.stream` in routes.
 
 ### create
 
-`create(name: string, props?: StreamCreateProps): Promise<Stream>`
+`create(namespace: string, props?: StreamCreateProps): Promise<Stream>`
 
-Creates a new, named, writable stream.
+Creates a new writable stream in the given namespace.
 
 **Parameters**
 
-- `name`: A string identifier for the stream
+- `namespace`: A string identifier used to group related streams
 - `props` (optional): Configuration object
   - `metadata`: Key-value pairs for identifying and searching streams
   - `contentType`: Content type of the stream (defaults to `application/octet-stream`)
@@ -844,7 +867,7 @@ Returns a `StreamInfo` object:
 ```typescript
 interface StreamInfo {
   id: string;                        // Unique stream identifier
-  name: string;                      // Stream name
+  namespace: string;                 // Stream namespace
   metadata: Record<string, string>;  // User-defined metadata
   url: string;                       // Public URL to access the stream
   sizeBytes: number;                 // Size of stream content in bytes
@@ -856,7 +879,7 @@ interface StreamInfo {
 ```typescript
 const info = await ctx.stream.get('stream_0199a52b06e3767dbe2f10afabb5e5e4');
 ctx.logger.info('Stream details', {
-  name: info.name,
+  namespace: info.namespace,
   sizeBytes: info.sizeBytes,
   url: info.url,
 });
@@ -903,7 +926,7 @@ Lists and searches streams with filtering and pagination.
 **Parameters**
 
 - `params` (optional):
-  - `name`: Filter by stream name
+  - `namespace`: Filter by stream namespace
   - `metadata`: Filter by metadata key-value pairs
   - `limit`: Maximum streams to return (1-1000, default 100)
   - `offset`: Number of streams to skip

@@ -84,9 +84,7 @@ const MAX_OUTPUT_LINES = 5_000;
 const PROXY_EVENTS = [
 	'session_shutdown',
 	'session_before_switch',
-	'session_switch',
 	'session_before_fork',
-	'session_fork',
 	'session_before_compact',
 	'session_compact',
 	'before_agent_start',

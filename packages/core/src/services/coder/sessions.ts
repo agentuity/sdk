@@ -23,7 +23,7 @@ const CoderHubSessionListResponseSchema = z.object({
 	total: z.number(),
 });
 
-const CoderLifecycleResponseSchema = z
+export const CoderLifecycleResponseSchema = z
 	.object({
 		sessionId: z.string().describe('Session identifier'),
 		status: z.string().optional().describe('New session status'),

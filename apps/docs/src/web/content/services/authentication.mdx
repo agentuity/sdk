@@ -21,14 +21,15 @@ bun add @agentuity/auth @agentuity/drizzle
 Create an auth instance, mount the auth routes, and protect your API with session middleware:
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { createAuth, mountAuthRoutes, createSessionMiddleware } from '@agentuity/auth';
 
 const auth = createAuth({
   connectionString: process.env.DATABASE_URL,
 });
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Expose sign-in, sign-up, session, and token endpoints
 router.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
@@ -194,7 +195,8 @@ Set `OAUTH_ISSUER` and all endpoint URLs are derived automatically. Override ind
 A typical login flow: redirect the user, exchange the callback code for tokens, then fetch the user profile.
 
 ```typescript title="src/api/index.ts"
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import {
   buildAuthorizeUrl,
   exchangeToken,
@@ -202,7 +204,7 @@ import {
   logout,
 } from '@agentuity/core/oauth';
 
-const api = createRouter();
+const api = new Hono<Env>();
 
 // Step 1: Redirect user to the OIDC provider
 api.get('/oauth/login', (c) => {

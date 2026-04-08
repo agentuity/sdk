@@ -39,7 +39,6 @@ The plugin provides various specialized agents, each focused on a specific aspec
 | **Reviewer** | Code Reviewer | Reviewing changes, catching issues, suggesting fixes |
 | **Memory** | Context Manager | Storing/retrieving context, decisions, patterns across sessions |
 | **Expert** | Agentuity Specialist | CLI commands, cloud services, SDK questions |
-| **Planner** | Strategic Advisor | Complex architecture decisions, deep technical planning (read-only) |
 | **Runner** | Command Executor | Run lint/build/test/typecheck/format, returns structured summaries |
 
 ### Sub-Agents
@@ -59,7 +58,7 @@ OpenCode automatically routes tasks to the appropriate agent based on context.
 |--------|---------|-----------|
 | **Mode** | Interactive | Autonomous |
 | **Best for** | Quick fixes, guided work | Cadence mode, complex features |
-| **Model** | Claude Opus 4.5 | GPT 5.2 Codex |
+| **Model** | Claude Opus 4.6 | GPT 5.3 Codex |
 | **Reasoning** | High | Maximum (xhigh) |
 | **Context** | Session-based | Checkpoint-based |
 
@@ -222,11 +221,11 @@ Override any agent's default model in `opencode.json`:
 {
   "agent": {
     "Agentuity Coder Builder": {
-      "model": "anthropic/claude-opus-4-5-20251101",
+      "model": "anthropic/claude-opus-4-6",
       "temperature": 0.7
     },
     "Agentuity Coder Architect": {
-      "model": "openai/gpt-5.2-codex",
+      "model": "openai/gpt-5.3-codex",
       "reasoningEffort": "xhigh"
     }
   }
@@ -235,7 +234,7 @@ Override any agent's default model in `opencode.json`:
 
 | Option | Description |
 |--------|-------------|
-| `model` | Model identifier (e.g., `anthropic/claude-opus-4-5-20251101`) |
+| `model` | Model identifier (e.g., `anthropic/claude-opus-4-6`) |
 | `temperature` | Number between 0-1 (lower = more deterministic) |
 | `reasoningEffort` | For OpenAI: `low`, `medium`, `high`, `xhigh` |
 | `variant` | For Anthropic: `low`, `medium`, `high`, `max` (extended thinking) |

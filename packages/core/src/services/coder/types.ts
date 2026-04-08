@@ -55,7 +55,7 @@ export type CoderSkillRef = z.infer<typeof CoderSkillRefSchema>;
 export const CoderSessionRepositoryRefSchema = z
 	.object({
 		repoId: z.string().optional().describe('Repository identifier when available'),
-		type: z.string().optional().describe('Repository type (e.g., github, gitlab)'),
+		type: z.string().optional().describe('Repository type (e.g., GitHub, GitLab)'),
 		provider: z.string().optional().describe('Git provider identifier'),
 		owner: z.string().optional().describe('Repository owner or organization'),
 		name: z.string().optional().describe('Repository name'),
@@ -115,6 +115,11 @@ export const CoderWorkspaceDetailSchema = z
 		repoCount: z.number().describe('Number of repositories'),
 		savedSkillIds: z.array(z.string()).describe('Saved skill IDs in workspace'),
 		skillBucketIds: z.array(z.string()).describe('Skill bucket IDs in workspace'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.default([])
+			.describe('Published custom agent slugs in workspace'),
 		selectionCount: z.number().describe('Total number of selections'),
 		createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
 		updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
@@ -122,6 +127,170 @@ export const CoderWorkspaceDetailSchema = z
 	.passthrough()
 	.describe('Workspace detail returned by coder hub');
 export type CoderWorkspaceDetail = z.infer<typeof CoderWorkspaceDetailSchema>;
+
+export const CoderCustomAgentThinkingLevelSchema = z
+	.enum(['off', 'minimal', 'low', 'medium', 'high', 'xhigh'])
+	.describe('Thinking level override for a custom agent');
+export type CoderCustomAgentThinkingLevel = z.infer<typeof CoderCustomAgentThinkingLevelSchema>;
+
+export const CODER_CUSTOM_AGENT_PI_TOOLS = [
+	'read',
+	'ls',
+	'find',
+	'grep',
+	'bash',
+	'write',
+	'edit',
+] as const;
+
+export const CoderCustomAgentPiToolSchema = z
+	.enum(CODER_CUSTOM_AGENT_PI_TOOLS)
+	.describe('Workspace tool available to a standalone custom agent');
+export type CoderCustomAgentPiTool = z.infer<typeof CoderCustomAgentPiToolSchema>;
+
+export const CoderCustomAgentPiToolResponseSchema = z
+	.union([CoderCustomAgentPiToolSchema, z.string()])
+	.describe('Pi workspace tool granted to a standalone custom agent');
+export type CoderCustomAgentPiToolResponse = z.infer<typeof CoderCustomAgentPiToolResponseSchema>;
+
+export const CODER_CUSTOM_AGENT_HUB_TOOLS = [
+	'session_dashboard',
+	'memory_service_search',
+	'memory_service_store',
+	'memory_service_get',
+	'memory_service_update',
+	'memory_service_delete',
+	'memory_service_list',
+	'memory_service_schema',
+	'memory_service_facets',
+	'context7_search',
+	'grep_app_search',
+	'web_search',
+	'fetch_content',
+	'product_prd_create',
+	'product_prd_get',
+	'product_prd_update',
+	'product_prd_list',
+	'product_task_comment',
+	'session_todo_create',
+	'session_todo_update',
+	'session_todo_list',
+	'session_todo_comment',
+	'session_todo_attach',
+	'product_generate_deck',
+	'sandbox_exec',
+	'loop_get_state',
+	'loop_update_state',
+	'coord_create_job',
+	'coord_add_task',
+	'coord_claim_task',
+	'coord_complete_task',
+	'coord_fail_task',
+	'coord_list_tasks',
+	'coord_job_status',
+	'coord_reserve_file',
+	'coord_release_file',
+	'coord_provide_contract',
+	'coord_check_contract',
+	'coord_send_message',
+	'coord_read_messages',
+	'coord_heartbeat',
+	'coord_spawn_workers',
+] as const;
+
+export const CoderCustomAgentHubToolSchema = z
+	.enum(CODER_CUSTOM_AGENT_HUB_TOOLS)
+	.describe('Hub-managed tool available to a standalone custom agent');
+export type CoderCustomAgentHubTool = z.infer<typeof CoderCustomAgentHubToolSchema>;
+
+export const CoderCustomAgentHubToolResponseSchema = z
+	.union([CoderCustomAgentHubToolSchema, z.string()])
+	.describe('Hub-managed tool granted to a standalone custom agent');
+export type CoderCustomAgentHubToolResponse = z.infer<typeof CoderCustomAgentHubToolResponseSchema>;
+
+export const CoderCustomAgentSnapshotSchema = z
+	.object({
+		slug: z.string().describe('Stable custom agent slug'),
+		displayName: z.string().describe('Human-readable custom agent name'),
+		description: z.string().optional().describe('Optional custom agent description'),
+		instructions: z.string().describe('Standalone custom-agent system prompt'),
+		model: z.string().optional().describe('Optional model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
+			'Optional thinking level override'
+		),
+		headlessCompatible: z
+			.boolean()
+			.describe('Whether the custom agent is safe for non-interactive callers'),
+		piTools: z
+			.array(CoderCustomAgentPiToolResponseSchema)
+			.describe('Pi workspace tools granted to the custom agent'),
+		hubToolNames: z
+			.array(CoderCustomAgentHubToolResponseSchema)
+			.describe('Hub-managed tools granted to the custom agent'),
+		savedSkills: z
+			.array(CoderSkillRefSchema)
+			.describe('Frozen saved-skill refs attached to the custom agent snapshot'),
+	})
+	.passthrough()
+	.describe('Custom agent snapshot returned by coder hub');
+export type CoderCustomAgentSnapshot = z.infer<typeof CoderCustomAgentSnapshotSchema>;
+
+export const CoderCustomAgentVersionSchema = CoderCustomAgentSnapshotSchema.extend({
+	id: z.string().describe('Published custom agent version identifier'),
+	agentId: z.string().describe('Parent custom agent identifier'),
+	version: z.number().int().describe('Published version number'),
+	createdByUserId: z.string().describe('User who published the version'),
+	createdAt: z.string().describe('Version creation timestamp (ISO-8601)'),
+})
+	.passthrough()
+	.describe('Published custom agent version returned by coder hub');
+export type CoderCustomAgentVersion = z.infer<typeof CoderCustomAgentVersionSchema>;
+
+export const CoderCustomAgentSchema = CoderCustomAgentSnapshotSchema.extend({
+	id: z.string().describe('Custom agent record identifier'),
+	ownerUserId: z.string().describe('Owner user identifier'),
+	lifecycle: z
+		.enum(['draft', 'published', 'archived'])
+		.describe('Current lifecycle state for the custom agent'),
+	visibility: z.enum(['org', 'private_draft']).describe('Visibility tier for the custom agent'),
+	createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
+	updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
+	hasPublishedVersion: z
+		.boolean()
+		.describe('Whether the agent has at least one published version'),
+	hasUnpublishedChanges: z
+		.boolean()
+		.describe('Whether the current draft differs from the latest published version'),
+	latestPublishedVersion: z.number().int().optional().describe('Latest published version number'),
+	latestPublishedAt: z.string().optional().describe('Latest published timestamp (ISO-8601)'),
+	published: CoderCustomAgentVersionSchema.optional().describe(
+		'Latest published version snapshot'
+	),
+	draft: CoderCustomAgentSnapshotSchema.optional().describe('Owner-visible draft snapshot'),
+})
+	.passthrough()
+	.describe('Custom agent record returned by coder hub');
+export type CoderCustomAgent = z.infer<typeof CoderCustomAgentSchema>;
+
+export const CoderCustomAgentListResponseSchema = z
+	.object({
+		agents: z.array(CoderCustomAgentSchema).describe('Custom agents returned by coder hub'),
+	})
+	.passthrough()
+	.describe('Response payload for listing custom agents');
+export type CoderCustomAgentListResponse = z.infer<typeof CoderCustomAgentListResponseSchema>;
+
+export const CoderCustomAgentVersionListResponseSchema = z
+	.object({
+		versions: z
+			.array(CoderCustomAgentVersionSchema)
+			.describe('Published custom agent versions returned by coder hub'),
+	})
+	.passthrough()
+	.describe('Response payload for listing custom agent versions');
+export type CoderCustomAgentVersionListResponse = z.infer<
+	typeof CoderCustomAgentVersionListResponseSchema
+>;
 
 export const CoderSavedSkillListResponseSchema = z
 	.object({
@@ -155,9 +324,70 @@ export const CoderCreateWorkspaceRequestSchema = z
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
+		agentSlugs: z.array(z.string()).optional().describe('Published custom agent slugs'),
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
+
+export const CoderCreateCustomAgentRequestSchema = z
+	.object({
+		slug: z.string().describe('Stable custom agent slug'),
+		displayName: z.string().describe('Human-readable custom agent name'),
+		description: z.string().optional().describe('Optional custom agent description'),
+		instructions: z.string().describe('Standalone custom-agent system prompt'),
+		model: z.string().optional().describe('Optional model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
+			'Optional thinking level override'
+		),
+		headlessCompatible: z
+			.boolean()
+			.optional()
+			.describe('Whether the custom agent is safe for non-interactive callers'),
+		piTools: z
+			.array(CoderCustomAgentPiToolSchema)
+			.optional()
+			.describe('Pi workspace tools to grant to the custom agent'),
+		hubToolNames: z
+			.array(CoderCustomAgentHubToolSchema)
+			.optional()
+			.describe('Hub-managed tools to grant to the custom agent'),
+		savedSkillIds: z
+			.array(z.string())
+			.optional()
+			.describe('Saved skill row ids to snapshot onto the custom agent'),
+	})
+	.describe('Request body for creating a custom agent draft');
+export type CoderCreateCustomAgentRequest = z.infer<typeof CoderCreateCustomAgentRequestSchema>;
+
+export const CoderUpdateCustomAgentRequestSchema = z
+	.object({
+		slug: z.string().optional().describe('Stable custom agent slug'),
+		displayName: z.string().optional().describe('Human-readable custom agent name'),
+		description: z.string().nullable().optional().describe('Optional custom agent description'),
+		instructions: z.string().optional().describe('Standalone custom-agent system prompt'),
+		model: z.string().nullable().optional().describe('Optional model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.nullable()
+			.optional()
+			.describe('Optional thinking level override'),
+		headlessCompatible: z
+			.boolean()
+			.optional()
+			.describe('Whether the custom agent is safe for non-interactive callers'),
+		piTools: z
+			.array(CoderCustomAgentPiToolSchema)
+			.optional()
+			.describe('Pi workspace tools to grant to the custom agent'),
+		hubToolNames: z
+			.array(CoderCustomAgentHubToolSchema)
+			.optional()
+			.describe('Hub-managed tools to grant to the custom agent'),
+		savedSkillIds: z
+			.array(z.string())
+			.optional()
+			.describe('Saved skill row ids to snapshot onto the custom agent'),
+	})
+	.describe('Request body for updating a custom agent draft');
+export type CoderUpdateCustomAgentRequest = z.infer<typeof CoderUpdateCustomAgentRequestSchema>;
 
 export const CoderSaveSkillRequestSchema = z
 	.object({
@@ -209,10 +439,18 @@ export const CoderCreateSessionRequestSchema = z
 		task: z.string().describe('Primary task prompt for the session'),
 		label: z.string().optional().describe('Human-readable session label'),
 		agent: z.string().optional().describe('Default agent identifier to use for execution'),
+		defaultAgent: z
+			.string()
+			.optional()
+			.describe('Preferred default agent identifier for routing session prompts'),
 		visibility: CoderSessionVisibilitySchema.optional().describe('Session visibility setting'),
 		workflowMode: CoderWorkflowModeSchema.optional().describe('Workflow execution mode'),
 		loop: CoderSessionLoopConfigSchema.optional().describe('Loop mode settings for the session'),
 		tags: z.array(z.string()).optional().describe('Tags applied to the session for filtering'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.describe('Published custom agent slugs to include in the session'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
@@ -252,10 +490,15 @@ export const CoderUpdateSessionRequestSchema = z
 	.object({
 		label: z.string().optional().describe('Updated session label'),
 		agent: z.string().optional().describe('Updated default agent identifier'),
+		defaultAgent: z.string().optional().describe('Updated preferred default agent identifier'),
 		visibility: CoderSessionVisibilitySchema.optional().describe('Updated visibility setting'),
 		workflowMode: CoderWorkflowModeSchema.optional().describe('Updated workflow mode'),
 		loop: CoderSessionLoopConfigSchema.optional().describe('Updated loop mode configuration'),
 		tags: z.array(z.string()).optional().describe('Updated set of tags for the session'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.describe('Updated published custom agent slugs included in the session'),
 		skills: z
 			.array(CoderSkillRefSchema)
 			.optional()
@@ -337,6 +580,11 @@ export const CoderSessionListItemSchema = z
 		participantCount: z.number().describe('Total number of participants in the session'),
 		tags: z.array(z.string()).describe('Tag values attached to the session'),
 		skills: z.array(CoderSkillRefSchema).describe('Skills attached to the session'),
+		agentSlugs: z
+			.array(z.string())
+			.optional()
+			.default([])
+			.describe('Published custom agent slugs attached to the session'),
 		defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
 		bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
 		runtimeAvailable: z.boolean().describe('Whether runtime is currently reachable'),

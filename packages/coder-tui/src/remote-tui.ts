@@ -1,14 +1,14 @@
 /**
  * Remote TUI — Native Pi Coding Agent Renderer for Remote Sessions
  *
- * Creates a real AgentSession + InteractiveMode backed by a remote sandbox
+ * Creates a real AgentSessionRuntime + InteractiveMode backed by a remote sandbox
  * via Hub WebSocket, with the coder extension loaded for Hub UI (footer,
  * /hub overlay, commands, titlebar).
  *
  * Architecture:
  *   Remote TUI → Hub WebSocket (controller) → Sandbox (Pi RPC mode)
  *   - User input  → agent.prompt() (monkey-patched) → RPC `prompt` → Hub → sandbox
- *   - Sandbox Pi  → AgentEvent stream → Hub broadcast → Agent.emit() → InteractiveMode renders natively
+ *   - Sandbox Pi  → AgentEvent stream → Hub broadcast → AgentSession event handling → InteractiveMode renders natively
  *   - Hub UI      → coder extension (loaded via DefaultResourceLoader) provides footer, /hub, commands
  *
  * The local Agent never calls an LLM. Its prompt/steer/abort are monkey-patched
@@ -22,14 +22,16 @@
  *
  * IMPORTANT: Initialization order matters!
  *   1. Create RemoteSession (no connection yet)
- *   2. Create AgentSession, patch Agent/Session methods
+ *   2. Create AgentSessionRuntime, patch Agent/Session methods
  *   3. Register ALL event handlers on RemoteSession
  *   4. THEN connect — so hydration + replay events are captured
  */
 
 import {
-	createAgentSession,
-	DefaultResourceLoader,
+	createAgentSessionFromServices,
+	createAgentSessionRuntime,
+	createAgentSessionServices,
+	getAgentDir,
 	InteractiveMode,
 	SessionManager,
 } from '@mariozechner/pi-coding-agent';
@@ -49,6 +51,11 @@ import { RemoteSession } from './remote-session.ts';
 import type { RpcEvent } from './remote-session.ts';
 import { agentuityCoderHub } from './index.ts';
 import { handleRemoteUiRequest, REMOTE_FIRE_AND_FORGET_UI_METHODS } from './remote-ui-handler.ts';
+import {
+	dispatchRemoteSessionEvent,
+	installRemoteRuntimeOperationGuards,
+	REMOTE_RUNTIME_OPERATION_MESSAGE,
+} from './remote-runtime.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -60,7 +67,7 @@ function log(msg: string): void {
  * Run the native Pi TUI connected to a remote sandbox session.
  *
  * This is the entry point for `agentuity coder start --remote <sessionId>`.
- * Creates an AgentSession with the coder extension loaded (Hub UI), then
+ * Creates an AgentSessionRuntime with the coder extension loaded (Hub UI), then
  * monkey-patches the Agent for remote-backed execution.
  */
 export async function runRemoteTui(options: {
@@ -90,32 +97,73 @@ export async function runRemoteTui(options: {
 	let hydrationStreamingDetected = false;
 	let sessionResumeSeen = false;
 
-	// ── 2. Create AgentSession with coder extension loaded ──
+	// ── 2. Create AgentSessionRuntime with coder extension loaded ──
 	// The extension provides Hub UI (footer, /hub overlay, commands, titlebar).
 	// AGENTUITY_CODER_NATIVE_REMOTE=1 tells it to skip legacy event rendering.
 	const cwd = process.cwd();
-	const resourceLoader = new DefaultResourceLoader({
-		cwd,
-		noExtensions: true, // Skip file-system extension discovery
-		extensionFactories: [agentuityCoderHub], // Load coder extension directly
-	});
-	await resourceLoader.reload();
+	const runtime = await createAgentSessionRuntime(
+		async ({ cwd, agentDir, sessionManager, sessionStartEvent }) => {
+			const services = await createAgentSessionServices({
+				cwd,
+				agentDir,
+				resourceLoaderOptions: {
+					noExtensions: true, // Skip file-system extension discovery
+					extensionFactories: [agentuityCoderHub], // Load coder extension directly
+				},
+			});
 
-	const { session } = await createAgentSession({
-		sessionManager: SessionManager.inMemory(),
-		tools: [], // No local tools — sandbox has all the tools
-		resourceLoader,
-	});
-	log('AgentSession created');
+			return {
+				...(await createAgentSessionFromServices({
+					services,
+					sessionManager,
+					sessionStartEvent,
+					tools: [], // No local tools — sandbox has all the tools
+				})),
+				services,
+				diagnostics: services.diagnostics,
+			};
+		},
+		{
+			cwd,
+			agentDir: getAgentDir(),
+			sessionManager: SessionManager.inMemory(),
+		}
+	);
+	const session = runtime.session;
+	const agent: any = session.agent;
+	let runtimeDisposed = false;
+	log('AgentSessionRuntime created');
+
+	function notifyBlockedRuntimeOperation(operation: string): void {
+		const message = `${REMOTE_RUNTIME_OPERATION_MESSAGE} (${operation})`;
+		const ctx = getNativeRemoteExtensionContext();
+		if (ctx?.hasUI) {
+			ctx.ui.notify(message, 'warning');
+			ctx.ui.setStatus('remote_runtime', operation);
+			return;
+		}
+		log(message);
+	}
+
+	installRemoteRuntimeOperationGuards(runtime as any, (operation) =>
+		notifyBlockedRuntimeOperation(operation)
+	);
+
+	async function disposeRuntime(): Promise<void> {
+		if (runtimeDisposed) return;
+		runtimeDisposed = true;
+		await runtime.dispose();
+	}
 
 	// NOTE: Do NOT call session.bindExtensions() here.
 	// InteractiveMode.initExtensions() calls it with the proper uiContext.
 	// Calling it early fires session_start twice, duplicating extension init.
-
-	// Access the Agent instance (typed as `any` for monkey-patching)
-	const agent: any = session.agent;
 	let lifecycleState = remote.getLifecycleState();
 	let lifecycleOwnsWorkingMessage = false;
+
+	function emitSessionEvent(event: RpcEvent): void {
+		dispatchRemoteSessionEvent(session as any, event);
+	}
 
 	function applyLifecycleUi(state: RemoteLifecycleState): void {
 		const ctx = getNativeRemoteExtensionContext();
@@ -174,7 +222,7 @@ export async function runRemoteTui(options: {
 
 		// Emit synthetic agent_start so InteractiveMode shows "working" immediately
 		syntheticAgentStartEmitted = true;
-		agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() });
+		emitSessionEvent({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
 
 		// Send RPC command to sandbox
 		remote.prompt(text);
@@ -268,7 +316,7 @@ export async function runRemoteTui(options: {
 	//
 	// Events that arrive before InteractiveMode is initialized are buffered
 	// and flushed after init (InteractiveMode registers listeners during init,
-	// so agent.emit() before that fires into the void).
+	// so session event dispatch before that fires into the void).
 	let interactiveModeReady = false;
 	let eventBuffer: RpcEvent[] = [];
 	let seenMessageStart = false;
@@ -315,7 +363,7 @@ export async function runRemoteTui(options: {
 		}
 
 		for (const event of syntheticEvents) {
-			agent.emit(event);
+			emitSessionEvent(event);
 		}
 	}
 
@@ -507,10 +555,14 @@ export async function runRemoteTui(options: {
 		) {
 			log(`Live ${rpcEvent.type} without prior message_start — injecting synthetics`);
 			if (!hadSeenAgentStart) {
-				agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
+				emitSessionEvent({
+					type: 'agent_start',
+					agentName: 'lead',
+					timestamp: Date.now(),
+				} as any);
 				seenAgentStart = true;
 			}
-			agent.emit({
+			emitSessionEvent({
 				type: 'message_start',
 				message: {
 					role: 'assistant',
@@ -535,7 +587,7 @@ export async function runRemoteTui(options: {
 		}
 
 		// Emit to subscribers — InteractiveMode.handleEvent processes this
-		agent.emit(rpcEvent);
+		emitSessionEvent(rpcEvent);
 		if (injectedSyntheticMessageStart && rpcEvent.type === 'message_end') {
 			seenMessageStart = false;
 			seenAgentStart = hadSeenAgentStart;
@@ -787,7 +839,7 @@ export async function runRemoteTui(options: {
 
 	// ── 9. Start InteractiveMode — full native Pi TUI ──
 	log('Creating InteractiveMode');
-	const interactive = new InteractiveMode(session);
+	const interactive = new InteractiveMode(runtime);
 	log('InteractiveMode created, calling init...');
 	await interactive.init();
 
@@ -803,8 +855,8 @@ export async function runRemoteTui(options: {
 		// the streaming indicator right away, before any buffered events flush.
 		// This prevents the blank screen gap between connect and first event.
 		log('Hydration detected streaming — emitting immediate synthetics');
-		agent.emit({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
-		agent.emit({
+		emitSessionEvent({ type: 'agent_start', agentName: 'lead', timestamp: Date.now() } as any);
+		emitSessionEvent({
 			type: 'message_start',
 			message: {
 				role: 'assistant',
@@ -836,7 +888,7 @@ export async function runRemoteTui(options: {
 	if (eventBuffer.length > 0) {
 		log(`Flushing ${eventBuffer.length} events: ${eventBuffer.map((e) => e.type).join(', ')}`);
 		for (const buffered of eventBuffer) {
-			agent.emit(buffered);
+			emitSessionEvent(buffered);
 			if (buffered.type === 'agent_end') {
 				resolveRunningPrompt();
 			}
@@ -851,6 +903,11 @@ export async function runRemoteTui(options: {
 		remote.close();
 		setNativeRemoteExtensionContext(null);
 		interactive.stop();
+		void disposeRuntime().catch((err) => {
+			log(
+				`Runtime dispose error during cleanup: ${err instanceof Error ? err.message : String(err)}`
+			);
+		});
 	};
 	process.on('SIGINT', cleanup);
 	process.on('SIGTERM', cleanup);
@@ -863,6 +920,9 @@ export async function runRemoteTui(options: {
 	} finally {
 		remote.close();
 		setNativeRemoteExtensionContext(null);
+		await disposeRuntime().catch((err) => {
+			log(`Runtime dispose error: ${err instanceof Error ? err.message : String(err)}`);
+		});
 		log('Remote TUI exited');
 	}
 

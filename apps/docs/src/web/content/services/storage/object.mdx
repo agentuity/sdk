@@ -106,10 +106,11 @@ const agent = createAgent('FileProcessor', {
 ## Using in Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { s3 } from "bun";
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // File upload
 router.post('/upload/:filename', async (c) => {

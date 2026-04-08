@@ -31,6 +31,7 @@ export {
 } from './sessions.ts';
 
 export * from './skills.ts';
+export * from './agents.ts';
 export * from './workspaces.ts';
 export * from './github.ts';
 
@@ -71,3 +72,29 @@ export {
 } from './util.ts';
 
 export { default as CoderAPIReference } from './api-reference.ts';
+
+export * from './protocol.ts';
+
+export { CODER_WS_CLOSE_CODE, type CoderWsCloseCode, isTerminalCloseCode } from './close-codes.ts';
+
+export type { CoderHubWebSocketState, CoderHubWebSocketOptions } from './websocket.ts';
+export {
+	CoderHubWebSocketClient,
+	CoderHubWebSocketOptionsSchema,
+	CoderHubWebSocketError,
+	subscribeToCoderHub,
+} from './websocket.ts';
+
+export type {
+	CoderSSEOptions,
+	CoderSSEEvent,
+	CoderSSEClientOptions,
+	CoderSSEState,
+} from './sse.ts';
+export {
+	CoderSSEOptionsSchema,
+	CoderSSEClientOptionsSchema,
+	CoderSSEError,
+	CoderSSEClient,
+	streamCoderSessionSSE,
+} from './sse.ts';

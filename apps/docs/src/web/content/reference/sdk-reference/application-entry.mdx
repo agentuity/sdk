@@ -1,315 +1,231 @@
 ---
 title: Application Entry Point
 short_title: Application Entry
-description: Initialize your Agentuity app with createApp() and configure services
+description: Initialize your Agentuity app with createApp() and configure the runtime entry file
 ---
 
-Every Agentuity v1 application starts with creating an application instance using the `createApp()` function. This function initializes your application with the necessary configuration, router, server, and event system.
+Every Agentuity v2 app starts in a root `app.ts` file. `createApp()` wires up your router, agents, middleware, services, and Bun server integration in one place.
 
-## Application Setup
-
-### createApp
+## createApp
 
 `createApp(config?: AppConfig): Promise<AppResult>`
 
-Creates and initializes an Agentuity application instance.
+Use `createApp()` to bootstrap the runtime and export the result as your default app entry:
 
-**Parameters**
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+import api from './src/api/index';
+import agents from './src/agent';
 
-`config` (optional): `AppConfig` object.
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
+```
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `cors` | `CorsConfig` | Reflects any origin | Override default CORS settings (see [CORS configuration](#cors-configuration)) |
-| `compression` | `CompressionConfig \| false` | Enabled, 1024 byte threshold | Configure response compression, or `false` to disable (see [Compression](#compression)) |
-| `requestTimeout` | `number` | `0` (no timeout) | Request timeout in seconds |
-| `services` | `object` | Built-in cloud services | Override default service implementations (see below) |
-| `setup` | `() => Promise<T> \| T` | none | Async function called before server starts. Return value is available via `ctx.app` in agents and `c.var.appState` in routes |
-| `shutdown` | `(state: T) => Promise<void> \| void` | none | Cleanup function called when server stops. Receives the app state from `setup` |
-| `router` | `Hono \| RouteMount \| RouteMount[]` | File-based routing | User-provided Hono router(s) instead of file-based routing (see [Custom Router](#custom-router)). **Experimental** |
+### AppConfig
 
-**`services` sub-properties** (all optional):
-
-| Param | Type | Description |
+| Field | Type | Description |
 |-------|------|-------------|
-| `useLocal` | `boolean` | Use local in-memory services (default: `false`) |
-| `keyvalue` | `KeyValueStorage` | Custom KV storage implementation |
-| `vector` | `VectorStorage` | Custom vector storage implementation |
-| `stream` | `StreamStorage` | Custom stream storage implementation |
-| `task` | `TaskStorage` | Custom task storage implementation |
-| `thread` | `ThreadProvider` | Custom thread provider |
-| `session` | `SessionProvider` | Custom session provider |
-| `sessionEvent` | `SessionEventProvider` | Custom session event provider |
-| `evalRunEvent` | `EvalRunEventProvider` | Custom eval run event provider |
-| `email` | `EmailService` | Custom email service |
+| `cors` | `CorsConfig` | Override the default CORS behavior |
+| `compression` | `CompressionConfig \| false` | Configure or disable response compression |
+| `requestTimeout` | `number` | Maximum request duration in seconds. `0` means no timeout |
+| `services` | `object` | Override built-in service implementations |
+| `analytics` | `boolean \| AnalyticsOptions` | Enable analytics with defaults or provide custom options |
+| `workbench` | `boolean \| string \| WorkbenchOptions` | Enable Workbench in development mode, choose a custom route, or provide full options |
+| `router` | `Hono \| RouteMount \| RouteMount[]` | Experimental explicit router mounting |
+| `agents` | `Agent[]` | Explicit list of agents to include in the app |
 
-**Return Value**
-
-Returns an `AppResult` object with the following properties:
+`router` accepts three forms:
 
 ```typescript
-interface AppResult<TAppState> {
-  state: TAppState;                      // Value returned from setup()
-  router: Hono;                          // The main application router
-  server: Server;                        // Server instance with .url property
-  logger: Logger;                        // Application-level logger
-  addEventListener(event, handler): void;   // Subscribe to app events
-  removeEventListener(event, handler): void; // Unsubscribe from app events
-}
-```
+// Mount at /api
+router: apiRouter
 
-**Basic Example**
+// Mount at a custom path
+router: { path: '/v1', router: apiRouter }
 
-```typescript
-// app.ts
-import { createApp } from '@agentuity/runtime';
-
-// Create the application instance (async)
-const { server, logger } = await createApp();
-
-// The application will automatically discover and mount agents
-// from the agents directory specified in your agentuity.json
-
-// Access application properties
-logger.info(`Server running at ${server.url}`);
-```
-
-**With Configuration**
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-
-const { server, logger } = await createApp({
-  // Custom CORS settings
-  cors: {
-    origin: ['https://example.com'],
-    credentials: true
-  },
-  // Use local services for development
-  services: {
-    useLocal: true
-  }
-});
-```
-
-**With Setup and Shutdown**
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-
-const { server, logger } = await createApp({
-  // Initialize shared resources
-  setup: async () => {
-    const db = await connectDatabase();
-    const redis = await connectRedis();
-    return { db, redis };
-  },
-  // Clean up on shutdown
-  shutdown: async (state) => {
-    await state.db.close();
-    await state.redis.quit();
-  },
-});
-
-// In agents, access via ctx.app:
-// ctx.app.db.query('SELECT * FROM users')
-```
-
-#### CORS Configuration
-
-By default, CORS reflects any origin. Use `sameOrigin: true` to restrict requests to trusted origins only.
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-
-const app = await createApp({
-  cors: {
-    sameOrigin: true,
-    allowedOrigins: ['https://admin.myapp.com'],
-  }
-});
-```
-
-When `sameOrigin` is enabled, allowed origins are derived from the `AGENTUITY_BASE_URL`, `AGENTUITY_CLOUD_DOMAINS`, and `AUTH_TRUSTED_DOMAINS` environment variables, plus the request's own origin. Any entries in `allowedOrigins` are merged in.
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `sameOrigin` | `boolean` | `false` | Restrict to trusted origins derived from environment variables |
-| `allowedOrigins` | `string[]` | `[]` | Additional origins merged in when `sameOrigin` is `true` |
-| *...rest* | | | Standard [Hono CORS options](https://hono.dev/docs/middleware/builtin/cors) (`origin`, `credentials`, etc.) |
-
-#### Compression
-
-Response compression is enabled by default with a 1024-byte threshold. You can customize the threshold, add a filter, or disable compression entirely.
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-
-const app = await createApp({
-  compression: {
-    threshold: 2048,
-    // Skip compression for internal endpoints
-    filter: (c) => !c.req.path.startsWith('/internal'),
-  }
-});
-
-// Or disable compression entirely
-const app2 = await createApp({ compression: false });
-```
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable or disable compression |
-| `threshold` | `number` | `1024` | Minimum response size in bytes before compressing |
-| `filter` | `(c: Context) => boolean` | none | Return `false` to skip compression for a request |
-| `honoOptions` | `HonoCompressOptions` | none | Passed through to Hono's compress middleware |
-
-#### Custom Router
-
-<Callout type="warning" title="Experimental">
-  The `router` option is experimental and may change in future releases.
-</Callout>
-
-You can provide your own Hono router instead of using file-based route discovery from `src/api/`. All Agentuity middleware (CORS, OpenTelemetry, agent context) is applied to each mount path.
-
-```typescript
-import { createApp, createRouter } from '@agentuity/runtime';
-
-// Single router mounted at /api (default)
-const router = createRouter();
-router.get('/users', (c) => c.json({ users: [] }));
-
-const app = await createApp({ router });
-```
-
-The `router` option accepts three forms:
-
-```typescript
-// A Hono instance (mounted at /api)
-router: myRouter
-
-// A { path, router } object (mounted at the specified path)
-router: { path: '/v1', router: myRouter }
-
-// An array of mounts
+// Mount multiple routers
 router: [
   { path: '/api/v1', router: v1Router },
   { path: '/api/v2', router: v2Router },
 ]
 ```
 
-## Lifecycle Events
+<Callout type="warning" title="Explicit Routers Are Experimental">
+The `router` option is marked experimental in the runtime. It works today, but the API may still change.
+</Callout>
 
-The App instance provides `addEventListener()` and `removeEventListener()` methods for lifecycle events such as `server:started`, `agent:started`, and `agent:completed`. See the [Event System](/reference/sdk-reference/events) page for available events and usage.
+### services
 
-## Helper Functions
+Use `services` when you need to swap an implementation, such as local storage for development or a custom provider:
 
-These functions are available from `@agentuity/runtime` for inspecting the application's runtime state.
+| Field | Type |
+|-------|------|
+| `useLocal` | `boolean` |
+| `keyvalue` | `KeyValueStorage` |
+| `vector` | `VectorStorage` |
+| `stream` | `StreamStorage` |
+| `task` | `TaskStorage` |
+| `thread` | `ThreadProvider` |
+| `session` | `SessionProvider` |
+| `sessionEvent` | `SessionEventProvider` |
+| `evalRunEvent` | `EvalRunEventProvider` |
+| `email` | `EmailService` |
 
-### getAppState
+## AppResult
 
-Returns the global application state (the value returned from your `setup` function).
+`createApp()` resolves to an `AppResult`:
 
 ```typescript
-import { getAppState } from '@agentuity/runtime';
-
-const state = getAppState<{ db: Database }>();
-state.db.query('SELECT 1');
-```
-
-### getAppConfig
-
-Returns the `AppConfig` object passed to `createApp`, or `undefined` if none was provided.
-
-```typescript
-import { getAppConfig } from '@agentuity/runtime';
-
-const config = getAppConfig();
-if (config?.requestTimeout) {
-  // timeout was configured
+interface AppResult {
+  config?: AppConfig;
+  router: Hono<Env>;
+  server: { url: string };
+  logger: Logger;
+  fetch: (req: Request, ...args: any[]) => Response | Promise<Response>;
+  port: number;
+  hostname: string;
+  websocket?: any;
 }
 ```
 
+Most apps use `server.url` and `logger` directly:
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+const app = await createApp();
+
+app.logger.info('Server ready', { url: app.server.url });
+
+export default app;
+```
+
+## Common Patterns
+
+### Configure analytics and Workbench
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+export default await createApp({
+  analytics: true,
+  workbench: { route: '/workbench' },
+});
+```
+
+`analytics` accepts `true`, `false`, or an options object. `workbench` accepts `true`, a custom route string like `'/debug'`, or a full config object. Workbench is only active in development when you opt in.
+
+### Restrict CORS to trusted origins
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+
+export default await createApp({
+  cors: {
+    sameOrigin: true,
+    allowedOrigins: ['https://admin.example.com'],
+  },
+});
+```
+
+When `sameOrigin` is enabled, trusted origins are derived from Agentuity environment variables and merged with anything you include in `allowedOrigins`.
+
+### Register cleanup logic
+
+Use `registerShutdownHook()` for app-level cleanup:
+
+```typescript
+import { createApp, registerShutdownHook } from '@agentuity/runtime';
+
+const pool = await connectDatabase();
+
+registerShutdownHook(async () => {
+  await pool.end();
+});
+
+export default await createApp();
+```
+
+## Lifecycle Events
+
+App-wide lifecycle events use the global event API, not methods on `AppResult`:
+
+```typescript title="app.ts"
+import { addEventListener, createApp } from '@agentuity/runtime';
+
+const app = await createApp();
+
+addEventListener('agent.started', (eventName, agent, ctx) => {
+  app.logger.info('Agent started', {
+    eventName,
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+addEventListener('agent.completed', (eventName, agent, ctx) => {
+  app.logger.info('Agent completed', {
+    eventName,
+    agentName: agent.metadata.name,
+    sessionId: ctx.sessionId,
+  });
+});
+
+export default app;
+```
+
+Current app-wide event names include:
+
+- `agent.started`
+- `agent.completed`
+- `agent.errored`
+- `session.started`
+- `session.completed`
+- `thread.created`
+- `thread.destroyed`
+
+See [Event System](/reference/sdk-reference/events) for the full event API.
+
+## Runtime Helpers
+
 ### isDevMode
 
-Returns `true` when the application is running through the Agentuity dev server (`agentuity dev`).
+Use `isDevMode()` when you need to branch on whether the app is running through `agentuity dev`:
 
 ```typescript
 import { isDevMode } from '@agentuity/runtime';
 
 if (isDevMode()) {
-  // Enable verbose logging in development
+  // Enable additional local diagnostics
 }
 ```
 
 ### isInsideAgentRuntime
 
-Returns `true` when running inside the Agentuity agent runtime (dev server or cloud deployment). Returns `false` for standalone scripts, Discord bots, cron jobs, and other non-runtime contexts.
+Use `isInsideAgentRuntime()` to detect whether your code is running inside the Agentuity runtime or in a standalone process:
 
 ```typescript
 import { isInsideAgentRuntime } from '@agentuity/runtime';
 
 if (!isInsideAgentRuntime()) {
-  // Running standalone: initialize services manually
+  // Initialize services manually for a standalone script
 }
 ```
-
-This is useful in libraries that need to detect whether global state (logger, tracer, services) has already been initialized by the runtime.
-
-## Shutdown Hooks
-
-Use `registerShutdownHook` to register cleanup functions that run during graceful shutdown. Hooks run in reverse order (LIFO) after the app's `shutdown` callback and agent shutdowns have completed.
-
-```typescript
-import { registerShutdownHook } from '@agentuity/runtime';
-
-// Register a cleanup function
-const unregister = registerShutdownHook(async () => {
-  await pool.end();
-});
-
-// Later, if needed, remove the hook
-unregister();
-```
-
-`registerShutdownHook` returns an unregister function you can call to remove the hook before shutdown. This is particularly useful for packages like `@agentuity/postgres` that register their own cleanup logic without requiring explicit wiring in each application.
-
-```typescript
-registerShutdownHook(hook: () => Promise<void> | void): () => void
-```
-
-**Shutdown order:**
-
-1. App's `shutdown` callback (from `createApp` config)
-2. Agent shutdown handlers
-3. Registered shutdown hooks (reverse order, LIFO)
 
 ## Environment Variables
 
-Agentuity applications access configuration and secrets through standard Node.js environment variables (`process.env`).
+`createApp()` reads standard environment variables from `process.env`. In development, the CLI loads values from your `.env` files before the runtime starts.
 
-**Standard Environment Variables:**
-
-- `AGENTUITY_SDK_KEY` - SDK-level API key (used in development to access Agentuity Cloud)
-- `AGENTUITY_PROJECT_KEY` - Project-level API key (used when deployed)
-
-**Example**
-
-```typescript
-// app.ts
+```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime';
 
 if (!process.env.AGENTUITY_SDK_KEY) {
-  console.error('Missing AGENTUITY_SDK_KEY environment variable');
-  process.exit(1);
+  throw new Error('Missing AGENTUITY_SDK_KEY');
 }
 
-const { server, logger } = await createApp();
-
-// Access other environment variables
-const apiEndpoint = process.env.API_ENDPOINT || 'https://api.example.com';
-const openaiKey = process.env.OPENAI_API_KEY;
-// Optional: you can use the AI Gateway to access OpenAI, Anthropic, etc without needing to set various API keys.
+export default await createApp();
 ```
 
-**Note**: Environment variables are typically loaded from a `.env` file in development and configured in your deployment environment.
+For file loading order and `.env` guidance, see [App Configuration](/get-started/app-configuration).

@@ -40,6 +40,10 @@ export const updateSubcommand = createSubcommand({
 			url: z.string().optional().describe('Coder API URL override'),
 			label: z.string().optional().describe('Updated session label'),
 			agent: z.string().optional().describe('Updated default agent role'),
+			defaultAgent: z
+				.string()
+				.optional()
+				.describe('Updated preferred default agent slug or built-in route target'),
 			visibility: z
 				.string()
 				.optional()
@@ -50,6 +54,10 @@ export const updateSubcommand = createSubcommand({
 			loopAutoContinue: z.boolean().optional().describe('Auto-continue loop'),
 			loopAllowDetached: z.boolean().optional().describe('Allow detached loop execution'),
 			tags: z.string().optional().describe('Comma-separated tags (replaces existing)'),
+			agentSlugs: z
+				.string()
+				.optional()
+				.describe('Comma-separated published custom agent slugs (replaces existing)'),
 		}),
 	},
 	async handler(ctx) {
@@ -64,12 +72,19 @@ export const updateSubcommand = createSubcommand({
 
 		if (opts?.label) body.label = opts.label;
 		if (opts?.agent) body.agent = opts.agent;
+		if (opts?.defaultAgent) body.defaultAgent = opts.defaultAgent;
 		if (opts?.visibility) body.visibility = normalizeVisibility(opts.visibility);
 		if (opts?.workflowMode) body.workflowMode = opts.workflowMode;
 		if (opts?.tags) {
 			body.tags = opts.tags
 				.split(',')
 				.map((t) => t.trim())
+				.filter(Boolean);
+		}
+		if (opts?.agentSlugs) {
+			body.agentSlugs = opts.agentSlugs
+				.split(',')
+				.map((slug) => slug.trim())
 				.filter(Boolean);
 		}
 
@@ -90,7 +105,7 @@ export const updateSubcommand = createSubcommand({
 
 		if (Object.keys(body).length === 0) {
 			tui.fatal(
-				'No update fields provided. Use --label, --visibility, --tags, --agent, --workflow-mode, or loop options.',
+				'No update fields provided. Use --label, --visibility, --tags, --agent, --default-agent, --agent-slugs, --workflow-mode, or loop options.',
 				ErrorCode.VALIDATION_FAILED
 			);
 		}
@@ -109,6 +124,8 @@ export const updateSubcommand = createSubcommand({
 			if (opts?.visibility) fields.push(`Visibility: ${body.visibility}`);
 			if (opts?.tags) fields.push(`Tags: ${(body.tags as string[]).join(', ')}`);
 			if (opts?.agent) fields.push(`Agent: ${opts.agent}`);
+			if (opts?.defaultAgent) fields.push(`Default agent: ${opts.defaultAgent}`);
+			if (opts?.agentSlugs) fields.push(`Custom agents: ${opts.agentSlugs}`);
 			if (opts?.workflowMode || body.loop) fields.push(`Workflow: ${body.workflowMode}`);
 
 			for (const f of fields) {

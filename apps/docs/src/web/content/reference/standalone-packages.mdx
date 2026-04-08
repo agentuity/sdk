@@ -19,6 +19,7 @@ Need to use Agentuity services from a Next.js route, Express server, or standalo
 | [`@agentuity/webhook`](#webhooks) | `bun add @agentuity/webhook` | Manage webhook endpoints and track deliveries |
 | [`@agentuity/schedule`](#schedules) | `bun add @agentuity/schedule` | Create cron-based scheduled jobs |
 | [`@agentuity/task`](#tasks) | `bun add @agentuity/task` | Track work items with comments, tags, and attachments |
+| [`@agentuity/coder`](#coder) | `bun add @agentuity/coder` | Manage Coder sessions, participants, and replay data |
 
 ## Quick Example
 
@@ -35,7 +36,7 @@ const result = await kv.get('cache', 'user:123');
 Agentuity services are accessible four ways, depending on where your code runs:
 
 - **Agent handler** (`ctx.*`): Inside a `createAgent` handler. Services are pre-configured on the context object.
-- **Route handler** (`c.var.*`): Inside a `createRouter` route. Same services, accessed via Hono context variables.
+- **Route handler** (`c.var.*`): Inside a `new Hono<Env>()` route (`import type { Env } from '@agentuity/runtime'`). Same services, accessed via Hono context variables.
 - **Standalone package**: From any Node.js or Bun app (Next.js, Express, scripts). Install one package, set an env var.
 - **REST API**: Direct HTTP access from any language or environment.
 
@@ -50,6 +51,7 @@ Agentuity services are accessible four ways, depending on where your code runs:
 | [Webhooks](/services/webhooks) | N/A | N/A | `@agentuity/webhook` | [API](/reference/api/webhooks) |
 | [Schedules](/services/schedules) | `ctx.schedule` | `c.var.schedule` | `@agentuity/schedule` | [API](/reference/api/schedules) |
 | [Tasks](/services/tasks) | `ctx.task` | `c.var.task` | `@agentuity/task` | [API](/reference/api/tasks) |
+| [Coder](/services/coder) | N/A | N/A | `@agentuity/coder` | N/A |
 
 <Callout type="info" title="Additional ctx.* services">
 Services like Streams, Logger, Tracer, Thread, and Session are also available via `ctx.*` and `c.var.*` but don't have standalone packages. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete reference.
@@ -405,6 +407,60 @@ const list = await tasks.list({ status: 'open' });
 | `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
 | `logger` | `Logger` | Minimal logger | Custom logger instance |
 
+## Coder
+
+Manage Coder sessions, participants, workspaces, replay data, and loop state from any Node.js or Bun app.
+
+<Callout type="info" title="Discovery before Hub requests">
+Coder has no single static base URL. When `url` and `AGENTUITY_CODER_URL` are unset, `CoderClient` calls the Agentuity API for your org's Hub address, then routes session and workspace requests against it. Use the client to skip implementing that flow yourself, or pass an explicit `url` to skip discovery.
+</Callout>
+
+```bash
+bun add @agentuity/coder
+```
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const client = new CoderClient();
+
+// List sessions
+const { sessions } = await client.listSessions({ limit: 10 });
+for (const session of sessions) {
+  console.log(`${session.sessionId}: ${session.label}`);
+}
+
+// Create a new session
+const session = await client.createSession({
+  task: 'Implement feature X',
+  workflowMode: 'standard',
+});
+console.log(`Created session: ${session.sessionId}`);
+
+// Get replay data for a session
+const replay = await client.getReplay(session.sessionId);
+
+// List participants
+const { participants } = await client.listParticipants(session.sessionId);
+
+// Archive a session when done
+await client.archiveSession(session.sessionId);
+```
+
+**Constructor options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `AGENTUITY_SDK_KEY` env var | API key for authentication |
+| `url` | `string` | Auto-discovered via Agentuity API | Base URL for the Coder Hub. Set explicitly to skip discovery |
+| `region` | `string` | `AGENTUITY_REGION` or `usc` | Region used during discovery. Ignored when `url` or `AGENTUITY_CODER_URL` is set |
+| `orgId` | `string` | - | Organization ID for multi-tenant operations (optional) |
+| `logger` | `Logger` | Minimal logger | Custom logger instance |
+
+<Callout type="tip" title="Full Coder Reference">
+For every `CoderClient` method with signatures, parameters, and return types, see [CoderClient Reference](/reference/sdk-reference/coder). For concepts, session lifecycle, and workflow guidance, see [Coder](/services/coder).
+</Callout>
+
 ## Configuration
 
 All standalone packages share the same configuration pattern. Set environment variables once, and every client picks them up automatically.
@@ -433,6 +489,7 @@ Each service also supports a URL override variable for custom deployments:
 | `AGENTUITY_WEBHOOK_URL` | Webhooks |
 | `AGENTUITY_SCHEDULE_URL` | Schedules |
 | `AGENTUITY_TASK_URL` | Tasks |
+| `AGENTUITY_CODER_URL` | Coder |
 
 ### Shared Constructor Pattern
 
