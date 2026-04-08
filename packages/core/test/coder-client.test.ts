@@ -419,6 +419,37 @@ describe('CoderClient custom agent helpers', () => {
 		expect(response.agents[0]?.slug).toBe('code-review');
 	});
 
+	test('listCustomAgents tolerates unknown tool names returned by the backend', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/agents');
+			expect(init?.method).toBe('GET');
+			return new Response(
+				JSON.stringify({
+					agents: [
+						makeCustomAgent({
+							piTools: ['read', 'future_pi_tool'],
+							hubToolNames: ['session_todo_list', 'future_hub_tool'],
+						}),
+					],
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const response = await client.listCustomAgents();
+		expect(response.agents[0]?.piTools).toEqual(['read', 'future_pi_tool']);
+		expect(response.agents[0]?.hubToolNames).toEqual(['session_todo_list', 'future_hub_tool']);
+	});
+
 	test('publishCustomAgent posts to the publish endpoint and returns the updated agent', async () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/agents/code-review/publish');
