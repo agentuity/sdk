@@ -25,7 +25,7 @@ export const command = createCommand({
 			description: 'Start a coding session connected to Coder',
 		},
 		{
-			command: getCommand('coder start ~/path/to/my/project'),
+			command: getCommand('coder start --dir ~/path/to/my/project'),
 			description: 'Start a coding session from a specific local project directory',
 		},
 		{

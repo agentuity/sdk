@@ -67,7 +67,7 @@ export const startSubcommand = createSubcommand({
 			description: 'Start Pi with auto-detected Hub and extension',
 		},
 		{
-			command: getCommand('coder start ~/path/to/my/project'),
+			command: getCommand('coder start --dir ~/path/to/my/project'),
 			description: 'Start from a specific local project directory',
 		},
 		{
@@ -102,10 +102,8 @@ export const startSubcommand = createSubcommand({
 		},
 	],
 	schema: {
-		args: z.object({
-			path: z.string().optional().describe('Path to local project directory to start from'),
-		}),
 		options: z.object({
+			dir: z.string().optional().describe('Local project directory to start from'),
 			url: z.string().optional().describe('Coder API URL override'),
 			extension: z.string().optional().describe('Coder extension path override'),
 			pi: z.string().optional().describe('Path to pi binary'),
@@ -129,16 +127,16 @@ export const startSubcommand = createSubcommand({
 		},
 	},
 	async handler(ctx) {
-		const { args, opts, options } = ctx;
+		const { opts, options } = ctx;
 
-		// Resolve working directory from optional path argument
+		// Resolve working directory from optional --dir option
 		let cwd = process.cwd();
-		if (args?.path) {
-			// Warn if path is provided with --remote or --sandbox (path is ignored in those modes)
+		if (opts?.dir) {
+			// Warn if --dir is provided with --remote or --sandbox (dir is ignored in those modes)
 			if (opts?.remote !== undefined || opts?.sandbox !== undefined) {
-				tui.warning('Path argument is ignored in remote/sandbox mode');
+				tui.warning('--dir is ignored in remote/sandbox mode');
 			} else {
-				const raw = args.path.trim();
+				const raw = opts.dir.trim();
 				cwd =
 					raw === '~' || raw.startsWith('~/')
 						? resolve(homedir(), raw.slice(2))
@@ -403,7 +401,7 @@ export const startSubcommand = createSubcommand({
 			tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
 			tui.output(`  Extension: ${tui.bold(extensionPath)}`);
 			tui.output(`  Pi:        ${tui.bold(piBinary)}`);
-			if (args?.path) tui.output(`  Path:      ${tui.bold(cwd)}`);
+			if (opts?.dir) tui.output(`  Dir:       ${tui.bold(cwd)}`);
 			if (opts?.agent) tui.output(`  Agent:     ${tui.bold(opts.agent)}`);
 			tui.newline();
 		}
