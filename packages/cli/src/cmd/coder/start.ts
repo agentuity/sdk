@@ -1,4 +1,6 @@
 import { dirname, resolve } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { z } from 'zod';
 import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
@@ -65,6 +67,10 @@ export const startSubcommand = createSubcommand({
 			description: 'Start Pi with auto-detected Hub and extension',
 		},
 		{
+			command: getCommand('coder start --dir ~/path/to/my/project'),
+			description: 'Start from a specific local project directory',
+		},
+		{
 			command: getCommand('coder start --url ws://127.0.0.1:3500/api/ws'),
 			description: 'Start with explicit Coder URL',
 		},
@@ -97,6 +103,7 @@ export const startSubcommand = createSubcommand({
 	],
 	schema: {
 		options: z.object({
+			dir: z.string().optional().describe('Local project directory to start from'),
 			url: z.string().optional().describe('Coder API URL override'),
 			extension: z.string().optional().describe('Coder extension path override'),
 			pi: z.string().optional().describe('Path to pi binary'),
@@ -121,6 +128,30 @@ export const startSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { opts, options } = ctx;
+
+		// Resolve working directory from optional --dir option
+		let cwd = process.cwd();
+		if (opts?.dir) {
+			// Warn if --dir is provided with --remote or --sandbox (dir is ignored in those modes)
+			if (opts?.remote !== undefined || opts?.sandbox !== undefined) {
+				tui.warning('--dir is ignored in remote/sandbox mode');
+			} else {
+				const raw = opts.dir.trim();
+				cwd =
+					raw === '~' || raw.startsWith('~/')
+						? resolve(homedir(), raw.slice(2))
+						: resolve(raw);
+
+				const st = await stat(cwd).catch(() => null);
+				if (!st?.isDirectory()) {
+					tui.fatal(
+						`The specified path is not a valid directory: ${cwd}`,
+						ErrorCode.CONFIG_INVALID
+					);
+					return;
+				}
+			}
+		}
 		const client = new CoderClient({
 			apiKey: ctx.auth.apiKey,
 			url: opts?.url,
@@ -370,6 +401,7 @@ export const startSubcommand = createSubcommand({
 			tui.output(`  Hub:       ${tui.bold(hubWsUrl)}`);
 			tui.output(`  Extension: ${tui.bold(extensionPath)}`);
 			tui.output(`  Pi:        ${tui.bold(piBinary)}`);
+			if (opts?.dir) tui.output(`  Dir:       ${tui.bold(cwd)}`);
 			if (opts?.agent) tui.output(`  Agent:     ${tui.bold(opts.agent)}`);
 			tui.newline();
 		}
@@ -378,7 +410,7 @@ export const startSubcommand = createSubcommand({
 		try {
 			const proc = Bun.spawn([piBinary, ...piArgs], {
 				env,
-				cwd: process.cwd(),
+				cwd,
 				stdin: 'inherit',
 				stdout: 'inherit',
 				stderr: 'inherit',
