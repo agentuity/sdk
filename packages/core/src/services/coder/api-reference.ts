@@ -6,6 +6,8 @@ import {
 	CoderSessionEventSchema,
 	CoderSessionListItemSchema,
 	CoderSessionParticipantsSchema,
+	CoderSessionSchema,
+	CoderUpdateSessionRequestSchema,
 } from './types.ts';
 import { CoderCreateSessionParamsSchema, CoderLifecycleResponseSchema } from './sessions.ts';
 import type { Service } from '../api-reference.ts';
@@ -46,6 +48,35 @@ const CoderSessionEventHistoryWireSchema = z.object({
 	sessionId: z.string().describe('Session identifier for event history payload'),
 	events: z.array(CoderSessionEventSchema).describe('Event history items for the session'),
 });
+
+const CoderCreateSessionResponseWireSchema = z
+	.object({
+		sessionId: z.string().describe('Created session identifier'),
+		sandboxId: z.string().nullable().optional().describe('Associated sandbox identifier'),
+		status: z.string().describe('Initial session status'),
+		mode: z.string().optional().describe('Session mode'),
+		visibility: z.string().optional().describe('Session visibility'),
+	})
+	.passthrough();
+
+const CoderUpdateSessionRequestWireSchema = CoderUpdateSessionRequestSchema.pick({
+	label: true,
+	agent: true,
+	visibility: true,
+	tags: true,
+	skills: true,
+}).describe('Request body for updating public session metadata over REST');
+
+const CoderUpdateSessionResponseWireSchema = z
+	.object({
+		sessionId: z.string().describe('Updated session identifier'),
+		label: z.string().optional().describe('Updated label'),
+		visibility: z.string().optional().describe('Updated visibility'),
+		tags: z.array(z.string()).optional().describe('Updated tags'),
+		skills: z.array(z.unknown()).optional().describe('Updated skills'),
+		defaultAgent: z.string().nullable().optional().describe('Updated default agent'),
+	})
+	.passthrough();
 
 const service: Service = {
 	name: 'Coder',
@@ -89,8 +120,9 @@ const service: Service = {
 				fields: { schema: CoderCreateSessionRequestSchema },
 			},
 			responseDescription: 'Returns the created session.',
+			responseFields: { schema: CoderCreateSessionResponseWireSchema, stripRequired: true },
 			statuses: [
-				{ code: 200, description: 'Session created' },
+				{ code: 201, description: 'Session created' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 			],
 			examplePath: '/hub/session',
@@ -126,8 +158,56 @@ const service: Service = {
 			examplePath: '/hub/sessions?limit=20&offset=0',
 		},
 		{
-			id: 'session-lifecycle',
-			title: 'Session Lifecycle Endpoints',
+			id: 'get-session',
+			title: 'Get Session',
+			sectionTitle: 'Sessions',
+			method: 'GET',
+			path: '/hub/session/{sessionId}',
+			description: 'Retrieve a single coder session by ID.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns the full session object.',
+			responseFields: { schema: CoderSessionSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Session returned' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123',
+		},
+		{
+			id: 'update-session',
+			title: 'Update Session',
+			sectionTitle: 'Sessions',
+			method: 'PATCH',
+			path: '/hub/session/{sessionId}',
+			description: 'Update an existing session.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: {
+				description: 'Session update payload.',
+				fields: { schema: CoderUpdateSessionRequestWireSchema },
+			},
+			responseDescription: 'Returns the updated session fields.',
+			responseFields: { schema: CoderUpdateSessionResponseWireSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Session updated' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123',
+			exampleBody: { label: 'Updated Session', tags: ['auth', 'phase-2'] },
+		},
+		{
+			id: 'archive-session',
+			title: 'Archive Session',
 			sectionTitle: 'Sessions',
 			method: 'POST',
 			path: '/hub/session/{sessionId}/archive',
@@ -146,6 +226,50 @@ const service: Service = {
 				{ code: 404, description: 'Session not found' },
 			],
 			examplePath: '/hub/session/sess_123/archive',
+		},
+		{
+			id: 'resume-session',
+			title: 'Resume Session',
+			sectionTitle: 'Sessions',
+			method: 'POST',
+			path: '/hub/session/{sessionId}/resume',
+			description: 'Resumes a paused session.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns the session identifier and optional updated status.',
+			responseFields: { schema: CoderLifecycleResponseSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Session resume initiated' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123/resume',
+		},
+		{
+			id: 'delete-session',
+			title: 'Delete Session',
+			sectionTitle: 'Sessions',
+			method: 'DELETE',
+			path: '/hub/session/{sessionId}',
+			description: 'Permanently deletes a session.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns the deleted session identifier and status.',
+			responseFields: { schema: CoderLifecycleResponseSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Session deleted' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123',
 		},
 		{
 			id: 'get-loop-state',
@@ -203,8 +327,6 @@ const service: Service = {
 				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
 			],
 			queryParams: [
-				{ name: 'limit', type: 'number', description: 'Maximum records', required: false },
-				{ name: 'offset', type: 'number', description: 'Pagination offset', required: false },
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
 			],
 			requestBody: null,
@@ -228,7 +350,12 @@ const service: Service = {
 			],
 			queryParams: [
 				{ name: 'limit', type: 'number', description: 'Maximum records', required: false },
-				{ name: 'offset', type: 'number', description: 'Pagination offset', required: false },
+				{
+					name: 'includeDisconnected',
+					type: 'boolean',
+					description: 'Include disconnected participants',
+					required: false,
+				},
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
 			],
 			requestBody: null,
@@ -238,7 +365,7 @@ const service: Service = {
 				{ code: 200, description: 'Participants returned' },
 				{ code: 404, description: 'Session not found' },
 			],
-			examplePath: '/hub/session/sess_123/participants',
+			examplePath: '/hub/session/sess_123/participants?limit=200&includeDisconnected=true',
 		},
 		{
 			id: 'list-session-event-history',
@@ -252,7 +379,12 @@ const service: Service = {
 			],
 			queryParams: [
 				{ name: 'limit', type: 'number', description: 'Maximum records', required: false },
-				{ name: 'offset', type: 'number', description: 'Pagination offset', required: false },
+				{
+					name: 'beforeId',
+					type: 'number',
+					description: 'Return events before the given event identifier',
+					required: false,
+				},
 				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
 			],
 			requestBody: null,
@@ -262,7 +394,7 @@ const service: Service = {
 				{ code: 200, description: 'Event history returned' },
 				{ code: 404, description: 'Session not found' },
 			],
-			examplePath: '/hub/session/sess_123/events/history?limit=50&offset=0',
+			examplePath: '/hub/session/sess_123/events/history?limit=50&beforeId=1234',
 		},
 	],
 };

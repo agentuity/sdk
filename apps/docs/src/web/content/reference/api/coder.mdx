@@ -395,8 +395,38 @@ Returns the created session.
 
 | Status | Description |
 |--------|-------------|
-| 200 | Session created |
+| 201 | Session created |
 | 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Created session identifier"
+  },
+  {
+    "name": "sandboxId",
+    "type": "string | null",
+    "description": "Associated sandbox identifier"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Initial session status"
+  },
+  {
+    "name": "mode",
+    "type": "string",
+    "description": "Session mode"
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Session visibility"
+  }
+]} />
 
 #### Example
 
@@ -838,7 +868,559 @@ Returns a session list.
 
 ---
 
-### Session Lifecycle Endpoints
+### Get Session
+
+Retrieve a single coder session by ID.
+
+<ApiEndpoint method="GET" path="/hub/session/{sessionId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the full session object.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session returned |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Unique session identifier"
+  },
+  {
+    "name": "label",
+    "type": "string",
+    "description": "Human-readable session label"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Current session status"
+  },
+  {
+    "name": "mode",
+    "type": "string",
+    "description": "Runtime mode used by this session"
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Visibility value assigned to the session"
+  },
+  {
+    "name": "owner",
+    "type": "object",
+    "description": "Session owner identity"
+  },
+  {
+    "name": "owner.userId",
+    "type": "string",
+    "description": "Owner user identifier"
+  },
+  {
+    "name": "owner.name",
+    "type": "string",
+    "description": "Owner display name"
+  },
+  {
+    "name": "origin",
+    "type": "string | object",
+    "description": "Session origin metadata"
+  },
+  {
+    "name": "repo",
+    "type": "object",
+    "description": "Primary repository reference"
+  },
+  {
+    "name": "repo.repoId",
+    "type": "string",
+    "description": "Repository identifier when available"
+  },
+  {
+    "name": "repo.type",
+    "type": "string",
+    "description": "Repository type (e.g., GitHub, GitLab)"
+  },
+  {
+    "name": "repo.provider",
+    "type": "string",
+    "description": "Git provider identifier"
+  },
+  {
+    "name": "repo.owner",
+    "type": "string",
+    "description": "Repository owner or organization"
+  },
+  {
+    "name": "repo.name",
+    "type": "string",
+    "description": "Repository name"
+  },
+  {
+    "name": "repo.fullName",
+    "type": "string",
+    "description": "Fully qualified repository name"
+  },
+  {
+    "name": "repo.url",
+    "type": "string",
+    "description": "Repository web URL"
+  },
+  {
+    "name": "repo.cloneUrl",
+    "type": "string",
+    "description": "Repository clone URL"
+  },
+  {
+    "name": "repo.defaultBranch",
+    "type": "string",
+    "description": "Default branch for the repository"
+  },
+  {
+    "name": "repo.branch",
+    "type": "string",
+    "description": "Selected branch for the session workspace"
+  },
+  {
+    "name": "repo.ref",
+    "type": "string",
+    "description": "Selected ref for the session workspace"
+  },
+  {
+    "name": "repo.commit",
+    "type": "string",
+    "description": "Pinned commit SHA for the session workspace"
+  },
+  {
+    "name": "repo.path",
+    "type": "string",
+    "description": "Subpath of the repository mounted in session"
+  },
+  {
+    "name": "repo.rootPath",
+    "type": "string",
+    "description": "Absolute workspace root path for the repository"
+  },
+  {
+    "name": "repos",
+    "type": "object[]",
+    "description": "Repository references mounted in session"
+  },
+  {
+    "name": "repos[].repoId",
+    "type": "string",
+    "description": "Repository identifier when available"
+  },
+  {
+    "name": "repos[].type",
+    "type": "string",
+    "description": "Repository type (e.g., GitHub, GitLab)"
+  },
+  {
+    "name": "repos[].provider",
+    "type": "string",
+    "description": "Git provider identifier"
+  },
+  {
+    "name": "repos[].owner",
+    "type": "string",
+    "description": "Repository owner or organization"
+  },
+  {
+    "name": "repos[].name",
+    "type": "string",
+    "description": "Repository name"
+  },
+  {
+    "name": "repos[].fullName",
+    "type": "string",
+    "description": "Fully qualified repository name"
+  },
+  {
+    "name": "repos[].url",
+    "type": "string",
+    "description": "Repository web URL"
+  },
+  {
+    "name": "repos[].cloneUrl",
+    "type": "string",
+    "description": "Repository clone URL"
+  },
+  {
+    "name": "repos[].defaultBranch",
+    "type": "string",
+    "description": "Default branch for the repository"
+  },
+  {
+    "name": "repos[].branch",
+    "type": "string",
+    "description": "Selected branch for the session workspace"
+  },
+  {
+    "name": "repos[].ref",
+    "type": "string",
+    "description": "Selected ref for the session workspace"
+  },
+  {
+    "name": "repos[].commit",
+    "type": "string",
+    "description": "Pinned commit SHA for the session workspace"
+  },
+  {
+    "name": "repos[].path",
+    "type": "string",
+    "description": "Subpath of the repository mounted in session"
+  },
+  {
+    "name": "repos[].rootPath",
+    "type": "string",
+    "description": "Absolute workspace root path for the repository"
+  },
+  {
+    "name": "workspace",
+    "type": "object",
+    "description": "Associated workspace information"
+  },
+  {
+    "name": "workspace.id",
+    "type": "string",
+    "description": "Workspace identifier"
+  },
+  {
+    "name": "workspace.name",
+    "type": "string",
+    "description": "Workspace display name"
+  },
+  {
+    "name": "workspace.scope",
+    "type": "string",
+    "description": "Workspace ownership scope"
+  },
+  {
+    "name": "sessionKind",
+    "type": "string",
+    "description": "Session kind category emitted by backend"
+  },
+  {
+    "name": "parentSessionId",
+    "type": "string",
+    "description": "Parent session identifier when session is derived"
+  },
+  {
+    "name": "coordinationJobId",
+    "type": "string",
+    "description": "Coordination job identifier for orchestration"
+  },
+  {
+    "name": "workflowMode",
+    "type": "string",
+    "description": "Workflow mode currently active for session"
+  },
+  {
+    "name": "loopStatus",
+    "type": "string",
+    "description": "Current loop status if workflow mode is loop"
+  },
+  {
+    "name": "loopIteration",
+    "type": "number",
+    "description": "Current loop iteration counter when applicable"
+  },
+  {
+    "name": "createdAt",
+    "type": "string",
+    "description": "Session creation timestamp (ISO-8601)"
+  },
+  {
+    "name": "lastActivityAt",
+    "type": "string",
+    "description": "Timestamp of most recent activity (ISO-8601)"
+  },
+  {
+    "name": "taskCount",
+    "type": "number",
+    "description": "Number of tasks associated with the session"
+  },
+  {
+    "name": "subAgentCount",
+    "type": "number",
+    "description": "Number of sub-agents associated with the session"
+  },
+  {
+    "name": "observerCount",
+    "type": "number",
+    "description": "Number of observer participants in the session"
+  },
+  {
+    "name": "participantCount",
+    "type": "number",
+    "description": "Total number of participants in the session"
+  },
+  {
+    "name": "tags",
+    "type": "string[]",
+    "description": "Tag values attached to the session"
+  },
+  {
+    "name": "skills",
+    "type": "object[]",
+    "description": "Skills attached to the session"
+  },
+  {
+    "name": "skills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier"
+  },
+  {
+    "name": "skills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source"
+  },
+  {
+    "name": "skills[].name",
+    "type": "string",
+    "description": "Human-readable skill name"
+  },
+  {
+    "name": "skills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "defaultAgent",
+    "type": "string",
+    "description": "Default agent assigned to session operations"
+  },
+  {
+    "name": "bucket",
+    "type": "string",
+    "description": "Derived bucket for session listing"
+  },
+  {
+    "name": "runtimeAvailable",
+    "type": "boolean",
+    "description": "Whether runtime is currently reachable"
+  },
+  {
+    "name": "controlAvailable",
+    "type": "boolean",
+    "description": "Whether control operations are currently available"
+  },
+  {
+    "name": "manageAvailable",
+    "type": "boolean",
+    "description": "Whether management operations are currently available"
+  },
+  {
+    "name": "wakeAvailable",
+    "type": "boolean",
+    "description": "Whether wake operation is currently available"
+  },
+  {
+    "name": "historyOnly",
+    "type": "boolean",
+    "description": "Whether session is history-only and no longer interactive"
+  },
+  {
+    "name": "liveExpected",
+    "type": "boolean",
+    "description": "Whether live connectivity is expected for the session"
+  },
+  {
+    "name": "task",
+    "type": "string",
+    "description": "Primary task prompt associated with the session"
+  },
+  {
+    "name": "env",
+    "type": "object",
+    "description": "Environment variables associated with the session"
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Additional metadata associated with the session"
+  },
+  {
+    "name": "updatedAt",
+    "type": "string",
+    "description": "Last update timestamp for session metadata (ISO-8601)"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/session/sess_123" />
+
+---
+
+### Update Session
+
+Update an existing session.
+
+<ApiEndpoint method="PATCH" path="/hub/session/{sessionId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Request Body
+
+Session update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "label",
+    "type": "string",
+    "description": "Updated session label",
+    "required": false
+  },
+  {
+    "name": "agent",
+    "type": "string",
+    "description": "Updated default agent identifier",
+    "required": false
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Updated visibility setting",
+    "required": false
+  },
+  {
+    "name": "tags",
+    "type": "string[]",
+    "description": "Updated set of tags for the session",
+    "required": false
+  },
+  {
+    "name": "skills",
+    "type": "object[]",
+    "description": "Updated attached skills for the session",
+    "required": false
+  },
+  {
+    "name": "skills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier",
+    "required": true
+  },
+  {
+    "name": "skills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source",
+    "required": true
+  },
+  {
+    "name": "skills[].name",
+    "type": "string",
+    "description": "Human-readable skill name",
+    "required": false
+  },
+  {
+    "name": "skills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated session fields.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session updated |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Updated session identifier"
+  },
+  {
+    "name": "label",
+    "type": "string",
+    "description": "Updated label"
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Updated visibility"
+  },
+  {
+    "name": "tags",
+    "type": "string[]",
+    "description": "Updated tags"
+  },
+  {
+    "name": "skills",
+    "type": "array",
+    "description": "Updated skills"
+  },
+  {
+    "name": "defaultAgent",
+    "type": "string | null",
+    "description": "Updated default agent"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="PATCH" path="/hub/session/sess_123" body={{
+  "label": "Updated Session",
+  "tags": [
+    "auth",
+    "phase-2"
+  ]
+}} />
+
+---
+
+### Archive Session
 
 Archives an existing session.
 
@@ -890,6 +1472,116 @@ Returns the session identifier and optional updated status.
 #### Example
 
 <ApiExample method="POST" path="/hub/session/sess_123/archive" />
+
+---
+
+### Resume Session
+
+Resumes a paused session.
+
+<ApiEndpoint method="POST" path="/hub/session/{sessionId}/resume" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the session identifier and optional updated status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session resume initiated |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session identifier"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "New session status"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/hub/session/sess_123/resume" />
+
+---
+
+### Delete Session
+
+Permanently deletes a session.
+
+<ApiEndpoint method="DELETE" path="/hub/session/{sessionId}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the deleted session identifier and status.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Session deleted |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session identifier"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "New session status"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="DELETE" path="/hub/session/sess_123" />
 
 ---
 
@@ -1095,20 +1787,6 @@ Retrieve replay data for a session.
     "description": "Session ID"
   },
   {
-    "name": "limit",
-    "type": "number",
-    "in": "query",
-    "required": false,
-    "description": "Maximum records"
-  },
-  {
-    "name": "offset",
-    "type": "number",
-    "in": "query",
-    "required": false,
-    "description": "Pagination offset"
-  },
-  {
     "name": "orgId",
     "type": "string",
     "in": "query",
@@ -1196,11 +1874,11 @@ Retrieve participants for a session.
     "description": "Maximum records"
   },
   {
-    "name": "offset",
-    "type": "number",
+    "name": "includeDisconnected",
+    "type": "boolean",
     "in": "query",
     "required": false,
-    "description": "Pagination offset"
+    "description": "Include disconnected participants"
   },
   {
     "name": "orgId",
@@ -1277,7 +1955,7 @@ Returns participants for the session.
 
 #### Example
 
-<ApiExample method="GET" path="/hub/session/sess_123/participants" />
+<ApiExample method="GET" path="/hub/session/sess_123/participants?limit=200&includeDisconnected=true" />
 
 ---
 
@@ -1305,11 +1983,11 @@ Retrieve historical events for a session.
     "description": "Maximum records"
   },
   {
-    "name": "offset",
+    "name": "beforeId",
     "type": "number",
     "in": "query",
     "required": false,
-    "description": "Pagination offset"
+    "description": "Return events before the given event identifier"
   },
   {
     "name": "orgId",
@@ -1386,6 +2064,6 @@ Returns session event history.
 
 #### Example
 
-<ApiExample method="GET" path="/hub/session/sess_123/events/history?limit=50&offset=0" />
+<ApiExample method="GET" path="/hub/session/sess_123/events/history?limit=50&beforeId=1234" />
 
 ---
