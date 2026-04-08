@@ -430,6 +430,9 @@ export class CoderSSEClient {
 			return;
 		}
 
+		// Workaround for bun-types EventSource constructor typing issue.
+		// The type definitions don't match the runtime signature, so we use
+		// a double type assertion to construct EventSource with a URL parameter.
 		try {
 			const EventSourceCtor: typeof EventSource = EventSource;
 			this.#eventSource = new (EventSourceCtor as unknown as new (url: string) => EventSource)(
@@ -449,6 +452,9 @@ export class CoderSSEClient {
 		}
 
 		this.#eventSource.onerror = () => {
+			// Notify caller of transient error before reconnecting
+			this.#options.onError?.(new Error('EventSource transient error'));
+
 			if (this.#eventSource) {
 				this.#eventSource.close();
 				this.#eventSource = null;
@@ -583,6 +589,7 @@ export async function* streamCoderSessionSSE(
 	let eventSource: EventSource | null = null;
 	let reconnectAttempts = 0;
 	const buffer: CoderSSEEvent[] = [];
+	const MAX_BUFFER = 1000;
 	let resolve: (() => void) | null = null;
 	let done = false;
 	let terminalError: Error | null = null;
@@ -610,6 +617,10 @@ export async function* streamCoderSessionSSE(
 				const payload = typeOverride ? { type: typeOverride, ...parsed } : parsed;
 				const result = ObserverSseMessageSchema.safeParse(payload);
 				if (result.success) {
+					if (buffer.length >= MAX_BUFFER) {
+						buffer.shift();
+						logger.debug('SSE buffer full, dropped oldest event');
+					}
 					buffer.push({ event: eventName, data: result.data });
 					wake();
 				} else {
@@ -639,6 +650,7 @@ export async function* streamCoderSessionSSE(
 			return;
 		}
 
+		// Workaround for bun-types EventSource constructor typing issue (see above).
 		try {
 			const EventSourceCtor: typeof EventSource = EventSource;
 			eventSource = new (EventSourceCtor as unknown as new (url: string) => EventSource)(url);
