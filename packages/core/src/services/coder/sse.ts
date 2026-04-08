@@ -395,9 +395,21 @@ export class CoderSSEClient {
 					} else if (result.data.type === 'broadcast') {
 						this.#options.onBroadcast?.(result.data);
 					}
+				} else {
+					const parseError = new CoderSSEError({
+						message: `Invalid SSE ${eventName} event format`,
+						code: 'parse_error',
+						sessionId: this.#options.sessionId,
+					});
+					this.#options.onError?.(parseError);
 				}
 			} catch (err) {
-				this.#options.logger.debug('Failed to parse SSE %s event: %s', eventName, err);
+				const parseError = new CoderSSEError({
+					message: `Failed to parse SSE ${eventName} event: ${err instanceof Error ? err.message : String(err)}`,
+					code: 'parse_error',
+					sessionId: this.#options.sessionId,
+				});
+				this.#options.onError?.(parseError);
 			}
 		});
 	}
@@ -600,6 +612,8 @@ export async function* streamCoderSessionSSE(
 				if (result.success) {
 					buffer.push({ event: eventName, data: result.data });
 					wake();
+				} else {
+					logger.debug('Invalid SSE %s event format', eventName);
 				}
 			} catch (err) {
 				logger.debug('Failed to parse SSE %s event: %s', eventName, err);

@@ -76,5 +76,8 @@ export type CoderWsCloseCode = (typeof CODER_WS_CLOSE_CODE)[keyof typeof CODER_W
  * ```
  */
 export function isTerminalCloseCode(code: number): boolean {
+	if (code === CODER_WS_CLOSE_CODE.UNAVAILABLE || code === CODER_WS_CLOSE_CODE.RATE_LIMITED) {
+		return false;
+	}
 	return code >= 4000 && code < 5000;
 }

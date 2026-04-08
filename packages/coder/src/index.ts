@@ -79,3 +79,6 @@ export {
 	type CoderWsCloseCode,
 	isTerminalCloseCode,
 } from '@agentuity/core/coder';
+
+// Passthrough export for full protocol surface
+export * from '@agentuity/core/coder';

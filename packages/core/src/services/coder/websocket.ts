@@ -572,7 +572,7 @@ export class CoderHubWebSocketClient {
 
 		const params = new URLSearchParams();
 		const connectionParams: ConnectionParams = {
-			sessionId: this.#options.sessionId || undefined,
+			sessionId: this.#sessionId ?? (this.#options.sessionId || undefined),
 			role: this.#options.role || undefined,
 			agent: this.#options.agent || undefined,
 			parent: this.#options.parentSessionId || undefined,
@@ -664,6 +664,22 @@ export class CoderHubWebSocketClient {
 						this.#ws?.close(4401, 'Auth failed');
 						return;
 					}
+
+					// Handle protocol failure messages
+					const msg = data as { type?: unknown; code?: string; message?: string };
+					if (msg.type === 'connection_rejected' || msg.type === 'protocol_error') {
+						this.#setState('closed');
+						this.#options.onError(
+							new CoderHubWebSocketError({
+								message: `Connection rejected: ${msg.message ?? msg.code ?? 'Unknown error'}`,
+								code: 'auth_failed',
+								sessionId: this.sessionId,
+							})
+						);
+						this.#intentionallyClosed = true;
+						this.#ws?.close(4401, 'Auth failed');
+						return;
+					}
 				}
 
 				const initResult = CoderHubInitMessageSchema.safeParse(parsed);
@@ -717,6 +733,10 @@ export class CoderHubWebSocketClient {
 			this.#ws = null;
 			this.#clearTimers();
 			this.#setState('closed');
+
+			// Clear auth state for clean reconnect
+			this.#authenticated = false;
+			this.#initMessage = null;
 
 			if (isTerminalCloseCode(event.code)) {
 				this.#intentionallyClosed = true;
@@ -858,12 +878,12 @@ export async function* subscribeToCoderHub(
 			}
 			options.onError?.(error);
 		},
-		onClose: (code) => {
-			if (isTerminalCloseCode(code)) {
+		onClose: (code, reason) => {
+			if (isTerminalCloseCode(code) || options.autoReconnect === false) {
 				done = true;
 			}
 			wake();
-			options.onClose?.(code, '');
+			options.onClose?.(code, reason);
 		},
 	});
 
