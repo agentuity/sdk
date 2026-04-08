@@ -44,6 +44,12 @@ export const createCoderSubcommand = createSubcommand({
 			),
 			description: 'Create with label and tags, return JSON',
 		},
+		{
+			command: getCommand(
+				'coder create "Review this change" --default-agent code-review --agent-slugs code-review'
+			),
+			description: 'Create with published custom agents and a custom default route target',
+		},
 	],
 	schema: {
 		args: z.object({
@@ -61,6 +67,10 @@ export const createCoderSubcommand = createSubcommand({
 			// Session config
 			label: z.string().optional().describe('Human-readable session label'),
 			agent: z.string().optional().describe('Default agent role (e.g. lead, scout)'),
+			defaultAgent: z
+				.string()
+				.optional()
+				.describe('Preferred default agent slug or built-in route target'),
 			visibility: z
 				.string()
 				.optional()
@@ -86,6 +96,10 @@ export const createCoderSubcommand = createSubcommand({
 			// Resources
 			workspaceId: z.string().optional().describe('Workspace ID to use'),
 			tags: z.string().optional().describe('Comma-separated tags'),
+			agentSlugs: z
+				.string()
+				.optional()
+				.describe('Comma-separated published custom agent slugs to include'),
 			env: z
 				.string()
 				.optional()
@@ -105,10 +119,14 @@ export const createCoderSubcommand = createSubcommand({
 		});
 
 		// Build the create session request body from flags
-		const body: CoderCreateSessionRequest = {
+		const body: CoderCreateSessionRequest & {
+			defaultAgent?: string;
+			agentSlugs?: string[];
+		} = {
 			task: args.task,
 			...(opts?.label && { label: opts.label }),
 			...(opts?.agent && { agent: opts.agent }),
+			...(opts?.defaultAgent && { defaultAgent: opts.defaultAgent }),
 			...(opts?.visibility && { visibility: normalizeVisibility(opts.visibility) }),
 			...(opts?.workflowMode && { workflowMode: opts.workflowMode as 'standard' | 'loop' }),
 		};
@@ -148,6 +166,11 @@ export const createCoderSubcommand = createSubcommand({
 			body.tags = opts.tags
 				.split(',')
 				.map((t) => t.trim())
+				.filter(Boolean);
+		if (opts?.agentSlugs)
+			body.agentSlugs = opts.agentSlugs
+				.split(',')
+				.map((slug) => slug.trim())
 				.filter(Boolean);
 		if (opts?.savedSkillIds)
 			body.savedSkillIds = opts.savedSkillIds

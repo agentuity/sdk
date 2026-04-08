@@ -83,7 +83,7 @@ export const listSubcommand = createSubcommand({
 				Name: w.name,
 				Scope: w.scope,
 				Repos: String(w.repoCount),
-				Skills: String(w.selectionCount),
+				Selections: String(w.selectionCount),
 				Created: formatRelativeTime(w.createdAt),
 			})),
 			[
@@ -91,7 +91,7 @@ export const listSubcommand = createSubcommand({
 				{ name: 'Name', alignment: 'left' },
 				{ name: 'Scope', alignment: 'center' },
 				{ name: 'Repos', alignment: 'right' },
-				{ name: 'Skills', alignment: 'right' },
+				{ name: 'Selections', alignment: 'right' },
 				{ name: 'Created', alignment: 'right' },
 			]
 		);

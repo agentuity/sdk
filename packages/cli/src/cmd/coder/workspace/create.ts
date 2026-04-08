@@ -45,6 +45,10 @@ export const createWorkspaceSubcommand = createSubcommand({
 			scope: z.string().optional().describe('Workspace scope: user or org'),
 			repo: z.string().optional().describe('Repository URL to add'),
 			repoBranch: z.string().optional().describe('Branch for the repository'),
+			agentSlugs: z
+				.string()
+				.optional()
+				.describe('Comma-separated published custom agent slugs to add'),
 		}),
 	},
 	async handler(ctx) {
@@ -55,7 +59,9 @@ export const createWorkspaceSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		const body: CoderCreateWorkspaceRequest = {
+		const body: CoderCreateWorkspaceRequest & {
+			agentSlugs?: string[];
+		} = {
 			name: args.name,
 			...(opts?.description && { description: opts.description }),
 			...(opts?.scope && { scope: opts.scope as 'user' | 'org' }),
@@ -72,9 +78,18 @@ export const createWorkspaceSubcommand = createSubcommand({
 				return;
 			}
 		}
+		if (opts?.agentSlugs) {
+			body.agentSlugs = opts.agentSlugs
+				.split(',')
+				.map((slug) => slug.trim())
+				.filter(Boolean);
+		}
 
 		try {
 			const created = await client.createWorkspace(body);
+			const createdAgentSlugs = Array.isArray(created.agentSlugs)
+				? created.agentSlugs.filter((slug): slug is string => typeof slug === 'string')
+				: [];
 
 			if (options.json) {
 				return created;
@@ -88,7 +103,10 @@ export const createWorkspaceSubcommand = createSubcommand({
 			}
 			tui.output(`  Scope:       ${created.scope}`);
 			tui.output(`  Repos:       ${created.repoCount}`);
-			tui.output(`  Skills:      ${created.selectionCount}`);
+			tui.output(`  Selections:  ${created.selectionCount}`);
+			if (createdAgentSlugs.length > 0) {
+				tui.output(`  Agents:      ${createdAgentSlugs.join(', ')}`);
+			}
 
 			return created;
 		} catch (err) {
