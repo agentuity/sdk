@@ -55,8 +55,11 @@
 import { z } from 'zod/v4';
 import { StructuredError } from '../../error.ts';
 import type { Logger } from '../../logger.ts';
+import { APIClient } from '../api.ts';
+import { getServiceUrls } from '../config.ts';
 import { createMinimalLogger } from '../logger.ts';
 import { getEnv } from '../env.ts';
+import { discoverUrl } from './discover.ts';
 import type {
 	BroadcastEventMessage,
 	ObserverSseMessage,
@@ -79,6 +82,8 @@ export const CoderSSEOptionsSchema = z.object({
 	sessionId: z.string().describe('Session ID to observe'),
 	/** Base URL for the Coder Hub. Falls back to AGENTUITY_CODER_URL env var. */
 	url: z.string().optional().describe('Base URL for the Coder Hub'),
+	/** Region used for Catalyst URL resolution when no explicit URL is provided */
+	region: z.string().optional().describe('Region used for Catalyst URL resolution'),
 	/** Event filters to subscribe to. Empty subscribes to default observer events. */
 	subscribe: z.array(z.string()).optional().describe('Event filters to subscribe to'),
 	/** Custom logger implementation */
@@ -172,21 +177,34 @@ export interface CoderSSEEvent {
  */
 export type CoderSSEState = 'connecting' | 'connected' | 'reconnecting' | 'closed';
 
-function buildSSEUrl(
+async function buildSSEUrl(
 	sessionId: string,
-	options: { url?: string; apiKey?: string; orgId?: string; subscribe?: string[] }
-): string {
+	options: {
+		url?: string;
+		apiKey?: string;
+		orgId?: string;
+		subscribe?: string[];
+		region?: string;
+		logger?: Logger;
+	}
+): Promise<string> {
 	let baseUrl = options.url;
 	if (!baseUrl) {
 		const envUrl = getEnv('AGENTUITY_CODER_URL');
 		if (envUrl) {
 			baseUrl = normalizeCoderUrl(envUrl);
 		} else {
-			throw new CoderSSEError({
-				message: 'No URL provided and AGENTUITY_CODER_URL not set',
-				code: 'connection_failed',
-				sessionId,
+			const region = options.region ?? getEnv('AGENTUITY_REGION') ?? 'usc';
+			const catalystUrl = getServiceUrls(region).catalyst;
+			const headers: Record<string, string> = {};
+			if (options.orgId) {
+				headers['x-agentuity-orgid'] = options.orgId;
+			}
+			const logger = options.logger ?? createMinimalLogger();
+			const catalystClient = new APIClient(catalystUrl, logger, options.apiKey ?? '', {
+				headers,
 			});
+			baseUrl = await discoverUrl(catalystClient);
 		}
 	}
 
@@ -246,6 +264,7 @@ export class CoderSSEClient {
 	readonly #options: {
 		sessionId: string;
 		url: string | undefined;
+		region: string;
 		apiKey: string;
 		orgId: string;
 		subscribe: string[] | undefined;
@@ -273,6 +292,7 @@ export class CoderSSEClient {
 		this.#options = {
 			sessionId: options.sessionId,
 			url: options.url,
+			region: options.region ?? getEnv('AGENTUITY_REGION') ?? 'usc',
 			apiKey: options.apiKey ?? getEnv('AGENTUITY_SDK_KEY') ?? getEnv('AGENTUITY_CLI_KEY') ?? '',
 			orgId: options.orgId ?? '',
 			subscribe: options.subscribe,
@@ -382,7 +402,7 @@ export class CoderSSEClient {
 		});
 	}
 
-	#connectInternal(): void {
+	async #connectInternal(): Promise<void> {
 		if (this.#intentionallyClosed) {
 			return;
 		}
@@ -391,7 +411,7 @@ export class CoderSSEClient {
 
 		let url: string;
 		try {
-			url = buildSSEUrl(this.#options.sessionId, this.#options);
+			url = await buildSSEUrl(this.#options.sessionId, this.#options);
 		} catch (err) {
 			this.#setState('closed');
 			this.#options.onError?.(err as Error);
@@ -587,14 +607,17 @@ export async function* streamCoderSessionSSE(
 		});
 	};
 
-	const connect = (): void => {
+	const connect = async (): Promise<void> => {
 		if (done || signal?.aborted) {
 			return;
 		}
 
 		let url: string;
 		try {
-			url = buildSSEUrl(options.sessionId, options);
+			url = await buildSSEUrl(options.sessionId, {
+				...options,
+				logger,
+			});
 		} catch (err) {
 			terminalError = err as Error;
 			done = true;
@@ -666,7 +689,7 @@ export async function* streamCoderSessionSSE(
 		handleSSEEvent('message');
 	};
 
-	connect();
+	await connect();
 
 	const onAbort = () => {
 		done = true;

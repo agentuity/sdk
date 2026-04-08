@@ -57,9 +57,12 @@
 import { z } from 'zod/v4';
 import { StructuredError } from '../../error.ts';
 import type { Logger } from '../../logger.ts';
+import { APIClient } from '../api.ts';
+import { getServiceUrls } from '../config.ts';
 import { createMinimalLogger } from '../logger.ts';
 import { getEnv } from '../env.ts';
 import { isTerminalCloseCode } from './close-codes.ts';
+import { discoverUrl } from './discover.ts';
 import type {
 	ClientMessage,
 	CoderHubInitMessage,
@@ -96,6 +99,8 @@ export const CoderHubWebSocketOptionsSchema = z.object({
 	orgId: z.string().optional().describe('Organization ID for multi-tenant operations'),
 	/** WebSocket URL for the Coder Hub. Falls back to AGENTUITY_CODER_URL env var. */
 	url: z.string().optional().describe('WebSocket URL for the Coder Hub'),
+	/** Region used for Catalyst URL resolution when no explicit URL is provided */
+	region: z.string().optional().describe('Region used for Catalyst URL resolution'),
 	/** Session ID to connect to. For new sessions, leave empty and server will assign one. */
 	sessionId: z.string().optional().describe('Session ID to connect to'),
 	/**
@@ -258,6 +263,7 @@ export class CoderHubWebSocketClient {
 		apiKey: string;
 		orgId: string;
 		url: string;
+		region: string;
 		sessionId: string;
 		role: 'lead' | 'observer' | 'controller';
 		agent: string;
@@ -304,6 +310,7 @@ export class CoderHubWebSocketClient {
 			apiKey,
 			orgId: options.orgId ?? '',
 			url: options.url ?? '',
+			region: options.region ?? getEnv('AGENTUITY_REGION') ?? 'usc',
 			sessionId: options.sessionId ?? '',
 			role: options.role ?? 'observer',
 			agent: options.agent ?? '',
@@ -536,17 +543,25 @@ export class CoderHubWebSocketClient {
 		this.#pendingRequests.clear();
 	}
 
-	#buildWsUrl(): string {
+	async #buildWsUrl(): Promise<string> {
 		let baseUrl = this.#options.url;
 		if (!baseUrl) {
 			const envUrl = getEnv('AGENTUITY_CODER_URL');
 			if (envUrl) {
 				baseUrl = normalizeCoderUrl(envUrl);
 			} else {
-				throw new CoderHubWebSocketError({
-					message: 'No WebSocket URL provided and AGENTUITY_CODER_URL not set',
-					code: 'connection_failed',
-				});
+				const catalystUrl = getServiceUrls(this.#options.region).catalyst;
+				const headers: Record<string, string> = {};
+				if (this.#options.orgId) {
+					headers['x-agentuity-orgid'] = this.#options.orgId;
+				}
+				const catalystClient = new APIClient(
+					catalystUrl,
+					this.#options.logger,
+					this.#options.apiKey,
+					{ headers }
+				);
+				baseUrl = await discoverUrl(catalystClient);
 			}
 		}
 
@@ -580,7 +595,7 @@ export class CoderHubWebSocketClient {
 		return queryString ? `${wsUrl}?${queryString}` : wsUrl;
 	}
 
-	#connectInternal(): void {
+	async #connectInternal(): Promise<void> {
 		if (this.#intentionallyClosed) {
 			return;
 		}
@@ -589,7 +604,7 @@ export class CoderHubWebSocketClient {
 
 		let wsUrl: string;
 		try {
-			wsUrl = this.#buildWsUrl();
+			wsUrl = await this.#buildWsUrl();
 		} catch (err) {
 			this.#setState('closed');
 			this.#options.onError(err as Error);
