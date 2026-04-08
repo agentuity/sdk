@@ -467,374 +467,429 @@ Returns a session list.
 <ResponseFields fields={[
   {
     "name": "sessions",
-    "type": "object[]",
-    "description": "List of coder sessions"
+    "type": "object",
+    "description": "Sessions grouped by transport"
   },
   {
-    "name": "sessions[].sessionId",
+    "name": "sessions.websocket",
+    "type": "object[]",
+    "description": "Websocket-backed sessions returned by the hub"
+  },
+  {
+    "name": "sessions.websocket[].sessionId",
     "type": "string",
     "description": "Unique session identifier"
   },
   {
-    "name": "sessions[].label",
+    "name": "sessions.websocket[].label",
     "type": "string",
     "description": "Human-readable session label"
   },
   {
-    "name": "sessions[].status",
+    "name": "sessions.websocket[].status",
     "type": "string",
     "description": "Current session status"
   },
   {
-    "name": "sessions[].mode",
+    "name": "sessions.websocket[].mode",
     "type": "string",
     "description": "Runtime mode used by this session"
   },
   {
-    "name": "sessions[].visibility",
+    "name": "sessions.websocket[].visibility",
     "type": "string",
     "description": "Visibility value assigned to the session"
   },
   {
-    "name": "sessions[].owner",
+    "name": "sessions.websocket[].owner",
     "type": "object",
     "description": "Session owner identity"
   },
   {
-    "name": "sessions[].owner.userId",
+    "name": "sessions.websocket[].owner.userId",
     "type": "string",
     "description": "Owner user identifier"
   },
   {
-    "name": "sessions[].owner.name",
+    "name": "sessions.websocket[].owner.name",
     "type": "string",
     "description": "Owner display name"
   },
   {
-    "name": "sessions[].origin",
+    "name": "sessions.websocket[].origin",
     "type": "string | object",
     "description": "Session origin metadata"
   },
   {
-    "name": "sessions[].repo",
+    "name": "sessions.websocket[].repo",
     "type": "object",
     "description": "Primary repository reference"
   },
   {
-    "name": "sessions[].repo.repoId",
+    "name": "sessions.websocket[].repo.repoId",
     "type": "string",
     "description": "Repository identifier when available"
   },
   {
-    "name": "sessions[].repo.type",
+    "name": "sessions.websocket[].repo.type",
     "type": "string",
     "description": "Repository type (e.g., GitHub, GitLab)"
   },
   {
-    "name": "sessions[].repo.provider",
+    "name": "sessions.websocket[].repo.provider",
     "type": "string",
     "description": "Git provider identifier"
   },
   {
-    "name": "sessions[].repo.owner",
+    "name": "sessions.websocket[].repo.owner",
     "type": "string",
     "description": "Repository owner or organization"
   },
   {
-    "name": "sessions[].repo.name",
+    "name": "sessions.websocket[].repo.name",
     "type": "string",
     "description": "Repository name"
   },
   {
-    "name": "sessions[].repo.fullName",
+    "name": "sessions.websocket[].repo.fullName",
     "type": "string",
     "description": "Fully qualified repository name"
   },
   {
-    "name": "sessions[].repo.url",
+    "name": "sessions.websocket[].repo.url",
     "type": "string",
     "description": "Repository web URL"
   },
   {
-    "name": "sessions[].repo.cloneUrl",
+    "name": "sessions.websocket[].repo.cloneUrl",
     "type": "string",
     "description": "Repository clone URL"
   },
   {
-    "name": "sessions[].repo.defaultBranch",
+    "name": "sessions.websocket[].repo.defaultBranch",
     "type": "string",
     "description": "Default branch for the repository"
   },
   {
-    "name": "sessions[].repo.branch",
+    "name": "sessions.websocket[].repo.branch",
     "type": "string",
     "description": "Selected branch for the session workspace"
   },
   {
-    "name": "sessions[].repo.ref",
+    "name": "sessions.websocket[].repo.ref",
     "type": "string",
     "description": "Selected ref for the session workspace"
   },
   {
-    "name": "sessions[].repo.commit",
+    "name": "sessions.websocket[].repo.commit",
     "type": "string",
     "description": "Pinned commit SHA for the session workspace"
   },
   {
-    "name": "sessions[].repo.path",
+    "name": "sessions.websocket[].repo.path",
     "type": "string",
     "description": "Subpath of the repository mounted in session"
   },
   {
-    "name": "sessions[].repo.rootPath",
+    "name": "sessions.websocket[].repo.rootPath",
     "type": "string",
     "description": "Absolute workspace root path for the repository"
   },
   {
-    "name": "sessions[].repos",
+    "name": "sessions.websocket[].repos",
     "type": "object[]",
     "description": "Repository references mounted in session"
   },
   {
-    "name": "sessions[].repos[].repoId",
+    "name": "sessions.websocket[].repos[].repoId",
     "type": "string",
     "description": "Repository identifier when available"
   },
   {
-    "name": "sessions[].repos[].type",
+    "name": "sessions.websocket[].repos[].type",
     "type": "string",
     "description": "Repository type (e.g., GitHub, GitLab)"
   },
   {
-    "name": "sessions[].repos[].provider",
+    "name": "sessions.websocket[].repos[].provider",
     "type": "string",
     "description": "Git provider identifier"
   },
   {
-    "name": "sessions[].repos[].owner",
+    "name": "sessions.websocket[].repos[].owner",
     "type": "string",
     "description": "Repository owner or organization"
   },
   {
-    "name": "sessions[].repos[].name",
+    "name": "sessions.websocket[].repos[].name",
     "type": "string",
     "description": "Repository name"
   },
   {
-    "name": "sessions[].repos[].fullName",
+    "name": "sessions.websocket[].repos[].fullName",
     "type": "string",
     "description": "Fully qualified repository name"
   },
   {
-    "name": "sessions[].repos[].url",
+    "name": "sessions.websocket[].repos[].url",
     "type": "string",
     "description": "Repository web URL"
   },
   {
-    "name": "sessions[].repos[].cloneUrl",
+    "name": "sessions.websocket[].repos[].cloneUrl",
     "type": "string",
     "description": "Repository clone URL"
   },
   {
-    "name": "sessions[].repos[].defaultBranch",
+    "name": "sessions.websocket[].repos[].defaultBranch",
     "type": "string",
     "description": "Default branch for the repository"
   },
   {
-    "name": "sessions[].repos[].branch",
+    "name": "sessions.websocket[].repos[].branch",
     "type": "string",
     "description": "Selected branch for the session workspace"
   },
   {
-    "name": "sessions[].repos[].ref",
+    "name": "sessions.websocket[].repos[].ref",
     "type": "string",
     "description": "Selected ref for the session workspace"
   },
   {
-    "name": "sessions[].repos[].commit",
+    "name": "sessions.websocket[].repos[].commit",
     "type": "string",
     "description": "Pinned commit SHA for the session workspace"
   },
   {
-    "name": "sessions[].repos[].path",
+    "name": "sessions.websocket[].repos[].path",
     "type": "string",
     "description": "Subpath of the repository mounted in session"
   },
   {
-    "name": "sessions[].repos[].rootPath",
+    "name": "sessions.websocket[].repos[].rootPath",
     "type": "string",
     "description": "Absolute workspace root path for the repository"
   },
   {
-    "name": "sessions[].workspace",
+    "name": "sessions.websocket[].workspace",
     "type": "object",
     "description": "Associated workspace information"
   },
   {
-    "name": "sessions[].workspace.id",
+    "name": "sessions.websocket[].workspace.id",
     "type": "string",
     "description": "Workspace identifier"
   },
   {
-    "name": "sessions[].workspace.name",
+    "name": "sessions.websocket[].workspace.name",
     "type": "string",
     "description": "Workspace display name"
   },
   {
-    "name": "sessions[].workspace.scope",
+    "name": "sessions.websocket[].workspace.scope",
     "type": "string",
     "description": "Workspace ownership scope"
   },
   {
-    "name": "sessions[].sessionKind",
+    "name": "sessions.websocket[].sessionKind",
     "type": "string",
     "description": "Session kind category emitted by backend"
   },
   {
-    "name": "sessions[].parentSessionId",
+    "name": "sessions.websocket[].parentSessionId",
     "type": "string",
     "description": "Parent session identifier when session is derived"
   },
   {
-    "name": "sessions[].coordinationJobId",
+    "name": "sessions.websocket[].coordinationJobId",
     "type": "string",
     "description": "Coordination job identifier for orchestration"
   },
   {
-    "name": "sessions[].workflowMode",
+    "name": "sessions.websocket[].workflowMode",
     "type": "string",
     "description": "Workflow mode currently active for session"
   },
   {
-    "name": "sessions[].loopStatus",
+    "name": "sessions.websocket[].loopStatus",
     "type": "string",
     "description": "Current loop status if workflow mode is loop"
   },
   {
-    "name": "sessions[].loopIteration",
+    "name": "sessions.websocket[].loopIteration",
     "type": "number",
     "description": "Current loop iteration counter when applicable"
   },
   {
-    "name": "sessions[].createdAt",
+    "name": "sessions.websocket[].createdAt",
     "type": "string",
     "description": "Session creation timestamp (ISO-8601)"
   },
   {
-    "name": "sessions[].lastActivityAt",
+    "name": "sessions.websocket[].lastActivityAt",
     "type": "string",
     "description": "Timestamp of most recent activity (ISO-8601)"
   },
   {
-    "name": "sessions[].taskCount",
+    "name": "sessions.websocket[].taskCount",
     "type": "number",
     "description": "Number of tasks associated with the session"
   },
   {
-    "name": "sessions[].subAgentCount",
+    "name": "sessions.websocket[].subAgentCount",
     "type": "number",
     "description": "Number of sub-agents associated with the session"
   },
   {
-    "name": "sessions[].observerCount",
+    "name": "sessions.websocket[].observerCount",
     "type": "number",
     "description": "Number of observer participants in the session"
   },
   {
-    "name": "sessions[].participantCount",
+    "name": "sessions.websocket[].participantCount",
     "type": "number",
     "description": "Total number of participants in the session"
   },
   {
-    "name": "sessions[].tags",
+    "name": "sessions.websocket[].tags",
     "type": "string[]",
     "description": "Tag values attached to the session"
   },
   {
-    "name": "sessions[].skills",
+    "name": "sessions.websocket[].skills",
     "type": "object[]",
     "description": "Skills attached to the session"
   },
   {
-    "name": "sessions[].skills[].skillId",
+    "name": "sessions.websocket[].skills[].skillId",
     "type": "string",
     "description": "Unique skill identifier"
   },
   {
-    "name": "sessions[].skills[].repo",
+    "name": "sessions.websocket[].skills[].repo",
     "type": "string",
     "description": "Repository slug for the skill source"
   },
   {
-    "name": "sessions[].skills[].name",
+    "name": "sessions.websocket[].skills[].name",
     "type": "string",
     "description": "Human-readable skill name"
   },
   {
-    "name": "sessions[].skills[].url",
+    "name": "sessions.websocket[].skills[].url",
     "type": "string",
     "description": "Canonical URL for the skill repository or page"
   },
   {
-    "name": "sessions[].defaultAgent",
+    "name": "sessions.websocket[].defaultAgent",
     "type": "string",
     "description": "Default agent assigned to session operations"
   },
   {
-    "name": "sessions[].bucket",
+    "name": "sessions.websocket[].bucket",
     "type": "string",
     "description": "Derived bucket for session listing"
   },
   {
-    "name": "sessions[].runtimeAvailable",
+    "name": "sessions.websocket[].runtimeAvailable",
     "type": "boolean",
     "description": "Whether runtime is currently reachable"
   },
   {
-    "name": "sessions[].controlAvailable",
+    "name": "sessions.websocket[].controlAvailable",
     "type": "boolean",
     "description": "Whether control operations are currently available"
   },
   {
-    "name": "sessions[].manageAvailable",
+    "name": "sessions.websocket[].manageAvailable",
     "type": "boolean",
     "description": "Whether management operations are currently available"
   },
   {
-    "name": "sessions[].wakeAvailable",
+    "name": "sessions.websocket[].wakeAvailable",
     "type": "boolean",
     "description": "Whether wake operation is currently available"
   },
   {
-    "name": "sessions[].historyOnly",
+    "name": "sessions.websocket[].historyOnly",
     "type": "boolean",
     "description": "Whether session is history-only and no longer interactive"
   },
   {
-    "name": "sessions[].liveExpected",
+    "name": "sessions.websocket[].liveExpected",
     "type": "boolean",
     "description": "Whether live connectivity is expected for the session"
+  },
+  {
+    "name": "sessions.sandbox",
+    "type": "array",
+    "description": "Non-websocket session entries returned by the hub"
   },
   {
     "name": "total",
     "type": "number",
     "description": "Total sessions matching the query"
-  },
-  {
-    "name": "limit",
-    "type": "number",
-    "description": "Pagination limit used by the response"
-  },
-  {
-    "name": "offset",
-    "type": "number",
-    "description": "Pagination offset used by the response"
   }
 ]} />
 
 #### Example
 
 <ApiExample method="GET" path="/hub/sessions?limit=20&offset=0" />
+
+---
+
+### Session Lifecycle Endpoints
+
+Archives an existing session.
+
+<ApiEndpoint method="POST" path="/hub/session/{sessionId}/archive" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Session ID"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns success and optionally updated session payload.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Lifecycle action applied |
+| 404 | Session not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Session identifier"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "New session status"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/hub/session/sess_123/archive" />
 
 ---
 
@@ -1080,14 +1135,34 @@ Returns replay data for the session.
     "description": "Session identifier for replay payload"
   },
   {
-    "name": "replay",
-    "type": "any",
-    "description": "Replay payload emitted by coder hub"
+    "name": "entriesSource",
+    "type": "string",
+    "description": "Source used to reconstruct replay entries"
   },
   {
-    "name": "events",
+    "name": "sourceCounts",
+    "type": "object",
+    "description": "Counts of replay entries by source"
+  },
+  {
+    "name": "sourceCounts.durableStream",
+    "type": "number",
+    "description": "Replay entries loaded from durable stream storage"
+  },
+  {
+    "name": "sourceCounts.sessionEntries",
+    "type": "number",
+    "description": "Replay entries loaded from session entry storage"
+  },
+  {
+    "name": "sourceCounts.eventHistory",
+    "type": "number",
+    "description": "Replay entries synthesized from event history"
+  },
+  {
+    "name": "entries",
     "type": "array",
-    "description": "Replay events if included in response payload"
+    "description": "Replay conversation entries for the session"
   }
 ]} />
 
@@ -1306,507 +1381,11 @@ Returns session event history.
     "name": "events[].ingestedAt",
     "type": "string",
     "description": "Timestamp when event was ingested (ISO-8601)"
-  },
-  {
-    "name": "total",
-    "type": "number",
-    "description": "Total number of events when pagination is applied"
-  },
-  {
-    "name": "limit",
-    "type": "number",
-    "description": "Pagination limit used by backend response"
-  },
-  {
-    "name": "offset",
-    "type": "number",
-    "description": "Pagination offset used by backend response"
   }
 ]} />
 
 #### Example
 
 <ApiExample method="GET" path="/hub/session/sess_123/events/history?limit=50&offset=0" />
-
----
-
-## Sessions
-
-### Session Lifecycle Endpoints
-
-Archives an existing session.
-
-<ApiEndpoint method="POST" path="/hub/session/{sessionId}/archive" />
-
-#### Parameters
-
-<ParamTable params={[
-  {
-    "name": "sessionId",
-    "type": "string",
-    "in": "path",
-    "required": true,
-    "description": "Session ID"
-  },
-  {
-    "name": "orgId",
-    "type": "string",
-    "in": "query",
-    "required": false,
-    "description": "Organization ID"
-  }
-]} />
-
-#### Response
-
-Returns success and optionally updated session payload.
-
-| Status | Description |
-|--------|-------------|
-| 200 | Lifecycle action applied |
-| 404 | Session not found |
-
-#### Response Fields
-
-<ResponseFields fields={[
-  {
-    "name": "sessionId",
-    "type": "string",
-    "description": "Session identifier"
-  },
-  {
-    "name": "status",
-    "type": "string",
-    "description": "New session status"
-  }
-]} />
-
-#### Example
-
-<ApiExample method="POST" path="/hub/session/sess_123/archive" />
-
----
-
-### List Connectable Sessions
-
-Lists sessions the authenticated user can connect to.
-
-<ApiEndpoint method="GET" path="/hub/sessions/connectable" />
-
-#### Parameters
-
-<ParamTable params={[
-  {
-    "name": "search",
-    "type": "string",
-    "in": "query",
-    "required": false,
-    "description": "Search query"
-  },
-  {
-    "name": "limit",
-    "type": "number",
-    "in": "query",
-    "required": false,
-    "description": "Maximum results"
-  },
-  {
-    "name": "offset",
-    "type": "number",
-    "in": "query",
-    "required": false,
-    "description": "Pagination offset"
-  },
-  {
-    "name": "orgId",
-    "type": "string",
-    "in": "query",
-    "required": false,
-    "description": "Organization ID"
-  }
-]} />
-
-#### Response
-
-Returns connectable sessions.
-
-| Status | Description |
-|--------|-------------|
-| 200 | Connectable sessions returned |
-| 401 | Unauthorized — invalid or missing API key |
-
-#### Response Fields
-
-<ResponseFields fields={[
-  {
-    "name": "sessions",
-    "type": "object[]",
-    "description": "List of coder sessions"
-  },
-  {
-    "name": "sessions[].sessionId",
-    "type": "string",
-    "description": "Unique session identifier"
-  },
-  {
-    "name": "sessions[].label",
-    "type": "string",
-    "description": "Human-readable session label"
-  },
-  {
-    "name": "sessions[].status",
-    "type": "string",
-    "description": "Current session status"
-  },
-  {
-    "name": "sessions[].mode",
-    "type": "string",
-    "description": "Runtime mode used by this session"
-  },
-  {
-    "name": "sessions[].visibility",
-    "type": "string",
-    "description": "Visibility value assigned to the session"
-  },
-  {
-    "name": "sessions[].owner",
-    "type": "object",
-    "description": "Session owner identity"
-  },
-  {
-    "name": "sessions[].owner.userId",
-    "type": "string",
-    "description": "Owner user identifier"
-  },
-  {
-    "name": "sessions[].owner.name",
-    "type": "string",
-    "description": "Owner display name"
-  },
-  {
-    "name": "sessions[].origin",
-    "type": "string | object",
-    "description": "Session origin metadata"
-  },
-  {
-    "name": "sessions[].repo",
-    "type": "object",
-    "description": "Primary repository reference"
-  },
-  {
-    "name": "sessions[].repo.repoId",
-    "type": "string",
-    "description": "Repository identifier when available"
-  },
-  {
-    "name": "sessions[].repo.type",
-    "type": "string",
-    "description": "Repository type (e.g., GitHub, GitLab)"
-  },
-  {
-    "name": "sessions[].repo.provider",
-    "type": "string",
-    "description": "Git provider identifier"
-  },
-  {
-    "name": "sessions[].repo.owner",
-    "type": "string",
-    "description": "Repository owner or organization"
-  },
-  {
-    "name": "sessions[].repo.name",
-    "type": "string",
-    "description": "Repository name"
-  },
-  {
-    "name": "sessions[].repo.fullName",
-    "type": "string",
-    "description": "Fully qualified repository name"
-  },
-  {
-    "name": "sessions[].repo.url",
-    "type": "string",
-    "description": "Repository web URL"
-  },
-  {
-    "name": "sessions[].repo.cloneUrl",
-    "type": "string",
-    "description": "Repository clone URL"
-  },
-  {
-    "name": "sessions[].repo.defaultBranch",
-    "type": "string",
-    "description": "Default branch for the repository"
-  },
-  {
-    "name": "sessions[].repo.branch",
-    "type": "string",
-    "description": "Selected branch for the session workspace"
-  },
-  {
-    "name": "sessions[].repo.ref",
-    "type": "string",
-    "description": "Selected ref for the session workspace"
-  },
-  {
-    "name": "sessions[].repo.commit",
-    "type": "string",
-    "description": "Pinned commit SHA for the session workspace"
-  },
-  {
-    "name": "sessions[].repo.path",
-    "type": "string",
-    "description": "Subpath of the repository mounted in session"
-  },
-  {
-    "name": "sessions[].repo.rootPath",
-    "type": "string",
-    "description": "Absolute workspace root path for the repository"
-  },
-  {
-    "name": "sessions[].repos",
-    "type": "object[]",
-    "description": "Repository references mounted in session"
-  },
-  {
-    "name": "sessions[].repos[].repoId",
-    "type": "string",
-    "description": "Repository identifier when available"
-  },
-  {
-    "name": "sessions[].repos[].type",
-    "type": "string",
-    "description": "Repository type (e.g., GitHub, GitLab)"
-  },
-  {
-    "name": "sessions[].repos[].provider",
-    "type": "string",
-    "description": "Git provider identifier"
-  },
-  {
-    "name": "sessions[].repos[].owner",
-    "type": "string",
-    "description": "Repository owner or organization"
-  },
-  {
-    "name": "sessions[].repos[].name",
-    "type": "string",
-    "description": "Repository name"
-  },
-  {
-    "name": "sessions[].repos[].fullName",
-    "type": "string",
-    "description": "Fully qualified repository name"
-  },
-  {
-    "name": "sessions[].repos[].url",
-    "type": "string",
-    "description": "Repository web URL"
-  },
-  {
-    "name": "sessions[].repos[].cloneUrl",
-    "type": "string",
-    "description": "Repository clone URL"
-  },
-  {
-    "name": "sessions[].repos[].defaultBranch",
-    "type": "string",
-    "description": "Default branch for the repository"
-  },
-  {
-    "name": "sessions[].repos[].branch",
-    "type": "string",
-    "description": "Selected branch for the session workspace"
-  },
-  {
-    "name": "sessions[].repos[].ref",
-    "type": "string",
-    "description": "Selected ref for the session workspace"
-  },
-  {
-    "name": "sessions[].repos[].commit",
-    "type": "string",
-    "description": "Pinned commit SHA for the session workspace"
-  },
-  {
-    "name": "sessions[].repos[].path",
-    "type": "string",
-    "description": "Subpath of the repository mounted in session"
-  },
-  {
-    "name": "sessions[].repos[].rootPath",
-    "type": "string",
-    "description": "Absolute workspace root path for the repository"
-  },
-  {
-    "name": "sessions[].workspace",
-    "type": "object",
-    "description": "Associated workspace information"
-  },
-  {
-    "name": "sessions[].workspace.id",
-    "type": "string",
-    "description": "Workspace identifier"
-  },
-  {
-    "name": "sessions[].workspace.name",
-    "type": "string",
-    "description": "Workspace display name"
-  },
-  {
-    "name": "sessions[].workspace.scope",
-    "type": "string",
-    "description": "Workspace ownership scope"
-  },
-  {
-    "name": "sessions[].sessionKind",
-    "type": "string",
-    "description": "Session kind category emitted by backend"
-  },
-  {
-    "name": "sessions[].parentSessionId",
-    "type": "string",
-    "description": "Parent session identifier when session is derived"
-  },
-  {
-    "name": "sessions[].coordinationJobId",
-    "type": "string",
-    "description": "Coordination job identifier for orchestration"
-  },
-  {
-    "name": "sessions[].workflowMode",
-    "type": "string",
-    "description": "Workflow mode currently active for session"
-  },
-  {
-    "name": "sessions[].loopStatus",
-    "type": "string",
-    "description": "Current loop status if workflow mode is loop"
-  },
-  {
-    "name": "sessions[].loopIteration",
-    "type": "number",
-    "description": "Current loop iteration counter when applicable"
-  },
-  {
-    "name": "sessions[].createdAt",
-    "type": "string",
-    "description": "Session creation timestamp (ISO-8601)"
-  },
-  {
-    "name": "sessions[].lastActivityAt",
-    "type": "string",
-    "description": "Timestamp of most recent activity (ISO-8601)"
-  },
-  {
-    "name": "sessions[].taskCount",
-    "type": "number",
-    "description": "Number of tasks associated with the session"
-  },
-  {
-    "name": "sessions[].subAgentCount",
-    "type": "number",
-    "description": "Number of sub-agents associated with the session"
-  },
-  {
-    "name": "sessions[].observerCount",
-    "type": "number",
-    "description": "Number of observer participants in the session"
-  },
-  {
-    "name": "sessions[].participantCount",
-    "type": "number",
-    "description": "Total number of participants in the session"
-  },
-  {
-    "name": "sessions[].tags",
-    "type": "string[]",
-    "description": "Tag values attached to the session"
-  },
-  {
-    "name": "sessions[].skills",
-    "type": "object[]",
-    "description": "Skills attached to the session"
-  },
-  {
-    "name": "sessions[].skills[].skillId",
-    "type": "string",
-    "description": "Unique skill identifier"
-  },
-  {
-    "name": "sessions[].skills[].repo",
-    "type": "string",
-    "description": "Repository slug for the skill source"
-  },
-  {
-    "name": "sessions[].skills[].name",
-    "type": "string",
-    "description": "Human-readable skill name"
-  },
-  {
-    "name": "sessions[].skills[].url",
-    "type": "string",
-    "description": "Canonical URL for the skill repository or page"
-  },
-  {
-    "name": "sessions[].defaultAgent",
-    "type": "string",
-    "description": "Default agent assigned to session operations"
-  },
-  {
-    "name": "sessions[].bucket",
-    "type": "string",
-    "description": "Derived bucket for session listing"
-  },
-  {
-    "name": "sessions[].runtimeAvailable",
-    "type": "boolean",
-    "description": "Whether runtime is currently reachable"
-  },
-  {
-    "name": "sessions[].controlAvailable",
-    "type": "boolean",
-    "description": "Whether control operations are currently available"
-  },
-  {
-    "name": "sessions[].manageAvailable",
-    "type": "boolean",
-    "description": "Whether management operations are currently available"
-  },
-  {
-    "name": "sessions[].wakeAvailable",
-    "type": "boolean",
-    "description": "Whether wake operation is currently available"
-  },
-  {
-    "name": "sessions[].historyOnly",
-    "type": "boolean",
-    "description": "Whether session is history-only and no longer interactive"
-  },
-  {
-    "name": "sessions[].liveExpected",
-    "type": "boolean",
-    "description": "Whether live connectivity is expected for the session"
-  },
-  {
-    "name": "total",
-    "type": "number",
-    "description": "Total sessions matching the query"
-  },
-  {
-    "name": "limit",
-    "type": "number",
-    "description": "Pagination limit used by the response"
-  },
-  {
-    "name": "offset",
-    "type": "number",
-    "description": "Pagination offset used by the response"
-  }
-]} />
-
-#### Example
-
-<ApiExample method="GET" path="/hub/sessions/connectable" />
 
 ---

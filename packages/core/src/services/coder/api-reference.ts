@@ -3,11 +3,14 @@ import {
 	CoderListUsersResponseSchema,
 	CoderLoopStateResponseSchema,
 	CoderSessionEventHistorySchema,
-	CoderSessionListResponseSchema,
 	CoderSessionParticipantsSchema,
 	CoderSessionReplaySchema,
 } from './types.ts';
-import { CoderCreateSessionParamsSchema, CoderLifecycleResponseSchema } from './sessions.ts';
+import {
+	CoderCreateSessionParamsSchema,
+	CoderHubSessionListResponseSchema,
+	CoderLifecycleResponseSchema,
+} from './sessions.ts';
 import type { Service } from '../api-reference.ts';
 
 const service: Service = {
@@ -81,12 +84,34 @@ const service: Service = {
 			],
 			requestBody: null,
 			responseDescription: 'Returns a session list.',
-			responseFields: { schema: CoderSessionListResponseSchema, stripRequired: true },
+			responseFields: { schema: CoderHubSessionListResponseSchema, stripRequired: true },
 			statuses: [
 				{ code: 200, description: 'Sessions returned' },
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 			],
 			examplePath: '/hub/sessions?limit=20&offset=0',
+		},
+		{
+			id: 'session-lifecycle',
+			title: 'Session Lifecycle Endpoints',
+			sectionTitle: 'Sessions',
+			method: 'POST',
+			path: '/hub/session/{sessionId}/archive',
+			description: 'Archives an existing session.',
+			pathParams: [
+				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns success and optionally updated session payload.',
+			responseFields: { schema: CoderLifecycleResponseSchema, stripRequired: true },
+			statuses: [
+				{ code: 200, description: 'Lifecycle action applied' },
+				{ code: 404, description: 'Session not found' },
+			],
+			examplePath: '/hub/session/sess_123/archive',
 		},
 		{
 			id: 'get-loop-state',
@@ -204,51 +229,6 @@ const service: Service = {
 				{ code: 404, description: 'Session not found' },
 			],
 			examplePath: '/hub/session/sess_123/events/history?limit=50&offset=0',
-		},
-		{
-			id: 'session-lifecycle',
-			title: 'Session Lifecycle Endpoints',
-			sectionTitle: 'Sessions',
-			method: 'POST',
-			path: '/hub/session/{sessionId}/archive',
-			description: 'Archives an existing session.',
-			pathParams: [
-				{ name: 'sessionId', type: 'string', description: 'Session ID', required: true },
-			],
-			queryParams: [
-				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
-			],
-			requestBody: null,
-			responseDescription: 'Returns success and optionally updated session payload.',
-			responseFields: { schema: CoderLifecycleResponseSchema, stripRequired: true },
-			statuses: [
-				{ code: 200, description: 'Lifecycle action applied' },
-				{ code: 404, description: 'Session not found' },
-			],
-			examplePath: '/hub/session/sess_123/archive',
-		},
-		{
-			id: 'connectable-sessions',
-			title: 'List Connectable Sessions',
-			sectionTitle: 'Sessions',
-			method: 'GET',
-			path: '/hub/sessions/connectable',
-			description: 'Lists sessions the authenticated user can connect to.',
-			pathParams: [],
-			queryParams: [
-				{ name: 'search', type: 'string', description: 'Search query', required: false },
-				{ name: 'limit', type: 'number', description: 'Maximum results', required: false },
-				{ name: 'offset', type: 'number', description: 'Pagination offset', required: false },
-				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
-			],
-			requestBody: null,
-			responseDescription: 'Returns connectable sessions.',
-			responseFields: { schema: CoderSessionListResponseSchema, stripRequired: true },
-			statuses: [
-				{ code: 200, description: 'Connectable sessions returned' },
-				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
-			],
-			examplePath: '/hub/sessions/connectable',
 		},
 	],
 };

@@ -15,13 +15,21 @@ import {
 	type CoderUpdateSessionRequest,
 } from './types.ts';
 
-const CoderHubSessionListResponseSchema = z.object({
-	sessions: z.object({
-		websocket: z.array(CoderSessionListItemSchema),
-		sandbox: z.array(z.unknown()),
-	}),
-	total: z.number(),
-});
+export const CoderHubSessionListResponseSchema = z
+	.object({
+		sessions: z
+			.object({
+				websocket: z
+					.array(CoderSessionListItemSchema)
+					.describe('Websocket-backed sessions returned by the hub'),
+				sandbox: z
+					.array(z.unknown())
+					.describe('Non-websocket session entries returned by the hub'),
+			})
+			.describe('Sessions grouped by transport'),
+		total: z.number().describe('Total sessions matching the query'),
+	})
+	.describe('Raw session list payload returned by coder hub');
 
 export const CoderLifecycleResponseSchema = z
 	.object({

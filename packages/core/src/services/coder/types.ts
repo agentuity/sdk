@@ -453,11 +453,18 @@ export type CoderSessionParticipants = z.infer<typeof CoderSessionParticipantsSc
 export const CoderSessionReplaySchema = z
 	.object({
 		sessionId: z.string().describe('Session identifier for replay payload'),
-		replay: z.unknown().optional().describe('Replay payload emitted by coder hub'),
-		events: z
-			.array(z.unknown())
+		entriesSource: z
+			.enum(['durable_stream', 'session_entries', 'event_history', 'none'])
+			.describe('Source used to reconstruct replay entries'),
+		sourceCounts: z
+			.object({
+				durableStream: z.number().describe('Replay entries loaded from durable stream storage'),
+				sessionEntries: z.number().describe('Replay entries loaded from session entry storage'),
+				eventHistory: z.number().describe('Replay entries synthesized from event history'),
+			})
 			.optional()
-			.describe('Replay events if included in response payload'),
+			.describe('Counts of replay entries by source'),
+		entries: z.array(z.unknown()).describe('Replay conversation entries for the session'),
 	})
 	.passthrough()
 	.describe('Replay payload for a coder session');
@@ -482,9 +489,6 @@ export const CoderSessionEventHistorySchema = z
 	.object({
 		sessionId: z.string().describe('Session identifier for event history payload'),
 		events: z.array(CoderSessionEventSchema).describe('Event history items for the session'),
-		total: z.number().optional().describe('Total number of events when pagination is applied'),
-		limit: z.number().optional().describe('Pagination limit used by backend response'),
-		offset: z.number().optional().describe('Pagination offset used by backend response'),
 	})
 	.passthrough()
 	.describe('Event history payload for a coder session');
