@@ -44,10 +44,10 @@ function makeCustomAgent(overrides: Record<string, unknown> = {}) {
 		slug: 'code-review',
 		displayName: 'Code Review',
 		description: 'Review changes for regressions',
-		preset: 'reviewer',
-		toolProfile: 'reviewer',
 		instructions: 'Focus on correctness, regressions, and missing tests.',
 		headlessCompatible: true,
+		piTools: ['read', 'grep', 'ls'],
+		hubToolNames: ['session_todo_list', 'session_todo_update'],
 		savedSkills: [],
 		...overrides,
 	};
@@ -386,8 +386,9 @@ describe('CoderClient custom agent helpers', () => {
 		await expect(client.createCustomAgent({
 			slug: 'code-review',
 			displayName: 'Code Review',
-			preset: 'reviewer',
 			instructions: 'Focus on correctness, regressions, and missing tests.',
+			piTools: ['read', 'grep', 'ls'],
+			hubToolNames: ['session_todo_list', 'session_todo_update'],
 			savedSkillIds: ['saved_1'],
 		})).resolves.toMatchObject({
 			slug: 'code-review',

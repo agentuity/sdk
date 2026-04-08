@@ -257,8 +257,9 @@ const service: Service = {
 			exampleBody: {
 				slug: 'code-review',
 				displayName: 'Code Review',
-				preset: 'reviewer',
 				instructions: 'Focus on correctness, regressions, and missing tests.',
+				piTools: ['read', 'grep', 'ls'],
+				hubToolNames: ['session_todo_list', 'session_todo_update'],
 			},
 		},
 		{

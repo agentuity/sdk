@@ -129,14 +129,77 @@ export const CoderCustomAgentThinkingLevelSchema = z
 	.describe('Thinking level override for a custom agent');
 export type CoderCustomAgentThinkingLevel = z.infer<typeof CoderCustomAgentThinkingLevelSchema>;
 
+export const CODER_CUSTOM_AGENT_PI_TOOLS = [
+	'read',
+	'ls',
+	'find',
+	'grep',
+	'bash',
+	'write',
+	'edit',
+] as const;
+
+export const CoderCustomAgentPiToolSchema = z
+	.enum(CODER_CUSTOM_AGENT_PI_TOOLS)
+	.describe('Workspace tool available to a standalone custom agent');
+export type CoderCustomAgentPiTool = z.infer<typeof CoderCustomAgentPiToolSchema>;
+
+export const CODER_CUSTOM_AGENT_HUB_TOOLS = [
+	'session_dashboard',
+	'memory_service_search',
+	'memory_service_store',
+	'memory_service_get',
+	'memory_service_update',
+	'memory_service_delete',
+	'memory_service_list',
+	'memory_service_schema',
+	'memory_service_facets',
+	'context7_search',
+	'grep_app_search',
+	'web_search',
+	'fetch_content',
+	'product_prd_create',
+	'product_prd_get',
+	'product_prd_update',
+	'product_prd_list',
+	'product_task_comment',
+	'session_todo_create',
+	'session_todo_update',
+	'session_todo_list',
+	'session_todo_comment',
+	'session_todo_attach',
+	'product_generate_deck',
+	'sandbox_exec',
+	'loop_get_state',
+	'loop_update_state',
+	'coord_create_job',
+	'coord_add_task',
+	'coord_claim_task',
+	'coord_complete_task',
+	'coord_fail_task',
+	'coord_list_tasks',
+	'coord_job_status',
+	'coord_reserve_file',
+	'coord_release_file',
+	'coord_provide_contract',
+	'coord_check_contract',
+	'coord_send_message',
+	'coord_read_messages',
+	'coord_heartbeat',
+	'coord_spawn_workers',
+] as const;
+
+export const CoderCustomAgentHubToolSchema = z
+	.enum(CODER_CUSTOM_AGENT_HUB_TOOLS)
+	.describe('Hub-managed tool available to a standalone custom agent');
+export type CoderCustomAgentHubTool = z.infer<typeof CoderCustomAgentHubToolSchema>;
+
 export const CoderCustomAgentSnapshotSchema = z
 	.object({
 		slug: z.string().describe('Stable custom agent slug'),
 		displayName: z.string().describe('Human-readable custom agent name'),
 		description: z.string().optional().describe('Optional custom agent description'),
-		preset: z.string().describe('Built-in preset used as the instruction baseline'),
-		toolProfile: z.string().describe('Built-in tool profile used for tool gating'),
-		instructions: z.string().describe('Custom instruction overlay'),
+		instructions: z.string().describe('Standalone custom-agent system prompt'),
 		model: z.string().optional().describe('Optional model override'),
 		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
 			'Optional thinking level override'
@@ -144,6 +207,12 @@ export const CoderCustomAgentSnapshotSchema = z
 		headlessCompatible: z
 			.boolean()
 			.describe('Whether the custom agent is safe for non-interactive callers'),
+		piTools: z
+			.array(CoderCustomAgentPiToolSchema)
+			.describe('Pi workspace tools granted to the custom agent'),
+		hubToolNames: z
+			.array(CoderCustomAgentHubToolSchema)
+			.describe('Hub-managed tools granted to the custom agent'),
 		savedSkills: z
 			.array(CoderSkillRefSchema)
 			.describe('Frozen saved-skill refs attached to the custom agent snapshot'),
@@ -249,9 +318,7 @@ export const CoderCreateCustomAgentRequestSchema = z
 		slug: z.string().describe('Stable custom agent slug'),
 		displayName: z.string().describe('Human-readable custom agent name'),
 		description: z.string().optional().describe('Optional custom agent description'),
-		preset: z.string().describe('Built-in preset used as the instruction baseline'),
-		toolProfile: z.string().optional().describe('Built-in tool profile used for tool gating'),
-		instructions: z.string().describe('Custom instruction overlay'),
+		instructions: z.string().describe('Standalone custom-agent system prompt'),
 		model: z.string().optional().describe('Optional model override'),
 		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
 			'Optional thinking level override'
@@ -260,6 +327,14 @@ export const CoderCreateCustomAgentRequestSchema = z
 			.boolean()
 			.optional()
 			.describe('Whether the custom agent is safe for non-interactive callers'),
+		piTools: z
+			.array(CoderCustomAgentPiToolSchema)
+			.optional()
+			.describe('Pi workspace tools to grant to the custom agent'),
+		hubToolNames: z
+			.array(CoderCustomAgentHubToolSchema)
+			.optional()
+			.describe('Hub-managed tools to grant to the custom agent'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
@@ -273,9 +348,7 @@ export const CoderUpdateCustomAgentRequestSchema = z
 		slug: z.string().optional().describe('Stable custom agent slug'),
 		displayName: z.string().optional().describe('Human-readable custom agent name'),
 		description: z.string().nullable().optional().describe('Optional custom agent description'),
-		preset: z.string().optional().describe('Built-in preset used as the instruction baseline'),
-		toolProfile: z.string().optional().describe('Built-in tool profile used for tool gating'),
-		instructions: z.string().optional().describe('Custom instruction overlay'),
+		instructions: z.string().optional().describe('Standalone custom-agent system prompt'),
 		model: z.string().nullable().optional().describe('Optional model override'),
 		thinkingLevel: CoderCustomAgentThinkingLevelSchema
 			.nullable()
@@ -285,6 +358,14 @@ export const CoderUpdateCustomAgentRequestSchema = z
 			.boolean()
 			.optional()
 			.describe('Whether the custom agent is safe for non-interactive callers'),
+		piTools: z
+			.array(CoderCustomAgentPiToolSchema)
+			.optional()
+			.describe('Pi workspace tools to grant to the custom agent'),
+		hubToolNames: z
+			.array(CoderCustomAgentHubToolSchema)
+			.optional()
+			.describe('Hub-managed tools to grant to the custom agent'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
