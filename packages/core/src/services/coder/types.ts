@@ -232,6 +232,7 @@ export const CoderCustomAgentSnapshotSchema = z
 			.describe('Frozen saved-skill refs attached to the custom agent snapshot'),
 		companionAgents: z
 			.array(z.string())
+			.default([])
 			.describe('Companion agents auto-included alongside this custom agent'),
 	})
 	.passthrough()

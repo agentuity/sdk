@@ -451,6 +451,35 @@ describe('CoderClient custom agent helpers', () => {
 		expect(response.agents[0]?.hubToolNames).toEqual(['session_todo_list', 'future_hub_tool']);
 	});
 
+	test('listCustomAgents defaults missing companionAgents to an empty array', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/agents');
+			expect(init?.method).toBe('GET');
+			return new Response(
+				JSON.stringify({
+					agents: [
+						makeCustomAgent({
+							companionAgents: undefined,
+						}),
+					],
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const response = await client.listCustomAgents();
+		expect(response.agents[0]?.companionAgents).toEqual([]);
+	});
+
 	test('publishCustomAgent posts to the publish endpoint and returns the updated agent', async () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/agents/code-review/publish');
