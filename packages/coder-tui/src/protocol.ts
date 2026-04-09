@@ -381,7 +381,7 @@ export interface SessionListItem {
 	participantCount: number;
 	tags: string[];
 	skills: SessionSkillRef[];
-	agentSlugs: string[];
+	enabledAgents: string[];
 	defaultAgent?: string;
 	bucket: SessionBucket;
 	runtimeAvailable: boolean;
@@ -530,7 +530,7 @@ export interface SessionSnapshotMetadataExtensions {
 	product?: SessionProductProjection;
 	tags: string[];
 	skills: SessionSkillRef[];
-	agentSlugs: string[];
+	enabledAgents: string[];
 	defaultAgent?: string;
 	workers?: SessionListItem[];
 }

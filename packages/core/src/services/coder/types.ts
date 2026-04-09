@@ -115,11 +115,11 @@ export const CoderWorkspaceDetailSchema = z
 		repoCount: z.number().describe('Number of repositories'),
 		savedSkillIds: z.array(z.string()).describe('Saved skill IDs in workspace'),
 		skillBucketIds: z.array(z.string()).describe('Skill bucket IDs in workspace'),
-		agentSlugs: z
+		enabledAgents: z
 			.array(z.string())
 			.optional()
 			.default([])
-			.describe('Published custom agent slugs in workspace'),
+			.describe('Effective agent roster stored on the workspace'),
 		selectionCount: z.number().describe('Total number of selections'),
 		createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
 		updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
@@ -230,6 +230,9 @@ export const CoderCustomAgentSnapshotSchema = z
 		savedSkills: z
 			.array(CoderSkillRefSchema)
 			.describe('Frozen saved-skill refs attached to the custom agent snapshot'),
+		companionAgents: z
+			.array(z.string())
+			.describe('Companion agents auto-included alongside this custom agent'),
 	})
 	.passthrough()
 	.describe('Custom agent snapshot returned by coder hub');
@@ -324,7 +327,7 @@ export const CoderCreateWorkspaceRequestSchema = z
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
-		agentSlugs: z.array(z.string()).optional().describe('Published custom agent slugs'),
+		enabledAgents: z.array(z.string()).optional().describe('Effective agent roster to store on the workspace'),
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
@@ -355,6 +358,10 @@ export const CoderCreateCustomAgentRequestSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Saved skill row ids to snapshot onto the custom agent'),
+		companionAgents: z
+			.array(z.string())
+			.optional()
+			.describe('Agent names to auto-include alongside this custom agent'),
 	})
 	.describe('Request body for creating a custom agent draft');
 export type CoderCreateCustomAgentRequest = z.infer<typeof CoderCreateCustomAgentRequestSchema>;
@@ -385,6 +392,10 @@ export const CoderUpdateCustomAgentRequestSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Saved skill row ids to snapshot onto the custom agent'),
+		companionAgents: z
+			.array(z.string())
+			.optional()
+			.describe('Agent names to auto-include alongside this custom agent'),
 	})
 	.describe('Request body for updating a custom agent draft');
 export type CoderUpdateCustomAgentRequest = z.infer<typeof CoderUpdateCustomAgentRequestSchema>;
@@ -447,10 +458,10 @@ export const CoderCreateSessionRequestSchema = z
 		workflowMode: CoderWorkflowModeSchema.optional().describe('Workflow execution mode'),
 		loop: CoderSessionLoopConfigSchema.optional().describe('Loop mode settings for the session'),
 		tags: z.array(z.string()).optional().describe('Tags applied to the session for filtering'),
-		agentSlugs: z
+		enabledAgents: z
 			.array(z.string())
 			.optional()
-			.describe('Published custom agent slugs to include in the session'),
+			.describe('Enabled agent roster to include in the session'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
@@ -495,10 +506,10 @@ export const CoderUpdateSessionRequestSchema = z
 		workflowMode: CoderWorkflowModeSchema.optional().describe('Updated workflow mode'),
 		loop: CoderSessionLoopConfigSchema.optional().describe('Updated loop mode configuration'),
 		tags: z.array(z.string()).optional().describe('Updated set of tags for the session'),
-		agentSlugs: z
+		enabledAgents: z
 			.array(z.string())
 			.optional()
-			.describe('Updated published custom agent slugs included in the session'),
+			.describe('Updated enabled agent roster for the session'),
 		skills: z
 			.array(CoderSkillRefSchema)
 			.optional()
@@ -580,11 +591,11 @@ export const CoderSessionListItemSchema = z
 		participantCount: z.number().describe('Total number of participants in the session'),
 		tags: z.array(z.string()).describe('Tag values attached to the session'),
 		skills: z.array(CoderSkillRefSchema).describe('Skills attached to the session'),
-		agentSlugs: z
+		enabledAgents: z
 			.array(z.string())
 			.optional()
 			.default([])
-			.describe('Published custom agent slugs attached to the session'),
+			.describe('Enabled agent roster attached to the session'),
 		defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
 		bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
 		runtimeAvailable: z.boolean().describe('Whether runtime is currently reachable'),

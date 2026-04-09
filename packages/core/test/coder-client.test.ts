@@ -20,7 +20,7 @@ function makeSession(overrides: Record<string, unknown> = {}) {
 		participantCount: 0,
 		tags: [],
 		skills: [],
-		agentSlugs: [],
+		enabledAgents: [],
 		bucket: 'paused',
 		runtimeAvailable: false,
 		controlAvailable: false,
@@ -48,6 +48,7 @@ function makeCustomAgent(overrides: Record<string, unknown> = {}) {
 		headlessCompatible: true,
 		piTools: ['read', 'grep', 'ls'],
 		hubToolNames: ['session_todo_list', 'session_todo_update'],
+		companionAgents: [],
 		savedSkills: [],
 		...overrides,
 	};
