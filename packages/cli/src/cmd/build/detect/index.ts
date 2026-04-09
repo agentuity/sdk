@@ -25,6 +25,7 @@ async function frameworkDefToDetected(
 	_name: string,
 	buildCommand: string | null,
 	outputDirectory: string | null,
+	staticDirectory: string | null | undefined,
 	projectDir: string,
 	pkg: PackageJsonData
 ): Promise<DetectedFramework> {
@@ -36,12 +37,22 @@ async function frameworkDefToDetected(
 	// Resolve output directory — use framework default or '.'
 	const resolvedOutputDir = outputDirectory ?? '.';
 
+	// Resolve static asset directory (relative to project root):
+	// - explicit string: path relative to project root (e.g., '.next/static', '.output/public')
+	// - null: the entire output directory is static (SSGs, SPAs) — use outputDirectory
+	// - undefined: no static assets known for this framework
+	const resolvedStaticDir =
+		staticDirectory === null
+			? resolvedOutputDir // null means entire output IS the static dir
+			: (staticDirectory ?? undefined);
+
 	return {
 		name: slug,
 		runtime: 'node',
 		packageManager: pm,
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
+		staticDir: resolvedStaticDir,
 		confidence: 'high',
 	};
 }
@@ -68,6 +79,7 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 			match.name,
 			match.buildCommand,
 			match.outputDirectory,
+			match.staticDir,
 			projectDir,
 			pkg
 		);
@@ -98,6 +110,7 @@ export async function detectFrameworkWithPackageJson(
 			match.name,
 			match.buildCommand,
 			match.outputDirectory,
+			match.staticDir,
 			projectDir,
 			pkg
 		);

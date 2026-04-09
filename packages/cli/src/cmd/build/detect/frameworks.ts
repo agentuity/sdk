@@ -34,6 +34,20 @@ export interface FrameworkDefinition {
 	buildCommand: string | null;
 	/** Default output directory for static assets */
 	outputDirectory: string | null;
+	/**
+	 * Static/CDN asset directory, relative to the project root.
+	 *
+	 * Points to the directory containing files suitable for CDN upload
+	 * (JS bundles, CSS, images, fonts, etc.) after the build runs.
+	 *
+	 * - `null` means the entire outputDirectory IS the static output
+	 *   (pure static-site generators, SPAs) — resolved to outputDirectory.
+	 * - A string path (e.g., `.next/static`, `.output/public`) is resolved
+	 *   relative to the project root, since some frameworks put static
+	 *   assets outside their main output directory.
+	 * - `undefined` (omitted) means no known static asset directory.
+	 */
+	staticDir?: string | null;
 	/** Environment variable prefix for browser-inlined values */
 	envPrefix?: string;
 	/**
@@ -63,6 +77,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'nextjs',
 		buildCommand: 'next build',
 		outputDirectory: null, // Dynamic — reads from next.config
+		staticDir: '.next/static', // Relative to project root (adapter handles standalone copy)
 		envPrefix: 'NEXT_PUBLIC_',
 		detectors: {
 			every: [{ matchPackage: 'next' }],
@@ -73,6 +88,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'nuxt',
 		buildCommand: 'nuxt build',
 		outputDirectory: 'dist',
+		staticDir: '.output/public', // Nitro output; static assets served from here
 		envPrefix: 'NUXT_ENV_',
 		detectors: {
 			some: [
@@ -88,6 +104,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'remix',
 		buildCommand: 'remix build',
 		outputDirectory: 'public',
+		staticDir: 'public/build', // Built browser bundles
 		detectors: {
 			some: [
 				{ matchPackage: '@remix-run/dev' },
@@ -101,6 +118,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'react-router',
 		buildCommand: 'react-router build',
 		outputDirectory: 'build',
+		staticDir: 'build/client', // Client-side assets
 		detectors: {
 			some: [
 				{ path: 'react-router.config.js' },
@@ -115,6 +133,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'sveltekit',
 		buildCommand: 'vite build',
 		outputDirectory: 'public',
+		staticDir: 'build/client', // adapter-node client assets
 		detectors: {
 			every: [
 				{
@@ -129,6 +148,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'astro',
 		buildCommand: 'astro build',
 		outputDirectory: 'dist',
+		staticDir: null, // Entire dist/ is static (SSG default); dist/client/ for SSR
 		envPrefix: 'PUBLIC_',
 		detectors: {
 			every: [{ matchPackage: 'astro' }],
@@ -139,6 +159,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'solidstart',
 		buildCommand: 'vinxi build',
 		outputDirectory: '.output',
+		staticDir: '.output/public', // Nitro-based static assets
 		envPrefix: 'VITE_',
 		detectors: {
 			every: [{ matchPackage: 'solid-js' }, { matchPackage: '@solidjs/start' }],
@@ -149,6 +170,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'tanstack-start',
 		buildCommand: 'vite build',
 		outputDirectory: 'dist',
+		staticDir: '.output/public', // Nitro-based; similar to Nuxt/SolidStart
 		detectors: {
 			every: [{ matchPackage: '@tanstack/router-plugin' }, { matchPackage: 'nitro' }],
 		},
@@ -158,6 +180,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'redwoodjs',
 		buildCommand: 'yarn rw build',
 		outputDirectory: null, // Dynamic — depends on target
+		staticDir: 'web/dist', // Redwood web-side build output
 		envPrefix: 'REDWOOD_ENV_',
 		detectors: {
 			every: [{ matchPackage: '@redwoodjs/core' }],
@@ -171,6 +194,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'gatsby',
 		buildCommand: 'gatsby build',
 		outputDirectory: 'public',
+		staticDir: null, // Entire public/ is static output
 		envPrefix: 'GATSBY_',
 		detectors: {
 			every: [{ matchPackage: 'gatsby' }],
@@ -181,6 +205,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'eleventy',
 		buildCommand: 'npx @11ty/eleventy',
 		outputDirectory: '_site',
+		staticDir: null, // Entire _site/ is static output
 		detectors: {
 			every: [{ matchPackage: '@11ty/eleventy' }],
 		},
@@ -190,6 +215,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'vitepress',
 		buildCommand: 'vitepress build docs',
 		outputDirectory: 'docs/.vitepress/dist',
+		staticDir: null, // Entire output is static
 		detectors: {
 			every: [{ matchPackage: 'vitepress' }],
 		},
@@ -199,6 +225,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'vuepress',
 		buildCommand: 'vuepress build src',
 		outputDirectory: 'src/.vuepress/dist',
+		staticDir: null, // Entire output is static
 		detectors: {
 			every: [{ matchPackage: 'vuepress' }],
 		},
@@ -208,6 +235,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'docusaurus',
 		buildCommand: 'docusaurus build',
 		outputDirectory: 'build',
+		staticDir: null, // Entire build/ is static output
 		detectors: {
 			some: [{ matchPackage: '@docusaurus/core' }],
 		},
@@ -217,6 +245,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'hexo',
 		buildCommand: 'hexo generate',
 		outputDirectory: 'public',
+		staticDir: null, // Entire public/ is static output
 		detectors: {
 			every: [{ matchPackage: 'hexo' }],
 		},
@@ -229,6 +258,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'angular',
 		buildCommand: 'ng build',
 		outputDirectory: 'dist',
+		staticDir: null, // Entire dist/ is static output (browser subfolder in v17+)
 		detectors: {
 			every: [{ matchPackage: '@angular/cli' }],
 		},
@@ -238,6 +268,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'vue',
 		buildCommand: 'vue-cli-service build',
 		outputDirectory: 'dist',
+		staticDir: null, // Entire dist/ is static output
 		envPrefix: 'VUE_APP_',
 		detectors: {
 			every: [{ matchPackage: '@vue/cli-service' }],
@@ -248,6 +279,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'create-react-app',
 		buildCommand: 'react-scripts build',
 		outputDirectory: 'build',
+		staticDir: null, // Entire build/ is static output
 		envPrefix: 'REACT_APP_',
 		detectors: {
 			some: [{ matchPackage: 'react-scripts' }, { matchPackage: 'react-dev-utils' }],
@@ -258,6 +290,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'preact',
 		buildCommand: 'preact build',
 		outputDirectory: 'build',
+		staticDir: null, // Entire build/ is static output
 		detectors: {
 			every: [{ matchPackage: 'preact-cli' }],
 		},
@@ -270,6 +303,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'nitro',
 		buildCommand: 'nitro build',
 		outputDirectory: 'dist',
+		staticDir: '.output/public', // Nitro static assets
 		detectors: {
 			some: [{ matchPackage: 'nitropack' }, { matchPackage: 'nitro' }],
 		},
@@ -282,6 +316,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'vite',
 		buildCommand: 'vite build',
 		outputDirectory: 'dist',
+		staticDir: null, // Entire dist/ is static output
 		envPrefix: 'VITE_',
 		detectors: {
 			every: [{ matchPackage: 'vite' }],
@@ -292,6 +327,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'parcel',
 		buildCommand: 'parcel build',
 		outputDirectory: 'dist',
+		staticDir: null, // Entire dist/ is static output
 		detectors: {
 			every: [{ matchPackage: 'parcel' }],
 		},
