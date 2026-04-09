@@ -10,8 +10,8 @@
  * and is also the base logic that specific adapters build on.
  */
 
-import { join, resolve, relative } from 'node:path';
-import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { basename, join, resolve, relative } from 'node:path';
+import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types';
 import { getRunCommand } from '../detect/util';
 
@@ -142,24 +142,30 @@ export const genericAdapter: BuildAdapter = {
 		const buildOutputPath = resolve(projectDir, framework.buildOutput);
 		const resolvedOutputDir = resolve(outputDir);
 
-		// Only copy if the build output is a distinct directory from the output dir
-		// AND the output dir is not inside the build output (which would cause infinite recursion)
-		const shouldCopy =
-			existsSync(buildOutputPath) &&
-			buildOutputPath !== resolvedOutputDir &&
-			!resolvedOutputDir.startsWith(buildOutputPath + '/');
+		// Copy build output to the output directory when they differ.
+		// When buildOutput is '.' (project root), the output dir is a subdirectory
+		// of the source, so we iterate entries to avoid cpSync's self-copy check.
+		const shouldCopy = existsSync(buildOutputPath) && buildOutputPath !== resolvedOutputDir;
 
 		if (shouldCopy) {
 			logger.debug(`Copying build output from ${buildOutputPath} to ${resolvedOutputDir}`);
 			mkdirSync(resolvedOutputDir, { recursive: true });
-			cpSync(buildOutputPath, resolvedOutputDir, {
-				recursive: true,
-				filter: (src) => {
-					// Never copy the output dir into itself
-					const rel = relative(resolvedOutputDir, src);
-					return rel.startsWith('..');
-				},
-			});
+
+			// Skip directories that shouldn't be deployed
+			const skipEntries = new Set([
+				'node_modules',
+				'.git',
+				'.env',
+				basename(resolvedOutputDir), // e.g., '.agentuity'
+			]);
+
+			const entries = readdirSync(buildOutputPath);
+			for (const entry of entries) {
+				if (skipEntries.has(entry)) continue;
+				const srcPath = join(buildOutputPath, entry);
+				const dstPath = join(resolvedOutputDir, entry);
+				cpSync(srcPath, dstPath, { recursive: true });
+			}
 		} else {
 			// Ensure output dir exists even when we skip the copy
 			mkdirSync(resolvedOutputDir, { recursive: true });
