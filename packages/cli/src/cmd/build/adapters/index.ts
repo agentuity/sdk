@@ -9,20 +9,13 @@
 import type { BuildAdapter } from './types';
 import { genericAdapter } from './generic';
 import { nextjsAdapter } from './nextjs';
-import { agentuityAdapter } from './agentuity';
 
 /**
  * Registry of framework-specific build adapters.
  * Frameworks not in this map use the generic adapter.
  */
 const adapters: Record<string, BuildAdapter> = {
-	agentuity: agentuityAdapter,
 	nextjs: nextjsAdapter,
-	// More framework-specific adapters can be added here:
-	// sveltekit: sveltekitAdapter,
-	// nuxt: nuxtAdapter,
-	// remix: remixAdapter,
-	// astro: astroAdapter,
 };
 
 /**

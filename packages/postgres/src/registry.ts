@@ -7,8 +7,8 @@
  * The runtime can use `shutdownAll()` to close all registered clients/pools
  * during graceful shutdown.
  *
- * When @agentuity/runtime is available, this module automatically registers
- * a shutdown hook so all postgres clients/pools are closed during graceful shutdown.
+ * Automatically registers process shutdown hooks (beforeExit, SIGTERM, SIGINT)
+ * so all postgres clients/pools are closed during graceful shutdown.
  */
 
 /**
@@ -174,40 +174,28 @@ export function hasActiveClients(): boolean {
 }
 
 /**
- * Attempts to register a shutdown hook with @agentuity/runtime if available.
- * This is called automatically when the first client is registered.
+ * Registers a process shutdown hook to gracefully close all connections.
+ * Uses standard Node.js/Bun process events instead of framework-specific hooks.
  *
  * @internal
  */
-function tryRegisterRuntimeHook(): void {
+function registerProcessShutdownHook(): void {
 	const global = globalThis as Record<symbol, boolean>;
 
-	// Only try once
+	// Only register once
 	if (global[RUNTIME_HOOK_REGISTERED]) {
 		return;
 	}
 	global[RUNTIME_HOOK_REGISTERED] = true;
 
-	// Try to dynamically import the runtime and register our shutdown hook
-	// This is done asynchronously to avoid blocking client creation
-	// and to handle the case where runtime is not available
-	// Using Function constructor to avoid TypeScript trying to resolve the module at build time
-	const dynamicImport = new Function('specifier', 'return import(specifier)') as (
-		specifier: string
-	) => Promise<{ registerShutdownHook?: (hook: () => Promise<void> | void) => void }>;
+	const shutdown = () => {
+		shutdownAll(5000).catch(() => {});
+	};
 
-	dynamicImport('@agentuity/runtime')
-		.then((runtime) => {
-			if (typeof runtime.registerShutdownHook === 'function') {
-				runtime.registerShutdownHook(async () => {
-					await shutdownAll(5000); // 5 second timeout for graceful shutdown
-				});
-			}
-		})
-		.catch(() => {
-			// Runtime not available - that's fine, user can call shutdownAll manually
-		});
+	process.on('beforeExit', shutdown);
+	process.on('SIGTERM', shutdown);
+	process.on('SIGINT', shutdown);
 }
 
-// Try to register with runtime when this module is first loaded
-tryRegisterRuntimeHook();
+// Register shutdown hook when this module is first loaded
+registerProcessShutdownHook();

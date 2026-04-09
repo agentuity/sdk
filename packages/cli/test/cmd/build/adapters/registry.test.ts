@@ -2,9 +2,9 @@ import { describe, test, expect } from 'bun:test';
 import { getAdapter } from '../../../../src/cmd/build/adapters';
 
 describe('Adapter Registry', () => {
-	test('returns agentuity adapter for agentuity framework', () => {
+	test('returns generic adapter for agentuity (deprecated)', () => {
 		const adapter = getAdapter('agentuity');
-		expect(adapter.name).toBe('agentuity');
+		expect(adapter.name).toBe('generic');
 	});
 
 	test('returns nextjs adapter for nextjs framework', () => {
@@ -49,7 +49,6 @@ describe('Adapter Registry', () => {
 
 	test('all known framework adapters have a build function', () => {
 		const slugs = [
-			'agentuity',
 			'nextjs',
 			'vite',
 			'sveltekit',

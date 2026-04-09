@@ -31,18 +31,14 @@ export interface RuntimeBootstrapOptions {
  * Note: This does NOT load .env files. Use a proper .env loader
  * (like dotenv) in your app.ts before calling this function.
  *
- * Call this BEFORE createApp() in your app.ts:
+ * Call this early in your app entry point:
  *
  * @example
  * ```ts
  * import { bootstrapRuntimeEnv } from '@agentuity/server';
- * import { createApp } from '@agentuity/runtime';
  *
- * // Set up service URLs
+ * // Set up service URLs before initializing your app
  * bootstrapRuntimeEnv();
- *
- * // Now createApp() will use the correct env vars
- * const app = await createApp();
  * ```
  */
 export function bootstrapRuntimeEnv(options: RuntimeBootstrapOptions = {}): void {

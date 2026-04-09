@@ -4,7 +4,7 @@ import {
 	type CreateEvalConfig,
 	type EvalContext,
 	type EvalHandlerResult,
-} from '@agentuity/runtime';
+} from './eval-types';
 import type { BaseEvalOptions, EvalLifecycleHooks, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
 import { generateText, type LanguageModel } from 'ai';

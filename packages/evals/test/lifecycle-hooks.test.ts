@@ -6,7 +6,7 @@
 import { describe, test, expect, mock } from 'bun:test';
 import { s } from '@agentuity/schema';
 import { adversarial } from '../src/adversarial';
-import type { EvalContext, EvalHandlerResult } from '@agentuity/runtime';
+import type { EvalContext, EvalHandlerResult } from '../src/eval-types';
 
 const _AgentInputSchema = s.object({
 	text: s.string(),
