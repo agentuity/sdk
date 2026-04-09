@@ -78,7 +78,6 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 	const tsconfigPath = join(dir, 'tsconfig.json');
 	const tsconfigFile = Bun.file(tsconfigPath);
 	const tsconfigExists = await tsconfigFile.exists();
-	console.error(`[typecheck] dir=${dir} tsconfig=${tsconfigPath} exists=${tsconfigExists}`);
 	if (!tsconfigExists) {
 		return { success: true };
 	}
