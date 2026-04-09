@@ -10,7 +10,6 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
-import { writeAgentsDocs } from '../../agents-docs';
 import type { FrameworkScaffold } from './frameworks';
 
 interface ScaffoldOptions {
@@ -107,10 +106,6 @@ async function augmentProject(
 
 			// Step 3: Add .gitignore entries
 			await appendGitignore(dest);
-			progress(85);
-
-			// Step 4: Generate AGENTS.md docs
-			await writeAgentsDocs(dest);
 			progress(100);
 		},
 	});
