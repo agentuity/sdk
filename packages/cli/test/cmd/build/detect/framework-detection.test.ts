@@ -38,60 +38,6 @@ describe('Framework Detection', () => {
 		expect(result).toBeNull();
 	});
 
-	// ── Agentuity native ──
-
-	describe('Agentuity native', () => {
-		test('detects app.ts + @agentuity/runtime', async () => {
-			writePackageJson(testDir, {
-				name: 'my-agent',
-				dependencies: { '@agentuity/runtime': '^2.0.0' },
-				scripts: { build: 'agentuity build' },
-			});
-			writeFileSync(join(testDir, 'app.ts'), 'export default {};');
-
-			const result = await detectFramework(testDir);
-			expect(result).not.toBeNull();
-			expect(result!.name).toBe('agentuity');
-			expect(result!.runtime).toBe('bun');
-			expect(result!.confidence).toBe('high');
-		});
-
-		test('does not detect without app.ts', async () => {
-			writePackageJson(testDir, {
-				name: 'my-agent',
-				dependencies: { '@agentuity/runtime': '^2.0.0' },
-				scripts: { build: 'agentuity build' },
-			});
-
-			const result = await detectFramework(testDir);
-			expect(result?.name).not.toBe('agentuity');
-		});
-
-		test('does not detect without @agentuity/runtime dep', async () => {
-			writePackageJson(testDir, {
-				name: 'my-agent',
-				dependencies: { hono: '^4.0.0' },
-				scripts: { build: 'tsc' },
-			});
-			writeFileSync(join(testDir, 'app.ts'), 'export default {};');
-
-			const result = await detectFramework(testDir);
-			expect(result?.name).not.toBe('agentuity');
-		});
-
-		test('has highest priority over other frameworks', async () => {
-			writePackageJson(testDir, {
-				name: 'dual-app',
-				dependencies: { '@agentuity/runtime': '^2.0.0', next: '^15.0.0' },
-				scripts: { build: 'agentuity build' },
-			});
-			writeFileSync(join(testDir, 'app.ts'), 'export default {};');
-
-			const result = await detectFramework(testDir);
-			expect(result!.name).toBe('agentuity');
-		});
-	});
-
 	// ── Next.js ──
 
 	describe('Next.js', () => {
@@ -379,18 +325,6 @@ describe('Framework Detection', () => {
 	// ── Priority ordering ──
 
 	describe('Priority ordering', () => {
-		test('Agentuity > Next.js when both match', async () => {
-			writePackageJson(testDir, {
-				name: 'dual-app',
-				dependencies: { '@agentuity/runtime': '^2.0.0', next: '^15.0.0' },
-				scripts: { build: 'next build' },
-			});
-			writeFileSync(join(testDir, 'app.ts'), 'export default {};');
-
-			const result = await detectFramework(testDir);
-			expect(result!.name).toBe('agentuity');
-		});
-
 		test('Next.js > Vite when both match', async () => {
 			writePackageJson(testDir, {
 				name: 'next-vite',

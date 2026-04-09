@@ -12,8 +12,7 @@
  * This is a string rather than a union type because the framework database
  * (derived from @vercel/frameworks) contains 25+ slugs and may grow.
  * Special values:
- * - 'agentuity' — Native Agentuity app (app.ts + @agentuity/runtime)
- * - 'generic'   — Fallback: has package.json with build/start scripts
+ * - 'generic' — Fallback: has package.json with build/start scripts
  */
 export type FrameworkName = string;
 

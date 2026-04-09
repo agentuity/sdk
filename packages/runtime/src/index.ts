@@ -31,28 +31,38 @@
  * See https://agentuity.dev/docs/migration for the full migration guide.
  */
 
-const message =
+const appMessage =
 	'@agentuity/runtime is deprecated. ' +
 	'Use a dedicated framework (Hono, Next.js, etc.) with @agentuity/hono middleware instead. ' +
+	'See https://agentuity.dev/docs/migration';
+
+const agentMessage =
+	'createAgent() is deprecated. ' +
+	'Use an AI SDK (OpenAI, Vercel AI SDK, etc.) directly in your framework routes instead. ' +
 	'See https://agentuity.dev/docs/migration';
 
 /**
  * @deprecated Use a dedicated framework with @agentuity/hono middleware.
  */
 export function createApp(): never {
-	throw new Error(message);
+	throw new Error(appMessage);
 }
 
 /**
  * @deprecated Use Hono directly: `new Hono()`
  */
 export function createRouter(): never {
-	throw new Error(message);
+	throw new Error(appMessage);
 }
 
 /**
- * @deprecated Agents are no longer a concept in v3. Use framework routes directly.
+ * @deprecated Use an AI SDK (OpenAI, Vercel AI SDK, etc.) directly in your framework routes.
  */
 export function createAgent(): never {
-	throw new Error(message);
+	console.warn(
+		'[DEPRECATED] createAgent() is deprecated in Agentuity v3. ' +
+			'Use an AI SDK (OpenAI, Vercel AI SDK, etc.) directly in your framework routes instead. ' +
+			'See https://agentuity.dev/docs/migration'
+	);
+	throw new Error(agentMessage);
 }

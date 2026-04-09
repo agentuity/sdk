@@ -5,16 +5,14 @@
  * Returns a DetectedFramework with all the information needed to build and launch.
  *
  * Detection strategy:
- * 1. Check for Agentuity native app (app.ts + @agentuity/runtime) — highest priority
- * 2. Run the framework database engine (rules derived from @vercel/frameworks)
- * 3. Fall back to generic detection (package.json scripts)
+ * 1. Run the framework database engine (rules derived from @vercel/frameworks)
+ * 2. Fall back to generic detection (package.json scripts)
  */
 
 import type { DetectedFramework, PackageJsonData } from './types';
 import { readPackageJson, detectPackageManager } from './util';
 import { frameworkDefinitions } from './frameworks';
 import { detectFromDatabase } from './engine';
-import { agentuityDetector } from './agentuity';
 import { genericDetector } from './generic';
 
 /**
@@ -67,11 +65,7 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 	const pkg = await readPackageJson(projectDir);
 	if (!pkg) return null;
 
-	// 1. Check Agentuity native first (highest priority)
-	const agentuity = await agentuityDetector.detect(projectDir, pkg);
-	if (agentuity) return agentuity;
-
-	// 2. Run through the framework database
+	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
 	if (match) {
 		return frameworkDefToDetected(
@@ -85,7 +79,7 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 		);
 	}
 
-	// 3. Generic fallback
+	// 2. Generic fallback
 	return genericDetector.detect(projectDir, pkg);
 }
 
@@ -98,11 +92,7 @@ export async function detectFrameworkWithPackageJson(
 	const pkg = await readPackageJson(projectDir);
 	if (!pkg) return { framework: null, packageJson: null };
 
-	// 1. Check Agentuity native first
-	const agentuity = await agentuityDetector.detect(projectDir, pkg);
-	if (agentuity) return { framework: agentuity, packageJson: pkg };
-
-	// 2. Run through the framework database
+	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
 	if (match) {
 		const framework = await frameworkDefToDetected(
@@ -117,7 +107,7 @@ export async function detectFrameworkWithPackageJson(
 		return { framework, packageJson: pkg };
 	}
 
-	// 3. Generic fallback
+	// 2. Generic fallback
 	const generic = await genericDetector.detect(projectDir, pkg);
 	return { framework: generic, packageJson: pkg };
 }
