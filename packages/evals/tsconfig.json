@@ -12,9 +12,6 @@
 			"path": "../core"
 		},
 		{
-			"path": "../runtime"
-		},
-		{
 			"path": "../schema"
 		}
 	]

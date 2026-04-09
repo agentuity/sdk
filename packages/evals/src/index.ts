@@ -8,6 +8,9 @@
  * The code is kept here for reference during the rewrite.
  */
 
+export type { EvalContext, EvalHandlerResult, EvalFunction, CreateEvalConfig } from './eval-types';
+export { EvalHandlerResultSchema } from './eval-types';
+
 export {
 	createPresetEval,
 	interpolatePrompt,

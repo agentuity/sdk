@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai';
 import { groq } from '@ai-sdk/groq';
-import type { EvalContext, EvalHandlerResult } from '@agentuity/runtime';
+import type { EvalContext, EvalHandlerResult } from './eval-types';
 
 export const DEFAULT_EVAL_MODEL: LanguageModel = groq('openai/gpt-oss-20b');
 
