@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { formatTypeScriptErrors, hasErrors, getErrorCount } from '../src/typescript-errors';
 import type { GrammarItem } from '../src/tsc-output-parser';
 import { stripAnsi } from '../src/tui';
+import { symbols } from '../src/tui/symbols';
 
 function createMockError(
 	path: string,
@@ -23,6 +24,10 @@ function createMockError(
 		},
 	};
 }
+
+// Use the actual bar symbol (│ in unicode, | in ASCII) so tests pass in both environments
+const BAR = symbols.bar;
+const CORNER_TL = symbols.cornerTL;
 
 describe('TypeScript Error Formatting', () => {
 	let tempDir: string;
@@ -54,10 +59,8 @@ describe('TypeScript Error Formatting', () => {
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });
 			const stripped = stripAnsi(output);
 
-			// Find all lines that are part of the box (contain │)
-			const boxLines = stripped.split('\n').filter((line) => line.includes('│'));
+			const boxLines = stripped.split('\n').filter((line) => line.includes(BAR));
 
-			// All box lines should have the same length (properly aligned)
 			const lengths = boxLines.map((line) => line.length);
 			const uniqueLengths = [...new Set(lengths)];
 
@@ -77,10 +80,8 @@ describe('TypeScript Error Formatting', () => {
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });
 			const stripped = stripAnsi(output);
 
-			// Find all lines that are part of the box (contain │)
-			const boxLines = stripped.split('\n').filter((line) => line.includes('│'));
+			const boxLines = stripped.split('\n').filter((line) => line.includes(BAR));
 
-			// All box lines should have the same length (properly aligned)
 			const lengths = boxLines.map((line) => line.length);
 			const uniqueLengths = [...new Set(lengths)];
 
@@ -98,9 +99,7 @@ describe('TypeScript Error Formatting', () => {
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });
 			const stripped = stripAnsi(output);
 
-			// Output should not contain literal tabs
 			expect(stripped).not.toContain('\t');
-			// But should contain the content (with spaces instead of tabs)
 			expect(stripped).toContain('foo: 1');
 		});
 	});
@@ -124,24 +123,20 @@ describe('TypeScript Error Formatting', () => {
 			const stripped = stripAnsi(output);
 			const lines = stripped.split('\n');
 
-			// Find the line with badProperty (inside box, so contains │)
 			const contentLineIdx = lines.findIndex(
-				(l) => l.includes('badProperty') && l.includes('│')
+				(l) => l.includes('badProperty') && l.includes(BAR)
 			);
 			expect(contentLineIdx).toBeGreaterThan(-1);
 
-			// Find the caret line (contains ^ and │, but not badProperty)
 			const caretLine = lines.find(
-				(l) => l.includes('^') && l.includes('│') && !l.includes('badProperty')
+				(l) => l.includes('^') && l.includes(BAR) && !l.includes('badProperty')
 			);
 			expect(caretLine).toBeDefined();
 
-			// The carets should be under "badProperty"
 			const contentLine = lines[contentLineIdx];
-			const identifierStart = contentLine.indexOf('badProperty');
+			const identifierStart = contentLine!.indexOf('badProperty');
 			const caretStart = caretLine!.indexOf('^');
 
-			// Caret should start at or very close to the identifier position
 			expect(Math.abs(caretStart - identifierStart)).toBeLessThanOrEqual(1);
 		});
 
@@ -157,24 +152,20 @@ describe('TypeScript Error Formatting', () => {
 			const stripped = stripAnsi(output);
 			const lines = stripped.split('\n');
 
-			// Find the line with badProperty (inside box, so contains │)
 			const contentLineIdx = lines.findIndex(
-				(l) => l.includes('badProperty') && l.includes('│')
+				(l) => l.includes('badProperty') && l.includes(BAR)
 			);
 			expect(contentLineIdx).toBeGreaterThan(-1);
 
-			// Find the caret line (contains ^ and │, but not badProperty)
 			const caretLine = lines.find(
-				(l) => l.includes('^') && l.includes('│') && !l.includes('badProperty')
+				(l) => l.includes('^') && l.includes(BAR) && !l.includes('badProperty')
 			);
 			expect(caretLine).toBeDefined();
 
-			// The carets should be under "badProperty"
 			const contentLine = lines[contentLineIdx];
-			const identifierStart = contentLine.indexOf('badProperty');
+			const identifierStart = contentLine!.indexOf('badProperty');
 			const caretStart = caretLine!.indexOf('^');
 
-			// Caret should start at or very close to the identifier position
 			expect(Math.abs(caretStart - identifierStart)).toBeLessThanOrEqual(1);
 		});
 
@@ -199,7 +190,6 @@ describe('TypeScript Error Formatting', () => {
 			const caretLine = lines.find((l) => l.includes('^') && !l.includes('unknownVariable'));
 			expect(caretLine).toBeDefined();
 
-			// Count the carets
 			const caretMatch = caretLine!.match(/\^+/);
 			expect(caretMatch).not.toBeNull();
 			expect(caretMatch![0].length).toBe('unknownVariable'.length);
@@ -226,14 +216,11 @@ const c = baz;
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });
 			const stripped = stripAnsi(output);
 
-			// Find all top border lines (╭...╮ pattern in stripped form becomes +---+)
-			const boxTopLines = stripped
-				.split('\n')
-				.filter((line) => line.includes('╭') || line.includes('+'));
+			// Each error produces box lines with the corner symbol
+			const boxTopLines = stripped.split('\n').filter((line) => line.includes(CORNER_TL));
 
-			// All boxes should have consistent width
-			// (In practice, they may vary based on content, but each box should be internally consistent)
-			expect(boxTopLines.length).toBe(3);
+			// 3 errors, each with 2 corner-TL lines (header + code box)
+			expect(boxTopLines.length).toBe(6);
 		});
 	});
 
@@ -282,10 +269,9 @@ const c = baz;
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });
 			const stripped = stripAnsi(output);
 
-			// Should contain the error message (possibly truncated)
 			expect(stripped).toContain('Object literal');
-			// Box should still be aligned
-			const boxLines = stripped.split('\n').filter((line) => line.includes('│'));
+
+			const boxLines = stripped.split('\n').filter((line) => line.includes(BAR));
 			const lengths = boxLines.map((line) => line.length);
 			const uniqueLengths = [...new Set(lengths)];
 			expect(uniqueLengths.length).toBe(1);
