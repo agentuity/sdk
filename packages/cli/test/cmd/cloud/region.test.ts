@@ -13,7 +13,7 @@ describe('cloud region commands', () => {
 
 		test('should have subcommands', () => {
 			expect(regionSubcommand.subcommands).toBeDefined();
-			expect(regionSubcommand.subcommands?.length).toBe(3);
+			expect(regionSubcommand.subcommands?.length).toBe(4);
 		});
 
 		test('should have examples', () => {

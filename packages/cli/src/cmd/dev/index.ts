@@ -1,10 +1,11 @@
 /**
  * Dev command — runs the project's own dev script.
  *
- * Detects the package manager (bun/npm/pnpm/yarn) and runtime
- * (bun/deno/node) from the project, then runs `<pm> run dev`.
- * No Agentuity-specific behavior — just a passthrough to the
- * framework's dev server.
+ * Detects the package manager (bun/npm/pnpm/yarn) from the project,
+ * then runs `<pm> run dev`. Before spawning, injects Agentuity AI
+ * Gateway environment variables so LLM SDK calls (OpenAI, Anthropic,
+ * Groq) are automatically routed through the gateway when the user
+ * has an AGENTUITY_SDK_KEY configured.
  */
 
 import { resolve } from 'node:path';
@@ -83,6 +84,9 @@ export const command = createCommand({
 		const port = opts.port ?? DEFAULT_PORT;
 		env.PORT = String(port);
 
+		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
+		injectGatewayEnv(env, logger);
+
 		// Log what we're doing
 		const frameworkLabel = framework
 			? framework.name === 'generic'
@@ -122,3 +126,51 @@ export const command = createCommand({
 		process.exit(exitCode ?? 0);
 	},
 });
+
+// ─── AI Gateway Env Injection ─────────────────────────────────────────────────
+
+interface GatewayProvider {
+	apiKeyEnv: string;
+	baseUrlEnv: string;
+	provider: string;
+}
+
+const GATEWAY_PROVIDERS: GatewayProvider[] = [
+	{ apiKeyEnv: 'OPENAI_API_KEY', baseUrlEnv: 'OPENAI_BASE_URL', provider: 'openai' },
+	{ apiKeyEnv: 'ANTHROPIC_API_KEY', baseUrlEnv: 'ANTHROPIC_BASE_URL', provider: 'anthropic' },
+	{ apiKeyEnv: 'GROQ_API_KEY', baseUrlEnv: 'GROQ_BASE_URL', provider: 'groq' },
+];
+
+/**
+ * Inject AI Gateway environment variables into the child process env.
+ *
+ * For each LLM provider, if the user hasn't set their own API key
+ * (or it matches the SDK key), we redirect to the Agentuity gateway.
+ * This lets `openai`, `@anthropic-ai/sdk`, and `groq-sdk` work
+ * out of the box without separate provider API keys.
+ */
+function injectGatewayEnv(
+	env: Record<string, string>,
+	logger: { debug: (...args: unknown[]) => void }
+): void {
+	const sdkKey = env.AGENTUITY_SDK_KEY;
+	if (!sdkKey) return;
+
+	const gatewayUrl =
+		env.AGENTUITY_AIGATEWAY_URL ||
+		env.AGENTUITY_TRANSPORT_URL ||
+		'https://catalyst.agentuity.cloud';
+
+	for (const { apiKeyEnv, baseUrlEnv, provider } of GATEWAY_PROVIDERS) {
+		const currentKey = env[apiKeyEnv];
+
+		// If the user provided their own key (different from SDK key), leave it alone
+		if (currentKey && currentKey !== sdkKey) {
+			continue;
+		}
+
+		env[apiKeyEnv] = sdkKey;
+		env[baseUrlEnv] = `${gatewayUrl}/gateway/${provider}`;
+		logger.debug('AI Gateway: routing %s through %s', provider, env[baseUrlEnv]);
+	}
+}

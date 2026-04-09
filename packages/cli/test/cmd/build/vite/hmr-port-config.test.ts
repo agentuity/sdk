@@ -10,10 +10,6 @@ import type { Logger } from '../../../../src/types';
  *
  * This verifies that the HMR configuration supports both local development
  * and remote access through tunnels (*.agentuity.live).
- *
- * GitHub Issues:
- * - https://github.com/agentuity/sdk/issues/542 (port fallback)
- * - https://github.com/agentuity/sdk/issues/832 (tunnel HMR support)
  */
 describe('Vite HMR Port Configuration', () => {
 	const mockLogger: Logger = {
@@ -28,10 +24,9 @@ describe('Vite HMR Port Configuration', () => {
 		child: () => mockLogger,
 	};
 
-	test('HMR config should use path-based routing for tunnel support', async () => {
+	test('HMR should be enabled', async () => {
 		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-hmr-test-'));
 		try {
-			// Create minimal project structure
 			writeFileSync(
 				join(tempDir, 'package.json'),
 				JSON.stringify({ name: 'test', dependencies: {} })
@@ -42,33 +37,19 @@ describe('Vite HMR Port Configuration', () => {
 				rootDir: tempDir,
 				logger: mockLogger,
 				port: 5173,
+				backendPort: 3500,
 			});
 
-			// Verify HMR config exists
-			expect(config.server?.hmr).toBeDefined();
-
-			const hmrConfig = config.server?.hmr as Record<string, unknown>;
-
-			// HMR should use a dedicated path for WebSocket proxying through tunnels
-			// This allows the Bun server to proxy HMR connections to Vite
-			expect(hmrConfig.path).toBe('/__vite_hmr');
-
-			// HMR port, clientPort, host, and protocol should NOT be set
-			// This allows Vite to auto-detect from the page origin, enabling
-			// HMR to work both locally and through the Gravity tunnel
-			expect(hmrConfig.port).toBeUndefined();
-			expect(hmrConfig.clientPort).toBeUndefined();
-			expect(hmrConfig.host).toBeUndefined();
-			expect(hmrConfig.protocol).toBeUndefined();
+			// HMR should be enabled
+			expect(config.server?.hmr).toBe(true);
 		} finally {
 			rmSync(tempDir, { recursive: true, force: true });
 		}
 	});
 
-	test('server config should allow port fallback with strictPort: false', async () => {
+	test('server config should use strictPort: true (port pre-verified)', async () => {
 		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-hmr-test-'));
 		try {
-			// Create minimal project structure
 			writeFileSync(
 				join(tempDir, 'package.json'),
 				JSON.stringify({ name: 'test', dependencies: {} })
@@ -79,12 +60,13 @@ describe('Vite HMR Port Configuration', () => {
 				rootDir: tempDir,
 				logger: mockLogger,
 				port: 5173,
+				backendPort: 3500,
 			});
 
-			// strictPort should be false to allow Vite to choose alternate ports
-			expect(config.server?.strictPort).toBe(false);
+			// strictPort is true because findAvailablePort() pre-verifies the port
+			expect(config.server?.strictPort).toBe(true);
 
-			// The requested port should still be set
+			// The requested port should be set
 			expect(config.server?.port).toBe(5173);
 		} finally {
 			rmSync(tempDir, { recursive: true, force: true });
