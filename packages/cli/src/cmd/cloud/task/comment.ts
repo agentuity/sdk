@@ -367,7 +367,7 @@ const listCommentsSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
 		const started = Date.now();
-		const storage = await createStorageAdapter(ctx);
+		const storage = await createStorageAdapterOptionalOrg(ctx);
 
 		const result = await storage.listComments(args.taskId, {
 			limit: opts.limit,
