@@ -165,29 +165,38 @@ export const genericAdapter: BuildAdapter = {
 			mkdirSync(resolvedOutputDir, { recursive: true });
 		}
 
-		// Step 4: Copy package.json and node_modules for server mode
-		if (framework.mode === 'server') {
-			const pkgJsonSrc = join(projectDir, 'package.json');
-			const pkgJsonDst = join(outputDir, 'package.json');
-			if (existsSync(pkgJsonSrc) && !existsSync(pkgJsonDst)) {
-				cpSync(pkgJsonSrc, pkgJsonDst);
-			}
+		// Step 4: Determine start command — inject static file server if none exists
+		let { startCommand, serverEntry } = framework;
 
-			// Copy node_modules for runtime dependencies
-			const nodeModulesSrc = join(projectDir, 'node_modules');
-			const nodeModulesDst = join(outputDir, 'node_modules');
-			if (existsSync(nodeModulesSrc) && !existsSync(nodeModulesDst)) {
-				logger.debug('Copying node_modules for runtime dependencies...');
-				cpSync(nodeModulesSrc, nodeModulesDst, { recursive: true });
-			}
+		if (!startCommand) {
+			// No start command (static-only build) — inject a minimal file server
+			const { injectStaticServer } = await import('./static-server');
+			const injected = injectStaticServer(outputDir);
+			startCommand = injected.startCommand;
+			serverEntry = injected.serverEntry;
+			logs.push('✓ Injected static file server (no start script found)');
+		}
+
+		// Step 5: Copy package.json and node_modules for runtime
+		const pkgJsonSrc = join(projectDir, 'package.json');
+		const pkgJsonDst = join(outputDir, 'package.json');
+		if (existsSync(pkgJsonSrc) && !existsSync(pkgJsonDst)) {
+			cpSync(pkgJsonSrc, pkgJsonDst);
+		}
+
+		const nodeModulesSrc = join(projectDir, 'node_modules');
+		const nodeModulesDst = join(outputDir, 'node_modules');
+		if (existsSync(nodeModulesSrc) && !existsSync(nodeModulesDst)) {
+			logger.debug('Copying node_modules for runtime dependencies...');
+			cpSync(nodeModulesSrc, nodeModulesDst, { recursive: true });
 		}
 
 		const staticDir = framework.staticDir ? join(outputDir, framework.staticDir) : undefined;
 
 		return {
 			outputDir,
-			startCommand: framework.startCommand,
-			serverEntry: framework.serverEntry,
+			startCommand,
+			serverEntry,
 			staticDir: staticDir && existsSync(staticDir) ? staticDir : undefined,
 			port: framework.port,
 			duration: Date.now() - started,

@@ -50,7 +50,6 @@ export function packageBuildOutput(
 		version: 1,
 		framework: framework.name,
 		runtime: framework.runtime,
-		mode: framework.mode,
 		buildDate: new Date().toISOString(),
 	};
 	writeFileSync(markerPath, JSON.stringify(markerContent, null, 2), 'utf-8');

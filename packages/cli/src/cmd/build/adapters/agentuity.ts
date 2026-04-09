@@ -17,7 +17,18 @@ export const agentuityAdapter: BuildAdapter = {
 	name: 'agentuity',
 
 	async build(options: BuildAdapterOptions): Promise<BuildResult> {
-		const { projectDir, logger, collector, dev, projectId, orgId, region } = options;
+		const {
+			projectDir,
+			logger,
+			collector,
+			dev,
+			projectId,
+			orgId,
+			region,
+			deploymentId,
+			deploymentOptions,
+			deploymentConfig,
+		} = options;
 		const started = Date.now();
 		const logs: string[] = [];
 
@@ -30,7 +41,10 @@ export const agentuityAdapter: BuildAdapter = {
 			projectId,
 			orgId,
 			region: region ?? 'local',
+			deploymentId,
 			logger,
+			deploymentOptions,
+			deploymentConfig,
 			collector,
 		});
 

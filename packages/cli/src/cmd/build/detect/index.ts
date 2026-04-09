@@ -40,7 +40,6 @@ async function frameworkDefToDetected(
 		name: slug,
 		runtime: 'node',
 		packageManager: pm,
-		mode: 'server', // Default; adapters can override based on actual build output
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		confidence: 'high',
@@ -117,5 +116,4 @@ export type {
 	PackageJsonData,
 	PackageManager,
 	RuntimeName,
-	AppMode,
 } from './types';
