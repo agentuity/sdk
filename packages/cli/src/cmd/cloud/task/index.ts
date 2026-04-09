@@ -9,6 +9,7 @@ import { statsSubcommand } from './stats';
 import { attachmentSubcommand } from './attachment';
 import { userSubcommand } from './user';
 import { projectSubcommand } from './project';
+import { commentSubcommand } from './comment';
 import { getCommand } from '../../../command-prefix';
 
 export const taskCommand = createCommand({
@@ -61,6 +62,14 @@ export const taskCommand = createCommand({
 			command: getCommand('cloud task project list'),
 			description: 'List task projects',
 		},
+		{
+			command: getCommand('cloud task comment create task_abc123 "Looks good"'),
+			description: 'Add a comment to a task',
+		},
+		{
+			command: getCommand('cloud task comment list task_abc123'),
+			description: 'List comments on a task',
+		},
 	],
 	subcommands: [
 		getSubcommand,
@@ -73,6 +82,7 @@ export const taskCommand = createCommand({
 		attachmentSubcommand,
 		userSubcommand,
 		projectSubcommand,
+		commentSubcommand,
 	],
 	requires: { auth: true },
 });
