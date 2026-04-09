@@ -53,7 +53,6 @@ describe('Framework Detection', () => {
 			expect(result).not.toBeNull();
 			expect(result!.name).toBe('agentuity');
 			expect(result!.runtime).toBe('bun');
-			expect(result!.mode).toBe('server');
 			expect(result!.confidence).toBe('high');
 		});
 
@@ -304,7 +303,6 @@ describe('Framework Detection', () => {
 			// Without the actual source files, it falls through to generic.
 			const result = await detectFramework(testDir);
 			expect(result).not.toBeNull();
-			expect(result!.mode).toBe('server');
 			expect(result!.confidence).toBe('low');
 		});
 
@@ -316,7 +314,6 @@ describe('Framework Detection', () => {
 
 			const result = await detectFramework(testDir);
 			expect(result!.name).toBe('generic');
-			expect(result!.mode).toBe('static');
 		});
 
 		test('detects project with main field', async () => {

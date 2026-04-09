@@ -33,7 +33,6 @@ export const agentuityDetector: FrameworkDetector = {
 			version,
 			runtime: 'bun',
 			packageManager: pm,
-			mode: 'server',
 			// For Agentuity native, the build is handled by the agentuity adapter
 			// which uses the existing viteBundle pipeline
 			buildCommand: '__agentuity_internal__',

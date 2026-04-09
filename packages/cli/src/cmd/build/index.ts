@@ -128,9 +128,7 @@ export const command = createCommand({
 			const frameworkLabel = framework.version
 				? `${framework.name} v${framework.version}`
 				: framework.name;
-			tui.success(
-				`Detected ${tui.bold(frameworkLabel)} (${framework.mode}, ${framework.runtime})`
-			);
+			tui.success(`Detected ${tui.bold(frameworkLabel)} (${framework.runtime})`);
 
 			// Step 2: Get the build adapter for this framework
 			const adapter = getAdapter(framework.name);

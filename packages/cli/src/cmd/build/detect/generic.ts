@@ -35,7 +35,6 @@ export const genericDetector: FrameworkDetector = {
 		// Determine start command
 		let startCommand: string | undefined;
 		let serverEntry: string | undefined;
-		let mode: 'server' | 'static' = 'server';
 
 		if (pkg.scripts?.start) {
 			startCommand = pkg.scripts.start;
@@ -54,12 +53,6 @@ export const genericDetector: FrameworkDetector = {
 			return null;
 		}
 
-		// Detect if it's a static site by checking common output dirs
-		// If there's no start command but there is a build, assume static
-		if (!startCommand && buildCommand) {
-			mode = 'static';
-		}
-
 		// Detect runtime from engines field or package manager
 		const runtime = pkg.engines?.bun ? 'bun' : pm === 'bun' ? 'bun' : 'node';
 
@@ -67,7 +60,6 @@ export const genericDetector: FrameworkDetector = {
 			name: 'generic',
 			runtime,
 			packageManager: pm,
-			mode,
 			buildCommand: buildCommand ?? 'echo "No build step"',
 			buildOutput: '.', // Generic — build output could be anywhere
 			startCommand,
