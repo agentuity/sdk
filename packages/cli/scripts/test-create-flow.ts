@@ -54,7 +54,7 @@ async function cleanup() {
 async function buildCLI(): Promise<boolean> {
 	logStep('Step 0: Build All Packages');
 
-	const result = Bun.spawn(['bunx', 'tsgo', '--build'], {
+	const result = Bun.spawn(['bunx', 'tsc', '--build'], {
 		cwd: MONOREPO_ROOT,
 		stdout: 'inherit',
 		stderr: 'inherit',

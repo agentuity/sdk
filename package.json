@@ -9,7 +9,7 @@
 	],
 	"scripts": {
 		"prepare": "husky",
-		"build": "bunx tsgo --build",
+		"build": "bunx tsc --build",
 		"build:apps": "bun run --filter='./apps/testing/*' build",
 		"build:all": "bun run build && bun run build:apps",
 		"dev:workbench": "cd packages/workbench && bun run dev:app",
