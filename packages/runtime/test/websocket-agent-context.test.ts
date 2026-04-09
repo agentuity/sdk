@@ -1,9 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import type { AuthInterface } from '@agentuity/auth/types';
+import { trace } from '@opentelemetry/api';
 import { Hono } from 'hono';
-import { createAgent } from '../src/agent';
-import { createApp, type Env } from '../src/app';
+import { websocket as bunWebsocket } from 'hono/bun';
+import { runInHTTPContext } from '../src/_context';
+import { createAgent, createAgentMiddleware } from '../src/agent';
 import { websocket } from '../src/handlers/websocket';
+import type { Logger } from '../src/logger';
+import type { Session, Thread } from '../src/session';
+import WaitUntilHandler from '../src/_waituntil';
 import { z } from 'zod';
 
 interface EchoReadyMessage {
@@ -42,6 +47,42 @@ function createMockAuth(userId: string): AuthInterface {
 		hasOrgRole: async () => false,
 		apiKey: null,
 		hasPermission: () => false,
+	};
+}
+
+function createMockLogger(): Logger {
+	const noop = () => {};
+	return {
+		trace: noop,
+		debug: noop,
+		info: noop,
+		warn: noop,
+		error: noop,
+		fatal: noop as Logger['fatal'],
+		child: () => createMockLogger(),
+	};
+}
+
+function createMockThread(id: string): Thread {
+	const thread: Thread = {
+		id,
+		state: new Map(),
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		destroy: async () => {},
+		empty: () => thread.state.size === 0,
+	};
+	return thread;
+}
+
+function createMockSession(thread: Thread, id: string): Session {
+	return {
+		id,
+		thread,
+		state: new Map(),
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		serializeUserData: () => undefined,
 	};
 }
 
@@ -116,8 +157,7 @@ async function closeSocket(socket: WebSocket): Promise<void> {
 
 describe('WebSocket agent context propagation', () => {
 	test('agent.run inside ws.onMessage preserves session, thread, and routed auth context', async () => {
-		const originalNodeEnv = process.env.NODE_ENV;
-		process.env.NODE_ENV = 'development';
+		const tracer = trace.getTracer('websocket-agent-context-test');
 
 		const echoAgent = createAgent('websocket-agent-context-propagation-test', {
 			schema: {
@@ -139,17 +179,41 @@ describe('WebSocket agent context propagation', () => {
 			},
 		});
 
-		const router = new Hono<Env>();
+		const app = new Hono();
+
+		app.use('*', async (c, next) => {
+			await runInHTTPContext(c, next);
+		});
+
+		app.use('/api/*', async (c, next) => {
+			const logger = createMockLogger();
+			const thread = createMockThread(`thrd_${crypto.randomUUID()}`);
+			const session = createMockSession(thread, `sess_${crypto.randomUUID()}`);
+			const waitUntilHandler = new WaitUntilHandler(tracer);
+
+			c.set('logger', logger);
+			c.set('tracer', tracer);
+			c.set('sessionId', session.id);
+			c.set('thread', thread);
+			c.set('session', session);
+			c.set('waitUntilHandler', waitUntilHandler);
+			c.set('agentIds', new Set<string>());
+			c.set('trigger', 'websocket');
+			c.set('app', {});
+			await next();
+		});
+
+		app.use('/api/*', createAgentMiddleware(''));
 
 		// This middleware runs after createAgentMiddleware('') and should still
 		// be visible to the agent via the lazy ctx.auth getter.
-		router.use('*', async (c, next) => {
+		app.use('/api/*', async (c, next) => {
 			c.set('auth', createMockAuth('late-bound-user'));
 			await next();
 		});
 
-		router.get(
-			'/echo',
+		app.get(
+			'/api/echo',
 			websocket((c, ws) => {
 				ws.onOpen(() => {
 					ws.send(JSON.stringify({ type: 'ready' }));
@@ -178,54 +242,36 @@ describe('WebSocket agent context propagation', () => {
 			})
 		);
 
+		const server = Bun.serve({
+			port: 0,
+			fetch: (request, server) => app.fetch(request, server),
+			websocket: bunWebsocket,
+		});
+
+		const socket = new WebSocket(`ws://127.0.0.1:${server.port}/api/echo`);
+
 		try {
-			// createApp only exposes fetch/websocket in development mode, which this
-			// test needs in order to start a real Bun WebSocket server.
-			const app = await createApp({
-				analytics: false,
-				workbench: false,
-				services: { useLocal: true },
-				router: { path: '/api', router },
-				agents: [echoAgent],
-			});
+			await waitForOpen(socket);
 
-			const server = Bun.serve({
-				port: 0,
-				fetch: app.fetch,
-				websocket: app.websocket,
-			});
+			const ready = await waitForJsonMessage(socket);
+			expect(ready).toEqual({ type: 'ready' });
 
-			const socket = new WebSocket(`ws://127.0.0.1:${server.port}/api/echo`);
+			socket.send('hello from websocket test');
 
-			try {
-				await waitForOpen(socket);
-
-				const ready = await waitForJsonMessage(socket);
-				expect(ready).toEqual({ type: 'ready' });
-
-				socket.send('hello from websocket test');
-
-				const response = await waitForJsonMessage(socket);
-				if (response.type !== 'echo') {
-					throw new Error(`Expected echo response, received ${JSON.stringify(response)}`);
-				}
-
-				expect(response.data.echo).toBe('hello from websocket test');
-				expect(response.data.sessionId).toBe(response.routeSessionId);
-				expect(response.data.threadId).toBe(response.routeThreadId);
-				expect(response.data.userId).toBe('late-bound-user');
-				expect(response.data.sessionId.length).toBeGreaterThan(0);
-				expect(response.data.threadId.length).toBeGreaterThan(0);
-			} finally {
-				await closeSocket(socket);
-				server.stop(true);
+			const response = await waitForJsonMessage(socket);
+			if (response.type !== 'echo') {
+				throw new Error(`Expected echo response, received ${JSON.stringify(response)}`);
 			}
+
+			expect(response.data.echo).toBe('hello from websocket test');
+			expect(response.data.sessionId).toBe(response.routeSessionId);
+			expect(response.data.threadId).toBe(response.routeThreadId);
+			expect(response.data.userId).toBe('late-bound-user');
+			expect(response.data.sessionId.length).toBeGreaterThan(0);
+			expect(response.data.threadId.length).toBeGreaterThan(0);
 		} finally {
-			if (originalNodeEnv === undefined) {
-				delete process.env.NODE_ENV;
-			} else {
-				process.env.NODE_ENV = originalNodeEnv;
-			}
+			await closeSocket(socket);
+			server.stop(true);
 		}
 	});
 });
