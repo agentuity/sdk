@@ -35,7 +35,7 @@ export interface ViteBuildOptions {
 
 /**
  * Run a Vite build for the specified mode
- * Uses inline Vite config (customizable via agentuity.config.ts)
+ * Uses inline Vite config
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	const { rootDir, mode, dev = false, deploymentId = '', logger, profile } = options;

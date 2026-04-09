@@ -1,31 +1,24 @@
 {
 	"name": "nextjs-app",
 	"version": "0.0.1",
+	"license": "Apache-2.0",
 	"private": true,
-	"type": "module",
 	"scripts": {
-		"dev": "concurrently -n web,agent -c blue,cyan \"bun run dev:web\" \"bun run dev:agent\"",
-		"dev:web": "next dev --port 3001",
-		"dev:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts dev --dir . --port 3501",
-		"build": "concurrently \"bun run build:web\" \"bun run build:agent\"",
-		"build:web": "next build",
-		"build:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
-		"typecheck": "tsc --noEmit"
+		"dev": "next dev --port 3000",
+		"build": "next build",
+		"start": "next start",
+		"test": "bun test",
+		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@agentuity/react": "workspace:*",
-		"@agentuity/core": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
-		"hono": "^4.7.13",
 		"next": "^15.3.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
 	},
 	"devDependencies": {
-		"@types/node": "^22.10.2",
+		"@types/bun": "latest",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
-		"concurrently": "^9.2.1",
-		"typescript": "^5.7.2"
+		"typescript": "^5"
 	}
 }

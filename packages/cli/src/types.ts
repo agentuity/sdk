@@ -260,37 +260,6 @@ export interface AgentuityConfig {
 	bundle?: string[];
 }
 
-/**
- * User-provided build configuration for a specific phase (legacy Bun bundler)
- * @deprecated Use AgentuityConfig instead
- */
-export interface BuildConfig {
-	/**
-	 * Additional Bun plugins to apply during bundling
-	 * These are added AFTER the Agentuity plugin
-	 */
-	plugins?: Array<import('bun').BunPlugin>;
-	/**
-	 * Additional external modules to exclude from bundling
-	 * These are merged with Agentuity's default externals
-	 */
-	external?: string[];
-	/**
-	 * Additional define constants for code replacement
-	 * These are merged with Agentuity's default defines
-	 * Note: Cannot override process.env.AGENTUITY_* or process.env.NODE_ENV
-	 */
-	define?: Record<string, string>;
-}
-
-/**
- * Configuration function that users export from agentuity.config.ts
- */
-export type BuildConfigFunction = (
-	phase: BuildPhase,
-	context: BuildContext
-) => BuildConfig | Promise<BuildConfig>;
-
 export interface Profile {
 	name: string;
 	filename: string;

@@ -407,14 +407,8 @@ if (!bucketResult.valid) {
 
 \`\`\`
 ├── agentuity.json       # Project config (projectId, orgId)
-├── agentuity.config.ts  # Build config
 ├── package.json
-├── src/
-│   ├── agent/<name>/    # Each agent in its own folder
-│   │   ├── agent.ts     # Agent definition
-│   │   └── index.ts     # Exports
-│   ├── api/             # API routes (Hono)
-│   └── web/             # React frontend
+├── src/                 # Application source (framework-specific)
 └── .env                 # AGENTUITY_SDK_KEY, DATABASE_URL, etc.
 \`\`\`
 

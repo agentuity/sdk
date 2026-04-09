@@ -1,20 +1,15 @@
 {
-	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
-		"outDir": "./.agentuity",
-		"rootDir": ".",
-		"allowImportingTsExtensions": true,
-		"noEmit": true,
-		"jsx": "react-jsx",
-		"lib": ["ESNext", "DOM"],
-		"types": ["bun-types"],
+		"strict": true,
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"esModuleInterop": true,
 		"skipLibCheck": true,
-		"paths": {
-			"@agents/*": ["./src/agent/*"],
-			"@test/*": ["./src/test/*"],
-			"@agentuity/frontend": ["./node_modules/@agentuity/frontend"]
-		}
+		"outDir": "dist",
+		"rootDir": "src",
+		"types": ["bun"]
 	},
-	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
-	"exclude": ["node_modules", ".agentuity", "test"]
+	"include": ["src"],
+	"exclude": ["node_modules", "dist", "test"]
 }

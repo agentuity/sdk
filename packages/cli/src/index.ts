@@ -124,8 +124,6 @@ export type {
 	ResourceSelectionRule,
 	BuildPhase,
 	BuildContext,
-	BuildConfig,
-	BuildConfigFunction,
 	AgentuityConfig,
 	WorkbenchConfig,
 } from './types';

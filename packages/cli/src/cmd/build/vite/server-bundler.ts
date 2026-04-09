@@ -71,49 +71,12 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	// require @babel/code-frame at runtime. Babel packages are pure JS and bundle fine.
 	const buildToolExternals = ['lightningcss', '@vitejs/*', 'vite', 'esbuild'];
 
-	// Load custom externals and define from agentuity.config.ts if it exists
-	const customExternals: string[] = [];
-	let userDefine: Record<string, string> = {};
-	let dbRewriteEnabled = true;
-	const configPath = join(rootDir, 'agentuity.config.ts');
-	if (await Bun.file(configPath).exists()) {
-		try {
-			const config = await import(configPath);
-			const userConfig = config.default;
+	// Combine runtime externals for installation
+	const installPatterns = [...runtimeExternals];
 
-			// Load custom externals (legacy build.external support)
-			if (userConfig?.build?.external && Array.isArray(userConfig.build.external)) {
-				customExternals.push(
-					...userConfig.build.external.filter((e: unknown) => typeof e === 'string')
-				);
-			}
-
-			// Load custom define values
-			if (userConfig?.define && typeof userConfig.define === 'object') {
-				userDefine = userConfig.define;
-				if (Object.keys(userDefine).length > 0) {
-					logger.debug(
-						'Loaded %d custom define(s) from agentuity.config.ts for server bundle',
-						Object.keys(userDefine).length
-					);
-				}
-			}
-
-			// Allow users to disable db rewrite plugin
-			if (userConfig?.build?.dbRewrite === false) {
-				dbRewriteEnabled = false;
-				logger.debug('DB rewrite: disabled via agentuity.config.ts');
-			}
-		} catch (error) {
-			logger.debug('Failed to load agentuity.config.ts for externals:', error);
-		}
-	}
-
-	// Combine runtime externals with custom externals for installation
-	const installPatterns = [...runtimeExternals, ...customExternals];
-
-	// All external patterns (runtime + build tools + custom) for Bun.build
-	const allExternalPatterns = [...runtimeExternals, ...buildToolExternals, ...customExternals];
+	// All external patterns (runtime + build tools) for Bun.build
+	const allExternalPatterns = [...runtimeExternals, ...buildToolExternals];
+	const dbRewriteEnabled = true;
 	let external = allExternalPatterns;
 
 	// For production builds: install ONLY runtime externals, then discover full dependency tree
@@ -403,7 +366,6 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		// Server code must read process.env at RUNTIME, not have values baked in at build time
 		// Without this, NODE_ENV and other env vars get inlined as string literals
 		env: 'disable' as const,
-		define: userDefine, // Include custom define values from agentuity.config.ts
 		plugins: dbRewriteEnabled ? [patchPlugin, dbRewritePlugin] : [patchPlugin],
 		naming: {
 			entry: 'app.js', // Output as app.js (not app.generated.js)

@@ -170,8 +170,13 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		const columns = process.stdout.columns || 80;
 		const rows = process.stdout.rows || 24;
 
+		// Use the current bun + CLI script rather than bunx to ensure
+		// the child uses the same CLI binary (not a globally installed version).
+		// childArgs[0] is 'agentuity' (the package name bunx would consume), so skip it.
+		const cliEntry = process.argv[1] ?? 'agentuity';
+		const forkArgs = childArgs.slice(1);
 		proc = spawn({
-			cmd: ['bunx', ...childArgs],
+			cmd: [process.execPath, cliEntry, ...forkArgs],
 			cwd: projectDir,
 			env: {
 				...process.env,

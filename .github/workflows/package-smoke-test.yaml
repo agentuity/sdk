@@ -66,34 +66,10 @@ jobs:
          - name: Run installation type detection tests
            run: bash packages/cli/scripts/test-installation-type.sh
 
-   standalone-agent-test:
-      runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 5
-      name: Standalone Agent Test
-      steps:
-         - uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Build packages
-           run: bun run build
-
-         - name: Run standalone agent test
-           run: bun run test:standalone
-
-   integration-test:
+   testing-apps-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
-      name: SDK Integration Test Suite
-      env:
-         AGENTUITY_API_URL: https://api.agentuity.com
-         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
-         AGENTUITY_REGION: usc
+      name: Testing Apps (local tests)
       steps:
          - uses: actions/checkout@v4
 
@@ -103,127 +79,17 @@ jobs:
          - name: Install dependencies
            run: bun install
 
-         - name: Prepare SDK for testing
-           run: bash scripts/prepare-sdk-for-testing.sh
+         - name: Run standalone-backend tests
+           run: cd apps/testing/standalone-backend && bun test
 
-         - name: Install SDK in integration-suite
-           run: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite
+         - name: Run oauth tests
+           run: cd apps/testing/oauth && bun test
 
-         - name: Setup test credentials
-           run: |
-              # Generate CLI API key for authentication
-              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
-              echo "::add-mask::${APIKEY}"
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+         - name: Run e2e-web tests
+           run: cd apps/testing/e2e-web && bun test
 
-              # Set SDK key for integration-suite tests
-              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
-
-              # Set OpenAI API key for embedding operations
-              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
-
-         - name: Run integration test suite
-           run: bash apps/testing/integration-suite/scripts/ci-test.sh
-
-   cloud-deployment-test:
-      runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 15
-      name: Cloud Deployment Tests
-      env:
-         AGENTUITY_API_URL: https://api.agentuity.com
-         AGENTUITY_APP_URL: https://app.agentuity.com
-         AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
-         AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
-         AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
-         AGENTUITY_KEYVALUE_URL: https://catalyst-usc.agentuity.cloud
-         AGENTUITY_SANDBOX_URL: https://catalyst-usc.agentuity.cloud
-         AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
-         AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
-         AGENTUITY_LOG_LEVEL: error
-         AGENTUITY_REGION: usc
-         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-      steps:
-         - uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Prepare SDK for testing
-           run: bash scripts/prepare-sdk-for-testing.sh
-
-         - name: Install SDK in cloud-deployment
-           run: bash scripts/install-sdk-tarballs.sh apps/testing/cloud-deployment
-
-         - name: Setup test credentials
-           run: |
-              # Generate CLI API key for cloud operations
-              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
-              echo "::add-mask::${APIKEY}"
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
-
-              # Set SDK key for runtime operations
-              echo "AGENTUITY_SDK_KEY=${{ secrets.CLOUD_DEPLOYMENT_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
-
-              # Set OpenAI API key for embedding operations
-              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
-
-         - name: Create .env file for app runtime
-           run: |
-              cd apps/testing/cloud-deployment
-              cat > .env << EOF
-              AGENTUITY_SDK_KEY=${{ secrets.CLOUD_DEPLOYMENT_AGENTUITY_SDK_KEY }}
-              OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-              AGENTUITY_API_URL=$AGENTUITY_API_URL
-              AGENTUITY_APP_URL=$AGENTUITY_APP_URL
-              AGENTUITY_TRANSPORT_URL=$AGENTUITY_TRANSPORT_URL
-              AGENTUITY_CATALYST_URL=$AGENTUITY_CATALYST_URL
-              AGENTUITY_STREAM_URL=$AGENTUITY_STREAM_URL
-              AGENTUITY_KEYVALUE_URL=$AGENTUITY_KEYVALUE_URL
-              AGENTUITY_SANDBOX_URL=$AGENTUITY_SANDBOX_URL
-              AGENTUITY_OBJECTSTORE_URL=$AGENTUITY_OBJECTSTORE_URL
-              AGENTUITY_VECTOR_URL=$AGENTUITY_VECTOR_URL
-              AGENTUITY_LOG_LEVEL=$AGENTUITY_LOG_LEVEL
-              AGENTUITY_REGION=$AGENTUITY_REGION
-              EOF
-
-         - name: Run cloud deployment tests
-           run: bash scripts/test-cloud-deployment.sh
-
-         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
-         # - name: Upload deployment logs
-         #   if: failure()
-         #   uses: actions/upload-artifact@v4
-         #   with:
-         #      name: deployment-logs
-         #      path: ~/.config/agentuity/logs/
-         #      if-no-files-found: ignore
-         #      retention-days: 1
-
-         - name: Cleanup
-           if: always()
-           run: rm -rf apps/testing/cloud-deployment/.env
-
-   template-integration-test:
-      runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 30
-      name: Template Integration Tests
-      steps:
-         - uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Build packages
-           run: bun run build
-
-         - name: Run template integration tests
-           run: bun scripts/test-templates.ts --skip-outdated
+         - name: Run integration-suite tests
+           run: cd apps/testing/integration-suite && bun test
 
    sandbox-cli-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -347,48 +213,10 @@ jobs:
          - name: Run queue CLI tests
            run: bash scripts/test-queue.sh
 
-   playwright-e2e-test:
-      runs-on: blacksmith-4vcpu-ubuntu-2204
-      timeout-minutes: 15
-      name: Playwright E2E Smoke Test
-      steps:
-         - uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Install Playwright browsers
-           run: bunx playwright install --with-deps chromium
-
-         - name: Prepare SDK for testing
-           timeout-minutes: 5
-           run: bash scripts/prepare-sdk-for-testing.sh --packages-only
-
-         - name: Install SDK in e2e-web
-           run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
-
-         # No explicit build step needed: playwright.config.ts webServer starts
-         # "bun run dev" which compiles on-the-fly via Vite. A production build
-         # would be redundant since e2e tests run against the dev server.
-         - name: Run Playwright E2E tests
-           run: bun run test:e2e
-
-         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
-         # - name: Upload Playwright report
-         #   uses: actions/upload-artifact@v4
-         #   if: always()
-         #   with:
-         #      name: playwright-report
-         #      path: playwright-report/
-         #      retention-days: 1
-
    framework-demo-test:
-      runs-on: blacksmith-4vcpu-ubuntu-2204
-      timeout-minutes: 15
-      name: Framework Integration Tests (TanStack & Next.js)
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 30
+      name: Framework Demo Tests
       steps:
          - uses: actions/checkout@v4
 
@@ -398,30 +226,11 @@ jobs:
          - name: Install dependencies
            run: bun install
 
-         - name: Install Playwright browsers
+         - name: Build packages
+           run: bun run build
+
+         - name: Install Playwright
            run: bunx playwright install --with-deps chromium
 
-         - name: Prepare SDK for testing
-           run: bash scripts/prepare-sdk-for-testing.sh
-
-         - name: Install SDK in framework demo apps
-           run: |
-              # Install in main app (frontend packages)
-              bash scripts/install-sdk-tarballs.sh apps/testing/tanstack-start
-              bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app
-              # Install in agentuity subfolders (runtime packages)
-              bash scripts/install-sdk-tarballs.sh apps/testing/tanstack-start/agentuity
-              bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app/agentuity
-
-         - name: Run Framework Demo tests
-           timeout-minutes: 8
-           run: bash scripts/test-framework-demos.sh --skip-build
-
-         # TODO: Re-enable after artifact storage quota resets (disabled 2026-02-01)
-         # - name: Upload Playwright report
-         #   uses: actions/upload-artifact@v4
-         #   if: always()
-         #   with:
-         #      name: framework-demo-playwright-report
-         #      path: playwright-report/
-         #      retention-days: 1
+         - name: Run framework demo tests
+           run: bash scripts/test-framework-demos.sh

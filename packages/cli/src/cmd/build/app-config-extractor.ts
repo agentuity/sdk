@@ -3,7 +3,7 @@
  *
  * Extracts analytics and workbench config from the user's createApp() call
  * in app.ts. This is the v2 approach where createApp() is the single source
- * of truth for runtime configuration (replacing agentuity.config.ts).
+ * of truth for runtime configuration.
  *
  * Uses TypeScript's compiler API to reliably detect and extract values.
  */

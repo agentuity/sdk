@@ -31,7 +31,7 @@ import {
 	getGithubToken,
 	linkProjectToRepo,
 } from '../git/api';
-import { initGitRepo } from './download';
+import { initGitRepo } from './scaffold';
 
 // ─── Structured Errors ───
 

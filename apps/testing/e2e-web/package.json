@@ -1,30 +1,21 @@
 {
-	"name": "e2e-web-tests",
+	"name": "e2e-web",
 	"version": "0.0.1",
 	"license": "Apache-2.0",
 	"private": true,
 	"type": "module",
-	"description": "E2E web tests for Agentuity SDK",
 	"scripts": {
-		"build": "bun ../../../packages/cli/bin/cli.ts build --dir .",
-		"dev": "DEVMODE_SYNC_SERVICE_MOCK=true bun ../../../packages/cli/bin/cli.ts dev --dir . --port 3500 --local --no-public --no-interactive",
-		"typecheck": "bunx tsc --project tsconfig.json --noEmit"
+		"dev": "bun --hot src/server.ts",
+		"build": "bun build src/server.ts --outdir dist --target node",
+		"start": "node dist/server.js",
+		"test": "bun test",
+		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@agentuity/cli": "workspace:*",
-		"@agentuity/core": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
-		"@agentuity/react": "workspace:*",
-		"@agentuity/runtime": "workspace:*",
-		"@agentuity/schema": "workspace:*",
-		"@agentuity/workbench": "workspace:*",
-		"hono": "^4.7.13",
-		"react": "^19.2.3",
-		"react-dom": "^19.2.3"
+		"hono": "^4.7.13"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"@vitejs/plugin-react": "^4.6.0",
-		"vite": "^7.2.7"
+		"typescript": "^5"
 	}
 }

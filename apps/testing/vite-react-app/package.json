@@ -1,0 +1,26 @@
+{
+	"name": "vite-react-app",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite --port 3000",
+		"build": "vite build",
+		"start": "vite preview",
+		"test": "bun test",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"@vitejs/plugin-react": "^4.5.2",
+		"typescript": "^5",
+		"vite": "^7.1.7"
+	}
+}

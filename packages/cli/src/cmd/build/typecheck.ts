@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { parse, type GrammarItem } from '../../tsc-output-parser';
 import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors';
 import type { BuildReportCollector } from '../../build-report';
@@ -73,6 +74,14 @@ function filterNodeModulesErrors(output: string): string {
  * @returns
  */
 export async function typecheck(dir: string, options?: TypecheckOptions): Promise<TypeResult> {
+	// Skip typecheck for projects without tsconfig.json (plain JS projects)
+	const tsconfigPath = join(dir, 'tsconfig.json');
+	const tsconfigFile = Bun.file(tsconfigPath);
+	const tsconfigExists = await tsconfigFile.exists();
+	if (!tsconfigExists) {
+		return { success: true };
+	}
+
 	const { collector } = options ?? {};
 	const result = await Bun.$`bunx tsc --noEmit --skipLibCheck --pretty false`
 		.cwd(dir)

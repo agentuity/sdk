@@ -118,38 +118,28 @@ export async function getDefaultProjectName(dir: string): Promise<string> {
  * @internal Exported for testing
  */
 export async function isValidProjectStructure(dir: string): Promise<boolean> {
-	// Check 1: package.json with @agentuity/runtime and agentuity.config.ts
+	// Check 1: package.json exists (any JS/TS project is valid)
 	const pkgPath = join(dir, 'package.json');
-	const configPath = join(dir, 'agentuity.config.ts');
 
 	if (await Bun.file(pkgPath).exists()) {
 		try {
 			const pkg = await Bun.file(pkgPath).json();
-			const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-			if (deps['@agentuity/runtime'] && (await Bun.file(configPath).exists())) {
+			// Valid if it has a name and at least some structure
+			if (pkg.name || pkg.dependencies || pkg.devDependencies) {
 				return true;
 			}
 		} catch {
-			// Fall through to check child project
+			// Invalid package.json
 		}
 	}
 
-	// Check 2: ./agentuity/ subdirectory exists with valid structure (parent project with child)
+	// Check 2: ./agentuity/ subdirectory exists with a package.json (parent project with child)
 	const agentuityDir = join(dir, 'agentuity');
 	if (existsSync(agentuityDir) && statSync(agentuityDir).isDirectory()) {
 		const childPkgPath = join(agentuityDir, 'package.json');
-		const childConfigPath = join(agentuityDir, 'agentuity.config.ts');
 
 		if (await Bun.file(childPkgPath).exists()) {
-			try {
-				const childPkg = await Bun.file(childPkgPath).json();
-				const childDeps = { ...childPkg.dependencies, ...childPkg.devDependencies };
-				if (childDeps['@agentuity/runtime'] && (await Bun.file(childConfigPath).exists())) {
-					return true;
-				}
-			} catch {
-				// Invalid package.json in child - fall through
-			}
+			return true;
 		}
 	}
 
@@ -648,9 +638,8 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 		return {
 			status: 'error',
 			message:
-				'This directory does not appear to be a valid Agentuity project. ' +
-				'Expected agentuity.config.ts and @agentuity/runtime dependency, ' +
-				'or an agentuity/ subdirectory.',
+				'This directory does not appear to be a valid project. ' +
+				'Expected a package.json with project dependencies.',
 		};
 	}
 
@@ -743,9 +732,8 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 		return {
 			status: 'error',
 			message:
-				'This directory does not appear to be a valid Agentuity project. ' +
-				'Expected agentuity.config.ts and @agentuity/runtime dependency, ' +
-				'or an agentuity/ subdirectory.',
+				'This directory does not appear to be a valid project. ' +
+				'Expected a package.json with project dependencies.',
 		};
 	}
 

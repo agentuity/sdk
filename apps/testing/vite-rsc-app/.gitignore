@@ -1,5 +1,0 @@
-dist
-node_modules
-agentuity/.agentuity
-.env*.local
-.vite
