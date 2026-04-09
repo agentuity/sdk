@@ -102,9 +102,22 @@ async function augmentProject(
 					logger.debug('Created AI example: %s', relativePath);
 				}
 			}
-			progress(70);
+			progress(50);
 
-			// Step 3: Add .gitignore entries
+			// Step 3: Add Agentuity badge component
+			if (framework.brandSnippet) {
+				const files = framework.brandSnippet();
+				for (const [relativePath, content] of Object.entries(files)) {
+					const filePath = join(dest, relativePath);
+					const dir = join(filePath, '..');
+					mkdirSync(dir, { recursive: true });
+					await Bun.write(filePath, content);
+					logger.debug('Created brand badge: %s', relativePath);
+				}
+			}
+			progress(75);
+
+			// Step 4: Add .gitignore entries
 			await appendGitignore(dest);
 			progress(100);
 		},
