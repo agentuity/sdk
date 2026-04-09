@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
 import { context as otelContext, ROOT_CONTEXT } from '@opentelemetry/api';
 import type { Env } from '../app';
+import { getAgentAsyncLocalStorage, getHTTPAsyncLocalStorage } from '../_context';
 import { tagRoute } from './_route-meta';
 
 /**
@@ -100,6 +101,10 @@ export function websocket<E extends Env = Env>(
 		let messageHandler: ((event: MessageEvent) => void | Promise<void>) | undefined;
 		let closeHandler: ((event: CloseEvent) => void | Promise<void>) | undefined;
 		let initialized = false;
+		const agentAsyncLocalStorage = getAgentAsyncLocalStorage();
+		const httpAsyncLocalStorage = getHTTPAsyncLocalStorage();
+		const capturedAgentContext = agentAsyncLocalStorage.getStore();
+		const capturedHTTPContext = httpAsyncLocalStorage.getStore();
 
 		// Create done promise for session lifecycle deferral, but ONLY for actual
 		// WebSocket upgrade requests. The factory runs unconditionally for every
@@ -137,12 +142,29 @@ export function websocket<E extends Env = Env>(
 			},
 		};
 
+		const runWithCapturedContext = <T>(callback: () => T): T => {
+			return otelContext.with(ROOT_CONTEXT, () => {
+				const runWithAgentContext = () => {
+					if (capturedAgentContext) {
+						return agentAsyncLocalStorage.run(capturedAgentContext, callback);
+					}
+					return callback();
+				};
+
+				if (capturedHTTPContext) {
+					return httpAsyncLocalStorage.run(capturedHTTPContext, runWithAgentContext);
+				}
+
+				return runWithAgentContext();
+			});
+		};
+
 		// IMPORTANT: We run in ROOT_CONTEXT (no active OTEL span) to avoid a Bun bug
 		// where OTEL-instrumented fetch conflicts with streaming responses.
 		// See: https://github.com/agentuity/sdk/issues/471
 		// See: https://github.com/oven-sh/bun/issues/24766
 		const runHandler = () => {
-			otelContext.with(ROOT_CONTEXT, () => {
+			runWithCapturedContext(() => {
 				handler(c, wsConnection);
 			});
 			initialized = true;
@@ -157,7 +179,7 @@ export function websocket<E extends Env = Env>(
 					wsConnection.send = (data) => ws.send(data);
 
 					if (openHandler) {
-						await otelContext.with(ROOT_CONTEXT, () => openHandler!(event));
+						await runWithCapturedContext(() => openHandler!(event));
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onOpen error:', err);
@@ -172,7 +194,7 @@ export function websocket<E extends Env = Env>(
 						runHandler();
 					}
 					if (messageHandler) {
-						await otelContext.with(ROOT_CONTEXT, () => messageHandler!(event));
+						await runWithCapturedContext(() => messageHandler!(event));
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onMessage error:', err);
@@ -183,7 +205,7 @@ export function websocket<E extends Env = Env>(
 			onClose: async (event: CloseEvent, _ws: any) => {
 				try {
 					if (closeHandler) {
-						await otelContext.with(ROOT_CONTEXT, () => closeHandler!(event));
+						await runWithCapturedContext(() => closeHandler!(event));
 					}
 				} catch (err) {
 					c.var.logger?.error('WebSocket onClose error:', err);
