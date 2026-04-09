@@ -54,10 +54,10 @@ export const updateSubcommand = createSubcommand({
 			loopAutoContinue: z.boolean().optional().describe('Auto-continue loop'),
 			loopAllowDetached: z.boolean().optional().describe('Allow detached loop execution'),
 			tags: z.string().optional().describe('Comma-separated tags (replaces existing)'),
-			agentSlugs: z
+			enabledAgents: z
 				.string()
 				.optional()
-				.describe('Comma-separated published custom agent slugs (replaces existing)'),
+				.describe('Comma-separated built-in/custom agents (replaces existing)'),
 		}),
 	},
 	async handler(ctx) {
@@ -81,10 +81,10 @@ export const updateSubcommand = createSubcommand({
 				.map((t) => t.trim())
 				.filter(Boolean);
 		}
-		if (opts?.agentSlugs) {
-			body.agentSlugs = opts.agentSlugs
+		if (opts?.enabledAgents) {
+			body.enabledAgents = opts.enabledAgents
 				.split(',')
-				.map((slug) => slug.trim())
+				.map((name) => name.trim())
 				.filter(Boolean);
 		}
 
@@ -105,7 +105,7 @@ export const updateSubcommand = createSubcommand({
 
 		if (Object.keys(body).length === 0) {
 			tui.fatal(
-				'No update fields provided. Use --label, --visibility, --tags, --agent, --default-agent, --agent-slugs, --workflow-mode, or loop options.',
+				'No update fields provided. Use --label, --visibility, --tags, --agent, --default-agent, --enabled-agents, --workflow-mode, or loop options.',
 				ErrorCode.VALIDATION_FAILED
 			);
 		}
@@ -125,7 +125,7 @@ export const updateSubcommand = createSubcommand({
 			if (opts?.tags) fields.push(`Tags: ${(body.tags as string[]).join(', ')}`);
 			if (opts?.agent) fields.push(`Agent: ${opts.agent}`);
 			if (opts?.defaultAgent) fields.push(`Default agent: ${opts.defaultAgent}`);
-			if (opts?.agentSlugs) fields.push(`Custom agents: ${opts.agentSlugs}`);
+			if (opts?.enabledAgents) fields.push(`Enabled agents: ${opts.enabledAgents}`);
 			if (opts?.workflowMode || body.loop) fields.push(`Workflow: ${body.workflowMode}`);
 
 			for (const f of fields) {
