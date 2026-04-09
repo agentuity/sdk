@@ -1,3 +1,13 @@
+/**
+ * @agentuity/evals — SUSPENDED
+ *
+ * This package is not published in v3. The eval system is tightly coupled to
+ * the v2 agent concept (createAgent, EvalContext) which no longer exists.
+ * It will be rewritten from scratch with a framework-agnostic design.
+ *
+ * The code is kept here for reference during the rewrite.
+ */
+
 export {
 	createPresetEval,
 	interpolatePrompt,

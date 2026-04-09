@@ -1,6 +1,7 @@
 {
 	"name": "@agentuity/evals",
 	"version": "1.0.54",
+	"private": true,
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",

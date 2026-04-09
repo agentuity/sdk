@@ -1,6 +1,7 @@
 {
 	"name": "@agentuity/runtime",
 	"version": "1.0.54",
+	"deprecated": "Use a dedicated framework (Hono, Next.js, etc.) with @agentuity/hono middleware instead. See https://agentuity.dev/docs/migration",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",

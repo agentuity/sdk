@@ -514,67 +514,42 @@ export function printIntegrationExamples(): void {
 	tui.newline();
 
 	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 1. Set up your API routes (e.g., src/api/index.ts):'));
+	console.log(tui.bold(' 1. Set up your API routes:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
 import { mountAuthRoutes } from '@agentuity/auth';
-import { auth, authMiddleware } from '../auth';
+import { auth, authMiddleware } from './auth';
 
-const api = createRouter();
+const app = new Hono();
 
 // Mount auth routes (sign-in, sign-up, sign-out, session, etc.)
-// Must match the basePath configured in createAuth (default: /api/auth)
-api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
+app.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
 
 // Protect your API routes with auth middleware
-api.use('/api/*', authMiddleware);
+app.use('/api/*', authMiddleware);
 
-api.get('/api/me', async (c) => {
+app.get('/api/me', async (c) => {
   const user = await c.var.auth.getUser();
   return c.json({ id: user.id, email: user.email });
 });
 
-export default api;
+export default app;
 `);
 
 	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 2. Wrap your React app with AuthProvider:'));
+	console.log(tui.bold(' 2. Use the auth client in your frontend:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
-import { AgentuityProvider } from '@agentuity/react';
-import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
+import { createAuthClient } from '@agentuity/auth/client';
 
 const authClient = createAuthClient();
 
-function App() {
-  return (
-    <AgentuityProvider>
-      <AuthProvider authClient={authClient}>
-        {/* your app */}
-      </AuthProvider>
-    </AgentuityProvider>
-  );
-}
-`);
+// Sign in
+await authClient.signIn.email({ email, password });
 
-	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 3. Access auth in agents via ctx.auth:'));
-	console.log(tui.muted('━'.repeat(60)));
-	console.log(`
-import { createAgent } from '@agentuity/runtime';
-
-export default createAgent('my-agent', {
-  schema: { input: s.object({ name: s.string() }), output: s.string() },
-  handler: async (ctx, input) => {
-    // ctx.auth is available when using auth middleware
-    if (ctx.auth) {
-      const user = await ctx.auth.getUser();
-      return \`Hello, \${user.email}!\`;
-    }
-    return 'Hello, anonymous!';
-  },
-});
+// Get session
+const session = await authClient.getSession();
 `);
 
 	tui.newline();
