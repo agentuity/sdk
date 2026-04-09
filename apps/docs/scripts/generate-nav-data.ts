@@ -36,6 +36,7 @@ interface MetaJson {
 	title?: string;
 	sections?: string[];
 	pages?: string[];
+	sort?: 'title';
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +215,10 @@ async function processDirectory(dirPath: string, urlPrefix: string): Promise<Nav
 		} else {
 			console.warn(`Warning: No directory or .mdx file for "${slug}" in ${dirPath}`);
 		}
+	}
+
+	if (meta.sort === 'title') {
+		items.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
 	}
 
 	return items;
