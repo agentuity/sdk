@@ -1,7 +1,16 @@
 import { createPublicKey } from 'node:crypto';
-import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import {
+	createReadStream,
+	createWriteStream,
+	existsSync,
+	mkdirSync,
+	unlinkSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { createGzip } from 'node:zlib';
 import { StructuredError } from '@agentuity/core';
 import {
 	type BuildMetadata,
@@ -409,6 +418,8 @@ export const deploySubcommand = createSubcommand({
 				success: true,
 				deploymentId: initialDeployment.id,
 				projectId: project.projectId,
+				logs: result.deployResult?.logs,
+				urls: result.deployResult?.urls,
 			};
 		}
 		let useExistingDeployment = false;
@@ -893,9 +904,10 @@ export const deploySubcommand = createSubcommand({
 								endCodeUploadDiagnostic();
 
 								progress(70);
-								ctx.logger.trace('Consuming response body');
-								// Wait for response body to be consumed before deleting
-								await resp.arrayBuffer();
+								ctx.logger.trace('Cancelling upload response body');
+								// No response payload is needed for successful uploads.
+								// Cancel to release resources without buffering into memory.
+								await resp.body?.cancel();
 								ctx.logger.trace('Deleting encrypted zip');
 								await zipfile.delete();
 							} finally {
@@ -947,27 +959,48 @@ export const deploySubcommand = createSubcommand({
 
 										bytes += asset.size;
 
-										let body: Uint8Array | Blob;
+										let body: Blob;
+										let gzTempPath: string | undefined;
 										if (asset.contentEncoding === 'gzip') {
-											const file = Bun.file(filePath);
-											const ab = await file.arrayBuffer();
-											const gzipped = Bun.gzipSync(new Uint8Array(ab));
+											// Gzip to a temp file so Bun.file() can provide
+											// Content-Length to S3 (streaming bodies use chunked
+											// transfer encoding which S3 rejects).
+											gzTempPath = join(
+												tmpdir(),
+												`agentuity-asset-${deployment.id}-${Date.now()}-${asset.filename.replace(/\//g, '_')}.gz`
+											);
+											await pipeline(
+												createReadStream(filePath),
+												createGzip(),
+												createWriteStream(gzTempPath)
+											);
 											headers['Content-Encoding'] = 'gzip';
-											body = gzipped;
+											body = Bun.file(gzTempPath);
+											const compressedSize = body.size;
 											ctx.logger.trace(
-												`Compressing ${asset.filename} (${asset.size} -> ${gzipped.byteLength} bytes)`
+												`Gzip compressed ${asset.filename} (${asset.size} -> ${compressedSize} bytes)`
 											);
 										} else {
 											body = Bun.file(filePath);
 										}
 
+										const assetGzTempPath = gzTempPath;
 										promises.push(
 											fetch(assetUrl, {
 												method: 'PUT',
-												duplex: 'half',
 												headers,
 												body,
 												signal: stepCtx.signal,
+											}).then((response) => {
+												// Clean up temp gzip file after upload completes
+												if (assetGzTempPath) {
+													try {
+														unlinkSync(assetGzTempPath);
+													} catch {
+														// ignore — file may already be cleaned up
+													}
+												}
+												return response;
 											})
 										);
 									}
@@ -1267,7 +1300,7 @@ export const deploySubcommand = createSubcommand({
 			}
 
 			// Show deployment URLs
-			if (complete?.publicUrls) {
+			if (complete?.publicUrls && !options.json) {
 				const lines: string[] = [];
 				if (complete.publicUrls.custom?.length) {
 					for (const url of complete.publicUrls.custom) {
@@ -1309,6 +1342,29 @@ export const deploySubcommand = createSubcommand({
 				await collector.forceWrite();
 			}
 			clearGlobalCollector();
+
+			// Write deploy result to file for fork parent to consume
+			const deployResultFile = process.env.AGENTUITY_DEPLOY_RESULT_FILE;
+			if (deployResultFile) {
+				try {
+					const resultData = {
+						urls: complete?.publicUrls
+							? {
+									deployment:
+										complete.publicUrls.vanityDeployment ??
+										complete.publicUrls.deployment,
+									latest: complete.publicUrls.vanityProject ?? complete.publicUrls.latest,
+									custom: complete.publicUrls.custom,
+									dashboard,
+								}
+							: undefined,
+						logs,
+					};
+					writeFileSync(deployResultFile, JSON.stringify(resultData));
+				} catch {
+					// Non-fatal: result file is optional
+				}
+			}
 
 			return {
 				success: true,

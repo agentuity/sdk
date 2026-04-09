@@ -6,4 +6,10 @@
  */
 
 export { migrate, type MigrateOptions, type MigrateResult } from './migrate';
-export { detect, type DetectionResult, type Finding, type Severity } from './detect';
+export {
+	detect,
+	type DetectionResult,
+	type Finding,
+	type Severity,
+	type OutdatedPackage,
+} from './detect';

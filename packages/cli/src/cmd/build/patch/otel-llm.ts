@@ -213,13 +213,13 @@ function _wrapStream(stream, span, inputTokensField, outputTokensField) {
 let _original_create;
 try {
 	if (typeof ${className} === 'undefined' || !${className}.prototype || typeof ${className}.prototype.create !== 'function') {
-		console.debug('[Agentuity OTel] Skipping patch: ${className}.prototype.create not found or not a function');
+		// Skip - class not available
 	} else {
 		_original_create = ${className}.prototype.create;
 		${className}.prototype.create = _agentuity_otel_create;
 	}
 } catch (e) {
-	console.debug('[Agentuity OTel] Failed to patch ${className}:', e?.message || e);
+	// Skip - patching failed
 }
 
 function _agentuity_otel_create(body, options) {

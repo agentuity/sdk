@@ -1,0 +1,405 @@
+---
+title: Using WebRTC
+description: Peer-to-peer audio, video, and data channels with the webrtc middleware
+---
+
+When you need audio, video, or data to flow directly between browsers without a relay server, WebRTC gives you peer-to-peer connections with the lowest possible latency. The server only handles signaling: once peers find each other, all data flows directly between them.
+
+## When to Use WebRTC
+
+| Protocol | Best For |
+|----------|----------|
+| **WebRTC** | Video/audio calls, P2P data transfer, low-latency gaming |
+| [WebSockets](/routes/websockets) | Chat, collaboration, real-time bidirectional data |
+| [SSE](/routes/sse) | LLM streaming, progress updates, server-to-client feeds |
+
+<Callout type="info" title="Routes Location">
+All routes live in `src/api/`. The signaling endpoint is a WebSocket route that relays peer discovery messages.
+</Callout>
+
+## Server: Signaling Endpoint
+
+The server side is one line. The `webrtc()` middleware creates a signaling server that manages rooms, relays SDP offers/answers, and forwards ICE candidates:
+
+```typescript title="src/api/call/route.ts"
+import { Hono } from 'hono';
+import { type Env, webrtc } from '@agentuity/runtime';
+
+const router = new Hono<Env>();
+
+// Registered as /signal here; the file path (src/api/call/) + this path = /api/call/signal
+router.get('/signal', webrtc());
+
+export default router;
+```
+
+The middleware manages room membership, SDP/ICE relay, and automatic cleanup when peers disconnect.
+
+<Callout type="info" title="React Examples Use @agentuity/react">
+The React examples below use `useWebRTCCall()` from `@agentuity/react`, which is the highest-level hook for WebRTC UI state. For lower-level browser transports, media sources, or non-React usage, import `WebRTCManager` and related utilities from `@agentuity/frontend`.
+</Callout>
+
+## Client: Data Channels
+
+For text chat, file transfer, or any data exchange that doesn't need audio/video, use `media: false`:
+
+```typescript
+import { useWebRTCCall } from '@agentuity/react';
+
+function DataChat({ roomId }: { roomId: string }) {
+  const {
+    state,
+    peerId,
+    remotePeerIds,
+    connect,
+    hangup,
+    sendString,
+  } = useWebRTCCall({
+    roomId,
+    signalUrl: '/api/call/signal',
+    media: false, // [!code highlight]
+    dataChannels: [{ label: 'chat', ordered: true }], // [!code highlight]
+    autoConnect: false,
+    callbacks: {
+      onDataChannelMessage: (from, label, data) => {
+        console.log(`[${from}] ${data}`);
+      },
+    },
+  });
+
+  return (
+    <div>
+      <p>State: {state}</p>
+      <button onClick={state === 'idle' ? connect : hangup}>
+        {state === 'idle' ? 'Join' : 'Leave'}
+      </button>
+      <button onClick={() => sendString('chat', 'Hello!')}>
+        Send
+      </button>
+    </div>
+  );
+}
+```
+
+No camera or microphone permissions are needed for data-only connections.
+
+## Client: Video Calls
+
+For audio/video calls, omit the `media` option (defaults to `{ video: true, audio: true }`):
+
+```typescript
+import { useWebRTCCall } from '@agentuity/react';
+
+function VideoCall({ roomId }: { roomId: string }) {
+  const {
+    localVideoRef,
+    state,
+    remotePeerIds,
+    remoteStreams,
+    isAudioMuted,
+    isVideoMuted,
+    connect,
+    hangup,
+    muteAudio,
+    muteVideo,
+  } = useWebRTCCall({
+    roomId,
+    signalUrl: '/api/call/signal',
+    autoConnect: false,
+  });
+
+  return (
+    <div>
+      <video ref={localVideoRef} autoPlay muted playsInline />
+
+      {remotePeerIds.map((id) => (
+        <RemoteVideo key={id} stream={remoteStreams.get(id)} />
+      ))}
+
+      <button onClick={() => muteAudio(!isAudioMuted)}>
+        {isAudioMuted ? 'Unmute' : 'Mute'}
+      </button>
+      <button onClick={() => muteVideo(!isVideoMuted)}>
+        {isVideoMuted ? 'Show Video' : 'Hide Video'}
+      </button>
+      <button onClick={hangup}>Hang Up</button>
+    </div>
+  );
+}
+```
+
+The browser will prompt for camera/microphone permission on the first call.
+
+## Connection States
+
+The hook also exposes `isDataOnly` (true when `media: false` was passed) and the following states via the `state` property:
+
+| State | Meaning |
+|-------|---------|
+| `idle` | Not connected, ready to join |
+| `connecting` | Opening WebSocket to signaling server |
+| `signaling` | WebSocket connected, joined room, waiting for peers |
+| `negotiating` | SDP exchange and ICE gathering in progress |
+| `connected` | Peer connection established, media/data flowing |
+
+## Server Options
+
+Configure the signaling middleware with options:
+
+```typescript
+router.get('/signal', webrtc({
+  maxPeers: 4, // Allow up to 4 peers per room (default: 2)
+  callbacks: {
+    onRoomCreated: (roomId) => { /* room created */ },
+    onPeerJoin: (peerId, roomId) => { /* peer joined */ },
+    onPeerLeave: (peerId, roomId, reason) => { /* peer left */ },
+    onRoomDestroyed: (roomId) => { /* room empty, cleaned up */ },
+  },
+}));
+```
+
+## Hook Options
+
+The `useWebRTCCall` hook accepts these options:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `roomId` | `string` | required | Room to join |
+| `signalUrl` | `string` | required | WebSocket signaling endpoint path |
+| `media` | `MediaStreamConstraints \| TrackSource \| false` | `{ video: true, audio: true }` | Set `false` for data-only |
+| `dataChannels` | `DataChannelConfig[]` | `undefined` | Data channels to create |
+| `autoConnect` | `boolean` | `true` | Connect on mount |
+| `autoReconnect` | `boolean` | `true` | Reconnect on failure |
+| `maxReconnectAttempts` | `number` | `5` | Max reconnection attempts |
+| `polite` | `boolean` | `undefined` | Perfect negotiation role |
+| `connectionTimeout` | `number` | `30000` | Milliseconds before connection attempt times out |
+| `iceGatheringTimeout` | `number` | `10000` | Milliseconds before ICE gathering times out |
+| `iceServers` | `RTCIceServer[]` | STUN defaults | ICE/TURN server configuration |
+| `callbacks` | `Partial<WebRTCClientCallbacks>` | `undefined` | Lifecycle callbacks (`onStateChange`, `onError`, `onReconnecting`, `onReconnectFailed`) |
+
+## Data Channel Methods
+
+When using data channels, these methods are available:
+
+```typescript
+const {
+  sendString, sendStringTo,
+  sendJSON, sendJSONTo,
+  sendBinary, sendBinaryTo,
+  createDataChannel,
+  getDataChannelLabels,
+  getDataChannelState,
+  closeDataChannel,
+} = useWebRTCCall({
+  // ...options
+});
+
+// Send to all peers
+sendString('chat', 'Hello everyone');
+sendJSON('state', { x: 100, y: 200 });
+sendBinary('file', new Uint8Array([...]));
+
+// Send to a specific peer
+sendStringTo(peerId, 'chat', 'Private message');
+sendJSONTo(peerId, 'state', { x: 100, y: 200 });
+sendBinaryTo(peerId, 'file', new Uint8Array([...]));
+
+// Inspect channel state
+const labels = getDataChannelLabels();
+const channelState = getDataChannelState(peerId, 'chat');
+
+// Add a channel after connect
+createDataChannel({ label: 'extra', ordered: false });
+
+// Close a channel
+closeDataChannel('chat');
+```
+
+## Screen Sharing
+
+Start and stop screen sharing during a call:
+
+```typescript
+const { startScreenShare, stopScreenShare, isScreenSharing } = useWebRTCCall({
+  // ...options
+});
+
+// Start sharing (browser picks the source)
+await startScreenShare();
+
+// Stop sharing
+await stopScreenShare();
+```
+
+## Handling Errors
+
+Common errors and how to handle them:
+
+```typescript
+import { useWebRTCCall } from '@agentuity/react';
+
+function VideoCallWithErrorHandling({ roomId }: { roomId: string }) {
+  const { state, error } = useWebRTCCall({
+    roomId,
+    signalUrl: '/api/call/signal',
+    callbacks: {
+      onError: (err, currentState) => {
+        if (err.name === 'NotAllowedError') {
+          // User denied camera/mic permission
+        }
+      },
+      onReconnecting: (attempt) => {
+        console.log(`Reconnection attempt ${attempt}`);
+      },
+      onReconnectFailed: () => {
+        console.log('Could not reconnect');
+      },
+    },
+  });
+
+  return <p>State: {state}</p>;
+}
+```
+
+## How Signaling Works
+
+WebRTC peers can't connect directly without help. The signaling server relays discovery messages:
+
+1. **Peer A** joins a room via WebSocket
+2. **Peer B** joins the same room, gets notified about Peer A
+3. **Peer B** creates an SDP offer and sends it through the server to Peer A
+4. **Peer A** responds with an SDP answer
+5. Both peers exchange ICE candidates (network path discovery)
+6. A direct peer-to-peer connection is established
+7. Audio, video, and data flow directly between browsers
+
+The server never sees the actual media or data, only the signaling messages.
+
+## Connection Quality
+
+To monitor connection health for a specific peer, call `getQualitySummary` with the remote peer's ID:
+
+```typescript
+const { getQualitySummary, getAllQualitySummaries } = useWebRTCCall({ /* ...options */ });
+
+// Single peer
+const summary = await getQualitySummary(remotePeerId);
+if (summary) {
+  console.log(`RTT: ${summary.rtt}ms, packet loss: ${summary.packetLossPercent}%`);
+}
+
+// All connected peers at once
+const all = await getAllQualitySummaries();
+for (const [peerId, stats] of all) {
+  console.log(peerId, stats.bitrate?.video?.inbound);
+}
+```
+
+The returned `ConnectionQualitySummary` contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rtt` | `number` (optional) | Round-trip time in milliseconds |
+| `packetLossPercent` | `number` (optional) | Percentage of packets lost (0–100) |
+| `jitter` | `number` (optional) | Jitter in milliseconds (audio) |
+| `bitrate.audio` | `{ inbound?, outbound? }` (optional) | Audio bitrate in bps |
+| `bitrate.video` | `{ inbound?, outbound? }` (optional) | Video bitrate in bps |
+| `video.framesPerSecond` | `number` (optional) | Current video frame rate |
+| `video.framesDropped` | `number` (optional) | Total frames dropped |
+| `video.frameWidth` | `number` (optional) | Width of the video frame in pixels |
+| `video.frameHeight` | `number` (optional) | Height of the video frame in pixels |
+| `candidatePair.usingRelay` | `boolean` (optional) | Whether the connection is routed through a TURN relay |
+| `timestamp` | `number` | When the stats were collected (ms since epoch) |
+
+All numeric fields are optional: they're omitted when the stat is not available from the browser's WebRTC engine.
+
+## Recording
+
+Record a local or remote stream by passing a stream ID to `startRecording`. Use `'local'` for the local camera/mic stream or a peer ID for any remote stream:
+
+```typescript
+const { startRecording, stopAllRecordings, isRecording } = useWebRTCCall({ /* ...options */ });
+
+// Start recording the local stream
+const handle = startRecording('local', {
+  mimeType: 'video/webm',
+  videoBitsPerSecond: 2_500_000,
+});
+
+// Pause and resume mid-session
+handle?.pause();
+handle?.resume();
+
+// Stop and download
+const blob = await handle?.stop();
+if (blob) {
+  const url = URL.createObjectURL(blob);
+  // trigger download, preview, or upload
+}
+
+// Check if a stream is currently being recorded
+const active = isRecording('local');
+
+// Stop all active recordings at once (e.g. on hangup)
+// Returns Map<streamId, Blob>
+const blobs = await stopAllRecordings();
+for (const [streamId, blob] of blobs) {
+  const url = URL.createObjectURL(blob);
+  // trigger download for each recorded stream
+}
+```
+
+`startRecording` returns `null` if the stream does not exist, or if no compatible MIME type can be found for the stream.
+
+`RecordingHandle` methods:
+
+| Member | Signature | Description |
+|--------|-----------|-------------|
+| `stop` | `() => Promise<Blob>` | Stop recording and return the accumulated data |
+| `pause` | `() => void` | Pause without discarding buffered data |
+| `resume` | `() => void` | Resume after a pause |
+| `state` | `'inactive' \| 'recording' \| 'paused'` | Current recorder state (read-only) |
+
+## Track Sources
+
+By default `useWebRTCCall` calls `getUserMedia({ video: true, audio: true })` to acquire the local stream. Pass a `TrackSource` instance to the `media` option when you need a different source:
+
+```typescript
+import { UserMediaSource, DisplayMediaSource, CustomStreamSource } from '@agentuity/frontend';
+```
+
+| Source | Default constraints | Use case |
+|--------|---------------------|----------|
+| `UserMediaSource` | `{ video: true, audio: true }` | Camera and microphone |
+| `DisplayMediaSource` | `{ video: true, audio: false }` | Screen or window sharing |
+| `CustomStreamSource` | — | Any `MediaStream` (canvas, WebAudio, etc.) |
+
+Pass a custom source via the `media` option:
+
+```typescript
+// Share the screen instead of the camera
+const { connect } = useWebRTCCall({
+  roomId,
+  signalUrl: '/api/call/signal',
+  media: new DisplayMediaSource(), // [!code highlight]
+});
+```
+
+`CustomStreamSource` is useful when you already have a `MediaStream`, for example from a canvas element:
+
+```typescript
+const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+const canvasStream = canvas.captureStream(30); // 30 fps
+
+const { connect } = useWebRTCCall({
+  roomId,
+  signalUrl: '/api/call/signal',
+  media: new CustomStreamSource(canvasStream), // [!code highlight]
+});
+```
+
+## Next Steps
+
+- [WebSockets](/routes/websockets): Server-mediated bidirectional communication
+- [SSE](/routes/sse): One-way streaming from server to client
+- [React Hooks](/frontend/react-hooks): `useWebRTCCall` and other hooks from `@agentuity/react`

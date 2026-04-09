@@ -1,11 +1,11 @@
 ---
 title: Services
-description: Storage, observability, and infrastructure services
+description: Storage, messaging, observability, and infrastructure services
 ---
 
-import { Database, Search, HardDrive, Server, Activity, Eye, FileText, Route, Bug, Box, Camera } from 'lucide-react';
+import { Database, Search, HardDrive, Server, Activity, Eye, FileText, Route, Bug, Box, Camera, Mail, Webhook, ListTodo, Clock, MessageSquare, BrainCircuit } from 'lucide-react';
 
-Agentuity provides built-in services for storage, observability, and code execution.
+Agentuity provides built-in services for storage, messaging, observability, and code execution. These pages cover patterns, configuration, and best practices. For method signatures and return types, see the [SDK Reference](/reference/sdk-reference).
 
 ## Storage
 
@@ -29,9 +29,9 @@ Agentuity provides built-in services for storage, observability, and code execut
     icon={<HardDrive />}
   />
   <CardLink
-    href="/services/storage/database"
+    href="/services/database"
     title="Database"
-    description="PostgreSQL database access"
+    description="PostgreSQL and Drizzle ORM"
     icon={<Server />}
   />
   <CardLink
@@ -45,6 +45,41 @@ Agentuity provides built-in services for storage, observability, and code execut
     title="Custom Storage"
     description="Bring your own storage implementation"
     icon={<Box />}
+  />
+</Cards>
+
+## Messaging & Integrations
+
+<Cards>
+  <CardLink
+    href="/services/queues"
+    title="Queues"
+    description="Async message publishing for background jobs and event-driven workflows"
+    icon={<MessageSquare />}
+  />
+  <CardLink
+    href="/services/tasks"
+    title="Tasks"
+    description="Track work items, issues, and agent activity with lifecycle management"
+    icon={<ListTodo />}
+  />
+  <CardLink
+    href="/services/email"
+    title="Email"
+    description="Send and receive emails with managed addresses and delivery tracking"
+    icon={<Mail />}
+  />
+  <CardLink
+    href="/services/webhooks"
+    title="Webhooks"
+    description="Create webhook endpoints with receipts, delivery tracking, and retry"
+    icon={<Webhook />}
+  />
+  <CardLink
+    href="/services/schedules"
+    title="Schedules"
+    description="Platform-managed cron jobs with HTTP and sandbox destinations"
+    icon={<Clock />}
   />
 </Cards>
 
@@ -68,6 +103,23 @@ Agentuity provides built-in services for storage, observability, and code execut
     title="Sessions & Debugging"
     description="View request history and debug issues"
     icon={<Bug />}
+  />
+  <CardLink
+    href="/services/observability/web-analytics"
+    title="Web Analytics"
+    description="Track page views and user events from your frontend"
+    icon={<Activity />}
+  />
+</Cards>
+
+## Coder
+
+<Cards>
+  <CardLink
+    href="/services/coder"
+    title="Coder"
+    description="AI coding sessions in managed sandboxes"
+    icon={<BrainCircuit />}
   />
 </Cards>
 

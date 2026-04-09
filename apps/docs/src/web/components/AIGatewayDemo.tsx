@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import Markdown from 'react-markdown';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button, Separator, StatusIndicator } from './ui';
 
 interface ModelResponse {
@@ -41,10 +42,14 @@ const AVAILABLE_MODELS = [
 const FIXED_PROMPT = 'What is backpropagation and why does it matter for AI?';
 
 export function AIGatewayDemo() {
-	const [selectedModels, setSelectedModels] = useState<string[]>([
-		'gpt-5-nano',
-		'claude-haiku-4-5',
-	]);
+	const [selectedModels, setSelectedModels] = usePersistentDemoState<string[]>(
+		'ai-gateway',
+		'selected-models',
+		{
+			defaultValue: ['gpt-5-nano', 'claude-haiku-4-5'],
+			storage: 'session',
+		}
+	);
 	const [responses, setResponses] = useState<ModelResponse[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
 

@@ -20,6 +20,7 @@ export const OAuthClientSchema = z.object({
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()),
 	internal: z.boolean().optional().default(false),
+	is_public: z.boolean().default(true),
 	created_at: z.string(),
 	updated_at: z.string(),
 });
@@ -50,6 +51,7 @@ export const OAuthClientCreateRequestSchema = z.object({
 	refresh_token_lifetime_seconds: z.number().optional(),
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()).optional(),
+	is_public: z.boolean().optional(),
 });
 
 export type OAuthClientCreateRequest = z.infer<typeof OAuthClientCreateRequestSchema>;
@@ -77,6 +79,7 @@ export const OAuthClientUpdateRequestSchema = z.object({
 	refresh_token_lifetime_seconds: z.number().optional(),
 	id_token_lifetime_seconds: z.number().optional(),
 	allowed_user_ids: z.array(z.string()).optional(),
+	is_public: z.boolean().optional(),
 });
 
 export type OAuthClientUpdateRequest = z.infer<typeof OAuthClientUpdateRequestSchema>;
@@ -155,6 +158,8 @@ export const OAuthPermissionLevelSchema = z.object({
 	label: z.string(),
 	value: z.string(),
 	scopes: z.array(z.string()),
+	warning: z.boolean().optional(),
+	warningTitle: z.string().optional(),
 });
 
 export type OAuthPermissionLevel = z.infer<typeof OAuthPermissionLevelSchema>;
@@ -268,6 +273,18 @@ export const OAuthFlowConfigSchema = z.object({
 		.string()
 		.optional()
 		.describe('UserInfo endpoint. Defaults to OAUTH_USERINFO_URL or {issuer}/userinfo'),
+	revokeUrl: z
+		.string()
+		.optional()
+		.describe(
+			'Token revocation endpoint (RFC 7009). Defaults to OAUTH_REVOKE_URL or {issuer}/revoke'
+		),
+	endSessionUrl: z
+		.string()
+		.optional()
+		.describe(
+			'OIDC end session endpoint. Defaults to OAUTH_END_SESSION_URL or {issuer}/end_session'
+		),
 	scopes: z
 		.string()
 		.optional()
@@ -299,9 +316,24 @@ export const OAuthUserInfoSchema = z
 		name: z.string().optional(),
 		given_name: z.string().optional(),
 		family_name: z.string().optional(),
+		picture: z.string().optional(),
 		email: z.string().optional(),
 		email_verified: z.boolean().optional(),
 	})
 	.catchall(z.unknown());
 
 export type OAuthUserInfo = z.infer<typeof OAuthUserInfoSchema>;
+
+export const StoredTokenSchema = z.object({
+	access_token: z.string(),
+	token_type: z.string().optional(),
+	refresh_token: z.string().optional(),
+	scope: z.string().optional(),
+	id_token: z.string().optional(),
+	expires_at: z
+		.number()
+		.optional()
+		.describe('Unix timestamp (seconds) when the access token expires'),
+});
+
+export type StoredToken = z.infer<typeof StoredTokenSchema>;

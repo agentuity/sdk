@@ -4,7 +4,7 @@ short_title: Workbench
 description: Use the built-in development UI to test agents, validate schemas, and debug responses
 ---
 
-Workbench is a built-in UI for testing your agents during development. It automatically discovers your agents, displays their input/output schemas, and lets you execute them with real inputs.
+Workbench is a built-in UI for testing your agents during development. It uses the agents you register in `src/agent/index.ts` and pass to `createApp()`, displays their input/output schemas, and lets you execute them with real inputs.
 
 ## Why Workbench?
 
@@ -21,17 +21,16 @@ Workbench understands your agents. It reads your schemas, generates test forms, 
 
 ## Enabling Workbench
 
-Add a `workbench` section to your `agentuity.config.ts`:
+Pass `workbench` to `createApp()` in your `app.ts`:
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { createApp } from '@agentuity/runtime';
 
-export default {
-  workbench: {
-    route: '/workbench',
-    headers: {},
-  },
-} satisfies AgentuityConfig;
+const app = await createApp({
+  workbench: true, // Enables at /workbench
+});
+
+export default app;
 ```
 
 Start the dev server and visit [http://localhost:3500/workbench](http://localhost:3500/workbench).
@@ -131,13 +130,13 @@ Send multiple requests in Workbench to see the turn count increment.
 Serve Workbench at a different path:
 
 ```typescript
-import type { AgentuityConfig } from '@agentuity/cli';
+import { createApp } from '@agentuity/runtime';
 
-export default {
-  workbench: {
-    route: '/dev',
-  },
-} satisfies AgentuityConfig;
+const app = await createApp({
+  workbench: '/dev', // Custom route path
+});
+
+export default app;
 ```
 
 ## Next Steps

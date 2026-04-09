@@ -4,10 +4,18 @@ import * as LogsAPI from '@opentelemetry/api-logs';
 export type { Logger } from '@agentuity/core';
 import ConsoleLogger from './logger/console';
 
+import { originalConsole as originalConsoleGlobal } from '../_globals';
+
 /**
  * Reference to the original console object before patching.
+ * Stored in a Symbol.for() global to survive hot reloads.
  */
-export const __originalConsole: Console = Object.create(console);
+const existingOriginal = originalConsoleGlobal.get();
+export const __originalConsole: Console = existingOriginal ?? Object.create(console);
+
+if (!existingOriginal) {
+	originalConsoleGlobal.set(__originalConsole);
+}
 
 export class OtelLogger implements Logger {
 	private readonly delegate: LogsAPI.Logger;

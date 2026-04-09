@@ -262,7 +262,7 @@ export function App() {
 
 Place static files in the **public/** folder:
 
-```
+```text
 src/web/public/
 ├── logo.svg
 ├── styles.css

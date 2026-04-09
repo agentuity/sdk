@@ -2,6 +2,166 @@
 
 CLI tool to migrate Agentuity SDK projects from v1 to v2.
 
+## What's Changed in v2
+
+v2 introduces seven fundamental architectural changes:
+
+### 1. Agents are Declarative
+
+**v1**: Agents were auto-discovered from `src/agent/*/agent.ts` files at runtime.
+
+**v2**: Agents must be explicitly imported and passed to `createApp()`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import agents from './agent'; // Barrel default export (AgentRunner[])
+
+export default await createApp({
+  agents,
+});
+```
+
+### 2. No More setup/shutdown Hooks
+
+**v1**: Lifecycle hooks in `createApp()`:
+
+```typescript
+createApp({
+  setup: async (ctx) => { /* initialize */ },
+  shutdown: async (ctx) => { /* cleanup */ }
+});
+```
+
+**v2**: Use standard patterns:
+- **Initialization**: Module-level code only for env-independent setup
+  (for env-dependent SDK clients, initialize inside agent `setup()`)
+- **Cleanup**: `registerShutdownHook()` from `@agentuity/runtime`, or Bun's `process.on('beforeExit', ...)`
+
+### 3. Explicit Router Configuration
+
+**v1**: File-based auto-discovery — routes in `src/api/*.ts` were automatically mounted.
+
+**v2**: Routes are explicitly provided to `createApp()` when needed:
+
+```typescript
+import router from './api'; // Your Hono router
+
+export default await createApp({
+  router,
+});
+```
+
+The old file-based approach no longer works. Routes must be composed into a barrel (`src/api/index.ts`) and exported as a Hono instance.
+
+### 4. Hono-Based Routing
+
+**v1**: `createRouter()` was a wrapper around Hono using mutating methods:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+router.get('/hello', async (c) => c.json({ msg: 'hi' }));
+```
+
+**v2**: Use `createRouter()` or `new Hono<Env>()` with chained methods:
+
+```typescript
+// Option A: createRouter() from @agentuity/runtime
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter()
+  .get('/hello', async (c) => c.json({ msg: 'hi' }));
+
+// Option B: plain Hono instance
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+
+const router = new Hono<Env>()
+  .get('/hello', async (c) => c.json({ msg: 'hi' }));
+```
+
+### 5. React Helpers Removed
+
+**v1**: `@agentuity/react` exported `createClient`, `useAPI`, `useAgentuity`, `RPCRouteRegistry` for API calls.
+
+**v2**: These are removed. Use your preferred data fetching library:
+- **Hono client directly**: `hc<AppRouter>()` from `hono/client`
+- **TanStack Query**: Combine with Hono client for caching, background updates
+- **SWR**: Stale-while-revalidate pattern
+- **RTK Query**: If already using Redux Toolkit
+
+Example with TanStack Query:
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { hc } from 'hono/client';
+import type { AppRouter } from '../api';
+
+const client = hc<AppRouter>('/api');
+
+function useHello() {
+  return useQuery({
+    queryKey: ['hello'],
+    queryFn: async () => {
+      const res = await client.hello.$get();
+      return res.json();
+    },
+  });
+}
+```
+
+### 6. Standard vite.config.ts
+
+**v1**: Vite config lived inside `agentuity.config.ts` along with workbench settings.
+
+**v2**: Use standard `vite.config.ts` for build config; runtime settings go in `createApp()`:
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()], // Add your frontend framework's plugin
+});
+```
+
+```typescript
+// app.ts
+import { createApp } from '@agentuity/runtime';
+
+export default await createApp({
+  analytics: true,
+  workbench: true,
+});
+```
+
+> **Note**: v2 doesn't include a default Vite plugin. You must add the plugin for your frontend framework (React, Vue, Svelte, Solid, etc.).
+>
+> **Note**: If your frontend entry is at `src/web/index.html` (not the project root), either add `build.rollupOptions.input` to your config, or omit `vite.config.ts` entirely and let the CLI generate a correct fallback.
+
+### 7. Build-Time Agent Imports
+
+v2's build system imports agent files at build time to extract metadata. Module-scope code that requires environment variables (like `new OpenAI()`) will fail during `agentuity build`.
+
+Move SDK client constructors into the agent's `setup()` function:
+
+```typescript
+// ❌ Fails at build time (module scope)
+const openai = new OpenAI();
+
+// ✅ Runs at startup (agent setup)
+export default createAgent('my-agent', {
+  setup: async () => ({ openai: new OpenAI() }),
+  handler: async (ctx, input) => {
+    const result = await ctx.config.openai.chat.completions.create({...});
+  },
+});
+```
+
+---
+
 ## Usage
 
 ```bash
@@ -35,7 +195,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 | Finding | What happens |
 |---|---|
 | `setup` in `createApp()` | Migration comment added — move init to module level |
-| `shutdown` in `createApp()` | Migration comment added — replace with `registerShutdownHook()` |
+| `shutdown` in `createApp()` | Guidance to use `registerShutdownHook()` from `@agentuity/runtime` instead |
 | No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
 | `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render/bundle |
 | `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
@@ -45,7 +205,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 
 | Finding | Guidance |
 |---|---|
-| Frontend files using `createClient`, `useAPI`, `RPCRouteRegistry` etc. | Replace with `hc<AppRouter>()` from `hono/client` |
+| Frontend files using `createClient`, `useAPI`, `useAgentuity`, `RPCRouteRegistry` etc. | Replace with `hc<AppRouter>()` from `hono/client` or your preferred data fetching library |
 
 ## V1 → V2 changes summary
 
@@ -69,4 +229,4 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 
 **Setup/shutdown lifecycle**
 - v1: `createApp({ setup, shutdown })` with generic state via `ctx.app`
-- v2: module-level initialisation + `registerShutdownHook()` from `@agentuity/runtime`
+- v2: Module-level init for env-independent setup; agent `setup()` for SDK clients; `registerShutdownHook()` for cleanup

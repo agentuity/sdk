@@ -259,9 +259,9 @@ export interface AuthProviderProps {
 	 * Callback to identify the user for analytics.
 	 * Called with userId and optional traits when a user signs in.
 	 *
-	 * @example With @agentuity/analytics
+	 * @example With @agentuity/frontend analytics
 	 * ```tsx
-	 * import { getAnalytics } from '@agentuity/analytics';
+	 * import { getAnalytics } from '@agentuity/frontend';
 	 *
 	 * <AuthProvider
 	 *   authClient={authClient}
@@ -313,7 +313,7 @@ export interface AuthProviderProps {
  *
  * @example With analytics integration
  * ```tsx
- * import { getAnalytics } from '@agentuity/analytics';
+ * import { getAnalytics } from '@agentuity/frontend';
  *
  * <AuthProvider
  *   authClient={authClient}

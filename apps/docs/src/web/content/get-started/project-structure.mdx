@@ -3,10 +3,10 @@ title: Project Structure
 description: Understand how Agentuity projects are organized
 ---
 
-Agentuity projects follow a convention-based structure that enables automatic discovery and deployment.
+Agentuity projects use explicit wiring: you define agents, routes, and configuration in code.
 
-<Callout type="success" title="Just Add a Folder">
-Creating a new agent is as simple as adding a folder to `src/agent/` with an `agent.ts` file. No CLI commands, no manual registration: agents are auto-discovered both locally and when deployed.
+<Callout type="tip" title="Just Add a Folder">
+Creating a new agent is as simple as adding a folder to `src/agent/` with an `agent.ts` file and registering it in `src/agent/index.ts`.
 </Callout>
 
 ## Directory Layout
@@ -14,23 +14,27 @@ Creating a new agent is as simple as adding a folder to `src/agent/` with an `ag
 ```
 my-project/
 ├── agentuity.json        # Project configuration
+├── vite.config.ts        # Build configuration (Vite plugins, entry point)
+├── app.ts                # App entry point (wires agents + router)
 ├── .env                  # Environment variables
 ├── package.json          # Dependencies
-├── app.ts                # App entry point
 └── src/
-    ├── agent/            # Agent code (required)
+    ├── agent/            # Agent code
+    │   ├── index.ts      # Agent registry (exports array of agents)
     │   └── chat/
     │       └── agent.ts  # Agent logic
-    ├── api/              # HTTP routes (optional)
-    │   └── index.ts      # All routes, imports agents
+    ├── api/              # HTTP routes
+    │   └── index.ts      # Router, imports agents
     └── web/              # Frontend code (scaffolded by default)
-        └── App.tsx
+        ├── index.html    # HTML entry point
+        ├── frontend.tsx  # React entry point
+        └── App.tsx       # Main component
 ```
 
-Agent names come from their directory. Each agent has one file: `agent.ts` with your logic and schema.
+Agent names come from the first argument to `createAgent()`. Each agent has one file: `agent.ts` with your logic and schema.
 
 <Callout type="info" title="Utility Files">
-You can add helper files (like `types.ts`, `helpers.ts`, `utils.ts`) alongside your agents and routes. The build system only processes files that export agents or routers.
+You can add helper files (like `types.ts`, `helpers.ts`, `utils.ts`) alongside your agents and routes.
 </Callout>
 
 ## Agents and Routes
@@ -44,13 +48,28 @@ Agents and routes are separate concerns in Agentuity:
 
 Agents contain your core logic with schema validation and lifecycle hooks. Routes define how agents get invoked (HTTP, cron, webhooks, etc.). This separation keeps concerns clear: agents don't know how they're called, and routes handle all transport.
 
+### app.ts
+
+`app.ts` is the entry point that wires agents and routes together via `createApp()`:
+
+```typescript
+import { createApp } from '@agentuity/runtime';
+import agents from './src/agent';
+import api from './src/api';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
+```
+
 ### agent.ts
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent('Chat', {
+const agent = createAgent('chat', {
   schema: {
     input: s.object({ message: s.string() }),
     output: s.object({ response: s.string() }),
@@ -63,26 +82,37 @@ const agent = createAgent('Chat', {
 export default agent;
 ```
 
+### src/agent/index.ts
+
+The agent registry imports all agents and exports them as an array:
+
+```typescript
+import chat from './chat/agent';
+
+export default [chat];
+```
+
 ### src/api/index.ts
 
 Routes import agents directly and call them:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const api = new Hono<Env>()
+  .post('/chat', chat.validator(), async (c) => {
+    const data = c.req.valid('json');
+    return c.json(await chat.run(data));
+  });
 
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  const result = await chat.run(data);
-  return c.json(result);
-});
+export type ApiRouter = typeof api;
 
-export default router;
+export default api;
 ```
 
-The `chat.validator()` middleware validates the request body against the agent's input schema and provides type-safe access via `c.req.valid('json')`.
+`chat.validator()` validates the request body against the agent's input schema and provides type-safe access via `c.req.valid('json')`.
 
 ## When to Use Agents vs Direct Routes
 
@@ -100,25 +130,30 @@ Use simple routes (without calling an agent) for lightweight endpoints like heal
 
 Place frontend code in `src/web/` to deploy alongside your agents. The CLI bundles and serves it automatically.
 
-React is currently supported via `@agentuity/react`, with a framework-agnostic approach that enables support for Next.js, Svelte, and others.
+React is supported out of the box. Use Hono's `hc()` client for type-safe API calls. For browser utilities, prefer `@agentuity/frontend` and `@agentuity/auth/react`; the older `@agentuity/react` package remains available as a compatibility layer.
+
+Point `hc()` at the same `/api` mount path you configured in `app.ts`, then import your router type from `src/api/index.ts`.
 
 ```tsx
 // src/web/App.tsx
-import { useAPI } from '@agentuity/react';
+import { hc } from 'hono/client';
+import type { ApiRouter } from '../api';
+
+const client = hc<ApiRouter>('/api');
 
 function App() {
-  const { data, invoke, isLoading } = useAPI('POST /api/hello');
+  const handleClick = async () => {
+    const res = await client.chat.$post({ json: { message: 'Hello' } });
+    const data = await res.json();
+    console.log(data.response);
+  };
 
-  return (
-    <button onClick={() => invoke({ name: 'World' })}>
-      {isLoading ? 'Loading...' : 'Say Hello'}
-    </button>
-  );
+  return <button onClick={handleClick}>Say Hello</button>;
 }
 ```
 
 <Callout type="info" title="Deployment Scenarios">
-You can also deploy your frontend elsewhere (e.g., Vercel, Netlify) and call your Agentuity agents via the React hooks with a configured `baseUrl`.
+You can also deploy your frontend elsewhere (e.g., Vercel, Netlify) and call your Agentuity API routes using the Hono `hc()` client with a configured base URL.
 </Callout>
 
 ## Next Steps

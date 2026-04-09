@@ -6,6 +6,10 @@ description: Fast, ephemeral storage for caching, session data, and configuratio
 
 Key-value ("KV") storage provides fast data access for agents. Use it for caching, configuration, rate limiting, and data that needs quick lookups.
 
+<Callout type="tip" title="Not inside an agent or route?">
+Use the [`@agentuity/keyvalue`](/reference/standalone-packages#key-value-storage) standalone package to access this service from any Node.js or Bun app without the runtime.
+</Callout>
+
 ## When to Use Key-Value Storage
 
 | Storage Type | Best For |
@@ -31,7 +35,7 @@ Use built-in state (`ctx.state`, `ctx.thread.state`, `ctx.session.state`) for da
 | Frontend | Via routes | [React Hooks](/frontend/react-hooks) |
 
 <Callout type="info" title="Same API Everywhere">
-The KV API is identical in all contexts. `ctx.kv.get()` and `c.var.kv.get()` work the same way. See [Accessing Services](/reference/sdk-reference#accessing-services) for the full reference.
+The KV API is identical in all contexts. `ctx.kv.get()` and `c.var.kv.get()` work the same way. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the full reference.
 </Callout>
 
 ## Basic Operations
@@ -261,9 +265,10 @@ const agent = createAgent('SessionManager', {
 Routes have the same KV access via `c.var.kv`:
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/session/:id', async (c) => {
   const sessionId = c.req.param('id');
@@ -290,7 +295,8 @@ Use KV storage outside of agent handlers with `createAgentContext()`:
 ```typescript
 import { createApp, createAgentContext } from '@agentuity/runtime';
 
-await createApp();
+const app = await createApp();
+export default app;
 
 // Discord bot example
 client.on('messageCreate', async (message) => {

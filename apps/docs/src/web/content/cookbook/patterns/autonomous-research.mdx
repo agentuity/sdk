@@ -1,0 +1,211 @@
+---
+title: Autonomous Research Agent
+description: Build a recursive research loop using the Anthropic SDK with native tool calling
+---
+
+When you want full control over the agent loop, you can skip the AI SDK abstraction and use a provider SDK directly. This pattern uses the [Anthropic SDK](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview) with native tool calling to build a research agent that investigates topics through Wikipedia.
+
+## The Pattern
+
+Define tools as plain objects, run a for-loop, and check `stop_reason` after each iteration. The model decides which tool to call, you execute it, and feed the result back. The loop ends when the model calls a "finish" tool or runs out of steps.
+
+```typescript title="src/agent/researcher/agent.ts"
+import Anthropic from '@anthropic-ai/sdk';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const client = new Anthropic();
+const MAX_STEPS = 8;
+```
+
+## Defining Tools
+
+Anthropic tools use JSON Schema for input validation. Each tool has a `name`, `description`, and `input_schema`.
+
+```typescript title="src/agent/researcher/agent.ts"
+const tools: Anthropic.Tool[] = [
+  {
+    name: 'search_wikipedia',
+    description: 'Search Wikipedia for articles matching a query. Returns titles and snippets.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'The search query' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'get_article',
+    description: 'Get the introductory text of a Wikipedia article by title.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: 'The exact Wikipedia article title' },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'finish_research',
+    description: 'Call this when you have gathered enough information to write a summary.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        summary: { type: 'string', description: 'A 2-3 paragraph synthesis of your research' },
+        sourcesUsed: { type: 'number', description: 'Number of distinct articles you read' },
+      },
+      required: ['summary', 'sourcesUsed'],
+    },
+  },
+];
+```
+
+The `finish_research` tool doubles as the structured output mechanism. When the model has enough information, it calls this tool with the final summary and source count. No post-processing or separate summarization step needed.
+
+## The Agent Loop
+
+The core pattern is a for-loop that sends messages, checks for tool calls, executes them, and appends results. This gives you direct visibility into every step.
+
+```typescript title="src/agent/researcher/agent.ts"
+const agent = createAgent('researcher', {
+  description: 'Researches a topic using Wikipedia and returns a structured summary',
+  schema: {
+    input: s.object({ topic: s.string() }),
+    output: s.object({ summary: s.string(), sourcesUsed: s.number() }),
+  },
+  handler: async (ctx, input) => {
+    ctx.logger.info('Starting research on: %s', input.topic);
+
+    const messages: Anthropic.MessageParam[] = [
+      { role: 'user', content: `Research this topic thoroughly: ${input.topic}` },
+    ];
+
+    for (let step = 0; step < MAX_STEPS; step++) {
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools,
+        messages,
+      });
+
+      // No tool calls means the model is done
+      if (response.stop_reason !== 'tool_use') break; // [!code highlight]
+
+      // Add assistant response (contains tool_use blocks)
+      messages.push({ role: 'assistant', content: response.content });
+
+      // Execute each tool call
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+      for (const block of response.content) {
+        if (block.type !== 'tool_use') continue;
+
+        ctx.logger.info('Step %d: %s(%s)', step, block.name, JSON.stringify(block.input));
+
+        // finish_research carries the final output
+        if (block.name === 'finish_research') { // [!code highlight]
+          const result = block.input as { summary: string; sourcesUsed: number };
+          ctx.logger.info('Research complete: %d sources used', result.sourcesUsed);
+          return result; // [!code highlight]
+        }
+
+        const result = await executeTool(block.name, block.input as Record<string, unknown>);
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+      }
+
+      // Feed tool results back to continue the loop
+      messages.push({ role: 'user', content: toolResults }); // [!code highlight]
+    }
+
+    // Fallback if the model never called finish_research
+    return { summary: 'Research could not be completed. Try a more specific topic.', sourcesUsed: 0 };
+  },
+});
+
+export default agent;
+```
+
+The message history grows with each iteration: assistant messages contain `tool_use` blocks, and user messages contain `tool_result` blocks. This is the format Anthropic expects for multi-turn tool conversations.
+
+## Tool Execution
+
+Tool implementations are plain async functions. The Wikipedia API provides search and article content without authentication.
+
+```typescript title="src/agent/researcher/agent.ts"
+async function executeTool(name: string, input: Record<string, unknown>): Promise<string> {
+  switch (name) {
+    case 'search_wikipedia':
+      return searchWikipedia(input.query as string);
+    case 'get_article':
+      return getArticle(input.title as string);
+    default:
+      return `Unknown tool: ${name}`;
+  }
+}
+
+async function searchWikipedia(query: string): Promise<string> {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=3`;
+  const res = await fetch(url);
+  if (!res.ok) return `Wikipedia search failed: HTTP ${res.status}`;
+
+  const data = await res.json();
+  const results = data?.query?.search;
+  if (!results?.length) return 'No results found.';
+
+  return JSON.stringify(results.map((r: { title: string; snippet: string }) => ({
+    title: r.title,
+    snippet: r.snippet.replace(/<[^>]*>/g, ''),
+  })));
+}
+
+async function getArticle(title: string): Promise<string> {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts&exintro=true&explaintext=true&format=json&origin=*`;
+  const res = await fetch(url);
+  if (!res.ok) return `Failed to fetch article: HTTP ${res.status}`;
+
+  const data = await res.json();
+  const pages = data?.query?.pages;
+  if (!pages) return 'No content found.';
+  const page = Object.values(pages)[0] as { extract?: string };
+  return page.extract ?? 'No content found.';
+}
+```
+
+## The System Prompt
+
+The system prompt establishes the plan-act-observe-repeat cycle and tells the model when to finish.
+
+```typescript title="src/agent/researcher/agent.ts"
+const SYSTEM_PROMPT = `You are a research assistant that investigates topics using Wikipedia.
+
+Follow this loop:
+1. **Plan** -- decide what to search for next
+2. **Search** -- use search_wikipedia to find relevant articles
+3. **Read** -- use get_article to read promising article intros
+4. **Finish** -- once you have enough information (usually 2-4 sources), call finish_research
+
+When calling finish_research, write a clear 2-3 paragraph summary that synthesizes what you learned. Include the total number of distinct articles you read.`;
+```
+
+## When to Use Direct Provider SDKs
+
+The [AI SDK](/agents/ai-sdk-integration) provides a unified interface across providers, which is the right default for most agents. Use a provider SDK directly when you need:
+
+- Full access to provider-specific features (streaming events, content block types, caching)
+- Precise control over the message format and conversation structure
+- Minimal abstraction for debugging or learning how tool calling works
+
+Both approaches work with `createAgent()` and the [AI Gateway](/agents/ai-gateway). LLM calls through the Anthropic SDK are routed through the gateway automatically when deployed, giving you observability and cost tracking regardless of which SDK you use.
+
+<Callout type="tip" title="Full Working Example">
+See the [Research Agent](https://github.com/agentuity/examples/tree/main/features/research-agent) example for the complete implementation with a React frontend, SSE streaming, and topic input UI.
+</Callout>
+
+## Next Steps
+
+- [AI SDK Integration](/agents/ai-sdk-integration): The unified approach to tool calling across providers
+- [AI Gateway](/agents/ai-gateway): How LLM calls are routed, observed, and billed
+- [Understanding Agents](/cookbook/tutorials/understanding-agents): The agent loop concept explained
+- [Creating Agents](/agents/creating-agents): Agent schemas, handlers, and lifecycle

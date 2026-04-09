@@ -4,10 +4,11 @@ short_title: State Management
 description: Request and thread state for stateful agents
 ---
 
-Agentuity provides two state scopes for managing data across requests:
+Agentuity gives you three closely related state surfaces:
 
-- **Request state** for temporary calculations within a single request
-- **Thread state** for conversation context that persists across requests
+- **`ctx.state`** for temporary calculations within a single handler execution
+- **`ctx.session.state`** for request-scoped session data
+- **`ctx.thread.state`** for conversation context that persists across requests
 
 <Callout type="info" title="Async Thread State">
 Thread state uses async lazy-loading for performance. State is only fetched when first accessed, eliminating latency for requests that don't use thread state. All `ctx.thread.state` methods are async and require `await`.
@@ -17,11 +18,12 @@ Thread state uses async lazy-loading for performance. State is only fetched when
 
 | Scope | Lifetime | Cleared When | Access | Example Use Case |
 |-------|----------|--------------|--------|----------|
-| Request | Single request | After response sent | `ctx.state` | Timing, temp calculations |
-| Thread | Up to 1 hour | Expiration or `destroy()` | `ctx.thread.state` | Conversation history |
+| Request | Single handler execution | After response sent | `ctx.state` | Timing, temp calculations |
+| Session | Single request | After response sent | `ctx.session.state` | Data needed in `session.completed` listeners |
+| Thread | Multiple requests | Inactivity expiration or `destroy()` | `ctx.thread.state` | Conversation history |
 
 <Callout type="tip" title="Threads and Sessions">
-Threads "wrap" sessions. Think of a *thread* as a conversation and a *session* as one message in that conversation. Each request creates a new session, but sessions within the same conversation share a thread.
+Think of a *thread* as the conversation and a *session* as one request within that conversation. Each request creates a new session, but sessions within the same conversation share a thread.
 </Callout>
 
 <Callout type="info" title="State in Routes">
@@ -200,6 +202,23 @@ Both `ctx.state` and `ctx.session.state` are request-scoped and reset after each
 
 For most use cases, use `ctx.state`. Use `ctx.session.state` only when you need data in session completion events. See [Events & Lifecycle](/agents/events-lifecycle) for more on event handlers.
 
+```typescript
+handler: async (ctx, input) => {
+  ctx.state.set('startTime', Date.now());
+  ctx.session.state.set('requestType', 'chat');
+
+  ctx.session.addEventListener('completed', (eventName, session) => {
+    const requestType = session.state.get('requestType') as string | undefined;
+    ctx.logger.info('Session completed', {
+      requestType,
+      sessionId: session.id,
+    });
+  });
+
+  return { ok: true, message: input.message };
+}
+```
+
 <Callout type="info" title="Persistent Data">
 Neither `ctx.state` nor `ctx.session.state` persist across requests. For data that should survive across requests, use `ctx.thread.state` (up to 1 hour) or [KV storage](/services/storage/key-value) (durable).
 </Callout>
@@ -282,19 +301,15 @@ Thread state supports write-only operations without loading existing state. If y
 
 ## Thread Lifecycle
 
-Threads expire after 1 hour of inactivity. Use the `destroyed` event to archive data before expiration:
+Use `ctx.thread.destroy()` when you want to end a conversation immediately. That fires the thread's `destroyed` event and clears its persisted state.
 
 ```typescript
 ctx.thread.addEventListener('destroyed', async (eventName, thread) => {
-  const messages = await thread.state.get<string[]>('messages') || [];
-  if (messages.length > 0) {
-    await ctx.kv.set('archives', thread.id, {
-      messages,
-      endedAt: new Date().toISOString(),
-    }, { ttl: 604800 });
-  }
+  ctx.logger.info('Thread destroyed', { threadId: thread.id });
 });
 ```
+
+Thread data also expires after inactivity based on the active thread provider. Treat the `destroyed` listener as the explicit teardown hook you control with `ctx.thread.destroy()`, not as the only place to archive important data.
 
 Similarly, track when sessions complete with `ctx.session.addEventListener('completed', ...)`.
 
@@ -389,12 +404,9 @@ const userThreadProvider: ThreadIDProvider = {
   }
 };
 
-await createApp({
-  setup: () => {
-    getThreadProvider().setThreadIDProvider(userThreadProvider);
-    return {};
-  }
-});
+getThreadProvider().setThreadIDProvider(userThreadProvider);
+
+await createApp({});
 ```
 
 ### Default Thread ID Behavior
@@ -433,7 +445,7 @@ The `x-thread-id` header must include the signature (format: `threadId;signature
 ## State Size Limits
 
 <Callout type="warning" title="1MB State Limit">
-Thread and session state are limited to **1MB** after JSON serialization. Values that exceed this limit are truncated with a warning. Non-JSON-serializable values (functions, circular references) are silently dropped.
+Thread and session state are limited to **1MB** after JSON serialization. If serialized state exceeds that limit, the runtime does not persist it. If serialization fails entirely, the runtime logs an error and skips persistence for that value.
 </Callout>
 
 To stay within limits:
@@ -448,7 +460,7 @@ To stay within limits:
 - **Persist important data**: Don't rely on state for data that must survive restarts
 - **Clean up resources**: Use `destroyed` event to save or archive data
 - **Cache strategically**: Load from KV once, cache in thread state, save on completion
-- **Watch state size**: Stay under 1MB to avoid truncation
+- **Watch state size**: Stay under 1MB to avoid skipped persistence
 - **Use `push()` for arrays**: The `push()` method with `maxRecords` handles sliding windows efficiently
 
 ```typescript

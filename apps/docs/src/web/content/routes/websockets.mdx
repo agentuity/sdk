@@ -6,6 +6,14 @@ description: Real-time bidirectional communication with the websocket middleware
 
 WebSockets enable persistent, bidirectional connections between client and server. Use them for chat interfaces, live dashboards, collaborative tools, and any scenario requiring real-time two-way communication.
 
+## When to Use WebSockets
+
+| Protocol | Best For |
+|----------|----------|
+| **WebSockets** | Chat, collaboration, real-time bidirectional data |
+| [SSE](/routes/sse) | LLM streaming, progress updates, server-to-client feeds |
+| [WebRTC](/routes/webrtc) | Video/audio calls, P2P data transfer, low-latency gaming |
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. Import agents you need and call them directly.
 </Callout>
@@ -13,10 +21,11 @@ All routes live in `src/api/`. Import agents you need and call them directly.
 ## Basic Example
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
-import chatAgent from '@agent/chat';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
+import chatAgent from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/chat', websocket((c, ws) => {
   ws.onOpen(() => {
@@ -27,7 +36,7 @@ router.get('/chat', websocket((c, ws) => {
   ws.onMessage(async (event) => {
     const message = event.data as string;
     const response = await chatAgent.run({ message });
-    ws.send(response);
+    ws.send(JSON.stringify(response));
   });
 
   ws.onClose(() => {
@@ -43,7 +52,8 @@ export default router;
 The `websocket()` middleware wraps your handler and upgrades the connection:
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
 
 router.get('/path', websocket((c, ws) => {
   // c - Hono context
@@ -54,6 +64,10 @@ router.get('/path', websocket((c, ws) => {
   ws.onClose(() => { /* connection closed */ });
 }));
 ```
+
+<Callout type="warning" title="Synchronous Handler">
+The outer `websocket()` handler must be synchronous. If you make it `async`, event registrations (`ws.onMessage`, etc.) may be lost. Put async work inside the event callbacks instead.
+</Callout>
 
 ## WebSocket Events
 
@@ -68,11 +82,12 @@ router.get('/path', websocket((c, ws) => {
 Apply authentication or logging before the WebSocket upgrade:
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
-import chat from '@agent/chat';
+import chat from '@agent/chat/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const authMiddleware = createMiddleware(async (c, next) => {
   const token = c.req.query('token');
@@ -95,7 +110,7 @@ router.get('/chat', authMiddleware, websocket((c, ws) => {
       userId,
       message: event.data as string,
     });
-    ws.send(response);
+    ws.send(JSON.stringify(response));
   });
 }));
 
@@ -133,10 +148,11 @@ router.get('/notifications', websocket((c, ws) => {
 A real-time echo server with heartbeat:
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
-import echoAgent from '@agent/echo';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
+import echoAgent from '@agent/echo/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/', websocket((c, ws) => {
   let heartbeat: Timer;
@@ -156,7 +172,7 @@ router.get('/', websocket((c, ws) => {
       c.var.logger.info('Message received', { message });
 
       const response = await echoAgent.run(message);
-      ws.send(response);
+      ws.send(JSON.stringify(response));
     } catch (error) {
       c.var.logger.error('Message processing failed', { error });
       ws.send(JSON.stringify({ error: 'Processing failed' }));
@@ -206,26 +222,15 @@ ws.onclose = () => {
 };
 ```
 
-## When to Use WebSockets
-
-| Use Case | WebSocket | SSE | HTTP |
-|----------|-----------|-----|------|
-| Chat / messaging | ✓ | | |
-| Live collaboration | ✓ | | |
-| Real-time dashboards | ✓ | ✓ | |
-| Progress updates | | ✓ | |
-| Request/response API | | | ✓ |
-
-Use WebSockets when you need **bidirectional** communication. For **server-to-client only** streaming, consider [Server-Sent Events](/routes/sse).
-
 ## Standalone Usage
 
 WebSocket handlers work without agents. This example broadcasts system metrics to connected clients:
 
 ```typescript
-import { createRouter, websocket } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, websocket } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/metrics', websocket((c, ws) => {
   const interval = setInterval(() => {
@@ -246,4 +251,4 @@ export default router;
 
 - [Server-Sent Events](/routes/sse): One-way streaming from server to client
 - [HTTP Routes](/routes/http): Standard request/response endpoints
-- [React Hooks](/frontend/react-hooks): Connect from React with `useWebsocket`
+- [Frontend Utilities](/frontend/react-hooks): Connect from the browser using `WebSocketManager` from `@agentuity/frontend` or the native `WebSocket` API

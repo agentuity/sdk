@@ -5,7 +5,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
@@ -15,6 +15,12 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
     title="API Keys"
     description="Create and manage API keys for authentication"
     icon={<Key className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/coder"
+    title="Coder"
+    description="Manage Coder sessions, session data, loop state, and known users through the HTTP API"
+    icon={<BrainCircuit className="size-5" />}
   />
   <CardLink
     href="/reference/api/database"

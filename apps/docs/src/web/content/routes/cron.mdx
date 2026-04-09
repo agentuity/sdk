@@ -15,13 +15,14 @@ All routes live in `src/api/`. Import agents you need and call them directly.
 Use the `cron()` middleware to wrap a POST route handler with a schedule:
 
 ```typescript
-import { createRouter, cron } from '@agentuity/runtime';
-import reportGenerator from '@agent/report-generator';
+import { Hono } from 'hono';
+import { type Env, cron } from '@agentuity/runtime';
+import reportGenerator from '@agent/report-generator/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Runs daily at 9am
-router.post('/daily-report', cron('0 9 * * *', async (c) => {
+router.post('/daily-report', cron('0 9 * * *', { auth: true }, async (c) => {
   c.var.logger.info('Daily report starting');
 
   const report = await reportGenerator.run({
@@ -36,6 +37,12 @@ router.post('/daily-report', cron('0 9 * * *', async (c) => {
 
 export default router;
 ```
+
+`cron()` wraps a standard Hono route handler. Your callback receives route context (`c`) with Agentuity services on `c.var.*`.
+
+<Callout type="info" title="Current Signature">
+Use the 3-argument form `cron(schedule, { auth }, handler)`. The older 2-argument form still works for backwards compatibility, but it defaults to `auth: false`.
+</Callout>
 
 ## Cron Syntax
 
@@ -66,13 +73,14 @@ Standard five-field cron format:
 A health check that monitors external services and stores results:
 
 ```typescript
-import { createRouter, cron } from '@agentuity/runtime';
-import healthChecker from '@agent/health-checker';
+import { Hono } from 'hono';
+import { type Env, cron } from '@agentuity/runtime';
+import healthChecker from '@agent/health-checker/agent';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Runs every 5 minutes
-router.post('/health-check', cron('*/5 * * * *', async (c) => {
+router.post('/health-check', cron('*/5 * * * *', { auth: true }, async (c) => {
   const startTime = Date.now();
   c.var.logger.info('Health check starting');
 
@@ -100,14 +108,20 @@ export default router;
 
 ## Testing Locally
 
-Cron jobs only trigger in deployed environments. Since cron routes use `router.post()` with an explicit path, you can test them locally by sending a POST request to that path:
+Cron jobs only trigger in deployed environments. Since cron routes use `router.post()` with an explicit path, you can test them locally by sending a POST request to that path.
+
+If your cron route uses `{ auth: false }`, you can call it directly with curl:
 
 ```bash
-# Test your cron route locally
+# Test a cron route with auth disabled
 curl -X POST http://localhost:3000/daily-report
 ```
 
-The `cron()` middleware only affects scheduling in deployed environments. Locally, the route behaves like a standard POST endpoint.
+If your cron route uses `{ auth: true }`, the request must include valid `X-Agentuity-Cron-Signature` and `X-Agentuity-Cron-Timestamp` headers. In deployed environments, Agentuity adds these headers automatically. For local testing, temporarily set `{ auth: false }` or send a correctly signed request from a script.
+
+<Callout type="info" title="Auth in Deployed Environments">
+`{ auth: true }` verifies the cron signature in all environments, including local development. Use `{ auth: false }` only for routes you're comfortable accepting unauthenticated POST requests against.
+</Callout>
 
 ## Best Practices
 
@@ -121,12 +135,13 @@ The `cron()` middleware only affects scheduling in deployed environments. Locall
 Cron jobs work without agents. This example clears expired cache entries hourly:
 
 ```typescript
-import { createRouter, cron } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, cron } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 // Runs every hour
-router.post('/cache-cleanup', cron('0 * * * *', async (c) => {
+router.post('/cache-cleanup', cron('0 * * * *', { auth: true }, async (c) => {
   const allKeys = await c.var.kv.getKeys('cache');
   const expiredKeys = allKeys.filter(key => key.startsWith('temp-'));
 

@@ -257,14 +257,16 @@ export interface SandboxInstance {
 	mkDir(path: string, recursive?: boolean): Promise<void>;
 
 	/**
-	 * Remove a file from the sandbox workspace
+	 * Remove a file from the sandbox workspace.
+	 * @returns Object with `found` indicating whether the file existed before removal
 	 */
-	rmFile(path: string): Promise<void>;
+	rmFile(path: string): Promise<{ found: boolean }>;
 
 	/**
-	 * Remove a directory from the sandbox workspace
+	 * Remove a directory from the sandbox workspace.
+	 * @returns Object with `found` indicating whether the directory existed before removal
 	 */
-	rmDir(path: string, recursive?: boolean): Promise<void>;
+	rmDir(path: string, recursive?: boolean): Promise<{ found: boolean }>;
 
 	/**
 	 * Set environment variables on the sandbox. Pass null to delete a variable.
@@ -380,12 +382,12 @@ function createSandboxInstanceMethods(
 			await sandboxMkDir(client, { sandboxId, path, recursive, orgId });
 		},
 
-		async rmFile(path: string): Promise<void> {
-			await sandboxRmFile(client, { sandboxId, path, orgId });
+		async rmFile(path: string): Promise<{ found: boolean }> {
+			return sandboxRmFile(client, { sandboxId, path, orgId });
 		},
 
-		async rmDir(path: string, recursive?: boolean): Promise<void> {
-			await sandboxRmDir(client, { sandboxId, path, recursive, orgId });
+		async rmDir(path: string, recursive?: boolean): Promise<{ found: boolean }> {
+			return sandboxRmDir(client, { sandboxId, path, recursive, orgId });
 		},
 
 		async setEnv(env: Record<string, string | null>): Promise<Record<string, string>> {

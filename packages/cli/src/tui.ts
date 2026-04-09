@@ -25,6 +25,12 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Only write ANSI escape sequences when stderr is a real terminal.
+		// Writing to non-TTY streams (pipes, command substitution, etc.)
+		// pollutes captured output with invisible control characters.
+		if (!process.stderr.isTTY) {
+			return;
+		}
 		// Skip cursor restoration in CI - terminals don't support these sequences
 		if (process.env.CI) {
 			return;
@@ -293,8 +299,13 @@ export function getSeverityColor(severity: string): (text: string) => string {
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	// Clear line first to ensure no leftover content from previous output
-	process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
+	if (process.stderr.isTTY) {
+		// Clear line first to ensure no leftover content from previous output
+		process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
+	} else {
+		// No ANSI control sequences for non-TTY streams (pipes, command substitution)
+		process.stderr.write(`${ICONS.success} ${message}\n`);
+	}
 }
 
 /**
@@ -1242,18 +1253,23 @@ export async function spinner<T>(
 	const { getOutputOptions, shouldDisableProgress } = await import('./output');
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
+	const isJsonMode = outputOptions?.json === true;
 
-	// If no interactive TTY-like environment or progress disabled, just execute
-	// the callback without animation
-	if (!isTTYLike() || noProgress) {
+	// If stderr is not a real terminal or progress disabled, just execute
+	// the callback without animation. We check stderr specifically because
+	// the spinner writes ANSI sequences to stderr — isTTYLike() may return
+	// true when stdout is a TTY but stderr is piped (e.g. 2>&1 in $()).
+	if (!process.stderr.isTTY || noProgress) {
 		try {
 			const result =
 				options.type === 'progress'
 					? await options.callback(() => {})
 					: options.type === 'logger'
 						? await options.callback((logMessage: string) => {
-								// In non-TTY mode, just write logs directly to stdout
-								process.stdout.write(logMessage + '\n');
+								// In JSON mode, don't write logs to stdout
+								if (!isJsonMode) {
+									process.stdout.write(logMessage + '\n');
+								}
 							})
 						: options.type === 'countdown'
 							? await options.callback()
@@ -1263,7 +1279,6 @@ export async function spinner<T>(
 
 			// If clearOnSuccess is true, don't show success message
 			// Also skip success message in JSON mode
-			const isJsonMode = outputOptions?.json === true;
 			if (!options.clearOnSuccess && !isJsonMode) {
 				const successColor = getColor('success');
 				console.error(`${successColor}${ICONS.success} ${message}${reset}`);
@@ -1273,7 +1288,7 @@ export async function spinner<T>(
 		} catch (err) {
 			const clearOnError =
 				(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
-			if (!clearOnError) {
+			if (!clearOnError && !isJsonMode) {
 				const errorColor = getColor('error');
 				console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
 			}

@@ -185,7 +185,7 @@ const router = new Hono<Env>()
 					const now = new Date().toISOString();
 					session.messages = session.messages.map((message) => ({
 						...message,
-						timestamp: now,
+						timestamp: message.timestamp || now,
 					}));
 				}
 

@@ -328,6 +328,13 @@ export const SandboxCreateOptionsSchema = z.object({
 		.record(z.string(), z.unknown())
 		.optional()
 		.describe('Optional user-defined metadata to associate with the sandbox.'),
+	/** Permission scopes for automatic service access (e.g., "services:read", "services:write"). */
+	scopes: z
+		.array(z.string())
+		.optional()
+		.describe(
+			'Permission scopes for automatic service access (e.g., "services:read", "services:write").'
+		),
 });
 export type SandboxCreateOptions = z.infer<typeof SandboxCreateOptionsSchema>;
 
@@ -376,14 +383,16 @@ export const SandboxSchema = z.object({
 	mkDir: z
 		.custom<(path: string, recursive?: boolean) => Promise<void>>()
 		.describe('Create a directory in the sandbox workspace.'),
-	/** Remove a file from the sandbox workspace. */
+	/** Remove a file from the sandbox workspace. Returns whether the file was found. */
 	rmFile: z
-		.custom<(path: string) => Promise<void>>()
-		.describe('Remove a file from the sandbox workspace.'),
-	/** Remove a directory from the sandbox workspace. */
+		.custom<(path: string) => Promise<{ found: boolean }>>()
+		.describe('Remove a file from the sandbox workspace. Returns whether the file was found.'),
+	/** Remove a directory from the sandbox workspace. Returns whether the directory was found. */
 	rmDir: z
-		.custom<(path: string, recursive?: boolean) => Promise<void>>()
-		.describe('Remove a directory from the sandbox workspace.'),
+		.custom<(path: string, recursive?: boolean) => Promise<{ found: boolean }>>()
+		.describe(
+			'Remove a directory from the sandbox workspace. Returns whether the directory was found.'
+		),
 	/** Set environment variables on the sandbox. Pass null to delete a variable. */
 	setEnv: z
 		.custom<(env: Record<string, string | null>) => Promise<Record<string, string>>>()
@@ -398,6 +407,20 @@ export const SandboxSchema = z.object({
 		.describe('Resume the sandbox from a paused or evacuated state.'),
 	/** Destroy the sandbox */
 	destroy: z.custom<() => Promise<void>>().describe('Destroy the sandbox'),
+	/** Create a new job in the sandbox */
+	createJob: z
+		.custom<(options: CreateJobOptions) => Promise<Job>>()
+		.describe('Create a new job in the sandbox'),
+	/** Get a job by ID */
+	getJob: z.custom<(jobId: string) => Promise<Job>>().describe('Get a job by ID'),
+	/** List jobs in the sandbox */
+	listJobs: z
+		.custom<(limit?: number) => Promise<{ jobs: Job[] }>>()
+		.describe('List jobs in the sandbox'),
+	/** Stop a running job */
+	stopJob: z
+		.custom<(jobId: string, force?: boolean) => Promise<Job>>()
+		.describe('Stop a running job'),
 });
 export type Sandbox = z.infer<typeof SandboxSchema>;
 

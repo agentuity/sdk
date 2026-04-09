@@ -319,9 +319,11 @@ export const MessageSchema = z
 export type Message = z.infer<typeof MessageSchema>;
 
 /**
- * Destination type schema. Currently only HTTP webhooks are supported.
+ * Destination type schema. Supports webhook, queue, sandbox, and email destinations.
  */
-export const DestinationTypeSchema = z.enum(['http']).describe('Destination type schema');
+export const DestinationTypeSchema = z
+	.enum(['http', 'url', 'webhook', 'queue', 'sandbox', 'email'])
+	.describe('Destination type schema');
 
 /**
  * Destination type.
@@ -425,6 +427,55 @@ export const DestinationStatsSchema = z
 export type DestinationStats = z.infer<typeof DestinationStatsSchema>;
 
 /**
+ * URL destination configuration schema.
+ */
+export const UrlDestinationConfigSchema = z
+	.object({
+		url: z.string().describe('The URL to send messages to.'),
+	})
+	.describe('URL destination config');
+
+/**
+ * Webhook destination configuration schema (same shape as HTTP).
+ */
+export const WebhookDestinationConfigSchema = HttpDestinationConfigSchema;
+
+/**
+ * Queue destination configuration schema.
+ */
+export const QueueDestinationConfigSchema = z
+	.object({
+		queue_id: z.string().describe('Target queue ID'),
+	})
+	.describe('Queue destination config');
+
+/**
+ * Sandbox destination configuration schema.
+ */
+export const SandboxDestinationConfigSchema = z
+	.object({
+		sandbox_id: z.string().describe('Target sandbox ID'),
+	})
+	.describe('Sandbox destination config');
+
+/**
+ * Email destination configuration schema.
+ */
+export const EmailDestinationConfigSchema = z
+	.object({
+		email_address: z.string().describe('Target email address'),
+	})
+	.describe('Email destination config');
+
+/**
+ * Generic destination configuration schema for destination types not yet fully implemented.
+ */
+export const GenericDestinationConfigSchema = z
+	.record(z.string(), z.unknown())
+	.optional()
+	.describe('Generic configuration for destination types not yet fully implemented.');
+
+/**
  * Destination schema representing a webhook endpoint for message delivery.
  *
  * Destinations are attached to queues and automatically receive messages when published.
@@ -448,10 +499,18 @@ export const DestinationSchema = z
 			.optional()
 			.describe('Optional description of the destination.'),
 		queue_id: z.string().describe('ID of the queue this destination is attached to.'),
-		destination_type: DestinationTypeSchema.describe(
-			"Type of destination (currently only 'http')."
-		),
-		config: HttpDestinationConfigSchema.describe('HTTP configuration for the destination.'),
+		destination_type: DestinationTypeSchema.describe('Type of destination.'),
+		config: z
+			.union([
+				HttpDestinationConfigSchema,
+				UrlDestinationConfigSchema,
+				WebhookDestinationConfigSchema,
+				QueueDestinationConfigSchema,
+				SandboxDestinationConfigSchema,
+				EmailDestinationConfigSchema,
+				GenericDestinationConfigSchema,
+			])
+			.describe('Configuration for the destination based on type.'),
 		enabled: z.boolean().describe('Whether the destination is enabled for delivery.'),
 		stats: DestinationStatsSchema.optional().describe(
 			'Delivery statistics for this destination.'
@@ -591,6 +650,7 @@ export const CreateQueueRequestSchema = z
 		name: z.string().optional().describe('Optional queue name (auto-generated if not provided).'),
 		description: z.string().optional().describe("Optional description of the queue's purpose."),
 		queue_type: QueueTypeSchema.describe('Type of queue to create.'),
+		internal: z.boolean().optional().describe('Whether the queue is system-managed.'),
 		settings: QueueSettingsSchemaBase.partial()
 			.optional()
 			.describe(
@@ -747,7 +807,9 @@ export const CreateDestinationRequestSchema = z
 		name: z.string().describe('Human-readable name for the destination.'),
 		description: z.string().optional().describe('Optional description of the destination.'),
 		destination_type: DestinationTypeSchema.describe('Type of destination to create.'),
-		config: HttpDestinationConfigSchema.describe('HTTP configuration for the destination.'),
+		config: z
+			.record(z.string(), z.unknown())
+			.describe('Configuration for the destination (type-specific).'),
 		enabled: z
 			.boolean()
 			.default(true)
@@ -769,9 +831,10 @@ export const UpdateDestinationRequestSchema = z
 			.nullable()
 			.optional()
 			.describe('Updated description of the destination.'),
-		config: HttpDestinationConfigSchema.partial()
+		config: z
+			.record(z.string(), z.unknown())
 			.optional()
-			.describe('HTTP configuration updates (partial update supported).'),
+			.describe('Configuration updates (partial update supported).'),
 		enabled: z.boolean().optional().describe('Enable or disable the destination.'),
 	})
 	.describe('Update destination request schema');

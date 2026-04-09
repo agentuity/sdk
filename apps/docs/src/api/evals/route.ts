@@ -44,12 +44,18 @@ const router = new Hono<Env>()
 	.get('/session/:id', async (c) => {
 		const sessionId = c.req.param('id');
 
+		// Fail fast if KV is not bound
+		if (!c.var.kv) {
+			c.var.logger?.error('KV service not bound');
+			return c.json({ error: 'KV service not configured' }, 500);
+		}
+
 		try {
 			// Check KV for each expected eval result
 			const evalResults = await Promise.all(
 				EVAL_NAMES.map(async (evalName) => {
 					const key = `${sessionId}:${evalName}`;
-					const result = await c.var.kv?.get(EVAL_BUCKET, key);
+					const result = await c.var.kv.get(EVAL_BUCKET, key);
 
 					if (result?.exists) {
 						return result.data as {

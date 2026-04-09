@@ -6,11 +6,14 @@
  *
  * Usage: bun run scripts/bundle-run-scripts.ts
  */
-import { resolve, basename } from 'node:path';
+import { basename, resolve } from 'node:path';
+import { copyFileSync, existsSync } from 'node:fs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const RUN_DIR = resolve(ROOT, 'src/run');
 const OUT_DIR = resolve(ROOT, 'dist/run');
+const BUILD_METADATA_PATH = resolve(ROOT, '.agentuity/agentuity.metadata.json');
+const SNAPSHOT_METADATA_PATH = resolve(ROOT, 'agentuity.metadata.json');
 
 // Discover all .ts run scripts, excluding invoke.ts (has dynamic imports, not in SCRIPT_NAMES)
 const entrypoints: string[] = [];
@@ -50,4 +53,14 @@ console.log(`Built ${result.outputs.length} scripts to dist/run/:`);
 for (const output of result.outputs) {
 	const size = (output.size / 1024).toFixed(1);
 	console.log(`  ${basename(output.path)} (${size} KB)`);
+}
+
+if (existsSync(BUILD_METADATA_PATH)) {
+	copyFileSync(BUILD_METADATA_PATH, SNAPSHOT_METADATA_PATH);
+	console.log(`Copied build metadata to ${basename(SNAPSHOT_METADATA_PATH)}`);
+} else {
+	console.warn(
+		`Warning: build metadata not found at ${BUILD_METADATA_PATH}. ` +
+			'Run `bun run build` before bundling sandbox scripts.'
+	);
 }

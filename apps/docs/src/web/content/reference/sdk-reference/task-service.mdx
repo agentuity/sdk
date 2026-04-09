@@ -1,0 +1,386 @@
+---
+title: Using Tasks
+short_title: Task Service
+description: Track work items with lifecycle management via ctx.task
+---
+
+Create and manage structured work items (bugs, features, epics, tasks) with built-in status tracking, comments, tags, and file attachments. The task service is available via `ctx.task` in agents and `c.var.task` in routes.
+
+<Callout type="tip" title="Not inside an agent or route?">
+Use the [`@agentuity/task`](/reference/standalone-packages#tasks) standalone package to access this service from any Node.js or Bun app without the runtime.
+</Callout>
+
+For concepts, hierarchical task patterns, and when-to-use guidance, see [Tasks](/services/tasks).
+
+## Task Lifecycle
+
+Tasks follow a defined status lifecycle:
+
+| Status | Description |
+|--------|-------------|
+| `'open'` | Created, not yet started |
+| `'in_progress'` | Actively being worked on |
+| `'done'` | Work completed |
+| `'cancelled'` | Abandoned |
+
+The aliases `'started'`, `'completed'`, and `'closed'` are normalized automatically to `'in_progress'` or `'done'`.
+
+## create(params)
+
+Create a new task.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `params` | `CreateTaskParams` | yes | Task creation parameters (see below) |
+
+**`CreateTaskParams` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | `string` | yes | Task title (max 1024 chars) |
+| `type` | `TaskType` | yes | `'epic'`, `'feature'`, `'enhancement'`, `'bug'`, or `'task'` |
+| `created_id` | `string` | yes | ID of the creator |
+| `description` | `string` | no | Detailed description (max 65,536 chars) |
+| `metadata` | `Record<string, unknown>` | no | Arbitrary key-value metadata |
+| `priority` | `TaskPriority` | no | `'high'`, `'medium'`, `'low'`, or `'none'` (default `'none'`) |
+| `status` | `TaskStatus` | no | Initial status (default `'open'`) |
+| `parent_id` | `string` | no | Parent task ID for hierarchical organization |
+| `assigned_id` | `string` | no | ID of the assigned user |
+| `creator` | `UserEntityRef` | no | Creator reference (id, name, optional type) |
+| `assignee` | `UserEntityRef` | no | Assignee reference |
+| `project` | `EntityRef` | no | Project reference (id, name) |
+| `tag_ids` | `string[]` | no | Tag IDs to associate at creation |
+
+**Returns:** `Promise<Task>`
+
+**Example**
+
+```typescript
+const task = await ctx.task.create({
+  title: 'Investigate slow API response times',
+  type: 'bug',
+  priority: 'high',
+  created_id: 'user-001',
+  creator: { id: 'user-001', name: 'Monitor Agent', type: 'agent' },
+  description: 'P95 latency exceeded 500ms on /api/search',
+  metadata: { endpoint: '/api/search', p95ms: 520 },
+});
+
+ctx.logger.info('Created task %s: %s', task.id, task.title);
+```
+
+## get(id)
+
+Get a task by its ID.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | The unique task identifier |
+
+**Returns:** `Promise<Task | null>` -- `null` if the task does not exist.
+
+**Example**
+
+```typescript
+const task = await ctx.task.get('tsk_abc123');
+if (task) {
+  ctx.logger.info('Task %s is %s (priority: %s)', task.id, task.status, task.priority);
+}
+```
+
+## list(params?)
+
+List tasks with optional filtering and pagination.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `params` | `ListTasksParams` | no | Optional filter and pagination parameters |
+
+**`ListTasksParams` fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `TaskStatus` | Filter by status |
+| `type` | `TaskType` | Filter by type |
+| `priority` | `TaskPriority` | Filter by priority |
+| `assigned_id` | `string` | Filter by assignee |
+| `created_id` | `string` | Filter by creator |
+| `parent_id` | `string` | Filter by parent task (get subtasks) |
+| `project_id` | `string` | Filter by project |
+| `tag_id` | `string` | Filter by tag |
+| `deleted` | `boolean` | Include soft-deleted tasks (default `false`) |
+| `sort` | `string` | Sort field, prefix with `-` for descending (e.g., `'-created_at'`) |
+| `order` | `'asc' \| 'desc'` | Sort direction |
+| `limit` | `number` | Max results to return |
+| `offset` | `number` | Results to skip for pagination |
+
+**Returns:** `Promise<ListTasksResult>`
+
+```typescript
+interface ListTasksResult {
+  tasks: Task[];   // Matching tasks
+  total: number;   // Total count before pagination
+  limit: number;   // Applied limit
+  offset: number;  // Applied offset
+}
+```
+
+**Example**
+
+```typescript
+// List open bugs assigned to an agent
+const result = await ctx.task.list({
+  status: 'open',
+  type: 'bug',
+  assigned_id: 'agent-001',
+  sort: '-priority',
+  limit: 20,
+});
+
+ctx.logger.info('Found %d of %d bugs', result.tasks.length, result.total);
+```
+
+## update(id, params)
+
+Partially update an existing task. Only provided fields are changed.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | The task ID |
+| `params` | `UpdateTaskParams` | yes | Fields to update (all optional) |
+
+**Returns:** `Promise<Task>`
+
+**Example**
+
+```typescript
+const updated = await ctx.task.update('tsk_abc123', {
+  status: 'in_progress',
+  assignee: { id: 'agent-002', name: 'Fix Bot', type: 'agent' },
+  priority: 'high',
+});
+
+ctx.logger.info('Task updated, status: %s', updated.status);
+```
+
+## close(id)
+
+Close a task by setting its status to `'done'` and recording the closed date.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | The task ID |
+
+**Returns:** `Promise<Task>`
+
+**Example**
+
+```typescript
+const closed = await ctx.task.close('tsk_abc123');
+ctx.logger.info('Task closed at %s', closed.closed_date);
+```
+
+## softDelete(id)
+
+Soft-delete a task, marking it as deleted without permanent removal.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes | The task ID |
+
+**Returns:** `Promise<Task>`
+
+## batchDelete(params)
+
+Batch soft-delete tasks matching the given filters. At least one filter must be provided.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `params` | `BatchDeleteTasksParams` | yes | Filters selecting which tasks to delete |
+
+**`BatchDeleteTasksParams` fields (all optional, but at least one required):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | `TaskStatus` | Filter by status |
+| `type` | `TaskType` | Filter by type |
+| `priority` | `TaskPriority` | Filter by priority |
+| `parent_id` | `string` | Filter by parent task |
+| `created_id` | `string` | Filter by creator |
+| `older_than` | `string` | Duration string (e.g., `'30m'`, `'24h'`, `'7d'`, `'2w'`) |
+| `limit` | `number` | Max tasks to delete (default 50, max 200) |
+
+**Returns:** `Promise<BatchDeleteTasksResult>`
+
+```typescript
+interface BatchDeleteTasksResult {
+  deleted: { id: string; title: string }[];
+  count: number;
+}
+```
+
+**Example**
+
+```typescript
+const result = await ctx.task.batchDelete({
+  status: 'cancelled',
+  older_than: '4w',
+  limit: 100,
+});
+
+ctx.logger.info('Deleted %d cancelled tasks', result.count);
+```
+
+## Comments
+
+### createComment(taskId, body, userId, author?)
+
+Add a comment to a task.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `taskId` | `string` | yes | The task ID |
+| `body` | `string` | yes | Comment text |
+| `userId` | `string` | yes | Author's user ID |
+| `author` | `EntityRef` | no | Author display reference (id, name) |
+
+**Returns:** `Promise<Comment>`
+
+**Example**
+
+```typescript
+const comment = await ctx.task.createComment(
+  'tsk_abc123',
+  'Root cause identified: missing index on search_queries table',
+  'agent-001',
+  { id: 'agent-001', name: 'Debug Agent' }
+);
+```
+
+### listComments(taskId, params?)
+
+List comments on a task with optional pagination.
+
+**Returns:** `Promise<ListCommentsResult>` with `comments`, `total`, `limit`, `offset`.
+
+### getComment(commentId)
+
+Get a comment by its ID. **Returns:** `Promise<Comment>`
+
+### updateComment(commentId, body)
+
+Update a comment's text. **Returns:** `Promise<Comment>`
+
+### deleteComment(commentId)
+
+Delete a comment. **Returns:** `Promise<void>`
+
+## Tags
+
+### createTag(name, color?)
+
+Create a new tag for categorizing tasks.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | `string` | yes | Tag display name |
+| `color` | `string` | no | Hex color code (e.g., `'#ff0000'`) |
+
+**Returns:** `Promise<Tag>`
+
+### listTags()
+
+List all tags in the organization. **Returns:** `Promise<ListTagsResult>` with a `tags` array.
+
+### addTagToTask(taskId, tagId)
+
+Associate a tag with a task. **Returns:** `Promise<void>`
+
+### removeTagFromTask(taskId, tagId)
+
+Remove a tag from a task. **Returns:** `Promise<void>`
+
+### listTagsForTask(taskId)
+
+List all tags on a specific task. **Returns:** `Promise<Tag[]>`
+
+### getTag(tagId) / updateTag(tagId, name, color?) / deleteTag(tagId)
+
+CRUD operations on individual tags.
+
+## Attachments
+
+### uploadAttachment(taskId, params)
+
+Initiate a file upload. Returns a presigned S3 URL for direct upload.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `taskId` | `string` | yes | The task ID |
+| `params` | `CreateAttachmentParams` | yes | File metadata |
+
+**`CreateAttachmentParams` fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filename` | `string` | yes | Filename for the attachment |
+| `content_type` | `string` | no | MIME type |
+| `size` | `number` | no | File size in bytes |
+
+**Returns:** `Promise<PresignUploadResponse>`
+
+```typescript
+interface PresignUploadResponse {
+  attachment: Attachment;    // The created attachment record
+  presigned_url: string;     // PUT this URL to upload the file
+  expiry_seconds: number;    // Seconds until the URL expires
+}
+```
+
+### confirmAttachment(attachmentId)
+
+Confirm that a file upload completed successfully. **Returns:** `Promise<Attachment>`
+
+### downloadAttachment(attachmentId)
+
+Get a presigned download URL. **Returns:** `Promise<PresignDownloadResponse>`
+
+### listAttachments(taskId)
+
+List all attachments on a task. **Returns:** `Promise<ListAttachmentsResult>`
+
+### deleteAttachment(attachmentId)
+
+Delete an attachment. **Returns:** `Promise<void>`
+
+## Changelog and Activity
+
+### changelog(id, params?)
+
+Get the audit trail for a task, showing field-level changes.
+
+**Returns:** `Promise<TaskChangelogResult>` with `changelog` entries, `total`, `limit`, `offset`.
+
+### getActivity(params?)
+
+Get task activity time-series data showing daily status counts.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `params` | `TaskActivityParams` | no | `{ days?: number }` (min 7, max 365, default 90) |
+
+**Returns:** `Promise<TaskActivityResult>` with daily data points containing `open`, `inProgress`, `done`, and `cancelled` counts.
+
+## Entity Management
+
+### createUser(params) / getUser(userId) / deleteUser(userId)
+
+Manage user entities (human or agent) that can be assigned to tasks.
+
+### createProject(params) / getProject(projectId) / deleteProject(projectId)
+
+Manage project entities for organizing tasks.
+
+### listUsers() / listProjects()
+
+List all user and project entities referenced in tasks.

@@ -22,6 +22,8 @@ export function ChatDemo() {
 	const messagesContainerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	// `input` is intentionally plain useState — draft text is ephemeral and
+	// should not survive page reloads or tab restores.
 	const [running, setRunning] = useState(false);
 	const invoke = useCallback(async (input: { message: string; command?: string }) => {
 		setRunning(true);
@@ -31,6 +33,9 @@ export function ChatDemo() {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(input),
 			});
+			if (!res.ok) {
+				throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+			}
 			return await res.json();
 		} finally {
 			setRunning(false);

@@ -1,0 +1,287 @@
+---
+title: Adding Agentuity to a Turborepo Monorepo
+short_title: Turborepo
+description: Add Agentuity as a workspace app, share schemas across packages, and import router types directly
+---
+
+Already have a [Turborepo](https://turbo.build/repo) monorepo? Add Agentuity as a workspace app beside your frontend, keep shared schemas in a package both sides can import, and expose the backend router type so the web app can use `hc<ApiRouter>()` without generated route files.
+
+## Project Structure
+
+```text
+my-monorepo/
+├── apps/
+│   ├── web/
+│   │   ├── src/components/TranslateDemo.tsx
+│   │   └── vite.config.ts            # Proxies /api to Agentuity in local dev
+│   └── agentuity/
+│       ├── app.ts
+│       ├── src/agent/translate/index.ts
+│       ├── src/api/index.ts          # Exports ApiRouter
+│       └── package.json              # Exports ./api for type-only imports
+├── packages/
+│   └── shared/
+│       └── src/translate.ts
+├── turbo.json
+└── package.json
+```
+
+## Shared Schemas
+
+Define schemas once in `packages/shared`, then import them from both the agent and the frontend. The schemas use [`@agentuity/schema`](/agents/schema-libraries), but any [StandardSchema-compatible](/agents/schema-libraries) library works:
+
+```typescript title="packages/shared/src/translate.ts"
+import { s } from '@agentuity/schema';
+
+export const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
+export const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
+
+export type Language = (typeof LANGUAGES)[number];
+export type Model = (typeof MODELS)[number];
+
+export const HistoryEntrySchema = s.object({
+  model: s.string(),
+  sessionId: s.string(),
+  text: s.string(),
+  timestamp: s.string(),
+  tokens: s.number(),
+  toLanguage: s.string(),
+  translation: s.string(),
+});
+
+export const TranslateInputSchema = s.object({
+  model: s.enum(MODELS).optional(),
+  text: s.string(),
+  toLanguage: s.enum(LANGUAGES).optional(),
+});
+
+export const TranslateOutputSchema = s.object({
+  history: s.array(HistoryEntrySchema),
+  sessionId: s.string(),
+  threadId: s.string(),
+  tokens: s.number(),
+  translation: s.string(),
+  translationCount: s.number(),
+});
+
+export type TranslateInput = s.infer<typeof TranslateInputSchema>;
+export type TranslateOutput = s.infer<typeof TranslateOutputSchema>;
+```
+
+## Export a Stable Router Type
+
+Give the frontend a stable import path for the backend router type:
+
+```json title="apps/agentuity/package.json"
+{
+  "name": "@my-monorepo/agentuity",
+  "exports": {
+    "./api": "./src/api/index.ts"
+  }
+}
+```
+
+The frontend should use `import type { ApiRouter } from '@my-monorepo/agentuity/api'`. That keeps the import type-only while still pointing at the real router definition.
+
+## The Agent
+
+The agent imports schemas from the shared package. Agentuity's [AI Gateway](/agents/ai-gateway) handles model routing, so no separate provider-specific client setup is required in the frontend:
+
+```typescript title="apps/agentuity/src/agent/translate/index.ts"
+import { createAgent } from '@agentuity/runtime';
+import OpenAI from 'openai';
+import {
+  TranslateInputSchema,
+  TranslateOutputSchema,
+  type HistoryEntry,
+} from '@my-monorepo/shared';
+
+// AI Gateway routes to OpenAI, Anthropic, and others from one client
+const client = new OpenAI();
+
+export default createAgent('translate', {
+  description: 'Translates text to different languages',
+  schema: {
+    input: TranslateInputSchema,
+    output: TranslateOutputSchema,
+  },
+  handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5.4-nano' }) => {
+    ctx.logger.info('Translation request', { toLanguage, model });
+
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: `Translate to ${toLanguage}:\n\n${text}` }],
+    });
+
+    const translation = completion.choices[0]?.message?.content ?? '';
+    const tokens = completion.usage?.total_tokens ?? 0;
+
+    // Thread state persists history across requests for the same user session
+    await ctx.thread.state.push('history', { text, translation, tokens, toLanguage, model }, 5);
+    const history = (await ctx.thread.state.get<HistoryEntry[]>('history')) ?? [];
+
+    return { history, sessionId: ctx.sessionId, threadId: ctx.thread.id, tokens, translation, translationCount: history.length };
+  },
+});
+```
+
+The agent validates input and output against the shared schemas automatically — if the handler returns a shape that doesn't match `TranslateOutputSchema`, TypeScript catches it at build time.
+
+## API Routes
+
+Routes handle HTTP concerns that don't belong in the agent itself. Export the router type from the same file:
+
+```typescript title="apps/agentuity/src/api/index.ts"
+import { Hono } from 'hono';
+import { type Env, validator } from '@agentuity/runtime';
+import translate from '../agent/translate';
+import { TranslateOutputSchema, type HistoryEntry } from '@my-monorepo/shared';
+
+// Subset of output schema for state-only routes
+const StateSchema = TranslateOutputSchema.pick(['history', 'threadId', 'translationCount']);
+
+const api = new Hono<Env>()
+  .post('/translate', translate.validator(), async (c) => {
+    const data = c.req.valid('json');
+    return c.json(await translate.run(data));
+  })
+  // Routes use c.var.thread; agents use ctx.thread directly
+  .get('/translate/history', validator({ output: StateSchema }), async (c) => {
+    const history = (await c.var.thread.state.get<HistoryEntry[]>('history')) ?? [];
+    return c.json({ history, threadId: c.var.thread.id, translationCount: history.length });
+  })
+  .delete('/translate/history', validator({ output: StateSchema }), async (c) => {
+    await c.var.thread.state.delete('history');
+    return c.json({ history: [], threadId: c.var.thread.id, translationCount: 0 });
+  });
+
+export type ApiRouter = typeof api; // [!code highlight]
+export default api;
+```
+
+## Proxy `/api` to the Agent App
+
+If your web app uses Vite, add a proxy so local browser requests to `/api` reach the Agentuity workspace app:
+
+```typescript title="apps/web/vite.config.ts"
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3500', // [!code highlight]
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+If your frontend uses another framework, use the equivalent rewrite or proxy there. The key is keeping the browser-facing path at `/api` so `hc<ApiRouter>('/api')` stays the same across environments.
+
+## Frontend Type Safety
+
+The `apps/web` package imports the router type from the Agentuity workspace package and shared constants from `packages/shared`:
+
+```tsx title="apps/web/src/components/TranslateDemo.tsx"
+import { hc } from 'hono/client'; // [!code highlight]
+import type { ApiRouter } from '@my-monorepo/agentuity/api'; // [!code highlight]
+import { useState } from 'react';
+import { LANGUAGES, MODELS, type Language, type Model } from '@my-monorepo/shared';
+
+const client = hc<ApiRouter>('/api'); // [!code highlight]
+
+export function TranslateDemo() {
+  const [model] = useState<Model>(MODELS[0]);
+  const [toLanguage] = useState<Language>(LANGUAGES[0]);
+  const [data, setData] = useState<{ translation: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const onTranslate = async () => {
+    setIsLoading(true);
+    try {
+      const res = await client.translate.$post({ // [!code highlight]
+        json: { text: 'Hello world', toLanguage, model },
+      });
+      setData(await res.json());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={onTranslate} disabled={isLoading}>
+        {isLoading ? 'Translating...' : 'Translate'}
+      </button>
+      {data?.translation && <p>{data.translation}</p>}
+    </div>
+  );
+}
+```
+
+<Callout type="tip" title="Keep the import type-only">
+Use `import type { ApiRouter } ...` so the router import is erased from the frontend bundle while `hc()` still gets full RPC inference.
+</Callout>
+
+## Turborepo Task Graph
+
+There is no `build:routes` step in v2. `agentuity build` discovers routes from `createApp({ router })` and generates runtime metadata for the backend, but it does not emit a client route registry. Keep the Turbo pipeline focused on the normal workspace tasks:
+
+```json title="turbo.json"
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".agentuity/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    }
+  }
+}
+```
+
+Use whatever workspace `dev` scripts make sense for your monorepo. The important part is that the frontend can resolve the Agentuity workspace package for types and can reach the Agentuity dev server through `/api`.
+
+## Running Locally
+
+From the monorepo root:
+
+```bash
+bun install
+bun run dev
+```
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3500`
+- Workbench: `http://localhost:3500/workbench`
+
+There is no separate client route-generation step in v2. The web app imports the router type from the workspace source, and `agentuity dev` serves the backend.
+
+## Deployment
+
+The frontend and backend deploy independently:
+
+```bash
+# Deploy the agent
+cd apps/agentuity && bun run deploy
+
+# Build the frontend for your hosting provider
+cd apps/web && bun run build
+```
+
+When deployed, either keep routing `/api/*` to the Agentuity backend at your edge or point `hc()` at the deployed backend URL and enable CORS in [App Configuration](/get-started/app-configuration). See [Deployment Scenarios](/frontend/deployment-scenarios) for the host-level options.
+
+## Next Steps
+
+- [Schema Libraries](/agents/schema-libraries): Use Zod, Valibot, ArkType, or `@agentuity/schema` for shared schemas
+- [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
+- [HTTP Routes](/routes/http): Define and validate backend API routes
+- [Deployment Scenarios](/frontend/deployment-scenarios): Route frontend traffic to a deployed agent

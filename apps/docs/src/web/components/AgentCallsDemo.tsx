@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
 import { Button } from './ui';
 
 // Fixed sample text for Agent Calls demo
@@ -137,8 +138,14 @@ async function fetchAPI<T>(url: string, body?: object): Promise<T> {
 }
 
 export function AgentCallsDemo() {
-	const [pattern, setPattern] = useState<Pattern>('sync');
-	const [operation, setOperation] = useState('clean');
+	const [pattern, setPattern] = usePersistentDemoState<Pattern>('agent-calls', 'pattern', {
+		defaultValue: 'sync',
+		storage: 'session',
+	});
+	const [operation, setOperation] = usePersistentDemoState<string>('agent-calls', 'operation', {
+		defaultValue: 'clean',
+		storage: 'session',
+	});
 	const [result, setResult] = useState<Result | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [backgroundLogs, setBackgroundLogs] = useState<LogEntry[]>([]);

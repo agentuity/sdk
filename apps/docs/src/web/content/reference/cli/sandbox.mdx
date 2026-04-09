@@ -88,6 +88,7 @@ agentuity cloud sandbox run [options] -- <command>
 | `--file <sandbox:local>` | Files to create (repeatable) |
 | `--project-id <id>` | Associate with project |
 | `--json` | JSON output |
+| `--timestamps` | Include timestamps in stream output |
 
 ### Examples
 
@@ -155,6 +156,10 @@ agentuity cloud sandbox create --project-id proj_abc123
 ```bash
 agentuity cloud sandbox exec <sandbox-id> [options] -- <command>
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--timestamps` | Include timestamps in stream output |
 
 ```bash
 # Run commands in sequence

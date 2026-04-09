@@ -3,6 +3,7 @@ import { getSubcommand } from './get';
 import { listSubcommand } from './list';
 import { createSubcommand } from './create';
 import { destroySubcommand } from './destroy';
+import { logsSubcommand } from './logs';
 import { getCommand } from '../../../../command-prefix';
 
 export const command = createCommand({
@@ -23,8 +24,18 @@ export const command = createCommand({
 			command: getCommand('cloud sandbox job destroy sbx_abc123 job_xyz789'),
 			description: 'Terminate a running job',
 		},
+		{
+			command: getCommand('cloud sandbox job logs sbx_abc123 job_xyz789'),
+			description: 'View logs from a job',
+		},
 	],
-	subcommands: [createSubcommand, getSubcommand, listSubcommand, destroySubcommand],
+	subcommands: [
+		createSubcommand,
+		getSubcommand,
+		listSubcommand,
+		destroySubcommand,
+		logsSubcommand,
+	],
 	requires: { auth: true, org: true },
 });
 

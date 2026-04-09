@@ -31,6 +31,7 @@ import { deleteGeneratedDir } from './transforms/generated';
 import { transformAppTs } from './transforms/app-ts';
 import { transformRouteFile } from './transforms/routes';
 import { generateAgentBarrel, generateApiBarrel } from './transforms/barrels';
+import { transformPackageJson } from './transforms/package-json';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -318,6 +319,31 @@ export async function migrate(opts: MigrateOptions = {}): Promise<MigrateResult>
 			printStepDone();
 		} else {
 			printStepSkipped('no agent files found');
+		}
+	}
+
+	// ── 5g. Update @agentuity/* packages to ^2.0.0 ────────────────────────
+	if (detection.outdatedPackages.length > 0) {
+		printStep('Updating @agentuity/* packages to ^2.0.0');
+		const packageJsonPath = join(projectDir, 'package.json');
+
+		try {
+			const currentContent = await Bun.file(packageJsonPath).text();
+			const result = transformPackageJson(currentContent, detection.outdatedPackages);
+
+			if (result.content && result.updated.length > 0) {
+				writeFileSync(packageJsonPath, result.content, 'utf8');
+				changedFiles.push('package.json');
+				allChangeSummary.push({
+					file: 'package.json',
+					changes: result.updated,
+				});
+				printStepDone(`${result.updated.length} package(s) updated`);
+			} else {
+				printStepSkipped('no changes needed');
+			}
+		} catch (e) {
+			printStepFailed(String(e));
 		}
 	}
 

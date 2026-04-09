@@ -6,6 +6,14 @@ description: Stream updates from server to client using SSE middleware
 
 Server-Sent Events (SSE) provide efficient one-way streaming from server to client over HTTP. Use them for progress indicators, live feeds, notifications, and LLM response streaming.
 
+## When to Use SSE
+
+| Protocol | Best For |
+|----------|----------|
+| **SSE** | LLM streaming, progress updates, server-to-client feeds |
+| [WebSockets](/routes/websockets) | Chat, collaboration, real-time bidirectional data |
+| [WebRTC](/routes/webrtc) | Video/audio calls, P2P data transfer, low-latency gaming |
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. Import agents you need and call them directly.
 </Callout>
@@ -13,9 +21,10 @@ All routes live in `src/api/`. Import agents you need and call them directly.
 ## Basic Example
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/updates', sse(async (c, stream) => {
   await stream.write('Connected!');
@@ -37,7 +46,8 @@ export default router;
 The `sse()` middleware wraps your handler and provides the stream object:
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
 
 router.get('/path', sse(async (c, stream) => {
   // c - Route context (logger, agents, storage)
@@ -55,10 +65,11 @@ router.get('/path', sse(async (c, stream) => {
 Apply authentication or logging before streaming:
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 const authMiddleware = createMiddleware(async (c, next) => {
   const apiKey = c.req.header('X-API-Key');
@@ -130,9 +141,10 @@ source.addEventListener('complete', (e) => {
 A job progress tracker that streams status updates:
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/', sse(async (c, stream) => {
   c.var.logger.info('Client connected');
@@ -234,18 +246,23 @@ curl -N https://your-project.agentuity.cloud/agent-name
 
 Use SSE to stream AI SDK responses to clients:
 
+<Callout type="info" title="POST-based SSE">
+This example uses `router.post()` with `fetch()` on the client side, not `EventSource`. The browser's `EventSource` API only supports GET requests. Use `router.get()` with query params when you need `EventSource` compatibility.
+</Callout>
+
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
 import { streamText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.post('/chat', sse(async (c, stream) => {
   const { message } = await c.req.json();
 
   const result = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     prompt: message,
   });
 
@@ -259,26 +276,15 @@ router.post('/chat', sse(async (c, stream) => {
 export default router;
 ```
 
-## SSE vs WebSocket
-
-| Aspect | SSE | WebSocket |
-|--------|-----|-----------|
-| Direction | Server → Client only | Bidirectional |
-| Protocol | HTTP | WebSocket |
-| Reconnection | Built-in auto-reconnect | Manual |
-| Browser support | Native EventSource | Native WebSocket |
-| Best for | Progress, feeds, LLM streaming | Chat, collaboration |
-
-Use SSE when you only need to push data **from server to client**. Use [WebSockets](/routes/websockets) when you need **bidirectional** communication.
-
 ## Standalone Usage
 
 SSE handlers work without agents. This example streams build logs from storage:
 
 ```typescript
-import { createRouter, sse } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import { type Env, sse } from '@agentuity/runtime';
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/builds/:id/logs', sse(async (c, stream) => {
   const buildId = c.req.param('id');
@@ -301,4 +307,4 @@ export default router;
 
 - [WebSockets](/routes/websockets): Bidirectional real-time communication
 - [HTTP Routes](/routes/http): Standard request/response endpoints
-- [React Hooks](/frontend/react-hooks): Connect from React with `useEventStream`
+- [Frontend Utilities](/frontend/react-hooks): Connect from the browser using `EventStreamManager` from `@agentuity/frontend` or the native `EventSource` API

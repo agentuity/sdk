@@ -5,6 +5,10 @@ description: Relational database storage using Bun's native SQL APIs
 
 Store structured data with queries, joins, and transactions using [Bun's native SQL APIs](https://bun.sh/docs/runtime/sql).
 
+<Callout type="tip" title="Not inside an agent or route?">
+Use the [`@agentuity/db`](/reference/standalone-packages#database) standalone package to access this service from any Node.js or Bun app without the runtime.
+</Callout>
+
 ## When to Use Database Storage
 
 | Storage Type | Best For |
@@ -76,10 +80,11 @@ const agent = createAgent('UserQuery', {
 ## Using in Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { sql } from "bun";
 
-const router = createRouter();
+const router = new Hono<Env>();
 
 router.get('/users', async (c) => {
   const limit = parseInt(c.req.query('limit') || '10');

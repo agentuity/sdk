@@ -6,10 +6,12 @@
 		"moduleResolution": "bundler",
 		"esModuleInterop": true,
 		"skipLibCheck": true,
-		"outDir": "dist",
-		"rootDir": "src",
-		"types": ["bun"]
+		"paths": {
+			"@agents/*": ["./src/agent/*"],
+			"@test/*": ["./src/test/*"],
+			"@agentuity/frontend": ["./node_modules/@agentuity/frontend"]
+		}
 	},
-	"include": ["src"],
-	"exclude": ["node_modules", "dist", "test"]
+	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
+	"exclude": ["node_modules", ".agentuity", "test"]
 }

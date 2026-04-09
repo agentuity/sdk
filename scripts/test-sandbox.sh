@@ -681,13 +681,13 @@ else
 	fail "rm file still exists" "$RM_VERIFY"
 fi
 
-# Test: Remove non-existent file (should fail gracefully)
+# Test: Remove non-existent file (idempotent - succeeds with warning)
 info "Test: sandbox fs rm - non-existent file"
 RM_NOFILE=$($CLI cloud sandbox fs rm "$SANDBOX_ID" /home/agentuity/nonexistent.txt 2>&1) || true
-if echo "$RM_NOFILE" | grep -qi "not found\|error\|fail"; then
-	pass "sandbox fs rm reports error for non-existent file"
+if echo "$RM_NOFILE" | grep -qi "not found"; then
+	pass "sandbox fs rm warns file not found for non-existent file"
 else
-	fail "sandbox fs rm did not report error for non-existent file" "$RM_NOFILE"
+	fail "sandbox fs rm did not warn about non-existent file" "$RM_NOFILE"
 fi
 
 # Test: rm on directory should fail (use rmdir instead)
@@ -1548,11 +1548,11 @@ else
 	fail "snapshot build --public did not detect malware" "$MALWARE_BUILD"
 fi
 
-# Verify exit code is 10 (SECURITY_ERROR)
-if [ "$MALWARE_EXIT" -eq 10 ]; then
-	pass "snapshot build --public with malware exits with code 10 (SECURITY_ERROR)"
+# Verify exit code is 18 (SECURITY_ERROR)
+if [ "$MALWARE_EXIT" -eq 18 ]; then
+	pass "snapshot build --public with malware exits with code 18 (SECURITY_ERROR)"
 else
-	fail "snapshot build --public with malware should exit with code 10, got $MALWARE_EXIT" ""
+	fail "snapshot build --public with malware should exit with code 18, got $MALWARE_EXIT" ""
 fi
 
 # Verify error box mentions virus name
@@ -1590,11 +1590,11 @@ else
 	fail "snapshot build --public --json missing error field" "$MALWARE_JSON"
 fi
 
-# Verify JSON exit code is 1 (JSON mode uses exit 1)
-if [ "$MALWARE_JSON_EXIT" -eq 1 ]; then
-	pass "snapshot build --public --json with malware exits with code 1"
+# Verify JSON exit code is 18 (SECURITY_ERROR)
+if [ "$MALWARE_JSON_EXIT" -eq 18 ]; then
+	pass "snapshot build --public --json with malware exits with code 18 (SECURITY_ERROR)"
 else
-	fail "snapshot build --public --json with malware should exit with code 1, got $MALWARE_JSON_EXIT" ""
+	fail "snapshot build --public --json with malware should exit with code 18, got $MALWARE_JSON_EXIT" ""
 fi
 
 # Test: Clean public snapshot succeeds

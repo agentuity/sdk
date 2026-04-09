@@ -102,6 +102,12 @@ export const SandboxCreateRequestSchema = z
 			.record(z.string(), z.unknown())
 			.optional()
 			.describe('Optional user-defined metadata to associate with the sandbox'),
+		scopes: z
+			.array(z.string())
+			.optional()
+			.describe(
+				'Permission scopes for automatic service access (e.g., "services:read", "services:write").'
+			),
 	})
 	.refine(
 		(data) => {
@@ -229,6 +235,9 @@ export async function sandboxCreate(
 	}
 	if (options.metadata) {
 		body.metadata = options.metadata;
+	}
+	if (options.scopes && options.scopes.length > 0) {
+		body.scopes = options.scopes;
 	}
 
 	const queryParams = new URLSearchParams();

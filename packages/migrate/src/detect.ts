@@ -59,6 +59,8 @@ export interface DetectionResult {
 	bootstrapCallInAppTs: boolean;
 	/** Whether frontend code uses removed APIs */
 	frontendRemovedApis: FrontendFinding[];
+	/** @agentuity/* packages that need version upgrade to ^2.0.0 */
+	outdatedPackages: OutdatedPackage[];
 }
 
 export interface FrontendFinding {
@@ -66,6 +68,13 @@ export interface FrontendFinding {
 	apis: string[];
 	/** APIs that are deprecated (still work but should migrate away) */
 	deprecatedApis?: string[];
+}
+
+/** Outdated @agentuity/* package that needs version update */
+export interface OutdatedPackage {
+	name: string;
+	currentVersion: string;
+	section: 'dependencies' | 'devDependencies';
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +345,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 		shutdownInCreateApp: false,
 		bootstrapCallInAppTs: false,
 		frontendRemovedApis: [],
+		outdatedPackages: [],
 	};
 
 	// ── 1. src/generated/ ───────────────────────────────────────────────────
@@ -378,7 +388,7 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				file: 'app.ts',
 				hint:
 					'Move initialisation logic to module-level top-of-file code in app.ts. ' +
-					'If you need shutdown cleanup, call registerShutdownHook() from @agentuity/runtime.',
+					"For cleanup, use Hono's standard patterns or Bun's process hooks (e.g., process.on('beforeExit', ...)).",
 			});
 		}
 
@@ -390,8 +400,8 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				message: 'createApp({ shutdown }) — shutdown() lifecycle removed in v2',
 				file: 'app.ts',
 				hint:
-					'Replace with registerShutdownHook(() => { /* your cleanup */ }) from @agentuity/runtime. ' +
-					'Shutdown hooks are called LIFO on SIGTERM/SIGINT.',
+					"Use Hono's standard patterns or Bun's process hooks for cleanup " +
+					"(e.g., process.on('beforeExit', async () => { /* cleanup */ })).",
 			});
 		}
 
@@ -477,11 +487,20 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 					'  // vite.config.ts\n' +
 					"  import { defineConfig } from 'vite';\n" +
 					"  import react from '@vitejs/plugin-react';\n" +
+					"  import { join } from 'node:path';\n" +
 					'\n' +
 					'  export default defineConfig({\n' +
 					'    plugins: [react()],\n' +
 					"    define: { CUSTOM: JSON.stringify('value') },\n" +
+					'    build: {\n' +
+					'      rollupOptions: {\n' +
+					"        input: join(import.meta.dirname, 'src/web/index.html'),\n" +
+					'      },\n' +
+					'    },\n' +
 					'  });\n' +
+					'\n' +
+					'The build.rollupOptions.input is required so Vite finds your\n' +
+					'HTML entry point at src/web/index.html.\n' +
 					'\n' +
 					'After creating vite.config.ts, delete agentuity.config.ts.',
 			});
@@ -623,6 +642,65 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 		}
 	}
 
+	// ── 7a. Outdated @agentuity/* packages ──────────────────────────────────
+	const packageJsonPath = join(absDir, 'package.json');
+	if (existsSync(packageJsonPath)) {
+		try {
+			const packageJson = JSON.parse(await Bun.file(packageJsonPath).text());
+			const outdatedPackages: OutdatedPackage[] = [];
+
+			// Check both dependencies and devDependencies
+			for (const section of ['dependencies', 'devDependencies'] as const) {
+				const deps = packageJson[section];
+				if (!deps || typeof deps !== 'object') continue;
+
+				for (const [name, version] of Object.entries(deps)) {
+					// Only check @agentuity/* packages
+					if (!name.startsWith('@agentuity/')) continue;
+
+					const versionStr = String(version);
+
+					// Check if version needs updating:
+					// - "latest" tag → needs update
+					// - v1.x.x versions (e.g., "^1.0.60", "1.0.0") → needs update
+					// - Already v2 (e.g., "^2.0.0") → skip
+					const needsUpdate =
+						versionStr === 'latest' ||
+						versionStr === '*' ||
+						/^[~^]?1\./.test(versionStr) ||
+						/^1\./.test(versionStr);
+
+					if (needsUpdate) {
+						outdatedPackages.push({
+							name,
+							currentVersion: versionStr,
+							section,
+						});
+					}
+				}
+			}
+
+			result.outdatedPackages = outdatedPackages;
+
+			if (outdatedPackages.length > 0) {
+				const packageList = outdatedPackages
+					.map((p) => `${p.name}@${p.currentVersion}`)
+					.join(', ');
+				findings.push({
+					id: 'outdated-agentuity-packages',
+					severity: 'auto',
+					message: `Outdated @agentuity/* packages: ${packageList}`,
+					file: 'package.json',
+					hint:
+						'Will be updated to ^2.0.0.\n' +
+						'All @agentuity/* packages must be on v2 for the migration to work correctly.',
+				});
+			}
+		} catch {
+			// Ignore parse errors
+		}
+	}
+
 	// ── 7b. Hono RPC recommendation (whenever routes exist) ─────────────────
 	// Fire this as a "guided" finding whenever there are any API routes,
 	// regardless of whether the frontend already uses removed APIs.
@@ -643,14 +721,21 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 			severity: 'guided',
 			message: 'No vite.config.ts found - frontend requires Vite configuration',
 			hint:
-				'Create vite.config.ts with your frontend framework plugin:\n' +
+				'Create vite.config.ts with your frontend framework plugin.\n' +
+				'The build.rollupOptions.input must point to src/web/index.html:\n' +
 				'\n' +
 				'  // vite.config.ts\n' +
 				"  import { defineConfig } from 'vite';\n" +
 				"  import react from '@vitejs/plugin-react';\n" +
+				"  import { join } from 'node:path';\n" +
 				'\n' +
 				'  export default defineConfig({\n' +
 				'    plugins: [react()],\n' +
+				'    build: {\n' +
+				'      rollupOptions: {\n' +
+				"        input: join(import.meta.dirname, 'src/web/index.html'),\n" +
+				'      },\n' +
+				'    },\n' +
 				'  });\n' +
 				'\n' +
 				'For other frameworks:\n' +
@@ -658,6 +743,37 @@ export async function detect(projectDir: string): Promise<DetectionResult> {
 				"  • Vue: import vue from '@vitejs/plugin-vue'\n" +
 				"  • Solid: import solid from 'vite-plugin-solid'",
 		});
+	}
+
+	// If vite.config.ts exists but is missing build.rollupOptions.input, warn about it
+	if (hasFrontend && hasViteConfig) {
+		const viteSrc = await Bun.file(viteConfigPath).text();
+		if (
+			!viteSrc.includes('rollupOptions') ||
+			!viteSrc.includes('input') ||
+			!viteSrc.includes('src/web/index.html')
+		) {
+			findings.push({
+				id: 'vite-config-missing-rollup-input',
+				severity: 'guided',
+				message: 'vite.config.ts may be missing build.rollupOptions.input',
+				file: 'vite.config.ts',
+				hint:
+					'Agentuity expects the HTML entry point at src/web/index.html.\n' +
+					'Add build.rollupOptions.input to your vite.config.ts:\n' +
+					'\n' +
+					"  import { join } from 'node:path';\n" +
+					'\n' +
+					'  export default defineConfig({\n' +
+					'    // ...your existing config\n' +
+					'    build: {\n' +
+					'      rollupOptions: {\n' +
+					"        input: join(import.meta.dirname, 'src/web/index.html'),\n" +
+					'      },\n' +
+					'    },\n' +
+					'  });',
+			});
+		}
 	}
 
 	if (hasApiRoutes && hasFrontend && result.frontendRemovedApis.length === 0) {

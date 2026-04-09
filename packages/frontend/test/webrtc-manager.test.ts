@@ -1,4 +1,4 @@
-import { test, expect } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { WebRTCManager } from '../src/webrtc-manager';
 
 type PartialStats = Record<string, unknown> & { id: string; type: string };
@@ -9,6 +9,59 @@ function createStatsReport(reports: PartialStats[]): RTCStatsReport {
 		map.set(report.id, report);
 	}
 	return map as unknown as RTCStatsReport;
+}
+
+class MockRTCPeerConnection {
+	constructor(_configuration?: RTCConfiguration) {}
+
+	ontrack: ((event: RTCTrackEvent) => void) | null = null;
+	ondatachannel: ((event: RTCDataChannelEvent) => void) | null = null;
+	onicecandidate: ((event: RTCPeerConnectionIceEvent) => void) | null = null;
+	onnegotiationneeded: ((event: Event) => void | Promise<void>) | null = null;
+	oniceconnectionstatechange: (() => void) | null = null;
+	iceConnectionState: RTCIceConnectionState = 'new';
+	signalingState: RTCSignalingState = 'stable';
+	localDescription: RTCSessionDescriptionInit | null = null;
+	remoteDescription: RTCSessionDescriptionInit | null = null;
+	setLocalDescriptionCalls = 0;
+
+	addTrack(): RTCRtpSender {
+		throw new Error('Unexpected addTrack call in test');
+	}
+
+	createDataChannel(): RTCDataChannel {
+		throw new Error('Unexpected createDataChannel call in test');
+	}
+
+	async createOffer(): Promise<RTCSessionDescriptionInit> {
+		return { type: 'offer', sdp: 'mock-offer' };
+	}
+
+	async setLocalDescription(description?: RTCLocalSessionDescriptionInit): Promise<void> {
+		this.setLocalDescriptionCalls += 1;
+		this.localDescription = description
+			? {
+					type: description.type ?? 'offer',
+					sdp: description.sdp ?? 'mock-offer',
+				}
+			: { type: 'offer', sdp: 'mock-offer' };
+	}
+
+	async setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
+		this.remoteDescription = description;
+	}
+
+	async addIceCandidate(): Promise<void> {}
+
+	async getStats(): Promise<RTCStatsReport> {
+		return createStatsReport([]);
+	}
+
+	getSenders(): RTCRtpSender[] {
+		return [];
+	}
+
+	close(): void {}
 }
 
 test('getQualitySummary returns expected shape', async () => {
@@ -131,4 +184,66 @@ test('bitrate calculation uses previous stats snapshot', () => {
 	} finally {
 		Date.now = originalNow;
 	}
+});
+
+describe('WebRTCManager negotiation', () => {
+	let originalRTCPeerConnection: typeof RTCPeerConnection | undefined;
+
+	beforeEach(() => {
+		originalRTCPeerConnection = globalThis.RTCPeerConnection;
+		Object.defineProperty(globalThis, 'RTCPeerConnection', {
+			configurable: true,
+			writable: true,
+			value: MockRTCPeerConnection,
+		});
+	});
+
+	afterEach(() => {
+		Object.defineProperty(globalThis, 'RTCPeerConnection', {
+			configurable: true,
+			writable: true,
+			value: originalRTCPeerConnection,
+		});
+	});
+
+	test('onnegotiationneeded skips duplicate offers while unstable or already making one', async () => {
+		const manager = new WebRTCManager({ signalUrl: 'ws://localhost', roomId: 'test' });
+		const testManager = manager as unknown as {
+			peerId: string;
+			createPeerSession: (
+				remotePeerId: string,
+				isOfferer: boolean
+			) => Promise<{
+				pc: MockRTCPeerConnection;
+				hasRemoteDescription: boolean;
+				negotiationStarted: boolean;
+				makingOffer: boolean;
+			}>;
+		};
+
+		testManager.peerId = 'peer-self';
+
+		const session = await testManager.createPeerSession('peer-remote', false);
+		session.hasRemoteDescription = true;
+		session.negotiationStarted = true;
+
+		if (!session.pc.onnegotiationneeded) {
+			throw new Error('Expected negotiationneeded handler to be registered');
+		}
+
+		session.makingOffer = true;
+		await session.pc.onnegotiationneeded(new Event('negotiationneeded'));
+		expect(session.pc.setLocalDescriptionCalls).toBe(0);
+
+		session.makingOffer = false;
+		session.pc.signalingState = 'have-local-offer';
+		await session.pc.onnegotiationneeded(new Event('negotiationneeded'));
+		expect(session.pc.setLocalDescriptionCalls).toBe(0);
+
+		session.pc.signalingState = 'stable';
+		await session.pc.onnegotiationneeded(new Event('negotiationneeded'));
+		expect(session.pc.setLocalDescriptionCalls).toBe(1);
+
+		manager.dispose();
+	});
 });

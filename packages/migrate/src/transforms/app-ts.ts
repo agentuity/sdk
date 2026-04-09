@@ -123,10 +123,9 @@ export function transformAppTs(source: string, detection: DetectionResult): AppT
 			`// ⚠️  MIGRATION REQUIRED — setup/shutdown removed in v2\n` +
 			`//\n` +
 			`// Move initialisation logic to module-level code (top of this file).\n` +
-			`// Replace shutdown() with registerShutdownHook() from @agentuity/runtime:\n` +
+			`// For cleanup, use Hono's standard patterns or Bun's process hooks:\n` +
 			`//\n` +
-			`//   import { registerShutdownHook } from '@agentuity/runtime';\n` +
-			`//   registerShutdownHook(async () => {\n` +
+			`//   process.on('beforeExit', async () => {\n` +
 			`//     // your cleanup here\n` +
 			`//   });\n` +
 			`//\n` +

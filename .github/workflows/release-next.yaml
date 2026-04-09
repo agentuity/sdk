@@ -1,0 +1,175 @@
+name: Release to npm (next)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write # Required for npm Trusted Publishers (OIDC)
+
+concurrency:
+  group: release-next-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  CI: true
+  NODE_ENV: production
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 15
+    env:
+      AGENTUITY_API_URL: https://api.agentuity.com
+      AGENTUITY_APP_URL: https://app.agentuity.com
+      AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
+      AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
+      AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
+      AGENTUITY_KEYVALUE_URL: https://catalyst-usc.agentuity.cloud
+      AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
+      AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
+      AGENTUITY_LOG_LEVEL: info
+      AGENTUITY_REGION: usc
+      AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup test credentials
+        run: |
+          set -euo pipefail
+          APIKEY=$(curl --fail --silent --show-error \
+            "$AGENTUITY_API_URL/cli/auth/short-token" \
+            -H 'Content-Type: application/json' \
+            --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" \
+            | jq -er '.data.apiKey')
+          echo "::add-mask::${APIKEY}"
+          echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+      - name: Build
+        run: bun run build
+
+      - name: Format check
+        run: bun format
+
+      - name: Lint
+        run: bun lint
+
+      - name: Typecheck
+        run: bun typecheck
+
+      - name: Unit tests
+        run: bun run test:unit
+
+  release:
+    name: Release to npm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup Node.js for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Build packages
+        run: bun run build:packages
+
+      # Build additional packages not covered by build:packages
+      - name: Build remaining packages
+        run: |
+          bun run --filter='./packages/claude-code' build
+          bun run --filter='./packages/coder' build
+          bun run --filter='./packages/coder-tui' build
+          bun run --filter='./packages/db' build
+          bun run --filter='./packages/email' build
+          bun run --filter='./packages/keyvalue' build
+          bun run --filter='./packages/migrate' build
+          bun run --filter='./packages/queue' build
+          bun run --filter='./packages/sandbox' build
+          bun run --filter='./packages/schedule' build
+          bun run --filter='./packages/task' build
+          bun run --filter='./packages/vector' build
+          bun run --filter='./packages/webhook' build
+
+      - name: Publish packages
+        run: |
+          set -euo pipefail
+
+          # Packages in dependency order (core first)
+          PACKAGES=(
+            "packages/core"
+            "packages/postgres"
+            "packages/claude-code"
+            "packages/coder"
+            "packages/coder-tui"
+            "packages/frontend"
+            "packages/schema"
+            "packages/server"
+            "packages/queue"
+            "packages/vector"
+            "packages/migrate"
+            "packages/opencode"
+            "packages/runtime"
+            "packages/drizzle"
+            "packages/schedule"
+            "packages/sandbox"
+            "packages/task"
+            "packages/auth"
+            "packages/evals"
+            "packages/webhook"
+            "packages/keyvalue"
+            "packages/email"
+            "packages/react"
+            "packages/cli"
+            "packages/workbench"
+            "packages/db"
+          )
+
+          for pkg_path in "${PACKAGES[@]}"; do
+            pkg_name=$(jq -r .name "$pkg_path/package.json")
+            pkg_version=$(jq -r .version "$pkg_path/package.json")
+
+            echo "Publishing $pkg_name@$pkg_version with tag 'next'..."
+
+            # Check if version already exists
+            if npm view "$pkg_name@$pkg_version" version 2>/dev/null; then
+              echo "  Version already published, skipping"
+              continue
+            fi
+
+            (cd "$pkg_path" && npm publish --tag next --access public)
+          done
+        # Uses npm Trusted Publishers (OIDC) - no token needed
+        # Requires: GitHub-hosted runner + Node 24+ (npm v11.x+)
+        # Provenance is automatically generated for GitHub Actions
+        # Configure on npm: https://docs.npmjs.com/trusted-publishers
+
+      - name: Summary
+        run: |
+          VERSION=$(jq -r .version package.json)
+          echo "## 📦 Released to npm" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`next\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Install with:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @agentuity/core@next" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
