@@ -46,8 +46,8 @@ function makeCustomAgent(overrides: Record<string, unknown> = {}) {
 		description: 'Review changes for regressions',
 		instructions: 'Focus on correctness, regressions, and missing tests.',
 		headlessCompatible: true,
-		piTools: ['read', 'grep', 'ls'],
-		hubToolNames: ['session_todo_list', 'session_todo_update'],
+		tools: ['read', 'grep', 'ls'],
+		serviceTools: ['session_todo_list', 'session_todo_update'],
 		companionAgents: [],
 		savedSkills: [],
 		...overrides,
@@ -389,8 +389,8 @@ describe('CoderClient custom agent helpers', () => {
 				slug: 'code-review',
 				displayName: 'Code Review',
 				instructions: 'Focus on correctness, regressions, and missing tests.',
-				piTools: ['read', 'grep', 'ls'],
-				hubToolNames: ['session_todo_list', 'session_todo_update'],
+				tools: ['read', 'grep', 'ls'],
+				serviceTools: ['session_todo_list', 'session_todo_update'],
 				savedSkillIds: ['saved_1'],
 			})
 		).resolves.toMatchObject({
@@ -428,8 +428,8 @@ describe('CoderClient custom agent helpers', () => {
 				JSON.stringify({
 					agents: [
 						makeCustomAgent({
-							piTools: ['read', 'future_pi_tool'],
-							hubToolNames: ['session_todo_list', 'future_hub_tool'],
+							tools: ['read', 'future_pi_tool'],
+							serviceTools: ['session_todo_list', 'future_hub_tool'],
 						}),
 					],
 				}),
@@ -447,8 +447,8 @@ describe('CoderClient custom agent helpers', () => {
 		});
 
 		const response = await client.listCustomAgents();
-		expect(response.agents[0]?.piTools).toEqual(['read', 'future_pi_tool']);
-		expect(response.agents[0]?.hubToolNames).toEqual(['session_todo_list', 'future_hub_tool']);
+		expect(response.agents[0]?.tools).toEqual(['read', 'future_pi_tool']);
+		expect(response.agents[0]?.serviceTools).toEqual(['session_todo_list', 'future_hub_tool']);
 	});
 
 	test('listCustomAgents defaults missing companionAgents to an empty array', async () => {

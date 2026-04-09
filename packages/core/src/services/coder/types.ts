@@ -133,7 +133,7 @@ export const CoderCustomAgentThinkingLevelSchema = z
 	.describe('Thinking level override for a custom agent');
 export type CoderCustomAgentThinkingLevel = z.infer<typeof CoderCustomAgentThinkingLevelSchema>;
 
-export const CODER_CUSTOM_AGENT_PI_TOOLS = [
+export const CODER_CUSTOM_AGENT_TOOLS = [
 	'read',
 	'ls',
 	'find',
@@ -143,17 +143,17 @@ export const CODER_CUSTOM_AGENT_PI_TOOLS = [
 	'edit',
 ] as const;
 
-export const CoderCustomAgentPiToolSchema = z
-	.enum(CODER_CUSTOM_AGENT_PI_TOOLS)
+export const CoderCustomAgentToolSchema = z
+	.enum(CODER_CUSTOM_AGENT_TOOLS)
 	.describe('Workspace tool available to a standalone custom agent');
-export type CoderCustomAgentPiTool = z.infer<typeof CoderCustomAgentPiToolSchema>;
+export type CoderCustomAgentTool = z.infer<typeof CoderCustomAgentToolSchema>;
 
-export const CoderCustomAgentPiToolResponseSchema = z
-	.union([CoderCustomAgentPiToolSchema, z.string()])
-	.describe('Pi workspace tool granted to a standalone custom agent');
-export type CoderCustomAgentPiToolResponse = z.infer<typeof CoderCustomAgentPiToolResponseSchema>;
+export const CoderCustomAgentToolResponseSchema = z
+	.union([CoderCustomAgentToolSchema, z.string()])
+	.describe('Workspace tool granted to a standalone custom agent');
+export type CoderCustomAgentToolResponse = z.infer<typeof CoderCustomAgentToolResponseSchema>;
 
-export const CODER_CUSTOM_AGENT_HUB_TOOLS = [
+export const CODER_CUSTOM_AGENT_SERVICE_TOOLS = [
 	'session_dashboard',
 	'memory_service_search',
 	'memory_service_store',
@@ -198,15 +198,17 @@ export const CODER_CUSTOM_AGENT_HUB_TOOLS = [
 	'coord_spawn_workers',
 ] as const;
 
-export const CoderCustomAgentHubToolSchema = z
-	.enum(CODER_CUSTOM_AGENT_HUB_TOOLS)
-	.describe('Hub-managed tool available to a standalone custom agent');
-export type CoderCustomAgentHubTool = z.infer<typeof CoderCustomAgentHubToolSchema>;
+export const CoderCustomAgentServiceToolSchema = z
+	.enum(CODER_CUSTOM_AGENT_SERVICE_TOOLS)
+	.describe('Service tool available to a standalone custom agent');
+export type CoderCustomAgentServiceTool = z.infer<typeof CoderCustomAgentServiceToolSchema>;
 
-export const CoderCustomAgentHubToolResponseSchema = z
-	.union([CoderCustomAgentHubToolSchema, z.string()])
-	.describe('Hub-managed tool granted to a standalone custom agent');
-export type CoderCustomAgentHubToolResponse = z.infer<typeof CoderCustomAgentHubToolResponseSchema>;
+export const CoderCustomAgentServiceToolResponseSchema = z
+	.union([CoderCustomAgentServiceToolSchema, z.string()])
+	.describe('Service tool granted to a standalone custom agent');
+export type CoderCustomAgentServiceToolResponse = z.infer<
+	typeof CoderCustomAgentServiceToolResponseSchema
+>;
 
 export const CoderCustomAgentSnapshotSchema = z
 	.object({
@@ -221,12 +223,12 @@ export const CoderCustomAgentSnapshotSchema = z
 		headlessCompatible: z
 			.boolean()
 			.describe('Whether the custom agent is safe for non-interactive callers'),
-		piTools: z
-			.array(CoderCustomAgentPiToolResponseSchema)
-			.describe('Pi workspace tools granted to the custom agent'),
-		hubToolNames: z
-			.array(CoderCustomAgentHubToolResponseSchema)
-			.describe('Hub-managed tools granted to the custom agent'),
+		tools: z
+			.array(CoderCustomAgentToolResponseSchema)
+			.describe('Workspace tools granted to the custom agent'),
+		serviceTools: z
+			.array(CoderCustomAgentServiceToolResponseSchema)
+			.describe('Service tools granted to the custom agent'),
 		savedSkills: z
 			.array(CoderSkillRefSchema)
 			.describe('Frozen saved-skill refs attached to the custom agent snapshot'),
@@ -347,14 +349,14 @@ export const CoderCreateCustomAgentRequestSchema = z
 			.boolean()
 			.optional()
 			.describe('Whether the custom agent is safe for non-interactive callers'),
-		piTools: z
-			.array(CoderCustomAgentPiToolSchema)
+		tools: z
+			.array(CoderCustomAgentToolSchema)
 			.optional()
-			.describe('Pi workspace tools to grant to the custom agent'),
-		hubToolNames: z
-			.array(CoderCustomAgentHubToolSchema)
+			.describe('Workspace tools to grant to the custom agent'),
+		serviceTools: z
+			.array(CoderCustomAgentServiceToolSchema)
 			.optional()
-			.describe('Hub-managed tools to grant to the custom agent'),
+			.describe('Service tools to grant to the custom agent'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
@@ -381,14 +383,14 @@ export const CoderUpdateCustomAgentRequestSchema = z
 			.boolean()
 			.optional()
 			.describe('Whether the custom agent is safe for non-interactive callers'),
-		piTools: z
-			.array(CoderCustomAgentPiToolSchema)
+		tools: z
+			.array(CoderCustomAgentToolSchema)
 			.optional()
-			.describe('Pi workspace tools to grant to the custom agent'),
-		hubToolNames: z
-			.array(CoderCustomAgentHubToolSchema)
+			.describe('Workspace tools to grant to the custom agent'),
+		serviceTools: z
+			.array(CoderCustomAgentServiceToolSchema)
 			.optional()
-			.describe('Hub-managed tools to grant to the custom agent'),
+			.describe('Service tools to grant to the custom agent'),
 		savedSkillIds: z
 			.array(z.string())
 			.optional()
