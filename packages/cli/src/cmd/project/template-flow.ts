@@ -1,3 +1,10 @@
+/**
+ * Project creation flow — framework-first scaffolding.
+ *
+ * Instead of custom Agentuity templates, the user picks a framework
+ * and we run its official create CLI, then augment with Agentuity integration.
+ */
+
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, resolve } from 'node:path';
@@ -38,16 +45,14 @@ import {
 	printIntegrationExamples,
 	runAuthMigrations,
 } from './auth/shared';
-import { downloadTemplate, initGitRepo, setupProject } from './download';
-import { fetchTemplates, type TemplateInfo } from './templates';
+import { scaffoldFramework, setupProject, initGitRepo } from './scaffold';
+import { frameworkCatalog, type FrameworkScaffold } from './frameworks';
 
 interface CreateFlowOptions {
 	projectName?: string;
 	dir?: string;
 	domains?: string[];
-	template?: string;
-	templateDir?: string;
-	templateBranch?: string;
+	framework?: string;
 	noInstall: boolean;
 	noBuild: boolean;
 	skipPrompts: boolean;
@@ -67,7 +72,7 @@ export interface CreateFlowResult {
 	orgId?: string;
 	name: string;
 	path: string;
-	template: string;
+	framework: string;
 	installed: boolean;
 	built: boolean;
 	domains?: string[];
@@ -79,9 +84,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	const {
 		projectName: initialProjectName,
 		dir: targetDir,
-		template: initialTemplate,
-		templateDir,
-		templateBranch,
+		framework: initialFramework,
 		skipPrompts,
 		logger,
 		auth,
@@ -97,26 +100,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 
 	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
 	const isInteractive = !skipPrompts && !isHeadless;
-
-	// Fetch available templates
-	if (templateDir) {
-		tui.info(`📋 Loading templates from local directory: ${templateDir}...\n`);
-	}
-
-	const templates = await tui.spinner({
-		message: 'Fetching templates',
-		clearOnSuccess: true,
-		callback: async () => {
-			return fetchTemplates(logger, templateDir, templateBranch);
-		},
-	});
-
-	if (templates.length === 0) {
-		logger.fatal('No templates available', ErrorCode.RESOURCE_NOT_FOUND);
-	}
-
-	// Get project name
-	let projectName = initialProjectName;
 
 	// Organization is now automatically selected by the CLI framework via optional: { org: true }
 	const orgId = selectedOrgId;
@@ -134,6 +117,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	if (isInteractive) {
 		prompt.intro('Create Agentuity Project');
 	}
+
+	// Step 1: Get project name
+	let projectName = initialProjectName;
 
 	if (!projectName && isInteractive) {
 		projectName = await prompt.text({
@@ -157,13 +143,12 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			},
 		});
 	}
-	projectName = projectName || 'My First Agent';
+	projectName = projectName || 'My First App';
 
 	// Generate disk-friendly directory name
 	const dirName = projectName === '.' ? '.' : sanitizeDirectoryName(projectName);
 
 	// Determine destination directory
-	// Expand ~ to home directory
 	let expandedTargetDir = targetDir;
 	if (expandedTargetDir?.startsWith('~')) {
 		expandedTargetDir = expandedTargetDir.replace(/^~/, homedir());
@@ -175,7 +160,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	const destEmpty = destIsDir ? readdirSync(dest).length === 0 : !destExists;
 
 	if (destExists && !destEmpty && dirName !== '.') {
-		// In interactive mode, ask if they want to overwrite
 		if (isInteractive) {
 			tui.warning(`Directory ${dest} already exists and is not empty.`, true);
 			console.log(tui.tuiColors.secondary('│'));
@@ -189,7 +173,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 				process.exit(0);
 			}
 
-			// Extra safety: refuse to delete root or home directories
 			const home = homedir();
 			if (dest === '/' || dest === home) {
 				logger.fatal(`Refusing to delete protected path: ${dest}`, ErrorCode.VALIDATION_FAILED);
@@ -206,83 +189,90 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Step 5: Select template
-	let selectedTemplate: TemplateInfo;
-	if (initialTemplate) {
-		const found = templates.find((t) => t.id === initialTemplate);
+	// Step 2: Select framework
+	let selectedFramework: FrameworkScaffold;
+	if (initialFramework) {
+		const found = frameworkCatalog.find((f) => f.slug === initialFramework);
 		if (!found) {
-			const availableTemplates = templates
-				.map((t) => `  - ${t.id.padEnd(20)} ${t.description}`)
+			const available = frameworkCatalog
+				.map((f) => `  - ${f.slug.padEnd(15)} ${f.description}`)
 				.join('\n');
 			logger.fatal(
-				`Template "${initialTemplate}" not found\n\nAvailable templates:\n${availableTemplates}`,
+				`Framework "${initialFramework}" not found\n\nAvailable frameworks:\n${available}`,
 				ErrorCode.RESOURCE_NOT_FOUND
 			);
 			return undefined as never;
 		}
-		selectedTemplate = found;
-	} else if (!isInteractive || templates.length === 1) {
-		const firstTemplate = templates[0];
-		if (!firstTemplate) {
-			logger.fatal('No templates available', ErrorCode.RESOURCE_NOT_FOUND);
+		selectedFramework = found;
+	} else if (!isInteractive || frameworkCatalog.length === 1) {
+		const firstFramework = frameworkCatalog[0];
+		if (!firstFramework) {
+			logger.fatal('No frameworks available', ErrorCode.RESOURCE_NOT_FOUND);
 			return undefined as never;
 		}
-		selectedTemplate = firstTemplate;
+		selectedFramework = firstFramework;
 	} else {
 		let maxLength = 15;
-		templates.forEach((t) => {
-			if (maxLength < t.name.length) {
-				maxLength = t.name.length;
+		frameworkCatalog.forEach((f) => {
+			if (maxLength < f.name.length) {
+				maxLength = f.name.length;
 			}
 		});
 		maxLength = Math.min(maxLength + 1, 40);
 		const [_winWidth] = process.stdout.getWindowSize();
-		const winWidth = _winWidth - maxLength - 8; // space for the name and left indent
-		const templateId = await prompt.select({
-			message: 'Select a template:',
-			options: templates.map((t) => ({
-				value: t.id,
-				label: t.name.padEnd(maxLength),
+		const winWidth = _winWidth - maxLength - 8;
+		const frameworkId = await prompt.select({
+			message: 'Select a framework:',
+			options: frameworkCatalog.map((f) => ({
+				value: f.slug,
+				label: f.name.padEnd(maxLength),
 				hint:
-					t.description.length > winWidth
-						? t.description.substring(0, winWidth - 3) + '...'
-						: t.description,
+					f.description.length > winWidth
+						? f.description.substring(0, winWidth - 3) + '...'
+						: f.description,
 			})),
 		});
-		const found = templates.find((t) => t.id === templateId);
+		const found = frameworkCatalog.find((f) => f.slug === frameworkId);
 		if (!found) {
-			logger.fatal('Template selection failed', ErrorCode.USER_CANCELLED);
+			logger.fatal('Framework selection failed', ErrorCode.USER_CANCELLED);
 			return undefined as never;
 		}
-		selectedTemplate = found;
+		selectedFramework = found;
 	}
 
-	// Download template
-	await downloadTemplate({
+	// Step 3: Ask about AI example
+	let includeAiExample = true;
+	if (isInteractive && selectedFramework.aiExample) {
+		includeAiExample = await prompt.confirm({
+			message: 'Include an AI example? (OpenAI API route)',
+			initial: true,
+		});
+	}
+
+	// Step 4: Scaffold the framework
+	await scaffoldFramework({
 		dest,
-		template: selectedTemplate,
-		templateDir,
-		templateBranch,
+		dirName,
+		framework: selectedFramework,
+		includeAiExample,
 		logger,
 	});
 
-	// Setup project (replace placeholders, install deps, build)
+	// Step 5: Setup project (install deps)
 	const setupResult = await setupProject({
 		dest,
 		projectName: projectName === '.' ? basename(dest) : projectName,
-		dirName: dirName === '.' ? basename(dest) : dirName,
 		noInstall: options.noInstall,
-		noBuild: options.noBuild,
 		logger,
 	});
 
-	// If setup failed, skip resource prompts and registration - just show error and return
+	// If setup failed, skip resource prompts and registration
 	if (!setupResult.success) {
 		tui.warning('Project setup failed. Skipping resource configuration.');
 		return {
 			name: projectName,
 			path: dest,
-			template: selectedTemplate.id,
+			framework: selectedFramework.slug,
 			installed: !options.noInstall,
 			built: false,
 			success: false,
@@ -290,9 +280,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		};
 	}
 
-	// Add separator bar if we're going to show resource prompts
+	// ─── Resource provisioning (DB, storage, auth, DNS) ─────────────────────
+	// This section is unchanged from the original flow.
+
 	const canProvision = auth && apiClient && catalystClient && orgId && region;
-	// Only count as resource flags if actually requesting provisioning (not explicit skip)
 	const hasResourceFlags =
 		(databaseOption !== undefined && databaseOption.toLowerCase() !== 'skip') ||
 		(storageOption !== undefined && storageOption.toLowerCase() !== 'skip');
@@ -305,7 +296,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	let _domains = domains;
 	const resourceEnvVars: EnvVars = {};
 
-	// Validate that resource flags require authentication and registration
 	if (hasResourceFlags && !canProvision) {
 		logger.fatal(
 			'Cannot provision database/storage without being authenticated and registering the project.\n' +
@@ -314,7 +304,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		);
 	}
 
-	// Validate that --enable-auth requires authentication and registration
 	if (enableAuthOption && !canProvision) {
 		logger.fatal(
 			'Cannot enable Agentuity Auth without being authenticated and registering the project.\n' +
@@ -324,7 +313,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	}
 
 	if (canProvision) {
-		// Fetch resources for selected org and region using Catalyst API (needed for both interactive and CLI flags)
 		let resources: Awaited<ReturnType<typeof listResources>> | undefined;
 
 		const needResources =
@@ -340,26 +328,19 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					return listResources(catalystClient!, orgId!, region!);
 				},
 			});
-			// Log sanitized summary (avoid exposing DATABASE_URL, tokens, secrets)
 			logger.debug(
 				`Resources for org ${orgId} in region ${region}: ${resources.db.length} databases, ${resources.s3.length} storage buckets`
 			);
-			logger.debug(`Database names: ${resources.db.map((d) => d.name).join(', ') || '(none)'}`);
-			logger.debug(
-				`Storage buckets: ${resources.s3.map((b) => b.bucket_name).join(', ') || '(none)'}`
-			);
 		}
 
-		// Determine database action: CLI flag > interactive prompt > skip (headless)
+		// Database action
 		let db_action: string;
 		if (databaseOption !== undefined) {
-			// CLI flag provided - normalize to expected values
 			if (databaseOption.toLowerCase() === 'new') {
 				db_action = 'Create New';
 			} else if (databaseOption.toLowerCase() === 'skip') {
 				db_action = 'Skip';
 			} else {
-				// Existing database name - validate it exists
 				const existingDb = resources?.db.find((d) => d.name === databaseOption);
 				if (!existingDb) {
 					logger.fatal(
@@ -382,20 +363,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 				],
 			});
 		} else {
-			// Headless without flag - skip
 			db_action = 'Skip';
 		}
 
-		// Determine storage action: CLI flag > interactive prompt > skip (headless)
+		// Storage action
 		let s3_action: string;
 		if (storageOption !== undefined) {
-			// CLI flag provided - normalize to expected values
 			if (storageOption.toLowerCase() === 'new') {
 				s3_action = 'Create New';
 			} else if (storageOption.toLowerCase() === 'skip') {
 				s3_action = 'Skip';
 			} else {
-				// Existing bucket name - validate it exists
 				const existingBucket = resources?.s3.find((b) => b.bucket_name === storageOption);
 				if (!existingBucket) {
 					logger.fatal(
@@ -418,11 +396,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 				],
 			});
 		} else {
-			// Headless without flag - skip
 			s3_action = 'Skip';
 		}
 
-		// Custom DNS: only prompt in interactive mode if not already provided
+		// Custom DNS
 		if (!domains?.length && isInteractive) {
 			const customDns = await prompt.text({
 				message: 'Setup custom DNS?',
@@ -439,13 +416,12 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 		}
 
-		// Process storage action
+		// Process storage
 		switch (s3_action) {
 			case 'Create New': {
 				let bucketName: string | undefined;
 				let bucketDescription: string | undefined;
 
-				// Only prompt for name/description in interactive mode
 				if (isInteractive) {
 					const bucketNameInput = await prompt.text({
 						message: 'Bucket name',
@@ -478,17 +454,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 						]);
 					},
 				});
-				// Collect env vars from newly created resource
 				if (created[0]?.env) {
 					Object.assign(resourceEnvVars, created[0].env);
 				}
 				break;
 			}
-			case 'Skip': {
+			case 'Skip':
 				break;
-			}
 			default: {
-				// User selected an existing bucket - get env vars from the resources list
 				const selectedBucket = resources?.s3.find((b) => b.bucket_name === s3_action);
 				if (selectedBucket?.env) {
 					Object.assign(resourceEnvVars, selectedBucket.env);
@@ -497,13 +470,12 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 		}
 
-		// Process database action
+		// Process database
 		switch (db_action) {
 			case 'Create New': {
 				let dbName: string | undefined;
 				let dbDescription: string | undefined;
 
-				// Only prompt for name/description in interactive mode
 				if (isInteractive) {
 					const dbNameInput = await prompt.text({
 						message: 'Database name',
@@ -536,17 +508,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 						]);
 					},
 				});
-				// Collect env vars from newly created resource
 				if (created[0]?.env) {
 					Object.assign(resourceEnvVars, created[0].env);
 				}
 				break;
 			}
-			case 'Skip': {
+			case 'Skip':
 				break;
-			}
 			default: {
-				// User selected an existing database - get env vars from the resources list
 				const selectedDb = resources?.db.find((d) => d.name === db_action);
 				if (selectedDb?.env) {
 					Object.assign(resourceEnvVars, selectedDb.env);
@@ -556,19 +525,15 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Auth setup - either from template, CLI flag, or user choice
-	const templateHasAuth = selectedTemplate.id === 'agentuity-auth';
+	// ─── Auth setup ─────────────────────────────────────────────────────────
 
-	let authEnabled = templateHasAuth; // Auth templates have auth enabled by default
+	let authEnabled = false;
 	let authDatabaseName: string | undefined;
 	let authDatabaseUrl: string | undefined;
 
-	// Handle auth enablement: CLI flag > interactive prompt > disabled (headless)
 	if (enableAuthOption !== undefined) {
-		// CLI flag provided
 		authEnabled = enableAuthOption;
-	} else if (canProvision && isInteractive && !templateHasAuth) {
-		// For non-auth templates in interactive mode, ask if they want to enable auth
+	} else if (canProvision && isInteractive) {
 		const enableAuth = await prompt.select({
 			message: 'Enable Agentuity Authentication?',
 			options: [
@@ -581,26 +546,20 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			authEnabled = true;
 		}
 	}
-	// In headless mode without --enable-auth flag, authEnabled stays false (unless template has auth)
 
-	// Set up database and secret for any auth-enabled project
 	if (authEnabled && canProvision) {
-		// If a database was already selected/created above, use it for auth
 		if (resourceEnvVars.DATABASE_URL) {
 			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
-			// Extract database name from URL using proper URL parsing
 			try {
 				const dbUrl = new URL(authDatabaseUrl);
-				const dbName = dbUrl.pathname.replace(/^\/+/, ''); // Remove leading slashes
-				// Validate: non-empty and contains only safe characters
+				const dbName = dbUrl.pathname.replace(/^\/+/, '');
 				if (dbName && /^[A-Za-z0-9_-]+$/.test(dbName)) {
 					authDatabaseName = dbName;
 				}
 			} catch {
-				// Invalid URL format, authDatabaseName stays undefined
+				// Invalid URL format
 			}
 		} else {
-			// No database selected yet, create one for auth
 			const created = await tui.spinner({
 				message: 'Provisioning database for auth',
 				clearOnSuccess: true,
@@ -615,33 +574,26 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 			authDatabaseName = createdDb.name;
 
-			// Get env vars from created resource
 			if (createdDb.env) {
 				authDatabaseUrl = createdDb.env.DATABASE_URL;
-				// Also add to resourceEnvVars if not already set
 				if (!resourceEnvVars.DATABASE_URL) {
 					Object.assign(resourceEnvVars, createdDb.env);
 				}
 			}
 		}
 
-		// Install auth dependencies (skip for agentuity-auth template which has them)
-		if (!templateHasAuth) {
-			await ensureAuthDependencies({ projectDir: dest, logger });
+		await ensureAuthDependencies({ projectDir: dest, logger });
 
-			// Generate auth.ts
-			const authFilePath = resolve(dest, 'src', 'auth.ts');
-			if (!existsSync(authFilePath)) {
-				const srcDir = resolve(dest, 'src');
-				if (!existsSync(srcDir)) {
-					await Bun.write(resolve(srcDir, '.gitkeep'), '');
-				}
-				await Bun.write(authFilePath, generateAuthFileContent());
-				tui.success('Created src/auth.ts');
+		const authFilePath = resolve(dest, 'src', 'auth.ts');
+		if (!existsSync(authFilePath)) {
+			const srcDir = resolve(dest, 'src');
+			if (!existsSync(srcDir)) {
+				await Bun.write(resolve(srcDir, '.gitkeep'), '');
 			}
+			await Bun.write(authFilePath, generateAuthFileContent());
+			tui.success('Created src/auth.ts');
 		}
 
-		// Run migrations
 		if (authDatabaseName) {
 			const sql = await tui.spinner({
 				message: 'Preparing auth database schema...',
@@ -660,6 +612,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			});
 		}
 	}
+
+	// ─── Cloud registration ─────────────────────────────────────────────────
 
 	let projectId: string | undefined;
 
@@ -702,17 +656,16 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			},
 		});
 
-		// Add auth secret to resourceEnvVars if auth is enabled
+		// Add auth secret
 		if (authEnabled && !resourceEnvVars.AGENTUITY_AUTH_SECRET) {
 			const devSecret = `dev-${crypto.randomUUID()}`;
 			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
 		}
 
-		// Write resource environment variables to .env
+		// Write resource env vars
 		if (Object.keys(resourceEnvVars).length > 0) {
 			await addResourceEnvVars(dest, resourceEnvVars);
 
-			// Show user feedback for auth-related env vars
 			if (authEnabled) {
 				if (resourceEnvVars.DATABASE_URL) {
 					tui.success('DATABASE_URL added to .env');
@@ -726,7 +679,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 		}
 
-		// After registration, push any existing env/secrets from .env
+		// Sync env vars to cloud
 		if (projectId) {
 			await tui.spinner({
 				message: 'Syncing environment variables',
@@ -749,7 +702,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 							);
 						}
 					} catch (error) {
-						// Non-fatal: just log the error
 						logger.debug('Failed to sync environment variables:', error);
 					}
 				},
@@ -757,7 +709,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Fetch GitHub App bot identity for commit authorship (if authenticated)
+	// ─── Git initialization ─────────────────────────────────────────────────
+
 	let botAuthor: { name: string; email: string } | undefined;
 	if (apiClient) {
 		try {
@@ -767,14 +720,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Initialize git repository after all files are generated
 	await initGitRepo(dest, {
 		projectName,
-		source: `template: ${selectedTemplate.name}`,
+		source: `framework: ${selectedFramework.name}`,
 		author: botAuthor,
 	});
 
-	// Show completion message
+	// ─── Completion ─────────────────────────────────────────────────────────
+
 	if (isInteractive) {
 		if (setupResult.success) {
 			tui.success('✨ Project created successfully!\n');
@@ -782,9 +735,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			tui.warning('Project created with errors (see above)\n');
 		}
 
-		// Show next steps in a box with primary color for commands
 		if (dirName !== '.') {
-			// Use relative path if dest is under cwd, otherwise show full path
 			const currentDir = cwd();
 			const dirDisplay = dest.startsWith(currentDir) ? basename(dest) : dest;
 			note(
@@ -819,8 +770,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Print auth integration examples if auth was enabled (skip for auth template - already set up)
-	if (authEnabled && !templateHasAuth) {
+	if (authEnabled) {
 		printIntegrationExamples();
 	}
 
@@ -829,7 +779,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		orgId,
 		name: projectName,
 		path: dest,
-		template: selectedTemplate.id,
+		framework: selectedFramework.slug,
 		installed: !options.noInstall,
 		built: !options.noBuild && setupResult.success,
 		domains: _domains,
@@ -840,19 +790,15 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 
 /**
  * Sanitize a project name to create a safe directory/package name
- * - Converts to lowercase
- * - Replaces spaces and underscores with hyphens
- * - Removes unsafe characters
- * - Ensures it starts with a letter or number
  */
 function sanitizeDirectoryName(name: string): string {
 	return name
 		.toLowerCase()
 		.trim()
-		.replace(/\s+/g, '-') // Replace spaces with hyphens
-		.replace(/_+/g, '-') // Replace underscores with hyphens
-		.replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric except hyphens
-		.replace(/-+/g, '-') // Collapse multiple hyphens
-		.replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-		.replace(/^[^a-z0-9]+/, ''); // Remove leading non-alphanumeric
+		.replace(/\s+/g, '-')
+		.replace(/_+/g, '-')
+		.replace(/[^a-z0-9-]/g, '')
+		.replace(/-+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		.replace(/^[^a-z0-9]+/, '');
 }

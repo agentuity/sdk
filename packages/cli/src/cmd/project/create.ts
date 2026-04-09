@@ -11,7 +11,7 @@ const ProjectCreateResponseSchema = z.object({
 	path: z.string().describe('Project directory path'),
 	projectId: z.string().optional().describe('Project ID if registered'),
 	orgId: z.string().optional().describe('Organization ID if registered'),
-	template: z.string().describe('Template used'),
+	framework: z.string().describe('Framework used'),
 	installed: z.boolean().describe('Whether dependencies were installed'),
 	built: z.boolean().describe('Whether the project was built'),
 	domains: z.array(z.string()).optional().describe('Array of custom domains'),
@@ -29,33 +29,30 @@ export const createProjectSubcommand = createSubcommand({
 	examples: [
 		{ command: getCommand('project create'), description: 'Create new project' },
 		{
-			command: getCommand('project create --name my-ai-agent'),
-			description: 'Create new project',
+			command: getCommand('project create --name my-ai-app'),
+			description: 'Create named project',
 		},
 		{
-			command: getCommand('project create --name customer-service-bot --dir ~/projects/agent'),
-			description: 'Create new project',
+			command: getCommand('project create --name my-app --framework nextjs'),
+			description: 'Create with Next.js',
 		},
 		{
-			command: getCommand('project create --template basic --no-install'),
-			description: 'Use no install option',
+			command: getCommand('project create --framework hono --no-install'),
+			description: 'Scaffold without installing',
 		},
-		{ command: getCommand('project new --no-register'), description: 'Use no register option' },
+		{ command: getCommand('project new --no-register'), description: 'Skip cloud registration' },
 	],
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Project name'),
 			dir: z.string().optional().describe('Directory to create the project in'),
 			domains: z.array(z.string()).optional().describe('Array of custom domains'),
-			template: z.string().optional().describe('Template to use'),
-			templateDir: z
+			framework: z
 				.string()
 				.optional()
-				.describe('Local template directory for testing (e.g., ./packages/templates)'),
-			templateBranch: z
-				.string()
-				.optional()
-				.describe('GitHub branch to use for templates (default: main)'),
+				.describe(
+					'Framework to use (e.g., nextjs, astro, sveltekit, remix, nuxt, hono, vite-react)'
+				),
 			install: z
 				.boolean()
 				.optional()
@@ -101,9 +98,7 @@ export const createProjectSubcommand = createSubcommand({
 			projectName: opts.name,
 			dir: opts.dir,
 			domains: opts.domains,
-			template: opts.template,
-			templateDir: opts.templateDir,
-			templateBranch: opts.templateBranch,
+			framework: opts.framework,
 			noInstall: opts.install === false,
 			noBuild: opts.build === false,
 			skipPrompts: opts.confirm === true,
@@ -130,7 +125,7 @@ export const createProjectSubcommand = createSubcommand({
 			path: result.path,
 			projectId: result.projectId,
 			orgId: result.orgId,
-			template: result.template,
+			framework: result.framework,
 			installed: result.installed,
 			built: result.built,
 			domains: result.domains,
