@@ -12,5 +12,5 @@
 		"jsx": "react-jsx"
 	},
 	"include": ["src/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../frontend" }]
+	"references": [{ "path": "../analytics" }, { "path": "../core" }, { "path": "../frontend" }]
 }

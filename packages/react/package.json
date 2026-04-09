@@ -34,6 +34,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/analytics": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/frontend": "workspace:*"
 	},

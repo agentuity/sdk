@@ -96,3 +96,29 @@ export function getAnalytics(): import('./types').AnalyticsClient | null {
 	}
 	return null;
 }
+
+/**
+ * Check if user has opted out of analytics via localStorage.
+ */
+export function isOptedOut(): boolean {
+	try {
+		return localStorage.getItem('agentuity_opt_out') === 'true';
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Set the analytics opt-out status in localStorage.
+ */
+export function setOptOut(optOut: boolean): void {
+	try {
+		if (optOut) {
+			localStorage.setItem('agentuity_opt_out', 'true');
+		} else {
+			localStorage.removeItem('agentuity_opt_out');
+		}
+	} catch {
+		// localStorage not available
+	}
+}

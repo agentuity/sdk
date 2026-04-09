@@ -41,20 +41,3 @@ export type {
 	RecordingHandle,
 	RecordingState,
 } from '@agentuity/core';
-
-// Export analytics
-export {
-	getAnalytics,
-	track,
-	getVisitorId,
-	isOptedOut,
-	setOptOut,
-	getUTMParams,
-	type AnalyticsClient,
-	type AnalyticsPayload,
-	type AnalyticsConfig,
-	type PageViewPayload,
-	type ScrollEvent,
-	type AnalyticsCustomEvent,
-	type GeoLocation,
-} from './analytics';

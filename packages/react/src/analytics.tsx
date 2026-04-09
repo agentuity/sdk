@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getAnalytics, type AnalyticsClient } from '@agentuity/frontend';
+import { getAnalytics, type AnalyticsClient } from '@agentuity/analytics';
 
 const noopClient: AnalyticsClient = {
 	track: () => {},

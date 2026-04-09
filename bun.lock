@@ -531,7 +531,6 @@
       "name": "@agentuity/frontend",
       "version": "1.0.54",
       "dependencies": {
-        "@agentuity/analytics": "workspace:*",
         "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
@@ -667,6 +666,7 @@
       "name": "@agentuity/react",
       "version": "1.0.54",
       "dependencies": {
+        "@agentuity/analytics": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
       },
