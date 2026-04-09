@@ -47,24 +47,41 @@ function createMockAuth(userId: string): AuthInterface {
 
 function waitForOpen(socket: WebSocket): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const onOpen = () => {
+		const cleanup = () => {
+			socket.removeEventListener('open', onOpen);
 			socket.removeEventListener('error', onError);
+			socket.removeEventListener('close', onClose);
+		};
+
+		const onOpen = () => {
+			cleanup();
 			resolve();
 		};
 		const onError = () => {
-			socket.removeEventListener('open', onOpen);
+			cleanup();
 			reject(new Error('WebSocket failed to open'));
+		};
+		const onClose = () => {
+			cleanup();
+			reject(new Error('WebSocket closed before opening'));
 		};
 
 		socket.addEventListener('open', onOpen, { once: true });
 		socket.addEventListener('error', onError, { once: true });
+		socket.addEventListener('close', onClose, { once: true });
 	});
 }
 
 function waitForJsonMessage(socket: WebSocket): Promise<SocketMessage> {
 	return new Promise((resolve, reject) => {
-		const onMessage = (event: MessageEvent) => {
+		const cleanup = () => {
+			socket.removeEventListener('message', onMessage);
 			socket.removeEventListener('error', onError);
+			socket.removeEventListener('close', onClose);
+		};
+
+		const onMessage = (event: MessageEvent) => {
+			cleanup();
 			try {
 				resolve(JSON.parse(String(event.data)) as SocketMessage);
 			} catch (error) {
@@ -72,12 +89,17 @@ function waitForJsonMessage(socket: WebSocket): Promise<SocketMessage> {
 			}
 		};
 		const onError = () => {
-			socket.removeEventListener('message', onMessage);
+			cleanup();
 			reject(new Error('WebSocket errored while waiting for a message'));
+		};
+		const onClose = () => {
+			cleanup();
+			reject(new Error('WebSocket closed before a message was received'));
 		};
 
 		socket.addEventListener('message', onMessage, { once: true });
 		socket.addEventListener('error', onError, { once: true });
+		socket.addEventListener('close', onClose, { once: true });
 	});
 }
 
