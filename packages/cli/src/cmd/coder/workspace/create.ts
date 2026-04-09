@@ -45,10 +45,10 @@ export const createWorkspaceSubcommand = createSubcommand({
 			scope: z.string().optional().describe('Workspace scope: user or org'),
 			repo: z.string().optional().describe('Repository URL to add'),
 			repoBranch: z.string().optional().describe('Branch for the repository'),
-			agentSlugs: z
+			enabledAgents: z
 				.string()
 				.optional()
-				.describe('Comma-separated published custom agent slugs to add'),
+				.describe('Comma-separated built-in/custom agents to include'),
 		}),
 	},
 	async handler(ctx) {
@@ -60,7 +60,7 @@ export const createWorkspaceSubcommand = createSubcommand({
 		});
 
 		const body: CoderCreateWorkspaceRequest & {
-			agentSlugs?: string[];
+			enabledAgents?: string[];
 		} = {
 			name: args.name,
 			...(opts?.description && { description: opts.description }),
@@ -78,17 +78,17 @@ export const createWorkspaceSubcommand = createSubcommand({
 				return;
 			}
 		}
-		if (opts?.agentSlugs) {
-			body.agentSlugs = opts.agentSlugs
+		if (opts?.enabledAgents) {
+			body.enabledAgents = opts.enabledAgents
 				.split(',')
-				.map((slug) => slug.trim())
+				.map((name) => name.trim())
 				.filter(Boolean);
 		}
 
 		try {
 			const created = await client.createWorkspace(body);
-			const createdAgentSlugs = Array.isArray(created.agentSlugs)
-				? created.agentSlugs.filter((slug): slug is string => typeof slug === 'string')
+			const createdEnabledAgents = Array.isArray(created.enabledAgents)
+				? created.enabledAgents.filter((name): name is string => typeof name === 'string')
 				: [];
 
 			if (options.json) {
@@ -104,8 +104,8 @@ export const createWorkspaceSubcommand = createSubcommand({
 			tui.output(`  Scope:       ${created.scope}`);
 			tui.output(`  Repos:       ${created.repoCount}`);
 			tui.output(`  Selections:  ${created.selectionCount}`);
-			if (createdAgentSlugs.length > 0) {
-				tui.output(`  Agents:      ${createdAgentSlugs.join(', ')}`);
+			if (createdEnabledAgents.length > 0) {
+				tui.output(`  Agents:      ${createdEnabledAgents.join(', ')}`);
 			}
 
 			return created;

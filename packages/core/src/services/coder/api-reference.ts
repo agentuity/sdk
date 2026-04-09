@@ -451,8 +451,8 @@ const service: Service = {
 				slug: 'code-review',
 				displayName: 'Code Review',
 				instructions: 'Focus on correctness, regressions, and missing tests.',
-				piTools: ['read', 'grep', 'ls'],
-				hubToolNames: ['session_todo_list', 'session_todo_update'],
+				tools: ['read', 'grep', 'ls'],
+				serviceTools: ['session_todo_list', 'session_todo_update'],
 			},
 		},
 		{

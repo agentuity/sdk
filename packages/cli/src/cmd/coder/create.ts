@@ -46,9 +46,9 @@ export const createCoderSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand(
-				'coder create "Review this change" --default-agent code-review --agent-slugs code-review'
+				'coder create "Review this change" --default-agent code-review --enabled-agents code-review'
 			),
-			description: 'Create with published custom agents and a custom default route target',
+			description: 'Create with a selected agent roster and a custom default route target',
 		},
 	],
 	schema: {
@@ -96,10 +96,10 @@ export const createCoderSubcommand = createSubcommand({
 			// Resources
 			workspaceId: z.string().optional().describe('Workspace ID to use'),
 			tags: z.string().optional().describe('Comma-separated tags'),
-			agentSlugs: z
+			enabledAgents: z
 				.string()
 				.optional()
-				.describe('Comma-separated published custom agent slugs to include'),
+				.describe('Comma-separated built-in/custom agents to include'),
 			env: z
 				.string()
 				.optional()
@@ -121,7 +121,7 @@ export const createCoderSubcommand = createSubcommand({
 		// Build the create session request body from flags
 		const body: CoderCreateSessionRequest & {
 			defaultAgent?: string;
-			agentSlugs?: string[];
+			enabledAgents?: string[];
 		} = {
 			task: args.task,
 			...(opts?.label && { label: opts.label }),
@@ -167,10 +167,10 @@ export const createCoderSubcommand = createSubcommand({
 				.split(',')
 				.map((t) => t.trim())
 				.filter(Boolean);
-		if (opts?.agentSlugs)
-			body.agentSlugs = opts.agentSlugs
+		if (opts?.enabledAgents)
+			body.enabledAgents = opts.enabledAgents
 				.split(',')
-				.map((slug) => slug.trim())
+				.map((name) => name.trim())
 				.filter(Boolean);
 		if (opts?.savedSkillIds)
 			body.savedSkillIds = opts.savedSkillIds
