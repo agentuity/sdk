@@ -1,7 +1,7 @@
 /**
  * Static Renderer
  *
- * When `render: 'static'` is set in agentuity.config.ts, this module:
+ * When `render: 'static'` is configured, this module:
  * 1. Runs a Vite SSR build to create a server-side entry point
  * 2. Imports the built entry-server.js
  * 3. Discovers routes to pre-render:

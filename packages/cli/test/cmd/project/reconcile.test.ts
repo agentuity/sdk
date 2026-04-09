@@ -20,92 +20,68 @@ describe('project reconcile', () => {
 	});
 
 	describe('isValidProjectStructure', () => {
-		test('should return true for project with @agentuity/runtime in dependencies', async () => {
+		test('should return true for project with dependencies', async () => {
 			writeFileSync(
 				join(testDir, 'package.json'),
 				JSON.stringify({
 					name: 'test-project',
 					dependencies: {
-						'@agentuity/runtime': '^1.0.0',
+						next: '^15.0.0',
 					},
 				})
 			);
-			writeFileSync(join(testDir, 'agentuity.config.ts'), 'export default {};');
 
 			const result = await isValidProjectStructure(testDir);
 			expect(result).toBe(true);
 		});
 
-		test('should return true for project with @agentuity/runtime in devDependencies', async () => {
+		test('should return true for project with devDependencies', async () => {
 			writeFileSync(
 				join(testDir, 'package.json'),
 				JSON.stringify({
 					name: 'test-project',
 					devDependencies: {
-						'@agentuity/runtime': '^1.0.0',
+						vite: '^6.0.0',
 					},
 				})
 			);
-			writeFileSync(join(testDir, 'agentuity.config.ts'), 'export default {};');
 
 			const result = await isValidProjectStructure(testDir);
 			expect(result).toBe(true);
 		});
 
-		test('should return true for project with agentuity/ subdirectory containing valid structure', async () => {
+		test('should return true for project with just a name', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+				})
+			);
+
+			const result = await isValidProjectStructure(testDir);
+			expect(result).toBe(true);
+		});
+
+		test('should return true for project with agentuity/ subdirectory containing package.json', async () => {
 			const agentuityDir = join(testDir, 'agentuity');
 			mkdirSync(agentuityDir, { recursive: true });
 			writeFileSync(
 				join(agentuityDir, 'package.json'),
 				JSON.stringify({
-					name: 'child-agent',
+					name: 'child-project',
 					dependencies: {
-						'@agentuity/runtime': '^1.0.0',
+						hono: '^4.0.0',
 					},
 				})
 			);
-			writeFileSync(join(agentuityDir, 'agentuity.config.ts'), 'export default {};');
 
 			const result = await isValidProjectStructure(testDir);
 			expect(result).toBe(true);
 		});
 
-		test('should return false for project with agentuity/ subdirectory but no valid structure', async () => {
+		test('should return false for project with agentuity/ subdirectory but no package.json', async () => {
 			const agentuityDir = join(testDir, 'agentuity');
 			mkdirSync(agentuityDir, { recursive: true });
-			writeFileSync(join(agentuityDir, 'package.json'), JSON.stringify({ name: 'empty' }));
-
-			const result = await isValidProjectStructure(testDir);
-			expect(result).toBe(false);
-		});
-
-		test('should return false when package.json exists but no @agentuity/runtime', async () => {
-			writeFileSync(
-				join(testDir, 'package.json'),
-				JSON.stringify({
-					name: 'test-project',
-					dependencies: {
-						express: '^4.0.0',
-					},
-				})
-			);
-			writeFileSync(join(testDir, 'agentuity.config.ts'), 'export default {};');
-
-			const result = await isValidProjectStructure(testDir);
-			expect(result).toBe(false);
-		});
-
-		test('should return false when @agentuity/runtime exists but no agentuity.config.ts', async () => {
-			writeFileSync(
-				join(testDir, 'package.json'),
-				JSON.stringify({
-					name: 'test-project',
-					dependencies: {
-						'@agentuity/runtime': '^1.0.0',
-					},
-				})
-			);
-			// No agentuity.config.ts
 
 			const result = await isValidProjectStructure(testDir);
 			expect(result).toBe(false);
@@ -117,15 +93,19 @@ describe('project reconcile', () => {
 		});
 
 		test('should return false when package.json is missing', async () => {
-			writeFileSync(join(testDir, 'agentuity.config.ts'), 'export default {};');
-
 			const result = await isValidProjectStructure(testDir);
 			expect(result).toBe(false);
 		});
 
 		test('should return false when package.json is invalid JSON', async () => {
 			writeFileSync(join(testDir, 'package.json'), 'not valid json');
-			writeFileSync(join(testDir, 'agentuity.config.ts'), 'export default {};');
+
+			const result = await isValidProjectStructure(testDir);
+			expect(result).toBe(false);
+		});
+
+		test('should return false when package.json is empty object', async () => {
+			writeFileSync(join(testDir, 'package.json'), JSON.stringify({}));
 
 			const result = await isValidProjectStructure(testDir);
 			expect(result).toBe(false);
