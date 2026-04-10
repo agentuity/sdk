@@ -64,9 +64,6 @@ cleanup() {
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
 	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3500 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3501 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3502 | xargs kill -9 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -110,9 +107,8 @@ if [ "$RUN_TANSTACK" = true ]; then
 	bun run dev &
 	TANSTACK_PID=$!
 	
-	# Wait for both web and agent servers
+	# Wait for web server
 	wait_for_server "http://localhost:3000" "TanStack web (3000)"
-	wait_for_server "http://localhost:3500" "TanStack agent (3500)"
 	
 	# Run Playwright tests for TanStack
 	echo ""
@@ -124,7 +120,6 @@ if [ "$RUN_TANSTACK" = true ]; then
 	kill $TANSTACK_PID 2>/dev/null || true
 	TANSTACK_PID=""
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3500 | xargs kill -9 2>/dev/null || true
 	sleep 2
 	
 	echo ""
@@ -145,9 +140,8 @@ if [ "$RUN_NEXTJS" = true ]; then
 	bun run dev &
 	NEXTJS_PID=$!
 	
-	# Wait for both web and agent servers
+	# Wait for web server
 	wait_for_server "http://localhost:3001" "Next.js web (3001)"
-	wait_for_server "http://localhost:3501" "Next.js agent (3501)"
 	
 	# Run Playwright tests for Next.js
 	echo ""
@@ -159,7 +153,6 @@ if [ "$RUN_NEXTJS" = true ]; then
 	kill $NEXTJS_PID 2>/dev/null || true
 	NEXTJS_PID=""
 	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3501 | xargs kill -9 2>/dev/null || true
 	
 	echo ""
 	echo "✓ Next.js tests completed"
@@ -168,36 +161,39 @@ fi
 
 # Run Vite RSC tests
 if [ "$RUN_VITE_RSC" = true ]; then
-	echo "═══════════════════════════════════════════════"
-	echo "  Testing Vite RSC + Agentuity"
-	echo "═══════════════════════════════════════════════"
-	echo ""
-	
-	# Start Vite RSC app
-	echo "Starting Vite RSC app..."
-	cd "$SDK_ROOT/apps/testing/vite-rsc-app"
-	bun run dev &
-	VITE_RSC_PID=$!
-	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3002" "Vite RSC web (3002)"
-	wait_for_server "http://localhost:3502" "Vite RSC agent (3502)"
-	
-	# Run Playwright tests for Vite RSC
-	echo ""
-	echo "Running Playwright tests for Vite RSC..."
-	cd "$SDK_ROOT"
-	bun run playwright test --config=playwright.frameworks.config.ts --project=vite-rsc
-	
-	# Stop Vite RSC
-	kill $VITE_RSC_PID 2>/dev/null || true
-	VITE_RSC_PID=""
-	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3502 | xargs kill -9 2>/dev/null || true
-	
-	echo ""
-	echo "✓ Vite RSC tests completed"
-	echo ""
+	if [ ! -d "$SDK_ROOT/apps/testing/vite-rsc-app" ]; then
+		echo "⚠ Skipping Vite RSC tests (apps/testing/vite-rsc-app not found)"
+		echo ""
+	else
+		echo "═══════════════════════════════════════════════"
+		echo "  Testing Vite RSC + Agentuity"
+		echo "═══════════════════════════════════════════════"
+		echo ""
+		
+		# Start Vite RSC app
+		echo "Starting Vite RSC app..."
+		cd "$SDK_ROOT/apps/testing/vite-rsc-app"
+		bun run dev &
+		VITE_RSC_PID=$!
+		
+		# Wait for web server
+		wait_for_server "http://localhost:3002" "Vite RSC web (3002)"
+		
+		# Run Playwright tests for Vite RSC
+		echo ""
+		echo "Running Playwright tests for Vite RSC..."
+		cd "$SDK_ROOT"
+		bun run playwright test --config=playwright.frameworks.config.ts --project=vite-rsc
+		
+		# Stop Vite RSC
+		kill $VITE_RSC_PID 2>/dev/null || true
+		VITE_RSC_PID=""
+		lsof -ti:3002 | xargs kill -9 2>/dev/null || true
+		
+		echo ""
+		echo "✓ Vite RSC tests completed"
+		echo ""
+	fi
 fi
 
 echo "╔════════════════════════════════════════════════╗"
