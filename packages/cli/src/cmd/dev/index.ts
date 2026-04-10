@@ -98,11 +98,7 @@ export const command = createCommand({
 					tui.warning(
 						'No linked Agentuity project found. Using your auth key for AI Gateway.'
 					);
-					tui.info(
-						tui.muted(
-							`Run ${tui.bold('agentuity project import')} to link this project for full functionality.`
-						)
-					);
+					tui.bullet(`Link this project: ${tui.colorPrimary('agentuity project import')}`);
 					tui.newline();
 				}
 			}
