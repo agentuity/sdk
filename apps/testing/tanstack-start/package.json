@@ -15,9 +15,11 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
+		"@ai-sdk/openai": "^1.0.0",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@tailwindcss/vite": "^4.1.18",
+		"ai": "^4.0.0",
 		"@tanstack/react-devtools": "latest",
 		"@tanstack/react-router": "latest",
 		"@tanstack/react-router-devtools": "latest",

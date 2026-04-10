@@ -1,81 +1,114 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
+import { translateText } from '../server/translate';
 
 export const Route = createFileRoute('/')({ component: App });
 
+const LANGUAGES = ['Spanish', 'French', 'German', 'Japanese', 'Chinese'] as const;
+
 function App() {
+	const [text, setText] = useState('Hello, world! Welcome to Agentuity.');
+	const [toLanguage, setToLanguage] = useState<string>('Spanish');
+	const [result, setResult] = useState<{
+		translation: string;
+		tokens: number;
+		model: string;
+		toLanguage: string;
+	} | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const handleTranslate = async () => {
+		setIsLoading(true);
+		setError(null);
+		try {
+			const res = await translateText({ text, toLanguage });
+			setResult(res);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Translation failed');
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	return (
 		<main className="page-wrap px-4 pb-8 pt-14">
 			<section className="island-shell rise-in relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
-				<div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(79,184,178,0.32),transparent_66%)]" />
-				<div className="pointer-events-none absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(47,106,74,0.18),transparent_66%)]" />
-				<p className="island-kicker mb-3">TanStack Start Base Template</p>
-				<h1 className="display-title mb-5 max-w-3xl text-4xl leading-[1.02] font-bold tracking-tight text-[var(--sea-ink)] sm:text-6xl">
-					Start simple, ship quickly.
+				<p className="island-kicker mb-3">Agentuity + TanStack Start</p>
+				<h1 className="display-title mb-5 max-w-3xl text-4xl leading-[1.02] font-bold tracking-tight text-[var(--sea-ink)] sm:text-5xl">
+					AI Translation Demo
 				</h1>
 				<p className="mb-8 max-w-2xl text-base text-[var(--sea-ink-soft)] sm:text-lg">
-					This base starter intentionally keeps things light: two routes, clean structure, and
-					the essentials you need to build from scratch.
+					Translate text using AI models through the Agentuity AI Gateway. Running via{' '}
+					<code>agentuity dev</code> automatically routes AI SDK calls through the gateway — no
+					separate API keys needed.
 				</p>
-				<div className="flex flex-wrap gap-3">
-					<a
-						href="/about"
-						className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.14)] px-5 py-2.5 text-sm font-semibold text-[var(--lagoon-deep)] no-underline transition hover:-translate-y-0.5 hover:bg-[rgba(79,184,178,0.24)]"
-					>
-						About This Starter
-					</a>
-					<a
-						href="https://tanstack.com/router"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="rounded-full border border-[rgba(23,58,64,0.2)] bg-white/50 px-5 py-2.5 text-sm font-semibold text-[var(--sea-ink)] no-underline transition hover:-translate-y-0.5 hover:border-[rgba(23,58,64,0.35)]"
-					>
-						Router Guide
-					</a>
-				</div>
-			</section>
-
-			<section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-				{[
-					['Type-Safe Routing', 'Routes and links stay in sync across every page.'],
-					[
-						'Server Functions',
-						'Call server code from your UI without creating API boilerplate.',
-					],
-					[
-						'Streaming by Default',
-						'Ship progressively rendered responses for faster experiences.',
-					],
-					[
-						'Tailwind Native',
-						'Design quickly with utility-first styling and reusable tokens.',
-					],
-				].map(([title, desc], index) => (
-					<article
-						key={title}
-						className="island-shell feature-card rise-in rounded-2xl p-5"
-						style={{ animationDelay: `${index * 90 + 80}ms` }}
-					>
-						<h2 className="mb-2 text-base font-semibold text-[var(--sea-ink)]">{title}</h2>
-						<p className="m-0 text-sm text-[var(--sea-ink-soft)]">{desc}</p>
-					</article>
-				))}
 			</section>
 
 			<section className="island-shell mt-8 rounded-2xl p-6">
-				<p className="island-kicker mb-2">Quick Start</p>
-				<ul className="m-0 list-disc space-y-2 pl-5 text-sm text-[var(--sea-ink-soft)]">
-					<li>
-						Edit <code>src/routes/index.tsx</code> to customize the home page.
-					</li>
-					<li>
-						Update <code>src/components/Header.tsx</code> and{' '}
-						<code>src/components/Footer.tsx</code> for brand links.
-					</li>
-					<li>
-						Add routes in <code>src/routes</code> and tweak visual tokens in{' '}
-						<code>src/styles.css</code>.
-					</li>
-				</ul>
+				<div className="space-y-4">
+					<div>
+						<label
+							htmlFor="text-input"
+							className="mb-1 block text-sm font-medium text-[var(--sea-ink)]"
+						>
+							Text to translate
+						</label>
+						<textarea
+							id="text-input"
+							value={text}
+							onChange={(e) => setText(e.target.value)}
+							rows={3}
+							className="w-full rounded-lg border border-[rgba(23,58,64,0.2)] bg-white/50 px-3 py-2 text-sm"
+						/>
+					</div>
+
+					<div className="flex items-end gap-3">
+						<div>
+							<label
+								htmlFor="language-select"
+								className="mb-1 block text-sm font-medium text-[var(--sea-ink)]"
+							>
+								Translate to
+							</label>
+							<select
+								id="language-select"
+								value={toLanguage}
+								onChange={(e) => setToLanguage(e.target.value)}
+								className="rounded-lg border border-[rgba(23,58,64,0.2)] bg-white/50 px-3 py-2 text-sm"
+							>
+								{LANGUAGES.map((lang) => (
+									<option key={lang} value={lang}>
+										{lang}
+									</option>
+								))}
+							</select>
+						</div>
+
+						<button
+							type="button"
+							onClick={handleTranslate}
+							disabled={isLoading || !text.trim()}
+							className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.14)] px-5 py-2 text-sm font-semibold text-[var(--lagoon-deep)] transition hover:-translate-y-0.5 hover:bg-[rgba(79,184,178,0.24)] disabled:opacity-50"
+						>
+							{isLoading ? 'Translating...' : 'Translate'}
+						</button>
+					</div>
+
+					{error && (
+						<div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+					)}
+
+					{result && (
+						<div className="output space-y-2 rounded-lg bg-[rgba(79,184,178,0.08)] p-4">
+							<p className="text-base text-[var(--sea-ink)]">{result.translation}</p>
+							<p className="text-xs text-[var(--sea-ink-soft)]">
+								Model: {result.model} · Tokens: {result.tokens} · Language:{' '}
+								{result.toLanguage}
+							</p>
+						</div>
+					)}
+				</div>
 			</section>
 		</main>
 	);
