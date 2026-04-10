@@ -4,11 +4,28 @@
  * Maps supported frameworks to their official create CLI commands
  * and the augmentation steps needed to integrate with Agentuity.
  *
- * Each entry describes:
- * - How to scaffold the project (create CLI + args)
- * - What Agentuity dependencies to add
- * - How to inject a simple AI SDK example
+ * AI examples and landing pages are in separate files to keep
+ * this catalog focused on framework configuration.
  */
+
+import {
+	nextjsAiExample,
+	nuxtAiExample,
+	remixAiExample,
+	sveltekitAiExample,
+	astroAiExample,
+	honoAiExample,
+	viteReactAiExample,
+} from './frameworks-ai-examples';
+
+import {
+	nextjsLandingPage,
+	nuxtLandingPage,
+	remixLandingPage,
+	sveltekitLandingPage,
+	astroLandingPage,
+	viteReactLandingPage,
+} from './frameworks-landing-pages';
 
 export interface FrameworkScaffold {
 	/** Unique slug (matches detect/frameworks.ts where applicable) */
@@ -54,425 +71,12 @@ export interface FrameworkScaffold {
 	aiExample?: () => Record<string, string>;
 
 	/**
-	 * Generate a small Agentuity badge/link to add to the framework's default page.
+	 * Replace the framework's default landing page with an Agentuity-branded page.
 	 *
 	 * Returns a map of relative file paths to file contents.
-	 * Files are written (or appended) after scaffolding to add an
-	 * "Powered by Agentuity" link on the default landing page.
+	 * Files overwrite the framework's default page after scaffolding.
 	 */
-	brandSnippet?: () => Record<string, string>;
-}
-
-// ─── Agentuity Badge ─────────────────────────────────────────────────────────
-
-// ─── AI Example Helpers ──────────────────────────────────────────────────────
-
-function nextjsAiExample(): Record<string, string> {
-	return {
-		'app/api/chat/route.ts': `import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { NextResponse } from 'next/server';
-
-export async function POST(request: Request) {
-\tconst { message } = await request.json();
-
-\tconst { text } = await generateText({
-\t\tmodel: openai('gpt-4o-mini'),
-\t\tprompt: message,
-\t});
-
-\treturn NextResponse.json({ reply: text });
-}
-`,
-	};
-}
-
-function nuxtAiExample(): Record<string, string> {
-	return {
-		'server/api/chat.post.ts': `import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-
-export default defineEventHandler(async (event) => {
-\tconst { message } = await readBody(event);
-
-\tconst { text } = await generateText({
-\t\tmodel: openai('gpt-4o-mini'),
-\t\tprompt: message,
-\t});
-
-\treturn { reply: text };
-});
-`,
-	};
-}
-
-function remixAiExample(): Record<string, string> {
-	return {
-		'app/routes/api.chat.ts': `import { type ActionFunctionArgs, json } from '@remix-run/node';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-
-export async function action({ request }: ActionFunctionArgs) {
-\tconst { message } = await request.json();
-
-\tconst { text } = await generateText({
-\t\tmodel: openai('gpt-4o-mini'),
-\t\tprompt: message,
-\t});
-
-\treturn json({ reply: text });
-}
-`,
-	};
-}
-
-function sveltekitAiExample(): Record<string, string> {
-	return {
-		'src/routes/api/chat/+server.ts': `import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-
-export const POST: RequestHandler = async ({ request }) => {
-\tconst { message } = await request.json();
-
-\tconst { text } = await generateText({
-\t\tmodel: openai('gpt-4o-mini'),
-\t\tprompt: message,
-\t});
-
-\treturn json({ reply: text });
-};
-`,
-	};
-}
-
-function astroAiExample(): Record<string, string> {
-	return {
-		'src/pages/api/chat.ts': `import type { APIRoute } from 'astro';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-
-export const POST: APIRoute = async ({ request }) => {
-\tconst { message } = await request.json();
-
-\tconst { text } = await generateText({
-\t\tmodel: openai('gpt-4o-mini'),
-\t\tprompt: message,
-\t});
-
-\treturn new Response(
-\t\tJSON.stringify({ reply: text }),
-\t\t{ headers: { 'Content-Type': 'application/json' } }
-\t);
-};
-`,
-	};
-}
-
-function honoAiExample(): Record<string, string> {
-	return {
-		'src/index.ts': `import { Hono } from 'hono';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-
-const app = new Hono();
-
-app.get('/', (c) => c.text('Hello from Hono + Agentuity!'));
-
-app.post('/api/chat', async (c) => {
-\tconst { message } = await c.req.json();
-
-\tconst { text } = await generateText({
-\t\tmodel: openai('gpt-4o-mini'),
-\t\tprompt: message,
-\t});
-
-\treturn c.json({ reply: text });
-});
-
-export default app;
-`,
-	};
-}
-
-function viteReactAiExample(): Record<string, string> {
-	return {
-		'server.ts': `import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-
-Bun.serve({
-\tport: process.env.PORT ?? 3000,
-\tasync fetch(request) {
-\t\tconst url = new URL(request.url);
-
-\t\tif (url.pathname === '/api/chat' && request.method === 'POST') {
-\t\t\tconst { message } = await request.json();
-
-\t\t\tconst { text } = await generateText({
-\t\t\t\tmodel: openai('gpt-4o-mini'),
-\t\t\t\tprompt: message,
-\t\t\t});
-
-\t\t\treturn Response.json({ reply: text });
-\t\t}
-
-\t\treturn new Response('Not Found', { status: 404 });
-\t},
-});
-
-console.log('Server running on http://localhost:' + (process.env.PORT ?? 3000));
-`,
-	};
-}
-
-// ─── Brand Snippet Helpers ────────────────────────────────────────────────────
-
-function nextjsBrandSnippet(): Record<string, string> {
-	return {
-		'src/components/AgentuityBadge.tsx': `export function AgentuityBadge() {
-	return (
-		<a
-			href="https://agentuity.dev/"
-			target="_blank"
-			rel="noopener noreferrer"
-			style={{
-				position: 'fixed',
-				bottom: '1rem',
-				right: '1rem',
-				display: 'flex',
-				alignItems: 'center',
-				gap: '0.5rem',
-				padding: '0.5rem 0.75rem',
-				background: '#09090b',
-				border: '1px solid #27272a',
-				borderRadius: '0.5rem',
-				color: '#a1a1aa',
-				fontSize: '0.75rem',
-				textDecoration: 'none',
-				transition: 'border-color 0.2s',
-				zIndex: 50,
-			}}
-			onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#00FFFF')}
-			onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#27272a')}
-		>
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 220 191" fill="none">
-				<path fillRule="evenodd" clipRule="evenodd" d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.588 136.5L24.234 177H195.766L172.412 136.5H47.588Z" fill="#00FFFF" />
-				<path fillRule="evenodd" clipRule="evenodd" d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.702 82.5L110 28.081L141.298 82.5H78.702Z" fill="#00FFFF" />
-			</svg>
-			Powered by Agentuity
-		</a>
-	);
-}
-`,
-	};
-}
-
-function nuxtBrandSnippet(): Record<string, string> {
-	return {
-		'components/AgentuityBadge.vue': `<template>
-	<a
-		href="https://agentuity.dev/"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="agentuity-badge"
-	>
-		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 220 191" fill="none">
-			<path fill-rule="evenodd" clip-rule="evenodd" d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.588 136.5L24.234 177H195.766L172.412 136.5H47.588Z" fill="#00FFFF" />
-			<path fill-rule="evenodd" clip-rule="evenodd" d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.702 82.5L110 28.081L141.298 82.5H78.702Z" fill="#00FFFF" />
-		</svg>
-		Powered by Agentuity
-	</a>
-</template>
-
-<style scoped>
-.agentuity-badge {
-	position: fixed;
-	bottom: 1rem;
-	right: 1rem;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem 0.75rem;
-	background: #09090b;
-	border: 1px solid #27272a;
-	border-radius: 0.5rem;
-	color: #a1a1aa;
-	font-size: 0.75rem;
-	text-decoration: none;
-	transition: border-color 0.2s;
-	z-index: 50;
-}
-.agentuity-badge:hover {
-	border-color: #00FFFF;
-}
-</style>
-`,
-	};
-}
-
-function remixBrandSnippet(): Record<string, string> {
-	return {
-		'app/components/AgentuityBadge.tsx': `export function AgentuityBadge() {
-	return (
-		<a
-			href="https://agentuity.dev/"
-			target="_blank"
-			rel="noopener noreferrer"
-			style={{
-				position: 'fixed',
-				bottom: '1rem',
-				right: '1rem',
-				display: 'flex',
-				alignItems: 'center',
-				gap: '0.5rem',
-				padding: '0.5rem 0.75rem',
-				background: '#09090b',
-				border: '1px solid #27272a',
-				borderRadius: '0.5rem',
-				color: '#a1a1aa',
-				fontSize: '0.75rem',
-				textDecoration: 'none',
-				transition: 'border-color 0.2s',
-				zIndex: 50,
-			}}
-			onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#00FFFF')}
-			onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#27272a')}
-		>
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 220 191" fill="none">
-				<path fillRule="evenodd" clipRule="evenodd" d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.588 136.5L24.234 177H195.766L172.412 136.5H47.588Z" fill="#00FFFF" />
-				<path fillRule="evenodd" clipRule="evenodd" d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.702 82.5L110 28.081L141.298 82.5H78.702Z" fill="#00FFFF" />
-			</svg>
-			Powered by Agentuity
-		</a>
-	);
-}
-`,
-	};
-}
-
-function sveltekitBrandSnippet(): Record<string, string> {
-	return {
-		'src/lib/AgentuityBadge.svelte': `<a
-	href="https://agentuity.dev/"
-	target="_blank"
-	rel="noopener noreferrer"
-	class="agentuity-badge"
->
-	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 220 191" fill="none">
-		<path fill-rule="evenodd" clip-rule="evenodd" d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.588 136.5L24.234 177H195.766L172.412 136.5H47.588Z" fill="#00FFFF" />
-		<path fill-rule="evenodd" clip-rule="evenodd" d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.702 82.5L110 28.081L141.298 82.5H78.702Z" fill="#00FFFF" />
-	</svg>
-	Powered by Agentuity
-</a>
-
-<style>
-.agentuity-badge {
-	position: fixed;
-	bottom: 1rem;
-	right: 1rem;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem 0.75rem;
-	background: #09090b;
-	border: 1px solid #27272a;
-	border-radius: 0.5rem;
-	color: #a1a1aa;
-	font-size: 0.75rem;
-	text-decoration: none;
-	transition: border-color 0.2s;
-	z-index: 50;
-}
-.agentuity-badge:hover {
-	border-color: #00FFFF;
-}
-</style>
-`,
-	};
-}
-
-function astroBrandSnippet(): Record<string, string> {
-	return {
-		'src/components/AgentuityBadge.astro': `---
----
-<a
-	href="https://agentuity.dev/"
-	target="_blank"
-	rel="noopener noreferrer"
-	class="agentuity-badge"
->
-	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 220 191" fill="none">
-		<path fill-rule="evenodd" clip-rule="evenodd" d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.588 136.5L24.234 177H195.766L172.412 136.5H47.588Z" fill="#00FFFF" />
-		<path fill-rule="evenodd" clip-rule="evenodd" d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.702 82.5L110 28.081L141.298 82.5H78.702Z" fill="#00FFFF" />
-	</svg>
-	Powered by Agentuity
-</a>
-
-<style>
-.agentuity-badge {
-	position: fixed;
-	bottom: 1rem;
-	right: 1rem;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem 0.75rem;
-	background: #09090b;
-	border: 1px solid #27272a;
-	border-radius: 0.5rem;
-	color: #a1a1aa;
-	font-size: 0.75rem;
-	text-decoration: none;
-	transition: border-color 0.2s;
-	z-index: 50;
-}
-.agentuity-badge:hover {
-	border-color: #00FFFF;
-}
-</style>
-`,
-	};
-}
-
-function viteReactBrandSnippet(): Record<string, string> {
-	return {
-		'src/AgentuityBadge.tsx': `export function AgentuityBadge() {
-	return (
-		<a
-			href="https://agentuity.dev/"
-			target="_blank"
-			rel="noopener noreferrer"
-			style={{
-				position: 'fixed',
-				bottom: '1rem',
-				right: '1rem',
-				display: 'flex',
-				alignItems: 'center',
-				gap: '0.5rem',
-				padding: '0.5rem 0.75rem',
-				background: '#09090b',
-				border: '1px solid #27272a',
-				borderRadius: '0.5rem',
-				color: '#a1a1aa',
-				fontSize: '0.75rem',
-				textDecoration: 'none',
-				transition: 'border-color 0.2s',
-				zIndex: 50,
-			}}
-			onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#00FFFF')}
-			onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#27272a')}
-		>
-			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 220 191" fill="none">
-				<path fillRule="evenodd" clipRule="evenodd" d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.588 136.5L24.234 177H195.766L172.412 136.5H47.588Z" fill="#00FFFF" />
-				<path fillRule="evenodd" clipRule="evenodd" d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.702 82.5L110 28.081L141.298 82.5H78.702Z" fill="#00FFFF" />
-			</svg>
-			Powered by Agentuity
-		</a>
-	);
-}
-`,
-	};
+	landingPage?: () => Record<string, string>;
 }
 
 // ─── Framework Catalog ───────────────────────────────────────────────────────
@@ -500,7 +104,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			deploy: 'agentuity deploy',
 		},
 		aiExample: nextjsAiExample,
-		brandSnippet: nextjsBrandSnippet,
+		landingPage: nextjsLandingPage,
 	},
 	{
 		slug: 'nuxt',
@@ -512,7 +116,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			deploy: 'agentuity deploy',
 		},
 		aiExample: nuxtAiExample,
-		brandSnippet: nuxtBrandSnippet,
+		landingPage: nuxtLandingPage,
 	},
 	{
 		slug: 'remix',
@@ -532,7 +136,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			deploy: 'agentuity deploy',
 		},
 		aiExample: remixAiExample,
-		brandSnippet: remixBrandSnippet,
+		landingPage: remixLandingPage,
 	},
 	{
 		slug: 'sveltekit',
@@ -553,7 +157,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			deploy: 'agentuity deploy',
 		},
 		aiExample: sveltekitAiExample,
-		brandSnippet: sveltekitBrandSnippet,
+		landingPage: sveltekitLandingPage,
 	},
 	{
 		slug: 'astro',
@@ -575,7 +179,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			deploy: 'agentuity deploy',
 		},
 		aiExample: astroAiExample,
-		brandSnippet: astroBrandSnippet,
+		landingPage: astroLandingPage,
 	},
 	{
 		slug: 'hono',
@@ -607,7 +211,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			deploy: 'agentuity deploy',
 		},
 		aiExample: viteReactAiExample,
-		brandSnippet: viteReactBrandSnippet,
+		landingPage: viteReactLandingPage,
 	},
 ];
 

@@ -104,15 +104,15 @@ async function augmentProject(
 			}
 			progress(50);
 
-			// Step 3: Add Agentuity badge component
-			if (framework.brandSnippet) {
-				const files = framework.brandSnippet();
+			// Step 3: Replace default landing page with Agentuity-branded page
+			if (framework.landingPage) {
+				const files = framework.landingPage();
 				for (const [relativePath, content] of Object.entries(files)) {
 					const filePath = join(dest, relativePath);
 					const dir = join(filePath, '..');
 					mkdirSync(dir, { recursive: true });
 					await Bun.write(filePath, content);
-					logger.debug('Created brand badge: %s', relativePath);
+					logger.debug('Created landing page: %s', relativePath);
 				}
 			}
 			progress(75);
