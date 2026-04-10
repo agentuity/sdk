@@ -15,7 +15,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="$SDK_ROOT/packages/cli/bin/cli.ts"
 
 # Framework apps to test (directory name under apps/testing/)
 ALL_APPS=(tanstack-start nextjs-app vite-react-app)
@@ -96,7 +95,7 @@ for APP in "${ALL_APPS[@]}"; do
 	# Start app via agentuity dev
 	echo "  Starting via agentuity dev..."
 	cd "$APP_DIR"
-	"$CLI" dev &
+	bun run dev &
 	DEV_PID=$!
 
 	# Wait for server

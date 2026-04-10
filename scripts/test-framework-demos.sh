@@ -7,8 +7,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Agentuity CLI path (use local development CLI)
-CLI="$SDK_ROOT/packages/cli/bin/cli.ts"
 
 echo "╔════════════════════════════════════════════════╗"
 echo "║  Framework Demo Tests                          ║"
@@ -104,9 +102,9 @@ if [ "$RUN_TANSTACK" = true ]; then
 	echo ""
 	
 	# Start TanStack app
-	echo "Starting TanStack app via agentuity dev..."
+	echo "Starting TanStack app..."
 	cd "$SDK_ROOT/apps/testing/tanstack-start"
-	"$CLI" dev &
+	bun run dev &
 	TANSTACK_PID=$!
 	
 	# Wait for web server
@@ -137,9 +135,9 @@ if [ "$RUN_NEXTJS" = true ]; then
 	echo ""
 	
 	# Start Next.js app
-	echo "Starting Next.js app via agentuity dev..."
+	echo "Starting Next.js app..."
 	cd "$SDK_ROOT/apps/testing/nextjs-app"
-	"$CLI" dev &
+	bun run dev &
 	NEXTJS_PID=$!
 	
 	# Wait for web server
@@ -173,9 +171,9 @@ if [ "$RUN_VITE_RSC" = true ]; then
 		echo ""
 		
 		# Start Vite RSC app
-		echo "Starting Vite RSC app via agentuity dev..."
+		echo "Starting Vite RSC app..."
 		cd "$SDK_ROOT/apps/testing/vite-rsc-app"
-		"$CLI" dev &
+		bun run dev &
 		VITE_RSC_PID=$!
 		
 		# Wait for web server

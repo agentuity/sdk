@@ -8,7 +8,8 @@
 		"#/*": "./src/*"
 	},
 	"scripts": {
-		"dev": "vite dev --port 3000",
+		"dev": "agentuity dev --script dev:start",
+		"dev:start": "vite dev --port 3000",
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "vitest run",
@@ -32,6 +33,7 @@
 		"tailwindcss": "^4.1.18"
 	},
 	"devDependencies": {
+		"@agentuity/cli": "workspace:*",
 		"@tailwindcss/typography": "^0.5.16",
 		"@tanstack/devtools-vite": "latest",
 		"@testing-library/dom": "^10.4.1",
