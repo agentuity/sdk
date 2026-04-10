@@ -50,7 +50,7 @@ export const command = createCommand({
 		const rootDir = resolve(projectDir);
 
 		// Read package.json
-		const { framework, packageJson } = await detectFrameworkWithPackageJson(rootDir);
+		const { packageJson } = await detectFrameworkWithPackageJson(rootDir);
 
 		if (!packageJson) {
 			tui.fatal(
@@ -126,16 +126,6 @@ export const command = createCommand({
 					' to enable AI Gateway routing.'
 			);
 		}
-
-		// Log what we're doing
-		const frameworkLabel = framework
-			? framework.name === 'generic'
-				? ''
-				: ` (${framework.name})`
-			: '';
-		tui.info(`Starting dev server${frameworkLabel} on port ${port}`);
-		tui.info(tui.muted(`$ ${cmd.join(' ')}`));
-		tui.newline();
 
 		// Run the dev command, inheriting stdio for full interactivity
 		const proc = Bun.spawn(cmd, {
