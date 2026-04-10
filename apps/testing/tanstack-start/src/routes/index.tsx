@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { type ChangeEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, useState } from 'react';
 
 export const Route = createFileRoute('/')({ component: App });
 
@@ -20,14 +20,6 @@ function App() {
 	} | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [envDebug, setEnvDebug] = useState<Record<string, unknown> | null>(null);
-
-	useEffect(() => {
-		fetch('/api/debug-env')
-			.then((r) => r.json())
-			.then(setEnvDebug)
-			.catch(console.error);
-	}, []);
 
 	const handleTranslate = async () => {
 		setIsLoading(true);
@@ -240,17 +232,6 @@ function App() {
 						))}
 					</div>
 				</div>
-				{/* Debug: Server Env */}
-				{envDebug && (
-					<div className="rounded-lg border border-gray-900 bg-black p-8">
-						<h3 className="m-0 mb-4 text-xl font-normal leading-none text-white">
-							🔧 Server Environment (debug)
-						</h3>
-						<pre className="overflow-auto rounded-md bg-gray-950 p-4 text-xs text-gray-400">
-							{JSON.stringify(envDebug, null, 2)}
-						</pre>
-					</div>
-				)}
 			</div>
 		</div>
 	);

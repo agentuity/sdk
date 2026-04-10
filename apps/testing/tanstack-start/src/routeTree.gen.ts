@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiTranslateRouteImport } from './routes/api/translate'
-import { Route as ApiDebugEnvRouteImport } from './routes/api/debug-env'
 
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
@@ -29,43 +28,34 @@ const ApiTranslateRoute = ApiTranslateRouteImport.update({
   path: '/api/translate',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDebugEnvRoute = ApiDebugEnvRouteImport.update({
-  id: '/api/debug-env',
-  path: '/api/debug-env',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/api/debug-env': typeof ApiDebugEnvRoute
   '/api/translate': typeof ApiTranslateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/api/debug-env': typeof ApiDebugEnvRoute
   '/api/translate': typeof ApiTranslateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/api/debug-env': typeof ApiDebugEnvRoute
   '/api/translate': typeof ApiTranslateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/api/debug-env' | '/api/translate'
+  fullPaths: '/' | '/about' | '/api/translate'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/api/debug-env' | '/api/translate'
-  id: '__root__' | '/' | '/about' | '/api/debug-env' | '/api/translate'
+  to: '/' | '/about' | '/api/translate'
+  id: '__root__' | '/' | '/about' | '/api/translate'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  ApiDebugEnvRoute: typeof ApiDebugEnvRoute
   ApiTranslateRoute: typeof ApiTranslateRoute
 }
 
@@ -92,20 +82,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTranslateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/debug-env': {
-      id: '/api/debug-env'
-      path: '/api/debug-env'
-      fullPath: '/api/debug-env'
-      preLoaderRoute: typeof ApiDebugEnvRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  ApiDebugEnvRoute: ApiDebugEnvRoute,
   ApiTranslateRoute: ApiTranslateRoute,
 }
 export const routeTree = rootRouteImport
