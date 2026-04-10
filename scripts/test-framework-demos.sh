@@ -60,10 +60,8 @@ cleanup() {
 	if [ -n "$VITE_RSC_PID" ]; then
 		kill $VITE_RSC_PID 2>/dev/null || true
 	fi
-	# Kill any remaining processes on the ports
+	# Kill any remaining processes on the port
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -108,7 +106,7 @@ if [ "$RUN_TANSTACK" = true ]; then
 	TANSTACK_PID=$!
 	
 	# Wait for web server
-	wait_for_server "http://localhost:3000" "TanStack web (3000)"
+	wait_for_server "http://localhost:3000" "TanStack (3000)"
 	
 	# Run Playwright tests for TanStack
 	echo ""
@@ -141,7 +139,7 @@ if [ "$RUN_NEXTJS" = true ]; then
 	NEXTJS_PID=$!
 	
 	# Wait for web server
-	wait_for_server "http://localhost:3001" "Next.js web (3001)"
+	wait_for_server "http://localhost:3000" "Next.js (3000)"
 	
 	# Run Playwright tests for Next.js
 	echo ""
@@ -152,7 +150,7 @@ if [ "$RUN_NEXTJS" = true ]; then
 	# Stop Next.js
 	kill $NEXTJS_PID 2>/dev/null || true
 	NEXTJS_PID=""
-	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 	
 	echo ""
 	echo "✓ Next.js tests completed"
@@ -177,7 +175,7 @@ if [ "$RUN_VITE_RSC" = true ]; then
 		VITE_RSC_PID=$!
 		
 		# Wait for web server
-		wait_for_server "http://localhost:3002" "Vite RSC web (3002)"
+		wait_for_server "http://localhost:3000" "Vite RSC (3000)"
 		
 		# Run Playwright tests for Vite RSC
 		echo ""
@@ -188,7 +186,7 @@ if [ "$RUN_VITE_RSC" = true ]; then
 		# Stop Vite RSC
 		kill $VITE_RSC_PID 2>/dev/null || true
 		VITE_RSC_PID=""
-		lsof -ti:3002 | xargs kill -9 2>/dev/null || true
+		lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 		
 		echo ""
 		echo "✓ Vite RSC tests completed"

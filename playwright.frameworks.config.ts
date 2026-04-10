@@ -30,7 +30,7 @@ export default defineConfig({
 			testMatch: 'nextjs.pw.ts',
 			use: {
 				...devices['Desktop Chrome'],
-				baseURL: 'http://localhost:3001',
+				baseURL: 'http://localhost:3000',
 			},
 		},
 		{
@@ -38,7 +38,7 @@ export default defineConfig({
 			testMatch: 'vite-rsc.pw.ts',
 			use: {
 				...devices['Desktop Chrome'],
-				baseURL: 'http://localhost:3002',
+				baseURL: 'http://localhost:3000',
 			},
 		},
 	],
