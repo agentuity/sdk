@@ -14,7 +14,7 @@ import { createCommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { loadProjectSDKKey, getAuth } from '../../config';
+import { loadProjectSDKKey, getAuth, loadConfig } from '../../config';
 import { detectFrameworkWithPackageJson } from '../build/detect';
 import { detectPackageManager, getRunCommand } from '../build/detect/util';
 
@@ -108,8 +108,26 @@ export const command = createCommand({
 			}
 		}
 
+		// Load profile config to get transport URL for gateway routing
+		const config = await loadConfig();
+		if (config?.overrides?.transport_url && !env.AGENTUITY_TRANSPORT_URL) {
+			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
+		}
+		if (config?.overrides?.catalyst_url && !env.AGENTUITY_CATALYST_URL) {
+			env.AGENTUITY_CATALYST_URL = config.overrides.catalyst_url;
+		}
+
 		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
-		injectGatewayEnv(env, logger);
+		const gatewayInjected = injectGatewayEnv(env, logger);
+		if (gatewayInjected) {
+			tui.info('AI Gateway: routing LLM requests through Agentuity');
+		} else if (!env.OPENAI_API_KEY && !env.ANTHROPIC_API_KEY) {
+			tui.warning(
+				'No AI API keys found. Run ' +
+					tui.bold('agentuity auth login') +
+					' to enable AI Gateway routing.'
+			);
+		}
 
 		// Log what we're doing
 		const frameworkLabel = framework
@@ -176,9 +194,11 @@ const GATEWAY_PROVIDERS: GatewayProvider[] = [
 function injectGatewayEnv(
 	env: Record<string, string>,
 	logger: { debug: (...args: unknown[]) => void }
-): void {
+): boolean {
 	const sdkKey = env.AGENTUITY_SDK_KEY;
-	if (!sdkKey) return;
+	if (!sdkKey) return false;
+
+	let injected = false;
 
 	const gatewayUrl =
 		env.AGENTUITY_AIGATEWAY_URL ||
@@ -196,5 +216,8 @@ function injectGatewayEnv(
 		env[apiKeyEnv] = sdkKey;
 		env[baseUrlEnv] = `${gatewayUrl}/gateway/${provider}`;
 		logger.debug('AI Gateway: routing %s through %s', provider, env[baseUrlEnv]);
+		injected = true;
 	}
+
+	return injected;
 }
