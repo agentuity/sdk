@@ -46,6 +46,106 @@
 			"types": "./dist/services/api.d.ts",
 			"default": "./dist/services/api.js"
 		},
+		"./apikey": {
+			"types": "./dist/services/apikey/index.d.ts",
+			"default": "./dist/services/apikey/index.js"
+		},
+		"./auth": {
+			"types": "./dist/services/auth/index.d.ts",
+			"default": "./dist/services/auth/index.js"
+		},
+		"./coder": {
+			"types": "./dist/services/coder/index.d.ts",
+			"default": "./dist/services/coder/index.js"
+		},
+		"./db": {
+			"types": "./dist/services/db/index.d.ts",
+			"default": "./dist/services/db/index.js"
+		},
+		"./email": {
+			"types": "./dist/services/email/index.d.ts",
+			"default": "./dist/services/email/index.js"
+		},
+		"./eval": {
+			"types": "./dist/services/eval/index.d.ts",
+			"default": "./dist/services/eval/index.js"
+		},
+		"./keyvalue": {
+			"types": "./dist/services/keyvalue/index.d.ts",
+			"default": "./dist/services/keyvalue/index.js"
+		},
+		"./machine": {
+			"types": "./dist/services/machine/index.d.ts",
+			"default": "./dist/services/machine/index.js"
+		},
+		"./monitoring": {
+			"types": "./dist/services/monitoring/index.d.ts",
+			"default": "./dist/services/monitoring/index.js"
+		},
+		"./oauth": {
+			"types": "./dist/services/oauth/index.d.ts",
+			"default": "./dist/services/oauth/index.js"
+		},
+		"./org": {
+			"types": "./dist/services/org/index.d.ts",
+			"default": "./dist/services/org/index.js"
+		},
+		"./project": {
+			"types": "./dist/services/project/index.d.ts",
+			"default": "./dist/services/project/index.js"
+		},
+		"./queue": {
+			"types": "./dist/services/queue/index.d.ts",
+			"default": "./dist/services/queue/index.js"
+		},
+		"./region": {
+			"types": "./dist/services/region/index.d.ts",
+			"default": "./dist/services/region/index.js"
+		},
+		"./sandbox": {
+			"types": "./dist/services/sandbox/index.d.ts",
+			"default": "./dist/services/sandbox/index.js"
+		},
+		"./schedule": {
+			"types": "./dist/services/schedule/index.d.ts",
+			"default": "./dist/services/schedule/index.js"
+		},
+		"./session": {
+			"types": "./dist/services/session/index.d.ts",
+			"default": "./dist/services/session/index.js"
+		},
+		"./storage": {
+			"types": "./dist/services/storage/index.d.ts",
+			"default": "./dist/services/storage/index.js"
+		},
+		"./stream": {
+			"types": "./dist/services/stream/index.d.ts",
+			"default": "./dist/services/stream/index.js"
+		},
+		"./task": {
+			"types": "./dist/services/task/index.d.ts",
+			"default": "./dist/services/task/index.js"
+		},
+		"./thread": {
+			"types": "./dist/services/thread/index.d.ts",
+			"default": "./dist/services/thread/index.js"
+		},
+		"./user": {
+			"types": "./dist/services/user/index.d.ts",
+			"default": "./dist/services/user/index.js"
+		},
+		"./vector": {
+			"types": "./dist/services/vector/index.d.ts",
+			"default": "./dist/services/vector/index.js"
+		},
+		"./webhook": {
+			"types": "./dist/services/webhook/index.d.ts",
+			"default": "./dist/services/webhook/index.js"
+		},
+		"./workflow": {
+			"types": "./dist/services/workflow/index.d.ts",
+			"default": "./dist/services/workflow/index.js"
+		},
 		"./*": {
 			"types": "./dist/services/*/index.d.ts",
 			"default": "./dist/services/*/index.js"
@@ -73,6 +173,81 @@
 			],
 			"api": [
 				"./dist/services/api.d.ts"
+			],
+			"apikey": [
+				"./dist/services/apikey/index.d.ts"
+			],
+			"auth": [
+				"./dist/services/auth/index.d.ts"
+			],
+			"coder": [
+				"./dist/services/coder/index.d.ts"
+			],
+			"db": [
+				"./dist/services/db/index.d.ts"
+			],
+			"email": [
+				"./dist/services/email/index.d.ts"
+			],
+			"eval": [
+				"./dist/services/eval/index.d.ts"
+			],
+			"keyvalue": [
+				"./dist/services/keyvalue/index.d.ts"
+			],
+			"machine": [
+				"./dist/services/machine/index.d.ts"
+			],
+			"monitoring": [
+				"./dist/services/monitoring/index.d.ts"
+			],
+			"oauth": [
+				"./dist/services/oauth/index.d.ts"
+			],
+			"org": [
+				"./dist/services/org/index.d.ts"
+			],
+			"project": [
+				"./dist/services/project/index.d.ts"
+			],
+			"queue": [
+				"./dist/services/queue/index.d.ts"
+			],
+			"region": [
+				"./dist/services/region/index.d.ts"
+			],
+			"sandbox": [
+				"./dist/services/sandbox/index.d.ts"
+			],
+			"schedule": [
+				"./dist/services/schedule/index.d.ts"
+			],
+			"session": [
+				"./dist/services/session/index.d.ts"
+			],
+			"storage": [
+				"./dist/services/storage/index.d.ts"
+			],
+			"stream": [
+				"./dist/services/stream/index.d.ts"
+			],
+			"task": [
+				"./dist/services/task/index.d.ts"
+			],
+			"thread": [
+				"./dist/services/thread/index.d.ts"
+			],
+			"user": [
+				"./dist/services/user/index.d.ts"
+			],
+			"vector": [
+				"./dist/services/vector/index.d.ts"
+			],
+			"webhook": [
+				"./dist/services/webhook/index.d.ts"
+			],
+			"workflow": [
+				"./dist/services/workflow/index.d.ts"
 			],
 			"*": [
 				"./dist/services/*/index.d.ts"
