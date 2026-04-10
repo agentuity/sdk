@@ -14,6 +14,7 @@ import { createCommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
+import { loadProjectSDKKey } from '../../config';
 import { detectFrameworkWithPackageJson } from '../build/detect';
 import { detectPackageManager, getRunCommand } from '../build/detect/util';
 
@@ -83,6 +84,14 @@ export const command = createCommand({
 		const env: Record<string, string> = { ...process.env } as Record<string, string>;
 		const port = opts.port ?? DEFAULT_PORT;
 		env.PORT = String(port);
+
+		// Load SDK key from project .env files if not already in environment
+		if (!env.AGENTUITY_SDK_KEY) {
+			const sdkKey = await loadProjectSDKKey(logger, rootDir);
+			if (sdkKey) {
+				env.AGENTUITY_SDK_KEY = sdkKey;
+			}
+		}
 
 		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
 		injectGatewayEnv(env, logger);
