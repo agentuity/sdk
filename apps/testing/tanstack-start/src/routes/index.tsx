@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { type ChangeEvent, useState } from 'react';
-import { translateText } from '../server/translate';
+import { type ChangeEvent, useEffect, useState } from 'react';
 
 export const Route = createFileRoute('/')({ component: App });
 
@@ -21,13 +20,29 @@ function App() {
 	} | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [envDebug, setEnvDebug] = useState<Record<string, unknown> | null>(null);
+
+	useEffect(() => {
+		fetch('/api/debug-env')
+			.then((r) => r.json())
+			.then(setEnvDebug)
+			.catch(console.error);
+	}, []);
 
 	const handleTranslate = async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const res = await translateText({ text, toLanguage, model });
-			setResult(res);
+			const res = await fetch('/api/translate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text, toLanguage, model }),
+			});
+			if (!res.ok) {
+				const errBody = await res.text();
+				throw new Error(`API error ${res.status}: ${errBody}`);
+			}
+			setResult(await res.json());
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Translation failed');
 		} finally {
@@ -225,6 +240,17 @@ function App() {
 						))}
 					</div>
 				</div>
+				{/* Debug: Server Env */}
+				{envDebug && (
+					<div className="rounded-lg border border-gray-900 bg-black p-8">
+						<h3 className="m-0 mb-4 text-xl font-normal leading-none text-white">
+							🔧 Server Environment (debug)
+						</h3>
+						<pre className="overflow-auto rounded-md bg-gray-950 p-4 text-xs text-gray-400">
+							{JSON.stringify(envDebug, null, 2)}
+						</pre>
+					</div>
+				)}
 			</div>
 		</div>
 	);
