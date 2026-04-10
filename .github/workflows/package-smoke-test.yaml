@@ -79,6 +79,9 @@ jobs:
          - name: Install dependencies
            run: bun install
 
+         - name: Build packages
+           run: bun run build
+
          - name: Run standalone-backend tests
            run: cd apps/testing/standalone-backend && bun test
 
