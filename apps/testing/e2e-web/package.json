@@ -6,8 +6,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "bun --hot src/server.ts",
-		"build": "bun build src/server.ts --outdir dist --target node",
-		"start": "node dist/server.js",
+		"build": "bun build src/server.ts --outdir dist --target bun",
+		"start": "bun dist/server.js",
 		"test": "bun test",
 		"typecheck": "bunx tsc --noEmit"
 	},

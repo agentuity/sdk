@@ -12,8 +12,17 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 
 const app = new Hono();
+
+async function parseJson(c: Context) {
+	try {
+		return await c.req.json();
+	} catch (err) {
+		throw new Error('Invalid request body', { cause: err });
+	}
+}
 
 app.get('/', (c) => {
 	return c.json({
@@ -30,7 +39,7 @@ app.get('/api/health', (c) => {
 // ── Key-Value ────────────────────────────────────────────────────────────────
 
 app.post('/api/kv/set', async (c) => {
-	const { key, value } = await c.req.json();
+	const { key, value } = await parseJson(c);
 	// TODO: Use @agentuity/keyvalue client
 	return c.json({ ok: true, key, value });
 });
@@ -44,13 +53,13 @@ app.get('/api/kv/get/:key', async (c) => {
 // ── Vector ───────────────────────────────────────────────────────────────────
 
 app.post('/api/vector/upsert', async (c) => {
-	const body = await c.req.json();
+	const body = await parseJson(c);
 	// TODO: Use @agentuity/vector client
 	return c.json({ ok: true, id: body.id });
 });
 
 app.post('/api/vector/search', async (c) => {
-	const { query } = await c.req.json();
+	const { query } = await parseJson(c);
 	// TODO: Use @agentuity/vector client
 	return c.json({ query, results: [] });
 });
@@ -58,14 +67,16 @@ app.post('/api/vector/search', async (c) => {
 // ── Queue ────────────────────────────────────────────────────────────────────
 
 app.post('/api/queue/publish', async (c) => {
-	const _body = await c.req.json();
+	const _body = await parseJson(c);
 	// TODO: Use @agentuity/queue client
 	return c.json({ ok: true, messageId: `msg_${Date.now()}` });
 });
 
-const port = parseInt(process.env.PORT || '3000', 10);
+const parsedPort = Number.parseInt(process.env.PORT ?? '3000', 10);
+export const port = Number.isNaN(parsedPort) ? 3000 : parsedPort;
+export const fetch = app.fetch;
 
 export default {
 	port,
-	fetch: app.fetch,
+	fetch,
 };
