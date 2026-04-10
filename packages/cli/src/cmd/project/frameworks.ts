@@ -69,25 +69,19 @@ export interface FrameworkScaffold {
 
 function nextjsAiExample(): Record<string, string> {
 	return {
-		'app/api/chat/route.ts': `import OpenAI from 'openai';
+		'app/api/chat/route.ts': `import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 import { NextResponse } from 'next/server';
-
-const openai = new OpenAI();
 
 export async function POST(request: Request) {
 \tconst { message } = await request.json();
 
-\tconst completion = await openai.chat.completions.create({
-\t\tmodel: 'gpt-4o-mini',
-\t\tmessages: [
-\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t{ role: 'user', content: message },
-\t\t],
+\tconst { text } = await generateText({
+\t\tmodel: openai('gpt-4o-mini'),
+\t\tprompt: message,
 \t});
 
-\treturn NextResponse.json({
-\t\treply: completion.choices[0]?.message?.content ?? '',
-\t});
+\treturn NextResponse.json({ reply: text });
 }
 `,
 	};
@@ -95,24 +89,18 @@ export async function POST(request: Request) {
 
 function nuxtAiExample(): Record<string, string> {
 	return {
-		'server/api/chat.post.ts': `import OpenAI from 'openai';
-
-const openai = new OpenAI();
+		'server/api/chat.post.ts': `import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 export default defineEventHandler(async (event) => {
 \tconst { message } = await readBody(event);
 
-\tconst completion = await openai.chat.completions.create({
-\t\tmodel: 'gpt-4o-mini',
-\t\tmessages: [
-\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t{ role: 'user', content: message },
-\t\t],
+\tconst { text } = await generateText({
+\t\tmodel: openai('gpt-4o-mini'),
+\t\tprompt: message,
 \t});
 
-\treturn {
-\t\treply: completion.choices[0]?.message?.content ?? '',
-\t};
+\treturn { reply: text };
 });
 `,
 	};
@@ -121,24 +109,18 @@ export default defineEventHandler(async (event) => {
 function remixAiExample(): Record<string, string> {
 	return {
 		'app/routes/api.chat.ts': `import { type ActionFunctionArgs, json } from '@remix-run/node';
-import OpenAI from 'openai';
-
-const openai = new OpenAI();
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 export async function action({ request }: ActionFunctionArgs) {
 \tconst { message } = await request.json();
 
-\tconst completion = await openai.chat.completions.create({
-\t\tmodel: 'gpt-4o-mini',
-\t\tmessages: [
-\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t{ role: 'user', content: message },
-\t\t],
+\tconst { text } = await generateText({
+\t\tmodel: openai('gpt-4o-mini'),
+\t\tprompt: message,
 \t});
 
-\treturn json({
-\t\treply: completion.choices[0]?.message?.content ?? '',
-\t});
+\treturn json({ reply: text });
 }
 `,
 	};
@@ -148,24 +130,18 @@ function sveltekitAiExample(): Record<string, string> {
 	return {
 		'src/routes/api/chat/+server.ts': `import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import OpenAI from 'openai';
-
-const openai = new OpenAI();
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 export const POST: RequestHandler = async ({ request }) => {
 \tconst { message } = await request.json();
 
-\tconst completion = await openai.chat.completions.create({
-\t\tmodel: 'gpt-4o-mini',
-\t\tmessages: [
-\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t{ role: 'user', content: message },
-\t\t],
+\tconst { text } = await generateText({
+\t\tmodel: openai('gpt-4o-mini'),
+\t\tprompt: message,
 \t});
 
-\treturn json({
-\t\treply: completion.choices[0]?.message?.content ?? '',
-\t});
+\treturn json({ reply: text });
 };
 `,
 	};
@@ -174,23 +150,19 @@ export const POST: RequestHandler = async ({ request }) => {
 function astroAiExample(): Record<string, string> {
 	return {
 		'src/pages/api/chat.ts': `import type { APIRoute } from 'astro';
-import OpenAI from 'openai';
-
-const openai = new OpenAI();
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 export const POST: APIRoute = async ({ request }) => {
 \tconst { message } = await request.json();
 
-\tconst completion = await openai.chat.completions.create({
-\t\tmodel: 'gpt-4o-mini',
-\t\tmessages: [
-\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t{ role: 'user', content: message },
-\t\t],
+\tconst { text } = await generateText({
+\t\tmodel: openai('gpt-4o-mini'),
+\t\tprompt: message,
 \t});
 
 \treturn new Response(
-\t\tJSON.stringify({ reply: completion.choices[0]?.message?.content ?? '' }),
+\t\tJSON.stringify({ reply: text }),
 \t\t{ headers: { 'Content-Type': 'application/json' } }
 \t);
 };
@@ -201,27 +173,22 @@ export const POST: APIRoute = async ({ request }) => {
 function honoAiExample(): Record<string, string> {
 	return {
 		'src/index.ts': `import { Hono } from 'hono';
-import OpenAI from 'openai';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 const app = new Hono();
-const openai = new OpenAI();
 
 app.get('/', (c) => c.text('Hello from Hono + Agentuity!'));
 
 app.post('/api/chat', async (c) => {
 \tconst { message } = await c.req.json();
 
-\tconst completion = await openai.chat.completions.create({
-\t\tmodel: 'gpt-4o-mini',
-\t\tmessages: [
-\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t{ role: 'user', content: message },
-\t\t],
+\tconst { text } = await generateText({
+\t\tmodel: openai('gpt-4o-mini'),
+\t\tprompt: message,
 \t});
 
-\treturn c.json({
-\t\treply: completion.choices[0]?.message?.content ?? '',
-\t});
+\treturn c.json({ reply: text });
 });
 
 export default app;
@@ -231,9 +198,8 @@ export default app;
 
 function viteReactAiExample(): Record<string, string> {
 	return {
-		'server.ts': `import OpenAI from 'openai';
-
-const openai = new OpenAI();
+		'server.ts': `import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 Bun.serve({
 \tport: process.env.PORT ?? 3000,
@@ -243,17 +209,12 @@ Bun.serve({
 \t\tif (url.pathname === '/api/chat' && request.method === 'POST') {
 \t\t\tconst { message } = await request.json();
 
-\t\t\tconst completion = await openai.chat.completions.create({
-\t\t\t\tmodel: 'gpt-4o-mini',
-\t\t\t\tmessages: [
-\t\t\t\t\t{ role: 'system', content: 'You are a helpful assistant.' },
-\t\t\t\t\t{ role: 'user', content: message },
-\t\t\t\t],
+\t\t\tconst { text } = await generateText({
+\t\t\t\tmodel: openai('gpt-4o-mini'),
+\t\t\t\tprompt: message,
 \t\t\t});
 
-\t\t\treturn Response.json({
-\t\t\t\treply: completion.choices[0]?.message?.content ?? '',
-\t\t\t});
+\t\t\treturn Response.json({ reply: text });
 \t\t}
 
 \t\treturn new Response('Not Found', { status: 404 });
@@ -534,7 +495,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'@/*',
 			'--use-bun',
 		],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -546,7 +507,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		name: 'Nuxt',
 		description: 'Full-stack Vue framework with server routes',
 		createCommand: (dir) => ['bunx', 'nuxi@latest', 'init', dir, '--packageManager', 'bun'],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -566,7 +527,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--package-manager',
 			'bun',
 		],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -587,7 +548,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--types',
 			'ts',
 		],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -609,7 +570,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--typescript',
 			'strict',
 		],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -630,7 +591,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--pm',
 			'bun',
 		],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -641,7 +602,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		name: 'Vite + React',
 		description: 'React SPA with Vite bundler',
 		createCommand: (dir) => ['bunx', 'create-vite@latest', dir, '--template', 'react-ts'],
-		dependencies: ['openai'],
+		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
