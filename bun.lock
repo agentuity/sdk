@@ -281,6 +281,8 @@
       "name": "tanstack-start-app",
       "version": "0.0.1",
       "dependencies": {
+        "@agentuity/core": "workspace:*",
+        "@agentuity/react": "workspace:*",
         "@tailwindcss/vite": "^4.1.18",
         "@tanstack/react-devtools": "latest",
         "@tanstack/react-router": "latest",

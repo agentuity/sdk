@@ -7,9 +7,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Agentuity CLI path (use local development CLI)
+CLI="$SDK_ROOT/packages/cli/bin/cli.ts"
+
 echo "╔════════════════════════════════════════════════╗"
 echo "║  Framework Demo Tests                          ║"
 echo "║  TanStack & Next.js & Vite RSC                 ║"
+echo "║  (via agentuity dev)                           ║"
 echo "╚════════════════════════════════════════════════╝"
 echo ""
 
@@ -100,9 +104,9 @@ if [ "$RUN_TANSTACK" = true ]; then
 	echo ""
 	
 	# Start TanStack app
-	echo "Starting TanStack app..."
+	echo "Starting TanStack app via agentuity dev..."
 	cd "$SDK_ROOT/apps/testing/tanstack-start"
-	bun run dev &
+	"$CLI" dev &
 	TANSTACK_PID=$!
 	
 	# Wait for web server
@@ -133,9 +137,9 @@ if [ "$RUN_NEXTJS" = true ]; then
 	echo ""
 	
 	# Start Next.js app
-	echo "Starting Next.js app..."
+	echo "Starting Next.js app via agentuity dev..."
 	cd "$SDK_ROOT/apps/testing/nextjs-app"
-	bun run dev &
+	"$CLI" dev &
 	NEXTJS_PID=$!
 	
 	# Wait for web server
@@ -169,9 +173,9 @@ if [ "$RUN_VITE_RSC" = true ]; then
 		echo ""
 		
 		# Start Vite RSC app
-		echo "Starting Vite RSC app..."
+		echo "Starting Vite RSC app via agentuity dev..."
 		cd "$SDK_ROOT/apps/testing/vite-rsc-app"
-		bun run dev &
+		"$CLI" dev &
 		VITE_RSC_PID=$!
 		
 		# Wait for web server
