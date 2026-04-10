@@ -1,14 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { type ChangeEvent, useState } from 'react';
 import { translateText } from '../server/translate';
 
 export const Route = createFileRoute('/')({ component: App });
 
-const LANGUAGES = ['Spanish', 'French', 'German', 'Japanese', 'Chinese'] as const;
+const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
+const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const DEFAULT_TEXT =
+	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
 
 function App() {
-	const [text, setText] = useState('Hello, world! Welcome to Agentuity.');
-	const [toLanguage, setToLanguage] = useState<string>('Spanish');
+	const [text, setText] = useState(DEFAULT_TEXT);
+	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
+	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-4o-mini');
 	const [result, setResult] = useState<{
 		translation: string;
 		tokens: number;
@@ -22,7 +26,7 @@ function App() {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const res = await translateText({ text, toLanguage });
+			const res = await translateText({ text, toLanguage, model });
 			setResult(res);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Translation failed');
@@ -32,84 +36,196 @@ function App() {
 	};
 
 	return (
-		<main className="page-wrap px-4 pb-8 pt-14">
-			<section className="island-shell rise-in relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
-				<p className="island-kicker mb-3">Agentuity + TanStack Start</p>
-				<h1 className="display-title mb-5 max-w-3xl text-4xl leading-[1.02] font-bold tracking-tight text-[var(--sea-ink)] sm:text-5xl">
-					AI Translation Demo
-				</h1>
-				<p className="mb-8 max-w-2xl text-base text-[var(--sea-ink-soft)] sm:text-lg">
-					Translate text using AI models through the Agentuity AI Gateway. Running via{' '}
-					<code>agentuity dev</code> automatically routes AI SDK calls through the gateway — no
-					separate API keys needed.
-				</p>
-			</section>
-
-			<section className="island-shell mt-8 rounded-2xl p-6">
-				<div className="space-y-4">
-					<div>
-						<label
-							htmlFor="text-input"
-							className="mb-1 block text-sm font-medium text-[var(--sea-ink)]"
-						>
-							Text to translate
-						</label>
-						<textarea
-							id="text-input"
-							value={text}
-							onChange={(e) => setText(e.target.value)}
-							rows={3}
-							className="w-full rounded-lg border border-[rgba(23,58,64,0.2)] bg-white/50 px-3 py-2 text-sm"
+		<div className="flex min-h-screen justify-center font-sans text-white">
+			<div className="flex w-full max-w-3xl flex-col gap-4 p-16">
+				{/* Header */}
+				<div className="relative mb-8 flex flex-col items-center justify-center gap-2 text-center">
+					<svg
+						aria-hidden="true"
+						className="mb-4 h-auto w-12"
+						fill="none"
+						height="191"
+						viewBox="0 0 220 191"
+						width="220"
+						xmlns="http://www.w3.org/2000/svg"
+					>
+						<path
+							clipRule="evenodd"
+							d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.5879 136.5L24.2339 177H195.766L172.412 136.5H47.5879Z"
+							fill="var(--color-cyan-500)"
+							fillRule="evenodd"
 						/>
-					</div>
+						<path
+							clipRule="evenodd"
+							d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.7021 82.5L110 28.0811L141.298 82.5H78.7021Z"
+							fill="var(--color-cyan-500)"
+							fillRule="evenodd"
+						/>
+					</svg>
+					<h1 className="text-5xl font-thin">Welcome to Agentuity</h1>
+					<p className="text-lg text-gray-400">
+						<span className="font-serif italic">TanStack Start</span> + AI Gateway
+					</p>
+				</div>
 
-					<div className="flex items-end gap-3">
-						<div>
-							<label
-								htmlFor="language-select"
-								className="mb-1 block text-sm font-medium text-[var(--sea-ink)]"
-							>
-								Translate to
-							</label>
-							<select
-								id="language-select"
-								value={toLanguage}
-								onChange={(e) => setToLanguage(e.target.value)}
-								className="rounded-lg border border-[rgba(23,58,64,0.2)] bg-white/50 px-3 py-2 text-sm"
-							>
-								{LANGUAGES.map((lang) => (
-									<option key={lang} value={lang}>
-										{lang}
-									</option>
-								))}
-							</select>
-						</div>
-
-						<button
-							type="button"
-							onClick={handleTranslate}
-							disabled={isLoading || !text.trim()}
-							className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.14)] px-5 py-2 text-sm font-semibold text-[var(--lagoon-deep)] transition hover:-translate-y-0.5 hover:bg-[rgba(79,184,178,0.24)] disabled:opacity-50"
+				{/* Translate Form */}
+				<div className="flex flex-col gap-6 rounded-lg border border-gray-900 bg-black p-8 text-gray-400 shadow-2xl">
+					<div className="flex flex-wrap items-center gap-1.5">
+						Translate to
+						<select
+							className="-mb-0.5 cursor-pointer appearance-none border-0 border-b border-dashed border-gray-700 bg-transparent font-normal text-white outline-none hover:border-b-cyan-400 focus:border-b-cyan-400"
+							disabled={isLoading}
+							onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+								setToLanguage(e.currentTarget.value as (typeof LANGUAGES)[number])
+							}
+							value={toLanguage}
 						>
-							{isLoading ? 'Translating...' : 'Translate'}
-						</button>
+							{LANGUAGES.map((lang) => (
+								<option key={lang} value={lang}>
+									{lang}
+								</option>
+							))}
+						</select>
+						using
+						<select
+							className="-mb-0.5 cursor-pointer appearance-none border-0 border-b border-dashed border-gray-700 bg-transparent font-normal text-white outline-none hover:border-b-cyan-400 focus:border-b-cyan-400"
+							disabled={isLoading}
+							onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+								setModel(e.currentTarget.value as (typeof MODELS)[number])
+							}
+							value={model}
+						>
+							{MODELS.map((m) => (
+								<option key={m} value={m}>
+									{m}
+								</option>
+							))}
+						</select>
+						<div className="group relative z-0 ml-auto">
+							<div className="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
+							<div className="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
+							<button
+								className="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
+								disabled={isLoading || !text.trim()}
+								onClick={handleTranslate}
+								type="button"
+								data-loading={isLoading}
+							>
+								{isLoading ? 'Translating' : 'Translate'}
+							</button>
+						</div>
 					</div>
 
-					{error && (
-						<div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
-					)}
+					<textarea
+						className="z-10 min-h-28 resize-y rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-white focus:outline-2 focus:outline-offset-2 focus:outline-cyan-500"
+						disabled={isLoading}
+						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
+						placeholder="Enter text to translate..."
+						rows={4}
+						value={text}
+					/>
 
-					{result && (
-						<div className="output space-y-2 rounded-lg bg-[rgba(79,184,178,0.08)] p-4">
-							<p className="text-base text-[var(--sea-ink)]">{result.translation}</p>
-							<p className="text-xs text-[var(--sea-ink-soft)]">
-								Model: {result.model} · Tokens: {result.tokens} · Language:{' '}
-								{result.toLanguage}
-							</p>
+					{/* Translation Result */}
+					{error ? (
+						<div className="rounded-md border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-400">
+							{error}
+						</div>
+					) : isLoading ? (
+						<div
+							className="rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600"
+							data-loading="true"
+						/>
+					) : !result?.translation ? (
+						<div className="output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600">
+							Translation will appear here
+						</div>
+					) : (
+						<div className="flex flex-col gap-3">
+							<div className="output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-cyan-500">
+								{result.translation}
+							</div>
+							<div className="flex gap-4 text-xs text-gray-500">
+								{result.tokens > 0 && (
+									<span>
+										Tokens <strong className="text-gray-400">{result.tokens}</strong>
+									</span>
+								)}
+								<span>
+									Model <strong className="text-gray-400">{result.model}</strong>
+								</span>
+								<span>
+									Language <strong className="text-gray-400">{result.toLanguage}</strong>
+								</span>
+							</div>
 						</div>
 					)}
 				</div>
-			</section>
-		</main>
+
+				{/* Next Steps */}
+				<div className="rounded-lg border border-gray-900 bg-black p-8">
+					<h3 className="m-0 mb-6 text-xl font-normal leading-none text-white">
+						How it works
+					</h3>
+					<div className="flex flex-col gap-6">
+						{[
+							{
+								title: 'AI Gateway routing',
+								text: (
+									<>
+										<code className="text-white">agentuity dev</code> automatically sets
+										OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the
+										Agentuity gateway.
+									</>
+								),
+							},
+							{
+								title: 'Server functions',
+								text: (
+									<>
+										Edit <code className="text-white">src/server/translate.ts</code> to
+										change the AI model, prompt, or add new server functions.
+									</>
+								),
+							},
+							{
+								title: 'TanStack Start',
+								text: (
+									<>
+										Add routes in <code className="text-white">src/routes/</code> —
+										file-based routing with full SSR support.
+									</>
+								),
+							},
+						].map((step) => (
+							<div key={step.title} className="flex items-start gap-3">
+								<div className="flex size-4 shrink-0 items-center justify-center rounded border border-green-500 bg-green-950">
+									<svg
+										aria-hidden="true"
+										className="size-2.5"
+										fill="none"
+										height="24"
+										stroke="var(--color-green-500)"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth="2"
+										viewBox="0 0 24 24"
+										width="24"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<path d="M20 6 9 17l-5-5" />
+									</svg>
+								</div>
+								<div>
+									<h4 className="-mt-0.5 mb-0.5 text-sm font-normal text-white">
+										{step.title}
+									</h4>
+									<p className="text-xs text-gray-400">{step.text}</p>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		</div>
 	);
 }

@@ -1,23 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/about')({
-	component: About,
-});
+export const Route = createFileRoute('/about')({ component: AboutPage });
 
-function About() {
+function AboutPage() {
 	return (
-		<main className="page-wrap px-4 py-12">
-			<section className="island-shell rounded-2xl p-6 sm:p-8">
-				<p className="island-kicker mb-2">About</p>
-				<h1 className="display-title mb-3 text-4xl font-bold text-[var(--sea-ink)] sm:text-5xl">
-					A small starter with room to grow.
-				</h1>
-				<p className="m-0 max-w-3xl text-base leading-8 text-[var(--sea-ink-soft)]">
-					TanStack Start gives you type-safe routing, server functions, and modern SSR
-					defaults. Use this as a clean foundation, then layer in your own routes, styling, and
-					add-ons.
-				</p>
-			</section>
-		</main>
+		<div className="flex min-h-screen justify-center font-sans text-white">
+			<div className="flex w-full max-w-3xl flex-col gap-4 p-16">
+				<div className="rounded-lg border border-gray-900 bg-black p-8">
+					<h1 className="mb-4 text-3xl font-thin text-white">About</h1>
+					<p className="mb-4 text-gray-400">
+						This is a TanStack Start app running on Agentuity. It demonstrates AI SDK
+						integration through the Agentuity AI Gateway.
+					</p>
+					<Link to="/" className="text-cyan-500 transition-colors hover:text-cyan-400">
+						← Back to home
+					</Link>
+				</div>
+			</div>
+		</div>
 	);
 }
