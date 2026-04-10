@@ -14,7 +14,7 @@ import { createCommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { loadProjectSDKKey } from '../../config';
+import { loadProjectSDKKey, getAuth } from '../../config';
 import { detectFrameworkWithPackageJson } from '../build/detect';
 import { detectPackageManager, getRunCommand } from '../build/detect/util';
 
@@ -85,11 +85,26 @@ export const command = createCommand({
 		const port = opts.port ?? DEFAULT_PORT;
 		env.PORT = String(port);
 
-		// Load SDK key from project .env files if not already in environment
+		// Resolve SDK key: env → .env files → auth profile
 		if (!env.AGENTUITY_SDK_KEY) {
 			const sdkKey = await loadProjectSDKKey(logger, rootDir);
 			if (sdkKey) {
 				env.AGENTUITY_SDK_KEY = sdkKey;
+			} else {
+				// No project-level SDK key — fall back to CLI auth key
+				const auth = await getAuth();
+				if (auth?.apiKey) {
+					env.AGENTUITY_SDK_KEY = auth.apiKey;
+					tui.warning(
+						'No linked Agentuity project found. Using your auth key for AI Gateway.'
+					);
+					tui.info(
+						tui.muted(
+							`Run ${tui.bold('agentuity project import')} to link this project for full functionality.`
+						)
+					);
+					tui.newline();
+				}
 			}
 		}
 
