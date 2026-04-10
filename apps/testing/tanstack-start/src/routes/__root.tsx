@@ -24,6 +24,7 @@ export const Route = createRootRoute({
 		],
 	}),
 	component: RootComponent,
+	shellComponent: RootDocument,
 });
 
 function RootComponent() {
@@ -43,5 +44,3 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		</html>
 	);
 }
-
-export { RootDocument };
