@@ -27,7 +27,10 @@ const router = new Hono<Env>()
 		stream(async (c) => {
 			try {
 				const body = await c.req.json();
-				const { model = 'gpt-5-nano' } = body as { model?: string };
+				const model =
+					typeof (body as { model?: unknown }).model === 'string'
+						? (body as { model: string }).model
+						: 'gpt-5-nano';
 
 				c.var.logger?.info('Raw stream started', {
 					prompt: FIXED_PROMPT.slice(0, 50),

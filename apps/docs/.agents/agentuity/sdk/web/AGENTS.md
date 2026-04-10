@@ -60,10 +60,15 @@ function HelloForm() {
 
 	const handleSubmit = async () => {
 		setIsLoading(true);
-		const res = await client.api.hello.$post({ json: { name } });
-		const data = await res.json();
-		setGreeting(data.greeting);
-		setIsLoading(false);
+		try {
+			const res = await client.api.hello.$post({ json: { name } });
+			const data = await res.json();
+			setGreeting(data.greeting);
+		} catch (error) {
+			console.error('API call failed:', error);
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (

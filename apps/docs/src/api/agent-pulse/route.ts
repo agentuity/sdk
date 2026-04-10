@@ -193,7 +193,6 @@ const router = new Hono<Env>()
 				return c.json(
 					{
 						error: 'Sorry, I encountered an error while processing your request. Please try again.',
-						details: error instanceof Error ? error.message : String(error),
 					},
 					{ status: statusCode }
 				);

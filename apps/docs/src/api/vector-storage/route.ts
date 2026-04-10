@@ -24,8 +24,13 @@ const router = new Hono<Env>()
 	})
 
 	.post('/search', async (c) => {
-		const body = await c.req.json();
-		const { query } = body as { query?: unknown };
+		let query: unknown;
+		try {
+			const body = (await c.req.json()) as { query?: unknown };
+			query = body.query;
+		} catch {
+			return c.json({ success: false, error: 'Invalid JSON body' }, 400);
+		}
 
 		if (typeof query !== 'string' || !query.trim()) {
 			return c.json({ success: false, error: 'Query must be a non-empty string' }, 400);
@@ -43,8 +48,12 @@ const router = new Hono<Env>()
 
 	.get('/status', async (c) => {
 		try {
+			if (!c.var.vector) {
+				return c.json({ success: false, error: 'Vector service unavailable' }, 503);
+			}
+
 			// Quick search to verify data actually exists in the namespace
-			const results = await c.var.vector?.search('sdk-explorer', {
+			const results = await c.var.vector.search('sdk-explorer', {
 				query: 'chair',
 				limit: 1,
 				similarity: 0.1,
