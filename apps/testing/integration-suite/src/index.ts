@@ -58,7 +58,7 @@ app.post('/api/vector/search', async (c) => {
 // ── Queue ────────────────────────────────────────────────────────────────────
 
 app.post('/api/queue/publish', async (c) => {
-	const body = await c.req.json();
+	const _body = await c.req.json();
 	// TODO: Use @agentuity/queue client
 	return c.json({ ok: true, messageId: `msg_${Date.now()}` });
 });

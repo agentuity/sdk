@@ -20,8 +20,8 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsgo --build --force",
-		"typecheck": "bunx tsgo --noEmit",
+		"build": "bunx tsc --build",
+		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {

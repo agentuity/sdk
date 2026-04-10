@@ -41,7 +41,7 @@ function logSuccess(message: string) {
 function logError(message: string) {
 	log(`✗ ${message}`, colors.red);
 }
-function logInfo(message: string) {
+function _logInfo(message: string) {
 	log(`ℹ ${message}`, colors.blue);
 }
 
