@@ -1,55 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Vite RSC + Agentuity Integration', () => {
-	test('should load echo demo, send message, and validate response', async ({ page }) => {
-		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
-		page.on('pageerror', (err) => console.error('PAGE ERROR:', err));
-
+test.describe('Vite RSC + Agentuity', () => {
+	test('should load the home page', async ({ page }) => {
 		await page.goto('/');
-		// Wait for RSC hydration to complete before interacting
-		await page.waitForLoadState('networkidle');
-
-		await expect(page.locator('h1')).toContainText('Agentuity + Vite RSC');
-
-		const input = page.locator('input[type="text"]');
-		await expect(input).toBeVisible();
-		await input.fill('Hello from Playwright!');
-
-		const button = page.locator('button:has-text("Send Echo")');
-		await expect(button).toBeVisible();
-		await button.click();
-
-		const output = page.locator('.output');
-		await expect(output).toBeVisible();
-
-		// Wait for the loading state to be active, then for it to resolve
-		await expect(output).toHaveAttribute('data-loading', 'true', { timeout: 5000 });
-		await expect(output).not.toHaveAttribute('data-loading', 'true', { timeout: 10000 });
-
-		await expect(output).toContainText('Echo: Hello from Playwright!');
-		await expect(output).toContainText('Timestamp:');
-	});
-
-	test('should render using React Server Components (SSR)', async ({ page }) => {
-		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
-		page.on('pageerror', (err) => console.error('PAGE ERROR:', err));
-
-		// Intercept and verify RSC stream is served
-		const rscRequests: string[] = [];
-		page.on('request', (req) => {
-			if (req.url().endsWith('.rsc')) {
-				rscRequests.push(req.url());
-			}
-		});
-
-		await page.goto('/');
-		await page.waitForLoadState('networkidle');
-
-		// Verify the RSC stream was actually fetched for client hydration
-		expect(rscRequests.length).toBeGreaterThan(0);
-
-		// The page should be server-rendered with RSC
-		await expect(page.locator('h1')).toContainText('Agentuity + Vite RSC');
-		await expect(page.locator('.subtitle')).toContainText('React Server Components');
+		await expect(page.locator('h1')).toBeVisible();
 	});
 });

@@ -17,6 +17,7 @@
 			"!**/ai-elements",
 			"!**/tsc-output-parser.ts",
 			"!**/generated/*.ts",
+			"!**/routeTree.gen.ts",
 			"!bun.lock",
 			"!**/*.sh"
 		]
