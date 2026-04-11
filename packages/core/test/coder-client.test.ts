@@ -512,3 +512,145 @@ describe('CoderClient custom agent helpers', () => {
 		});
 	});
 });
+
+describe('CoderClient agent-builder helpers', () => {
+	beforeEach(() => {
+		globalThis.fetch = ORIGINAL_FETCH;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = ORIGINAL_FETCH;
+	});
+
+	test('createAgentBuilderSession posts to the builder-session endpoint', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session/builder');
+			expect(init?.method).toBe('POST');
+			expect(init?.body).toContain('"mode":"from_session"');
+			expect(init?.body).toContain('"sourceSessionId":"codesess_source_1"');
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_builder_1',
+					status: 'creating',
+					visibility: 'private',
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createAgentBuilderSession({
+				mode: 'from_session',
+				sourceSessionId: 'codesess_source_1',
+				label: 'Build from release triage',
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_builder_1',
+			status: 'creating',
+		});
+	});
+
+	test('session payloads preserve builder detail projections from the backend', async () => {
+		let getCount = 0;
+
+		mockFetch(async (url, init) => {
+			if (url === 'https://coder.example/api/hub/session/codesess_builder_1') {
+				getCount += 1;
+				return new Response(
+					JSON.stringify(
+						makeSession({
+							sessionId: 'codesess_builder_1',
+							sessionKind: 'agent_builder',
+							builder: {
+								mode: 'edit',
+								targetAgent: {
+									agentId: 'agt_123',
+									slug: 'qa-team',
+									displayName: 'QA Team',
+								},
+								proposal: {
+									displayName: 'QA Team',
+									tools: ['read', 'grep'],
+									serviceTools: ['session_dashboard'],
+									savedSkills: [],
+									companionAgents: ['reviewer'],
+								},
+							},
+						})
+					),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}
+				);
+			}
+
+			if (url === 'https://coder.example/api/hub/sessions') {
+				return new Response(
+					JSON.stringify({
+						sessions: {
+							websocket: [
+								makeSession({
+									sessionId: 'codesess_builder_1',
+									sessionKind: 'agent_builder',
+									builder: {
+										mode: 'from_session',
+										sourceSession: {
+											sessionId: 'codesess_source_1',
+											label: 'Recurring triage',
+										},
+									},
+								}),
+							],
+							sandbox: [],
+						},
+						total: 1,
+					}),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}
+				);
+			}
+
+			throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const detail = await client.getSession('codesess_builder_1');
+		expect(detail.builder).toEqual(
+			expect.objectContaining({
+				mode: 'edit',
+				targetAgent: {
+					agentId: 'agt_123',
+					slug: 'qa-team',
+					displayName: 'QA Team',
+				},
+				proposal: expect.objectContaining({
+					displayName: 'QA Team',
+					tools: ['read', 'grep'],
+					serviceTools: ['session_dashboard'],
+					companionAgents: ['reviewer'],
+				}),
+			})
+		);
+
+		const sessions = await client.listSessions();
+		expect(sessions.sessions[0]?.sessionKind).toBe('agent_builder');
+		expect(getCount).toBe(1);
+	});
+});

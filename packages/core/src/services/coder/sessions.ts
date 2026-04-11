@@ -1,12 +1,14 @@
 import { z } from 'zod/v4';
 import { type APIClient } from '../api.ts';
 import {
+	CoderCreateAgentBuilderSessionRequestSchema,
 	CoderCreateSessionRequestSchema,
 	CoderListSessionsParamsSchema,
 	CoderSessionListResponseSchema,
 	CoderSessionListItemSchema,
 	CoderSessionSchema,
 	CoderUpdateSessionRequestSchema,
+	type CoderCreateAgentBuilderSessionRequest,
 	type CoderCreateSessionRequest,
 	type CoderListSessionsParams,
 	type CoderSession,
@@ -45,6 +47,18 @@ export const CoderCreateSessionParamsSchema = z
 	})
 	.describe('Parameters for creating a coder session');
 export type CoderCreateSessionParams = z.infer<typeof CoderCreateSessionParamsSchema>;
+
+export const CoderCreateAgentBuilderSessionParamsSchema = z
+	.object({
+		body: CoderCreateAgentBuilderSessionRequestSchema.describe(
+			'Create-agent-builder-session request body'
+		),
+		orgId: z.string().optional().describe('Optional org id for CLI auth context'),
+	})
+	.describe('Parameters for creating an agent-builder session');
+export type CoderCreateAgentBuilderSessionParams = z.infer<
+	typeof CoderCreateAgentBuilderSessionParamsSchema
+>;
 
 export const CoderGetSessionParamsSchema = CoderSessionIdParamsSchema.describe(
 	'Parameters for retrieving a coder session'
@@ -139,6 +153,18 @@ export async function coderCreateSession(
 		params.body,
 		CoderCreateSessionResponseSchema,
 		CoderCreateSessionRequestSchema
+	);
+}
+
+export async function coderCreateAgentBuilderSession(
+	client: APIClient,
+	params: CoderCreateAgentBuilderSessionParams
+): Promise<CoderCreateSessionResponse> {
+	return client.post<CoderCreateSessionResponse, CoderCreateAgentBuilderSessionRequest>(
+		'/hub/session/builder',
+		params.body,
+		CoderCreateSessionResponseSchema,
+		CoderCreateAgentBuilderSessionRequestSchema
 	);
 }
 
