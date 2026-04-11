@@ -3,6 +3,7 @@ export * from './types.ts';
 export { discoverUrl, DiscoverCoderUrlDataSchema } from './discover.ts';
 
 export type {
+	CoderCreateAgentBuilderSessionParams,
 	CoderCreateSessionParams,
 	CoderCreateSessionResponse,
 	CoderGetSessionParams,
@@ -15,6 +16,7 @@ export type {
 } from './sessions.ts';
 export {
 	coderArchiveSession,
+	coderCreateAgentBuilderSession,
 	coderCreateSession,
 	coderDeleteSession,
 	coderGetSession,
@@ -22,6 +24,7 @@ export {
 	coderListSessions,
 	coderResumeSession,
 	coderUpdateSession,
+	CoderCreateAgentBuilderSessionParamsSchema,
 	CoderCreateSessionParamsSchema,
 	CoderGetSessionParamsSchema,
 	CoderListConnectableSessionsParamsSchema,

@@ -7,6 +7,7 @@ import { createMinimalLogger } from '../logger.ts';
 import { discoverUrl } from './discover.ts';
 import {
 	coderArchiveSession,
+	coderCreateAgentBuilderSession,
 	type CoderCreateSessionResponse,
 	type CoderLifecycleResponse,
 	coderCreateSession,
@@ -61,6 +62,7 @@ import type {
 	CoderCustomAgent,
 	CoderCustomAgentListResponse,
 	CoderCustomAgentVersionListResponse,
+	CoderCreateAgentBuilderSessionRequest,
 	CoderCreateCustomAgentRequest,
 	CoderListUsersResponse,
 	CoderSavedSkill,
@@ -187,6 +189,16 @@ export class CoderClient {
 	): Promise<CoderCreateSessionResponse> {
 		const client = await this.#getClient();
 		return coderCreateSession(client, { body, orgId: this.#orgId });
+	}
+
+	/**
+	 * Creates a dedicated agent-builder session.
+	 */
+	async createAgentBuilderSession(
+		body: CoderCreateAgentBuilderSessionRequest
+	): Promise<CoderCreateSessionResponse> {
+		const client = await this.#getClient();
+		return coderCreateAgentBuilderSession(client, { body, orgId: this.#orgId });
 	}
 
 	/**
