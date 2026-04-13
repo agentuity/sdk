@@ -709,6 +709,17 @@ async function main() {
 		process.exit(0);
 	}
 
+	// Prompt for npm OTP code upfront (skip for dry runs)
+	let otp: string | null = null;
+	if (!isDryRun) {
+		otp = await readLine('\n🔑 Enter npm OTP code: ');
+		if (!otp) {
+			console.error('\n❌ OTP is required for publishing\n');
+			rl.close();
+			process.exit(1);
+		}
+	}
+
 	console.log(`\n📦 Setting version to: ${newVersion}`);
 	console.log(`📌 npm dist-tag: ${distTag}\n`);
 
@@ -771,6 +782,7 @@ async function main() {
 					// 2. bun publish validates all deps exist on the registry, which
 					//    fails for private workspace packages like @agentuity/test-utils
 					const args = ['publish', '--access', 'public', '--tag', distTag, '--ignore-scripts'];
+					if (otp) args.push(`--otp=${otp}`);
 					if (isDryRun) args.push('--dry-run');
 					await $`npm ${args}`.cwd(pkg.path);
 					console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
