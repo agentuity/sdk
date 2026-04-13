@@ -7,6 +7,7 @@
  */
 
 import type { DetectionResult, Finding, Severity } from './detect';
+import type { V3DetectionResult, V3Finding } from './detect-v3';
 
 // ---------------------------------------------------------------------------
 // ANSI helpers (minimal, no deps)
@@ -192,4 +193,89 @@ export function printChangeSummary(allChanges: { file: string; changes: string[]
 		}
 	}
 	console.log();
+}
+
+// ---------------------------------------------------------------------------
+// V3 report functions
+// ---------------------------------------------------------------------------
+
+function renderV3Finding(f: V3Finding, index: number): string {
+	const label = SEVERITY_LABEL[f.severity];
+	const icon = SEVERITY_ICON[f.severity];
+	const num = dim(`${String(index + 1).padStart(2, ' ')}.`);
+	const file = f.file ? dim(` [${f.file}]`) : '';
+	const hint = f.hint ? `\n       ${dim('↳ ' + f.hint.replace(/\n/g, '\n         '))}` : '';
+
+	return `  ${num} [${label}] ${icon} ${f.message}${file}${hint}`;
+}
+
+export function printV3Report(detection: V3DetectionResult): void {
+	const { findings } = detection;
+
+	const autoFindings = findings.filter((f) => f.severity === 'auto');
+	const guidedFindings = findings.filter((f) => f.severity === 'guided');
+	const manualFindings = findings.filter((f) => f.severity === 'manual');
+
+	console.log(`\n${bold('━━━ Agentuity v2 → v3 Migration Report ━━━')}`);
+	console.log(dim(`Project: ${detection.projectDir}`));
+
+	if (findings.length === 0) {
+		console.log(
+			`\n${green('✓')} ${bold('No v2 patterns detected!')} ` +
+				`This project may already be on v3.\n`
+		);
+		return;
+	}
+
+	// Summary counts
+	console.log(
+		`\n${bold('Summary:')} ` +
+			`${green(String(autoFindings.length))} auto-fixable, ` +
+			`${yellow(String(guidedFindings.length))} guided, ` +
+			`${red(String(manualFindings.length))} manual`
+	);
+
+	// Info about v3
+	console.log(
+		`\n${dim('v3 is framework-agnostic: bring your own framework, use @agentuity/hono')}\n` +
+			`${dim('middleware for services, and dedicated packages for each service.')}`
+	);
+
+	if (autoFindings.length > 0) {
+		console.log(heading('Auto-fixable (will be applied automatically)'));
+		autoFindings.forEach((f, i) => console.log(renderV3Finding(f, i)));
+	}
+
+	if (guidedFindings.length > 0) {
+		console.log(heading('Guided (applied with your review)'));
+		guidedFindings.forEach((f, i) => console.log(renderV3Finding(f, i)));
+	}
+
+	if (manualFindings.length > 0) {
+		console.log(heading('Manual (requires human action — tool will not touch these)'));
+		manualFindings.forEach((f, i) => console.log(renderV3Finding(f, i)));
+	}
+
+	console.log(`\n${hr()}`);
+	console.log(
+		`${dim('Legend:')}  ` +
+			`[${green('  auto  ')}] fully automated  ` +
+			`[${yellow(' guided ')}] applied + verify  ` +
+			`[${red(' manual ')}] instructions only`
+	);
+	console.log();
+}
+
+export function printManualSummaryV3(detection: V3DetectionResult): void {
+	const manualFindings = detection.findings.filter((f) => f.severity === 'manual');
+	if (manualFindings.length === 0) return;
+
+	console.log(`\n${bold('━━━ Remaining Manual Steps ━━━')}\n`);
+	manualFindings.forEach((f, i) => {
+		console.log(`  ${dim(`${i + 1}.`)} ${red('✗')} ${f.message}`);
+		if (f.file) console.log(`     ${dim(`File: ${f.file}`)}`);
+		if (f.hint) {
+			console.log(`\n     ${f.hint.split('\n').join('\n     ')}\n`);
+		}
+	});
 }

@@ -1,0 +1,434 @@
+/**
+ * Transform: createAgent() → plain exported functions
+ *
+ * For "simple" agents (handler + optional schema only), we:
+ *   1. Remove the createAgent() wrapper
+ *   2. Extract the handler as a named exported async function
+ *   3. Preserve schema validation if present
+ *   4. Replace ctx.* service access with imports from services module
+ *
+ * For "complex" agents, we add a prominent migration comment and leave
+ * the code untouched for manual review.
+ *
+ * We use a combination of regex and AST analysis — regex for the mechanical
+ * transforms (preserving formatting), AST for detection (already done in detect-v3).
+ */
+
+import ts from 'typescript';
+import type { AgentFile } from '../../detect-v3';
+
+export interface AgentTransformResult {
+	/** The transformed source, or null if skipped */
+	source: string | null;
+	/** What was changed */
+	changes: string[];
+	/** If the agent is too complex for auto-migration */
+	manualRequired?: boolean;
+}
+
+/**
+ * Names we use for the context parameter that should be removed.
+ */
+const CTX_PARAM_NAMES = ['ctx', 'context', 'c', '_ctx', '_context', '_c'];
+
+/**
+ * Service access patterns to rewrite.
+ * Maps ctx.serviceName → serviceName (import from services module).
+ */
+
+/**
+ * Transform a simple agent file into a plain exported function.
+ */
+export function transformAgentFile(
+	source: string,
+	agentInfo: AgentFile,
+	servicesRelativePath: string
+): AgentTransformResult {
+	if (agentInfo.complexity === 'complex') {
+		return addManualMigrationComment(source, agentInfo);
+	}
+
+	const changes: string[] = [];
+
+	const sourceFile = ts.createSourceFile(agentInfo.path, source, ts.ScriptTarget.ESNext, true);
+
+	// Find the createAgent() call and extract the handler
+	const extracted = extractHandlerFromCreateAgent(sourceFile, source);
+	if (!extracted) {
+		return {
+			source: null,
+			changes: ['Could not extract handler from createAgent() — manual review needed'],
+			manualRequired: true,
+		};
+	}
+
+	let output = source;
+
+	// Step 1: Remove the createAgent import
+	output = removeCreateAgentImport(output);
+	changes.push('Removed createAgent import from @agentuity/runtime');
+
+	// Step 2: Add services import if needed
+	if (agentInfo.ctxServices.length > 0) {
+		const serviceImports = agentInfo.ctxServices.filter((s) => s !== 'logger');
+		const needsLogger = agentInfo.ctxServices.includes('logger');
+
+		const importLines: string[] = [];
+		if (serviceImports.length > 0) {
+			importLines.push(
+				`import { ${serviceImports.join(', ')} } from '${servicesRelativePath}';`
+			);
+		}
+		if (needsLogger) {
+			importLines.push(
+				`import { ${serviceImports.length > 0 ? '' : ''}logger } from '${servicesRelativePath}';`
+			);
+		}
+
+		// Consolidate into one import if both
+		if (serviceImports.length > 0 || needsLogger) {
+			const allImports = [...agentInfo.ctxServices];
+			const importLine = `import { ${allImports.join(', ')} } from '${servicesRelativePath}';`;
+			// Insert after last import line
+			output = insertAfterImports(output, importLine);
+			changes.push(`Added services import: ${allImports.join(', ')}`);
+		}
+	}
+
+	// Step 3: Replace the entire createAgent() export with a plain function
+	output = replaceCreateAgentWithFunction(output, agentInfo, extracted);
+	changes.push(`Converted agent "${agentInfo.name}" to plain exported async function`);
+
+	// Step 4: Replace ctx.service with direct service references
+	for (const service of agentInfo.ctxServices) {
+		for (const ctxName of CTX_PARAM_NAMES) {
+			const pattern = new RegExp(`${ctxName}\\.${service}\\b`, 'g');
+			if (pattern.test(output)) {
+				output = output.replace(pattern, service);
+				changes.push(`Replaced ${ctxName}.${service} → ${service}`);
+			}
+		}
+	}
+
+	// Step 5: Clean up — remove ctx/context parameter references that are now unused
+	// (Don't do this automatically — leave for the user to clean up)
+
+	return { source: output, changes };
+}
+
+/**
+ * For complex agents, add a migration comment block.
+ */
+function addManualMigrationComment(source: string, agentInfo: AgentFile): AgentTransformResult {
+	const comment =
+		`// ⚠️  MIGRATION REQUIRED — createAgent() removed in v3\n` +
+		`//\n` +
+		`// This agent ("${agentInfo.name}") requires manual migration because:\n` +
+		`//   ${agentInfo.complexityReason}\n` +
+		`//\n` +
+		`// To migrate:\n` +
+		`//   1. Extract the handler into a plain exported async function\n` +
+		`//   2. Move setup() logic to module-level initialization\n` +
+		`//   3. Replace ctx.kv/ctx.vector/etc. with imports from '../services'\n` +
+		`//   4. Replace ctx.config with direct configuration\n` +
+		`//   5. Remove event listeners (use your own event patterns)\n` +
+		`//   6. Remove the createAgent() import and wrapper\n` +
+		`//\n` +
+		`// Example after migration:\n` +
+		`//   import { kv } from '../services';\n` +
+		`//\n` +
+		`//   export async function ${toFunctionName(agentInfo.name)}(input: YourInputType) {\n` +
+		`//     const data = await kv.get('namespace', 'key');\n` +
+		`//     return { result: data };\n` +
+		`//   }\n`;
+
+	return {
+		source: comment + '\n' + source,
+		changes: [`Added migration comment for complex agent "${agentInfo.name}"`],
+		manualRequired: true,
+	};
+}
+
+/**
+ * Extract the handler function body and parameters from createAgent().
+ */
+function extractHandlerFromCreateAgent(
+	sourceFile: ts.SourceFile,
+	_source: string
+): {
+	handlerParams: string;
+	handlerBody: string;
+	hasSchema: boolean;
+	schemaText?: string;
+} | null {
+	let result: {
+		handlerParams: string;
+		handlerBody: string;
+		hasSchema: boolean;
+		schemaText?: string;
+	} | null = null;
+
+	function visit(node: ts.Node) {
+		if (result) return;
+
+		if (
+			ts.isCallExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			node.expression.text === 'createAgent'
+		) {
+			const configArg = node.arguments[1];
+			if (!configArg || !ts.isObjectLiteralExpression(configArg)) return;
+
+			let handlerNode: ts.Node | undefined;
+			let schemaNode: ts.Node | undefined;
+
+			for (const prop of configArg.properties) {
+				if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
+					if (prop.name.text === 'handler') {
+						handlerNode = prop.initializer;
+					}
+					if (prop.name.text === 'schema') {
+						schemaNode = prop.initializer;
+					}
+				}
+				if (ts.isMethodDeclaration(prop) && ts.isIdentifier(prop.name)) {
+					if (prop.name.text === 'handler') {
+						handlerNode = prop;
+					}
+				}
+			}
+
+			if (!handlerNode) return;
+
+			// Extract handler params and body
+			let params: ts.NodeArray<ts.ParameterDeclaration> | undefined;
+			let body: ts.Block | ts.Expression | undefined;
+
+			if (ts.isArrowFunction(handlerNode) || ts.isFunctionExpression(handlerNode)) {
+				params = handlerNode.parameters;
+				body = handlerNode.body;
+			} else if (ts.isMethodDeclaration(handlerNode)) {
+				params = handlerNode.parameters;
+				body = handlerNode.body;
+			}
+
+			if (!body) return;
+
+			// Get parameter text (skip ctx/context parameter, keep input)
+			const paramTexts: string[] = [];
+			if (params) {
+				for (let i = 0; i < params.length; i++) {
+					const param = params[i];
+					if (!param) continue;
+					const paramName = param.name.getText(sourceFile);
+					// Skip the first param if it's ctx/context (agent context)
+					if (i === 0 && CTX_PARAM_NAMES.includes(paramName)) continue;
+					paramTexts.push(param.getText(sourceFile));
+				}
+			}
+
+			// Get body text
+			const bodyText = body.getText(sourceFile);
+
+			// Get schema text if present
+			const schemaText = schemaNode?.getText(sourceFile);
+
+			result = {
+				handlerParams: paramTexts.join(', '),
+				handlerBody: bodyText,
+				hasSchema: !!schemaNode,
+				schemaText,
+			};
+		}
+
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sourceFile);
+	return result;
+}
+
+/**
+ * Remove `import { createAgent } from '@agentuity/runtime'` (and any other
+ * named imports from that module).
+ */
+function removeCreateAgentImport(source: string): string {
+	// Remove the entire @agentuity/runtime import line
+	// (there shouldn't be other useful imports from runtime in v3)
+	return source.replace(/import\s*\{[^}]*\}\s*from\s*['"]@agentuity\/runtime['"]\s*;?\s*\n?/g, '');
+}
+
+/**
+ * Insert an import line after the last existing import declaration.
+ * Uses AST to correctly handle multi-line imports.
+ */
+function insertAfterImports(source: string, importLine: string): string {
+	const sf = ts.createSourceFile('temp.ts', source, ts.ScriptTarget.ESNext, true);
+
+	let lastImportEnd = -1;
+	for (const stmt of sf.statements) {
+		if (ts.isImportDeclaration(stmt)) {
+			lastImportEnd = stmt.getEnd();
+		}
+	}
+
+	if (lastImportEnd >= 0) {
+		return (
+			source.substring(0, lastImportEnd) + '\n' + importLine + source.substring(lastImportEnd)
+		);
+	}
+
+	// No imports — add at the top
+	return importLine + '\n' + source;
+}
+
+/**
+ * Replace the createAgent() call with a plain exported async function.
+ *
+ * Uses AST node positions for precise replacement instead of regex
+ * (which can't handle nested braces in the config object).
+ */
+function replaceCreateAgentWithFunction(
+	source: string,
+	agentInfo: AgentFile,
+	extracted: {
+		handlerParams: string;
+		handlerBody: string;
+		hasSchema: boolean;
+		schemaText?: string;
+	}
+): string {
+	const funcName = toFunctionName(agentInfo.name);
+
+	// Build the function signature
+	const funcSignature = `export async function ${funcName}(${extracted.handlerParams})`;
+
+	// Build the body
+	let bodyText = extracted.handlerBody;
+	// If the body is already a block { ... }, use it directly
+	// If it's a single expression (arrow function body), wrap it
+	if (!bodyText.trimStart().startsWith('{')) {
+		bodyText = `{\n\treturn ${bodyText};\n}`;
+	}
+
+	// Add schema validation at the top of the function body if schema was present
+	let schemaComment = '';
+	if (extracted.hasSchema && extracted.schemaText) {
+		schemaComment =
+			'\n// TODO: Schema validation was previously handled by createAgent().\n' +
+			'// The original schema definition was:\n' +
+			`//   schema: ${extracted.schemaText.split('\n').join('\n//   ')}\n` +
+			'// Consider using zod or @agentuity/schema for input validation.\n';
+	}
+
+	const replacement = schemaComment + funcSignature + ' ' + bodyText;
+
+	// Use AST to find the exact range of the createAgent() statement
+	const sourceFile = ts.createSourceFile(agentInfo.path, source, ts.ScriptTarget.ESNext, true);
+
+	let createAgentStart = -1;
+	let createAgentEnd = -1;
+	let exportDefaultVarName: string | null = null;
+	let isDirectExportDefault = false;
+
+	for (const stmt of sourceFile.statements) {
+		// Pattern 1: export default createAgent('name', { ... })
+		if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
+			const expr = stmt.expression;
+			if (
+				ts.isCallExpression(expr) &&
+				ts.isIdentifier(expr.expression) &&
+				expr.expression.text === 'createAgent'
+			) {
+				createAgentStart = stmt.getStart(sourceFile);
+				createAgentEnd = stmt.getEnd();
+				isDirectExportDefault = true;
+				break;
+			}
+		}
+
+		// Pattern 2: const agent = createAgent('name', { ... })
+		if (ts.isVariableStatement(stmt)) {
+			const declarations = stmt.declarationList.declarations;
+			if (declarations.length === 1) {
+				const decl = declarations[0];
+				if (decl?.initializer) {
+					let callExpr: ts.CallExpression | undefined;
+					if (
+						ts.isCallExpression(decl.initializer) &&
+						ts.isIdentifier(decl.initializer.expression) &&
+						decl.initializer.expression.text === 'createAgent'
+					) {
+						callExpr = decl.initializer;
+					} else if (
+						ts.isAwaitExpression(decl.initializer) &&
+						ts.isCallExpression(decl.initializer.expression) &&
+						ts.isIdentifier(decl.initializer.expression.expression) &&
+						decl.initializer.expression.expression.text === 'createAgent'
+					) {
+						callExpr = decl.initializer.expression;
+					}
+
+					if (callExpr && ts.isIdentifier(decl.name)) {
+						exportDefaultVarName = decl.name.text;
+						createAgentStart = stmt.getStart(sourceFile);
+						createAgentEnd = stmt.getEnd();
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (createAgentStart === -1) {
+		// Couldn't find the createAgent statement — return source unchanged
+		return source;
+	}
+
+	// Replace the createAgent statement with the function
+	let result =
+		source.substring(0, createAgentStart) + replacement + source.substring(createAgentEnd);
+
+	// Handle the export default
+	if (isDirectExportDefault) {
+		// The export default was part of the statement we replaced,
+		// so add a separate export default
+		result += `\n\nexport default ${funcName};\n`;
+	} else if (exportDefaultVarName) {
+		// Replace `export default varName` with `export default funcName`
+		result = result.replace(
+			new RegExp(`export\\s+default\\s+${exportDefaultVarName}\\s*;?`),
+			`export default ${funcName};`
+		);
+	}
+
+	return result;
+}
+
+/**
+ * Convert kebab-case or snake_case agent name to camelCase function name.
+ */
+/** Service names that could clash with function names */
+const RESERVED_SERVICE_NAMES = new Set([
+	'kv',
+	'vector',
+	'stream',
+	'queue',
+	'email',
+	'task',
+	'schedule',
+	'sandbox',
+	'logger',
+]);
+
+/**
+ * Convert agent name to a valid, non-clashing function name.
+ * Appends 'Handler' suffix if the name would clash with a service import.
+ */
+function toFunctionName(name: string): string {
+	const camel = name.replace(/[-_]([a-z])/g, (_, c) => c.toUpperCase());
+	if (RESERVED_SERVICE_NAMES.has(camel)) {
+		return camel + 'Handler';
+	}
+	return camel;
+}
