@@ -66,11 +66,10 @@ EVALS_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-evals-*.tgz)
 RUNTIME_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-runtime-*.tgz)
 SERVER_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-server-*.tgz)
 CLI_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-cli-*.tgz)
-WORKBENCH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-workbench-*.tgz)
 
 echo ""
 log_info "Using tarballs:"
-for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $POSTGRES_PKG $DRIZZLE_PKG $AUTH_PKG $EVALS_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG $WORKBENCH_PKG; do
+for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $POSTGRES_PKG $DRIZZLE_PKG $AUTH_PKG $EVALS_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG; do
     log_success "  $pkg"
 done
 
@@ -102,8 +101,7 @@ cat > package.json << EOF
     "@agentuity/evals": "file:$PACKAGES_DIR/$EVALS_PKG",
     "@agentuity/runtime": "file:$PACKAGES_DIR/$RUNTIME_PKG",
     "@agentuity/server": "file:$PACKAGES_DIR/$SERVER_PKG",
-    "@agentuity/cli": "file:$PACKAGES_DIR/$CLI_PKG",
-    "@agentuity/workbench": "file:$PACKAGES_DIR/$WORKBENCH_PKG"
+    "@agentuity/cli": "file:$PACKAGES_DIR/$CLI_PKG"
   },
   "overrides": {
     "@agentuity/core": "file:$PACKAGES_DIR/$CORE_PKG",
@@ -116,8 +114,7 @@ cat > package.json << EOF
     "@agentuity/evals": "file:$PACKAGES_DIR/$EVALS_PKG",
     "@agentuity/runtime": "file:$PACKAGES_DIR/$RUNTIME_PKG",
     "@agentuity/server": "file:$PACKAGES_DIR/$SERVER_PKG",
-    "@agentuity/cli": "file:$PACKAGES_DIR/$CLI_PKG",
-    "@agentuity/workbench": "file:$PACKAGES_DIR/$WORKBENCH_PKG"
+    "@agentuity/cli": "file:$PACKAGES_DIR/$CLI_PKG"
   }
 }
 EOF
@@ -189,7 +186,6 @@ cat package.json | \
      --arg runtime "file:$PACKAGES_DIR/$RUNTIME_PKG" \
      --arg server "file:$PACKAGES_DIR/$SERVER_PKG" \
      --arg cli "file:$PACKAGES_DIR/$CLI_PKG" \
-     --arg workbench "file:$PACKAGES_DIR/$WORKBENCH_PKG" \
   '
     # Helper: update package in its existing location (dependencies or devDependencies)
     # If in devDependencies, update there; otherwise add to dependencies
@@ -212,7 +208,6 @@ cat package.json | \
     update_pkg("@agentuity/runtime"; $runtime) |
     update_pkg("@agentuity/server"; $server) |
     update_pkg("@agentuity/cli"; $cli) |
-    update_pkg("@agentuity/workbench"; $workbench) |
     # Add overrides to force transitive dependencies to use local tarballs
     .overrides = {
       "@agentuity/core": $core,
@@ -225,8 +220,7 @@ cat package.json | \
       "@agentuity/evals": $evals,
       "@agentuity/runtime": $runtime,
       "@agentuity/server": $server,
-      "@agentuity/cli": $cli,
-      "@agentuity/workbench": $workbench
+      "@agentuity/cli": $cli
     }
   ' > package.json.tmp && mv package.json.tmp package.json
 

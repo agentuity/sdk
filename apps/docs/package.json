@@ -27,7 +27,6 @@
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/server": "workspace:*",
-		"@agentuity/workbench": "workspace:*",
 		"@ai-sdk/anthropic": "^2.0.56",
 		"@ai-sdk/google": "^2.0.51",
 		"@ai-sdk/groq": "^2.0.33",

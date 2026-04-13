@@ -41,7 +41,6 @@ Agentuity is a full-stack deployment platform for TypeScript applications. It pr
 | `@agentuity/react`     | React hooks for agents               | Frontend |
 | `@agentuity/frontend`  | Framework-agnostic web utils         | Frontend |
 | `@agentuity/auth`      | Authentication (server + client)     | Frontend |
-| `@agentuity/workbench` | Dev UI for testing                   | Frontend |
 
 ## Package Recommendations
 

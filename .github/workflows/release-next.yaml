@@ -142,7 +142,6 @@ jobs:
             "packages/email"
             "packages/react"
             "packages/cli"
-            "packages/workbench"
             "packages/db"
           )
 
@@ -293,7 +292,6 @@ jobs:
             "packages/email"
             "packages/react"
             "packages/cli"
-            "packages/workbench"
             "packages/db"
           )
 
