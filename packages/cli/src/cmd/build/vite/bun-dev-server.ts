@@ -52,6 +52,11 @@ function isPortAvailable(port: number, host: string = '127.0.0.1'): Promise<bool
 /**
  * Kill any process listening on the specified port.
  * Uses lsof on Unix systems to find and kill the process.
+ *
+ * IMPORTANT: Uses `-sTCP:LISTEN` to only match processes that are *listening*
+ * on the port. Without this filter, `lsof -i :PORT` also returns processes
+ * with outbound connections to that port (e.g. Vite's proxy or the front-door
+ * proxy), which would cause the CLI to kill its own process.
  */
 async function killProcessOnPort(
 	port: number,
@@ -63,9 +68,15 @@ async function killProcessOnPort(
 		return false;
 	}
 
+	const selfPid = process.pid;
+
 	try {
-		// Find PIDs listening on the port
-		const result = Bun.spawnSync(['lsof', '-t', '-i', `:${port}`], {
+		// Find PIDs with a TCP LISTEN socket on the port.
+		// The `-sTCP:LISTEN` flag is critical: without it lsof returns every
+		// process that has *any* socket referencing the port, including our
+		// own Vite/front-door proxy processes that have outbound connections
+		// to the backend port. Killing those would terminate the CLI itself.
+		const result = Bun.spawnSync(['lsof', '-t', '-i', `:${port}`, '-sTCP:LISTEN'], {
 			stdout: 'pipe',
 			stderr: 'ignore',
 		});
@@ -78,7 +89,9 @@ async function killProcessOnPort(
 			.decode(result.stdout)
 			.trim()
 			.split('\n')
-			.filter((line) => line && /^\d+$/.test(line));
+			.filter((line) => line && /^\d+$/.test(line))
+			// Never kill our own process (safety net)
+			.filter((pid) => Number(pid) !== selfPid);
 
 		if (pids.length === 0) {
 			return false;
