@@ -32,8 +32,7 @@
 		{ "path": "./packages/task" },
 		{ "path": "./packages/vector" },
 		{ "path": "./packages/vscode" },
-		{ "path": "./packages/webhook" },
-		{ "path": "./packages/workbench" }
+		{ "path": "./packages/webhook" }
 	],
 	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
 }

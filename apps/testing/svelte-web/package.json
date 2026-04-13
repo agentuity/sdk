@@ -17,7 +17,6 @@
 		"@agentuity/frontend": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
-		"@agentuity/workbench": "workspace:*",
 		"hono": "^4.12.8",
 		"svelte": "^5.54.0"
 	},
