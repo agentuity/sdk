@@ -72,6 +72,7 @@
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
+		"@typescript/native-preview": "^7.0.0-dev.20260413.1",
 		"archiver": "^7.0.1",
 		"bun-types": "latest",
 		"concurrently": "^9.2.1",
