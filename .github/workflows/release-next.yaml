@@ -191,13 +191,17 @@ jobs:
           # Sanitize branch name for npm (only alphanumeric, hyphens, dots)
           SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9.-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
 
+          # npm rejects tags that are valid semver ranges (e.g. "v3" matches >=3.0.0 <4.0.0)
+          # Prefix with "branch." to ensure the tag is never a valid range
+          NPM_TAG="branch.${SAFE_BRANCH}"
+
           # Version: {base}-{branch}.{sha}
           BRANCH_VERSION="${BASE_VERSION}-${SAFE_BRANCH}.${SHORT_SHA}"
 
           echo "version=$BRANCH_VERSION" >> $GITHUB_OUTPUT
-          echo "tag=$SAFE_BRANCH" >> $GITHUB_OUTPUT
+          echo "tag=$NPM_TAG" >> $GITHUB_OUTPUT
           echo "Branch version: $BRANCH_VERSION"
-          echo "npm tag: $SAFE_BRANCH"
+          echo "npm tag: $NPM_TAG"
 
       - name: Stamp versions
         run: |
