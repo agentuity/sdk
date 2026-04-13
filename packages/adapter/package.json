@@ -31,5 +31,10 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/agentuity/sdk.git",
+		"directory": "packages/adapter"
 	}
 }

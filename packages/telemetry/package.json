@@ -49,5 +49,10 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": true
+	"sideEffects": true,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/agentuity/sdk.git",
+		"directory": "packages/telemetry"
+	}
 }
