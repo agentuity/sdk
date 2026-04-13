@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   id-token: write # Required for npm Trusted Publishers (OIDC)
+  pull-requests: write # Required for PR comments on branch builds
 
 concurrency:
   group: release-next-${{ github.ref_name }}
@@ -297,3 +298,46 @@ jobs:
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "npm install @agentuity/core@$TAG" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          MARKER="<!-- npm-branch-build -->"
+
+          BODY="${MARKER}
+          ## 📦 npm branch build published
+
+          **Version:** \`${VERSION}\`
+          **Tag:** \`${TAG}\`
+          **Commit:** \`${{ github.event.pull_request.head.sha }}\`
+
+          ### Install
+          \`\`\`bash
+          npm install @agentuity/cli@${TAG}
+          # or any package:
+          npm install @agentuity/core@${TAG}
+          \`\`\`
+
+          ### All published packages
+          \`\`\`
+          $(for pkg_path in packages/core packages/cli packages/server packages/schema packages/frontend packages/react packages/auth packages/postgres packages/drizzle packages/queue packages/vector packages/sandbox packages/task packages/keyvalue packages/email packages/webhook packages/schedule packages/stream packages/db packages/migrate packages/evals packages/runtime packages/opencode packages/coder packages/coder-tui packages/claude-code packages/adapter packages/analytics packages/telemetry packages/hono packages/local; do
+            if [ -f "$pkg_path/package.json" ]; then
+              pkg_name=\$(jq -r .name "$pkg_path/package.json")
+              echo "$pkg_name@$VERSION"
+            fi
+          done)
+          \`\`\`"
+
+          # Find existing comment with our marker and update it, or create new
+          EXISTING=$(gh pr view ${{ github.event.pull_request.number }} --json comments --jq '.comments[] | select(.body | contains("'"$MARKER"'")) | .url' | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            # Extract comment ID from URL and edit
+            COMMENT_ID=$(basename "$EXISTING")
+            gh api repos/${{ github.repository }}/issues/comments/${COMMENT_ID} -X PATCH -f body="$BODY"
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+          fi
