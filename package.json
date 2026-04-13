@@ -10,9 +10,9 @@
 	"scripts": {
 		"prepare": "husky",
 		"build": "bunx tsc --build",
+		"build:packages": "bun run --filter='./packages/*' build",
 		"build:apps": "bun run --filter='./apps/testing/*' build",
 		"build:all": "bun run build && bun run build:apps",
-		"dev:workbench": "cd packages/workbench && bun run dev:app",
 		"test": "bun test:packages && cd packages/cli && bun run test && cd ../.. && bun test:templates && bun test:pkginstall && bun test:create",
 		"test:packages": "cd packages/core && bun test && cd ../schema && bun test && cd ../frontend && bun test && cd ../server && bun test && cd ../react && bun test && cd ../postgres && bun test && cd ../drizzle && bun test && cd ../auth && bun test && cd ../opencode && bun test",
 		"test:unit": "bun run test:packages && cd packages/cli && bun run test",
