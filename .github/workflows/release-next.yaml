@@ -95,7 +95,7 @@ jobs:
           node-version: '24'
 
       - name: Build packages
-        run: bun run build:packages
+        run: bun run build
 
       - name: Publish packages
         run: |
@@ -227,7 +227,7 @@ jobs:
           echo "All packages stamped to $VERSION"
 
       - name: Build packages
-        run: bun run build:packages
+        run: bun run build
 
       - name: Publish packages
         run: |
