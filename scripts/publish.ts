@@ -765,9 +765,14 @@ async function main() {
 			let lastErr: unknown;
 			for (let attempt = 1; attempt <= maxRetries; attempt++) {
 				try {
-					const args = ['publish', '--access', 'public', '--tag', distTag];
+					// Use npm publish instead of bun publish:
+					// 1. --ignore-scripts skips prepublishOnly which would rebuild and
+					//    fail resolving workspace deps pinned to the new version
+					// 2. bun publish validates all deps exist on the registry, which
+					//    fails for private workspace packages like @agentuity/test-utils
+					const args = ['publish', '--access', 'public', '--tag', distTag, '--ignore-scripts'];
 					if (isDryRun) args.push('--dry-run');
-					await $`bun ${args}`.cwd(pkg.path);
+					await $`npm ${args}`.cwd(pkg.path);
 					console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
 					lastErr = undefined;
 					break;
