@@ -330,7 +330,10 @@ export const CoderCreateWorkspaceRequestSchema = z
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
-		enabledAgents: z.array(z.string()).optional().describe('Effective agent roster to store on the workspace'),
+		enabledAgents: z
+			.array(z.string())
+			.optional()
+			.describe('Effective agent roster to store on the workspace'),
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
@@ -517,10 +520,7 @@ export const CoderCreateAgentBuilderSessionRequestSchema = z
 			.string()
 			.optional()
 			.describe('Target custom-agent identifier for edit launches'),
-		targetAgentSlug: z
-			.string()
-			.optional()
-			.describe('Target custom-agent slug for edit launches'),
+		targetAgentSlug: z.string().optional().describe('Target custom-agent slug for edit launches'),
 	})
 	.describe('Request body for creating an agent-builder session');
 export type CoderCreateAgentBuilderSessionRequest = z.infer<
@@ -659,9 +659,7 @@ export type CoderAgentBuilderDurableState = z.infer<typeof CoderAgentBuilderDura
 export const CoderAgentBuilderActionStateSchema = z
 	.object({
 		kind: CoderAgentBuilderActionKindSchema.describe('Last durable builder action'),
-		status: z
-			.enum(['completed', 'failed'])
-			.describe('Result of the last durable builder action'),
+		status: z.enum(['completed', 'failed']).describe('Result of the last durable builder action'),
 		occurredAt: z.string().describe('Timestamp of the last durable builder action'),
 		message: z.string().optional().describe('Human-readable builder action result summary'),
 		agentId: z.string().optional().describe('Affected custom-agent identifier'),
@@ -692,9 +690,7 @@ export const CoderAgentBuilderSessionSummarySchema = z
 		),
 	})
 	.describe('Projected builder-session summary returned in session listings');
-export type CoderAgentBuilderSessionSummary = z.infer<
-	typeof CoderAgentBuilderSessionSummarySchema
->;
+export type CoderAgentBuilderSessionSummary = z.infer<typeof CoderAgentBuilderSessionSummarySchema>;
 
 export const CoderAgentBuilderSessionStateSchema = CoderAgentBuilderSessionSummarySchema.extend({
 	proposal: CoderAgentBuilderProposalSchema.optional().describe(
