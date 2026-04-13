@@ -191,7 +191,8 @@ function injectGatewayEnv(
 	const gatewayUrl =
 		env.AGENTUITY_AIGATEWAY_URL ||
 		env.AGENTUITY_TRANSPORT_URL ||
-		'https://catalyst.agentuity.cloud';
+		env.AGENTUITY_CATALYST_URL ||
+		'https://catalyst-usc.agentuity.cloud';
 
 	for (const { apiKeyEnv, baseUrlEnv, provider } of GATEWAY_PROVIDERS) {
 		const currentKey = env[apiKeyEnv];
