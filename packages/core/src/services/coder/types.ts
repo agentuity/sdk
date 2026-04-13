@@ -522,6 +522,33 @@ export const CoderCreateAgentBuilderSessionRequestSchema = z
 			.describe('Target custom-agent identifier for edit launches'),
 		targetAgentSlug: z.string().optional().describe('Target custom-agent slug for edit launches'),
 	})
+	.superRefine((value, ctx) => {
+		if (value.mode === 'from_session' && !value.sourceSessionId) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['sourceSessionId'],
+				message: 'sourceSessionId is required when mode is "from_session".',
+			});
+		}
+		if (value.mode === 'edit' && !value.targetAgentId && !value.targetAgentSlug) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['targetAgentId'],
+				message: 'targetAgentId or targetAgentSlug is required when mode is "edit".',
+			});
+		}
+		if (
+			value.mode === 'new' &&
+			(value.sourceSessionId || value.targetAgentId || value.targetAgentSlug)
+		) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['mode'],
+				message:
+					'mode "new" does not accept sourceSessionId, targetAgentId, or targetAgentSlug.',
+			});
+		}
+	})
 	.describe('Request body for creating an agent-builder session');
 export type CoderCreateAgentBuilderSessionRequest = z.infer<
 	typeof CoderCreateAgentBuilderSessionRequestSchema
