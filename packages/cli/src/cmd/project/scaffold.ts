@@ -137,13 +137,13 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 	pkg.scripts = pkg.scripts ?? {};
 
 	// Add @agentuity/cli as devDependency
-	pkg.devDependencies['@agentuity/cli'] = 'latest';
+	pkg.devDependencies['@agentuity/cli'] = '^3.0.0';
 
 	// Add framework-specific dependencies
 	if (framework.dependencies) {
 		for (const dep of framework.dependencies) {
 			if (!pkg.dependencies[dep]) {
-				pkg.dependencies[dep] = 'latest';
+				pkg.dependencies[dep] = dep.startsWith('@agentuity/') ? '^3.0.0' : 'latest';
 			}
 		}
 	}
@@ -152,7 +152,7 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 	if (framework.devDependencies) {
 		for (const dep of framework.devDependencies) {
 			if (!pkg.devDependencies[dep]) {
-				pkg.devDependencies[dep] = 'latest';
+				pkg.devDependencies[dep] = dep.startsWith('@agentuity/') ? '^3.0.0' : 'latest';
 			}
 		}
 	}
