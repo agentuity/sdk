@@ -520,6 +520,18 @@ export const CoderCreateSessionRequestSchema = z
 	.describe('Request body for creating a coder session');
 export type CoderCreateSessionRequest = z.infer<typeof CoderCreateSessionRequestSchema>;
 
+function inferCoderAgentBuilderSessionMode(input: {
+	mode?: 'new' | 'edit' | 'from_session';
+	sourceSessionId?: string;
+	targetAgentId?: string;
+	targetAgentSlug?: string;
+}): 'new' | 'edit' | 'from_session' {
+	if (input.mode) return input.mode;
+	if (input.sourceSessionId) return 'from_session';
+	if (input.targetAgentId || input.targetAgentSlug) return 'edit';
+	return 'new';
+}
+
 export const CoderCreateAgentBuilderSessionRequestSchema = z
 	.object({
 		label: z.string().optional().describe('Builder session label override'),
@@ -537,10 +549,24 @@ export const CoderCreateAgentBuilderSessionRequestSchema = z
 			.string()
 			.optional()
 			.describe('Target custom-agent identifier for edit launches'),
-		targetAgentSlug: z
-			.string()
-			.optional()
-			.describe('Target custom-agent slug for edit launches'),
+		targetAgentSlug: z.string().optional().describe('Target custom-agent slug for edit launches'),
+	})
+	.superRefine((value, ctx) => {
+		const mode = inferCoderAgentBuilderSessionMode(value);
+		if (mode === 'from_session' && !value.sourceSessionId?.trim()) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['sourceSessionId'],
+				message: 'sourceSessionId is required for from-session builder launches.',
+			});
+		}
+		if (mode === 'edit' && !value.targetAgentId?.trim() && !value.targetAgentSlug?.trim()) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['targetAgentId'],
+				message: 'targetAgentId or targetAgentSlug is required for edit launches.',
+			});
+		}
 	})
 	.describe('Request body for creating an agent-builder session');
 export type CoderCreateAgentBuilderSessionRequest = z.infer<
@@ -679,9 +705,7 @@ export type CoderAgentBuilderDurableState = z.infer<typeof CoderAgentBuilderDura
 export const CoderAgentBuilderActionStateSchema = z
 	.object({
 		kind: CoderAgentBuilderActionKindSchema.describe('Last durable builder action'),
-		status: z
-			.enum(['completed', 'failed'])
-			.describe('Result of the last durable builder action'),
+		status: z.enum(['completed', 'failed']).describe('Result of the last durable builder action'),
 		occurredAt: z.string().describe('Timestamp of the last durable builder action'),
 		message: z.string().optional().describe('Human-readable builder action result summary'),
 		agentId: z.string().optional().describe('Affected custom-agent identifier'),
@@ -712,9 +736,7 @@ export const CoderAgentBuilderSessionSummarySchema = z
 		),
 	})
 	.describe('Projected builder-session summary returned in session listings');
-export type CoderAgentBuilderSessionSummary = z.infer<
-	typeof CoderAgentBuilderSessionSummarySchema
->;
+export type CoderAgentBuilderSessionSummary = z.infer<typeof CoderAgentBuilderSessionSummarySchema>;
 
 export const CoderAgentBuilderSessionStateSchema = CoderAgentBuilderSessionSummarySchema.extend({
 	proposal: CoderAgentBuilderProposalSchema.optional().describe(
@@ -770,6 +792,9 @@ export const CoderSessionListItemSchema = z
 			.optional()
 			.default([])
 			.describe('Enabled agent roster attached to the session'),
+		builder: CoderAgentBuilderSessionSummarySchema.optional().describe(
+			'Projected builder-session summary when this session is an agent-builder flow'
+		),
 		defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
 		bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
 		runtimeAvailable: z.boolean().describe('Whether runtime is currently reachable'),

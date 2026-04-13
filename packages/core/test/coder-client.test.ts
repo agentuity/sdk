@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
 import { CoderClient } from '../src/services/coder/client.ts';
 import { APIError, ValidationInputError } from '../src/services/api.ts';
-import { CoderCreateWorkspaceRequestSchema } from '../src/services/coder/types.ts';
+import {
+	CoderCreateAgentBuilderSessionRequestSchema,
+	CoderCreateWorkspaceRequestSchema,
+} from '../src/services/coder/types.ts';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
@@ -858,6 +861,65 @@ describe('CoderClient agent-builder helpers', () => {
 		});
 	});
 
+	test('createAgentBuilderSession rejects invalid mode-specific payloads before sending', async () => {
+		let fetchCalled = false;
+		mockFetch(async () => {
+			fetchCalled = true;
+			throw new Error('fetch should not be called for invalid builder payloads');
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const missingSource = CoderCreateAgentBuilderSessionRequestSchema.safeParse({
+			mode: 'from_session',
+		});
+		expect(missingSource.success).toBe(false);
+		if (missingSource.success) throw new Error('Expected missingSource to fail validation');
+		expect(missingSource.error.issues).toContainEqual(
+			expect.objectContaining({
+				path: ['sourceSessionId'],
+				message: 'sourceSessionId is required for from-session builder launches.',
+			})
+		);
+
+		const missingTarget = CoderCreateAgentBuilderSessionRequestSchema.safeParse({
+			mode: 'edit',
+		});
+		expect(missingTarget.success).toBe(false);
+		if (missingTarget.success) throw new Error('Expected missingTarget to fail validation');
+		expect(missingTarget.error.issues).toContainEqual(
+			expect.objectContaining({
+				path: ['targetAgentId'],
+				message: 'targetAgentId or targetAgentSlug is required for edit launches.',
+			})
+		);
+
+		expect(
+			CoderCreateAgentBuilderSessionRequestSchema.safeParse({
+				mode: 'new',
+				targetAgentId: 'agt_123',
+			}).success
+		).toBe(true);
+
+		await expect(
+			client.createAgentBuilderSession({
+				mode: 'from_session',
+			})
+		).rejects.toThrow('There was an error validating the API input data.');
+
+		await expect(
+			client.createAgentBuilderSession({
+				mode: 'edit',
+			})
+		).rejects.toThrow('There was an error validating the API input data.');
+
+		expect(fetchCalled).toBe(false);
+	});
+
 	test('session payloads preserve builder detail projections from the backend', async () => {
 		let getCount = 0;
 
@@ -950,6 +1012,13 @@ describe('CoderClient agent-builder helpers', () => {
 
 		const sessions = await client.listSessions();
 		expect(sessions.sessions[0]?.sessionKind).toBe('agent_builder');
+		expect(sessions.sessions[0]?.builder).toEqual({
+			mode: 'from_session',
+			sourceSession: {
+				sessionId: 'codesess_source_1',
+				label: 'Recurring triage',
+			},
+		});
 		expect(getCount).toBe(1);
 	});
 });
