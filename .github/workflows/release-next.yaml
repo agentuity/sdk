@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -11,7 +13,7 @@ permissions:
 
 concurrency:
   group: release-next-${{ github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   CI: true
@@ -74,6 +76,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: build-and-test
+    # Only run for pushes to main (next tag)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -156,10 +160,6 @@ jobs:
 
             (cd "$pkg_path" && npm publish --tag next --access public)
           done
-        # Uses npm Trusted Publishers (OIDC) - no token needed
-        # Requires: GitHub-hosted runner + Node 24+ (npm v11.x+)
-        # Provenance is automatically generated for GitHub Actions
-        # Configure on npm: https://docs.npmjs.com/trusted-publishers
 
       - name: Summary
         run: |
@@ -172,4 +172,157 @@ jobs:
           echo "Install with:" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "npm install @agentuity/core@next" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  release-branch:
+    name: Release branch build to npm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: build-and-test
+    # Only run for PRs (branch builds)
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup Node.js for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Compute branch version
+        id: version
+        run: |
+          set -euo pipefail
+
+          BASE_VERSION=$(jq -r .version package.json)
+          BRANCH="${{ github.head_ref }}"
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+
+          # Sanitize branch name for npm (only alphanumeric, hyphens, dots)
+          SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9.-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+
+          # Version: {base}-{branch}.{sha}
+          BRANCH_VERSION="${BASE_VERSION}-${SAFE_BRANCH}.${SHORT_SHA}"
+
+          echo "version=$BRANCH_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$SAFE_BRANCH" >> $GITHUB_OUTPUT
+          echo "Branch version: $BRANCH_VERSION"
+          echo "npm tag: $SAFE_BRANCH"
+
+      - name: Stamp versions
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Update all package.json versions and replace workspace:* with the branch version
+          for pkg_json in package.json packages/*/package.json; do
+            if [ ! -f "$pkg_json" ]; then continue; fi
+
+            # Set version
+            jq --arg v "$VERSION" '.version = $v' "$pkg_json" > tmp.json && mv tmp.json "$pkg_json"
+
+            # Replace workspace:* dependencies with the branch version
+            for dep_field in dependencies devDependencies peerDependencies; do
+              jq --arg v "$VERSION" --arg f "$dep_field" '
+                if .[$f] then
+                  .[$f] |= with_entries(
+                    if .value == "workspace:*" then .value = $v else . end
+                  )
+                else . end
+              ' "$pkg_json" > tmp.json && mv tmp.json "$pkg_json"
+            done
+          done
+
+          echo "All packages stamped to $VERSION"
+
+      - name: Build packages
+        run: bun run build:packages
+
+      - name: Build remaining packages
+        run: |
+          bun run --filter='./packages/claude-code' build
+          bun run --filter='./packages/coder' build
+          bun run --filter='./packages/coder-tui' build
+          bun run --filter='./packages/db' build
+          bun run --filter='./packages/email' build
+          bun run --filter='./packages/keyvalue' build
+          bun run --filter='./packages/migrate' build
+          bun run --filter='./packages/queue' build
+          bun run --filter='./packages/sandbox' build
+          bun run --filter='./packages/schedule' build
+          bun run --filter='./packages/task' build
+          bun run --filter='./packages/vector' build
+          bun run --filter='./packages/webhook' build
+
+      - name: Publish packages
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+
+          PACKAGES=(
+            "packages/core"
+            "packages/postgres"
+            "packages/claude-code"
+            "packages/coder"
+            "packages/coder-tui"
+            "packages/frontend"
+            "packages/schema"
+            "packages/server"
+            "packages/queue"
+            "packages/vector"
+            "packages/migrate"
+            "packages/opencode"
+            "packages/runtime"
+            "packages/drizzle"
+            "packages/schedule"
+            "packages/sandbox"
+            "packages/task"
+            "packages/auth"
+            "packages/evals"
+            "packages/webhook"
+            "packages/keyvalue"
+            "packages/email"
+            "packages/react"
+            "packages/cli"
+            "packages/workbench"
+            "packages/db"
+          )
+
+          for pkg_path in "${PACKAGES[@]}"; do
+            pkg_name=$(jq -r .name "$pkg_path/package.json")
+
+            echo "Publishing $pkg_name@$VERSION with tag '$TAG'..."
+
+            # Check if version already exists
+            if npm view "$pkg_name@$VERSION" version 2>/dev/null; then
+              echo "  Version already published, skipping"
+              continue
+            fi
+
+            (cd "$pkg_path" && npm publish --tag "$TAG" --access public)
+          done
+
+      - name: Summary
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "## 📦 Released branch build to npm" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`$TAG\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.head_ref }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.event.pull_request.head.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Install with:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @agentuity/core@$TAG" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
