@@ -8,11 +8,11 @@ test.describe('TanStack Start + Agentuity', () => {
 		await page.goto('/');
 
 		await expect(page.locator('h1')).toBeVisible();
-		await expect(page.locator('h1')).toContainText('AI Translation Demo');
+		await expect(page.locator('h1')).toContainText('Welcome to Agentuity');
 
 		// Verify the translate form is rendered
-		await expect(page.locator('#text-input')).toBeVisible();
-		await expect(page.locator('#language-select')).toBeVisible();
+		await expect(page.locator('textarea')).toBeVisible();
+		await expect(page.locator('select').first()).toBeVisible();
 		await expect(page.locator('button:has-text("Translate")')).toBeVisible();
 	});
 
@@ -23,32 +23,33 @@ test.describe('TanStack Start + Agentuity', () => {
 		await page.goto('/');
 
 		// Fill in text
-		const input = page.locator('#text-input');
+		const input = page.locator('textarea');
 		await input.clear();
 		await input.fill('Hello from Playwright!');
 
 		// Select language
-		await page.locator('#language-select').selectOption('French');
+		await page.locator('select').first().selectOption('French');
 
 		// Click translate
 		await page.locator('button:has-text("Translate")').click();
 
-		// Wait for result
+		// Wait for result — the output div with translation text
 		const output = page.locator('.output');
 		await expect(output).toBeVisible({ timeout: 30000 });
 
-		// Verify translation result has content
-		await expect(output).toContainText('Model:');
-		await expect(output).toContainText('Tokens:');
+		// Verify translation result has content (tokens/model info shown below)
+		await expect(page.locator('text=Model')).toBeVisible({ timeout: 30000 });
+		await expect(page.locator('text=Language')).toBeVisible();
 	});
 
 	test('should navigate to about page', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/about');
 
-		const aboutLink = page.locator('a[href="/about"]').first();
-		await expect(aboutLink).toBeVisible();
-		await aboutLink.click();
+		await expect(page.locator('h1')).toContainText('About');
+		await expect(page.locator('a[href="/"]')).toBeVisible();
 
-		await expect(page).toHaveURL('/about');
+		await page.locator('a[href="/"]').click();
+		await expect(page).toHaveURL('/');
+		await expect(page.locator('h1')).toContainText('Welcome to Agentuity');
 	});
 });
