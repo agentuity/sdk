@@ -95,24 +95,7 @@ jobs:
           node-version: '24'
 
       - name: Build packages
-        run: bun run build:packages
-
-      # Build additional packages not covered by build:packages
-      - name: Build remaining packages
-        run: |
-          bun run --filter='./packages/claude-code' build
-          bun run --filter='./packages/coder' build
-          bun run --filter='./packages/coder-tui' build
-          bun run --filter='./packages/db' build
-          bun run --filter='./packages/email' build
-          bun run --filter='./packages/keyvalue' build
-          bun run --filter='./packages/migrate' build
-          bun run --filter='./packages/queue' build
-          bun run --filter='./packages/sandbox' build
-          bun run --filter='./packages/schedule' build
-          bun run --filter='./packages/task' build
-          bun run --filter='./packages/vector' build
-          bun run --filter='./packages/webhook' build
+        run: bun run build
 
       - name: Publish packages
         run: |
@@ -244,23 +227,7 @@ jobs:
           echo "All packages stamped to $VERSION"
 
       - name: Build packages
-        run: bun run build:packages
-
-      - name: Build remaining packages
-        run: |
-          bun run --filter='./packages/claude-code' build
-          bun run --filter='./packages/coder' build
-          bun run --filter='./packages/coder-tui' build
-          bun run --filter='./packages/db' build
-          bun run --filter='./packages/email' build
-          bun run --filter='./packages/keyvalue' build
-          bun run --filter='./packages/migrate' build
-          bun run --filter='./packages/queue' build
-          bun run --filter='./packages/sandbox' build
-          bun run --filter='./packages/schedule' build
-          bun run --filter='./packages/task' build
-          bun run --filter='./packages/vector' build
-          bun run --filter='./packages/webhook' build
+        run: bun run build
 
       - name: Publish packages
         run: |
