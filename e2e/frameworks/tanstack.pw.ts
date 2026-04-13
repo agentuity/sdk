@@ -37,9 +37,8 @@ test.describe('TanStack Start + Agentuity', () => {
 		const output = page.locator('.output');
 		await expect(output).toBeVisible({ timeout: 30000 });
 
-		// Verify translation result has content (tokens/model info shown below)
-		await expect(page.locator('text=Model')).toBeVisible({ timeout: 30000 });
-		await expect(page.locator('text=Language')).toBeVisible();
+		// Verify translation result has actual content (not the placeholder)
+		await expect(output).not.toContainText('Translation will appear here');
 	});
 
 	test('should navigate to about page', async ({ page }) => {
