@@ -1,5 +1,19 @@
 {
 	"title": "Patterns",
+	"groups": [
+		{
+			"title": "Coder",
+			"pages": [
+				"creating-coder-sessions-with-sdk",
+				"creating-loop-mode-coder-sessions",
+				"choosing-built-in-agents-for-a-coder-session",
+				"attaching-skills-to-a-coder-session",
+				"using-workspaces-to-reuse-repos-skills-and-agent-selection",
+				"preparing-coder-sessions-for-remote-attach",
+				"observing-a-coder-session-through-the-hub"
+			]
+		}
+	],
 	"pages": [
 		"autonomous-research",
 		"background-tasks",

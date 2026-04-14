@@ -1,0 +1,145 @@
+---
+title: Attaching Skills to a Coder Session
+short_title: Attach Skills
+description: Save skills, group them into buckets, and attach them to a Coder session with CoderClient
+---
+
+The Hub injects system skills into every session automatically. Saved skills and skill buckets are the part your app owns. Save them to your library once, then attach them to new sessions with `savedSkillIds` or `skillBucketIds`, so you don't reship the definitions each time.
+
+<Callout type="tip" title="Read the session back after creation">
+`getSession()` is the simplest way to confirm a session started with the selections you passed. Skill detail appears on the session right away, so you can verify it even while the session is still `creating` or `provisioning`.
+</Callout>
+
+## The Pattern
+
+Save a skill, optionally group it into a bucket, then attach both selections when you create the session:
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const DEFAULT_TASK =
+  'Review the repo and use the attached skills where they help the work move faster.';
+
+function getTask(): string {
+  const task = process.argv.slice(2).join(' ').trim();
+  return task || DEFAULT_TASK;
+}
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+  const task = getTask();
+
+  // Save the skill once so future sessions can attach it by id
+  const savedSkill = await client.saveSkill({
+    repo: 'anthropics/skills',
+    skillId: 'frontend-design',
+    name: 'frontend-design',
+    description: 'Design-focused frontend implementation guidance.',
+    url: 'https://skills.sh/anthropics/skills/frontend-design',
+  });
+
+  // Buckets group skills your app usually attaches together
+  const bucket = await client.createSkillBucket({
+    name: `design-bucket-${Date.now()}`,
+    description: 'Reusable design skills for Coder sessions.',
+    savedSkillIds: [savedSkill.id],
+  });
+
+  const created = await client.createSession({
+    task,
+    workflowMode: 'standard',
+    // savedSkillIds and skillBucketIds both attach; buckets expand into their members
+    savedSkillIds: [savedSkill.id], // [!code highlight]
+    skillBucketIds: [bucket.id], // [!code highlight]
+    tags: ['docs-example', 'session-skills'],
+  });
+
+  // Read the session back to confirm what attached
+  const session = await client.getSession(created.sessionId);
+
+  // The library still holds the saved skill and bucket for future sessions
+  const { skills } = await client.listSavedSkills();
+  const { buckets } = await client.listSkillBuckets();
+
+  console.log(
+    JSON.stringify(
+      {
+        sessionId: session.sessionId,
+        status: session.status,
+        bucket: session.bucket,
+        skills: session.skills.map((skill) => ({
+          repo: skill.repo,
+          skillId: skill.skillId,
+          name: skill.name,
+          url: skill.url,
+        })),
+        matchingSavedSkills: skills.filter((skill) => skill.id === savedSkill.id).length,
+        matchingBuckets: buckets.filter((bucketItem) => bucketItem.id === bucket.id).length,
+      },
+      null,
+      2
+    )
+  );
+}
+
+void main();
+```
+
+## Example Output
+
+```json
+{
+  "sessionId": "codesess_e7ec6fe0932c",
+  "status": "creating",
+  "bucket": "provisioning",
+  "skills": [
+    {
+      "repo": "anthropics/skills",
+      "skillId": "frontend-design",
+      "name": "frontend-design",
+      "url": "https://skills.sh/anthropics/skills/frontend-design"
+    }
+  ],
+  "matchingSavedSkills": 1,
+  "matchingBuckets": 1
+}
+```
+
+What this means:
+
+- the session received the saved skill selection you attached
+- the bucket exists as a reusable library selection for future sessions
+- the saved skill still lives in your skill library after the session is created
+
+## System Skills vs Saved Skills
+
+The easiest mental model is:
+
+- system skills are automatic and platform-managed
+- saved skills are your reusable library entries
+- skill buckets are just reusable groups of saved skills
+
+So if you want to control what your own app reuses, reach for `savedSkillIds` and `skillBucketIds`.
+
+## When to Use This Pattern
+
+Use this pattern when you want:
+
+- a reusable library of prompts or instructions
+- consistent skill attachments across multiple sessions
+- a small set of named buckets you can attach from a UI or internal tool
+- to keep session creation code clean while still reusing the same skills
+
+## Key Points
+
+- Attach saved skills when you want explicit, user-controlled reuse.
+- Buckets help when your app usually reaches for the same group of skills.
+- `getSession()` is the simplest way to verify what a session ended up with.
+- Fresh sessions can be in `creating` or `provisioning` even when the skill selection is already visible.
+
+## See Also
+
+- [Using Workspaces to Reuse Repos, Skills, and Agent Selection](/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection): Store the same selections once and attach them by `workspaceId`
+- [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the core create, read, archive, and delete flow
+- [Coder](/services/coder): Concepts, lifecycle, and the difference between system skills and saved skills
+- [Coder Client](/reference/sdk-reference/coder): Full `saveSkill()`, `createSkillBucket()`, and `createSession()` reference

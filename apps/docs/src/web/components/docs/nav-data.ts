@@ -405,7 +405,8 @@ export const navData: NavSection[] = [
 			{
 				title: 'Coder',
 				url: '/services/coder',
-				description: 'Run AI coding sessions in managed sandboxes with real-time collaboration',
+				description:
+					'Manage AI coding sessions that run in cloud sandboxes with full lifecycle, replay, and reconnect support',
 			},
 			{
 				title: 'Observability',
@@ -478,7 +479,54 @@ export const navData: NavSection[] = [
 				title: 'Patterns',
 				items: [
 					{
-						title: 'Autonomous Research Agent',
+						title: 'Coder',
+						items: [
+							{
+								title: 'Manage Sessions',
+								url: '/cookbook/patterns/creating-coder-sessions-with-sdk',
+								description:
+									'Create a Coder session, read its state, and manage its lifecycle with CoderClient',
+							},
+							{
+								title: 'Loop-Mode Sessions',
+								url: '/cookbook/patterns/creating-loop-mode-coder-sessions',
+								description:
+									'Create a loop-mode Coder session and inspect its workflow state with getLoopState',
+							},
+							{
+								title: 'Built-In Agents',
+								url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
+								description:
+									'Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session',
+							},
+							{
+								title: 'Attach Skills',
+								url: '/cookbook/patterns/attaching-skills-to-a-coder-session',
+								description:
+									'Save skills, group them into buckets, and attach them to a Coder session with CoderClient',
+							},
+							{
+								title: 'Use Workspaces',
+								url: '/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection',
+								description:
+									'Store reusable Coder selections in a workspace and attach them to sessions with workspaceId',
+							},
+							{
+								title: 'Reconnect Sessions',
+								url: '/cookbook/patterns/preparing-coder-sessions-for-remote-attach',
+								description:
+									'Use listConnectableSessions and prepareSessionForRemoteAttach to find sessions you can still reconnect to',
+							},
+							{
+								title: 'Observe Sessions',
+								url: '/cookbook/patterns/observing-a-coder-session-through-the-hub',
+								description:
+									"Subscribe to a session's live event stream, page through its event history, and hydrate a client from the durable replay stream",
+							},
+						],
+					},
+					{
+						title: 'Autonomous Research',
 						url: '/cookbook/patterns/autonomous-research',
 						description:
 							'Build a recursive research loop using the Anthropic SDK with native tool calling',
@@ -500,7 +548,7 @@ export const navData: NavSection[] = [
 						description: 'Cache scheduled task results in KV for later retrieval',
 					},
 					{
-						title: 'Hono RPC + TanStack Query',
+						title: 'Hono RPC + TanStack',
 						url: '/cookbook/patterns/hono-rpc-tanstack-query',
 						description:
 							'Get end-to-end type safety between your Agentuity API routes and React frontend using Hono RPC and TanStack Query',
@@ -528,7 +576,7 @@ export const navData: NavSection[] = [
 						description: 'Add Tailwind CSS styling to your Agentuity frontend',
 					},
 					{
-						title: 'Web Exploration with Sandboxes',
+						title: 'Web Exploration',
 						url: '/cookbook/patterns/web-exploration',
 						description:
 							'Run a headless browser in a sandbox to let agents browse, screenshot, and extract web content',
@@ -624,12 +672,17 @@ export const navData: NavSection[] = [
 						title: 'Coder',
 						url: '/reference/api/coder',
 						description:
-							'Manage Coder sessions, session data, loop state, and known users through the HTTP API',
+							'Manage Coder sessions, custom agents, session data, loop state, and known users through the REST API',
 					},
 					{
 						title: 'Databases',
 						url: '/reference/api/database',
 						description: 'Execute queries, inspect tables, and monitor database performance',
+					},
+					{
+						title: 'Durable Streams',
+						url: '/reference/api/streams',
+						description: 'Create durable, resumable data streams with public URLs',
 					},
 					{
 						title: 'Emails',
@@ -651,6 +704,12 @@ export const navData: NavSection[] = [
 						title: 'Machines',
 						url: '/reference/api/machines',
 						description: 'Manage compute nodes and organization authentication enrollment',
+					},
+					{
+						title: 'Message Queues',
+						url: '/reference/api/queues',
+						description:
+							'Publish, consume, and manage messages with worker and pub/sub queues',
 					},
 					{
 						title: 'OAuth Applications',
@@ -676,12 +735,6 @@ export const navData: NavSection[] = [
 							'Full project lifecycle management including deployments, agents, environment variables, and hostnames',
 					},
 					{
-						title: 'Message Queues',
-						url: '/reference/api/queues',
-						description:
-							'Publish, consume, and manage messages with worker and pub/sub queues',
-					},
-					{
 						title: 'Regions',
 						url: '/reference/api/regions',
 						description: 'List available cloud regions and manage per-region resources',
@@ -703,11 +756,6 @@ export const navData: NavSection[] = [
 						url: '/reference/api/sessions',
 						description:
 							'View agent execution sessions with timing, cost, and observability data',
-					},
-					{
-						title: 'Durable Streams',
-						url: '/reference/api/streams',
-						description: 'Create durable, resumable data streams with public URLs',
 					},
 					{
 						title: 'Tasks',
@@ -743,16 +791,10 @@ export const navData: NavSection[] = [
 				url: '/reference/cli',
 				items: [
 					{
-						title: 'Getting Started',
-						url: '/reference/cli/getting-started',
+						title: 'AI Commands',
+						url: '/reference/cli/ai-commands',
 						description:
-							'Install the Agentuity CLI and authenticate to start building agents.',
-					},
-					{
-						title: 'Development',
-						url: '/reference/cli/development',
-						description:
-							'Run the development server with hot reload, local mode, and the interactive Workbench.',
+							'CLI commands for AI agents, IDE integration, and schema inspection.',
 					},
 					{
 						title: 'Build Configuration',
@@ -761,27 +803,15 @@ export const navData: NavSection[] = [
 							'Customize the build process with Vite plugins and build-time constants',
 					},
 					{
-						title: 'Deployment',
-						url: '/reference/cli/deployment',
+						title: 'Claude Code Plugin',
+						url: '/reference/cli/claude-code-plugin',
 						description:
-							'Deploy your agents to Agentuity Cloud with automatic infrastructure provisioning.',
+							'Install the Agentuity plugin for Claude Code to get auto-activated skills for deploying and building on Agentuity.',
 					},
 					{
-						title: 'Git Integration',
-						url: '/reference/cli/git-integration',
-						description:
-							'Link your GitHub account and repositories to enable preview deployments and CI/CD.',
-					},
-					{
-						title: 'Storage',
-						url: '/reference/cli/storage',
-						description:
-							'Manage Key-Value, S3, Vector, Database, and Stream storage from the CLI.',
-					},
-					{
-						title: 'Sandbox',
-						url: '/reference/cli/sandbox',
-						description: 'Create and manage isolated execution environments from the CLI',
+						title: 'Coder',
+						url: '/reference/cli/coder',
+						description: 'Start and manage AI coding sessions connected to the Coder Hub',
 					},
 					{
 						title: 'Configuration',
@@ -795,16 +825,28 @@ export const navData: NavSection[] = [
 							'SSH into containers, inspect sessions, and troubleshoot issues in your deployed agents.',
 					},
 					{
-						title: 'AI Commands',
-						url: '/reference/cli/ai-commands',
+						title: 'Deployment',
+						url: '/reference/cli/deployment',
 						description:
-							'CLI commands for AI agents, IDE integration, and schema inspection.',
+							'Deploy your agents to Agentuity Cloud with automatic infrastructure provisioning.',
 					},
 					{
-						title: 'Managing OAuth Applications',
-						url: '/reference/cli/oauth',
+						title: 'Development',
+						url: '/reference/cli/development',
 						description:
-							'Create and manage OAuth/OIDC applications for third-party integrations from the CLI',
+							'Run the development server with hot reload, local mode, and the interactive Workbench.',
+					},
+					{
+						title: 'Getting Started',
+						url: '/reference/cli/getting-started',
+						description:
+							'Install the Agentuity CLI and authenticate to start building agents.',
+					},
+					{
+						title: 'Git Integration',
+						url: '/reference/cli/git-integration',
+						description:
+							'Link your GitHub account and repositories to enable preview deployments and CI/CD.',
 					},
 					{
 						title: 'Infrastructure Monitoring',
@@ -813,21 +855,27 @@ export const navData: NavSection[] = [
 							'Monitor machine health and resource usage from the CLI in real time or as a snapshot',
 					},
 					{
-						title: 'Coder',
-						url: '/reference/cli/coder',
-						description: 'Start and manage AI coding sessions connected to the Coder Hub',
-					},
-					{
-						title: 'Claude Code Plugin',
-						url: '/reference/cli/claude-code-plugin',
+						title: 'Managing OAuth Apps',
+						url: '/reference/cli/oauth',
 						description:
-							'Install the Agentuity plugin for Claude Code to get auto-activated skills for deploying and building on Agentuity.',
+							'Create and manage OAuth/OIDC applications for third-party integrations from the CLI',
 					},
 					{
 						title: 'OpenCode Plugin',
 						url: '/reference/cli/opencode-plugin',
 						description:
 							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
+					},
+					{
+						title: 'Sandbox',
+						url: '/reference/cli/sandbox',
+						description: 'Create and manage isolated execution environments from the CLI',
+					},
+					{
+						title: 'Storage',
+						url: '/reference/cli/storage',
+						description:
+							'Manage Key-Value, S3, Vector, Database, and Stream storage from the CLI.',
 					},
 				],
 			},
@@ -836,66 +884,16 @@ export const navData: NavSection[] = [
 				url: '/reference/sdk-reference',
 				items: [
 					{
-						title: 'Application Entry',
-						url: '/reference/sdk-reference/application-entry',
-						description:
-							'Initialize your Agentuity app with createApp() and configure the runtime entry file',
-					},
-					{
 						title: 'Agents',
 						url: '/reference/sdk-reference/agents',
 						description:
 							'Define agents with createAgent(), configure schemas, and write handlers',
 					},
 					{
-						title: 'Schema',
-						url: '/reference/sdk-reference/schema',
-						description: 'Type-safe runtime validation with StandardSchema support',
-					},
-					{
-						title: 'Context API',
-						url: '/reference/sdk-reference/context-api',
-						description: 'Storage, logging, and services available via the ctx.* object',
-					},
-					{
-						title: 'Router',
-						url: '/reference/sdk-reference/router',
-						description: 'HTTP endpoints, middleware, WebSocket, SSE, and cron handlers',
-					},
-					{
-						title: 'Communication',
-						url: '/reference/sdk-reference/communication',
-						description: 'Call agents from routes or other agents with type-safe imports',
-					},
-					{
-						title: 'Storage',
-						url: '/reference/sdk-reference/storage',
-						description: 'KV, Vector, Database, Object, and Stream storage reference',
-					},
-					{
-						title: 'Queue Service',
-						url: '/reference/sdk-reference/queue-service',
-						description: 'Publish messages and manage queues with ctx.queue',
-					},
-					{
-						title: 'Task Service',
-						url: '/reference/sdk-reference/task-service',
-						description: 'Track work items with lifecycle management via ctx.task',
-					},
-					{
-						title: 'Email Service',
-						url: '/reference/sdk-reference/email-service',
-						description: 'Send emails and manage addresses with ctx.email',
-					},
-					{
-						title: 'Schedule Service',
-						url: '/reference/sdk-reference/schedule-service',
-						description: 'Create and manage cron-based scheduled jobs with ctx.schedule',
-					},
-					{
-						title: 'Sandbox Service',
-						url: '/reference/sdk-reference/sandbox-service',
-						description: 'Run code in isolated containers with ctx.sandbox',
+						title: 'Application Entry',
+						url: '/reference/sdk-reference/application-entry',
+						description:
+							'Initialize your Agentuity app with createApp() and configure the runtime entry file',
 					},
 					{
 						title: 'Coder',
@@ -903,10 +901,19 @@ export const navData: NavSection[] = [
 						description: 'Manage AI coding sessions, workspaces, and skills with CoderClient',
 					},
 					{
-						title: 'Observability',
-						url: '/reference/sdk-reference/observability',
-						description:
-							'Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer',
+						title: 'Communication',
+						url: '/reference/sdk-reference/communication',
+						description: 'Call agents from routes or other agents with type-safe imports',
+					},
+					{
+						title: 'Context API',
+						url: '/reference/sdk-reference/context-api',
+						description: 'Storage, logging, and services available via the ctx.* object',
+					},
+					{
+						title: 'Email Service',
+						url: '/reference/sdk-reference/email-service',
+						description: 'Send emails and manage addresses with ctx.email',
 					},
 					{
 						title: 'Evaluations',
@@ -919,10 +926,51 @@ export const navData: NavSection[] = [
 						description: 'Lifecycle hooks for monitoring agent, session, and thread events',
 					},
 					{
+						title: 'Observability',
+						url: '/reference/sdk-reference/observability',
+						description:
+							'Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer',
+					},
+					{
+						title: 'Queue Service',
+						url: '/reference/sdk-reference/queue-service',
+						description: 'Publish messages and manage queues with ctx.queue',
+					},
+					{
+						title: 'Router',
+						url: '/reference/sdk-reference/router',
+						description: 'HTTP endpoints, middleware, WebSocket, SSE, and cron handlers',
+					},
+					{
 						title: 'Runtime Utilities',
 						url: '/reference/sdk-reference/advanced',
 						description:
 							'File imports, standalone execution, context detection, process lifecycle, and build metadata',
+					},
+					{
+						title: 'Sandbox Service',
+						url: '/reference/sdk-reference/sandbox-service',
+						description: 'Run code in isolated containers with ctx.sandbox',
+					},
+					{
+						title: 'Schedule Service',
+						url: '/reference/sdk-reference/schedule-service',
+						description: 'Create and manage cron-based scheduled jobs with ctx.schedule',
+					},
+					{
+						title: 'Schema',
+						url: '/reference/sdk-reference/schema',
+						description: 'Type-safe runtime validation with StandardSchema support',
+					},
+					{
+						title: 'Storage',
+						url: '/reference/sdk-reference/storage',
+						description: 'KV, Vector, Database, Object, and Stream storage reference',
+					},
+					{
+						title: 'Task Service',
+						url: '/reference/sdk-reference/task-service',
+						description: 'Track work items with lifecycle management via ctx.task',
 					},
 				],
 			},
