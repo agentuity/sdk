@@ -174,7 +174,7 @@ function getAgentuityVersionSpecifier(cliVersion: string): string {
 	if (match) {
 		return match[1]!.toLowerCase();
 	}
-	const major = cliVersion.split('.')[0] ?? '0';
+	const major = cliVersion.split('.')[0] ?? '3';
 	return `^${major}.0.0`;
 }
 
