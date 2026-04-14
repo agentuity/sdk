@@ -332,10 +332,10 @@ describe('Backend Proxy ECONNREFUSED Handler', () => {
 					routePaths: ['/api'],
 				});
 
-				// Dynamically import Vite from project node_modules
-				const projectRequire = require('node:module').createRequire(
-					join(testDir, 'package.json')
-				);
+				// Dynamically import Vite from the repo's node_modules,
+				// not from the temp testDir (which has no node_modules).
+				const { createRequire } = await import('node:module');
+				const projectRequire = createRequire(import.meta.url);
 
 				let viteServer: any;
 				try {
@@ -401,34 +401,34 @@ describe('Startup Order Verification', () => {
 		);
 	});
 
-	test('vitePort is pre-initialized before Bun starts', async () => {
+	test('vitePort is pre-resolved before Bun starts', async () => {
 		const devIndexPath = join(import.meta.dir, '../../../src/cmd/dev/index.ts');
 		const source = await Bun.file(devIndexPath).text();
 
-		// Verify vitePort is initialized with viteInternalPort
-		const preInitLine = source.indexOf('let vitePort: number = viteInternalPort');
-		expect(preInitLine, 'vitePort should be pre-initialized to viteInternalPort').toBeGreaterThan(
-			0
-		);
-	});
-
-	test('env vars are updated if Vite port changes', async () => {
-		const devIndexPath = join(import.meta.dir, '../../../src/cmd/dev/index.ts');
-		const source = await Bun.file(devIndexPath).text();
-
-		// Verify there's a check for vitePort !== viteInternalPort
-		const portUpdateCheck = source.indexOf('vitePort !== viteInternalPort');
+		// Verify vitePort is resolved via findAvailablePort before Bun starts
+		const findPortLine = source.indexOf('findAvailablePort(viteInternalPort');
 		expect(
-			portUpdateCheck,
-			'Should check if Vite port differs and update env vars'
+			findPortLine,
+			'vitePort should be resolved via findAvailablePort before Bun starts'
 		).toBeGreaterThan(0);
 
-		// Verify AGENTUITY_BASE_URL is updated
-		const baseUrlUpdate = source.indexOf(
-			'process.env.AGENTUITY_BASE_URL = `http://localhost:${' + 'vitePort}`'
+		// The findAvailablePort call must come before Step 3 (Bun backend)
+		const step3Pos = source.indexOf('Step 3: Start Bun backend');
+		expect(
+			findPortLine,
+			'findAvailablePort must be called before Bun starts (Step 3)'
+		).toBeLessThan(step3Pos);
+	});
+
+	test('env vars use pre-resolved vitePort', async () => {
+		const devIndexPath = join(import.meta.dir, '../../../src/cmd/dev/index.ts');
+		const source = await Bun.file(devIndexPath).text();
+
+		// Verify AGENTUITY_BASE_URL uses the pre-resolved vitePort
+		// We search for a simpler unique pattern to avoid escaping issues
+		const baseUrlLine = source.indexOf(
+			'AGENTUITY_BASE_URL || `http://localhost:${' + 'vitePort}`'
 		);
-		expect(baseUrlUpdate, 'AGENTUITY_BASE_URL should be updated on port change').toBeGreaterThan(
-			portUpdateCheck
-		);
+		expect(baseUrlLine, 'AGENTUITY_BASE_URL should use pre-resolved vitePort').toBeGreaterThan(0);
 	});
 });

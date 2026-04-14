@@ -548,9 +548,18 @@ export const command = createCommand({
 			// Initialize process manager to track all servers/processes
 			const procManager = initProcessManager(logger);
 
-			// Pre-initialize vitePort with the anticipated internal port.
-			// The actual port is confirmed after Vite starts (below) and rarely differs.
-			let vitePort: number = viteInternalPort;
+			// Resolve the actual Vite port BEFORE starting Bun so that env vars
+			// like AGENTUITY_BASE_URL contain the correct port. The runtime's
+			// CORS trusted-origins are built once at startup, so a late update
+			// would leave the backend with stale origins.
+			const { findAvailablePort } = await import('../build/vite/vite-asset-server');
+			const vitePort = await findAvailablePort(viteInternalPort, '127.0.0.1');
+
+			if (vitePort !== viteInternalPort) {
+				logger.info(
+					`Port ${viteInternalPort} is in use, using port ${vitePort} for Vite dev server`
+				);
+			}
 
 			/**
 			 * Centralized cleanup function for all resources.
@@ -790,9 +799,9 @@ export const command = createCommand({
 			// AGENTUITY_TRANSPORT_URL are already set in Step 0b (before
 			// agent discovery) to support gateway env patching.
 			//
-			// vitePort is pre-initialized to viteInternalPort here. If Vite
-			// ends up on a different port (rare), we update these env vars
-			// after Vite starts in Step 4.
+			// vitePort is pre-resolved (via findAvailablePort) before Bun
+			// starts, so env vars like AGENTUITY_BASE_URL are correct when
+			// the runtime builds its CORS trusted-origin set.
 
 			process.env.AGENTUITY_SDK_DEV_MODE = 'true';
 			process.env.AGENTUITY_RUNTIME = 'yes';
@@ -875,22 +884,19 @@ export const command = createCommand({
 					rootDir,
 					logger,
 					workbenchPath: workbench.config?.route,
-					port: viteInternalPort,
+					port: vitePort,
 					backendPort: bunBackendPort,
 					routePaths,
 					liveHostname: devmode?.hostname,
 				});
 				viteServer = viteResult.server;
-				vitePort = viteResult.port;
 
-				// If Vite ended up on a different port than anticipated, update the
-				// env vars so CORS and devmode URLs are correct. The Bun backend's
-				// --hot reload will pick up the change.
-				if (vitePort !== viteInternalPort) {
-					process.env.AGENTUITY_BASE_URL = `http://localhost:${vitePort}`;
-					if (!devmode?.hostname) {
-						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${vitePort}`;
-					}
+				// Verify Vite used the port we pre-resolved (should always match
+				// since strictPort:true is set and we already confirmed availability).
+				if (viteResult.port !== vitePort) {
+					logger.warn(
+						`Vite started on port ${viteResult.port} instead of expected ${vitePort} — env vars may be incorrect`
+					);
 				}
 
 				// Register Vite server with process manager
