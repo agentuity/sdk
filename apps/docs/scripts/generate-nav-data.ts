@@ -9,6 +9,7 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { StructuredError } from '@agentuity/core';
 import matter from 'gray-matter';
 
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
@@ -43,6 +44,11 @@ interface MetaJson {
 		sort?: 'title';
 	}>;
 }
+
+const NavMetaValidationError = StructuredError('NavMetaValidationError')<{
+	slug: string;
+	dirPath: string;
+}>();
 
 // ---------------------------------------------------------------------------
 // SDK Explorer (hardcoded — demo routes, not content pages)
@@ -220,8 +226,11 @@ async function buildNavItemForSlug(
 		return item;
 	}
 
-	console.warn(`Warning: No directory or .mdx file for "${slug}" in ${dirPath}`);
-	return null;
+	throw new NavMetaValidationError({
+		slug,
+		dirPath,
+		message: `meta.json references "${slug}", but no matching directory or .mdx file exists in ${dirPath}`,
+	});
 }
 
 async function processDirectory(dirPath: string, urlPrefix: string): Promise<NavItem[]> {
@@ -320,11 +329,15 @@ function serializeSection(section: NavSection, indent: number): string {
 	if (section.hideItems) {
 		out += `${ind(indent + 1)}hideItems: true,\n`;
 	}
-	out += `${ind(indent + 1)}items: [\n`;
-	for (const item of section.items) {
-		out += serializeItem(item, indent + 2);
+	if (section.items.length === 0) {
+		out += `${ind(indent + 1)}items: [],\n`;
+	} else {
+		out += `${ind(indent + 1)}items: [\n`;
+		for (const item of section.items) {
+			out += serializeItem(item, indent + 2);
+		}
+		out += `${ind(indent + 1)}],\n`;
 	}
-	out += `${ind(indent + 1)}],\n`;
 	out += `${ind(indent)}},\n`;
 	return out;
 }

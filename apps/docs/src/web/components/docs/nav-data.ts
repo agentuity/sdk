@@ -23,8 +23,7 @@ export const navData: NavSection[] = [
 		title: 'Home',
 		url: '/',
 		hideItems: true,
-		items: [
-		],
+		items: [],
 	},
 	{
 		title: 'SDK Explorer',
