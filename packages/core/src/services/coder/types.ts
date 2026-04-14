@@ -322,6 +322,20 @@ export const CoderWorkspaceListResponseSchema = z
 	.describe('Response payload for listing workspaces');
 export type CoderWorkspaceListResponse = z.infer<typeof CoderWorkspaceListResponseSchema>;
 
+function hasWorkspaceSelections(input: {
+	repos?: unknown[];
+	savedSkillIds?: unknown[];
+	skillBucketIds?: unknown[];
+	enabledAgents?: unknown[];
+}): boolean {
+	return (
+		(input.repos?.length ?? 0) > 0 ||
+		(input.savedSkillIds?.length ?? 0) > 0 ||
+		(input.skillBucketIds?.length ?? 0) > 0 ||
+		(input.enabledAgents?.length ?? 0) > 0
+	);
+}
+
 export const CoderCreateWorkspaceRequestSchema = z
 	.object({
 		name: z.string().describe('Workspace name'),
@@ -330,7 +344,13 @@ export const CoderCreateWorkspaceRequestSchema = z
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
-		enabledAgents: z.array(z.string()).optional().describe('Effective agent roster to store on the workspace'),
+		enabledAgents: z
+			.array(z.string())
+			.optional()
+			.describe('Effective agent roster to store on the workspace'),
+	})
+	.refine(hasWorkspaceSelections, {
+		message: 'A workspace needs at least one repo, saved skill, skill bucket, or agent',
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;

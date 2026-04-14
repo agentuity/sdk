@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
 import { CoderClient } from '../src/services/coder/client.ts';
+import { APIError, ValidationInputError } from '../src/services/api.ts';
+import { CoderCreateWorkspaceRequestSchema } from '../src/services/coder/types.ts';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
@@ -404,6 +406,55 @@ describe('CoderClient enabled agent roster contract', () => {
 		expect(createWorkspaceBody.enabledAgents).toEqual(['code-review']);
 	});
 
+	test('workspace create schema rejects a name-only request', () => {
+		const result = CoderCreateWorkspaceRequestSchema.safeParse({
+			name: 'My Workspace',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						message:
+							'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+					}),
+				])
+			);
+		}
+	});
+
+	test('createWorkspace rejects an empty workspace body before sending a request', async () => {
+		const fetchMock = mockFetch(async () => {
+			throw new Error('unexpected fetch');
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		let error: unknown;
+		try {
+			await client.createWorkspace({
+				name: 'My Workspace',
+			});
+		} catch (ex) {
+			error = ex;
+		}
+
+		expect(error).toBeInstanceOf(ValidationInputError);
+		expect(error).toMatchObject({
+			issues: expect.arrayContaining([
+				expect.objectContaining({
+					message: 'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+				}),
+			]),
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	test('createSession sends enabledAgents in the request body', async () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/session');
@@ -503,6 +554,44 @@ describe('CoderClient enabled agent roster contract', () => {
 		).resolves.toMatchObject({
 			id: 'hworkspace_enabled_create',
 			enabledAgents: ['code-review', 'qa-team'],
+		});
+	});
+
+	test('createWorkspace preserves server validation text returned in the error field', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces');
+			expect(init?.method).toBe('POST');
+			return new Response(
+				JSON.stringify({
+					error: 'One or more selected saved skills do not exist.',
+				}),
+				{
+					status: 400,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		let error: unknown;
+		try {
+			await client.createWorkspace({
+				name: 'My Workspace',
+				enabledAgents: ['code-review'],
+			});
+		} catch (ex) {
+			error = ex;
+		}
+
+		expect(error).toBeInstanceOf(APIError);
+		expect(error).toMatchObject({
+			status: 400,
+			message: 'One or more selected saved skills do not exist.',
 		});
 	});
 
