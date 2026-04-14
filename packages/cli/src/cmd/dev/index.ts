@@ -534,95 +534,23 @@ export const command = createCommand({
 				};
 			}
 
-			// Start Vite dev server on an internal port.
-			// The user-facing port is handled by the front-door TCP proxy (ws-proxy)
-			// which routes WS upgrades to Bun and everything else to Vite.
-			let viteServer: ServerLike | null = null;
-			let vitePort: number;
-
-			// Initialize process manager to track all servers/processes
-			const procManager = initProcessManager(logger);
-
-			try {
-				logger.debug('Starting Vite dev server (internal port %d)...', viteInternalPort);
-				const viteResult = await startViteAssetServer({
-					rootDir,
-					logger,
-					workbenchPath: workbench.config?.route,
-					port: viteInternalPort,
-					backendPort: bunBackendPort,
-					routePaths,
-					liveHostname: devmode?.hostname,
-				});
-				viteServer = viteResult.server;
-				vitePort = viteResult.port;
-
-				// Register Vite server with process manager
-				procManager.registerServer({
-					id: 'vite',
-					server: viteServer,
-					description: 'Vite dev server (frontend assets)',
-					port: vitePort,
-				});
-
-				// Update dev lock with actual Vite port
-				await devLock.updatePorts({ vite: vitePort });
-
-				logger.debug(
-					`Vite dev server running on port ${vitePort} (internal, proxying backend on port ${bunBackendPort})`
-				);
-			} catch (error) {
-				tui.error(`Failed to start Vite dev server: ${error}`);
-				await procManager.cleanup('vite startup failure');
-				await devLock.release();
-				originalExit(1);
-				return;
-			}
-
-			// Start the front-door TCP proxy on the user-facing port.
-			// Routes WebSocket upgrades (for /api/*, /_agentuity/*) directly to Bun
-			// and everything else (HTTP, HMR WebSocket) to Vite.
-			// This works around Bun's broken node:http upgrade socket implementation.
-			let frontDoorServer: import('node:net').Server | null = null;
-			try {
-				const { startWsProxy } = await import('../build/vite/ws-proxy');
-				frontDoorServer = await startWsProxy({
-					port: opts.port,
-					vitePort,
-					backendPort: bunBackendPort,
-					routePaths,
-					logger,
-				});
-
-				// Register front-door proxy with process manager
-				procManager.registerServer({
-					id: 'front-door-proxy',
-					server: {
-						close: () => {
-							frontDoorServer?.close();
-						},
-					},
-					description: 'Front-door TCP proxy (WS routing)',
-					port: opts.port,
-				});
-
-				logger.debug(
-					`Front-door proxy on port ${opts.port} (Vite:${vitePort}, Bun:${bunBackendPort})`
-				);
-			} catch (error) {
-				tui.error(`Failed to start front-door proxy: ${error}`);
-				await procManager.cleanup('front-door proxy startup failure');
-				await devLock.release();
-				originalExit(1);
-				return;
-			}
-
 			// --- State for long-running processes ---
+			// Declared early so signal handlers can reference them before
+			// servers are started.
+			let viteServer: ServerLike | null = null;
+			let frontDoorServer: import('node:net').Server | null = null;
 			let gravityProcess: ProcessLike | null = null;
 			let gravityHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 			let stdinListenerRegistered = false;
 			let stdinDataHandler: ((data: Buffer | string) => void) | null = null;
 			let shutdownRequested = false;
+
+			// Initialize process manager to track all servers/processes
+			const procManager = initProcessManager(logger);
+
+			// Pre-initialize vitePort with the anticipated internal port.
+			// The actual port is confirmed after Vite starts (below) and rarely differs.
+			let vitePort: number = viteInternalPort;
 
 			/**
 			 * Centralized cleanup function for all resources.
@@ -861,6 +789,10 @@ export const command = createCommand({
 			// Note: AGENTUITY_SDK_KEY, NODE_ENV, AGENTUITY_ENV, and
 			// AGENTUITY_TRANSPORT_URL are already set in Step 0b (before
 			// agent discovery) to support gateway env patching.
+			//
+			// vitePort is pre-initialized to viteInternalPort here. If Vite
+			// ends up on a different port (rare), we update these env vars
+			// after Vite starts in Step 4.
 
 			process.env.AGENTUITY_SDK_DEV_MODE = 'true';
 			process.env.AGENTUITY_RUNTIME = 'yes';
@@ -932,7 +864,95 @@ export const command = createCommand({
 			}
 
 			// ================================================================
-			// Step 4: Start gravity tunnel (if public URL enabled)
+			// Step 4: Start Vite asset server (frontend + API proxy)
+			// ================================================================
+			// Vite starts AFTER the Bun backend so that its proxy is ready
+			// to forward API requests immediately — no ECONNREFUSED race.
+
+			try {
+				logger.debug('Starting Vite dev server (internal port %d)...', viteInternalPort);
+				const viteResult = await startViteAssetServer({
+					rootDir,
+					logger,
+					workbenchPath: workbench.config?.route,
+					port: viteInternalPort,
+					backendPort: bunBackendPort,
+					routePaths,
+					liveHostname: devmode?.hostname,
+				});
+				viteServer = viteResult.server;
+				vitePort = viteResult.port;
+
+				// If Vite ended up on a different port than anticipated, update the
+				// env vars so CORS and devmode URLs are correct. The Bun backend's
+				// --hot reload will pick up the change.
+				if (vitePort !== viteInternalPort) {
+					process.env.AGENTUITY_BASE_URL = `http://localhost:${vitePort}`;
+					if (!devmode?.hostname) {
+						process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${vitePort}`;
+					}
+				}
+
+				// Register Vite server with process manager
+				procManager.registerServer({
+					id: 'vite',
+					server: viteServer,
+					description: 'Vite dev server (frontend assets)',
+					port: vitePort,
+				});
+
+				// Update dev lock with actual Vite port
+				await devLock.updatePorts({ vite: vitePort });
+
+				logger.debug(
+					`Vite dev server running on port ${vitePort} (internal, proxying backend on port ${bunBackendPort})`
+				);
+			} catch (error) {
+				tui.error(`Failed to start Vite dev server: ${error}`);
+				await cleanup(true, 1, true);
+				return;
+			}
+
+			// ================================================================
+			// Step 5: Start front-door TCP proxy (user-facing port)
+			// ================================================================
+			// Routes WebSocket upgrades (for /api/*, /_agentuity/*) directly to Bun
+			// and everything else (HTTP, HMR WebSocket) to Vite.
+			// This works around Bun's broken node:http upgrade socket implementation.
+
+			try {
+				const { startWsProxy } = await import('../build/vite/ws-proxy');
+				frontDoorServer = await startWsProxy({
+					port: opts.port,
+					vitePort,
+					backendPort: bunBackendPort,
+					routePaths,
+					logger,
+				});
+
+				// Register front-door proxy with process manager
+				procManager.registerServer({
+					id: 'front-door-proxy',
+					server: {
+						close: () => {
+							frontDoorServer?.close();
+						},
+					},
+					description: 'Front-door TCP proxy (WS routing)',
+					port: opts.port,
+				});
+
+				logger.debug(
+					`Front-door proxy on port ${opts.port} (Vite:${vitePort}, Bun:${bunBackendPort})`
+				);
+			} catch (error) {
+				tui.error(`Failed to start front-door proxy: ${error}`);
+				await cleanup(true, 1, true);
+				return;
+			}
+
+			// ================================================================
+			// Step 6: Start gravity tunnel (if public URL enabled)
 			// ================================================================
 
 			if (gravityBin && gravityURL && devmode && project) {
@@ -1049,7 +1069,7 @@ export const command = createCommand({
 			}
 
 			// ================================================================
-			// Step 5: Keyboard shortcuts + wait for shutdown
+			// Step 7: Keyboard shortcuts + wait for shutdown
 			// ================================================================
 
 			if (interactive && process.stdin.isTTY && process.stdout.isTTY) {

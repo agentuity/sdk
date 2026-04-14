@@ -21,7 +21,7 @@ export interface BunDevServerOptions {
 	rootDir: string;
 	port?: number;
 	logger: Logger;
-	vitePort: number;
+	vitePort: number; // Kept for backward compatibility — no longer used internally
 	inspect?: boolean;
 	inspectWait?: boolean;
 	inspectBrk?: boolean;
@@ -311,9 +311,17 @@ export function buildStartupErrorMessage(
  * are re-evaluated.
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
-	const { rootDir, port = 3500, logger, vitePort, inspect, inspectWait, inspectBrk } = options;
+	const {
+		rootDir,
+		port = 3500,
+		logger,
+		vitePort: _vitePort,
+		inspect,
+		inspectWait,
+		inspectBrk,
+	} = options;
 
-	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
+	logger.debug('Starting Bun dev server (port %d)...', port);
 
 	const appPath = `${rootDir}/app.ts`;
 
@@ -452,7 +460,6 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 	}
 
 	logger.debug(`Bun dev server started on http://127.0.0.1:${port} (--hot mode)`);
-	logger.debug(`Proxied to Vite:${vitePort}`);
 
 	return { bunServerPort: port };
 }
