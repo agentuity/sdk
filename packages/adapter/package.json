@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/adapter",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "HTTP client adapter for Agentuity service clients",
@@ -23,7 +23,7 @@
 		"clean": "rm -rf dist *.tsbuildinfo"
 	},
 	"dependencies": {
-		"@agentuity/core": "3.0.0-alpha.5"
+		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

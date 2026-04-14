@@ -6,14 +6,14 @@
 	},
 	"metadata": {
 		"description": "Agentuity plugins for Claude Code",
-		"version": "3.0.0-alpha.5"
+		"version": "3.0.0-alpha.6"
 	},
 	"plugins": [
 		{
 			"name": "agentuity",
 			"source": "./packages/claude-code",
 			"description": "Deploy websites, apps, and AI agents to Agentuity — with managed databases, storage, queues, and more",
-			"version": "3.0.0-alpha.5",
+			"version": "3.0.0-alpha.6",
 			"author": {
 				"name": "Agentuity"
 			},

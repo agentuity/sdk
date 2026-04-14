@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/evals",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"private": true,
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
@@ -27,14 +27,14 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "3.0.0-alpha.5",
-		"@agentuity/schema": "3.0.0-alpha.5",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/schema": "workspace:*",
 		"zod": "^3.25.0",
 		"@ai-sdk/groq": "latest",
 		"ai": "^6.0.0"
 	},
 	"devDependencies": {
-		"@agentuity/test-utils": "3.0.0-alpha.5",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

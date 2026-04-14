@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/core",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -264,7 +264,7 @@
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
-		"@agentuity/test-utils": "3.0.0-alpha.5",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"esbuild": "^0.25.0",

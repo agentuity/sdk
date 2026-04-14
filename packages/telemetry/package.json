@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/telemetry",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -23,8 +23,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "3.0.0-alpha.5",
-		"@agentuity/server": "3.0.0-alpha.5",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/server": "workspace:*",
 		"@opentelemetry/api": "^1.9.0",
 		"@opentelemetry/api-logs": "^0.207.0",
 		"@opentelemetry/auto-instrumentations-node": "^0.66.0",

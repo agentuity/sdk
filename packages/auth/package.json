@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/auth",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"type": "module",
 	"description": "Authentication for Agentuity projects using Agentuity Auth",
 	"repository": {
@@ -41,14 +41,14 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@agentuity/drizzle": "3.0.0-alpha.5",
+		"@agentuity/drizzle": "workspace:*",
 		"@better-auth/api-key": "1.5.2",
 		"better-auth": "1.5.2",
-		"@agentuity/core": "3.0.0-alpha.5"
+		"@agentuity/core": "workspace:*"
 	},
 	"peerDependencies": {
 		"react": "^18.0.0 || ^19.0.0",
-		"@agentuity/react": "3.0.0-alpha.5",
+		"@agentuity/react": "workspace:*",
 		"@opentelemetry/api": "^1.9.0",
 		"hono": "^4.0.0",
 		"drizzle-orm": ">=0.44.0"
@@ -68,8 +68,8 @@
 		}
 	},
 	"devDependencies": {
-		"@agentuity/react": "3.0.0-alpha.5",
-		"@agentuity/test-utils": "3.0.0-alpha.5",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
 		"@opentelemetry/api": "^1.9.0",
 		"@types/react": "^18.3.18",
 		"drizzle-kit": "^0.31.8",

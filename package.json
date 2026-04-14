@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"license": "Apache-2.0",
 	"private": true,
 	"workspaces": [

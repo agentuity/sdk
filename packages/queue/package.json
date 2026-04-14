@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/queue",
-	"version": "3.0.0-alpha.5",
+	"version": "3.0.0-alpha.6",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -25,8 +25,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "3.0.0-alpha.5",
-		"@agentuity/adapter": "3.0.0-alpha.5",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/adapter": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {

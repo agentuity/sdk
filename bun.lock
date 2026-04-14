@@ -36,7 +36,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -46,16 +46,16 @@
     },
     "apps/docs": {
       "name": "docs",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/drizzle": "3.0.0-alpha.5",
-        "@agentuity/evals": "3.0.0-alpha.5",
-        "@agentuity/frontend": "3.0.0-alpha.5",
-        "@agentuity/react": "3.0.0-alpha.5",
-        "@agentuity/runtime": "3.0.0-alpha.5",
-        "@agentuity/schema": "3.0.0-alpha.5",
-        "@agentuity/server": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/drizzle": "workspace:*",
+        "@agentuity/evals": "workspace:*",
+        "@agentuity/frontend": "workspace:*",
+        "@agentuity/react": "workspace:*",
+        "@agentuity/runtime": "workspace:*",
+        "@agentuity/schema": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "@ai-sdk/anthropic": "^2.0.56",
         "@ai-sdk/google": "^2.0.51",
         "@ai-sdk/groq": "^2.0.33",
@@ -97,7 +97,7 @@
         "zod": "^3.25.76",
       },
       "devDependencies": {
-        "@agentuity/cli": "3.0.0-alpha.5",
+        "@agentuity/cli": "workspace:*",
         "@tailwindcss/vite": "^4.1.18",
         "@tanstack/router-plugin": "^1.157.18",
         "@types/bun": "latest",
@@ -112,7 +112,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
     },
     "apps/testing/db": {
       "name": "db-test",
@@ -367,9 +367,9 @@
     },
     "packages/adapter": {
       "name": "@agentuity/adapter",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -378,7 +378,7 @@
     },
     "packages/analytics": {
       "name": "@agentuity/analytics",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -387,16 +387,16 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/drizzle": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/drizzle": "workspace:*",
         "@better-auth/api-key": "1.5.2",
         "better-auth": "1.5.2",
       },
       "devDependencies": {
-        "@agentuity/react": "3.0.0-alpha.5",
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/react": "workspace:*",
+        "@agentuity/test-utils": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "@types/react": "^18.3.18",
         "drizzle-kit": "^0.31.8",
@@ -406,7 +406,7 @@
         "typescript": "^5.8.3",
       },
       "peerDependencies": {
-        "@agentuity/react": "3.0.0-alpha.5",
+        "@agentuity/react": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "drizzle-orm": ">=0.44.0",
         "hono": "^4.0.0",
@@ -421,7 +421,7 @@
     },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -430,16 +430,16 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
       "dependencies": {
-        "@agentuity/auth": "3.0.0-alpha.5",
-        "@agentuity/coder-tui": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/frontend": "3.0.0-alpha.5",
-        "@agentuity/server": "3.0.0-alpha.5",
+        "@agentuity/auth": "workspace:*",
+        "@agentuity/coder-tui": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/frontend": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "@datasert/cronjs-parser": "^1.4.0",
         "@vitejs/plugin-react": "^5.1.2",
         "acorn-loose": "^8.5.2",
@@ -458,7 +458,7 @@
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/adm-zip": "^0.5.7",
         "@types/archiver": "^7.0.0",
         "@types/bun": "latest",
@@ -471,10 +471,10 @@
     },
     "packages/coder": {
       "name": "@agentuity/coder",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/server": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -485,7 +485,7 @@
     },
     "packages/coder-tui": {
       "name": "@agentuity/coder-tui",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
         "@mariozechner/pi-coding-agent": "^0.65.0",
         "@mariozechner/pi-tui": "^0.65.0",
@@ -500,12 +500,12 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "esbuild": "^0.25.0",
@@ -514,9 +514,9 @@
     },
     "packages/db": {
       "name": "@agentuity/db",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -528,15 +528,15 @@
     },
     "packages/drizzle": {
       "name": "@agentuity/drizzle",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/postgres": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/postgres": "workspace:*",
         "better-auth": "1.5.2",
         "drizzle-orm": "^0.45.0",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -544,10 +544,10 @@
     },
     "packages/email": {
       "name": "@agentuity/email",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -559,16 +559,16 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/schema": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "@ai-sdk/groq": "latest",
         "ai": "^6.0.0",
         "zod": "^3.25.0",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -576,12 +576,12 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -589,17 +589,17 @@
     },
     "packages/hono": {
       "name": "@agentuity/hono",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/email": "3.0.0-alpha.5",
-        "@agentuity/keyvalue": "3.0.0-alpha.5",
-        "@agentuity/queue": "3.0.0-alpha.5",
-        "@agentuity/sandbox": "3.0.0-alpha.5",
-        "@agentuity/schedule": "3.0.0-alpha.5",
-        "@agentuity/stream": "3.0.0-alpha.5",
-        "@agentuity/task": "3.0.0-alpha.5",
-        "@agentuity/telemetry": "3.0.0-alpha.5",
-        "@agentuity/vector": "3.0.0-alpha.5",
+        "@agentuity/email": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/queue": "workspace:*",
+        "@agentuity/sandbox": "workspace:*",
+        "@agentuity/schedule": "workspace:*",
+        "@agentuity/stream": "workspace:*",
+        "@agentuity/task": "workspace:*",
+        "@agentuity/telemetry": "workspace:*",
+        "@agentuity/vector": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "hono": "^4.7.13",
       },
@@ -614,10 +614,10 @@
     },
     "packages/keyvalue": {
       "name": "@agentuity/keyvalue",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -629,9 +629,9 @@
     },
     "packages/local": {
       "name": "@agentuity/local",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -641,31 +641,31 @@
     },
     "packages/migrate": {
       "name": "@agentuity/migrate",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "bin": {
         "agentuity-migrate": "./bin/migrate.ts",
       },
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
         "typescript": "^5.9.0",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
       },
     },
     "packages/opencode": {
       "name": "@agentuity/opencode",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
         "yaml": "^2.8.1",
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -673,13 +673,13 @@
     },
     "packages/postgres": {
       "name": "@agentuity/postgres",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
         "pg": "^8.13.1",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "@types/pg": "^8.11.14",
         "bun-types": "latest",
@@ -689,10 +689,10 @@
     },
     "packages/queue": {
       "name": "@agentuity/queue",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -704,15 +704,15 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/analytics": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/frontend": "3.0.0-alpha.5",
+        "@agentuity/analytics": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/frontend": "workspace:*",
       },
       "devDependencies": {
-        "@agentuity/schema": "3.0.0-alpha.5",
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/schema": "workspace:*",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -724,16 +724,16 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "devDependencies": {
         "typescript": "^5.9.0",
       },
     },
     "packages/sandbox": {
       "name": "@agentuity/sandbox",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "typescript": "^5.9.0",
@@ -741,10 +741,10 @@
     },
     "packages/schedule": {
       "name": "@agentuity/schedule",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -756,12 +756,12 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -769,15 +769,15 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/schema": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "3.0.0-alpha.5",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "@types/node": "^22.0.0",
         "bun-types": "latest",
@@ -786,10 +786,10 @@
     },
     "packages/stream": {
       "name": "@agentuity/stream",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -801,10 +801,10 @@
     },
     "packages/task": {
       "name": "@agentuity/task",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -816,10 +816,10 @@
     },
     "packages/telemetry": {
       "name": "@agentuity/telemetry",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
-        "@agentuity/server": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "@opentelemetry/api-logs": "^0.207.0",
         "@opentelemetry/auto-instrumentations-node": "^0.66.0",
@@ -844,9 +844,9 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "bun-types": "^1.3.3",
@@ -854,10 +854,10 @@
     },
     "packages/vector": {
       "name": "@agentuity/vector",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -869,7 +869,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -883,10 +883,10 @@
     },
     "packages/webhook": {
       "name": "@agentuity/webhook",
-      "version": "3.0.0-alpha.5",
+      "version": "3.0.0-alpha.6",
       "dependencies": {
-        "@agentuity/adapter": "3.0.0-alpha.5",
-        "@agentuity/core": "3.0.0-alpha.5",
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -3059,7 +3059,7 @@
 
     "integration-suite": ["integration-suite@workspace:apps/testing/integration-suite"],
 
-    "internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
+    "internmap": ["internmap@2.0.3", "", {}, "sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg=="],
 
     "ip-address": ["ip-address@10.1.0", "", {}, "sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q=="],
 
@@ -4421,8 +4421,6 @@
 
     "cli-highlight/yargs": ["yargs@16.2.0", "", { "dependencies": { "cliui": "^7.0.2", "escalade": "^3.1.1", "get-caller-file": "^2.0.5", "require-directory": "^2.1.1", "string-width": "^4.2.0", "y18n": "^5.0.5", "yargs-parser": "^20.2.2" } }, "sha512-D1mvvtDG0L5ft/jGWkLpG1+m0eQxOfaBvTNELraWj22wSVUMWxZUvYgJYcKh6jGGIkJFhH4IZPQhR4TKpc8mBw=="],
 
-    "cmdk/@radix-ui/react-primitive": ["@radix-ui/react-primitive@2.1.4", "", { "dependencies": { "@radix-ui/react-slot": "1.2.4" }, "peerDependencies": { "@types/react": "*", "@types/react-dom": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha512-9hQc4+GNVtJAIEPEqlYqW5RiYdrr8ea5XQ0ZOnD6fgru+83kqT15mq2OCcbe8KnjRZl5vF3ks69AKz3kh1jrhg=="],
-
     "create-agentuity/@agentuity/cli": ["@agentuity/cli@2.0.11", "", { "dependencies": { "@agentuity/auth": "2.0.11", "@agentuity/coder-tui": "2.0.11", "@agentuity/core": "2.0.11", "@agentuity/frontend": "2.0.11", "@agentuity/server": "2.0.11", "@datasert/cronjs-parser": "^1.4.0", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "archiver": "^7.0.1", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.3.5" }, "bin": { "agentuity": "bin/cli.ts" } }, "sha512-CUowpTEO8CTtWDKk1fAPajtp8/lGZIwyo9NgsbwwIomPCjHFKdSb0/0N7j2AInbOBFQQWmrwtr91781y0gCFqg=="],
 
     "cssstyle/lru-cache": ["lru-cache@11.3.5", "", {}, "sha512-NxVFwLAnrd9i7KUBxC4DrUhmgjzOs+1Qm50D3oF1/oL+r1NpZ4gA7xvG0/zJ8evR7zIKn4vLf7qTNduWFtCrRw=="],
@@ -4665,8 +4663,6 @@
 
     "cli-highlight/yargs/yargs-parser": ["yargs-parser@20.2.9", "", {}, "sha512-y11nGElTIV+CT3Zv9t7VKl+Q3hTQoT9a1Qzezhhl6Rp21gJ/IVTW7Z3y9EWXhuUBC2Shnf+DX0antecpAwSP8w=="],
 
-    "cmdk/@radix-ui/react-primitive/@radix-ui/react-slot": ["@radix-ui/react-slot@1.2.4", "", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-Jl+bCv8HxKnlTLVrcDE8zTMJ09R9/ukw4qBs/oZClOfoQk/cOTbDn+NceXfV7j09YPVQUryJPHurafcSg6EVKA=="],
-
     "create-agentuity/@agentuity/cli/@agentuity/auth": ["@agentuity/auth@2.0.11", "", { "dependencies": { "@agentuity/core": "2.0.11", "@agentuity/drizzle": "2.0.11", "@better-auth/api-key": "1.5.2", "better-auth": "1.5.2" }, "peerDependencies": { "@agentuity/react": "2.0.11", "@opentelemetry/api": "^1.9.0", "drizzle-orm": ">=0.44.0", "hono": "^4.0.0", "react": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["@agentuity/react", "drizzle-orm", "hono", "react"] }, "sha512-/e7qSm8g2drK9+t6gkqQGDuaVDdzkhAyobdrVh30gws/5idWSo06HkIQBi4TqPJfRkOvDwPtkXdJNNNC4FF1eA=="],
 
     "create-agentuity/@agentuity/cli/@agentuity/coder-tui": ["@agentuity/coder-tui@2.0.11", "", { "dependencies": { "@mariozechner/pi-coding-agent": "^0.65.0", "@mariozechner/pi-tui": "^0.65.0", "@sinclair/typebox": "^0.34.48" } }, "sha512-LNALNwjZdoWNtO898Z0nIKMy+CtkjZvZHXb17EV3K6Gc8kO3IOKMKyWW14asrRj1CPXRtOZWyZ+wAgirD5Lpgw=="],
@@ -4680,6 +4676,8 @@
     "create-agentuity/@agentuity/cli/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "cytoscape-fcose/cose-base/layout-base": ["layout-base@2.0.1", "", {}, "sha512-dp3s92+uNI1hWIpPGH3jK2kxE2lMjdXdr+DH8ynZHpd6PUlH6x6cbuXnoMmiNumznqaNO31xu9e79F0uuZ0JFg=="],
+
+    "d3-sankey/d3-array/internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
 
     "d3-sankey/d3-shape/d3-path": ["d3-path@1.0.9", "", {}, "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="],
 
