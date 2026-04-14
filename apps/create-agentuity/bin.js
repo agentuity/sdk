@@ -30,7 +30,11 @@ export function getCliVersionSpecifier(version) {
 	if (/-beta\./.test(version)) {
 		return 'beta';
 	}
-	// Check for other prerelease identifiers: alpha, rc, canary, next, etc.
+	// Check for alpha prerelease
+	if (/-alpha\./.test(version)) {
+		return 'alpha';
+	}
+	// Check for other prerelease identifiers: rc, canary, next, etc.
 	if (/-([a-zA-Z]+)/.test(version)) {
 		return 'next';
 	}
