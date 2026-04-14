@@ -44,6 +44,21 @@ describe('coder auth helpers', () => {
 		]);
 	});
 
+	it('returns a new headers object without mutating the caller input', () => {
+		const originalHeaders = { accept: 'application/json' };
+		const result = applyCoderAuthHeaders(originalHeaders, 'agc_test_key', 'org_test');
+
+		expect(result).toEqual({
+			accept: 'application/json',
+			'x-agentuity-auth-api-key': 'agc_test_key',
+			'x-agentuity-orgid': 'org_test',
+		});
+		expect(originalHeaders).toEqual({
+			accept: 'application/json',
+		});
+		expect(result).not.toBe(originalHeaders);
+	});
+
 	it('falls back to AGENTUITY_CLOUD_ORG_ID when AGENTUITY_ORGID is unset', () => {
 		process.env.AGENTUITY_CLOUD_ORG_ID = 'org_cloud';
 

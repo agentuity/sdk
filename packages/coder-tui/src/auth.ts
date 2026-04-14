@@ -41,18 +41,19 @@ export function applyCoderAuthHeaders(
 ): Record<string, string> {
 	const token = normalizeApiKey(apiKey);
 	const normalizedOrgId = resolveCoderOrgId(orgId);
+	const nextHeaders: Record<string, string> = { ...headers };
 	if (normalizedOrgId) {
-		headers[ORG_HEADER] = normalizedOrgId;
+		nextHeaders[ORG_HEADER] = normalizedOrgId;
 	}
-	if (!token) return headers;
+	if (!token) return nextHeaders;
 
 	if (isHubApiKey(token)) {
-		headers[API_KEY_HEADER] = token;
-		return headers;
+		nextHeaders[API_KEY_HEADER] = token;
+		return nextHeaders;
 	}
 
-	headers[AUTHORIZATION_HEADER] = `Bearer ${token}`;
-	return headers;
+	nextHeaders[AUTHORIZATION_HEADER] = `Bearer ${token}`;
+	return nextHeaders;
 }
 
 export function getCoderAuthCurlArgs(apiKey?: string | null, orgId?: string | null): string[] {

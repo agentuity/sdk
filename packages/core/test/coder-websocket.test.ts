@@ -158,6 +158,29 @@ describe('CoderHubWebSocketClient', () => {
 		]);
 	});
 
+	it('omits authorization from org-only bootstrap payloads', async () => {
+		const client = new CoderHubWebSocketClient({
+			apiKey: '',
+			orgId: 'org_test',
+			url: 'ws://hub.example/api/ws',
+			role: 'observer',
+			sessionId: 'codesess_org_only',
+			autoReconnect: false,
+		});
+
+		client.connect();
+		await flushAsyncWork();
+
+		const socket = MockWebSocket.instances[0];
+		expect(socket).toBeDefined();
+		socket!.open();
+
+		expect(socket!.sent).toHaveLength(1);
+		expect(JSON.parse(socket!.sent[0]!)).toEqual({
+			org_id: 'org_test',
+		});
+	});
+
 	it('preserves server rejection details for pre-ready protocol failures', async () => {
 		const seenErrors: CoderHubWebSocketErrorInstance[] = [];
 		const client = new CoderHubWebSocketClient({

@@ -712,12 +712,14 @@ export class CoderHubWebSocketClient {
 			if (ws !== this.#ws) return;
 			this.#setState('authenticating');
 			if (this.#options.apiKey || this.#options.orgId) {
-				ws.send(
-					JSON.stringify({
-						authorization: this.#options.apiKey,
-						org_id: this.#options.orgId,
-					})
-				);
+				const bootstrapPayload: { authorization?: string; org_id?: string } = {};
+				if (this.#options.apiKey) {
+					bootstrapPayload.authorization = this.#options.apiKey;
+				}
+				if (this.#options.orgId) {
+					bootstrapPayload.org_id = this.#options.orgId;
+				}
+				ws.send(JSON.stringify(bootstrapPayload));
 			}
 		};
 

@@ -1158,13 +1158,16 @@ export class HubOverlay implements Component, Focusable {
 		try {
 			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
 			const orgId = process.env.AGENTUITY_ORGID;
-			const headers: Record<string, string> = {
-				accept: 'application/json',
-				...(init?.headers && typeof init.headers === 'object'
-					? (init.headers as Record<string, string>)
-					: {}),
-			};
-			applyCoderAuthHeaders(headers, apiKey, orgId);
+			const headers = applyCoderAuthHeaders(
+				{
+					accept: 'application/json',
+					...(init?.headers && typeof init.headers === 'object'
+						? (init.headers as Record<string, string>)
+						: {}),
+				},
+				apiKey,
+				orgId
+			);
 			const signal = init?.signal
 				? AbortSignal.any([controller.signal, init.signal])
 				: controller.signal;
@@ -1767,8 +1770,7 @@ export class HubOverlay implements Component, Focusable {
 		try {
 			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
 			const orgId = process.env.AGENTUITY_ORGID;
-			const sseHeaders: Record<string, string> = { accept: 'text/event-stream' };
-			applyCoderAuthHeaders(sseHeaders, apiKey, orgId);
+			const sseHeaders = applyCoderAuthHeaders({ accept: 'text/event-stream' }, apiKey, orgId);
 			const response = await fetch(
 				`${this.baseUrl}/api/hub/session/${encodeURIComponent(sessionId)}/events?subscribe=${encodeURIComponent(subscribe)}`,
 				{
