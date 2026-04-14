@@ -222,6 +222,44 @@ describe('CoderHubWebSocketClient', () => {
 			closeReason: 'Session not found',
 		});
 	});
+
+	it('does not misreport terminal closes after ready as handshake failures', async () => {
+		const seenErrors: CoderHubWebSocketErrorInstance[] = [];
+		const client = new CoderHubWebSocketClient({
+			url: 'ws://hub.example/api/ws',
+			role: 'observer',
+			sessionId: 'codesess_live',
+			autoReconnect: false,
+			onError: (error) => {
+				if (error instanceof CoderHubWebSocketError) {
+					seenErrors.push(error);
+				}
+			},
+		});
+
+		client.connect();
+		await flushAsyncWork();
+
+		const socket = MockWebSocket.instances[0];
+		expect(socket).toBeDefined();
+		socket!.open();
+		socket!.receive({
+			type: 'session_hydration',
+			sessionId: 'codesess_live',
+			resumedAt: Date.now(),
+			entries: [],
+			tasks: [],
+			stream: { output: '', thinking: '', tasks: {} },
+			leadConnected: true,
+			streamingState: { isStreaming: false },
+		});
+
+		expect(client.state).toBe('connected');
+
+		socket!.close(4404, 'Session not found');
+
+		expect(seenErrors).toHaveLength(0);
+	});
 });
 
 describe('Coder Hub protocol', () => {

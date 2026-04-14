@@ -835,17 +835,19 @@ export class CoderHubWebSocketClient {
 			this.#clearTimers();
 			this.#setState('closed');
 
+			const wasAuthenticated = this.#authenticated;
+			const hadTerminalError = this.#intentionallyClosed;
+			const terminalClose = isTerminalCloseCode(event.code);
+
 			// Clear auth state for clean reconnect
 			this.#authenticated = false;
 			this.#initMessage = null;
-			const hadTerminalError = this.#intentionallyClosed;
-			const terminalClose = isTerminalCloseCode(event.code);
 
 			if (terminalClose) {
 				this.#intentionallyClosed = true;
 			}
 
-			if (!this.#authenticated && terminalClose && !hadTerminalError) {
+			if (!wasAuthenticated && terminalClose && !hadTerminalError) {
 				this.#options.onError(
 					this.#buildHandshakeError({
 						code: 'connection_error',

@@ -22,6 +22,7 @@ import {
 	syncRemoteLifecycleWorkingMessage,
 	type RemoteLifecycleState,
 } from './remote-lifecycle.ts';
+import { resolveCoderOrgId } from './auth.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -267,9 +268,10 @@ export class RemoteSession {
 					wsHeaders['Authorization'] = `Bearer ${this.apiKey}`;
 				}
 			}
-			if (this.orgId) {
-				url.searchParams.set('orgId', this.orgId);
-				wsHeaders['x-agentuity-orgid'] = this.orgId;
+			const orgId = resolveCoderOrgId(this.orgId);
+			if (orgId) {
+				url.searchParams.set('orgId', orgId);
+				wsHeaders['x-agentuity-orgid'] = orgId;
 			}
 
 			log(`${isReconnect ? 'Reconnecting' : 'Connecting'} to ${url.toString()}`);

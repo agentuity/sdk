@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { RemoteSession } from '../src/remote-session.ts';
 
 const OriginalWebSocket = globalThis.WebSocket;
+const ORIGINAL_AGENTUITY_ORGID = process.env.AGENTUITY_ORGID;
+const ORIGINAL_AGENTUITY_CLOUD_ORG_ID = process.env.AGENTUITY_CLOUD_ORG_ID;
 
 class MockWebSocket {
 	static CONNECTING = 0;
@@ -53,11 +55,23 @@ describe('RemoteSession', () => {
 	beforeEach(() => {
 		MockWebSocket.instances = [];
 		globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
+		delete process.env.AGENTUITY_ORGID;
+		delete process.env.AGENTUITY_CLOUD_ORG_ID;
 	});
 
 	afterEach(() => {
 		globalThis.WebSocket = OriginalWebSocket;
 		MockWebSocket.instances = [];
+		if (ORIGINAL_AGENTUITY_ORGID === undefined) {
+			delete process.env.AGENTUITY_ORGID;
+		} else {
+			process.env.AGENTUITY_ORGID = ORIGINAL_AGENTUITY_ORGID;
+		}
+		if (ORIGINAL_AGENTUITY_CLOUD_ORG_ID === undefined) {
+			delete process.env.AGENTUITY_CLOUD_ORG_ID;
+		} else {
+			process.env.AGENTUITY_CLOUD_ORG_ID = ORIGINAL_AGENTUITY_CLOUD_ORG_ID;
+		}
 	});
 
 	it('connects as a controller, sends bootstrap_ready, and hydrates into paused state when the lead is disconnected', async () => {
@@ -132,5 +146,29 @@ describe('RemoteSession', () => {
 			sessionId: 'sess_protocol_error',
 			lastError: 'bootstrap timeout',
 		});
+	});
+
+	it('falls back to AGENTUITY_CLOUD_ORG_ID for controller auth when AGENTUITY_ORGID is unset', async () => {
+		process.env.AGENTUITY_CLOUD_ORG_ID = 'org_cloud';
+
+		const remote = new RemoteSession('sess_env_org');
+		remote.apiKey = 'agc_test_key';
+
+		const connectPromise = remote.connect('ws://hub.example/api/ws');
+		const socket = MockWebSocket.instances[0];
+		expect(socket).toBeDefined();
+		expect(decodeURIComponent(socket!.url)).toContain('orgId=org_cloud');
+		expect((socket!.options as { headers?: Record<string, string> }).headers).toEqual({
+			'x-agentuity-auth-api-key': 'agc_test_key',
+			'x-agentuity-orgid': 'org_cloud',
+		});
+
+		socket!.open();
+		socket!.receive({
+			type: 'init',
+			sessionId: 'sess_env_org',
+		});
+
+		await connectPromise;
 	});
 });
