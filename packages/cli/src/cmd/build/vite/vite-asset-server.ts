@@ -50,8 +50,12 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
 /**
  * Find an available port starting from the preferred port.
  * Tries incrementing ports up to maxAttempts times.
+ *
+ * Exported so the dev command can pre-resolve the Vite port before
+ * starting the Bun backend (env vars like AGENTUITY_BASE_URL need
+ * the real port before Bun initializes CORS).
  */
-async function findAvailablePort(
+export async function findAvailablePort(
 	preferredPort: number,
 	host: string = '127.0.0.1',
 	maxAttempts: number = 20

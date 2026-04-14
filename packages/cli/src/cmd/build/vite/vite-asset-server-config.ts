@@ -23,6 +23,37 @@ export interface GenerateAssetServerConfigOptions {
 }
 
 /**
+ * Shared proxy configuration for backend routes.
+ *
+ * Includes `configure` callback that gracefully handles ECONNREFUSED errors
+ * when the Bun backend isn't ready yet (startup race condition or brief
+ * disconnect during --hot reload). Instead of logging noisy errors, the
+ * proxy returns 503 Service Unavailable with a retry hint.
+ */
+function backendProxyOptions(backendPort: number) {
+	return {
+		target: `http://127.0.0.1:${backendPort}`,
+		changeOrigin: true,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		configure: (proxy: any, _options: any) => {
+			proxy.on('error', (err: Error & { code?: string }, _req: any, res: any) => {
+				if (err.code === 'ECONNREFUSED' && res && !res.writableEnded) {
+					res.statusCode = 503;
+					res.setHeader('Content-Type', 'application/json');
+					res.end(
+						JSON.stringify({
+							error: 'Backend unavailable',
+							message: 'The Bun backend is not ready yet. Retrying shortly...',
+							retry: true,
+						})
+					);
+				}
+			});
+		},
+	};
+}
+
+/**
  * Vite plugin that injects analytics scripts in dev mode.
  *
  * In production the beacon plugin handles this at build time. In dev mode
@@ -241,37 +272,19 @@ export async function generateAssetServerConfig(
 			proxy: {
 				// User-defined route mounts (from createApp({ router }))
 				...Object.fromEntries(
-					routePaths.map((routePath) => [
-						routePath,
-						{
-							target: `http://127.0.0.1:${backendPort}`,
-							changeOrigin: true,
-						},
-					])
+					routePaths.map((routePath) => [routePath, backendProxyOptions(backendPort)])
 				),
 				// Agentuity system routes (workbench API, health, analytics, etc.)
-				'/_agentuity': {
-					target: `http://127.0.0.1:${backendPort}`,
-					changeOrigin: true,
-				},
+				'/_agentuity': backendProxyOptions(backendPort),
 				// Workbench UI route (served by Bun, references /@fs/* paths handled by Vite)
 				...(workbenchPath
 					? {
-							[workbenchPath]: {
-								target: `http://127.0.0.1:${backendPort}`,
-								changeOrigin: true,
-							},
+							[workbenchPath]: backendProxyOptions(backendPort),
 						}
 					: {}),
 				// Legacy health check routes
-				'/_health': {
-					target: `http://127.0.0.1:${backendPort}`,
-					changeOrigin: true,
-				},
-				'/_idle': {
-					target: `http://127.0.0.1:${backendPort}`,
-					changeOrigin: true,
-				},
+				'/_health': backendProxyOptions(backendPort),
+				'/_idle': backendProxyOptions(backendPort),
 			},
 
 			// HMR works natively — Vite is the primary server, no proxy needed
