@@ -646,6 +646,24 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 
 	const portNumber = parseInt(port, 10);
 
+	// Wrap the fetch handler to set request timeout.
+	// In dev mode, Bun --hot auto-serves from the default export's `fetch` property.
+	// Without this wrapper, Bun uses its default request timeout (10s), which is too
+	// short for long-running agent requests (LLM calls, etc.). In v1, the generated
+	// entry file called server.timeout(req, 0) inside Bun.serve(). In v2, we must do
+	// the same here so dev mode requests don't time out prematurely.
+	const requestTimeout = config?.requestTimeout ?? 0;
+	const wrappedFetch = (req: Request, ...args: any[]) => {
+		const server = args[0];
+		if (server && typeof server === 'object' && 'timeout' in server) {
+			(server as { timeout: (req: Request, seconds: number) => void }).timeout(
+				req,
+				requestTimeout
+			);
+		}
+		return app.fetch(req, ...args);
+	};
+
 	const result: AppResult = {
 		config,
 		router: app as Hono<Env>,
@@ -653,7 +671,7 @@ export async function createApp(config?: AppConfig): Promise<AppResult> {
 		logger: otel.logger,
 		// Bun --hot picks up `fetch` and `port` on the default export to
 		// hot-swap the running server's request handler without restarting.
-		fetch: app.fetch,
+		fetch: wrappedFetch,
 		port: portNumber,
 		hostname: '127.0.0.1',
 		websocket,
