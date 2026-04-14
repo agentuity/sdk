@@ -66,10 +66,17 @@ const CoderCreateSessionResponseWireSchema = z
 const CoderUpdateSessionRequestWireSchema = CoderUpdateSessionRequestSchema.pick({
 	label: true,
 	agent: true,
+	defaultAgent: true,
+	enabledAgents: true,
 	visibility: true,
 	tags: true,
 	skills: true,
-}).describe('Request body for updating public session metadata over REST');
+})
+	.extend({
+		savedSkillIds: z.array(z.string()).optional().describe('Updated saved skill ids'),
+		skillBucketIds: z.array(z.string()).optional().describe('Updated skill bucket ids'),
+	})
+	.describe('Request body for updating public session metadata over REST');
 
 const CoderUpdateSessionResponseWireSchema = z
 	.object({
@@ -79,6 +86,7 @@ const CoderUpdateSessionResponseWireSchema = z
 		tags: z.array(z.string()).optional().describe('Updated tags'),
 		skills: z.array(z.unknown()).optional().describe('Updated skills'),
 		defaultAgent: z.string().nullable().optional().describe('Updated default agent'),
+		enabledAgents: z.array(z.string()).optional().describe('Updated enabled agents'),
 	})
 	.passthrough();
 
@@ -512,12 +520,12 @@ const service: Service = {
 			exampleBody: { displayName: 'Code Review Draft' },
 		},
 		{
-			id: 'custom-agent-lifecycle',
-			title: 'Custom Agent Lifecycle Endpoints',
+			id: 'publish-custom-agent',
+			title: 'Publish Custom Agent',
 			sectionTitle: 'Agents',
 			method: 'POST',
-			path: '/hub/agents/{agentIdOrSlug}/(publish|archive)',
-			description: 'Publishes or archives an owned custom agent.',
+			path: '/hub/agents/{agentIdOrSlug}/publish',
+			description: 'Publishes an owned custom agent.',
 			pathParams: [
 				{
 					name: 'agentIdOrSlug',
@@ -532,10 +540,36 @@ const service: Service = {
 			requestBody: null,
 			responseDescription: 'Returns the updated custom agent.',
 			statuses: [
-				{ code: 200, description: 'Lifecycle action applied' },
+				{ code: 200, description: 'Custom agent published' },
 				{ code: 404, description: 'Custom agent not found' },
 			],
 			examplePath: '/hub/agents/code-review/publish',
+		},
+		{
+			id: 'archive-custom-agent',
+			title: 'Archive Custom Agent',
+			sectionTitle: 'Agents',
+			method: 'POST',
+			path: '/hub/agents/{agentIdOrSlug}/archive',
+			description: 'Archives an owned custom agent.',
+			pathParams: [
+				{
+					name: 'agentIdOrSlug',
+					type: 'string',
+					description: 'Custom agent id or slug',
+					required: true,
+				},
+			],
+			queryParams: [
+				{ name: 'orgId', type: 'string', description: 'Organization ID', required: false },
+			],
+			requestBody: null,
+			responseDescription: 'Returns the updated custom agent.',
+			statuses: [
+				{ code: 200, description: 'Custom agent archived' },
+				{ code: 404, description: 'Custom agent not found' },
+			],
+			examplePath: '/hub/agents/code-review/archive',
 		},
 		{
 			id: 'list-custom-agent-versions',

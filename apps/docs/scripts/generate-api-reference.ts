@@ -420,6 +420,7 @@ async function main() {
 		JSON.stringify(
 			{
 				title: 'API Reference',
+				sort: 'title',
 				pages: services.map((service) => service.slug).sort(),
 			},
 			null,

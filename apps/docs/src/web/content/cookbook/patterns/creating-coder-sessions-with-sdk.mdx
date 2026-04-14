@@ -289,58 +289,62 @@ When your app needs Coder to operate on a specific repository, use `listGitHubAc
 ```typescript
 import { CoderClient } from '@agentuity/coder';
 
-const client = new CoderClient();
+async function main(): Promise<void> {
+  const client = new CoderClient();
 
-let github;
-try {
-  // Sign in to Agentuity first. Without that OAuth login, the Hub returns HTTP 409
-  github = await client.listGitHubAccounts();
-} catch {
-  throw new Error(
-    'Sign in to Agentuity first. Then run this again to list the GitHub accounts available to your org.'
-  );
+  let github;
+  try {
+    // Sign in to Agentuity first. Without that OAuth login, the Hub returns HTTP 409
+    github = await client.listGitHubAccounts();
+  } catch {
+    throw new Error(
+      'Sign in to Agentuity first. Then run this again to list the GitHub accounts available to your org.'
+    );
+  }
+
+  const { connected, accounts } = github;
+  if (!connected) {
+    throw new Error('Connect GitHub in the Agentuity Console first.');
+  }
+
+  if (accounts.length === 0) {
+    throw new Error('No GitHub accounts connected. Install the Agentuity GitHub App first.');
+  }
+
+  // Pick the first account, or match by accountName in your own logic.
+  const account = accounts[0];
+  if (!account) {
+    throw new Error('No GitHub account selected.');
+  }
+
+  // List repos visible under that account
+  const { repositories } = await client.listGitHubRepos(account.accountId);
+  if (repositories.length === 0) {
+    throw new Error(`No repositories found under account ${account.accountName}`);
+  }
+
+  // Pick a repository. This example just takes the first
+  const repo = repositories[0];
+  if (!repo) {
+    throw new Error('No repository selected.');
+  }
+
+  // Create the session with the pinned repository reference
+  // CoderSessionRepositoryRef accepts owner, name, and optionally branch
+  const created = await client.createSession({
+    task: 'Review the open pull requests and summarize any security-related changes.',
+    workflowMode: 'standard',
+    repo: {
+      owner: repo.owner.login,
+      name: repo.name,
+      // branch: 'main', // optional: pin to a specific branch
+    },
+  });
+
+  console.log('Session:', created.sessionId, 'pinned to repo:', repo.fullName);
 }
 
-const { connected, accounts } = github;
-if (!connected) {
-  throw new Error('Connect GitHub in the Agentuity Console first.');
-}
-
-if (accounts.length === 0) {
-  throw new Error('No GitHub accounts connected. Install the Agentuity GitHub App first.');
-}
-
-// Pick the first account, or match by accountName in your own logic.
-const account = accounts[0];
-if (!account) {
-  throw new Error('No GitHub account selected.');
-}
-
-// List repos visible under that account
-const { repositories } = await client.listGitHubRepos(account.accountId);
-if (repositories.length === 0) {
-  throw new Error(`No repositories found under account ${account.accountName}`);
-}
-
-// Pick a repository. This example just takes the first
-const repo = repositories[0];
-if (!repo) {
-  throw new Error('No repository selected.');
-}
-
-// Create the session with the pinned repository reference
-// CoderSessionRepositoryRef accepts owner, name, and optionally branch
-const created = await client.createSession({
-  task: 'Review the open pull requests and summarize any security-related changes.',
-  workflowMode: 'standard',
-  repo: {
-    owner: repo.owner.login,
-    name: repo.name,
-    // branch: 'main', // optional: pin to a specific branch
-  },
-});
-
-console.log('Session:', created.sessionId, 'pinned to repo:', repo.fullName);
+void main();
 ```
 
 `listGitHubAccounts()` reflects the GitHub App installations active for the API key's org. If `accounts` is empty, install the Agentuity GitHub App from your org settings in the [Agentuity Console](https://app.agentuity.com) and grant it access to the repositories you need, then try again.

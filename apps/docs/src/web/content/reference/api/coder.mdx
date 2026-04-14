@@ -1343,6 +1343,18 @@ Session update payload.
     "required": false
   },
   {
+    "name": "defaultAgent",
+    "type": "string",
+    "description": "Updated preferred default agent identifier",
+    "required": false
+  },
+  {
+    "name": "enabledAgents",
+    "type": "string[]",
+    "description": "Updated enabled agent roster for the session",
+    "required": false
+  },
+  {
     "name": "visibility",
     "type": "string",
     "description": "Updated visibility setting",
@@ -1382,6 +1394,18 @@ Session update payload.
     "name": "skills[].url",
     "type": "string",
     "description": "Canonical URL for the skill repository or page",
+    "required": false
+  },
+  {
+    "name": "savedSkillIds",
+    "type": "string[]",
+    "description": "Updated saved skill ids",
+    "required": false
+  },
+  {
+    "name": "skillBucketIds",
+    "type": "string[]",
+    "description": "Updated skill bucket ids",
     "required": false
   }
 ]} />
@@ -1427,6 +1451,11 @@ Returns the updated session fields.
     "name": "defaultAgent",
     "type": "string | null",
     "description": "Updated default agent"
+  },
+  {
+    "name": "enabledAgents",
+    "type": "string[]",
+    "description": "Updated enabled agents"
   }
 ]} />
 
@@ -2726,11 +2755,11 @@ Returns the updated custom agent.
 
 ---
 
-### Custom Agent Lifecycle Endpoints
+### Publish Custom Agent
 
-Publishes or archives an owned custom agent.
+Publishes an owned custom agent.
 
-<ApiEndpoint method="POST" path="/hub/agents/{agentIdOrSlug}/(publish|archive)" />
+<ApiEndpoint method="POST" path="/hub/agents/{agentIdOrSlug}/publish" />
 
 #### Parameters
 
@@ -2757,12 +2786,52 @@ Returns the updated custom agent.
 
 | Status | Description |
 |--------|-------------|
-| 200 | Lifecycle action applied |
+| 200 | Custom agent published |
 | 404 | Custom agent not found |
 
 #### Example
 
 <ApiExample method="POST" path="/hub/agents/code-review/publish" />
+
+---
+
+### Archive Custom Agent
+
+Archives an owned custom agent.
+
+<ApiEndpoint method="POST" path="/hub/agents/{agentIdOrSlug}/archive" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "agentIdOrSlug",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Custom agent id or slug"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the updated custom agent.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Custom agent archived |
+| 404 | Custom agent not found |
+
+#### Example
+
+<ApiExample method="POST" path="/hub/agents/code-review/archive" />
 
 ---
 
