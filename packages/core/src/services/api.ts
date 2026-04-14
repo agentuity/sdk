@@ -66,7 +66,7 @@ const toIssues = (issues: z.core.$ZodIssue[]): IssuesType => {
 
 export const APIErrorSchema = z
 	.object({
-		success: z.boolean().describe('Whether the API request was successful.'),
+		success: z.boolean().optional().describe('Whether the API request was successful.'),
 		code: z.string().optional().describe('Machine-readable error code.'),
 		message: z.string().optional().describe('Human-readable error message.'),
 		error: z
@@ -698,16 +698,15 @@ export class APIClient {
 						});
 					}
 
+					const apiErrorMessage =
+						typeof errorData?.error === 'string' ? errorData.error : errorData?.message;
+
 					// Throw with message from API if available
-					if (errorData?.message) {
+					if (apiErrorMessage) {
 						throw new APIError({
 							url,
 							status: response.status,
-							message:
-								typeof errorData.error === 'string'
-									? errorData.error
-									: (errorData.message ??
-										'The API encountered an unexpected error attempting to reach the service.'),
+							message: apiErrorMessage,
 							sessionId,
 						});
 					}
