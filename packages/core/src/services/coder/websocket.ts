@@ -203,7 +203,13 @@ export const CoderHubWebSocketError = StructuredError('CoderHubWebSocketError')<
 		| 'response_timeout'
 		| 'invalid_response';
 	sessionId?: string;
+	serverCode?: string;
+	serverMessage?: string;
+	serverMessageType?: 'connection_rejected' | 'protocol_error';
+	closeCode?: number;
+	closeReason?: string;
 }>();
+export type CoderHubWebSocketErrorInstance = InstanceType<typeof CoderHubWebSocketError>;
 
 interface PendingRequest {
 	resolve: (response: CoderHubResponse) => void;
@@ -529,6 +535,27 @@ export class CoderHubWebSocketClient {
 		return `${Date.now()}-${++this.#messageId}`;
 	}
 
+	#buildHandshakeError(input: {
+		code: 'auth_failed' | 'connection_error';
+		message: string;
+		serverCode?: string;
+		serverMessage?: string;
+		serverMessageType?: 'connection_rejected' | 'protocol_error';
+		closeCode?: number;
+		closeReason?: string;
+	}): CoderHubWebSocketErrorInstance {
+		return new CoderHubWebSocketError({
+			code: input.code,
+			message: input.message,
+			sessionId: this.sessionId,
+			serverCode: input.serverCode,
+			serverMessage: input.serverMessage,
+			serverMessageType: input.serverMessageType,
+			closeCode: input.closeCode,
+			closeReason: input.closeReason,
+		});
+	}
+
 	#markReady(input?: {
 		initMessage?: CoderHubInitMessage;
 		firstMessage?: ServerMessage;
@@ -729,10 +756,12 @@ export class CoderHubWebSocketClient {
 					if (msg.type === 'connection_rejected' || msg.type === 'protocol_error') {
 						this.#setState('closed');
 						this.#options.onError(
-							new CoderHubWebSocketError({
-								message: `Connection rejected: ${msg.message ?? msg.code ?? 'Unknown error'}`,
+							this.#buildHandshakeError({
 								code: 'auth_failed',
-								sessionId: this.sessionId,
+								message: `Connection rejected: ${msg.message ?? msg.code ?? 'Unknown error'}`,
+								serverCode: msg.code,
+								serverMessage: msg.message,
+								serverMessageType: msg.type,
 							})
 						);
 						this.#intentionallyClosed = true;
@@ -809,9 +838,24 @@ export class CoderHubWebSocketClient {
 			// Clear auth state for clean reconnect
 			this.#authenticated = false;
 			this.#initMessage = null;
+			const hadTerminalError = this.#intentionallyClosed;
+			const terminalClose = isTerminalCloseCode(event.code);
 
-			if (isTerminalCloseCode(event.code)) {
+			if (terminalClose) {
 				this.#intentionallyClosed = true;
+			}
+
+			if (!this.#authenticated && terminalClose && !hadTerminalError) {
+				this.#options.onError(
+					this.#buildHandshakeError({
+						code: 'connection_error',
+						message: `WebSocket closed before connection was ready (code ${event.code})${
+							event.reason ? `: ${event.reason}` : ''
+						}`,
+						closeCode: event.code,
+						closeReason: event.reason || undefined,
+					})
+				);
 			}
 
 			this.#options.onClose(event.code, event.reason);
@@ -943,7 +987,11 @@ export async function* subscribeToCoderHub(
 		onError: (error) => {
 			if (
 				error instanceof CoderHubWebSocketError &&
-				(error.code === 'max_reconnects_exceeded' || error.code === 'auth_failed')
+				(error.code === 'max_reconnects_exceeded' ||
+					error.code === 'auth_failed' ||
+					(error.code === 'connection_error' &&
+						typeof error.closeCode === 'number' &&
+						isTerminalCloseCode(error.closeCode)))
 			) {
 				terminalError = error;
 				done = true;

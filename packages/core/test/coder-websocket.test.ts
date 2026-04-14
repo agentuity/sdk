@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { parseClientMessage } from '../src/services/coder/protocol.ts';
-import { CoderHubWebSocketClient } from '../src/services/coder/websocket.ts';
+import {
+	CoderHubWebSocketClient,
+	CoderHubWebSocketError,
+	type CoderHubWebSocketErrorInstance,
+} from '../src/services/coder/websocket.ts';
 
 const OriginalWebSocket = globalThis.WebSocket;
 
@@ -152,6 +156,71 @@ describe('CoderHubWebSocketClient', () => {
 			{ type: 'bootstrap_ready' },
 			{ type: 'ping', timestamp: 123 },
 		]);
+	});
+
+	it('preserves server rejection details for pre-ready protocol failures', async () => {
+		const seenErrors: CoderHubWebSocketErrorInstance[] = [];
+		const client = new CoderHubWebSocketClient({
+			url: 'ws://hub.example/api/ws',
+			role: 'observer',
+			sessionId: 'codesess_rejected',
+			autoReconnect: false,
+			onError: (error) => {
+				if (error instanceof CoderHubWebSocketError) {
+					seenErrors.push(error);
+				}
+			},
+		});
+
+		client.connect();
+		await flushAsyncWork();
+
+		const socket = MockWebSocket.instances[0];
+		expect(socket).toBeDefined();
+		socket!.open();
+		socket!.receive({
+			type: 'connection_rejected',
+			code: 'observer_forbidden',
+			message: 'You do not have access to session: codesess_rejected',
+		});
+
+		expect(seenErrors).toHaveLength(1);
+		expect(seenErrors[0]).toMatchObject({
+			code: 'auth_failed',
+			serverCode: 'observer_forbidden',
+			serverMessageType: 'connection_rejected',
+			serverMessage: 'You do not have access to session: codesess_rejected',
+		});
+	});
+
+	it('surfaces terminal close details when the socket closes before ready', async () => {
+		const seenErrors: CoderHubWebSocketErrorInstance[] = [];
+		const client = new CoderHubWebSocketClient({
+			url: 'ws://hub.example/api/ws',
+			role: 'observer',
+			sessionId: 'codesess_missing',
+			autoReconnect: false,
+			onError: (error) => {
+				if (error instanceof CoderHubWebSocketError) {
+					seenErrors.push(error);
+				}
+			},
+		});
+
+		client.connect();
+		await flushAsyncWork();
+
+		const socket = MockWebSocket.instances[0];
+		expect(socket).toBeDefined();
+		socket!.open();
+		socket!.close(4404, 'Session not found');
+
+		expect(seenErrors).toHaveLength(1);
+		expect(seenErrors[0]).toMatchObject({
+			code: 'connection_error',
+			closeCode: 4404,
+			closeReason: 'Session not found',
+		});
 	});
 });
 
