@@ -9,6 +9,7 @@ import {
 	type StreamProjection,
 	type StreamProjectionSource,
 } from './hub-overlay-state.ts';
+import { applyCoderAuthHeaders } from './auth.ts';
 import { truncateToWidth } from './renderers.ts';
 import type {
 	ConversationEntry as HubConversationEntry,
@@ -1155,15 +1156,15 @@ export class HubOverlay implements Component, Focusable {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), timeoutMs);
 		try {
-			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
+			const orgId = process.env.AGENTUITY_ORGID;
 			const headers: Record<string, string> = {
 				accept: 'application/json',
 				...(init?.headers && typeof init.headers === 'object'
 					? (init.headers as Record<string, string>)
 					: {}),
 			};
-			if (apiKey) headers['x-agentuity-auth-api-key'] = apiKey;
+			applyCoderAuthHeaders(headers, apiKey, orgId);
 			const signal = init?.signal
 				? AbortSignal.any([controller.signal, init.signal])
 				: controller.signal;
@@ -1764,10 +1765,10 @@ export class HubOverlay implements Component, Focusable {
 		const subscribe = mode === 'full' ? '*' : 'session_*,task_*,agent_*';
 
 		try {
-			// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 			const apiKey = process.env.AGENTUITY_CODER_API_KEY;
+			const orgId = process.env.AGENTUITY_ORGID;
 			const sseHeaders: Record<string, string> = { accept: 'text/event-stream' };
-			if (apiKey) sseHeaders['x-agentuity-auth-api-key'] = apiKey;
+			applyCoderAuthHeaders(sseHeaders, apiKey, orgId);
 			const response = await fetch(
 				`${this.baseUrl}/api/hub/session/${encodeURIComponent(sessionId)}/events?subscribe=${encodeURIComponent(subscribe)}`,
 				{
