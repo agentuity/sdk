@@ -4,17 +4,11 @@ short_title: Attach Skills
 description: Save skills, group them into buckets, and attach them to a Coder session with CoderClient
 ---
 
-Use this page when you want a session to start with skill selections you control. The Hub already injects system skills automatically. This flow is about attaching your own saved skills and optional skill buckets on top of that base behavior.
-
-<Callout type="info" title="Use this page when you want reusable skill selections">
-Use this page when you want the same saved skills to show up across multiple sessions instead of repeating inline skill definitions each time.
-</Callout>
+The Hub injects system skills into every session automatically. Saved skills and skill buckets are the part your app owns. Save them to your library once, then attach them to new sessions with `savedSkillIds` or `skillBucketIds`, so you don't reship the definitions each time.
 
 <Callout type="tip" title="Read the session back after creation">
-`saveSkill()` and `createSkillBucket()` build the library side of the workflow. `getSession()` is still the cleanest place to confirm which skills the session actually received.
+`getSession()` is the simplest way to confirm a session started with the selections you passed. Skill detail appears on the session right away, so you can verify it even while the session is still `creating` or `provisioning`.
 </Callout>
-
-You can validate this from a local script: save the skill, create the session, then read the session back to confirm what attached.
 
 ## The Pattern
 
@@ -35,7 +29,7 @@ async function main(): Promise<void> {
   const client = new CoderClient();
   const task = getTask();
 
-  // Save the skill to your library once so any future session can attach it by id.
+  // Save the skill once so future sessions can attach it by id
   const savedSkill = await client.saveSkill({
     repo: 'anthropics/skills',
     skillId: 'frontend-design',
@@ -44,7 +38,7 @@ async function main(): Promise<void> {
     url: 'https://skills.sh/anthropics/skills/frontend-design',
   });
 
-  // Buckets are a convenience for when your app usually attaches the same group of skills together.
+  // Buckets group skills your app usually attaches together
   const bucket = await client.createSkillBucket({
     name: `design-bucket-${Date.now()}`,
     description: 'Reusable design skills for Coder sessions.',
@@ -54,16 +48,16 @@ async function main(): Promise<void> {
   const created = await client.createSession({
     task,
     workflowMode: 'standard',
-    // savedSkillIds and skillBucketIds both attach to the session; buckets expand into their members.
+    // savedSkillIds and skillBucketIds both attach; buckets expand into their members
     savedSkillIds: [savedSkill.id], // [!code highlight]
     skillBucketIds: [bucket.id], // [!code highlight]
     tags: ['docs-example', 'session-skills'],
   });
 
-  // Read the session back to confirm which skills the Hub actually attached.
+  // Read the session back to confirm what attached
   const session = await client.getSession(created.sessionId);
 
-  // The library still holds the saved skill and bucket after session creation, so future sessions can reuse them.
+  // The library still holds the saved skill and bucket for future sessions
   const { skills } = await client.listSavedSkills();
   const { buckets } = await client.listSkillBuckets();
 
@@ -139,9 +133,9 @@ Use this pattern when you want:
 ## Key Points
 
 - Attach saved skills when you want explicit, user-controlled reuse.
-- Buckets are helpful when your app usually attaches the same group of skills together.
-- `getSession()` is the cleanest confirmation surface for the effective skill selection on a session.
-- Fresh sessions can still be in `creating` or `provisioning` even when the skill selection is already visible.
+- Buckets help when your app usually reaches for the same group of skills.
+- `getSession()` is the simplest way to verify what a session ended up with.
+- Fresh sessions can be in `creating` or `provisioning` even when the skill selection is already visible.
 
 ## See Also
 

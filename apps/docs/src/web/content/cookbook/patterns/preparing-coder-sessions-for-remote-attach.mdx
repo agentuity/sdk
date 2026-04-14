@@ -4,17 +4,11 @@ short_title: Reconnect Sessions
 description: Use listConnectableSessions and prepareSessionForRemoteAttach to find sessions you can still reconnect to
 ---
 
-If your app offers a “resume session” or “attach to session” flow, do not start from the full session list. Use `listConnectableSessions()` to narrow the choices, then use `prepareSessionForRemoteAttach()` to decide whether the selected session is live, wakeable, or already history-only.
+For a "resume session" or "attach to session" flow, don't start from the full session list. Use `listConnectableSessions()` to narrow the choices, then `prepareSessionForRemoteAttach()` to decide whether the selected session is live, wakeable, or already history-only.
 
 <Callout type="info" title="This page stops before opening a live transport">
-These methods help you decide whether a session can still be reconnected to or should fall back to replay. They do not open a controller socket for you.
+These methods tell you whether a session can still be reconnected to or should fall back to replay. They don't open a controller socket for you.
 </Callout>
-
-<Callout type="info" title="Use this page when you already have existing sessions">
-Use this page when your app needs a “resume recent session” picker, a reconnect button, or logic that decides whether to re-attach or fall back to replay.
-</Callout>
-
-These examples work well as small local utilities while you build a reconnect picker or attach flow.
 
 ## The Pattern
 
@@ -29,7 +23,7 @@ async function main(): Promise<void> {
   const client = new CoderClient();
 
   try {
-    // listConnectableSessions filters out history-only sessions so your picker starts from resumable candidates.
+    // listConnectableSessions filters out history-only sessions so your picker starts from resumable candidates
     const { sessions } = await client.listConnectableSessions({ limit: 20 }); // [!code highlight]
 
     console.log(
@@ -57,7 +51,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-If this list is empty, that is expected in most cases. Sessions in `bucket: 'provisioning'` are intentionally excluded until they reach `running` or `paused`; a session you just created will not appear here yet. Other sessions may be absent because they are already history-only or no longer live enough to resume.
+An empty list is common. Sessions in `bucket: 'provisioning'` are intentionally excluded until they reach `running` or `paused`, so a session you just created won't show up yet. Others may be absent because they're already history-only or no longer in a resumable state.
 
 ### Preparing One Session for Reconnect
 
@@ -78,21 +72,21 @@ async function main(): Promise<void> {
       );
     }
 
-    // Polls the session state until it is attachable, wakeable, or clearly history-only.
-    // The returned session carries the live flags your UI should branch on below.
+    // Polls until the session is attachable, wakeable, or history-only
+    // The returned session carries the live flags your UI branches on below
     const session = await client.prepareSessionForRemoteAttach(sessionId, {
       timeoutMs: 30_000,
       pollIntervalMs: 1_000,
     }); // [!code highlight]
 
     if (session.historyOnly) {
-      // The live runtime is gone. Show replay or a read-only view instead.
+      // The live runtime is gone. Hydrate from replay or a read-only view instead
       console.log('Session is history-only. Use replay or session detail instead of re-attaching.');
       return;
     }
 
     if (session.runtimeAvailable) {
-      // Attaching before the runtime is up will fail; this check confirms it is ready.
+      // Attaching before the runtime is up fails; this check confirms it's ready
       console.log('Session is attachable.');
       console.log(
         JSON.stringify(
@@ -109,9 +103,8 @@ async function main(): Promise<void> {
       return;
     }
 
-    // wakeAvailable is false here, so prepareSessionForRemoteAttach returned immediately
-    // rather than polling. This happens for provisioning-bucket sessions that have not
-    // yet reached a state where a wake attempt would make sense.
+    // wakeAvailable is false, so prepareSessionForRemoteAttach returned immediately
+    // without polling. Typical for provisioning-bucket sessions that aren't yet wakeable
     console.log('Session is not attachable yet.');
     console.log(
       JSON.stringify(
@@ -140,15 +133,17 @@ void main();
 
 ## What to Look For
 
-These two methods solve different parts of the reconnect story:
+The two methods solve different parts of the reconnect story:
 
-- `listConnectableSessions()` helps you build a clean picker or “resume recent work” list
-- `prepareSessionForRemoteAttach()` handles the state check for one chosen session
+- `listConnectableSessions()` builds a clean picker or "resume recent work" list
+- `prepareSessionForRemoteAttach()` runs the state check for one chosen session
 - `runtimeAvailable: true` means the runtime is ready for a controller client
-- `historyOnly: true` means the live runtime is gone, so you should fall back to replay or read-only views
-- `wakeAvailable: true` means the session may be resumable, even if it is not live yet
+- `historyOnly: true` means the live runtime is gone, so fall back to the replay hydration stream or `listEventHistory()`
+- `wakeAvailable: true` means the session may be resumable, even if it isn't live yet
 
-Use `listConnectableSessions()` instead of `listSessions()` here. It filters out sessions that are already history-only, so your UI starts from sessions that still have a reconnect path.
+Use `listConnectableSessions()` instead of `listSessions()` here. It already filters out history-only sessions, so your UI starts from sessions that still have a reconnect path.
+
+In app code, call `prepareSessionForRemoteAttach()` right before your app opens a live connection to the session, whether that's to send messages to the agent or stream its events. It returns the current session detail so your app can branch on `runtimeAvailable`, `wakeAvailable`, and `historyOnly`. A thrown error usually means the underlying `getSession()` or `resumeSession()` call failed, so handle it like any other SDK error.
 
 ## Example Output
 
@@ -179,9 +174,9 @@ A session that can no longer be re-attached falls back to session history or sto
 ## Key Points
 
 - Use `listConnectableSessions()` for chooser UIs, resume commands, and recent-session pickers.
-- Call `prepareSessionForRemoteAttach()` only after the user picks a session or your app already knows the session ID.
+- Call `prepareSessionForRemoteAttach()` right before your app opens its live connection to the session, and branch on `runtimeAvailable`, `wakeAvailable`, and `historyOnly` to decide the next step.
 - If the timeout expires, you still get the latest session detail, which is useful for your own retry logic.
-- If a session becomes `historyOnly`, switch to replay, event history, or other read-only session data.
+- Once a session is `historyOnly`, switch to the replay hydration stream or `listEventHistory()` for a structured timeline.
 - For the CLI flow, `agentuity coder tui --remote` builds on the same reconnect idea.
 
 ## See Also

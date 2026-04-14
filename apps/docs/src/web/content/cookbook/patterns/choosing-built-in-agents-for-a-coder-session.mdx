@@ -4,21 +4,15 @@ short_title: Built-In Agents
 description: Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session
 ---
 
-Not every Coder session should expose the same agent roster. Use `agentSlugs` to choose which built-in agents are available for a session, then use `defaultAgent` when you want prompts to route to a specific built-in agent instead of the default `lead` flow.
-
-<Callout type="info" title="Use this page when you want a more opinionated session roster">
-Use this page when you want to narrow the built-in agents for a session, for example a focused builder plus reviewer workflow instead of the broader default team.
-</Callout>
+A session can start with only the built-in Coder agents you care about. Use `agentSlugs` to pick which built-ins are mounted, and `defaultAgent` to route prompts to a specific one instead of the normal `lead` flow. A builder-plus-reviewer pair is a common shape.
 
 <Callout type="tip" title="Read the session back after creation">
-`createSession()` accepts the roster. Call `getSession()` when you want to confirm the session state and the default agent.
+`getSession()` returns the session's lifecycle state and its `defaultAgent`. That's usually enough to confirm the session started the way you intended.
 </Callout>
-
-You can test the roster behavior from a small local script before wiring it into a larger app or tool.
 
 ## The Pattern
 
-Create the session with an explicit built-in roster, then inspect the session detail:
+Create the session with an explicit built-in selection, then inspect the session detail:
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -41,14 +35,14 @@ async function main(): Promise<void> {
     const created = await client.createSession({
       task,
       workflowMode: 'standard',
-      // defaultAgent: the built-in the Hub routes to when no specific agent is named.
+      // defaultAgent: the built-in the Hub routes to when no specific agent is named
       defaultAgent: DEFAULT_AGENT, // [!code highlight]
-      // agentSlugs: the only built-ins mounted for this session; others are hidden.
+      // agentSlugs: the only built-ins mounted for this session; others stay hidden
       agentSlugs: [...AGENT_SLUGS], // [!code highlight]
       tags: ['docs-example', 'built-in-agents'],
     });
 
-    // Read the session back so you can confirm the default agent and lifecycle state.
+    // Read the session back to confirm the default agent and lifecycle state
     const session = await client.getSession(created.sessionId);
 
     console.log(
@@ -89,17 +83,17 @@ void main();
 
 What this means:
 
-- `agentSlugs` limits the built-in roster attached when you create the session
-- `defaultAgent` tells the Hub which built-in agent should handle routed work by default
+- `agentSlugs` limits which built-ins are mounted when you create the session
+- `defaultAgent` tells the Hub which built-in should handle routed work by default
 - `status` and `bucket` still describe the lifecycle state of the session itself
 
 ## How Agent Selection Works
 
-The simplest mental model is:
+The simplest mental model:
 
 - `lead` is the default orchestration posture for a normal session
-- `agentSlugs` says which built-in specialists are mounted for this session
-- `defaultAgent` says which agent should be preferred when the session is not just using the normal `lead` path
+- `agentSlugs` is the set of built-in specialists mounted for this session
+- `defaultAgent` is the built-in preferred when the session isn't using the normal `lead` path
 
 So if you create a session with:
 
@@ -110,10 +104,7 @@ So if you create a session with:
 }
 ```
 
-you are effectively saying:
-
-- this session should expose `builder` and `reviewer`
-- `builder` should be the default routed specialist
+you're saying: make `builder` and `reviewer` available, and route to `builder` by default.
 
 ## When to Use This Pattern
 
@@ -121,17 +112,17 @@ Use this pattern when you want:
 
 - a focused implementation session with `builder`
 - a review-oriented session with `reviewer`
-- a tighter roster for your app instead of every available built-in agent
+- a tighter set of agents than the full default team
 - a consistent default specialist for repeated automation
 
-If you just want a normal Coder session, you can omit both fields and let the standard session behavior take over.
+If you want a normal Coder session, omit both fields.
 
 ## Key Points
 
-- Start with a small roster. It keeps the session easier to inspect.
-- Prefer `getSession()` over a list view when you need the definitive session state.
-- Use built-in agent names that actually exist in your Hub environment.
-- If you need your own reusable agent definition, that is a custom-agent flow, not a built-in roster flow.
+- Start with the built-ins you need. You can widen the selection later.
+- Prefer `getSession()` over list views when you need a definitive view of one session.
+- Use built-in names your Hub exposes.
+- For agent definitions you author yourself, switch to the custom-agent flow.
 
 ## See Also
 

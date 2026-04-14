@@ -4,13 +4,7 @@ short_title: Loop-Mode Sessions
 description: Create a loop-mode Coder session and inspect its workflow state with getLoopState
 ---
 
-Use loop mode when you want a session to carry explicit workflow state across iterations. This is different from a normal interactive session: the session has a goal, iteration state, and loop-specific status that you can inspect separately from the standard session detail.
-
-<Callout type="info" title="Use this page when your workflow is iteration-aware">
-Use this page when your app needs more than a standard interactive session, for example review loops, bounded research loops, or workflows that need explicit iteration and pause state.
-</Callout>
-
-This is easiest to explore from a small local script so you can create the session and inspect its loop state right away.
+Loop mode gives a session explicit workflow state across iterations: a goal, iteration counters, and loop-specific status you can inspect separately from the standard session detail. It's the shape you want for review loops, bounded research, or any iteration-aware workflow that needs explicit pause and resume state.
 
 ## The Pattern
 
@@ -25,19 +19,19 @@ async function main(): Promise<void> {
   try {
     const created = await client.createSession({
       task: 'Review the repository and suggest the next documentation steps.',
-      // Opt into loop workflow state; standard sessions do not expose loop fields.
+      // Opt into loop workflow state; standard sessions don't expose loop fields
       workflowMode: 'loop', // [!code highlight]
       loop: {
         goal: 'Produce a concise docs plan',
         maxIterations: 3,
-        // Default to supervised advancement; flip to true for unattended loops.
+        // Default to supervised advancement; flip to true for unattended loops
         autoContinue: false,
         allowDetached: false,
       },
       tags: ['docs', 'loop-example'],
     });
 
-    // getSession gives you lifecycle state; getLoopState is the only place loop fields live.
+    // getSession is for lifecycle state; getLoopState is the only place loop fields live
     const session = await client.getSession(created.sessionId);
     const loopState = await client.getLoopState(created.sessionId); // [!code highlight]
 
@@ -96,19 +90,12 @@ void main();
 
 ## What to Inspect
 
-Treat `getSession()` and `getLoopState()` as two related but different views:
+`getSession()` returns the session's lifecycle state. `getLoopState()` returns the workflow state inside a loop-mode run. When you read loop state, the fields that usually matter:
 
-- `getSession()` tells you the overall lifecycle state of the session
-- `getLoopState()` tells you the workflow state inside a loop-mode session
-
-The most important loop fields are:
-
-- `status`: where the loop currently is, such as `starting`, `running`, or `paused`
-- `iteration`: the current loop iteration
-- `maxIterations`: the configured upper bound
+- `status`: where the loop currently is (`starting`, `running`, `paused`, or a terminal status)
+- `iteration` and `maxIterations`: how far the loop has advanced and its upper bound
 - `goal`: the high-level goal you gave the loop
-- `autoContinue`: whether the loop advances without manual approval
-- `allowDetached`: whether the loop is allowed to continue without an attached client
+- `autoContinue` and `allowDetached`: whether the loop can advance and keep running without a manual step or an attached client
 
 ## Polling a Loop to Completion
 
@@ -149,7 +136,7 @@ async function main(): Promise<void> {
     const { loop } = await client.getLoopState(created.sessionId);
 
     if (!loop) {
-      // Loop state is not initialized yet; the session is still starting.
+      // Loop state isn't initialized yet. The session is still starting
       continue;
     }
 
@@ -165,9 +152,8 @@ async function main(): Promise<void> {
     }
 
     if (status === 'awaiting_input') {
-      // The loop paused and is waiting for external input before it can continue.
-      // Your app would handle this, for example by prompting the user or injecting
-      // a response via the Hub WebSocket or REST API.
+      // The loop paused and is waiting for external input. Your app would handle this
+      // by prompting the user or sending a response through the Hub WebSocket or REST API
       console.log('Loop is awaiting input. Exiting poll loop.');
       return;
     }
@@ -180,7 +166,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-The `loop.summary` and `loop.nextAction` fields are populated by the Hub as the loop progresses. They are useful for surfacing progress in a UI or feeding into a downstream step.
+The Hub broadcasts `loop.summary` and `loop.nextAction` as the loop progresses, so your UI or downstream step can pick them up without holding a live controller socket.
 
 ## When to Use This Pattern
 
