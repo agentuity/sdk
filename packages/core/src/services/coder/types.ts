@@ -330,7 +330,10 @@ export const CoderCreateWorkspaceRequestSchema = z
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
-		enabledAgents: z.array(z.string()).optional().describe('Effective agent roster to store on the workspace'),
+		enabledAgents: z
+			.array(z.string())
+			.optional()
+			.describe('Effective agent roster to store on the workspace'),
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
