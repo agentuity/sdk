@@ -1,0 +1,145 @@
+---
+title: Observing a Coder Session through the Hub
+short_title: Observe Sessions
+description: Subscribe to a session's live event stream, page through its event history, and hydrate a client from the durable replay stream
+---
+
+The Hub is Coder's real-time broadcast bus. Any client that subscribes to it receives the same stream: the running terminal UI, a web viewer, a CLI, or your own app or automation. Every event the session produces flows through the Hub and is available both live and from the durable stream that accumulates as the session runs.
+
+Three mechanisms cover the most common integration shapes:
+
+- **WebSocket (`subscribeToCoderHub`)** for live observation, dashboards, or real-time monitors
+- **Event history (`listEventHistory`)** for structured, paginated inspection of what the session emitted
+- **Replay (`getReplay`)** for a client that attaches after the session has started and needs to catch up to current state
+
+## Live Observation with `subscribeToCoderHub`
+
+`subscribeToCoderHub` is an async iterator that yields server messages as the Hub broadcasts them. Use it from Bun or another runtime that already exposes a global `WebSocket`.
+
+<Callout type="warning" title="Start with a live session">
+Use this after `getSession()` shows a live runtime. A newly created session may not emit observer traffic until its runtime is live.
+</Callout>
+
+```typescript
+import { subscribeToCoderHub } from '@agentuity/coder';
+
+const sessionId = process.argv[2];
+if (!sessionId) {
+  throw new Error('Pass a session ID: bun observe.ts codesess_123');
+}
+
+let stop = false;
+
+// Flip the flag on Ctrl-C so the for-await loop exits cleanly.
+process.once('SIGINT', () => {
+  stop = true;
+});
+
+// Optional: stop after a wall-clock ceiling so a stray observer does not run forever.
+const timeoutId = setTimeout(() => {
+  stop = true;
+}, 5 * 60 * 1_000);
+
+try {
+  for await (const message of subscribeToCoderHub({
+    sessionId,
+    // Observer role is read-only: it receives broadcasts without driving the session.
+    role: 'observer',
+  })) {
+    if (stop) break;
+
+    // Only a subset of messages carry a `type` field; skip the rest before branching.
+    if (!('type' in message)) continue;
+
+    if (message.type === 'broadcast') {
+      // Broadcast carries the event name and the payload the session emitted.
+      console.log('Broadcast event:', message.event);
+    } else if (message.type === 'presence') {
+      // Presence fires when a participant joins or leaves the session.
+      console.log('Presence:', message.event);
+    }
+  }
+} finally {
+  clearTimeout(timeoutId);
+}
+```
+
+The client handles the WebSocket handshake and heartbeat for you. Break out of the loop, or let your stop flag fire, when your app no longer needs the stream.
+
+## Structured Audit with Event History
+
+`listEventHistory` returns the events the session has emitted so far, sorted and paginated. Use `limit` and `offset` to page through large sessions without loading all events at once.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const sessionId = process.argv[2];
+if (!sessionId) {
+  throw new Error('Pass a session ID: bun history.ts codesess_123');
+}
+
+const client = new CoderClient();
+const PAGE = 50;
+let offset = 0;
+let fetched = 0;
+
+// Page through all events, stopping when a page returns fewer items than requested.
+while (true) {
+  const { events, total } = await client.listEventHistory(sessionId, {
+    limit: PAGE,
+    offset,
+  });
+
+  for (const ev of events) {
+    // Each event carries: id, event (name), category, agent, taskId, occurredAt, payload.
+    console.log(`[${ev.occurredAt}] ${ev.category ?? '-'} / ${ev.event} (agent: ${ev.agent ?? 'none'})`);
+  }
+
+  fetched += events.length;
+  offset += PAGE;
+
+  if (events.length < PAGE || fetched >= (total ?? fetched)) {
+    break;
+  }
+}
+```
+
+This is the right approach when you need structured records: feeding an evaluator, writing an audit log, or building a session timeline in a UI. It is not a real-time feed, so for live observation use `subscribeToCoderHub` instead.
+
+## Hydration with getReplay
+
+When a client attaches to a session that is already running, it needs to catch up to the current state before processing new events. `getReplay` returns the durable stream accumulated by the Hub, which the client uses to rehydrate its local view.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const sessionId = process.argv[2];
+if (!sessionId) {
+  throw new Error('Pass a session ID: bun replay.ts codesess_123');
+}
+
+const client = new CoderClient();
+const replay = await client.getReplay(sessionId);
+
+// The replay payload is the accumulated hydration stream for this session.
+// A late-joining client consumes it to match the Hub's current state before
+// switching over to the live subscription for new events.
+console.log(`Rehydrated replay for session ${replay.sessionId}`);
+```
+
+Frame `getReplay` as hydration, not narrative review. A newly attached client calls it once so its local state matches the Hub's accumulated stream, then it switches to `subscribeToCoderHub` for the live feed going forward.
+
+## When to Use Each
+
+| Mechanism | When to use |
+|-----------|-------------|
+| `subscribeToCoderHub` | Live observation: dashboards, monitors, real-time UIs |
+| `listEventHistory` | Structured audit: evaluators, audit logs, session timelines |
+| `getReplay` | Client hydration: a late-joining client catching up to current session state |
+
+## See Also
+
+- [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Create sessions, read state, and manage lifecycle
+- [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Poll loop state for headless autonomous runs
+- [Coder Client](/reference/sdk-reference/coder): Full method reference for `@agentuity/coder`
+- [Coder](/services/coder): Concepts, workflow modes, and the Hub model

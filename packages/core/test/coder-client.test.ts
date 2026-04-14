@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
 import { CoderClient } from '../src/services/coder/client.ts';
+import { APIError, ValidationInputError } from '../src/services/api.ts';
+import { CoderCreateWorkspaceRequestSchema } from '../src/services/coder/types.ts';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
@@ -50,6 +52,25 @@ function makeCustomAgent(overrides: Record<string, unknown> = {}) {
 		serviceTools: ['session_todo_list', 'session_todo_update'],
 		companionAgents: [],
 		savedSkills: [],
+		...overrides,
+	};
+}
+
+function makeWorkspace(overrides: Record<string, unknown> = {}) {
+	return {
+		id: 'hworkspace_test123',
+		name: 'Workspace Test',
+		description: 'Workspace description',
+		scope: 'org',
+		ownerUserId: 'user_test',
+		repos: [],
+		repoCount: 0,
+		savedSkillIds: [],
+		skillBucketIds: [],
+		enabledAgents: [],
+		selectionCount: 0,
+		createdAt: '2026-04-08T00:00:00.000Z',
+		updatedAt: '2026-04-08T00:00:00.000Z',
 		...overrides,
 	};
 }
@@ -355,6 +376,284 @@ describe('CoderClient remote attach helpers', () => {
 		expect(response.limit).toBe(0);
 		expect(response.offset).toBe(0);
 		expect(response.total).toBe(2);
+	});
+});
+
+describe('CoderClient enabled agent roster contract', () => {
+	beforeEach(() => {
+		globalThis.fetch = ORIGINAL_FETCH;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = ORIGINAL_FETCH;
+	});
+
+	test('session and workspace request types accept enabledAgents', () => {
+		const createSessionBody: Parameters<CoderClient['createSession']>[0] = {
+			task: 'Review this change',
+			enabledAgents: ['code-review'],
+		};
+		const updateSessionBody: Parameters<CoderClient['updateSession']>[1] = {
+			enabledAgents: ['code-review'],
+		};
+		const createWorkspaceBody: Parameters<CoderClient['createWorkspace']>[0] = {
+			name: 'My Workspace',
+			enabledAgents: ['code-review'],
+		};
+
+		expect(createSessionBody.enabledAgents).toEqual(['code-review']);
+		expect(updateSessionBody.enabledAgents).toEqual(['code-review']);
+		expect(createWorkspaceBody.enabledAgents).toEqual(['code-review']);
+	});
+
+	test('workspace create schema rejects a name-only request', () => {
+		const result = CoderCreateWorkspaceRequestSchema.safeParse({
+			name: 'My Workspace',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						message:
+							'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+					}),
+				])
+			);
+		}
+	});
+
+	test('createWorkspace rejects an empty workspace body before sending a request', async () => {
+		const fetchMock = mockFetch(async () => {
+			throw new Error('unexpected fetch');
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		let error: unknown;
+		try {
+			await client.createWorkspace({
+				name: 'My Workspace',
+			});
+		} catch (ex) {
+			error = ex;
+		}
+
+		expect(error).toBeInstanceOf(ValidationInputError);
+		expect(error).toMatchObject({
+			issues: expect.arrayContaining([
+				expect.objectContaining({
+					message: 'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+				}),
+			]),
+		});
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	test('createSession sends enabledAgents in the request body', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session');
+			expect(init?.method).toBe('POST');
+			expect(init?.body).toContain('"enabledAgents":["code-review","qa-team"]');
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_enabled_create',
+					status: 'active',
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createSession({
+				task: 'Review this change',
+				enabledAgents: ['code-review', 'qa-team'],
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_enabled_create',
+			status: 'active',
+		});
+	});
+
+	test('updateSession sends enabledAgents in the request body', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session/codesess_enabled_update');
+			expect(init?.method).toBe('PATCH');
+			expect(init?.body).toContain('"enabledAgents":["code-review"]');
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_enabled_update',
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.updateSession('codesess_enabled_update', {
+				enabledAgents: ['code-review'],
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_enabled_update',
+		});
+	});
+
+	test('createWorkspace sends enabledAgents in the request body', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces');
+			expect(init?.method).toBe('POST');
+			expect(init?.body).toContain('"enabledAgents":["code-review","qa-team"]');
+			return new Response(
+				JSON.stringify({
+					workspace: makeWorkspace({
+						id: 'hworkspace_enabled_create',
+						enabledAgents: ['code-review', 'qa-team'],
+						selectionCount: 2,
+					}),
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createWorkspace({
+				name: 'My Workspace',
+				enabledAgents: ['code-review', 'qa-team'],
+			})
+		).resolves.toMatchObject({
+			id: 'hworkspace_enabled_create',
+			enabledAgents: ['code-review', 'qa-team'],
+		});
+	});
+
+	test('createWorkspace preserves server validation text returned in the error field', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces');
+			expect(init?.method).toBe('POST');
+			return new Response(
+				JSON.stringify({
+					error: 'One or more selected saved skills do not exist.',
+				}),
+				{
+					status: 400,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		let error: unknown;
+		try {
+			await client.createWorkspace({
+				name: 'My Workspace',
+				enabledAgents: ['code-review'],
+			});
+		} catch (ex) {
+			error = ex;
+		}
+
+		expect(error).toBeInstanceOf(APIError);
+		expect(error).toMatchObject({
+			status: 400,
+			message: 'One or more selected saved skills do not exist.',
+		});
+	});
+
+	test('getSession preserves enabledAgents from the hub response', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session/codesess_enabled_read');
+			expect(init?.method).toBe('GET');
+			return new Response(
+				JSON.stringify(
+					makeSession({
+						sessionId: 'codesess_enabled_read',
+						enabledAgents: ['code-review', 'qa-team'],
+					})
+				),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const session = await client.getSession('codesess_enabled_read');
+		expect(session.enabledAgents).toEqual(['code-review', 'qa-team']);
+		expect('agentSlugs' in session).toBe(false);
+	});
+
+	test('getWorkspace preserves enabledAgents from the hub response', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces/hworkspace_enabled_read');
+			expect(init?.method).toBe('GET');
+			return new Response(
+				JSON.stringify({
+					workspace: makeWorkspace({
+						id: 'hworkspace_enabled_read',
+						selectedEnabledAgents: ['code-review'],
+						enabledAgents: ['code-review', 'qa-team'],
+						selectionCount: 2,
+					}),
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const workspace = await client.getWorkspace('hworkspace_enabled_read');
+		expect(workspace.enabledAgents).toEqual(['code-review', 'qa-team']);
+		expect(workspace.selectedEnabledAgents).toEqual(['code-review']);
+		expect('agentSlugs' in workspace).toBe(false);
 	});
 });
 

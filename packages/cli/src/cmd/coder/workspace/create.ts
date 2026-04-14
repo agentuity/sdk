@@ -1,29 +1,46 @@
 import { z } from 'zod';
-import { CoderClient, type CoderCreateWorkspaceRequest } from '@agentuity/core/coder';
-import { ValidationOutputError } from '@agentuity/core';
+import { APIError, ValidationInputError, ValidationOutputError } from '@agentuity/core';
+import {
+	CoderClient,
+	CoderCreateWorkspaceRequestSchema,
+	type CoderCreateWorkspaceRequest,
+} from '@agentuity/core/coder';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { resolveGitHubRepo } from '../resolve-repo';
 
+const EMPTY_WORKSPACE_ERROR =
+	'A workspace needs at least one repo, saved skill, skill bucket, or agent';
+
+function hasWorkspaceSelections(input: CoderCreateWorkspaceRequest): boolean {
+	return (
+		(input.repos?.length ?? 0) > 0 ||
+		(input.savedSkillIds?.length ?? 0) > 0 ||
+		(input.skillBucketIds?.length ?? 0) > 0 ||
+		(input.enabledAgents?.length ?? 0) > 0
+	);
+}
+
+function formatWorkspaceValidationMessage(issues: Array<{ message: string }>): string {
+	const messages = [...new Set(issues.map((issue) => issue.message).filter(Boolean))];
+	if (messages.length === 0) {
+		return 'Invalid workspace configuration';
+	}
+	if (messages.includes(EMPTY_WORKSPACE_ERROR)) {
+		return `${EMPTY_WORKSPACE_ERROR}. Use --repo or --enabled-agents.`;
+	}
+	return messages.join('; ');
+}
+
 export const createWorkspaceSubcommand = createSubcommand({
 	name: 'create',
 	aliases: ['new', 'add'],
-	description: 'Create a new Coder workspace',
+	description: 'Create a new Coder workspace with at least one repo or agent',
 	tags: ['mutating', 'requires-auth'],
 	requires: { auth: true, org: true },
 	examples: [
-		{
-			command: getCommand('coder workspace create "My Workspace"'),
-			description: 'Create a workspace with a name',
-		},
-		{
-			command: getCommand(
-				'coder workspace create "My Workspace" --description "For frontend work" --scope org'
-			),
-			description: 'Create an org-scoped workspace with description',
-		},
 		{
 			command: getCommand(
 				'coder workspace create "My Workspace" --repo https://github.com/org/repo --repo-branch main'
@@ -31,7 +48,19 @@ export const createWorkspaceSubcommand = createSubcommand({
 			description: 'Create a workspace with a repository',
 		},
 		{
-			command: getCommand('coder workspace create "My Workspace" --json'),
+			command: getCommand(
+				'coder workspace create "My Workspace" --enabled-agents code-review --description "For frontend work" --scope org'
+			),
+			description: 'Create an org-scoped workspace with description and agents',
+		},
+		{
+			command: getCommand('coder workspace create "My Workspace" --enabled-agents code-review'),
+			description: 'Create a workspace with an agent roster',
+		},
+		{
+			command: getCommand(
+				'coder workspace create "My Workspace" --enabled-agents code-review --json'
+			),
 			description: 'Create a workspace and return JSON output',
 		},
 	],
@@ -59,9 +88,7 @@ export const createWorkspaceSubcommand = createSubcommand({
 			orgId: ctx.orgId,
 		});
 
-		const body: CoderCreateWorkspaceRequest & {
-			enabledAgents?: string[];
-		} = {
+		const body: CoderCreateWorkspaceRequest = {
 			name: args.name,
 			...(opts?.description && { description: opts.description }),
 			...(opts?.scope && { scope: opts.scope as 'user' | 'org' }),
@@ -84,9 +111,27 @@ export const createWorkspaceSubcommand = createSubcommand({
 				.map((name) => name.trim())
 				.filter(Boolean);
 		}
+		if (!hasWorkspaceSelections(body)) {
+			tui.fatal(
+				`Failed to create workspace: ${EMPTY_WORKSPACE_ERROR}. Use --repo or --enabled-agents.`,
+				ErrorCode.VALIDATION_FAILED
+			);
+		}
+
+		const validationResult = CoderCreateWorkspaceRequestSchema.safeParse(body);
+		if (!validationResult.success) {
+			ctx.logger.trace(
+				'Validation issues: %s',
+				JSON.stringify(validationResult.error.issues, null, 2)
+			);
+			tui.fatal(
+				`Failed to create workspace: ${formatWorkspaceValidationMessage(validationResult.error.issues)}`,
+				ErrorCode.VALIDATION_FAILED
+			);
+		}
 
 		try {
-			const created = await client.createWorkspace(body);
+			const created = await client.createWorkspace(validationResult.data);
 			const createdEnabledAgents = Array.isArray(created.enabledAgents)
 				? created.enabledAgents.filter((name): name is string => typeof name === 'string')
 				: [];
@@ -110,9 +155,15 @@ export const createWorkspaceSubcommand = createSubcommand({
 
 			return created;
 		} catch (err) {
-			if (err instanceof ValidationOutputError) {
+			if (err instanceof ValidationInputError || err instanceof ValidationOutputError) {
 				ctx.logger.trace('Validation response URL: %s', err.url ?? 'unknown');
 				ctx.logger.trace('Validation issues: %s', JSON.stringify(err.issues, null, 2));
+				tui.fatal(
+					`Failed to create workspace: ${formatWorkspaceValidationMessage(err.issues)}`,
+					ErrorCode.VALIDATION_FAILED
+				);
+			}
+			if (err instanceof APIError && err.status >= 400 && err.status < 500) {
 				tui.fatal(`Failed to create workspace: ${err.message}`, ErrorCode.VALIDATION_FAILED);
 			}
 			const msg = err instanceof Error ? err.message : String(err);

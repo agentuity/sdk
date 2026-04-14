@@ -10,6 +10,8 @@ Method reference for `CoderClient` from the standalone [`@agentuity/coder`](/ref
 Coder has HTTP endpoints, but no single static base URL. `CoderClient` calls the Agentuity API to discover your org's Hub address, then routes session and workspace requests there. For concepts, session lifecycle, and workflows, see [Coder](/services/coder).
 </Callout>
 
+If you want practical examples before reading the full reference, see: [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk), [Choosing Built-In Agents for a Coder Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session), [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session), [Using Workspaces to Reuse Repos, Skills, and Agent Selection](/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection), [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach), and [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions).
+
 ## Install
 
 ```bash
@@ -42,6 +44,18 @@ The client resolves the Hub URL in this order:
 
 Most apps only need the API key. Set `AGENTUITY_SDK_KEY` and let the client discover the rest.
 
+### getUrl()
+
+Resolve the active Coder base URL. This returns the explicit `url` when you set one, otherwise it uses `AGENTUITY_CODER_URL` or discovery through the Agentuity API.
+
+**Returns:** `Promise<string>`
+
+```typescript
+const client = new CoderClient();
+const url = await client.getUrl();
+console.log(url);
+```
+
 ## Sessions
 
 ### createSession(body)
@@ -53,10 +67,12 @@ Create a new coder session.
 | `body.task` | `string` | yes | Primary task prompt for the session |
 | `body.label` | `string` | no | Human-readable session label |
 | `body.agent` | `string` | no | Default agent identifier |
+| `body.defaultAgent` | `string` | no | Preferred default agent identifier for routed session work |
 | `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Session visibility |
 | `body.workflowMode` | `'standard' \| 'loop'` | no | Workflow execution mode |
 | `body.loop` | `CoderSessionLoopConfig` | no | Loop-mode configuration (`goal`, `maxIterations`, `autoContinue`, `allowDetached`) |
 | `body.tags` | `string[]` | no | Tags for filtering |
+| `body.enabledAgents` | `string[]` | no | Built-in or custom agent roster attached to the session |
 | `body.savedSkillIds` | `string[]` | no | Saved skill IDs to attach |
 | `body.skillBucketIds` | `string[]` | no | Skill bucket IDs to attach |
 | `body.skills` | `CoderSkillRef[]` | no | Inline skill definitions attached to the session |
@@ -100,19 +116,19 @@ Update an existing session.
 | `sessionId` | `string` | yes | Session identifier |
 | `body.label` | `string` | no | Updated label |
 | `body.agent` | `string` | no | Updated default agent |
+| `body.defaultAgent` | `string` | no | Updated preferred default agent identifier |
 | `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Updated visibility |
-| `body.workflowMode` | `'standard' \| 'loop'` | no | Updated workflow mode |
-| `body.loop` | `CoderSessionLoopConfig` | no | Updated loop configuration |
 | `body.tags` | `string[]` | no | Updated tag set |
+| `body.enabledAgents` | `string[]` | no | Updated session agent roster |
 | `body.skills` | `CoderSkillRef[]` | no | Updated attached skills for the session |
-| `body.metadata` | `Record<string, string>` | no | Updated metadata |
+| `body.metadata` | `Record<string, string>` | no | Updated arbitrary metadata associated with the session |
 
 **Returns:** `Promise<CoderUpdateSessionResponse>`
 
 ```typescript
 await client.updateSession('codesess_abc123', {
-  label: 'Auth feature - phase 2',
   tags: ['auth', 'feature', 'phase-2'],
+  visibility: 'organization',
 });
 ```
 
@@ -164,7 +180,7 @@ await client.deleteSession('codesess_abc123');
 
 ### archiveSession(sessionId)
 
-Archive an active session. The transcript is preserved for replay.
+Archive an active session. Session history remains available for replay and inspection.
 
 **Returns:** `Promise<CoderLifecycleResponse>`
 
@@ -192,7 +208,7 @@ Ensure a paused remote session is attachable before opening a controller socket.
 | `options.timeoutMs` | `number` | no | Max time to wait for the runtime to come back. Default `30000` |
 | `options.pollIntervalMs` | `number` | no | Interval between `getSession` polls while waking. Default `1000` |
 
-**Returns:** `Promise<CoderSession>` — the latest session detail (which may still be detached if the timeout elapsed)
+**Returns:** `Promise<CoderSession>`. Returns the latest session detail, which may still be detached if the timeout elapsed.
 
 ```typescript
 const session = await client.prepareSessionForRemoteAttach('codesess_abc123', {
@@ -207,7 +223,7 @@ if (session.runtimeAvailable) {
 
 ### getReplay(sessionId, params?)
 
-Retrieve replay data (transcript and events) for a session.
+Retrieve the data a late-joining client uses to catch up to the session's current state.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -220,6 +236,8 @@ Retrieve replay data (transcript and events) for a session.
 ```typescript
 const replay = await client.getReplay('codesess_abc123');
 ```
+
+Use `getReplay()` when a late-joining client needs to catch up to the Hub's current state. For a structured timeline, use `listEventHistory()` instead.
 
 ### listParticipants(sessionId, params?)
 
@@ -270,6 +288,8 @@ Workspaces group repositories and skills into reusable configurations attachable
 
 ### createWorkspace(body)
 
+Create a reusable workspace definition. A workspace cannot be empty: include at least one repo, saved skill, skill bucket, or agent selection.
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
 | `body.name` | `string` | yes | Workspace name |
@@ -278,6 +298,7 @@ Workspaces group repositories and skills into reusable configurations attachable
 | `body.repos` | `CoderSessionRepositoryRef[]` | no | Repositories to include |
 | `body.savedSkillIds` | `string[]` | no | Saved skill IDs |
 | `body.skillBucketIds` | `string[]` | no | Skill bucket IDs |
+| `body.enabledAgents` | `string[]` | no | Built-in or custom agent roster to store on the workspace |
 
 **Returns:** `Promise<CoderWorkspaceDetail>`
 
@@ -285,6 +306,7 @@ Workspaces group repositories and skills into reusable configurations attachable
 const workspace = await client.createWorkspace({
   name: 'Auth System',
   description: 'OAuth and session management',
+  enabledAgents: ['builder', 'reviewer'],
 });
 ```
 
@@ -374,14 +396,20 @@ Delete a skill bucket.
 
 ### listGitHubAccounts()
 
-List GitHub accounts available via the caller's GitHub App installations. The response includes connection status, the connected GitHub username, and all available accounts.
+List GitHub accounts available via the caller's GitHub App installations. Sign in to Agentuity before calling this method. Without an Agentuity OAuth login, the Hub returns `HTTP 409` and the client throws before it can return account data.
 
 **Returns:** `Promise<CoderGitHubAccountListResponse>`
 
 ```typescript
-const { connected, accounts } = await client.listGitHubAccounts();
-if (!connected) {
-  console.log('Connect GitHub first');
+try {
+  const { connected, accounts } = await client.listGitHubAccounts();
+  if (!connected) {
+    console.log('Connect GitHub in the Agentuity Console first');
+  } else {
+    console.log(accounts.map((account) => account.accountName));
+  }
+} catch {
+  console.log('Sign in to Agentuity first, then call listGitHubAccounts() again');
 }
 ```
 

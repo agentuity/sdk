@@ -259,7 +259,7 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
   <CardLink
     href="/reference/api/coder"
     title="Coder"
-    description="Manage Coder sessions, session data, loop state, and known users through the HTTP API"
+    description="Manage Coder sessions, custom agents, session data, loop state, and known users through the REST API"
     icon={<BrainCircuit className="size-5" />}
   />
   <CardLink
@@ -420,6 +420,7 @@ async function main() {
 		JSON.stringify(
 			{
 				title: 'API Reference',
+				sort: 'title',
 				pages: services.map((service) => service.slug).sort(),
 			},
 			null,

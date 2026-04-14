@@ -1,5 +1,6 @@
 {
 	"title": "SDK Reference",
+	"sort": "title",
 	"pages": [
 		"application-entry",
 		"agents",

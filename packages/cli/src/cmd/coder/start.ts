@@ -388,6 +388,7 @@ export const startSubcommand = createSubcommand({
 			AGENTUITY_CODER_HUB_URL: hubWsUrl,
 		};
 		env.AGENTUITY_CODER_API_KEY = ctx.auth.apiKey;
+		env.AGENTUITY_ORGID = ctx.orgId;
 
 		if (opts?.agent) {
 			env.AGENTUITY_CODER_AGENT = opts.agent;

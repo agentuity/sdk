@@ -17,7 +17,9 @@ export const workspaceCommand = createCommand({
 			description: 'List all workspaces',
 		},
 		{
-			command: getCommand('coder workspace create "My Workspace"'),
+			command: getCommand(
+				'coder workspace create "My Workspace" --repo https://github.com/org/repo'
+			),
 			description: 'Create a new workspace',
 		},
 		{

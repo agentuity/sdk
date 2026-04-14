@@ -1,0 +1,430 @@
+---
+title: Managing Coder Sessions with the SDK
+short_title: Manage Sessions
+description: Create a Coder session, read its state, and manage its lifecycle with CoderClient
+---
+
+Drive Coder from your own code with `CoderClient`. Coder sessions run on a shared Hub, the real-time broadcast bus that apps, agents, and humans all subscribe to. This page covers the core client-side flow: create a session, read it back, and manage its lifecycle over time.
+
+<Callout type="tip" title="Run this locally first">
+This flow works without deploying your app. If you already created an Agentuity project, its local `.env` usually includes `AGENTUITY_SDK_KEY`, which is enough for `CoderClient` discovery mode.
+</Callout>
+
+<Callout type="warning" title="Coder must be enabled for your org">
+If discovery succeeds but session calls fail with an org-level error, your API key is fine. The org just needs Coder turned on first.
+</Callout>
+
+The examples below are standalone `@agentuity/coder` TypeScript snippets. Bun is the quickest way to run them locally. If you prefer Node, use `tsx` or another TypeScript runner.
+
+## The Pattern
+
+Install the package:
+
+```bash
+bun add @agentuity/coder
+```
+
+If your app creates sessions from more than one place (an HTTP route, a background job, a webhook handler), construct a `CoderClient` once and share it:
+
+```typescript title="src/lib/coder.ts"
+import { CoderClient } from '@agentuity/coder';
+
+export const coder = new CoderClient();
+```
+
+With `AGENTUITY_SDK_KEY` set in your environment, this picks up your org, region, and Hub URL. Pass `orgId` or `region` explicitly when your app needs to pin a specific one.
+
+The standalone scripts on this page keep `new CoderClient()` inline so each one stays copy-pasteable. Move to a shared module once your app has more than one call site.
+
+Start with a minimal script that covers discovery, session creation, and the first session read:
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const DEFAULT_TASK = 'Inspect this repo and explain the current architecture.';
+function getTask(): string {
+  const task = process.argv.slice(2).join(' ').trim();
+  return task || DEFAULT_TASK;
+}
+
+async function main(): Promise<void> {
+  // Let the SDK discover the Hub from AGENTUITY_SDK_KEY
+  const client = new CoderClient();
+  const task = getTask();
+
+  try {
+    const resolvedUrl = await client.getUrl(); // [!code highlight]
+    console.log('Connected to Coder Hub:', resolvedUrl);
+
+    const created = await client.createSession({ // [!code highlight]
+      task,
+      workflowMode: 'standard',
+      tags: ['architecture', 'docs-example'],
+    });
+    console.log('Created session:', created.sessionId);
+
+    // Read the session back to inspect the first lifecycle state
+    const session = await client.getSession(created.sessionId); // [!code highlight]
+    console.log(
+      JSON.stringify(
+        {
+          sessionId: session.sessionId,
+          label: session.label,
+          status: session.status,
+          bucket: session.bucket,
+          workflowMode: session.workflowMode,
+          runtimeAvailable: session.runtimeAvailable,
+          controlAvailable: session.controlAvailable,
+          wakeAvailable: session.wakeAvailable,
+          historyOnly: session.historyOnly,
+          liveExpected: session.liveExpected,
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('Failed to create or inspect the session');
+    console.error(message);
+    process.exitCode = 1;
+  }
+}
+
+void main();
+```
+
+This gives you two things you need right away:
+
+- a `sessionId` you can reuse in later calls or other apps
+- the first session detail from `getSession()`
+
+## What You Should See
+
+The exact values will vary, but a brand-new session usually looks like this:
+
+```json
+{
+  "sessionId": "codesess_f64101b6ad47",
+  "label": "Inspect this repo and explain the current architecture.",
+  "status": "creating",
+  "bucket": "provisioning",
+  "workflowMode": "standard",
+  "runtimeAvailable": false,
+  "controlAvailable": false,
+  "wakeAvailable": false,
+  "historyOnly": false,
+  "liveExpected": true
+}
+```
+
+The Hub auto-derives `label` from the `task` prompt when the caller doesn't set one, so a fresh session always has a label to show in list views.
+
+The exact `status` string varies. What matters is:
+
+- creation succeeded and you have a real `sessionId`
+- `getSession()` returns usable session detail immediately
+- the session may still be provisioning even though it already exists
+
+## Creating Sessions From Your App
+
+In app code, the shape you usually reach for adds three fields on top of `task`: `label`, `metadata`, and `env`. These cover the pieces apps actually need: a short label for list UIs, correlation ids that tie the session back to your own records, and any credentials the sandbox-side agent reads at runtime.
+
+```typescript title="src/lib/start-session.ts"
+import { coder } from './coder';
+
+type StartSessionInput = {
+  userId: string;
+  conversationId: string;
+  task: string;
+  apiToken: string;
+};
+
+export async function startSession(input: StartSessionInput) {
+  return coder.createSession({
+    task: input.task,
+    // label shows up in list UIs; falls back to the task prompt when unset
+    label: input.task.slice(0, 100),
+    // metadata is for app correlation ids and app-owned session context
+    metadata: {
+      userId: input.userId,
+      conversationId: input.conversationId,
+    },
+    // env is what the sandbox-side agent can read at runtime
+    env: {
+      API_TOKEN: input.apiToken,
+    },
+  });
+}
+```
+
+| Field | What it carries |
+|------|-----------------|
+| `task` | The prompt the agent executes, including any context you want it to act on |
+| `label` | A short human string for list UIs and dashboards |
+| `metadata` | App correlation ids and app-owned session context |
+| `env` | Credentials and runtime config the sandbox-side agent reads |
+
+When your app already resolved user or account context, the common split is: put resolved context into `task`, correlation ids into `metadata`, and integration credentials into `env`. `env` is fixed once the session is created, so prefer credentials the agent can refresh itself over short-lived access tokens.
+
+## Reading Session State
+
+Once you have a session ID, use the read APIs to build dashboards, internal tools, or a simple status view in another app.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const sessionId = process.argv[2];
+
+if (!sessionId) {
+  throw new Error('Pass a session ID as the first argument, for example: bun example.ts codesess_123');
+}
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+
+  try {
+    // Start with session detail. It's the fullest single view
+    const session = await client.getSession(sessionId); // [!code highlight]
+
+    // Pull related data in parallel when you need more than session detail alone
+    const [participants, history, replay] = await Promise.all([
+      client.listParticipants(sessionId, { limit: 20 }), // [!code highlight]
+      client.listEventHistory(sessionId, { limit: 20 }), // [!code highlight]
+      client.getReplay(sessionId, { limit: 50 }), // [!code highlight]
+    ]);
+
+    console.log(
+      JSON.stringify(
+        {
+          session: {
+            sessionId: session.sessionId,
+            label: session.label,
+            status: session.status,
+            bucket: session.bucket,
+            workflowMode: session.workflowMode,
+            historyOnly: session.historyOnly,
+            runtimeAvailable: session.runtimeAvailable,
+            controlAvailable: session.controlAvailable,
+          },
+          participantsCount: participants.participants.length,
+          historyCount: history.events.length,
+          replaySessionId: replay.sessionId,
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('Failed to read session state');
+    console.error(message);
+    process.exitCode = 1;
+  }
+}
+
+void main();
+```
+
+Fresh or idle sessions can legitimately return empty participants, event history, or replay data. That usually means the session has not produced much activity yet.
+
+<Callout type="info" title="Replay is a hydration stream, not a transcript">
+`getReplay()` returns the durable event stream a late-joining client uses to catch up to the Hub's current state. Treat the result as the hydration payload, not as a list you enumerate in a dashboard. For a structured timeline, use `listEventHistory()` instead.
+</Callout>
+
+## Listing Sessions for Dashboards or History Views
+
+If your app needs a broader session list before it drills into one session, start with `listSessions()`.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+
+  try {
+    const { sessions, total } = await client.listSessions({ // [!code highlight]
+      limit: 20,
+      includeArchived: true,
+    });
+
+    console.log(
+      JSON.stringify(
+        {
+          total,
+          sessions: sessions.map((session) => ({
+            sessionId: session.sessionId,
+            label: session.label,
+            status: session.status,
+            bucket: session.bucket,
+            workflowMode: session.workflowMode,
+            historyOnly: session.historyOnly,
+          })),
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('Failed to list sessions');
+    console.error(message);
+    process.exitCode = 1;
+  }
+}
+
+void main();
+```
+
+Use `listSessions()` when you are building a dashboard or history view. Once the user picks a session, switch back to `getSession()`, replay, participants, or lifecycle methods. List items include status, bucket, workflow mode, and tags, but not the `task` prompt; that only appears on the full `getSession()` response. `total` can exceed `sessions.length` because the Hub counts a broader set than the SDK surfaces; render from `sessions` and treat `total` as a hint that more exist.
+
+## Pinning a GitHub Repo
+
+When your app needs Coder to operate on a specific repository, use `listGitHubAccounts()` to retrieve the GitHub accounts connected via the GitHub App installation, then `listGitHubRepos(accountId)` to list repositories under that account. Pass the chosen repository to `createSession()` via the `repo` field.
+
+<Callout type="warning" title="Sign in to Agentuity before calling the GitHub APIs">
+`listGitHubAccounts()` and `listGitHubRepos()` require an Agentuity OAuth login, not just the GitHub App installation. Without the login, the Hub returns `HTTP 409` and the client throws before any account data is returned. Sign in from the [Agentuity Console](https://app.agentuity.com) (or via `agentuity auth login`) before running this flow.
+</Callout>
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+
+  let github;
+  try {
+    // Sign in to Agentuity first. Without that OAuth login, the Hub returns HTTP 409
+    github = await client.listGitHubAccounts();
+  } catch {
+    throw new Error(
+      'Sign in to Agentuity first. Then run this again to list the GitHub accounts available to your org.'
+    );
+  }
+
+  const { connected, accounts } = github;
+  if (!connected) {
+    throw new Error('Connect GitHub in the Agentuity Console first.');
+  }
+
+  if (accounts.length === 0) {
+    throw new Error('No GitHub accounts connected. Install the Agentuity GitHub App first.');
+  }
+
+  // Pick the first account, or match by accountName in your own logic.
+  const account = accounts[0];
+  if (!account) {
+    throw new Error('No GitHub account selected.');
+  }
+
+  // List repos visible under that account
+  const { repositories } = await client.listGitHubRepos(account.accountId);
+  if (repositories.length === 0) {
+    throw new Error(`No repositories found under account ${account.accountName}`);
+  }
+
+  // Pick a repository. This example just takes the first
+  const repo = repositories[0];
+  if (!repo) {
+    throw new Error('No repository selected.');
+  }
+
+  // Create the session with the pinned repository reference
+  // CoderSessionRepositoryRef accepts owner, name, and optionally branch
+  const created = await client.createSession({
+    task: 'Review the open pull requests and summarize any security-related changes.',
+    workflowMode: 'standard',
+    repo: {
+      owner: repo.owner.login,
+      name: repo.name,
+      // branch: 'main', // optional: pin to a specific branch
+    },
+  });
+
+  console.log('Session:', created.sessionId, 'pinned to repo:', repo.fullName);
+}
+
+void main();
+```
+
+`listGitHubAccounts()` reflects the GitHub App installations active for the API key's org. If `accounts` is empty, install the Agentuity GitHub App from your org settings in the [Agentuity Console](https://app.agentuity.com) and grant it access to the repositories you need, then try again.
+
+## Updating and Cleaning Up
+
+Use `updateSession()` to relabel a session, retag it, adjust its visibility, or patch its `metadata`. Metadata merges into the session's _existing_ metadata, so you can change one key without resending the rest. Then archive the session for later replay, or delete it.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const sessionId = process.argv[2];
+const action = process.argv[3] ?? 'archive';
+
+if (!sessionId) {
+  throw new Error(
+    'Pass a session ID as the first argument, for example: bun example.ts codesess_123 archive'
+  );
+}
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+
+  try {
+    // updateSession is for app-level session detail, not runtime control
+    await client.updateSession(sessionId, { // [!code highlight]
+      tags: ['docs', 'follow-up'],
+      visibility: 'organization',
+      // metadata is merged into the session's existing metadata, so you can patch
+      // one correlation id without resending the rest
+      metadata: {
+        reviewStage: 'follow-up',
+      },
+    });
+
+    if (action === 'delete') {
+      // Delete temporary sessions when you don't need replay later
+      await client.deleteSession(sessionId); // [!code highlight]
+      console.log(`Deleted ${sessionId}`);
+      return;
+    }
+
+    // Archive by default so session history remains available for replay
+    const archived = await client.archiveSession(sessionId); // [!code highlight]
+    console.log(JSON.stringify({ sessionId, status: archived.status }, null, 2));
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('Failed to manage the session');
+    console.error(message);
+    process.exitCode = 1;
+  }
+}
+
+void main();
+```
+
+For quick local validation, deleting the session is fine:
+
+```typescript
+await client.deleteSession(sessionId);
+```
+
+Archive the session instead when you want to inspect its history later:
+
+```typescript
+await client.archiveSession(sessionId);
+```
+
+## Key Points
+
+- Keep the `sessionId` from `createSession()`. Most follow-on APIs start there.
+- In app code, pair `task` with `label` for list UIs, `metadata` for correlation ids, and `env` for credentials the sandbox-side agent reads.
+- Use `listSessions()` for dashboards and history views, then `getSession()` for the chosen entry.
+- Use `archiveSession()` for sessions you may want to inspect later, and `deleteSession()` for temporary tests and cleanup.
+- To reconnect to an older session, switch to the reconnect flow instead of starting from `listSessions()`.
+
+## See Also
+
+- [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach): Find live or wakeable sessions before re-attaching
+- [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Use loop workflow state instead of a standard session
+- [Coder](/services/coder): Concepts, workflow modes, and CLI entry points
+- [Coder Client](/reference/sdk-reference/coder): Full `CoderClient` method reference
+- [Coder Commands](/reference/cli/coder): CLI flows for creating and attaching to sessions
