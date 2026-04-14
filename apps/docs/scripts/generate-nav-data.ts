@@ -9,7 +9,6 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { StructuredError } from '@agentuity/core';
 import matter from 'gray-matter';
 
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
@@ -44,11 +43,6 @@ interface MetaJson {
 		sort?: 'title';
 	}>;
 }
-
-const NavMetaValidationError = StructuredError('NavMetaValidationError')<{
-	slug: string;
-	dirPath: string;
-}>();
 
 // ---------------------------------------------------------------------------
 // SDK Explorer (hardcoded — demo routes, not content pages)
@@ -226,11 +220,9 @@ async function buildNavItemForSlug(
 		return item;
 	}
 
-	throw new NavMetaValidationError({
-		slug,
-		dirPath,
-		message: `meta.json references "${slug}", but no matching directory or .mdx file exists in ${dirPath}`,
-	});
+	throw new Error(
+		`Invalid docs meta.json entry: "${slug}" has no matching directory or .mdx file in ${dirPath}`
+	);
 }
 
 async function processDirectory(dirPath: string, urlPrefix: string): Promise<NavItem[]> {

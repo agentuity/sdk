@@ -14,7 +14,7 @@ This flow works without deploying your app. If you already created an Agentuity 
 If discovery succeeds but session calls fail with an org-level error, your API key is fine. The org just needs Coder turned on first.
 </Callout>
 
-The examples below are standalone TypeScript `@agentuity/coder` snippets. Run them with Bun, `tsx`, `ts-node`, or another TypeScript-capable runner while you prove the session flow end to end.
+The examples below are standalone `@agentuity/coder` TypeScript snippets. Bun is the quickest way to run them locally. If you prefer Node, use `tsx` or another TypeScript runner.
 
 ## The Pattern
 
@@ -402,7 +402,7 @@ For quick local validation, deleting the session is fine:
 await client.deleteSession(sessionId);
 ```
 
-To keep session history for later inspection, prefer `archiveSession()`:
+Archive the session instead when you want to inspect its history later:
 
 ```typescript
 await client.archiveSession(sessionId);
