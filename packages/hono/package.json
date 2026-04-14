@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/hono",
-	"version": "3.0.0-alpha.2",
+	"version": "3.0.0-alpha.5",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -23,15 +23,15 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/telemetry": "workspace:*",
-		"@agentuity/keyvalue": "workspace:*",
-		"@agentuity/vector": "workspace:*",
-		"@agentuity/stream": "workspace:*",
-		"@agentuity/queue": "workspace:*",
-		"@agentuity/email": "workspace:*",
-		"@agentuity/task": "workspace:*",
-		"@agentuity/schedule": "workspace:*",
-		"@agentuity/sandbox": "workspace:*",
+		"@agentuity/telemetry": "3.0.0-alpha.5",
+		"@agentuity/keyvalue": "3.0.0-alpha.5",
+		"@agentuity/vector": "3.0.0-alpha.5",
+		"@agentuity/stream": "3.0.0-alpha.5",
+		"@agentuity/queue": "3.0.0-alpha.5",
+		"@agentuity/email": "3.0.0-alpha.5",
+		"@agentuity/task": "3.0.0-alpha.5",
+		"@agentuity/schedule": "3.0.0-alpha.5",
+		"@agentuity/sandbox": "3.0.0-alpha.5",
 		"@opentelemetry/api": "^1.9.0",
 		"hono": "^4.7.13"
 	},

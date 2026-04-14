@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/sandbox",
-	"version": "3.0.0-alpha.2",
+	"version": "3.0.0-alpha.5",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -18,7 +18,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "3.0.0-alpha.5"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.0"

@@ -1,6 +1,6 @@
 {
 	"name": "docs",
-	"version": "3.0.0-alpha.2",
+	"version": "3.0.0-alpha.5",
 	"license": "Apache-2.0",
 	"private": true,
 	"module": ".agentuity/app.js",
@@ -19,14 +19,14 @@
 		"reindex": "bun run scripts/reindex-vectors.ts"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@agentuity/drizzle": "workspace:*",
-		"@agentuity/evals": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
-		"@agentuity/react": "workspace:*",
-		"@agentuity/runtime": "workspace:*",
-		"@agentuity/schema": "workspace:*",
-		"@agentuity/server": "workspace:*",
+		"@agentuity/core": "3.0.0-alpha.5",
+		"@agentuity/drizzle": "3.0.0-alpha.5",
+		"@agentuity/evals": "3.0.0-alpha.5",
+		"@agentuity/frontend": "3.0.0-alpha.5",
+		"@agentuity/react": "3.0.0-alpha.5",
+		"@agentuity/runtime": "3.0.0-alpha.5",
+		"@agentuity/schema": "3.0.0-alpha.5",
+		"@agentuity/server": "3.0.0-alpha.5",
 		"@ai-sdk/anthropic": "^2.0.56",
 		"@ai-sdk/google": "^2.0.51",
 		"@ai-sdk/groq": "^2.0.33",
@@ -68,7 +68,7 @@
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
-		"@agentuity/cli": "workspace:*",
+		"@agentuity/cli": "3.0.0-alpha.5",
 		"@tailwindcss/vite": "^4.1.18",
 		"@tanstack/router-plugin": "^1.157.18",
 		"@types/bun": "latest",

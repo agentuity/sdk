@@ -29,6 +29,7 @@ Usage: bun scripts/publish.ts [options]
 Options:
   --version=X.Y.Z  Force a specific version instead of interactive prompt
   --tag=TAG        Override the npm dist-tag (e.g. alpha, next, beta, latest)
+  --yes, -y        Skip all confirmation prompts and OTP (use with automation token)
   --dry-run        Run the publish process without actually publishing to npm.
                    Version changes will be automatically reverted after completion.
   --help           Show this help message
@@ -640,6 +641,7 @@ async function main() {
 		showHelp();
 	}
 
+	const skipPrompts = process.argv.includes('--yes') || process.argv.includes('-y');
 	const isDryRun = process.argv.includes('--dry-run');
 
 	// Parse --version flag (supports both --version=X.Y.Z and --version X.Y.Z)
@@ -719,16 +721,16 @@ async function main() {
 					: 'next'
 			: 'latest');
 
-	const confirmed = await confirmVersion(newVersion);
+	const confirmed = skipPrompts || (await confirmVersion(newVersion));
 	if (!confirmed) {
 		console.log('\n❌ Publish cancelled\n');
 		rl.close();
 		process.exit(0);
 	}
 
-	// Prompt for npm OTP code upfront (skip for dry runs)
+	// Prompt for npm OTP code upfront (skip for dry runs or --yes)
 	let otp: string | null = null;
-	if (!isDryRun) {
+	if (!isDryRun && !skipPrompts) {
 		const input = await readLine(
 			'\n🔑 Enter npm OTP code (leave empty if using automation token): '
 		);

@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/analytics",
-	"version": "3.0.0-alpha.2",
+	"version": "3.0.0-alpha.5",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Browser analytics for Agentuity applications",
