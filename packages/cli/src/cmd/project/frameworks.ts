@@ -4,28 +4,17 @@
  * Maps supported frameworks to their official create CLI commands
  * and the augmentation steps needed to integrate with Agentuity.
  *
- * AI examples and landing pages are in separate files to keep
- * this catalog focused on framework configuration.
+ * AI examples and landing pages are provided as template overlay
+ * directories under templates/<slug>/ that get copied on top of
+ * the scaffolded project. This approach is more maintainable than
+ * inline code snippets and produces complete, working files.
  */
 
-import {
-	nextjsAiExample,
-	nuxtAiExample,
-	remixAiExample,
-	sveltekitAiExample,
-	astroAiExample,
-	honoAiExample,
-	viteReactAiExample,
-} from './frameworks-ai-examples';
+import { join } from 'node:path';
+import { cpSync } from 'node:fs';
 
-import {
-	nextjsLandingPage,
-	nuxtLandingPage,
-	remixLandingPage,
-	sveltekitLandingPage,
-	astroLandingPage,
-	viteReactLandingPage,
-} from './frameworks-landing-pages';
+// Resolve the templates directory relative to this file
+const templatesDir = join(import.meta.dir, 'templates');
 
 export interface FrameworkScaffold {
 	/** Unique slug (matches detect/frameworks.ts where applicable) */
@@ -63,20 +52,21 @@ export interface FrameworkScaffold {
 	scripts?: Record<string, string>;
 
 	/**
-	 * Generate AI SDK example files for this framework.
+	 * Template overlay directory name (relative to templates/).
 	 *
-	 * Returns a map of relative file paths to file contents.
-	 * Only called if the user opts in to the AI example.
+	 * When set, the contents of templates/<overlayDir>/ are recursively
+	 * copied on top of the scaffolded project after the framework CLI runs.
+	 * Existing files are overwritten; new files are created.
 	 */
-	aiExample?: () => Record<string, string>;
+	overlayDir?: string;
+}
 
-	/**
-	 * Replace the framework's default landing page with an Agentuity-branded page.
-	 *
-	 * Returns a map of relative file paths to file contents.
-	 * Files overwrite the framework's default page after scaffolding.
-	 */
-	landingPage?: () => Record<string, string>;
+/**
+ * Apply a template overlay directory on top of a scaffolded project.
+ */
+export function applyOverlay(dest: string, overlayDir: string): void {
+	const overlayPath = join(templatesDir, overlayDir);
+	cpSync(overlayPath, dest, { recursive: true, dereference: true });
 }
 
 // ─── Framework Catalog ───────────────────────────────────────────────────────
@@ -99,12 +89,11 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'@/*',
 			'--use-bun',
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['ai', '@ai-sdk/openai', 'swr'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: nextjsAiExample,
-		landingPage: nextjsLandingPage,
+		overlayDir: 'nextjs',
 	},
 	{
 		slug: 'nuxt',
@@ -115,16 +104,15 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: nuxtAiExample,
-		landingPage: nuxtLandingPage,
+		overlayDir: 'nuxt',
 	},
 	{
 		slug: 'remix',
-		name: 'Remix',
+		name: 'React Router',
 		description: 'Full-stack React framework with nested routing',
 		createCommand: (dir) => [
 			'bunx',
-			'create-remix@latest',
+			'create-react-router@latest',
 			dir,
 			'--yes',
 			'--install',
@@ -135,8 +123,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: remixAiExample,
-		landingPage: remixLandingPage,
+		overlayDir: 'remix',
 	},
 	{
 		slug: 'sveltekit',
@@ -156,8 +143,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: sveltekitAiExample,
-		landingPage: sveltekitLandingPage,
+		overlayDir: 'sveltekit',
 	},
 	{
 		slug: 'astro',
@@ -178,8 +164,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: astroAiExample,
-		landingPage: astroLandingPage,
+		overlayDir: 'astro',
 	},
 	{
 		slug: 'hono',
@@ -199,19 +184,18 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: honoAiExample,
+		overlayDir: 'hono',
 	},
 	{
 		slug: 'vite-react',
 		name: 'Vite + React',
 		description: 'React SPA with Vite bundler',
 		createCommand: (dir) => ['bunx', 'create-vite@latest', dir, '--template', 'react-ts'],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['ai', '@ai-sdk/openai', '@tanstack/react-query'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
-		aiExample: viteReactAiExample,
-		landingPage: viteReactLandingPage,
+		overlayDir: 'vite-react',
 	},
 ];
 

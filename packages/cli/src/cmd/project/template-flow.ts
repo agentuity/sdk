@@ -242,11 +242,13 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 
 	// Step 3: Ask about AI example
 	let includeAiExample = true;
-	if (isInteractive && selectedFramework.aiExample) {
+	if (isInteractive && selectedFramework.overlayDir) {
 		includeAiExample = await prompt.confirm({
 			message: 'Include an AI example? (OpenAI API route)',
 			initial: true,
 		});
+	} else if (!selectedFramework.overlayDir) {
+		includeAiExample = false;
 	}
 
 	// Step 4: Scaffold the framework

@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-cyan-500: oklch(0.9054 0.15455 194.769);
+	--color-cyan-700: oklch(0.6183 0.10555 194.769);
+	--color-green-500: oklch(0.723 0.219 149.579);
+	--color-green-950: oklch(0.171 0.052 150.3);
+	--color-red-400: oklch(0.704 0.191 22.216);
+	--color-red-800: oklch(0.395 0.141 25.723);
+	--color-red-950: oklch(0.258 0.092 26.042);
+	--color-blue-500: oklch(0.623 0.214 259.815);
+	--color-purple-600: oklch(0.558 0.288 302.321);
+	--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
+	@keyframes ellipsis {
+		0% { content: '.'; }
+		25% { content: '..'; }
+		50% { content: '...'; }
+		75% { content: ''; }
+	}
+}
+
+[data-loading='true']::after {
+	content: '.';
+	@apply inline-block w-4 animate-ellipsis text-left;
+}
+
+body {
+	background-color: oklch(0.141 0.005 285.823);
+	font-family: system-ui, -apple-system, sans-serif;
+	margin: 0;
+}

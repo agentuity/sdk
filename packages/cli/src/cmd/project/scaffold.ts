@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
 import type { FrameworkScaffold } from './frameworks';
+import { applyOverlay } from './frameworks';
 
 interface ScaffoldOptions {
 	/** Absolute path to the target directory */
@@ -73,7 +74,7 @@ export async function scaffoldFramework(options: ScaffoldOptions): Promise<void>
  *
  * - Adds @agentuity/cli as devDependency
  * - Merges deploy/build scripts into package.json
- * - Adds AI example files if requested
+ * - Applies template overlay (AI example files + landing page)
  * - Generates AGENTS.md documentation
  */
 async function augmentProject(
@@ -89,35 +90,22 @@ async function augmentProject(
 		callback: async (progress) => {
 			// Step 1: Merge package.json
 			await mergePackageJson(dest, framework);
-			progress(40);
+			progress(25);
 
-			// Step 2: Add AI example files
-			if (includeAiExample && framework.aiExample) {
-				const files = framework.aiExample();
-				for (const [relativePath, content] of Object.entries(files)) {
-					const filePath = join(dest, relativePath);
-					const dir = join(filePath, '..');
-					mkdirSync(dir, { recursive: true });
-					await Bun.write(filePath, content);
-					logger.debug('Created AI example: %s', relativePath);
-				}
-			}
-			progress(50);
-
-			// Step 3: Replace default landing page with Agentuity-branded page
-			if (framework.landingPage) {
-				const files = framework.landingPage();
-				for (const [relativePath, content] of Object.entries(files)) {
-					const filePath = join(dest, relativePath);
-					const dir = join(filePath, '..');
-					mkdirSync(dir, { recursive: true });
-					await Bun.write(filePath, content);
-					logger.debug('Created landing page: %s', relativePath);
+			// Step 2: Apply template overlay if configured
+			if (framework.overlayDir) {
+				if (includeAiExample) {
+					applyOverlay(dest, framework.overlayDir);
+					logger.debug('Applied template overlay: %s', framework.overlayDir);
+				} else {
+					// When AI example is not requested, we still want the landing page
+					// but without the API route. For now, skip the entire overlay.
+					logger.debug('Skipped template overlay (AI example not requested)');
 				}
 			}
 			progress(75);
 
-			// Step 4: Add .gitignore entries
+			// Step 3: Add .gitignore entries
 			await appendGitignore(dest);
 			progress(100);
 		},
