@@ -36,7 +36,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -46,7 +46,7 @@
     },
     "apps/docs": {
       "name": "docs",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/drizzle": "workspace:*",
@@ -112,7 +112,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
     },
     "apps/testing/db": {
       "name": "db-test",
@@ -367,7 +367,7 @@
     },
     "packages/adapter": {
       "name": "@agentuity/adapter",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -378,7 +378,7 @@
     },
     "packages/analytics": {
       "name": "@agentuity/analytics",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -387,7 +387,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/drizzle": "workspace:*",
@@ -421,7 +421,7 @@
     },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -430,7 +430,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -471,7 +471,7 @@
     },
     "packages/coder": {
       "name": "@agentuity/coder",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -485,7 +485,7 @@
     },
     "packages/coder-tui": {
       "name": "@agentuity/coder-tui",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@mariozechner/pi-coding-agent": "^0.65.0",
         "@mariozechner/pi-tui": "^0.65.0",
@@ -500,7 +500,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -514,7 +514,7 @@
     },
     "packages/db": {
       "name": "@agentuity/db",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
@@ -528,7 +528,7 @@
     },
     "packages/drizzle": {
       "name": "@agentuity/drizzle",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/postgres": "workspace:*",
@@ -544,7 +544,7 @@
     },
     "packages/email": {
       "name": "@agentuity/email",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -559,7 +559,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -576,7 +576,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -589,7 +589,7 @@
     },
     "packages/hono": {
       "name": "@agentuity/hono",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/email": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
@@ -614,7 +614,7 @@
     },
     "packages/keyvalue": {
       "name": "@agentuity/keyvalue",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -629,7 +629,7 @@
     },
     "packages/local": {
       "name": "@agentuity/local",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -641,7 +641,7 @@
     },
     "packages/migrate": {
       "name": "@agentuity/migrate",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "bin": {
         "agentuity-migrate": "./bin/migrate.ts",
       },
@@ -657,7 +657,7 @@
     },
     "packages/opencode": {
       "name": "@agentuity/opencode",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
@@ -673,7 +673,7 @@
     },
     "packages/postgres": {
       "name": "@agentuity/postgres",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "pg": "^8.13.1",
@@ -689,7 +689,7 @@
     },
     "packages/queue": {
       "name": "@agentuity/queue",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -704,7 +704,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/analytics": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -724,14 +724,14 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "devDependencies": {
         "typescript": "^5.9.0",
       },
     },
     "packages/sandbox": {
       "name": "@agentuity/sandbox",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -741,7 +741,7 @@
     },
     "packages/schedule": {
       "name": "@agentuity/schedule",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -756,7 +756,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -769,7 +769,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -786,7 +786,7 @@
     },
     "packages/stream": {
       "name": "@agentuity/stream",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -801,7 +801,7 @@
     },
     "packages/task": {
       "name": "@agentuity/task",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -816,7 +816,7 @@
     },
     "packages/telemetry": {
       "name": "@agentuity/telemetry",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -844,7 +844,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -854,7 +854,7 @@
     },
     "packages/vector": {
       "name": "@agentuity/vector",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -869,7 +869,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -883,7 +883,7 @@
     },
     "packages/webhook": {
       "name": "@agentuity/webhook",
-      "version": "3.0.0-alpha.1",
+      "version": "3.0.0-alpha.2",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -1155,23 +1155,23 @@
 
     "@better-fetch/fetch": ["@better-fetch/fetch@1.1.21", "", {}, "sha512-/ImESw0sskqlVR94jB+5+Pxjf+xBwDZF/N5+y2/q4EqD7IARUTSpPfIo8uf39SYpCxyOCtbyYpUrZ3F/k0zT4A=="],
 
-    "@biomejs/biome": ["@biomejs/biome@2.4.11", "", { "optionalDependencies": { "@biomejs/cli-darwin-arm64": "2.4.11", "@biomejs/cli-darwin-x64": "2.4.11", "@biomejs/cli-linux-arm64": "2.4.11", "@biomejs/cli-linux-arm64-musl": "2.4.11", "@biomejs/cli-linux-x64": "2.4.11", "@biomejs/cli-linux-x64-musl": "2.4.11", "@biomejs/cli-win32-arm64": "2.4.11", "@biomejs/cli-win32-x64": "2.4.11" }, "bin": { "biome": "bin/biome" } }, "sha512-nWxHX8tf3Opb/qRgZpBbsTOqOodkbrkJ7S+JxJAruxOReaDPPmPuLBAGQ8vigyUgo0QBB+oQltNEAvalLcjggA=="],
+    "@biomejs/biome": ["@biomejs/biome@2.4.12", "", { "optionalDependencies": { "@biomejs/cli-darwin-arm64": "2.4.12", "@biomejs/cli-darwin-x64": "2.4.12", "@biomejs/cli-linux-arm64": "2.4.12", "@biomejs/cli-linux-arm64-musl": "2.4.12", "@biomejs/cli-linux-x64": "2.4.12", "@biomejs/cli-linux-x64-musl": "2.4.12", "@biomejs/cli-win32-arm64": "2.4.12", "@biomejs/cli-win32-x64": "2.4.12" }, "bin": { "biome": "bin/biome" } }, "sha512-Rro7adQl3NLq/zJCIL98eElXKI8eEiBtoeu5TbXF/U3qbjuSc7Jb5rjUbeHHcquDWeSf3HnGP7XI5qGrlRk/pA=="],
 
-    "@biomejs/cli-darwin-arm64": ["@biomejs/cli-darwin-arm64@2.4.11", "", { "os": "darwin", "cpu": "arm64" }, "sha512-wOt+ed+L2dgZanWyL6i29qlXMc088N11optzpo10peayObBaAshbTcxKUchzEMp9QSY8rh5h6VfAFE3WTS1rqg=="],
+    "@biomejs/cli-darwin-arm64": ["@biomejs/cli-darwin-arm64@2.4.12", "", { "os": "darwin", "cpu": "arm64" }, "sha512-BnMU4Pc3ciEVteVpZ0BK33MLr7X57F5w1dwDLDn+/iy/yTrA4Q/N2yftidFtsA4vrDh0FMXDpacNV/Tl3fbmng=="],
 
-    "@biomejs/cli-darwin-x64": ["@biomejs/cli-darwin-x64@2.4.11", "", { "os": "darwin", "cpu": "x64" }, "sha512-gZ6zR8XmZlExfi/Pz/PffmdpWOQ8Qhy7oBztgkR8/ylSRyLwfRPSadmiVCV8WQ8PoJ2MWUy2fgID9zmtgUUJmw=="],
+    "@biomejs/cli-darwin-x64": ["@biomejs/cli-darwin-x64@2.4.12", "", { "os": "darwin", "cpu": "x64" }, "sha512-x9uJ0bI1rJsWICp3VH8w/5PnAVD3A7SqzDpbrfoUQX1QyWrK5jSU4fRLo/wSgGeplCivbxBRKmt5Xq4/nWvq8A=="],
 
-    "@biomejs/cli-linux-arm64": ["@biomejs/cli-linux-arm64@2.4.11", "", { "os": "linux", "cpu": "arm64" }, "sha512-avdJaEElXrKceK0va9FkJ4P5ci3N01TGkc6ni3P8l3BElqbOz42Wg2IyX3gbh0ZLEd4HVKEIrmuVu/AMuSeFFA=="],
+    "@biomejs/cli-linux-arm64": ["@biomejs/cli-linux-arm64@2.4.12", "", { "os": "linux", "cpu": "arm64" }, "sha512-tOwuCuZZtKi1jVzbk/5nXmIsziOB6yqN8c9r9QM0EJYPU6DpQWf11uBOSCfFKKM4H3d9ZoarvlgMfbcuD051Pw=="],
 
-    "@biomejs/cli-linux-arm64-musl": ["@biomejs/cli-linux-arm64-musl@2.4.11", "", { "os": "linux", "cpu": "arm64" }, "sha512-+Sbo1OAmlegtdwqFE8iOxFIWLh1B3OEgsuZfBpyyN/kWuqZ8dx9ZEes6zVnDMo+zRHF2wLynRVhoQmV7ohxl2Q=="],
+    "@biomejs/cli-linux-arm64-musl": ["@biomejs/cli-linux-arm64-musl@2.4.12", "", { "os": "linux", "cpu": "arm64" }, "sha512-FhfpkAAlKL6kwvcVap0Hgp4AhZmtd3YImg0kK1jd7C/aSoh4SfsB2f++yG1rU0lr8Y5MCFJrcSkmssiL9Xnnig=="],
 
-    "@biomejs/cli-linux-x64": ["@biomejs/cli-linux-x64@2.4.11", "", { "os": "linux", "cpu": "x64" }, "sha512-TagWV0iomp5LnEnxWFg4nQO+e52Fow349vaX0Q/PIcX6Zhk4GGBgp3qqZ8PVkpC+cuehRctMf3+6+FgQ8jCEFQ=="],
+    "@biomejs/cli-linux-x64": ["@biomejs/cli-linux-x64@2.4.12", "", { "os": "linux", "cpu": "x64" }, "sha512-8pFeAnLU9QdW9jCIslB/v82bI0lhBmz2ZAKc8pVMFPO0t0wAHsoEkrUQUbMkIorTRIjbqyNZHA3lEXavsPWYSw=="],
 
-    "@biomejs/cli-linux-x64-musl": ["@biomejs/cli-linux-x64-musl@2.4.11", "", { "os": "linux", "cpu": "x64" }, "sha512-bexd2IklK7ZgPhrz6jXzpIL6dEAH9MlJU1xGTrypx+FICxrXUp4CqtwfiuoDKse+UlgAlWtzML3jrMqeEAHEhA=="],
+    "@biomejs/cli-linux-x64-musl": ["@biomejs/cli-linux-x64-musl@2.4.12", "", { "os": "linux", "cpu": "x64" }, "sha512-dwTIgZrGutzhkQCuvHynCkyW6hJxUuyZqKKO0YNfaS2GUoRO+tOvxXZqZB6SkWAOdfZTzwaw8IEdUnIkHKHoew=="],
 
-    "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.4.11", "", { "os": "win32", "cpu": "arm64" }, "sha512-RJhaTnY8byzxDt4bDVb7AFPHkPcjOPK3xBip4ZRTrN3TEfyhjLRm3r3mqknqydgVTB74XG8l4jMLwEACEeihVg=="],
+    "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.4.12", "", { "os": "win32", "cpu": "arm64" }, "sha512-B0DLnx0vA9ya/3v7XyCaP+/lCpnbWbMOfUFFve+xb5OxyYvdHaS55YsSddr228Y+JAFk58agCuZTsqNiw2a6ig=="],
 
-    "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.4.11", "", { "os": "win32", "cpu": "x64" }, "sha512-A8D3JM/00C2KQgUV3oj8Ba15EHEYwebAGCy5Sf9GAjr5Y3+kJIYOiESoqRDeuRZueuMdCsbLZIUqmPhpYXJE9A=="],
+    "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.4.12", "", { "os": "win32", "cpu": "x64" }, "sha512-yMckRzTyZ83hkk8iDFWswqSdU8tvZxspJKnYNh7JZr/zhZNOlzH13k4ecboU6MurKExCe2HUkH75pGI/O2JwGA=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
 
@@ -3161,7 +3161,7 @@
 
     "kind-of": ["kind-of@6.0.3", "", {}, "sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw=="],
 
-    "koffi": ["koffi@2.15.6", "", {}, "sha512-WQBpM5uo74UQ17UpsFN+PUOrQQg4/nYdey4SGVluQun2drYYfePziLLWdSmFb4wSdWlJC1aimXQnjhPCheRKuw=="],
+    "koffi": ["koffi@2.16.0", "", {}, "sha512-h/2NJueOKWd0YYycEOWDspomizgNfuOKf/V7ZE2fytvuRtHoY9Tb+y4x6GJ6pFqaVndWn9dLK+sCI14eWtu5rA=="],
 
     "kysely": ["kysely@0.27.6", "", {}, "sha512-FIyV/64EkKhJmjgC0g2hygpBv5RNWVPyNCqSAD7eTCv6eFWNIi4PN1UvdSJGicN/o35bnevgis4Y0UDC0qi8jQ=="],
 
@@ -4555,7 +4555,7 @@
 
     "svelte-check/chokidar": ["chokidar@4.0.3", "", { "dependencies": { "readdirp": "^4.0.1" } }, "sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA=="],
 
-    "tanstack-start-app/@ai-sdk/openai": ["@ai-sdk/openai@3.0.52", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.23" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-4Rr8NCGmfWTz6DCUvixn9UmyZcMatiHn0zWoMzI3JCUe9R1P/vsPOpCBALKoSzVYOjyJnhtnVIbfUKujcS39uw=="],
+    "tanstack-start-app/@ai-sdk/openai": ["@ai-sdk/openai@3.0.53", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.23" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-Wld+Rbc05KaUn08uBt06eEuwcgalcIFtIl32Yp+GxuZXUQwOb6YeAuq+C6da4ch6BurFoqEaLemJVwjBb7x+PQ=="],
 
     "tanstack-start-app/lucide-react": ["lucide-react@0.545.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-7r1/yUuflQDSt4f1bpn5ZAocyIxcTyVyBBChSVtBKn5M+392cPmI5YJMWOJKk/HUWGm5wg83chlAZtCcGbEZtw=="],
 
