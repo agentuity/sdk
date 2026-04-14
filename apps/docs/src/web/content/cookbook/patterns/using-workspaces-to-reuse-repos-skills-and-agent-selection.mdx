@@ -1,0 +1,150 @@
+---
+title: Using Workspaces to Reuse Repos, Skills, and Agent Selection
+short_title: Use Workspaces
+description: Store reusable Coder selections in a workspace and attach them to sessions with workspaceId
+---
+
+Use this page when you want to save a session setup once and reuse it with `workspaceId`. Start with the pieces you repeat most often: saved skills and agent selection. Add repositories when your app already knows which repos belong there.
+
+<Callout type="info" title="Use this page when you want reusable session composition">
+Use this page when your app keeps reaching for the same skills and agent roster and you want one saved workspace instead of repeating those selections on every `createSession()` call.
+</Callout>
+
+<Callout type="tip" title="Start with selections, then add repos when your app already has them">
+This example stores a saved skill and an agent roster, then reuses both from the workspace. You can add repositories to the same workspace later.
+</Callout>
+
+This works well as a local script while you shape the workspace contents and inspect the session it produces.
+
+## The Pattern
+
+Create a workspace, then create a session that points at it:
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const DEFAULT_TASK =
+  'Use the workspace selections to review the repo, identify the biggest implementation risk, and recommend a focused next step.';
+
+function getTask(): string {
+  const task = process.argv.slice(2).join(' ').trim();
+  return task || DEFAULT_TASK;
+}
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+  const task = getTask();
+
+  // Save the skill into the library first so the workspace can own it by id.
+  const savedSkill = await client.saveSkill({
+    repo: 'anthropics/skills',
+    skillId: 'frontend-design',
+    name: 'frontend-design',
+    description: 'Design-focused frontend implementation guidance.',
+    url: 'https://skills.sh/anthropics/skills/frontend-design',
+  });
+
+  // Workspaces bundle reusable selections (skills, agents, repos) behind a single id.
+  const workspace = await client.createWorkspace({
+    name: `workspace-${Date.now()}`,
+    description: 'Reusable selections for review-oriented sessions.',
+    savedSkillIds: [savedSkill.id],
+    agentSlugs: ['builder', 'reviewer'], // [!code highlight]
+  });
+
+  // Passing workspaceId is enough; the session inherits the workspace's selections.
+  const created = await client.createSession({
+    task,
+    workflowMode: 'standard',
+    workspaceId: workspace.id, // [!code highlight]
+    // defaultAgent can still be set per session even when a workspace supplies the roster.
+    defaultAgent: 'builder',
+  });
+
+  // Read the session back so you can confirm the workspace selections took effect
+  // and the session started with the defaults you expect.
+  const session = await client.getSession(created.sessionId);
+
+  console.log(
+    JSON.stringify(
+      {
+        workspaceId: workspace.id,
+        sessionId: session.sessionId,
+        defaultAgent: session.defaultAgent,
+        skills: session.skills.map((skill) => ({
+          repo: skill.repo,
+          skillId: skill.skillId,
+          name: skill.name,
+        })),
+      },
+      null,
+      2
+    )
+  );
+}
+
+void main();
+```
+
+## Example Output
+
+```json
+{
+  "workspaceId": "ws_956cc248e682",
+  "sessionId": "codesess_2f3af05751fb",
+  "defaultAgent": "builder",
+  "skills": [
+    {
+      "repo": "anthropics/skills",
+      "skillId": "frontend-design",
+      "name": "frontend-design"
+    }
+  ]
+}
+```
+
+What this means:
+
+- the workspace stored the reusable selections
+- `workspaceId` carried those selections into the session
+- you can still set a default agent like `builder` when you create the session
+
+## Where Repositories Fit
+
+Workspaces are also where repository reuse belongs. When your app already has a valid `CoderSessionRepositoryRef`, add it to the workspace the same way:
+
+```typescript
+// Store repo, skill, and agent selections together so later createSession calls need only workspaceId.
+const workspace = await client.createWorkspace({
+  name: 'review-workspace',
+  repos: [repoRef], // Repository ref your app already resolved
+  savedSkillIds: [savedSkill.id],
+  agentSlugs: ['builder', 'reviewer'],
+});
+```
+
+That keeps repo selection, skill selection, and agent selection in one reusable object. If your app does not already have repository refs, start with skills and agent selection first, then add repo reuse later.
+
+## When to Use This Pattern
+
+Use this pattern when you want:
+
+- one saved setup reused across multiple sessions
+- less duplication in your session creation code
+- a stable place to store reusable skill and agent selections
+- session creation that starts from a named workspace instead of a long config object
+
+## Key Points
+
+- Workspaces are a composition tool. They are most helpful once you already know the selections your app reuses.
+- A workspace cannot be empty. Include at least one repo, saved skill, skill bucket, or agent selection.
+- `workspaceId` does not replace normal session lifecycle APIs. You still create, inspect, archive, and delete sessions the same way.
+- Start with saved skills and agent selection. Add repos when your app already has repository refs to store or resolve elsewhere.
+- Reading the session back after creation is the cleanest way to verify that the workspace produced the session you expected.
+
+## See Also
+
+- [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session): Attach saved skills directly without first creating a workspace
+- [Choosing Built-In Agents for a Coder Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Set the built-in roster without introducing a workspace
+- [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Core session lifecycle flow
+- [Coder Client](/reference/sdk-reference/coder): Full `createWorkspace()` and `createSession()` reference

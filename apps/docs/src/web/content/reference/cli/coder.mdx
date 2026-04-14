@@ -14,7 +14,7 @@ All commands accept `--json` for machine-readable output. This is a global CLI f
 
 | Command | Description |
 |---------|-------------|
-| `coder start` | Start a Pi coding session |
+| `coder tui` | Open the interactive Coder terminal session |
 | `coder create <task>` | Create a new session |
 | `coder list` | List active sessions |
 | `coder get <id>` | Show session details |
@@ -34,15 +34,15 @@ All commands accept `--json` for machine-readable output. This is a global CLI f
 - `show`, `inspect` → `get`
 - `new` → `create`
 - `rm`, `del`, `remove` → `delete`
-- `run`, `tui` → `start`
+- `run`, `start` → `tui`
 
 ## Starting a Session
 
 ```bash
-agentuity coder start
+agentuity coder tui
 ```
 
-Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The CLI auto-detects the Hub URL and extension path.
+Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The CLI auto-detects the Hub URL and extension path. `start` and `run` are aliases for `tui`.
 
 ### Options
 
@@ -61,22 +61,22 @@ Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The 
 
 ```bash
 # Start with auto-detection
-agentuity coder start
+agentuity coder tui
 
 # Start as a specific agent role
-agentuity coder start --agent scout
+agentuity coder tui --agent scout
 
 # Connect to an existing sandbox session
-agentuity coder start --remote codesess_abc123
+agentuity coder tui --remote codesess_abc123
 
 # Browse and select a sandbox session
-agentuity coder start --remote
+agentuity coder tui --remote
 
 # Create a new sandbox session with a task
-agentuity coder start --sandbox "Build an auth system"
+agentuity coder tui --sandbox "Build an auth system"
 
 # Create a sandbox with a git repo cloned
-agentuity coder start --sandbox "Build auth" --repo https://github.com/org/repo
+agentuity coder tui --sandbox "Build auth" --repo https://github.com/org/repo
 ```
 
 ## Creating a Session
@@ -105,6 +105,11 @@ Creates a new Coder session. Pass `--connect` to attach immediately after creati
 | `--repo-branch <branch>` | Branch to checkout |
 | `--workspace-id <id>` | Workspace to use |
 | `--tags <list>` | Comma-separated tags |
+| `--default-agent <slug>` | Preferred default built-in or custom agent |
+| `--enabled-agents <list>` | Comma-separated agent slugs to include. Built-in roles like `builder` also work. Alias: `--agent-slugs` |
+| `--saved-skill-ids <list>` | Comma-separated saved skill IDs |
+| `--skill-bucket-ids <list>` | Comma-separated skill bucket IDs |
+| `--env <pairs>` | Comma-separated `KEY=VALUE` environment variables |
 
 ## Listing Sessions
 
@@ -150,14 +155,21 @@ Shows detailed information about a specific session, including participants, tas
 
 ## Workspaces
 
-Manage reusable workspace configurations that bundle repositories and skills.
+Manage reusable workspace configurations from the CLI.
+
+From the CLI, think of a workspace as a saved setup you can reuse later. It is a good fit for repository choices and agent selection. If you want to build a workspace around saved skills or skill buckets, do that from the SDK or web app.
+
+Do not create an empty workspace. Start with at least one repository or agent selection.
 
 ```bash
 # List workspaces
 agentuity coder workspace list
 
-# Create a workspace
+# Create a repo-backed workspace
 agentuity coder workspace create "Auth System" --repo https://github.com/org/repo
+
+# Create a workspace with agent selection
+agentuity coder workspace create "Review Workspace" --enabled-agents builder
 
 # Show workspace details
 agentuity coder workspace get ws_abc123
@@ -165,6 +177,17 @@ agentuity coder workspace get ws_abc123
 # Delete a workspace
 agentuity coder workspace delete ws_abc123
 ```
+
+### Workspace Create Options
+
+| Option | Description |
+|--------|-------------|
+| `--url <url>` | Coder API URL override |
+| `--description <text>` | Workspace description |
+| `--scope <scope>` | `user` or `org` |
+| `--repo <url>` | Git repository URL to store on the workspace |
+| `--repo-branch <branch>` | Branch to associate with the repository |
+| `--enabled-agents <list>` | Comma-separated agent slugs. Built-in roles like `builder` also work. Alias: `--agent-slugs` |
 
 ## Skills
 
@@ -180,8 +203,14 @@ agentuity coder skill save --repo my-org/skills --skill-id code-review --name "C
 # List skill buckets
 agentuity coder skill buckets
 
+# Create a skill bucket
+agentuity coder skill buckets --create "Frontend Skills" --description "Reusable UI skills"
+
 # Delete a skill
 agentuity coder skill delete skill_abc123
+
+# Delete a skill bucket
+agentuity coder skill buckets --delete bucket_abc123
 ```
 
 ## URL Resolution

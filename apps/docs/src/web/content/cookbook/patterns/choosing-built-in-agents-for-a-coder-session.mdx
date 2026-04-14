@@ -1,0 +1,141 @@
+---
+title: Choosing Built-In Agents for a Coder Session
+short_title: Built-In Agents
+description: Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session
+---
+
+Not every Coder session should expose the same agent roster. Use `agentSlugs` to choose which built-in agents are available for a session, then use `defaultAgent` when you want prompts to route to a specific built-in agent instead of the default `lead` flow.
+
+<Callout type="info" title="Use this page when you want a more opinionated session roster">
+Use this page when you want to narrow the built-in agents for a session, for example a focused builder plus reviewer workflow instead of the broader default team.
+</Callout>
+
+<Callout type="tip" title="Read the session back after creation">
+`createSession()` accepts the roster. Call `getSession()` when you want to confirm the session state and the default agent.
+</Callout>
+
+You can test the roster behavior from a small local script before wiring it into a larger app or tool.
+
+## The Pattern
+
+Create the session with an explicit built-in roster, then inspect the session detail:
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const DEFAULT_TASK =
+  'Inspect the repo, identify the main implementation risks, and suggest a clean next step.';
+const AGENT_SLUGS = ['builder', 'reviewer'] as const;
+const DEFAULT_AGENT = 'builder';
+
+function getTask(): string {
+  const task = process.argv.slice(2).join(' ').trim();
+  return task || DEFAULT_TASK;
+}
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+  const task = getTask();
+
+  try {
+    const created = await client.createSession({
+      task,
+      workflowMode: 'standard',
+      // defaultAgent: the built-in the Hub routes to when no specific agent is named.
+      defaultAgent: DEFAULT_AGENT, // [!code highlight]
+      // agentSlugs: the only built-ins mounted for this session; others are hidden.
+      agentSlugs: [...AGENT_SLUGS], // [!code highlight]
+      tags: ['docs-example', 'built-in-agents'],
+    });
+
+    // Read the session back so you can confirm the default agent and lifecycle state.
+    const session = await client.getSession(created.sessionId);
+
+    console.log(
+      JSON.stringify(
+        {
+          sessionId: session.sessionId,
+          workflowMode: session.workflowMode,
+          defaultAgent: session.defaultAgent,
+          status: session.status,
+          bucket: session.bucket,
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('Failed to create a built-in agent session');
+    console.error(message);
+    process.exitCode = 1;
+  }
+}
+
+void main();
+```
+
+## Example Output
+
+```json
+{
+  "sessionId": "codesess_142090f92556",
+  "workflowMode": "standard",
+  "defaultAgent": "builder",
+  "status": "creating",
+  "bucket": "provisioning"
+}
+```
+
+What this means:
+
+- `agentSlugs` limits the built-in roster attached when you create the session
+- `defaultAgent` tells the Hub which built-in agent should handle routed work by default
+- `status` and `bucket` still describe the lifecycle state of the session itself
+
+## How Agent Selection Works
+
+The simplest mental model is:
+
+- `lead` is the default orchestration posture for a normal session
+- `agentSlugs` says which built-in specialists are mounted for this session
+- `defaultAgent` says which agent should be preferred when the session is not just using the normal `lead` path
+
+So if you create a session with:
+
+```typescript
+{
+  agentSlugs: ['builder', 'reviewer'],
+  defaultAgent: 'builder',
+}
+```
+
+you are effectively saying:
+
+- this session should expose `builder` and `reviewer`
+- `builder` should be the default routed specialist
+
+## When to Use This Pattern
+
+Use this pattern when you want:
+
+- a focused implementation session with `builder`
+- a review-oriented session with `reviewer`
+- a tighter roster for your app instead of every available built-in agent
+- a consistent default specialist for repeated automation
+
+If you just want a normal Coder session, you can omit both fields and let the standard session behavior take over.
+
+## Key Points
+
+- Start with a small roster. It keeps the session easier to inspect.
+- Prefer `getSession()` over a list view when you need the definitive session state.
+- Use built-in agent names that actually exist in your Hub environment.
+- If you need your own reusable agent definition, that is a custom-agent flow, not a built-in roster flow.
+
+## See Also
+
+- [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the core create, read, archive, and delete flow
+- [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Add explicit workflow state on top of session composition
+- [Coder](/services/coder): Concepts, lifecycle, and session-state fields
+- [Coder Client](/reference/sdk-reference/coder): Full `createSession()` and `getSession()` reference

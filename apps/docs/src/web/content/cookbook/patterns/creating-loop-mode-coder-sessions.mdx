@@ -1,0 +1,206 @@
+---
+title: Creating Loop-Mode Coder Sessions
+short_title: Loop-Mode Sessions
+description: Create a loop-mode Coder session and inspect its workflow state with getLoopState
+---
+
+Use loop mode when you want a session to carry explicit workflow state across iterations. This is different from a normal interactive session: the session has a goal, iteration state, and loop-specific status that you can inspect separately from the standard session detail.
+
+<Callout type="info" title="Use this page when your workflow is iteration-aware">
+Use this page when your app needs more than a standard interactive session, for example review loops, bounded research loops, or workflows that need explicit iteration and pause state.
+</Callout>
+
+This is easiest to explore from a small local script so you can create the session and inspect its loop state right away.
+
+## The Pattern
+
+Create the session with `workflowMode: 'loop'`, then call `getLoopState()` to read the workflow state back.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+
+  try {
+    const created = await client.createSession({
+      task: 'Review the repository and suggest the next documentation steps.',
+      // Opt into loop workflow state; standard sessions do not expose loop fields.
+      workflowMode: 'loop', // [!code highlight]
+      loop: {
+        goal: 'Produce a concise docs plan',
+        maxIterations: 3,
+        // Default to supervised advancement; flip to true for unattended loops.
+        autoContinue: false,
+        allowDetached: false,
+      },
+      tags: ['docs', 'loop-example'],
+    });
+
+    // getSession gives you lifecycle state; getLoopState is the only place loop fields live.
+    const session = await client.getSession(created.sessionId);
+    const loopState = await client.getLoopState(created.sessionId); // [!code highlight]
+
+    console.log(
+      JSON.stringify(
+        {
+          session: {
+            sessionId: session.sessionId,
+            status: session.status,
+            bucket: session.bucket,
+            workflowMode: session.workflowMode,
+          },
+          loopState,
+        },
+        null,
+        2
+      )
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('Failed to create or inspect the loop-mode session');
+    console.error(message);
+    process.exitCode = 1;
+  }
+}
+
+void main();
+```
+
+## Example Output
+
+```json
+{
+  "session": {
+    "sessionId": "codesess_6727f29e6086",
+    "status": "creating",
+    "bucket": "provisioning",
+    "workflowMode": "loop"
+  },
+  "loopState": {
+    "sessionId": "codesess_6727f29e6086",
+    "workflowMode": "loop",
+    "loop": {
+      "status": "starting",
+      "iteration": 0,
+      "maxIterations": 3,
+      "goal": "Produce a concise docs plan",
+      "startedAt": 1776110497864,
+      "updatedAt": 1776110497864,
+      "autoContinue": false,
+      "allowDetached": false
+    }
+  }
+}
+```
+
+## What to Inspect
+
+Treat `getSession()` and `getLoopState()` as two related but different views:
+
+- `getSession()` tells you the overall lifecycle state of the session
+- `getLoopState()` tells you the workflow state inside a loop-mode session
+
+The most important loop fields are:
+
+- `status`: where the loop currently is, such as `starting`, `running`, or `paused`
+- `iteration`: the current loop iteration
+- `maxIterations`: the configured upper bound
+- `goal`: the high-level goal you gave the loop
+- `autoContinue`: whether the loop advances without manual approval
+- `allowDetached`: whether the loop is allowed to continue without an attached client
+
+## Polling a Loop to Completion
+
+For headless, unattended runs, configure the loop with `autoContinue: true` and `allowDetached: true`, then poll `getLoopState()` until the loop reaches a terminal status. This lets your app dispatch the work and check back at a controlled interval rather than staying connected.
+
+The terminal statuses from `CoderLoopStatusSchema` are `completed`, `cancelled`, and `blocked`. The status `awaiting_input` is a non-terminal pause: the loop stopped and is waiting for external input before it can continue. All other statuses (`idle`, `starting`, `running`, `paused`) indicate the loop is still in progress.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+import type { CoderLoopStatus } from '@agentuity/coder';
+
+const TERMINAL: ReadonlySet<CoderLoopStatus> = new Set(['completed', 'cancelled', 'blocked']);
+const POLL_MS = 5_000;
+const MAX_WAIT_MS = 10 * 60 * 1_000; // 10-minute wall-clock ceiling
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+
+  const created = await client.createSession({
+    task: 'Audit the repository for outdated dependencies and open a summary issue.',
+    workflowMode: 'loop',
+    loop: {
+      goal: 'Identify and report all packages more than two major versions behind.',
+      maxIterations: 10,
+      autoContinue: true,   // advance each iteration without manual approval
+      allowDetached: true,  // continue even when no client is attached
+    },
+    tags: ['deps', 'audit'],
+  });
+
+  console.log('Session created:', created.sessionId);
+
+  const deadline = Date.now() + MAX_WAIT_MS;
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+
+    const { loop } = await client.getLoopState(created.sessionId);
+
+    if (!loop) {
+      // Loop state is not initialized yet; the session is still starting.
+      continue;
+    }
+
+    const { status, iteration, maxIterations } = loop;
+    console.log(`iteration ${iteration}/${maxIterations ?? '?'}: ${status}`);
+
+    if (TERMINAL.has(status)) {
+      console.log('Loop finished with status:', status);
+      if (loop.summary) {
+        console.log('Summary:', loop.summary);
+      }
+      return;
+    }
+
+    if (status === 'awaiting_input') {
+      // The loop paused and is waiting for external input before it can continue.
+      // Your app would handle this, for example by prompting the user or injecting
+      // a response via the Hub WebSocket or REST API.
+      console.log('Loop is awaiting input. Exiting poll loop.');
+      return;
+    }
+  }
+
+  console.error('Timed out waiting for loop to complete.');
+  process.exitCode = 1;
+}
+
+void main();
+```
+
+The `loop.summary` and `loop.nextAction` fields are populated by the Hub as the loop progresses. They are useful for surfacing progress in a UI or feeding into a downstream step.
+
+## When to Use This Pattern
+
+Use loop mode when your app needs explicit iteration-aware workflow state, not just a long-running session.
+
+- structured review or planning flows
+- bounded research or implementation loops
+- apps that need to display loop progress separately from normal session status
+
+If you only need a normal interactive coding session, stick with `workflowMode: 'standard'`.
+
+## Key Points
+
+- Loop mode is explicit. Sessions do not become loop-mode sessions automatically.
+- `getLoopState()` is the right place to inspect loop progress. Do not infer it only from top-level session status.
+- Keep the loop goal concrete. It becomes part of the state your app can show to users.
+- Start with `autoContinue: false` unless you specifically want unattended advancement.
+
+## See Also
+
+- [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the standard session flow and core lifecycle
+- [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach): Resume or inspect sessions that may still be live
+- [Coder Client](/reference/sdk-reference/coder): Full method reference for `createSession()` and `getLoopState()`

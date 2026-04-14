@@ -1,7 +1,7 @@
 ---
 title: Coder API
 short_title: Coder
-description: Manage Coder sessions, session data, loop state, and known users through the HTTP API
+description: Manage Coder sessions, custom agents, session data, loop state, and known users through the REST API
 ---
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
@@ -100,6 +100,12 @@ Session creation payload.
     "required": false
   },
   {
+    "name": "defaultAgent",
+    "type": "string",
+    "description": "Preferred default agent identifier for routing session prompts",
+    "required": false
+  },
+  {
     "name": "visibility",
     "type": "string",
     "description": "Session visibility setting",
@@ -145,6 +151,12 @@ Session creation payload.
     "name": "tags",
     "type": "string[]",
     "description": "Tags applied to the session for filtering",
+    "required": false
+  },
+  {
+    "name": "enabledAgents",
+    "type": "string[]",
+    "description": "Enabled agent roster to include in the session",
     "required": false
   },
   {
@@ -811,6 +823,11 @@ Returns a session list.
     "description": "Canonical URL for the skill repository or page"
   },
   {
+    "name": "sessions.websocket[].enabledAgents",
+    "type": "string[]",
+    "description": "Enabled agent roster attached to the session"
+  },
+  {
     "name": "sessions.websocket[].defaultAgent",
     "type": "string",
     "description": "Default agent assigned to session operations"
@@ -1209,6 +1226,11 @@ Returns the full session object.
     "name": "skills[].url",
     "type": "string",
     "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "enabledAgents",
+    "type": "string[]",
+    "description": "Enabled agent roster attached to the session"
   },
   {
     "name": "defaultAgent",
@@ -2065,5 +2087,831 @@ Returns session event history.
 #### Example
 
 <ApiExample method="GET" path="/hub/session/sess_123/events/history?limit=50&beforeId=1234" />
+
+---
+
+## Agents
+
+### List Custom Agents
+
+Lists custom agents visible to the caller.
+
+<ApiEndpoint method="GET" path="/hub/agents" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "includeArchived",
+    "type": "boolean",
+    "in": "query",
+    "required": false,
+    "description": "Include archived custom agents"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns custom agents visible to the caller.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Custom agents returned |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "agents",
+    "type": "object[]",
+    "description": "Custom agents returned by coder hub"
+  },
+  {
+    "name": "agents[].slug",
+    "type": "string",
+    "description": "Stable custom agent slug"
+  },
+  {
+    "name": "agents[].displayName",
+    "type": "string",
+    "description": "Human-readable custom agent name"
+  },
+  {
+    "name": "agents[].description",
+    "type": "string",
+    "description": "Optional custom agent description"
+  },
+  {
+    "name": "agents[].instructions",
+    "type": "string",
+    "description": "Standalone custom-agent system prompt"
+  },
+  {
+    "name": "agents[].model",
+    "type": "string",
+    "description": "Optional model override"
+  },
+  {
+    "name": "agents[].thinkingLevel",
+    "type": "string",
+    "description": "Optional thinking level override"
+  },
+  {
+    "name": "agents[].headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the custom agent is safe for non-interactive callers"
+  },
+  {
+    "name": "agents[].tools",
+    "type": "string[]",
+    "description": "Workspace tools granted to the custom agent"
+  },
+  {
+    "name": "agents[].serviceTools",
+    "type": "string[]",
+    "description": "Service tools granted to the custom agent"
+  },
+  {
+    "name": "agents[].savedSkills",
+    "type": "object[]",
+    "description": "Frozen saved-skill refs attached to the custom agent snapshot"
+  },
+  {
+    "name": "agents[].savedSkills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier"
+  },
+  {
+    "name": "agents[].savedSkills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source"
+  },
+  {
+    "name": "agents[].savedSkills[].name",
+    "type": "string",
+    "description": "Human-readable skill name"
+  },
+  {
+    "name": "agents[].savedSkills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "agents[].companionAgents",
+    "type": "string[]",
+    "description": "Companion agents auto-included alongside this custom agent"
+  },
+  {
+    "name": "agents[].id",
+    "type": "string",
+    "description": "Custom agent record identifier"
+  },
+  {
+    "name": "agents[].ownerUserId",
+    "type": "string",
+    "description": "Owner user identifier"
+  },
+  {
+    "name": "agents[].lifecycle",
+    "type": "string",
+    "description": "Current lifecycle state for the custom agent"
+  },
+  {
+    "name": "agents[].visibility",
+    "type": "string",
+    "description": "Visibility tier for the custom agent"
+  },
+  {
+    "name": "agents[].createdAt",
+    "type": "string",
+    "description": "Creation timestamp (ISO-8601)"
+  },
+  {
+    "name": "agents[].updatedAt",
+    "type": "string",
+    "description": "Last update timestamp (ISO-8601)"
+  },
+  {
+    "name": "agents[].hasPublishedVersion",
+    "type": "boolean",
+    "description": "Whether the agent has at least one published version"
+  },
+  {
+    "name": "agents[].hasUnpublishedChanges",
+    "type": "boolean",
+    "description": "Whether the current draft differs from the latest published version"
+  },
+  {
+    "name": "agents[].latestPublishedVersion",
+    "type": "number",
+    "description": "Latest published version number"
+  },
+  {
+    "name": "agents[].latestPublishedAt",
+    "type": "string",
+    "description": "Latest published timestamp (ISO-8601)"
+  },
+  {
+    "name": "agents[].published",
+    "type": "object",
+    "description": "Latest published version snapshot"
+  },
+  {
+    "name": "agents[].published.slug",
+    "type": "string",
+    "description": "Stable custom agent slug"
+  },
+  {
+    "name": "agents[].published.displayName",
+    "type": "string",
+    "description": "Human-readable custom agent name"
+  },
+  {
+    "name": "agents[].published.description",
+    "type": "string",
+    "description": "Optional custom agent description"
+  },
+  {
+    "name": "agents[].published.instructions",
+    "type": "string",
+    "description": "Standalone custom-agent system prompt"
+  },
+  {
+    "name": "agents[].published.model",
+    "type": "string",
+    "description": "Optional model override"
+  },
+  {
+    "name": "agents[].published.thinkingLevel",
+    "type": "string",
+    "description": "Optional thinking level override"
+  },
+  {
+    "name": "agents[].published.headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the custom agent is safe for non-interactive callers"
+  },
+  {
+    "name": "agents[].published.tools",
+    "type": "string[]",
+    "description": "Workspace tools granted to the custom agent"
+  },
+  {
+    "name": "agents[].published.serviceTools",
+    "type": "string[]",
+    "description": "Service tools granted to the custom agent"
+  },
+  {
+    "name": "agents[].published.savedSkills",
+    "type": "object[]",
+    "description": "Frozen saved-skill refs attached to the custom agent snapshot"
+  },
+  {
+    "name": "agents[].published.savedSkills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier"
+  },
+  {
+    "name": "agents[].published.savedSkills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source"
+  },
+  {
+    "name": "agents[].published.savedSkills[].name",
+    "type": "string",
+    "description": "Human-readable skill name"
+  },
+  {
+    "name": "agents[].published.savedSkills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "agents[].published.companionAgents",
+    "type": "string[]",
+    "description": "Companion agents auto-included alongside this custom agent"
+  },
+  {
+    "name": "agents[].published.id",
+    "type": "string",
+    "description": "Published custom agent version identifier"
+  },
+  {
+    "name": "agents[].published.agentId",
+    "type": "string",
+    "description": "Parent custom agent identifier"
+  },
+  {
+    "name": "agents[].published.version",
+    "type": "number",
+    "description": "Published version number"
+  },
+  {
+    "name": "agents[].published.createdByUserId",
+    "type": "string",
+    "description": "User who published the version"
+  },
+  {
+    "name": "agents[].published.createdAt",
+    "type": "string",
+    "description": "Version creation timestamp (ISO-8601)"
+  },
+  {
+    "name": "agents[].draft",
+    "type": "object",
+    "description": "Owner-visible draft snapshot"
+  },
+  {
+    "name": "agents[].draft.slug",
+    "type": "string",
+    "description": "Stable custom agent slug"
+  },
+  {
+    "name": "agents[].draft.displayName",
+    "type": "string",
+    "description": "Human-readable custom agent name"
+  },
+  {
+    "name": "agents[].draft.description",
+    "type": "string",
+    "description": "Optional custom agent description"
+  },
+  {
+    "name": "agents[].draft.instructions",
+    "type": "string",
+    "description": "Standalone custom-agent system prompt"
+  },
+  {
+    "name": "agents[].draft.model",
+    "type": "string",
+    "description": "Optional model override"
+  },
+  {
+    "name": "agents[].draft.thinkingLevel",
+    "type": "string",
+    "description": "Optional thinking level override"
+  },
+  {
+    "name": "agents[].draft.headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the custom agent is safe for non-interactive callers"
+  },
+  {
+    "name": "agents[].draft.tools",
+    "type": "string[]",
+    "description": "Workspace tools granted to the custom agent"
+  },
+  {
+    "name": "agents[].draft.serviceTools",
+    "type": "string[]",
+    "description": "Service tools granted to the custom agent"
+  },
+  {
+    "name": "agents[].draft.savedSkills",
+    "type": "object[]",
+    "description": "Frozen saved-skill refs attached to the custom agent snapshot"
+  },
+  {
+    "name": "agents[].draft.savedSkills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier"
+  },
+  {
+    "name": "agents[].draft.savedSkills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source"
+  },
+  {
+    "name": "agents[].draft.savedSkills[].name",
+    "type": "string",
+    "description": "Human-readable skill name"
+  },
+  {
+    "name": "agents[].draft.savedSkills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "agents[].draft.companionAgents",
+    "type": "string[]",
+    "description": "Companion agents auto-included alongside this custom agent"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/agents?includeArchived=true" />
+
+---
+
+### Create Custom Agent
+
+Creates a new custom-agent draft.
+
+<ApiEndpoint method="POST" path="/hub/agents" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Request Body
+
+Custom-agent creation payload.
+
+<ResponseFields fields={[
+  {
+    "name": "slug",
+    "type": "string",
+    "description": "Stable custom agent slug",
+    "required": true
+  },
+  {
+    "name": "displayName",
+    "type": "string",
+    "description": "Human-readable custom agent name",
+    "required": true
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Optional custom agent description",
+    "required": false
+  },
+  {
+    "name": "instructions",
+    "type": "string",
+    "description": "Standalone custom-agent system prompt",
+    "required": true
+  },
+  {
+    "name": "model",
+    "type": "string",
+    "description": "Optional model override",
+    "required": false
+  },
+  {
+    "name": "thinkingLevel",
+    "type": "string",
+    "description": "Optional thinking level override",
+    "required": false
+  },
+  {
+    "name": "headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the custom agent is safe for non-interactive callers",
+    "required": false
+  },
+  {
+    "name": "tools",
+    "type": "string[]",
+    "description": "Workspace tools to grant to the custom agent",
+    "required": false
+  },
+  {
+    "name": "serviceTools",
+    "type": "string[]",
+    "description": "Service tools to grant to the custom agent",
+    "required": false
+  },
+  {
+    "name": "savedSkillIds",
+    "type": "string[]",
+    "description": "Saved skill row ids to snapshot onto the custom agent",
+    "required": false
+  },
+  {
+    "name": "companionAgents",
+    "type": "string[]",
+    "description": "Agent names to auto-include alongside this custom agent",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created custom agent.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Custom agent created |
+| 401 | Unauthorized — invalid or missing API key |
+
+#### Example
+
+<ApiExample method="POST" path="/hub/agents" body={{
+  "slug": "code-review",
+  "displayName": "Code Review",
+  "instructions": "Focus on correctness, regressions, and missing tests.",
+  "tools": [
+    "read",
+    "grep",
+    "ls"
+  ],
+  "serviceTools": [
+    "session_todo_list",
+    "session_todo_update"
+  ]
+}} />
+
+---
+
+### Get Custom Agent
+
+Fetches a custom agent by id or slug.
+
+<ApiEndpoint method="GET" path="/hub/agents/{agentIdOrSlug}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "agentIdOrSlug",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Custom agent id or slug"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the requested custom agent.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Custom agent returned |
+| 404 | Custom agent not found |
+
+#### Example
+
+<ApiExample method="GET" path="/hub/agents/code-review" />
+
+---
+
+### Update Custom Agent
+
+Updates an owned custom-agent draft.
+
+<ApiEndpoint method="PATCH" path="/hub/agents/{agentIdOrSlug}" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "agentIdOrSlug",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Custom agent id or slug"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Request Body
+
+Custom-agent update payload.
+
+<ResponseFields fields={[
+  {
+    "name": "slug",
+    "type": "string",
+    "description": "Stable custom agent slug",
+    "required": false
+  },
+  {
+    "name": "displayName",
+    "type": "string",
+    "description": "Human-readable custom agent name",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string | null",
+    "description": "Optional custom agent description",
+    "required": false
+  },
+  {
+    "name": "instructions",
+    "type": "string",
+    "description": "Standalone custom-agent system prompt",
+    "required": false
+  },
+  {
+    "name": "model",
+    "type": "string | null",
+    "description": "Optional model override",
+    "required": false
+  },
+  {
+    "name": "thinkingLevel",
+    "type": "string | null",
+    "description": "Optional thinking level override",
+    "required": false
+  },
+  {
+    "name": "headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the custom agent is safe for non-interactive callers",
+    "required": false
+  },
+  {
+    "name": "tools",
+    "type": "string[]",
+    "description": "Workspace tools to grant to the custom agent",
+    "required": false
+  },
+  {
+    "name": "serviceTools",
+    "type": "string[]",
+    "description": "Service tools to grant to the custom agent",
+    "required": false
+  },
+  {
+    "name": "savedSkillIds",
+    "type": "string[]",
+    "description": "Saved skill row ids to snapshot onto the custom agent",
+    "required": false
+  },
+  {
+    "name": "companionAgents",
+    "type": "string[]",
+    "description": "Agent names to auto-include alongside this custom agent",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the updated custom agent.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Custom agent updated |
+| 404 | Custom agent not found |
+
+#### Example
+
+<ApiExample method="PATCH" path="/hub/agents/code-review" body={{
+  "displayName": "Code Review Draft"
+}} />
+
+---
+
+### Custom Agent Lifecycle Endpoints
+
+Publishes or archives an owned custom agent.
+
+<ApiEndpoint method="POST" path="/hub/agents/{agentIdOrSlug}/(publish|archive)" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "agentIdOrSlug",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Custom agent id or slug"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns the updated custom agent.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Lifecycle action applied |
+| 404 | Custom agent not found |
+
+#### Example
+
+<ApiExample method="POST" path="/hub/agents/code-review/publish" />
+
+---
+
+### List Custom Agent Versions
+
+Lists immutable published versions for a custom agent.
+
+<ApiEndpoint method="GET" path="/hub/agents/{agentIdOrSlug}/versions" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "agentIdOrSlug",
+    "type": "string",
+    "in": "path",
+    "required": true,
+    "description": "Custom agent id or slug"
+  },
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Response
+
+Returns published versions for the custom agent.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Custom agent versions returned |
+| 404 | Custom agent not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "versions",
+    "type": "object[]",
+    "description": "Published custom agent versions returned by coder hub"
+  },
+  {
+    "name": "versions[].slug",
+    "type": "string",
+    "description": "Stable custom agent slug"
+  },
+  {
+    "name": "versions[].displayName",
+    "type": "string",
+    "description": "Human-readable custom agent name"
+  },
+  {
+    "name": "versions[].description",
+    "type": "string",
+    "description": "Optional custom agent description"
+  },
+  {
+    "name": "versions[].instructions",
+    "type": "string",
+    "description": "Standalone custom-agent system prompt"
+  },
+  {
+    "name": "versions[].model",
+    "type": "string",
+    "description": "Optional model override"
+  },
+  {
+    "name": "versions[].thinkingLevel",
+    "type": "string",
+    "description": "Optional thinking level override"
+  },
+  {
+    "name": "versions[].headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the custom agent is safe for non-interactive callers"
+  },
+  {
+    "name": "versions[].tools",
+    "type": "string[]",
+    "description": "Workspace tools granted to the custom agent"
+  },
+  {
+    "name": "versions[].serviceTools",
+    "type": "string[]",
+    "description": "Service tools granted to the custom agent"
+  },
+  {
+    "name": "versions[].savedSkills",
+    "type": "object[]",
+    "description": "Frozen saved-skill refs attached to the custom agent snapshot"
+  },
+  {
+    "name": "versions[].savedSkills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier"
+  },
+  {
+    "name": "versions[].savedSkills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source"
+  },
+  {
+    "name": "versions[].savedSkills[].name",
+    "type": "string",
+    "description": "Human-readable skill name"
+  },
+  {
+    "name": "versions[].savedSkills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "versions[].companionAgents",
+    "type": "string[]",
+    "description": "Companion agents auto-included alongside this custom agent"
+  },
+  {
+    "name": "versions[].id",
+    "type": "string",
+    "description": "Published custom agent version identifier"
+  },
+  {
+    "name": "versions[].agentId",
+    "type": "string",
+    "description": "Parent custom agent identifier"
+  },
+  {
+    "name": "versions[].version",
+    "type": "number",
+    "description": "Published version number"
+  },
+  {
+    "name": "versions[].createdByUserId",
+    "type": "string",
+    "description": "User who published the version"
+  },
+  {
+    "name": "versions[].createdAt",
+    "type": "string",
+    "description": "Version creation timestamp (ISO-8601)"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="GET" path="/hub/agents/code-review/versions" />
 
 ---

@@ -86,7 +86,7 @@ const service: Service = {
 	name: 'Coder',
 	slug: 'coder',
 	description:
-		'Manage Coder sessions, custom agents, session data, loop state, and known users through the HTTP API',
+		'Manage Coder sessions, custom agents, session data, loop state, and known users through the REST API',
 	hasPublicEndpoints: false,
 	endpoints: [
 		{

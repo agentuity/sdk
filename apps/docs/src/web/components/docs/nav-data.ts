@@ -405,7 +405,8 @@ export const navData: NavSection[] = [
 			{
 				title: 'Coder',
 				url: '/services/coder',
-				description: 'Run AI coding sessions in managed sandboxes with real-time collaboration',
+				description:
+					'Manage AI coding sessions that run in cloud sandboxes with full lifecycle, replay, and reconnect support',
 			},
 			{
 				title: 'Observability',
@@ -477,6 +478,48 @@ export const navData: NavSection[] = [
 			{
 				title: 'Patterns',
 				items: [
+					{
+						title: 'Manage Coder Sessions',
+						url: '/cookbook/patterns/creating-coder-sessions-with-sdk',
+						description:
+							'Create a Coder session, read its state, and manage its lifecycle with CoderClient',
+					},
+					{
+						title: 'Loop-Mode Sessions',
+						url: '/cookbook/patterns/creating-loop-mode-coder-sessions',
+						description:
+							'Create a loop-mode Coder session and inspect its workflow state with getLoopState',
+					},
+					{
+						title: 'Built-In Agents',
+						url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
+						description:
+							'Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session',
+					},
+					{
+						title: 'Attach Skills',
+						url: '/cookbook/patterns/attaching-skills-to-a-coder-session',
+						description:
+							'Save skills, group them into buckets, and attach them to a Coder session with CoderClient',
+					},
+					{
+						title: 'Use Workspaces',
+						url: '/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection',
+						description:
+							'Store reusable Coder selections in a workspace and attach them to sessions with workspaceId',
+					},
+					{
+						title: 'Reconnect Sessions',
+						url: '/cookbook/patterns/preparing-coder-sessions-for-remote-attach',
+						description:
+							'Use listConnectableSessions and prepareSessionForRemoteAttach to find sessions you can still reconnect to',
+					},
+					{
+						title: 'Observe Sessions',
+						url: '/cookbook/patterns/observing-a-coder-session-through-the-hub',
+						description:
+							"Subscribe to a session's live event stream, page through its event history, and hydrate a client from the durable replay stream",
+					},
 					{
 						title: 'Autonomous Research Agent',
 						url: '/cookbook/patterns/autonomous-research',
@@ -624,17 +667,12 @@ export const navData: NavSection[] = [
 						title: 'Coder',
 						url: '/reference/api/coder',
 						description:
-							'Manage Coder sessions, session data, loop state, and known users through the HTTP API',
+							'Manage Coder sessions, custom agents, session data, loop state, and known users through the REST API',
 					},
 					{
 						title: 'Databases',
 						url: '/reference/api/database',
 						description: 'Execute queries, inspect tables, and monitor database performance',
-					},
-					{
-						title: 'Durable Streams',
-						url: '/reference/api/streams',
-						description: 'Create durable, resumable data streams with public URLs',
 					},
 					{
 						title: 'Emails',
@@ -656,12 +694,6 @@ export const navData: NavSection[] = [
 						title: 'Machines',
 						url: '/reference/api/machines',
 						description: 'Manage compute nodes and organization authentication enrollment',
-					},
-					{
-						title: 'Message Queues',
-						url: '/reference/api/queues',
-						description:
-							'Publish, consume, and manage messages with worker and pub/sub queues',
 					},
 					{
 						title: 'OAuth Applications',
@@ -687,6 +719,12 @@ export const navData: NavSection[] = [
 							'Full project lifecycle management including deployments, agents, environment variables, and hostnames',
 					},
 					{
+						title: 'Message Queues',
+						url: '/reference/api/queues',
+						description:
+							'Publish, consume, and manage messages with worker and pub/sub queues',
+					},
+					{
 						title: 'Regions',
 						url: '/reference/api/regions',
 						description: 'List available cloud regions and manage per-region resources',
@@ -708,6 +746,11 @@ export const navData: NavSection[] = [
 						url: '/reference/api/sessions',
 						description:
 							'View agent execution sessions with timing, cost, and observability data',
+					},
+					{
+						title: 'Durable Streams',
+						url: '/reference/api/streams',
+						description: 'Create durable, resumable data streams with public URLs',
 					},
 					{
 						title: 'Tasks',
