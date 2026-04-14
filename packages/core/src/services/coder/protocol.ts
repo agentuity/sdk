@@ -22,7 +22,7 @@ import { z } from 'zod/v4';
 
 /** Connection role assigned by the server in the init message */
 export const CoderHubInitRoleSchema = z
-	.enum(['lead', 'sub_agent', 'controller'])
+	.enum(['lead', 'sub_agent', 'observer', 'controller'])
 	.describe(
 		'Role assigned to a connecting client, determining its permissions and message routing.'
 	);
@@ -215,10 +215,20 @@ export const CoderHubControllerInitMessageSchema = BaseCoderHubInitMessageSchema
 );
 export type CoderHubControllerInitMessage = z.infer<typeof CoderHubControllerInitMessageSchema>;
 
+export const CoderHubObserverInitMessageSchema = BaseCoderHubInitMessageSchema.extend({
+	role: z
+		.literal('observer')
+		.describe('Indicates this client is connecting as a read-only observer.'),
+}).describe(
+	'Initialization message sent by an observer client when the server chooses to send an explicit init frame.'
+);
+export type CoderHubObserverInitMessage = z.infer<typeof CoderHubObserverInitMessageSchema>;
+
 export const CoderHubInitMessageSchema = z
 	.discriminatedUnion('role', [
 		CoderHubLeadInitMessageSchema,
 		CoderHubSubAgentInitMessageSchema,
+		CoderHubObserverInitMessageSchema,
 		CoderHubControllerInitMessageSchema,
 	])
 	.describe('Union of all initialization messages, discriminated by the client role.');
@@ -743,6 +753,22 @@ export const BootstrapReadyMessageSchema = z
 	);
 export type BootstrapReadyMessage = z.infer<typeof BootstrapReadyMessageSchema>;
 
+export const ObserverSubscribeMessageSchema = z
+	.object({
+		type: z
+			.literal('subscribe')
+			.describe('Discriminator indicating an observer subscription update.'),
+		patterns: z
+			.array(z.string())
+			.describe(
+				'Event filters to receive, including categories, exact names, wildcard prefixes, or "*".'
+			),
+	})
+	.describe(
+		'Client message updating the observer event filters for a live Coder Hub WebSocket connection.'
+	);
+export type ObserverSubscribeMessage = z.infer<typeof ObserverSubscribeMessageSchema>;
+
 export const SessionEntryMessageSchema = z
 	.object({
 		type: z
@@ -978,6 +1004,7 @@ export const ClientMessageSchema = z
 		SessionEntryMessageSchema,
 		SessionWriteMessageSchema,
 		BootstrapReadyMessageSchema,
+		ObserverSubscribeMessageSchema,
 		RpcCommandMessageSchema,
 		RpcUiResponseMessageSchema,
 		PingMessageSchema,
@@ -993,7 +1020,7 @@ export type ClientMessage = z.infer<typeof ClientMessageSchema>;
  * Messages the Coder Hub server can send to connected clients.
  */
 export const ServerMessageSchema = z
-	.discriminatedUnion('type', [
+	.union([
 		CoderHubInitMessageSchema,
 		CoderHubResponseSchema,
 		CoderHubHydrationMessageSchema,
@@ -1129,6 +1156,10 @@ export const ConnectionParamsSchema = z
 			.enum(['lead', 'observer', 'controller'])
 			.optional()
 			.describe('Requested session role; the server may override based on permissions.'),
+		subscribe: z
+			.string()
+			.optional()
+			.describe('Comma-separated event filters requested during observer connection bootstrap.'),
 		coordJobId: z
 			.string()
 			.optional()
