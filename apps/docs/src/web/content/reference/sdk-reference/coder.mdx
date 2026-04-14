@@ -72,7 +72,7 @@ Create a new coder session.
 | `body.workflowMode` | `'standard' \| 'loop'` | no | Workflow execution mode |
 | `body.loop` | `CoderSessionLoopConfig` | no | Loop-mode configuration (`goal`, `maxIterations`, `autoContinue`, `allowDetached`) |
 | `body.tags` | `string[]` | no | Tags for filtering |
-| `body.agentSlugs` | `string[]` | no | Built-in or custom agent roster attached to the session |
+| `body.enabledAgents` | `string[]` | no | Built-in or custom agent roster attached to the session |
 | `body.savedSkillIds` | `string[]` | no | Saved skill IDs to attach |
 | `body.skillBucketIds` | `string[]` | no | Skill bucket IDs to attach |
 | `body.skills` | `CoderSkillRef[]` | no | Inline skill definitions attached to the session |
@@ -118,11 +118,10 @@ Update an existing session.
 | `body.agent` | `string` | no | Updated default agent |
 | `body.defaultAgent` | `string` | no | Updated preferred default agent identifier |
 | `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Updated visibility |
-| `body.workflowMode` | `'standard' \| 'loop'` | no | Updated workflow mode |
-| `body.loop` | `CoderSessionLoopConfig` | no | Updated loop configuration |
 | `body.tags` | `string[]` | no | Updated tag set |
-| `body.agentSlugs` | `string[]` | no | Updated session agent roster |
+| `body.enabledAgents` | `string[]` | no | Updated session agent roster |
 | `body.skills` | `CoderSkillRef[]` | no | Updated attached skills for the session |
+| `body.metadata` | `Record<string, string>` | no | Updated arbitrary metadata associated with the session |
 
 **Returns:** `Promise<CoderUpdateSessionResponse>`
 
@@ -299,7 +298,7 @@ Create a reusable workspace definition. A workspace cannot be empty: include at 
 | `body.repos` | `CoderSessionRepositoryRef[]` | no | Repositories to include |
 | `body.savedSkillIds` | `string[]` | no | Saved skill IDs |
 | `body.skillBucketIds` | `string[]` | no | Skill bucket IDs |
-| `body.agentSlugs` | `string[]` | no | Built-in or custom agent roster to store on the workspace |
+| `body.enabledAgents` | `string[]` | no | Built-in or custom agent roster to store on the workspace |
 
 **Returns:** `Promise<CoderWorkspaceDetail>`
 
@@ -307,7 +306,7 @@ Create a reusable workspace definition. A workspace cannot be empty: include at 
 const workspace = await client.createWorkspace({
   name: 'Auth System',
   description: 'OAuth and session management',
-  agentSlugs: ['builder', 'reviewer'],
+  enabledAgents: ['builder', 'reviewer'],
 });
 ```
 

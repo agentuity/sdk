@@ -151,6 +151,12 @@ JSON array of OAuth client objects with usage statistics.
     "required": true
   },
   {
+    "name": "is_public",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
     "name": "created_at",
     "type": "string",
     "description": "",
@@ -290,6 +296,12 @@ JSON body with the OAuth client configuration.
     "type": "string[]",
     "description": "",
     "required": false
+  },
+  {
+    "name": "is_public",
+    "type": "boolean",
+    "description": "",
+    "required": false
   }
 ]} />
 
@@ -416,6 +428,12 @@ JSON object containing the created client and its client secret.
   },
   {
     "name": "client.internal",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.is_public",
     "type": "boolean",
     "description": "",
     "required": true
@@ -598,6 +616,12 @@ JSON object with the OAuth client details.
     "required": true
   },
   {
+    "name": "is_public",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
     "name": "created_at",
     "type": "string",
     "description": "",
@@ -732,6 +756,11 @@ JSON body with the fields to update.
     "name": "allowed_user_ids",
     "type": "string[]",
     "description": ""
+  },
+  {
+    "name": "is_public",
+    "type": "boolean",
+    "description": ""
   }
 ]} />
 
@@ -859,6 +888,12 @@ JSON object containing the updated client. May include a new client secret if th
   },
   {
     "name": "client.internal",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "client.is_public",
     "type": "boolean",
     "description": "",
     "required": true

@@ -351,7 +351,7 @@ void main();
 
 ## Updating and Cleaning Up
 
-Use `updateSession()` when you want to relabel a session, retag it, or adjust its visibility. Then decide whether to archive it for later replay or delete it completely.
+Use `updateSession()` to relabel a session, retag it, adjust its visibility, or patch its `metadata`. Metadata merges into the session's _existing_ metadata, so you can change one key without resending the rest. Then archive the session for later replay, or delete it.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -373,6 +373,11 @@ async function main(): Promise<void> {
     await client.updateSession(sessionId, { // [!code highlight]
       tags: ['docs', 'follow-up'],
       visibility: 'organization',
+      // metadata is merged into the session's existing metadata, so you can patch
+      // one correlation id without resending the rest
+      metadata: {
+        reviewStage: 'follow-up',
+      },
     });
 
     if (action === 'delete') {

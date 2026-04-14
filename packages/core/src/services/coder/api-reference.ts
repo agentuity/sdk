@@ -71,6 +71,7 @@ const CoderUpdateSessionRequestWireSchema = CoderUpdateSessionRequestSchema.pick
 	visibility: true,
 	tags: true,
 	skills: true,
+	metadata: true,
 })
 	.extend({
 		savedSkillIds: z.array(z.string()).optional().describe('Updated saved skill ids'),
@@ -87,6 +88,10 @@ const CoderUpdateSessionResponseWireSchema = z
 		skills: z.array(z.unknown()).optional().describe('Updated skills'),
 		defaultAgent: z.string().nullable().optional().describe('Updated default agent'),
 		enabledAgents: z.array(z.string()).optional().describe('Updated enabled agents'),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.describe('Updated arbitrary metadata associated with the session'),
 	})
 	.passthrough();
 

@@ -1397,6 +1397,12 @@ Session update payload.
     "required": false
   },
   {
+    "name": "metadata",
+    "type": "object",
+    "description": "Updated arbitrary metadata associated with the session",
+    "required": false
+  },
+  {
     "name": "savedSkillIds",
     "type": "string[]",
     "description": "Updated saved skill ids",
@@ -1456,6 +1462,11 @@ Returns the updated session fields.
     "name": "enabledAgents",
     "type": "string[]",
     "description": "Updated enabled agents"
+  },
+  {
+    "name": "metadata",
+    "type": "object",
+    "description": "Updated arbitrary metadata associated with the session"
   }
 ]} />
 
