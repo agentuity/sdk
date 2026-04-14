@@ -74,10 +74,10 @@ async function main(): Promise<void> {
 
     // Polls until the session is attachable, wakeable, or history-only
     // The returned session carries the live flags your UI branches on below
-    const session = await client.prepareSessionForRemoteAttach(sessionId, {
+    const session = await client.prepareSessionForRemoteAttach(sessionId, { // [!code highlight]
       timeoutMs: 30_000,
       pollIntervalMs: 1_000,
-    }); // [!code highlight]
+    });
 
     if (session.historyOnly) {
       // The live runtime is gone. Hydrate from replay or a read-only view instead

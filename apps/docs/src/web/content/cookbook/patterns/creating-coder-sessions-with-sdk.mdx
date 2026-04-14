@@ -1,6 +1,6 @@
 ---
 title: Managing Coder Sessions with the SDK
-short_title: Manage Coder Sessions
+short_title: Manage Sessions
 description: Create a Coder session, read its state, and manage its lifecycle with CoderClient
 ---
 
@@ -56,11 +56,11 @@ async function main(): Promise<void> {
     const resolvedUrl = await client.getUrl(); // [!code highlight]
     console.log('Connected to Coder Hub:', resolvedUrl);
 
-    const created = await client.createSession({
+    const created = await client.createSession({ // [!code highlight]
       task,
       workflowMode: 'standard',
       tags: ['architecture', 'docs-example'],
-    }); // [!code highlight]
+    });
     console.log('Created session:', created.sessionId);
 
     // Read the session back to inspect the first lifecycle state
@@ -243,10 +243,10 @@ async function main(): Promise<void> {
   const client = new CoderClient();
 
   try {
-    const { sessions, total } = await client.listSessions({
+    const { sessions, total } = await client.listSessions({ // [!code highlight]
       limit: 20,
       includeArchived: true,
-    }); // [!code highlight]
+    });
 
     console.log(
       JSON.stringify(
@@ -370,10 +370,10 @@ async function main(): Promise<void> {
 
   try {
     // updateSession is for app-level session detail, not runtime control
-    await client.updateSession(sessionId, {
+    await client.updateSession(sessionId, { // [!code highlight]
       tags: ['docs', 'follow-up'],
       visibility: 'organization',
-    }); // [!code highlight]
+    });
 
     if (action === 'delete') {
       // Delete temporary sessions when you don't need replay later
