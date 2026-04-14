@@ -1,4 +1,5 @@
 import type { HubClientMessage, HubRequest, HubResponse, InitMessage } from './protocol.ts';
+import { applyCoderAuthHeaders } from './auth.ts';
 
 /** How long to wait for a response before rejecting the pending promise (ms). */
 const SEND_TIMEOUT_MS = 30_000;
@@ -67,8 +68,7 @@ export class HubClient {
 	/** Called when an unsolicited server message arrives (broadcast, presence, hydration). */
 	public onServerMessage?: (message: Record<string, unknown>) => void;
 
-	/** API key for Hub authentication (sent as x-agentuity-auth-api-key header) */
-	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+	/** Hub auth token from the CLI environment. */
 	public apiKey: string | null = null;
 
 	private setConnectionState(state: ConnectionState): void {
@@ -259,11 +259,11 @@ export class HubClient {
 
 	private async connectInternal(url: string, isReconnect = false): Promise<InitMessage> {
 		const wsUrl = this.buildWebSocketUrl(url);
-		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+		const orgId = process.env.AGENTUITY_ORGID;
 		// Bun extension: custom headers on WebSocket upgrade request
-		const ws = this.apiKey
-			? new WebSocket(wsUrl, { headers: { 'x-agentuity-auth-api-key': this.apiKey } })
-			: new WebSocket(wsUrl);
+		const headers = applyCoderAuthHeaders({}, this.apiKey, orgId);
+		const ws =
+			Object.keys(headers).length > 0 ? new WebSocket(wsUrl, { headers }) : new WebSocket(wsUrl);
 		this.ws = ws;
 
 		return new Promise((resolve, reject) => {

@@ -21,6 +21,7 @@ import { OutputViewerOverlay, type StoredResult } from './output-viewer.ts';
 import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
+import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -43,9 +44,8 @@ const HUB_URL_ENV = 'AGENTUITY_CODER_HUB_URL';
 const AGENT_ENV = 'AGENTUITY_CODER_AGENT';
 const REMOTE_SESSION_ENV = 'AGENTUITY_CODER_REMOTE_SESSION';
 const NATIVE_REMOTE_ENV = 'AGENTUITY_CODER_NATIVE_REMOTE';
-// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
+// Populated by `agentuity coder start` for hub bootstrap and runtime auth.
 const API_KEY_ENV = 'AGENTUITY_CODER_API_KEY';
-const API_KEY_HEADER = 'x-agentuity-auth-api-key';
 const RECONNECT_WAIT_TIMEOUT_MS = 120_000;
 
 type HubUiStatus = 'connected' | 'reconnecting' | 'offline';
@@ -117,12 +117,11 @@ function log(msg: string): void {
 }
 
 /** Build headers object with API key if available. Merges with any existing headers. */
-// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
 	const apiKey = process.env[API_KEY_ENV];
+	const orgId = process.env.AGENTUITY_ORGID;
 	const headers: Record<string, string> = { ...extra };
-	if (apiKey) headers[API_KEY_HEADER] = apiKey;
-	return headers;
+	return applyCoderAuthHeaders(headers, apiKey, orgId);
 }
 
 // ══════════════════════════════════════════════
@@ -173,9 +172,9 @@ function fetchInitMessageSync(hubUrl: string, agentRole?: string): InitMessage |
 			'node:child_process'
 		) as typeof import('node:child_process');
 		const apiKey = process.env[API_KEY_ENV];
+		const orgId = process.env.AGENTUITY_ORGID;
 		const curlArgs = ['-s', '--connect-timeout', '3', '--max-time', '5'];
-		// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
-		if (apiKey) curlArgs.push('-H', `${API_KEY_HEADER}: ${apiKey}`);
+		curlArgs.push(...getCoderAuthCurlArgs(apiKey, orgId));
 		curlArgs.push(httpUrl);
 		const result = execFileSync('curl', curlArgs, { encoding: 'utf-8' });
 
@@ -417,7 +416,6 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// ══════════════════════════════════════════════
 
 	const client = new HubClient();
-	// TODO: Remove/Change when we get Agentuity service level auth enabled, this is just temporary
 	client.apiKey = process.env[API_KEY_ENV] || null;
 	let cachedInitMessage: InitMessage | null = initMsg;
 	let currentSessionId: string | null = initMsg.sessionId ?? null;

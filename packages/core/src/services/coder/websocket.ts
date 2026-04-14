@@ -70,7 +70,7 @@ import type {
 	ConnectionParams,
 	ServerMessage,
 } from './protocol.ts';
-import { CoderHubInitMessageSchema } from './protocol.ts';
+import { CoderHubInitMessageSchema, parseServerMessage } from './protocol.ts';
 import { normalizeCoderUrl } from './util.ts';
 
 /**
@@ -118,6 +118,11 @@ export const CoderHubWebSocketOptionsSchema = z.object({
 	task: z.string().optional().describe('Initial task for driver mode'),
 	/** Human-readable session label */
 	label: z.string().optional().describe('Session label'),
+	/** Observer event filters to request during the initial connection. */
+	subscribe: z
+		.array(z.string())
+		.optional()
+		.describe('Observer event filters to request during connection setup'),
 	/** Client origin (web, desktop, tui, sdk) */
 	origin: z.enum(['web', 'desktop', 'tui', 'sdk']).optional().describe('Client origin'),
 	/** Driver mode: 'rpc' for RPC bridge driver */
@@ -198,7 +203,13 @@ export const CoderHubWebSocketError = StructuredError('CoderHubWebSocketError')<
 		| 'response_timeout'
 		| 'invalid_response';
 	sessionId?: string;
+	serverCode?: string;
+	serverMessage?: string;
+	serverMessageType?: 'connection_rejected' | 'protocol_error';
+	closeCode?: number;
+	closeReason?: string;
 }>();
+export type CoderHubWebSocketErrorInstance = InstanceType<typeof CoderHubWebSocketError>;
 
 interface PendingRequest {
 	resolve: (response: CoderHubResponse) => void;
@@ -270,6 +281,7 @@ export class CoderHubWebSocketClient {
 		parentSessionId: string;
 		task: string;
 		label: string;
+		subscribe: string[];
 		origin: 'web' | 'desktop' | 'tui' | 'sdk';
 		driverMode: 'rpc' | undefined;
 		driverInstanceId: string;
@@ -317,6 +329,7 @@ export class CoderHubWebSocketClient {
 			parentSessionId: options.parentSessionId ?? '',
 			task: options.task ?? '',
 			label: options.label ?? '',
+			subscribe: options.subscribe ?? [],
 			origin: options.origin ?? 'sdk',
 			driverMode: options.driverMode,
 			driverInstanceId: options.driverInstanceId ?? '',
@@ -522,6 +535,57 @@ export class CoderHubWebSocketClient {
 		return `${Date.now()}-${++this.#messageId}`;
 	}
 
+	#buildHandshakeError(input: {
+		code: 'auth_failed' | 'connection_error';
+		message: string;
+		serverCode?: string;
+		serverMessage?: string;
+		serverMessageType?: 'connection_rejected' | 'protocol_error';
+		closeCode?: number;
+		closeReason?: string;
+	}): CoderHubWebSocketErrorInstance {
+		return new CoderHubWebSocketError({
+			code: input.code,
+			message: input.message,
+			sessionId: this.sessionId,
+			serverCode: input.serverCode,
+			serverMessage: input.serverMessage,
+			serverMessageType: input.serverMessageType,
+			closeCode: input.closeCode,
+			closeReason: input.closeReason,
+		});
+	}
+
+	#markReady(input?: {
+		initMessage?: CoderHubInitMessage;
+		firstMessage?: ServerMessage;
+		sendBootstrapReady?: boolean;
+	}): void {
+		this.#authenticated = true;
+		this.#initMessage = input?.initMessage ?? null;
+		this.#sessionId =
+			input?.initMessage?.sessionId ??
+			(input?.firstMessage && 'sessionId' in input.firstMessage
+				? input.firstMessage.sessionId
+				: undefined) ??
+			this.#options.sessionId ??
+			null;
+		this.#reconnectAttempts = 0;
+		this.#setState('connected');
+		this.#startHeartbeat();
+		if (input?.initMessage) {
+			this.#options.onInit(input.initMessage);
+		}
+		if (input?.sendBootstrapReady && this.#ws?.readyState === WebSocket.OPEN) {
+			this.#ws.send(JSON.stringify({ type: 'bootstrap_ready' }));
+		}
+		this.#flushMessageQueue();
+		this.#options.onOpen();
+		if (input?.firstMessage) {
+			this.#options.onMessage(input.firstMessage);
+		}
+	}
+
 	#setState(state: CoderHubWebSocketState): void {
 		if (this.#state !== state) {
 			this.#state = state;
@@ -589,6 +653,8 @@ export class CoderHubWebSocketClient {
 			parent: this.#options.parentSessionId || undefined,
 			task: this.#options.task || undefined,
 			label: this.#options.label || undefined,
+			subscribe:
+				this.#options.subscribe.length > 0 ? this.#options.subscribe.join(',') : undefined,
 			orgId: this.#options.orgId || undefined,
 			origin: this.#options.origin || undefined,
 			driverMode: this.#options.driverMode || undefined,
@@ -600,6 +666,9 @@ export class CoderHubWebSocketClient {
 			if (value !== undefined && value !== '') {
 				params.set(key, String(value));
 			}
+		}
+		if (this.#options.apiKey) {
+			params.set('api_key', this.#options.apiKey);
 		}
 
 		const queryString = params.toString();
@@ -642,12 +711,16 @@ export class CoderHubWebSocketClient {
 		ws.onopen = () => {
 			if (ws !== this.#ws) return;
 			this.#setState('authenticating');
-			ws.send(
-				JSON.stringify({
-					authorization: this.#options.apiKey,
-					org_id: this.#options.orgId,
-				})
-			);
+			if (this.#options.apiKey || this.#options.orgId) {
+				const bootstrapPayload: { authorization?: string; org_id?: string } = {};
+				if (this.#options.apiKey) {
+					bootstrapPayload.authorization = this.#options.apiKey;
+				}
+				if (this.#options.orgId) {
+					bootstrapPayload.org_id = this.#options.orgId;
+				}
+				ws.send(JSON.stringify(bootstrapPayload));
+			}
 		};
 
 		ws.onmessage = (event: MessageEvent) => {
@@ -685,10 +758,12 @@ export class CoderHubWebSocketClient {
 					if (msg.type === 'connection_rejected' || msg.type === 'protocol_error') {
 						this.#setState('closed');
 						this.#options.onError(
-							new CoderHubWebSocketError({
-								message: `Connection rejected: ${msg.message ?? msg.code ?? 'Unknown error'}`,
+							this.#buildHandshakeError({
 								code: 'auth_failed',
-								sessionId: this.sessionId,
+								message: `Connection rejected: ${msg.message ?? msg.code ?? 'Unknown error'}`,
+								serverCode: msg.code,
+								serverMessage: msg.message,
+								serverMessageType: msg.type,
 							})
 						);
 						this.#intentionallyClosed = true;
@@ -700,15 +775,18 @@ export class CoderHubWebSocketClient {
 				const initResult = CoderHubInitMessageSchema.safeParse(parsed);
 				if (initResult.success) {
 					const initMsg = initResult.data;
-					this.#authenticated = true;
-					this.#initMessage = initMsg;
-					this.#sessionId = initMsg.sessionId ?? this.#options.sessionId ?? null;
-					this.#reconnectAttempts = 0;
-					this.#setState('connected');
-					this.#startHeartbeat();
-					this.#flushMessageQueue();
-					this.#options.onInit(initMsg);
-					this.#options.onOpen();
+					this.#markReady({
+						initMessage: initMsg,
+						sendBootstrapReady: this.#options.role === 'controller',
+					});
+					return;
+				}
+
+				if (this.#options.role === 'observer') {
+					const firstObserverMessage = parseServerMessage(parsed);
+					if (firstObserverMessage) {
+						this.#markReady({ firstMessage: firstObserverMessage });
+					}
 				}
 				return;
 			}
@@ -759,12 +837,29 @@ export class CoderHubWebSocketClient {
 			this.#clearTimers();
 			this.#setState('closed');
 
+			const wasAuthenticated = this.#authenticated;
+			const hadTerminalError = this.#intentionallyClosed;
+			const terminalClose = isTerminalCloseCode(event.code);
+
 			// Clear auth state for clean reconnect
 			this.#authenticated = false;
 			this.#initMessage = null;
 
-			if (isTerminalCloseCode(event.code)) {
+			if (terminalClose) {
 				this.#intentionallyClosed = true;
+			}
+
+			if (!wasAuthenticated && terminalClose && !hadTerminalError) {
+				this.#options.onError(
+					this.#buildHandshakeError({
+						code: 'connection_error',
+						message: `WebSocket closed before connection was ready (code ${event.code})${
+							event.reason ? `: ${event.reason}` : ''
+						}`,
+						closeCode: event.code,
+						closeReason: event.reason || undefined,
+					})
+				);
 			}
 
 			this.#options.onClose(event.code, event.reason);
@@ -896,7 +991,11 @@ export async function* subscribeToCoderHub(
 		onError: (error) => {
 			if (
 				error instanceof CoderHubWebSocketError &&
-				(error.code === 'max_reconnects_exceeded' || error.code === 'auth_failed')
+				(error.code === 'max_reconnects_exceeded' ||
+					error.code === 'auth_failed' ||
+					(error.code === 'connection_error' &&
+						typeof error.closeCode === 'number' &&
+						isTerminalCloseCode(error.closeCode)))
 			) {
 				terminalError = error;
 				done = true;
