@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/claude-code",
-	"version": "2.0.9",
+	"version": "3.0.0-alpha.1",
 	"license": "Apache-2.0",
 	"author": "Agentuity",
 	"description": "Claude Code plugin for deploying websites, apps, and AI agents to Agentuity — with managed databases, storage, sandboxes, queues, cron, email, and more",

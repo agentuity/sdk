@@ -28,6 +28,7 @@ Usage: bun scripts/publish.ts [options]
 
 Options:
   --version=X.Y.Z  Force a specific version instead of interactive prompt
+  --tag=TAG        Override the npm dist-tag (e.g. alpha, next, beta, latest)
   --dry-run        Run the publish process without actually publishing to npm.
                    Version changes will be automatically reverted after completion.
   --help           Show this help message
@@ -695,12 +696,28 @@ async function main() {
 		}
 	}
 
+	// Parse --tag flag (supports both --tag=TAG and --tag TAG)
+	let forcedTag: string | null = null;
+	const tagEqArg = process.argv.find((arg) => arg.startsWith('--tag='));
+	if (tagEqArg) {
+		forcedTag = tagEqArg.split('=')[1];
+	} else {
+		const tagIndex = process.argv.indexOf('--tag');
+		if (tagIndex !== -1 && process.argv[tagIndex + 1]) {
+			forcedTag = process.argv[tagIndex + 1];
+		}
+	}
+
 	const isPreReleaseVersion = isPrerelease(newVersion);
-	const distTag = isPreReleaseVersion
-		? newVersion.includes('-beta.')
-			? 'beta'
-			: 'next'
-		: 'latest';
+	const distTag =
+		forcedTag ??
+		(isPreReleaseVersion
+			? newVersion.includes('-beta.')
+				? 'beta'
+				: newVersion.includes('-alpha.')
+					? 'alpha'
+					: 'next'
+			: 'latest');
 
 	const confirmed = await confirmVersion(newVersion);
 	if (!confirmed) {
@@ -712,12 +729,10 @@ async function main() {
 	// Prompt for npm OTP code upfront (skip for dry runs)
 	let otp: string | null = null;
 	if (!isDryRun) {
-		otp = await readLine('\n🔑 Enter npm OTP code: ');
-		if (!otp) {
-			console.error('\n❌ OTP is required for publishing\n');
-			rl.close();
-			process.exit(1);
-		}
+		const input = await readLine(
+			'\n🔑 Enter npm OTP code (leave empty if using automation token): '
+		);
+		if (input) otp = input;
 	}
 
 	console.log(`\n📦 Setting version to: ${newVersion}`);
