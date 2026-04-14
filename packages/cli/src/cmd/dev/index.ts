@@ -952,7 +952,10 @@ export const command = createCommand({
 							'--endpoint-id',
 							devmode.id,
 							'--port',
-							vitePort.toString(),
+							// Gravity must target the user-facing front-door proxy, not Vite's
+							// internal port. HTTP can reach Bun through Vite's proxy, but public
+							// WebSocket upgrades to /api/* only reach Bun through ws-proxy.
+							opts.port.toString(),
 							'--url',
 							gravityURL,
 							'--log-level',
