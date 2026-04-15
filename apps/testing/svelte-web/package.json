@@ -14,7 +14,6 @@
 	"dependencies": {
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"hono": "^4.12.8",

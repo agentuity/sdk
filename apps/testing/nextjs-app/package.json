@@ -12,9 +12,7 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@agentuity/react": "workspace:*",
 		"@agentuity/core": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
 		"hono": "^4.7.13",
 		"next": "^15.3.0",
 		"react": "^19.2.0",

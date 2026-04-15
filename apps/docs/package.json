@@ -22,8 +22,6 @@
 		"@agentuity/core": "workspace:*",
 		"@agentuity/drizzle": "workspace:*",
 		"@agentuity/evals": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
-		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/server": "workspace:*",

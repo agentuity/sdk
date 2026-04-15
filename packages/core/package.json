@@ -50,10 +50,6 @@
 			"types": "./dist/services/apikey/index.d.ts",
 			"default": "./dist/services/apikey/index.js"
 		},
-		"./auth": {
-			"types": "./dist/services/auth/index.d.ts",
-			"default": "./dist/services/auth/index.js"
-		},
 		"./coder": {
 			"types": "./dist/services/coder/index.d.ts",
 			"default": "./dist/services/coder/index.js"
@@ -176,9 +172,6 @@
 			],
 			"apikey": [
 				"./dist/services/apikey/index.d.ts"
-			],
-			"auth": [
-				"./dist/services/auth/index.d.ts"
 			],
 			"coder": [
 				"./dist/services/coder/index.d.ts"

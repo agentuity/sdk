@@ -41,10 +41,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/auth": "workspace:*",
 		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/core": "workspace:*",
-		"@agentuity/frontend": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@datasert/cronjs-parser": "^1.4.0",
 		"@vitejs/plugin-react": "^5.1.2",

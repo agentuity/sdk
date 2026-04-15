@@ -18,7 +18,6 @@
 	"dependencies": {
 		"@ai-sdk/openai": "^3.0.0",
 		"@agentuity/core": "workspace:*",
-		"@agentuity/react": "workspace:*",
 		"@tailwindcss/vite": "^4.1.18",
 		"ai": "^6.0.0",
 		"@tanstack/react-devtools": "latest",

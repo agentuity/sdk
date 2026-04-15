@@ -77,7 +77,6 @@ export const createProjectSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Storage action: "skip", "new", or existing bucket name'),
-			enableAuth: z.boolean().optional().describe('Enable Agentuity Auth'),
 		}),
 		response: ProjectCreateResponseSchema,
 	},
@@ -110,7 +109,6 @@ export const createProjectSubcommand = createSubcommand({
 			region,
 			database: opts.database,
 			storage: opts.storage,
-			enableAuth: opts.enableAuth,
 		});
 
 		// Exit with error code if setup failed and not in JSON mode

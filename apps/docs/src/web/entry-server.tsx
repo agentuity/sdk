@@ -6,7 +6,6 @@
 import { renderToString } from 'react-dom/server';
 import { StrictMode } from 'react';
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
-import { AgentuityProvider } from '@agentuity/react';
 import { ThemeProvider } from './components/ThemeContext';
 import { routeTree } from './routeTree.gen';
 
@@ -25,9 +24,7 @@ export async function render(url: string): Promise<string> {
 	return renderToString(
 		<StrictMode>
 			<ThemeProvider>
-				<AgentuityProvider>
-					<RouterProvider router={router} />
-				</AgentuityProvider>
+				<RouterProvider router={router} />
 			</ThemeProvider>
 		</StrictMode>
 	);

@@ -38,13 +38,6 @@ import * as tui from '../../tui';
 import { createPrompt, note } from '../../tui';
 import type { AuthData, Config } from '../../types';
 import { getGithubBotIdentity } from '../git/api';
-import {
-	ensureAuthDependencies,
-	generateAuthFileContent,
-	generateAuthSchemaSql,
-	printIntegrationExamples,
-	runAuthMigrations,
-} from './auth/shared';
 import { scaffoldFramework, setupProject, initGitRepo } from './scaffold';
 import { frameworkCatalog, type FrameworkScaffold } from './frameworks';
 
@@ -64,7 +57,6 @@ interface CreateFlowOptions {
 	apiClient?: APIClient;
 	database?: string;
 	storage?: string;
-	enableAuth?: boolean;
 }
 
 export interface CreateFlowResult {
@@ -95,7 +87,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		domains,
 		database: databaseOption,
 		storage: storageOption,
-		enableAuth: enableAuthOption,
 	} = options;
 
 	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
@@ -302,14 +293,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger.fatal(
 			'Cannot provision database/storage without being authenticated and registering the project.\n' +
 				'Remove --no-register or omit --database/--storage flags.',
-			ErrorCode.VALIDATION_FAILED
-		);
-	}
-
-	if (enableAuthOption && !canProvision) {
-		logger.fatal(
-			'Cannot enable Agentuity Auth without being authenticated and registering the project.\n' +
-				'Remove --no-register or omit --enable-auth flag.',
 			ErrorCode.VALIDATION_FAILED
 		);
 	}
@@ -527,94 +510,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// ─── Auth setup ─────────────────────────────────────────────────────────
-
-	let authEnabled = false;
-	let authDatabaseName: string | undefined;
-	let authDatabaseUrl: string | undefined;
-
-	if (enableAuthOption !== undefined) {
-		authEnabled = enableAuthOption;
-	} else if (canProvision && isInteractive) {
-		const enableAuth = await prompt.select({
-			message: 'Enable Agentuity Authentication?',
-			options: [
-				{ value: 'no', label: "No, I'll add auth later" },
-				{ value: 'yes', label: 'Yes, set up Agentuity Auth' },
-			],
-		});
-
-		if (enableAuth === 'yes') {
-			authEnabled = true;
-		}
-	}
-
-	if (authEnabled && canProvision) {
-		if (resourceEnvVars.DATABASE_URL) {
-			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
-			try {
-				const dbUrl = new URL(authDatabaseUrl);
-				const dbName = dbUrl.pathname.replace(/^\/+/, '');
-				if (dbName && /^[A-Za-z0-9_-]+$/.test(dbName)) {
-					authDatabaseName = dbName;
-				}
-			} catch {
-				// Invalid URL format
-			}
-		} else {
-			const created = await tui.spinner({
-				message: 'Provisioning database for auth',
-				clearOnSuccess: true,
-				callback: async () => {
-					return createResources(catalystClient!, orgId!, region!, [{ type: 'db' }]);
-				},
-			});
-			const createdDb = created[0];
-			if (!createdDb) {
-				logger.fatal('Failed to create database for auth', ErrorCode.RESOURCE_NOT_FOUND);
-				return undefined as never;
-			}
-			authDatabaseName = createdDb.name;
-
-			if (createdDb.env) {
-				authDatabaseUrl = createdDb.env.DATABASE_URL;
-				if (!resourceEnvVars.DATABASE_URL) {
-					Object.assign(resourceEnvVars, createdDb.env);
-				}
-			}
-		}
-
-		await ensureAuthDependencies({ projectDir: dest, logger });
-
-		const authFilePath = resolve(dest, 'src', 'auth.ts');
-		if (!existsSync(authFilePath)) {
-			const srcDir = resolve(dest, 'src');
-			if (!existsSync(srcDir)) {
-				await Bun.write(resolve(srcDir, '.gitkeep'), '');
-			}
-			await Bun.write(authFilePath, generateAuthFileContent());
-			tui.success('Created src/auth.ts');
-		}
-
-		if (authDatabaseName) {
-			const sql = await tui.spinner({
-				message: 'Preparing auth database schema...',
-				clearOnSuccess: true,
-				callback: () => generateAuthSchemaSql(logger, dest),
-			});
-
-			await runAuthMigrations({
-				logger,
-				auth,
-				orgId,
-				region,
-				databaseName: authDatabaseName,
-				sql,
-				config,
-			});
-		}
-	}
-
 	// ─── Cloud registration ─────────────────────────────────────────────────
 
 	let projectId: string | undefined;
@@ -658,27 +553,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			},
 		});
 
-		// Add auth secret
-		if (authEnabled && !resourceEnvVars.AGENTUITY_AUTH_SECRET) {
-			const devSecret = `dev-${crypto.randomUUID()}`;
-			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
-		}
-
 		// Write resource env vars
 		if (Object.keys(resourceEnvVars).length > 0) {
 			await addResourceEnvVars(dest, resourceEnvVars);
-
-			if (authEnabled) {
-				if (resourceEnvVars.DATABASE_URL) {
-					tui.success('DATABASE_URL added to .env');
-				}
-				if (resourceEnvVars.AGENTUITY_AUTH_SECRET) {
-					tui.success('AGENTUITY_AUTH_SECRET added to .env');
-					tui.info(
-						`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
-					);
-				}
-			}
 		}
 
 		// Sync env vars to cloud
@@ -770,10 +647,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
 			await promptForDNS(projectId, _domains, cloudRegion, config);
 		}
-	}
-
-	if (authEnabled) {
-		printIntegrationExamples();
 	}
 
 	return {
