@@ -29,15 +29,6 @@ export class AgentCodeLensProvider implements vscode.CodeLensProvider {
 
 			codeLenses.push(
 				new vscode.CodeLens(range, {
-					title: '$(play) Open in Workbench',
-					command: 'agentuity.codeLens.openInWorkbench',
-					arguments: [agentInfo],
-					tooltip: 'Open this agent in the Agentuity Workbench (requires dev server running)',
-				})
-			);
-
-			codeLenses.push(
-				new vscode.CodeLens(range, {
 					title: '$(pulse) View Sessions',
 					command: 'agentuity.codeLens.viewSessions',
 					arguments: [agentInfo],

@@ -25,13 +25,3 @@ export { toCamelCase, toPascalCase } from './string.ts';
 
 // typehelper.ts exports
 export type { InferInput, InferOutput } from './typehelper.ts';
-
-// workbench exports
-export {
-	decodeWorkbenchConfig,
-	encodeWorkbenchConfig,
-	getWorkbenchConfig,
-	type WorkbenchConfig,
-	WorkbenchConfigError,
-	WorkbenchNotFoundError,
-} from './workbench-config.ts';

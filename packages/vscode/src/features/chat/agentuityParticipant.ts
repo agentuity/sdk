@@ -359,7 +359,6 @@ async function handleHelp(stream: vscode.ChatResponseStream): Promise<vscode.Cha
 	stream.markdown('\n\n## Quick Actions\n\n');
 	stream.button({ title: 'Start Dev Server', command: 'agentuity.dev.start' });
 	stream.button({ title: 'Deploy', command: 'agentuity.deploy' });
-	stream.button({ title: 'Open Workbench', command: 'agentuity.workbench.open' });
 
 	return { metadata: { command: 'help' } };
 }

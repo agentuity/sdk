@@ -23,7 +23,7 @@ Agentuity is the full-stack platform for AI agents. Briefly explain to the user:
 
 We're going to be setting up the default template quickly.
 
-The default template includes AI Gateway integration, thread state persistence, structured logging, Tailwind CSS, and a local Workbench at \`/workbench\` for testing agents.
+The default template includes AI Gateway integration, thread state persistence, structured logging, and Tailwind CSS.
 
 ---
 
@@ -107,7 +107,6 @@ agentuity dev
 
 **What happens:**
 - **Local server** starts at \`http://localhost:3500\` — this is where your APIs and agents are served
-- **Workbench** available at \`http://localhost:3500/workbench\` — a built-in UI for testing and interacting with your agents directly, without needing a frontend
 - **Public tunnel URL** is automatically created — the CLI will display a public URL that tunnels to your local server, useful for testing webhooks or sharing with others
 - **Hot reload** enabled — code changes reflect immediately
 
@@ -116,8 +115,7 @@ agentuity dev
 > "The dev server is now running! Here's what to try:
 >
 > 1. Open **http://localhost:3500** to see the app
-> 2. Open **http://localhost:3500/workbench** to interact with your agents (this is a key feature!)
-> 3. The public tunnel URL shown in the terminal can be shared with others
+> 2. The public tunnel URL shown in the terminal can be shared with others
 >
 > Take a few minutes to explore. When you're ready to deploy to production, let me know!"
 
@@ -179,7 +177,6 @@ After deployment, explain what they now have:
 | **AI Gateway** | OpenAI-compatible SDK routed through Agentuity—unified billing, no separate API keys |
 | **Thread State** | Conversations and agent state persist automatically for multi-turn flows |
 | **Structured Logging** | Logs and traces captured for debugging and analytics |
-| **Workbench** | Local UI at \`/workbench\` for testing agents without a frontend |
 | **Tailwind CSS** | Pre-configured styling for the frontend |
 | **Type Safety** | End-to-end types from agent schemas to API routes to frontend |
 
@@ -240,7 +237,7 @@ The SDK makes it easy to:
 **Onboarding is successful when the user has:**
 
 1. ✅ **CLI installed** and authenticated
-2. ✅ **Local dev environment running** — they've seen \`localhost:3500\` and tried the Workbench
+2. ✅ **Local dev environment running** — they've seen \`localhost:3500\`
 3. ✅ **First deployment complete** — they have a live production URL
 4. ✅ **Free credits earned** — they know they've been rewarded and can keep building
 5. ✅ **Clear next steps** — they know about Discord, the dashboard, and how to extend their project

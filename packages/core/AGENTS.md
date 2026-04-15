@@ -28,7 +28,6 @@ src/
 ├── standard_schema.ts    # StandardSchemaV1 interface
 ├── string.ts             # toCamelCase, toPascalCase utilities
 ├── typehelper.ts         # InferInput, InferOutput type utilities
-├── workbench-config.ts   # Workbench configuration encoding/decoding
 └── services/
     ├── _util.ts          # buildUrl, toServiceException, toPayload, fromResponse
     ├── adapter.ts        # FetchAdapter, FetchRequest/Response types

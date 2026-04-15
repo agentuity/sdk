@@ -18,10 +18,6 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
 		},
-		"./workbench": {
-			"types": "./dist/workbench.d.ts",
-			"default": "./dist/workbench.js"
-		},
 		"./error": {
 			"types": "./dist/error.d.ts",
 			"default": "./dist/error.js"
@@ -149,9 +145,6 @@
 	},
 	"typesVersions": {
 		"*": {
-			"workbench": [
-				"./dist/workbench.d.ts"
-			],
 			"error": [
 				"./dist/error.d.ts"
 			],

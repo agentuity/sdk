@@ -106,11 +106,6 @@
 				"category": "Agentuity"
 			},
 			{
-				"command": "agentuity.workbench.open",
-				"title": "Open Workbench",
-				"category": "Agentuity"
-			},
-			{
 				"command": "agentuity.deploy",
 				"title": "Deploy",
 				"category": "Agentuity"
@@ -495,11 +490,6 @@
 					"command": "agentuity.dev.stop",
 					"when": "view == agentuity.agents && agentuity.devServerRunning",
 					"group": "1_actions"
-				},
-				{
-					"command": "agentuity.workbench.open",
-					"when": "view == agentuity.agents && agentuity.hasProject",
-					"group": "2_links"
 				},
 				{
 					"command": "agentuity.deployments.refresh",

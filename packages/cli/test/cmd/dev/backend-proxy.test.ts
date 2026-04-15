@@ -271,7 +271,6 @@ describe('Backend Proxy ECONNREFUSED Handler', () => {
 				port: 3502,
 				backendPort,
 				routePaths: ['/api', '/graphql'],
-				workbenchPath: '/workbench',
 			});
 
 			const proxy = config.server?.proxy as Record<string, any>;
