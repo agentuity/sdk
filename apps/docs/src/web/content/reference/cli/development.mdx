@@ -1,10 +1,10 @@
 ---
 title: Local Development
 short_title: Development
-description: Run the development server with hot reload, local mode, and the interactive Workbench.
+description: Run the development server with hot reload, local mode, and optional public URLs.
 ---
 
-Run your Agentuity project locally with automatic hot reload, type checking, and the interactive Workbench UI.
+Run your Agentuity project locally with automatic hot reload, type checking, and optional public URLs for sharing or webhook testing.
 
 ## Starting the Dev Server
 
@@ -170,12 +170,6 @@ Agentuity's Gravity network handles this automatically. When you run `agentuity 
 - Testing from mobile devices
 - OAuth callback URLs
 
-## Workbench UI
-
-Access the interactive Workbench at `http://localhost:3500/workbench` to test agents visually. It displays agent schemas, handles input validation, and shows execution results with timing metrics.
-
-See [Testing with Workbench](/agents/workbench) for setup and configuration.
-
 ## Building Your Project
 
 Bundle your project for deployment:
@@ -245,7 +239,7 @@ Understanding the differences between local development and deployed production:
 | **AI Gateway** | Available (or BYO keys with `--local`) | Available always |
 | **URL** | `localhost:3500` + optional public tunnel | `*.agentuity.cloud` or custom domain |
 | **Hot Reload** | Yes | No (redeploy required) |
-| **Debugging** | Local logs, Workbench | SSH access, cloud logs |
+| **Debugging** | Local logs, Bun inspector | SSH access, cloud logs |
 | **Environment** | `.env`, `.env.development` ([details](/get-started/app-configuration#environment-specific-files)) | Cloud variables (via `cloud env`) |
 
 ### Environment Files

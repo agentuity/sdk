@@ -31,7 +31,7 @@ import api from './src/api';
 const app = await createApp({
   router: { path: '/api', router: api },
   agents,
-  workbench: { route: '/workbench' },
+  analytics: true,
 });
 
 app.logger.debug('Running %s', app.server.url);
@@ -122,7 +122,7 @@ addEventListener('agent.completed', (eventName, agent, ctx) => {
 
 ## Build Configuration
 
-Use `vite.config.ts` for build settings (plugins, entry point, rollup options). Runtime settings like workbench and analytics belong in `createApp()`.
+Use `vite.config.ts` for build settings (plugins, entry point, rollup options). Runtime settings like analytics and service configuration belong in `createApp()`.
 
 ```typescript title="vite.config.ts"
 import react from '@vitejs/plugin-react';
@@ -289,14 +289,12 @@ Unlike traditional platforms, Agentuity defines infrastructure in your route fil
 // src/api/index.ts
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import { cron, websocket } from '@agentuity/runtime';
-import scheduler from '@agent/scheduler/agent';
+import { websocket } from '@agentuity/runtime';
 import chatHandler from '@agent/chat/agent';
 
 const api = new Hono<Env>()
-  // Cron job - runs every hour
-  .post('/cleanup', cron('0 * * * *', { auth: true }, async (c) => {
-    await scheduler.run({ task: 'cleanup' });
+  // Standard HTTP endpoint
+  .post('/cleanup', async (c) => {
     return c.text('OK');
   }))
   // WebSocket endpoint
@@ -318,5 +316,5 @@ This approach means:
 ## Next Steps
 
 - [HTTP Routes](/routes/http): Define HTTP endpoints
-- [Cron Jobs](/routes/cron): Schedule recurring tasks
+- [Schedules](/services/schedules): Run recurring tasks
 - [AI Gateway](/agents/ai-gateway): Configure LLM providers

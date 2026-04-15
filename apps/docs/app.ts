@@ -2,20 +2,21 @@ import { createApp } from '@agentuity/runtime';
 import { Hono } from 'hono';
 import router from './src/api';
 import agents from './src/agent';
+import { docRedirectRules, getDemoRedirectTarget } from './src/web/lib/docs-redirects';
 
-const redirects = new Hono()
-	// Demo routes → Explorer
-	.get('/demo/', (c) => c.redirect('/explorer', 301))
-	.get('/demo/:rest{.+}', (c) => {
-		return c.redirect(`/explorer/${c.req.param('rest')}`, 301);
-	})
-	.get('/demo', (c) => c.redirect('/explorer', 301))
-	// Permanent server-side redirects for legacy docs URLs.
-	// Matching TanStack routes handle the same redirects during SPA navigation.
-	.get('/apis/calling-agents', (c) => c.redirect('/routes/calling-agents', 301))
-	.get('/apis/when-to-use', (c) => c.redirect('/agents/when-to-use', 301))
-	.get('/apis/', (c) => c.redirect('/agents', 301))
-	.get('/apis', (c) => c.redirect('/agents', 301));
+const redirects = new Hono();
+
+// Permanent server-side redirects for legacy docs URLs.
+// Matching TanStack routes handle the same redirects during client navigation.
+for (const rule of docRedirectRules) {
+	for (const path of rule.paths) {
+		redirects.get(path, (c) => c.redirect(rule.target, 301));
+	}
+}
+
+redirects.get('/demo/:rest{.+}', (c) => {
+	return c.redirect(getDemoRedirectTarget(c.req.param('rest')), 301);
+});
 
 const app = await createApp({
 	router: [

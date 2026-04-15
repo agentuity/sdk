@@ -18,21 +18,21 @@ The LLM-as-judge pattern uses one model to evaluate another model's output. This
 
 Use LLM-as-judge when the evaluation requires understanding context, nuance, or subjective criteria.
 
-## Inline vs Evals
+## Inline vs Background Checks
 
 LLM-as-judge can be used in two contexts:
 
 | Context | When to Use | Blocks Response? |
 |---------|-------------|------------------|
 | **Inline** (in handler) | Scores needed in UI, model comparison, user-facing quality metrics | Yes |
-| **Evals** (in eval.ts) | Background quality monitoring, compliance checks, production observability | No |
+| **Background** (for example, in `eval.ts`) | Quality monitoring, compliance checks, or review flows after the response is sent | No |
 
 **Inline example**: A model arena that shows users which response "won" needs scores returned with the response.
 
-**Eval example**: Checking all responses for PII or hallucinations in production without slowing down users.
+**Background example**: Checking responses for PII or hallucinations without adding latency to the user-facing response.
 
-<Callout type="info" title="Agentuity Evals">
-Agentuity has a built-in [evaluation system](/agents/evaluations) that runs LLM-as-judge checks asynchronously after each response. Use evals for production monitoring without impacting response times.
+<Callout type="info" title="When to Run a Judge">
+Run LLM-as-judge checks inline when users need the score immediately. Move them off the request path when you want monitoring without adding latency to the main response.
 </Callout>
 
 ## Basic Pattern
@@ -258,9 +258,9 @@ List any unsupported claims.`,
 export default ragAgent;
 ```
 
-## Using in Evals
+## Run in the Background
 
-For background quality monitoring, use LLM-as-judge in your eval files. Evals run asynchronously after the response is sent, so they don't slow down users:
+For background quality monitoring, run the judge after the response is sent so it does not slow down users. One way to do that is with an `eval.ts` file:
 
 ```typescript title="src/agent/qa-agent/eval.ts"
 import agent from './agent';
@@ -306,7 +306,7 @@ CHECKS:
 - actionable: Can the user act on this information?`,
     });
 
-    // Combine score and checks into eval result
+    // Return a pass/fail result plus the judge details for later review
     const allChecksPassed = object.checks.answersQuestion.passed && object.checks.actionable.passed;
 
     return {
@@ -320,8 +320,6 @@ CHECKS:
   },
 });
 ```
-
-See [Adding Evaluations](/agents/evaluations) for more patterns including preset evals.
 
 ## Structuring Judge Prompts
 
@@ -366,16 +364,15 @@ Evaluate each criterion, then provide an overall assessment.`;
 LLM-as-judge adds model calls. Optimize by:
 
 - Using the fastest capable model (Groq for speed, nano models for cost)
-- Running evals asynchronously (default in Agentuity)
+- Running the judge asynchronously when the request path does not need a score
 - Sampling a percentage of requests in high-volume scenarios
 - Batching judgments when evaluating multiple items
 
 <Callout type="tip" title="Full Working Example">
-See the [Code Runner](https://github.com/agentuity/examples/tree/main/features/code-runner) example for parallel sandbox execution with LLM-as-judge evals across TypeScript and Python.
+See the [Code Runner](https://github.com/agentuity/examples/tree/main/features/code-runner) example for parallel sandbox execution with LLM-as-judge checks across TypeScript and Python.
 </Callout>
 
 ## Next Steps
 
-- [Adding Evaluations](/agents/evaluations): Background quality monitoring with evals
 - [Using the AI SDK](/agents/ai-sdk-integration): Model selection and configuration
 - [Vector Storage](/services/storage/vector): Build RAG systems to ground responses

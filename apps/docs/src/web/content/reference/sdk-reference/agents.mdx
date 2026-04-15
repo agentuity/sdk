@@ -34,7 +34,7 @@ Creates a new agent with schema validation and type inference.
 Returns an `AgentRunner` object with the following properties:
 - `metadata`: Agent metadata (`id`, `agentId`, `filename`, `version`, `name`, `description`)
 - `run(input)`: Execute the agent. Input is required when the agent has an input schema, omitted otherwise.
-- `createEval(name, config)`: Create quality evaluations for this agent
+- `createEval(name, config)`: Deprecated evaluation hook kept for older apps
 - `addEventListener(eventName, callback)`: Attach lifecycle event listeners
 - `removeEventListener(eventName, callback)`: Remove event listeners
 

@@ -6,6 +6,10 @@ description: Run tasks on a schedule with the cron() middleware
 
 Schedule recurring tasks using cron expressions. Schedules are defined in code, deployed with your agents, and automatically provisioned.
 
+<Callout type="warning" title="Cron is being deprecated">
+[Schedules](/services/schedules) are the newer way to run recurring jobs. Use them when you want platform-managed scheduling, delivery tracking, and retries.
+</Callout>
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. Import agents you need and call them directly.
 </Callout>

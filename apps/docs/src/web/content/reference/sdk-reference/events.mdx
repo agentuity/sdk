@@ -51,7 +51,7 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
   });
 });
 
-// Log when agent completes (evals also run during this event)
+// Log when the agent completes
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   ctx.logger.info('Agent completed', {
     agentName: agent.metadata.name,
@@ -223,4 +223,4 @@ addEventListener('agent.completed', globalCompletedHandler);
 // removeEventListener('agent.completed', globalCompletedHandler);
 ```
 
-For eval creation and lifecycle, see [Evaluations](/reference/sdk-reference/evaluations).
+For output-quality patterns, see [LLM as a Judge](/cookbook/patterns/llm-as-a-judge).

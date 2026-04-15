@@ -14,7 +14,6 @@ When you create a project with `agentuity project create`, you get a translation
 - **Thread state**: Persistent translation history across requests
 - **Structured logging**: Observability via `ctx.logger`
 - **Tailwind CSS**: Pre-configured styling
-- **Workbench**: Local testing UI at `/workbench`
 </Callout>
 
 <CardLink
@@ -122,21 +121,7 @@ Response:
 }
 ```
 
-## 5. Test Locally with Workbench
-
-Workbench is a built-in UI for testing agents directly, without going through your frontend. The default template comes with Workbench pre-configured in `app.ts`:
-
-```typescript
-export default await createApp({
-  router: { path: '/api', router: api },
-  agents,
-  workbench: { route: '/workbench' },
-});
-```
-
-Open [http://localhost:3500/workbench](http://localhost:3500/workbench) to test your agents with raw JSON input. See [Testing with Workbench](/agents/workbench) for adding test prompts and configuration options.
-
-## 6. Add a Frontend
+## 5. Add a Frontend
 
 Add a React UI in `src/web/` to call your agent. Use Hono's `hc()` client for type-safe API calls:
 
@@ -182,7 +167,7 @@ export function App() {
 
 The `hc()` client infers types from your router, so `data.response` is fully typed.
 
-## 7. Add Streaming
+## 6. Add Streaming
 
 For real-time responses, return a stream instead:
 
@@ -229,7 +214,7 @@ export type ApiRouter = typeof api;
 export default api;
 ```
 
-## 8. Deploy
+## 7. Deploy
 
 When you're ready, deploy to Agentuity:
 
@@ -243,7 +228,7 @@ Your agent is now live with a public URL. View deployments, logs, and more in th
 <Callout type="info" title="What You'll See in the App">
 After your first deployment, the App populates with:
 - **Agents**: Your deployed agents with their endpoints
-- **Routes**: Registered HTTP, cron, and other routes
+- **Routes**: Registered HTTP, streaming, and other routes
 - **Sessions**: Request history and logs as traffic flows
 - **Deployments**: Version history with rollback options
 </Callout>

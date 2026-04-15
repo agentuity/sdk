@@ -44,9 +44,9 @@ Agents and routes are separate concerns in Agentuity:
 | Concept | Location | Purpose |
 |---------|----------|---------|
 | **Agents** | `src/agent/` | Core logic, schemas, validation |
-| **Routes** | `src/api/` | HTTP endpoints, triggers (cron, WebSocket, SSE) |
+| **Routes** | `src/api/` | HTTP endpoints and transport triggers |
 
-Agents contain your core logic with schema validation and lifecycle hooks. Routes define how agents get invoked (HTTP, cron, webhooks, etc.). This separation keeps concerns clear: agents don't know how they're called, and routes handle all transport.
+Agents contain your core logic with schema validation and lifecycle hooks. Routes define how agents get invoked over HTTP, WebSocket, SSE, and other transports. This separation keeps concerns clear: agents don't know how they're called, and routes handle all transport.
 
 ### app.ts
 
@@ -120,7 +120,7 @@ export default api;
 |---|---|---|
 | **Location** | `src/agent/` | `src/api/` |
 | **Schema validation** | Built-in with `agent.validator()` | Manual |
-| **Events & Evals** | Yes | No |
+| **Events & Post-response Hooks** | Yes | No |
 | **Storage access** | Full | Full |
 | **Best for** | Validated workflows, LLM processing | Health checks, webhooks, simple endpoints |
 
@@ -160,4 +160,4 @@ You can also deploy your frontend elsewhere (e.g., Vercel, Netlify) and call you
 
 - [App Configuration](/get-started/app-configuration): Configure `app.ts` and `agentuity.json`
 - [Creating Agents](/agents/creating-agents): Deep dive into agent creation
-- [Routes](/routes): Learn about HTTP, cron, and other triggers
+- [Routes](/routes): Learn about HTTP and other triggers
