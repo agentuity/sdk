@@ -10,6 +10,7 @@
 import { createAgentContext } from '@agentuity/runtime';
 
 const ctx = createAgentContext();
+const output: string[] = [];
 
 const queueName = `explorer-sandbox-${Date.now().toString(36)}`;
 
@@ -68,22 +69,26 @@ try {
 	const secondOffset = getPublishedOffset(secondPublish);
 	ctx.logger.info('Published generate-report job');
 
-	console.log('---OUTPUT---');
-	console.log(`Created: "${queue.name}" (${queue.queueType})`);
-	console.log(formatPublishedMessage('process-data', firstOffset));
-	console.log(formatPublishedMessage('generate-report', secondOffset));
+	output.push(`Created: "${queue.name}" (${queue.queueType})`);
+	output.push(formatPublishedMessage('process-data', firstOffset));
+	output.push(formatPublishedMessage('generate-report', secondOffset));
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	output.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	process.exitCode = 1;
 } finally {
 	// Always clean up the queue, even if publishing failed
 	try {
 		ctx.logger.info('Deleting queue');
 		await ctx.queue.deleteQueue(queueName);
 		ctx.logger.info('Queue deleted');
-		console.log(`Deleted: "${queueName}"`);
+		output.push(`Deleted: "${queueName}"`);
 	} catch {
 		ctx.logger.warn('Failed to delete queue during cleanup', { name: queueName });
-		console.log(`Cleanup failed: could not delete "${queueName}"`);
+		output.push(`Cleanup failed: could not delete "${queueName}"`);
+		process.exitCode = 1;
 	}
+
+	console.log('---OUTPUT---');
+	console.log(output.join('\n'));
+	console.log('---OUTPUT---');
 }

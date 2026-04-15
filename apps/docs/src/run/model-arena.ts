@@ -2,7 +2,7 @@
  * Standalone run script for Model Arena demo
  *
  * NOTE: Intentionally separate from src/agent/model-arena/agent.ts.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: LLM-as-Judge pattern - two models compete, judge picks winner
  * Uses OpenAI vs Anthropic with Groq/GPT-OSS-120B as judge
@@ -90,3 +90,4 @@ Model B: ${responseB.text.slice(0, 200)}`,
 // Print everything at once at the very end
 console.log('---OUTPUT---');
 console.log(output.join('\n'));
+console.log('---OUTPUT---');

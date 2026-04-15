@@ -2,8 +2,6 @@ import { CODE_EXAMPLES } from './code-examples';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
-import { CronDemo } from './components/CronDemo';
-import { EvalsDemo } from './components/EvalsDemo';
 import { HandlerContextDemo } from './components/HandlerContextDemo';
 import { HelloDemo } from './components/HelloDemo';
 import { KVExplorer } from './components/KVExplorer';
@@ -13,9 +11,12 @@ import { PersistentStreamDemo } from './components/PersistentStreamDemo';
 import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
-import { QueueDemo } from './components/QueueDemo';
 import { DatabaseDemo } from './components/DatabaseDemo';
 import { EmailDemo } from './components/EmailDemo';
+import { QueueDemo } from './components/QueueDemo';
+import { SchedulesDemo } from './components/SchedulesDemo';
+import { WebRTCDemo } from './components/WebRTCDemo';
+import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -28,11 +29,12 @@ export type DemoId =
 	| 'ai-gateway'
 	| 'sse-stream'
 	| 'streaming'
+	| 'websocket'
+	| 'webrtc'
 	| 'durable-stream'
-	| 'cron'
+	| 'schedules'
 	| 'agent-calls'
 	| 'object-storage'
-	| 'evals'
 	| 'queue'
 	| 'email'
 	| 'database';
@@ -309,6 +311,76 @@ export const DEMOS: DemoConfig[] = [
 		isRoute: true,
 	},
 	{
+		id: 'websocket',
+		title: 'WebSocket',
+		subtitle: 'Bidirectional Communication',
+		description: 'Real-time bidirectional messaging over a persistent connection.',
+		explanation: (
+			<>
+				WebSockets give you a <em>persistent, bidirectional</em> connection between client and
+				server. Unlike SSE, both sides can send messages at any time.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					The websocket() middleware handles the protocol upgrade and lifecycle for you
+				</span>
+				. Define <em>onOpen</em>, <em>onMessage</em>, and <em>onClose</em> callbacks, and call
+				agents or other async code from inside them. For one-way streaming, see{' '}
+				<a
+					href={explorerHref('sse-stream')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					SSE Stream
+				</a>
+				. For peer-to-peer browser communication, see{' '}
+				<a
+					href={explorerHref('webrtc')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					WebRTC
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/routes/websockets',
+		category: 'io-patterns',
+		component: WebSocketDemo,
+		codeExample: CODE_EXAMPLES.websocket,
+		sandboxEnabled: true,
+		sandboxScript: 'websocket',
+		isRoute: true,
+	},
+	{
+		id: 'webrtc',
+		title: 'WebRTC',
+		subtitle: 'Peer-to-Peer Communication',
+		description: 'Audio, video, and data channels directly between browsers.',
+		explanation: (
+			<>
+				WebRTC enables <em>peer-to-peer</em> connections between browsers for audio, video, and
+				data channels. The server only handles signaling so peers can find each other and
+				negotiate a direct connection.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					One line on the server with webrtc(), one hook on the client with useWebRTCCall()
+				</span>
+				. Use WebRTC when you need direct browser-to-browser communication. For server-mediated
+				bidirectional messaging, see{' '}
+				<a
+					href={explorerHref('websocket')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					WebSocket
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/routes/webrtc',
+		category: 'io-patterns',
+		component: WebRTCDemo,
+		codeExample: CODE_EXAMPLES.webrtc,
+		sandboxEnabled: true,
+		sandboxScript: 'webrtc',
+		isRoute: true,
+	},
+	{
 		id: 'durable-stream',
 		title: 'Durable Streams',
 		subtitle: 'Shareable URLs',
@@ -366,35 +438,29 @@ export const DEMOS: DemoConfig[] = [
 		sandboxInput: { name: 'Explorer' },
 	},
 	{
-		id: 'cron',
-		title: 'Cron Jobs',
-		subtitle: 'Scheduled Tasks',
-		description: 'Run tasks on a schedule with cron expressions.',
+		id: 'schedules',
+		title: 'Schedules',
+		subtitle: 'Recurring Jobs',
+		description: 'Run code on a schedule with delivery tracking built in.',
 		explanation: (
 			<>
-				Sometimes you need code to run automatically: every hour, every day, or on a custom
-				schedule. That's what <em>cron jobs</em> do. The schedule is defined using a{' '}
-				<em>cron expression</em> like{' '}
-				<code className="bg-cyan-500/10 px-1 rounded">0 * * * *</code>, which reads as "minute
-				hour day month weekday" (this one means "at minute 0 of every hour").{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">Use cron for recurring tasks</span> like
-				fetching data, cleaning up old records, or sending reports. Combine with{' '}
-				<a
-					href={explorerHref('key-value')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
-				>
-					KV storage
-				</a>{' '}
-				to cache results so you don't have to fetch them each time.
+				Schedules are platform-managed recurring jobs. Define a cron expression, point it at a
+				destination, and inspect each attempt with <code>listDeliveries()</code>. The live demo
+				creates one real schedule against{' '}
+				<code className="bg-cyan-500/10 px-1 rounded">/api/hello</code>, waits for the first
+				recorded delivery, then cleans it up.
 			</>
 		),
-		docsUrl: '/routes/cron',
-		category: 'io-patterns',
-		component: CronDemo,
-		codeExample: CODE_EXAMPLES.cron,
+		docsUrl: '/services/schedules',
+		category: 'services',
+		component: SchedulesDemo,
+		codeExample: CODE_EXAMPLES.schedules,
 		sandboxEnabled: true,
-		sandboxScript: 'cron',
-		isRoute: true,
+		sandboxScript: 'schedule',
+		sandboxInput: {
+			expression: '* * * * *',
+			destinationUrl: 'https://agentuity.dev/api/hello',
+		},
 	},
 	// Examples - complete use cases
 	{
@@ -456,32 +522,6 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'model-arena',
 		sandboxInput: { prompt: 'Write a creative one-liner about programming.' },
-	},
-	{
-		id: 'evals',
-		title: 'Evals',
-		subtitle: 'Automatic Quality Checks',
-		description: 'Run evaluations after your agent responds.',
-		explanation: (
-			<>
-				<em>Evaluations</em> are automated quality checks that run after your agent responds.
-				They don't slow down your response; they execute in the background and results appear in
-				the Agentuity console.{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">
-					Two types: binary (pass/fail) and score (0-1)
-				</span>
-				. Use preset evals like <em>answer-completeness</em> or create custom evals with your
-				own logic. Evals help you catch quality issues before users do and track performance
-				over time.
-			</>
-		),
-		docsUrl: '/agents/evaluations',
-		category: 'examples',
-		component: EvalsDemo,
-		codeExample: CODE_EXAMPLES.evals,
-		sandboxEnabled: true,
-		sandboxScript: 'evals',
-		sandboxInput: { question: 'What is Agentuity and what are its main features?' },
 	},
 	{
 		id: 'queue',

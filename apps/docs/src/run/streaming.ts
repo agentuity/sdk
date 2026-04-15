@@ -2,11 +2,11 @@
  * Standalone run script for Streaming demo
  *
  * Route pattern demo - no corresponding agent exists.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: Raw text streaming using streamText
  * Note: Sandbox buffers stdout, so output appears all at once.
- * In a real server, tokens would stream to the client in real-time.
+ * In a real server, text chunks would stream to the client in real-time.
  *
  * Usage: bun run src/run/streaming.ts '{"prompt":"Tell me a story"}'
  */
@@ -29,12 +29,12 @@ try {
 		prompt,
 	});
 
-	// Collect streamed tokens (sandbox buffers stdout anyway)
+	// Collect streamed text chunks (sandbox buffers stdout anyway)
 	let fullText = '';
-	let tokenCount = 0;
+	let chunkCount = 0;
 	for await (const chunk of textStream) {
 		fullText += chunk;
-		tokenCount++;
+		chunkCount++;
 	}
 
 	// Output everything at once
@@ -43,8 +43,10 @@ try {
 	console.log('');
 	console.log(fullText);
 	console.log('');
-	console.log(`[Streamed ${tokenCount} tokens]`);
+	console.log(`[Buffered ${chunkCount} text chunks in the sandbox]`);
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 }

@@ -3,7 +3,7 @@
  *
  * NOTE: Intentionally separate from src/agent/handler-context/agent.ts.
  * Exploratory demo showing ctx object, agent is more structured.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: Key AgentContext properties and methods
  * This exercises the ctx object to show what's available inside handlers.
@@ -40,10 +40,11 @@ await standaloneCtx.invoke(async () => {
 		console.log('');
 
 		// Storage access demonstration
-		console.log('Storage Access:');
+		console.log('Storage & Services:');
 		console.log('  ctx.kv - Key-Value storage');
 		console.log('  ctx.vector - Vector storage');
-		console.log('  ctx.objectstore - Object storage (S3)');
+		console.log('  ctx.stream - Durable stream management');
+		console.log('  Bun s3 - S3-compatible object storage');
 		console.log('');
 
 		// Thread state demonstration
@@ -63,8 +64,10 @@ await standaloneCtx.invoke(async () => {
 		const requestTime = ctx.session.state.get('request-time');
 		console.log(`  set("request-time", "${timestamp}")`);
 		console.log(`  get("request-time") -> ${requestTime}`);
+		console.log('---OUTPUT---');
 	} catch (error) {
 		console.log('---OUTPUT---');
 		console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+		console.log('---OUTPUT---');
 	}
 });

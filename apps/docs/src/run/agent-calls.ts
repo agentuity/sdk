@@ -19,32 +19,39 @@ const name = input.name ?? 'Explorer';
 const standaloneCtx = createAgentContext();
 standaloneCtx.logger.info('Agent calls demo');
 
-// Must use invoke() to get proper execution context for waitUntil
-await standaloneCtx.invoke(async () => {
-	const ctx = getAgentContext();
+try {
+	// Must use invoke() to get proper execution context for waitUntil
+	await standaloneCtx.invoke(async () => {
+		const ctx = getAgentContext();
 
-	// agent.run() invokes the agent and waits for result
-	const greeting = await helloAgent.run({ name });
+		// agent.run() invokes the agent and waits for result
+		const greeting = await helloAgent.run({ name });
 
-	// ctx.waitUntil() schedules background work that runs after main execution
-	let backgroundCompleted = false;
-	ctx.waitUntil(
-		(async () => {
-			// Simulate async work (analytics, cleanup, etc)
-			await new Promise((resolve) => setTimeout(resolve, 100));
-			backgroundCompleted = true;
-		})()
-	);
+		// ctx.waitUntil() schedules background work that runs after main execution
+		let backgroundCompleted = false;
+		ctx.waitUntil(
+			(async () => {
+				// Simulate async work (analytics, cleanup, etc)
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				backgroundCompleted = true;
+			})()
+		);
 
-	// Wait a moment for background task to complete (for demo purposes)
-	await new Promise((resolve) => setTimeout(resolve, 150));
+		// Wait a moment for background task to complete (for demo purposes)
+		await new Promise((resolve) => setTimeout(resolve, 150));
 
+		console.log('---OUTPUT---');
+		console.log('Agent Invocation (agent.run):');
+		console.log(`  Input: { name: "${name}" }`);
+		console.log(`  Result: ${JSON.stringify(greeting)}`);
+		console.log('');
+		console.log('Background Task (ctx.waitUntil):');
+		console.log(`  Scheduled async work after main execution`);
+		console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
+		console.log('---OUTPUT---');
+	});
+} catch (error) {
 	console.log('---OUTPUT---');
-	console.log('Agent Invocation (agent.run):');
-	console.log(`  Input: { name: "${name}" }`);
-	console.log(`  Result: ${JSON.stringify(greeting)}`);
-	console.log('');
-	console.log('Background Task (ctx.waitUntil):');
-	console.log(`  Scheduled async work after main execution`);
-	console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
-});
+	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
+}

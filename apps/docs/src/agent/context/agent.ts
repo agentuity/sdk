@@ -9,7 +9,8 @@
  * - ctx.sessionId / ctx.thread.id - Request and conversation identifiers
  * - ctx.session.state - Per-request state (cleared after response)
  * - ctx.thread.state - Persistent state (survives across requests, 1hr TTL)
- * - ctx.kv / ctx.vector / ctx.objectstore - Storage services
+ * - ctx.kv / ctx.vector / ctx.stream - Storage and stream services
+ * - Bun s3 - S3-compatible object storage
  * - ctx.logger - Structured logging
  *
  * Docs: https://agentuity.dev/Reference/sdk-reference#context-api

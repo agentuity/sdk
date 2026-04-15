@@ -18,15 +18,19 @@ src/run/
 ├── agent-calls.ts       # Agent invocation with background tasks
 ├── ai-gateway.ts        # Multi-provider LLM calls
 ├── chat.ts              # Conversational agent with state
-├── cron.ts              # Simulated cron job
+├── database.ts          # SQL/database demo
+├── email.ts             # Outbound email demo
+├── schedule.ts          # Managed schedules lifecycle demo
 ├── durable-stream.ts    # Persistent streams with public URLs
-├── evals.ts             # Quality evaluations
 ├── handler-context.ts   # AgentContext API exploration
 ├── kv.ts                # Key-value storage
 ├── objectstore.ts       # S3/object storage
+├── queue.ts             # Queue publish and cleanup demo
 ├── sse-stream.ts        # Server-Sent Events streaming
 ├── streaming.ts         # Raw text streaming
 ├── vector.ts            # Vector search
+├── webrtc.ts            # WebRTC signaling simulation
+├── websocket.ts         # WebSocket protocol simulation
 └── model-arena.ts       # LLM-as-judge pattern
 ```
 
@@ -72,12 +76,28 @@ Demonstrates thread state persistence and message history management with slidin
 bun run src/run/chat.ts '{"message":"Hello!"}'
 ```
 
-### cron.ts - Simulated Cron Job
+### database.ts - Database Querying
 
-Demonstrates fetch → cache to KV with TTL → verify → cleanup workflow.
+Demonstrates a database-backed agent invocation pattern.
 
 ```bash
-bun run src/run/cron.ts '{}'
+bun run src/run/database.ts '{"query":"summary","seedData":true}'
+```
+
+### email.ts - Outbound Email
+
+Demonstrates sending an email, then polling the outbound record for final status.
+
+```bash
+bun run src/run/email.ts '{"template":"welcome"}'
+```
+
+### schedule.ts - Managed Schedules
+
+Demonstrates create → inspect → list deliveries → cleanup using `ScheduleClient`.
+
+```bash
+bun run src/run/schedule.ts '{"expression":"* * * * *"}'
 ```
 
 ### durable-stream.ts - Persistent Streams
@@ -86,14 +106,6 @@ Creates durable streams with shareable public URLs.
 
 ```bash
 bun run src/run/durable-stream.ts '{"content":"Hello world"}'
-```
-
-### evals.ts - Quality Evaluations
-
-Demonstrates evaluation framework for agent output quality (score and binary evals).
-
-```bash
-bun run src/run/evals.ts '{"question":"What is TypeScript?"}'
 ```
 
 ### handler-context.ts - Context API Exploration
@@ -120,6 +132,14 @@ Demonstrates Bun's S3 API: write → read → delete workflow.
 bun run src/run/objectstore.ts '{}'
 ```
 
+### queue.ts - Queue Publishing
+
+Demonstrates create → publish → cleanup for queue workflows.
+
+```bash
+bun run src/run/queue.ts '{}'
+```
+
 ### sse-stream.ts - SSE Streaming
 
 Demonstrates SSE-style streaming using `streamText()`.
@@ -142,6 +162,22 @@ Demonstrates semantic search: upsert → search → cleanup. Text is auto-embedd
 
 ```bash
 bun run src/run/vector.ts '{"query":"comfortable chair"}'
+```
+
+### websocket.ts - WebSocket Protocol Simulation
+
+Demonstrates the protocol flow behind the Explorer WebSocket route.
+
+```bash
+bun run src/run/websocket.ts '{}'
+```
+
+### webrtc.ts - WebRTC Signaling Simulation
+
+Demonstrates the signaling flow behind the Explorer WebRTC route.
+
+```bash
+bun run src/run/webrtc.ts '{}'
 ```
 
 ### model-arena.ts - LLM-as-Judge
@@ -191,10 +227,10 @@ This updates `src/api/sandbox/scripts.ts` with the new script name and default i
 
 3. **Rebuild the sandbox snapshot** to include the new script (see `scripts/create-deps-snapshot.sh`).
 
-4. **Add demo to App.tsx** (if adding to web UI):
+4. **Add demo to demo-config.tsx** (if adding to web UI):
 
 ```typescript
-// src/web/App.tsx - Add to DEMOS array
+// src/web/demo-config.tsx - Add to DEMOS array
 {
   id: 'newscript',
   title: 'New Script',

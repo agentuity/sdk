@@ -1,8 +1,8 @@
 /**
- * SSE Stream Route - Real-time token streaming demonstration.
+ * SSE Stream Route - Real-time text streaming demonstration
  *
  * GET /       - Returns metadata about the stream configuration
- * SSE /stream - Streams AI response tokens in real-time (query param: model)
+ * SSE /stream - Streams AI response chunks in real-time (query param: model)
  */
 import { sse, type Env } from '@agentuity/runtime';
 import { streamText } from 'ai';
@@ -17,7 +17,7 @@ const router = new Hono<Env>()
 	.get('/', (c) => {
 		return c.json({
 			name: 'SSE Stream Demo',
-			description: 'Real-time token streaming via Server-Sent Events',
+			description: 'Real-time text streaming via Server-Sent Events',
 			prompt: FIXED_PROMPT,
 		});
 	})

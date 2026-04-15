@@ -2,11 +2,11 @@
  * Standalone run script for SSE Stream demo
  *
  * Route pattern demo - no corresponding agent exists.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: SSE-style streaming using streamText
  * Note: Sandbox buffers stdout, so output appears all at once.
- * In a real server with sse() middleware, tokens would stream via SSE events.
+ * In a real server with sse() middleware, text chunks would stream via SSE events.
  *
  * Usage: bun run src/run/sse-stream.ts '{"prompt":"Tell me a story"}'
  */
@@ -29,12 +29,12 @@ try {
 		prompt,
 	});
 
-	// Collect streamed tokens (sandbox buffers stdout anyway)
+	// Collect streamed text chunks (sandbox buffers stdout anyway)
 	let fullText = '';
-	let tokenCount = 0;
+	let chunkCount = 0;
 	for await (const chunk of textStream) {
 		fullText += chunk;
-		tokenCount++;
+		chunkCount++;
 	}
 
 	// Output everything at once
@@ -43,8 +43,11 @@ try {
 	console.log('');
 	console.log(fullText);
 	console.log('');
-	console.log(`[Streamed ${tokenCount} SSE events]`);
+	console.log(`[Buffered ${chunkCount} text chunks in the sandbox]`);
+	console.log('In a real route, each chunk would be wrapped in named SSE events');
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 }

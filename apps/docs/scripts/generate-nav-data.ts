@@ -116,19 +116,14 @@ const SDK_EXPLORER: NavSection = {
 			description: 'Call agents from routes or other agents',
 		},
 		{
-			title: 'Cron Jobs',
-			url: '/explorer/cron',
-			description: 'Run tasks on a schedule with cron expressions',
+			title: 'Schedules',
+			url: '/explorer/schedules',
+			description: 'Create managed schedules and inspect delivery attempts',
 		},
 		{
 			title: 'Model Arena',
 			url: '/explorer/model-arena',
 			description: 'Compare AI models using another AI as judge',
-		},
-		{
-			title: 'Evals',
-			url: '/explorer/evals',
-			description: 'Run evaluations after your agent responds',
 		},
 		{
 			title: 'Queues',

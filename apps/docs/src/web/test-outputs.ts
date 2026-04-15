@@ -118,21 +118,17 @@ Step 2: Calling text-processor (analyze)...
 
 Pipeline completed`,
 
-	cron: `[INFO] Hourly task running
+	schedules: `[INFO] Schedule created {"id":"sch_abc123xyz"}
 ---OUTPUT---
-=== Hourly Data Sync (Simulated) ===
-Triggered at: 2026-01-15T15:00:00.000Z
-
-Step 1: Fetching external data...
-  Fetched 542 records from api.example.com
-
-Step 2: Caching in KV storage...
-  Cached to "v1-ks-cron/latest-sync" (TTL: 1 hour)
-
-Step 3: Verifying cache...
-  Cache verified successfully
-
-Cron job completed successfully`,
+Created schedule: sch_abc123xyz
+Name: [Explorer] Hello World 1736956200
+Expression: * * * * *
+Next run: 2026-01-15T15:31:00.000Z
+Destinations: 1
+Destination URL: https://agentuity.dev/api/hello
+Deliveries so far: 0
+---OUTPUT---
+Deleted schedule: sch_abc123xyz`,
 
 	chat: `---OUTPUT---
 Thread ID: thrd_xyz789abc
@@ -146,22 +142,4 @@ Assistant: Agentuity is a platform for building and deploying AI agents. It prov
 [INFO] Judge (Groq gpt-oss-120b) {"winner":"model-b"}
 [INFO] Scores {"creativity":0.85,"clarity":0.9}
 [INFO] Reasoning: Model B offers a more vivid and humorous metaphor with unexpected imagery, while Model A relies on a more conventional poetry comparison.`,
-
-	evals: `[INFO] Running evaluations
----OUTPUT---
-=== Evals Demo ===
-Question: "What is Agentuity and what are its main features?"
-
-Step 1: Generating answer...
-Answer: "Agentuity is a platform for building AI agents with built-in storage, AI gateway..."
-
-Step 2: Running evaluations...
-
-Eval 1: Answer Completeness
-  Score: 82%
-  Reason: Covers main features but could mention streaming and evals capabilities.
-
-Eval 2: Factual Claims
-  Passed: Yes
-  Reason: Contains verifiable claims about platform features and capabilities.`,
 };
