@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import {
+	CoderCreateAgentBuilderSessionRequestSchema,
 	CoderCreateCustomAgentRequestSchema,
 	CoderCreateSessionRequestSchema,
 	CoderCustomAgentListResponseSchema,
@@ -144,6 +145,36 @@ const service: Service = {
 			],
 			examplePath: '/hub/session',
 			exampleBody: { task: 'Implement feature X', workflowMode: 'standard' },
+		},
+		{
+			id: 'create-agent-builder-session',
+			title: 'Create Agent Builder Session',
+			sectionTitle: 'Sessions',
+			method: 'POST',
+			path: '/hub/session/builder',
+			description:
+				'Creates a dedicated Lead + agent-builder session for designing, editing, or publishing a custom agent.',
+			pathParams: [],
+			queryParams: CoderCreateSessionParamsSchema.shape.orgId
+				? [{ name: 'orgId', type: 'string', description: 'Organization ID', required: false }]
+				: [],
+			requestBody: {
+				description: 'Agent-builder launch payload.',
+				fields: { schema: CoderCreateAgentBuilderSessionRequestSchema },
+			},
+			responseDescription: 'Returns the created builder session.',
+			responseFields: { schema: CoderCreateSessionResponseWireSchema, stripRequired: true },
+			statuses: [
+				{ code: 201, description: 'Builder session created' },
+				{ code: 404, description: 'Source session or target agent not found' },
+			],
+			examplePath: '/hub/session/builder',
+			exampleBody: {
+				mode: 'from_session',
+				sourceSessionId: 'codesess_123',
+				label: 'Build from release triage',
+				prompt: 'Turn the repeated release-triage workflow into a reusable QA agent',
+			},
 		},
 		{
 			id: 'list-sessions',
