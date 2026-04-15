@@ -1,9 +1,9 @@
 ---
 title: Coder
-description: Run AI coding sessions in managed sandboxes with real-time collaboration
+description: Manage AI coding sessions that run in cloud sandboxes with full lifecycle, replay, and reconnect support
 ---
 
-Agentuity Coder runs AI-assisted coding sessions in cloud sandboxes. Each session connects an AI agent (powered by [Pi](https://pi.dev/)) to a managed environment where it can write code, run builds, execute tests, and iterate autonomously, while you watch or collaborate in real time.
+Agentuity Coder runs AI coding sessions on a durable Hub where humans, apps, and agents all subscribe to the same event stream. Sessions carry full lifecycle state, a participant model, and a durable event log you can inspect or attach to from the SDK, CLI, or web app.
 
 <Callout type="tip" title="Standalone Package">
 Use the [`@agentuity/coder`](/reference/standalone-packages#coder) package to manage sessions from any Node.js or Bun application without the full runtime.
@@ -13,34 +13,82 @@ Use the [`@agentuity/coder`](/reference/standalone-packages#coder) package to ma
 
 | Approach | Best For |
 |----------|----------|
-| **Coder sessions** | Autonomous coding tasks in isolated sandboxes, remote pair programming with AI |
-| [Claude Code plugin](/reference/cli/claude-code-plugin) | AI-assisted development in your local project via Claude Code |
-| [OpenCode plugin](/reference/cli/opencode-plugin) | Multi-agent team for complex tasks in OpenCode |
-| [Sandbox service](/services/sandbox) | Running arbitrary code or scripts in isolated environments |
+| **Coder sessions** | Coding work that should run in a cloud sandbox and remain available as a session you can inspect, resume, or review later |
+| [Claude Code/Cowork plugin](/reference/cli/claude-code-plugin) | Agentuity skills inside Claude Code and Cowork for SDK work, cloud services, and deploys. It does not manage Coder sessions. |
+| [OpenCode plugin](/reference/cli/opencode-plugin) | Agentuity multi-agent workflows inside OpenCode with specialized agents, slash commands, and headless runs. It is separate from managed Coder session lifecycle. |
+| [Sandbox service](/services/sandbox) | One-off isolated execution when you do not need Coder session state, replay, or reconnect flows |
 
-Use Coder when you want an AI agent to work independently in a cloud sandbox: building features, fixing bugs, or exploring code, without tying up your local environment.
+Use Coder when you want the unit of work to be a session with history, lifecycle, and reconnect semantics, not just a sandbox process.
 
 ## Managing Sessions
 
 | Method | Best For |
 |--------|----------|
-| **SDK** (`CoderClient`) | Programmatic session management from agents, scripts, or external apps |
-| **CLI** (`agentuity coder`) | Interactive session management and local development |
-| **[Web App](https://app.agentuity.com)** | Observing sessions, viewing transcripts, browsing history |
+| **SDK** (`CoderClient`) | Programmatic session management from your app, automation, or internal tooling |
+| **CLI** (`agentuity coder`) | Starting, attaching to, and driving sessions from the terminal |
+| **[Web App](https://app.agentuity.com)** | Inspecting session state, replay, and history from a browser |
 
 <Callout type="info" title="Hub URL is discovered when not explicitly set">
 Coder has HTTP endpoints, but no single static base URL. If neither `url` nor `AGENTUITY_CODER_URL` is set, clients call the Agentuity API to discover your org's Hub address, then route session and workspace requests to that Hub. [`@agentuity/coder`](/reference/standalone-packages#coder) and `agentuity coder` handle discovery, auth, and routing for you.
+</Callout>
+
+<Callout type="warning" title="SDK examples do not need a deploy, but your org does need Coder enabled">
+You can validate `CoderClient` without deploying an app. If discovery works but session calls fail at the org level, Coder is probably not enabled for that org yet.
 </Callout>
 
 ## How It Works
 
 A Coder session has three components:
 
-1. **Hub**: Orchestration server that manages session lifecycle, tools, and real-time communication via WebSocket
+1. **Hub**: Real-time broadcast server where participants (humans, apps, agents) subscribe to the same event stream; also manages session lifecycle and tools
 2. **Agent**: An AI coding agent that connects to the Hub and executes tasks
 3. **Sandbox**: An isolated cloud environment where the agent writes, builds, and tests code
 
 Sessions support multiple participants: the primary agent, sub-agents that split work, and observers that stream the session transcript in real time.
+
+## Agents and Skills
+
+Coder has a few different layers that are easy to mix up:
+
+- **Built-in agents** are the built-in Coder team roles like `builder`, `reviewer`, and `scout`
+- **System skills** are Hub-managed skills that the platform injects automatically
+- **Saved skills and skill buckets** are user-managed selections you attach to sessions or workspaces
+
+If you want to choose which built-in specialists are available in a session, use `agentSlugs` and `defaultAgent`.
+
+## Reading Session State
+
+When you inspect a session from the SDK or CLI, these fields do most of the work:
+
+| Field | What It Tells You |
+|------|--------------------|
+| `status` | The current lifecycle state, such as creating, active, paused, or archived |
+| `bucket` | The broader lifecycle bucket, which is useful when grouping sessions in a UI |
+| `runtimeAvailable` | Whether the runtime is currently available for live interaction |
+| `controlAvailable` | Whether a controller client can actively drive the session |
+| `wakeAvailable` | Whether the session can be resumed or woken back up |
+| `historyOnly` | Whether the session is no longer live and should be treated as replay-only |
+| `liveExpected` | Whether the Hub still expects a live runtime to come online |
+
+In practice:
+
+- `historyOnly: true` usually means “switch to replay or a read-only session view”
+- `runtimeAvailable: true` usually means “the session is live enough to attach to”
+- `wakeAvailable: true` usually means “the session is not live now, but it may still be resumable”
+- fresh sessions often have little or no replay, event history, or participant data yet
+
+## Which Read Method to Use
+
+| Need | Start Here |
+|------|------------|
+| One session's current state | `getSession()` |
+| A dashboard or picker of many sessions | `listSessions()` |
+| Sessions available to resume | `listConnectableSessions()` |
+| Wake a paused session before attaching | `prepareSessionForRemoteAttach()` |
+| Catch a late-joining client up to current state | `getReplay()` |
+| Build a structured timeline or audit view | `listEventHistory()` |
+| See who is currently attached | `listParticipants()` |
+| Watch the live session feed | `subscribeToCoderHub()` |
 
 ## SDK Usage
 
@@ -49,6 +97,8 @@ Install the standalone package:
 ```bash
 bun add @agentuity/coder
 ```
+
+If you want the cleanest first SDK integration, start with [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk). For the rest of the runnable Coder examples, see the [Coder cookbook section](/cookbook#coder), including how to branch into [Loop-Mode Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions), [Attach Skills](/cookbook/patterns/attaching-skills-to-a-coder-session), [Use Workspaces](/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection), and more.
 
 ### Creating and Listing Sessions
 
@@ -84,11 +134,11 @@ const session = await client.getSession('codesess_abc123');
 
 // Update a session
 await client.updateSession('codesess_abc123', {
-  label: 'Auth feature - phase 2',
   tags: ['auth', 'feature', 'phase-2'],
+  visibility: 'organization',
 });
 
-// Archive a completed session (preserves transcript for replay)
+// Archive a completed session so its history stays available for replay and inspection
 await client.archiveSession('codesess_abc123');
 
 // Resume a paused session (wakes the sandbox)
@@ -106,7 +156,7 @@ import { CoderClient } from '@agentuity/coder';
 const client = new CoderClient();
 const sessionId = 'codesess_abc123';
 
-// Get the full session replay (transcript + events)
+// Get the replay payload a late-joining client uses to catch up
 const replay = await client.getReplay(sessionId);
 
 // List participants in a session
@@ -132,6 +182,7 @@ const client = new CoderClient();
 const workspace = await client.createWorkspace({
   name: 'Auth System',
   description: 'OAuth and session management',
+  agentSlugs: ['builder', 'reviewer'],
 });
 
 // Save a reusable skill
@@ -169,7 +220,7 @@ const client = new CoderClient({
 import { CoderClient } from '@agentuity/coder';
 
 const client = new CoderClient({
-  url: 'https://coder.example.com',     // Explicit Hub URL — skips discovery
+  url: 'https://coder.example.com',     // Explicit Hub URL, skips discovery
   apiKey: 'agentuity_sk_...',
   orgId: 'org_...',
 });
@@ -186,27 +237,30 @@ Most apps only need the API key. Set `AGENTUITY_SDK_KEY` and let the client disc
 ## CLI Usage
 
 ```bash
-# Start a coding session
-agentuity coder start
+# Open the interactive terminal session
+agentuity coder tui
 
-# Start with a task in a sandbox
-agentuity coder start --sandbox "Build an auth system" --repo https://github.com/org/repo
+# Create a managed session without attaching
+agentuity coder create "Build an auth system"
+
+# Create a managed session and attach immediately
+agentuity coder create "Build an auth system" --connect
+
+# Open the interactive terminal session against an existing remote session
+agentuity coder tui --remote codesess_abc123
 
 # List active sessions
 agentuity coder list
 
 # Inspect a session
-agentuity coder inspect codesess_abc123
-
-# Connect to an existing session
-agentuity coder start --remote codesess_abc123
+agentuity coder get codesess_abc123
 ```
 
 See [Coder CLI Commands](/reference/cli/coder) for the full command reference.
 
 ### Session Modes
 
-Running `agentuity coder start` with no extra flags launches a local TUI session. Using `--sandbox <task>` creates a cloud sandbox session with the provided task description. Using `--remote <session_id>` connects to an existing remote session.
+Running `agentuity coder tui` with no extra flags launches the interactive terminal session. Using `agentuity coder tui --sandbox <task>` creates a cloud sandbox session and attaches to it. Using `agentuity coder tui --remote <session_id>` attaches to an existing remote session.
 
 | Mode | Description |
 |------|-------------|
@@ -222,19 +276,19 @@ Running `agentuity coder start` with no extra flags launches a local TUI session
 | **Active** | Agent is connected and working |
 | **Idle** | Agent has finished the current task, waiting for new instructions |
 | **Paused** | Agent disconnected, sandbox suspended. Resume with `resumeSession()` or `--remote` |
-| **Archived** | Session ended, transcript preserved for replay |
+| **Archived** | Session ended, session history remains available for replay and inspection |
 
 ## Connecting via Plugins
 
 The Claude Code and OpenCode plugins integrate with the Coder ecosystem:
 
-- **Claude Code**: The base [Agentuity plugin](/reference/cli/claude-code-plugin) (`/install agentuity`) provides skills for deploying and building with the SDK. The separate `agentuity-coder` marketplace plugin adds multi-agent teams, persistent memory, and cadence mode
-- **OpenCode**: The `@agentuity/opencode` plugin provides a multi-agent team (Lead, Scout, Builder, etc.) with background tasks and workspace integration
+- **Claude Code/Cowork**: The [Agentuity plugin](/reference/cli/claude-code-plugin) adds auto-activated Agentuity skills to Claude Code and Cowork. Use it when you want help deploying apps, managing cloud services, or building with the SDK from that editor workflow. It is not the API for creating or inspecting Coder sessions.
+- **OpenCode**: The [OpenCode plugin](/reference/cli/opencode-plugin) adds Agentuity-aware agents, slash commands, and dashboard tooling to OpenCode. Use it when you want an editor-based multi-agent workflow rather than a managed Coder session.
 
 ## Next Steps
 
+- [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Core SDK flow for create, read, archive, and delete operations
+- [Choosing Built-In Agents for a Coder Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Choose the built-in roster for a session
+- [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session): Attach saved skills and skill buckets from your library
 - [CoderClient Reference](/reference/sdk-reference/coder): Full method reference for `@agentuity/coder`
 - [Coder CLI Commands](/reference/cli/coder): Full command reference
-- [`@agentuity/coder` Package](/reference/standalone-packages#coder): Install and constructor overview
-- [Sandbox](/services/sandbox): Manage sandbox environments directly
-- [Claude Code Plugin](/reference/cli/claude-code-plugin): AI-assisted local development

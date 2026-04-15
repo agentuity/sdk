@@ -36,6 +36,12 @@ interface MetaJson {
 	title?: string;
 	sections?: string[];
 	pages?: string[];
+	sort?: 'title';
+	groups?: Array<{
+		title: string;
+		pages: string[];
+		sort?: 'title';
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,34 +192,71 @@ async function readFrontmatter(mdxPath: string): Promise<{ title: string; descri
 // Content processing
 // ---------------------------------------------------------------------------
 
+async function buildNavItemForSlug(
+	dirPath: string,
+	urlPrefix: string,
+	slug: string
+): Promise<NavItem | null> {
+	if (slug === 'index') return null;
+
+	const subDirPath = join(dirPath, slug);
+	const mdxPath = join(dirPath, `${slug}.mdx`);
+
+	if (await isDirectory(subDirPath)) {
+		const subMeta = await readMetaJson(subDirPath);
+		const hasIndex = await fileExists(join(subDirPath, 'index.mdx'));
+		const subItems = await processDirectory(subDirPath, `${urlPrefix}/${slug}`);
+
+		const item: NavItem = { title: subMeta.title || slug };
+		if (hasIndex) item.url = `${urlPrefix}/${slug}`;
+		if (subItems.length > 0) item.items = subItems;
+		return item;
+	}
+
+	if (await fileExists(mdxPath)) {
+		const fm = await readFrontmatter(mdxPath);
+		const item: NavItem = { title: fm.title, url: `${urlPrefix}/${slug}` };
+		if (fm.description) item.description = fm.description;
+		return item;
+	}
+
+	throw new Error(
+		`Invalid docs meta.json entry: "${slug}" has no matching directory or .mdx file in ${dirPath}`
+	);
+}
+
 async function processDirectory(dirPath: string, urlPrefix: string): Promise<NavItem[]> {
 	const meta = await readMetaJson(dirPath);
 	const pages = meta.pages || [];
 	const items: NavItem[] = [];
+	const groupedPages = new Set<string>();
+
+	for (const group of meta.groups || []) {
+		const groupItems: NavItem[] = [];
+
+		for (const slug of group.pages) {
+			groupedPages.add(slug);
+			const item = await buildNavItemForSlug(dirPath, urlPrefix, slug);
+			if (item) groupItems.push(item);
+		}
+
+		if (group.sort === 'title') {
+			groupItems.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
+		}
+
+		if (groupItems.length > 0) {
+			items.push({ title: group.title, items: groupItems });
+		}
+	}
 
 	for (const slug of pages) {
-		if (slug === 'index') continue;
+		if (groupedPages.has(slug)) continue;
+		const item = await buildNavItemForSlug(dirPath, urlPrefix, slug);
+		if (item) items.push(item);
+	}
 
-		const subDirPath = join(dirPath, slug);
-		const mdxPath = join(dirPath, `${slug}.mdx`);
-
-		if (await isDirectory(subDirPath)) {
-			const subMeta = await readMetaJson(subDirPath);
-			const hasIndex = await fileExists(join(subDirPath, 'index.mdx'));
-			const subItems = await processDirectory(subDirPath, `${urlPrefix}/${slug}`);
-
-			const item: NavItem = { title: subMeta.title || slug };
-			if (hasIndex) item.url = `${urlPrefix}/${slug}`;
-			if (subItems.length > 0) item.items = subItems;
-			items.push(item);
-		} else if (await fileExists(mdxPath)) {
-			const fm = await readFrontmatter(mdxPath);
-			const item: NavItem = { title: fm.title, url: `${urlPrefix}/${slug}` };
-			if (fm.description) item.description = fm.description;
-			items.push(item);
-		} else {
-			console.warn(`Warning: No directory or .mdx file for "${slug}" in ${dirPath}`);
-		}
+	if (meta.sort === 'title') {
+		items.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
 	}
 
 	return items;
@@ -278,11 +321,15 @@ function serializeSection(section: NavSection, indent: number): string {
 	if (section.hideItems) {
 		out += `${ind(indent + 1)}hideItems: true,\n`;
 	}
-	out += `${ind(indent + 1)}items: [\n`;
-	for (const item of section.items) {
-		out += serializeItem(item, indent + 2);
+	if (section.items.length === 0) {
+		out += `${ind(indent + 1)}items: [],\n`;
+	} else {
+		out += `${ind(indent + 1)}items: [\n`;
+		for (const item of section.items) {
+			out += serializeItem(item, indent + 2);
+		}
+		out += `${ind(indent + 1)}],\n`;
 	}
-	out += `${ind(indent + 1)}],\n`;
 	out += `${ind(indent)}},\n`;
 	return out;
 }

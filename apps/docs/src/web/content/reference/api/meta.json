@@ -1,5 +1,6 @@
 {
 	"title": "API Reference",
+	"sort": "title",
 	"pages": [
 		"api-keys",
 		"coder",

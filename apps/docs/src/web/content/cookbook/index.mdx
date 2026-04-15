@@ -3,7 +3,7 @@ title: Cookbook
 description: Tutorials and patterns for building with Agentuity
 ---
 
-import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook, Link, Globe } from 'lucide-react';
+import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook, Link, Globe, Bot } from 'lucide-react';
 
 Learn common patterns and build real-world applications with these guides.
 
@@ -25,6 +25,55 @@ Learn common patterns and build real-world applications with these guides.
 </Cards>
 
 ## Patterns
+
+### Coder
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/creating-coder-sessions-with-sdk"
+    title="Manage Coder Sessions"
+    description="Create sessions, read state, and manage lifecycle from a plain script"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/cookbook/patterns/creating-loop-mode-coder-sessions"
+    title="Loop-Mode Sessions"
+    description="Create a loop-mode session and inspect workflow state with getLoopState"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/cookbook/patterns/choosing-built-in-agents-for-a-coder-session"
+    title="Built-In Agents"
+    description="Choose which built-in Coder agents are enabled for a session and set the default agent"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/cookbook/patterns/attaching-skills-to-a-coder-session"
+    title="Attach Skills"
+    description="Save skills, group them into buckets, and attach them to a Coder session"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection"
+    title="Use Workspaces"
+    description="Store reusable Coder selections in a workspace and attach them to sessions"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/cookbook/patterns/preparing-coder-sessions-for-remote-attach"
+    title="Reconnect Sessions"
+    description="Find live or wakeable sessions and prepare one for remote attach"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/cookbook/patterns/observing-a-coder-session-through-the-hub"
+    title="Observe Sessions"
+    description="Subscribe to a session's live event stream, page through its event history, and hydrate a client from the durable replay stream"
+    icon={<Bot />}
+  />
+</Cards>
+
+### More Patterns
 
 <Cards>
   <CardLink
