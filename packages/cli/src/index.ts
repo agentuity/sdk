@@ -122,10 +122,6 @@ export type {
 	AuthData,
 	CommandSchemas,
 	ResourceSelectionRule,
-	BuildPhase,
-	BuildContext,
-	AgentuityConfig,
-	WorkbenchConfig,
 } from './types';
 export { createSubcommand, createCommand } from './types';
 export type { ColorScheme } from './terminal';

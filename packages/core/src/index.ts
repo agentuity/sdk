@@ -26,9 +26,6 @@ export { toCamelCase, toPascalCase } from './string.ts';
 // typehelper.ts exports
 export type { InferInput, InferOutput } from './typehelper.ts';
 
-// webrtc.ts exports
-export type * from './webrtc.ts';
-
 // workbench exports
 export {
 	decodeWorkbenchConfig,
@@ -38,5 +35,3 @@ export {
 	WorkbenchConfigError,
 	WorkbenchNotFoundError,
 } from './workbench-config.ts';
-
-// Client code moved to @agentuity/frontend for better bundler compatibility

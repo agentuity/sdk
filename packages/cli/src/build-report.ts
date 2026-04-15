@@ -111,7 +111,6 @@ export interface BuildReport {
 export const DiagnosticPhases = [
 	'typecheck',
 	'client-build',
-	'workbench-build',
 	'server-build',
 	'metadata-generation',
 	'zip-package',

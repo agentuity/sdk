@@ -30,7 +30,6 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
 		"typescript": "^5.9.0"
 	},
 	"devDependencies": {

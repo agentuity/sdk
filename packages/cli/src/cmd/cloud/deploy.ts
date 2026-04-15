@@ -825,12 +825,6 @@ export const deploySubcommand = createSubcommand({
 									if (relative.startsWith('.vite/')) {
 										return false;
 									}
-									if (relative.startsWith('workbench-src/')) {
-										return false;
-									}
-									if (relative.startsWith('workbench/')) {
-										return false;
-									}
 									// ignore common stuff we never want to include in the zip
 									if (relative.startsWith('.env')) return false;
 									if (relative.startsWith('.git/')) return false;

@@ -43,8 +43,7 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"@agentuity/postgres": "workspace:*",
-		"drizzle-orm": "^0.45.0",
-		"better-auth": "1.5.2"
+		"drizzle-orm": "^0.45.0"
 	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",

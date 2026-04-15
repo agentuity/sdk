@@ -123,6 +123,3 @@ export {
 	index,
 	check,
 } from 'drizzle-orm/pg-core';
-
-// Re-export better-auth drizzle adapter for use with @agentuity/auth
-export { drizzleAdapter } from 'better-auth/adapters/drizzle';
