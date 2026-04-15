@@ -71,35 +71,66 @@ function pidExists(pid: number): boolean {
 }
 
 /**
- * Kill a process by PID with SIGTERM, then SIGKILL if still alive
+ * Send a signal to a process group (negative PID) with fallback to direct PID.
+ * Returns true if the signal was sent successfully.
+ */
+function killProcessTree(pid: number, signal: NodeJS.Signals, logger: LoggerLike): boolean {
+	// Safety: never send signals to PID 0 (own process group), PID 1 (init/systemd),
+	// or other dangerously low PIDs. process.kill(-1) would signal every process
+	// the user owns, which would crash the entire desktop session.
+	if (pid <= 1) {
+		logger.debug('Refusing to kill dangerous pid %d, skipping process tree kill', pid);
+		return false;
+	}
+
+	// Try process group kill first (kills all children too)
+	try {
+		process.kill(-pid, signal);
+		logger.debug('Sent %s to process group -%d', signal, pid);
+		return true;
+	} catch (err: unknown) {
+		const error = err as NodeJS.ErrnoException;
+		if (error.code !== 'ESRCH') {
+			logger.debug(
+				'Process group kill failed for pid %d (%s), falling back to direct',
+				pid,
+				error.code
+			);
+		}
+	}
+
+	// Fall back to direct PID kill
+	try {
+		process.kill(pid, signal);
+		logger.debug('Sent %s to pid %d (direct)', signal, pid);
+		return true;
+	} catch (err: unknown) {
+		const error = err as NodeJS.ErrnoException;
+		if (error.code !== 'ESRCH') {
+			logger.debug('Direct kill failed for pid %d: %s', pid, error.code);
+		}
+		return false;
+	}
+}
+
+/**
+ * Kill a process by PID with SIGTERM, then SIGKILL if still alive.
+ * Targets the entire process tree to prevent orphaned child processes.
  */
 async function killPid(pid: number, logger: LoggerLike): Promise<void> {
 	if (!pidExists(pid)) return;
 
-	try {
-		process.kill(pid, 'SIGTERM');
-		logger.debug('Sent SIGTERM to pid %d', pid);
-	} catch (err: unknown) {
-		const error = err as NodeJS.ErrnoException;
-		if (error.code === 'ESRCH') return;
-		logger.debug('Error sending SIGTERM to pid %d: %s', pid, error.message);
-	}
+	// Send SIGTERM to process tree
+	const sent = killProcessTree(pid, 'SIGTERM', logger);
+	if (!sent) return;
 
 	// Give it a moment to exit gracefully
 	await new Promise((r) => setTimeout(r, 500));
 
 	if (!pidExists(pid)) return;
 
-	// Force kill
-	try {
-		process.kill(pid, 'SIGKILL');
-		logger.debug('Sent SIGKILL to pid %d', pid);
-	} catch (err: unknown) {
-		const error = err as NodeJS.ErrnoException;
-		if (error.code !== 'ESRCH') {
-			logger.debug('Error sending SIGKILL to pid %d: %s', pid, error.message);
-		}
-	}
+	// Force kill the entire process tree
+	killProcessTree(pid, 'SIGKILL', logger);
 
 	// Wait for process to fully terminate
 	await new Promise((r) => setTimeout(r, 100));

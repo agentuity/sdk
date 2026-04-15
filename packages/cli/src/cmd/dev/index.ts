@@ -45,27 +45,38 @@ interface ServerLike {
 /**
  * Kill any lingering gravity processes from previous dev sessions.
  * This is a defensive measure to clean up orphaned processes.
+ *
+ * When a projectId is provided, only kills gravity processes for that specific
+ * project. Otherwise falls back to killing all gravity processes (used during
+ * startup before project info is available).
  */
-async function killLingeringGravityProcesses(logger: {
-	debug: (msg: string, ...args: unknown[]) => void;
-}): Promise<void> {
+async function killLingeringGravityProcesses(
+	logger: {
+		debug: (msg: string, ...args: unknown[]) => void;
+	},
+	projectId?: string
+): Promise<void> {
 	// Only attempt on Unix-like systems (macOS, Linux)
 	if (process.platform === 'win32') {
 		return;
 	}
 
 	try {
-		// Use pkill to kill gravity processes owned by current user
-		// The -f flag matches against full command line
-		// We specifically match the gravity binary name to avoid killing unrelated processes
-		const result = Bun.spawnSync(['pkill', '-f', 'gravity.*--endpoint-id'], {
+		// Scope the pkill pattern to the specific project when possible,
+		// avoiding killing gravity processes from other dev sessions.
+		const pattern = projectId ? `gravity.*--project-id.*${projectId}` : 'gravity.*--endpoint-id';
+
+		const result = Bun.spawnSync(['pkill', '-f', pattern], {
 			stdout: 'ignore',
 			stderr: 'ignore',
 		});
 
 		// Exit code 0 = processes killed, 1 = no matching processes, other = error
 		if (result.exitCode === 0) {
-			logger.debug('Killed lingering gravity processes from previous session');
+			logger.debug(
+				'Killed lingering gravity processes%s from previous session',
+				projectId ? ` (project ${projectId})` : ''
+			);
 			// Brief pause to let processes fully terminate
 			await new Promise((resolve) => setTimeout(resolve, 100));
 		} else if (result.exitCode === 1) {
@@ -78,19 +89,46 @@ async function killLingeringGravityProcesses(logger: {
 
 /**
  * Kill the Bun backend subprocess if one is running.
+ *
+ * @param forceKill - If true, sends SIGKILL instead of SIGTERM. Used in
+ *   process.on('exit') handlers where there's no time for graceful shutdown.
+ *   Also kills the entire process tree to prevent orphaned child processes.
  */
-function killBunSubprocess(logger: { debug: (msg: string, ...args: unknown[]) => void }): void {
+function killBunSubprocess(
+	logger: { debug: (msg: string, ...args: unknown[]) => void },
+	forceKill = false
+): void {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const globalAny = globalThis as any;
 	const bunSubprocess = globalAny.__AGENTUITY_BUN_SUBPROCESS__ as ProcessLike | undefined;
 	if (!bunSubprocess) return;
 
-	try {
-		bunSubprocess.kill('SIGTERM');
-		logger.debug('Bun subprocess killed');
-	} catch (err) {
-		logger.debug('Error killing Bun subprocess: %s', err);
+	const signal: NodeJS.Signals = forceKill ? 'SIGKILL' : 'SIGTERM';
+	const pid = bunSubprocess.pid;
+
+	// Kill the entire process tree if we have a PID (guard against dangerous PIDs)
+	if (pid && pid > 1) {
+		try {
+			process.kill(-pid, signal);
+			logger.debug('Sent %s to Bun subprocess process group -%d', signal, pid);
+		} catch {
+			// Process group kill failed, fall back to direct kill
+			try {
+				bunSubprocess.kill(signal);
+				logger.debug('Sent %s to Bun subprocess pid %d (direct)', signal, pid);
+			} catch (err) {
+				logger.debug('Error killing Bun subprocess: %s', err);
+			}
+		}
+	} else {
+		try {
+			bunSubprocess.kill(signal);
+			logger.debug('Bun subprocess killed with %s', signal);
+		} catch (err) {
+			logger.debug('Error killing Bun subprocess: %s', err);
+		}
 	}
+
 	globalAny.__AGENTUITY_BUN_SUBPROCESS__ = undefined;
 }
 
@@ -584,7 +622,7 @@ export const command = createCommand({
 
 				// Additional cleanup for non-tracked resources
 				await devLock.release();
-				await killLingeringGravityProcesses(logger);
+				await killLingeringGravityProcesses(logger, project?.projectId);
 
 				if (exitAfter) {
 					if (stdinListenerRegistered && process.stdin.isTTY) {
@@ -630,21 +668,16 @@ export const command = createCommand({
 				);
 			});
 			process.on('exit', () => {
-				if (gravityProcess?.exitCode === null) {
-					try {
-						gravityProcess.kill('SIGKILL');
-					} catch {
-						// Ignore
-					}
-				}
-				if (viteServer) {
-					try {
-						viteServer.close();
-					} catch {
-						// Ignore
-					}
-				}
-				killBunSubprocess(logger);
+				// Last-resort synchronous cleanup. Only runs aggressive SIGKILL
+				// if the async cleanup() hasn't already handled everything.
+				// This prevents the race where both cleanup paths try to kill
+				// the same processes.
+				procManager.forceKillAllSync();
+
+				// SIGKILL the Bun subprocess tree as a final safety net.
+				// forceKill=true ensures we use SIGKILL (no time for graceful
+				// shutdown in an exit handler) and target the process group.
+				killBunSubprocess(logger, true);
 				releaseLockSync(rootDir);
 			});
 
@@ -1138,7 +1171,7 @@ export const command = createCommand({
 		} finally {
 			/* brute force clean up */
 			await devLock.release();
-			await killLingeringGravityProcesses(logger);
+			await killLingeringGravityProcesses(logger, project?.projectId);
 			releaseLockSync(rootDir);
 		}
 	},

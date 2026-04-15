@@ -413,7 +413,9 @@ const { server, logger } = await createApp({ agents: [] });
 
 			const killSignals: (string | number | undefined)[] = [];
 
-			// Simulate a process that doesn't exit on SIGTERM
+			// Simulate a process that doesn't exit on SIGTERM.
+			// pid: undefined so cleanup uses the handle's kill() instead of
+			// process.kill(-pid) which requires a real PID.
 			manager.registerProcess({
 				id: 'hanging',
 				process: {
@@ -421,7 +423,7 @@ const { server, logger } = await createApp({ agents: [] });
 						killSignals.push(signal);
 					},
 					exitCode: null, // Still running
-					pid: 1,
+					pid: undefined,
 				},
 				description: 'Hanging process',
 			});
@@ -659,7 +661,8 @@ describe('Crash Recovery', () => {
 
 			const manager = new ProcessManager(mockLogger);
 
-			// Create a mock process that "exits" after SIGTERM
+			// Create a mock process that "exits" after SIGTERM.
+			// pid: undefined so cleanup uses the handle's kill() mock.
 			const proc = {
 				kill: () => {
 					// Simulate process exiting after kill
@@ -668,7 +671,7 @@ describe('Crash Recovery', () => {
 					}, 10);
 				},
 				exitCode: null as number | null,
-				pid: 1,
+				pid: undefined as number | undefined,
 			};
 
 			manager.registerProcess({
