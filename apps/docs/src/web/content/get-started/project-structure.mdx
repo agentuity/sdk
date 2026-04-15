@@ -44,9 +44,9 @@ Agents and routes are separate concerns in Agentuity:
 | Concept | Location | Purpose |
 |---------|----------|---------|
 | **Agents** | `src/agent/` | Core logic, schemas, validation |
-| **Routes** | `src/api/` | HTTP endpoints and transport triggers |
+| **Routes** | `src/api/` | HTTP endpoints, streams, WebSockets, and cron handlers |
 
-Agents contain your core logic with schema validation and lifecycle hooks. Routes define how agents get invoked over HTTP, WebSocket, SSE, and other transports. This separation keeps concerns clear: agents don't know how they're called, and routes handle all transport.
+Agents contain your core logic with schema validation and lifecycle hooks. Routes define HTTP endpoints and handlers for streaming, WebSockets, and cron. This separation keeps concerns clear: agents don't know how they're called, and routes handle the protocol details.
 
 ### app.ts
 
@@ -97,19 +97,19 @@ export default [chat];
 Routes import agents directly and call them:
 
 ```typescript
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { createRouter } from '@agentuity/runtime';
 import chat from '@agent/chat/agent';
 
-const api = new Hono<Env>()
-  .post('/chat', chat.validator(), async (c) => {
-    const data = c.req.valid('json');
-    return c.json(await chat.run(data));
-  });
+const router = createRouter();
 
-export type ApiRouter = typeof api;
+router.post('/chat', chat.validator(), async (c) => {
+  const data = c.req.valid('json');
+  return c.json(await chat.run(data));
+});
 
-export default api;
+export type ApiRouter = typeof router;
+
+export default router;
 ```
 
 `chat.validator()` validates the request body against the agent's input schema and provides type-safe access via `c.req.valid('json')`.

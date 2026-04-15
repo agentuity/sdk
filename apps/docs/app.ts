@@ -6,8 +6,8 @@ import { docRedirectRules, getDemoRedirectTarget } from './src/web/lib/docs-redi
 
 const redirects = new Hono();
 
-// Permanent server-side redirects for legacy docs URLs.
-// Matching TanStack routes handle the same redirects during client navigation.
+// Permanent server-side redirects for legacy docs URLs
+// Matching TanStack routes handle the same redirects during client navigation
 for (const rule of docRedirectRules) {
 	for (const path of rule.paths) {
 		redirects.get(path, (c) => c.redirect(rule.target, 301));

@@ -24,15 +24,15 @@ LLM-as-judge can be used in two contexts:
 
 | Context | When to Use | Blocks Response? |
 |---------|-------------|------------------|
-| **Inline** (in handler) | Scores needed in UI, model comparison, user-facing quality metrics | Yes |
-| **Background** (for example, in `eval.ts`) | Quality monitoring, compliance checks, or review flows after the response is sent | No |
+| **Inline** (in handler) | Scores returned with the response, model comparison, or request-time gating | Yes |
+| **Background** (`waitUntil()`) | Quality monitoring, compliance checks, or review flows after the response is sent | No |
 
 **Inline example**: A model arena that shows users which response "won" needs scores returned with the response.
 
-**Background example**: Checking responses for PII or hallucinations without adding latency to the user-facing response.
+**Background example**: Checking responses for PII or hallucinations without adding latency to the main response.
 
 <Callout type="info" title="When to Run a Judge">
-Run LLM-as-judge checks inline when users need the score immediately. Move them off the request path when you want monitoring without adding latency to the main response.
+Run LLM-as-judge inline when the score is part of the response. Use `waitUntil()` when the result is for monitoring, review, or follow-up work.
 </Callout>
 
 ## Basic Pattern
@@ -260,11 +260,12 @@ export default ragAgent;
 
 ## Run in the Background
 
-For background quality monitoring, run the judge after the response is sent so it does not slow down users. One way to do that is with an `eval.ts` file:
+For background quality monitoring, queue the judge with `ctx.waitUntil()` so the response returns immediately:
 
-```typescript title="src/agent/qa-agent/eval.ts"
-import agent from './agent';
-import { generateObject } from 'ai';
+```typescript title="src/agent/qa-agent/agent.ts"
+import { createAgent } from '@agentuity/runtime';
+import { generateText, generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
 import { groq } from '@ai-sdk/groq';
 import { z } from 'zod';
 
@@ -287,38 +288,46 @@ const HelpfulnessJudgment = z.object({
   }),
 });
 
-export const helpfulnessEval = agent.createEval('helpfulness', {
-  description: 'Judges if responses are helpful and actionable',
-  handler: async (ctx, input, output) => {
-    const { object } = await generateObject({
-      model: groq('openai/gpt-oss-120b'),
-      schema: HelpfulnessJudgment,
-      prompt: `Evaluate this response.
+const agent = createAgent('QAAgent', {
+  schema: {
+    input: z.object({ question: z.string() }),
+    output: z.object({ answer: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    const { text: answer } = await generateText({
+      model: openai('gpt-5-mini'),
+      prompt: input.question,
+    });
+
+    ctx.waitUntil(async () => {
+      const { object } = await generateObject({
+        model: groq('openai/gpt-oss-120b'),
+        schema: HelpfulnessJudgment,
+        prompt: `Evaluate this response.
 
 Question: ${input.question}
-Response: ${output.answer}
+Response: ${answer}
 
 SCORE:
 - helpfulness: How useful is this response? (0 = useless, 1 = extremely helpful)
 
 CHECKS:
 - answersQuestion: Does it directly answer what was asked?
-- actionable: Can the user act on this information?`,
+- actionable: Can someone act on this information?`,
+      });
+
+      ctx.logger.info('Judge completed', {
+        helpfulness: object.scores.helpfulness.score,
+        answersQuestion: object.checks.answersQuestion.passed,
+        actionable: object.checks.actionable.passed,
+      });
     });
 
-    // Return a pass/fail result plus the judge details for later review
-    const allChecksPassed = object.checks.answersQuestion.passed && object.checks.actionable.passed;
-
-    return {
-      passed: allChecksPassed && object.scores.helpfulness.score >= 0.7,
-      score: object.scores.helpfulness.score,
-      reason: object.scores.helpfulness.reason,
-      metadata: {
-        checks: object.checks,
-      },
-    };
+    return { answer };
   },
 });
+
+export default agent;
 ```
 
 ## Structuring Judge Prompts

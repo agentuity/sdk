@@ -1,10 +1,10 @@
 ---
 title: Local Development
 short_title: Development
-description: Run the development server with hot reload, local mode, and optional public URLs.
+description: Run the development server with hot reload, local mode, and public URLs by default.
 ---
 
-Run your Agentuity project locally with automatic hot reload, type checking, and optional public URLs for sharing or webhook testing.
+Run your Agentuity project locally with automatic hot reload, type checking, and a public URL by default for sharing or webhook testing.
 
 ## Starting the Dev Server
 
@@ -17,7 +17,7 @@ bun run dev
 The server starts on port 3500 by default with:
 - Hot reload on file changes
 - TypeScript type checking
-- Public URL tunneling (optional, for webhooks and sharing)
+- Public URL tunneling by default (disable with `--no-public`)
 - Interactive keyboard shortcuts
 
 ## Dev Server Options
