@@ -190,19 +190,19 @@ export function WebSocketDemo() {
 	const getMessageStyle = (type: Message['type']) => {
 		switch (type) {
 			case 'sent':
-				return 'bg-cyan-900/30 border-cyan-500/50 ml-8';
+				return 'border-cyan-500/15 bg-cyan-500/8 ml-6';
 			case 'echo':
-				return 'bg-zinc-800/50 border-zinc-700/50 mr-8';
+				return 'border-zinc-800 bg-zinc-950/70 mr-6';
 			case 'heartbeat':
-				return 'bg-zinc-900/50 border-zinc-800/50 text-zinc-500 text-xs';
+				return 'border-transparent bg-transparent px-0 py-1 text-xs text-zinc-500';
 			case 'system':
-				return 'bg-emerald-900/30 border-emerald-700/50';
+				return 'border-emerald-500/15 bg-emerald-500/8';
 			case 'error':
-				return 'bg-red-900/30 border-red-700/50';
+				return 'border-red-500/20 bg-red-500/8';
 			case 'reconnect':
-				return 'bg-yellow-900/30 border-yellow-700/50';
+				return 'border-amber-500/15 bg-amber-500/8';
 			default:
-				return 'bg-zinc-800/50 border-zinc-700/50';
+				return 'border-zinc-800 bg-zinc-950/70';
 		}
 	};
 
@@ -226,25 +226,20 @@ export function WebSocketDemo() {
 	};
 
 	return (
-		<div className="space-y-4">
-			{/* Interactive Demo */}
-			<div className="bg-black border border-zinc-900 rounded-lg p-4">
-				<p className="text-zinc-600 text-xs m-0 mb-4">
-					Note: Connections don't persist across page refresh
-				</p>
-
-				{/* Connection Controls */}
-				<div className="flex items-center gap-4 mb-4">
+		<div className="rounded-lg border border-zinc-900 bg-black">
+			<div className="border-b border-zinc-900 px-4 py-3">
+				<div className="flex flex-wrap items-center gap-3">
 					<Button
 						variant={isConnected ? 'destructive' : 'outline'}
 						size="sm"
 						onClick={isConnected ? disconnect : () => connect()}
 						disabled={isConnecting}
+						className="min-h-11 min-w-28 justify-center md:min-h-9"
 					>
 						{isConnecting ? 'Connecting...' : isConnected ? 'Disconnect' : 'Connect'}
 					</Button>
 
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2 text-sm text-zinc-400" role="status">
 						<div
 							className={`w-2 h-2 rounded-full ${
 								isConnected
@@ -254,7 +249,7 @@ export function WebSocketDemo() {
 										: 'bg-zinc-600'
 							}`}
 						/>
-						<span className="text-sm text-zinc-400">
+						<span>
 							{isConnected
 								? 'Connected'
 								: isReconnecting
@@ -263,20 +258,25 @@ export function WebSocketDemo() {
 						</span>
 					</div>
 
+					<p className="m-0 text-xs text-zinc-500">
+						Reconnects after drops, not after refresh
+					</p>
+
 					{messages.length > 0 && (
 						<Button
 							variant="ghost"
-							size="xs"
+							size="sm"
 							onClick={clearMessages}
-							className="text-zinc-500 hover:text-zinc-300"
+							className="min-h-11 text-zinc-500 hover:text-zinc-300 md:ml-auto md:min-h-9"
 						>
-							Clear messages
+							Clear
 						</Button>
 					)}
 				</div>
+			</div>
 
-				{/* Message Input */}
-				<div className="flex items-center gap-2 mb-4">
+			<div className="space-y-4 p-4">
+				<div className="flex items-center gap-2">
 					<Input
 						type="text"
 						value={inputValue}
@@ -284,35 +284,42 @@ export function WebSocketDemo() {
 						onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
 						placeholder={isConnected ? 'Type a message...' : 'Connect first...'}
 						disabled={!isConnected}
-						className="flex-1"
+						className="min-h-11 flex-1 md:min-h-10"
 					/>
 					<Button
 						variant="outline"
 						size="default"
 						onClick={sendMessage}
 						disabled={!isConnected || !inputValue.trim()}
+						className="min-h-11"
 					>
 						Send
 					</Button>
 				</div>
 
-				{/* Messages */}
-				<div className="bg-black border border-zinc-800 rounded-lg h-64 overflow-y-auto p-3 space-y-2">
+				<div
+					className="h-64 space-y-2 overflow-y-auto rounded-lg border border-zinc-900 bg-zinc-950/40 p-3"
+					role="log"
+					aria-live="polite"
+					aria-busy={isConnecting || isReconnecting}
+				>
 					{messages.length === 0 ? (
-						<div className="text-zinc-600 text-sm text-center py-8">
-							{isConnected ? 'Send a message to start...' : 'Click Connect to start'}
+						<div className="py-10 text-center text-sm text-zinc-500">
+							{isConnected
+								? 'Send a message to see the route echo it back'
+								: 'Connect to open the socket and start sending messages'}
 						</div>
 					) : (
 						messages.map((msg) => (
 							<div
 								key={msg.id}
-								className={`border rounded px-3 py-2 ${getMessageStyle(msg.type)}`}
+								className={`rounded border px-3 py-2 ${getMessageStyle(msg.type)}`}
 							>
 								<div className="flex items-center justify-between mb-1">
 									<span
 										className={`text-xs font-medium ${
 											msg.type === 'sent'
-												? 'text-cyan-600 dark:text-cyan-400'
+												? 'text-cyan-300'
 												: msg.type === 'heartbeat'
 													? 'text-zinc-500'
 													: 'text-zinc-400'
@@ -325,7 +332,7 @@ export function WebSocketDemo() {
 									</span>
 								</div>
 								<div
-									className={`${msg.type === 'heartbeat' ? 'text-zinc-500' : 'text-white'}`}
+									className={msg.type === 'heartbeat' ? 'text-zinc-500' : 'text-zinc-100'}
 								>
 									{msg.message}
 								</div>
@@ -333,33 +340,6 @@ export function WebSocketDemo() {
 						))
 					)}
 					<div ref={messagesEndRef} />
-				</div>
-			</div>
-
-			{/* Features */}
-			<div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-				<h2 className="text-lg font-normal text-white mb-4">WebSocket vs SSE</h2>
-
-				<div className="grid grid-cols-2 gap-4">
-					<div className="space-y-2">
-						<h3 className="text-cyan-600 dark:text-cyan-400 font-medium">WebSocket</h3>
-						<ul className="text-sm text-zinc-400 space-y-1">
-							<li>Bidirectional (client + server)</li>
-							<li>Single persistent connection</li>
-							<li>Binary and text data</li>
-							<li>Auto-reconnect (custom, as shown here)</li>
-							<li>Real-time chat, games, collaboration</li>
-						</ul>
-					</div>
-					<div className="space-y-2">
-						<h3 className="text-zinc-400 font-medium">SSE (Server-Sent Events)</h3>
-						<ul className="text-sm text-zinc-500 space-y-1">
-							<li>Server to client only</li>
-							<li>Auto-reconnect (browser built-in)</li>
-							<li>Text data only</li>
-							<li>LLM streaming, notifications</li>
-						</ul>
-					</div>
 				</div>
 			</div>
 		</div>

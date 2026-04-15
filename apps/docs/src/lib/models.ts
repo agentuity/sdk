@@ -1,8 +1,7 @@
 import { anthropic } from '@ai-sdk/anthropic';
-import { google } from '@ai-sdk/google';
-import { groq } from '@ai-sdk/groq';
 import { openai } from '@ai-sdk/openai';
 import type { LanguageModel } from 'ai';
+import { createGoogleProvider, createGroqProvider } from './ai-gateway';
 
 // Helper to get the appropriate model based on model ID
 export function getModel(modelId: string): LanguageModel {
@@ -10,10 +9,10 @@ export function getModel(modelId: string): LanguageModel {
 		return anthropic(modelId);
 	}
 	if (modelId.startsWith('gemini-')) {
-		return google(modelId);
+		return createGoogleProvider()(modelId);
 	}
 	if (modelId.startsWith('llama-') || modelId.startsWith('mixtral-')) {
-		return groq(modelId);
+		return createGroqProvider()(modelId);
 	}
 	// Default to OpenAI
 	return openai(modelId);

@@ -14,7 +14,7 @@
  *
  * Also available: get(), getMany(), delete() for direct key access.
  *
- * Docs: https://agentuity.dev/Services/Storage/vector
+ * Docs: https://agentuity.dev/services/storage/vector
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

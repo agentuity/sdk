@@ -13,24 +13,11 @@
  * The judge uses generateObject() with a Zod schema for type-safe structured
  * output - the model is forced to return valid JSON matching your schema.
  *
- * Docs: https://agentuity.dev/Agents/schema-libraries
+ * Docs: https://agentuity.dev/cookbook/patterns/llm-as-a-judge
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { generateObject } from 'ai';
-import { generateStory, JUDGE_MODEL, MODELS } from './lib';
-import { getJudgePrompt } from './prompts';
-import { type Judgment, JudgmentSchema, type ModelResult, type Tone } from './types';
-
-async function judgeStories(results: ModelResult[], tone: Tone, prompt: string): Promise<Judgment> {
-	const { object } = await generateObject({
-		model: JUDGE_MODEL,
-		schema: JudgmentSchema,
-		prompt: getJudgePrompt(results, tone, prompt),
-	});
-
-	return object;
-}
+import { generateStory, judgeStories, MODELS } from './lib';
 
 const agent = createAgent('model-arena', {
 	description: 'Compare short stories from multiple AI models with LLM-as-judge evaluation',

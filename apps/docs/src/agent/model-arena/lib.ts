@@ -5,10 +5,11 @@
  */
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
-import { groq } from '@ai-sdk/groq';
-import { generateText } from 'ai';
-import { getStorySystemPrompt } from './prompts';
-import type { ModelResult, Provider, Tone } from './types';
+import { generateObject, generateText } from 'ai';
+import { createGroqProvider } from '../../lib/ai-gateway';
+import { getJudgePrompt, getStorySystemPrompt } from './prompts';
+import { JudgmentSchema } from './types';
+import type { Judgment, ModelResult, Provider, Tone } from './types';
 
 export interface GenerationConfig {
 	provider: Provider;
@@ -21,7 +22,7 @@ export const MODELS: GenerationConfig[] = [
 ];
 
 // Using GPT-OSS 120B via Groq for fast judging with structured outputs
-export const JUDGE_MODEL = groq('openai/gpt-oss-120b');
+export const getJudgeModel = () => createGroqProvider()('openai/gpt-oss-120b');
 
 export function getModel(config: GenerationConfig) {
 	switch (config.provider) {
@@ -54,4 +55,18 @@ export async function generateStory(
 		generationMs: Date.now() - start,
 		tokens: usage?.totalTokens ?? 0,
 	};
+}
+
+export async function judgeStories(
+	results: ReadonlyArray<ModelResult>,
+	tone: Tone,
+	prompt: string
+): Promise<Judgment> {
+	const { object } = await generateObject({
+		model: getJudgeModel(),
+		schema: JudgmentSchema,
+		prompt: getJudgePrompt([...results], tone, prompt),
+	});
+
+	return object;
 }

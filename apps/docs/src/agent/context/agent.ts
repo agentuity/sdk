@@ -13,7 +13,7 @@
  * - Bun s3 - S3-compatible object storage
  * - ctx.logger - Structured logging
  *
- * Docs: https://agentuity.dev/Reference/sdk-reference#context-api
+ * Docs: https://agentuity.dev/reference/sdk-reference/context-api
  */
 import { createAgent, getAgents } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

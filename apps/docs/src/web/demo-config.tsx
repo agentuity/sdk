@@ -110,7 +110,7 @@ export const DEMOS: DemoConfig[] = [
 				example you can run in the sandbox.
 			</>
 		),
-		docsUrl: '/reference/sdk-reference#context-api',
+		docsUrl: '/reference/sdk-reference/context-api',
 		category: 'basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],

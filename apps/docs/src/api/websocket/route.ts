@@ -5,7 +5,6 @@
  * WS /connect    - WebSocket endpoint with echo and heartbeat
  */
 import { websocket, type Env } from '@agentuity/runtime';
-import websocketAgent from '../../agent/websocket/agent';
 import { Hono } from 'hono';
 
 const router = new Hono<Env>()
@@ -21,7 +20,7 @@ const router = new Hono<Env>()
 	.get(
 		'/connect',
 		websocket((c, ws) => {
-			let heartbeatInterval: Timer;
+			let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
 
 			ws.onOpen(() => {
 				try {
@@ -59,17 +58,16 @@ const router = new Hono<Env>()
 
 			ws.onMessage(async (event) => {
 				try {
-					const message = event.data as string;
+					const message = String(event.data).trim();
+					const timestamp = new Date().toISOString();
 					c.var.logger?.info('WebSocket message received', { message });
-
-					const response = await websocketAgent.run(message);
 
 					ws.send(
 						JSON.stringify({
 							type: 'echo',
-							message: response,
+							message: `[${timestamp}] Echo: ${message}`,
 							original: message,
-							timestamp: new Date().toISOString(),
+							timestamp,
 						})
 					);
 				} catch (error) {
