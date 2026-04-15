@@ -363,61 +363,6 @@ export interface SessionListDiagnostics {
 	}>;
 }
 
-export type AgentBuilderSessionMode = 'new' | 'edit' | 'from_session';
-
-export interface AgentBuilderSourceSessionRef {
-	sessionId: string;
-	label?: string;
-}
-
-export interface AgentBuilderTargetAgentRef {
-	agentId?: string;
-	slug: string;
-	displayName?: string;
-}
-
-export interface AgentBuilderDurableState {
-	draftAgentId?: string;
-	draftAgentSlug?: string;
-	lastPublishedVersion?: number;
-}
-
-export interface AgentBuilderActionState {
-	kind: 'create_draft' | 'update_draft' | 'publish';
-	status: 'completed' | 'failed';
-	occurredAt: string;
-	message?: string;
-	agentId?: string;
-	agentSlug?: string;
-	publishedVersion?: number;
-}
-
-export interface AgentBuilderProposalState {
-	slug?: string;
-	displayName?: string;
-	description?: string;
-	instructions?: string;
-	model?: string;
-	thinkingLevel?: string;
-	headlessCompatible?: boolean;
-	tools?: string[];
-	serviceTools?: string[];
-	savedSkills?: SessionSkillRef[];
-	companionAgents?: string[];
-}
-
-export interface AgentBuilderSessionSummary {
-	mode: AgentBuilderSessionMode;
-	sourceSession?: AgentBuilderSourceSessionRef;
-	targetAgent?: AgentBuilderTargetAgentRef;
-	durable?: AgentBuilderDurableState;
-	lastAction?: AgentBuilderActionState;
-}
-
-export interface AgentBuilderSessionState extends AgentBuilderSessionSummary {
-	proposal?: AgentBuilderProposalState;
-}
-
 export interface SessionListItem {
 	sessionId: string;
 	label: string;
@@ -583,7 +528,6 @@ export interface SessionSnapshotMetadataExtensions {
 	};
 	observed?: SessionObservedProjection;
 	product?: SessionProductProjection;
-	builder?: AgentBuilderSessionState;
 	tags: string[];
 	skills: SessionSkillRef[];
 	enabledAgents: string[];
