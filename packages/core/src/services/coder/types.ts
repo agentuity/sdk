@@ -520,6 +520,59 @@ export const CoderCreateSessionRequestSchema = z
 	.describe('Request body for creating a coder session');
 export type CoderCreateSessionRequest = z.infer<typeof CoderCreateSessionRequestSchema>;
 
+function inferCoderAgentBuilderSessionMode(input: {
+	mode?: 'new' | 'edit' | 'from_session';
+	sourceSessionId?: string;
+	targetAgentId?: string;
+	targetAgentSlug?: string;
+}): 'new' | 'edit' | 'from_session' {
+	if (input.mode) return input.mode;
+	if (input.sourceSessionId) return 'from_session';
+	if (input.targetAgentId || input.targetAgentSlug) return 'edit';
+	return 'new';
+}
+
+export const CoderCreateAgentBuilderSessionRequestSchema = z
+	.object({
+		label: z.string().optional().describe('Builder session label override'),
+		prompt: z.string().optional().describe('Optional user focus for the builder session kickoff'),
+		mode: z
+			.enum(['new', 'edit', 'from_session'])
+			.optional()
+			.describe('Builder launch mode override'),
+		visibility: CoderSessionVisibilitySchema.optional().describe('Builder session visibility'),
+		sourceSessionId: z
+			.string()
+			.optional()
+			.describe('Source session identifier for build-from-session launches'),
+		targetAgentId: z
+			.string()
+			.optional()
+			.describe('Target custom-agent identifier for edit launches'),
+		targetAgentSlug: z.string().optional().describe('Target custom-agent slug for edit launches'),
+	})
+	.superRefine((value, ctx) => {
+		const mode = inferCoderAgentBuilderSessionMode(value);
+		if (mode === 'from_session' && !value.sourceSessionId?.trim()) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['sourceSessionId'],
+				message: 'sourceSessionId is required for from-session builder launches.',
+			});
+		}
+		if (mode === 'edit' && !value.targetAgentId?.trim() && !value.targetAgentSlug?.trim()) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['targetAgentId'],
+				message: 'targetAgentId or targetAgentSlug is required for edit launches.',
+			});
+		}
+	})
+	.describe('Request body for creating an agent-builder session');
+export type CoderCreateAgentBuilderSessionRequest = z.infer<
+	typeof CoderCreateAgentBuilderSessionRequestSchema
+>;
+
 export const CoderUpdateSessionRequestSchema = z
 	.object({
 		label: z.string().optional().describe('Updated session label'),
@@ -574,6 +627,126 @@ export const CoderSessionWorkspaceSchema = z
 	.describe('Workspace associated with a coder session');
 export type CoderSessionWorkspace = z.infer<typeof CoderSessionWorkspaceSchema>;
 
+export const CoderAgentBuilderSessionModeSchema = z
+	.enum(['new', 'edit', 'from_session'])
+	.describe('Agent-builder launch mode for a builder session');
+export type CoderAgentBuilderSessionMode = z.infer<typeof CoderAgentBuilderSessionModeSchema>;
+
+export const CoderAgentBuilderActionKindSchema = z
+	.enum(['create_draft', 'update_draft', 'publish'])
+	.describe('Durable builder action emitted by an agent-builder session');
+export type CoderAgentBuilderActionKind = z.infer<typeof CoderAgentBuilderActionKindSchema>;
+
+export const CoderAgentBuilderSourceSessionSchema = z
+	.object({
+		sessionId: z.string().describe('Source session identifier linked to the builder session'),
+		label: z.string().optional().describe('Source session label when available'),
+	})
+	.describe('Source session reference used by agent-builder flows');
+export type CoderAgentBuilderSourceSession = z.infer<typeof CoderAgentBuilderSourceSessionSchema>;
+
+export const CoderAgentBuilderTargetAgentSchema = z
+	.object({
+		agentId: z.string().optional().describe('Target custom-agent identifier when editing'),
+		slug: z.string().describe('Target custom-agent slug'),
+		displayName: z.string().optional().describe('Target custom-agent display name'),
+	})
+	.describe('Target custom-agent reference for agent-builder edit flows');
+export type CoderAgentBuilderTargetAgent = z.infer<typeof CoderAgentBuilderTargetAgentSchema>;
+
+export const CoderAgentBuilderProposalSchema = z
+	.object({
+		slug: z.string().optional().describe('Proposed custom-agent slug'),
+		displayName: z.string().optional().describe('Proposed custom-agent name'),
+		description: z.string().optional().describe('Proposed custom-agent description'),
+		instructions: z.string().optional().describe('Proposed custom-agent system prompt'),
+		model: z.string().optional().describe('Proposed model override'),
+		thinkingLevel: CoderCustomAgentThinkingLevelSchema.optional().describe(
+			'Proposed thinking level override'
+		),
+		headlessCompatible: z
+			.boolean()
+			.optional()
+			.describe('Whether the proposed agent is safe for non-interactive callers'),
+		tools: z
+			.array(CoderCustomAgentToolResponseSchema)
+			.default([])
+			.describe('Proposed workspace tools for the agent'),
+		serviceTools: z
+			.array(CoderCustomAgentServiceToolResponseSchema)
+			.default([])
+			.describe('Proposed service tools for the agent'),
+		savedSkills: z
+			.array(CoderSkillRefSchema)
+			.default([])
+			.describe('Proposed frozen skill refs to attach'),
+		companionAgents: z
+			.array(z.string())
+			.default([])
+			.describe('Proposed companion agents to auto-include'),
+	})
+	.passthrough()
+	.describe('Session-scoped agent-builder proposal state');
+export type CoderAgentBuilderProposal = z.infer<typeof CoderAgentBuilderProposalSchema>;
+
+export const CoderAgentBuilderDurableStateSchema = z
+	.object({
+		draftAgentId: z.string().optional().describe('Linked draft custom-agent identifier'),
+		draftAgentSlug: z.string().optional().describe('Linked draft custom-agent slug'),
+		lastPublishedVersion: z
+			.number()
+			.int()
+			.optional()
+			.describe('Latest published version created through the builder flow'),
+	})
+	.describe('Durable agent-library state associated with a builder session');
+export type CoderAgentBuilderDurableState = z.infer<typeof CoderAgentBuilderDurableStateSchema>;
+
+export const CoderAgentBuilderActionStateSchema = z
+	.object({
+		kind: CoderAgentBuilderActionKindSchema.describe('Last durable builder action'),
+		status: z.enum(['completed', 'failed']).describe('Result of the last durable builder action'),
+		occurredAt: z.string().describe('Timestamp of the last durable builder action'),
+		message: z.string().optional().describe('Human-readable builder action result summary'),
+		agentId: z.string().optional().describe('Affected custom-agent identifier'),
+		agentSlug: z.string().optional().describe('Affected custom-agent slug'),
+		publishedVersion: z
+			.number()
+			.int()
+			.optional()
+			.describe('Published version number when publish succeeded'),
+	})
+	.describe('Latest durable action emitted by a builder session');
+export type CoderAgentBuilderActionState = z.infer<typeof CoderAgentBuilderActionStateSchema>;
+
+export const CoderAgentBuilderSessionSummarySchema = z
+	.object({
+		mode: CoderAgentBuilderSessionModeSchema.describe('Builder session mode'),
+		sourceSession: CoderAgentBuilderSourceSessionSchema.optional().describe(
+			'Linked source session when the builder was launched from an existing session'
+		),
+		targetAgent: CoderAgentBuilderTargetAgentSchema.optional().describe(
+			'Target agent baseline when the builder is editing an existing custom agent'
+		),
+		durable: CoderAgentBuilderDurableStateSchema.optional().describe(
+			'Linked durable draft/publish state'
+		),
+		lastAction: CoderAgentBuilderActionStateSchema.optional().describe(
+			'Most recent durable builder action'
+		),
+	})
+	.describe('Projected builder-session summary returned in session listings');
+export type CoderAgentBuilderSessionSummary = z.infer<typeof CoderAgentBuilderSessionSummarySchema>;
+
+export const CoderAgentBuilderSessionStateSchema = CoderAgentBuilderSessionSummarySchema.extend({
+	proposal: CoderAgentBuilderProposalSchema.optional().describe(
+		'Full builder proposal state projected in session detail responses'
+	),
+})
+	.passthrough()
+	.describe('Full builder-session state returned in session details');
+export type CoderAgentBuilderSessionState = z.infer<typeof CoderAgentBuilderSessionStateSchema>;
+
 export const CoderSessionListItemSchema = z
 	.object({
 		sessionId: z.string().describe('Unique session identifier'),
@@ -619,6 +792,9 @@ export const CoderSessionListItemSchema = z
 			.optional()
 			.default([])
 			.describe('Enabled agent roster attached to the session'),
+		builder: CoderAgentBuilderSessionSummarySchema.optional().describe(
+			'Projected builder-session summary when this session is an agent-builder flow'
+		),
 		defaultAgent: z.string().optional().describe('Default agent assigned to session operations'),
 		bucket: CoderSessionBucketSchema.describe('Derived bucket for session listing'),
 		runtimeAvailable: z.boolean().describe('Whether runtime is currently reachable'),
@@ -650,6 +826,9 @@ export const CoderSessionSchema = CoderSessionListItemSchema.extend({
 		.string()
 		.optional()
 		.describe('Last update timestamp for session metadata (ISO-8601)'),
+	builder: CoderAgentBuilderSessionStateSchema.optional().describe(
+		'Full builder-session state when this session is an agent-builder flow'
+	),
 	// These fields are present in list items but may be absent in detail responses
 	lastActivityAt: z.string().optional().describe('Timestamp of most recent activity (ISO-8601)'),
 	taskCount: z.number().optional().describe('Number of tasks associated with the session'),
