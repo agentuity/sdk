@@ -321,12 +321,12 @@ export function App() {
 					<div className="flex flex-col gap-6">
 						{[
 							{
-								key: 'customize-agent',
-								title: 'Customize your agent',
+								key: 'customize-routes',
+								title: 'Customize your routes',
 								text: (
 									<>
-										Edit <code className="text-white">src/agent/translate/agent.ts</code>{' '}
-										to change how your agent responds.
+										Edit <code className="text-white">src/api/index.ts</code> to change
+										how your app handles requests.
 									</>
 								),
 							},
@@ -361,7 +361,7 @@ export function App() {
 												</a>
 											</>
 										),
-										text: <>Test the translate agent directly in the dev UI.</>,
+										text: <>Test your API routes directly in the dev UI.</>,
 									}
 								: null,
 						]
