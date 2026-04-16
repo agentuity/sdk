@@ -41,6 +41,8 @@ router.get('/data', loggerMiddleware, (c) => {
 export default router;
 ```
 
+Use `new Hono<Env>()` when your middleware only reads built-in Agentuity context, like `c.var.logger`. If middleware stores custom values with `c.set()`, add those values to Hono's `Variables` type so downstream handlers can read them from `c.var`.
+
 ## Authentication Patterns
 
 ### API Key Authentication
@@ -50,7 +52,11 @@ import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  apiKeyOwner: string;
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const apiKeyAuth = createMiddleware(async (c, next) => {
   const apiKey = c.req.header('X-API-Key');
@@ -86,7 +92,14 @@ import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import { verify } from 'hono/jwt';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  authUser: {
+    sub: string;
+    email?: string;
+  };
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const jwtAuth = createMiddleware(async (c, next) => {
   const authHeader = c.req.header('Authorization');
@@ -99,7 +112,10 @@ const jwtAuth = createMiddleware(async (c, next) => {
 
   try {
     const payload = await verify(token, process.env.JWT_SECRET!);
-    c.set('user', payload);
+    c.set('authUser', {
+      sub: String(payload.sub),
+      email: typeof payload.email === 'string' ? payload.email : undefined,
+    });
     await next();
   } catch {
     return c.json({ error: 'Invalid token' }, 401);
@@ -107,7 +123,7 @@ const jwtAuth = createMiddleware(async (c, next) => {
 });
 
 router.get('/me', jwtAuth, (c) => {
-  const user = c.var.user;
+  const user = c.var.authUser;
   return c.json({ userId: user.sub, email: user.email });
 });
 
@@ -252,7 +268,11 @@ import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import agent from './agent';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  userId: string;
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const rateLimiter = createMiddleware(async (c, next) => {
   const ip = c.req.header('x-forwarded-for') || 'unknown';

@@ -296,7 +296,7 @@ const api = new Hono<Env>()
   // Standard HTTP endpoint
   .post('/cleanup', async (c) => {
     return c.text('OK');
-  }))
+  })
   // WebSocket endpoint
   .get('/chat', websocket((c, ws) => {
     ws.onMessage(async (event) => {

@@ -14,7 +14,7 @@ Both agents and routes live in your Agentuity project. Routes handle HTTP reques
 | Post-response quality checks | Webhook signature verification |
 | Agent-to-agent calling with type safety | Simple CRUD operations |
 | Lifecycle events (started, completed, error) | Streaming protocols (WebSocket, SSE) |
-| Thread/session state persistence | Cron-triggered cleanup jobs |
+| Reusable processing you want to call from routes, jobs, or workers | Cron-triggered cleanup jobs |
 
 ## What's the Same
 
@@ -49,9 +49,11 @@ These capabilities are **agent-only**:
 - **Quality checks**: Add post-response validation when you need to score or review outputs
 - **Lifecycle events**: Hook into `started`, `completed`, and `error` events for monitoring
 - **Agent-to-agent calling**: Call other agents with full type safety via `agent.run()`
-- **Thread state**: Persist conversation context across multiple calls
+- **Reusable logic across entry points**: Run the same processing flow from routes, background jobs, or standalone scripts
 
 If you need any of these, create an agent.
+
+Routes can still use thread and session context through `c.var.thread` and `c.var.session` when you need stateful request handling.
 
 ## How They Work Together
 

@@ -807,7 +807,7 @@ export const navData: NavSection[] = [
 						title: 'Development',
 						url: '/reference/cli/development',
 						description:
-							'Run the development server with hot reload, local mode, and public URLs by default.',
+							'Run the development server with hot reload, type checking, and public URL support.',
 					},
 					{
 						title: 'Getting Started',
