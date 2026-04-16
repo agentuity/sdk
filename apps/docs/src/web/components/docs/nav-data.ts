@@ -395,7 +395,14 @@ export const navData: NavSection[] = [
 			{
 				title: 'Authentication',
 				url: '/services/authentication',
-				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+				description:
+					'Choose between Sign in with Agentuity and app-owned authentication for routes and apps',
+			},
+			{
+				title: 'OIDC Provider',
+				url: '/services/oidc-provider',
+				description:
+					'Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC',
 			},
 			{
 				title: 'Coder',

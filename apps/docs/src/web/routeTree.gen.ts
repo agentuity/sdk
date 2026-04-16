@@ -46,6 +46,7 @@ import { Route as DocsServicesWebhooksRouteImport } from './routes/_docs/service
 import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/tasks';
 import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules';
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues';
+import { Route as DocsServicesOidcProviderRouteImport } from './routes/_docs/services/oidc-provider';
 import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email';
 import { Route as DocsServicesCoderRouteImport } from './routes/_docs/services/coder';
 import { Route as DocsServicesAuthenticationRouteImport } from './routes/_docs/services/authentication';
@@ -378,6 +379,11 @@ const DocsServicesSchedulesRoute = DocsServicesSchedulesRouteImport.update({
 const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
 	id: '/services/queues',
 	path: '/services/queues',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesOidcProviderRoute = DocsServicesOidcProviderRouteImport.update({
+	id: '/services/oidc-provider',
+	path: '/services/oidc-provider',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
@@ -1227,6 +1233,7 @@ export interface FileRoutesByFullPath {
 	'/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/services/coder': typeof DocsServicesCoderRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
+	'/services/oidc-provider': typeof DocsServicesOidcProviderRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
 	'/services/tasks': typeof DocsServicesTasksRoute;
@@ -1412,6 +1419,7 @@ export interface FileRoutesByTo {
 	'/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/services/coder': typeof DocsServicesCoderRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
+	'/services/oidc-provider': typeof DocsServicesOidcProviderRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
 	'/services/tasks': typeof DocsServicesTasksRoute;
@@ -1601,6 +1609,7 @@ export interface FileRoutesById {
 	'/_docs/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/_docs/services/coder': typeof DocsServicesCoderRoute;
 	'/_docs/services/email': typeof DocsServicesEmailRoute;
+	'/_docs/services/oidc-provider': typeof DocsServicesOidcProviderRoute;
 	'/_docs/services/queues': typeof DocsServicesQueuesRoute;
 	'/_docs/services/schedules': typeof DocsServicesSchedulesRoute;
 	'/_docs/services/tasks': typeof DocsServicesTasksRoute;
@@ -1790,6 +1799,7 @@ export interface FileRouteTypes {
 		| '/services/authentication'
 		| '/services/coder'
 		| '/services/email'
+		| '/services/oidc-provider'
 		| '/services/queues'
 		| '/services/schedules'
 		| '/services/tasks'
@@ -1975,6 +1985,7 @@ export interface FileRouteTypes {
 		| '/services/authentication'
 		| '/services/coder'
 		| '/services/email'
+		| '/services/oidc-provider'
 		| '/services/queues'
 		| '/services/schedules'
 		| '/services/tasks'
@@ -2163,6 +2174,7 @@ export interface FileRouteTypes {
 		| '/_docs/services/authentication'
 		| '/_docs/services/coder'
 		| '/_docs/services/email'
+		| '/_docs/services/oidc-provider'
 		| '/_docs/services/queues'
 		| '/_docs/services/schedules'
 		| '/_docs/services/tasks'
@@ -2568,6 +2580,13 @@ declare module '@tanstack/react-router' {
 			path: '/services/queues';
 			fullPath: '/services/queues';
 			preLoaderRoute: typeof DocsServicesQueuesRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/oidc-provider': {
+			id: '/_docs/services/oidc-provider';
+			path: '/services/oidc-provider';
+			fullPath: '/services/oidc-provider';
+			preLoaderRoute: typeof DocsServicesOidcProviderRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/services/email': {
@@ -3765,6 +3784,7 @@ interface DocsRouteRouteChildren {
 	DocsServicesAuthenticationRoute: typeof DocsServicesAuthenticationRoute;
 	DocsServicesCoderRoute: typeof DocsServicesCoderRoute;
 	DocsServicesEmailRoute: typeof DocsServicesEmailRoute;
+	DocsServicesOidcProviderRoute: typeof DocsServicesOidcProviderRoute;
 	DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute;
 	DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute;
 	DocsServicesTasksRoute: typeof DocsServicesTasksRoute;
@@ -3889,6 +3909,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsServicesAuthenticationRoute: DocsServicesAuthenticationRoute,
 	DocsServicesCoderRoute: DocsServicesCoderRoute,
 	DocsServicesEmailRoute: DocsServicesEmailRoute,
+	DocsServicesOidcProviderRoute: DocsServicesOidcProviderRoute,
 	DocsServicesQueuesRoute: DocsServicesQueuesRoute,
 	DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,
 	DocsServicesTasksRoute: DocsServicesTasksRoute,

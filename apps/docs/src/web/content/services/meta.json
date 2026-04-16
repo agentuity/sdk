@@ -9,6 +9,7 @@
 		"schedules",
 		"tasks",
 		"authentication",
+		"oidc-provider",
 		"coder",
 		"observability",
 		"sandbox"
