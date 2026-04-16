@@ -10,8 +10,6 @@ import { getModel } from '../../lib/models';
 import { Hono } from 'hono';
 
 const FIXED_PROMPT = 'What is backpropagation and why does it matter for AI?';
-const GEMINI_STREAMING_NOTE =
-	'Gemini uses a one-shot fallback here because gateway streaming is unreliable in this demo.';
 
 const router = new Hono<Env>()
 
@@ -21,7 +19,6 @@ const router = new Hono<Env>()
 			description: 'Compare responses from multiple LLM providers',
 			endpoint: '/api/ai-gateway/compare',
 			note: 'AI Gateway routes requests to different providers using a single SDK key',
-			streamingNote: GEMINI_STREAMING_NOTE,
 			prompt: FIXED_PROMPT,
 		});
 	})

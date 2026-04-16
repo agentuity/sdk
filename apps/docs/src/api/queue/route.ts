@@ -55,16 +55,6 @@ function isMissingQueueError(error: unknown): boolean {
 	return msg.includes('not found') || msg.includes('404');
 }
 
-function countActiveMessages(messages: ReadonlyArray<{ state?: string | null }>): number {
-	return messages.filter(
-		(message) =>
-			message.state === 'pending' ||
-			message.state === 'leased' ||
-			message.state === 'processing' ||
-			message.state == null
-	).length;
-}
-
 function isPayloadObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -156,7 +146,7 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 			return c.json({
 				success: true,
 				data: {
-					message_count: countActiveMessages(pending.messages),
+					message_count: pending.messages.length,
 					dlq_count: dlq.total ?? dlq.messages.length,
 					name: queue.name,
 					queue_type: queue.queue_type,
