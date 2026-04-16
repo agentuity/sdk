@@ -10,7 +10,6 @@ import database from './database/route';
 import docQa from './doc-qa/route';
 import durableStream from './durable-stream/route';
 import email from './email/route';
-import evals from './evals/route';
 import hello from './hello/route';
 import keyValue from './key-value/route';
 import modelArena from './model-arena/route';
@@ -35,7 +34,6 @@ const router = new Hono<Env>()
 	.route('/doc-qa', docQa)
 	.route('/durable-stream', durableStream)
 	.route('/email', email)
-	.route('/evals', evals)
 	.route('/hello', hello)
 	.route('/key-value', keyValue)
 	.route('/model-arena', modelArena)

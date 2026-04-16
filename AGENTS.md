@@ -27,9 +27,7 @@ Bun workspaces monorepo with packages in `packages/`:
 | `cli`         | Bun      | CLI framework with commander.js                      |
 | `postgres`    | Node/Bun | Resilient PostgreSQL client with auto-reconnection   |
 | `drizzle`     | Node/Bun | Drizzle ORM integration with resilient connections   |
-| `evals`       | Any      | Reusable evaluation presets                          |
 | `opencode`    | Bun      | Opencoder agent plugins for Agentuity                |
-| `workbench`   | Browser  | Workbench UI component for agent testing             |
 | `vscode`      | Node     | VS Code extension for Agentuity                      |
 | `test-utils`  | Test     | Private test helpers (never published)               |
 

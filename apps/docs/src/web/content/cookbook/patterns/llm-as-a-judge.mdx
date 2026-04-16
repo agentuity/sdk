@@ -18,22 +18,18 @@ The LLM-as-judge pattern uses one model to evaluate another model's output. This
 
 Use LLM-as-judge when the evaluation requires understanding context, nuance, or subjective criteria.
 
-## Inline vs Evals
+## When to Run Judgments
 
-LLM-as-judge can be used in two contexts:
+LLM-as-judge can run at different times:
 
 | Context | When to Use | Blocks Response? |
 |---------|-------------|------------------|
 | **Inline** (in handler) | Scores needed in UI, model comparison, user-facing quality metrics | Yes |
-| **Evals** (in eval.ts) | Background quality monitoring, compliance checks, production observability | No |
+| **Background** (via events) | Quality monitoring, compliance checks, production observability | No |
 
 **Inline example**: A model arena that shows users which response "won" needs scores returned with the response.
 
-**Eval example**: Checking all responses for PII or hallucinations in production without slowing down users.
-
-<Callout type="info" title="Agentuity Evals">
-Agentuity has a built-in [evaluation system](/agents/evaluations) that runs LLM-as-judge checks asynchronously after each response. Use evals for production monitoring without impacting response times.
-</Callout>
+**Background example**: Checking all responses for PII or hallucinations in production without slowing down users. Use the [`completed` event](/agents/events-lifecycle) to trigger background checks via `ctx.waitUntil()`.
 
 ## Basic Pattern
 
@@ -258,70 +254,55 @@ List any unsupported claims.`,
 export default ragAgent;
 ```
 
-## Using in Evals
+## Background Quality Monitoring
 
-For background quality monitoring, use LLM-as-judge in your eval files. Evals run asynchronously after the response is sent, so they don't slow down users:
+For background quality monitoring, use the `completed` event with `ctx.waitUntil()` to run LLM-as-judge checks asynchronously after the response is sent, without slowing down users:
 
-```typescript title="src/agent/qa-agent/eval.ts"
-import agent from './agent';
+```typescript title="src/agent/qa-agent/agent.ts"
+import { createAgent } from '@agentuity/runtime';
 import { generateObject } from 'ai';
 import { groq } from '@ai-sdk/groq';
 import { z } from 'zod';
 
 const HelpfulnessJudgment = z.object({
-  scores: z.object({
-    helpfulness: z.object({
-      score: z.number().min(0).max(1),
-      reason: z.string(),
-    }),
-  }),
-  checks: z.object({
-    answersQuestion: z.object({
-      passed: z.boolean(),
-      reason: z.string(),
-    }),
-    actionable: z.object({
-      passed: z.boolean(),
-      reason: z.string(),
-    }),
-  }),
+  score: z.number().min(0).max(1),
+  reason: z.string(),
 });
 
-export const helpfulnessEval = agent.createEval('helpfulness', {
-  description: 'Judges if responses are helpful and actionable',
-  handler: async (ctx, input, output) => {
+const agent = createAgent('qa-agent', {
+  schema: {
+    input: z.object({ question: z.string() }),
+    output: z.object({ answer: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    // ... generate answer ...
+    return { answer: '...' };
+  },
+});
+
+// Run LLM-as-judge in the background after completion
+agent.addEventListener('completed', (event, agent, ctx) => {
+  ctx.waitUntil(async () => {
+    const output = ctx.state.get('output') as { answer: string };
+    const input = ctx.state.get('input') as { question: string };
+
     const { object } = await generateObject({
       model: groq('openai/gpt-oss-120b'),
       schema: HelpfulnessJudgment,
-      prompt: `Evaluate this response.
-
-Question: ${input.question}
-Response: ${output.answer}
-
-SCORE:
-- helpfulness: How useful is this response? (0 = useless, 1 = extremely helpful)
-
-CHECKS:
-- answersQuestion: Does it directly answer what was asked?
-- actionable: Can the user act on this information?`,
+      prompt: `Evaluate this response.\nQuestion: ${input.question}\nResponse: ${output.answer}\nScore helpfulness 0-1.`,
     });
 
-    // Combine score and checks into eval result
-    const allChecksPassed = object.checks.answersQuestion.passed && object.checks.actionable.passed;
-
-    return {
-      passed: allChecksPassed && object.scores.helpfulness.score >= 0.7,
-      score: object.scores.helpfulness.score,
-      reason: object.scores.helpfulness.reason,
-      metadata: {
-        checks: object.checks,
-      },
-    };
-  },
+    ctx.logger.info('Background quality check', {
+      score: object.score,
+      reason: object.reason,
+    });
+  });
 });
+
+export default agent;
 ```
 
-See [Adding Evaluations](/agents/evaluations) for more patterns including preset evals.
+See [Events & Lifecycle](/agents/events-lifecycle) for more on using events for background work.
 
 ## Structuring Judge Prompts
 
@@ -366,16 +347,16 @@ Evaluate each criterion, then provide an overall assessment.`;
 LLM-as-judge adds model calls. Optimize by:
 
 - Using the fastest capable model (Groq for speed, nano models for cost)
-- Running evals asynchronously (default in Agentuity)
+- Running background checks asynchronously via events
 - Sampling a percentage of requests in high-volume scenarios
 - Batching judgments when evaluating multiple items
 
 <Callout type="tip" title="Full Working Example">
-See the [Code Runner](https://github.com/agentuity/examples/tree/main/features/code-runner) example for parallel sandbox execution with LLM-as-judge evals across TypeScript and Python.
+See the [Code Runner](https://github.com/agentuity/examples/tree/main/features/code-runner) example for parallel sandbox execution with LLM-as-judge checks across TypeScript and Python.
 </Callout>
 
 ## Next Steps
 
-- [Adding Evaluations](/agents/evaluations): Background quality monitoring with evals
+- [Events & Lifecycle](/agents/events-lifecycle): Background quality monitoring with events
 - [Using the AI SDK](/agents/ai-sdk-integration): Model selection and configuration
 - [Vector Storage](/services/storage/vector): Build RAG systems to ground responses

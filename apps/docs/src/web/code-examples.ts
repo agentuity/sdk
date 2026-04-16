@@ -455,48 +455,6 @@ ctx.logger.info("Claude response", { text: claudeResult.text });
 // - Handles authentication automatically
 // - Tracks usage and costs in your dashboard`,
 
-	evals: `// Evals run automatically after your agent responds.
-// Define evaluations in a separate file alongside your agent.
-import { answerCompleteness } from "@agentuity/evals";
-import { openai } from "@ai-sdk/openai";
-import { generateObject } from "ai";
-import { z } from "zod";
-import agent, { PROMPT } from "./agent";
-
-// Preset eval: Answer Completeness (score 0-1)
-// Uses middleware to transform agent I/O to match eval format
-export const completenessEval = agent.createEval(
-  answerCompleteness({
-    middleware: {
-      transformInput: () => ({ request: PROMPT }),
-      transformOutput: (output) => ({ response: output.content }),
-    },
-  })
-);
-
-// Custom eval: Factual Claims (binary pass/fail)
-// Uses generateObject with Zod schema for structured output
-const FactualCheckSchema = z.object({
-  containsFactualClaims: z.boolean(),
-  reason: z.string(),
-});
-
-export const factualClaimsEval = agent.createEval("factual-claims", {
-  description: "Verifies the response contains factual claims",
-  handler: async (ctx, _input, output) => {
-    const { object: result } = await generateObject({
-      model: openai("gpt-5-mini"),
-      schema: FactualCheckSchema,
-      prompt: \`Does this text contain factual claims? "\${output.content}"\`,
-    });
-
-    return {
-      passed: result.containsFactualClaims,
-      reason: result.reason,
-    };
-  },
-});`,
-
 	queue: `// Message Queue: publish messages for async processing.
 // Agents publish via ctx.queue. Workers receive and ack/nack.
 

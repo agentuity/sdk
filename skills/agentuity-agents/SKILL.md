@@ -1,6 +1,6 @@
 ---
 name: agentuity-agents
-description: Building agents with the Agentuity Runtime SDK. Use when creating, configuring, or debugging agents using createAgent, defining schemas with @agentuity/schema, working with AgentContext (ctx) APIs like logger, kv, vector, stream, thread, session, state, or auth, calling agents from other agents, streaming responses, running background tasks with waitUntil, or writing agent evaluations. Triggers on any Agentuity agent development task.
+description: Building agents with the Agentuity Runtime SDK. Use when creating, configuring, or debugging agents using createAgent, defining schemas with @agentuity/schema, working with AgentContext (ctx) APIs like logger, kv, vector, stream, thread, session, state, or auth, calling agents from other agents, streaming responses, or running background tasks with waitUntil. Triggers on any Agentuity agent development task.
 license: Apache-2.0
 metadata:
   author: agentuity
@@ -282,31 +282,6 @@ export default createAgent('cached-agent', {
 });
 ```
 
-## Evaluations
-
-Test agent behavior with the eval framework:
-
-```typescript
-import { createPresetEval, type BaseEvalOptions } from '@agentuity/evals';
-
-export const myEval = createPresetEval({
-  name: 'quality-check',
-  description: 'Checks response quality',
-  options: {
-    model: openai('gpt-4o'),
-  },
-  handler: async (ctx, input, output, options) => {
-    return {
-      passed: output.reply.length > 0,
-      score: 0.85,
-      reason: 'Response was non-empty and relevant',
-    };
-  },
-});
-
-// Attach to agent
-agent.createEval(myEval());
-```
 
 ## Common Mistakes
 

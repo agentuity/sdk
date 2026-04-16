@@ -146,22 +146,4 @@ Assistant: Agentuity is a platform for building and deploying AI agents. It prov
 [INFO] Judge (Groq gpt-oss-120b) {"winner":"model-b"}
 [INFO] Scores {"creativity":0.85,"clarity":0.9}
 [INFO] Reasoning: Model B offers a more vivid and humorous metaphor with unexpected imagery, while Model A relies on a more conventional poetry comparison.`,
-
-	evals: `[INFO] Running evaluations
----OUTPUT---
-=== Evals Demo ===
-Question: "What is Agentuity and what are its main features?"
-
-Step 1: Generating answer...
-Answer: "Agentuity is a platform for building AI agents with built-in storage, AI gateway..."
-
-Step 2: Running evaluations...
-
-Eval 1: Answer Completeness
-  Score: 82%
-  Reason: Covers main features but could mention streaming and evals capabilities.
-
-Eval 2: Factual Claims
-  Passed: Yes
-  Reason: Contains verifiable claims about platform features and capabilities.`,
 };

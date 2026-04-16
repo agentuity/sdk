@@ -1,6 +1,6 @@
 ---
 name: agentuity-backend
-description: When building AI agents, backend APIs, or server-side logic with Agentuity. Covers @agentuity/runtime for agent handlers and HTTP routing, @agentuity/schema for validation, @agentuity/drizzle and @agentuity/postgres for database access, and @agentuity/evals for testing agent quality.
+description: When building AI agents, backend APIs, or server-side logic with Agentuity. Covers @agentuity/runtime for agent handlers and HTTP routing, @agentuity/schema for validation, @agentuity/drizzle and @agentuity/postgres for database access.
 version: 2.0.0
 ---
 
@@ -16,7 +16,7 @@ version: 2.0.0
 | `@agentuity/postgres` | **Resilient PostgreSQL client with auto-reconnect** |
 | `@agentuity/server`   | Server utilities, validation helpers                |
 | `@agentuity/core`     | Shared types, StructuredError, interfaces           |
-| `@agentuity/evals`    | Agent evaluation framework                          |
+
 
 ## Package Recommendations
 
@@ -181,39 +181,6 @@ Namespaces are auto-created on first write with a 7-day default TTL. Override pe
 
 - Docs: https://agentuity.dev/services/storage/key-value.md
 
-## Agent Evaluations
-
-Use `@agentuity/evals` for preset evaluations and `agent.createEval()` for custom ones:
-
-```typescript
-// Preset eval (e.g., adversarial testing)
-import { adversarial } from '@agentuity/evals';
-import agent from './index';
-
-export const adversarialEval = agent.createEval(
-  adversarial({
-    middleware: {
-      transformInput: (input) => ({ request: input.text }),
-      transformOutput: (output) => ({ response: output.result }),
-    },
-  })
-);
-
-// Custom eval
-export const qualityEval = agent.createEval('quality-check', {
-  description: 'Verifies output quality meets threshold',
-  handler: async (ctx, input, output) => {
-    return {
-      passed: output.result.length > 0,
-      reason: output.result.length > 0 ? 'Output is non-empty' : 'Empty output',
-    };
-  },
-});
-```
-
-Place eval files alongside the agent: `src/agent/<name>/eval.ts`.
-
-- Docs: https://agentuity.dev/agents/evaluations.md
 
 ## v2 Migration
 
@@ -229,7 +196,7 @@ If upgrading from v1, run `npx @agentuity/migrate` to auto-convert `createRouter
 | Schema Libraries | https://agentuity.dev/agents/schema-libraries.md |
 | Calling Other Agents | https://agentuity.dev/agents/calling-other-agents.md |
 | Events & Lifecycle | https://agentuity.dev/agents/events-lifecycle.md |
-| Evaluations | https://agentuity.dev/agents/evaluations.md |
+
 | AI SDK Integration | https://agentuity.dev/agents/ai-sdk-integration.md |
 | AI Gateway | https://agentuity.dev/agents/ai-gateway.md |
 | Drizzle ORM | https://agentuity.dev/services/database/drizzle.md |
@@ -249,7 +216,7 @@ If upgrading from v1, run `npx @agentuity/migrate` to auto-convert `createRouter
 | Using `c.var.logger` in agent handlers               | Use `ctx.logger` in agents                       | Agent context and route context have different APIs |
 | Using `ctx.logger` in route handlers                 | Use `c.var.logger` in routes                     | Agent context and route context have different APIs |
 | Exposing agents without routes                       | Create API routes in `src/api/`                  | Agents are not HTTP endpoints  |
-| Skipping agent evaluations                           | Add eval.ts alongside agent index.ts             | Evals catch regressions and validate quality    |
+| Skipping background quality checks                       | Use `completed` event with `ctx.waitUntil()` for post-response checks     | Evals catch regressions and validate quality    |
 | Using mutating router style (.get() separately)     | Use chained Hono methods (.get().post())        | Chained style required for hc<AppRouter>() types |
 | Missing agent barrel file                             | Create src/agent/index.ts re-exporting agents    | v2 requires explicit agent registration          |
 | `ctx.kv.get('key')` (missing namespace)               | `ctx.kv.get<T>('namespace', 'key')` — check `.exists` | KV requires namespace + key, returns DataResult not T |

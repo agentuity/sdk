@@ -178,7 +178,6 @@ bun run deploy       # Deploy to Agentuity cloud
 This project demonstrates several features new to the v1 SDK:
 
 - **Thread State**: Persistent conversation memory with `ctx.thread.state.push()`
-- **Evaluations**: Quality checks via `agent.createEval()` that run after responses
 - **Durable Streams**: Persistent streams with public URLs via `ctx.stream.create()`
 - **Route Validation**: Type-safe requests using `agent.validator()` middleware
 - **React Hooks**: `useAPI`, `useWebsocket`, and `useEventStream` for frontend integration

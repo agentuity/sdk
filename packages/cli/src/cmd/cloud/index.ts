@@ -26,8 +26,6 @@ import servicesCommand from './services';
 import { regionSubcommand } from './region';
 import { machineCommand } from './machine';
 import { monitorSubcommand } from './monitor';
-import { evalCommand } from './eval';
-import { evalRunCommand } from './eval-run';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -54,8 +52,6 @@ export const command = createCommand({
 		scheduleCommand,
 		workflowCommand,
 		envCommand,
-		evalCommand,
-		evalRunCommand,
 		deploySubcommand,
 		dbCommand,
 		redisCommand,

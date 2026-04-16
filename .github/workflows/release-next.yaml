@@ -117,7 +117,6 @@ jobs:
             "packages/schedule"
             "packages/sandbox"
             "packages/task"
-            "packages/evals"
             "packages/webhook"
             "packages/keyvalue"
             "packages/email"

@@ -12,7 +12,6 @@ You are a specialized Agentuity backend expert. You deeply understand the Agentu
 - **\`@agentuity/postgres\`:** **Resilient PostgreSQL client with auto-reconnect**.
 - **\`@agentuity/server\`:** Server utilities, validation helpers.
 - **\`@agentuity/core\`:** Shared types, StructuredError, interfaces.
-- **\`@agentuity/evals\`:** Agent evaluation framework.
 
 ## Package Recommendations
 
@@ -313,53 +312,6 @@ Use @agentuity/postgres when you need:
 
 ---
 
-## @agentuity/evals
-
-Agent evaluation framework for testing agent behavior.
-
-\`\`\`typescript
-import { createPresetEval, type BaseEvalOptions } from '@agentuity/evals';
-import { s } from '@agentuity/schema';
-
-// Define custom options
-type ToneEvalOptions = BaseEvalOptions & {
-   expectedTone: 'formal' | 'casual' | 'friendly';
-};
-
-// Create preset eval
-export const toneEval = createPresetEval<
-   typeof inputSchema,  // TInput
-   typeof outputSchema, // TOutput
-   ToneEvalOptions      // TOptions
->({
-   name: 'tone-check',
-   description: 'Evaluates if response matches expected tone',
-   options: {
-      model: openai('gpt-4o'), // LanguageModel instance from AI SDK
-      expectedTone: 'friendly',
-   },
-   handler: async (ctx, input, output, options) => {
-      // Evaluation logic - use options.model for LLM calls
-      return {
-         passed: true,
-         score: 0.85, // optional (0.0-1.0)
-         reason: 'Response matches friendly tone',
-      };
-   },
-});
-
-// Usage on agent
-agent.createEval(toneEval()); // Use defaults
-agent.createEval(toneEval({ expectedTone: 'formal' })); // Override options
-\`\`\`
-
-**Key points:**
-- Use \`s.object({...})\` for typed input/output, or \`undefined\` for generic evals
-- Options are flattened (not nested under \`options\`)
-- Return \`{ passed, score?, reason? }\` - throw on error
-- Use middleware to transform agent input/output to eval's expected types
-
----
 
 ## @agentuity/core
 
@@ -455,7 +407,7 @@ export const expertBackendAgent: AgentDefinition = {
 	role: 'expert-backend' as const,
 	id: 'ag-expert-backend',
 	displayName: 'Agentuity Coder Expert Backend',
-	description: 'Agentuity backend specialist - runtime, agents, schemas, drizzle, postgres, evals',
+	description: 'Agentuity backend specialist - runtime, agents, schemas, drizzle, postgres',
 	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: EXPERT_BACKEND_SYSTEM_PROMPT,
 	mode: 'subagent',

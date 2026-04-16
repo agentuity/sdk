@@ -18,7 +18,7 @@ Agentuity is the full-stack platform for AI agents. Briefly explain to the user:
 - **Full-stack agents**: Build agents, APIs, and front-end integrations with end-to-end type safety
 - **Bun/TypeScript SDKs**: First-class developer experience with the fastest JavaScript runtime
 - **AI Gateway**: Unified access to LLMs (OpenAI-compatible SDK) with single billing—no separate API keys needed
-- **Observability**: Logs, tracing, and evals built-in so you can debug and improve agents
+- **Observability**: Logs and tracing built-in so you can debug and improve agents
 - **Production services**: Sandboxes, storage (S3-compatible), Postgres, KV, and enterprise features available as you grow
 
 We're going to be setting up the default template quickly.
@@ -196,7 +196,7 @@ After successful deployment, guide the user through these recommendations:
 - Get help, see examples, share what you're building
 
 ### 3. Explore the Dashboard
-- **Observability**: View logs, traces, and evals for your deployment
+- **Observability**: View logs and traces for your deployment
 - **Deployments**: See version history with rollback options
 - **Analytics**: Monitor usage and performance
 

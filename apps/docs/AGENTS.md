@@ -42,7 +42,6 @@ apps/docs/
 │   │   ├── vector/         # Semantic search agent
 │   │   ├── objectstore/    # S3/object storage agent
 │   │   ├── model-arena/    # Multi-model comparison with LLM-as-judge
-│   │   ├── evals/          # Agent with quality evaluations
 │   │   └── ...             # (see src/agent/AGENTS.md)
 │   ├── api/                # HTTP routes
 │   │   ├── hello/          # Basic greeting endpoint
@@ -154,7 +153,6 @@ This app uses workspace dependencies:
 - `@agentuity/react`: `workspace:*`
 - `@agentuity/schema`: `workspace:*`
 - `@agentuity/workbench`: `workspace:*`
-- `@agentuity/evals`: `workspace:*`
 - `@agentuity/cli`: `workspace:*`
 
 Scripts use the local CLI directly: `bun ../../packages/cli/bin/cli.ts`

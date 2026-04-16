@@ -1,10 +1,4 @@
-import {
-	type AgentInfo,
-	APIError,
-	type EvalRun,
-	type SpanNode,
-	sessionGet,
-} from '@agentuity/server';
+import { type AgentInfo, APIError, type SpanNode, sessionGet } from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import { getGlobalCatalystAPIClient } from '../../../config';
@@ -58,19 +52,6 @@ const SessionGetResponseSchema = z.object({
 			})
 		)
 		.describe('Agents'),
-	eval_runs: z
-		.array(
-			z.object({
-				id: z.string(),
-				created_at: z.string(),
-				eval_id: z.string(),
-				pending: z.boolean(),
-				success: z.boolean(),
-				error: z.string().nullable(),
-				result: z.record(z.string(), z.unknown()).nullable(),
-			})
-		)
-		.describe('Eval runs'),
 	timeline: SpanNodeSchema.nullable().optional().describe('Session timeline'),
 	route: RouteInfoSchema.optional().describe('Route information'),
 });
@@ -160,15 +141,6 @@ export const getSubcommand = createSubcommand({
 				route_id: session.route_id ?? null,
 				thread_id: session.thread_id ?? null,
 				agents: enriched.agents,
-				eval_runs: enriched.evalRuns.map((run: EvalRun) => ({
-					id: run.id,
-					eval_id: run.eval_id,
-					created_at: run.created_at,
-					pending: run.pending,
-					success: run.success,
-					error: run.error,
-					result: run.result,
-				})),
 				timeline: enriched.timeline,
 				route: enriched.route,
 			};
@@ -216,28 +188,6 @@ export const getSubcommand = createSubcommand({
 			tableData['Thread ID'] = session.thread_id ?? '-';
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
-
-			if (enriched.evalRuns.length > 0) {
-				console.log('');
-				console.log(tui.bold('Eval Runs:'));
-				const evalTableData = enriched.evalRuns.map((run: EvalRun) => ({
-					ID: run.id,
-					'Eval ID': run.eval_id,
-					Success: run.success ? tui.colorSuccess('✓') : tui.colorError('✗'),
-					Pending: run.pending ? '⏳' : '✓',
-					Error: run.error || 'No',
-					Created: new Date(run.created_at).toLocaleString(),
-				}));
-
-				tui.table(evalTableData, [
-					{ name: 'ID', alignment: 'left' },
-					{ name: 'Eval ID', alignment: 'left' },
-					{ name: 'Success', alignment: 'center' },
-					{ name: 'Pending', alignment: 'center' },
-					{ name: 'Error', alignment: 'left' },
-					{ name: 'Created', alignment: 'left' },
-				]);
-			}
 
 			if (result.timeline) {
 				console.log('');

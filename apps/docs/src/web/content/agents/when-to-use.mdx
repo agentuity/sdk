@@ -11,7 +11,6 @@ Both agents and routes live in your Agentuity project. Routes handle HTTP reques
 | Create an agent when you need... | Handle directly in a route when... |
 |-----------------------------------|------------------------------------|
 | Input and output schema validation | Health checks, status endpoints |
-| Evaluations (quality checks after execution) | Webhook signature verification |
 | Agent-to-agent calling with type safety | Simple CRUD operations |
 | Lifecycle events (started, completed, error) | Streaming protocols (WebSocket, SSE) |
 | Thread/session state persistence | Cron-triggered cleanup jobs |
@@ -46,7 +45,6 @@ Database and object storage use Bun's native `sql` and `s3` APIs instead of `ctx
 These capabilities are **agent-only**:
 
 - **Schema validation**: Define input and output schemas. Use `agent.validator()` as route middleware for automatic request validation
-- **Evaluations**: Attach quality checks that run after every execution
 - **Lifecycle events**: Hook into `started`, `completed`, and `error` events for monitoring
 - **Agent-to-agent calling**: Call other agents with full type safety via `agent.run()`
 - **Thread state**: Persist conversation context across multiple calls
@@ -172,11 +170,11 @@ See [Standalone Execution](/agents/standalone-execution) for running agents from
 - Use `agent.validator()` as route middleware for type-safe request validation
 - Keep agents focused on processing logic, let routes handle HTTP concerns
 - Use `c.waitUntil()` in routes for background agent work when the client doesn't need the result
-- Prefer agents when you need schema validation, evals, or agent-to-agent calling
+- Prefer agents when you need schema validation or agent-to-agent calling
 
 ## Next Steps
 
-- [Creating Agents](/agents/creating-agents): Build agents with schemas, handlers, and evals
+- [Creating Agents](/agents/creating-agents): Build agents with schemas and handlers
 - [HTTP Routes](/routes/http): Handle requests that don't need agent processing
 - [Calling Agents from Routes](/routes/calling-agents): Import and invoke agents with validation
 - [Middleware](/routes/middleware): Add auth and rate limiting in front of agents

@@ -12,7 +12,6 @@
 		{ "path": "./packages/db" },
 		{ "path": "./packages/drizzle" },
 		{ "path": "./packages/email" },
-		{ "path": "./packages/evals" },
 		{ "path": "./packages/hono" },
 		{ "path": "./packages/keyvalue" },
 		{ "path": "./packages/local" },

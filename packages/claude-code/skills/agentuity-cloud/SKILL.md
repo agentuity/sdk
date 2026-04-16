@@ -37,10 +37,7 @@ Agentuity is a full-stack deployment platform for TypeScript applications. It pr
 | `@agentuity/postgres`  | Resilient PostgreSQL client          | Backend  |
 | `@agentuity/core`      | Shared types, StructuredError        | Backend  |
 | `@agentuity/server`    | Server utilities                     | Backend  |
-| `@agentuity/evals`     | Agent evaluation framework           | Backend  |
-| `@agentuity/react`     | React hooks for agents               | Frontend |
-| `@agentuity/frontend`  | Framework-agnostic web utils         | Frontend |
-| `@agentuity/auth`      | Authentication (server + client)     | Frontend |
+
 
 ## Package Recommendations
 

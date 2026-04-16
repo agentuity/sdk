@@ -96,11 +96,6 @@ export const navData: NavSection[] = [
 				description: 'Compare AI models using another AI as judge',
 			},
 			{
-				title: 'Evals',
-				url: '/explorer/evals',
-				description: 'Run evaluations after your agent responds',
-			},
-			{
 				title: 'Queues',
 				url: '/explorer/queue',
 				description: 'Publish, consume, retry, and inspect dead-letter messages',
@@ -203,11 +198,6 @@ export const navData: NavSection[] = [
 				url: '/agents/standalone-execution',
 				description:
 					'Execute agents programmatically for cron jobs, bots, CLI tools, and background workers',
-			},
-			{
-				title: 'Evaluations',
-				url: '/agents/evaluations',
-				description: 'Automatically test and validate agent outputs for quality and compliance',
 			},
 			{
 				title: 'Events & Lifecycle',
@@ -691,11 +681,6 @@ export const navData: NavSection[] = [
 							'Send and receive emails with managed addresses and webhook destinations',
 					},
 					{
-						title: 'Evaluations',
-						url: '/reference/api/evaluations',
-						description: 'List and retrieve evaluations and their run history',
-					},
-					{
 						title: 'Key-Value Storage',
 						url: '/reference/api/key-value',
 						description: 'Store and retrieve arbitrary data by key within namespaces',
@@ -914,11 +899,6 @@ export const navData: NavSection[] = [
 						title: 'Email Service',
 						url: '/reference/sdk-reference/email-service',
 						description: 'Send emails and manage addresses with ctx.email',
-					},
-					{
-						title: 'Evaluations',
-						url: '/reference/sdk-reference/evaluations',
-						description: 'Test and validate agent outputs with built-in evaluation framework',
 					},
 					{
 						title: 'Events',
