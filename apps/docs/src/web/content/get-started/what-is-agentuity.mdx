@@ -34,10 +34,9 @@ This agent uses the AI SDK to call OpenAI and respond to messages. Deploy with `
 
 ## What You Get
 
-- **Routes & Triggers**: HTTP, WebSocket, SSE, cron
+- **Routes & Triggers**: HTTP, WebSocket, SSE, and scheduled work
 - **Storage**: Key-value, vector, object storage, durable streams
 - **[Sandbox](/services/sandbox)**: Execute code in isolated containers with controlled resources and network access
-- **[Evaluations](/agents/evaluations)**: Automated quality checks that run after each agent execution
 - **[AI Gateway](/agents/ai-gateway)**: Route LLM calls through OpenAI, Anthropic, Google, and more
 - **Type Safety**: Built-in schema validation with `@agentuity/schema`, Zod, or Valibot
 - **Observability**: Logging, tracing, real-time analytics
@@ -53,7 +52,7 @@ Each agent lives in its own file under `src/agent/`. Routes are defined separate
 | `agent.ts`     | Agent logic with schema validation   |
 | `api/index.ts` | HTTP endpoints that call your agents |
 
-Infrastructure like cron schedules is defined in route code, not config. Rolling back a deployment restores the exact configuration from that version.
+Infrastructure like routes and scheduled work is defined in code, not config. Rolling back a deployment restores the exact configuration from that version.
 
 ---
 

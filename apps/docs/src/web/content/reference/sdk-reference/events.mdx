@@ -4,7 +4,7 @@ short_title: Events
 description: Lifecycle hooks for monitoring agent, session, and thread events
 ---
 
-The runtime exposes two event layers: agent-scoped listeners attached to a specific agent, and global listeners registered with the top-level event bus. Use agent listeners for local instrumentation and global listeners for app-wide analytics or cleanup.
+The runtime exposes three event layers: agent-scoped listeners attached to a specific agent, global listeners registered with the top-level event bus, and instance listeners on `ctx.session` and `ctx.thread`. Use agent listeners for local instrumentation, global listeners for app-wide analytics or cleanup, and session or thread listeners when you want to react to the lifecycle of a specific run.
 
 ## Agent Events
 
@@ -19,7 +19,6 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
 
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   // Agent execution completed successfully
-  // Evals run during this event (see below)
 });
 
 agent.addEventListener('errored', (eventName, agent, ctx, error) => {
@@ -51,7 +50,7 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
   });
 });
 
-// Log when agent completes (evals also run during this event)
+// Log when the agent completes
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   ctx.logger.info('Agent completed', {
     agentName: agent.metadata.name,
@@ -223,4 +222,4 @@ addEventListener('agent.completed', globalCompletedHandler);
 // removeEventListener('agent.completed', globalCompletedHandler);
 ```
 
-For eval creation and lifecycle, see [Evaluations](/reference/sdk-reference/evaluations).
+For output-quality patterns, see [LLM as a Judge](/cookbook/patterns/llm-as-a-judge).

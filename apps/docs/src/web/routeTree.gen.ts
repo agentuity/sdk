@@ -133,6 +133,7 @@ import { Route as DocsReferenceSdkReferenceAgentsRouteImport } from './routes/_d
 import { Route as DocsReferenceSdkReferenceAdvancedRouteImport } from './routes/_docs/reference/sdk-reference/advanced';
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage';
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox';
+import { Route as DocsReferenceCliProfilesRouteImport } from './routes/_docs/reference/cli/profiles';
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin';
 import { Route as DocsReferenceCliOauthRouteImport } from './routes/_docs/reference/cli/oauth';
 import { Route as DocsReferenceCliMonitoringRouteImport } from './routes/_docs/reference/cli/monitoring';
@@ -828,6 +829,11 @@ const DocsReferenceCliSandboxRoute = DocsReferenceCliSandboxRouteImport.update({
 	path: '/reference/cli/sandbox',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceCliProfilesRoute = DocsReferenceCliProfilesRouteImport.update({
+	id: '/reference/cli/profiles',
+	path: '/reference/cli/profiles',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsReferenceCliOpencodePluginRoute = DocsReferenceCliOpencodePluginRouteImport.update({
 	id: '/reference/cli/opencode-plugin',
 	path: '/reference/cli/opencode-plugin',
@@ -1310,6 +1316,7 @@ export interface FileRoutesByFullPath {
 	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
 	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
+	'/reference/cli/profiles': typeof DocsReferenceCliProfilesRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
@@ -1496,6 +1503,7 @@ export interface FileRoutesByTo {
 	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
 	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
+	'/reference/cli/profiles': typeof DocsReferenceCliProfilesRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
@@ -1686,6 +1694,7 @@ export interface FileRoutesById {
 	'/_docs/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
 	'/_docs/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
+	'/_docs/reference/cli/profiles': typeof DocsReferenceCliProfilesRoute;
 	'/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
 	'/_docs/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
@@ -1876,6 +1885,7 @@ export interface FileRouteTypes {
 		| '/reference/cli/monitoring'
 		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
+		| '/reference/cli/profiles'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
 		| '/reference/sdk-reference/advanced'
@@ -2062,6 +2072,7 @@ export interface FileRouteTypes {
 		| '/reference/cli/monitoring'
 		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
+		| '/reference/cli/profiles'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
 		| '/reference/sdk-reference/advanced'
@@ -2251,6 +2262,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/cli/monitoring'
 		| '/_docs/reference/cli/oauth'
 		| '/_docs/reference/cli/opencode-plugin'
+		| '/_docs/reference/cli/profiles'
 		| '/_docs/reference/cli/sandbox'
 		| '/_docs/reference/cli/storage'
 		| '/_docs/reference/sdk-reference/advanced'
@@ -3191,6 +3203,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceCliSandboxRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/cli/profiles': {
+			id: '/_docs/reference/cli/profiles';
+			path: '/reference/cli/profiles';
+			fullPath: '/reference/cli/profiles';
+			preLoaderRoute: typeof DocsReferenceCliProfilesRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/reference/cli/opencode-plugin': {
 			id: '/_docs/reference/cli/opencode-plugin';
 			path: '/reference/cli/opencode-plugin';
@@ -3839,6 +3858,7 @@ interface DocsRouteRouteChildren {
 	DocsReferenceCliMonitoringRoute: typeof DocsReferenceCliMonitoringRoute;
 	DocsReferenceCliOauthRoute: typeof DocsReferenceCliOauthRoute;
 	DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute;
+	DocsReferenceCliProfilesRoute: typeof DocsReferenceCliProfilesRoute;
 	DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute;
 	DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute;
 	DocsServicesDatabaseDrizzleRoute: typeof DocsServicesDatabaseDrizzleRoute;
@@ -3971,6 +3991,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceCliMonitoringRoute: DocsReferenceCliMonitoringRoute,
 	DocsReferenceCliOauthRoute: DocsReferenceCliOauthRoute,
 	DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
+	DocsReferenceCliProfilesRoute: DocsReferenceCliProfilesRoute,
 	DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
 	DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,
 	DocsServicesDatabaseDrizzleRoute: DocsServicesDatabaseDrizzleRoute,

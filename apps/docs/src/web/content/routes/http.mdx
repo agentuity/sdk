@@ -417,7 +417,7 @@ router.post('/process', async (c) => {
 
 ## Streaming Responses
 
-Use the `stream()` middleware to return a `ReadableStream` directly to the client without buffering. The agent must be created with `schema: { stream: true }` for `agent.run()` to return a `ReadableStream`.
+Forward streaming agent responses with `c.body(await agent.run(data))`. Use `stream()` when the route creates its own `ReadableStream`.
 
 First, define a streaming agent:
 
@@ -442,19 +442,19 @@ export default createAgent('chat', {
 });
 ```
 
-Then use `stream()` in the route to forward the `ReadableStream` to the client:
+Then validate the request and return the agent stream from the route:
 
 ```typescript title="src/api/chat/route.ts"
 import { Hono } from 'hono';
-import { type Env, stream } from '@agentuity/runtime';
+import { type Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat/agent';
 
 const router = new Hono<Env>();
 
-router.post('/chat', stream(async (c) => {
-  const body = await c.req.json();
-  return chatAgent.run(body);
-}));
+router.post('/chat', chatAgent.validator(), async (c) => {
+  const body = c.req.valid('json');
+  return c.body(await chatAgent.run(body));
+});
 
 export default router;
 ```
@@ -486,18 +486,30 @@ export default router;
 
 ### With Middleware
 
-Stream routes support middleware:
+Custom stream routes support middleware:
 
 ```typescript
 import { Hono } from 'hono';
 import { type Env, stream } from '@agentuity/runtime';
-import streamAgent from '@agent/stream/agent';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  userId: string;
+};
 
-router.post('/protected', authMiddleware, stream(async (c) => {
-  return streamAgent.run({ userId: c.var.userId });
-}));
+const router = new Hono<Env & { Variables: RouteVariables }>();
+
+router.get(
+  '/protected/events',
+  authMiddleware,
+  stream<Env & { Variables: RouteVariables }>((c) => {
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(`user:${c.var.userId}\n`);
+        controller.close();
+      },
+    });
+  })
+);
 
 export default router;
 ```

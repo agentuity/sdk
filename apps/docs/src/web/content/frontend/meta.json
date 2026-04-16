@@ -5,7 +5,6 @@
 		"rpc-client",
 		"provider-setup",
 		"authentication",
-		"workbench",
 		"deployment-scenarios",
 		"static-rendering",
 		"advanced-hooks"

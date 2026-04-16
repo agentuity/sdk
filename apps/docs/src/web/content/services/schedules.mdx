@@ -5,6 +5,10 @@ description: Create platform-managed cron jobs with HTTP and sandbox destination
 
 When a job needs to run on a timer, like data syncs, nightly cleanup, or report generation, Schedules let you configure timing and destinations outside your app code. The platform calls your endpoints on a cron schedule, tracks each delivery, and retries on failure.
 
+<Callout type="warning" title="Schedules replace Cron for new work">
+Use Schedules when you want platform-managed recurring jobs with delivery tracking, retries, and destinations managed outside your app code.
+</Callout>
+
 <Callout type="tip" title="Not inside an agent or route?">
 Use the [`@agentuity/schedule`](/reference/standalone-packages#schedules) standalone package to access this service from any Node.js or Bun app without the runtime.
 </Callout>
