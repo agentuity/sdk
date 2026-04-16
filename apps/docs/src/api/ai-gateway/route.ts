@@ -5,11 +5,13 @@
  * STREAM /compare - Streams LLM response for selected model
  */
 import { stream, type Env } from '@agentuity/runtime';
-import { streamText } from 'ai';
+import { generateText, streamText } from 'ai';
 import { getModel } from '../../lib/models';
 import { Hono } from 'hono';
 
 const FIXED_PROMPT = 'What is backpropagation and why does it matter for AI?';
+const GEMINI_STREAMING_NOTE =
+	'Gemini uses a one-shot fallback here because gateway streaming is unreliable in this demo.';
 
 const router = new Hono<Env>()
 
@@ -17,8 +19,9 @@ const router = new Hono<Env>()
 		return c.json({
 			name: 'AI Gateway Demo',
 			description: 'Compare responses from multiple LLM providers',
-			endpoint: '/api/gateway/compare',
+			endpoint: '/api/ai-gateway/compare',
 			note: 'AI Gateway routes requests to different providers using a single SDK key',
+			streamingNote: GEMINI_STREAMING_NOTE,
 			prompt: FIXED_PROMPT,
 		});
 	})
@@ -34,6 +37,20 @@ const router = new Hono<Env>()
 					prompt: FIXED_PROMPT.slice(0, 50),
 					model,
 				});
+
+				if (model.startsWith('gemini-')) {
+					const { text } = await generateText({
+						model: getModel(model),
+						prompt: FIXED_PROMPT,
+					});
+
+					return new ReadableStream({
+						start(controller) {
+							controller.enqueue(new TextEncoder().encode(text));
+							controller.close();
+						},
+					});
+				}
 
 				const { textStream } = streamText({
 					model: getModel(model),

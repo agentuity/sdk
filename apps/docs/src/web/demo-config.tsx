@@ -349,38 +349,6 @@ export const DEMOS: DemoConfig[] = [
 		isRoute: true,
 	},
 	{
-		id: 'webrtc',
-		title: 'WebRTC',
-		subtitle: 'Peer-to-Peer Communication',
-		description: 'Audio, video, and data channels directly between browsers.',
-		explanation: (
-			<>
-				WebRTC enables <em>peer-to-peer</em> connections between browsers for audio, video, and
-				data channels. The server only handles signaling so peers can find each other and
-				negotiate a direct connection.{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">
-					One line on the server with webrtc(), one hook on the client with useWebRTCCall()
-				</span>
-				. Use WebRTC when you need direct browser-to-browser communication. For server-mediated
-				bidirectional messaging, see{' '}
-				<a
-					href={explorerHref('websocket')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
-				>
-					WebSocket
-				</a>
-				.
-			</>
-		),
-		docsUrl: '/routes/webrtc',
-		category: 'io-patterns',
-		component: WebRTCDemo,
-		codeExample: CODE_EXAMPLES.webrtc,
-		sandboxEnabled: true,
-		sandboxScript: 'webrtc',
-		isRoute: true,
-	},
-	{
 		id: 'durable-stream',
 		title: 'Durable Streams',
 		subtitle: 'Shareable URLs',
@@ -522,6 +490,38 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'model-arena',
 		sandboxInput: { prompt: 'Write a creative one-liner about programming.' },
+	},
+	{
+		id: 'webrtc',
+		title: 'WebRTC',
+		subtitle: 'Peer-to-Peer Communication',
+		description: 'Audio, video, and data channels directly between browsers.',
+		explanation: (
+			<>
+				WebRTC enables <em>peer-to-peer</em> connections between browsers for audio, video, and
+				data channels. The server only handles signaling so peers can find each other and
+				negotiate a direct connection.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					One line on the server with webrtc(), one hook on the client with useWebRTCCall()
+				</span>
+				. Use WebRTC when you need direct browser-to-browser communication. For server-mediated
+				bidirectional messaging, see{' '}
+				<a
+					href={explorerHref('websocket')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+				>
+					WebSocket
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/routes/webrtc',
+		category: 'examples',
+		component: WebRTCDemo,
+		codeExample: CODE_EXAMPLES.webrtc,
+		sandboxEnabled: true,
+		sandboxScript: 'webrtc',
+		isRoute: true,
 	},
 	{
 		id: 'queue',

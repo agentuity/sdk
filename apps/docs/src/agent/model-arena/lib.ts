@@ -16,6 +16,27 @@ export interface GenerationConfig {
 	model: string;
 }
 
+const JUDGE_PROMPT_SUFFIXES = [
+	'',
+	'\n\nReturn only valid JSON that matches the schema exactly. Do not include markdown fences or extra commentary.',
+] as const;
+
+async function repairJudgmentText({
+	text,
+}: {
+	text: string;
+	error: unknown;
+}): Promise<string | null> {
+	const start = text.indexOf('{');
+	const end = text.lastIndexOf('}');
+
+	if (start === -1 || end === -1 || end <= start) {
+		return null;
+	}
+
+	return text.slice(start, end + 1);
+}
+
 export const MODELS: GenerationConfig[] = [
 	{ provider: 'openai', model: 'gpt-5-nano' },
 	{ provider: 'anthropic', model: 'claude-haiku-4-5' },
@@ -62,11 +83,27 @@ export async function judgeStories(
 	tone: Tone,
 	prompt: string
 ): Promise<Judgment> {
-	const { object } = await generateObject({
-		model: getJudgeModel(),
-		schema: JudgmentSchema,
-		prompt: getJudgePrompt([...results], tone, prompt),
-	});
+	let lastError: unknown;
+	const basePrompt = getJudgePrompt([...results], tone, prompt);
 
-	return object;
+	for (const suffix of JUDGE_PROMPT_SUFFIXES) {
+		try {
+			const { object } = await generateObject({
+				model: getJudgeModel(),
+				schema: JudgmentSchema,
+				schemaName: 'ModelArenaJudgment',
+				schemaDescription:
+					'Structured judgment comparing the OpenAI and Anthropic stories with scores, checks, and a winner.',
+				temperature: 0,
+				experimental_repairText: repairJudgmentText,
+				prompt: `${basePrompt}${suffix}`,
+			});
+
+			return object;
+		} catch (error) {
+			lastError = error;
+		}
+	}
+
+	throw lastError;
 }
