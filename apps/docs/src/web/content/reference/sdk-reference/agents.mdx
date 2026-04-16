@@ -113,6 +113,8 @@ agent.validator(options: { input: Schema; output?: Schema }): MiddlewareHandler
 - `{ output: Schema }`: Output-only validation (useful for GET routes)
 - `{ input: Schema, output?: Schema }`: Custom schema override
 
+For streaming agents, call `agent.validator()` normally. The runtime skips output validation when `schema.stream: true` is set. Use `stream: true` only with standalone `validator()` routes that return a stream without an agent.
+
 **Example**
 
 ```typescript

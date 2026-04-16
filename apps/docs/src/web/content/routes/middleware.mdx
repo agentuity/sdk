@@ -112,8 +112,12 @@ const jwtAuth = createMiddleware(async (c, next) => {
 
   try {
     const payload = await verify(token, process.env.JWT_SECRET!);
+    if (typeof payload.sub !== 'string' || payload.sub.trim().length === 0) {
+      return c.json({ error: 'Invalid token payload' }, 401);
+    }
+
     c.set('authUser', {
-      sub: String(payload.sub),
+      sub: payload.sub,
       email: typeof payload.email === 'string' ? payload.email : undefined,
     });
     await next();

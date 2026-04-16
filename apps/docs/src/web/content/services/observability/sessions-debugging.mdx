@@ -169,18 +169,19 @@ import { createAgent } from '@agentuity/runtime';
 const agent = createAgent('UserContext', {
   handler: async (ctx, input) => {
     // Thread metadata persists across sessions within a thread
-    await ctx.thread.setMetadata({
+    const threadMetadata = {
+      ...(await ctx.thread.getMetadata()), // keep existing keys
       userId: input.userId,
       department: 'sales',
       plan: 'enterprise',
-    });
+    };
+
+    await ctx.thread.setMetadata(threadMetadata);
 
     // Session metadata is request-scoped
     ctx.session.metadata.requestType = 'chat';
     ctx.session.metadata.clientVersion = input.clientVersion;
     ctx.session.metadata.source = 'web';
-
-    const threadMetadata = await ctx.thread.getMetadata();
 
     ctx.logger.info('Request context', {
       threadId: ctx.thread.id,

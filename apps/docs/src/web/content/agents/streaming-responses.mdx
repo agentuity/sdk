@@ -24,7 +24,7 @@ const api = new Hono<Env>()
   .post('/chat', chatAgent.validator(), async (c) => {
     const body = c.req.valid('json');
     return c.body(await chatAgent.run(body));
-  }));
+  });
 
 export default api;
 ```
@@ -42,10 +42,10 @@ await stream.write('data');
 await stream.close();
 ```
 
-This page focuses on ephemeral streaming with the AI SDK. For persistent streaming patterns, see the [Storage documentation](/services/storage/durable-streams).
+For stored streams with public URLs, see the [Storage documentation](/services/storage/durable-streams).
 
 <Callout type="info" title="Two Parts to Streaming">
-Streaming agent responses require both: `schema.stream: true` in your agent and a route that returns the resulting stream, usually with `return c.body(await agent.run(data))`.
+Streaming agent responses require both: `schema.stream: true` in your agent and a route that returns the resulting stream, usually with `return c.body(await agent.run(data))`. Use `agent.validator()` as usual. Streaming agents skip output validation automatically.
 </Callout>
 
 ## Basic Streaming
@@ -94,7 +94,7 @@ const api = new Hono<Env>()
   .post('/chat', chatAgent.validator(), async (c) => {
     const body = c.req.valid('json');
     return c.body(await chatAgent.run(body));
-  }));
+  });
 
 export type ApiRouter = typeof api;
 
@@ -104,7 +104,7 @@ export default api;
 Use `c.body(await agent.run(data))` when the agent already returns a stream. Use `stream()` when the route itself creates the `ReadableStream`.
 
 <Callout type="info" title="Route Methods">
-Use `stream()` when the route itself creates the `ReadableStream`. When you are forwarding a streaming agent response, return the agent stream directly with `c.body(...)`.
+Use `stream()` when the route itself creates the `ReadableStream`. When you are forwarding a streaming agent response, return the agent stream directly with `c.body(...)`. For non-agent routes that use `validator()` with an output schema, pass `stream: true` to skip output validation on the stream.
 </Callout>
 
 ## Consuming Streams
