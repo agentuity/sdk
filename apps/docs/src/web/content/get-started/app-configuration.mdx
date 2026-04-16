@@ -256,6 +256,8 @@ Use separate `.env` files instead of commenting/uncommenting variables when swit
 
 Files loaded later in the chain override earlier ones. For `agentuity dev`, the order is `.env.{profile}` then `.env.development` then `.env`, so `.env` wins when keys conflict. For deployed or non-local profiles, the order is `.env.{profile}` then `.env` then `.env.production`, so `.env.production` wins.
 
+Profile-specific files use the active CLI profile. See [CLI Profiles](/reference/cli/profiles) for switching profiles and profile-specific defaults.
+
 **Example setup:**
 
 ```bash title=".env"

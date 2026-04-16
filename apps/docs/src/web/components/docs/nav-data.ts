@@ -840,6 +840,12 @@ export const navData: NavSection[] = [
 							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
 					},
 					{
+						title: 'Profiles',
+						url: '/reference/cli/profiles',
+						description:
+							'Use separate CLI profiles for different accounts, organizations, and environments.',
+					},
+					{
 						title: 'Sandbox',
 						url: '/reference/cli/sandbox',
 						description: 'Create and manage isolated execution environments from the CLI',
