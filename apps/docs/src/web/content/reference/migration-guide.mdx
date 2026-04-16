@@ -14,7 +14,7 @@ v2 introduces six fundamental architectural changes:
 
 **v1**: Agents were auto-discovered from `src/agent/*/agent.ts` files at runtime.
 
-**v2**: Import agents explicitly into `createApp()`. This keeps the registered agents visible in one place and ensures they are included for runtime registration, workbench metadata, and agent-to-agent calls:
+**v2**: Import agents explicitly into `createApp()`. This keeps the registered agents visible in one place and ensures they are included for runtime registration and agent-to-agent calls:
 
 ```typescript
 // app.ts
@@ -165,8 +165,7 @@ export default defineConfig({
 import { createApp } from '@agentuity/runtime';
 
 export default await createApp({
-  analytics: true,      // or { trackClicks: false, ... }
-  workbench: true,      // or '/debug' for custom route
+  analytics: true, // or { trackClicks: false, ... }
 });
 ```
 
@@ -223,7 +222,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 | `shutdown` in `createApp()` | Guidance to move cleanup into `registerShutdownHook()` or Bun process hooks |
 | No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
 | `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render |
-| `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
+| `agentuity.config.ts` has runtime settings | Remove — keep them in `createApp()` |
 | `agentuity.config.ts` empty | Can be deleted |
 
 ### Manual (instructions only, no auto-transform)
@@ -350,7 +349,7 @@ export default await createApp({
 #### Configuration Consolidation
 
 Move all configuration from `agentuity.config.ts` to either:
-- `createApp()` in `app.ts` for runtime config (analytics, workbench, cors, compression)
+- `createApp()` in `app.ts` for runtime config (analytics, cors, compression)
 - `vite.config.ts` for build config (plugins, define, render)
 
 **Before (v1):**
@@ -377,8 +376,7 @@ export default defineConfig({
 import { createApp } from '@agentuity/runtime';
 
 export default await createApp({
-  analytics: true,
-  workbench: true
+  analytics: true
 });
 ```
 

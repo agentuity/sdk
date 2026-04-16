@@ -184,7 +184,11 @@ import summarizer from '@agent/summarizer/agent';
 import sentimentAnalyzer from '@agent/sentiment-analyzer/agent';
 import entityExtractor from '@agent/entity-extractor/agent';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  userId: string;
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 // Auth middleware
 const authMiddleware = createMiddleware(async (c, next) => {

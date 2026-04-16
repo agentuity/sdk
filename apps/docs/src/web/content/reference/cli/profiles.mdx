@@ -1,0 +1,165 @@
+---
+title: CLI Profiles
+short_title: Profiles
+description: Use separate CLI profiles for different accounts, organizations, and environments.
+---
+
+Use profiles to keep separate Agentuity CLI identities and defaults on one machine. For example, keep one profile for your personal account and another for your company account, then switch between them without logging out and back in.
+
+## Common Uses
+
+| Use case | Example profiles | Why it helps |
+|----------|------------------|--------------|
+| Personal and company accounts | `personal`, `work` | Stay authenticated to both accounts and switch before running commands |
+| Multiple organizations | `company`, `client` | Keep different default organizations and resource caches separate |
+| Staging and production | `staging`, `production` | Keep deployment defaults and profile-specific `.env` files separate |
+| Local service testing | `local` | Point the CLI at local or internal Agentuity services |
+
+## Create Profiles
+
+Create one profile for each account or environment:
+
+```bash
+agentuity profile create personal
+agentuity profile create work
+```
+
+Switch into each profile and log in with the matching account:
+
+```bash
+agentuity profile use personal
+agentuity auth login
+
+agentuity profile use work
+agentuity auth login
+```
+
+Each profile stores its own credentials and preferences. A default organization is optional.
+
+## Switch Profiles
+
+Switch your active profile:
+
+```bash
+agentuity profile use work
+```
+
+Run the picker when you do not remember the profile name:
+
+```bash
+agentuity profile use
+```
+
+Check the active profile:
+
+```bash
+agentuity profile current
+```
+
+List all profiles:
+
+```bash
+agentuity profile list
+```
+
+## Optional: Save a Default Organization
+
+If a profile can access multiple organizations, you can save a default organization for that profile:
+
+```bash
+agentuity profile use work
+agentuity auth whoami
+agentuity auth org select
+```
+
+`agentuity auth whoami` lists the organizations your account can access. Run `agentuity auth org select` to choose from the list, or pass the ID directly:
+
+```bash
+agentuity auth org select org_abc123
+```
+
+Repeat this for each profile that needs a default organization. You can also leave it unset and choose an organization when a command asks for one.
+
+Clear the saved organization when you no longer want that profile to default to one:
+
+```bash
+agentuity auth org unselect
+```
+
+When no organization is saved, `agentuity auth org current --json` returns `null` values:
+
+```json
+{
+  "id": null,
+  "name": null
+}
+```
+
+## Run Commands in a Profile
+
+When you switch between projects, switch to the matching profile before running project commands:
+
+```bash
+agentuity profile use client
+agentuity dev
+```
+
+If you saved a default organization, check it with `agentuity auth org current --name`.
+
+Profiles separate local CLI identity and defaults. They do not change organization membership or project permissions in the cloud.
+
+## Check Profile State in Scripts
+
+Use `--json` when a script or agent needs CLI state:
+
+```bash
+agentuity profile list --json
+agentuity profile current --json
+agentuity auth whoami --json
+agentuity auth org current --json
+```
+
+`agentuity profile list --json` marks the active profile with `selected: true`. `agentuity auth whoami --json` lists accessible organizations. `agentuity auth org current --json` returns the saved organization, or `null` values when none is saved.
+
+Use the global `--describe` flag for command metadata. For profile and organization state, use `--json`.
+
+## Use a Profile for One Command
+
+Use `AGENTUITY_PROFILE` when you want one command to run with a different profile without changing your default:
+
+```bash
+AGENTUITY_PROFILE=production agentuity cloud deploy
+```
+
+You can also use the global `--profile` flag:
+
+```bash
+agentuity --profile production cloud deploy
+```
+
+## Profile-Specific Environment Files
+
+Profile-specific `.env` files let you pair CLI profiles with local environment variables:
+
+```bash
+.env.staging
+.env.production
+```
+
+For `agentuity dev`, the CLI checks `.env.{profile}`, `.env.development`, then `.env`. Later files override earlier files. See [App Configuration](/get-started/app-configuration) for the full loading order.
+
+## Manage Profiles
+
+Show a profile's configuration:
+
+```bash
+agentuity profile show work
+```
+
+Delete an old profile:
+
+```bash
+agentuity profile delete old-work
+```
+
+Profiles are stored in your Agentuity config directory, usually `~/.config/agentuity/`.

@@ -9,6 +9,7 @@
 		"git-integration",
 		"storage",
 		"sandbox",
+		"profiles",
 		"configuration",
 		"debugging",
 		"ai-commands",

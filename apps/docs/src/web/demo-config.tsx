@@ -3,7 +3,6 @@ import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
 import { CronDemo } from './components/CronDemo';
-import { EvalsDemo } from './components/EvalsDemo';
 import { HandlerContextDemo } from './components/HandlerContextDemo';
 import { HelloDemo } from './components/HelloDemo';
 import { KVExplorer } from './components/KVExplorer';
@@ -32,7 +31,6 @@ export type DemoId =
 	| 'cron'
 	| 'agent-calls'
 	| 'object-storage'
-	| 'evals'
 	| 'queue'
 	| 'email'
 	| 'database';
@@ -456,32 +454,6 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'model-arena',
 		sandboxInput: { prompt: 'Write a creative one-liner about programming.' },
-	},
-	{
-		id: 'evals',
-		title: 'Evals',
-		subtitle: 'Automatic Quality Checks',
-		description: 'Run evaluations after your agent responds.',
-		explanation: (
-			<>
-				<em>Evaluations</em> are automated quality checks that run after your agent responds.
-				They don't slow down your response; they execute in the background and results appear in
-				the Agentuity console.{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">
-					Two types: binary (pass/fail) and score (0-1)
-				</span>
-				. Use preset evals like <em>answer-completeness</em> or create custom evals with your
-				own logic. Evals help you catch quality issues before users do and track performance
-				over time.
-			</>
-		),
-		docsUrl: '/agents/evaluations',
-		category: 'examples',
-		component: EvalsDemo,
-		codeExample: CODE_EXAMPLES.evals,
-		sandboxEnabled: true,
-		sandboxScript: 'evals',
-		sandboxInput: { question: 'What is Agentuity and what are its main features?' },
 	},
 	{
 		id: 'queue',

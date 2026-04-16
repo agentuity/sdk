@@ -129,9 +129,8 @@ bun run dev
 
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:3500`
-- Workbench: `http://localhost:3500/workbench`
 
-`bun run dev` starts both runtimes. There is no separate client route-generation step in v2. The frontend imports the router type from source, and `agentuity dev` serves the backend.
+`bun run dev` starts both runtimes. You do not need a separate client route-generation step. The frontend imports the router type from source, and `agentuity dev` serves the backend.
 
 ## Deployment
 
@@ -140,7 +139,9 @@ If you keep same-origin routing in production, keep `hc<ApiRouter>('/api')` and 
 If the frontend and backend live on different origins, point `hc()` at the deployed backend instead:
 
 ```tsx
-const client = hc<ApiRouter>(import.meta.env.VITE_AGENTUITY_BASE_URL!);
+const client = hc<ApiRouter>(
+  new URL('/api', import.meta.env.VITE_AGENTUITY_BASE_URL).toString()
+);
 ```
 
 Then enable CORS in [App Configuration](/get-started/app-configuration).

@@ -245,7 +245,9 @@ import { createDestination } from '@agentuity/server';
 import { client } from '@/lib/agentuity-queues';
 
 await createDestination(client, 'order-processing', {
+  name: 'orders-webhook',
   destination_type: 'http',
+  enabled: true,
   config: {
     url: 'https://api.example.com/webhook/orders',
     method: 'POST',

@@ -13,7 +13,6 @@ import apiKeysService from '../../../packages/core/src/services/apikey/api-refer
 import coderService from '../../../packages/core/src/services/coder/api-reference.ts';
 import databaseService from '../../../packages/core/src/services/db/api-reference.ts';
 import emailService from '../../../packages/core/src/services/email/api-reference.ts';
-import evaluationsService from '../../../packages/core/src/services/eval/api-reference.ts';
 import kvService from '../../../packages/core/src/services/keyvalue/api-reference.ts';
 import machinesService from '../../../packages/core/src/services/machine/api-reference.ts';
 import oauthService from '../../../packages/core/src/services/oauth/api-reference.ts';
@@ -38,7 +37,6 @@ const services: Service[] = [
 	databaseService,
 	streamsService,
 	emailService,
-	evaluationsService,
 	kvService,
 	machinesService,
 	queuesService,
@@ -245,7 +243,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, BrainCircuit, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
@@ -279,12 +277,6 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
     title="Email"
     description="Send and receive emails with managed addresses and webhook destinations"
     icon={<Mail className="size-5" />}
-  />
-  <CardLink
-    href="/reference/api/evaluations"
-    title="Evaluations"
-    description="List and retrieve evaluations and their run history"
-    icon={<CheckCircle className="size-5" />}
   />
   <CardLink
     href="/reference/api/key-value"
