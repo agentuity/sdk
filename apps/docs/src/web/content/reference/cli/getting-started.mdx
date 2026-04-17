@@ -171,7 +171,6 @@ The agent uses the OpenAI SDK routed through Agentuity's AI Gateway. This means 
 | `--no-register` | Don't register the project with Agentuity Cloud |
 | `--database <value>` | Database option: `skip`, `new`, or existing database name |
 | `--storage <value>` | Storage option: `skip`, `new`, or existing bucket name |
-| `--enable-auth` | Enable Agentuity Auth for the project |
 
 Example:
 
@@ -191,8 +190,7 @@ Create projects non-interactively for CI/CD pipelines and automation:
 agentuity project create \
   --name my-agent \
   --database new \
-  --storage new \
-  --enable-auth
+  --storage new
 
 # Skip optional resources
 agentuity project create \

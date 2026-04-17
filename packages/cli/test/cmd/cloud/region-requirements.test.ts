@@ -31,7 +31,6 @@ import { snapshotCommand as sandboxSnapshotCommand } from '../../../src/cmd/clou
 import { sshSubcommand } from '../../../src/cmd/cloud/ssh';
 import { uploadCommand as scpUploadCommand } from '../../../src/cmd/cloud/scp/upload';
 import { downloadCommand as scpDownloadCommand } from '../../../src/cmd/cloud/scp/download';
-import { initSubcommand as projectAuthInitSubcommand } from '../../../src/cmd/project/auth/init';
 
 describe('Global Database Commands - No Region Required', () => {
 	describe('Thread Commands', () => {
@@ -258,15 +257,6 @@ describe('Global Database Commands - No Region Required', () => {
 			expect(requires?.region).toBeUndefined();
 			expect(requires?.auth).toBe(true);
 			expect(requires?.apiClient).toBe(true);
-		});
-	});
-
-	describe('Project Commands', () => {
-		test('project auth init does not require region', () => {
-			const requires = projectAuthInitSubcommand.requires as Record<string, boolean> | undefined;
-			expect(requires?.region).toBeUndefined();
-			expect(requires?.auth).toBe(true);
-			expect(requires?.org).toBe(true);
 		});
 	});
 });
