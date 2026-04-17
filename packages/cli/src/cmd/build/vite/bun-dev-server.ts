@@ -399,6 +399,15 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 			PORT: String(port),
 			FORCE_COLOR: '1', // Enable colors even though stdout is piped
 		},
+		// Make the child a process-group leader so the CLI's procManager /
+		// killBunSubprocess() can signal the whole tree via process.kill(-pid, ...).
+		// Without detached:true, bun --hot and any workers it spawns share our
+		// process group, process.kill(-pid) fails with EPERM (not a group leader),
+		// and we fall back to a direct PID kill that leaves children orphaned.
+		//
+		// We intentionally do NOT call .unref() here — the parent still tracks
+		// and drives the child's lifecycle, and piped stdio is unaffected.
+		detached: true,
 	});
 
 	// Start capturing streams in the background (don't await, we need to check server readiness)
@@ -444,8 +453,28 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 	}
 
 	if (!serverReady) {
+		// The subprocess is spawned with detached:true and is therefore the
+		// leader of its own process group. bunProcess.kill() only targets the
+		// direct PID, which would leave any workers/grandchildren orphaned.
+		// Signal the whole process group with SIGKILL and fall back to the
+		// handle's kill() if the group-kill fails (EPERM, not-group-leader,
+		// or Windows where negative PIDs aren't supported).
+		const pid = bunProcess.pid;
 		try {
-			bunProcess.kill();
+			if (typeof pid === 'number' && pid > 1 && process.platform !== 'win32') {
+				try {
+					process.kill(-pid, 'SIGKILL');
+				} catch (groupErr) {
+					logger.debug(
+						'Process-group SIGKILL failed for pid %d (%s), falling back to direct kill',
+						pid,
+						(groupErr as NodeJS.ErrnoException).code ?? groupErr
+					);
+					bunProcess.kill('SIGKILL');
+				}
+			} else {
+				bunProcess.kill('SIGKILL');
+			}
 		} catch (err) {
 			logger.debug('Error killing subprocess during startup failure: %s', err);
 		}
