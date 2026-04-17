@@ -16,11 +16,6 @@ export interface GenerationConfig {
 	model: string;
 }
 
-const JUDGE_PROMPT_SUFFIXES = [
-	'',
-	'\n\nReturn only valid JSON that matches the schema exactly. Do not include markdown fences or extra commentary.',
-] as const;
-
 async function repairJudgmentText({
 	text,
 }: {
@@ -86,28 +81,17 @@ export async function judgeStories(
 	prompt: string,
 	abortSignal?: AbortSignal
 ): Promise<Judgment> {
-	let lastError: unknown;
-	const basePrompt = getJudgePrompt([...results], tone, prompt);
+	const { object } = await generateObject({
+		model: getJudgeModel(),
+		schema: JudgmentSchema,
+		schemaName: 'ModelArenaJudgment',
+		schemaDescription:
+			'Structured judgment comparing the OpenAI and Anthropic stories with scores, checks, and a winner.',
+		temperature: 0,
+		experimental_repairText: repairJudgmentText,
+		prompt: getJudgePrompt([...results], tone, prompt),
+		abortSignal,
+	});
 
-	for (const suffix of JUDGE_PROMPT_SUFFIXES) {
-		try {
-			const { object } = await generateObject({
-				model: getJudgeModel(),
-				schema: JudgmentSchema,
-				schemaName: 'ModelArenaJudgment',
-				schemaDescription:
-					'Structured judgment comparing the OpenAI and Anthropic stories with scores, checks, and a winner.',
-				temperature: 0,
-				experimental_repairText: repairJudgmentText,
-				prompt: `${basePrompt}${suffix}`,
-				abortSignal,
-			});
-
-			return object;
-		} catch (error) {
-			lastError = error;
-		}
-	}
-
-	throw lastError;
+	return object;
 }

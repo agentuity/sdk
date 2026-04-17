@@ -75,6 +75,7 @@ ${agentuityDocs}`,
 		console.log('---OUTPUT---');
 	});
 } catch (error) {
+	process.exitCode = 1;
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	console.log('---OUTPUT---');

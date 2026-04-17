@@ -74,7 +74,14 @@ type StreamEvent = {
 	};
 }[keyof StreamEventMap];
 
-type ArenaStatus = 'idle' | 'connecting' | 'generating' | 'judging' | 'complete' | 'error';
+type ArenaStatus =
+	| 'idle'
+	| 'connecting'
+	| 'generating'
+	| 'judging'
+	| 'complete'
+	| 'error'
+	| 'stopped';
 
 interface ArenaState {
 	status: ArenaStatus;
@@ -249,7 +256,13 @@ export function ModelArena() {
 						continue;
 					}
 
-					const event = JSON.parse(line) as StreamEvent;
+					let event: StreamEvent;
+					try {
+						event = JSON.parse(line) as StreamEvent;
+					} catch {
+						continue;
+					}
+
 					if (event.event === 'complete' || event.event === 'error') {
 						sawTerminalEvent = true;
 					}
@@ -295,9 +308,8 @@ export function ModelArena() {
 		abortControllerRef.current?.abort();
 		setState((prev) => ({
 			...prev,
-			status: prev.stories.size > 0 || prev.errors.size > 0 ? 'error' : 'idle',
-			globalError:
-				prev.stories.size > 0 || prev.errors.size > 0 ? 'Run stopped before completion' : null,
+			status: prev.stories.size > 0 || prev.errors.size > 0 ? 'stopped' : 'idle',
+			globalError: null,
 		}));
 	}, []);
 
@@ -384,7 +396,9 @@ export function ModelArena() {
 								Stop
 							</Button>
 						)}
-						{(state.status === 'complete' || state.status === 'error') && (
+						{(state.status === 'complete' ||
+							state.status === 'error' ||
+							state.status === 'stopped') && (
 							<Button onClick={reset} variant="ghost" size="default">
 								Clear
 							</Button>
@@ -607,6 +621,11 @@ function ProgressStepper({
 		if (status === 'error') {
 			if (stepId === 'generate' && storiesComplete > 0) return 'complete';
 			if (stepId === 'generate') return 'error';
+			return 'pending';
+		}
+
+		if (status === 'stopped') {
+			if (stepId === 'generate' && storiesComplete > 0) return 'complete';
 			return 'pending';
 		}
 

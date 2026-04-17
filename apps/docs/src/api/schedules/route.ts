@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { ServiceException } from '@agentuity/core/exception';
 import type { Env } from '@agentuity/runtime';
 import type {
 	CreateScheduleParams,
@@ -73,12 +74,7 @@ function sortDeliveries(deliveries: ReadonlyArray<ScheduleDelivery>): ScheduleDe
 }
 
 function isMissingScheduleError(error: unknown): boolean {
-	if (!(error instanceof Error)) {
-		return false;
-	}
-
-	const message = error.message.toLowerCase();
-	return message.includes('404') || message.includes('not found');
+	return error instanceof ServiceException && error.statusCode === 404;
 }
 
 function getErrorMessage(error: unknown): string {

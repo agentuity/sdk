@@ -84,14 +84,12 @@ const router = new Hono<Env>()
 										FIXED_TONE,
 										abortSignal
 									);
-									if (abortSignal.aborted) return null;
 									write('story', {
 										...result,
 										displayName: PROVIDER_DISPLAY_NAMES[result.provider],
 									});
 									return result;
 								} catch (error) {
-									if (abortSignal.aborted) return null;
 									const message = error instanceof Error ? error.message : 'Unknown error';
 									write('provider-error', {
 										provider: config.provider,
@@ -102,8 +100,6 @@ const router = new Hono<Env>()
 								}
 							})
 						);
-
-						if (abortSignal.aborted) return;
 
 						const results = settled.filter(
 							(result): result is ModelResult => result !== null
@@ -123,7 +119,6 @@ const router = new Hono<Env>()
 							FIXED_PROMPT,
 							abortSignal
 						);
-						if (abortSignal.aborted) return;
 						write('complete', {
 							judgment: {
 								...judgment,
@@ -131,7 +126,6 @@ const router = new Hono<Env>()
 							},
 						});
 					} catch (error) {
-						if (abortSignal.aborted) return;
 						const message = error instanceof Error ? error.message : 'Unknown error';
 						c.var.logger?.error('Model Arena stream failed', { error: message });
 						write('error', { error: `Judge failed: ${message}` });

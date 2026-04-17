@@ -585,11 +585,17 @@ function DataChannelTab({ roomId }: { readonly roomId: string }): React.JSX.Elem
 			},
 			onDataChannelMessage: (fromPeerId, label, data) => {
 				if (label === 'chat') {
-					appendMessage(
-						'received',
-						typeof data === 'string' ? data : JSON.stringify(data),
-						fromPeerId
-					);
+					let message: string;
+					if (typeof data === 'string') {
+						message = data;
+					} else if (data instanceof ArrayBuffer) {
+						message = `Binary payload (${data.byteLength} bytes)`;
+					} else if (data instanceof Blob) {
+						message = `Binary payload (${data.size} bytes)`;
+					} else {
+						message = JSON.stringify(data) ?? String(data);
+					}
+					appendMessage('received', message, fromPeerId);
 				}
 			},
 			onError: (err) => appendMessage('error', err.message),
@@ -616,7 +622,7 @@ function DataChannelTab({ roomId }: { readonly roomId: string }): React.JSX.Elem
 		<div className="space-y-4">
 			<div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500">
 				<div className="flex items-center gap-2">
-					<div className={`h-2.5 w-2.5 rounded-full ${statusDotClass(state)}`} />
+					<div className={`h-2.5 w-2.5 rounded-full ${statusDotClass(state)}`} aria-hidden />
 					<span>{statusLabel(state)}</span>
 				</div>
 				{peerId ? <span>Peer ID: {shortPeerId(peerId)}</span> : null}
@@ -638,7 +644,12 @@ function DataChannelTab({ roomId }: { readonly roomId: string }): React.JSX.Elem
 			</div>
 
 			<div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-950/40">
-				<div className="max-h-64 space-y-2 overflow-auto">
+				<div
+					className="max-h-64 space-y-2 overflow-auto"
+					role="log"
+					aria-label="WebRTC chat messages"
+					aria-live="polite"
+				>
 					{messages.length === 0 ? (
 						<p className="text-sm text-zinc-500">
 							Join the room in two tabs, then use the chat data channel to send messages
@@ -654,7 +665,9 @@ function DataChannelTab({ roomId }: { readonly roomId: string }): React.JSX.Elem
 									{message.type}
 									{message.peerId ? ` • ${message.peerId.slice(0, 6)}` : ''}
 								</div>
-								<div>{message.message}</div>
+								<div className="break-words text-zinc-700 dark:text-zinc-200">
+									{message.message}
+								</div>
 							</div>
 						))
 					)}
@@ -664,6 +677,7 @@ function DataChannelTab({ roomId }: { readonly roomId: string }): React.JSX.Elem
 					<Input
 						value={input}
 						onChange={(event) => setInput(event.target.value)}
+						aria-label="Chat data channel message"
 						onKeyDown={(event) => {
 							if (event.key === 'Enter') {
 								sendMessage();
@@ -687,7 +701,11 @@ function DataChannelTab({ roomId }: { readonly roomId: string }): React.JSX.Elem
 						Send
 					</Button>
 				</div>
-				{error ? <p className="text-sm text-red-500">{error.message}</p> : null}
+				{error ? (
+					<p className="text-sm text-red-500" role="alert">
+						{error.message}
+					</p>
+				) : null}
 			</div>
 		</div>
 	);
