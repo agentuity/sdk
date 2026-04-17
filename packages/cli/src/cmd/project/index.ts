@@ -4,7 +4,6 @@ import { importSubcommand } from './import';
 import { listSubcommand } from './list';
 import { deleteSubcommand } from './delete';
 import { showSubcommand } from './show';
-import { authCommand } from './auth';
 import { addCommand } from './add';
 import { hostnameCommand } from './hostname';
 import { domainCommand } from './domain';
@@ -18,7 +17,6 @@ export const command = createCommand({
 		{ command: getCommand('project create my-agent'), description: 'Create a new project' },
 		{ command: getCommand('project import'), description: 'Import an existing project' },
 		{ command: getCommand('project list'), description: 'List all projects' },
-		{ command: getCommand('project auth init'), description: 'Set up Agentuity Auth' },
 		{ command: getCommand('project add database'), description: 'Link an existing database' },
 		{
 			command: getCommand('project add storage'),
@@ -39,7 +37,6 @@ export const command = createCommand({
 		listSubcommand,
 		deleteSubcommand,
 		showSubcommand,
-		authCommand,
 		addCommand,
 		hostnameCommand,
 		domainCommand,
