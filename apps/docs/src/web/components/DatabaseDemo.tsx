@@ -371,7 +371,7 @@ export function DatabaseDemo() {
 				<p className="text-zinc-600 dark:text-zinc-400 text-xs">
 					<span className="text-cyan-600 dark:text-cyan-400 font-medium">Tip:</span> The{' '}
 					<a
-						href="/demo/vector-storage"
+						href="/explorer/vector-storage"
 						className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
 					>
 						vector demo
