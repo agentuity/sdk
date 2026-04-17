@@ -44,7 +44,7 @@ await standaloneCtx.invoke(async () => {
 		console.log('  ctx.kv - Key-Value storage');
 		console.log('  ctx.vector - Vector storage');
 		console.log('  ctx.stream - Durable stream management');
-		console.log('  Bun s3 - S3-compatible object storage');
+		console.log('  Bun.s3 - S3-compatible object storage (Bun built-in)');
 		console.log('');
 
 		// Thread state demonstration

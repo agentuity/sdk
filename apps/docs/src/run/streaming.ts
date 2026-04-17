@@ -25,7 +25,7 @@ try {
 	const prompt = input.prompt ?? 'Write a short poem about AI.';
 	ctx.logger.info('Streaming started', { prompt });
 	const { textStream } = streamText({
-		model: openai('gpt-5-nano'),
+		model: openai('gpt-5.4-nano'),
 		prompt,
 	});
 
@@ -49,4 +49,5 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	console.log('---OUTPUT---');
+	process.exitCode = 1;
 }

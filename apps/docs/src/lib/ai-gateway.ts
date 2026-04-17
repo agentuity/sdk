@@ -1,11 +1,12 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 
-// AI SDK convenience exports are created eagerly with their upstream base URLs
-// Use explicit factories here until DevMode rewires those exports reliably
+// AI SDK convenience exports can miss DevMode gateway routing, so create
+// these providers with the Agentuity Gateway URL explicitly.
 function requireGatewayConfig(): { apiKey: string; baseUrl: string } {
 	const apiKey = process.env.AGENTUITY_SDK_KEY;
-	const baseUrl = process.env.AGENTUITY_TRANSPORT_URL || process.env.AGENTUITY_CATALYST_URL;
+	const rawBaseUrl = process.env.AGENTUITY_TRANSPORT_URL || process.env.AGENTUITY_CATALYST_URL;
+	const baseUrl = rawBaseUrl?.replace(/\/+$/u, '');
 
 	if (!apiKey) {
 		throw new Error('AGENTUITY_SDK_KEY is required for Agentuity AI Gateway access');

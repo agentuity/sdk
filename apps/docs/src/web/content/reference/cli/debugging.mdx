@@ -245,31 +245,6 @@ Use thread inspection to:
 | `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
 | `--all` | List all threads regardless of project context |
 
-## Evaluation Commands
-
-Monitor and inspect evaluation runs to understand agent performance against test cases.
-
-List and inspect evaluations and evaluation runs:
-
-```bash
-# List all evaluations
-agentuity cloud eval list
-
-# Get details for a specific evaluation
-agentuity cloud eval get eval_abc123xyz
-
-# List evaluation runs
-agentuity cloud eval-run list
-
-# Get details for a specific run
-agentuity cloud eval-run get run_abc123xyz
-```
-
-Use evaluation commands to:
-- Monitor eval progress and results
-- Debug failing evaluations
-- Track evaluation history across deployments
-
 ## Deployment Logs
 
 Stream logs from a specific deployment:

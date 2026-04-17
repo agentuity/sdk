@@ -2,7 +2,7 @@
  * Standalone run script for Chat demo
  *
  * NOTE: Intentionally separate from src/agent/chat/agent.ts.
- * Uses simplified model (gpt-5-nano) without commands.
+ * Uses simplified model (gpt-5.4-nano) without commands.
  * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: Thread state and session state APIs inside a real invoke() context.
@@ -48,7 +48,7 @@ try {
 		// Generate response
 		ctx.logger.info('Generating response');
 		const { text } = await generateText({
-			model: openai('gpt-5-nano'),
+			model: openai('gpt-5.4-nano'),
 			system: `You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).
 
 ## Agentuity Documentation

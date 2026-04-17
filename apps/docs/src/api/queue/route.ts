@@ -17,9 +17,9 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
+import type { IssuesType, Logger } from '@agentuity/server';
 import {
 	APIClient,
-	type Logger,
 	ValidationOutputError,
 	getServiceUrls,
 	createQueue,
@@ -57,6 +57,16 @@ function isMissingQueueError(error: unknown): boolean {
 
 function isPayloadObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isEmptyReceiveValidationError(error: InstanceType<typeof ValidationOutputError>): boolean {
+	return (
+		error.issues.length > 0 &&
+		error.issues.every((issue: IssuesType[number]) => {
+			const path = issue.path.join('.');
+			return (path === 'data' || path === 'data.message') && issue.input == null;
+		})
+	);
 }
 
 const router = new Hono<Env & { Variables: QueueVars }>()
@@ -146,7 +156,7 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 			return c.json({
 				success: true,
 				data: {
-					message_count: pending.messages.length,
+					message_count: pending.total ?? pending.messages.length,
 					dlq_count: dlq.total ?? dlq.messages.length,
 					name: queue.name,
 					queue_type: queue.queue_type,
@@ -167,6 +177,9 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 			return c.json({ success: true, data: null, message: 'No messages available' });
 		} catch (err) {
 			if (err instanceof ValidationOutputError) {
+				if (!isEmptyReceiveValidationError(err)) {
+					throw err;
+				}
 				c.var.logger?.warn('Queue receive returned an unexpected empty payload', {
 					queueName: c.var.queueName,
 				});

@@ -76,10 +76,18 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 
 const router = createRouter();
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
 const oauthConfig = {
-  issuer: process.env.OAUTH_ISSUER,
-  clientId: process.env.OAUTH_CLIENT_ID,
-  clientSecret: process.env.OAUTH_CLIENT_SECRET,
+  issuer: requireEnv('OAUTH_ISSUER'),
+  clientId: requireEnv('OAUTH_CLIENT_ID'),
+  clientSecret: requireEnv('OAUTH_CLIENT_SECRET'),
   scopes: process.env.OAUTH_SCOPES ?? 'openid profile email',
 };
 
@@ -168,18 +176,23 @@ If your app needs to call Agentuity APIs after sign-in, store tokens server-side
 ```typescript
 import { KeyValueTokenStorage, isTokenExpired } from '@agentuity/core/oauth';
 
-const tokenStore = new KeyValueTokenStorage(c.var.kv, {
-  config: oauthConfig,
-  prefix: 'agentuity:',
+router.get('/oauth/callback', async (c) => {
+  // ...validate callback state, exchange the code, and fetch the user...
+  const tokenStore = new KeyValueTokenStorage(c.var.kv, {
+    config: oauthConfig,
+    prefix: 'agentuity:',
+  });
+
+  await tokenStore.set(user.sub, token);
+
+  const storedToken = await tokenStore.get(user.sub);
+
+  if (!storedToken || isTokenExpired(storedToken)) {
+    return c.redirect('/api/oauth/login');
+  }
+
+  return c.redirect('/');
 });
-
-await tokenStore.set(user.sub, token);
-
-const storedToken = await tokenStore.get(user.sub);
-
-if (!storedToken || isTokenExpired(storedToken)) {
-  return c.redirect('/api/oauth/login');
-}
 ```
 
 Request `offline_access` only when your app needs a refresh token:

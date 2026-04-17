@@ -37,7 +37,7 @@ try {
 
 	const [openaiResult, claudeResult] = await Promise.all([
 		generateText({
-			model: openai('gpt-5-nano'),
+			model: openai('gpt-5.4-nano'),
 			prompt,
 		}),
 		generateText({
@@ -51,7 +51,7 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Prompt: "${prompt}"`);
 	console.log('');
-	console.log('OpenAI (gpt-5-nano):');
+	console.log('OpenAI (gpt-5.4-nano):');
 	console.log(openaiResult.text);
 	console.log('');
 	console.log('Anthropic (claude-haiku-4-5):');

@@ -244,7 +244,7 @@ function AudioLevelIndicator({
 
 	useEffect(() => {
 		const audioTrack = stream?.getAudioTracks()[0];
-		if (!stream || !audioTrack || !audioTrack.enabled) {
+		if (!stream || !audioTrack) {
 			setLevel(0);
 			return;
 		}
@@ -469,6 +469,7 @@ function EmptyParticipantTile({
 
 function ShareControls({ roomId }: { readonly roomId: string }): React.JSX.Element {
 	const [copied, setCopied] = useState(false);
+	const copyTimeoutRef = useRef<number | null>(null);
 
 	const shareUrl = useMemo(() => {
 		if (typeof window === 'undefined' || !roomId.trim()) {
@@ -483,10 +484,28 @@ function ShareControls({ roomId }: { readonly roomId: string }): React.JSX.Eleme
 		if (!shareUrl) {
 			return;
 		}
-		await navigator.clipboard.writeText(shareUrl);
-		setCopied(true);
-		window.setTimeout(() => setCopied(false), 1500);
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			setCopied(true);
+			if (copyTimeoutRef.current !== null) {
+				window.clearTimeout(copyTimeoutRef.current);
+			}
+			copyTimeoutRef.current = window.setTimeout(() => {
+				setCopied(false);
+				copyTimeoutRef.current = null;
+			}, 1500);
+		} catch {
+			setCopied(false);
+		}
 	}, [shareUrl]);
+
+	useEffect(() => {
+		return () => {
+			if (copyTimeoutRef.current !== null) {
+				window.clearTimeout(copyTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const openTab = useCallback((): void => {
 		if (!shareUrl) {
@@ -912,12 +931,14 @@ function VideoCallTab({ roomId }: { readonly roomId: string }): React.JSX.Elemen
 		},
 	});
 
-	sendStringRef.current = sendString;
-
 	const callReady = state !== 'idle';
 	const audioButtonLabel = callReady && isAudioMuted ? 'Unmute Audio' : 'Mute Audio';
 	const videoButtonLabel = callReady && isVideoMuted ? 'Show Video' : 'Hide Video';
 	const screenShareButtonLabel = callReady && isScreenSharing ? 'Stop Share' : 'Share Screen';
+
+	useEffect(() => {
+		sendStringRef.current = sendString;
+	}, [sendString]);
 
 	useEffect(() => {
 		stateRef.current = state;
@@ -1191,7 +1212,7 @@ function VideoCallTab({ roomId }: { readonly roomId: string }): React.JSX.Elemen
 
 			<div className="grid gap-3 md:grid-cols-2">{participantTiles}</div>
 
-			<ConnectionStatsPanel quality={quality} remotePeerIds={remotePeerIds.slice().sort()} />
+			<ConnectionStatsPanel quality={quality} remotePeerIds={orderedRemotePeerIds} />
 		</div>
 	);
 }

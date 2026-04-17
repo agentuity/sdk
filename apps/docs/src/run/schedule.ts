@@ -2,7 +2,7 @@
  * Standalone run script for the Schedules demo
  *
  * Uses ScheduleClient to create a real managed schedule, inspect it,
- * check recent deliveries, and delete it in cleanup.
+ * then delete it in cleanup.
  *
  * Usage: bun run src/run/schedule.ts '{"expression":"* * * * *"}'
  */
@@ -53,16 +53,12 @@ try {
 
 	scheduleId = schedule.id;
 
-	const current = await schedules.get(schedule.id);
-	const { deliveries } = await schedules.listDeliveries(schedule.id, { limit: 5 });
-
-	output.push(`Created schedule: ${current.schedule.id}`);
-	output.push(`Name: ${current.schedule.name}`);
-	output.push(`Expression: ${current.schedule.expression}`);
-	output.push(`Next run: ${current.schedule.due_date}`);
+	output.push(`Created schedule: ${schedule.id}`);
+	output.push(`Name: ${schedule.name}`);
+	output.push(`Expression: ${schedule.expression}`);
+	output.push(`Next run: ${schedule.due_date}`);
 	output.push(`Destinations: ${destinations.length}`);
 	output.push(`Destination URL: ${input.destinationUrl}`);
-	output.push(`Deliveries so far: ${deliveries.length}`);
 } catch (error) {
 	output.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	process.exitCode = 1;

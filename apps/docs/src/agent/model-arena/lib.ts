@@ -38,7 +38,7 @@ async function repairJudgmentText({
 }
 
 export const MODELS: GenerationConfig[] = [
-	{ provider: 'openai', model: 'gpt-5-nano' },
+	{ provider: 'openai', model: 'gpt-5.4-nano' },
 	{ provider: 'anthropic', model: 'claude-haiku-4-5' },
 ];
 
@@ -59,7 +59,8 @@ export function getModel(config: GenerationConfig) {
 export async function generateStory(
 	config: GenerationConfig,
 	prompt: string,
-	tone: Tone
+	tone: Tone,
+	abortSignal?: AbortSignal
 ): Promise<ModelResult> {
 	const start = Date.now();
 
@@ -67,6 +68,7 @@ export async function generateStory(
 		model: getModel(config),
 		system: getStorySystemPrompt(tone),
 		prompt,
+		abortSignal,
 	});
 
 	return {
@@ -81,7 +83,8 @@ export async function generateStory(
 export async function judgeStories(
 	results: ReadonlyArray<ModelResult>,
 	tone: Tone,
-	prompt: string
+	prompt: string,
+	abortSignal?: AbortSignal
 ): Promise<Judgment> {
 	let lastError: unknown;
 	const basePrompt = getJudgePrompt([...results], tone, prompt);
@@ -97,6 +100,7 @@ export async function judgeStories(
 				temperature: 0,
 				experimental_repairText: repairJudgmentText,
 				prompt: `${basePrompt}${suffix}`,
+				abortSignal,
 			});
 
 			return object;

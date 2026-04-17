@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     name: `workspace-${Date.now()}`,
     description: 'Reusable selections for review-oriented sessions.',
     savedSkillIds: [savedSkill.id],
-    agentSlugs: ['builder', 'reviewer'], // [!code highlight]
+    enabledAgents: ['builder', 'reviewer'], // [!code highlight]
   });
 
   // Passing workspaceId is enough; the session inherits the workspace selections
@@ -112,7 +112,7 @@ const workspace = await client.createWorkspace({
   name: 'review-workspace',
   repos: [repoRef], // Repository ref your app already resolved
   savedSkillIds: [savedSkill.id],
-  agentSlugs: ['builder', 'reviewer'],
+  enabledAgents: ['builder', 'reviewer'],
 });
 ```
 

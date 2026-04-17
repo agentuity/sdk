@@ -9,17 +9,20 @@
 import { createAgentContext, getAgentContext } from '@agentuity/runtime';
 import helloAgent from '../agent/hello/agent';
 
-interface Input {
-	name?: string;
-}
-
-const input: Input = JSON.parse(process.argv[2] ?? '{}');
-const name = input.name ?? 'Explorer';
-
 const standaloneCtx = createAgentContext();
-standaloneCtx.logger.info('Agent calls demo');
 
 try {
+	const input: unknown = JSON.parse(process.argv[2] ?? '{}');
+	const name =
+		typeof input === 'object' &&
+		input !== null &&
+		'name' in input &&
+		typeof input.name === 'string'
+			? input.name
+			: 'Explorer';
+
+	standaloneCtx.logger.info('Agent calls demo');
+
 	// Must use invoke() to get proper execution context for waitUntil
 	await standaloneCtx.invoke(async () => {
 		const ctx = getAgentContext();
@@ -46,7 +49,7 @@ try {
 		console.log(`  Result: ${JSON.stringify(greeting)}`);
 		console.log('');
 		console.log('Background Task (ctx.waitUntil):');
-		console.log(`  Scheduled async work after main execution`);
+		console.log('  Scheduled async work after main execution');
 		console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
 		console.log('---OUTPUT---');
 	});
@@ -54,4 +57,5 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	console.log('---OUTPUT---');
+	process.exitCode = 1;
 }

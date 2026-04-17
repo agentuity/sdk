@@ -31,9 +31,9 @@ function parseTokensHeader(header: string): number {
 
 // Note: Google/Gemini excluded due to streaming issues (see issue #248)
 const AVAILABLE_MODELS = [
-	{ id: 'gpt-5-nano', label: 'GPT-5 Nano', provider: 'OpenAI' },
+	{ id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano', provider: 'OpenAI' },
 	{ id: 'gpt-5-mini', label: 'GPT-5 Mini', provider: 'OpenAI' },
-	{ id: 'claude-haiku-4-5', label: 'Claude Haiku', provider: 'Anthropic' },
+	{ id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic' },
 	{ id: 'claude-sonnet-4-5', label: 'Claude Sonnet', provider: 'Anthropic' },
 	{ id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', provider: 'Groq' },
 ];
@@ -46,7 +46,7 @@ export function AIGatewayDemo() {
 		'ai-gateway',
 		'selected-models',
 		{
-			defaultValue: ['gpt-5-nano', 'claude-haiku-4-5'],
+			defaultValue: ['gpt-5.4-nano', 'claude-haiku-4-5'],
 			storage: 'session',
 		}
 	);

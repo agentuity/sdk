@@ -52,7 +52,7 @@ try {
 	// Generate competing responses in parallel (no logging during execution)
 	const [responseA, responseB] = await Promise.all([
 		generateText({
-			model: openai('gpt-5-nano'),
+			model: openai('gpt-5.4-nano'),
 			prompt: userPrompt,
 		}),
 		generateText({
@@ -73,7 +73,7 @@ Model B: ${responseB.text.slice(0, 200)}`,
 	});
 
 	// Buffer all output (matches reference code style)
-	output.push(`[INFO] Model A (OpenAI gpt-5-nano): "${responseA.text}"`);
+	output.push(`[INFO] Model A (OpenAI gpt-5.4-nano): "${responseA.text}"`);
 	output.push('');
 	output.push(`[INFO] Model B (Anthropic claude-haiku-4-5): "${responseB.text}"`);
 	output.push('');

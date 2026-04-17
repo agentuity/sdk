@@ -132,7 +132,13 @@ function createScheduleParams(expression: string, destinationUrl: string): Creat
 const router = new Hono<Env>()
 	.post('/', async (c) => {
 		try {
-			const body = await c.req.json<unknown>().catch(() => ({}));
+			let body: unknown;
+			try {
+				body = await c.req.json<unknown>();
+			} catch {
+				return c.json({ success: false, message: 'Invalid JSON payload.' }, 400);
+			}
+
 			const parsed = CreateScheduleRequestSchema.safeParse(body);
 			if (!parsed.success) {
 				return c.json(

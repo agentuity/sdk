@@ -286,7 +286,7 @@ export const DEMOS: DemoConfig[] = [
 		explanation: (
 			<>
 				A one-way stream from your server to the user's browser, with structure built in. Unlike
-				raw streaming, SSE gives you <em>typed events</em> (like "token" or "done"), message{' '}
+				raw streaming, SSE gives you <em>typed events</em> (like "chunk" or "done"), message{' '}
 				<em>IDs</em> for tracking, and automatic reconnection if the connection drops.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
 					The sweet spot for LLM token streaming, live feeds, and progress updates

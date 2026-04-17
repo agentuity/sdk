@@ -43,6 +43,28 @@ try {
 	const clientMessages: string[] = [];
 	const ws = new WebSocket(`ws://localhost:${server.port}`);
 
+	ws.onmessage = (event) => {
+		const raw = event.data;
+		if (typeof raw !== 'string') {
+			clientMessages.push(String(raw));
+			return;
+		}
+
+		try {
+			const data: unknown = JSON.parse(raw);
+			const message =
+				typeof data === 'object' &&
+				data !== null &&
+				'message' in data &&
+				typeof data.message === 'string'
+					? data.message
+					: raw;
+			clientMessages.push(message);
+		} catch {
+			clientMessages.push(raw);
+		}
+	};
+
 	await new Promise<void>((resolve, reject) => {
 		const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5_000);
 
@@ -57,15 +79,6 @@ try {
 			reject(new Error('WebSocket connection failed'));
 		};
 	});
-
-	ws.onmessage = (event) => {
-		try {
-			const data = JSON.parse(event.data as string) as { message?: string };
-			clientMessages.push(data.message ?? String(event.data));
-		} catch {
-			clientMessages.push(String(event.data));
-		}
-	};
 
 	await Bun.sleep(100);
 

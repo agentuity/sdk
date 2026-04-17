@@ -22,7 +22,7 @@ interface StreamState {
 
 // Note: Google/Gemini excluded due to streaming issues (see issue #248)
 const MODELS = [
-	{ value: 'gpt-5-nano', label: 'GPT-5 Nano', provider: 'OpenAI' },
+	{ value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano', provider: 'OpenAI' },
 	{ value: 'gpt-5-mini', label: 'GPT-5 Mini', provider: 'OpenAI' },
 	{ value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic' },
 	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'Anthropic' },
@@ -49,7 +49,7 @@ const FIXED_PROMPT = 'What are AI agents and how do they work?';
 
 export function SSEStreamDemo() {
 	const [model, setModel] = usePersistentDemoState<string>('sse-stream', 'model', {
-		defaultValue: 'gpt-5-nano',
+		defaultValue: 'gpt-5.4-nano',
 		storage: 'session',
 	});
 	const [state, setState] = useState<StreamState>({
@@ -90,8 +90,8 @@ export function SSEStreamDemo() {
 			setState((prev) => ({ ...prev, status: 'streaming' }));
 		};
 
-		// Handle token events - count is accurate since we receive individual token events
-		eventSource.addEventListener('token', (event) => {
+		// Handle chunk events - count is accurate since we receive individual stream chunks
+		eventSource.addEventListener('chunk', (event) => {
 			setState((prev) => ({
 				...prev,
 				content: prev.content + event.data,

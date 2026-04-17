@@ -16,7 +16,7 @@ import OpenAI from 'openai';
  */
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
+const MODELS = ['gpt-5.4-nano', 'gpt-5-mini', 'gpt-5'] as const;
 
 // History entry stored in thread state
 export const HistoryEntrySchema = s.object({
@@ -60,7 +60,7 @@ const agent = createAgent('translate', {
 			client: new OpenAI(),
 		};
 	},
-	handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5-nano' }) => {
+	handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5.4-nano' }) => {
 		// Agentuity logger: structured logs visible in terminal and Agentuity console
 		ctx.logger.info('──── Translation ────');
 		ctx.logger.info({ toLanguage, model, textLength: text.length });

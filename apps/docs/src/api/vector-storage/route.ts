@@ -24,12 +24,15 @@ const router = new Hono<Env>()
 
 	.post('/seed', async (c) => {
 		try {
+			if (!c.var.vector) {
+				return c.json({ success: false, error: 'Vector service unavailable' }, 503);
+			}
+
 			await c.var.vector.upsert(VECTOR_NAMESPACE, ...getVectorSeedDocuments());
 
 			return c.json({
 				success: true,
 				message: 'Seeded sample products',
-				note: 'Sample products loaded into vector store',
 			});
 		} catch (error) {
 			c.var.logger?.error('Vector seed failed', { error });
@@ -58,13 +61,17 @@ const router = new Hono<Env>()
 
 	.get('/status', async (c) => {
 		try {
+			if (!c.var.vector) {
+				return c.json({ success: false, error: 'Vector service unavailable' }, 503);
+			}
+
 			// Quick search to verify data actually exists in the namespace
-			const results = await c.var.vector?.search(VECTOR_NAMESPACE, {
+			const results = await c.var.vector.search(VECTOR_NAMESPACE, {
 				query: 'chair',
 				limit: 1,
 				similarity: 0.1,
 			});
-			const hasData = (results?.length ?? 0) > 0;
+			const hasData = results.length > 0;
 			return c.json({ success: true, hasData });
 		} catch (error) {
 			c.var.logger?.error('Vector status check failed', { error });

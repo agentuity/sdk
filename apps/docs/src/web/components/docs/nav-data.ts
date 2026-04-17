@@ -482,7 +482,7 @@ export const navData: NavSection[] = [
 								title: 'Built-In Agents',
 								url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
 								description:
-									'Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session',
+									'Use enabledAgents and defaultAgent to choose which built-in Coder agents are available in a session',
 							},
 							{
 								title: 'Attach Skills',

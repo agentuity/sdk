@@ -28,7 +28,7 @@ const router = new Hono<Env>()
 		stream(async (c) => {
 			try {
 				const body = await c.req.json();
-				const { model = 'gpt-5-nano' } = body as { model?: string };
+				const { model = 'gpt-5.4-nano' } = body as { model?: string };
 
 				c.var.logger?.info('Gateway comparison started', {
 					prompt: FIXED_PROMPT.slice(0, 50),
@@ -36,6 +36,8 @@ const router = new Hono<Env>()
 				});
 
 				if (model.startsWith('gemini-')) {
+					// Gemini gateway streaming currently returns no chunks. Use one-shot
+					// generation here so the demo stays usable until that path is fixed.
 					const { text } = await generateText({
 						model: getModel(model),
 						prompt: FIXED_PROMPT,

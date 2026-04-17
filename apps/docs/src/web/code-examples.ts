@@ -199,7 +199,7 @@ const router = new Hono<Env>()
   c.var.logger?.info("SSE stream started", { prompt });
 
   const { textStream, usage } = streamText({
-    model: openai("gpt-5-nano"),
+    model: openai("gpt-5.4-nano"),
     prompt,
   });
 
@@ -207,7 +207,7 @@ const router = new Hono<Env>()
   let chunkCount = 0;
   for await (const chunk of textStream) {
     await stream.writeSSE({
-      event: "token",      // Event type (client listens for this)
+      event: "chunk",      // Event type (client listens for this)
       data: chunk,         // The actual content
       id: String(chunkCount++),  // enables client reconnection
     });
@@ -242,7 +242,7 @@ router.post(
     c.var.logger?.info("Streaming started", { prompt });
 
     const { textStream } = streamText({
-      model: openai("gpt-5-nano"),
+      model: openai("gpt-5.4-nano"),
       prompt,
     });
 
@@ -292,9 +292,9 @@ try {
       {
         type: "url",
         config: {
-          // Explorer points at a hosted demo route here
-          // In your app, use your own route or webhook URL
-          url: "https://agentuity.dev/api/hello",
+          // The live Explorer sandbox passes a real URL for its Hello World route.
+          // In your app, point this at one of your own routes.
+          url: "<YOUR_APP_URL>/api/hello",
           method: "GET",
         },
       },
@@ -302,9 +302,6 @@ try {
   });
 
   scheduleId = schedule.id;
-
-  const current = await schedules.get(schedule.id);
-  const { deliveries } = await schedules.listDeliveries(schedule.id, { limit: 5 });
 
   // Change the cadence later
   // await schedules.update(schedule.id, { expression: "*/5 * * * *" });
@@ -321,10 +318,9 @@ try {
   // Remove a destination without deleting the schedule
   // await schedules.deleteDestination("sdst_abc123");
 
-  console.log("Created schedule:", current.schedule.id);
-  console.log("Next run:", current.schedule.due_date);
+  console.log("Created schedule:", schedule.id);
+  console.log("Next run:", schedule.due_date);
   console.log("Destinations:", destinations.length);
-  console.log("Deliveries so far:", deliveries.length);
 } finally {
   if (scheduleId) {
     await schedules.delete(scheduleId).catch(() => undefined);
@@ -351,7 +347,7 @@ router.post("/create", async (c) => {
   // Write content in the background, then close the stream
   c.waitUntil(async () => {
     const { textStream } = streamText({
-      model: openai("gpt-5-nano"),
+      model: openai("gpt-5.4-nano"),
       prompt: "Write a summary of what Agentuity is.",
     });
 
@@ -399,7 +395,7 @@ const chatAgent = createAgent("chat", {
     const turnCount = ((await ctx.thread.state.get("turnCount")) as number) ?? 0;
 
     const { text } = await generateText({
-      model: openai("gpt-5-nano"),
+      model: openai("gpt-5.4-nano"),
       system: "You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).",
       messages: [...messages, { role: "user", content: message }],
     });
@@ -443,7 +439,7 @@ const JudgmentSchema = z.object({
 // Generate competing responses in parallel
 const [responseA, responseB] = await Promise.all([
   generateText({
-    model: openai("gpt-5-nano"),
+    model: openai("gpt-5.4-nano"),
     prompt: userPrompt,
   }),
   generateText({
@@ -475,9 +471,9 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 // Call OpenAI - no API key configuration needed
-ctx.logger.info("Calling OpenAI", { model: "gpt-5-nano" });
+ctx.logger.info("Calling OpenAI", { model: "gpt-5.4-nano" });
 const openaiResult = await generateText({
-  model: openai("gpt-5-nano"),
+  model: openai("gpt-5.4-nano"),
   prompt: "Explain AI agents in 1 sentence.",
 });
 ctx.logger.info("OpenAI response", { text: openaiResult.text });

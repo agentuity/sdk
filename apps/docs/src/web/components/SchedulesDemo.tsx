@@ -64,6 +64,13 @@ interface ApiResponse<T> {
 const DEFAULT_EXPRESSION = '* * * * *';
 const POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_ATTEMPTS = 18;
+const TERMINAL_STATUSES = new Set<DemoStatus>([
+	'delivered',
+	'failed',
+	'cleaned',
+	'timed-out',
+	'error',
+]);
 const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
 	hour: 'numeric',
 	minute: '2-digit',
@@ -294,18 +301,25 @@ export function SchedulesDemo() {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only run once per mount
 	useEffect(() => {
-		if (!demoState.schedule?.id) {
+		const persistedScheduleId = demoState.schedule?.id;
+		if (!persistedScheduleId) {
 			if (demoState.status === 'error' || demoState.error) {
 				setDemoState(INITIAL_STATE);
 			}
 			return;
 		}
 
-		if (!demoState.schedule?.id || demoState.cleanedUp) return;
-		const staleScheduleId = demoState.schedule.id;
+		if (demoState.cleanedUp) return;
+		if (!TERMINAL_STATUSES.has(demoState.status)) {
+			currentScheduleIdRef.current = persistedScheduleId;
+			pollCountRef.current = 0;
+			void pollSchedule(persistedScheduleId);
+			return;
+		}
+
 		void (async () => {
 			try {
-				await deleteSchedule(staleScheduleId);
+				await deleteSchedule(persistedScheduleId);
 			} catch {
 				// Best-effort cleanup for schedules left over from a prior session.
 			} finally {

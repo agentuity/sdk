@@ -25,7 +25,7 @@ try {
 	const prompt = input.prompt ?? 'Explain what Server-Sent Events are in 2-3 sentences.';
 	ctx.logger.info('SSE stream started', { prompt });
 	const { textStream } = streamText({
-		model: openai('gpt-5-nano'),
+		model: openai('gpt-5.4-nano'),
 		prompt,
 	});
 
@@ -50,4 +50,5 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	console.log('---OUTPUT---');
+	process.exitCode = 1;
 }

@@ -58,7 +58,18 @@ const router = new Hono<Env>()
 
 			ws.onMessage(async (event) => {
 				try {
-					const message = String(event.data).trim();
+					if (typeof event.data !== 'string') {
+						ws.send(
+							JSON.stringify({
+								type: 'error',
+								message: 'Only text messages are supported by this demo',
+								timestamp: new Date().toISOString(),
+							})
+						);
+						return;
+					}
+
+					const message = event.data.trim();
 					const timestamp = new Date().toISOString();
 					c.var.logger?.info('WebSocket message received', { message });
 

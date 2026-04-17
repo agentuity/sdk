@@ -33,7 +33,7 @@ try {
 
 	// Generate content with LLM and write to stream
 	const { textStream } = streamText({
-		model: openai('gpt-5-nano'),
+		model: openai('gpt-5.4-nano'),
 		prompt: 'Write a 3-paragraph summary of what Agentuity is.',
 	});
 
@@ -64,4 +64,5 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	console.log('---OUTPUT---');
+	process.exitCode = 1;
 }
