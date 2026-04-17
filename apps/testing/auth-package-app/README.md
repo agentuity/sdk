@@ -110,18 +110,14 @@ export function App() {
 
 ### 1. Database
 
-Auth tables are stored in your Postgres database. Create them using either:
-
-**Option A: CLI (recommended)**
+Auth tables are stored in your Postgres database. Generate and apply them with the BetterAuth CLI:
 
 ```bash
-agentuity project auth init
-```
-
-**Option B: BetterAuth CLI (for custom Drizzle setup)**
-
-```bash
+# Generate the schema (SQL or your configured ORM)
 npx @better-auth/cli generate
+
+# Apply migrations
+npx @better-auth/cli migrate
 ```
 
 ### 2. Environment Variables

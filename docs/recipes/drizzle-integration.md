@@ -234,16 +234,16 @@ const apiKeys = await db.query.apikey.findMany({
 
 ## Migrations
 
-### Using CLI
+### Using BetterAuth CLI
 
-The recommended approach is to use the Agentuity CLI:
+Generate and apply auth migrations with the BetterAuth CLI:
 
 ```bash
-# Run auth migrations
-agentuity project auth setup
+# Generate Drizzle schema for auth tables
+npx @better-auth/cli generate
 
-# Generate Drizzle migration files
-agentuity project auth generate
+# Apply migrations
+npx @better-auth/cli migrate
 ```
 
 ### Using Drizzle Kit
