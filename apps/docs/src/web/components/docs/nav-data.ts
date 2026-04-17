@@ -96,11 +96,6 @@ export const navData: NavSection[] = [
 				description: 'Compare AI models using another AI as judge',
 			},
 			{
-				title: 'Evals',
-				url: '/explorer/evals',
-				description: 'Run evaluations after your agent responds',
-			},
-			{
 				title: 'Queues',
 				url: '/explorer/queue',
 				description: 'Publish, consume, retry, and inspect dead-letter messages',
@@ -163,12 +158,6 @@ export const navData: NavSection[] = [
 				description: 'Build agents with createAgent(), schemas, and handlers',
 			},
 			{
-				title: 'Workbench',
-				url: '/agents/workbench',
-				description:
-					'Use the built-in development UI to test agents, validate schemas, and debug responses',
-			},
-			{
 				title: 'Schema Libraries',
 				url: '/agents/schema-libraries',
 				description: 'Choose from built-in, Zod, Valibot, or ArkType for validation',
@@ -203,11 +192,6 @@ export const navData: NavSection[] = [
 				url: '/agents/standalone-execution',
 				description:
 					'Execute agents programmatically for cron jobs, bots, CLI tools, and background workers',
-			},
-			{
-				title: 'Evaluations',
-				url: '/agents/evaluations',
-				description: 'Automatically test and validate agent outputs for quality and compliance',
 			},
 			{
 				title: 'Events & Lifecycle',
@@ -287,12 +271,6 @@ export const navData: NavSection[] = [
 				title: 'Authentication',
 				url: '/frontend/authentication',
 				description: 'Add user authentication with Agentuity Auth',
-			},
-			{
-				title: 'Workbench',
-				url: '/frontend/workbench',
-				description:
-					'Configure routes, authentication, and embed Workbench in custom frontends',
 			},
 			{
 				title: 'Deployment Scenarios',
@@ -691,11 +669,6 @@ export const navData: NavSection[] = [
 							'Send and receive emails with managed addresses and webhook destinations',
 					},
 					{
-						title: 'Evaluations',
-						url: '/reference/api/evaluations',
-						description: 'List and retrieve evaluations and their run history',
-					},
-					{
 						title: 'Key-Value Storage',
 						url: '/reference/api/key-value',
 						description: 'Store and retrieve arbitrary data by key within namespaces',
@@ -834,7 +807,7 @@ export const navData: NavSection[] = [
 						title: 'Development',
 						url: '/reference/cli/development',
 						description:
-							'Run the development server with hot reload, local mode, and the interactive Workbench.',
+							'Run the development server with hot reload, type checking, and public URL support.',
 					},
 					{
 						title: 'Getting Started',
@@ -865,6 +838,12 @@ export const navData: NavSection[] = [
 						url: '/reference/cli/opencode-plugin',
 						description:
 							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
+					},
+					{
+						title: 'Profiles',
+						url: '/reference/cli/profiles',
+						description:
+							'Use separate CLI profiles for different accounts, organizations, and environments.',
 					},
 					{
 						title: 'Sandbox',
@@ -914,11 +893,6 @@ export const navData: NavSection[] = [
 						title: 'Email Service',
 						url: '/reference/sdk-reference/email-service',
 						description: 'Send emails and manage addresses with ctx.email',
-					},
-					{
-						title: 'Evaluations',
-						url: '/reference/sdk-reference/evaluations',
-						description: 'Test and validate agent outputs with built-in evaluation framework',
 					},
 					{
 						title: 'Events',

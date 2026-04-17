@@ -126,11 +126,6 @@ const SDK_EXPLORER: NavSection = {
 			description: 'Compare AI models using another AI as judge',
 		},
 		{
-			title: 'Evals',
-			url: '/explorer/evals',
-			description: 'Run evaluations after your agent responds',
-		},
-		{
 			title: 'Queues',
 			url: '/explorer/queue',
 			description: 'Publish, consume, retry, and inspect dead-letter messages',

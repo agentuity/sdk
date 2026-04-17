@@ -1,10 +1,10 @@
 ---
 title: Local Development
 short_title: Development
-description: Run the development server with hot reload, local mode, and the interactive Workbench.
+description: Run the development server with hot reload, type checking, and public URL support.
 ---
 
-Run your Agentuity project locally with automatic hot reload, type checking, and the interactive Workbench UI.
+Run your Agentuity project locally with automatic hot reload and type checking. If your project is connected to Agentuity Cloud, `agentuity dev` also enables a public URL by default outside CI for sharing or webhook testing.
 
 ## Starting the Dev Server
 
@@ -17,7 +17,7 @@ bun run dev
 The server starts on port 3500 by default with:
 - Hot reload on file changes
 - TypeScript type checking
-- Public URL tunneling (optional, for webhooks and sharing)
+- Public URL tunneling when cloud-connected (disable with `--no-public`)
 - Interactive keyboard shortcuts
 
 ## Dev Server Options
@@ -25,7 +25,6 @@ The server starts on port 3500 by default with:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--port` | 3500 (or `PORT` env) | TCP port for the dev server |
-| `--local` | false | Use local services instead of cloud |
 | `--no-public` | - | Disable public URL tunneling |
 | `--no-interactive` | - | Disable interactive keyboard shortcuts |
 | `--inspect` | - | Enable Bun debugger for debugging |
@@ -39,9 +38,6 @@ The dev server respects the `PORT` environment variable. The `--port` flag takes
 ```bash
 # Custom port
 agentuity dev --port 8080
-
-# Local mode (offline development)
-agentuity dev --local
 
 # Disable public URL
 agentuity dev --no-public
@@ -90,63 +86,29 @@ Press keys during development to control the server:
 |-----|--------|
 | `h` | Show help |
 | `c` | Clear console |
-| `r` | Restart server |
-| `o` | Show routes |
-| `a` | Show agents |
 | `q` | Quit |
-
-## Local Mode
-
-Use `--local` to develop offline without cloud services:
-
-```bash
-agentuity dev --local
-```
-
-<Callout type="info" title="When to Use Local Mode">
-Local mode disables cloud services (KV, Vector, Object Storage). Use when developing without internet or testing with mock data.
-</Callout>
-
-**What happens in local mode:**
-- No connection to Agentuity cloud
-- Storage APIs disabled unless you provide [custom implementations](/services/storage/custom)
-- Public URL tunneling disabled
-- Requires your own API keys for AI providers (in `.env`), since the [AI Gateway](/agents/ai-gateway) is not available
-
-**Bring Your Own Storage:**
-
-```typescript
-// app.ts
-import { createApp } from '@agentuity/runtime';
-import { MyCustomKV } from './storage';
-
-export default await createApp({
-  services: {
-    useLocal: true,
-    keyvalue: new MyCustomKV(), // Your implementation
-  },
-});
-```
-
-See [Custom Storage](/services/storage/custom) for implementation details.
 
 ## Public URLs
 
-Public URLs are enabled by default to share your local dev server or receive webhooks:
+If your project is connected to Agentuity Cloud, public URLs are enabled by default outside CI to share your local dev server or receive webhooks:
 
 ```bash
-# Public URL enabled by default
+# Public URL enabled by default outside CI
 agentuity dev
 
 # Disable if not needed
 agentuity dev --no-public
 ```
 
+<Callout type="info" title="Cloud-Connected Projects">
+If your project is not registered with Agentuity Cloud yet, `agentuity dev` still runs locally, but the public URL and other cloud-backed features stay disabled until you connect the project.
+</Callout>
+
 ### Why Public URLs?
 
 Testing webhooks and external integrations during local development is painful. You either deploy constantly, configure port forwarding, or pay for third-party tunneling services. Each option adds friction to the development loop.
 
-Agentuity's Gravity network handles this automatically. When you run `agentuity dev`, your local server gets a public HTTPS URL instantly. No configuration, no separate tools, no accounts to manage. External services can reach your local agents as if they were already deployed.
+Agentuity's Gravity network handles this automatically. When you run `agentuity dev` on a connected project, your local server gets a public HTTPS URL instantly. No configuration, no separate tools, no accounts to manage. External services can reach your local agents as if they were already deployed.
 
 **This means:**
 
@@ -169,12 +131,6 @@ Agentuity's Gravity network handles this automatically. When you run `agentuity 
 - Sharing with team members
 - Testing from mobile devices
 - OAuth callback URLs
-
-## Workbench UI
-
-Access the interactive Workbench at `http://localhost:3500/workbench` to test agents visually. It displays agent schemas, handles input validation, and shows execution results with timing metrics.
-
-See [Testing with Workbench](/agents/workbench) for setup and configuration.
 
 ## Building Your Project
 
@@ -241,16 +197,16 @@ Understanding the differences between local development and deployed production:
 
 | Aspect | Local (`agentuity dev`) | Production (`agentuity deploy`) |
 |--------|------------------------|--------------------------------|
-| **Storage** | Cloud services (or local with `--local`) | Cloud services always |
-| **AI Gateway** | Available (or BYO keys with `--local`) | Available always |
-| **URL** | `localhost:3500` + optional public tunnel | `*.agentuity.cloud` or custom domain |
+| **Storage** | Cloud services for connected projects | Cloud services always |
+| **AI Gateway** | Available for connected projects, or use provider keys in local-only projects | Available always |
+| **URL** | `localhost:3500` + optional public tunnel when cloud-connected | `*.agentuity.cloud` or custom domain |
 | **Hot Reload** | Yes | No (redeploy required) |
-| **Debugging** | Local logs, Workbench | SSH access, cloud logs |
+| **Debugging** | Local logs, Bun inspector | SSH access, cloud logs |
 | **Environment** | `.env`, `.env.development` ([details](/get-started/app-configuration#environment-specific-files)) | Cloud variables (via `cloud env`) |
 
 ### Environment Files
 
-The dev server loads environment variables from multiple `.env` files. Put shared config in `.env` and dev-specific overrides in `.env.development`. Values in `.env.development` override those in `.env`. Bun also auto-loads `.env.local` for machine-specific values.
+The dev server loads environment variables from multiple `.env` files. The CLI reads `.env.development` and `.env`, with `.env` winning if both define the same key. Bun also auto-loads `.env.local` for machine-specific values.
 
 See [Environment-Specific Files](/get-started/app-configuration#environment-specific-files) for the full loading order and examples.
 

@@ -1011,6 +1011,15 @@ export const command = createCommand({
 					return;
 				}
 
+				// Gravity must target the user-facing front-door proxy port.
+				// The front-door proxy (ws-proxy) is the only server that correctly
+				// routes public WebSocket upgrades to /api/* through to the Bun backend.
+				// We read the actual bound port from the front-door server to avoid any
+				// mismatch with opts.port (e.g. if the port was overridden or shifted).
+				const frontDoorPort =
+					(frontDoorServer?.address() as import('node:net').AddressInfo | null)?.port ??
+					opts.port;
+
 				try {
 					gravityProcess = Bun.spawn(
 						[
@@ -1018,10 +1027,7 @@ export const command = createCommand({
 							'--endpoint-id',
 							devmode.id,
 							'--port',
-							// Gravity must target the user-facing front-door proxy, not Vite's
-							// internal port. HTTP can reach Bun through Vite's proxy, but public
-							// WebSocket upgrades to /api/* only reach Bun through ws-proxy.
-							opts.port.toString(),
+							frontDoorPort.toString(),
 							'--url',
 							gravityURL,
 							'--log-level',
@@ -1045,8 +1051,16 @@ export const command = createCommand({
 							// .unref() — we still want the parent to track the child's lifecycle
 							// and drive cleanup on Ctrl-C / shutdown.
 							detached: true,
+							// Pass a clean env without PORT to prevent the inherited
+							// PORT (set to bunBackendPort) from leaking into gravity.
+							env: {
+								...process.env,
+								PORT: undefined,
+							},
 						}
 					);
+
+					logger.debug('Gravity tunnel targeting front-door proxy on port %d', frontDoorPort);
 
 					const gravityPid = (gravityProcess as { pid?: number }).pid;
 					if (gravityPid) {

@@ -6,8 +6,8 @@ description: Execute agents programmatically for cron jobs, bots, CLI tools, and
 
 Sometimes your agent logic needs to run without an incoming HTTP request. `createAgentContext()` gives standalone code the same infrastructure that HTTP handlers get automatically: tracing, sessions, and storage access.
 
-<Callout type="warning" title="Agentuity Runtime Only">
-`createAgentContext()` requires Agentuity's runtime initialization and only works within the Agentuity runtime (Discord bots, CLI tools, queue workers deployed alongside your agents). It will throw an error if called from external frameworks like Next.js or Express. To access storage from external backends, see [SDK Utilities for External Apps](/cookbook/patterns/server-utilities).
+<Callout type="info" title="Works Inside or Outside HTTP">
+`createAgentContext()` works in standalone scripts, workers, and external backends. If you call it before `createApp()`, Agentuity starts a minimal standalone runtime automatically. Call `createApp()` first when you want your full app config, providers, or cloud-connected services loaded.
 </Callout>
 
 ## Basic Usage
@@ -38,9 +38,11 @@ const result = await ctx.run(statusAgent);
 |--------|------|-------------|
 | `sessionId` | `string` | Custom session ID. Auto-generated from trace context if not provided |
 | `trigger` | `string` | Trigger type for telemetry: `'discord'`, `'cron'`, `'websocket'`, `'manual'` |
-| `thread` | `Thread` | Custom thread for conversation state |
-| `session` | `Session` | Custom session instance |
 | `parentContext` | `Context` | Parent OpenTelemetry context for distributed tracing |
+| `thread` | `Thread` | Existing thread to reuse |
+| `session` | `Session` | Existing session to reuse |
+
+By default, each standalone invocation creates a fresh thread and session. Pass `thread` or `session` when you need to reuse conversation state that you already manage, or persist IDs in your own data layer to reconnect later work.
 
 ## External Cron Job Example
 
@@ -155,7 +157,7 @@ const result = await ctx.invoke(() => agent.run(input), { spanName: 'daily-clean
 Each call to `ctx.run()` or `ctx.invoke()` follows this lifecycle:
 
 1. **Create tracing span**: An OpenTelemetry span is created within the parent context. Trace state includes project, org, and deployment IDs for distributed tracing.
-2. **Restore session and thread**: A new thread is created and the session is restored from the session provider using the session ID.
+2. **Create or reuse conversation state**: By default, a fresh thread is created and the session is restored or created using the session ID. If you pass `thread` or `session`, those objects are reused.
 3. **Fire session start event**: A `start` event is sent to the session event provider with the trigger type, session ID, thread ID, and deployment metadata.
 4. **Execute function**: Your function runs within `AsyncLocalStorage` context, giving it access to `ctx.kv`, `ctx.stream`, `ctx.vector`, `ctx.logger`, and `waitUntil`.
 5. **Wait for background tasks**: Any `ctx.waitUntil()` callbacks are awaited before the invocation completes.

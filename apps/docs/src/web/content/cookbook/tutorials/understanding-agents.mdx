@@ -170,16 +170,24 @@ ctx.logger.info(`Completed in ${result.steps.length} steps`);
 ctx.logger.info(`Made ${result.toolCalls.length} tool calls`);
 ```
 
-You can combine multiple stopping conditions. The loop stops when any condition is met:
+You can combine multiple stopping conditions. The loop stops when any condition is met, so use `hasToolCall()` for a terminal tool, not an exploratory one like `searchWikipedia`:
 
 ```typescript
-import { generateText, stepCountIs, hasToolCall } from 'ai';
+import { generateText, stepCountIs, hasToolCall, tool } from 'ai';
+import { z } from 'zod';
+
+const finalAnswer = tool({
+  description: 'Return the final researched answer',
+  inputSchema: z.object({
+    summary: z.string(),
+  }),
+});
 
 const result = await generateText({
   model: openai('gpt-5-mini'),
   prompt: 'Research quantum computing',
-  tools: { searchWikipedia },
-  stopWhen: [stepCountIs(10), hasToolCall('searchWikipedia')], // [!code highlight]
+  tools: { searchWikipedia, finalAnswer },
+  stopWhen: [stepCountIs(10), hasToolCall('finalAnswer')], // [!code highlight]
 });
 ```
 </Step>
@@ -338,4 +346,4 @@ Check the logs to see the agent loop in action: the search tool being called, re
 
 - [AI SDK Integration](/agents/ai-sdk-integration): More patterns for tool use and streaming
 - [Calling Other Agents](/agents/calling-other-agents): Build multi-agent systems
-- [Evaluations](/agents/evaluations): Test agent output quality
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Test agent output quality

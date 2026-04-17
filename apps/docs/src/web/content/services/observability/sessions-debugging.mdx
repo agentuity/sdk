@@ -82,7 +82,7 @@ Use the CLI to view logs for a specific session:
 agentuity cloud session logs sess_abc123xyz
 ```
 
-See [CLI Reference](/reference/CLI) for additional session commands.
+See [CLI Reference](/reference/cli) for additional session commands.
 
 ## Including Session ID in Responses
 
@@ -169,9 +169,14 @@ import { createAgent } from '@agentuity/runtime';
 const agent = createAgent('UserContext', {
   handler: async (ctx, input) => {
     // Thread metadata persists across sessions within a thread
-    ctx.thread.metadata.userId = input.userId;
-    ctx.thread.metadata.department = 'sales';
-    ctx.thread.metadata.plan = 'enterprise';
+    const threadMetadata = {
+      ...(await ctx.thread.getMetadata()), // keep existing keys
+      userId: input.userId,
+      department: 'sales',
+      plan: 'enterprise',
+    };
+
+    await ctx.thread.setMetadata(threadMetadata);
 
     // Session metadata is request-scoped
     ctx.session.metadata.requestType = 'chat';
@@ -180,7 +185,7 @@ const agent = createAgent('UserContext', {
 
     ctx.logger.info('Request context', {
       threadId: ctx.thread.id,
-      userId: ctx.thread.metadata.userId,
+      userId: threadMetadata.userId,
       requestType: ctx.session.metadata.requestType,
     });
 
@@ -197,7 +202,7 @@ export default agent;
 |--------|----------|-------|
 | **Storage** | Unencrypted, indexed | Encrypted |
 | **Use case** | Filtering, querying, analytics | Sensitive data, conversation history |
-| **Access** | `ctx.thread.metadata` / `ctx.session.metadata` | `ctx.thread.state` / `ctx.session.state` |
+| **Access** | `await ctx.thread.getMetadata()` / `ctx.session.metadata` | `ctx.thread.state` / `ctx.session.state` |
 | **Best for** | User IDs, request types, feature flags | Messages, preferences, tokens |
 
 <Callout type="tip" title="When to Use Metadata">
