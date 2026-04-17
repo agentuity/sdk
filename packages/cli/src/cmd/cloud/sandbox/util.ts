@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { fstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { FileToWrite, Logger } from '@agentuity/core';
 import { APIClient, getServiceUrls, sandboxGet } from '@agentuity/server';
@@ -7,6 +7,25 @@ import { getGlobalCatalystAPIClient } from '../../../config';
 import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import type { AuthData, Config } from '../../../types';
+
+/**
+ * Detect if a file descriptor is redirected to /dev/null (or NUL on Windows).
+ * Used to optimize stream creation - when output goes to /dev/null, we can
+ * skip creating the stream entirely on the server.
+ *
+ * @param fd - File descriptor (1 for stdout, 2 for stderr)
+ * @returns true if the fd points to /dev/null
+ */
+export function detectNullStream(fd: number): boolean {
+	try {
+		const fdStat = fstatSync(fd);
+		const nullPath = process.platform === 'win32' ? 'NUL' : '/dev/null';
+		const nullStat = statSync(nullPath);
+		return fdStat.dev === nullStat.dev && fdStat.ino === nullStat.ino;
+	} catch {
+		return false;
+	}
+}
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
 	return new APIClient(getServiceUrls(region).catalyst, logger, auth.apiKey);

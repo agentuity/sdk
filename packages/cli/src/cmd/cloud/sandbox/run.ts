@@ -2,12 +2,11 @@ import { z } from 'zod';
 import { Writable } from 'node:stream';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
+import { createSandboxClient, parseFileArgs, cacheSandboxRegion, detectNullStream } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxRun } from '@agentuity/server';
 import { validateAptDependencies } from '../../../utils/apt-validator';
 import { ErrorCode } from '../../../errors';
-import { fstatSync, statSync } from 'node:fs';
 
 const SandboxRunResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
@@ -15,17 +14,6 @@ const SandboxRunResponseSchema = z.object({
 	durationMs: z.number().describe('Duration in milliseconds'),
 	output: z.string().optional().describe('Combined stdout/stderr output'),
 });
-
-function detectNullStream(fd: number): boolean {
-	try {
-		const fdStat = fstatSync(fd);
-		const nullPath = process.platform === 'win32' ? 'NUL' : '/dev/null';
-		const nullStat = statSync(nullPath);
-		return fdStat.dev === nullStat.dev && fdStat.ino === nullStat.ino;
-	} catch {
-		return false;
-	}
-}
 
 export const runSubcommand = createCommand({
 	name: 'run',

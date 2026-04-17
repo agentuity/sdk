@@ -3,7 +3,7 @@ import { Writable } from 'node:stream';
 import { ErrorCode } from '../../../errors';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { createSandboxClient, detectNullStream } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxExecute, executionGet, sandboxResolve } from '@agentuity/server';
 import { streamUrlToWritable } from '../../../utils/stream-url';
@@ -63,6 +63,11 @@ export const execSubcommand = createCommand({
 				.default(false)
 				.optional()
 				.describe('Include timestamps in output (default: false)'),
+			quiet: z
+				.boolean()
+				.default(false)
+				.optional()
+				.describe('Suppress output (do not create stdout/stderr streams)'),
 		}),
 		response: SandboxExecResponseSchema,
 	},
@@ -85,6 +90,33 @@ export const execSubcommand = createCommand({
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
 
+		// Detect if stdout/stderr are redirected to /dev/null
+		const stdoutIsNull = detectNullStream(1);
+		const stderrIsNull = detectNullStream(2);
+
+		// Build stream configuration
+		const streamConfig: {
+			timestamps?: boolean;
+			stdout?: string;
+			stderr?: string;
+		} = {
+			timestamps: opts.timestamps,
+		};
+
+		// --quiet: suppress all output streams
+		if (opts.quiet) {
+			streamConfig.stdout = 'ignore';
+			streamConfig.stderr = 'ignore';
+		} else {
+			// Auto-detect /dev/null redirection
+			if (stdoutIsNull) {
+				streamConfig.stdout = 'ignore';
+			}
+			if (stderrIsNull) {
+				streamConfig.stderr = 'ignore';
+			}
+		}
+
 		const abortController = new AbortController();
 		const handleSignal = () => {
 			abortController.abort();
@@ -100,7 +132,7 @@ export const execSubcommand = createCommand({
 				options: {
 					command: args.command,
 					timeout: opts.timeout,
-					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
+					stream: streamConfig,
 				},
 				orgId,
 			});
@@ -135,27 +167,20 @@ export const execSubcommand = createCommand({
 			const stdoutChunks: string[] = [];
 			const stderrChunks: string[] = [];
 
-			let stdoutWritable: NodeJS.WritableStream;
-			let stderrWritable: NodeJS.WritableStream;
-
-			if (options.json) {
-				if (isCombinedOutput) {
-					stdoutWritable = createCaptureStream((chunk) => outputChunks.push(chunk));
-					stderrWritable = createCaptureStream((chunk) => outputChunks.push(chunk));
-				} else {
-					stdoutWritable = createCaptureStream((chunk) => {
-						stdoutChunks.push(chunk);
-						outputChunks.push(chunk);
-					});
-					stderrWritable = createCaptureStream((chunk) => {
-						stderrChunks.push(chunk);
-						outputChunks.push(chunk);
-					});
-				}
-			} else {
-				stdoutWritable = process.stdout;
-				stderrWritable = process.stderr;
-			}
+			const stdoutWritable: NodeJS.WritableStream =
+				options.json || stdoutIsNull
+					? createCaptureStream((chunk) => {
+							stdoutChunks.push(chunk);
+							outputChunks.push(chunk);
+						})
+					: process.stdout;
+			const stderrWritable: NodeJS.WritableStream =
+				options.json || stderrIsNull
+					? createCaptureStream((chunk) => {
+							stderrChunks.push(chunk);
+							outputChunks.push(chunk);
+						})
+					: process.stderr;
 
 			if (isCombinedOutput) {
 				logger.debug('[exec] starting combined stream: %s', stdoutStreamUrl);
