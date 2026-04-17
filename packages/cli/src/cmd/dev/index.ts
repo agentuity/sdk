@@ -1038,7 +1038,13 @@ export const command = createCommand({
 							cwd: rootDir,
 							stdout: 'pipe',
 							stderr: 'pipe',
-							detached: false,
+							// Make the child a process-group leader so process.kill(-pid, signal)
+							// from procManager.killProcessTree() actually reaches the whole tree
+							// (otherwise it fails with EPERM and falls back to a direct PID kill
+							// that leaves any grandchildren running). We intentionally do NOT call
+							// .unref() — we still want the parent to track the child's lifecycle
+							// and drive cleanup on Ctrl-C / shutdown.
+							detached: true,
 						}
 					);
 
