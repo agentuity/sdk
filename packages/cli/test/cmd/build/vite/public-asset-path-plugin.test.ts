@@ -1,21 +1,18 @@
 /**
  * Tests for `publicAssetPathPlugin`.
  *
- * The plugin lints browser source in `src/web/` for Agentuity-v1 public-asset
- * path patterns and fails the build (or warns in dev) when any of them are
- * present. It does **not** transform code — users are expected to fix the
- * source to follow Vite's conventions (`import fooUrl from …` or a
- * publicDir-root path without the `/public/` prefix).
+ * The plugin warns about Agentuity-v1 public-asset path patterns in browser
+ * source under `src/web/`. It never fails the build \u2014 the warning surfaces
+ * in Vite's output, developers fix their source, integration tests catch
+ * regressions at deploy time.
  *
- * The anti-patterns we lint on are:
- *   - `'/public/foo.svg'` and `'./public/foo.svg'` (including template literal
- *     and double-quote variants)
- *   - `'src/web/public/foo.svg'` and its leading-slash / leading-dot forms
- *   - CSS `url(/public/foo.svg)` and `url(./public/foo.svg)` (unquoted)
+ * Patterns flagged:
+ *   - `'/public/foo.svg'` and `'./public/foo.svg'` (quoted strings)
+ *   - `'src/web/public/foo.svg'` (and leading `/`/`./` forms)
+ *   - CSS `url(/public/...)` and `url(./public/...)` (unquoted)
  *
- * Non-violations must not produce diagnostics: files outside `src/web/`,
- * publicDir-root paths like `/foo.svg`, bare `public/foo` substrings that
- * are not quoted or inside `url(...)`.
+ * Non-violations: files outside `src/web/`, publicDir-root paths like
+ * `/foo.svg`, bare `"public"` strings that aren't prefixed by `/` or `./`.
  */
 
 import { describe, test, expect, beforeEach } from 'bun:test';
@@ -24,141 +21,104 @@ import type { Plugin } from 'vite';
 
 describe('publicAssetPathPlugin', () => {
 	let plugin: Plugin;
-	let errors: string[];
 	let warnings: string[];
 
-	// Fresh per test so "reported once per file" state doesn't leak.
 	beforeEach(() => {
-		errors = [];
+		plugin = publicAssetPathPlugin();
 		warnings = [];
 	});
 
 	/**
 	 * Call the plugin's `transform` hook with a minimal Rollup-like context.
-	 * `this.error()` throws (it aborts the build in real Vite), so we catch
-	 * and record the message. `this.warn()` is captured without throwing.
+	 * Captures `this.warn()` output; `this.error()` should never be called
+	 * by this plugin.
 	 */
-	function callTransform(code: string, id: string): { code: string; map: null } | null {
+	function callTransform(code: string, id: string): void {
 		const transform = plugin.transform;
 		if (!transform || typeof transform !== 'function') {
 			throw new Error('Plugin transform is not a function');
 		}
 
 		const context = {
-			error: (msg: string | Error) => {
-				const text = msg instanceof Error ? msg.message : msg;
-				errors.push(text);
-				// Vite's real error throws — mimic that so build-mode behaviour is
-				// faithful to what users see.
-				throw new Error(text);
-			},
 			warn: (msg: string) => {
 				warnings.push(msg);
+			},
+			error: (msg: string | Error) => {
+				const text = msg instanceof Error ? msg.message : msg;
+				throw new Error(`plugin unexpectedly called this.error(${text})`);
 			},
 			debug: () => {},
 			info: () => {},
 			meta: { rollupVersion: '4.0.0', watchMode: false },
 		};
 
-		try {
-			const result = transform.call(context as never, code, id);
-			return result as { code: string; map: null } | null;
-		} catch {
-			// Errors surface in `errors[]`, not as return values.
-			return null;
-		}
+		transform.call(context as never, code, id);
 	}
 
-	function initBuildMode() {
-		plugin = publicAssetPathPlugin();
-		plugin.configResolved?.call(plugin as never, { command: 'build' } as never);
-	}
-
-	function initDevMode() {
-		plugin = publicAssetPathPlugin();
-		plugin.configResolved?.call(plugin as never, { command: 'serve' } as never);
-	}
-
-	function initForcedError() {
-		plugin = publicAssetPathPlugin({ errorOnViolation: true });
-		// `errorOnViolation` is explicit, so configResolved won't override it.
-		plugin.configResolved?.call(plugin as never, { command: 'serve' } as never);
-	}
-
-	function initForcedWarn() {
-		plugin = publicAssetPathPlugin({ errorOnViolation: false });
-		plugin.configResolved?.call(plugin as never, { command: 'build' } as never);
-	}
-
-	describe('build mode: violations become errors', () => {
-		beforeEach(() => initBuildMode());
-
-		test('errors on /public/ in single-quoted string', () => {
+	describe('warns on legacy patterns', () => {
+		test('warns on /public/ in single-quoted string', () => {
 			callTransform(
 				`const logo = '/public/logo.svg';`,
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors).toHaveLength(1);
-			expect(errors[0]).toContain('/public/');
-			expect(errors[0]).toContain('Header.tsx');
-			expect(warnings).toHaveLength(0);
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('/public/');
+			expect(warnings[0]).toContain('Header.tsx');
 		});
 
-		test('errors on /public/ in double-quoted string', () => {
+		test('warns on /public/ in double-quoted string', () => {
 			callTransform(
 				`const logo = "/public/logo.svg";`,
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors).toHaveLength(1);
-			expect(errors[0]).toContain('/public/');
+			expect(warnings).toHaveLength(1);
 		});
 
-		test('errors on /public/ in template literal', () => {
+		test('warns on /public/ in template literal', () => {
 			callTransform(
 				'const logo = `/public/logo.svg`;',
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors).toHaveLength(1);
+			expect(warnings).toHaveLength(1);
 		});
 
-		test('errors on ./public/ relative paths', () => {
+		test('warns on ./public/ relative paths', () => {
 			callTransform(
 				`const logo = './public/logo.svg';`,
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors).toHaveLength(1);
-			expect(errors[0]).toContain('./public/');
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('./public/');
 		});
 
-		test('errors on src/web/public/ paths (with and without leading slash)', () => {
+		test('warns on src/web/public/ paths (with and without leading slash)', () => {
 			callTransform(
 				`const a = '/src/web/public/logo.svg';
 const b = './src/web/public/logo.svg';
 const c = 'src/web/public/logo.svg';`,
 				'/project/src/web/components/Assets.tsx'
 			);
-			expect(errors).toHaveLength(1);
-			// All three forms collapse into the single src/web/public/ diagnostic
-			// for the file — we report each pattern once.
-			expect(errors[0]).toContain('src/web/public/');
+			// All three forms share the single src/web/public/ pattern entry.
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('src/web/public/');
 		});
 
-		test('errors on CSS url(/public/...) unquoted', () => {
+		test('warns on CSS url(/public/...) unquoted', () => {
 			callTransform(
 				`.logo { background: url(/public/bg.png); }`,
 				'/project/src/web/styles/logo.css'
 			);
-			expect(errors).toHaveLength(1);
-			expect(errors[0]).toContain('url(/public/');
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('url(/public/');
 		});
 
-		test('errors on CSS url(./public/...) unquoted', () => {
+		test('warns on CSS url(./public/...) unquoted', () => {
 			callTransform(
 				`.logo { background: url(./public/bg.png); }`,
 				'/project/src/web/styles/logo.css'
 			);
-			expect(errors).toHaveLength(1);
-			expect(errors[0]).toContain('url(./public/');
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('url(./public/');
 		});
 
 		test('reports multiple distinct patterns in one diagnostic', () => {
@@ -168,8 +128,8 @@ const b = './public/b.svg';
 .bg { background: url(/public/c.png); }`,
 				'/project/src/web/mixed.tsx'
 			);
-			expect(errors).toHaveLength(1);
-			const msg = errors[0];
+			expect(warnings).toHaveLength(1);
+			const msg = warnings[0];
 			expect(msg).toContain('/public/');
 			expect(msg).toContain('./public/');
 			expect(msg).toContain('url(/public/');
@@ -180,25 +140,13 @@ const b = './public/b.svg';
 				`const logo = '/public/logo.svg';`,
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors[0]).toContain('vitejs.dev');
+			expect(warnings[0]).toContain('vitejs.dev');
 		});
 	});
 
-	describe('dev mode: violations become warnings', () => {
-		beforeEach(() => initDevMode());
-
-		test('warns but does not error on /public/ in dev', () => {
-			callTransform(
-				`const logo = '/public/logo.svg';`,
-				'/project/src/web/components/Header.tsx'
-			);
-			expect(errors).toHaveLength(0);
-			expect(warnings).toHaveLength(1);
-			expect(warnings[0]).toContain('/public/');
-		});
-
-		test('warns only once per pattern per file across repeat transforms', () => {
-			// Simulate HMR re-transforming the same file twice with identical code.
+	describe('dedupes repeated reports', () => {
+		test('does not re-warn on repeated transforms of the same file', () => {
+			// Simulate HMR re-transforming the same file twice.
 			callTransform(
 				`const logo = '/public/logo.svg';`,
 				'/project/src/web/components/Header.tsx'
@@ -210,7 +158,7 @@ const b = './public/b.svg';
 			expect(warnings).toHaveLength(1);
 		});
 
-		test('re-warns on a different file in the same session', () => {
+		test('warns separately for distinct files in the same session', () => {
 			callTransform(
 				`const logo = '/public/logo.svg';`,
 				'/project/src/web/components/Header.tsx'
@@ -224,11 +172,8 @@ const b = './public/b.svg';
 	});
 
 	describe('non-violations', () => {
-		beforeEach(() => initBuildMode());
-
 		test('ignores files outside src/web/', () => {
 			callTransform(`const path = '/public/logo.svg';`, '/project/src/agent/utils.ts');
-			expect(errors).toHaveLength(0);
 			expect(warnings).toHaveLength(0);
 		});
 
@@ -238,7 +183,7 @@ const b = './public/b.svg';
 const logo = '/images/logo.svg';`,
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors).toHaveLength(0);
+			expect(warnings).toHaveLength(0);
 		});
 
 		test('ignores file with no public path references', () => {
@@ -246,58 +191,31 @@ const logo = '/images/logo.svg';`,
 				`export const greeting = 'hello';`,
 				'/project/src/web/components/Header.tsx'
 			);
-			expect(errors).toHaveLength(0);
+			expect(warnings).toHaveLength(0);
 		});
 
 		test('ignores substrings that only contain "public" as a word', () => {
-			// Quoted strings without the /public/ prefix or src/web/public/
-			// prefix must not trigger — `public/api` is common.
 			callTransform(
 				`const role = 'public';
 const cfg = { access: 'public' };`,
 				'/project/src/web/components/Auth.tsx'
 			);
-			expect(errors).toHaveLength(0);
-		});
-	});
-
-	describe('explicit errorOnViolation override', () => {
-		test('errorOnViolation: true forces errors even in serve/dev', () => {
-			initForcedError();
-			callTransform(
-				`const logo = '/public/logo.svg';`,
-				'/project/src/web/components/Header.tsx'
-			);
-			expect(errors).toHaveLength(1);
 			expect(warnings).toHaveLength(0);
-		});
-
-		test('errorOnViolation: false forces warnings even in build', () => {
-			initForcedWarn();
-			callTransform(
-				`const logo = '/public/logo.svg';`,
-				'/project/src/web/components/Header.tsx'
-			);
-			expect(errors).toHaveLength(0);
-			expect(warnings).toHaveLength(1);
 		});
 	});
 
 	describe('platform paths', () => {
-		beforeEach(() => initBuildMode());
-
 		test('accepts Windows-style src\\web\\ paths in file id', () => {
 			callTransform(
 				`const logo = '/public/logo.svg';`,
 				'C:\\project\\src\\web\\components\\Header.tsx'
 			);
-			expect(errors).toHaveLength(1);
+			expect(warnings).toHaveLength(1);
 		});
 	});
 
 	describe('plugin metadata', () => {
 		test('has a stable plugin name', () => {
-			initBuildMode();
 			expect(plugin.name).toBe('agentuity:public-asset-path-lint');
 		});
 	});

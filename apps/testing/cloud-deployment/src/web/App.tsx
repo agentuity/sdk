@@ -51,8 +51,8 @@ export function App() {
 							beaconStatus.innerHTML = hasBeacon ? '✅ Beacon script found' : '❌ Beacon script not found';
 							
 							// Check public asset via fetch (txt files can't use img onLoad).
-							// Vite serves src/web/public/* at the URL root, so the request goes
-							// to /test-asset.txt — no '/public/' prefix.
+							// Vite serves src/web/public/ at the URL root, so the request goes
+							// to /test-asset.txt directly, with no extra prefix.
 							fetch('/test-asset.txt')
 								.then(function(res) {
 									if (res.ok) {

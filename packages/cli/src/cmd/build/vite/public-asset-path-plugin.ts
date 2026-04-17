@@ -1,59 +1,43 @@
 /**
- * Vite plugin that enforces the Vite asset convention for `src/web/` code.
+ * Vite plugin that warns about legacy Agentuity-v1 `/public/` asset paths
+ * in `src/web/` source code.
  *
- * ## What the convention is
+ * ## Vite asset conventions (the correct forms)
  *
- * Vite has two ways to reference static assets:
+ * 1. **Import the asset**: `import fooUrl from './foo.svg'`. Vite emits a
+ *    content-hashed file and replaces the import with the final URL (CDN
+ *    URL when `--base` is set). This is the correct form for any asset
+ *    referenced from JS/TSX.
  *
- *   1. **Import the asset**: `import fooUrl from './foo.svg'`.
- *      Vite emits a content-hashed file and replaces the import with the
- *      final URL (CDN URL when `--base` is set). This is the correct form
- *      for any asset referenced from JS/TSX.
+ * 2. **`publicDir` root-served files**: files under `src/web/public/` are
+ *    served at the URL root (`/foo.svg`, not `/public/foo.svg`). Vite
+ *    rewrites root paths inside HTML attributes and CSS `url(...)` to the
+ *    configured `--base`, so HTML/CSS references become CDN URLs in
+ *    production. Root paths inside JS string literals are NOT rewritten by
+ *    Vite — they resolve to the origin at runtime, which serves the
+ *    publicDir as a fallback.
  *
- *   2. **`publicDir` files referenced from HTML/CSS**: files in
- *      `src/web/public/foo.svg` are served at the root URL `/foo.svg`.
- *      Vite rewrites root paths inside HTML attributes and CSS `url(...)`
- *      to the configured `--base`, so `<img src="/foo.svg">` in
- *      `index.html` becomes `https://cdn.../client/foo.svg` in production.
- *      Vite does **not** rewrite string literals in JS with this prefix.
+ * ## Anti-patterns this plugin warns on
  *
- * ## Anti-patterns this plugin errors on
+ * The following don't work in production and indicate the author is still
+ * thinking in the Agentuity v1 model:
  *
- * Neither of the legacy Agentuity conventions below are valid Vite input
- * and they silently break in production (strings are never base-rewritten
- * and the origin does not serve `/public/*`):
+ *   - `'/public/foo.svg'` and `'./public/foo.svg'`
+ *   - `'src/web/public/foo.svg'` (and `'/src/web/public/...'`)
+ *   - CSS `url(/public/foo.svg)` and `url(./public/foo.svg)` (unquoted)
  *
- *   - `'/public/foo.svg'`  — the `/public/` prefix is an Agentuity v1
- *     convention. In v2 Vite serves the publicDir at the root, so the
- *     correct path is `/foo.svg` (or better, `import fooUrl from …`).
- *   - `'./public/foo.svg'` — same issue.
- *   - `'src/web/public/foo.svg'` (and `'/src/web/public/...'`) — always
- *     wrong. Source tree paths are not URLs.
- *
- * The plugin raises a build error for these patterns in any file under
- * `src/web/`, in both dev (`vite serve`) and build (`vite build`). It
- * does not transform code; the user is expected to update the source.
- *
- * ## Remediation printed to the user
- *
- * Every error includes the recommended fix:
- *
- *   - For assets in `src/web/public/`: use the root path (`/foo.svg`) in
- *     HTML / CSS, or import the file directly in JS.
- *   - For assets elsewhere in `src/web/`: import them with a relative or
- *     aliased path (`import fooUrl from '@/assets/foo.svg'`).
+ * The plugin emits a **warning** for each unique pattern encountered
+ * (deduped per file) in both `vite serve` and `vite build`. It does not
+ * transform code or fail the build — we rely on the warning being visible
+ * in build output and the integration test in apps/testing/cloud-deployment
+ * to catch cases where an unrewritten `/public/` reference slips through.
  */
 
 import type { Plugin } from 'vite';
 
 export interface PublicAssetPathPluginOptions {
-	/**
-	 * When `true`, lint violations are reported as Vite build errors (fail the
-	 * build). When `false`, they are reported as warnings. Defaults to `true`
-	 * in `vite build` and `false` in `vite serve` so developers see a loud
-	 * warning as they type without blocking HMR.
-	 */
-	errorOnViolation?: boolean;
+	// Reserved for future use. Currently there are no options; the plugin
+	// always emits warnings.
 }
 
 interface PathPattern {
@@ -104,30 +88,20 @@ function createLintPatterns(): PathPattern[] {
  * file and re-runs.
  */
 function formatDiagnostic(id: string, hits: { description: string; fix: string }[]): string {
-	const header = `Incorrect Vite public-asset path(s) in ${id}:`;
+	const header = `Legacy Agentuity public-asset path(s) in ${id}:`;
 	const body = hits.map((h) => `  - ${h.description} — ${h.fix}`).join('\n');
 	const trailer =
 		'\nSee https://vitejs.dev/guide/assets for the recommended Vite asset conventions.';
 	return `${header}\n${body}${trailer}`;
 }
 
-export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}): Plugin {
+export function publicAssetPathPlugin(_options: PublicAssetPathPluginOptions = {}): Plugin {
 	// Track per-file diagnostics so we do not re-report the same violations on
 	// every HMR update in dev mode.
 	const reportedFiles = new Map<string, Set<string>>();
 
-	// Resolved at configResolved time so the behaviour can differ between
-	// `vite serve` and `vite build` without the caller having to pass a flag.
-	let errorOnViolation = options.errorOnViolation ?? true;
-
 	return {
 		name: 'agentuity:public-asset-path-lint',
-
-		configResolved(config) {
-			if (options.errorOnViolation === undefined) {
-				errorOnViolation = config.command === 'build';
-			}
-		},
 
 		transform(code, id) {
 			// Only lint source files under src/web/. Node_modules, virtual
@@ -171,14 +145,7 @@ export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}
 			for (const h of fresh) previously.add(h.description);
 			reportedFiles.set(id, previously);
 
-			const message = formatDiagnostic(id, fresh);
-			if (errorOnViolation) {
-				// `this.error` aborts the build with a pointer to the offending
-				// file. In dev this surfaces as an overlay in the browser.
-				this.error(message);
-			} else {
-				this.warn(message);
-			}
+			this.warn(formatDiagnostic(id, fresh));
 			return null;
 		},
 	};

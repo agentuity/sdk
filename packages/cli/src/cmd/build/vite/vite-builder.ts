@@ -190,7 +190,7 @@ export default defineConfig(async (env) => {
 	const resolved: UserConfig =
 		typeof raw === 'function' ? await (raw as UserConfigFn)(env) : await raw;
 	return mergeConfig(resolved, {
-		plugins: [publicAssetPathPlugin({ errorOnViolation: env.command === 'build' })],
+		plugins: [publicAssetPathPlugin()],
 	} satisfies UserConfig);
 });
 `;
@@ -331,8 +331,11 @@ export default defineConfig({
 			buildMode,
 			'--outDir',
 			clientOutDir,
+			// Keep plugin warnings (e.g. agentuity:public-asset-path-lint) visible.
+			// `error` would silence them; `warn` surfaces them without adding
+			// Vite's own info-level chatter.
 			'--logLevel',
-			'error',
+			'warn',
 			'--clearScreen',
 			'false',
 		];
