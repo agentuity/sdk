@@ -364,9 +364,9 @@ export const command = createCommand({
 		// and creates a new lockfile for this session
 		const devLock = await prepareDevLock(rootDir, opts.port, logger);
 
-		// Kill any lingering gravity processes from previous dev sessions
-		// This is a fallback for cases where the lockfile was corrupted
-		await killLingeringGravityProcesses(logger);
+		// Kill any lingering gravity processes from previous dev sessions.
+		// Scoped to this project to avoid killing gravity from other dev sessions.
+		await killLingeringGravityProcesses(logger, project?.projectId);
 
 		// Check and upgrade @agentuity/* dependencies if needed
 		const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);

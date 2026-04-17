@@ -127,7 +127,10 @@ async function killPid(pid: number, logger: LoggerLike): Promise<void> {
 	// Give it a moment to exit gracefully
 	await new Promise((r) => setTimeout(r, 500));
 
-	if (!pidExists(pid)) return;
+	// Always attempt SIGKILL on the process tree even if the leader has exited.
+	// On Unix, process groups persist after the leader exits and signaling via
+	// negative PGID still reaches remaining members. killProcessTree() handles
+	// ESRCH gracefully if the group no longer exists.
 
 	// Force kill the entire process tree
 	killProcessTree(pid, 'SIGKILL', logger);

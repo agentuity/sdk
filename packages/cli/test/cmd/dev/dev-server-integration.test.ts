@@ -349,11 +349,13 @@ const { server, logger } = await createApp({ agents: [] });
 
 			const manager = new ProcessManager(mockLogger);
 
-			// Create mock servers
+			// Create mock processes with pid: undefined to prevent process.kill(-pid)
+			// from hitting real system PIDs during cleanup. The process handle's
+			// .kill() mock is used instead.
 			const createMockProcess = () => ({
 				kill: () => {},
 				exitCode: null as number | null,
-				pid: Math.floor(Math.random() * 10000),
+				pid: undefined as number | undefined,
 			});
 
 			// Register multiple processes and servers (simulating dev server)

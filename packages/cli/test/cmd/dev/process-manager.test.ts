@@ -453,13 +453,13 @@ describe('ProcessManager', () => {
 			// PID 1 is init/systemd, PID 0 is the process group leader.
 			// process.kill(-1) would signal every process the user owns.
 			// The safety guard should prevent this.
-			let handleKillCalled = false;
+			const killSignals: (string | number | NodeJS.Signals | undefined)[] = [];
 
 			manager.registerProcess({
 				id: 'dangerous-pid',
 				process: {
-					kill: () => {
-						handleKillCalled = true;
+					kill: (signal) => {
+						killSignals.push(signal);
 					},
 					exitCode: null,
 					pid: 1, // Dangerous! killProcessTree should refuse this.
@@ -467,13 +467,17 @@ describe('ProcessManager', () => {
 				description: 'Dangerous PID test',
 			});
 
-			// Should complete without calling process.kill(-1) (which would nuke the session)
+			// Should complete without calling process.kill(-1) (which would nuke the session).
+			// killProcessTree refuses pid=1, but the handle's .kill() is still used
+			// as a safe fallback to kill the individual process.
 			await manager.cleanup('test', 200);
 
-			// killProcessTree refuses pid=1 and returns false. Since pid is
-			// truthy the code path doesn't fall back to handle.kill(), so
-			// the mock should NOT be called — that's the safe behavior.
-			expect(handleKillCalled).toBe(false);
+			// killProcessTree refuses pid=1 during the SIGTERM phase (pid is
+			// truthy so the code doesn't fall back to handle.kill for SIGTERM).
+			// In the force-kill phase, pid <= 1 means shouldForceTreeKill is
+			// false, so the handle's .kill('SIGKILL') is used as a safe fallback.
+			expect(killSignals).not.toContain('SIGTERM');
+			expect(killSignals).toContain('SIGKILL');
 			expect(manager.isCleanedUp).toBe(true);
 		});
 	});

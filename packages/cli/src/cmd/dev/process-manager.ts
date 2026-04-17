@@ -252,20 +252,25 @@ export class ProcessManager {
 			await new Promise((resolve) => setTimeout(resolve, 100));
 		}
 
-		// Force kill any remaining processes and their process trees
+		// Force kill any remaining processes and their process trees.
+		// When a PID is available, always attempt process-group SIGKILL even if
+		// the leader has already exited: on Unix, process groups persist after
+		// the leader exits and signaling via negative PGID still reaches
+		// remaining members. killProcessTree() handles ESRCH gracefully.
 		for (const proc of processSnapshot) {
-			if (proc.process.exitCode === null) {
-				const pid = proc.process.pid;
-				try {
-					this.logger.debug('Force killing process %s (pid=%s)', proc.id, pid ?? 'unknown');
-					if (pid) {
-						this.killProcessTree(pid, 'SIGKILL');
-					} else {
-						proc.process.kill('SIGKILL');
-					}
-				} catch (err) {
-					this.logger.debug('Error force killing process %s: %s', proc.id, err);
+			const pid = proc.process.pid;
+			const shouldForceTreeKill = typeof pid === 'number' && pid > 1;
+			if (!shouldForceTreeKill && proc.process.exitCode !== null) continue;
+
+			try {
+				this.logger.debug('Force killing process %s (pid=%s)', proc.id, pid ?? 'unknown');
+				if (shouldForceTreeKill) {
+					this.killProcessTree(pid, 'SIGKILL');
+				} else {
+					proc.process.kill('SIGKILL');
 				}
+			} catch (err) {
+				this.logger.debug('Error force killing process %s: %s', proc.id, err);
 			}
 		}
 
