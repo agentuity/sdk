@@ -453,8 +453,28 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 	}
 
 	if (!serverReady) {
+		// The subprocess is spawned with detached:true and is therefore the
+		// leader of its own process group. bunProcess.kill() only targets the
+		// direct PID, which would leave any workers/grandchildren orphaned.
+		// Signal the whole process group with SIGKILL and fall back to the
+		// handle's kill() if the group-kill fails (EPERM, not-group-leader,
+		// or Windows where negative PIDs aren't supported).
+		const pid = bunProcess.pid;
 		try {
-			bunProcess.kill();
+			if (typeof pid === 'number' && pid > 1 && process.platform !== 'win32') {
+				try {
+					process.kill(-pid, 'SIGKILL');
+				} catch (groupErr) {
+					logger.debug(
+						'Process-group SIGKILL failed for pid %d (%s), falling back to direct kill',
+						pid,
+						(groupErr as NodeJS.ErrnoException).code ?? groupErr
+					);
+					bunProcess.kill('SIGKILL');
+				}
+			} else {
+				bunProcess.kill('SIGKILL');
+			}
 		} catch (err) {
 			logger.debug('Error killing subprocess during startup failure: %s', err);
 		}
