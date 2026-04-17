@@ -599,12 +599,20 @@ export const command = createCommand({
 				);
 			}
 
+			// Separate guard flags:
+			// - cleanupStarted: prevents double-entry into cleanup()
+			// - shutdownRequested: breaks the main wait loop (set inside cleanup
+			//   AFTER the cleanupStarted guard passes, so the loop resolves only
+			//   once cleanup has actually started running)
+			let cleanupStarted = false;
+
 			/**
 			 * Centralized cleanup function for all resources.
 			 * Uses the process manager for tracked servers/processes.
 			 */
 			const cleanup = async (exitAfter = false, exitCode = 0, silent = false) => {
-				if (shutdownRequested) return;
+				if (cleanupStarted) return;
+				cleanupStarted = true;
 				shutdownRequested = true;
 
 				if (!silent) {
@@ -648,7 +656,6 @@ export const command = createCommand({
 				if (exitingFromSignal) return;
 				exitingFromSignal = true;
 				if (reason) logger.debug('DevMode terminating (%d): %s', code, reason);
-				shutdownRequested = true;
 				cleanup(true, code).catch(() => originalExit(1));
 			};
 
@@ -1131,7 +1138,6 @@ export const command = createCommand({
 							process.stdin.removeListener('data', stdinDataHandler);
 							stdinDataHandler = null;
 						}
-						shutdownRequested = true;
 						cleanup(true, 0).catch(() => originalExit(1));
 						return;
 					}
