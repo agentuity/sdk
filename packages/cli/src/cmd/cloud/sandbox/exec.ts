@@ -103,12 +103,13 @@ export const execSubcommand = createCommand({
 			timestamps: opts.timestamps,
 		};
 
-		// --quiet: suppress all output streams
+		// --quiet: suppress all output streams (no server streams, no local capture)
 		if (opts.quiet) {
 			streamConfig.stdout = 'ignore';
 			streamConfig.stderr = 'ignore';
-		} else {
-			// Auto-detect /dev/null redirection
+		} else if (!options.json) {
+			// Auto-detect /dev/null redirection (only when not in JSON mode)
+			// In JSON mode we need output for the response, so keep streams even if redirected
 			if (stdoutIsNull) {
 				streamConfig.stdout = 'ignore';
 			}
