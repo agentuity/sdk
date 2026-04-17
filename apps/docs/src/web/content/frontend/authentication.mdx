@@ -60,9 +60,14 @@ bunx agentuity create my-app --template agentuity-auth
 bun add @agentuity/auth better-auth drizzle-orm
 ```
 
-Then create your auth configuration (see [Server Setup](#server-setup) below), set `DATABASE_URL` and `AGENTUITY_AUTH_SECRET` in your environment, and run the BetterAuth CLI to generate and apply the schema:
+Then create your auth configuration (see [Server Setup](#server-setup) below), set `DATABASE_URL` and `AGENTUITY_AUTH_SECRET` in your environment, and run the BetterAuth CLI to generate and apply the schema (use `bunx` or `npx`):
 
 ```bash
+# With Bun
+bunx @better-auth/cli generate
+bunx @better-auth/cli migrate
+
+# Or with npm
 npx @better-auth/cli generate
 npx @better-auth/cli migrate
 ```
@@ -476,14 +481,16 @@ See the [BetterAuth JWT Plugin docs](https://www.better-auth.com/docs/plugins/jw
 
 ## Schema & Migrations
 
-Use the BetterAuth CLI to generate and apply the auth schema:
+Use the BetterAuth CLI to generate and apply the auth schema (use `bunx` or `npx`):
 
 ```bash
 # Generate SQL for all auth tables (useful for review or manual migrations)
-npx @better-auth/cli generate
+bunx @better-auth/cli generate
+# or: npx @better-auth/cli generate
 
 # Apply migrations directly
-npx @better-auth/cli migrate
+bunx @better-auth/cli migrate
+# or: npx @better-auth/cli migrate
 ```
 
 If you use Drizzle or Prisma, prefer your ORM's own migration tooling and generate the schema with `@better-auth/cli generate`, then incorporate it into your migration files.
