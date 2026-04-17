@@ -6,7 +6,7 @@
 		"composite": false,
 		"outDir": "./.agentuity",
 		"rootDir": ".",
-		"types": ["bun-types"]
+		"types": ["bun-types", "vite/client"]
 	},
 	"include": ["src/**/*", "app.ts"],
 	"exclude": ["node_modules", ".agentuity"]

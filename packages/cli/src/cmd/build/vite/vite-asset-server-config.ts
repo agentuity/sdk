@@ -314,8 +314,10 @@ export async function generateAssetServerConfig(
 			return [
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
-				// Warn about incorrect public asset paths in dev mode
-				publicAssetPathPlugin({ warnInDev: true }),
+				// Lint incorrect public asset paths. In dev we emit warnings so the
+				// developer can keep iterating; production builds escalate to errors
+				// — see writeClientWrapperConfig in vite-builder.ts.
+				publicAssetPathPlugin({ errorOnViolation: false }),
 				// Inject analytics scripts in dev HTML
 				devAnalyticsPlugin(),
 				// SPA fallback: serve src/web/index.html for navigation requests

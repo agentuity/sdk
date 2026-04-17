@@ -1,208 +1,184 @@
 /**
- * Vite plugin to fix incorrect public asset paths
+ * Vite plugin that enforces the Vite asset convention for `src/web/` code.
  *
- * Developers should use /public/ paths for static assets from src/web/public/.
- * In production, these paths are transformed to CDN URLs.
+ * ## What the convention is
  *
- * This plugin:
- * 1. During build: Rewrites /public/* paths to CDN URLs
- * 2. During dev: Warns only about incorrect source paths (src/web/public/)
+ * Vite has two ways to reference static assets:
  *
- * Supported patterns (work in dev, rewritten to CDN in production):
- * - '/public/foo.svg'          → CDN URL (recommended)
- * - './public/foo.svg'         → CDN URL
- * - 'url(/public/foo.svg)'    → CDN URL (CSS unquoted)
- * - 'url(./public/foo.svg)'   → CDN URL (CSS unquoted)
+ *   1. **Import the asset**: `import fooUrl from './foo.svg'`.
+ *      Vite emits a content-hashed file and replaces the import with the
+ *      final URL (CDN URL when `--base` is set). This is the correct form
+ *      for any asset referenced from JS/TSX.
  *
- * Incorrect patterns (warned in dev, rewritten in production):
- * - '/src/web/public/foo.svg'  → CDN URL
- * - './src/web/public/foo.svg' → CDN URL
- * - 'src/web/public/foo.svg'   → CDN URL
+ *   2. **`publicDir` files referenced from HTML/CSS**: files in
+ *      `src/web/public/foo.svg` are served at the root URL `/foo.svg`.
+ *      Vite rewrites root paths inside HTML attributes and CSS `url(...)`
+ *      to the configured `--base`, so `<img src="/foo.svg">` in
+ *      `index.html` becomes `https://cdn.../client/foo.svg` in production.
+ *      Vite does **not** rewrite string literals in JS with this prefix.
+ *
+ * ## Anti-patterns this plugin errors on
+ *
+ * Neither of the legacy Agentuity conventions below are valid Vite input
+ * and they silently break in production (strings are never base-rewritten
+ * and the origin does not serve `/public/*`):
+ *
+ *   - `'/public/foo.svg'`  — the `/public/` prefix is an Agentuity v1
+ *     convention. In v2 Vite serves the publicDir at the root, so the
+ *     correct path is `/foo.svg` (or better, `import fooUrl from …`).
+ *   - `'./public/foo.svg'` — same issue.
+ *   - `'src/web/public/foo.svg'` (and `'/src/web/public/...'`) — always
+ *     wrong. Source tree paths are not URLs.
+ *
+ * The plugin raises a build error for these patterns in any file under
+ * `src/web/`, in both dev (`vite serve`) and build (`vite build`). It
+ * does not transform code; the user is expected to update the source.
+ *
+ * ## Remediation printed to the user
+ *
+ * Every error includes the recommended fix:
+ *
+ *   - For assets in `src/web/public/`: use the root path (`/foo.svg`) in
+ *     HTML / CSS, or import the file directly in JS.
+ *   - For assets elsewhere in `src/web/`: import them with a relative or
+ *     aliased path (`import fooUrl from '@/assets/foo.svg'`).
  */
 
 import type { Plugin } from 'vite';
 
 export interface PublicAssetPathPluginOptions {
-	/** Whether to show warnings in dev mode (default: true) */
-	warnInDev?: boolean;
-	/** CDN base URL for production builds (e.g., 'https://cdn.agentuity.com/{deploymentId}/client/') */
-	cdnBaseUrl?: string;
+	/**
+	 * When `true`, lint violations are reported as Vite build errors (fail the
+	 * build). When `false`, they are reported as warnings. Defaults to `true`
+	 * in `vite build` and `false` in `vite serve` so developers see a loud
+	 * warning as they type without blocking HMR.
+	 */
+	errorOnViolation?: boolean;
 }
 
 interface PathPattern {
 	regex: RegExp;
 	description: string;
-	/** Replacement template - use {base} for the target base URL */
-	replacement: string;
+	/** Human-readable fix suggestion rendered next to the pattern. */
+	fix: string;
 }
 
 /**
- * Patterns that are incorrect - reference source paths directly
+ * Ordered so more specific patterns are reported first. The `src/web/public/`
+ * variants are tested before the bare `/public/` forms to avoid reporting a
+ * redundant hit for the trailing `/public/` substring.
  */
-function createIncorrectPatterns(): PathPattern[] {
+function createLintPatterns(): PathPattern[] {
 	return [
-		// '/src/web/public/...' or './src/web/public/...' or 'src/web/public/...'
 		{
 			regex: /(['"`])(?:\.?\/)?src\/web\/public\//g,
 			description: 'src/web/public/',
-			replacement: '$1{base}',
+			fix: "reference the file at its served root path ('/foo.svg') or import it ('import fooUrl from \"./foo.svg\"')",
 		},
-	];
-}
-
-/**
- * Patterns that need rewriting for production CDN
- * Both patterns simply replace the prefix while preserving the rest of the path naturally.
- */
-function createPublicPatterns(): PathPattern[] {
-	return [
-		// './public/...' (relative public path) - replace prefix, keep rest
 		{
 			regex: /(['"`])\.\/public\//g,
 			description: './public/',
-			replacement: '$1{base}',
+			fix: "the '/public/' prefix is not served in production; use the root path ('/foo.svg') or an import",
 		},
-		// '/public/...' (absolute public path) - replace prefix, keep rest
 		{
 			regex: /(['"`])\/public\//g,
 			description: '/public/',
-			replacement: '$1{base}',
+			fix: "the '/public/' prefix is not served in production; use the root path ('/foo.svg') or an import",
 		},
-		// CSS url(/public/...) — unquoted path inside url()
 		{
 			regex: /url\(\/public\//g,
-			description: 'url(/public/)',
-			replacement: 'url({base}',
+			description: 'url(/public/…)',
+			fix: "drop the '/public/' prefix — Vite serves src/web/public/ at root, so 'url(/foo.svg)' is correct",
 		},
-		// CSS url(./public/...) — unquoted relative path inside url()
 		{
 			regex: /url\(\.\/public\//g,
-			description: 'url(./public/)',
-			replacement: 'url({base}',
+			description: 'url(./public/…)',
+			fix: "drop the '/public/' prefix — Vite serves src/web/public/ at root, so 'url(/foo.svg)' is correct",
 		},
 	];
 }
 
 /**
- * Vite plugin that fixes public asset paths and rewrites to CDN URLs
- *
- * Rewrites all public asset paths to CDN URLs in production.
- *
- * @example
- * // In vite config:
- * plugins: [publicAssetPathPlugin({ cdnBaseUrl: 'https://cdn.example.com/deploy/client/' })]
- *
- * // In code, use /public/ paths:
- * <img src="/public/logo.svg" />
- *
- * // Transforms in production:
- * // '/public/logo.svg' → 'https://cdn.example.com/deploy/client/logo.svg'
+ * Build a single diagnostic message for a file containing one or more
+ * violations. The message lists each violation once; the user fixes the
+ * file and re-runs.
  */
-export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}): Plugin {
-	const { warnInDev = true, cdnBaseUrl } = options;
+function formatDiagnostic(id: string, hits: { description: string; fix: string }[]): string {
+	const header = `Incorrect Vite public-asset path(s) in ${id}:`;
+	const body = hits.map((h) => `  - ${h.description} — ${h.fix}`).join('\n');
+	const trailer =
+		'\nSee https://vitejs.dev/guide/assets for the recommended Vite asset conventions.';
+	return `${header}\n${body}${trailer}`;
+}
 
-	let isDev = false;
-	const warnedFiles = new Map<string, Set<string>>(); // file -> set of patterns warned
+export function publicAssetPathPlugin(options: PublicAssetPathPluginOptions = {}): Plugin {
+	// Track per-file diagnostics so we do not re-report the same violations on
+	// every HMR update in dev mode.
+	const reportedFiles = new Map<string, Set<string>>();
+
+	// Resolved at configResolved time so the behaviour can differ between
+	// `vite serve` and `vite build` without the caller having to pass a flag.
+	let errorOnViolation = options.errorOnViolation ?? true;
 
 	return {
-		name: 'agentuity:public-asset-path',
+		name: 'agentuity:public-asset-path-lint',
 
 		configResolved(config) {
-			isDev = config.command === 'serve';
+			if (options.errorOnViolation === undefined) {
+				errorOnViolation = config.command === 'build';
+			}
 		},
 
 		transform(code, id) {
-			// Only transform files in src/web (browser code)
+			// Only lint source files under src/web/. Node_modules, virtual
+			// modules, and non-web source are out of scope.
 			if (!id.includes('/src/web/') && !id.includes('\\src\\web\\')) {
 				return null;
 			}
 
-			// Quick check: does the code contain any patterns we care about?
-			const hasIncorrectSourcePaths = code.includes('src/web/public/');
-			const hasPublicPaths = code.includes('/public/') || code.includes('./public/');
-
-			if (!hasIncorrectSourcePaths && !hasPublicPaths) {
+			// Cheap substring precheck to avoid running the full pattern set on
+			// every file (most files contain no public-dir references at all).
+			if (
+				!code.includes('src/web/public/') &&
+				!code.includes('/public/') &&
+				!code.includes('./public/')
+			) {
 				return null;
 			}
 
-			// In dev mode, only warn about incorrect source paths (src/web/public/)
-			// /public/ and ./public/ paths work correctly in dev mode
-			if (isDev) {
-				if (warnInDev && hasIncorrectSourcePaths) {
-					const patterns = createIncorrectPatterns();
-					const foundPatterns: string[] = [];
+			const patterns = createLintPatterns();
+			const hits: { description: string; fix: string }[] = [];
+			const seen = new Set<string>();
 
-					for (const { regex, description } of patterns) {
-						if (regex.test(code)) {
-							foundPatterns.push(description);
-						}
-					}
-
-					if (foundPatterns.length > 0) {
-						const fileWarnings = warnedFiles.get(id) || new Set();
-						const newWarnings = foundPatterns.filter((p) => !fileWarnings.has(p));
-
-						if (newWarnings.length > 0) {
-							for (const p of newWarnings) {
-								fileWarnings.add(p);
-							}
-							warnedFiles.set(id, fileWarnings);
-
-							this.warn(
-								`Found incorrect asset path(s) in ${id}:\n` +
-									newWarnings.map((p) => `  - '${p}' should be '/public/'`).join('\n') +
-									`\nUse '/public/...' paths for static assets.`
-							);
-						}
-					}
-				}
-				// In dev mode, never transform - Vite serves from source paths
-				// and the Bun server proxies /public/* to Vite
-				return null;
-			}
-
-			// Build mode: transform paths to CDN URLs
-			let transformed = code;
-
-			// Determine target URL: CDN base if provided, otherwise /public/
-			const targetBase = cdnBaseUrl
-				? cdnBaseUrl.endsWith('/')
-					? cdnBaseUrl
-					: `${cdnBaseUrl}/`
-				: '/public/';
-
-			// Transform incorrect source paths (src/web/public/) → CDN
-			if (hasIncorrectSourcePaths) {
-				const patterns = createIncorrectPatterns();
-				for (const { regex, replacement } of patterns) {
-					const replaceRegex = new RegExp(regex.source, regex.flags);
-					transformed = transformed.replace(
-						replaceRegex,
-						replacement.replace('{base}', targetBase)
-					);
+			for (const { regex, description, fix } of patterns) {
+				// Fresh regex per file — global regex state leaks across exec()
+				// calls otherwise.
+				const re = new RegExp(regex.source, regex.flags);
+				if (re.test(code) && !seen.has(description)) {
+					hits.push({ description, fix });
+					seen.add(description);
 				}
 			}
 
-			// Transform public paths → CDN
-			if (hasPublicPaths) {
-				const publicPatterns = createPublicPatterns();
-				for (const { regex, replacement } of publicPatterns) {
-					const replaceRegex = new RegExp(regex.source, regex.flags);
-					transformed = transformed.replace(
-						replaceRegex,
-						replacement.replace('{base}', targetBase)
-					);
-				}
-			}
+			if (hits.length === 0) return null;
 
-			// Return transformed code if changed
-			if (transformed !== code) {
-				return {
-					code: transformed,
-					map: null,
-				};
-			}
+			// Deduplicate reports per file: only report a pattern the first time
+			// we see it in this file. This matters in dev (HMR reloads call
+			// transform() repeatedly) and is harmless in build mode.
+			const previously = reportedFiles.get(id) ?? new Set<string>();
+			const fresh = hits.filter((h) => !previously.has(h.description));
+			if (fresh.length === 0) return null;
+			for (const h of fresh) previously.add(h.description);
+			reportedFiles.set(id, previously);
 
+			const message = formatDiagnostic(id, fresh);
+			if (errorOnViolation) {
+				// `this.error` aborts the build with a pointer to the offending
+				// file. In dev this surfaces as an overlay in the browser.
+				this.error(message);
+			} else {
+				this.warn(message);
+			}
 			return null;
 		},
 	};
