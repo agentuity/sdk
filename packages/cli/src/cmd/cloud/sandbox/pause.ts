@@ -9,6 +9,12 @@ const SandboxPauseResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	sandboxId: z.string().describe('Sandbox ID'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
+	terminatesAt: z
+		.string()
+		.optional()
+		.describe(
+			'ISO 8601 timestamp when sandbox will auto-terminate if not resumed (omitted if no paused timeout)'
+		),
 });
 
 export const pauseSubcommand = createCommand({
@@ -42,17 +48,27 @@ export const pauseSubcommand = createCommand({
 
 		const client = createSandboxClient(logger, auth, sandboxInfo.region);
 
-		await sandboxPause(client, { sandboxId: args.sandboxId, orgId: sandboxInfo.orgId });
+		const result = await sandboxPause(client, {
+			sandboxId: args.sandboxId,
+			orgId: sandboxInfo.orgId,
+		});
 		const durationMs = Date.now() - started;
 
 		if (!options.json) {
 			tui.success(`paused sandbox ${tui.bold(args.sandboxId)} in ${durationMs}ms`);
+			if (result.terminatesAt) {
+				const terminateDate = new Date(result.terminatesAt);
+				tui.info(
+					`this sandbox will auto-terminate at ${tui.bold(terminateDate.toLocaleString())} if not resumed`
+				);
+			}
 		}
 
 		return {
 			success: true,
 			sandboxId: args.sandboxId,
 			durationMs,
+			terminatesAt: result.terminatesAt,
 		};
 	},
 });

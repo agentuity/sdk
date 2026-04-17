@@ -112,6 +112,10 @@ export const SandboxInfoSchema = z
 					.string()
 					.optional()
 					.describe('Execution timeout duration (e.g., "30m", "2h").'),
+				paused: z
+					.string()
+					.optional()
+					.describe('Paused timeout duration (e.g., "24h", "0s" for infinite).'),
 			})
 			.optional()
 			.describe('Timeout configuration for the sandbox.'),
