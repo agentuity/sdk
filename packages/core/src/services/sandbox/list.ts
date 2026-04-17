@@ -229,6 +229,7 @@ export async function sandboxList(
 				networkPort: s.networkPort,
 				url: s.url,
 				org: s.org,
+				timeout: s.timeout,
 			})),
 			total: resp.data.total,
 		};

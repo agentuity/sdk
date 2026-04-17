@@ -53,7 +53,7 @@ export const SandboxCreateRequestSchema = z
 					.string()
 					.optional()
 					.describe(
-						'Maximum time sandbox can remain paused before termination (e.g., "24h", "0" for infinite)'
+						'Maximum time sandbox can remain paused before termination (e.g., "24h", "0s" for infinite)'
 					),
 			})
 			.optional()

@@ -58,9 +58,13 @@ export const pauseSubcommand = createCommand({
 			tui.success(`paused sandbox ${tui.bold(args.sandboxId)} in ${durationMs}ms`);
 			if (result.terminatesAt) {
 				const terminateDate = new Date(result.terminatesAt);
-				tui.info(
-					`this sandbox will auto-terminate at ${tui.bold(terminateDate.toLocaleString())} if not resumed`
-				);
+				if (!Number.isNaN(terminateDate.getTime())) {
+					tui.info(
+						`this sandbox will auto-terminate at ${tui.bold(terminateDate.toLocaleString())} if not resumed`
+					);
+				} else {
+					tui.info('this sandbox has a paused timeout and will auto-terminate if not resumed');
+				}
 			}
 		}
 
