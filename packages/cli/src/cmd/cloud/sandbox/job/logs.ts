@@ -121,6 +121,7 @@ export const logsSubcommand = createSubcommand({
 				tail: opts.tail,
 				json: isJson,
 				label: opts.stderr ? 'stderr' : 'stdout',
+				v2: true,
 			});
 
 			return {
