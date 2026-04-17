@@ -7,6 +7,7 @@ import { getCommand } from '../../../command-prefix';
 import { sandboxRun } from '@agentuity/server';
 import { validateAptDependencies } from '../../../utils/apt-validator';
 import { ErrorCode } from '../../../errors';
+import { fstatSync, statSync } from 'node:fs';
 
 const SandboxRunResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
@@ -14,6 +15,17 @@ const SandboxRunResponseSchema = z.object({
 	durationMs: z.number().describe('Duration in milliseconds'),
 	output: z.string().optional().describe('Combined stdout/stderr output'),
 });
+
+function detectNullStream(fd: number): boolean {
+	try {
+		const fdStat = fstatSync(fd);
+		const nullPath = process.platform === 'win32' ? 'NUL' : '/dev/null';
+		const nullStat = statSync(nullPath);
+		return fdStat.dev === nullStat.dev && fdStat.ino === nullStat.ino;
+	} catch {
+		return false;
+	}
+}
 
 export const runSubcommand = createCommand({
 	name: 'run',
@@ -59,6 +71,11 @@ export const runSubcommand = createCommand({
 				.default(false)
 				.optional()
 				.describe('Include timestamps in output (default: true)'),
+			quiet: z
+				.boolean()
+				.default(false)
+				.optional()
+				.describe('Suppress output (do not create stdout/stderr streams)'),
 			snapshot: z.string().optional().describe('Snapshot ID or tag to restore from'),
 			dependency: z
 				.array(z.string())
@@ -149,13 +166,45 @@ export const runSubcommand = createCommand({
 		// Determine if we have stdin data (not a TTY means piped input)
 		const hasStdin = !process.stdin.isTTY;
 
-		// For JSON output, we need to capture output instead of streaming to process
-		const stdout = options.json
-			? createCaptureStream((chunk) => outputChunks.push(chunk))
-			: process.stdout;
-		const stderr = options.json
-			? createCaptureStream((chunk) => outputChunks.push(chunk))
-			: process.stderr;
+		// Detect if stdout/stderr are redirected to /dev/null
+		const stdoutIsNull = detectNullStream(1);
+		const stderrIsNull = detectNullStream(2);
+
+		// Detect stream configuration based on TTY status and flags
+		const streamConfig: {
+			timestamps?: boolean;
+			stdin?: string;
+			stdout?: string;
+			stderr?: string;
+		} = {
+			timestamps: opts.timestamps,
+			// Skip stdin stream when no stdin data available
+			stdin: hasStdin ? undefined : 'ignore',
+		};
+
+		// --quiet: suppress all output streams
+		if (opts.quiet) {
+			streamConfig.stdout = 'ignore';
+			streamConfig.stderr = 'ignore';
+		} else {
+			// Auto-detect /dev/null redirection
+			if (stdoutIsNull) {
+				streamConfig.stdout = 'ignore';
+			}
+			if (stderrIsNull) {
+				streamConfig.stderr = 'ignore';
+			}
+		}
+
+		// For JSON output or quiet mode, we need to capture output instead of streaming to process
+		const stdout =
+			options.json || opts.quiet || stdoutIsNull
+				? createCaptureStream((chunk) => outputChunks.push(chunk))
+				: process.stdout;
+		const stderr =
+			options.json || opts.quiet || stderrIsNull
+				? createCaptureStream((chunk) => outputChunks.push(chunk))
+				: process.stderr;
 
 		try {
 			const result = await sandboxRun(client, {
@@ -180,7 +229,7 @@ export const runSubcommand = createCommand({
 					network: opts.network ? { enabled: true } : undefined,
 					timeout: opts.timeout ? { execution: opts.timeout } : undefined,
 					env: Object.keys(envMap).length > 0 ? envMap : undefined,
-					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
+					stream: streamConfig,
 					snapshot: opts.snapshot,
 					dependencies: opts.dependency,
 					scopes: opts.scope,
