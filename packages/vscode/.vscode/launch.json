@@ -7,7 +7,7 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"${workspaceFolder}/../../apps/testing/auth-app"
+				"${workspaceFolder}/../../tests/integration/standalone-backend"
 			],
 			"outFiles": ["${workspaceFolder}/dist/**/*.js"],
 			"preLaunchTask": "bun: compile"
@@ -18,7 +18,7 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"${workspaceFolder}/../../apps/testing/auth-app"
+				"${workspaceFolder}/../../tests/integration/standalone-backend"
 			],
 			"outFiles": ["${workspaceFolder}/dist/**/*.js"]
 		}

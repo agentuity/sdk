@@ -31,7 +31,7 @@ When uncertain, look up:
 - **SDK Source**: https://github.com/agentuity/sdk/tree/main/packages
 - **Docs**: https://agentuity.dev
 - **Runtime**: https://github.com/agentuity/sdk/tree/main/packages/runtime/src
-- **Examples**: https://github.com/agentuity/sdk/tree/main/apps/testing/integration-suite
+- **Examples**: https://github.com/agentuity/sdk/tree/main/tests/integration/integration-suite
 
 ---
 

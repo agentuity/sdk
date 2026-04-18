@@ -1,0 +1,22 @@
+{
+	"name": "testing",
+	"version": "3.0.0-alpha.6",
+	"license": "Apache-2.0",
+	"private": true,
+	"scripts": {
+		"typecheck": "cd integration/integration-suite && bun run typecheck",
+		"typecheck:tanstack": "cd frameworks/tanstack-start && bun run typecheck",
+		"typecheck:nextjs": "cd frameworks/nextjs-app && bun run typecheck",
+		"typecheck:svelte": "cd frameworks/svelte-web && bun run typecheck",
+		"typecheck:all": "bun run typecheck && bun run typecheck:tanstack && bun run typecheck:nextjs && bun run typecheck:svelte",
+		"build": "cd integration/integration-suite && bun run build",
+		"build:tanstack": "cd frameworks/tanstack-start && bun run build",
+		"build:nextjs": "cd frameworks/nextjs-app && bun run build",
+		"build:svelte": "cd frameworks/svelte-web && bun run build",
+		"test": "cd integration/integration-suite && bun run test",
+		"test:frameworks": "bash ../scripts/test-framework-demos.sh",
+		"test:frameworks:tanstack": "bash ../scripts/test-framework-demos.sh --tanstack-only",
+		"test:frameworks:nextjs": "bash ../scripts/test-framework-demos.sh --nextjs-only",
+		"test:frameworks:svelte": "bash ../scripts/test-framework-demos.sh --svelte-only"
+	}
+}

@@ -127,7 +127,7 @@ Examples are for **demonstration and documentation**, not for automated testing.
 For testing:
 
 - **Unit tests** - See `packages/runtime/test/`
-- **Integration tests** - See `apps/testing/auth-app/test/`
+- **Integration tests** - See `tests/integration/standalone-backend/test/`
 
 ## Contributing
 
@@ -170,4 +170,4 @@ When adding a new example:
 
 - [Agentuity Documentation](https://agentuity.com/docs)
 - [SDK Reference](../packages/)
-- [Test Apps](../apps/testing/) - Integration testing examples
+- [Test Apps](../tests/) - Integration testing examples

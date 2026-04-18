@@ -103,7 +103,7 @@ if [ "$RUN_TANSTACK" = true ]; then
 	
 	# Start TanStack app
 	echo "Starting TanStack app..."
-	cd "$SDK_ROOT/apps/testing/tanstack-start"
+	cd "$SDK_ROOT/tests/frameworks/tanstack-start"
 	bun run dev &
 	TANSTACK_PID=$!
 	
@@ -136,7 +136,7 @@ if [ "$RUN_NEXTJS" = true ]; then
 	
 	# Start Next.js app
 	echo "Starting Next.js app..."
-	cd "$SDK_ROOT/apps/testing/nextjs-app"
+	cd "$SDK_ROOT/tests/frameworks/nextjs-app"
 	bun run dev &
 	NEXTJS_PID=$!
 	
@@ -169,7 +169,7 @@ if [ "$RUN_SVELTE" = true ]; then
 	
 	# Start SvelteKit app
 	echo "Starting SvelteKit app..."
-	cd "$SDK_ROOT/apps/testing/svelte-web"
+	cd "$SDK_ROOT/tests/frameworks/svelte-web"
 	bun run dev &
 	SVELTE_PID=$!
 	

@@ -115,8 +115,7 @@ For config files:
 
 This utility is used by:
 
-- `sdk/apps/testing/integration-suite/app.ts`
-- `sdk/apps/testing/cloud-deployment/app.ts`
+- `sdk/tests/integration/integration-suite/app.ts`
 
 It reuses existing infrastructure from the CLI:
 
@@ -149,7 +148,7 @@ To verify it works:
 export AGENTUITY_PROFILE=local
 
 # Build and run
-cd sdk/apps/testing/integration-suite
+cd sdk/tests/integration/integration-suite
 bun run build
 cd .agentuity && bun run app.js
 

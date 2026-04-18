@@ -93,7 +93,7 @@ Use `@agentuity` in GitHub Copilot Chat to get help with your agents:
 
 1. **Agentuity CLI installed globally**: `bun install -g @agentuity/cli`
 2. **Logged in to Agentuity**: `agentuity auth login`
-3. **A test project**: The `apps/testing/auth-app` directory is a good test project
+3. **A test project**: The `tests/integration/standalone-backend` directory is a good test project
 
 ### Setup
 
@@ -108,7 +108,7 @@ bun run compile
 
 1. Open the `packages/vscode` folder in VSCode (or the SDK root)
 2. Press `F5` to launch the Extension Development Host
-3. In the new VSCode window, open an Agentuity project folder (e.g., `apps/testing/auth-app`)
+3. In the new VSCode window, open an Agentuity project folder (e.g., `tests/integration/standalone-backend`)
 4. The Agentuity sidebar should appear with Agents, Deployments, Sessions, and Data panels
 
 ### Testing Features

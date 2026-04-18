@@ -85,7 +85,7 @@ Rules for large files:
 1. **SDK repo source code** — https://github.com/agentuity/sdk (PRIMARY for code)
    - Runtime: https://github.com/agentuity/sdk/tree/main/packages/runtime/src
    - Core types: https://github.com/agentuity/sdk/tree/main/packages/core/src
-   - Examples: https://github.com/agentuity/sdk/tree/main/apps/testing/integration-suite
+   - Examples: https://github.com/agentuity/sdk/tree/main/tests/integration/integration-suite
 2. **CLI help** — \`agentuity <cmd> --help\` for exact flags
 3. **agentuity.dev** — For conceptual explanations (verify code against SDK source)
 

@@ -30,5 +30,5 @@
 		{ "path": "./packages/vscode" },
 		{ "path": "./packages/webhook" }
 	],
-	"exclude": ["e2e", "test-results", "playwright-report"]
+	"exclude": ["tests", "test-results", "playwright-report"]
 }

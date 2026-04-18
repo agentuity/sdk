@@ -3,10 +3,12 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright configuration for testing framework integration demos.
  * Tests TanStack Start, Next.js, and SvelteKit apps with Agentuity integration.
+ *
+ * Specs live colocated with each app under tests/frameworks/<app>/tests/e2e.pw.ts.
  */
 export default defineConfig({
-	testDir: './e2e/frameworks',
-	testMatch: '**/*.pw.ts',
+	testDir: './tests/frameworks',
+	testMatch: '**/tests/e2e.pw.ts',
 	fullyParallel: false,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
@@ -19,7 +21,7 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'tanstack',
-			testMatch: 'tanstack.pw.ts',
+			testMatch: 'tanstack-start/tests/e2e.pw.ts',
 			use: {
 				...devices['Desktop Chrome'],
 				baseURL: 'http://localhost:3000',
@@ -27,7 +29,7 @@ export default defineConfig({
 		},
 		{
 			name: 'nextjs',
-			testMatch: 'nextjs.pw.ts',
+			testMatch: 'nextjs-app/tests/e2e.pw.ts',
 			use: {
 				...devices['Desktop Chrome'],
 				baseURL: 'http://localhost:3000',
@@ -35,7 +37,7 @@ export default defineConfig({
 		},
 		{
 			name: 'svelte',
-			testMatch: 'svelte.pw.ts',
+			testMatch: 'svelte-web/tests/e2e.pw.ts',
 			use: {
 				...devices['Desktop Chrome'],
 				baseURL: 'http://localhost:3000',
