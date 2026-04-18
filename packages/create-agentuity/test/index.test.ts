@@ -1,6 +1,5 @@
-#!/usr/bin/env bun test
-import { describe, test, expect } from 'bun:test';
-import { getCliVersionSpecifier } from './bin.js';
+import { describe, expect, test } from 'bun:test';
+import { getCliVersionSpecifier } from '../src/index.ts';
 
 describe('getCliVersionSpecifier', () => {
 	describe('prerelease versions use the prerelease tag', () => {

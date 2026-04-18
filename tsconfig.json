@@ -9,6 +9,7 @@
 		{ "path": "./packages/coder" },
 		{ "path": "./packages/coder-tui" },
 		{ "path": "./packages/core" },
+		{ "path": "./packages/create-agentuity" },
 		{ "path": "./packages/db" },
 		{ "path": "./packages/drizzle" },
 		{ "path": "./packages/email" },

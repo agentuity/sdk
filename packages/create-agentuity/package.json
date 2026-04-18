@@ -5,16 +5,28 @@
 	"author": "Agentuity employees and contributors",
 	"description": "Create a new Agentuity project",
 	"type": "module",
-	"bin": {
-		"create-agentuity": "./bin.js"
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
 	},
-	"scripts": {
-		"build": "echo 'No build required'",
-		"test": "bun test bin.test.js"
+	"bin": {
+		"create-agentuity": "./dist/bin.js"
 	},
 	"files": [
-		"bin.js"
+		"dist",
+		"README.md"
 	],
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
 	"keywords": [
 		"agentuity",
 		"create",
@@ -22,8 +34,9 @@
 		"scaffold",
 		"bun"
 	],
-	"dependencies": {
-		"@agentuity/cli": "latest"
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5.9.0"
 	},
 	"publishConfig": {
 		"access": "public"
