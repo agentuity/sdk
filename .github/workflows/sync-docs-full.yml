@@ -12,7 +12,7 @@ jobs:
          - name: Collect all files
            run: |
               set -euo pipefail
-              ./apps/docs/bin/collect-all-files.sh > all-files.txt
+              ./docs/bin/collect-all-files.sh > all-files.txt
 
               echo "Files to sync:"
               cat all-files.txt
@@ -24,7 +24,7 @@ jobs:
            run: |
               set -euo pipefail
               cat all-files.txt | \
-                ./apps/docs/bin/send-batched.sh \
+                ./docs/bin/send-batched.sh \
                   "${{ github.repository }}" \
                   full \
                   "$DOCS_WEBHOOK_URL" \

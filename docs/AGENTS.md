@@ -1,4 +1,4 @@
-# Agent Guidelines for SDK Explorer (apps/docs)
+# Agent Guidelines for SDK Explorer (docs)
 
 ## Overview
 
@@ -9,7 +9,7 @@ Interactive showcase of the Agentuity v1 SDK. This app serves as:
 - Testing ground for new features
 - Cloud sandbox execution environment for live code demos
 
-**Location**: `sdk/apps/docs/`
+**Location**: `sdk/docs/`
 
 ## Commands
 
@@ -32,7 +32,7 @@ This app demonstrates:
 ## Directory Structure
 
 ```text
-apps/docs/
+docs/
 ├── src/
 │   ├── agent/              # Agent implementations
 │   │   ├── hello/          # Basic greeting agent

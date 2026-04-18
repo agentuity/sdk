@@ -6,7 +6,7 @@ set -euo pipefail
 # mode: "incremental" (default) or "full"
 # Must be run from the repo root.
 
-CONTENT_DIR="apps/docs/src/web/content"
+CONTENT_DIR="docs/src/web/content"
 
 usage() {
     echo "Usage: $0 <repo_name> [mode]" >&2

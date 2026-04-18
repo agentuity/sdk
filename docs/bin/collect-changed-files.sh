@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # collect-changed-files.sh <before_commit> <after_commit>
-# Outputs newline-separated list of changed MDX files (relative to apps/docs/src/web/content/)
+# Outputs newline-separated list of changed MDX files (relative to docs/src/web/content/)
 # Files prefixed with REMOVED: were deleted.
 # Must be run from the repo root.
 
-CONTENT_DIR="apps/docs/src/web/content"
+CONTENT_DIR="docs/src/web/content"
 
 usage() {
     echo "Usage: $0 <before_commit> <after_commit>" >&2

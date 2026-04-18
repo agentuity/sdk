@@ -3,10 +3,10 @@ set -euo pipefail
 trap "" PIPE
 
 # collect-all-files.sh
-# Outputs newline-separated list of all MDX files (relative to apps/docs/src/web/content/)
+# Outputs newline-separated list of all MDX files (relative to docs/src/web/content/)
 # Must be run from the repo root.
 
-CONTENT_DIR="apps/docs/src/web/content"
+CONTENT_DIR="docs/src/web/content"
 
 echo "Collecting all MDX files for full sync" >&2
 
