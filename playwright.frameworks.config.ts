@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Playwright configuration for testing framework integration demos.
- * Tests TanStack Start and Next.js apps with Agentuity integration.
+ * Tests TanStack Start, Next.js, and SvelteKit apps with Agentuity integration.
  */
 export default defineConfig({
 	testDir: './e2e/frameworks',
@@ -28,6 +28,14 @@ export default defineConfig({
 		{
 			name: 'nextjs',
 			testMatch: 'nextjs.pw.ts',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: 'http://localhost:3000',
+			},
+		},
+		{
+			name: 'svelte',
+			testMatch: 'svelte.pw.ts',
 			use: {
 				...devices['Desktop Chrome'],
 				baseURL: 'http://localhost:3000',

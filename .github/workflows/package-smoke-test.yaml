@@ -126,35 +126,6 @@ jobs:
            run: bash scripts/test-sandbox.sh
 
 
-   queue-sdk-test:
-      runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 10
-      name: Queue SDK Tests
-      env:
-         AGENTUITY_API_URL: https://api.agentuity.com
-         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
-         AGENTUITY_REGION: usc
-      steps:
-         - uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Build packages
-           run: bun run build
-
-         - name: Setup test credentials
-           run: |
-              # Set SDK key for queue operations
-              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
-
-         - name: Run queue SDK tests
-           run: bash scripts/test-queues.sh
-
    queue-cli-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10

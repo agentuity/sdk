@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Framework apps to test (directory name under apps/testing/)
-ALL_APPS=(tanstack-start nextjs-app vite-react-app)
+ALL_APPS=(tanstack-start nextjs-app vite-react-app svelte-web)
 SELECTED_APP=""
 
 while [[ $# -gt 0 ]]; do
