@@ -10,7 +10,7 @@ SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "╔════════════════════════════════════════════════╗"
 echo "║  Framework Demo Tests                          ║"
-echo "║  TanStack & Next.js & Vite RSC                 ║"
+echo "║  TanStack & Next.js                            ║"
 echo "║  (via agentuity dev)                           ║"
 echo "╚════════════════════════════════════════════════╝"
 echo ""
@@ -18,24 +18,16 @@ echo ""
 # Parse arguments
 RUN_TANSTACK=true
 RUN_NEXTJS=true
-RUN_VITE_RSC=true
 SKIP_BUILD=false
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--tanstack-only)
 			RUN_NEXTJS=false
-			RUN_VITE_RSC=false
 			shift
 			;;
 		--nextjs-only)
 			RUN_TANSTACK=false
-			RUN_VITE_RSC=false
-			shift
-			;;
-		--vite-rsc-only)
-			RUN_TANSTACK=false
-			RUN_NEXTJS=false
 			shift
 			;;
 		--skip-build)
@@ -58,9 +50,6 @@ cleanup() {
 	fi
 	if [ -n "$NEXTJS_PID" ]; then
 		kill $NEXTJS_PID 2>/dev/null || true
-	fi
-	if [ -n "$VITE_RSC_PID" ]; then
-		kill $VITE_RSC_PID 2>/dev/null || true
 	fi
 	# Kill any remaining processes on the port
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
@@ -157,43 +146,6 @@ if [ "$RUN_NEXTJS" = true ]; then
 	echo ""
 	echo "✓ Next.js tests completed"
 	echo ""
-fi
-
-# Run Vite RSC tests
-if [ "$RUN_VITE_RSC" = true ]; then
-	if [ ! -d "$SDK_ROOT/apps/testing/vite-rsc-app" ]; then
-		echo "⚠ Skipping Vite RSC tests (apps/testing/vite-rsc-app not found)"
-		echo ""
-	else
-		echo "═══════════════════════════════════════════════"
-		echo "  Testing Vite RSC + Agentuity"
-		echo "═══════════════════════════════════════════════"
-		echo ""
-		
-		# Start Vite RSC app
-		echo "Starting Vite RSC app..."
-		cd "$SDK_ROOT/apps/testing/vite-rsc-app"
-		bun run dev &
-		VITE_RSC_PID=$!
-		
-		# Wait for web server
-		wait_for_server "http://localhost:3000" "Vite RSC (3000)"
-		
-		# Run Playwright tests for Vite RSC
-		echo ""
-		echo "Running Playwright tests for Vite RSC..."
-		cd "$SDK_ROOT"
-		bun run playwright test --config=playwright.frameworks.config.ts --project=vite-rsc
-		
-		# Stop Vite RSC
-		kill $VITE_RSC_PID 2>/dev/null || true
-		VITE_RSC_PID=""
-		lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-		
-		echo ""
-		echo "✓ Vite RSC tests completed"
-		echo ""
-	fi
 fi
 
 echo "╔════════════════════════════════════════════════╗"

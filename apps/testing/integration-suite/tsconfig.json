@@ -8,8 +8,7 @@
 		"skipLibCheck": true,
 		"paths": {
 			"@agents/*": ["./src/agent/*"],
-			"@test/*": ["./src/test/*"],
-			"@agentuity/frontend": ["./node_modules/@agentuity/frontend"]
+			"@test/*": ["./src/test/*"]
 		}
 	},
 	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
