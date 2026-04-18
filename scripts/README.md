@@ -7,16 +7,14 @@
 Run the full CI test suite locally:
 
 ```bash
-# Run all CI tests (integration + e2e, optimized - builds once)
+# Run the integration suite (optimized - builds once)
 bun run test:ci
 
-# Run all tests including cloud (needs credentials)
+# Alias for the full CI suite
 bun run test:ci:all
 
-# Or run individual test suites (each builds+packs separately)
-bun run test:ci:integration  # Integration suite only
-bun run test:ci:cloud        # Cloud deployment only
-bun run test:ci:e2e          # E2E web tests only
+# Integration suite only (builds+packs standalone)
+bun run test:ci:integration
 ```
 
 **Optimized workflow** (faster - prepare once, test many):
@@ -27,8 +25,6 @@ bun run test:ci:prepare
 
 # 2. Run tests (reuses prepared SDK)
 bash scripts/run-integration-tests.sh
-bash scripts/run-cloud-tests.sh
-bash scripts/run-e2e-tests.sh
 ```
 
 These commands run **exactly** what CI runs - same scripts, same steps. Use them to reproduce CI failures locally.
@@ -109,26 +105,10 @@ bash scripts/run-integration-tests.sh
 - Installs in integration-suite
 - Runs tests
 
-**`run-cloud-tests.sh`** - Run cloud tests only
-
-```bash
-bash scripts/run-cloud-tests.sh
-```
-
-- Validates tarballs exist
-- Installs in cloud-deployment
-- Runs tests
-
-**`run-e2e-tests.sh`** - Run E2E tests only
-
-```bash
-bash scripts/run-e2e-tests.sh
-```
-
-- Validates tarballs exist
-- Installs in e2e-web
-- Builds e2e-web app
-- Runs Playwright tests
+> **Note:** A Playwright-based E2E suite is planned but not yet rewritten for
+> v3. The root `e2e/` directory and `run-e2e-tests.sh` were removed; see
+> project memory for the rebuild plan. Framework integration demos
+> (tanstack / nextjs) still run via `scripts/test-framework-demos.sh`.
 
 ### Full CI Test Runners (Standalone)
 
@@ -146,31 +126,6 @@ bash scripts/test-integration-suite.sh
 2. Pack as tarballs
 3. Install in integration-suite
 4. Run integration tests
-
-**`test-cloud-deployment.sh`** - Cloud deployment full CI flow
-
-```bash
-bash scripts/test-cloud-deployment.sh
-# Or: bun run test:ci:cloud
-```
-
-1. Build SDK packages
-2. Pack as tarballs
-3. Install in cloud-deployment
-4. Run cloud deployment tests
-
-**`test-e2e.sh`** - E2E web tests full CI flow
-
-```bash
-bash scripts/test-e2e.sh
-# Or: bun run test:ci:e2e
-```
-
-1. Build SDK packages
-2. Pack as tarballs
-3. Install in e2e-web
-4. Build e2e-web app
-5. Run Playwright tests
 
 ## Local Development Workflow
 
@@ -194,13 +149,11 @@ bun run test
 Test exactly as CI will test (and as users will experience):
 
 ```bash
-# Run full CI workflow for all test suites
+# Run full CI workflow
 bun run test:ci
 
-# Or run individual test suites
-bun run test:ci:integration  # Integration suite
-bun run test:ci:cloud        # Cloud deployment
-bun run test:ci:e2e          # E2E web tests
+# Or run the integration suite explicitly
+bun run test:ci:integration
 ```
 
 **Pros:** True production parity, catches packaging bugs, reproducible CI failures  
