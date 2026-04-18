@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 
 describe('nextjs-app', () => {
 	// Next.js apps can't be tested with direct fetch like Hono.
@@ -18,6 +18,21 @@ describe('nextjs-app', () => {
 		const page = await import('../app/page.tsx');
 		expect(page.default).toBeDefined();
 	});
+
+	test('app/about/page.tsx exists', async () => {
+		const page = await import('../app/about/page.tsx');
+		expect(page.default).toBeDefined();
+	});
+
+	test('app/api/translate/route.ts exports POST', async () => {
+		const route = await import('../app/api/translate/route.ts');
+		expect(typeof route.POST).toBe('function');
+	});
+
+	test('app/api/health/route.ts exports GET', async () => {
+		const route = await import('../app/api/health/route.ts');
+		expect(typeof route.GET).toBe('function');
+	});
 });
 
 describe.skip('deploy', () => {
@@ -33,6 +48,6 @@ describe.skip('deploy', () => {
 	});
 
 	test('deployed app serves pages and API routes', async () => {
-		// TODO: Hit /, /api/health, /api/echo
+		// TODO: Hit /, /about, /api/health, /api/translate
 	});
 });
