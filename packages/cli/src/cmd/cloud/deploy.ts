@@ -95,6 +95,21 @@ const DeployResponseSchema = z.object({
 		.describe('Deployment URLs'),
 });
 
+/**
+ * Render the final "Uploaded N assets ..." line after a successful CDN
+ * upload pass. Reports both the original and on-the-wire totals when gzip
+ * compressed at least one file, so the user can see the real transfer cost.
+ */
+function formatUploadSummary(count: number, rawBytes: number, transferredBytes: number): string {
+	const noun = tui.plural(count, 'asset', 'assets');
+	// When no compression happened (icons, fonts, binaries), rawBytes ===
+	// transferredBytes and the extra detail would just be noise.
+	if (transferredBytes === rawBytes) {
+		return `✓ Uploaded ${count} ${noun} (${tui.formatBytes(rawBytes)}) to CDN`;
+	}
+	return `✓ Uploaded ${count} ${noun} (${tui.formatBytes(transferredBytes)} on wire, ${tui.formatBytes(rawBytes)} raw) to CDN`;
+}
+
 export const deploySubcommand = createSubcommand({
 	name: 'deploy',
 	description: 'Deploy project to the Agentuity Cloud',
@@ -848,8 +863,12 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							progress(80);
-							let bytes = 0;
-							if (build?.assets) {
+							// Track both the raw on-disk size and the actual bytes we put on
+							// the wire. For gzipped assets these differ significantly; reporting
+							// the transferred total gives the user an honest view of CDN cost.
+							let rawBytes = 0;
+							let transferredBytes = 0;
+							if (build?.assets && build.assets.length > 0) {
 								// Start CDN upload diagnostic
 								const endCdnUploadDiagnostic = collector.startDiagnostic('cdn-upload');
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
@@ -863,31 +882,64 @@ export const deploySubcommand = createSubcommand({
 									return stepError(errorMsg);
 								}
 
-								// Process assets in batches with limited concurrency
-								const concurrency = Math.min(4, build.assets.length);
-								for (let i = 0; i < build.assets.length; i += concurrency) {
-									const batch = build.assets.slice(i, i + concurrency);
-									const promises: Promise<Response>[] = [];
-
-									for (const asset of batch) {
-										const assetUrl = instructions.assets[asset.filename];
-										if (!assetUrl) {
-											return stepError(
-												`server did not provide upload URL for asset "${asset.filename}"; upload aborted`
-											);
+								// Pre-flight: every asset the build emitted must have a signed
+								// PUT URL from the backend. Failing up-front gives a single
+								// clear error instead of aborting mid-batch with partial uploads.
+								for (const asset of build.assets) {
+									if (!instructions.assets[asset.filename]) {
+										const errorMsg = `server did not provide upload URL for asset "${asset.filename}"; upload aborted`;
+										collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
+										if (opts.reportFile) {
+											await collector.forceWrite();
 										}
+										return stepError(errorMsg);
+									}
+									rawBytes += asset.size;
+								}
 
-										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
+								// Track every temp gzip file we create so we can clean them up
+								// even if the deploy is aborted mid-upload (e.g. Ctrl+C).
+								const tempFiles = new Set<string>();
+								const cleanupTempFiles = () => {
+									for (const p of tempFiles) {
+										try {
+											unlinkSync(p);
+										} catch {
+											// ignore — may already be gone
+										}
+									}
+									tempFiles.clear();
+								};
+
+								// Hoist narrowed locals for use inside the async upload closure;
+								// TS doesn't propagate narrowings of `build` / `instructions`
+								// across async callbacks, and we've already null-checked both
+								// above.
+								const assets = build.assets;
+								const assetUrls = instructions.assets;
+
+								try {
+									// Upload each asset with bounded concurrency. gzip compression
+									// runs inside the per-asset task, so compressible files
+									// compress in parallel (up to `concurrency`) rather than
+									// serially — a meaningful win for builds with many JS/CSS
+									// chunks since gzip is single-threaded per call.
+									const uploadOne = async (
+										asset: (typeof assets)[number]
+									): Promise<void> => {
+										const assetUrl = assetUrls[asset.filename]!;
+										// Asset filename already includes the subdirectory
+										// (e.g., "client/assets/main-abc123.js").
 										const filePath = join(projectDir, '.agentuity', asset.filename);
 
 										const headers: Record<string, string> = {
 											'Content-Type': asset.contentType,
 										};
 
-										bytes += asset.size;
-
 										let body: Blob;
 										let gzTempPath: string | undefined;
+										let onWireSize = asset.size;
+
 										if (asset.contentEncoding === 'gzip') {
 											// Gzip to a temp file so Bun.file() can provide
 											// Content-Length to S3 (streaming bodies use chunked
@@ -896,6 +948,7 @@ export const deploySubcommand = createSubcommand({
 												tmpdir(),
 												`agentuity-asset-${deployment.id}-${Date.now()}-${asset.filename.replace(/\//g, '_')}.gz`
 											);
+											tempFiles.add(gzTempPath);
 											await pipeline(
 												createReadStream(filePath),
 												createGzip(),
@@ -903,57 +956,72 @@ export const deploySubcommand = createSubcommand({
 											);
 											headers['Content-Encoding'] = 'gzip';
 											body = Bun.file(gzTempPath);
-											const compressedSize = body.size;
+											onWireSize = body.size;
 											ctx.logger.trace(
-												`Gzip compressed ${asset.filename} (${asset.size} -> ${compressedSize} bytes)`
+												`Gzip compressed ${asset.filename} (${asset.size} -> ${onWireSize} bytes)`
 											);
 										} else {
 											body = Bun.file(filePath);
 										}
 
-										const assetGzTempPath = gzTempPath;
-										promises.push(
-											fetch(assetUrl, {
-												method: 'PUT',
-												headers,
-												body,
-												signal: stepCtx.signal,
-											}).then((response) => {
-												// Clean up temp gzip file after upload completes
-												if (assetGzTempPath) {
-													try {
-														unlinkSync(assetGzTempPath);
-													} catch {
-														// ignore — file may already be cleaned up
-													}
-												}
-												return response;
-											})
-										);
-									}
+										const response = await fetch(assetUrl, {
+											method: 'PUT',
+											headers,
+											body,
+											signal: stepCtx.signal,
+										});
 
-									const resps = await Promise.all(promises);
-									for (const r of resps) {
-										if (!r.ok) {
-											const errorMsg = `error uploading asset: ${await r.text()}`;
-											collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
-											if (opts.reportFile) {
-												await collector.forceWrite();
+										if (gzTempPath) {
+											try {
+												unlinkSync(gzTempPath);
+											} catch {
+												// ignore
 											}
-											return stepError(errorMsg);
+											tempFiles.delete(gzTempPath);
 										}
+
+										if (!response.ok) {
+											throw new Error(
+												`asset "${asset.filename}" upload failed: ${response.status} ${await response.text()}`
+											);
+										}
+
+										transferredBytes += onWireSize;
+									};
+
+									const concurrency = Math.min(4, assets.length);
+									for (let i = 0; i < assets.length; i += concurrency) {
+										const batch = assets.slice(i, i + concurrency);
+										await Promise.all(batch.map(uploadOne));
 									}
+								} catch (error) {
+									cleanupTempFiles();
+									const errorMsg = error instanceof Error ? error.message : String(error);
+									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
+									if (opts.reportFile) {
+										await collector.forceWrite();
+									}
+									return stepError(errorMsg);
 								}
-								ctx.logger.trace('Asset uploads complete');
+
+								ctx.logger.trace(
+									`Asset uploads complete: ${build.assets.length} files, raw=${rawBytes}B, on-wire=${transferredBytes}B`
+								);
 								endCdnUploadDiagnostic();
 								progress(95);
+							} else {
+								ctx.logger.debug('No assets to upload to CDN');
 							}
 
 							progress(100);
 							const output = build?.assets.length
 								? [
 										tui.muted(
-											`✓ Uploaded ${build.assets.length} ${tui.plural(build.assets.length, 'asset', 'assets')} (${tui.formatBytes(bytes)}) to CDN`
+											formatUploadSummary(
+												build.assets.length,
+												rawBytes,
+												transferredBytes
+											)
 										),
 									]
 								: undefined;
