@@ -101,6 +101,20 @@ export function transformRouteServices(
 		}
 	}
 
+	// Rewrite v2-era agent method calls in route files.
+	const agentRewrite = rewriteV2AgentMethods(output);
+	if (agentRewrite.changed) {
+		output = agentRewrite.source;
+		changes.push(...agentRewrite.changes);
+	}
+
+	// Stub out c.var.thread / c.var.sessionId — v2 concepts with no v3 replacement.
+	const stubRewrite = stubV2HonoContext(output);
+	if (stubRewrite.changed) {
+		output = stubRewrite.source;
+		changes.push(...stubRewrite.changes);
+	}
+
 	if (usage.accessPattern === 'c.var') {
 		// Replace c.var.serviceName patterns
 		// We need to handle various Hono context variable names: c, ctx, context
@@ -208,6 +222,89 @@ export function computeServicesRelativePath(projectDir: string, sourceFilePath: 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Rewrite v2-era agent method invocations to plain function calls in route
+ * files.
+ *
+ *   translate.run(data)   → translate(data)
+ *   translate.validator() → /* stripped above * /
+ *
+ * We also rewrite `c.req.valid('json')` → `await c.req.json()` — the former
+ * was the output of the v2 validator middleware that we stripped.
+ */
+export function rewriteV2AgentMethods(source: string): {
+	source: string;
+	changed: boolean;
+	changes: string[];
+} {
+	let output = source;
+	const changes: string[] = [];
+
+	// <agent>.run(x) → <agent>(x)
+	const before1 = output;
+	output = output.replace(
+		/\b([A-Za-z_$][A-Za-z0-9_$]*)\.run\(/g,
+		(_m, name: string) => `${name}(`
+	);
+	if (output !== before1) {
+		changes.push('Rewrote <agent>.run(…) → <agent>(…)');
+	}
+
+	// c.req.valid('json') → (await c.req.json())
+	const before2 = output;
+	output = output.replace(/\bc\.req\.valid\(\s*['"]json['"]\s*\)/g, '(await c.req.json())');
+	if (output !== before2) {
+		changes.push("Rewrote c.req.valid('json') → await c.req.json()");
+	}
+
+	return { source: output, changed: changes.length > 0, changes };
+}
+
+/**
+ * Stub out v2-era Hono context variables that no longer exist in v3.
+ *
+ * v3's Services interface only includes storage clients (kv, vector, stream,
+ * etc.). Thread state, sessionId, and app-level state were removed when v3
+ * dropped the createApp() abstraction.
+ */
+export function stubV2HonoContext(source: string): {
+	source: string;
+	changed: boolean;
+	changes: string[];
+} {
+	let output = source;
+	const changes = new Set<string>();
+
+	// c.var.thread.*  — stub out the whole chain as `(undefined as any)`.
+	//
+	// The chain can include:
+	//   • Dotted property access:       c.var.thread.state
+	//   • Generic type arguments:       .get<HistoryEntry[]>
+	//   • Call sites:                   .get<T>('key')
+	//   • Multiple chained calls:       .state.push(…).something()
+	//
+	// We do this greedily by chaining an alternation until we hit a terminator.
+	const before1 = output;
+	output = output.replace(
+		/c\.var\.thread(?:\.[A-Za-z0-9_$]+|<[^>]*>|\([^()]*\))*/g,
+		'(undefined as any) /* v3: c.var.thread removed */'
+	);
+	if (output !== before1) {
+		changes.add('Stubbed c.var.thread.* (removed in v3)');
+	}
+
+	const before2 = output;
+	output = output.replace(
+		/c\.var\.sessionId\b/g,
+		"('v3-no-session-id' as string) /* v3: c.var.sessionId removed */"
+	);
+	if (output !== before2) {
+		changes.add('Stubbed c.var.sessionId (removed in v3)');
+	}
+
+	return { source: output, changed: changes.size > 0, changes: [...changes] };
+}
 
 /**
  * Strip v2 validator middleware from a source string.

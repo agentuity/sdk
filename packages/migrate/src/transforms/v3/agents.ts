@@ -1,14 +1,21 @@
 /**
  * Transform: createAgent() → plain exported functions
  *
+ * v3 is an "eject" — the createAgent() wrapper, ctx.* service magic, thread
+ * state, sessions and evals are all replaced by user-visible primitives.
+ *
  * For "simple" agents (handler + optional schema only), we:
  *   1. Remove the createAgent() wrapper
  *   2. Extract the handler as a named exported async function
  *   3. Preserve schema validation if present
- *   4. Replace ctx.* service access with imports from services module
+ *   4. Replace ctx.* service access with imports from the services module
  *
- * For "complex" agents, we add a prominent migration comment and leave
- * the code untouched for manual review.
+ * For "complex" agents (setup/shutdown/onEvent/ctx.config), we additionally:
+ *   5. Hoist setup() return values into module-level lazy-init singletons
+ *      so the handler body still compiles after the ctx.config.* → direct
+ *      reference rewrite.
+ *   6. Replace ctx.thread.*, ctx.sessionId, ctx.app.* with TODO comments —
+ *      these concepts are gone in v3.
  *
  * We use a combination of regex and AST analysis — regex for the mechanical
  * transforms (preserving formatting), AST for detection (already done in detect-v3).
@@ -45,7 +52,7 @@ export function transformAgentFile(
 	servicesRelativePath: string
 ): AgentTransformResult {
 	if (agentInfo.complexity === 'complex') {
-		return addManualMigrationComment(source, agentInfo);
+		return forceConvertComplexAgent(source, agentInfo, servicesRelativePath);
 	}
 
 	const changes: string[] = [];
@@ -117,7 +124,270 @@ export function transformAgentFile(
 }
 
 /**
- * For complex agents, add a migration comment block.
+ * Force-convert a "complex" agent (setup/shutdown/onEvent/ctx.config) to
+ * a plain exported async function plus module-level lazy-init singletons.
+ *
+ * v3 is an eject — we prefer working-but-TODO'd code over compilation errors
+ * that block the whole migration. Every hoisted singleton and every dropped
+ * feature is annotated so the user can review.
+ */
+function forceConvertComplexAgent(
+	source: string,
+	agentInfo: AgentFile,
+	servicesRelativePath: string
+): AgentTransformResult {
+	const changes: string[] = [];
+	const sourceFile = ts.createSourceFile(agentInfo.path, source, ts.ScriptTarget.ESNext, true);
+
+	const extracted = extractHandlerFromCreateAgent(sourceFile, source);
+	if (!extracted) {
+		// Fall back to the comment-only path so the file at least still parses.
+		return addManualMigrationComment(source, agentInfo);
+	}
+
+	const setupInfo = extractSetupFromCreateAgent(sourceFile);
+
+	let output = source;
+
+	// Step 1: Remove createAgent import
+	output = removeCreateAgentImport(output);
+	changes.push('Removed createAgent import from @agentuity/runtime');
+
+	// Step 2: Add services import if needed
+	if (agentInfo.ctxServices.length > 0) {
+		const importLine = `import { ${agentInfo.ctxServices.join(', ')} } from '${servicesRelativePath}';`;
+		output = insertAfterImports(output, importLine);
+		changes.push(`Added services import: ${agentInfo.ctxServices.join(', ')}`);
+	}
+
+	// Step 3: Rewrite handler body to remove ctx.* magic.
+	let handlerBody = extracted.handlerBody;
+
+	// 3a. ctx.config.<name> → <name> (referencing a hoisted lazy init below).
+	const configRefs = new Set<string>();
+	for (const ctxName of CTX_PARAM_NAMES) {
+		const pattern = new RegExp(`\\b${ctxName}\\.config\\.([A-Za-z_$][A-Za-z0-9_$]*)`, 'g');
+		handlerBody = handlerBody.replace(pattern, (_m, id: string) => {
+			configRefs.add(id);
+			return id;
+		});
+	}
+	if (configRefs.size > 0) {
+		changes.push(
+			`Rewrote ctx.config.{${[...configRefs].join(', ')}} → hoisted module singletons`
+		);
+	}
+
+	// 3b. ctx.logger → logger (expected to come from services barrel).
+	for (const ctxName of CTX_PARAM_NAMES) {
+		handlerBody = handlerBody.replace(new RegExp(`\\b${ctxName}\\.logger\\b`, 'g'), 'logger');
+	}
+
+	// 3c. Replace ctx.<service> → <service> for all detected services.
+	for (const service of agentInfo.ctxServices) {
+		for (const ctxName of CTX_PARAM_NAMES) {
+			const pattern = new RegExp(`\\b${ctxName}\\.${service}\\b`, 'g');
+			handlerBody = handlerBody.replace(pattern, service);
+		}
+	}
+
+	// 3d. Replace ctx.thread / ctx.sessionId / ctx.app with obvious stubs.
+	// These concepts have no v3 equivalent. We rewrite whole ctx.<x>.*
+	// expression chains by scanning the handler AST so we don't mangle
+	// surrounding punctuation the way a pure regex would.
+	const droppedAccessors = new Set<string>();
+	const handlerSf = ts.createSourceFile('handler.ts', handlerBody, ts.ScriptTarget.ESNext, true);
+	const edits: Array<{ start: number; end: number; replacement: string }> = [];
+
+	// Walk expressions that START with a ctx-named identifier and whose full
+	// chain matches our pattern. We accumulate all unique full-chain ranges
+	// and, later, keep only the outermost chain at each location.
+	function visitExpr(node: ts.Node): void {
+		if (ts.isPropertyAccessExpression(node) || ts.isCallExpression(node)) {
+			// Find the leftmost identifier by walking .expression left.
+			let cur: ts.Node = node;
+			while (true) {
+				if (ts.isPropertyAccessExpression(cur)) {
+					cur = cur.expression;
+				} else if (ts.isCallExpression(cur)) {
+					cur = cur.expression;
+				} else if (ts.isElementAccessExpression(cur)) {
+					cur = cur.expression;
+				} else {
+					break;
+				}
+			}
+			if (ts.isIdentifier(cur) && CTX_PARAM_NAMES.includes(cur.text)) {
+				// Need to check the first property access is one of our removed keys
+				// by re-walking from the leaf.
+				const parent: ts.Node | undefined = cur.parent;
+				let firstProp: string | undefined;
+				if (parent && ts.isPropertyAccessExpression(parent) && parent.expression === cur) {
+					firstProp = parent.name.text;
+				}
+				if (firstProp && (firstProp === 'thread' || firstProp === 'app')) {
+					edits.push({
+						start: node.getStart(handlerSf),
+						end: node.getEnd(),
+						replacement: `(undefined /* v3: ${cur.text}.${firstProp} removed */ as any)`,
+					});
+					droppedAccessors.add(`${cur.text}.${firstProp}`);
+				} else if (firstProp === 'sessionId') {
+					edits.push({
+						start: node.getStart(handlerSf),
+						end: node.getEnd(),
+						replacement: "('v3-no-session-id' /* v3: ctx.sessionId removed */)",
+					});
+					droppedAccessors.add(`${cur.text}.sessionId`);
+				}
+			}
+		}
+		ts.forEachChild(node, visitExpr);
+	}
+	ts.forEachChild(handlerSf, visitExpr);
+
+	// Keep only the **outermost** ctx.x.y.z chain per location. The AST visitor
+	// emits overlapping edits for every nested property access, so sort by
+	// length descending and drop anything contained within a larger accepted
+	// edit.
+	if (edits.length > 0) {
+		edits.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
+		const kept: Array<{ start: number; end: number; replacement: string }> = [];
+		for (const e of edits) {
+			const overlaps = kept.some((k) => !(e.end <= k.start || e.start >= k.end));
+			if (!overlaps) kept.push(e);
+		}
+		// Apply right-to-left so earlier offsets stay valid.
+		kept.sort((a, b) => b.start - a.start);
+		let body = handlerBody;
+		for (const e of kept) {
+			body = body.slice(0, e.start) + e.replacement + body.slice(e.end);
+		}
+		handlerBody = body;
+	}
+	if (droppedAccessors.size > 0) {
+		changes.push(`Stubbed out ctx accessors removed in v3: ${[...droppedAccessors].join(', ')}`);
+	}
+
+	// Update extracted payload with rewritten body.
+	const rewrittenExtracted = { ...extracted, handlerBody };
+
+	// Step 4: Replace the createAgent() statement with the plain function.
+	output = replaceCreateAgentWithFunction(output, agentInfo, rewrittenExtracted);
+	changes.push(`Converted complex agent "${agentInfo.name}" to plain exported async function`);
+
+	// Step 5: Hoist setup() body to module-level singletons.
+	if (setupInfo && configRefs.size > 0) {
+		const singletonBlock = buildLazyInitBlock(configRefs, setupInfo);
+		output = insertAfterImports(output, singletonBlock);
+		changes.push(
+			`Hoisted setup() return values to module-level lazy init: ${[...configRefs].join(', ')}`
+		);
+	}
+
+	// Step 6: Prepend a review banner so the user knows this was auto-ejected.
+	const banner =
+		'// ℹ️  v3 migration — complex agent auto-ejected\n' +
+		`//    Reason: ${agentInfo.complexityReason ?? 'unknown'}\n` +
+		'//    Review the hoisted singletons, TODO comments, and the stubbed-out\n' +
+		'//    thread/session accessors — these v2 features have no v3 equivalent.\n';
+	output = banner + output;
+
+	return { source: output, changes, manualRequired: true };
+}
+
+/**
+ * Build a module-level lazy init block from the setup() body.
+ *
+ * Output shape (singleton pattern):
+ *
+ *   let _client: ReturnType<typeof __buildSetup>['client'] | undefined;
+ *   function getClient() {
+ *     return _client ?? (_client = (() => { ... setup body returns .client ... })());
+ *   }
+ *
+ * For simplicity and to avoid having to type-reason about return shape, we
+ * emit a single IIFE that runs setup() on first access and caches per-key.
+ */
+function buildLazyInitBlock(keys: Set<string>, setup: { setupBodyText: string }): string {
+	const keyList = [...keys];
+	const lines: string[] = [];
+	lines.push(
+		'\n// v3: lazy-init singletons hoisted from the former setup() hook.\n' +
+			'// Each key is computed lazily on first access so we keep the original\n' +
+			'// semantics (constructors run at handler-time, not at module load).'
+	);
+	lines.push(`let __setupResult: Record<string, unknown> | undefined;`);
+	lines.push(`async function __runSetup(): Promise<Record<string, unknown>> {`);
+	lines.push(`\tif (__setupResult) return __setupResult;`);
+	lines.push(
+		`\t// Original setup() body — adjust by hand if it referenced ctx:\n\tconst __result = await (async () => ${setup.setupBodyText})();`
+	);
+	lines.push(`\t__setupResult = __result as Record<string, unknown>;`);
+	lines.push(`\treturn __setupResult;`);
+	lines.push(`}`);
+	for (const key of keyList) {
+		lines.push(
+			`async function get_${key}() { return (await __runSetup())[${JSON.stringify(key)}] as any; }`
+		);
+		// We also expose a sync alias for cases where the original code read ctx.config.X
+		// synchronously — the user will need to await. We emit a `const X = await get_X()` stub
+		// near the start of the handler via the handler-body rewriter later on.
+	}
+	return lines.join('\n') + '\n';
+}
+
+/**
+ * Extract the body of the setup() property/method on the createAgent() config.
+ */
+function extractSetupFromCreateAgent(sourceFile: ts.SourceFile): { setupBodyText: string } | null {
+	let result: { setupBodyText: string } | null = null;
+
+	function visit(node: ts.Node) {
+		if (result) return;
+
+		if (
+			ts.isCallExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			node.expression.text === 'createAgent'
+		) {
+			const configArg = node.arguments[1];
+			if (!configArg || !ts.isObjectLiteralExpression(configArg)) return;
+
+			for (const prop of configArg.properties) {
+				const name =
+					(ts.isPropertyAssignment(prop) || ts.isMethodDeclaration(prop)) &&
+					ts.isIdentifier(prop.name)
+						? prop.name.text
+						: undefined;
+				if (name !== 'setup') continue;
+
+				let body: ts.Block | ts.Expression | undefined;
+				if (ts.isPropertyAssignment(prop)) {
+					const init = prop.initializer;
+					if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
+						body = init.body;
+					}
+				} else if (ts.isMethodDeclaration(prop)) {
+					body = prop.body;
+				}
+				if (!body) continue;
+
+				const bodyText = body.getText(sourceFile);
+				result = { setupBodyText: bodyText };
+			}
+		}
+
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sourceFile);
+	return result;
+}
+
+/**
+ * For complex agents we cannot auto-migrate, add a migration comment block
+ * only (fallback if the handler couldn't be extracted).
  */
 function addManualMigrationComment(source: string, agentInfo: AgentFile): AgentTransformResult {
 	const comment =

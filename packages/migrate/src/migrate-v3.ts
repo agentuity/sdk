@@ -51,7 +51,9 @@ import {
 	computeServicesRelativePath,
 	insertAfterImports,
 	removeRuntimeImports,
+	rewriteV2AgentMethods,
 	stripAgentuityValidators,
+	stubV2HonoContext,
 } from './transforms/v3/routes';
 import { transformPackageJsonV3 } from './transforms/v3/package-json';
 import { generateDevSetup } from './transforms/v3/dev-setup';
@@ -385,6 +387,21 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 					if (stripped.changed) {
 						cleaned = stripped.source;
 						extra.push(...stripped.changes);
+					}
+
+					// Rewrite v2 agent method invocations (<agent>.run → <agent>,
+					// c.req.valid('json') → await c.req.json()).
+					const agentRewrite = rewriteV2AgentMethods(cleaned);
+					if (agentRewrite.changed) {
+						cleaned = agentRewrite.source;
+						extra.push(...agentRewrite.changes);
+					}
+
+					// Stub v2 Hono context (c.var.thread, c.var.sessionId).
+					const stub = stubV2HonoContext(cleaned);
+					if (stub.changed) {
+						cleaned = stub.source;
+						extra.push(...stub.changes);
 					}
 
 					writeFileSync(file, cleaned, 'utf8');
