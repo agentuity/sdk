@@ -10,6 +10,22 @@
 
 import { SERVICE_PACKAGE_MAP, type V3OutdatedPackage } from '../../detect-v3';
 
+/**
+ * Packages that existed in v2 but are removed in v3.
+ *
+ * v3 is a deliberate "eject" — agent framework magic (evals, workbench) and
+ * helper facades (frontend, react) are replaced by user-visible primitives.
+ * These packages have no v3 counterpart and must be deleted from package.json,
+ * not bumped to a non-existent ^3.0.0.
+ *
+ * Note: @agentuity/react is handled separately via options.removeReact.
+ */
+const PACKAGES_REMOVED_IN_V3 = [
+	'@agentuity/evals',
+	'@agentuity/frontend',
+	'@agentuity/workbench',
+] as const;
+
 export interface V3PackageJsonResult {
 	/** Transformed package.json content, or null if no changes */
 	content: string | null;
@@ -87,8 +103,24 @@ export function transformPackageJsonV3(
 		}
 	}
 
-	// ── 5. Bump existing @agentuity/* packages to ^3.0.0 ──────────────────
+	// ── 5a. Remove v2-only packages that have no v3 counterpart ────────────
+	// (These would otherwise be bumped to ^3.0.0 in step 5b, which fails to
+	// resolve because the packages were deleted entirely in v3.)
+	for (const removed of PACKAGES_REMOVED_IN_V3) {
+		if (deps[removed]) {
+			delete deps[removed];
+			changes.push(`Removed ${removed} from dependencies (no longer exists in v3)`);
+		}
+		if (devDeps[removed]) {
+			delete devDeps[removed];
+			changes.push(`Removed ${removed} from devDependencies (no longer exists in v3)`);
+		}
+	}
+
+	// ── 5b. Bump existing @agentuity/* packages to ^3.0.0 ─────────────────
+	// Skip packages we just removed — they'd otherwise come back.
 	for (const outdated of outdatedPackages) {
+		if ((PACKAGES_REMOVED_IN_V3 as readonly string[]).includes(outdated.name)) continue;
 		const section = outdated.section === 'dependencies' ? deps : devDeps;
 		if (section[outdated.name]) {
 			section[outdated.name] = '^3.0.0';
