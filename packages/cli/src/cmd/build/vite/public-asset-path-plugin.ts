@@ -24,7 +24,8 @@
  *
  *   - `'/public/foo.svg'` and `'./public/foo.svg'`
  *   - `'src/web/public/foo.svg'` (and `'/src/web/public/...'`)
- *   - CSS `url(/public/foo.svg)` and `url(./public/foo.svg)` (unquoted)
+ *   - CSS `url(/public/foo.svg)` and `url(./public/foo.svg)` (quoted,
+ *     unquoted, and with optional whitespace inside the parentheses)
  *
  * The plugin emits a **warning** for each unique pattern encountered
  * (deduped per file) in both `vite serve` and `vite build`. It does not
@@ -70,12 +71,14 @@ function createLintPatterns(): PathPattern[] {
 			fix: "the '/public/' prefix is not served in production; use the root path ('/foo.svg') or an import",
 		},
 		{
-			regex: /url\(\/public\//g,
+			// Also catch quoted/whitespace variants: url('/public/…'), url( "/public/…" ), etc.
+			regex: /url\(\s*['"]?\/public\//g,
 			description: 'url(/public/…)',
 			fix: "drop the '/public/' prefix — Vite serves src/web/public/ at root, so 'url(/foo.svg)' is correct",
 		},
 		{
-			regex: /url\(\.\/public\//g,
+			// Also catch quoted/whitespace variants: url('./public/…'), url( "./public/…" ), etc.
+			regex: /url\(\s*['"]?\.\/public\//g,
 			description: 'url(./public/…)',
 			fix: "drop the '/public/' prefix — Vite serves src/web/public/ at root, so 'url(/foo.svg)' is correct",
 		},

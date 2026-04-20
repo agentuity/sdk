@@ -121,6 +121,33 @@ const c = 'src/web/public/logo.svg';`,
 			expect(warnings[0]).toContain('url(./public/');
 		});
 
+		test('warns on CSS url(...) with single quotes', () => {
+			callTransform(
+				`.logo { background: url('/public/bg.png'); }`,
+				'/project/src/web/styles/logo.css'
+			);
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('url(/public/');
+		});
+
+		test('warns on CSS url(...) with double quotes and leading whitespace', () => {
+			callTransform(
+				`.logo { background: url( "/public/bg.png"); }`,
+				'/project/src/web/styles/logo.css'
+			);
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('url(/public/');
+		});
+
+		test('warns on CSS url(./public/...) with quotes and whitespace', () => {
+			callTransform(
+				`.logo { background: url( './public/bg.png'); }`,
+				'/project/src/web/styles/logo.css'
+			);
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain('url(./public/');
+		});
+
 		test('reports multiple distinct patterns in one diagnostic', () => {
 			callTransform(
 				`const a = '/public/a.svg';
