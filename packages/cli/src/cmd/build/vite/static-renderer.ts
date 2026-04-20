@@ -18,7 +18,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node
 import type { Logger } from '../../../types';
 
 /** Minimal shape of a TanStack Router route tree node. */
-interface RouteTreeNode {
+export interface RouteTreeNode {
 	path?: string;
 	options?: { path?: string };
 	children?: Record<string, RouteTreeNode>;
@@ -32,7 +32,7 @@ interface RouteTreeNode {
  * under layout routes have relative paths (e.g., '/key-value' under a
  * '/reference/api' layout should resolve to '/reference/api/key-value').
  */
-function extractRoutePaths(node: RouteTreeNode): string[] {
+export function extractRoutePaths(node: RouteTreeNode): string[] {
 	const paths = new Set<string>();
 
 	function walk(route: RouteTreeNode, parentPath: string) {
@@ -40,18 +40,29 @@ function extractRoutePaths(node: RouteTreeNode): string[] {
 
 		// Build the full path by accumulating segments from parent routes.
 		// - Layout routes have no path (undefined) and don't contribute to the URL.
-		// - Index routes have path '/' and resolve to the parent path itself.
+		// - Index routes have path '/' and resolve to the parent path itself
+		//   (e.g., the '/' child of the root is the landing page; the '/' child
+		//   of a '/docs' layout is '/docs'). They do not append anything.
 		// - Leaf/layout routes have paths like '/reference/api' or '/key-value'.
 		let currentPath = parentPath;
-		if (segment && segment !== '/') {
+		let isIndexRoute = false;
+		if (segment === '/') {
+			isIndexRoute = true;
+		} else if (segment) {
 			// Non-root segment: append to parent path.
 			// Segments always start with '/' (TanStack Router convention).
 			currentPath = parentPath === '/' ? segment : parentPath + segment;
 		}
 
-		// Add non-parameterized, non-empty paths
-		if (currentPath && !currentPath.includes('$')) {
-			const normalized = currentPath === '/' ? '/' : currentPath.replace(/\/+$/, '');
+		// Decide which URL, if any, to emit for this node.
+		// - Index routes emit the parent URL, defaulting to '/' when the parent
+		//   itself is pathless (i.e., the site root). Without this, a
+		//   `createFileRoute('/')` route is never pre-rendered and the
+		//   landing page ships with the unreplaced <!--app-html--> placeholder.
+		// - Non-index routes emit their own accumulated path.
+		const emit = isIndexRoute ? parentPath || '/' : currentPath;
+		if (emit && !emit.includes('$')) {
+			const normalized = emit === '/' ? '/' : emit.replace(/\/+$/, '');
 			if (normalized) {
 				paths.add(normalized);
 			}
