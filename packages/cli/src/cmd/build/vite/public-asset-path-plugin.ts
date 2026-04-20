@@ -134,18 +134,23 @@ export function publicAssetPathPlugin(_options: PublicAssetPathPluginOptions = {
 				}
 			}
 
-			if (hits.length === 0) return null;
-
 			// Deduplicate reports per file: only report a pattern the first time
 			// we see it in this file. This matters in dev (HMR reloads call
 			// transform() repeatedly) and is harmless in build mode.
-			const previously = reportedFiles.get(id) ?? new Set<string>();
-			const fresh = hits.filter((h) => !previously.has(h.description));
-			if (fresh.length === 0) return null;
-			for (const h of fresh) previously.add(h.description);
-			reportedFiles.set(id, previously);
+			// Track only currently-present patterns so a file that becomes clean
+			// and later regresses will warn again in the same dev session.
+			if (hits.length === 0) {
+				reportedFiles.delete(id);
+				return null;
+			}
 
-			this.warn(formatDiagnostic(id, fresh));
+			const previous = reportedFiles.get(id) ?? new Set<string>();
+			const current = new Set(hits.map((h) => h.description));
+			const fresh = hits.filter((h) => !previous.has(h.description));
+			reportedFiles.set(id, current);
+			if (fresh.length > 0) {
+				this.warn(formatDiagnostic(id, fresh));
+			}
 			return null;
 		},
 	};
