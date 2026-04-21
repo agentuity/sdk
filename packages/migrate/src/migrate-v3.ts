@@ -57,6 +57,7 @@ import {
 } from './transforms/v3/routes';
 import { transformPackageJsonV3 } from './transforms/v3/package-json';
 import { generateDevSetup } from './transforms/v3/dev-setup';
+import { schemaToZod } from './transforms/v3/schema-to-zod';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -601,6 +602,58 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 		}
 	}
 
+	// ── 5g′. Port @agentuity/schema usage to zod ─────────────────────────
+	// Walk all .ts/.tsx files under src/ one more time and rewrite
+	// `import { s } from '@agentuity/schema'` + `s.*` calls to the zod
+	// equivalents. Track whether the rewrite actually fired anywhere — if
+	// it did, we'll add zod (and drop @agentuity/schema) in the package
+	// update step below.
+	let anyFilePortedToZod = false;
+	{
+		const srcDir = join(projectDir, 'src');
+		const walkAllTs = (dir: string): string[] => {
+			if (!existsSync(dir)) return [];
+			const out: string[] = [];
+			for (const entry of readdirSync(dir, { withFileTypes: true })) {
+				const full = join(dir, entry.name);
+				if (entry.isDirectory()) {
+					if (['node_modules', 'dist', '.agentuity', '.git'].includes(entry.name)) continue;
+					out.push(...walkAllTs(full));
+				} else if (
+					entry.isFile() &&
+					(entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))
+				) {
+					out.push(full);
+				}
+			}
+			return out;
+		};
+
+		for (const file of walkAllTs(srcDir)) {
+			const rel = file.replace(projectDir + '/', '');
+			const src = readFileSyncSafe(file);
+			if (!src) continue;
+			const ported = schemaToZod(src);
+			if (ported.changed) {
+				writeFileSync(file, ported.source, 'utf8');
+				anyFilePortedToZod = true;
+				if (!changedFiles.includes(rel)) {
+					changedFiles.push(rel);
+					allChangeSummary.push({ file: rel, changes: ported.changes });
+				} else {
+					// Merge into the existing entry so we don't lose earlier changes.
+					const entry = allChangeSummary.find((c) => c.file === rel);
+					if (entry) entry.changes.push(...ported.changes);
+				}
+			}
+		}
+
+		if (anyFilePortedToZod) {
+			printStep('Ported @agentuity/schema usage to zod');
+			printStepDone();
+		}
+	}
+
 	// ── 5h. Update package.json ───────────────────────────────────────────
 	const packageJsonPath = join(projectDir, 'package.json');
 	if (existsSync(packageJsonPath)) {
@@ -615,6 +668,7 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 				{
 					removeRuntime: detection.hasRuntimeDep,
 					removeReact: detection.hasReactPackage,
+					addZod: anyFilePortedToZod,
 					devScripts,
 				}
 			);

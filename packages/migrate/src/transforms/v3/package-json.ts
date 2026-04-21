@@ -45,6 +45,8 @@ export function transformPackageJsonV3(
 		removeRuntime?: boolean;
 		/** Whether to remove @agentuity/react */
 		removeReact?: boolean;
+		/** Whether any source file was ported from @agentuity/schema to zod */
+		addZod?: boolean;
 		/** Dev scripts to add (from dev-setup transform) */
 		devScripts?: Record<string, string>;
 	}
@@ -128,7 +130,23 @@ export function transformPackageJsonV3(
 		}
 	}
 
-	// ── 6. Remove @agentuity/react if requested ───────────────────────────
+	// ── 6. Add zod + remove @agentuity/schema when the schema→zod port fired ──
+	if (options?.addZod) {
+		if (!deps['zod']) {
+			deps['zod'] = '^4.0.0';
+			changes.push('Added zod@^4.0.0 to dependencies');
+		}
+		if (deps['@agentuity/schema']) {
+			delete deps['@agentuity/schema'];
+			changes.push('Removed @agentuity/schema (usage ported to zod)');
+		}
+		if (devDeps['@agentuity/schema']) {
+			delete devDeps['@agentuity/schema'];
+			changes.push('Removed @agentuity/schema from devDependencies (usage ported to zod)');
+		}
+	}
+
+	// ── 7. Remove @agentuity/react if requested ───────────────────────────
 	if (options?.removeReact) {
 		if (deps['@agentuity/react']) {
 			delete deps['@agentuity/react'];
