@@ -3,7 +3,7 @@
  *
  * NOTE: Intentionally separate from src/agent/objectstore/agent.ts.
  * Uses dynamic filenames with cleanup (delete) operations.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: Write → Read flow with Bun's S3 API
  * Credentials are auto-injected by Agentuity runtime.
@@ -45,7 +45,9 @@ try {
 	console.log(`  Content: ${readContent.split('\n')[0]}...`);
 	console.log(`Exists: ${exists}`);
 	console.log(`Deleted: "${filename}"`);
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 }

@@ -2,10 +2,11 @@
  * Standalone run script for Durable Streams demo
  *
  * Route pattern demo - no corresponding agent exists.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: Creating a durable stream with LLM-generated content
- * Streams AI-generated text into a durable stream and shows the public URL.
+ * Streams AI-generated text into a durable stream and shows the shareable URL.
+ * Streams expire after 30 days by default unless you set ttl: null or 0.
  *
  * Usage: bun run src/run/durable-stream.ts
  */
@@ -32,16 +33,16 @@ try {
 
 	// Generate content with LLM and write to stream
 	const { textStream } = streamText({
-		model: openai('gpt-5-nano'),
+		model: openai('gpt-5.4-nano'),
 		prompt: 'Write a 3-paragraph summary of what Agentuity is.',
 	});
 
 	let fullText = '';
-	let tokenCount = 0;
+	let chunkCount = 0;
 	for await (const chunk of textStream) {
 		await stream.write(chunk);
 		fullText += chunk;
-		tokenCount++;
+		chunkCount++;
 	}
 
 	// Close the stream
@@ -50,15 +51,18 @@ try {
 	console.log('Content written:');
 	console.log(fullText);
 	console.log('');
-	console.log(`[Streamed ${tokenCount} tokens]`);
+	console.log(`[Wrote ${chunkCount} text chunks]`);
 	console.log('');
 	console.log('Stream closed');
 	console.log('');
 
-	// The URL is shareable and permanent
+	// The URL remains available until the stream expires
 	console.log('Public URL (shareable):');
 	console.log(`  ${stream.url}`);
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
+	process.exitCode = 1;
 }

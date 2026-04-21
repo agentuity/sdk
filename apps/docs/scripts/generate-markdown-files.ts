@@ -1027,9 +1027,7 @@ Services include, but are not limited to:
 - **Authentication**: sessions, API keys, bearer tokens, and OAuth apps
 - **AI Gateway**: LLM provider routing with usage and cost visibility
 - **Observability**: OpenTelemetry traces, structured logs, and session analytics
-- **Evals**: evaluation runs attached to real sessions and traces
 - **Agent-to-agent communication**: type-safe calls between agents with context propagation
-- **Workbench**: interactive testing for local and deployed agents
 
 ## Notes
 

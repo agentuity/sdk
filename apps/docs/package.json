@@ -25,6 +25,7 @@
 		"@agentuity/frontend": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schedule": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@agentuity/workbench": "workspace:*",

@@ -40,13 +40,13 @@ export function DemoView({ demoId }: { demoId: string }) {
 				{/* Explanation block */}
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4 min-h-[140px]">
 					<div className="flex items-center justify-between px-4 h-12 bg-zinc-100/50 dark:bg-zinc-900/50">
-						<h2 className="text-lg font-normal text-cyan-600 dark:text-cyan-400">
+						<h2 className="text-lg font-normal text-cyan-800 dark:text-cyan-400">
 							{demo.title}
 						</h2>
 						{demo.docsUrl && (
 							<a
 								href={demo.docsUrl}
-								className="flex items-center gap-1.5 text-zinc-500 hover:text-cyan-500 transition-colors cursor-pointer"
+								className="flex items-center gap-1.5 text-zinc-500 hover:text-cyan-800 dark:hover:text-cyan-500 transition-colors cursor-pointer"
 							>
 								<BookOpenIcon className="w-5 h-5" />
 								<span className="text-sm">Docs</span>

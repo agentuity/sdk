@@ -34,7 +34,7 @@ function HomePage() {
 					href="https://agentuity.com"
 					target="_blank"
 					rel="noopener noreferrer"
-					className="text-cyan-600 dark:text-cyan-400 hover:underline"
+					className="text-cyan-800 dark:text-cyan-400 hover:underline"
 				>
 					Agentuity
 				</a>{' '}
@@ -48,7 +48,7 @@ function HomePage() {
 			<Link to="/explorer" className="block group mb-10">
 				<Alert variant="tip" className="transition-colors hover:border-cyan-500/50">
 					<Play className="size-4" />
-					<AlertTitle className="group-hover:text-cyan-500 transition-colors">
+					<AlertTitle className="group-hover:text-cyan-800 dark:group-hover:text-cyan-500 transition-colors">
 						Try the SDK in Your Browser
 					</AlertTitle>
 					<AlertDescription>

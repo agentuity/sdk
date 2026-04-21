@@ -130,7 +130,7 @@ const arenaAgent = createAgent('ModelArena', {
   handler: async (ctx, input) => {
     // Generate from both models in parallel
     const [openaiResult, anthropicResult] = await Promise.all([
-      generateWithTiming(openai('gpt-5-nano'), input.prompt, input.tone),
+      generateWithTiming(openai('gpt-5.4-nano'), input.prompt, input.tone),
       generateWithTiming(anthropic('claude-haiku-4-5'), input.prompt, input.tone),
     ]);
 
@@ -362,7 +362,7 @@ Evaluate each criterion, then provide an overall assessment.`;
 
 ## Best Practices
 
-- **Use fast models for judging**: Groq, gpt-5-nano, or claude-haiku-4-5 work well
+- **Use fast models for judging**: Groq, gpt-5.4-nano, or claude-haiku-4-5 work well
 - **Separate scores from checks**: Scores for gradients, checks for pass/fail
 - **Structure prompts clearly**: List criteria explicitly with descriptions
 - **Log low scores**: Track failures for debugging and model improvement

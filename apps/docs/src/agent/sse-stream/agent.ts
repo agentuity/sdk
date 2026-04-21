@@ -13,7 +13,7 @@
  * the AI SDK. This agent exists for Workbench discovery but returns a fallback
  * message for direct calls since streaming requires the SSE transport.
  *
- * Docs: https://agentuity.dev/Routes/sse
+ * Docs: https://agentuity.dev/routes/sse
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

@@ -1,0 +1,223 @@
+---
+title: Sign in with Agentuity
+short_title: OIDC Provider
+description: Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC
+---
+
+Use Sign in with Agentuity when users should authenticate with their Agentuity account and grant scoped access to Agentuity resources. Your app owns its local session. Agentuity handles identity, consent, OAuth apps, scopes, and tokens.
+
+## Choose the Right Auth Path
+
+| Need | Use |
+|------|-----|
+| Let users sign in with their Agentuity account | Agentuity OIDC provider |
+| Request scoped access to Agentuity resources | Agentuity OIDC provider with OAuth scopes |
+| Manage your own users, sessions, API keys, or bearer tokens | [`@agentuity/auth`](/services/authentication#quick-start-with-agentuityauth) |
+| Register or rotate OAuth app credentials | [CLI OAuth commands](/reference/cli/oauth) |
+
+## Create an OAuth App
+
+The easiest way to create an OAuth app is in the [Agentuity Console](https://app.agentuity.com/settings/oauth-apps). The Console walks you through the app name, homepage URL, client type, redirect URIs, and scopes, then shows the client details and connected users.
+
+For server-backed apps, choose a confidential client so the client secret stays on the server. Do not ship the client secret to browser-only code.
+
+Use the CLI when you want to script the same setup:
+
+```bash
+agentuity cloud oidc create \
+  --name "My App" \
+  --description "Sign in with Agentuity" \
+  --homepage-url "https://example.com" \
+  --type confidential \
+  --redirect-uris "https://example.com/api/oauth/callback" \
+  --scopes "openid,profile,email"
+```
+
+<Callout type="warning" title="Save the Client Secret">
+The client secret is shown once when you create the OAuth app. Store it in your environment variables before leaving the screen.
+</Callout>
+
+## Configure Environment Variables
+
+The `@agentuity/core/oauth` helpers read `OAUTH_*` variables by default:
+
+```env
+OAUTH_ISSUER=https://auth.agentuity.cloud
+OAUTH_CLIENT_ID=your-client-id
+OAUTH_CLIENT_SECRET=your-client-secret
+OAUTH_SCOPES=openid profile email
+```
+
+| Variable | Description |
+|----------|-------------|
+| `OAUTH_ISSUER` | Agentuity's OIDC issuer. The SDK derives authorize, token, userinfo, and revoke URLs from this value. |
+| `OAUTH_CLIENT_ID` | Client ID from your OAuth app. |
+| `OAUTH_CLIENT_SECRET` | Client secret for confidential clients. |
+| `OAUTH_SCOPES` | Space-separated scopes requested during sign-in. |
+
+The Console can show copyable environment variables for the app. The SDK helpers below read `OAUTH_*` names, so map any Agentuity-prefixed values to these names or pass them explicitly to the helpers.
+
+The public discovery document is available at:
+
+```txt
+https://auth.agentuity.cloud/.well-known/openid-configuration
+```
+
+Use the discovery document when you need endpoint metadata or the current JWKS URI for token verification.
+
+## Add Sign-In Routes
+
+This example redirects users to Agentuity, validates the callback state, exchanges the code for tokens, fetches the user profile, and creates a local app session.
+
+```typescript title="src/api/index.ts"
+import { createRouter } from '@agentuity/runtime';
+import { buildAuthorizeUrl, exchangeToken, fetchUserInfo } from '@agentuity/core/oauth';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+
+const router = createRouter();
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
+const oauthConfig = {
+  issuer: requireEnv('OAUTH_ISSUER'),
+  clientId: requireEnv('OAUTH_CLIENT_ID'),
+  clientSecret: requireEnv('OAUTH_CLIENT_SECRET'),
+  scopes: process.env.OAUTH_SCOPES ?? 'openid profile email',
+};
+
+function getRedirectUri(requestUrl: string): string {
+  return `${new URL(requestUrl).origin}/api/oauth/callback`;
+}
+
+router.get('/oauth/login', (c) => {
+  const state = crypto.randomUUID();
+  const redirectUri = getRedirectUri(c.req.url);
+  const loginUrl = new URL(buildAuthorizeUrl(redirectUri, oauthConfig));
+
+  // The callback must return the same state to prevent CSRF attacks.
+  loginUrl.searchParams.set('state', state);
+  setCookie(c, 'agentuity_oauth_state', state, {
+    path: '/',
+    httpOnly: true,
+    secure: new URL(c.req.url).protocol === 'https:',
+    sameSite: 'Lax',
+    maxAge: 600,
+  });
+
+  return c.redirect(loginUrl.toString());
+});
+
+router.get('/oauth/callback', async (c) => {
+  const code = c.req.query('code');
+  const returnedState = c.req.query('state');
+  const storedState = getCookie(c, 'agentuity_oauth_state');
+
+  deleteCookie(c, 'agentuity_oauth_state', { path: '/' });
+
+  if (!code || !returnedState || returnedState !== storedState) {
+    return c.json({ error: 'Invalid OAuth callback' }, 400);
+  }
+
+  try {
+    const redirectUri = getRedirectUri(c.req.url);
+    const token = await exchangeToken(code, redirectUri, oauthConfig);
+    const user = await fetchUserInfo(token.access_token, oauthConfig);
+
+    // Store your own app session. Avoid putting access tokens in browser cookies.
+    setCookie(
+      c,
+      'app_session',
+      encodeURIComponent(
+        JSON.stringify({
+          userId: user.sub,
+          email: user.email,
+          name: user.name,
+        })
+      ),
+      {
+        path: '/',
+        httpOnly: true,
+        secure: new URL(c.req.url).protocol === 'https:',
+        sameSite: 'Lax',
+        maxAge: 60 * 60 * 24,
+      }
+    );
+
+    return c.redirect('/');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    c.var.logger.error('OAuth sign-in failed', { message });
+    return c.json({ error: 'OAuth sign-in failed' }, 500);
+  }
+});
+
+router.post('/oauth/logout', (c) => {
+  deleteCookie(c, 'app_session', { path: '/' });
+  return c.redirect('/');
+});
+
+export default router;
+```
+
+<Callout type="tip" title="Register the Exact Callback URL">
+The redirect URI in your OAuth app must match the callback URL your app sends to `buildAuthorizeUrl()`. For local testing, register a local URL such as `http://localhost:3500/api/oauth/callback`.
+</Callout>
+
+## Store Tokens for Scoped Access
+
+If your app needs to call Agentuity APIs after sign-in, store tokens server-side. `KeyValueTokenStorage` stores tokens in Agentuity KV and refreshes expired access tokens when a refresh token is available.
+
+```typescript
+import { KeyValueTokenStorage, isTokenExpired } from '@agentuity/core/oauth';
+
+router.get('/oauth/callback', async (c) => {
+  // ...validate callback state, exchange the code, and fetch the user...
+  const tokenStore = new KeyValueTokenStorage(c.var.kv, {
+    config: oauthConfig,
+    prefix: 'agentuity:',
+  });
+
+  await tokenStore.set(user.sub, token);
+
+  const storedToken = await tokenStore.get(user.sub);
+
+  if (!storedToken || isTokenExpired(storedToken)) {
+    return c.redirect('/api/oauth/login');
+  }
+
+  return c.redirect('/');
+});
+```
+
+Request `offline_access` only when your app needs a refresh token:
+
+```env
+OAUTH_SCOPES=openid profile email offline_access
+```
+
+When a user disconnects the app, call `tokenStore.invalidate(user.sub)` to remove the token from KV and revoke it with the provider when possible.
+
+## Scopes and Consent
+
+Start with `openid profile email`. Add service scopes only when your app needs them. Users see requested scopes during consent.
+
+To browse available scopes, use the interactive scope picker:
+
+```bash
+agentuity cloud oidc create
+```
+
+If you already know the scopes, pass them with `--scopes` when you create the OAuth app.
+
+## Next Steps
+
+- [CLI OAuth Commands](/reference/cli/oauth): Create clients, rotate secrets, and inspect connected users
+- [REST API OAuth Reference](/reference/api/oauth): Manage OAuth applications and consent grants over HTTP
+- [Authentication Services](/services/authentication): Choose between Sign in with Agentuity and app-owned auth
+- [ctx.auth Reference](/reference/sdk-reference/context-api#authentication): Use app-owned auth details inside Agentuity handlers

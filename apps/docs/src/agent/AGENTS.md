@@ -28,12 +28,9 @@ src/agent/
 │   ├── lib.ts
 │   ├── types.ts
 │   └── prompts.ts
-├── vector/
-│   ├── agent.ts
-│   └── sample-products.json
-└── evals/
+└── vector/
     ├── agent.ts
-    └── eval.ts
+    └── sample-products.json
 ```
 
 **Note:** HTTP routes are in `src/api/`, not in agent folders.

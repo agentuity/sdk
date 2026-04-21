@@ -54,7 +54,7 @@ Coder has a few different layers that are easy to mix up:
 - **System skills** are Hub-managed skills that the platform injects automatically
 - **Saved skills and skill buckets** are user-managed selections you attach to sessions or workspaces
 
-If you want to choose which built-in specialists are available in a session, use `agentSlugs` and `defaultAgent`.
+Use `enabledAgents` to choose the agent roster for a session or workspace. Use `defaultAgent` when you want routed work to prefer a specific agent.
 
 ## Reading Session State
 
@@ -182,7 +182,7 @@ const client = new CoderClient();
 const workspace = await client.createWorkspace({
   name: 'Auth System',
   description: 'OAuth and session management',
-  agentSlugs: ['builder', 'reviewer'],
+  enabledAgents: ['builder', 'reviewer'],
 });
 
 // Save a reusable skill

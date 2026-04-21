@@ -205,7 +205,7 @@ export function AgentCallsDemo() {
 								onClick={() => setPattern(p.id)}
 								className={
 									pattern === p.id
-										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-600 dark:text-cyan-400'
+										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-800 dark:text-cyan-400'
 										: 'bg-zinc-100 dark:bg-zinc-900'
 								}
 							>
@@ -267,7 +267,7 @@ export function AgentCallsDemo() {
 						<div className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md p-4">
 							{/* Direct (sync) result */}
 							{'result' in result && 'original' in result.result && (
-								<div className="text-cyan-600 dark:text-cyan-400 font-mono">
+								<div className="text-cyan-800 dark:text-cyan-400 font-mono">
 									{result.result.result}
 								</div>
 							)}
@@ -280,7 +280,7 @@ export function AgentCallsDemo() {
 									</div>
 									<div className="text-zinc-500 text-sm">
 										Task ID:{' '}
-										<code className="text-cyan-600 dark:text-cyan-400">
+										<code className="text-cyan-800 dark:text-cyan-400">
 											{result.taskId}
 										</code>
 									</div>
@@ -295,7 +295,7 @@ export function AgentCallsDemo() {
 											<span className="text-zinc-500 w-28 shrink-0">
 												Agent {step.step} ({step.operation}):
 											</span>
-											<span className="text-cyan-600 dark:text-cyan-400 font-mono">
+											<span className="text-cyan-800 dark:text-cyan-400 font-mono">
 												{step.result}
 											</span>
 										</div>
