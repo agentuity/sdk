@@ -66,6 +66,27 @@ jobs:
          - name: Run installation type detection tests
            run: bash packages/cli/scripts/test-installation-type.sh
 
+   migrate-chain-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 15
+      name: Migrate Chain (v1 → v2 → v3)
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build and pack SDK tarballs
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Run migrate chain test
+           env:
+              MIGRATE_CHAIN_TEST: '1'
+           run: bun test packages/migrate/test/chain/
+
    testing-apps-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
