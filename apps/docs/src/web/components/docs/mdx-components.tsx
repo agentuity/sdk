@@ -358,7 +358,7 @@ export const mdxComponents: MDXComponents = {
 		return (
 			<a
 				className={cn(
-					'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-800 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
+					'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-700 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
 					className
 				)}
 				href={href}

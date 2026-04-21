@@ -249,7 +249,7 @@ export function HandlerContextDemo() {
 									href="https://github.com/agentuity/sdk/blob/main/apps/docs/src/agent/context/agent.ts"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="text-xs text-zinc-500 hover:text-cyan-800 dark:hover:text-cyan-500 flex items-center gap-1"
+									className="text-xs text-zinc-500 hover:text-cyan-700 dark:hover:text-cyan-500 flex items-center gap-1"
 								>
 									<CodeBracketIcon className="w-3.5 h-3.5" />
 									View Code
