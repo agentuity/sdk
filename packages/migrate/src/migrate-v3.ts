@@ -274,6 +274,55 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 		}
 	}
 
+	// ── 5a′. Delete @agentuity/evals files ─────────────────────────────────
+	// The evals framework was removed entirely in v3. Any file that imports
+	// @agentuity/evals — conventionally '*eval.ts' or '*eval.tsx' alongside
+	// an agent — is dropped wholesale. Keeping it would produce unrecoverable
+	// typecheck errors because `agent.createEval()` no longer exists on the
+	// plain function that replaces the v2 agent.
+	{
+		const srcDir = join(projectDir, 'src');
+		const evalFiles: string[] = [];
+		const walkForEvals = (dir: string) => {
+			if (!existsSync(dir)) return;
+			for (const entry of readdirSync(dir, { withFileTypes: true })) {
+				const full = join(dir, entry.name);
+				if (entry.isDirectory()) {
+					if (['node_modules', 'dist', '.agentuity', '.git'].includes(entry.name)) continue;
+					walkForEvals(full);
+				} else if (
+					entry.isFile() &&
+					(entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))
+				) {
+					const content = readFileSyncSafe(full);
+					if (content && content.includes("from '@agentuity/evals'")) {
+						evalFiles.push(full);
+					}
+				}
+			}
+		};
+		walkForEvals(srcDir);
+
+		for (const file of evalFiles) {
+			const rel = file.replace(projectDir + '/', '');
+			try {
+				unlinkSync(file);
+				changedFiles.push(rel);
+				allChangeSummary.push({
+					file: rel,
+					changes: ['Deleted — @agentuity/evals removed in v3'],
+				});
+			} catch {
+				// ignore
+			}
+		}
+
+		if (evalFiles.length > 0) {
+			printStep(`Deleted ${evalFiles.length} @agentuity/evals file(s)`);
+			printStepDone();
+		}
+	}
+
 	// ── 5b. Transform agent files ─────────────────────────────────────────
 	if (detection.agentFiles.length > 0) {
 		console.log(`\n  Transforming ${detection.agentFiles.length} agent file(s):`);

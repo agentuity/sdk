@@ -163,19 +163,19 @@ function forceConvertComplexAgent(
 	// Step 3: Rewrite handler body to remove ctx.* magic.
 	let handlerBody = extracted.handlerBody;
 
-	// 3a. ctx.config.<name> → <name> (referencing a hoisted lazy init below).
+	// 3a. ctx.config.<name> → (await get_<name>()) — wired to the hoisted
+	// module-level lazy init emitted in step 5 below. We wrap with parens so
+	// subsequent `.foo.bar` chains still parse correctly.
 	const configRefs = new Set<string>();
 	for (const ctxName of CTX_PARAM_NAMES) {
 		const pattern = new RegExp(`\\b${ctxName}\\.config\\.([A-Za-z_$][A-Za-z0-9_$]*)`, 'g');
 		handlerBody = handlerBody.replace(pattern, (_m, id: string) => {
 			configRefs.add(id);
-			return id;
+			return `(await get_${id}())`;
 		});
 	}
 	if (configRefs.size > 0) {
-		changes.push(
-			`Rewrote ctx.config.{${[...configRefs].join(', ')}} → hoisted module singletons`
-		);
+		changes.push(`Rewrote ctx.config.{${[...configRefs].join(', ')}} → (await get_‹key›())`);
 	}
 
 	// 3b. ctx.logger → logger (expected to come from services barrel).
@@ -484,7 +484,12 @@ function extractHandlerFromCreateAgent(
 
 			if (!body) return;
 
-			// Get parameter text (skip ctx/context parameter, keep input)
+			// Get parameter text (skip ctx/context parameter, keep input).
+			// We also ensure every surviving param has a type annotation — the v2
+			// scaffold relied on createAgent<Schema>() to type the handler's input,
+			// which is gone in v3. Rather than lose type information, we fall back
+			// to `: unknown` + a TODO so the resulting plain function compiles
+			// under strict mode. Users can tighten the type by parsing with zod.
 			const paramTexts: string[] = [];
 			if (params) {
 				for (let i = 0; i < params.length; i++) {
@@ -493,7 +498,14 @@ function extractHandlerFromCreateAgent(
 					const paramName = param.name.getText(sourceFile);
 					// Skip the first param if it's ctx/context (agent context)
 					if (i === 0 && CTX_PARAM_NAMES.includes(paramName)) continue;
-					paramTexts.push(param.getText(sourceFile));
+					let paramText = param.getText(sourceFile);
+					// If the param has no type annotation (v2 scaffold relied on
+					// createAgent generics), inject `: any` so the plain function
+					// still compiles.
+					if (!param.type) {
+						paramText += ': any';
+					}
+					paramTexts.push(paramText);
 				}
 			}
 
