@@ -78,7 +78,7 @@ export const DEMOS: DemoConfig[] = [
 				explore the{' '}
 				<a
 					href={explorerHref('handler-context')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					Handler Context
 				</a>{' '}
@@ -135,7 +135,7 @@ export const DEMOS: DemoConfig[] = [
 				. For searching by meaning or similarity, use{' '}
 				<a
 					href={explorerHref('vector-storage')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					Vector storage
 				</a>{' '}
@@ -170,7 +170,7 @@ export const DEMOS: DemoConfig[] = [
 				rather than exact keywords. For exact key lookups, use{' '}
 				<a
 					href={explorerHref('key-value')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					KV storage
 				</a>{' '}
@@ -206,7 +206,7 @@ export const DEMOS: DemoConfig[] = [
 				For simple key-value data, see{' '}
 				<a
 					href={explorerHref('key-value')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					KV storage
 				</a>
@@ -262,7 +262,7 @@ export const DEMOS: DemoConfig[] = [
 				or automatic reconnection, see{' '}
 				<a
 					href={explorerHref('sse-stream')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					SSE streaming
 				</a>
@@ -294,7 +294,7 @@ export const DEMOS: DemoConfig[] = [
 				. For simpler use cases where you just need raw bytes, see{' '}
 				<a
 					href={explorerHref('streaming')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					Text Stream
 				</a>
@@ -326,14 +326,14 @@ export const DEMOS: DemoConfig[] = [
 				agents or other async code from inside them. For one-way streaming, see{' '}
 				<a
 					href={explorerHref('sse-stream')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					SSE Stream
 				</a>
 				. For peer-to-peer browser communication, see{' '}
 				<a
 					href={explorerHref('webrtc')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					WebRTC
 				</a>
@@ -364,7 +364,7 @@ export const DEMOS: DemoConfig[] = [
 				. For real-time use cases where data streams in as it's generated, see{' '}
 				<a
 					href={explorerHref('sse-stream')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					SSE streaming
 				</a>
@@ -447,7 +447,7 @@ export const DEMOS: DemoConfig[] = [
 				. See{' '}
 				<a
 					href={explorerHref('handler-context')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					Handler Context
 				</a>{' '}
@@ -474,7 +474,7 @@ export const DEMOS: DemoConfig[] = [
 				Generate content from multiple providers in parallel via the{' '}
 				<a
 					href={explorerHref('ai-gateway')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					AI Gateway
 				</a>
@@ -508,7 +508,7 @@ export const DEMOS: DemoConfig[] = [
 				bidirectional messaging, see{' '}
 				<a
 					href={explorerHref('websocket')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					WebSocket
 				</a>
@@ -586,7 +586,7 @@ export const DEMOS: DemoConfig[] = [
 				. The same chairs from the{' '}
 				<a
 					href="/explorer/vector-storage"
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-800 dark:hover:text-cyan-500"
 				>
 					Vector Search
 				</a>{' '}

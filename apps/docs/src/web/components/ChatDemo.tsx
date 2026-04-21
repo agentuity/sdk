@@ -200,7 +200,7 @@ export function ChatDemo() {
 
 													// Inline code
 													return (
-														<code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-400 text-xs">
+														<code className="bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-cyan-800 dark:text-cyan-400 text-xs">
 															{children}
 														</code>
 													);

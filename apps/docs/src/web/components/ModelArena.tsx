@@ -663,7 +663,7 @@ function ProgressStepper({
 										stepStatus === 'complete'
 											? 'bg-green-500 text-white'
 											: stepStatus === 'active'
-												? 'bg-cyan-500 text-white dark:text-black'
+												? 'bg-cyan-500 text-cyan-950 dark:text-black'
 												: stepStatus === 'error'
 													? 'bg-red-500 text-white'
 													: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-500'
@@ -694,7 +694,7 @@ function ProgressStepper({
 							<span
 								className={`text-xs whitespace-nowrap ${
 									stepStatus === 'active'
-										? 'text-cyan-600 dark:text-cyan-400 font-medium'
+										? 'text-cyan-800 dark:text-cyan-400 font-medium'
 										: stepStatus === 'complete'
 											? 'text-zinc-600 dark:text-zinc-400'
 											: 'text-zinc-400 dark:text-zinc-600'

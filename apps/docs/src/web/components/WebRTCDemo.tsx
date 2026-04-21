@@ -1324,7 +1324,7 @@ export function WebRTCDemo(): React.JSX.Element {
 
 				<div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3">
 					<p className="text-xs text-zinc-600 dark:text-zinc-400">
-						<span className="font-medium text-cyan-600 dark:text-cyan-400">Tip:</span>{' '}
+						<span className="font-medium text-cyan-800 dark:text-cyan-400">Tip:</span>{' '}
 						Switching between the Data Channel and Video Call tabs resets the active peer
 						connection for that browser tab.
 					</p>

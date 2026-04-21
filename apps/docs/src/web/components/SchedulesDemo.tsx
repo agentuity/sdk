@@ -501,7 +501,7 @@ export function SchedulesDemo() {
 							<Row
 								label="Expression"
 								value={
-									<code className="text-cyan-600 dark:text-cyan-400 font-mono">
+									<code className="text-cyan-800 dark:text-cyan-400 font-mono">
 										{demoState.schedule?.expression ?? DEFAULT_EXPRESSION}
 									</code>
 								}
@@ -577,7 +577,7 @@ export function SchedulesDemo() {
 				) : (
 					<div className="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">
 						Creates a schedule that calls{' '}
-						<code className="text-cyan-600 dark:text-cyan-400 font-mono">/api/hello</code>{' '}
+						<code className="text-cyan-800 dark:text-cyan-400 font-mono">/api/hello</code>{' '}
 						once a minute and shows the first recorded delivery.
 					</div>
 				)}
