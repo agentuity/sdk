@@ -76,6 +76,11 @@ export const navData: NavSection[] = [
 				description: 'Structured streaming with event types and auto-reconnect',
 			},
 			{
+				title: 'WebSocket',
+				url: '/explorer/websocket',
+				description: 'Real-time bidirectional messaging over a persistent connection',
+			},
+			{
 				title: 'Durable Streams',
 				url: '/explorer/durable-stream',
 				description: 'Generate content and get a permanent, shareable URL',
@@ -94,6 +99,11 @@ export const navData: NavSection[] = [
 				title: 'Model Arena',
 				url: '/explorer/model-arena',
 				description: 'Compare AI models using another AI as judge',
+			},
+			{
+				title: 'WebRTC',
+				url: '/explorer/webrtc',
+				description: 'Audio, video, and data channels directly between browsers',
 			},
 			{
 				title: 'Queues',

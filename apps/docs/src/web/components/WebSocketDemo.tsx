@@ -259,7 +259,7 @@ export function WebSocketDemo() {
 					</div>
 
 					<p className="m-0 text-xs text-zinc-500">
-						Reconnects after drops, not after refresh
+						Heartbeat ping every 15s; reconnects after drops, not page refresh
 					</p>
 
 					{messages.length > 0 && (
