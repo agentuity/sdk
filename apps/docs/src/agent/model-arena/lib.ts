@@ -16,12 +16,7 @@ export interface GenerationConfig {
 	model: string;
 }
 
-async function repairJudgmentText({
-	text,
-}: {
-	text: string;
-	error: unknown;
-}): Promise<string | null> {
+async function repairJudgmentText({ text }: { text: string }): Promise<string | null> {
 	const start = text.indexOf('{');
 	const end = text.lastIndexOf('}');
 

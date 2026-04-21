@@ -126,9 +126,16 @@ const router = new Hono<Env>()
 							},
 						});
 					} catch (error) {
+						if (
+							abortSignal.aborted ||
+							(error instanceof Error && error.name === 'AbortError')
+						) {
+							return;
+						}
+
 						const message = error instanceof Error ? error.message : 'Unknown error';
 						c.var.logger?.error('Model Arena stream failed', { error: message });
-						write('error', { error: `Judge failed: ${message}` });
+						write('error', { error: `Model Arena failed: ${message}` });
 					} finally {
 						abortSignal.removeEventListener('abort', stopHeartbeat);
 						stopHeartbeat();

@@ -1,5 +1,8 @@
+import { StructuredError } from '@agentuity/core';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
+
+const AIGatewayConfigError = StructuredError('AIGatewayConfigError');
 
 // AI SDK convenience exports can miss DevMode gateway routing, so create
 // these providers with the Agentuity Gateway URL explicitly.
@@ -9,13 +12,16 @@ function requireGatewayConfig(): { apiKey: string; baseUrl: string } {
 	const baseUrl = rawBaseUrl?.replace(/\/+$/u, '');
 
 	if (!apiKey) {
-		throw new Error('AGENTUITY_SDK_KEY is required for Agentuity AI Gateway access');
+		throw new AIGatewayConfigError({
+			message: 'AGENTUITY_SDK_KEY is required for Agentuity AI Gateway access',
+		});
 	}
 
 	if (!baseUrl) {
-		throw new Error(
-			'AI Gateway is not configured in this environment. Run via agentuity dev or deploy on Agentuity'
-		);
+		throw new AIGatewayConfigError({
+			message:
+				'AI Gateway is not configured in this environment. Run via agentuity dev or deploy on Agentuity',
+		});
 	}
 
 	return { apiKey, baseUrl };

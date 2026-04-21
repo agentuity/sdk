@@ -10,6 +10,7 @@ import type {
 	ScheduleDeliveryListResult,
 } from '@agentuity/schedule';
 import { z } from 'zod';
+import { cookieAuth } from '../../middleware/auth';
 
 type ScheduleApiService = Env['Variables']['schedule'];
 
@@ -21,6 +22,9 @@ const DEFAULT_EXPRESSION = '* * * * *';
 const DELIVERY_PAGE_LIMIT = 5;
 const HELLO_DESTINATION_PATH = '/api/hello';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const CREATE_RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_CREATES_PER_WINDOW = 1;
+const createAttemptsByUser = new Map<string, number[]>();
 
 function isLoopbackHost(hostname: string): boolean {
 	const normalizedHost = hostname.toLowerCase().replace(/^\[|\]$/g, '');
@@ -126,8 +130,9 @@ function createScheduleParams(expression: string, destinationUrl: string): Creat
 }
 
 const router = new Hono<Env>()
-	.post('/', async (c) => {
+	.post('/', cookieAuth, async (c) => {
 		try {
+			const userId = (c.get as (key: string) => string)('userId');
 			let body: unknown;
 			try {
 				body = await c.req.json<unknown>();
@@ -160,6 +165,23 @@ const router = new Hono<Env>()
 			const expression = parsed.data.expression ?? DEFAULT_EXPRESSION;
 			const createParams = createScheduleParams(expression, destinationUrl);
 
+			const now = Date.now();
+			const recentAttempts = (createAttemptsByUser.get(userId) ?? []).filter(
+				(timestamp) => timestamp > now - CREATE_RATE_LIMIT_WINDOW_MS
+			);
+
+			if (recentAttempts.length >= MAX_CREATES_PER_WINDOW) {
+				createAttemptsByUser.set(userId, recentAttempts);
+				return c.json(
+					{
+						success: false,
+						message: 'Wait a minute before creating another Explorer schedule.',
+					},
+					429
+				);
+			}
+
+			createAttemptsByUser.set(userId, [...recentAttempts, now]);
 			const result = await c.var.schedule.create(createParams);
 
 			return c.json({
