@@ -227,6 +227,7 @@ import { join } from 'node:path';
 export default defineConfig({
 	plugins: [react()],
 	root: '.',
+	publicDir: 'src/web/public',
 	build: {
 		rollupOptions: {
 			input: join(__dirname, 'src/web/index.html'),
@@ -244,17 +245,27 @@ export default defineConfig({
 				? `https://${options.region === 'local' ? 'localstack-static-assets.t3.storageapi.dev' : 'cdn.agentuity.com'}/${options.deploymentId}/client/`
 				: undefined;
 
+		// Pass the user's vite.config.ts directly to the subprocess. We used to
+		// wrap it in an auto-generated `.agentuity/vite.client.config.ts` to
+		// merge a lint plugin in, but that wrapper added complexity (plugin-path
+		// resolution, a junk file in the deploy bundle) for a warning-only
+		// linter. If we need to inject plugins again, expose them as a published
+		// CLI export and have users add them in their own vite.config.ts.
 		const args = [
 			'bun',
 			'x',
 			'vite',
 			'build',
+			'--config',
+			viteConfigPath,
 			'--mode',
 			buildMode,
 			'--outDir',
 			clientOutDir,
+			// `warn` surfaces Vite warnings (e.g. large-chunk notices) without
+			// adding its own info-level chatter.
 			'--logLevel',
-			'error',
+			'warn',
 			'--clearScreen',
 			'false',
 		];

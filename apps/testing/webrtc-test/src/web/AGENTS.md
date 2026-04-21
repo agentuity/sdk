@@ -209,27 +209,43 @@ export function App() {
 
 ## Static Assets
 
-Place static files in the **public/** folder:
+Agentuity uses standard Vite asset conventions. There are two ways to
+reference static files:
+
+### Import the asset (recommended for JS/TSX)
+
+```typescript
+import logoUrl from './assets/logo.svg';
+
+export function Header() {
+	return <img src={logoUrl} alt="Logo" />;
+}
+```
+
+Vite emits a content-hashed copy and replaces the import with the final URL
+(including the production CDN).
+
+### Use `publicDir` for root-served files
+
+Files under `src/web/public/` are served at the URL root — **without** a
+`/public/` prefix:
 
 ```
 src/web/public/
-├── logo.svg
-├── styles.css
-└── script.js
+├── favicon.ico      → served at /favicon.ico
+├── robots.txt       → served at /robots.txt
+└── styles.css       → served at /styles.css
 ```
-
-Reference them in your HTML or components:
 
 ```html
-<!-- In index.html -->
-<link rel="stylesheet" href="/public/styles.css" />
-<script src="/public/script.js"></script>
+<!-- In index.html — Vite rewrites root paths to the CDN in production -->
+<link rel="stylesheet" href="/styles.css" />
+<script src="/script.js"></script>
+<link rel="icon" href="/favicon.ico" />
 ```
 
-```typescript
-// In React components
-<img src="/public/logo.svg" alt="Logo" />
-```
+> Do not use a `/public/` prefix. That path is not served and will 404 in
+> production. This is enforced by a build-time lint.
 
 ## Styling
 
@@ -243,7 +259,7 @@ Reference them in your HTML or components:
 
 ### CSS Files
 
-Create `public/styles.css`:
+Create `src/web/public/styles.css`:
 
 ```css
 body {
@@ -256,7 +272,7 @@ body {
 Import in `index.html`:
 
 ```html
-<link rel="stylesheet" href="/public/styles.css" />
+<link rel="stylesheet" href="/styles.css" />
 ```
 
 ### Style Tag in Component
@@ -294,5 +310,6 @@ Import in `index.html`:
 - **index.html** must have a `<div id="root"></div>`
 - All agents are accessible via `useAgent('agentName')`
 - The web app is served at `/` by default
-- Static files in `public/` are served at `/public/*`
+- Files in `src/web/public/` are served at the URL root (`/filename`, **not** `/public/filename`)
+- For assets referenced from JS/TSX, use `import url from './path.svg'` — never a string literal like `/public/foo.svg`
 - Module script tag: `<script type="module" src="/web/frontend.tsx"></script>`
