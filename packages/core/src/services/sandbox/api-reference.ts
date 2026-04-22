@@ -887,15 +887,15 @@ const service: Service = {
 			exampleHeaders: { 'Content-Type': 'application/gzip' },
 			exampleBody: '<binary gzip data>',
 		},
-		// ── Disk Checkpoints ──────────────────────────────────────────────
+		// ── Sandbox Checkpoints ───────────────────────────────────────────
 		{
 			id: 'create-checkpoint',
 			title: 'Create Checkpoint',
-			sectionTitle: 'Disk Checkpoints',
+			sectionTitle: 'Sandbox Checkpoints',
 			method: 'POST',
 			path: '/sandbox/{sandboxId}/checkpoint',
 			description:
-				'Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Disk checkpoints are persisted across pause/resume cycles.',
+				'Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Checkpoints are persisted across pause/resume cycles.',
 			pathParams: [
 				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
 			],
@@ -923,11 +923,11 @@ const service: Service = {
 		{
 			id: 'list-checkpoints',
 			title: 'List Checkpoints',
-			sectionTitle: 'Disk Checkpoints',
+			sectionTitle: 'Sandbox Checkpoints',
 			method: 'GET',
 			path: '/sandbox/checkpoints/{sandboxId}',
 			description:
-				'List checkpoints for a specific sandbox. Disk checkpoints are persisted across pause/resume cycles.',
+				'List checkpoints for a specific sandbox. Checkpoints are persisted across pause/resume cycles.',
 			pathParams: [
 				{ name: 'sandboxId', type: 'string', description: 'Sandbox ID', required: true },
 			],
@@ -947,7 +947,7 @@ const service: Service = {
 		{
 			id: 'restore-checkpoint',
 			title: 'Restore Checkpoint',
-			sectionTitle: 'Disk Checkpoints',
+			sectionTitle: 'Sandbox Checkpoints',
 			method: 'POST',
 			path: '/sandbox/{sandboxId}/checkpoint/{checkpointId}/restore',
 			description: 'Restore the sandbox filesystem to a checkpoint state.',
@@ -971,7 +971,7 @@ const service: Service = {
 		{
 			id: 'delete-checkpoint',
 			title: 'Delete Checkpoint',
-			sectionTitle: 'Disk Checkpoints',
+			sectionTitle: 'Sandbox Checkpoints',
 			method: 'DELETE',
 			path: '/sandbox/{sandboxId}/checkpoint/{checkpointId}',
 			description: 'Delete a checkpoint.',

@@ -39,10 +39,8 @@ const result = await ctx.run(statusAgent);
 | `sessionId` | `string` | Custom session ID. Auto-generated from trace context if not provided |
 | `trigger` | `string` | Trigger type for telemetry: `'discord'`, `'cron'`, `'websocket'`, `'manual'` |
 | `parentContext` | `Context` | Parent OpenTelemetry context for distributed tracing |
-| `thread` | `Thread` | Existing thread to reuse |
-| `session` | `Session` | Existing session to reuse |
 
-By default, each standalone invocation creates a fresh thread and session. Pass `thread` or `session` when you need to reuse conversation state that you already manage, or persist IDs in your own data layer to reconnect later work.
+By default, each standalone invocation creates a fresh thread and restores or creates a session from the session ID. Pass `sessionId` when an external system needs a stable session identifier for a run.
 
 ## External Cron Job Example
 
@@ -157,14 +155,14 @@ const result = await ctx.invoke(() => agent.run(input), { spanName: 'daily-clean
 Each call to `ctx.run()` or `ctx.invoke()` follows this lifecycle:
 
 1. **Create tracing span**: An OpenTelemetry span is created within the parent context. Trace state includes project, org, and deployment IDs for distributed tracing.
-2. **Create or reuse conversation state**: By default, a fresh thread is created and the session is restored or created using the session ID. If you pass `thread` or `session`, those objects are reused.
+2. **Create conversation state**: A fresh thread is created and the session is restored or created using the session ID.
 3. **Fire session start event**: A `start` event is sent to the session event provider with the trigger type, session ID, thread ID, and deployment metadata.
 4. **Execute function**: Your function runs within `AsyncLocalStorage` context, giving it access to `ctx.kv`, `ctx.stream`, `ctx.vector`, `ctx.logger`, and `waitUntil`.
-5. **Wait for background tasks**: Any `ctx.waitUntil()` callbacks are awaited before the invocation completes.
-6. **Save session and thread**: Session and thread state are persisted via their providers.
-7. **Fire session complete event**: A `complete` event is sent with the final status code, agent IDs that participated, and any user data.
+5. **Handle background tasks**: If `ctx.waitUntil()` callbacks are pending, they continue after your function returns.
+6. **Save session and thread**: Session and thread state are persisted via their providers. When `waitUntil()` tasks are pending, this happens after those tasks finish.
+7. **Fire session complete event**: A `complete` event is sent with the final status code, agent IDs that participated, and any user data. When `waitUntil()` tasks are pending, this happens after those tasks finish.
 
-If background tasks are pending (`waitUntil`), session save and the complete event happen after all tasks finish. Errors during execution set the span status to `ERROR` and include the error message in the session complete event.
+Errors during execution set the span status to `ERROR` and include the error message in the session complete event. Errors from `waitUntil()` tasks are recorded on the span and reported in the eventual session complete event.
 
 ## What's Included
 

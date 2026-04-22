@@ -11,7 +11,7 @@ Agents that reason about code need somewhere safe to execute it. Whether generat
 
 The pattern keeps repeating: spin up a secure environment, run code, tear it down. Without proper isolation, a single bad script could access sensitive data, exhaust resources, or compromise your systems.
 
-Agentuity sandboxes handle this automatically. Every execution runs in an isolated container with its own filesystem, configurable resource limits, and network controls. When execution completes, the environment is destroyed.
+Agentuity sandboxes handle the isolation layer. One-shot runs create a sandbox, execute a command, and destroy it. Interactive sandboxes keep their filesystem until you destroy them or the idle timeout reaps them.
 
 **What this gives you:**
 
@@ -39,8 +39,9 @@ Your agents are written in TypeScript, but the sandbox can run any language safe
 | **Runtime** | A pre-configured base environment (OS + language tools) provided by Agentuity |
 | **Sandbox** | A running container created from a runtime where you execute commands |
 | **Snapshot** | A saved sandbox state that can be used to create new sandboxes |
+| **Checkpoint** | A saved filesystem state for one sandbox, used by pause/resume and restore workflows |
 
-These build on each other: **Runtime → Sandbox → Snapshot**. Here's an example of how to use all three:
+Runtimes, sandboxes, and snapshots build on each other: **Runtime → Sandbox → Snapshot**. Checkpoints are sandbox-scoped: you restore the same sandbox back to a saved filesystem state instead of creating a reusable base image.
 
 1. Pick a **runtime** (e.g., `bun:1` or `node:latest`)
 2. Create a **sandbox** from that runtime
@@ -56,12 +57,12 @@ Use these for general code execution:
 
 | Runtime | Description |
 |---------|-------------|
-| `base:latest` | Minimal Debian runtime with essential tools  (default) |
+| `base:latest` | Minimal base runtime with essential tools (default) |
 | `bun:1` | Bun 1.x with JavaScript/TypeScript support |
 | `node:latest` | Node.js latest version |
 | `node:lts` | Node.js LTS version |
-| `python:3.13` | Python 3.13 |
-| `python:3.14` | Python 3.14 |
+| `python:3.13` | Python 3.13 with uv package manager |
+| `python:3.14` | Python 3.14 with uv package manager |
 | `golang:latest` | Golang latest |
 
 ### Agent Runtimes
@@ -73,7 +74,9 @@ Pre-configured AI coding assistants:
 | `claude-code:latest` | Claude Code AI assistant |
 | `amp:latest` | Amp AI coding assistant |
 | `codex:latest` | OpenAI Codex CLI agent |
-| `gemini-cli:latest` | Google Gemini CLI agent |
+| `copilot:latest` | GitHub Copilot CLI agent |
+| `cursor:latest` | Cursor AI coding agent |
+| `gemini:latest` | Google Gemini CLI agent |
 | `opencode:latest` | OpenCode AI coding assistant |
 | `agentuity:latest` | Agentuity CLI for building and running AI agents |
 
@@ -97,11 +100,11 @@ Each runtime includes metadata for identification and resource planning:
 | Field | Description |
 |-------|-------------|
 | `description` | What the runtime provides |
-| `icon` | URL to runtime icon |
+| `iconUrl` | URL to runtime icon |
 | `brandColor` | Hex color for UI display |
-| `documentationUrl` | Link to runtime documentation |
-| `tags` | Categories like `language`, `ai-agent` |
-| `requirements` | Minimum memory, CPU, disk, and network needs |
+| `url` | Link to runtime documentation or homepage |
+| `tags` | Categories like `language`, `testing`, `agent` |
+| `requirements` | Minimum memory, CPU, disk, and `networkEnabled` requirements |
 
 View runtime details with `agentuity cloud sandbox runtime list --json`.
 
@@ -153,14 +156,19 @@ import { createAgent } from '@agentuity/runtime';
 const agent = createAgent('ProjectBuilder', {
   handler: async (ctx, input) => {
     const sandbox = await ctx.sandbox.create({
+      runtime: 'node:lts',
       resources: { memory: '1Gi' },
       network: { enabled: true },  // Required for package installation
     });
 
     try {
-      await sandbox.execute({ command: ['npm', 'install'] });
-      await sandbox.execute({ command: ['npm', 'run', 'build'] });
-      return { success: true };
+      await sandbox.execute({ command: ['npm', 'init', '-y'] });
+      await sandbox.execute({ command: ['npm', 'install', 'zod'] });
+      const result = await sandbox.execute({
+        command: ['node', '-e', 'console.log("ready")'],
+      });
+
+      return { exitCode: result.exitCode };
     } finally {
       await sandbox.destroy();
     }
@@ -182,24 +190,25 @@ Jobs let you run long-running commands in a sandbox without blocking. Unlike reg
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 
-const agent = createAgent('BuildRunner', {
+const agent = createAgent('JobRunner', {
   handler: async (ctx, input) => {
     const sandbox = await ctx.sandbox.create({
+      runtime: 'node:lts',
       resources: { memory: '2Gi' },
       network: { enabled: true },
     });
 
     // Create a background job
-    const job = await sandbox.jobCreate({
-      command: ['npm', 'run', 'build'],
+    const job = await sandbox.createJob({
+      command: ['sh', '-c', 'sleep 30 && echo done'],
     });
 
-    ctx.logger.info('Build started', { jobId: job.jobId });
+    ctx.logger.info('Job started', { jobId: job.jobId });
 
     // Check status later
-    const status = await sandbox.jobGet({ jobId: job.jobId });
+    const status = await sandbox.getJob(job.jobId);
     if (status.status === 'completed') {
-      ctx.logger.info('Build succeeded', { exitCode: status.exitCode });
+      ctx.logger.info('Job completed', { exitCode: status.exitCode });
     }
 
     return { jobId: job.jobId };
@@ -221,10 +230,10 @@ const agent = createAgent('BuildRunner', {
 
 ```typescript
 // Graceful stop (SIGTERM, then SIGKILL after grace period)
-await sandbox.jobStop({ jobId: job.jobId });
+await sandbox.stopJob(job.jobId);
 
 // Force kill immediately
-await sandbox.jobStop({ jobId: job.jobId, force: true });
+await sandbox.stopJob(job.jobId, true);
 ```
 
 ### Use Cases
@@ -259,6 +268,7 @@ The API is identical in both contexts.
 | `timeout.idle` | Idle timeout before cleanup | `'10m'`, `'1h'` |
 | `timeout.execution` | Max execution time per command | `'5m'`, `'30s'` |
 | `dependencies` | Apt packages to install | `['python3', 'git']` |
+| `packages` | npm/bun packages to install globally | `['typescript', 'tsx']` |
 | `env` | Environment variables | `{ NODE_ENV: 'test' }` |
 | `snapshot` | Create from existing snapshot | `'my-env'` or `snp_abc123` |
 
@@ -294,7 +304,7 @@ From the CLI, use `agentuity cloud sandbox events <sandbox-id>` to list events. 
 
 ## Auto-Resume on Execute
 
-When you call `exec` on a suspended sandbox, the sandbox automatically resumes before running the command. The response includes `autoResumed: true` so you can detect and log this behavior.
+When you call `sandbox.execute()` on a suspended sandbox, the sandbox automatically resumes before running the command. The response includes `autoResumed: true` so you can detect and log this behavior.
 
 ```typescript
 const execution = await sandbox.execute({ command: ['bun', 'run', 'test'] });

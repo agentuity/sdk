@@ -24,12 +24,17 @@ The server starts on port 3500 by default with:
 
 | Option | Default | Description |
 |--------|---------|-------------|
+| `--dir <path>` | current directory | Project directory |
+| `--local` | false | Use local services instead of cloud services |
 | `--port` | 3500 (or `PORT` env) | TCP port for the dev server |
 | `--no-public` | - | Disable public URL tunneling |
 | `--no-interactive` | - | Disable interactive keyboard shortcuts |
 | `--inspect` | - | Enable Bun debugger for debugging |
 | `--inspect-wait` | - | Enable debugger and wait for connection before starting |
 | `--inspect-brk` | - | Enable debugger and break on first line |
+| `--no-typecheck` | - | Skip TypeScript type checking on startup and restarts |
+| `--resume <id>` | - | Resume a paused Hub session by ID |
+| `--project-id <id>` | - | Use a specific project instead of resolving from `--dir` |
 
 <Callout type="tip" title="PORT Environment Variable">
 The dev server respects the `PORT` environment variable. The `--port` flag takes precedence if both are set.
@@ -44,6 +49,9 @@ agentuity dev --no-public
 
 # Non-interactive mode (useful for CI/CD)
 agentuity dev --no-interactive
+
+# Local services mode
+agentuity dev --local
 ```
 
 ## Debugging with Inspector

@@ -3,7 +3,7 @@ title: App Configuration
 description: Configure your Agentuity project
 ---
 
-Agentuity projects use minimal configuration. Most setup happens in code, not config files.
+Agentuity projects keep runtime behavior in code and deployment metadata in `agentuity.json`.
 
 ## agentuity.json
 
@@ -11,9 +11,18 @@ The project configuration file:
 
 ```json
 {
+  "$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
   "projectId": "proj_...",
   "orgId": "org_...",
-  "region": "use"
+  "region": "use",
+  "deployment": {
+    "resources": {
+      "memory": "500Mi",
+      "cpu": "500m",
+      "disk": "500Mi"
+    },
+    "domains": []
+  }
 }
 ```
 
@@ -193,19 +202,21 @@ The `build` section controls the sandbox where your project compiles during clou
 
 For detailed options, see [Deploying to the Cloud](/reference/cli/deployment#resource-configuration).
 
-### Running Deploy Lifecycle Scripts
+### Run Deploy Lifecycle Scripts
 
 Run custom steps before or after deployment using `predeploy` and `postdeploy` scripts in `package.json`:
 
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "cd ../.. && bun install && bun run build:packages",
+    "predeploy": "bun run typecheck",
     "deploy": "agentuity deploy",
     "postdeploy": "echo 'Deploy complete'"
   }
 }
 ```
+
+Package manager lifecycle hooks run when you call `bun run deploy`. Running `agentuity deploy` directly skips `predeploy` and `postdeploy`.
 
 When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), defining `predeploy` gives you full control over the install step. Without it, the platform runs `bun install` automatically. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
 
@@ -281,11 +292,11 @@ Instead of commenting out lines when switching contexts, put shared defaults in 
 
 - **`.env.local`**: Bun may use this for app runtime behavior, but the Agentuity CLI does not currently include `.env.local` when it searches for `AGENTUITY_SDK_KEY` during `agentuity dev` or deploy preflight. Keep required CLI credentials in one of the files listed above.
 
-**Git behavior:** The default `.gitignore` ignores `.env`. Other env files (`.env.development`, `.env.local`, profile-specific files) are not ignored by default. Add any files containing secrets to your `.gitignore`.
+**Git behavior:** The default `.gitignore` ignores `.env` and `.env.*`. If you add differently named secret files, add them to `.gitignore` too.
 
 ## Infrastructure as Code
 
-Unlike traditional platforms, Agentuity defines infrastructure in your route files:
+Agentuity defines route infrastructure in your source files:
 
 ```typescript
 // src/api/index.ts
@@ -302,7 +313,7 @@ const api = new Hono<Env>()
   // WebSocket endpoint
   .get('/chat', websocket((c, ws) => {
     ws.onMessage(async (event) => {
-      const result = await chatHandler.run({ message: event.data as string });
+      const result = await chatHandler.run({ message: String(event.data) });
       ws.send(JSON.stringify(result));
     });
   }));
@@ -310,10 +321,7 @@ const api = new Hono<Env>()
 export default api;
 ```
 
-This approach means:
-- **Deployments are self-contained**: rolling back restores exact configuration
-- **Version control**: your infrastructure changes are tracked in Git
-- **No config drift**: what's in code is what runs
+This keeps routes and agent registration in version control with the code that handles them.
 
 ## Next Steps
 

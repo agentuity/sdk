@@ -56,6 +56,10 @@ type RouteVariables = {
   apiKeyOwner: string;
 };
 
+type ApiKeyRecord = {
+  readonly ownerId: string;
+};
+
 const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const apiKeyAuth = createMiddleware(async (c, next) => {
@@ -66,7 +70,7 @@ const apiKeyAuth = createMiddleware(async (c, next) => {
   }
 
   // Validate against stored keys
-  const keyData = await c.var.kv.get('api-keys', apiKey);
+  const keyData = await c.var.kv.get<ApiKeyRecord>('api-keys', apiKey);
   if (!keyData.exists) {
     return c.json({ error: 'Invalid API key' }, 401);
   }
@@ -99,6 +103,11 @@ type RouteVariables = {
   };
 };
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET is required');
+}
+
 const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const jwtAuth = createMiddleware(async (c, next) => {
@@ -111,7 +120,7 @@ const jwtAuth = createMiddleware(async (c, next) => {
   const token = authHeader.slice(7);
 
   try {
-    const payload = await verify(token, process.env.JWT_SECRET!);
+    const payload = await verify(token, jwtSecret);
     if (typeof payload.sub !== 'string' || payload.sub.trim().length === 0) {
       return c.json({ error: 'Invalid token payload' }, 401);
     }

@@ -1,11 +1,11 @@
 ---
 title: Observability
-description: Logging, tracing, and debugging for agents
+description: Monitor and debug your agents with built-in observability tools
 ---
 
-import { FileText, GitBranch, Bug } from 'lucide-react';
+import { FileText, GitBranch, Bug, BarChart3 } from 'lucide-react';
 
-Monitor and debug your agents with built-in observability tools.
+Monitor and debug your agents with built-in observability tools. Use structured logs, traces, session timelines, and web analytics to see what your app did and where it failed.
 
 <Cards>
   <CardLink
@@ -26,6 +26,12 @@ Monitor and debug your agents with built-in observability tools.
     description="Debug sessions and inspect state"
     icon={<Bug />}
   />
+  <CardLink
+    href="/services/observability/web-analytics"
+    title="Web Analytics"
+    description="Frontend page views and browser events"
+    icon={<BarChart3 />}
+  />
 </Cards>
 
 ## Quick Reference
@@ -34,15 +40,19 @@ Monitor and debug your agents with built-in observability tools.
 
 ```typescript
 ctx.logger.info('Processing request', { userId, action });
-ctx.logger.error('Failed to process', { error: err.message });
+ctx.logger.error('Failed to process', { error: errorMessage });
 ```
 
 ### Tracing
 
 ```typescript
-await ctx.tracer.withSpan('fetch-data', async (span) => {
-  span.setAttribute('source', 'api');
-  return await fetchData();
+await ctx.tracer.startActiveSpan('fetch-data', async (span) => {
+  try {
+    span.setAttribute('source', 'api');
+    return await fetchData();
+  } finally {
+    span.end();
+  }
 });
 ```
 
@@ -50,8 +60,7 @@ await ctx.tracer.withSpan('fetch-data', async (span) => {
 
 ```typescript
 // Access session ID for debugging
-const sessionId = ctx.session.id;
-ctx.logger.info('Session started', { sessionId });
+ctx.logger.info('Session started', { sessionId: ctx.sessionId });
 ```
 
 ## Access Patterns
@@ -61,4 +70,4 @@ ctx.logger.info('Session started', { sessionId });
 | Agents | `ctx.logger` | `ctx.tracer` |
 | Routes | `c.var.logger` | `c.var.tracer` |
 
-All logs and traces are automatically correlated with session IDs for easy debugging in the Agentuity dashboard.
+Agent sessions use the trace ID as the session ID, so session logs and timelines line up in the [Agentuity Console](https://app.agentuity.com).

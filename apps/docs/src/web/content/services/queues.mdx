@@ -30,7 +30,7 @@ Use the [`@agentuity/queue`](/reference/standalone-packages#message-queues) stan
 |---------|--------|---------|
 | Agents | `ctx.queue` | See examples below |
 | Routes | `c.var.queue` | See [Using in Routes](#using-in-routes) |
-| Standalone | `createAgentContext()` | See [Standalone Usage](#standalone-usage) |
+| Standalone package | `QueueClient` | See [Standalone Usage](#standalone-usage) |
 
 <Callout type="info" title="Same API Everywhere">
 The Queue API is identical in all contexts. `ctx.queue.publish()` and `c.var.queue.publish()` work the same way.
@@ -230,38 +230,29 @@ Use queues for webhooks that need quick acknowledgment. Return 200 immediately, 
 
 ## Standalone Usage
 
-Use queues from background jobs with `createAgentContext()`:
+Use queues from external workers or background jobs with `QueueClient`:
 
 ```typescript
-import { createApp, createAgentContext } from '@agentuity/runtime';
+import { QueueClient } from '@agentuity/queue';
 
-const app = await createApp();
-export default app;
+const queue = new QueueClient();
 
-// Scheduled job to send daily reports
-async function sendDailyReports() {
-  const ctx = createAgentContext({ trigger: 'cron' });
-
-  await ctx.invoke(async () => {
-    const users = await getActiveUsers();
-
-    for (const user of users) {
-      await ctx.queue.publish('email-reports', {
-        userId: user.id,
-        reportType: 'daily',
-      });
-    }
-
-    ctx.logger.info('Queued daily reports', { count: users.length });
-  });
+export async function queueDailyReports(users: readonly { id: string }[]) {
+  for (const user of users) {
+    await queue.publish('email-reports', {
+      userId: user.id,
+      reportType: 'daily',
+    });
+  }
 }
 ```
 
-See [Running Agents Without HTTP](/agents/standalone-execution) for more patterns.
+Use [Running Agents Without HTTP](/agents/standalone-execution) when you need a full runtime context instead of the standalone queue client.
 
 ## Error Handling
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
 import { QueueNotFoundError, QueueValidationError } from '@agentuity/core';
 
 const agent = createAgent('SafePublisher', {

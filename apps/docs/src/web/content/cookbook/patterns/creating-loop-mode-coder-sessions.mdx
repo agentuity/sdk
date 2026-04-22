@@ -31,7 +31,7 @@ async function main(): Promise<void> {
       tags: ['docs', 'loop-example'],
     });
 
-    // getSession is for lifecycle state; getLoopState is the only place loop fields live
+    // getSession is for lifecycle state; getLoopState returns detailed loop fields
     const session = await client.getSession(created.sessionId);
     const loopState = await client.getLoopState(created.sessionId); // [!code highlight]
 
@@ -101,7 +101,7 @@ void main();
 
 For headless, unattended runs, configure the loop with `autoContinue: true` and `allowDetached: true`, then poll `getLoopState()` until the loop reaches a terminal status. This lets your app dispatch the work and check back at a controlled interval rather than staying connected.
 
-The terminal statuses from `CoderLoopStatusSchema` are `completed`, `cancelled`, and `blocked`. The status `awaiting_input` is a non-terminal pause: the loop stopped and is waiting for external input before it can continue. All other statuses (`idle`, `starting`, `running`, `paused`) indicate the loop is still in progress.
+For polling, treat `completed`, `cancelled`, and `blocked` as terminal statuses. The status `awaiting_input` is a non-terminal pause: the loop stopped and is waiting for external input before it can continue. All other statuses from `CoderLoopStatusSchema` (`idle`, `starting`, `running`, `paused`) indicate the loop is still in progress.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -136,7 +136,7 @@ async function main(): Promise<void> {
     const { loop } = await client.getLoopState(created.sessionId);
 
     if (!loop) {
-      // Loop state isn't initialized yet. The session is still starting
+      // Loop state isn't initialized yet; the session is still starting
       continue;
     }
 
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
     }
 
     if (status === 'awaiting_input') {
-      // The loop paused and is waiting for external input. Your app would handle this
+      // The loop paused and is waiting for external input; your app would handle this
       // by prompting the user or sending a response through the Hub WebSocket or REST API
       console.log('Loop is awaiting input. Exiting poll loop.');
       return;
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-The Hub broadcasts `loop.summary` and `loop.nextAction` as the loop progresses, so your UI or downstream step can pick them up without holding a live controller socket.
+`getLoopState()` exposes `loop.summary` and `loop.nextAction` as the loop progresses, so your UI or downstream step can poll for them without holding a live controller socket.
 
 ## When to Use This Pattern
 

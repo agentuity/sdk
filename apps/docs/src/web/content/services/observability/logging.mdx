@@ -3,26 +3,26 @@ title: Logging
 description: Structured logging for agents and routes
 ---
 
-Use `ctx.logger` in agents and `c.var.logger` in routes for structured logging. Logs are automatically tied to session IDs for debugging.
+Use `ctx.logger` in agents and `c.var.logger` in routes for structured logging. In deployed apps, session logs are available through the CLI and the [Agentuity Console](https://app.agentuity.com).
 
 For the full `Logger` interface, all method signatures, and OpenTelemetry tracing, see [Observability Reference](/reference/sdk-reference/observability).
 
 ## Log Levels
 
-`ctx.logger` has methods for each level: `trace`, `debug`, `info`, `warn`, `error`, and `fatal`. Use the method that matches severity:
+`ctx.logger` has methods for each configured level: `trace`, `debug`, `info`, `warn`, and `error`. Use the method that matches severity:
 
 ```typescript
 ctx.logger.info('Request processed', { requestId: '123' });
 ctx.logger.error('Failed to fetch data', error);
 ```
 
-Levels from most to least verbose: `trace` → `debug` → `info` → `warn` → `error` → `fatal`. The default minimum level is `info`.
+Configured levels from most to least verbose: `trace`, `debug`, `info`, `warn`, and `error`. The default minimum level is `info`. `fatal()` is also available, but it logs through `error()` and exits the process.
 
 For the complete `Logger` interface and all method signatures, see [Observability Reference](/reference/sdk-reference/observability).
 
-## Structured Logging
+## Context Fields
 
-Pass context as a second argument for searchable metadata:
+Pass useful context with the message:
 
 ```typescript
 const agent = createAgent('ProductSearch', {
@@ -43,7 +43,7 @@ const agent = createAgent('ProductSearch', {
 });
 ```
 
-This creates structured log entries you can filter and search in the Agentuity App or the CLI.
+Use `ctx.logger.child(fields)` when the same fields should be attached to every log line.
 
 ## Child Loggers
 
@@ -105,18 +105,18 @@ Control the minimum log level with `AGENTUITY_LOG_LEVEL` in your `.env`:
 AGENTUITY_LOG_LEVEL=debug
 ```
 
-See [Log Configuration](/reference/sdk-reference/observability#log-configuration) for the full level table and defaults.
+See [Log Configuration](/reference/sdk-reference/observability#log-configuration) for the SDK reference section.
 
 ## Viewing Logs
 
-In dev mode, logs stream directly to your terminal. In deployed environments, use `agentuity cloud session logs <session-id>` or the Agentuity App session timeline.
+In dev mode, logs stream directly to your terminal. In deployed environments, use `agentuity cloud session logs <session-id>` or the Agentuity Console session timeline.
 
-See [Viewing Logs](/reference/sdk-reference/observability#viewing-logs) for the full CLI commands.
+See [Session Logs](/reference/cli/debugging#session-logs) for the full CLI commands.
 
 ## Best Practices
 
-- **Use `ctx.logger`**: Always use `ctx.logger` or `c.var.logger` instead of `console.log` for proper log collection
-- **Add context**: Include IDs, counts, and timing in structured fields
+- **Use `ctx.logger`**: Use `ctx.logger` or `c.var.logger` instead of `console.log` for proper log collection
+- **Add context**: Include IDs, counts, and timing in log messages or child logger fields
 - **Use appropriate levels**: `info` for normal flow, `warn` for recoverable issues, `error` for failures
 - **Create child loggers**: For complex operations, create component-specific loggers
 

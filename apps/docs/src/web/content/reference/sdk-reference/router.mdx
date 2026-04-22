@@ -14,10 +14,9 @@ Create routes with `createRouter()` from `@agentuity/runtime` (which returns `ne
 
 ```typescript
 // src/api/index.ts
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { createRouter } from '@agentuity/runtime';
 
-const router = new Hono<Env>()
+const router = createRouter()
   .get('/', (c) => {
     return c.json({ message: 'Hello from route' });
   });
@@ -66,6 +65,7 @@ interface RouterContext<TAppState = Record<string, never>> {
     sandbox: SandboxService;          // Isolated code execution
     logger: Logger;                   // Structured logging
     tracer: Tracer;                   // OpenTelemetry tracing
+    meter: Meter;                     // OpenTelemetry metrics
     thread: Thread;                   // Thread context
     session: Session;                 // Session context
     app: TAppState;                   // App-level state from createApp()
@@ -74,7 +74,7 @@ interface RouterContext<TAppState = Record<string, never>> {
   waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void;
 
   // Response Helpers
-  json(data: any, status?: number): Response;
+  json(data: unknown, status?: number): Response;
   text(text: string, status?: number): Response;
   html(html: string, status?: number): Response;
   redirect(url: string, status?: number): Response;
@@ -140,6 +140,7 @@ Routes do not get the request-local `ctx.state` map that agents receive. Use loc
 | [Sandbox](/services/sandbox/sdk-usage) | `ctx.sandbox` | `c.var.sandbox` | `ctx.sandbox` |
 | Logger | `ctx.logger` | `c.var.logger` | `ctx.logger` |
 | Tracer | `ctx.tracer` | `c.var.tracer` | `ctx.tracer` |
+| Meter | N/A | `c.var.meter` | N/A |
 | State | `ctx.state` | N/A | `ctx.state` |
 | Thread | `ctx.thread` | `c.var.thread` | `ctx.thread` |
 | Session | `ctx.session` | `c.var.session` | `ctx.session` |
@@ -151,7 +152,7 @@ Routes do not get the request-local `ctx.state` map that agents receive. Use loc
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('cache-manager', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     await ctx.kv.set('cache', 'key', { data: 'value' });
     ctx.logger.info('Data cached');
     return { success: true };
@@ -178,18 +179,20 @@ export default router;
 
 ### From Standalone Code
 
-For Discord bots, CLI tools, or queue workers running within the Agentuity runtime:
+For Discord bots, CLI tools, or queue workers using the Agentuity runtime services:
 
 ```typescript
-import { createApp, createAgentContext } from '@agentuity/runtime';
+import { createAgentContext } from '@agentuity/runtime';
+import cleanupAgent from '@agent/cleanup/agent';
 
-export default await createApp();
+const ctx = createAgentContext({ trigger: 'manual' });
 
-const ctx = createAgentContext();
 await ctx.invoke(async () => {
   await ctx.kv.set('cache', 'key', { data: 'value' });
   ctx.logger.info('Data cached from standalone context');
 });
+
+await ctx.run(cleanupAgent, { namespace: 'cache' });
 ```
 
 See [Running Agents Without HTTP](/agents/standalone-execution) for Discord bots, CLI tools, and queue worker patterns.
@@ -337,33 +340,44 @@ import { websocket } from '@agentuity/runtime';
 **Handler Signature:**
 
 ```typescript
-type WebSocketHandler = (c: Context, ws: WebSocketConnection) => void | Promise<void>;
+type WebSocketHandler = (c: Context, ws: WebSocketConnection) => void;
 
 interface WebSocketConnection {
-  onOpen(handler: (event: any) => void | Promise<void>): void;
-  onMessage(handler: (event: any) => void | Promise<void>): void;
-  onClose(handler: (event: any) => void | Promise<void>): void;
+  onOpen(handler: (event: Event) => void | Promise<void>): void;
+  onMessage(handler: (event: MessageEvent) => void | Promise<void>): void;
+  onClose(handler: (event: CloseEvent) => void | Promise<void>): void;
   send(data: string | ArrayBuffer | Uint8Array): void;
 }
 ```
+
+The `websocket()` handler itself must be synchronous. Put async work inside `onOpen`, `onMessage`, or `onClose` callbacks.
 
 **Example:**
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env, websocket } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
+import { websocket } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import chatAgent from '@agent/chat/agent';
 
 const router = new Hono<Env>();
+const messageSchema = s.object({ text: s.string() });
 
 router.get('/chat', websocket((c, ws) => {
-  ws.onOpen((event) => {
+  ws.onOpen(() => {
     c.var.logger.info('WebSocket connected');
     ws.send(JSON.stringify({ type: 'connected' }));
   });
 
   ws.onMessage(async (event) => {
-    const message = JSON.parse(event.data);
+    if (typeof event.data !== 'string') {
+      c.var.logger.warn('Ignoring non-text WebSocket message');
+      return;
+    }
+
+    const raw: unknown = JSON.parse(event.data);
+    const message = messageSchema.parse(raw);
 
     // Process message with agent
     const response = await chatAgent.run({
@@ -373,7 +387,7 @@ router.get('/chat', websocket((c, ws) => {
     ws.send(JSON.stringify({ type: 'response', data: response }));
   });
 
-  ws.onClose((event) => {
+  ws.onClose(() => {
     c.var.logger.info('WebSocket disconnected');
   });
 }));
@@ -397,33 +411,46 @@ import { sse } from '@agentuity/runtime';
 type SSEHandler = (c: Context, stream: SSEStream) => void | Promise<void>;
 
 interface SSEStream {
-  write(data: string | number | boolean | object): Promise<void>;
-  writeSSE(message: { data?: string; event?: string; id?: string }): Promise<void>;
+  write(data: string | number | boolean | SSEMessage): Promise<void>;
+  writeSSE(message: SSEMessage): Promise<void>;
   onAbort(handler: () => void): void;
-  close?(): void;
+  close(): void;
+}
+
+interface SSEMessage {
+  data: string;
+  event?: string;
+  id?: string;
+  retry?: number;
 }
 ```
+
+Use `sse({ output: schema }, handler)` when you want generated route types for SSE event data. The schema is used for type inference, not runtime validation of each event.
 
 **Example:**
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env, sse } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
+import { sse } from '@agentuity/runtime';
 import longRunningAgent from '@agent/long-running/agent';
 
 const router = new Hono<Env>();
 
 router.get('/updates', sse(async (c, stream) => {
   // Send initial connection message
-  await stream.write({ type: 'connected' });
+  await stream.writeSSE({
+    event: 'connected',
+    data: JSON.stringify({ type: 'connected' }),
+  });
 
   // Stream agent progress updates
   const updates = await longRunningAgent.run({ task: 'process' });
 
   for (const update of updates) {
-    await stream.write({
-      type: 'progress',
-      data: update,
+    await stream.writeSSE({
+      event: 'progress',
+      data: JSON.stringify({ type: 'progress', data: update }),
     });
   }
 
@@ -449,21 +476,24 @@ import { stream } from '@agentuity/runtime';
 **Handler Signature:**
 
 ```typescript
-type StreamHandler = (c: Context) => ReadableStream<any> | Promise<ReadableStream<any>>;
+type StreamHandler = (
+  c: Context
+) => ReadableStream<Uint8Array | string> | Promise<ReadableStream<Uint8Array | string>>;
 ```
 
 **Example:**
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env, stream } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
+import { stream } from '@agentuity/runtime';
 import dataGenerator from '@agent/data-generator/agent';
 
 const router = new Hono<Env>();
 
 router.post('/data', stream(async (c) => {
   // Create a readable stream
-  const readableStream = new ReadableStream({
+  const readableStream = new ReadableStream<Uint8Array>({
     async start(controller) {
       // Stream data chunks
       const data = await dataGenerator.run({ query: 'all' });
@@ -497,7 +527,7 @@ import { cron } from '@agentuity/runtime';
 **Handler Signature:**
 
 ```typescript
-type CronHandler = (c: Context) => any | Promise<any>;
+type CronHandler = (c: Context) => unknown | Promise<unknown>;
 ```
 
 **Cron Schedule Format:**
@@ -516,7 +546,8 @@ type CronHandler = (c: Context) => any | Promise<any>;
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env, cron } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
+import { cron } from '@agentuity/runtime';
 import reportGenerator from '@agent/report-generator/agent';
 import healthCheck from '@agent/health-check/agent';
 
@@ -573,8 +604,8 @@ router.get('/search', (c) => {
 
   return c.json({
     query,
-    limit: parseInt(limit),
-    page: parseInt(page)
+    limit: Number.parseInt(limit, 10),
+    page: Number.parseInt(page, 10),
   });
 });
 ```

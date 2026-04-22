@@ -142,7 +142,18 @@ agentuity ai opencode run --json "fix the bug"
 | `--sandbox` | Run in a cloud sandbox environment |
 | `--json` | Output raw JSON events for programmatic consumption |
 
-The plugin provides specialized agents, slash commands, and MCP servers for Agentuity development. See [OpenCode Plugin](/reference/cli/opencode-plugin) for full documentation.
+The plugin provides Agentuity Coder agents, slash commands, memory support, and session tools. See [OpenCode Plugin](/reference/cli/opencode-plugin) for full documentation.
+
+## Claude Code Plugin
+
+Install or remove the Agentuity Coder plugin for Claude Code:
+
+```bash
+agentuity ai claude-code install
+agentuity ai claude-code uninstall
+```
+
+The installer adds the plugin package locally, configures Claude Code permissions, and prints the `claude --plugin-dir ...` command to start Claude Code with the plugin. See [Claude Code Plugin](/reference/cli/claude-code-plugin) for setup details.
 
 ## Cadence Mode
 

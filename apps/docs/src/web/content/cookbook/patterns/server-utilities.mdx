@@ -4,14 +4,14 @@ short_title: Server Utilities
 description: Use storage, queues, logging, and error handling utilities from external backends like Next.js or Express
 ---
 
-Use Agentuity services in external apps, scripts, or backends. Standalone packages provide the simplest setup, or use `@agentuity/server` directly for custom configurations.
+Use Agentuity services from external apps, scripts, or backends. Standalone packages are the shortest path, while `@agentuity/server` gives you lower-level control over adapters and service URLs.
 
 ## Standalone Packages
 
-The fastest way to access Agentuity services from external apps. Each package handles authentication and configuration automatically.
+The fastest way to access Agentuity services from external apps. Each package reads `AGENTUITY_SDK_KEY`, `AGENTUITY_REGION`, and service URL overrides from the environment.
 
 <Callout type="info" title="Environment Variables">
-Set `AGENTUITY_SDK_KEY` and `AGENTUITY_REGION` in your `.env` file. See [Standalone Packages](/reference/standalone-packages#configuration) for details.
+Set `AGENTUITY_SDK_KEY` in your `.env` file. Set `AGENTUITY_REGION` when you need a region other than the default `usc`, or when matching an existing Agentuity project. See [Standalone Packages](/reference/standalone-packages#configuration) for details.
 </Callout>
 
 ```typescript title="lib/agentuity.ts"
@@ -29,7 +29,11 @@ import { kv } from '../../lib/agentuity';
 
 export async function GET(request: Request) {
   const userId = new URL(request.url).searchParams.get('userId');
-  const result = await kv.get<{ messages: string[] }>('sessions', userId!);
+  if (!userId) {
+    return Response.json({ error: 'Missing userId' }, { status: 400 });
+  }
+
+  const result = await kv.get<{ messages: string[] }>('sessions', userId);
 
   if (result.exists) {
     return Response.json(result.data);
@@ -60,28 +64,39 @@ import {
   KeyValueStorageService,
   VectorStorageService,
   StreamStorageService,
-} from '@agentuity/core';
-import { createServerFetchAdapter, getServiceUrls, createLogger } from '@agentuity/server';
+  buildClientHeaders,
+  createLogger,
+  createServerFetchAdapter,
+  getServiceUrls,
+} from '@agentuity/server';
 
 const logger = createLogger('info');
+const sdkKey = process.env.AGENTUITY_SDK_KEY;
+const region = process.env.AGENTUITY_REGION;
+
+if (!sdkKey) {
+  throw new Error('AGENTUITY_SDK_KEY environment variable is required');
+}
+
+if (!region) {
+  throw new Error('AGENTUITY_REGION environment variable is required');
+}
 
 const adapter = createServerFetchAdapter({
-  headers: {
-    Authorization: `Bearer ${process.env.AGENTUITY_SDK_KEY}`,
-  },
+  headers: buildClientHeaders({ apiKey: sdkKey }),
 }, logger);
 
-const urls = getServiceUrls(process.env.AGENTUITY_REGION!);
+const urls = getServiceUrls(region);
 
-export const kv = new KeyValueStorageService(urls.catalyst, adapter);
-export const vector = new VectorStorageService(urls.catalyst, adapter);
+export const kv = new KeyValueStorageService(urls.keyvalue, adapter);
+export const vector = new VectorStorageService(urls.vector, adapter);
 export const stream = new StreamStorageService(urls.stream, adapter);
 ```
 
 Use the client in your Next.js backend:
 
 ```typescript title="app/api/sessions/route.ts"
-import { type NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { kv } from '@/lib/agentuity-storage';
 
 interface ChatSession {
@@ -120,7 +135,7 @@ export async function POST(request: NextRequest) {
 ### Vector Storage
 
 ```typescript title="app/api/search/route.ts"
-import { type NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { vector } from '@/lib/agentuity-storage';
 
 export async function POST(request: NextRequest) {
@@ -140,7 +155,7 @@ export async function POST(request: NextRequest) {
 Use streams for large data exports or file transfers:
 
 ```typescript title="app/api/export/route.ts"
-import { type NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { stream } from '@/lib/agentuity-storage';
 
 export async function GET(request: NextRequest) {
@@ -164,20 +179,24 @@ Manage queues programmatically from external apps or scripts using `APIClient`:
 ```typescript title="lib/agentuity-queues.ts"
 import { APIClient, createLogger, getServiceUrls } from '@agentuity/server';
 
-if (!process.env.AGENTUITY_REGION) {
+const region = process.env.AGENTUITY_REGION;
+const sdkKey = process.env.AGENTUITY_SDK_KEY;
+
+if (!region) {
   throw new Error('AGENTUITY_REGION environment variable is required');
 }
-if (!process.env.AGENTUITY_SDK_KEY) {
+
+if (!sdkKey) {
   throw new Error('AGENTUITY_SDK_KEY environment variable is required');
 }
 
 export const logger = createLogger('info');
-const urls = getServiceUrls(process.env.AGENTUITY_REGION);
+const urls = getServiceUrls(region);
 
 export const client = new APIClient(
   urls.catalyst,
   logger,
-  process.env.AGENTUITY_SDK_KEY
+  sdkKey
 );
 ```
 
@@ -244,6 +263,12 @@ await purgeDeadLetter(client, 'order-processing');
 import { createDestination } from '@agentuity/server';
 import { client } from '@/lib/agentuity-queues';
 
+const webhookApiKey = process.env.WEBHOOK_API_KEY;
+
+if (!webhookApiKey) {
+  throw new Error('WEBHOOK_API_KEY environment variable is required');
+}
+
 await createDestination(client, 'order-processing', {
   name: 'orders-webhook',
   destination_type: 'http',
@@ -251,7 +276,7 @@ await createDestination(client, 'order-processing', {
   config: {
     url: 'https://api.example.com/webhook/orders',
     method: 'POST',
-    headers: { 'X-API-Key': process.env.WEBHOOK_API_KEY! },
+    headers: { 'X-API-Key': webhookApiKey },
     timeout_ms: 30000,
     retry_policy: {
       max_attempts: 5,
@@ -303,7 +328,7 @@ if (message) {
 ```
 
 <Callout type="info" title="CLI for Quick Operations">
-For one-off queue management, use the CLI instead: `agentuity cloud queue create`, `agentuity cloud queue dlq`, etc. See [Queues](/services/queues) for CLI commands.
+For one-off queue management, use the CLI instead: `agentuity cloud queue create worker --name my-queue`, `agentuity cloud queue dlq list my-queue`, etc. See [Queues](/services/queues) for CLI commands.
 </Callout>
 
 ## Alternative: HTTP Routes
@@ -313,11 +338,24 @@ If you want to centralize storage logic in your Agentuity project (for [middlewa
 ```typescript title="src/api/sessions/route.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const router = new Hono<Env>();
 
+const MessageSchema = s.object({
+  role: s.string(),
+  content: s.string(),
+});
+
+const SessionPatchSchema = s.object({
+  messages: s.optional(s.array(MessageSchema)),
+});
+
+type Message = s.infer<typeof MessageSchema>;
+type SessionPatch = s.infer<typeof SessionPatchSchema>;
+
 interface ChatSession {
-  messages: Array<{ role: string; content: string }>;
+  messages: Message[];
   createdAt: string;
   updatedAt: string;
 }
@@ -337,7 +375,7 @@ router.get('/:id', async (c) => {
 // Create or update a session
 router.post('/:id', async (c) => {
   const sessionId = c.req.param('id');
-  const body = await c.req.json<Partial<ChatSession>>();
+  const body: SessionPatch = SessionPatchSchema.parse(await c.req.json());
 
   const existing = await c.var.kv.get<ChatSession>('sessions', sessionId);
   const session: ChatSession = existing.exists
@@ -430,15 +468,12 @@ requestLogger.info('Starting'); // Includes requestId in all logs
 ```typescript
 import { safeStringify } from '@agentuity/core';
 
-// Circular references become "[Circular]"
-const obj = { name: 'Alice' };
+const obj: Record<string, unknown> = { name: 'Alice' };
 obj.self = obj;
 safeStringify(obj); // '{"name":"Alice","self":"[Circular]"}'
 
-// BigInt converts to string
 safeStringify({ id: 9007199254740991n }); // '{"id":"9007199254740991"}'
 
-// Pretty-print with indentation
 safeStringify(data, 2);
 ```
 
@@ -497,13 +532,13 @@ if (isStructuredError(err) && err._tag === 'ValidationError') {
 
 ## Schema Conversion
 
-Convert Zod or Agentuity schemas to JSON Schema for tooling or OpenAPI generation:
+Convert Agentuity or Zod schemas to JSON Schema for tooling or OpenAPI generation:
 
 ```typescript
+import { s } from '@agentuity/schema';
 import { toJSONSchema } from '@agentuity/server';
-import { z } from 'zod';
 
-const schema = z.object({ name: z.string(), age: z.number() });
+const schema = s.object({ name: s.string(), age: s.number() });
 const jsonSchema = toJSONSchema(schema);
 // { type: 'object', properties: { name: { type: 'string' }, age: { type: 'number' } }, ... }
 ```

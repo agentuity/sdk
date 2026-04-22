@@ -4,7 +4,7 @@ short_title: RAG Agent
 description: Create a retrieval-augmented generation agent with vector search and citations
 ---
 
-This tutorial walks through building a RAG (Retrieval-Augmented Generation) agent that answers questions using your own knowledge base.
+This tutorial walks through building a RAG (Retrieval-Augmented Generation) agent that answers questions using your own knowledge base. The agent indexes documents into vector storage, retrieves the closest matches, and cites the sources it used.
 
 ## What You'll Build
 
@@ -49,8 +49,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 interface KnowledgeMetadata extends Record<string, unknown> {
-  title: string;
-  category?: string;
+  readonly title: string;
 }
 
 const agent = createAgent('Knowledge Agent', {
@@ -124,7 +123,7 @@ Answer the question using only the provided context. Cite your sources.`,
       answer: text,
       sources: results.map((r, i) => ({
         id: r.key,
-        title: r.metadata?.title || `Document ${i + 1}`,
+        title: r.metadata?.title ?? `Document ${i + 1}`,
         relevance: r.similarity,
       })),
       confidence: avgSimilarity,
@@ -360,17 +359,14 @@ export function App() {
 
       {data && (
         <div>
-          {/* Answer */}
           <div style={{ marginBottom: '1rem' }}>
             <p style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>{data.answer}</p>
           </div>
 
-          {/* Confidence */}
           <div style={{ marginBottom: '1rem', color: '#666' }}>
             Confidence: {Math.round(data.confidence * 100)}%
           </div>
 
-          {/* Sources */}
           {data.sources.length > 0 && (
             <div>
               <h3>Sources</h3>
@@ -393,14 +389,19 @@ export function App() {
 }
 ```
 
-Render the app directly. Add `AgentuityProvider` only if you later use `@agentuity/react` hooks:
+Render the app directly:
 
 ```tsx title="src/web/frontend.tsx"
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+createRoot(root).render(
   <StrictMode>
     <App />
   </StrictMode>
@@ -419,6 +420,10 @@ createRoot(document.getElementById('root')!).render(
 | **Similarity Threshold** | Filter results by minimum similarity score (e.g., 0.7) |
 | **Confidence Score** | Calculate from average similarity of retrieved documents |
 | **Indexing Agent** | Separate agent to populate the vector database with documents |
+
+<Callout type="tip" title="Check Answer Quality">
+For RAG apps, use [LLM as a Judge](/cookbook/patterns/llm-as-a-judge) to check whether generated answers are grounded in the retrieved sources.
+</Callout>
 
 ## Next Steps
 

@@ -8,7 +8,7 @@ Upgrading from v1 to v2? v2 replaces the old generated entry flow with an explic
 
 ## What's Changed in v2
 
-v2 introduces six fundamental architectural changes:
+v2 introduces seven fundamental architectural changes:
 
 ### 1. Agents are Declarative
 
@@ -40,7 +40,7 @@ createApp({
 ```
 
 **v2**: Use standard patterns:
-- **Initialization**: Module-level code (runs when file loads)
+- **Initialization**: Module-level code for env-independent setup, agent `setup()` for env-dependent SDK clients
 - **Cleanup**: `registerShutdownHook()` or Bun process hooks
 
 ### 3. Explicit Router for Typed Mounts
@@ -177,6 +177,38 @@ v2 doesn't include a default Vite plugin. You must add the plugin for your front
 - **Solid**: `vite-plugin-solid`
 </Callout>
 
+### 7. Move Env-Dependent Agent Clients into setup()
+
+**v1**: Agent files often constructed SDK clients at module scope.
+
+**v2**: The build system imports agent files to read metadata. Keep clients that need environment variables inside agent `setup()` so build-time discovery does not require those variables:
+
+```typescript
+import OpenAI from 'openai';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export default createAgent('chat', {
+  schema: {
+    input: s.object({ prompt: s.string() }),
+    output: s.object({ answer: s.string() }),
+  },
+  setup: async () => ({
+    client: new OpenAI(),
+  }),
+  handler: async (ctx, input) => {
+    const completion = await ctx.config.client.chat.completions.create({
+      model: 'gpt-5.4-nano',
+      messages: [{ role: 'user', content: input.prompt }],
+    });
+
+    return {
+      answer: completion.choices[0]?.message?.content ?? '',
+    };
+  },
+});
+```
+
 <Callout type="tip" title="Why These Changes?">
 These changes make v2 more explicit and predictable:
 - **Type safety**: Hono's RPC client (`hc<ApiRouter>()`) gets full type inference
@@ -288,14 +320,14 @@ export default router;
 ```
 
 <Callout type="tip" title="Enables Hono RPC Client">
-The chained style allows you to use `hc<ApiRouter>()` from `hono/client` for fully typed API calls from your frontend:
+The chained style lets `hc<ApiRouter>()` from `hono/client` infer route types in your frontend:
 
 ```typescript
 import { hc } from 'hono/client';
 import type { ApiRouter } from './api';
 
 const client = hc<ApiRouter>('/api');
-const res = await client.hello.$get(); // Fully typed!
+const res = await client.hello.$get();
 ```
 </Callout>
 
@@ -318,7 +350,7 @@ import { createApp } from '@agentuity/runtime';
 
 export default createApp({
   setup: async (ctx) => {
-    // Initialize database, connections, etc.
+    // Initialize database and connections
     ctx.app.db = await connectDB();
   },
   shutdown: async (ctx) => {

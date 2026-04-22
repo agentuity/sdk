@@ -51,7 +51,7 @@ Agentuity services are accessible four ways, depending on where your code runs:
 | [Webhooks](/services/webhooks) | N/A | N/A | `@agentuity/webhook` | [API](/reference/api/webhooks) |
 | [Schedules](/services/schedules) | `ctx.schedule` | `c.var.schedule` | `@agentuity/schedule` | [API](/reference/api/schedules) |
 | [Tasks](/services/tasks) | `ctx.task` | `c.var.task` | `@agentuity/task` | [API](/reference/api/tasks) |
-| [Coder](/services/coder) | N/A | N/A | `@agentuity/coder` | N/A |
+| [Coder](/services/coder) | N/A | N/A | `@agentuity/coder` | [API](/reference/api/coder) |
 
 <Callout type="info" title="Additional ctx.* services">
 Services like Streams, Logger, Tracer, Thread, and Session are also available via `ctx.*` and `c.var.*` but don't have standalone packages. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete reference.
@@ -176,7 +176,7 @@ await sandbox.destroy();
 | `logger` | `Logger` | Minimal logger | Custom logger instance |
 
 <Callout type="tip" title="Full Sandbox Reference">
-For the complete sandbox API including snapshots, jobs, disk checkpoints, and file operations, see [Sandboxes](/services/sandbox).
+For the complete sandbox API including snapshots, jobs, checkpoints, and file operations, see [Sandboxes](/services/sandbox).
 </Callout>
 
 ## Message Queues
@@ -278,8 +278,8 @@ const address = await email.createAddress('support');
 
 // Send an email
 await email.send({
-  from: address.address,
-  to: 'user@example.com',
+  from: address.email,
+  to: ['user@example.com'],
   subject: 'Welcome!',
   text: 'Thanks for signing up.',
 });
@@ -348,7 +348,7 @@ const schedules = new ScheduleClient();
 // Create a schedule (runs every hour)
 const result = await schedules.create({
   name: 'hourly-sync',
-  cron: '0 * * * *',
+  expression: '0 * * * *',
 });
 
 // List all schedules
@@ -508,4 +508,4 @@ const kvCustom = new KeyValueClient({
 });
 ```
 
-All constructor options are validated at initialization using Zod schemas. Invalid options throw immediately with descriptive error messages.
+Most constructor options are validated at initialization using Zod schemas. `DBClient` also requires `database` and `orgId` because every request targets one database in one organization.

@@ -36,7 +36,7 @@ import OpenAI from 'openai';
 import Groq from 'groq-sdk';
 import { s } from '@agentuity/schema';
 
-// Direct SDK clients — all route through the AI Gateway
+// Direct SDK clients route through the AI Gateway
 const anthropic = new Anthropic();
 const openai = new OpenAI();
 const groq = new Groq();
@@ -48,7 +48,7 @@ const agent = createAgent('AnthropicChat', {
   },
   handler: async (ctx, input) => {
     const result = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       messages: [{ role: 'user', content: input.prompt }],
     });
@@ -81,7 +81,7 @@ const agent = createAgent('TextGenerator', {
   },
   handler: async (ctx, input) => {
     const { text } = await generateText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-mini'),
       prompt: input.prompt,
     });
 
@@ -118,14 +118,14 @@ import { perplexity } from '@ai-sdk/perplexity';
 
 | Provider | Example Models |
 |----------|---------------|
-| [OpenAI](https://developers.openai.com/api/docs/models) | `gpt-5.2`, `gpt-5-mini`, `gpt-5.4-nano` |
-| [Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) | `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5` |
-| [Google](https://ai.google.dev/gemini-api/docs/models) | `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemini-2.5-flash` |
-| [xAI](https://docs.x.ai/developers/models) | `grok-4-1-fast-reasoning`, `grok-code-fast-1`, `grok-4-fast-reasoning` |
+| [OpenAI](https://developers.openai.com/api/docs/models) | `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano` |
+| [Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) | `claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5` |
+| [Google](https://ai.google.dev/gemini-api/docs/models) | `gemini-3.1-pro-preview`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview` |
+| [xAI](https://docs.x.ai/developers/models) | `grok-4.20-0309-reasoning`, `grok-4-1-fast-reasoning`, `grok-4-1-fast-non-reasoning` |
 | [DeepSeek](https://api-docs.deepseek.com/api/list-models) | `deepseek-chat`, `deepseek-reasoner` |
-| [Groq](https://console.groq.com/docs/models) | `llama-4-scout-17b-16e`, `llama-4-maverick-17b-128e` |
-| [Mistral](https://docs.mistral.ai/getting-started/models) | `mistral-large-latest`, `devstral-large-latest`, `mistral-medium-latest` |
-| [Cohere](https://docs.cohere.com/docs/models) | `command-a`, `command-r-plus` |
+| [Groq](https://console.groq.com/docs/models) | `llama-3.3-70b-versatile`, `openai/gpt-oss-120b`, `meta-llama/llama-4-scout-17b-16e-instruct` |
+| [Mistral](https://docs.mistral.ai/getting-started/models) | `mistral-large-2512`, `devstral-2512`, `mistral-medium-2508` |
+| [Cohere](https://docs.cohere.com/docs/models) | `command-a-03-2025`, `command-a-reasoning-08-2025` |
 | [Perplexity](https://docs.perplexity.ai/docs/getting-started/models) | `sonar-pro`, `sonar` |
 
 <Callout type="warning" title="Model IDs Change Frequently">
@@ -144,9 +144,11 @@ XAI_API_KEY=...
 DEEPSEEK_API_KEY=...
 GROQ_API_KEY=...
 MISTRAL_API_KEY=...
+COHERE_API_KEY=...
+PERPLEXITY_API_KEY=...
 ```
 
-When these variables are set, requests go directly to the provider instead of through the AI Gateway.
+When these variables are set to your provider keys, requests go directly to the provider instead of through the AI Gateway.
 
 ## AI Gateway vs BYO Keys
 

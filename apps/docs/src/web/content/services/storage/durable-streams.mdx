@@ -54,8 +54,12 @@ The Stream API is identical in all contexts. `ctx.stream.create()` and `c.var.st
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('StreamCreator', {
+  schema: {
+    input: s.object({ userId: s.string() }),
+  },
   handler: async (ctx, input) => {
     const stream = await ctx.stream.create('export', {
       contentType: 'text/csv',
@@ -123,8 +127,18 @@ Write data incrementally, then close the stream:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('CSVExporter', {
+  schema: {
+    input: s.object({
+      users: s.array(s.object({
+        name: s.string(),
+        email: s.string(),
+        created: s.string(),
+      })),
+    }),
+  },
   handler: async (ctx, input) => {
     const stream = await ctx.stream.create('export', {
       contentType: 'text/csv',
@@ -160,8 +174,18 @@ Use `ctx.waitUntil()` to write data in the background while returning immediatel
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('BackgroundExporter', {
+  schema: {
+    input: s.object({
+      reportId: s.string(),
+      rows: s.array(s.object({
+        name: s.string(),
+        value: s.number(),
+      })),
+    }),
+  },
   handler: async (ctx, input) => {
     const stream = await ctx.stream.create('report', {
       contentType: 'application/json',
@@ -172,9 +196,10 @@ const agent = createAgent('BackgroundExporter', {
 
     // Process in background
     ctx.waitUntil(async () => {
-      const data = await fetchLargeDataset(input.query);
-
-      await stream.write(JSON.stringify(data, null, 2));
+      await stream.write(JSON.stringify({
+        reportId: input.reportId,
+        rows: input.rows,
+      }, null, 2));
       await stream.close();
 
       ctx.logger.info('Background export complete');
@@ -191,8 +216,12 @@ const agent = createAgent('BackgroundExporter', {
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('StreamManager', {
+  schema: {
+    input: s.object({ userId: s.string() }),
+  },
   handler: async (ctx, input) => {
     // List streams with optional filtering
     const result = await ctx.stream.list({
@@ -216,8 +245,12 @@ const agent = createAgent('StreamManager', {
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('StreamReader', {
+  schema: {
+    input: s.object({ streamId: s.string() }),
+  },
   handler: async (ctx, input) => {
     // Get stream metadata by ID
     const info = await ctx.stream.get(input.streamId);
@@ -249,8 +282,12 @@ const agent = createAgent('StreamReader', {
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('StreamCleaner', {
+  schema: {
+    input: s.object({ streamId: s.string() }),
+  },
   handler: async (ctx, input) => {
     await ctx.stream.delete(input.streamId);
     return { deleted: true };
@@ -266,8 +303,15 @@ Create two streams simultaneously: one for the client response, one for audit lo
 import { createAgent } from '@agentuity/runtime';
 import { streamText } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('DualStreamWriter', {
+  schema: {
+    input: s.object({
+      userId: s.string(),
+      message: s.string(),
+    }),
+  },
   handler: async (ctx, input) => {
     // Create two streams
     const mainStream = await ctx.stream.create('output', {
@@ -324,6 +368,9 @@ import { groq } from '@ai-sdk/groq';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent('ModeratedStreamer', {
+  schema: {
+    input: s.object({ message: s.string() }),
+  },
   handler: async (ctx, input) => {
     const stream = await ctx.stream.create('moderated', {
       contentType: 'text/plain',
@@ -370,7 +417,7 @@ const agent = createAgent('ModeratedStreamer', {
 // Use Groq for low-latency moderation
 async function moderateContent(text: string): Promise<boolean> {
   const { object } = await generateObject({
-    model: groq('llama-4-scout-17b-16e'),
+    model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
     schema: s.object({
       safe: s.boolean(),
       reason: s.optional(s.string()),
@@ -392,8 +439,13 @@ import type { Env } from '@agentuity/runtime';
 
 const router = new Hono<Env>();
 
+interface ExportRow {
+  readonly name: string;
+  readonly email: string;
+}
+
 router.post('/export', async (c) => {
-  const { data } = await c.req.json();
+  const { data } = await c.req.json<{ data: readonly ExportRow[] }>();
 
   const stream = await c.var.stream.create('export', {
     contentType: 'text/csv',
@@ -429,7 +481,7 @@ const app = await createApp();
 export default app;
 
 // Background job to generate reports
-async function generateDailyReport() {
+async function generateDailyReport(): Promise<void> {
   const ctx = createAgentContext({ trigger: 'cron' });
 
   await ctx.invoke(async () => {

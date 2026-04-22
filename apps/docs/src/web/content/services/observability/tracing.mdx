@@ -33,16 +33,20 @@ const agent = createAgent('TracingExample', {
 
         return { response: text };
       } catch (error) {
-        span.setStatus({ code: SpanStatusCode.ERROR });
+        const message = error instanceof Error ? error.message : String(error);
+        span.recordException(error instanceof Error ? error : message);
+        span.setStatus({ code: SpanStatusCode.ERROR, message });
         ctx.logger.error('Generation failed', error);
         throw error;
+      } finally {
+        span.end();
       }
     });
   },
 });
 ```
 
-Spans automatically end when the handler completes. Always set the status to `OK` or `ERROR`.
+`startActiveSpan()` makes the span active while the callback runs, but it does not close the span. Call `span.end()` in a `finally` block, and set status when the outcome is meaningful.
 
 ## Adding Context with Attributes
 
@@ -50,17 +54,21 @@ Use `setAttribute` to add searchable metadata to spans:
 
 ```typescript
 return ctx.tracer.startActiveSpan('user-lookup', async (span) => {
-  span.setAttribute('userId', input.userId);
-  span.setAttribute('source', 'api');
-  span.setAttribute('cached', false);
+  try {
+    span.setAttribute('userId', input.userId);
+    span.setAttribute('source', 'api');
+    span.setAttribute('cached', false);
 
-  const user = await fetchUser(input.userId);
+    const user = await fetchUser(input.userId);
 
-  span.setAttribute('userFound', !!user);
-  span.setAttribute('accountType', user?.type ?? 'unknown');
+    span.setAttribute('userFound', !!user);
+    span.setAttribute('accountType', user?.type ?? 'unknown');
 
-  span.setStatus({ code: SpanStatusCode.OK });
-  return user;
+    span.setStatus({ code: SpanStatusCode.OK });
+    return user;
+  } finally {
+    span.end();
+  }
 });
 ```
 
@@ -72,19 +80,23 @@ Use `addEvent` to mark significant moments within a span:
 
 ```typescript
 return ctx.tracer.startActiveSpan('data-pipeline', async (span) => {
-  span.addEvent('pipeline-started', { inputSize: data.length });
+  try {
+    span.addEvent('pipeline-started', { inputSize: data.length });
 
-  const validated = await validateData(data);
-  span.addEvent('validation-complete', { validRecords: validated.length });
+    const validated = await validateData(data);
+    span.addEvent('validation-complete', { validRecords: validated.length });
 
-  const enriched = await enrichData(validated);
-  span.addEvent('enrichment-complete', { enrichedFields: 5 });
+    const enriched = await enrichData(validated);
+    span.addEvent('enrichment-complete', { enrichedFields: 5 });
 
-  const stored = await storeData(enriched);
-  span.addEvent('storage-complete', { recordsStored: stored.count });
+    const stored = await storeData(enriched);
+    span.addEvent('storage-complete', { recordsStored: stored.count });
 
-  span.setStatus({ code: SpanStatusCode.OK });
-  return { processed: stored.count };
+    span.setStatus({ code: SpanStatusCode.OK });
+    return { processed: stored.count };
+  } finally {
+    span.end();
+  }
 });
 ```
 
@@ -101,37 +113,53 @@ return ctx.tracer.startActiveSpan('rag-pipeline', async (parentSpan) => {
 
     // Retrieve relevant context
     const context = await ctx.tracer.startActiveSpan('retrieve-context', async (span) => {
-      span.setAttribute('index', 'knowledge-base');
-      const results = await ctx.vector.search('docs', { query: input.query, limit: 5 });
-      span.setAttribute('resultsFound', results.length);
-      span.setStatus({ code: SpanStatusCode.OK });
-      return results;
+      try {
+        span.setAttribute('index', 'knowledge-base');
+        const results = await ctx.vector.search('docs', { query: input.query, limit: 5 });
+        span.setAttribute('resultsFound', results.length);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return results;
+      } finally {
+        span.end();
+      }
     });
 
     // Rerank results
     const ranked = await ctx.tracer.startActiveSpan('rerank-results', async (span) => {
-      span.setAttribute('inputCount', context.length);
-      const reranked = await rerankByRelevance(context, input.query);
-      span.setAttribute('outputCount', reranked.length);
-      span.setStatus({ code: SpanStatusCode.OK });
-      return reranked;
+      try {
+        span.setAttribute('inputCount', context.length);
+        const reranked = await rerankByRelevance(context, input.query);
+        span.setAttribute('outputCount', reranked.length);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return reranked;
+      } finally {
+        span.end();
+      }
     });
 
     // Generate answer
     const answer = await ctx.tracer.startActiveSpan('generate-answer', async (span) => {
-      span.setAttribute('model', 'gpt-5-mini');
-      span.setAttribute('contextChunks', ranked.length);
-      const response = await generateWithContext(input.query, ranked);
-      span.setAttribute('responseLength', response.length);
-      span.setStatus({ code: SpanStatusCode.OK });
-      return response;
+      try {
+        span.setAttribute('model', 'gpt-5-mini');
+        span.setAttribute('contextChunks', ranked.length);
+        const response = await generateWithContext(input.query, ranked);
+        span.setAttribute('responseLength', response.length);
+        span.setStatus({ code: SpanStatusCode.OK });
+        return response;
+      } finally {
+        span.end();
+      }
     });
 
     parentSpan.setStatus({ code: SpanStatusCode.OK });
-    return { answer, sources: ranked.map(r => r.id) };
+    return { answer, sources: ranked.map((r) => r.id) };
   } catch (error) {
-    parentSpan.setStatus({ code: SpanStatusCode.ERROR });
+    const message = error instanceof Error ? error.message : String(error);
+    parentSpan.recordException(error instanceof Error ? error : message);
+    parentSpan.setStatus({ code: SpanStatusCode.ERROR, message });
     throw error;
+  } finally {
+    parentSpan.end();
   }
 });
 ```
@@ -169,8 +197,12 @@ router.post('/customers/:id/notify', async (c) => {
       span.setStatus({ code: SpanStatusCode.OK });
       return c.json(result);
     } catch (error) {
-      span.setStatus({ code: SpanStatusCode.ERROR });
+      const message = error instanceof Error ? error.message : String(error);
+      span.recordException(error instanceof Error ? error : message);
+      span.setStatus({ code: SpanStatusCode.ERROR, message });
       throw error;
+    } finally {
+      span.end();
     }
   });
 });
@@ -197,29 +229,41 @@ router.post('/process', async (c) => {
 
       // Validate input
       const validated = await c.var.tracer.startActiveSpan('validate', async (span) => {
-        span.setAttribute('fields', Object.keys(body).length);
-        const result = validateInput(body);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return result;
+        try {
+          span.setAttribute('fields', Object.keys(body).length);
+          const result = validateInput(body);
+          span.setStatus({ code: SpanStatusCode.OK });
+          return result;
+        } finally {
+          span.end();
+        }
       });
 
       // Store in KV
       await c.var.tracer.startActiveSpan('store-data', async (span) => {
-        span.setAttribute('bucket', 'processed');
-        await c.var.kv.set('processed', validated.id, validated);
-        span.setStatus({ code: SpanStatusCode.OK });
+        try {
+          span.setAttribute('bucket', 'processed');
+          await c.var.kv.set('processed', validated.id, validated);
+          span.setStatus({ code: SpanStatusCode.OK });
+        } finally {
+          span.end();
+        }
       });
 
       // Search related items
       const related = await c.var.tracer.startActiveSpan('search-related', async (span) => {
-        span.setAttribute('query', validated.category);
-        const results = await c.var.vector.search('items', {
-          query: validated.category,
-          limit: 5,
-        });
-        span.setAttribute('resultsFound', results.length);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return results;
+        try {
+          span.setAttribute('query', validated.category);
+          const results = await c.var.vector.search('items', {
+            query: validated.category,
+            limit: 5,
+          });
+          span.setAttribute('resultsFound', results.length);
+          span.setStatus({ code: SpanStatusCode.OK });
+          return results;
+        } finally {
+          span.end();
+        }
       });
 
       parentSpan.setAttribute('relatedCount', related.length);
@@ -227,8 +271,12 @@ router.post('/process', async (c) => {
 
       return c.json({ processed: validated, related });
     } catch (error) {
-      parentSpan.setStatus({ code: SpanStatusCode.ERROR });
+      const message = error instanceof Error ? error.message : String(error);
+      parentSpan.recordException(error instanceof Error ? error : message);
+      parentSpan.setStatus({ code: SpanStatusCode.ERROR, message });
       throw error;
+    } finally {
+      parentSpan.end();
     }
   });
 });
@@ -245,7 +293,7 @@ View traces for a session using the CLI:
 agentuity cloud session get sess_abc123xyz
 ```
 
-Traces are also visible in the Agentuity App, showing the full span hierarchy with timing. See [CLI Reference](/reference/cli) for more trace viewing options.
+Traces are also visible in the [Agentuity Console](https://app.agentuity.com) session timeline, showing the span hierarchy with timing. See [Session Logs](/reference/cli/debugging#session-logs) for related session CLI commands.
 
 ## When to Use Tracing
 
@@ -260,7 +308,8 @@ Traces are also visible in the Agentuity App, showing the full span hierarchy wi
 ## Best Practices
 
 - **Name spans descriptively**: `generate-summary` not `step-2`
-- **Always set status**: `SpanStatusCode.OK` or `SpanStatusCode.ERROR`
+- **End every span**: Call `span.end()` in a `finally` block
+- **Set useful status**: Use `SpanStatusCode.OK` or `SpanStatusCode.ERROR` when the operation outcome matters
 - **Add relevant attributes**: IDs, counts, and categories for filtering
 - **Use events for milestones**: Mark significant points within long operations
 - **Keep spans focused**: One span per logical operation

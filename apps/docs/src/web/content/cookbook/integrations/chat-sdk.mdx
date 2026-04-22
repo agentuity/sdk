@@ -14,17 +14,24 @@ Set up Chat SDK with platform adapters:
 
 ```tsx title="src/lib/bot.tsx"
 /** @jsxImportSource chat */
-import { Chat, type Adapter } from 'chat';
+import { Chat } from 'chat';
+import type { Adapter, Message, Thread } from 'chat';
 import { createSlackAdapter } from '@chat-adapter/slack';
 import { createDiscordAdapter } from '@chat-adapter/discord';
 import { createMemoryState } from '@chat-adapter/state-memory';
 import chatAgent from '@agent/chat';
 
+const hasSlackConfig = process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET;
+const hasDiscordConfig =
+  process.env.DISCORD_BOT_TOKEN &&
+  process.env.DISCORD_PUBLIC_KEY &&
+  process.env.DISCORD_APPLICATION_ID;
+
 const adapters = {
-  ...(process.env.SLACK_BOT_TOKEN && process.env.SLACK_SIGNING_SECRET
+  ...(hasSlackConfig
     ? { slack: createSlackAdapter() }
     : {}),
-  ...(process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_PUBLIC_KEY
+  ...(hasDiscordConfig
     ? { discord: createDiscordAdapter() }
     : {}),
 } satisfies Record<string, Adapter>;
@@ -37,6 +44,10 @@ export const bot = new Chat({
 ```
 
 Adapters are conditionally enabled based on environment variables. Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` for Slack, or `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`, and `DISCORD_APPLICATION_ID` for Discord. You only need to configure the platforms you want to use.
+
+<Callout type="warning" title="Use persistent Chat SDK state for deployed bots">
+`createMemoryState()` is fine for local development. For bots that need thread subscriptions to survive restarts or multiple instances, use Chat SDK's Redis, ioredis, or Postgres state adapters.
+</Callout>
 
 ## Handling Messages
 
@@ -79,6 +90,17 @@ import { s } from '@agentuity/schema';
 import { generateText } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 
+const ChatMessageSchema = s.object({
+  role: s.union(s.literal('user'), s.literal('assistant')),
+  content: s.string(),
+});
+
+const StoredHistorySchema = s.object({
+  messages: s.array(ChatMessageSchema),
+});
+
+type ChatMessage = s.infer<typeof ChatMessageSchema>;
+
 export default createAgent('chat', {
   schema: {
     input: s.object({
@@ -91,10 +113,9 @@ export default createAgent('chat', {
     ctx.logger.info('Chat request', { messageLength: text.length, threadId });
 
     // KV keyed by Chat SDK thread ID: browsable in dashboard, 24h retention
-    const history = await ctx.kv.get('chat-sdk-conversations', threadId); // [!code highlight]
-    const messages = history.exists
-      ? (history.data as { messages: Array<{ role: 'user' | 'assistant'; content: string }> }).messages
-      : [];
+    const stored = await ctx.kv.get('chat-sdk-conversations', threadId); // [!code highlight]
+    const parsed = stored.exists ? StoredHistorySchema.safeParse(stored.data) : undefined;
+    const messages: ChatMessage[] = parsed?.success ? [...parsed.data.messages] : [];
 
     const result = await generateText({
       model: anthropic('claude-haiku-4-5'),
@@ -135,14 +156,19 @@ import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
 import { bot } from '@lib/bot';
 
+function isWebhookPlatform(platform: string): platform is keyof typeof bot.webhooks {
+  return platform in bot.webhooks;
+}
+
 const api = new Hono<Env>()
   .all('/webhooks/:platform', async (c) => {
     const platform = c.req.param('platform');
-    const webhookHandler = bot.webhooks[platform as keyof typeof bot.webhooks];
 
-    if (!webhookHandler) {
+    if (!isWebhookPlatform(platform)) {
       return c.json({ error: `Unknown platform: ${platform}` }, 404);
     }
+
+    const webhookHandler = bot.webhooks[platform];
 
     return await webhookHandler(c.req.raw, {
       waitUntil: (promise) => { // [!code highlight]

@@ -177,7 +177,8 @@ router.post('/custom',
 <Callout type="info" title="Validator Overloads">
 `agent.validator()` supports three signatures:
 - `agent.validator()` — Uses agent's input/output schemas
-- `agent.validator({ output: schema })` — Output-only validation (GET-compatible)
+- `agent.validator({ output: schema })` — Uses the agent input schema when present, with custom
+  output validation
 - `agent.validator({ input: schema, output?: schema })` — Custom schemas
 </Callout>
 
@@ -217,26 +218,29 @@ The standalone validator auto-detects the HTTP method:
 ```typescript
 import { Hono } from 'hono';
 import { type Env, validator } from '@agentuity/runtime';
-import * as v from 'valibot';
+import { s } from '@agentuity/schema';
 
 const router = new Hono<Env>();
 
 // GET route: validates query parameters
-const searchSchema = v.object({
-  q: v.string(),
-  limit: v.optional(v.number()),
+const searchSchema = s.object({
+  q: s.string(),
+  limit: s.coerce.number().optional(),
 });
 
 router.get('/search',
   validator({ input: searchSchema }),
   async (c) => {
     const { q, limit } = c.req.valid('query'); // GET uses query params
-    return c.json({ results: [], query: q, limit });
+    return c.json({ results: [], query: q, limit: limit ?? 10 });
   }
 );
 
 export default router;
 ```
+
+Query parameters arrive as strings. Use coercion when a query field should become a number,
+boolean, or date.
 
 #### Output Validation
 
@@ -278,7 +282,7 @@ export default router;
 ```
 
 <Callout type="info" title="Schema Libraries">
-Both validators work with any [Standard Schema](https://standardschema.dev/) library: `@agentuity/schema`, Zod, Valibot, or ArkType. Choose based on your needs: `@agentuity/schema` for zero dependencies, Zod for `.describe()` support with AI SDK, Valibot for minimal bundle size.
+Both validators work with any [Standard Schema](https://standardschema.dev/) library: `@agentuity/schema`, Zod, Valibot, or ArkType. Use `@agentuity/schema` when you want a lightweight schema library for straightforward validation. Reach for Zod, Valibot, or ArkType when you need their broader validation, transformation, metadata, or ecosystem features. The KV-backed API below uses Valibot.
 </Callout>
 
 <Callout type="warning" title="Import from @agentuity/runtime">

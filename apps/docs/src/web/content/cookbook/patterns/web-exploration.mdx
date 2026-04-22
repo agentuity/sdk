@@ -8,10 +8,10 @@ Agents sometimes need to interact with live websites: take screenshots, click bu
 
 ## The Pattern
 
-Create a sandbox with the `agent-browser` runtime, then use AI SDK tool calling to let the model decide what to do on each page. The agent takes screenshots to observe the page, interacts with elements, and stores findings in [KV storage](/services/storage/key-value) for memory across sessions.
+Create a sandbox with the `agent-browser` runtime, then use AI SDK tool calling to let the model decide what to do on each page. The agent takes screenshots to observe the page, interacts with element refs, and stores findings in [KV storage](/services/storage/key-value) for memory across sessions.
 
 ```typescript title="src/lib/explorer.ts"
-import { generateText, tool, hasToolCall } from 'ai';
+import { generateText, tool, hasToolCall, isStepCount } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { Sandbox } from '@agentuity/core';
@@ -59,7 +59,8 @@ const tools = {
       if (action === 'screenshot') {
         return handleScreenshot(sandbox, ctx);
       }
-      // Dispatch to the appropriate handler
+
+      // Dispatch to the right browser command
       const handler = BROWSER_DISPATCH[action];
       if (!handler) return `Unknown action: ${action}`;
       return handler.run(sandbox, ref, value, direction);
@@ -85,7 +86,7 @@ const tools = {
       summary: z.string().describe('2-3 sentence summary of your exploration'),
     }),
     strict: true,
-    // No execute -- stops the loop via hasToolCall()
+    // No execute, stops the loop via hasToolCall()
   }),
 };
 ```
@@ -94,23 +95,33 @@ The `finish_exploration` tool has no `execute` function. It acts as a structured
 
 ## Running the Exploration Loop
 
-With the tools defined, the exploration is a single `generateText` call. The model decides when to stop.
+With the tools defined, the exploration is a single `generateText` call. Stop when the model calls `finish_exploration`, or when the step limit is reached.
 
 ```typescript title="src/lib/explorer.ts"
+const maxSteps = options.maxSteps ?? 12;
+
 const result = await generateText({
   model: openai('gpt-5.4-nano'),
   system: buildSystemPrompt(url),
   prompt: `Begin exploring ${url}. Take a screenshot first, then interact with features.`,
   tools,
-  stopWhen: [hasToolCall('finish_exploration')], // [!code highlight]
+  stopWhen: [hasToolCall('finish_exploration'), isStepCount(maxSteps)], // [!code highlight]
 });
 
-// Extract summary from the finish_exploration tool call
 let summary = result.text || '';
+
 for (const step of result.steps) {
-  for (const tc of step.toolCalls) {
-    if (tc.toolName === 'finish_exploration') {
-      summary = (tc.input as { summary: string }).summary; // [!code highlight]
+  for (const toolCall of step.toolCalls) {
+    if (toolCall.toolName !== 'finish_exploration') continue;
+
+    const input = toolCall.input;
+    if (
+      typeof input === 'object' &&
+      input !== null &&
+      'summary' in input &&
+      typeof input.summary === 'string'
+    ) {
+      summary = input.summary; // [!code highlight]
     }
   }
 }
@@ -127,7 +138,7 @@ async function handleScreenshot(sandbox: Sandbox, ctx: ExplorerContext): Promise
   // Capture screenshot inside the sandbox
   await sandbox.execute({ command: ['agent-browser', 'screenshot', filename] });
 
-  // Read the file as base64
+  // Read the screenshot file as base64
   const b64Exec = await sandbox.execute({ command: ['base64', filename] });
   const base64 = (await readStdout(b64Exec)).trim();
   const buffer = Buffer.from(base64, 'base64');
@@ -135,7 +146,7 @@ async function handleScreenshot(sandbox: Sandbox, ctx: ExplorerContext): Promise
   // Upload to object storage for a durable URL
   const screenshotUrl = await uploadScreenshot(`screenshots/${filename}`, buffer);
 
-  // Get accessibility tree for element refs (@e1, @e2, etc.)
+  // Get accessibility tree for element refs like @e1 and @e2
   const snapshotExec = await sandbox.execute({ command: ['agent-browser', 'snapshot', '-i'] });
   const elements = await readStdout(snapshotExec);
 
@@ -164,7 +175,7 @@ async function storeVisit(
     visitedAt: new Date().toISOString(),
   }, { ttl: 86400 }); // [!code highlight]
 
-  // Update domain index so we can load all visits for a domain
+  // Update domain index so future visits can load domain memory
   const domain = new URL(params.url).hostname;
   const indexResult = await ctx.kv.get<string[]>(KV_NAMESPACE, `domain:${domain}`);
   const urls = indexResult.exists ? indexResult.data : [];
@@ -209,7 +220,18 @@ Always destroy the sandbox when finished, even if the exploration fails.
 
 ```typescript title="src/agent/web-explorer/agent.ts"
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import { explore } from '@lib/explorer';
+
+const AgentInput = s.object({
+  url: s.string(),
+  maxSteps: s.optional(s.number()),
+});
+
+const AgentOutput = s.object({
+  summary: s.string(),
+  findings: s.array(s.string()),
+});
 
 const agent = createAgent('web-explorer', {
   description: 'Explores a URL in a headless browser sandbox with AI-guided actions',

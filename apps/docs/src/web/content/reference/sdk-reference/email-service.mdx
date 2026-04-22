@@ -18,7 +18,7 @@ Email is not available in local development. Deploy to Agentuity Cloud to use `c
 
 ## send(params)
 
-Send an outbound email. Emails are sent asynchronously; the initial status is always `'pending'`.
+Send an outbound email. Emails are sent asynchronously; the initial status is always `'pending'`. A send can include up to 50 recipients and a maximum 25 MB full RFC 822 body, including attachments.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -29,11 +29,11 @@ Send an outbound email. Emails are sent asynchronously; the initial status is al
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `from` | `string` | yes | Sender address (must be owned by your organization) |
-| `to` | `string[]` | yes | Recipient email addresses |
+| `to` | `string[]` | yes | Recipient email addresses (max 50) |
 | `subject` | `string` | yes | Email subject line |
 | `text` | `string` | no | Plain text body |
 | `html` | `string` | no | HTML body |
-| `attachments` | `EmailAttachment[]` | no | File attachments (base64-encoded, max 25 MB total) |
+| `attachments` | `EmailAttachment[]` | no | File attachments (base64-encoded, included in the 25 MB message limit) |
 | `headers` | `Record<string, string>` | no | Custom headers (e.g., `In-Reply-To`, `References` for threading) |
 
 **`EmailAttachment` fields:**
@@ -273,7 +273,7 @@ Get email activity time-series data showing daily inbound and outbound counts.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
-| `params` | `EmailActivityParams` | no | `{ days: number }` (min 7, max 365, default 7) |
+| `params` | `EmailActivityParams` | no | `{ days?: number }` (min 7, max 365, default 7) |
 
 **Returns:** `Promise<EmailActivityResult>`
 

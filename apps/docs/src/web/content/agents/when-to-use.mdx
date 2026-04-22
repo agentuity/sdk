@@ -13,7 +13,7 @@ Both agents and routes live in your Agentuity project. Routes handle HTTP reques
 | Input and output schema validation | Health checks, status endpoints |
 | Post-response quality checks | Webhook signature verification |
 | Agent-to-agent calling with type safety | Simple CRUD operations |
-| Lifecycle events (started, completed, error) | Streaming protocols (WebSocket, SSE) |
+| Lifecycle events (`started`, `completed`, `errored`) | Streaming protocols (WebSocket, SSE) |
 | Reusable processing you want to call from routes, jobs, or workers | Cron-triggered cleanup jobs |
 
 ## What's the Same
@@ -47,7 +47,7 @@ These capabilities are **agent-only**:
 
 - **Schema validation**: Define input and output schemas. Use `agent.validator()` as route middleware for automatic request validation
 - **Quality checks**: Add post-response validation when you need to score or review outputs
-- **Lifecycle events**: Hook into `started`, `completed`, and `error` events for monitoring
+- **Lifecycle events**: Hook into `started`, `completed`, and `errored` events for monitoring
 - **Agent-to-agent calling**: Call other agents with full type safety via `agent.run()`
 - **Reusable logic across entry points**: Run the same processing flow from routes, background jobs, or standalone scripts
 
@@ -173,7 +173,7 @@ See [Standalone Execution](/agents/standalone-execution) for running agents from
 - Handle authentication and rate limiting in routes, not agents
 - Use `agent.validator()` as route middleware for type-safe request validation
 - Keep agents focused on processing logic, let routes handle HTTP concerns
-- Use `c.waitUntil()` in routes for background agent work when the client doesn't need the result
+- Use `c.waitUntil()` in routes for background work when the client doesn't need the result
 - Prefer agents when you need schema validation, post-response quality checks, or agent-to-agent calling
 
 ## Next Steps

@@ -31,7 +31,7 @@ import { join } from 'path';
 
 const nextConfig: NextConfig = {
   // Only needed in monorepo/workspace setups where Next.js must trace
-  // dependencies above the app directory. Omit for single-repo projects.
+  // dependencies above the app directory
   outputFileTracingRoot: join(__dirname, '../../../..'),
 
   async rewrites() {
@@ -119,8 +119,8 @@ export default function EchoDemo() {
 Use `import type { ApiRouter } ...` so the backend file is erased from the client bundle while `hc()` still gets full RPC inference.
 </Callout>
 
-<Callout type="tip" title="AgentuityProvider Is Optional">
-Plain `hc()` calls do not require `AgentuityProvider`. Add it only if you use `@agentuity/react` hooks for transport auth, analytics, or WebRTC.
+<Callout type="tip" title="Use hc directly for this pattern">
+Plain `hc()` calls do not require `AgentuityProvider`. Keep the client component focused on the typed Hono client unless you already depend on `@agentuity/react`.
 </Callout>
 
 ## Running Locally
@@ -144,7 +144,12 @@ If you keep same-origin routing in production, keep `hc<ApiRouter>('/api')` and 
 If the frontend and backend live on different origins, point `hc()` at the deployed backend instead:
 
 ```tsx
-const client = hc<ApiRouter>(`${process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL!}/api`);
+const agentuityBaseUrl = process.env.NEXT_PUBLIC_AGENTUITY_BASE_URL;
+if (!agentuityBaseUrl) {
+  throw new Error('NEXT_PUBLIC_AGENTUITY_BASE_URL is required');
+}
+
+const client = hc<ApiRouter>(new URL('/api', agentuityBaseUrl).toString());
 ```
 
 Then enable CORS in [App Configuration](/get-started/app-configuration).
@@ -152,5 +157,4 @@ Then enable CORS in [App Configuration](/get-started/app-configuration).
 ## Next Steps
 
 - [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
-- [Provider Setup](/frontend/provider-setup): Add auth, analytics, or WebRTC hooks
 - [HTTP Routes](/routes/http): Define the backend API router you export to the frontend

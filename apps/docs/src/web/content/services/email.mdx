@@ -89,7 +89,7 @@ const agent = createAgent('Notifier', {
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `from` | `string` | Yes | Sender address (must be owned by the organization) |
-| `to` | `string[]` | Yes | Recipient addresses |
+| `to` | `string[]` | Yes | Recipient addresses, up to 50 per send |
 | `subject` | `string` | Yes | Email subject line |
 | `text` | `string` | No | Plain text body |
 | `html` | `string` | No | HTML body |
@@ -248,7 +248,7 @@ const agent = createAgent('DestinationSetup', {
 
 The URL must use `http` or `https` and must not point to private or loopback addresses.
 
-Destination IDs are prefixed with `edest_`.
+Destination IDs are prefixed with `edst_`.
 
 ## Connection Config
 

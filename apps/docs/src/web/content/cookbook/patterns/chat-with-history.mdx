@@ -4,11 +4,11 @@ short_title: Chat with History
 description: Build a chat agent that remembers previous messages using thread state
 ---
 
-Use thread state to maintain conversation history across multiple requests. The thread persists for up to 1 hour, making it ideal for chat sessions.
+Use thread state to keep conversation history across multiple requests. Thread state expires after 1 hour of inactivity, which fits short-lived chat sessions.
 
 ## The Pattern
 
-Thread state stores conversation history automatically. Each browser session gets its own thread, and messages persist across requests.
+Store each turn in `ctx.thread.state`, then pass the saved messages back to the model on the next request. Each browser session gets its own thread, so conversations stay separate.
 
 ```typescript title="src/agent/chat/agent.ts"
 import { createAgent } from '@agentuity/runtime';
@@ -30,20 +30,19 @@ const agent = createAgent('Chat Agent', {
     stream: true,
   },
   handler: async (ctx, input) => {
-    // Get or initialize conversation history (async)
+    // Load this thread's conversation history
     const messages = (await ctx.thread.state.get<Message[]>('messages')) || []; // [!code highlight]
 
-    // Add user message
+    // Include the new user turn before calling the model
     messages.push({ role: 'user', content: input.message });
 
-    // Generate streaming response
     const { textStream, text } = streamText({
-      model: anthropic('claude-sonnet-4-5'),
+      model: anthropic('claude-sonnet-4-6'),
       system: 'You are a helpful assistant. Be concise but friendly.',
       messages,
     });
 
-    // Save assistant response after streaming completes
+    // Save the assistant turn after streaming completes
     ctx.waitUntil(async () => { // [!code highlight]
       const fullResponse = await text;
       messages.push({ role: 'assistant', content: fullResponse });
@@ -70,13 +69,12 @@ import chatAgent from '@agent/chat/agent';
 
 const router = new Hono<Env>();
 
-router.post('/chat', chatAgent.validator(), async (c) => {
+router.post('/', chatAgent.validator(), async (c) => {
   const { message } = c.req.valid('json');
-  return new Response(await chatAgent.run({ message }));
+  return c.body(await chatAgent.run({ message })); // [!code highlight]
 });
 
-// Reset conversation
-router.delete('/chat', async (c) => {
+router.delete('/', async (c) => {
   await c.var.thread.destroy(); // [!code highlight]
   return c.json({ reset: true });
 });
@@ -114,16 +112,15 @@ export function App() {
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setIsStreaming(true);
 
-    // Add placeholder for assistant response
+    // Reserve a bubble for the streaming assistant response
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
-    const response = await fetch('/chat', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: userMessage }),
     });
 
-    // Stream the response
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
@@ -181,7 +178,7 @@ export function App() {
 }
 ```
 
-The frontend reads the streaming response chunk by chunk and updates the UI in real-time.
+The frontend reads the streaming response chunk by chunk and updates the UI as text arrives.
 
 ## Key Points
 
@@ -195,7 +192,7 @@ The frontend reads the streaming response chunk by chunk and updates the UI in r
 For append-only patterns like chat history, use `push()` with `maxRecords` for automatic sliding window behavior:
 
 ```typescript
-await ctx.thread.state.push('messages', newMessage, 100);  // Keeps last 100
+await ctx.thread.state.push('messages', newMessage, 100);  // Keep last 100
 ```
 </Callout>
 

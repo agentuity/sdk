@@ -22,12 +22,15 @@ my-tanstack-app/
 
 ## Vite Proxy Configuration
 
-Add a proxy entry to your existing `vite.config.ts` so browser requests to `/api` go to `agentuity dev`:
+Keep your existing TanStack Start plugins, then add a proxy entry so browser requests to `/api` go to `agentuity dev`:
 
 ```typescript title="vite.config.ts"
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  plugins: [tanstackStart(), viteReact()],
   server: {
     proxy: {
       '/api': {
@@ -139,8 +142,13 @@ If you keep same-origin routing in production, keep `hc<ApiRouter>('/api')` and 
 If the frontend and backend live on different origins, point `hc()` at the deployed backend instead:
 
 ```tsx
+const agentuityBaseUrl = import.meta.env.VITE_AGENTUITY_BASE_URL;
+if (!agentuityBaseUrl) {
+  throw new Error('VITE_AGENTUITY_BASE_URL is required');
+}
+
 const client = hc<ApiRouter>(
-  new URL('/api', import.meta.env.VITE_AGENTUITY_BASE_URL).toString()
+  new URL('/api', agentuityBaseUrl).toString()
 );
 ```
 
@@ -149,5 +157,4 @@ Then enable CORS in [App Configuration](/get-started/app-configuration).
 ## Next Steps
 
 - [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
-- [Provider Setup](/frontend/provider-setup): Add auth, analytics, or WebRTC hooks
 - [HTTP Routes](/routes/http): Define the backend API router you export to the frontend

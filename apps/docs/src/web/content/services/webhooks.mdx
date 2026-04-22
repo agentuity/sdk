@@ -25,7 +25,8 @@ To handle incoming webhooks directly in an agent or route, including signature v
 
 | Method | Access | Details |
 |--------|--------|---------|
-| SDK functions | `@agentuity/server` | Standalone functions for programmatic management |
+| SDK client | `WebhookClient` from `@agentuity/webhook` | Client-style management for common operations |
+| Server utilities | `@agentuity/server` | Function-style management, including destination updates |
 | CLI | `agentuity cloud webhook` | Create and inspect webhooks from the terminal |
 | Web App | [Web App](https://app.agentuity.com/services/webhook) | Manage webhooks in the web app |
 
@@ -38,21 +39,23 @@ Webhooks are organization-level resources, not tied to a specific project. A sin
 All webhook functions take an `APIClient` as their first parameter.
 
 ```typescript
-import { APIClient, createLogger } from '@agentuity/server';
+import { APIClient, createLogger, getAPIBaseURL } from '@agentuity/server';
 
 const logger = createLogger();
-const client = new APIClient(process.env.AGENTUITY_API_URL!, logger);
+const client = new APIClient(getAPIBaseURL(), logger);
 ```
+
+The examples below use `@agentuity/server` function exports because they expose the full management surface, including destination updates. For client-style usage, instantiate `WebhookClient` from `@agentuity/webhook`; it wraps the same service for common operations.
 
 ## Creating Webhooks
 
 Create a webhook to get a unique ingest URL. Point external services at this URL to start receiving their callbacks.
 
 ```typescript
-import { APIClient, createLogger, createWebhook } from '@agentuity/server';
+import { APIClient, createLogger, createWebhook, getAPIBaseURL } from '@agentuity/server';
 
 const logger = createLogger();
-const client = new APIClient(process.env.AGENTUITY_API_URL!, logger);
+const client = new APIClient(getAPIBaseURL(), logger);
 
 const webhook = await createWebhook(client, { // [!code highlight]
   name: 'stripe-events',

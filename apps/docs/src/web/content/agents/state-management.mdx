@@ -47,14 +47,15 @@ const agent = createAgent('StateDemo', {
   },
   handler: async (ctx, input) => {
     // REQUEST STATE: Cleared after this response (sync)
-    ctx.state.set('startTime', Date.now());
+    const startTime = Date.now();
+    ctx.state.set('startTime', startTime);
 
     // THREAD STATE: Persists across requests (async, up to 1 hour)
     const messages = (await ctx.thread.state.get<string[]>('messages')) || [];
     messages.push(input.message);
     await ctx.thread.state.set('messages', messages);
 
-    const requestTime = Date.now() - (ctx.state.get('startTime') as number);
+    const requestTime = Date.now() - startTime;
 
     return {
       response: `Received: ${input.message}`,
@@ -76,7 +77,7 @@ handler: async (ctx, input) => {
   // Track timing
   ctx.state.set('startTime', Date.now());
 
-  // Process request...
+  // Process request
   const result = await processData(input);
 
   // Use the timing data
@@ -189,7 +190,7 @@ handler: async (ctx, input) => {
     return 'Conversation reset. Thread state cleared.';
   }
 
-  // Continue conversation...
+  // Continue conversation
 }
 ```
 
@@ -404,10 +405,14 @@ const userThreadProvider: ThreadIDProvider = {
   }
 };
 
+const app = await createApp({});
+
 getThreadProvider().setThreadIDProvider(userThreadProvider);
 
-await createApp({});
+export default app;
 ```
+
+`createApp()` initializes the runtime services, so call `getThreadProvider()` after `createApp()` returns and before exporting the app.
 
 ### Default Thread ID Behavior
 
@@ -426,15 +431,30 @@ When building frontends, you can maintain thread continuity by storing and sendi
 
 ```typescript
 // Client-side: store thread ID from response header
-const response = await fetch('/api/chat', { method: 'POST', body: message });
+const response = await fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message }),
+});
+
 const threadId = response.headers.get('x-thread-id');
-localStorage.setItem('threadId', threadId);
+
+if (threadId) {
+  localStorage.setItem('threadId', threadId);
+}
 
 // Subsequent requests: send thread ID header
+const storedThreadId = localStorage.getItem('threadId');
+const headers = new Headers({ 'Content-Type': 'application/json' });
+
+if (storedThreadId) {
+  headers.set('x-thread-id', storedThreadId);
+}
+
 const nextResponse = await fetch('/api/chat', {
   method: 'POST',
-  headers: { 'x-thread-id': localStorage.getItem('threadId') },
-  body: nextMessage
+  headers,
+  body: JSON.stringify({ message: nextMessage }),
 });
 ```
 

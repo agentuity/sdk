@@ -67,61 +67,61 @@ agentuity cloud env pull --force
 agentuity cloud env import .env.staging
 ```
 
-<Callout type="warning" title="Secrets vs Environment Variables">
-Use `cloud secret` for sensitive values like API keys and database passwords. Use `cloud env` for non-sensitive configuration like feature flags and URLs.
+<Callout type="warning" title="Secrets use cloud env">
+There is no separate `cloud secret` command. Store sensitive values with `agentuity cloud env set --secret`; `cloud env list`, `get`, `delete`, `push`, `pull`, and `import` handle both environment variables and secrets.
 </Callout>
 
 ## Secrets
 
-Manage sensitive values like API keys and tokens. Commands mirror `cloud env`.
+Manage sensitive values like API keys and tokens through `cloud env`.
 
 ### List Secrets
 
 ```bash
-agentuity cloud secret list
+agentuity cloud env list --secrets
 ```
 
 ### Get a Secret
 
 ```bash
-agentuity cloud secret get API_KEY
+agentuity cloud env get API_KEY
 ```
 
 ### Set a Secret
 
 ```bash
-agentuity cloud secret set API_KEY "sk_live_..."
-agentuity cloud secret set DATABASE_URL "postgresql://..."
+agentuity cloud env set API_KEY "sk_live_..." --secret
+agentuity cloud env set DATABASE_URL "postgresql://..." --secret
 ```
 
 ### Delete a Secret
 
 ```bash
-agentuity cloud secret delete OLD_TOKEN
+agentuity cloud env delete OLD_TOKEN
 ```
 
 ### Push/Pull
 
 ```bash
 # Push from local file
-agentuity cloud secret push
+agentuity cloud env push
 
 # Pull to local file
-agentuity cloud secret pull
-agentuity cloud secret pull --force
+agentuity cloud env pull
+agentuity cloud env pull --force
 ```
 
 ### Import from File
 
 ```bash
-agentuity cloud secret import .env.secrets
+agentuity cloud env import .env.secrets
 ```
 
 **In agents:** Access secrets via `process.env.API_KEY`. Secrets are injected at runtime and never logged.
 
 ## Organization-Level Configuration
 
-Set environment variables and secrets at the organization level to share them across all projects in that organization. Use the `--org` flag with any `env` or `secret` command.
+Set environment variables and secrets at the organization level to share them across all projects in that organization. Use the `--org` flag with `cloud env` commands.
 
 ### Set Org-Level Variables
 
@@ -137,10 +137,10 @@ agentuity cloud env set DATABASE_URL "postgresql://..." --org org_abc123
 
 ```bash
 # Set shared secret for default org
-agentuity cloud secret set SHARED_API_KEY "sk_..." --org
+agentuity cloud env set SHARED_API_KEY "sk_..." --secret --org
 
 # Set for specific org
-agentuity cloud secret set SHARED_API_KEY "sk_..." --org org_abc123
+agentuity cloud env set SHARED_API_KEY "sk_..." --secret --org org_abc123
 ```
 
 ### List Org-Level Values
@@ -150,7 +150,7 @@ agentuity cloud secret set SHARED_API_KEY "sk_..." --org org_abc123
 agentuity cloud env list --org
 
 # List org secrets
-agentuity cloud secret list --org
+agentuity cloud env list --secrets --org
 ```
 
 ### Get/Delete Org-Level Values
@@ -160,7 +160,7 @@ agentuity cloud secret list --org
 agentuity cloud env get DATABASE_URL --org
 
 # Delete an org secret
-agentuity cloud secret delete OLD_KEY --org
+agentuity cloud env delete OLD_KEY --org
 ```
 
 <Callout type="info" title="Inheritance">

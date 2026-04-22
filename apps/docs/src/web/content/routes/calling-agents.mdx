@@ -188,6 +188,10 @@ type RouteVariables = {
   userId: string;
 };
 
+type ApiKeyRecord = {
+  readonly userId: string;
+};
+
 const router = new Hono<Env & { Variables: RouteVariables }>();
 
 // Auth middleware
@@ -197,7 +201,7 @@ const authMiddleware = createMiddleware(async (c, next) => {
     return c.json({ error: 'API key required' }, 401);
   }
 
-  const keyData = await c.var.kv.get('api-keys', apiKey);
+  const keyData = await c.var.kv.get<ApiKeyRecord>('api-keys', apiKey);
   if (!keyData.exists) {
     return c.json({ error: 'Invalid API key' }, 401);
   }

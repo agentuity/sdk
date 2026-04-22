@@ -1,14 +1,14 @@
 ---
 title: Custom Storage
 short_title: Custom
-description: Local development storage and bringing your own storage implementations
+description: Local development storage and custom runtime storage implementations
 ---
 
-Agentuity provides managed storage in both development and production. You can also bring your own storage implementations.
+Agentuity uses local runtime storage when you are unauthenticated or when local mode is enabled, and managed runtime storage when your app runs with cloud credentials. You can override the runtime implementations for key-value, vector, and stream storage.
 
 ## Local Development
 
-During local development, storage is backed by SQLite and persists between runs. This happens automatically when you're not authenticated, or when you explicitly enable local mode:
+During local development, KV, vector, and stream storage are backed by a local SQLite database and project-scoped by the project path. This happens automatically when you're not authenticated, or when you explicitly enable local mode:
 
 ```typescript
 import { createApp } from '@agentuity/runtime';
@@ -22,15 +22,15 @@ const app = await createApp({
 export default app;
 ```
 
-Local storage data is saved to your project directory, so you can develop with realistic data without affecting production.
+Local data is stored in `~/.config/agentuity/local.db`, with stream buffers under `~/.config/agentuity/streams`. It persists between runs without affecting cloud data.
 
 ## Production
 
-When deployed to Agentuity, your agents automatically use managed cloud storage. No configuration required.
+When deployed to Agentuity, your agents use managed KV, vector, and stream storage unless you pass custom implementations in `createApp()`.
 
 ## Custom Storage Implementations
 
-You can replace any storage type with your own implementation. This is useful when you need to:
+You can replace runtime storage services with your own implementations. This is useful when you need to:
 
 - **Use existing infrastructure**: Connect to your company's Redis, Postgres, or S3
 - **Meet compliance requirements**: Keep data in specific regions or systems
@@ -46,16 +46,20 @@ const app = await createApp({
   services: {
     keyvalue: new MyRedisKV(),
     vector: new MyPineconeVector(),
-    // object and stream use Agentuity defaults
+    // stream uses the Agentuity default
   },
 });
 
 export default app;
 ```
 
+<Callout type="info" title="Object storage uses Bun S3">
+Object storage is not configured through `createApp({ services })`. Use Bun's `s3`/`S3Client` APIs with the credentials written by `agentuity project add storage` or `agentuity cloud storage create`.
+</Callout>
+
 ### Storage Interfaces
 
-Your implementation must satisfy the interface for each storage type. When your agent calls `ctx.kv.get()`, the SDK calls your implementation's `get()` method.
+Your implementation must satisfy the interface for the storage type you override. When your agent calls `ctx.kv.get()`, the SDK calls your implementation's `get()` method.
 
 These interfaces are exported from `@agentuity/core`:
 
@@ -64,12 +68,25 @@ These interfaces are exported from `@agentuity/core`:
 ```typescript
 interface KeyValueStorage {
   get<T>(name: string, key: string): Promise<DataResult<T>>;
-  set<T>(name: string, key: string, value: T, params?: { ttl?: number; contentType?: string }): Promise<void>;
+  set<T = unknown>(
+    name: string,
+    key: string,
+    value: T,
+    params?: { ttl?: number | null; contentType?: string }
+  ): Promise<void>;
   delete(name: string, key: string): Promise<void>;
   getStats(name: string): Promise<KeyValueStats>;
+  getAllStats(
+    params?: GetAllStatsParams
+  ): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated>;
   getNamespaces(): Promise<string[]>;
-  search<T>(name: string, keyword: string): Promise<Record<string, KeyValueItemWithMetadata<T>>>;
+  search<T = unknown>(
+    name: string,
+    keyword: string
+  ): Promise<Record<string, KeyValueItemWithMetadata<T>>>;
   getKeys(name: string): Promise<string[]>;
+  deleteNamespace(name: string): Promise<void>;
+  createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>;
 }
 ```
 
@@ -78,25 +95,26 @@ interface KeyValueStorage {
 ```typescript
 interface VectorStorage {
   upsert(name: string, ...documents: VectorUpsertParams[]): Promise<VectorUpsertResult[]>;
-  get<T>(name: string, key: string): Promise<VectorResult<T>>;
-  getMany<T>(name: string, ...keys: string[]): Promise<Map<string, VectorSearchResultWithDocument<T>>>;
-  search<T>(name: string, params: VectorSearchParams<T>): Promise<VectorSearchResult<T>[]>;
+  get<T extends Record<string, unknown> = Record<string, unknown>>(
+    name: string,
+    key: string
+  ): Promise<VectorResult<T>>;
+  getMany<T extends Record<string, unknown> = Record<string, unknown>>(
+    name: string,
+    ...keys: string[]
+  ): Promise<Map<string, VectorSearchResultWithDocument<T>>>;
+  search<T extends Record<string, unknown> = Record<string, unknown>>(
+    name: string,
+    params: VectorSearchParams<T>
+  ): Promise<VectorSearchResult<T>[]>;
   delete(name: string, ...keys: string[]): Promise<number>;
   exists(name: string): Promise<boolean>;
-}
-```
-
-#### ObjectStorage
-
-```typescript
-interface ObjectStorage {
-  get(bucket: string, key: string): Promise<ObjectResult>;
-  put(bucket: string, key: string, data: Uint8Array | ArrayBuffer | ReadableStream, params?: ObjectStorePutParams): Promise<void>;
-  delete(bucket: string, key: string): Promise<boolean>;
-  createPublicURL(bucket: string, key: string, params?: CreatePublicURLParams): Promise<string>;
-  listBuckets(): Promise<BucketInfo[]>;
-  listObjects(bucket: string, options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]>;
-  headObject(bucket: string, key: string): Promise<ObjectInfo>;
+  getStats(name: string): Promise<VectorNamespaceStatsWithSamples>;
+  getAllStats(
+    params?: VectorGetAllStatsParams
+  ): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated>;
+  getNamespaces(): Promise<string[]>;
+  deleteNamespace(name: string): Promise<void>;
 }
 ```
 
@@ -104,7 +122,7 @@ interface ObjectStorage {
 
 ```typescript
 interface StreamStorage {
-  create(name: string, props?: CreateStreamProps): Promise<Stream>;
+  create(namespace: string, props?: CreateStreamProps): Promise<Stream>;
   get(id: string): Promise<StreamInfo>;
   download(id: string): Promise<ReadableStream<Uint8Array>>;
   list(params?: ListStreamsParams): Promise<ListStreamsResponse>;

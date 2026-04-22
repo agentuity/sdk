@@ -25,6 +25,7 @@ Execute a single command in a disposable sandbox. The sandbox is automatically c
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `command` | `object` | yes | `{ exec: string[], files?: FileToWrite[] }` |
+| `projectId` | `string` | no | Project ID to associate the sandbox with |
 | `runtime` | `string` | no | Runtime name (e.g., `'bun:1'`, `'python:3.14'`) |
 | `runtimeId` | `string` | no | Runtime ID (e.g., `'srt_xxx'`) |
 | `name` | `string` | no | Sandbox name |
@@ -32,11 +33,13 @@ Execute a single command in a disposable sandbox. The sandbox is automatically c
 | `resources` | `SandboxResources` | no | CPU, memory, and disk limits |
 | `env` | `Record<string, string>` | no | Environment variables |
 | `network` | `SandboxNetworkConfig` | no | `{ enabled?: boolean, port?: number }` |
+| `stream` | `SandboxStreamConfig` | no | Output stream IDs for stdout, stderr, and stdin |
 | `timeout` | `SandboxTimeoutConfig` | no | `{ idle?: string, execution?: string }` |
 | `snapshot` | `string` | no | Snapshot ID or tag to restore from |
 | `dependencies` | `string[]` | no | Apt packages to install |
 | `packages` | `string[]` | no | npm/bun packages to install globally |
 | `metadata` | `Record<string, unknown>` | no | User-defined metadata |
+| `scopes` | `string[]` | no | Permission scopes for automatic service access |
 
 **Returns:** `Promise<SandboxRunResult>`
 
@@ -107,14 +110,15 @@ interface Sandbox {
   stdout: StreamReader;         // Read-only stdout stream
   stderr: StreamReader;         // Read-only stderr stream
   interleaved: boolean;         // True if stdout/stderr share a stream
+  auditStreamId?: string;       // Audit event stream ID, when enabled
 
   execute(options: ExecuteOptions): Promise<Execution>;
   writeFiles(files: FileToWrite[]): Promise<void>;
   readFile(path: string): Promise<ReadableStream<Uint8Array>>;
   listFiles(path?: string): Promise<SandboxFileInfo[]>;
   mkDir(path: string, recursive?: boolean): Promise<void>;
-  rmFile(path: string): Promise<void>;
-  rmDir(path: string, recursive?: boolean): Promise<void>;
+  rmFile(path: string): Promise<{ found: boolean }>;
+  rmDir(path: string, recursive?: boolean): Promise<{ found: boolean }>;
   setEnv(env: Record<string, string | null>): Promise<Record<string, string>>;
   pause(): Promise<void>;
   resume(): Promise<void>;

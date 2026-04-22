@@ -130,7 +130,7 @@ If your cron route uses `{ auth: true }`, the request must include valid `X-Agen
 ## Best Practices
 
 - **Log job start and completion** for debugging scheduled tasks
-- **Use `c.var.kv` or object storage** to persist results for later inspection
+- **Use `c.var.kv` or Bun's S3 APIs** to persist results for later inspection
 - **Handle errors gracefully** so one failure doesn't break the schedule
 - **Keep jobs idempotent** when possible, in case of retries
 

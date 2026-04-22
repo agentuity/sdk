@@ -854,7 +854,7 @@ export const navData: NavSection[] = [
 						title: 'OpenCode Plugin',
 						url: '/reference/cli/opencode-plugin',
 						description:
-							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
+							'Install the Agentuity plugin for OpenCode and configure Agentuity Coder agents',
 					},
 					{
 						title: 'Profiles',

@@ -79,9 +79,10 @@ const agent = createAgent('ProjectBuilder', {
   handler: async (ctx, input) => {
     // Create a persistent sandbox
     const sandbox = await ctx.sandbox.create({
+      runtime: 'node:lts',
       resources: { memory: '1Gi', cpu: '1000m' },
-      network: { enabled: true },  // Allow package downloads
-      dependencies: ['git'],       // Pre-install apt packages
+      network: { enabled: true }, // Allow package downloads
+      dependencies: ['git'], // Pre-install apt packages
     });
 
     try {
@@ -106,7 +107,10 @@ const agent = createAgent('ProjectBuilder', {
         command: ['npx', 'tsx', 'index.ts'],
       });
 
-      return { output: result.stdoutStreamUrl };
+      return {
+        exitCode: result.exitCode,
+        stdoutStreamUrl: result.stdoutStreamUrl,
+      };
     } finally {
       // Always clean up
       await sandbox.destroy();
@@ -192,28 +196,59 @@ const content = new TextDecoder().decode(Buffer.concat(chunks));
 const data = JSON.parse(content);
 ```
 
-### Streaming Output
+### Reading Execution Output
 
-Access stdout and stderr as streams for real-time output:
+`sandbox.execute()` waits for the command to finish, then returns stream URLs for stdout and stderr when output was captured. Fetch those URLs when you need the command output without loading it into the execution response.
 
 ```typescript
 const sandbox = await ctx.sandbox.create();
 
-// Start a long-running command
-await sandbox.execute({ command: ['npm', 'run', 'build'] });
-
-// Stream stdout with error handling
 try {
-  const reader = sandbox.stdout.getReader();
+  // Run the command and wait for its final status
+  const execution = await sandbox.execute({ command: ['npm', 'run', 'build'] });
+
+  // Read captured output only when the service returned stream URLs
+  const stdout = execution.stdoutStreamUrl
+    ? await readTextStream(execution.stdoutStreamUrl)
+    : '';
+  const stderr = execution.stderrStreamUrl
+    ? await readTextStream(execution.stderrStreamUrl)
+    : '';
+
+  if (execution.exitCode !== 0) {
+    ctx.logger.error('Build failed', {
+      exitCode: execution.exitCode,
+      stderr,
+    });
+  }
+
+  return {
+    exitCode: execution.exitCode,
+    stdout,
+    stderr,
+  };
+} finally {
+  await sandbox.destroy();
+}
+
+async function readTextStream(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    throw new Error(`Unable to read sandbox output: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
+  let output = '';
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    ctx.logger.info('Build output', { line: decoder.decode(value) });
+    output += decoder.decode(value, { stream: true });
   }
-} catch (error) {
-  ctx.logger.error('Failed to read stream', { error });
+
+  output += decoder.decode();
+  return output;
 }
 ```
 
@@ -237,7 +272,7 @@ await sandbox.execute({ command: ['npm', 'run', 'build'] });
 
 ## Environment Variables
 
-Pass environment variables to sandboxes:
+Pass environment variables when creating or running sandboxes:
 
 ```typescript
 const result = await ctx.sandbox.run({
@@ -251,36 +286,22 @@ const result = await ctx.sandbox.run({
 });
 ```
 
-### Automatic Environment Variables
-
-Every sandbox automatically receives environment variables that provide context about its runtime environment, letting your code access the sandbox ID, public URL, and more:
-
-| Variable | Description |
-|----------|-------------|
-| `AGENTUITY_SANDBOX_ID` | The sandbox's unique identifier |
-| `AGENTUITY_SANDBOX_RUNTIME` | Runtime name (e.g., `python`, `bun`) |
-| `AGENTUITY_SANDBOX_RUNTIME_ID` | Runtime unique identifier |
-| `AGENTUITY_SANDBOX_ORG_ID` | Organization ID |
-| `AGENTUITY_SANDBOX_PROJECT_ID` | Project ID (only when project context exists) |
-| `AGENTUITY_SANDBOX_URL` | Public URL (only when network is enabled) |
+Update an existing interactive sandbox with `setEnv()`. Set a value to `null` to delete that variable.
 
 ```typescript
-const result = await ctx.sandbox.run({
-  command: {
-    exec: ['node', '-e', `
-      console.log('Sandbox:', process.env.AGENTUITY_SANDBOX_ID);
-      console.log('Runtime:', process.env.AGENTUITY_SANDBOX_RUNTIME);
-      if (process.env.AGENTUITY_SANDBOX_URL) {
-        console.log('URL:', process.env.AGENTUITY_SANDBOX_URL);
-      }
-    `],
-  },
-  network: { enabled: true },
-  resources: { memory: '256Mi' },
+const sandbox = await ctx.sandbox.create();
+
+await sandbox.setEnv({
+  API_KEY: 'secret-key',
+  DEBUG: 'true',
+});
+
+await sandbox.setEnv({
+  DEBUG: null,  // Delete DEBUG
 });
 ```
 
-Note that the code snippet above runs inside an isolated sandbox, not in the agent, so use standard logging (`console.log`, `print`, etc.) rather than `ctx.logger`.
+Code running inside the sandbox is not running in your agent process. Use standard logging (`console.log`, `print`, etc.) inside the sandboxed command, and pass any values it needs explicitly with `env` or `setEnv()`.
 
 ## Cancelling Execution
 
@@ -297,11 +318,11 @@ try {
     command: ['npm', 'run', 'long-task'],
     signal: controller.signal,
   });
-  return { output: result.stdout };
+  return { exitCode: result.exitCode };
 } catch (error) {
-  if (error.name === 'AbortError') {
+  if (error instanceof DOMException && error.name === 'AbortError') {
     ctx.logger.warn('Execution cancelled');
-    return { output: '', cancelled: true };
+    return { exitCode: null, cancelled: true };
   }
   throw error;
 }
@@ -326,12 +347,13 @@ router.post('/execute', async (c) => {
     typescript: ['bun', '-e', code],
   };
 
-  if (!commands[language]) {
+  const command = commands[language];
+  if (!command) {
     return c.json({ error: 'Unsupported language' }, 400);
   }
 
   const result = await c.var.sandbox.run({
-    command: { exec: commands[language] },
+    command: { exec: command },
     timeout: { execution: '10s' },
     resources: { memory: '128Mi', cpu: '250m' },
   });
@@ -376,7 +398,7 @@ const info = await ctx.sandbox.get('sbx_abc123');
 ctx.logger.info('Sandbox details', {
   status: info.status,
   createdAt: info.createdAt,
-  snapshotId: info.snapshotId,
+  snapshot: info.snapshot?.id,
 });
 ```
 
@@ -397,6 +419,7 @@ await ctx.sandbox.destroy('sbx_abc123');
 | Option | Type | Description |
 |--------|------|-------------|
 | `runtime` | `string` | Runtime environment: `'bun:1'`, `'python:3.14'` |
+| `runtimeId` | `string` | Runtime ID, such as `'srt_xxx'` |
 | `name` | `string` | Optional sandbox name |
 | `description` | `string` | Optional description |
 | `resources.memory` | `string` | Memory limit: `'256Mi'`, `'1Gi'` |
@@ -408,9 +431,13 @@ await ctx.sandbox.destroy('sbx_abc123');
 | `timeout.idle` | `string` | Auto-destroy after idle: `'10m'`, `'1h'` |
 | `timeout.execution` | `string` | Max command duration: `'30s'`, `'5m'` |
 | `dependencies` | `string[]` | Apt packages: `['python3', 'git']` |
+| `packages` | `string[]` | npm/bun packages to install globally |
 | `snapshot` | `string` | Snapshot ID or tag to restore from |
 | `env` | `Record<string, string>` | Environment variables |
 | `metadata` | `Record<string, unknown>` | User-defined metadata for tracking |
+| `scopes` | `string[]` | Permission scopes for automatic service access |
+
+When `snapshot` is set, do not also set `runtime` or `runtimeId`. The snapshot already includes its base runtime.
 
 ### ExecuteOptions
 
@@ -419,6 +446,7 @@ await ctx.sandbox.destroy('sbx_abc123');
 | `command` | `string[]` | Command and arguments |
 | `files` | `FileToWrite[]` | Files to create before execution |
 | `timeout` | `string` | Override execution timeout |
+| `stream` | `object` | Optional stdout, stderr, and timestamp stream configuration |
 | `signal` | `AbortSignal` | Cancel the execution |
 
 ### Execution
@@ -429,13 +457,12 @@ Returned by `sandbox.execute()`:
 |-------|------|-------------|
 | `executionId` | `string` | Unique execution ID for debugging |
 | `status` | `string` | `'queued'`, `'running'`, `'completed'`, `'failed'`, `'timeout'`, `'cancelled'` |
-| `exitCode` | `number` | Process exit code (when completed) |
-| `durationMs` | `number` | Execution duration in milliseconds |
+| `exitCode` | `number` | Process exit code, when available |
+| `durationMs` | `number` | Execution duration in milliseconds, when available |
 | `stdoutStreamUrl` | `string` | URL to fetch stdout stream |
 | `stderrStreamUrl` | `string` | URL to fetch stderr stream |
-| `cpuTimeMs` | `number` | CPU time consumed in milliseconds |
-| `memoryByteSec` | `number` | Memory usage in byte-seconds |
-| `networkEgressBytes` | `number` | Outbound network traffic in bytes |
+| `outputTruncated` | `boolean` | Whether captured output was truncated |
+| `autoResumed` | `boolean` | Whether the sandbox resumed automatically before execution |
 
 ### SandboxRunResult
 
@@ -446,9 +473,6 @@ Returned by `sandbox.execute()`:
 | `durationMs` | `number` | Execution duration |
 | `stdout` | `string` | Captured stdout (if available) |
 | `stderr` | `string` | Captured stderr (if available) |
-| `cpuTimeMs` | `number` | CPU time consumed in milliseconds |
-| `memoryByteSec` | `number` | Memory usage in byte-seconds |
-| `networkEgressBytes` | `number` | Outbound network traffic in bytes |
 
 ### SandboxInfo
 
@@ -457,9 +481,10 @@ Returned by `ctx.sandbox.get()` and in list results:
 | Field | Type | Description |
 |-------|------|-------------|
 | `sandboxId` | `string` | Unique sandbox identifier |
-| `status` | `SandboxStatus` | `'creating'`, `'idle'`, `'running'`, `'terminated'`, `'failed'`, `'deleted'` |
+| `status` | `SandboxStatus` | `'creating'`, `'idle'`, `'running'`, `'paused'`, `'stopping'`, `'suspended'`, `'terminated'`, `'failed'`, `'deleted'` |
 | `createdAt` | `string` | ISO timestamp |
-| `snapshotId` | `string` | Source snapshot (if created from snapshot) |
+| `runtime` | `SandboxRuntimeInfo` | Runtime details, when available |
+| `snapshot` | `SandboxSnapshotInfo` | Source snapshot, when available |
 | `networkPort` | `number` | Port exposed from sandbox (if configured) |
 | `url` | `string` | Public URL (when port is configured) |
 | `user` | `SandboxUserInfo` | User who created the sandbox |
@@ -504,6 +529,7 @@ Save the current state of a sandbox as a snapshot:
 
 ```typescript
 const sandbox = await ctx.sandbox.create({
+  runtime: 'node:lts',
   network: { enabled: true },
   resources: { memory: '1Gi' },
 });

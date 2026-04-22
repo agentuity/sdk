@@ -1,12 +1,12 @@
 ---
 title: Database
-description: Relational database storage using Bun's native SQL APIs
+description: Managed Postgres storage with Agentuity database clients
 ---
 
-Store structured data with queries, joins, and transactions using [Bun's native SQL APIs](https://bun.sh/docs/runtime/sql).
+Store structured data with queries, joins, and transactions in a managed Postgres database. Inside an Agentuity project, the CLI writes the database connection string to `DATABASE_URL`; use `@agentuity/postgres` when you want automatic reconnects around Bun's SQL driver.
 
 <Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/db`](/reference/standalone-packages#database) standalone package to access this service from any Node.js or Bun app without the runtime.
+Use the [`@agentuity/db`](/reference/standalone-packages#database) standalone package to query an Agentuity-managed database by `database` and `orgId` from any Node.js or Bun app.
 </Callout>
 
 ## When to Use Database Storage
@@ -20,7 +20,7 @@ Use the [`@agentuity/db`](/reference/standalone-packages#database) standalone pa
 | [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
 
 <Callout type="info" title="Credentials Auto-Injected">
-When you create a database with `agentuity cloud db create`, the `DATABASE_URL` is automatically added to your `.env` file. During deployment, credentials are injected automatically.
+When you create a database with `agentuity cloud db create` from a project, the `DATABASE_URL` is added to your `.env` file. During deployment, credentials are injected automatically.
 </Callout>
 
 ## Creating a Database
@@ -30,19 +30,25 @@ When you create a database with `agentuity cloud db create`, the `DATABASE_URL` 
 agentuity cloud db create
 
 # Create with name and description
-agentuity cloud db create --name "users-db" --description "Primary user data store"
+agentuity cloud db create --name users_db --description "Primary user data store"
 ```
 
 ## Quick Start
 
+```bash
+bun add @agentuity/postgres
+```
+
 ```typescript
-import { sql } from "bun";
+import { postgres } from '@agentuity/postgres';
+
+const sql = postgres();
 
 // Query with automatic SQL injection protection
 const users = await sql`SELECT * FROM users WHERE active = ${true}`;
 
 // Insert data
-await sql`INSERT INTO users (name, email) VALUES (${"Alice"}, ${"alice@example.com"})`;
+await sql`INSERT INTO users (name, email) VALUES (${'Alice'}, ${'alice@example.com'})`;
 
 // Update data
 await sql`UPDATE users SET active = ${false} WHERE id = ${userId}`;
@@ -59,7 +65,9 @@ Always use template literal parameters (`${value}`) for dynamic values. Never co
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { sql } from "bun";
+import { postgres } from '@agentuity/postgres';
+
+const sql = postgres();
 
 const agent = createAgent('UserQuery', {
   handler: async (ctx, input) => {
@@ -71,7 +79,7 @@ const agent = createAgent('UserQuery', {
       LIMIT 10
     `;
 
-    ctx.logger.info("Query results", { count: users.length });
+    ctx.logger.info('Query results', { count: users.length });
     return { users };
   },
 });
@@ -82,9 +90,10 @@ const agent = createAgent('UserQuery', {
 ```typescript
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import { sql } from "bun";
+import { postgres } from '@agentuity/postgres';
 
 const router = new Hono<Env>();
+const sql = postgres();
 
 router.get('/users', async (c) => {
   const limit = parseInt(c.req.query('limit') || '10');
@@ -114,36 +123,34 @@ export default router;
 Use transactions for operations that must succeed or fail together:
 
 ```typescript
-import { sql } from "bun";
+import { postgres } from '@agentuity/postgres';
 
-await sql.begin(async (tx) => {
+const sql = postgres();
+
+const tx = await sql.begin();
+try {
   await tx`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromAccount}`;
   await tx`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toAccount}`;
   await tx`INSERT INTO transfers (from_id, to_id, amount) VALUES (${fromAccount}, ${toAccount}, ${amount})`;
-});
+  await tx.commit();
+} catch (error) {
+  await tx.rollback();
+  throw error;
+}
 ```
 
-## Supported Databases
+## Managed Postgres
 
-Bun's SQL API supports PostgreSQL, MySQL, and SQLite:
+Agentuity database resources are managed Postgres databases. `agentuity cloud db create` writes `DATABASE_URL`, and `postgres()` reads it by default:
 
 ```typescript
-import { SQL } from "bun";
+import { postgres } from '@agentuity/postgres';
 
-// PostgreSQL (default, uses DATABASE_URL)
+const sql = postgres();
 const users = await sql`SELECT * FROM users`;
-
-// Custom PostgreSQL connection
-const postgres = new SQL("postgres://user:pass@localhost:5432/mydb");
-
-// MySQL
-const mysql = new SQL("mysql://user:pass@localhost:3306/mydb");
-
-// SQLite
-const sqlite = new SQL("sqlite://data/app.db");
 ```
 
-For complete Bun SQL documentation, see the [Bun SQL docs](https://bun.sh/docs/runtime/sql).
+For raw Bun SQL behavior outside the Agentuity wrapper, see the [Bun SQL docs](https://bun.sh/docs/runtime/sql).
 
 ## Next Steps
 

@@ -20,9 +20,9 @@ my-project/
 ├── package.json          # Dependencies
 └── src/
     ├── agent/            # Agent code
-    │   ├── index.ts      # Agent registry (exports array of agents)
-    │   └── chat/
-    │       └── agent.ts  # Agent logic
+	    │   ├── index.ts      # Agent registry (exports array of agents)
+	    │   └── translate/
+	    │       └── index.ts  # Default translation agent
     ├── api/              # HTTP routes
     │   └── index.ts      # Router, imports agents
     └── web/              # Frontend code (scaffolded by default)
@@ -31,7 +31,7 @@ my-project/
         └── App.tsx       # Main component
 ```
 
-Agent names come from the first argument to `createAgent()`. Each agent has one file: `agent.ts` with your logic and schema.
+Agent names come from the first argument to `createAgent()`. Examples often use `agent.ts`; the default project template uses `index.ts` inside each agent folder. Register each exported agent in `src/agent/index.ts`.
 
 <Callout type="info" title="Utility Files">
 You can add helper files (like `types.ts`, `helpers.ts`, `utils.ts`) alongside your agents and routes.

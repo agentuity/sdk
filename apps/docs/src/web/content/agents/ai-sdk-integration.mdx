@@ -39,7 +39,7 @@ const agent = createAgent('TextGenerator', {
   },
   handler: async (ctx, input) => {
     const { text } = await generateText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-mini'),
       prompt: input.prompt,
     });
 
@@ -57,7 +57,7 @@ Add context with a system message:
 ```typescript
 // Inside your handler:
 const { text } = await generateText({
-  model: openai('gpt-5-mini'),
+  model: openai('gpt-5.4-mini'),
   system: 'You are a concise technical assistant. Keep responses under 100 words.',
   prompt: input.prompt,
 });
@@ -70,7 +70,7 @@ Pass conversation history for multi-turn interactions:
 ```typescript
 // Inside your handler:
 const { text } = await generateText({
-  model: openai('gpt-5-mini'),
+  model: openai('gpt-5.4-mini'),
   messages: [
     { role: 'system', content: 'You are a helpful assistant.' },
     { role: 'user', content: 'What is TypeScript?' },
@@ -82,11 +82,11 @@ const { text } = await generateText({
 
 ## Generating Structured Data
 
-Use `generateObject` to get validated, typed responses:
+Use `generateText` with `Output.object()` to get validated, typed responses:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
@@ -102,14 +102,14 @@ const agent = createAgent('SentimentAnalyzer', {
     output: SentimentSchema,
   },
   handler: async (ctx, input) => {
-    const { object } = await generateObject({
-      model: openai('gpt-5-mini'),
-      schema: SentimentSchema,
+    const { output } = await generateText({
+      model: openai('gpt-5.4-mini'),
+      output: Output.object({ schema: SentimentSchema }),
       prompt: `Analyze the sentiment of: "${input.text}"`,
     });
 
     // Schema match means no runtime type assertion needed
-    return object;
+    return output;
   },
 });
 
@@ -117,7 +117,7 @@ export default agent;
 ```
 
 <Callout type="tip" title="Schema Reuse">
-Define your schema once and reuse it for both `generateObject` and your agent's output schema. This keeps types consistent throughout your codebase.
+Define your schema once and reuse it for both `Output.object()` and your agent's output schema. This keeps types consistent throughout your codebase.
 </Callout>
 
 ### Using `.describe()` for Field Hints
@@ -126,7 +126,7 @@ Add `.describe()` to schema fields to guide the model on format and content:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
@@ -144,13 +144,13 @@ const agent = createAgent('EventExtractor', {
     output: EventSchema,
   },
   handler: async (ctx, input) => {
-    const { object } = await generateObject({
-      model: openai('gpt-5-mini'),
-      schema: EventSchema,
+    const { output } = await generateText({
+      model: openai('gpt-5.4-mini'),
+      output: Output.object({ schema: EventSchema }),
       prompt: `Extract event details from: "${input.text}"`,
     });
 
-    return object;
+    return output;
   },
 });
 
@@ -176,7 +176,7 @@ const agent = createAgent('StreamingChat', {
   },
   handler: async (ctx, input) => {
     const { textStream } = streamText({
-      model: openai('gpt-5-mini'),
+      model: openai('gpt-5.4-mini'),
       prompt: input.prompt,
     });
 
@@ -196,15 +196,15 @@ Change providers by swapping the import and model:
 ```typescript
 // OpenAI
 import { openai } from '@ai-sdk/openai';
-const model = openai('gpt-5-mini');
+const model = openai('gpt-5.4-mini');
 
 // Anthropic
 import { anthropic } from '@ai-sdk/anthropic';
-const model = anthropic('claude-sonnet-4-5');
+const model = anthropic('claude-sonnet-4-6');
 
 // Google
 import { google } from '@ai-sdk/google';
-const model = google('gemini-2.5-flash');
+const model = google('gemini-3-flash-preview');
 
 // Groq (fast inference)
 import { groq } from '@ai-sdk/groq';
@@ -229,7 +229,7 @@ const agent = createAgent('SafeGenerator', {
   handler: async (ctx, input) => {
     try {
       const { text } = await generateText({
-        model: openai('gpt-5-mini'),
+        model: openai('gpt-5.4-mini'),
         prompt: input.prompt,
       });
 
