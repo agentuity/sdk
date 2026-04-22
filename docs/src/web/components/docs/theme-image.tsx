@@ -62,7 +62,14 @@ export function ThemeImage({ baseName, alt, width, height, className }: ThemeIma
 		);
 	}
 
-	const src = `/public/images/${baseName}-${resolvedTheme === 'dark' ? 'dark' : 'light'}.png`;
+	// Vite serves src/web/public/* at the root URL, so the leading '/' is all
+	// we need. Vite rewrites root-relative paths in HTML and CSS to the CDN
+	// via `--base`, but this is a dynamic string literal in JS, so the path
+	// stays origin-relative at runtime. That's fine — the origin also serves
+	// publicDir files from .agentuity/client/ in production (see
+	// packages/runtime/src/bootstrap.ts:registerWebRoutes). Callers must place
+	// the image at src/web/public/images/<baseName>-{light,dark}.png.
+	const src = `/images/${baseName}-${resolvedTheme === 'dark' ? 'dark' : 'light'}.png`;
 
 	return (
 		<>

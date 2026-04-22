@@ -12,7 +12,6 @@ export const SCRIPT_NAMES: ReadonlySet<string> = new Set([
 	'agent-calls',
 	'ai-gateway',
 	'chat',
-	'cron',
 	'database',
 	'durable-stream',
 	'email',
@@ -22,9 +21,12 @@ export const SCRIPT_NAMES: ReadonlySet<string> = new Set([
 	'model-arena',
 	'objectstore',
 	'queue',
+	'schedule',
 	'sse-stream',
 	'streaming',
 	'vector',
+	'webrtc',
+	'websocket',
 ]);
 
 /** Default inputs for each script (extracted from source files) */
@@ -32,7 +34,6 @@ export const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	'agent-calls': { name: 'World' },
 	'ai-gateway': { prompt: 'Tell me a joke' },
 	chat: { message: 'Hello!' },
-	cron: {},
 	database: { query: 'summary', seedData: true },
 	'durable-stream': {},
 	email: { template: 'welcome' },
@@ -42,7 +43,10 @@ export const SCRIPT_DEFAULTS: Record<string, unknown> = {
 	'model-arena': { prompt: 'Write a haiku about coding' },
 	objectstore: {},
 	queue: {},
+	schedule: { expression: '* * * * *' },
 	'sse-stream': { prompt: 'Tell me a story' },
 	streaming: { prompt: 'Tell me a story' },
 	vector: { query: 'comfortable chair' },
+	webrtc: {},
+	websocket: {},
 };

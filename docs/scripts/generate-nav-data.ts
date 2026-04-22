@@ -106,6 +106,11 @@ const SDK_EXPLORER: NavSection = {
 			description: 'Structured streaming with event types and auto-reconnect',
 		},
 		{
+			title: 'WebSocket',
+			url: '/explorer/websocket',
+			description: 'Real-time bidirectional messaging over a persistent connection',
+		},
+		{
 			title: 'Durable Streams',
 			url: '/explorer/durable-stream',
 			description: 'Generate content and get a permanent, shareable URL',
@@ -116,9 +121,9 @@ const SDK_EXPLORER: NavSection = {
 			description: 'Call agents from routes or other agents',
 		},
 		{
-			title: 'Cron Jobs',
-			url: '/explorer/cron',
-			description: 'Run tasks on a schedule with cron expressions',
+			title: 'Schedules',
+			url: '/explorer/schedules',
+			description: 'Create managed schedules and inspect delivery attempts',
 		},
 		{
 			title: 'Model Arena',

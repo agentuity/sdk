@@ -1,4 +1,5 @@
-import type {
+import {
+	createBashToolDefinition,
 	AgentToolResult,
 	ExtensionAPI,
 	ExtensionContext,
@@ -22,6 +23,9 @@ import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
+import { formatToolDisplay } from './agentuity-cli.ts';
+import { adaptInitMessageForLocalTui } from './local-init-filter.ts';
+import { selectSubAgentToolNames } from './subagent-tool-selection.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -283,6 +287,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// to an existing sandbox session. The full UI is set up (tools, commands, /hub)
 	// but user input is relayed to the remote sandbox instead of the local Pi agent.
 	const remoteSessionId = process.env[REMOTE_SESSION_ENV] || null;
+	const isRemoteSession = Boolean(remoteSessionId);
 	const isNativeRemote = !!process.env[NATIVE_REMOTE_ENV];
 	if (remoteSessionId) {
 		log(`Remote mode: will connect as controller to session ${remoteSessionId}`);
@@ -298,7 +303,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// This is how we discover what tools/agents the server provides.
 	// ══════════════════════════════════════════════
 
-	const initMsg = fetchInitMessageSync(hubUrl, agentRole);
+	const initialInitMsg = fetchInitMessageSync(hubUrl, agentRole);
+	const initMsg = initialInitMsg
+		? adaptInitMessageForLocalTui(initialInitMsg, { isRemoteSession })
+		: null;
 
 	if (!initMsg) {
 		log('Hub not reachable — no tools or agents registered');
@@ -411,6 +419,18 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// Titlebar: branding + spinner (registers its own event handlers)
 	setupTitlebar(pi);
 
+	// Override Pi's built-in bash call-row rendering so local transcript rows
+	// can brand Agentuity CLI invocations without changing bash execution/result behavior.
+	const hasBashTool = serverTools.some((tool) => tool.name === 'bash');
+	const localBashRenderers = hasBashTool ? getToolRenderers('bash') : undefined;
+	if (hasBashTool && localBashRenderers?.renderCall) {
+		const bashToolDefinition = createBashToolDefinition(process.cwd());
+		pi.registerTool({
+			...bashToolDefinition,
+			renderCall: localBashRenderers.renderCall as ToolDefinition['renderCall'],
+		});
+	}
+
 	// ══════════════════════════════════════════════
 	// WebSocket client for runtime communication (tool execution + events)
 	// ══════════════════════════════════════════════
@@ -453,9 +473,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	}
 
 	function applyInitMessage(nextInit: InitMessage): void {
-		cachedInitMessage = nextInit;
-		if (nextInit.sessionId) currentSessionId = nextInit.sessionId;
-		if (nextInit.config) hubConfig = nextInit.config;
+		const effectiveInit = adaptInitMessageForLocalTui(nextInit, { isRemoteSession });
+		cachedInitMessage = effectiveInit;
+		if (effectiveInit.sessionId) currentSessionId = effectiveInit.sessionId;
+		if (effectiveInit.config) hubConfig = effectiveInit.config;
 	}
 
 	client.onInitMessage = (nextInit) => {
@@ -1755,13 +1776,7 @@ async function runSubAgent(
 	const { piSdk, piAi } = await loadPiSdk();
 	// Runtime-resolved dynamic imports — exact types unavailable statically
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const {
-		createAgentSession,
-		DefaultResourceLoader,
-		SessionManager,
-		createCodingTools,
-		createReadOnlyTools,
-	} = piSdk as any;
+	const { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager } = piSdk as any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { getModel } = piAi as any;
 
@@ -1783,13 +1798,16 @@ async function runSubAgent(
 	// Sub-agents get Hub tools (memory, context7, etc.) via extensionFactories
 	// so they work in both driver and TUI mode.
 	const hubTools = agentConfig.hubTools ?? [];
+	const cwd = process.cwd();
+	const agentDir = getAgentDir();
 
 	// Resource loader — no extensions (prevents recursive task tool registration),
 	// no skills, agent's system prompt injected directly.
 	// Hub tools are injected via extensionFactories so sub-agents can use
 	// memory_recall, context7_search, etc.
 	const subLoader = new DefaultResourceLoader({
-		cwd: process.cwd(),
+		cwd,
+		agentDir,
 		noExtensions: true,
 		extensionFactories:
 			hubTools.length > 0
@@ -1808,9 +1826,12 @@ async function runSubAgent(
 	});
 	await subLoader.reload();
 
-	// Select tools based on readOnly flag
-	const cwd = process.cwd();
-	const tools = agentConfig.readOnly ? createReadOnlyTools(cwd) : createCodingTools(cwd);
+	// Pi v0.68.x uses a name allowlist for both built-in and extension/custom tools.
+	const builtInToolNames = selectSubAgentToolNames(agentConfig);
+	const hubToolNames = hubTools
+		.map((tool) => (typeof tool.name === 'string' ? tool.name.trim() : ''))
+		.filter((name): name is string => name.length > 0);
+	const tools = Array.from(new Set([...builtInToolNames, ...hubToolNames]));
 
 	const { session } = await createAgentSession({
 		// subModel is already untyped (from dynamic import) — createAgentSession is also dynamically imported
@@ -1824,7 +1845,8 @@ async function runSubAgent(
 			| 'xhigh',
 		tools,
 		resourceLoader: subLoader,
-		sessionManager: SessionManager.inMemory('/tmp'),
+		// Pi now tracks cwd per session, so bind in-memory sub-agents to the actual repo cwd.
+		sessionManager: SessionManager.inMemory(cwd),
 	});
 	await session.bindExtensions({});
 
@@ -1860,25 +1882,19 @@ async function runSubAgent(
 
 					if (evt.type === 'tool_execution_start') {
 						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';
-						let toolArgs = '';
-						if (evt.args && typeof evt.args === 'object') {
-							const args = evt.args as Record<string, unknown>;
-							if (args.command) toolArgs = String(args.command).slice(0, 60);
-							else if (args.filePath || args.path)
-								toolArgs = String(args.filePath || args.path);
-							else if (args.pattern) toolArgs = String(args.pattern).slice(0, 40);
-							else {
-								const first = Object.values(args)[0];
-								if (first) toolArgs = String(first).slice(0, 40);
-							}
-						}
+						const display = formatToolDisplay(
+							toolName,
+							typeof evt.args === 'string' || (evt.args && typeof evt.args === 'object')
+								? (evt.args as string | Record<string, unknown>)
+								: undefined
+						);
 
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_start',
 							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
-							currentTool: toolName,
-							currentToolArgs: toolArgs,
+							currentTool: display.toolName,
+							currentToolArgs: display.toolArgs,
 							elapsed,
 						});
 					} else if (evt.type === 'tool_execution_end') {

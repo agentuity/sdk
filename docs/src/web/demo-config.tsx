@@ -2,7 +2,7 @@ import { CODE_EXAMPLES } from './code-examples';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
-import { CronDemo } from './components/CronDemo';
+
 import { HandlerContextDemo } from './components/HandlerContextDemo';
 import { HelloDemo } from './components/HelloDemo';
 import { KVExplorer } from './components/KVExplorer';
@@ -12,9 +12,11 @@ import { PersistentStreamDemo } from './components/PersistentStreamDemo';
 import { SSEStreamDemo } from './components/SSEStreamDemo';
 import { StreamingDemo } from './components/StreamingDemo';
 import { VectorSearch } from './components/VectorSearch';
-import { QueueDemo } from './components/QueueDemo';
 import { DatabaseDemo } from './components/DatabaseDemo';
 import { EmailDemo } from './components/EmailDemo';
+import { QueueDemo } from './components/QueueDemo';
+import { SchedulesDemo } from './components/SchedulesDemo';
+import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
 export type DemoId =
@@ -27,8 +29,10 @@ export type DemoId =
 	| 'ai-gateway'
 	| 'sse-stream'
 	| 'streaming'
+	| 'websocket'
+	| 'webrtc'
 	| 'durable-stream'
-	| 'cron'
+	| 'schedules'
 	| 'agent-calls'
 	| 'object-storage'
 	| 'queue'
@@ -74,7 +78,7 @@ export const DEMOS: DemoConfig[] = [
 				explore the{' '}
 				<a
 					href={explorerHref('handler-context')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Handler Context
 				</a>{' '}
@@ -106,7 +110,7 @@ export const DEMOS: DemoConfig[] = [
 				example you can run in the sandbox.
 			</>
 		),
-		docsUrl: '/reference/sdk-reference#context-api',
+		docsUrl: '/reference/sdk-reference/context-api',
 		category: 'basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],
@@ -131,7 +135,7 @@ export const DEMOS: DemoConfig[] = [
 				. For searching by meaning or similarity, use{' '}
 				<a
 					href={explorerHref('vector-storage')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Vector storage
 				</a>{' '}
@@ -166,7 +170,7 @@ export const DEMOS: DemoConfig[] = [
 				rather than exact keywords. For exact key lookups, use{' '}
 				<a
 					href={explorerHref('key-value')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					KV storage
 				</a>{' '}
@@ -202,7 +206,7 @@ export const DEMOS: DemoConfig[] = [
 				For simple key-value data, see{' '}
 				<a
 					href={explorerHref('key-value')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					KV storage
 				</a>
@@ -258,7 +262,7 @@ export const DEMOS: DemoConfig[] = [
 				or automatic reconnection, see{' '}
 				<a
 					href={explorerHref('sse-stream')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE streaming
 				</a>
@@ -282,7 +286,7 @@ export const DEMOS: DemoConfig[] = [
 		explanation: (
 			<>
 				A one-way stream from your server to the user's browser, with structure built in. Unlike
-				raw streaming, SSE gives you <em>typed events</em> (like "token" or "done"), message{' '}
+				raw streaming, SSE gives you <em>typed events</em> (like "chunk" or "done"), message{' '}
 				<em>IDs</em> for tracking, and automatic reconnection if the connection drops.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
 					The sweet spot for LLM token streaming, live feeds, and progress updates
@@ -290,7 +294,7 @@ export const DEMOS: DemoConfig[] = [
 				. For simpler use cases where you just need raw bytes, see{' '}
 				<a
 					href={explorerHref('streaming')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Text Stream
 				</a>
@@ -304,6 +308,44 @@ export const DEMOS: DemoConfig[] = [
 		sandboxEnabled: true,
 		sandboxScript: 'sse-stream',
 		sandboxInput: { prompt: 'Explain what Server-Sent Events are in 2-3 sentences.' },
+		isRoute: true,
+	},
+	{
+		id: 'websocket',
+		title: 'WebSocket',
+		subtitle: 'Bidirectional Communication',
+		description: 'Real-time bidirectional messaging over a persistent connection.',
+		explanation: (
+			<>
+				WebSockets give you a <em>persistent, bidirectional</em> connection between client and
+				server. Unlike SSE, both sides can send messages at any time.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					The websocket() middleware handles the protocol upgrade and lifecycle for you
+				</span>
+				. Define <em>onOpen</em>, <em>onMessage</em>, and <em>onClose</em> callbacks, and call
+				agents or other async code from inside them. For one-way streaming, see{' '}
+				<a
+					href={explorerHref('sse-stream')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
+				>
+					SSE Stream
+				</a>
+				. For peer-to-peer browser communication, see{' '}
+				<a
+					href={explorerHref('webrtc')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
+				>
+					WebRTC
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/routes/websockets',
+		category: 'io-patterns',
+		component: WebSocketDemo,
+		codeExample: CODE_EXAMPLES.websocket,
+		sandboxEnabled: true,
+		sandboxScript: 'websocket',
 		isRoute: true,
 	},
 	{
@@ -322,7 +364,7 @@ export const DEMOS: DemoConfig[] = [
 				. For real-time use cases where data streams in as it's generated, see{' '}
 				<a
 					href={explorerHref('sse-stream')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE streaming
 				</a>
@@ -364,35 +406,29 @@ export const DEMOS: DemoConfig[] = [
 		sandboxInput: { name: 'Explorer' },
 	},
 	{
-		id: 'cron',
-		title: 'Cron Jobs',
-		subtitle: 'Scheduled Tasks',
-		description: 'Run tasks on a schedule with cron expressions.',
+		id: 'schedules',
+		title: 'Schedules',
+		subtitle: 'Recurring Jobs',
+		description: 'Run code on a schedule with delivery tracking built in.',
 		explanation: (
 			<>
-				Sometimes you need code to run automatically: every hour, every day, or on a custom
-				schedule. That's what <em>cron jobs</em> do. The schedule is defined using a{' '}
-				<em>cron expression</em> like{' '}
-				<code className="bg-cyan-500/10 px-1 rounded">0 * * * *</code>, which reads as "minute
-				hour day month weekday" (this one means "at minute 0 of every hour").{' '}
-				<span className="bg-cyan-500/10 px-1 rounded">Use cron for recurring tasks</span> like
-				fetching data, cleaning up old records, or sending reports. Combine with{' '}
-				<a
-					href={explorerHref('key-value')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
-				>
-					KV storage
-				</a>{' '}
-				to cache results so you don't have to fetch them each time.
+				Schedules are platform-managed recurring jobs. Define a cron expression, point it at a
+				destination, and inspect each attempt with <code>listDeliveries()</code>. The live demo
+				creates one real schedule against{' '}
+				<code className="bg-cyan-500/10 px-1 rounded">/api/hello</code>, waits for the first
+				recorded delivery, then cleans it up.
 			</>
 		),
-		docsUrl: '/routes/cron',
-		category: 'io-patterns',
-		component: CronDemo,
-		codeExample: CODE_EXAMPLES.cron,
+		docsUrl: '/services/schedules',
+		category: 'services',
+		component: SchedulesDemo,
+		codeExample: CODE_EXAMPLES.schedules,
 		sandboxEnabled: true,
-		sandboxScript: 'cron',
-		isRoute: true,
+		sandboxScript: 'schedule',
+		sandboxInput: {
+			expression: '* * * * *',
+			destinationUrl: 'https://agentuity.dev/api/hello',
+		},
 	},
 	// Examples - complete use cases
 	{
@@ -411,7 +447,7 @@ export const DEMOS: DemoConfig[] = [
 				. See{' '}
 				<a
 					href={explorerHref('handler-context')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Handler Context
 				</a>{' '}
@@ -438,7 +474,7 @@ export const DEMOS: DemoConfig[] = [
 				Generate content from multiple providers in parallel via the{' '}
 				<a
 					href={explorerHref('ai-gateway')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					AI Gateway
 				</a>
@@ -518,7 +554,7 @@ export const DEMOS: DemoConfig[] = [
 				. The same chairs from the{' '}
 				<a
 					href="/explorer/vector-storage"
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-500"
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Vector Search
 				</a>{' '}

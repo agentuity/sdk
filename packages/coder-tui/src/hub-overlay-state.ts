@@ -1,3 +1,5 @@
+import { formatToolDisplay } from './agentuity-cli.ts';
+
 export interface StreamBuffer {
 	output: string;
 	thinking: string;
@@ -78,7 +80,8 @@ export function buildProjectionFromEntries(
 		const type = typeof entry.type === 'string' ? entry.type : '';
 		if (type === 'tool_call') {
 			const toolName = typeof entry.toolName === 'string' ? entry.toolName : 'tool';
-			append('output', `[tool_call] ${toolName}\n\n`, entry.taskId);
+			const display = formatToolDisplay(toolName, entry.toolArgs);
+			append('output', `[tool_call] ${display.fullLabel}\n\n`, entry.taskId);
 			continue;
 		}
 

@@ -77,9 +77,9 @@ handler: async (ctx, input) => {
 }`,
 
 	'key-value': `// Key-Value storage: fast ephemeral data by exact key.
-// Buckets auto-created. Keys should be unique per run.
+// Namespaces auto-created. Keys should be unique per run.
 
-const bucket = "explorer-sandbox";
+const namespace = "explorer-sandbox";
 const runId = Date.now().toString(36);
 const key = \`\${runId}:session-001\`;
 
@@ -93,12 +93,12 @@ const sessionData = {
 ctx.logger.info("Setting key", { key });
 
 // SET: store data with optional TTL (minimum 60 seconds, 0 for no expiration)
-await ctx.kv.set(bucket, key, sessionData, { ttl: 300 });
+await ctx.kv.set(namespace, key, sessionData, { ttl: 300 });
 
 ctx.logger.info("Getting key", { key });
 
 // GET: returns { exists, data } discriminated union
-const result = await ctx.kv.get(bucket, key);
+const result = await ctx.kv.get(namespace, key);
 
 if (result.exists) {
   ctx.logger.info("Session found", {
@@ -110,7 +110,7 @@ if (result.exists) {
 }
 
 // CLEANUP: delete the unique key
-await ctx.kv.delete(bucket, key);
+await ctx.kv.delete(namespace, key);
 ctx.logger.info("Cleaned up", { key });`,
 
 	'vector-storage': `// Vector storage: semantic search by meaning, not keywords.
@@ -185,7 +185,7 @@ const existsAfter = await file.exists();
 ctx.logger.info("Cleaned up", { filename, existsAfter });`,
 
 	'sse-stream': `// Server-Sent Events (SSE) for real-time streaming to clients.
-// Perfect for LLM token streaming, progress updates, and live feeds.
+// Perfect for incremental text streaming, progress updates, and live feeds.
 import { Hono } from "hono";
 import { type Env, sse } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
@@ -198,25 +198,26 @@ const router = new Hono<Env>()
 
   c.var.logger?.info("SSE stream started", { prompt });
 
-  const { textStream } = streamText({
-    model: openai("gpt-5-nano"),
+  const { textStream, usage } = streamText({
+    model: openai("gpt-5.4-nano"),
     prompt,
   });
 
-  // Stream tokens as they arrive from the LLM
-  let tokenCount = 0;
+  // Stream text chunks as they arrive from the LLM
+  let chunkCount = 0;
   for await (const chunk of textStream) {
     await stream.writeSSE({
-      event: "token",      // Event type (client listens for this)
+      event: "chunk",      // Event type (client listens for this)
       data: chunk,         // The actual content
-      id: String(tokenCount++),  // Optional: enables client reconnection
+      id: String(chunkCount++),  // enables client reconnection
     });
   }
 
-  // Signal completion
+  // Signal completion with a usage-derived token count
+  const usageData = await usage;
   await stream.writeSSE({
     event: "done",
-    data: JSON.stringify({ totalTokens: tokenCount }),
+    data: JSON.stringify({ totalTokens: usageData?.totalTokens ?? 0 }),
   });
 
   // Stream closes automatically when handler returns
@@ -229,91 +230,124 @@ import { type Env, stream } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = new Hono<Env>()
-  // stream() middleware wraps your handler and pipes the ReadableStream
-  // Clients consume with fetch + getReader()
-  .post("/stream", stream(async (c) => {
-  const { prompt } = await c.req.json();
+const router = new Hono<Env>();
 
-  c.var.logger?.info("Streaming started", { prompt });
+// stream() middleware wraps your handler and pipes the ReadableStream
+// Clients consume with fetch + getReader()
+router.post(
+  "/stream",
+  stream(async (c) => {
+    const { prompt } = await c.req.json();
 
-  const { textStream } = streamText({
-    model: openai("gpt-5-nano"),
-    prompt,
+    c.var.logger?.info("Streaming started", { prompt });
+
+    const { textStream } = streamText({
+      model: openai("gpt-5.4-nano"),
+      prompt,
+    });
+
+    // Return the stream directly - Agentuity handles the response
+    return textStream;
+  })
+);`,
+
+	'agent-calls': `// Agent calls in standalone scripts.
+// Use ctx.invoke() + getAgentContext() when you also need ctx.waitUntil().
+import { createAgentContext, getAgentContext } from "@agentuity/runtime";
+import helloAgent from "@agent/hello/agent";
+
+const standaloneCtx = createAgentContext();
+
+await standaloneCtx.invoke(async () => {
+  const ctx = getAgentContext();
+  const name = "from the hello agent";
+
+  ctx.logger.info("Calling hello agent", { name });
+
+  // Call another agent inside the current invocation context
+  const greeting = await helloAgent.run({ name });
+  ctx.logger.info("Agent returned", { greeting });
+
+  // Background work must be scheduled from the active invocation context
+  ctx.waitUntil(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    ctx.logger.info("Background task completed");
+  });
+});`,
+
+	schedules: `// Managed schedules are platform resources with delivery tracking.
+// Use ScheduleClient in standalone scripts, CLIs, or background jobs.
+import { ScheduleClient } from "@agentuity/schedule";
+
+const schedules = new ScheduleClient();
+const name = \`explorer-demo-\${Date.now()}\`;
+let scheduleId: string | undefined;
+
+try {
+  const { schedule, destinations } = await schedules.create({
+    name,
+    description: "Call the docs hello route every minute",
+    expression: "* * * * *",
+    destinations: [
+      {
+        type: "url",
+        config: {
+          // The live Explorer sandbox passes a real URL for its Hello World route.
+          // In your app, point this at one of your own routes.
+          url: "<YOUR_APP_URL>/api/hello",
+          method: "GET",
+        },
+      },
+    ],
   });
 
-  // Return the stream directly - Agentuity handles the response
-  return textStream;
-}));`,
+  scheduleId = schedule.id;
 
-	'agent-calls': `// Agent calls: ctx.run() and ctx.waitUntil() patterns
-// Demonstrates: invoking agents, background tasks
-import { createAgentContext } from "@agentuity/runtime";
-import helloAgent from "@agent/hello";
+  // Change the cadence later
+  // await schedules.update(schedule.id, { expression: "*/5 * * * *" });
 
-const ctx = createAgentContext();
-const name = "from the hello agent";
+  // Add a sandbox destination
+  // await schedules.createDestination(schedule.id, {
+  //   type: "sandbox",
+  //   config: { sandbox_id: "sbx_abc123", command: "bun run src/run/sync.ts" },
+  // });
 
-ctx.logger.info("Calling hello agent", { name });
+  // List schedules for an admin or dashboard view
+  // const { schedules: allSchedules, total } = await schedules.list({ limit: 20, offset: 0 });
 
-// ctx.run() is the standalone pattern for invoking agents
-const greeting = await ctx.run(helloAgent, { name });
-ctx.logger.info("Agent returned", { greeting });
+  // Remove a destination without deleting the schedule
+  // await schedules.deleteDestination("sdst_abc123");
 
-// ctx.waitUntil() schedules background work
-ctx.logger.info("Scheduling background task");
-ctx.waitUntil(async () => {
-  // Simulate async work (analytics, cleanup, etc)
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  ctx.logger.info("Background task completed");
-});
+  console.log("Created schedule:", schedule.id);
+  console.log("Next run:", schedule.due_date);
+  console.log("Destinations:", destinations.length);
+} finally {
+  if (scheduleId) {
+    await schedules.delete(scheduleId).catch(() => undefined);
+  }
+}`,
 
-ctx.logger.info("Main execution complete (background still running)");`,
-
-	cron: `// Schedule tasks with the cron() middleware.
-// Platform triggers POST requests on your schedule.
-import { createRouter, cron } from "@agentuity/runtime";
-
-const router = createRouter();
-
-// Runs every hour at minute 0
-router.post("/hourly-task", cron("0 * * * *", async (c) => {
-  c.var.logger?.info("Hourly task running");
-
-  // Fetch data, update cache, send notifications, etc.
-  const data = await fetch("https://api.example.com/data")
-    .then(r => r.json());
-
-  await c.var.kv?.set("cache", "latest", data, { ttl: 3600 });
-
-  return c.json({ success: true, timestamp: new Date() });
-}));
-
-// Cron expressions: minute hour day month weekday
-// "* * * * *"     every minute
-// "0 * * * *"     every hour
-// "0 0 * * *"     daily at midnight
-// "0 9 * * 1"     Mondays at 9am`,
-
-	'durable-stream': `// Create durable content with shareable URLs.
-// Unlike ephemeral streams, content persists forever.
+	'durable-stream': `// Durable streams keep generated content available by URL after the request finishes.
+// Streams expire after 30 days by default; set ttl: null or 0 to keep them indefinitely.
 import { Hono } from "hono";
 import type { Env } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = new Hono<Env>()
-  .post("/generate", async (c) => {
-  // Create stream - returns a public URL
-  const stream = await c.var.stream.create("summary", {
+const router = new Hono<Env>();
+
+router.post("/create", async (c) => {
+  // Create a durable stream - returns a shareable URL
+  const stream = await c.var.stream.create("ai-summary", {
     contentType: "text/plain",
     metadata: { created: new Date().toISOString() },
+    // ttl: 0, // or null to keep the stream indefinitely
   });
 
-  // Write content in background
+  // Write content in the background, then close the stream
   c.waitUntil(async () => {
     const { textStream } = streamText({
-      model: openai("gpt-5-nano"),
+      model: openai("gpt-5.4-nano"),
       prompt: "Write a summary of what Agentuity is.",
     });
 
@@ -323,58 +357,60 @@ const router = new Hono<Env>()
     await stream.close();
   });
 
-    // Return URL immediately - shareable with anyone
-    return c.json({
-      url: stream.url,    // Public, permanent URL
-      id: stream.id,
-    });
-  })
-  // List all generated summaries
-  .get("/list", async (c) => {
-    const { streams } = await c.var.stream.list({ name: "summary" });
-    return c.json(streams);
-  });`,
+  // Return immediately while content is still being generated
+  return c.json({
+    streamId: stream.id,
+    streamUrl: stream.url,
+    status: "generating",
+  });
+});
 
-	chat: `// Multi-turn chat with thread and session state
-// Demonstrates: thread state, session state APIs
-import { createAgentContext } from "@agentuity/runtime";
+// List previously generated summaries
+router.get("/list", async (c) => {
+  const result = await c.var.stream.list({ namespace: "ai-summary" });
+  return c.json(result.streams);
+});`,
+
+	chat: `// Multi-turn chat with thread state inside an agent handler.
+// Thread state persists across requests that share the same thread.
+import { createAgent } from "@agentuity/runtime";
+import { s } from "@agentuity/schema";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const ctx = createAgentContext();
-const message = "What is Agentuity?";
+const chatAgent = createAgent("chat", {
+  description: "Conversation memory with thread state",
+  schema: {
+    input: s.object({ message: s.string() }),
+    output: s.object({
+      response: s.string(),
+      turnCount: s.number(),
+      threadId: s.string(),
+    }),
+  },
+  handler: async (ctx, { message }) => {
+    const messages = ((await ctx.thread.state.get("messages")) as Message[]) ?? [];
+    const turnCount = ((await ctx.thread.state.get("turnCount")) as number) ?? 0;
 
-// Session state: per-request timing
-ctx.session.state.set("requestStart", Date.now());
+    const { text } = await generateText({
+      model: openai("gpt-5.4-nano"),
+      system: "You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).",
+      messages: [...messages, { role: "user", content: message }],
+    });
 
-// Thread state: persists across requests (empty on first run in sandbox)
-const messages = ((await ctx.thread.state.get("messages")) as Message[]) ?? [];
-const turnCount = ((await ctx.thread.state.get("turnCount")) as number) ?? 0;
-ctx.logger.info("Thread state retrieved", {
-  messageCount: messages.length,
-  turnCount,
-  note: messages.length === 0 ? "empty (first run)" : "has history",
-});
+    await ctx.thread.state.push("messages", { role: "user", content: message }, 50);
+    await ctx.thread.state.push("messages", { role: "assistant", content: text }, 50);
+    await ctx.thread.state.set("turnCount", turnCount + 1);
 
-// Generate response
-ctx.logger.info("Generating response", { message });
-const { text } = await generateText({
-  model: openai("gpt-5-nano"),
-  system: "You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).",
-  messages: [...messages, { role: "user", content: message }],
-});
-
-// Update thread state with sliding window (max 50 messages)
-await ctx.thread.state.push("messages", { role: "user", content: message }, 50);
-await ctx.thread.state.push("messages", { role: "assistant", content: text }, 50);
-await ctx.thread.state.set("turnCount", turnCount + 1);
-ctx.logger.info("Thread state updated", { newTurnCount: turnCount + 1 });
-
-// Session state: check elapsed time
-const elapsed = Date.now() - (ctx.session.state.get("requestStart") as number);
-ctx.logger.info("Request completed", { elapsedMs: elapsed });`,
+    return {
+      response: text,
+      turnCount: turnCount + 1,
+      threadId: ctx.thread.id,
+    };
+  },
+});`,
 
 	'model-arena': `// LLM-as-Judge: Have one model evaluate outputs from other models.
 // Pattern: Generate responses in parallel, then use generateObject()
@@ -403,7 +439,7 @@ const JudgmentSchema = z.object({
 // Generate competing responses in parallel
 const [responseA, responseB] = await Promise.all([
   generateText({
-    model: openai("gpt-5-nano"),
+    model: openai("gpt-5.4-nano"),
     prompt: userPrompt,
   }),
   generateText({
@@ -435,9 +471,9 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 // Call OpenAI - no API key configuration needed
-ctx.logger.info("Calling OpenAI", { model: "gpt-5-nano" });
+ctx.logger.info("Calling OpenAI", { model: "gpt-5.4-nano" });
 const openaiResult = await generateText({
-  model: openai("gpt-5-nano"),
+  model: openai("gpt-5.4-nano"),
   prompt: "Explain AI agents in 1 sentence.",
 });
 ctx.logger.info("OpenAI response", { text: openaiResult.text });
@@ -454,6 +490,52 @@ ctx.logger.info("Claude response", { text: claudeResult.text });
 // - Routes requests to the correct provider
 // - Handles authentication automatically
 // - Tracks usage and costs in your dashboard`,
+
+	websocket: `// WebSocket route for real-time bidirectional communication.
+// The websocket() middleware handles upgrade and lifecycle automatically.
+import { createRouter, websocket } from "@agentuity/runtime";
+
+const router = createRouter();
+
+router.get("/connect", websocket((c, ws) => {
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+
+  ws.onOpen(() => {
+    c.var.logger?.info("Client connected");
+
+    ws.send(JSON.stringify({
+      type: "system",
+      message: "Connected! Send messages and I will echo them back.",
+      timestamp: new Date().toISOString(),
+    }));
+
+    heartbeat = setInterval(() => {
+      ws.send(JSON.stringify({
+        type: "heartbeat",
+        message: "ping",
+        timestamp: new Date().toISOString(),
+      }));
+    }, 15000);
+  });
+
+  ws.onMessage(async (event) => {
+    const message = String(event.data).trim();
+    const timestamp = new Date().toISOString();
+
+    c.var.logger?.info("WebSocket message received", { message });
+
+    ws.send(JSON.stringify({
+      type: "echo",
+      message: \`[\${timestamp}] Echo: \${message}\`,
+      original: message,
+      timestamp,
+    }));
+  });
+
+  ws.onClose(() => {
+    if (heartbeat) clearInterval(heartbeat);
+  });
+}));`,
 
 	queue: `// Message Queue: publish messages for async processing.
 // Agents publish via ctx.queue. Workers receive and ack/nack.
@@ -492,6 +574,14 @@ await ctx.queue.publish(queueName, {
   task: "send-receipt",
   orderId: "order-123",
 });
+
+// Expire a message after a fixed number of seconds
+// await ctx.queue.publish(queueName, { task: "remind-user" }, { ttl: 3600 });
+
+// Use QueueClient in CLIs or background jobs with the same core methods
+// const client = new QueueClient();
+// await client.createQueue(queueName);
+// await client.publish(queueName, { task: "process-order" });
 
 // CLEANUP
 await ctx.queue.deleteQueue(queueName);

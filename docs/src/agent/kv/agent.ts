@@ -12,7 +12,7 @@
  *
  * TTL (time-to-live) is in seconds, minimum 60s (0 for no expiration). Great for caching.
  *
- * Docs: https://agentuity.dev/Services/Storage/key-value
+ * Docs: https://agentuity.dev/services/storage/key-value
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

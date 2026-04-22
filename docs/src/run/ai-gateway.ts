@@ -2,7 +2,7 @@
  * Standalone run script for AI Gateway demo
  *
  * Route pattern demo - no corresponding agent exists.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Demonstrates: calling AI providers through Agentuity gateway
  * No API keys needed - uses AGENTUITY_SDK_KEY via gateway
@@ -37,7 +37,7 @@ try {
 
 	const [openaiResult, claudeResult] = await Promise.all([
 		generateText({
-			model: openai('gpt-5-nano'),
+			model: openai('gpt-5.4-nano'),
 			prompt,
 		}),
 		generateText({
@@ -51,13 +51,15 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Prompt: "${prompt}"`);
 	console.log('');
-	console.log('OpenAI (gpt-5-nano):');
+	console.log('OpenAI (gpt-5.4-nano):');
 	console.log(openaiResult.text);
 	console.log('');
 	console.log('Anthropic (claude-haiku-4-5):');
 	console.log(claudeResult.text);
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 	process.exitCode = 1;
 }

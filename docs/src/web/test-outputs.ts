@@ -90,7 +90,8 @@ Prompt: "Explain what Server-Sent Events are in 2-3 sentences."
 
 Server-Sent Events (SSE) is a web technology that allows servers to push real-time updates to clients over a single HTTP connection. Unlike WebSockets, SSE is unidirectional (server to client only) and uses standard HTTP, making it simpler to implement and more compatible with existing infrastructure.
 
-[Streamed 47 tokens]`,
+[Buffered text chunks in the sandbox]
+In a real route, each chunk would be wrapped in named SSE events`,
 
 	'durable-stream': `[INFO] Creating durable stream
 ---OUTPUT---
@@ -118,28 +119,22 @@ Step 2: Calling text-processor (analyze)...
 
 Pipeline completed`,
 
-	cron: `[INFO] Hourly task running
+	schedules: `[INFO] Schedule created {"id":"sch_abc123xyz"}
 ---OUTPUT---
-=== Hourly Data Sync (Simulated) ===
-Triggered at: 2026-01-15T15:00:00.000Z
-
-Step 1: Fetching external data...
-  Fetched 542 records from api.example.com
-
-Step 2: Caching in KV storage...
-  Cached to "v1-ks-cron/latest-sync" (TTL: 1 hour)
-
-Step 3: Verifying cache...
-  Cache verified successfully
-
-Cron job completed successfully`,
+Created schedule: sch_abc123xyz
+Name: [Explorer] Hello World 1736956200
+Expression: * * * * *
+Next run: 2026-01-15T15:31:00.000Z
+Destinations: 1
+Destination URL: https://agentuity.dev/api/hello
+Deleted schedule: sch_abc123xyz`,
 
 	chat: `---OUTPUT---
 Thread ID: thrd_xyz789abc
 User: What is Agentuity?
 Assistant: Agentuity is a platform for building and deploying AI agents. It provides an SDK with built-in storage (KV, Vector, Object), AI gateway for multiple providers, streaming support, and evaluation tools.`,
 
-	'model-arena': `[INFO] Model A (OpenAI gpt-5-nano): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
+	'model-arena': `[INFO] Model A (OpenAI gpt-5.4-nano): "Code is poetry written in logic, where semicolons are the punctuation of dreams."
 
 [INFO] Model B (Anthropic claude-haiku-4-5): "Programming is the art of teaching rocks to think, one boolean at a time."
 

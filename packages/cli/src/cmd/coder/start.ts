@@ -128,6 +128,8 @@ export const startSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const { opts, options } = ctx;
+		// Keep Pi's interactive install telemetry disabled for Agentuity CLI sessions.
+		process.env.PI_TELEMETRY = '0';
 
 		// Resolve working directory from optional --dir option
 		let cwd = process.cwd();

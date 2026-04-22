@@ -197,7 +197,7 @@ handler: async (ctx, input) => {
 
 Both `ctx.state` and `ctx.session.state` are request-scoped and reset after each request. The difference:
 
-- **`ctx.state`**: General request state, accessible in agent event listeners
+- **`ctx.state`**: General request state, accessible in agent event listeners and other background hooks
 - **`ctx.session.state`**: Accessible via `session` in completion event callbacks
 
 For most use cases, use `ctx.state`. Use `ctx.session.state` only when you need data in session completion events. See [Events & Lifecycle](/agents/events-lifecycle) for more on event handlers.

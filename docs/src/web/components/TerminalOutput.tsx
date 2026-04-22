@@ -117,7 +117,7 @@ export function TerminalOutput({
 					</span>
 				)}
 				{status === 'running' && !output && (
-					<span data-loading="true" className="text-cyan-600 dark:text-cyan-400">
+					<span data-loading="true" className="text-cyan-700 dark:text-cyan-400">
 						Executing {isRoute ? 'route' : 'agent'}
 					</span>
 				)}

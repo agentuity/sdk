@@ -22,6 +22,7 @@
 		"@agentuity/core": "workspace:*",
 		"@agentuity/drizzle": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schedule": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@ai-sdk/anthropic": "^2.0.56",

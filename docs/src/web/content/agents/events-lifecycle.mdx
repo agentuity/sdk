@@ -209,8 +209,13 @@ agent.addEventListener('completed', (event, agent, ctx) => {
 ```
 </Callout>
 
+## Events and Output Review
+
+Use events for observability, logging, and side effects that belong close to execution. When you need a separate quality check after a response is complete, use a pattern like [LLM as a Judge](/cookbook/patterns/llm-as-a-judge).
+
 ## Next Steps
 
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Add post-response quality checks
 - [State Management](/agents/state-management): Thread and session state patterns
 - [Calling Other Agents](/agents/calling-other-agents): Multi-agent coordination
 - [Logging](/services/observability/logging): Structured logging for debugging events

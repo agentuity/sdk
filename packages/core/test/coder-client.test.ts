@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mockFetch } from '@agentuity/test-utils';
 import { CoderClient } from '../src/services/coder/client.ts';
 import { APIError, ValidationInputError } from '../src/services/api.ts';
-import { CoderCreateWorkspaceRequestSchema } from '../src/services/coder/types.ts';
+import {
+	CoderCreateAgentBuilderSessionRequestSchema,
+	CoderCreateWorkspaceRequestSchema,
+} from '../src/services/coder/types.ts';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
@@ -809,5 +812,213 @@ describe('CoderClient custom agent helpers', () => {
 			lifecycle: 'published',
 			latestPublishedVersion: 1,
 		});
+	});
+});
+
+describe('CoderClient agent-builder helpers', () => {
+	beforeEach(() => {
+		globalThis.fetch = ORIGINAL_FETCH;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = ORIGINAL_FETCH;
+	});
+
+	test('createAgentBuilderSession posts to the builder-session endpoint', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session/builder');
+			expect(init?.method).toBe('POST');
+			expect(init?.body).toContain('"mode":"from_session"');
+			expect(init?.body).toContain('"sourceSessionId":"codesess_source_1"');
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_builder_1',
+					status: 'creating',
+					visibility: 'private',
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createAgentBuilderSession({
+				mode: 'from_session',
+				sourceSessionId: 'codesess_source_1',
+				label: 'Build from release triage',
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_builder_1',
+			status: 'creating',
+		});
+	});
+
+	test('createAgentBuilderSession rejects invalid mode-specific payloads before sending', async () => {
+		let fetchCalled = false;
+		mockFetch(async () => {
+			fetchCalled = true;
+			throw new Error('fetch should not be called for invalid builder payloads');
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const missingSource = CoderCreateAgentBuilderSessionRequestSchema.safeParse({
+			mode: 'from_session',
+		});
+		expect(missingSource.success).toBe(false);
+		if (missingSource.success) throw new Error('Expected missingSource to fail validation');
+		expect(missingSource.error.issues).toContainEqual(
+			expect.objectContaining({
+				path: ['sourceSessionId'],
+				message: 'sourceSessionId is required for from-session builder launches.',
+			})
+		);
+
+		const missingTarget = CoderCreateAgentBuilderSessionRequestSchema.safeParse({
+			mode: 'edit',
+		});
+		expect(missingTarget.success).toBe(false);
+		if (missingTarget.success) throw new Error('Expected missingTarget to fail validation');
+		expect(missingTarget.error.issues).toContainEqual(
+			expect.objectContaining({
+				path: ['targetAgentId'],
+				message: 'targetAgentId or targetAgentSlug is required for edit launches.',
+			})
+		);
+
+		expect(
+			CoderCreateAgentBuilderSessionRequestSchema.safeParse({
+				mode: 'new',
+				targetAgentId: 'agt_123',
+			}).success
+		).toBe(true);
+
+		await expect(
+			client.createAgentBuilderSession({
+				mode: 'from_session',
+			})
+		).rejects.toThrow('There was an error validating the API input data.');
+
+		await expect(
+			client.createAgentBuilderSession({
+				mode: 'edit',
+			})
+		).rejects.toThrow('There was an error validating the API input data.');
+
+		expect(fetchCalled).toBe(false);
+	});
+
+	test('session payloads preserve builder detail projections from the backend', async () => {
+		let getCount = 0;
+
+		mockFetch(async (url, init) => {
+			if (url === 'https://coder.example/api/hub/session/codesess_builder_1') {
+				getCount += 1;
+				return new Response(
+					JSON.stringify(
+						makeSession({
+							sessionId: 'codesess_builder_1',
+							sessionKind: 'agent_builder',
+							builder: {
+								mode: 'edit',
+								targetAgent: {
+									agentId: 'agt_123',
+									slug: 'qa-team',
+									displayName: 'QA Team',
+								},
+								proposal: {
+									displayName: 'QA Team',
+									tools: ['read', 'grep'],
+									serviceTools: ['session_dashboard'],
+									savedSkills: [],
+									companionAgents: ['reviewer'],
+								},
+							},
+						})
+					),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}
+				);
+			}
+
+			if (url === 'https://coder.example/api/hub/sessions') {
+				return new Response(
+					JSON.stringify({
+						sessions: {
+							websocket: [
+								makeSession({
+									sessionId: 'codesess_builder_1',
+									sessionKind: 'agent_builder',
+									builder: {
+										mode: 'from_session',
+										sourceSession: {
+											sessionId: 'codesess_source_1',
+											label: 'Recurring triage',
+										},
+									},
+								}),
+							],
+							sandbox: [],
+						},
+						total: 1,
+					}),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' },
+					}
+				);
+			}
+
+			throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		const detail = await client.getSession('codesess_builder_1');
+		expect(detail.builder).toEqual(
+			expect.objectContaining({
+				mode: 'edit',
+				targetAgent: {
+					agentId: 'agt_123',
+					slug: 'qa-team',
+					displayName: 'QA Team',
+				},
+				proposal: expect.objectContaining({
+					displayName: 'QA Team',
+					tools: ['read', 'grep'],
+					serviceTools: ['session_dashboard'],
+					companionAgents: ['reviewer'],
+				}),
+			})
+		);
+
+		const sessions = await client.listSessions();
+		expect(sessions.sessions[0]?.sessionKind).toBe('agent_builder');
+		expect(sessions.sessions[0]?.builder).toEqual({
+			mode: 'from_session',
+			sourceSession: {
+				sessionId: 'codesess_source_1',
+				label: 'Recurring triage',
+			},
+		});
+		expect(getCount).toBe(1);
 	});
 });

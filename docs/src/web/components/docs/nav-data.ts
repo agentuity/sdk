@@ -76,6 +76,11 @@ export const navData: NavSection[] = [
 				description: 'Structured streaming with event types and auto-reconnect',
 			},
 			{
+				title: 'WebSocket',
+				url: '/explorer/websocket',
+				description: 'Real-time bidirectional messaging over a persistent connection',
+			},
+			{
 				title: 'Durable Streams',
 				url: '/explorer/durable-stream',
 				description: 'Generate content and get a permanent, shareable URL',
@@ -86,9 +91,9 @@ export const navData: NavSection[] = [
 				description: 'Call agents from routes or other agents',
 			},
 			{
-				title: 'Cron Jobs',
-				url: '/explorer/cron',
-				description: 'Run tasks on a schedule with cron expressions',
+				title: 'Schedules',
+				url: '/explorer/schedules',
+				description: 'Create managed schedules and inspect delivery attempts',
 			},
 			{
 				title: 'Model Arena',
@@ -156,12 +161,6 @@ export const navData: NavSection[] = [
 				title: 'Creating Agents',
 				url: '/agents/creating-agents',
 				description: 'Build agents with createAgent(), schemas, and handlers',
-			},
-			{
-				title: 'Workbench',
-				url: '/agents/workbench',
-				description:
-					'Use the built-in development UI to test agents, validate schemas, and debug responses',
 			},
 			{
 				title: 'Schema Libraries',
@@ -279,12 +278,6 @@ export const navData: NavSection[] = [
 				description: 'Add user authentication with Agentuity Auth',
 			},
 			{
-				title: 'Workbench',
-				url: '/frontend/workbench',
-				description:
-					'Configure routes, authentication, and embed Workbench in custom frontends',
-			},
-			{
 				title: 'Deployment Scenarios',
 				url: '/frontend/deployment-scenarios',
 				description:
@@ -390,7 +383,14 @@ export const navData: NavSection[] = [
 			{
 				title: 'Authentication',
 				url: '/services/authentication',
-				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+				description:
+					'Choose between Sign in with Agentuity and app-owned authentication for routes and apps',
+			},
+			{
+				title: 'OIDC Provider',
+				url: '/services/oidc-provider',
+				description:
+					'Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC',
 			},
 			{
 				title: 'Coder',
@@ -487,7 +487,7 @@ export const navData: NavSection[] = [
 								title: 'Built-In Agents',
 								url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
 								description:
-									'Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session',
+									'Use enabledAgents and defaultAgent to choose which built-in Coder agents are available in a session',
 							},
 							{
 								title: 'Attach Skills',
@@ -819,7 +819,7 @@ export const navData: NavSection[] = [
 						title: 'Development',
 						url: '/reference/cli/development',
 						description:
-							'Run the development server with hot reload, local mode, and the interactive Workbench.',
+							'Run the development server with hot reload, type checking, and public URL support.',
 					},
 					{
 						title: 'Getting Started',
@@ -850,6 +850,12 @@ export const navData: NavSection[] = [
 						url: '/reference/cli/opencode-plugin',
 						description:
 							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
+					},
+					{
+						title: 'Profiles',
+						url: '/reference/cli/profiles',
+						description:
+							'Use separate CLI profiles for different accounts, organizations, and environments.',
 					},
 					{
 						title: 'Sandbox',

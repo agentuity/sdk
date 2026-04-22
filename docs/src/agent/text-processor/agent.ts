@@ -1,7 +1,7 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { groq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
+import { createGroqProvider } from '../../lib/ai-gateway';
 
 /**
  * Text Processor Agent
@@ -34,7 +34,7 @@ const agent = createAgent('text-processor', {
 		if (input.operation === 'clean') {
 			// Use Groq LLM to intelligently clean the text
 			const { text } = await generateText({
-				model: groq('llama-3.1-8b-instant'),
+				model: createGroqProvider()('llama-3.1-8b-instant'),
 				prompt: `Clean this text by removing unnecessary symbols, hashtags, excessive punctuation, and fixing spacing. Keep the meaning intact. Return ONLY the cleaned text, nothing else:\n\n${input.text}`,
 			});
 			result = text.trim();

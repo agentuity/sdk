@@ -551,7 +551,54 @@ Returns a list of agents for the project.
     "description": "Last update timestamp",
     "required": true
   },
-
+  {
+    "name": "evals",
+    "type": "object[]",
+    "description": "Associated evaluations",
+    "required": true
+  },
+  {
+    "name": "evals[].id",
+    "type": "string",
+    "description": "Evaluation ID",
+    "required": true
+  },
+  {
+    "name": "evals[].name",
+    "type": "string",
+    "description": "Evaluation name",
+    "required": true
+  },
+  {
+    "name": "evals[].description",
+    "type": "string | null",
+    "description": "Evaluation description",
+    "required": true
+  },
+  {
+    "name": "evals[].identifier",
+    "type": "string | null",
+    "description": "Evaluation identifier",
+    "required": true
+  },
+  {
+    "name": "evals[].devmode",
+    "type": "boolean",
+    "description": "Whether evaluation is in development mode",
+    "required": true
+  },
+  {
+    "name": "evals[].createdAt",
+    "type": "string",
+    "description": "Creation timestamp",
+    "required": true
+  },
+  {
+    "name": "evals[].updatedAt",
+    "type": "string",
+    "description": "Last update timestamp",
+    "required": true
+  }
 ]} />
 
 #### Example

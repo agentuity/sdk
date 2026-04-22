@@ -74,10 +74,10 @@ export function TableOfContents() {
 								window.history.pushState(null, '', `#${id}`);
 							}}
 							className={cn(
-								'block transition-colors hover:text-cyan-500',
+								'block transition-colors hover:text-cyan-800 dark:hover:text-cyan-500',
 								depth === 3 && 'pl-3',
 								activeId === id
-									? 'text-cyan-600 dark:text-cyan-400 font-medium'
+									? 'text-cyan-800 dark:text-cyan-400 font-medium'
 									: 'text-zinc-600 dark:text-zinc-400'
 							)}
 						>

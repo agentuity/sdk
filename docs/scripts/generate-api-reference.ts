@@ -7,30 +7,29 @@ import type {
 	Param,
 	ResponseHeader,
 	Service,
-} from '../../../packages/core/src/services/api-reference.ts';
-import { resolveFields } from '../../../packages/core/src/services/api-reference.ts';
-import apiKeysService from '../../../packages/core/src/services/apikey/api-reference.ts';
-import coderService from '../../../packages/core/src/services/coder/api-reference.ts';
-import databaseService from '../../../packages/core/src/services/db/api-reference.ts';
-import emailService from '../../../packages/core/src/services/email/api-reference.ts';
-import evaluationsService from '../../../packages/core/src/services/eval/api-reference.ts';
-import kvService from '../../../packages/core/src/services/keyvalue/api-reference.ts';
-import machinesService from '../../../packages/core/src/services/machine/api-reference.ts';
-import oauthService from '../../../packages/core/src/services/oauth/api-reference.ts';
-import organizationsService from '../../../packages/core/src/services/org/api-reference.ts';
-import projectsService from '../../../packages/core/src/services/project/api-reference.ts';
-import queuesService from '../../../packages/core/src/services/queue/api-reference.ts';
-import regionService from '../../../packages/core/src/services/region/api-reference.ts';
-import sandboxesService from '../../../packages/core/src/services/sandbox/api-reference.ts';
-import schedulesService from '../../../packages/core/src/services/schedule/api-reference.ts';
-import sessionsService from '../../../packages/core/src/services/session/api-reference.ts';
-import objectStorageService from '../../../packages/core/src/services/storage/api-reference.ts';
-import streamsService from '../../../packages/core/src/services/stream/api-reference.ts';
-import tasksService from '../../../packages/core/src/services/task/api-reference.ts';
-import threadService from '../../../packages/core/src/services/thread/api-reference.ts';
-import userService from '../../../packages/core/src/services/user/api-reference.ts';
-import vectorService from '../../../packages/core/src/services/vector/api-reference.ts';
-import webhooksService from '../../../packages/core/src/services/webhook/api-reference.ts';
+} from '../../packages/core/src/services/api-reference.ts';
+import { resolveFields } from '../../packages/core/src/services/api-reference.ts';
+import apiKeysService from '../../packages/core/src/services/apikey/api-reference.ts';
+import coderService from '../../packages/core/src/services/coder/api-reference.ts';
+import databaseService from '../../packages/core/src/services/db/api-reference.ts';
+import emailService from '../../packages/core/src/services/email/api-reference.ts';
+import kvService from '../../packages/core/src/services/keyvalue/api-reference.ts';
+import machinesService from '../../packages/core/src/services/machine/api-reference.ts';
+import oauthService from '../../packages/core/src/services/oauth/api-reference.ts';
+import organizationsService from '../../packages/core/src/services/org/api-reference.ts';
+import projectsService from '../../packages/core/src/services/project/api-reference.ts';
+import queuesService from '../../packages/core/src/services/queue/api-reference.ts';
+import regionService from '../../packages/core/src/services/region/api-reference.ts';
+import sandboxesService from '../../packages/core/src/services/sandbox/api-reference.ts';
+import schedulesService from '../../packages/core/src/services/schedule/api-reference.ts';
+import sessionsService from '../../packages/core/src/services/session/api-reference.ts';
+import objectStorageService from '../../packages/core/src/services/storage/api-reference.ts';
+import streamsService from '../../packages/core/src/services/stream/api-reference.ts';
+import tasksService from '../../packages/core/src/services/task/api-reference.ts';
+import threadService from '../../packages/core/src/services/thread/api-reference.ts';
+import userService from '../../packages/core/src/services/user/api-reference.ts';
+import vectorService from '../../packages/core/src/services/vector/api-reference.ts';
+import webhooksService from '../../packages/core/src/services/webhook/api-reference.ts';
 
 const services: Service[] = [
 	apiKeysService,
@@ -38,7 +37,6 @@ const services: Service[] = [
 	databaseService,
 	streamsService,
 	emailService,
-	evaluationsService,
 	kvService,
 	machinesService,
 	queuesService,
@@ -245,7 +243,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, BrainCircuit, Building, CheckCircle, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 

@@ -261,8 +261,9 @@ await ctx.thread.state.push('messages', { role: 'user', content: input.text });
 // Keep a sliding window of the last 100 messages
 await ctx.thread.state.push('messages', newMessage, 100);
 
-// Thread metadata (stored unencrypted for filtering)
-await ctx.thread.setMetadata({ userId: user.id, topic: 'support' });
+// Merge first because setMetadata replaces the full metadata object
+const metadata = await ctx.thread.getMetadata();
+await ctx.thread.setMetadata({ ...metadata, userId: user.id, topic: 'support' });
 ```
 
 **`ctx.session`** is scoped to a single request-response cycle. Each HTTP request creates a new session within the same thread. Session state is a synchronous `Map<string, unknown>` and does not persist into later requests.
@@ -327,7 +328,7 @@ interface Thread {
   id: string;                      // Unique thread identifier
   state: ThreadState;              // Async lazy-loaded state
   getMetadata(): Promise<Record<string, unknown>>;
-  setMetadata(metadata: Record<string, unknown>): Promise<void>;
+  setMetadata(metadata: Record<string, unknown>): Promise<void>; // Full replace
 
   // Lifecycle event: fires when the thread is destroyed
   addEventListener(

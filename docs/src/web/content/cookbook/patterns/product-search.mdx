@@ -14,8 +14,9 @@ Vector search finds semantically similar products. Combine with metadata filteri
 import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
-interface ProductMetadata {
+interface ProductMetadata extends Record<string, unknown> {
   name: string;
+  description: string;
   price: number;
   category: string;
   inStock: boolean;
@@ -65,9 +66,10 @@ const agent = createAgent('Product Search', {
       );
     }
 
-    if (input.maxPrice) {
+    if (input.maxPrice !== undefined) {
+      const maxPrice = input.maxPrice;
       filtered = filtered.filter(r =>
-        (r.metadata?.price ?? Infinity) <= input.maxPrice!
+        (r.metadata?.price ?? Infinity) <= maxPrice
       );
     }
 
@@ -78,7 +80,7 @@ const agent = createAgent('Product Search', {
     const products = filtered.slice(0, input.limit).map(r => ({
       id: r.key,
       name: r.metadata?.name || 'Unknown',
-      description: r.document || '',
+      description: r.metadata?.description || '',
       price: r.metadata?.price || 0,
       category: r.metadata?.category || 'Uncategorized',
       relevance: r.similarity,
@@ -133,6 +135,7 @@ const agent = createAgent('ProductIndexer', {
         document: `${product.name}. ${product.description}`,
         metadata: {
           name: product.name,
+          description: product.description,
           price: product.price,
           category: product.category,
           inStock: product.inStock,
