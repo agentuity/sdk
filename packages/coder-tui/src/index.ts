@@ -22,6 +22,7 @@ import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
+import { selectSubAgentToolNames } from './subagent-tool-selection.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -1758,9 +1759,8 @@ async function runSubAgent(
 	const {
 		createAgentSession,
 		DefaultResourceLoader,
+		getAgentDir,
 		SessionManager,
-		createCodingTools,
-		createReadOnlyTools,
 	} = piSdk as any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { getModel } = piAi as any;
@@ -1783,13 +1783,16 @@ async function runSubAgent(
 	// Sub-agents get Hub tools (memory, context7, etc.) via extensionFactories
 	// so they work in both driver and TUI mode.
 	const hubTools = agentConfig.hubTools ?? [];
+	const cwd = process.cwd();
+	const agentDir = getAgentDir();
 
 	// Resource loader — no extensions (prevents recursive task tool registration),
 	// no skills, agent's system prompt injected directly.
 	// Hub tools are injected via extensionFactories so sub-agents can use
 	// memory_recall, context7_search, etc.
 	const subLoader = new DefaultResourceLoader({
-		cwd: process.cwd(),
+		cwd,
+		agentDir,
 		noExtensions: true,
 		extensionFactories:
 			hubTools.length > 0
@@ -1808,9 +1811,12 @@ async function runSubAgent(
 	});
 	await subLoader.reload();
 
-	// Select tools based on readOnly flag
-	const cwd = process.cwd();
-	const tools = agentConfig.readOnly ? createReadOnlyTools(cwd) : createCodingTools(cwd);
+	// Pi v0.68.x uses a name allowlist for both built-in and extension/custom tools.
+	const builtInToolNames = selectSubAgentToolNames(agentConfig);
+	const hubToolNames = hubTools
+		.map((tool) => (typeof tool.name === 'string' ? tool.name.trim() : ''))
+		.filter((name): name is string => name.length > 0);
+	const tools = Array.from(new Set([...builtInToolNames, ...hubToolNames]));
 
 	const { session } = await createAgentSession({
 		// subModel is already untyped (from dynamic import) — createAgentSession is also dynamically imported
@@ -1819,12 +1825,13 @@ async function runSubAgent(
 			| 'off'
 			| 'minimal'
 			| 'low'
-			| 'medium'
-			| 'high'
-			| 'xhigh',
+		| 'medium'
+		| 'high'
+		| 'xhigh',
 		tools,
 		resourceLoader: subLoader,
-		sessionManager: SessionManager.inMemory('/tmp'),
+		// Pi now tracks cwd per session, so bind in-memory sub-agents to the actual repo cwd.
+		sessionManager: SessionManager.inMemory(cwd),
 	});
 	await session.bindExtensions({});
 

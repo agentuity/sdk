@@ -70,6 +70,10 @@ export const AgentDefinitionSchema = z
 			.string()
 			.optional()
 			.describe('Human-friendly name shown in UIs; defaults to name if omitted.'),
+		source: z
+			.enum(['builtin', 'custom'])
+			.optional()
+			.describe('Whether this agent is part of the built-in roster or a custom user-defined agent.'),
 		description: z.string().describe('Summary of the agent role and capabilities.'),
 		systemPrompt: z
 			.string()
@@ -99,6 +103,10 @@ export const AgentDefinitionSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Capability tags advertising what this agent can do (e.g. "code", "review").'),
+		strictToolSelection: z
+			.boolean()
+			.optional()
+			.describe('When true, unknown or unmatched tool names should not widen the effective Pi tool allowlist.'),
 		status: z
 			.enum(['available', 'busy', 'offline'])
 			.optional()
