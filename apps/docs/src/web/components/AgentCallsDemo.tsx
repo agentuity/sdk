@@ -205,7 +205,7 @@ export function AgentCallsDemo() {
 								onClick={() => setPattern(p.id)}
 								className={
 									pattern === p.id
-										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-800 dark:text-cyan-400'
+										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 text-cyan-700 dark:text-cyan-400'
 										: 'bg-zinc-100 dark:bg-zinc-900'
 								}
 							>

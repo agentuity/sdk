@@ -303,7 +303,7 @@ export function SchedulesDemo() {
 	useEffect(() => {
 		const persistedScheduleId = demoState.schedule?.id;
 		if (!persistedScheduleId) {
-			if (demoState.status === 'error' || demoState.error) {
+			if (demoState.status !== 'idle' || demoState.error) {
 				setDemoState(INITIAL_STATE);
 			}
 			return;
@@ -456,6 +456,7 @@ export function SchedulesDemo() {
 							variant="outline"
 							size="sm"
 							className="min-h-11 sm:min-h-9"
+							aria-label={isCreating ? 'Creating schedule' : undefined}
 						>
 							<span className="relative">
 								<span className={isCreating ? 'invisible' : ''}>
@@ -465,6 +466,7 @@ export function SchedulesDemo() {
 									<span
 										className="absolute inset-0 flex items-center justify-center"
 										data-loading="true"
+										aria-hidden="true"
 									/>
 								)}
 							</span>

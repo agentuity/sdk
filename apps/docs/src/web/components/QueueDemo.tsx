@@ -313,7 +313,7 @@ export function QueueDemo() {
 			case 'reset':
 				return 'text-zinc-400';
 			case 'publish':
-				return 'text-cyan-800 dark:text-cyan-400';
+				return 'text-cyan-700 dark:text-cyan-400';
 			case 'receive':
 				return 'text-blue-400';
 			case 'ack':
