@@ -1756,12 +1756,7 @@ async function runSubAgent(
 	const { piSdk, piAi } = await loadPiSdk();
 	// Runtime-resolved dynamic imports — exact types unavailable statically
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const {
-		createAgentSession,
-		DefaultResourceLoader,
-		getAgentDir,
-		SessionManager,
-	} = piSdk as any;
+	const { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager } = piSdk as any;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { getModel } = piAi as any;
 
@@ -1825,9 +1820,9 @@ async function runSubAgent(
 			| 'off'
 			| 'minimal'
 			| 'low'
-		| 'medium'
-		| 'high'
-		| 'xhigh',
+			| 'medium'
+			| 'high'
+			| 'xhigh',
 		tools,
 		resourceLoader: subLoader,
 		// Pi now tracks cwd per session, so bind in-memory sub-agents to the actual repo cwd.

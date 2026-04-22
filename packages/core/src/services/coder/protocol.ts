@@ -73,7 +73,9 @@ export const AgentDefinitionSchema = z
 		source: z
 			.enum(['builtin', 'custom'])
 			.optional()
-			.describe('Whether this agent is part of the built-in roster or a custom user-defined agent.'),
+			.describe(
+				'Whether this agent is part of the built-in roster or a custom user-defined agent.'
+			),
 		description: z.string().describe('Summary of the agent role and capabilities.'),
 		systemPrompt: z
 			.string()
@@ -106,7 +108,9 @@ export const AgentDefinitionSchema = z
 		strictToolSelection: z
 			.boolean()
 			.optional()
-			.describe('When true, unknown or unmatched tool names should not widen the effective Pi tool allowlist.'),
+			.describe(
+				'When true, unknown or unmatched tool names should not widen the effective Pi tool allowlist.'
+			),
 		status: z
 			.enum(['available', 'busy', 'offline'])
 			.optional()
