@@ -1,4 +1,5 @@
-import type {
+import {
+	createBashToolDefinition,
 	AgentToolResult,
 	ExtensionAPI,
 	ExtensionContext,
@@ -22,6 +23,8 @@ import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
+import { formatToolDisplay } from './agentuity-cli.ts';
+import { adaptInitMessageForLocalTui } from './local-init-filter.ts';
 import { selectSubAgentToolNames } from './subagent-tool-selection.ts';
 import type {
 	HubAction,
@@ -284,6 +287,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// to an existing sandbox session. The full UI is set up (tools, commands, /hub)
 	// but user input is relayed to the remote sandbox instead of the local Pi agent.
 	const remoteSessionId = process.env[REMOTE_SESSION_ENV] || null;
+	const isRemoteSession = Boolean(remoteSessionId);
 	const isNativeRemote = !!process.env[NATIVE_REMOTE_ENV];
 	if (remoteSessionId) {
 		log(`Remote mode: will connect as controller to session ${remoteSessionId}`);
@@ -299,7 +303,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// This is how we discover what tools/agents the server provides.
 	// ══════════════════════════════════════════════
 
-	const initMsg = fetchInitMessageSync(hubUrl, agentRole);
+	const initialInitMsg = fetchInitMessageSync(hubUrl, agentRole);
+	const initMsg = initialInitMsg
+		? adaptInitMessageForLocalTui(initialInitMsg, { isRemoteSession })
+		: null;
 
 	if (!initMsg) {
 		log('Hub not reachable — no tools or agents registered');
@@ -412,6 +419,18 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// Titlebar: branding + spinner (registers its own event handlers)
 	setupTitlebar(pi);
 
+	// Override Pi's built-in bash call-row rendering so local transcript rows
+	// can brand Agentuity CLI invocations without changing bash execution/result behavior.
+	const hasBashTool = serverTools.some((tool) => tool.name === 'bash');
+	const localBashRenderers = hasBashTool ? getToolRenderers('bash') : undefined;
+	if (hasBashTool && localBashRenderers?.renderCall) {
+		const bashToolDefinition = createBashToolDefinition(process.cwd());
+		pi.registerTool({
+			...bashToolDefinition,
+			renderCall: localBashRenderers.renderCall as ToolDefinition['renderCall'],
+		});
+	}
+
 	// ══════════════════════════════════════════════
 	// WebSocket client for runtime communication (tool execution + events)
 	// ══════════════════════════════════════════════
@@ -454,9 +473,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	}
 
 	function applyInitMessage(nextInit: InitMessage): void {
-		cachedInitMessage = nextInit;
-		if (nextInit.sessionId) currentSessionId = nextInit.sessionId;
-		if (nextInit.config) hubConfig = nextInit.config;
+		const effectiveInit = adaptInitMessageForLocalTui(nextInit, { isRemoteSession });
+		cachedInitMessage = effectiveInit;
+		if (effectiveInit.sessionId) currentSessionId = effectiveInit.sessionId;
+		if (effectiveInit.config) hubConfig = effectiveInit.config;
 	}
 
 	client.onInitMessage = (nextInit) => {
@@ -1862,25 +1882,19 @@ async function runSubAgent(
 
 					if (evt.type === 'tool_execution_start') {
 						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';
-						let toolArgs = '';
-						if (evt.args && typeof evt.args === 'object') {
-							const args = evt.args as Record<string, unknown>;
-							if (args.command) toolArgs = String(args.command).slice(0, 60);
-							else if (args.filePath || args.path)
-								toolArgs = String(args.filePath || args.path);
-							else if (args.pattern) toolArgs = String(args.pattern).slice(0, 40);
-							else {
-								const first = Object.values(args)[0];
-								if (first) toolArgs = String(first).slice(0, 40);
-							}
-						}
+						const display = formatToolDisplay(
+							toolName,
+							typeof evt.args === 'string' || (evt.args && typeof evt.args === 'object')
+								? (evt.args as string | Record<string, unknown>)
+								: undefined
+						);
 
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_start',
 							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
-							currentTool: toolName,
-							currentToolArgs: toolArgs,
+							currentTool: display.toolName,
+							currentToolArgs: display.toolArgs,
 							elapsed,
 						});
 					} else if (evt.type === 'tool_execution_end') {
