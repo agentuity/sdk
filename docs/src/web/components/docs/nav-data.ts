@@ -101,6 +101,11 @@ export const navData: NavSection[] = [
 				description: 'Compare AI models using another AI as judge',
 			},
 			{
+				title: 'WebRTC',
+				url: '/explorer/webrtc',
+				description: 'Audio, video, and data channels directly between browsers',
+			},
+			{
 				title: 'Queues',
 				url: '/explorer/queue',
 				description: 'Publish, consume, retry, and inspect dead-letter messages',

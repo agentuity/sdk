@@ -16,6 +16,7 @@ import { DatabaseDemo } from './components/DatabaseDemo';
 import { EmailDemo } from './components/EmailDemo';
 import { QueueDemo } from './components/QueueDemo';
 import { SchedulesDemo } from './components/SchedulesDemo';
+
 import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
@@ -30,7 +31,6 @@ export type DemoId =
 	| 'sse-stream'
 	| 'streaming'
 	| 'websocket'
-	| 'webrtc'
 	| 'durable-stream'
 	| 'schedules'
 	| 'agent-calls'
@@ -329,13 +329,6 @@ export const DEMOS: DemoConfig[] = [
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE Stream
-				</a>
-				. For peer-to-peer browser communication, see{' '}
-				<a
-					href={explorerHref('webrtc')}
-					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
-				>
-					WebRTC
 				</a>
 				.
 			</>
