@@ -25,7 +25,8 @@ const HELLO_DESTINATION_PATH = '/api/hello';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const CREATE_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_CREATES_PER_WINDOW = 1;
-const SCHEDULE_OWNER_TTL_SECONDS = 2 * 60 * 60;
+// KV treats 0 as no expiration, so ownership cannot expire before schedule cleanup
+const SCHEDULE_OWNER_TTL_SECONDS = 0;
 const createAttemptsByUser = new Map<string, number[]>();
 
 function isLoopbackHost(hostname: string): boolean {
@@ -189,9 +190,30 @@ const router = new Hono<Env>()
 
 			createAttemptsByUser.set(userId, [...recentAttempts, now]);
 			const result = await c.var.schedule.create(createParams);
-			await c.var.kv.set(config.kvStoreName, getScheduleOwnerKey(result.schedule.id), userId, {
-				ttl: SCHEDULE_OWNER_TTL_SECONDS,
-			});
+			try {
+				await c.var.kv.set(
+					config.kvStoreName,
+					getScheduleOwnerKey(result.schedule.id),
+					userId,
+					{
+						ttl: SCHEDULE_OWNER_TTL_SECONDS,
+					}
+				);
+			} catch (ownershipError) {
+				c.var.logger?.error('Schedules demo owner persistence failed', {
+					scheduleId: result.schedule.id,
+					message: getErrorMessage(ownershipError),
+				});
+				try {
+					await c.var.schedule.delete(result.schedule.id);
+				} catch (deleteError) {
+					c.var.logger?.error('Schedules demo rollback failed', {
+						scheduleId: result.schedule.id,
+						message: getErrorMessage(deleteError),
+					});
+				}
+				throw ownershipError;
+			}
 
 			return c.json({
 				success: true,
