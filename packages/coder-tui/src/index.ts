@@ -24,6 +24,7 @@ import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
 import { formatToolDisplay } from './agentuity-cli.ts';
+import { adaptInitMessageForLocalTui } from './local-init-filter.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -285,6 +286,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// to an existing sandbox session. The full UI is set up (tools, commands, /hub)
 	// but user input is relayed to the remote sandbox instead of the local Pi agent.
 	const remoteSessionId = process.env[REMOTE_SESSION_ENV] || null;
+	const isRemoteSession = Boolean(remoteSessionId);
 	const isNativeRemote = !!process.env[NATIVE_REMOTE_ENV];
 	if (remoteSessionId) {
 		log(`Remote mode: will connect as controller to session ${remoteSessionId}`);
@@ -300,7 +302,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	// This is how we discover what tools/agents the server provides.
 	// ══════════════════════════════════════════════
 
-	const initMsg = fetchInitMessageSync(hubUrl, agentRole);
+	const initialInitMsg = fetchInitMessageSync(hubUrl, agentRole);
+	const initMsg = initialInitMsg
+		? adaptInitMessageForLocalTui(initialInitMsg, { isRemoteSession })
+		: null;
 
 	if (!initMsg) {
 		log('Hub not reachable — no tools or agents registered');
@@ -415,8 +420,9 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	// Override Pi's built-in bash call-row rendering so local transcript rows
 	// can brand Agentuity CLI invocations without changing bash execution/result behavior.
-	const localBashRenderers = getToolRenderers('bash');
-	if (localBashRenderers?.renderCall) {
+	const hasBashTool = serverTools.some((tool) => tool.name === 'bash');
+	const localBashRenderers = hasBashTool ? getToolRenderers('bash') : undefined;
+	if (hasBashTool && localBashRenderers?.renderCall) {
 		const bashToolDefinition = createBashToolDefinition(process.cwd());
 		pi.registerTool({
 			...bashToolDefinition,
@@ -466,9 +472,10 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	}
 
 	function applyInitMessage(nextInit: InitMessage): void {
-		cachedInitMessage = nextInit;
-		if (nextInit.sessionId) currentSessionId = nextInit.sessionId;
-		if (nextInit.config) hubConfig = nextInit.config;
+		const effectiveInit = adaptInitMessageForLocalTui(nextInit, { isRemoteSession });
+		cachedInitMessage = effectiveInit;
+		if (effectiveInit.sessionId) currentSessionId = effectiveInit.sessionId;
+		if (effectiveInit.config) hubConfig = effectiveInit.config;
 	}
 
 	client.onInitMessage = (nextInit) => {

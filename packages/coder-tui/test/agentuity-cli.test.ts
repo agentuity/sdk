@@ -53,6 +53,19 @@ describe('agentuity CLI display helpers', () => {
 		});
 	});
 
+	it('normalizes multiline command previews into single-line labels', () => {
+		expect(
+			formatToolDisplay('bash', {
+				command: 'bun test\n\tpackages/coder-tui/test/agentuity-cli.test.ts',
+			})
+		).toEqual({
+			toolName: 'bash',
+			toolArgs: 'bun test packages/coder-tui/test/agentuity-cli.test.ts',
+			fullLabel: 'bash bun test packages/coder-tui/test/agentuity-cli.test.ts',
+			branded: false,
+		});
+	});
+
 	it('brands the local TUI command row for Agentuity CLI calls', () => {
 		const renderers = getToolRenderers('bash');
 		const component = renderers?.renderCall?.(
@@ -63,6 +76,21 @@ describe('agentuity CLI display helpers', () => {
 		expect(component?.render(120).join('\n')).toContain(
 			`${AGENTUITY_CLI_MARK} agentuity auth whoami (timeout 45s)`
 		);
+	});
+
+	it('keeps local non-branded command rows single-line', () => {
+		const renderers = getToolRenderers('bash');
+		const component = renderers?.renderCall?.(
+			{
+				command: 'bun test\n\tpackages/coder-tui/test/agentuity-cli.test.ts',
+				timeout: 45,
+			},
+			testTheme as never
+		) as { render: (width: number) => string[] } | undefined;
+
+		expect(component?.render(120)).toEqual([
+			'$ bun test packages/coder-tui/test/agentuity-cli.test.ts (timeout 45s)',
+		]);
 	});
 
 	it('rebuilds projection output with Agentuity-branded tool calls', () => {

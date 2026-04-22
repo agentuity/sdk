@@ -126,6 +126,10 @@ function truncate(str: string, max: number): string {
 	return str.slice(0, max - 1) + '\u2026';
 }
 
+function toSingleLinePreview(value: string): string {
+	return value.replace(/\s+/g, ' ').trim();
+}
+
 function isCommandToolName(toolName: string): boolean {
 	const normalized = toolName.trim().toLowerCase();
 	return normalized === 'bash' || normalized === 'execute_command' || normalized.includes('shell');
@@ -750,7 +754,11 @@ function commandToolRenderers(toolName: string): ToolRenderers {
 			}
 
 			let text = theme.fg('toolTitle', theme.bold('$ '));
-			text += theme.fg('accent', truncate(getCommandArg(args) ?? display.toolName, 80));
+			const commandPreview = getCommandArg(args);
+			text += theme.fg(
+				'accent',
+				truncate(commandPreview ? toSingleLinePreview(commandPreview) : display.toolName, 80)
+			);
 			if (timeout) {
 				text += theme.fg('dim', ` (timeout ${timeout})`);
 			}

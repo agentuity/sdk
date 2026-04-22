@@ -123,9 +123,14 @@ function extractAgentuityCliRemainderFromTokens(tokens: string[]): string | null
 	return null;
 }
 
+function normalizeDisplayWhitespace(value: string): string {
+	return value.replace(/\s+/g, ' ').trim();
+}
+
 function trimDisplay(value: string, max: number): string {
-	if (value.length <= max) return value;
-	return `${value.slice(0, max - 3)}...`;
+	const normalized = normalizeDisplayWhitespace(value);
+	if (normalized.length <= max) return normalized;
+	return `${normalized.slice(0, max - 3)}...`;
 }
 
 function getCommandArg(rawArgs?: ToolArgsInput): string | undefined {
@@ -193,7 +198,7 @@ export function formatToolDisplay(
 	toolName: string,
 	rawArgs?: ToolArgsInput
 ): ToolDisplayDescriptor {
-	const normalizedToolName = toolName.trim() || 'tool';
+	const normalizedToolName = normalizeDisplayWhitespace(toolName) || 'tool';
 	const command = getCommandArg(rawArgs);
 
 	if (isCommandToolName(normalizedToolName) && command) {
