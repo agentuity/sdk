@@ -40,15 +40,19 @@ Bun workspaces monorepo with packages in `packages/`:
 
 ## Testing
 
-See [docs/testing.md](docs/testing.md) for detailed standards.
+**Conventions:**
 
-**Quick rules:**
+- Tests live in `test/` folder parallel to `src/` (never inside `src/` or under `__tests__/`).
+- Import from `../src/` in tests.
+- Each package has `tsconfig.json` (excludes `test/`) and a separate `tsconfig.test.json` (includes both).
+- Use `@agentuity/test-utils` for shared mocks.
+- All errors AND warnings must be zero before shipping.
+- When running test suites, prefer a subagent (Task tool) to avoid context bloat from test output.
 
-- Tests in `test/` folder (never `src/` or `__tests__/`)
-- Import from `../src/` in tests
-- Use `@agentuity/test-utils` for mocks
-- All errors AND warnings must be zero
-- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
+Repo-level test apps live under `tests/`:
+- `tests/frameworks/` — full framework demos with Playwright e2e
+- `tests/services/` — per-service client smoke tests
+- `tests/integration/` — app-level integration targets (Hono apps, OAuth, etc.)
 
 ## Special Instructions
 

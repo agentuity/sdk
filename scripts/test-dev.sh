@@ -16,8 +16,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Framework apps to test (directory name under apps/testing/)
-ALL_APPS=(tanstack-start nextjs-app vite-react-app)
+# Framework apps to test (directory name under tests/frameworks/)
+ALL_APPS=(tanstack-start nextjs-app svelte-web)
 SELECTED_APP=""
 
 while [[ $# -gt 0 ]]; do
@@ -76,7 +76,7 @@ PASSED=0
 FAILED=0
 
 for APP in "${ALL_APPS[@]}"; do
-	APP_DIR="$SDK_ROOT/apps/testing/$APP"
+	APP_DIR="$SDK_ROOT/tests/frameworks/$APP"
 
 	if [ ! -d "$APP_DIR" ]; then
 		echo "⚠ Skipping $APP (directory not found)"

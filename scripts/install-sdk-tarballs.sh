@@ -1,14 +1,14 @@
 #!/bin/bash
 # Install SDK tarballs in a test app
 # Usage: bash scripts/install-sdk-tarballs.sh <app-dir>
-# Example: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite
+# Example: bash scripts/install-sdk-tarballs.sh tests/integration/integration-suite
 
 set -e
 
 if [ -z "$1" ]; then
 	echo "❌ ERROR: App directory required"
 	echo "Usage: bash scripts/install-sdk-tarballs.sh <app-dir>"
-	echo "Example: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite"
+	echo "Example: bash scripts/install-sdk-tarballs.sh tests/integration/integration-suite"
 	exit 1
 fi
 

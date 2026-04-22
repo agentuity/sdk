@@ -9,6 +9,7 @@
 		{ "path": "./packages/coder" },
 		{ "path": "./packages/coder-tui" },
 		{ "path": "./packages/core" },
+		{ "path": "./packages/create-agentuity" },
 		{ "path": "./packages/db" },
 		{ "path": "./packages/drizzle" },
 		{ "path": "./packages/email" },
@@ -30,5 +31,5 @@
 		{ "path": "./packages/vscode" },
 		{ "path": "./packages/webhook" }
 	],
-	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
+	"exclude": ["tests", "test-results", "playwright-report"]
 }

@@ -66,6 +66,27 @@ jobs:
          - name: Run installation type detection tests
            run: bash packages/cli/scripts/test-installation-type.sh
 
+   migrate-chain-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 15
+      name: Migrate Chain (v1 → v2 → v3)
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build and pack SDK tarballs
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Run migrate chain test
+           env:
+              MIGRATE_CHAIN_TEST: '1'
+           run: bun test packages/migrate/test/chain/
+
    testing-apps-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
@@ -83,16 +104,21 @@ jobs:
            run: bun run build
 
          - name: Run standalone-backend tests
-           run: cd apps/testing/standalone-backend && bun test
+           run: cd tests/integration/standalone-backend && bun test
 
          - name: Run oauth tests
-           run: cd apps/testing/oauth && bun test
+           run: cd tests/integration/oauth && bun test
 
          - name: Run e2e-web tests
-           run: cd apps/testing/e2e-web && bun test
+           run: cd tests/integration/e2e-web && bun test
 
          - name: Run integration-suite tests
-           run: cd apps/testing/integration-suite && bun test
+           run: cd tests/integration/integration-suite && bun test
+
+         - name: Run framework structure tests
+           run: |
+              cd tests/frameworks/nextjs-app && bun test
+              cd ../svelte-web && bun test
 
    sandbox-cli-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -126,35 +152,6 @@ jobs:
            run: bash scripts/test-sandbox.sh
 
 
-   queue-sdk-test:
-      runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 10
-      name: Queue SDK Tests
-      env:
-         AGENTUITY_API_URL: https://api.agentuity.com
-         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
-         AGENTUITY_REGION: usc
-      steps:
-         - uses: actions/checkout@v4
-
-         - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
-
-         - name: Install dependencies
-           run: bun install
-
-         - name: Build packages
-           run: bun run build
-
-         - name: Setup test credentials
-           run: |
-              # Set SDK key for queue operations
-              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
-
-         - name: Run queue SDK tests
-           run: bash scripts/test-queues.sh
-
    queue-cli-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
@@ -185,6 +182,56 @@ jobs:
 
          - name: Run queue CLI tests
            run: bash scripts/test-queue.sh
+
+   service-client-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 15
+      name: Service Client Smoke Tests
+      env:
+         AGENTUITY_API_URL: https://api.agentuity.com
+         AGENTUITY_REGION: usc
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+
+         - name: Run keyvalue client smoke
+           run: cd tests/services/keyvalue && bun run start
+
+         - name: Run vector client smoke
+           run: cd tests/services/vector && bun run start
+
+         - name: Run queue client smoke
+           run: cd tests/services/queue && bun run start
+
+         - name: Run email client smoke
+           run: cd tests/services/email && bun run start
+
+         - name: Run db client smoke
+           run: cd tests/services/db && bun run start
+
+         - name: Run schedule client smoke
+           run: cd tests/services/schedule && bun run start
+
+         - name: Run task client smoke
+           run: cd tests/services/task && bun run start
+
+         - name: Run webhook client smoke
+           run: cd tests/services/webhook && bun run start
+
+         - name: Run sandbox client smoke
+           run: cd tests/services/sandbox && bun run start
 
    framework-demo-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404

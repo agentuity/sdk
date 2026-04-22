@@ -628,9 +628,11 @@ export async function detectV3(projectDir: string): Promise<V3DetectionResult> {
 	const agentDir = join(absDir, 'src', 'agent');
 	if (existsSync(agentDir)) {
 		for (const file of walkFiles(agentDir, ['.ts', '.tsx'])) {
-			const base = file.split('/').pop() ?? '';
-			// Skip index.ts barrel
-			if (base === 'index.ts' || base === 'index.tsx') continue;
+			// Skip ONLY the top-level src/agent/index.ts barrel. Inside subdirectories,
+			// index.ts is the agent itself, e.g. src/agent/translate/index.ts.
+			if (file === join(agentDir, 'index.ts') || file === join(agentDir, 'index.tsx')) {
+				continue;
+			}
 
 			const sourceFile = await parseTs(file);
 			const src = await Bun.file(file).text();

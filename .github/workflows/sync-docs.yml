@@ -5,7 +5,7 @@ on:
       branches:
          - main
       paths:
-         - 'apps/docs/src/web/content/**'
+         - 'docs/src/web/content/**'
    workflow_dispatch:
       inputs:
          before_commit:
@@ -52,7 +52,7 @@ jobs:
            run: |
               set -euo pipefail
               git fetch origin "${{ steps.commits.outputs.before_commit }}" || true
-              ./apps/docs/bin/collect-changed-files.sh \
+              ./docs/bin/collect-changed-files.sh \
                 "${{ steps.commits.outputs.before_commit }}" \
                 "${{ steps.commits.outputs.after_commit }}" > changed-files.txt
 
@@ -66,7 +66,7 @@ jobs:
            run: |
               set -euo pipefail
               cat changed-files.txt | \
-                ./apps/docs/bin/send-batched.sh \
+                ./docs/bin/send-batched.sh \
                   "${{ github.repository }}" \
                   incremental \
                   "$DOCS_WEBHOOK_URL" \

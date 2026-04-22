@@ -20,7 +20,14 @@
  *   8. Print final summary
  */
 
-import { existsSync, writeFileSync, unlinkSync, mkdirSync, readdirSync } from 'node:fs';
+import {
+	existsSync,
+	writeFileSync,
+	unlinkSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+} from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 
 import { detectV3 } from './detect-v3';
@@ -42,10 +49,15 @@ import { generateServicesFile } from './transforms/v3/services';
 import {
 	transformRouteServices,
 	computeServicesRelativePath,
+	insertAfterImports,
 	removeRuntimeImports,
+	rewriteV2AgentMethods,
+	stripAgentuityValidators,
+	stubV2HonoContext,
 } from './transforms/v3/routes';
 import { transformPackageJsonV3 } from './transforms/v3/package-json';
 import { generateDevSetup } from './transforms/v3/dev-setup';
+import { schemaToZod } from './transforms/v3/schema-to-zod';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -77,6 +89,14 @@ async function isGitWorktreeClean(projectDir: string): Promise<boolean> {
 		return output.trim() === '';
 	} catch {
 		return true;
+	}
+}
+
+function readFileSyncSafe(path: string): string | null {
+	try {
+		return readFileSync(path, 'utf8');
+	} catch {
+		return null;
 	}
 }
 
@@ -255,6 +275,55 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 		}
 	}
 
+	// ── 5a′. Delete @agentuity/evals files ─────────────────────────────────
+	// The evals framework was removed entirely in v3. Any file that imports
+	// @agentuity/evals — conventionally '*eval.ts' or '*eval.tsx' alongside
+	// an agent — is dropped wholesale. Keeping it would produce unrecoverable
+	// typecheck errors because `agent.createEval()` no longer exists on the
+	// plain function that replaces the v2 agent.
+	{
+		const srcDir = join(projectDir, 'src');
+		const evalFiles: string[] = [];
+		const walkForEvals = (dir: string) => {
+			if (!existsSync(dir)) return;
+			for (const entry of readdirSync(dir, { withFileTypes: true })) {
+				const full = join(dir, entry.name);
+				if (entry.isDirectory()) {
+					if (['node_modules', 'dist', '.agentuity', '.git'].includes(entry.name)) continue;
+					walkForEvals(full);
+				} else if (
+					entry.isFile() &&
+					(entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))
+				) {
+					const content = readFileSyncSafe(full);
+					if (content && content.includes("from '@agentuity/evals'")) {
+						evalFiles.push(full);
+					}
+				}
+			}
+		};
+		walkForEvals(srcDir);
+
+		for (const file of evalFiles) {
+			const rel = file.replace(projectDir + '/', '');
+			try {
+				unlinkSync(file);
+				changedFiles.push(rel);
+				allChangeSummary.push({
+					file: rel,
+					changes: ['Deleted — @agentuity/evals removed in v3'],
+				});
+			} catch {
+				// ignore
+			}
+		}
+
+		if (evalFiles.length > 0) {
+			printStep(`Deleted ${evalFiles.length} @agentuity/evals file(s)`);
+			printStepDone();
+		}
+	}
+
 	// ── 5b. Transform agent files ─────────────────────────────────────────
 	if (detection.agentFiles.length > 0) {
 		console.log(`\n  Transforming ${detection.agentFiles.length} agent file(s):`);
@@ -335,6 +404,7 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 			walkForRuntimeImports(srcDir);
 
 			let removedCount = 0;
+			let anyFileNeededEnvType = false;
 			for (const file of runtimeImportFiles) {
 				const relPath = file.replace(projectDir + '/', '');
 				// Skip files we've already modified
@@ -343,13 +413,52 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 				const src = await Bun.file(file).text();
 				if (!src.includes('@agentuity/runtime')) continue;
 
-				const { source: cleaned, removed } = removeRuntimeImports(src);
-				if (removed) {
+				const cleanup = removeRuntimeImports(src);
+				if (cleanup.removed) {
+					let cleaned = cleanup.source;
+					const extra: string[] = [];
+
+					// If this file imported Env, add a typed import from the
+					// local types helper. The helper file itself is emitted
+					// once later in this step.
+					if (cleanup.needsEnvType) {
+						anyFileNeededEnvType = true;
+						cleaned = insertAfterImports(
+							cleaned,
+							"import type { Env } from '../types/hono-env';"
+						);
+						extra.push("Added: import type { Env } from '../types/hono-env'");
+					}
+
+					// If the file had `validator` imported (or any <agent>.validator()
+					// middleware style), strip those call sites too — v3 has no
+					// equivalent.
+					const stripped = stripAgentuityValidators(cleaned);
+					if (stripped.changed) {
+						cleaned = stripped.source;
+						extra.push(...stripped.changes);
+					}
+
+					// Rewrite v2 agent method invocations (<agent>.run → <agent>,
+					// c.req.valid('json') → await c.req.json()).
+					const agentRewrite = rewriteV2AgentMethods(cleaned);
+					if (agentRewrite.changed) {
+						cleaned = agentRewrite.source;
+						extra.push(...agentRewrite.changes);
+					}
+
+					// Stub v2 Hono context (c.var.thread, c.var.sessionId).
+					const stub = stubV2HonoContext(cleaned);
+					if (stub.changed) {
+						cleaned = stub.source;
+						extra.push(...stub.changes);
+					}
+
 					writeFileSync(file, cleaned, 'utf8');
 					changedFiles.push(relPath);
 					allChangeSummary.push({
 						file: relPath,
-						changes: ['Removed @agentuity/runtime imports'],
+						changes: ['Removed @agentuity/runtime imports', ...extra],
 					});
 					removedCount++;
 				}
@@ -358,6 +467,48 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 			if (removedCount > 0) {
 				printStep(`Removed @agentuity/runtime imports from ${removedCount} additional file(s)`);
 				printStepDone();
+			}
+			void anyFileNeededEnvType; // subsumed by post-scan below
+		}
+	}
+
+	// ── 5c″. Emit src/types/hono-env.ts if any changed file references it ───
+	// Both the route service rewrite (5c) and the runtime import cleanup (5c′)
+	// can emit `import type { Env } from '../types/hono-env'`. We create the
+	// helper file once here by scanning the final content of changed files.
+	{
+		let helperNeeded = false;
+		for (const rel of changedFiles) {
+			try {
+				const content = readFileSyncSafe(join(projectDir, rel));
+				if (content && /from ['"]\.\.\/types\/hono-env['"]/.test(content)) {
+					helperNeeded = true;
+					break;
+				}
+			} catch {
+				// ignore
+			}
+		}
+
+		if (helperNeeded) {
+			const helperPath = join(projectDir, 'src', 'types', 'hono-env.ts');
+			if (!existsSync(helperPath)) {
+				mkdirSync(dirname(helperPath), { recursive: true });
+				const body =
+					'/**\n' +
+					' * Hono context variable type for Agentuity services.\n' +
+					' *\n' +
+					' * Generated by @agentuity/migrate during the v2 → v3 migration as the\n' +
+					" * replacement for `import type { Env } from '@agentuity/runtime'`.\n" +
+					' */\n' +
+					"import type { Services } from '@agentuity/hono';\n\n" +
+					'export type Env = { Variables: Services };\n';
+				writeFileSync(helperPath, body, 'utf8');
+				changedFiles.push('src/types/hono-env.ts');
+				allChangeSummary.push({
+					file: 'src/types/hono-env.ts',
+					changes: ['Created — replaces `Env` type from @agentuity/runtime'],
+				});
 			}
 		}
 	}
@@ -451,6 +602,58 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 		}
 	}
 
+	// ── 5g′. Port @agentuity/schema usage to zod ─────────────────────────
+	// Walk all .ts/.tsx files under src/ one more time and rewrite
+	// `import { s } from '@agentuity/schema'` + `s.*` calls to the zod
+	// equivalents. Track whether the rewrite actually fired anywhere — if
+	// it did, we'll add zod (and drop @agentuity/schema) in the package
+	// update step below.
+	let anyFilePortedToZod = false;
+	{
+		const srcDir = join(projectDir, 'src');
+		const walkAllTs = (dir: string): string[] => {
+			if (!existsSync(dir)) return [];
+			const out: string[] = [];
+			for (const entry of readdirSync(dir, { withFileTypes: true })) {
+				const full = join(dir, entry.name);
+				if (entry.isDirectory()) {
+					if (['node_modules', 'dist', '.agentuity', '.git'].includes(entry.name)) continue;
+					out.push(...walkAllTs(full));
+				} else if (
+					entry.isFile() &&
+					(entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))
+				) {
+					out.push(full);
+				}
+			}
+			return out;
+		};
+
+		for (const file of walkAllTs(srcDir)) {
+			const rel = file.replace(projectDir + '/', '');
+			const src = readFileSyncSafe(file);
+			if (!src) continue;
+			const ported = schemaToZod(src);
+			if (ported.changed) {
+				writeFileSync(file, ported.source, 'utf8');
+				anyFilePortedToZod = true;
+				if (!changedFiles.includes(rel)) {
+					changedFiles.push(rel);
+					allChangeSummary.push({ file: rel, changes: ported.changes });
+				} else {
+					// Merge into the existing entry so we don't lose earlier changes.
+					const entry = allChangeSummary.find((c) => c.file === rel);
+					if (entry) entry.changes.push(...ported.changes);
+				}
+			}
+		}
+
+		if (anyFilePortedToZod) {
+			printStep('Ported @agentuity/schema usage to zod');
+			printStepDone();
+		}
+	}
+
 	// ── 5h. Update package.json ───────────────────────────────────────────
 	const packageJsonPath = join(projectDir, 'package.json');
 	if (existsSync(packageJsonPath)) {
@@ -465,6 +668,7 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 				{
 					removeRuntime: detection.hasRuntimeDep,
 					removeReact: detection.hasReactPackage,
+					addZod: anyFilePortedToZod,
 					devScripts,
 				}
 			);

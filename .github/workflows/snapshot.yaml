@@ -49,7 +49,7 @@ jobs:
               # Build SDK packages (needed for sdk-explorer)
               bun install
               bun run build
-              cd apps/docs && bun run scripts/bundle-run-scripts.ts && cd ../..
+              cd docs && bun run scripts/bundle-run-scripts.ts && cd ..
 
               # Scaffold demo project into tmp/demo-project (used by agentuity-demo-project.yaml via dir field)
               mkdir -p tmp

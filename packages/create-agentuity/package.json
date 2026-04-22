@@ -1,0 +1,44 @@
+{
+	"name": "create-agentuity",
+	"version": "3.0.0-alpha.6",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"description": "Create a new Agentuity project",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"bin": {
+		"create-agentuity": "./dist/bin.js"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"keywords": [
+		"agentuity",
+		"create",
+		"template",
+		"scaffold",
+		"bun"
+	],
+	"devDependencies": {
+		"@types/bun": "latest",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

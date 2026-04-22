@@ -27,14 +27,49 @@ export interface RouteServiceTransformResult {
  * @param servicesRelativePath - Relative import path to services module (e.g., '../services')
  */
 /**
- * Remove all imports from @agentuity/runtime.
- * In v3, this package is a deprecation stub — nothing should be imported from it.
+ * Remove all imports from @agentuity/runtime and re-route individual symbols
+ * to their v3 replacements where applicable.
+ *
+ * Recognised re-routes:
+ *   - `Env`                → local types file (generated elsewhere)
+ *   - `validator`          → dropped (v3 has no equivalent middleware; callers
+ *                           now parse input via zod inline)
+ *   - everything else      → dropped silently (deprecation stubs)
+ *
+ * Returns the rewritten source plus flags for each recognised symbol so the
+ * caller can emit the replacement imports in the right order.
  */
-export function removeRuntimeImports(source: string): { source: string; removed: boolean } {
+export interface RuntimeImportCleanup {
+	source: string;
+	removed: boolean;
+	/** Whether `Env` was imported from @agentuity/runtime */
+	needsEnvType: boolean;
+	/** Whether `validator` (the Agentuity validator helper) was imported */
+	hadAgentuityValidator: boolean;
+}
+
+export function removeRuntimeImports(source: string): RuntimeImportCleanup {
+	let needsEnvType = false;
+	let hadAgentuityValidator = false;
+	let removed = false;
+
+	// Match both `import { ... } from '@agentuity/runtime'` and
+	// `import type { ... } from '@agentuity/runtime'` (incl. multiline).
 	const pattern =
-		/import\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"]@agentuity\/runtime['"]\s*;?\s*\n?/g;
-	const replaced = source.replace(pattern, '');
-	return { source: replaced, removed: replaced !== source };
+		/import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]@agentuity\/runtime['"]\s*;?\s*\n?/g;
+	const output = source.replace(pattern, (_match, inner: string) => {
+		removed = true;
+		const names = inner
+			.split(',')
+			.map((s) => s.trim())
+			.map((s) => s.replace(/^type\s+/, ''))
+			.filter(Boolean);
+		if (names.includes('Env')) needsEnvType = true;
+		if (names.includes('validator')) hadAgentuityValidator = true;
+		return '';
+	});
+
+	return { source: output, removed, needsEnvType, hadAgentuityValidator };
 }
 
 export function transformRouteServices(
@@ -51,6 +86,33 @@ export function transformRouteServices(
 	if (runtimeCleanup.removed) {
 		output = runtimeCleanup.source;
 		changes.push('Removed @agentuity/runtime imports');
+
+		// Re-route Env to the generated types file
+		if (runtimeCleanup.needsEnvType) {
+			output = insertAfterImports(output, "import type { Env } from '../types/hono-env';");
+			changes.push("Added: import type { Env } from '../types/hono-env'");
+		}
+
+		// Strip v2-era validator middleware calls that have no v3 equivalent.
+		const stripped = stripAgentuityValidators(output);
+		if (stripped.changed) {
+			output = stripped.source;
+			changes.push(...stripped.changes);
+		}
+	}
+
+	// Rewrite v2-era agent method calls in route files.
+	const agentRewrite = rewriteV2AgentMethods(output);
+	if (agentRewrite.changed) {
+		output = agentRewrite.source;
+		changes.push(...agentRewrite.changes);
+	}
+
+	// Stub out c.var.thread / c.var.sessionId — v2 concepts with no v3 replacement.
+	const stubRewrite = stubV2HonoContext(output);
+	if (stubRewrite.changed) {
+		output = stubRewrite.source;
+		changes.push(...stubRewrite.changes);
 	}
 
 	if (usage.accessPattern === 'c.var') {
@@ -161,7 +223,133 @@ export function computeServicesRelativePath(projectDir: string, sourceFilePath: 
 // Helpers
 // ---------------------------------------------------------------------------
 
-function insertAfterImports(source: string, importLine: string): string {
+/**
+ * Rewrite v2-era agent method invocations to plain function calls in route
+ * files.
+ *
+ *   translate.run(data)   → translate(data)
+ *   translate.validator() → /* stripped above * /
+ *
+ * We also rewrite `c.req.valid('json')` → `await c.req.json()` — the former
+ * was the output of the v2 validator middleware that we stripped.
+ */
+export function rewriteV2AgentMethods(source: string): {
+	source: string;
+	changed: boolean;
+	changes: string[];
+} {
+	let output = source;
+	const changes: string[] = [];
+
+	// <agent>.run(x) → <agent>(x)
+	const before1 = output;
+	output = output.replace(
+		/\b([A-Za-z_$][A-Za-z0-9_$]*)\.run\(/g,
+		(_m, name: string) => `${name}(`
+	);
+	if (output !== before1) {
+		changes.push('Rewrote <agent>.run(…) → <agent>(…)');
+	}
+
+	// c.req.valid('json') → (await c.req.json())
+	const before2 = output;
+	output = output.replace(/\bc\.req\.valid\(\s*['"]json['"]\s*\)/g, '(await c.req.json())');
+	if (output !== before2) {
+		changes.push("Rewrote c.req.valid('json') → await c.req.json()");
+	}
+
+	return { source: output, changed: changes.length > 0, changes };
+}
+
+/**
+ * Stub out v2-era Hono context variables that no longer exist in v3.
+ *
+ * v3's Services interface only includes storage clients (kv, vector, stream,
+ * etc.). Thread state, sessionId, and app-level state were removed when v3
+ * dropped the createApp() abstraction.
+ */
+export function stubV2HonoContext(source: string): {
+	source: string;
+	changed: boolean;
+	changes: string[];
+} {
+	let output = source;
+	const changes = new Set<string>();
+
+	// c.var.thread.*  — stub out the whole chain as `(undefined as any)`.
+	//
+	// The chain can include:
+	//   • Dotted property access:       c.var.thread.state
+	//   • Generic type arguments:       .get<HistoryEntry[]>
+	//   • Call sites:                   .get<T>('key')
+	//   • Multiple chained calls:       .state.push(…).something()
+	//
+	// We do this greedily by chaining an alternation until we hit a terminator.
+	const before1 = output;
+	output = output.replace(
+		/c\.var\.thread(?:\.[A-Za-z0-9_$]+|<[^>]*>|\([^()]*\))*/g,
+		'(undefined as any) /* v3: c.var.thread removed */'
+	);
+	if (output !== before1) {
+		changes.add('Stubbed c.var.thread.* (removed in v3)');
+	}
+
+	const before2 = output;
+	output = output.replace(
+		/c\.var\.sessionId\b/g,
+		"('v3-no-session-id' as string) /* v3: c.var.sessionId removed */"
+	);
+	if (output !== before2) {
+		changes.add('Stubbed c.var.sessionId (removed in v3)');
+	}
+
+	return { source: output, changed: changes.size > 0, changes: [...changes] };
+}
+
+/**
+ * Strip v2 validator middleware from a source string.
+ *
+ * Removes two shapes:
+ *   - `validator({ input: ... })` / `validator({ output: ... })` imported
+ *     from @agentuity/runtime (used as Hono middleware)
+ *   - `<agent>.validator()` — the auto-generated method on v2 agents used as
+ *     middleware on routes that forward to the agent
+ *
+ * Both become comments so the file parses but the user can see where to wire
+ * up manual validation (typically via `zod.parse(await c.req.json())`).
+ */
+export function stripAgentuityValidators(source: string): {
+	source: string;
+	changed: boolean;
+	changes: string[];
+} {
+	let output = source;
+	const changes: string[] = [];
+
+	// validator({ ... }),   — tolerate whitespace/newlines
+	const before1 = output;
+	output = output.replace(
+		/\s*validator\(\s*\{[\s\S]*?\}\s*\)\s*,?/g,
+		' /* v3: validator() removed — validate inline with zod */ '
+	);
+	if (output !== before1) {
+		changes.push('Stripped Agentuity validator() middleware calls');
+	}
+
+	// <agent>.validator(),
+	const before2 = output;
+	output = output.replace(
+		/\s*[A-Za-z_$][A-Za-z0-9_$]*\.validator\(\s*\)\s*,?/g,
+		' /* v3: agent.validator() removed — parse input with zod */ '
+	);
+	if (output !== before2) {
+		changes.push('Stripped <agent>.validator() middleware calls');
+	}
+
+	return { source: output, changed: changes.length > 0, changes };
+}
+
+export function insertAfterImports(source: string, importLine: string): string {
 	const sf = ts.createSourceFile('temp.ts', source, ts.ScriptTarget.ESNext, true);
 
 	let lastImportEnd = -1;

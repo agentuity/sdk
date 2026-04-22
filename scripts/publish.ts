@@ -7,7 +7,6 @@ import * as readline from 'node:readline';
 
 const rootDir = join(import.meta.dir, '..');
 const packagesDir = join(rootDir, 'packages');
-const appsDir = join(rootDir, 'apps');
 
 const rl = readline.createInterface({
 	input: process.stdin,
@@ -246,44 +245,6 @@ async function updateVersions(version: string) {
 			console.log(`⊘ Skipped packages/${pkg} (no package.json)`);
 		}
 	}
-
-	// Update apps/*
-	const apps = await readdir(appsDir);
-	for (const app of apps) {
-		const pkgJsonPath = join(appsDir, app, 'package.json');
-		try {
-			const pkgJson = await readJSON(pkgJsonPath);
-			pkgJson.version = version;
-
-			// Update workspace:* dependencies to explicit version
-			if (pkgJson.dependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
-					if (depVersion === 'workspace:*') {
-						pkgJson.dependencies[dep] = version;
-					}
-				}
-			}
-			if (pkgJson.devDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
-					if (depVersion === 'workspace:*') {
-						pkgJson.devDependencies[dep] = version;
-					}
-				}
-			}
-			if (pkgJson.peerDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
-					if (depVersion === 'workspace:*') {
-						pkgJson.peerDependencies[dep] = version;
-					}
-				}
-			}
-
-			await writeJSON(pkgJsonPath, pkgJson);
-			console.log(`✓ Updated apps/${app} to ${version}`);
-		} catch {
-			console.log(`⊘ Skipped apps/${app} (no package.json)`);
-		}
-	}
 }
 
 async function restoreWorkspaceDependencies(version: string) {
@@ -330,48 +291,6 @@ async function restoreWorkspaceDependencies(version: string) {
 			// Skip
 		}
 	}
-
-	// Restore apps/*
-	const apps = await readdir(appsDir);
-	for (const app of apps) {
-		const pkgJsonPath = join(appsDir, app, 'package.json');
-		try {
-			const pkgJson = await readJSON(pkgJsonPath);
-			let changed = false;
-
-			if (pkgJson.dependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
-					if (depVersion === version && dep.startsWith('@agentuity/')) {
-						pkgJson.dependencies[dep] = 'workspace:*';
-						changed = true;
-					}
-				}
-			}
-			if (pkgJson.devDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
-					if (depVersion === version && dep.startsWith('@agentuity/')) {
-						pkgJson.devDependencies[dep] = 'workspace:*';
-						changed = true;
-					}
-				}
-			}
-			if (pkgJson.peerDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
-					if (depVersion === version && dep.startsWith('@agentuity/')) {
-						pkgJson.peerDependencies[dep] = 'workspace:*';
-						changed = true;
-					}
-				}
-			}
-
-			if (changed) {
-				await writeJSON(pkgJsonPath, pkgJson);
-				console.log(`✓ Restored workspace:* in apps/${app}`);
-			}
-		} catch {
-			// Skip
-		}
-	}
 }
 
 async function getPublishablePackages(): Promise<
@@ -393,21 +312,8 @@ async function getPublishablePackages(): Promise<
 		}
 	}
 
-	// Check apps/*
-	const apps = await readdir(appsDir);
-	for (const app of apps) {
-		const pkgJsonPath = join(appsDir, app, 'package.json');
-		try {
-			const pkgJson = await readJSON(pkgJsonPath);
-			if (!pkgJson.private) {
-				publishable.push({ name: app, dir: 'apps', path: join(appsDir, app) });
-			}
-		} catch {
-			// Skip if no package.json
-		}
-	}
-
-	// Sort by dependency order: core first, then bundler, then others, create-agentuity last
+	// Sort by dependency order: core first, then cli, then others, create-agentuity last
+	// (create-agentuity depends on @agentuity/cli being published first)
 	return publishable.sort((a, b) => {
 		if (a.name === 'core') return -1;
 		if (b.name === 'core') return 1;
@@ -420,7 +326,7 @@ async function getPublishablePackages(): Promise<
 }
 
 async function revertVersionChanges() {
-	await $`git checkout -- package.json packages/*/package.json apps/*/package.json .claude-plugin/marketplace.json packages/claude-code/.claude-plugin/plugin.json bun.lock`.cwd(
+	await $`git checkout -- package.json packages/*/package.json .claude-plugin/marketplace.json packages/claude-code/.claude-plugin/plugin.json bun.lock`.cwd(
 		rootDir
 	);
 }

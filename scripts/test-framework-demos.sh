@@ -1,5 +1,5 @@
 #!/bin/bash
-# Framework Demo Tests - Playwright E2E Tests for TanStack, Next.js, and Vite RSC Integration
+# Framework Demo Tests - Playwright E2E Tests for TanStack, Next.js, and SvelteKit Integration
 # Tests the frontend framework integration demos with Agentuity
 
 set -e
@@ -10,7 +10,7 @@ SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "╔════════════════════════════════════════════════╗"
 echo "║  Framework Demo Tests                          ║"
-echo "║  TanStack & Next.js & Vite RSC                 ║"
+echo "║  TanStack & Next.js & SvelteKit                ║"
 echo "║  (via agentuity dev)                           ║"
 echo "╚════════════════════════════════════════════════╝"
 echo ""
@@ -18,22 +18,22 @@ echo ""
 # Parse arguments
 RUN_TANSTACK=true
 RUN_NEXTJS=true
-RUN_VITE_RSC=true
+RUN_SVELTE=true
 SKIP_BUILD=false
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--tanstack-only)
 			RUN_NEXTJS=false
-			RUN_VITE_RSC=false
+			RUN_SVELTE=false
 			shift
 			;;
 		--nextjs-only)
 			RUN_TANSTACK=false
-			RUN_VITE_RSC=false
+			RUN_SVELTE=false
 			shift
 			;;
-		--vite-rsc-only)
+		--svelte-only)
 			RUN_TANSTACK=false
 			RUN_NEXTJS=false
 			shift
@@ -59,8 +59,8 @@ cleanup() {
 	if [ -n "$NEXTJS_PID" ]; then
 		kill $NEXTJS_PID 2>/dev/null || true
 	fi
-	if [ -n "$VITE_RSC_PID" ]; then
-		kill $VITE_RSC_PID 2>/dev/null || true
+	if [ -n "$SVELTE_PID" ]; then
+		kill $SVELTE_PID 2>/dev/null || true
 	fi
 	# Kill any remaining processes on the port
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
@@ -103,7 +103,7 @@ if [ "$RUN_TANSTACK" = true ]; then
 	
 	# Start TanStack app
 	echo "Starting TanStack app..."
-	cd "$SDK_ROOT/apps/testing/tanstack-start"
+	cd "$SDK_ROOT/tests/frameworks/tanstack-start"
 	bun run dev &
 	TANSTACK_PID=$!
 	
@@ -136,7 +136,7 @@ if [ "$RUN_NEXTJS" = true ]; then
 	
 	# Start Next.js app
 	echo "Starting Next.js app..."
-	cd "$SDK_ROOT/apps/testing/nextjs-app"
+	cd "$SDK_ROOT/tests/frameworks/nextjs-app"
 	bun run dev &
 	NEXTJS_PID=$!
 	
@@ -153,47 +153,43 @@ if [ "$RUN_NEXTJS" = true ]; then
 	kill $NEXTJS_PID 2>/dev/null || true
 	NEXTJS_PID=""
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+	sleep 2
 	
 	echo ""
 	echo "✓ Next.js tests completed"
 	echo ""
 fi
 
-# Run Vite RSC tests
-if [ "$RUN_VITE_RSC" = true ]; then
-	if [ ! -d "$SDK_ROOT/apps/testing/vite-rsc-app" ]; then
-		echo "⚠ Skipping Vite RSC tests (apps/testing/vite-rsc-app not found)"
-		echo ""
-	else
-		echo "═══════════════════════════════════════════════"
-		echo "  Testing Vite RSC + Agentuity"
-		echo "═══════════════════════════════════════════════"
-		echo ""
-		
-		# Start Vite RSC app
-		echo "Starting Vite RSC app..."
-		cd "$SDK_ROOT/apps/testing/vite-rsc-app"
-		bun run dev &
-		VITE_RSC_PID=$!
-		
-		# Wait for web server
-		wait_for_server "http://localhost:3000" "Vite RSC (3000)"
-		
-		# Run Playwright tests for Vite RSC
-		echo ""
-		echo "Running Playwright tests for Vite RSC..."
-		cd "$SDK_ROOT"
-		bun run playwright test --config=playwright.frameworks.config.ts --project=vite-rsc
-		
-		# Stop Vite RSC
-		kill $VITE_RSC_PID 2>/dev/null || true
-		VITE_RSC_PID=""
-		lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-		
-		echo ""
-		echo "✓ Vite RSC tests completed"
-		echo ""
-	fi
+# Run SvelteKit tests
+if [ "$RUN_SVELTE" = true ]; then
+	echo "═══════════════════════════════════════════════"
+	echo "  Testing SvelteKit + Agentuity"
+	echo "═══════════════════════════════════════════════"
+	echo ""
+	
+	# Start SvelteKit app
+	echo "Starting SvelteKit app..."
+	cd "$SDK_ROOT/tests/frameworks/svelte-web"
+	bun run dev &
+	SVELTE_PID=$!
+	
+	# Wait for web server
+	wait_for_server "http://localhost:3000" "SvelteKit (3000)"
+	
+	# Run Playwright tests for SvelteKit
+	echo ""
+	echo "Running Playwright tests for SvelteKit..."
+	cd "$SDK_ROOT"
+	bun run playwright test --config=playwright.frameworks.config.ts --project=svelte
+	
+	# Stop SvelteKit
+	kill $SVELTE_PID 2>/dev/null || true
+	SVELTE_PID=""
+	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+	
+	echo ""
+	echo "✓ SvelteKit tests completed"
+	echo ""
 fi
 
 echo "╔════════════════════════════════════════════════╗"

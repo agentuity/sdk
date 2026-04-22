@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"paths": {
+			"@agents/*": ["./src/agent/*"],
+			"@test/*": ["./src/test/*"]
+		}
+	},
+	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
+	"exclude": ["node_modules", ".agentuity", "test"]
+}
