@@ -10,6 +10,7 @@ import {
 	type StreamProjectionSource,
 } from './hub-overlay-state.ts';
 import { applyCoderAuthHeaders } from './auth.ts';
+import { formatToolDisplay } from './agentuity-cli.ts';
 import { truncateToWidth } from './renderers.ts';
 import type {
 	ConversationEntry as HubConversationEntry,
@@ -2128,6 +2129,13 @@ export class HubOverlay implements Component, Focusable {
 						? data.toolName
 						: 'tool';
 			const input = data?.args ?? data?.input;
+			const display = formatToolDisplay(
+				name,
+				typeof input === 'string' || (input && typeof input === 'object')
+					? (input as string | Record<string, unknown>)
+					: undefined
+			);
+			if (display.branded) return `tool_call ${display.fullLabel}`;
 			const summarized = summarizeToolCall(name, input);
 			if (summarized) return summarized;
 			const argsPreview = summarizeArgs(input, 90);
@@ -2171,15 +2179,18 @@ export class HubOverlay implements Component, Focusable {
 				const failed = data?.isError === true || details?.error === true;
 				return `${header}\n${failed ? 'failed' : `done${duration}`}`;
 			}
-			return `tool_result ${name}`;
+			const display = formatToolDisplay(name, input);
+			return `tool_result ${display.toolName}`;
 		}
 
 		if (eventName === 'agent_progress') {
 			const agent = typeof data?.agentName === 'string' ? data.agentName : 'agent';
 			const status = typeof data?.status === 'string' ? data.status : 'progress';
-			const toolName = typeof data?.currentTool === 'string' ? data.currentTool : '';
+			const rawToolName = typeof data?.currentTool === 'string' ? data.currentTool : '';
 			const toolArgsRaw = typeof data?.currentToolArgs === 'string' ? data.currentToolArgs : '';
-			const toolArgs = toolArgsRaw ? truncateToWidth(normalize(toolArgsRaw), 80) : '';
+			const display = formatToolDisplay(rawToolName, toolArgsRaw || undefined);
+			const toolName = display.toolName;
+			const toolArgs = display.toolArgs ? truncateToWidth(normalize(display.toolArgs), 80) : '';
 
 			// Deltas are already represented in rendered stream mode; skip them in event mode
 			// to avoid noisy, low-signal token lines.

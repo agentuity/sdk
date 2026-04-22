@@ -12,6 +12,7 @@ import type {
 	AgentToolResult,
 } from '@mariozechner/pi-coding-agent';
 import { Box, Text, Container, type Component } from '@mariozechner/pi-tui';
+import { formatToolDisplay } from './agentuity-cli.ts';
 
 // ──────────────────────────────────────────────
 // Line-safety helper — must be declared before SimpleText so
@@ -123,6 +124,28 @@ function tryParseJson(text: string): unknown | undefined {
 function truncate(str: string, max: number): string {
 	if (str.length <= max) return str;
 	return str.slice(0, max - 1) + '\u2026';
+}
+
+function isCommandToolName(toolName: string): boolean {
+	const normalized = toolName.trim().toLowerCase();
+	return normalized === 'bash' || normalized === 'execute_command' || normalized.includes('shell');
+}
+
+function getCommandArg(args: Record<string, unknown>): string | undefined {
+	const value = args['command'] ?? args['cmd'];
+	return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function getCommandTimeoutLabel(args: Record<string, unknown>): string | undefined {
+	const timeout = args['timeout'];
+	if (typeof timeout === 'number' && Number.isFinite(timeout) && timeout > 0) {
+		return `${timeout}s`;
+	}
+	if (typeof timeout === 'string' && timeout.trim()) {
+		const value = timeout.trim();
+		return /s$/i.test(value) ? value : `${value}s`;
+	}
+	return undefined;
 }
 
 // ──────────────────────────────────────────────
@@ -709,6 +732,33 @@ function parallelTasksRenderers(): ToolRenderers {
 	};
 }
 
+function commandToolRenderers(toolName: string): ToolRenderers {
+	return {
+		renderCall(args, theme) {
+			const display = formatToolDisplay(toolName, args);
+			const timeout = getCommandTimeoutLabel(args);
+
+			if (display.branded) {
+				let text = theme.fg('toolTitle', theme.bold(display.toolName));
+				if (display.toolArgs) {
+					text += theme.fg('accent', ` ${display.toolArgs}`);
+				}
+				if (timeout) {
+					text += theme.fg('dim', ` (timeout ${timeout})`);
+				}
+				return new SimpleText(text);
+			}
+
+			let text = theme.fg('toolTitle', theme.bold('$ '));
+			text += theme.fg('accent', truncate(getCommandArg(args) ?? display.toolName, 80));
+			if (timeout) {
+				text += theme.fg('dim', ` (timeout ${timeout})`);
+			}
+			return new SimpleText(text);
+		},
+	};
+}
+
 // ──────────────────────────────────────────────
 
 const RENDERERS: Record<string, () => ToolRenderers> = {
@@ -736,5 +786,7 @@ const RENDERERS: Record<string, () => ToolRenderers> = {
  */
 export function getToolRenderers(toolName: string): ToolRenderers | undefined {
 	const factory = RENDERERS[toolName];
-	return factory?.();
+	if (factory) return factory();
+	if (isCommandToolName(toolName)) return commandToolRenderers(toolName);
+	return undefined;
 }

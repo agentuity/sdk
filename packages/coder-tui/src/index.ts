@@ -1,4 +1,5 @@
-import type {
+import {
+	createBashToolDefinition,
 	AgentToolResult,
 	ExtensionAPI,
 	ExtensionContext,
@@ -22,6 +23,7 @@ import { setNativeRemoteExtensionContext } from './native-remote-ui-context.ts';
 import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
+import { formatToolDisplay } from './agentuity-cli.ts';
 import type {
 	HubAction,
 	HubResponse,
@@ -410,6 +412,17 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 
 	// Titlebar: branding + spinner (registers its own event handlers)
 	setupTitlebar(pi);
+
+	// Override Pi's built-in bash call-row rendering so local transcript rows
+	// can brand Agentuity CLI invocations without changing bash execution/result behavior.
+	const localBashRenderers = getToolRenderers('bash');
+	if (localBashRenderers?.renderCall) {
+		const bashToolDefinition = createBashToolDefinition(process.cwd());
+		pi.registerTool({
+			...bashToolDefinition,
+			renderCall: localBashRenderers.renderCall as ToolDefinition['renderCall'],
+		});
+	}
 
 	// ══════════════════════════════════════════════
 	// WebSocket client for runtime communication (tool execution + events)
@@ -1860,25 +1873,19 @@ async function runSubAgent(
 
 					if (evt.type === 'tool_execution_start') {
 						const toolName = evt.toolName || evt.name || evt.tool || 'unknown';
-						let toolArgs = '';
-						if (evt.args && typeof evt.args === 'object') {
-							const args = evt.args as Record<string, unknown>;
-							if (args.command) toolArgs = String(args.command).slice(0, 60);
-							else if (args.filePath || args.path)
-								toolArgs = String(args.filePath || args.path);
-							else if (args.pattern) toolArgs = String(args.pattern).slice(0, 40);
-							else {
-								const first = Object.values(args)[0];
-								if (first) toolArgs = String(first).slice(0, 40);
-							}
-						}
+						const display = formatToolDisplay(
+							toolName,
+							typeof evt.args === 'string' || (evt.args && typeof evt.args === 'object')
+								? (evt.args as string | Record<string, unknown>)
+								: undefined
+						);
 
 						onProgress({
 							agentName: agentConfig.name,
 							status: 'tool_start',
 							toolCallId: typeof evt.toolCallId === 'string' ? evt.toolCallId : undefined,
-							currentTool: toolName,
-							currentToolArgs: toolArgs,
+							currentTool: display.toolName,
+							currentToolArgs: display.toolArgs,
 							elapsed,
 						});
 					} else if (evt.type === 'tool_execution_end') {
