@@ -7,20 +7,20 @@ function normalizeToolName(name: string): string {
 	return name.trim().toLowerCase();
 }
 
-export function selectSubAgentToolNames(
-	agentConfig: AgentDefinition,
-): string[] {
+export function selectSubAgentToolNames(agentConfig: AgentDefinition): string[] {
 	const declared = new Set(
 		(agentConfig.tools ?? [])
 			.filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
-			.map(normalizeToolName),
+			.map(normalizeToolName)
 	);
 	const needsBash = declared.has('bash');
 	const baseToolNames =
 		agentConfig.readOnly && !needsBash ? READ_ONLY_TOOL_NAMES : CODING_TOOL_NAMES;
+	const allowLegacyFallback =
+		agentConfig.strictToolSelection !== true && agentConfig.source === 'builtin';
 
 	if (declared.size === 0) {
-		return agentConfig.strictToolSelection ? [] : [...baseToolNames];
+		return allowLegacyFallback ? [...baseToolNames] : [];
 	}
 
 	const filtered = baseToolNames.filter((toolName) => declared.has(toolName));
@@ -29,5 +29,5 @@ export function selectSubAgentToolNames(
 		return filtered;
 	}
 
-	return agentConfig.strictToolSelection ? [] : [...baseToolNames];
+	return allowLegacyFallback ? [...baseToolNames] : [];
 }

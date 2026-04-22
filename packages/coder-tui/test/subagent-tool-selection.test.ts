@@ -5,6 +5,7 @@ import { selectSubAgentToolNames } from '../src/subagent-tool-selection.ts';
 function createAgent(overrides?: Partial<AgentDefinition>): AgentDefinition {
 	return {
 		name: 'runner',
+		source: 'builtin',
 		description: 'test',
 		systemPrompt: 'test',
 		tools: ['read', 'grep', 'find', 'ls'],
@@ -20,14 +21,29 @@ describe('selectSubAgentToolNames', () => {
 
 	it('switches to the coding baseline when a read-only agent declares bash', () => {
 		expect(
-			selectSubAgentToolNames(createAgent({ tools: ['read', 'bash', 'ls'], readOnly: true })),
+			selectSubAgentToolNames(createAgent({ tools: ['read', 'bash', 'ls'], readOnly: true }))
 		).toEqual(['read', 'bash']);
 	});
 
 	it('keeps the legacy fallback for non-strict agents when declarations do not match', () => {
+		expect(selectSubAgentToolNames(createAgent({ tools: ['totally_unknown_tool'] }))).toEqual([
+			'read',
+			'grep',
+			'find',
+			'ls',
+		]);
+	});
+
+	it('keeps custom agents deny-by-default when declarations do not match', () => {
 		expect(
-			selectSubAgentToolNames(createAgent({ tools: ['totally_unknown_tool'] })),
-		).toEqual(['read', 'grep', 'find', 'ls']);
+			selectSubAgentToolNames(
+				createAgent({
+					name: 'qa-review',
+					source: 'custom',
+					tools: ['totally_unknown_tool'],
+				})
+			)
+		).toEqual([]);
 	});
 
 	it('does not widen tool access for strict custom agents when names do not match', () => {
@@ -38,8 +54,8 @@ describe('selectSubAgentToolNames', () => {
 					source: 'custom',
 					tools: ['totally_unknown_tool'],
 					strictToolSelection: true,
-				}),
-			),
+				})
+			)
 		).toEqual([]);
 	});
 
@@ -49,8 +65,8 @@ describe('selectSubAgentToolNames', () => {
 				createAgent({
 					readOnly: false,
 					tools: undefined,
-				}),
-			),
+				})
+			)
 		).toEqual(['read', 'bash', 'edit', 'write']);
 	});
 });
