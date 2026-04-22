@@ -10,8 +10,11 @@ permissions:
   id-token: write # Required for npm Trusted Publishers (OIDC)
 
 concurrency:
+  # Never cancel an in-flight release: a half-cancelled run can leave npm in a
+  # partially-published state (some packages at the new version, others not).
+  # New pushes to main will queue and run after the current release finishes.
   group: release-next-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   CI: true

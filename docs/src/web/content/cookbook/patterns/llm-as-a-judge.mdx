@@ -276,15 +276,22 @@ const agent = createAgent('qa-agent', {
   },
   handler: async (ctx, input) => {
     // ... generate answer ...
-    return { answer: '...' };
+    const result = { answer: '...' };
+
+    // Stash the input/output on ctx.state so the `completed` listener can
+    // evaluate them in the background without re-running the work.
+    ctx.state.set('input', input);
+    ctx.state.set('output', result);
+
+    return result;
   },
 });
 
 // Run LLM-as-judge in the background after completion
 agent.addEventListener('completed', (event, agent, ctx) => {
   ctx.waitUntil(async () => {
-    const output = ctx.state.get('output') as { answer: string };
     const input = ctx.state.get('input') as { question: string };
+    const output = ctx.state.get('output') as { answer: string };
 
     const { object } = await generateObject({
       model: groq('openai/gpt-oss-120b'),
