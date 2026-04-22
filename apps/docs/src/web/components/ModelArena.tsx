@@ -694,7 +694,7 @@ function ProgressStepper({
 							<span
 								className={`text-xs whitespace-nowrap ${
 									stepStatus === 'active'
-										? 'text-cyan-800 dark:text-cyan-400 font-medium'
+										? 'text-cyan-700 dark:text-cyan-400 font-medium'
 										: stepStatus === 'complete'
 											? 'text-zinc-600 dark:text-zinc-400'
 											: 'text-zinc-400 dark:text-zinc-600'

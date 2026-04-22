@@ -278,7 +278,7 @@ export function EmailDemo() {
 						onClick={() => setTab('setup')}
 						className={`text-sm font-medium pb-1 transition-colors border-b-2 cursor-pointer ${
 							tab === 'setup'
-								? 'text-zinc-900 dark:text-white border-cyan-500'
+								? 'text-zinc-900 dark:text-white border-cyan-700 dark:border-cyan-500'
 								: 'text-zinc-400 dark:text-zinc-600 border-transparent hover:text-zinc-600 dark:hover:text-zinc-400'
 						}`}
 					>
@@ -289,7 +289,7 @@ export function EmailDemo() {
 						onClick={() => setTab('preview')}
 						className={`text-sm font-medium pb-1 transition-colors border-b-2 cursor-pointer ${
 							tab === 'preview'
-								? 'text-zinc-900 dark:text-white border-cyan-500'
+								? 'text-zinc-900 dark:text-white border-cyan-700 dark:border-cyan-500'
 								: 'text-zinc-400 dark:text-zinc-600 border-transparent hover:text-zinc-600 dark:hover:text-zinc-400'
 						}`}
 					>
@@ -304,7 +304,7 @@ export function EmailDemo() {
 					<div
 						className={`col-start-1 row-start-1 p-4 min-w-0 ${tab === 'setup' ? '' : 'invisible'}`}
 					>
-						<pre className="rounded-md bg-zinc-950 border border-zinc-800 p-4 text-[12px] leading-relaxed font-mono text-zinc-300 whitespace-pre overflow-x-auto">
+						<pre className="rounded-md bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 p-4 text-[12px] leading-relaxed font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre overflow-x-auto">
 							<code>{setupCode}</code>
 						</pre>
 					</div>

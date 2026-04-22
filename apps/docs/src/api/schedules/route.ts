@@ -10,6 +10,7 @@ import type {
 	ScheduleDeliveryListResult,
 } from '@agentuity/schedule';
 import { z } from 'zod';
+import { config } from '../../config';
 import { cookieAuth } from '../../middleware/auth';
 
 type ScheduleApiService = Env['Variables']['schedule'];
@@ -24,6 +25,8 @@ const HELLO_DESTINATION_PATH = '/api/hello';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const CREATE_RATE_LIMIT_WINDOW_MS = 60_000;
 const MAX_CREATES_PER_WINDOW = 1;
+// KV treats 0 as no expiration, so ownership cannot expire before schedule cleanup
+const SCHEDULE_OWNER_TTL_SECONDS = 0;
 const createAttemptsByUser = new Map<string, number[]>();
 
 function isLoopbackHost(hostname: string): boolean {
@@ -83,6 +86,10 @@ function isMissingScheduleError(error: unknown): boolean {
 
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+function getScheduleOwnerKey(scheduleId: string): string {
+	return `schedules-demo-owner:${scheduleId}`;
 }
 
 async function readScheduleState(
@@ -183,6 +190,30 @@ const router = new Hono<Env>()
 
 			createAttemptsByUser.set(userId, [...recentAttempts, now]);
 			const result = await c.var.schedule.create(createParams);
+			try {
+				await c.var.kv.set(
+					config.kvStoreName,
+					getScheduleOwnerKey(result.schedule.id),
+					userId,
+					{
+						ttl: SCHEDULE_OWNER_TTL_SECONDS,
+					}
+				);
+			} catch (ownershipError) {
+				c.var.logger?.error('Schedules demo owner persistence failed', {
+					scheduleId: result.schedule.id,
+					message: getErrorMessage(ownershipError),
+				});
+				try {
+					await c.var.schedule.delete(result.schedule.id);
+				} catch (deleteError) {
+					c.var.logger?.error('Schedules demo rollback failed', {
+						scheduleId: result.schedule.id,
+						message: getErrorMessage(deleteError),
+					});
+				}
+				throw ownershipError;
+			}
 
 			return c.json({
 				success: true,
@@ -199,9 +230,19 @@ const router = new Hono<Env>()
 			return c.json({ success: false, message }, 500);
 		}
 	})
-	.get('/:id', async (c) => {
+	.get('/:id', cookieAuth, async (c) => {
 		try {
+			const userId = (c.get as (key: string) => string)('userId');
 			const scheduleId = c.req.param('id');
+			const ownerResult = await c.var.kv.get<string>(
+				config.kvStoreName,
+				getScheduleOwnerKey(scheduleId)
+			);
+
+			if (!ownerResult.exists || ownerResult.data !== userId) {
+				return c.json({ success: false, message: 'Schedule not found.' }, 404);
+			}
+
 			const destinationUrl = buildDestinationUrl(c.req.url) ?? HELLO_DESTINATION_PATH;
 			const state = await readScheduleState(c.var.schedule, scheduleId);
 
@@ -225,10 +266,27 @@ const router = new Hono<Env>()
 			return c.json({ success: false, message }, 500);
 		}
 	})
-	.delete('/:id', async (c) => {
+	.delete('/:id', cookieAuth, async (c) => {
 		try {
+			const userId = (c.get as (key: string) => string)('userId');
 			const scheduleId = c.req.param('id');
+			const ownerKey = getScheduleOwnerKey(scheduleId);
+			const ownerResult = await c.var.kv.get<string>(config.kvStoreName, ownerKey);
+
+			if (!ownerResult.exists || ownerResult.data !== userId) {
+				return c.json({ success: false, message: 'Schedule not found.' }, 404);
+			}
+
 			await c.var.schedule.delete(scheduleId);
+			try {
+				await c.var.kv.delete(config.kvStoreName, ownerKey);
+			} catch (cleanupError) {
+				c.var.logger?.warn('Schedules demo owner cleanup failed', {
+					scheduleId,
+					message: getErrorMessage(cleanupError),
+				});
+			}
+
 			return c.json({ success: true, message: 'Schedule deleted.' });
 		} catch (error) {
 			if (isMissingScheduleError(error)) {
