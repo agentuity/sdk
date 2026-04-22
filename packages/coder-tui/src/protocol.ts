@@ -75,6 +75,7 @@ export type HubAction =
 export interface AgentDefinition {
 	name: string;
 	displayName?: string;
+	source?: 'builtin' | 'custom';
 	description: string;
 	systemPrompt: string;
 	model?: string;
@@ -84,6 +85,7 @@ export interface AgentDefinition {
 	readOnly?: boolean;
 	hubTools?: HubToolDefinition[];
 	capabilities?: string[];
+	strictToolSelection?: boolean;
 	status?: 'available' | 'busy' | 'offline';
 }
 
