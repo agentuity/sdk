@@ -76,6 +76,11 @@ export const navData: NavSection[] = [
 				description: 'Structured streaming with event types and auto-reconnect',
 			},
 			{
+				title: 'WebSocket',
+				url: '/explorer/websocket',
+				description: 'Real-time bidirectional messaging over a persistent connection',
+			},
+			{
 				title: 'Durable Streams',
 				url: '/explorer/durable-stream',
 				description: 'Generate content and get a permanent, shareable URL',
@@ -86,14 +91,19 @@ export const navData: NavSection[] = [
 				description: 'Call agents from routes or other agents',
 			},
 			{
-				title: 'Cron Jobs',
-				url: '/explorer/cron',
-				description: 'Run tasks on a schedule with cron expressions',
+				title: 'Schedules',
+				url: '/explorer/schedules',
+				description: 'Create managed schedules and inspect delivery attempts',
 			},
 			{
 				title: 'Model Arena',
 				url: '/explorer/model-arena',
 				description: 'Compare AI models using another AI as judge',
+			},
+			{
+				title: 'WebRTC',
+				url: '/explorer/webrtc',
+				description: 'Audio, video, and data channels directly between browsers',
 			},
 			{
 				title: 'Queues',
@@ -378,7 +388,14 @@ export const navData: NavSection[] = [
 			{
 				title: 'Authentication',
 				url: '/services/authentication',
-				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+				description:
+					'Choose between Sign in with Agentuity and app-owned authentication for routes and apps',
+			},
+			{
+				title: 'OIDC Provider',
+				url: '/services/oidc-provider',
+				description:
+					'Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC',
 			},
 			{
 				title: 'Coder',
@@ -475,7 +492,7 @@ export const navData: NavSection[] = [
 								title: 'Built-In Agents',
 								url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
 								description:
-									'Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session',
+									'Use enabledAgents and defaultAgent to choose which built-in Coder agents are available in a session',
 							},
 							{
 								title: 'Attach Skills',

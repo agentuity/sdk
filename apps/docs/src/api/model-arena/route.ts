@@ -1,28 +1,23 @@
 /**
  * Model Arena Route - Multi-provider story generation with LLM-as-judge evaluation.
  *
- * GET /       - Returns metadata about the arena configuration
- * SSE /stream - Streams story generation from OpenAI and Anthropic, then judge verdict
+ * GET /        - Returns metadata about the arena configuration
+ * GET /stream  - Streams stories as each model finishes, then the judge verdict
  */
-import { sse, type Env } from '@agentuity/runtime';
-import { generateObject } from 'ai';
-import { generateStory, JUDGE_MODEL, MODELS } from '../../agent/model-arena/lib';
-import { getJudgePrompt } from '../../agent/model-arena/prompts';
-import {
-	JudgmentSchema,
-	type ModelResult,
-	PROVIDER_DISPLAY_NAMES,
-	type Tone,
-} from '../../agent/model-arena/types';
+import { stream, type Env } from '@agentuity/runtime';
 import { Hono } from 'hono';
+import { generateStory, judgeStories, MODELS } from '../../agent/model-arena/lib';
+import { PROVIDER_DISPLAY_NAMES, type ModelResult, type Tone } from '../../agent/model-arena/types';
 
-// Fixed prompt and tone for the demo
 const FIXED_PROMPT = 'A robot discovers it can dream';
 const FIXED_TONE: Tone = 'sci-fi';
+const HEARTBEAT_MS = 3000;
+
+function toLine(event: string, data: unknown): Uint8Array {
+	return new TextEncoder().encode(`${JSON.stringify({ event, data })}\n`);
+}
 
 const router = new Hono<Env>()
-
-	// GET endpoint for metadata
 	.get('/', (c) => {
 		return c.json({
 			name: 'Model Arena',
@@ -30,126 +25,128 @@ const router = new Hono<Env>()
 				'Compare short stories from OpenAI and Anthropic with LLM-as-judge evaluation',
 			prompt: FIXED_PROMPT,
 			tone: FIXED_TONE,
-			competitors: MODELS.map((m) => ({
-				provider: m.provider,
-				displayName: PROVIDER_DISPLAY_NAMES[m.provider],
-				model: m.model,
+			competitors: MODELS.map((model) => ({
+				provider: model.provider,
+				displayName: PROVIDER_DISPLAY_NAMES[model.provider],
+				model: model.model,
 			})),
+			mode: 'stream',
 		});
 	})
-
-	// SSE endpoint for streaming results
 	.get(
 		'/stream',
-		sse(async (c, stream) => {
-			const sessionId = c.var.sessionId;
+		stream(async (c) => {
+			return new ReadableStream<Uint8Array>({
+				async start(controller) {
+					const abortSignal = c.req.raw.signal;
+					let heartbeat: ReturnType<typeof setInterval> | undefined;
 
-			c.var.logger?.info('Model Arena SSE starting', {
-				prompt: FIXED_PROMPT,
-				tone: FIXED_TONE,
-				sessionId,
+					const stopHeartbeat = () => {
+						if (heartbeat) {
+							clearInterval(heartbeat);
+							heartbeat = undefined;
+						}
+					};
+
+					const write = (event: string, data: unknown) => {
+						if (abortSignal.aborted) return;
+						controller.enqueue(toLine(event, data));
+					};
+
+					abortSignal.addEventListener('abort', stopHeartbeat, { once: true });
+
+					heartbeat = setInterval(() => {
+						try {
+							// Keep Bun's request idle timeout from closing slower runs.
+							write('heartbeat', Date.now());
+						} catch {
+							stopHeartbeat();
+						}
+					}, HEARTBEAT_MS);
+
+					try {
+						write('start', {
+							prompt: FIXED_PROMPT,
+							tone: FIXED_TONE,
+							providers: MODELS.map((model) => ({
+								provider: model.provider,
+								displayName: PROVIDER_DISPLAY_NAMES[model.provider],
+								model: model.model,
+							})),
+						});
+
+						const settled = await Promise.all(
+							MODELS.map(async (config) => {
+								try {
+									const result = await generateStory(
+										config,
+										FIXED_PROMPT,
+										FIXED_TONE,
+										abortSignal
+									);
+									write('story', {
+										...result,
+										displayName: PROVIDER_DISPLAY_NAMES[result.provider],
+									});
+									return result;
+								} catch (error) {
+									const message = error instanceof Error ? error.message : 'Unknown error';
+									write('provider-error', {
+										provider: config.provider,
+										displayName: PROVIDER_DISPLAY_NAMES[config.provider],
+										error: message,
+									});
+									return null;
+								}
+							})
+						);
+
+						const results = settled.filter(
+							(result): result is ModelResult => result !== null
+						);
+						if (results.length !== MODELS.length) {
+							write('error', {
+								error: 'One or more models failed before judging could complete.',
+							});
+							return;
+						}
+
+						write('judging', { count: results.length });
+
+						const judgment = await judgeStories(
+							results,
+							FIXED_TONE,
+							FIXED_PROMPT,
+							abortSignal
+						);
+						write('complete', {
+							judgment: {
+								...judgment,
+								winnerDisplayName: PROVIDER_DISPLAY_NAMES[judgment.winner],
+							},
+						});
+					} catch (error) {
+						if (
+							abortSignal.aborted ||
+							(error instanceof Error && error.name === 'AbortError')
+						) {
+							return;
+						}
+
+						const message = error instanceof Error ? error.message : 'Unknown error';
+						c.var.logger?.error('Model Arena stream failed', { error: message });
+						write('error', { error: `Model Arena failed: ${message}` });
+					} finally {
+						abortSignal.removeEventListener('abort', stopHeartbeat);
+						stopHeartbeat();
+						try {
+							controller.close();
+						} catch {
+							// Client already disconnected.
+						}
+					}
+				},
 			});
-
-			// Send start event
-			await stream.writeSSE({
-				event: 'start',
-				data: JSON.stringify({
-					prompt: FIXED_PROMPT,
-					tone: FIXED_TONE,
-					providers: MODELS.map((m) => ({
-						provider: m.provider,
-						displayName: PROVIDER_DISPLAY_NAMES[m.provider],
-						model: m.model,
-					})),
-				}),
-				id: 'start',
-			});
-
-			const results: ModelResult[] = [];
-
-			// Run all models in parallel, stream each story as it completes
-			const promises = MODELS.map(async (config) => {
-				try {
-					const result = await generateStory(config, FIXED_PROMPT, FIXED_TONE);
-					results.push(result);
-
-					await stream.writeSSE({
-						event: 'story',
-						data: JSON.stringify({
-							provider: result.provider,
-							displayName: PROVIDER_DISPLAY_NAMES[result.provider],
-							model: result.model,
-							story: result.story,
-							generationMs: result.generationMs,
-							tokens: result.tokens,
-						}),
-						id: `story-${result.provider}`,
-					});
-
-					c.var.logger?.info('Story completed', {
-						provider: result.provider,
-						generationMs: result.generationMs,
-					});
-				} catch (error) {
-					const message = error instanceof Error ? error.message : 'Unknown error';
-					c.var.logger?.error('Story generation failed', {
-						provider: config.provider,
-						error: message,
-					});
-
-					await stream.writeSSE({
-						event: 'error',
-						data: JSON.stringify({
-							provider: config.provider,
-							displayName: PROVIDER_DISPLAY_NAMES[config.provider],
-							error: message,
-						}),
-						id: `error-${config.provider}`,
-					});
-				}
-			});
-
-			await Promise.all(promises);
-
-			// All stories done, start judging
-			await stream.writeSSE({
-				event: 'judging',
-				data: JSON.stringify({
-					message: 'All stories complete, judge evaluating...',
-				}),
-				id: 'judging',
-			});
-
-			try {
-				const { object: judgment } = await generateObject({
-					model: JUDGE_MODEL,
-					schema: JudgmentSchema,
-					prompt: getJudgePrompt(results, FIXED_TONE, FIXED_PROMPT),
-				});
-
-				c.var.logger?.info('Judge completed', { winner: judgment.winner });
-
-				await stream.writeSSE({
-					event: 'complete',
-					data: JSON.stringify({
-						id: sessionId,
-						judgment: {
-							...judgment,
-							winnerDisplayName: PROVIDER_DISPLAY_NAMES[judgment.winner],
-						},
-					}),
-					id: 'complete',
-				});
-			} catch (error) {
-				const message = error instanceof Error ? error.message : 'Unknown error';
-				c.var.logger?.error('Judge failed', { error: message });
-
-				await stream.writeSSE({
-					event: 'error',
-					data: JSON.stringify({ error: `Judge failed: ${message}` }),
-					id: 'judge-error',
-				});
-			}
 		})
 	);
 

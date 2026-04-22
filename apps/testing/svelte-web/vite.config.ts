@@ -5,6 +5,7 @@ import { join } from 'node:path';
 export default defineConfig({
 	plugins: [svelte()],
 	root: '.',
+	publicDir: 'src/web/public',
 	build: {
 		rollupOptions: {
 			input: join(__dirname, 'src/web/index.html'),

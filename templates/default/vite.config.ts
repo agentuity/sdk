@@ -6,6 +6,9 @@ import { join } from 'node:path';
 export default defineConfig({
 	plugins: [react(), tailwindcss()],
 	root: '.',
+	// Files in src/web/public/ are served at the URL root (/favicon.ico,
+	// /robots.txt, ...). See AGENTS.md “Static Assets” for the full convention.
+	publicDir: 'src/web/public',
 	build: {
 		rollupOptions: {
 			input: join(import.meta.dirname, 'src/web/index.html'),

@@ -98,7 +98,7 @@ With the tools defined, the exploration is a single `generateText` call. The mod
 
 ```typescript title="src/lib/explorer.ts"
 const result = await generateText({
-  model: openai('gpt-5-nano'),
+  model: openai('gpt-5.4-nano'),
   system: buildSystemPrompt(url),
   prompt: `Begin exploring ${url}. Take a screenshot first, then interact with features.`,
   tools,

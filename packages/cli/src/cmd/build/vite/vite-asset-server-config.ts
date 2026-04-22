@@ -309,13 +309,10 @@ export async function generateAssetServerConfig(
 		// Agentuity-specific plugins (Vite loads user plugins from vite.config.ts automatically)
 		plugins: await (async () => {
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
-			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
 
 			return [
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
-				// Warn about incorrect public asset paths in dev mode
-				publicAssetPathPlugin({ warnInDev: true }),
 				// Inject analytics scripts in dev HTML
 				devAnalyticsPlugin(),
 				// SPA fallback: serve src/web/index.html for navigation requests

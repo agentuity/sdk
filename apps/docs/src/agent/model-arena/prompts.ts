@@ -57,5 +57,8 @@ CHECKS (pass/fail boolean):
 WINNER SELECTION:
 Balance creativity and engagement scores against the checks. Failed checks are significant penalties - a story that fails a check needs notably higher scores to compensate.
 
-Provide scores/checks and brief reason for each provider, then declare an overall winner with reasoning.`;
+Return only JSON that matches the schema exactly.
+- Use provider ids "openai" and "anthropic"
+- Include one entry for each provider in every score/check array
+- Do not include markdown fences or extra commentary`;
 }

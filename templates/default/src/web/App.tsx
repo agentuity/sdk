@@ -6,7 +6,7 @@ import './App.css';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
+const MODELS = ['gpt-5.4-nano', 'gpt-5-mini', 'gpt-5'] as const;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.';
 
@@ -15,7 +15,7 @@ const client = hc<ApiRouter>('/api');
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
-	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5-nano');
+	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5.4-nano');
 
 	const [historyData, setHistoryData] = useState<{
 		history: any[];
@@ -120,7 +120,7 @@ export function App() {
 							}
 							value={model}
 						>
-							<option value="gpt-5-nano">GPT-5 Nano</option>
+							<option value="gpt-5.4-nano">GPT-5.4 Nano</option>
 							<option value="gpt-5-mini">GPT-5 Mini</option>
 							<option value="gpt-5">GPT-5</option>
 						</select>

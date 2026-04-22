@@ -273,7 +273,7 @@ export function CopyMigrationPrompt() {
 			<button
 				type="button"
 				onClick={handleCopy}
-				className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium border border-cyan-700 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800 transition dark:border-cyan-500 dark:text-cyan-500 dark:hover:bg-[rgba(0,255,255,0.08)] cursor-pointer"
+				className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium border border-cyan-800 text-cyan-800 hover:bg-cyan-50 hover:text-cyan-900 transition dark:border-cyan-500 dark:text-cyan-500 dark:hover:bg-[rgba(0,255,255,0.08)] cursor-pointer"
 			>
 				{copied ? 'Copied' : 'Copy Migration Prompt'}
 			</button>

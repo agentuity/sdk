@@ -449,6 +449,123 @@ Returns the created session.
 
 ---
 
+### Create Agent Builder Session
+
+Creates a dedicated Lead + agent-builder session for designing, editing, or publishing a custom agent.
+
+<ApiEndpoint method="POST" path="/hub/session/builder" />
+
+#### Parameters
+
+<ParamTable params={[
+  {
+    "name": "orgId",
+    "type": "string",
+    "in": "query",
+    "required": false,
+    "description": "Organization ID"
+  }
+]} />
+
+#### Request Body
+
+Agent-builder launch payload.
+
+<ResponseFields fields={[
+  {
+    "name": "label",
+    "type": "string",
+    "description": "Builder session label override",
+    "required": false
+  },
+  {
+    "name": "prompt",
+    "type": "string",
+    "description": "Optional user focus for the builder session kickoff",
+    "required": false
+  },
+  {
+    "name": "mode",
+    "type": "string",
+    "description": "Builder launch mode override",
+    "required": false
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Builder session visibility",
+    "required": false
+  },
+  {
+    "name": "sourceSessionId",
+    "type": "string",
+    "description": "Source session identifier for build-from-session launches",
+    "required": false
+  },
+  {
+    "name": "targetAgentId",
+    "type": "string",
+    "description": "Target custom-agent identifier for edit launches",
+    "required": false
+  },
+  {
+    "name": "targetAgentSlug",
+    "type": "string",
+    "description": "Target custom-agent slug for edit launches",
+    "required": false
+  }
+]} />
+
+#### Response
+
+Returns the created builder session.
+
+| Status | Description |
+|--------|-------------|
+| 201 | Builder session created |
+| 404 | Source session or target agent not found |
+
+#### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "sessionId",
+    "type": "string",
+    "description": "Created session identifier"
+  },
+  {
+    "name": "sandboxId",
+    "type": "string | null",
+    "description": "Associated sandbox identifier"
+  },
+  {
+    "name": "status",
+    "type": "string",
+    "description": "Initial session status"
+  },
+  {
+    "name": "mode",
+    "type": "string",
+    "description": "Session mode"
+  },
+  {
+    "name": "visibility",
+    "type": "string",
+    "description": "Session visibility"
+  }
+]} />
+
+#### Example
+
+<ApiExample method="POST" path="/hub/session/builder" body={{
+  "mode": "from_session",
+  "sourceSessionId": "codesess_123",
+  "label": "Build from release triage",
+  "prompt": "Turn the repeated release-triage workflow into a reusable QA agent"
+}} />
+
+---
+
 ### List Sessions
 
 Lists sessions with optional filters and pagination.
@@ -826,6 +943,111 @@ Returns a session list.
     "name": "sessions.websocket[].enabledAgents",
     "type": "string[]",
     "description": "Enabled agent roster attached to the session"
+  },
+  {
+    "name": "sessions.websocket[].builder",
+    "type": "object",
+    "description": "Projected builder-session summary when this session is an agent-builder flow"
+  },
+  {
+    "name": "sessions.websocket[].builder.mode",
+    "type": "string",
+    "description": "Builder session mode"
+  },
+  {
+    "name": "sessions.websocket[].builder.sourceSession",
+    "type": "object",
+    "description": "Linked source session when the builder was launched from an existing session"
+  },
+  {
+    "name": "sessions.websocket[].builder.sourceSession.sessionId",
+    "type": "string",
+    "description": "Source session identifier linked to the builder session"
+  },
+  {
+    "name": "sessions.websocket[].builder.sourceSession.label",
+    "type": "string",
+    "description": "Source session label when available"
+  },
+  {
+    "name": "sessions.websocket[].builder.targetAgent",
+    "type": "object",
+    "description": "Target agent baseline when the builder is editing an existing custom agent"
+  },
+  {
+    "name": "sessions.websocket[].builder.targetAgent.agentId",
+    "type": "string",
+    "description": "Target custom-agent identifier when editing"
+  },
+  {
+    "name": "sessions.websocket[].builder.targetAgent.slug",
+    "type": "string",
+    "description": "Target custom-agent slug"
+  },
+  {
+    "name": "sessions.websocket[].builder.targetAgent.displayName",
+    "type": "string",
+    "description": "Target custom-agent display name"
+  },
+  {
+    "name": "sessions.websocket[].builder.durable",
+    "type": "object",
+    "description": "Linked durable draft/publish state"
+  },
+  {
+    "name": "sessions.websocket[].builder.durable.draftAgentId",
+    "type": "string",
+    "description": "Linked draft custom-agent identifier"
+  },
+  {
+    "name": "sessions.websocket[].builder.durable.draftAgentSlug",
+    "type": "string",
+    "description": "Linked draft custom-agent slug"
+  },
+  {
+    "name": "sessions.websocket[].builder.durable.lastPublishedVersion",
+    "type": "number",
+    "description": "Latest published version created through the builder flow"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction",
+    "type": "object",
+    "description": "Most recent durable builder action"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.kind",
+    "type": "string",
+    "description": "Last durable builder action"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.status",
+    "type": "string",
+    "description": "Result of the last durable builder action"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.occurredAt",
+    "type": "string",
+    "description": "Timestamp of the last durable builder action"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.message",
+    "type": "string",
+    "description": "Human-readable builder action result summary"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.agentId",
+    "type": "string",
+    "description": "Affected custom-agent identifier"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.agentSlug",
+    "type": "string",
+    "description": "Affected custom-agent slug"
+  },
+  {
+    "name": "sessions.websocket[].builder.lastAction.publishedVersion",
+    "type": "number",
+    "description": "Published version number when publish succeeded"
   },
   {
     "name": "sessions.websocket[].defaultAgent",
@@ -1231,6 +1453,191 @@ Returns the full session object.
     "name": "enabledAgents",
     "type": "string[]",
     "description": "Enabled agent roster attached to the session"
+  },
+  {
+    "name": "builder",
+    "type": "object",
+    "description": "Full builder-session state when this session is an agent-builder flow"
+  },
+  {
+    "name": "builder.mode",
+    "type": "string",
+    "description": "Builder session mode"
+  },
+  {
+    "name": "builder.sourceSession",
+    "type": "object",
+    "description": "Linked source session when the builder was launched from an existing session"
+  },
+  {
+    "name": "builder.sourceSession.sessionId",
+    "type": "string",
+    "description": "Source session identifier linked to the builder session"
+  },
+  {
+    "name": "builder.sourceSession.label",
+    "type": "string",
+    "description": "Source session label when available"
+  },
+  {
+    "name": "builder.targetAgent",
+    "type": "object",
+    "description": "Target agent baseline when the builder is editing an existing custom agent"
+  },
+  {
+    "name": "builder.targetAgent.agentId",
+    "type": "string",
+    "description": "Target custom-agent identifier when editing"
+  },
+  {
+    "name": "builder.targetAgent.slug",
+    "type": "string",
+    "description": "Target custom-agent slug"
+  },
+  {
+    "name": "builder.targetAgent.displayName",
+    "type": "string",
+    "description": "Target custom-agent display name"
+  },
+  {
+    "name": "builder.durable",
+    "type": "object",
+    "description": "Linked durable draft/publish state"
+  },
+  {
+    "name": "builder.durable.draftAgentId",
+    "type": "string",
+    "description": "Linked draft custom-agent identifier"
+  },
+  {
+    "name": "builder.durable.draftAgentSlug",
+    "type": "string",
+    "description": "Linked draft custom-agent slug"
+  },
+  {
+    "name": "builder.durable.lastPublishedVersion",
+    "type": "number",
+    "description": "Latest published version created through the builder flow"
+  },
+  {
+    "name": "builder.lastAction",
+    "type": "object",
+    "description": "Most recent durable builder action"
+  },
+  {
+    "name": "builder.lastAction.kind",
+    "type": "string",
+    "description": "Last durable builder action"
+  },
+  {
+    "name": "builder.lastAction.status",
+    "type": "string",
+    "description": "Result of the last durable builder action"
+  },
+  {
+    "name": "builder.lastAction.occurredAt",
+    "type": "string",
+    "description": "Timestamp of the last durable builder action"
+  },
+  {
+    "name": "builder.lastAction.message",
+    "type": "string",
+    "description": "Human-readable builder action result summary"
+  },
+  {
+    "name": "builder.lastAction.agentId",
+    "type": "string",
+    "description": "Affected custom-agent identifier"
+  },
+  {
+    "name": "builder.lastAction.agentSlug",
+    "type": "string",
+    "description": "Affected custom-agent slug"
+  },
+  {
+    "name": "builder.lastAction.publishedVersion",
+    "type": "number",
+    "description": "Published version number when publish succeeded"
+  },
+  {
+    "name": "builder.proposal",
+    "type": "object",
+    "description": "Full builder proposal state projected in session detail responses"
+  },
+  {
+    "name": "builder.proposal.slug",
+    "type": "string",
+    "description": "Proposed custom-agent slug"
+  },
+  {
+    "name": "builder.proposal.displayName",
+    "type": "string",
+    "description": "Proposed custom-agent name"
+  },
+  {
+    "name": "builder.proposal.description",
+    "type": "string",
+    "description": "Proposed custom-agent description"
+  },
+  {
+    "name": "builder.proposal.instructions",
+    "type": "string",
+    "description": "Proposed custom-agent system prompt"
+  },
+  {
+    "name": "builder.proposal.model",
+    "type": "string",
+    "description": "Proposed model override"
+  },
+  {
+    "name": "builder.proposal.thinkingLevel",
+    "type": "string",
+    "description": "Proposed thinking level override"
+  },
+  {
+    "name": "builder.proposal.headlessCompatible",
+    "type": "boolean",
+    "description": "Whether the proposed agent is safe for non-interactive callers"
+  },
+  {
+    "name": "builder.proposal.tools",
+    "type": "string[]",
+    "description": "Proposed workspace tools for the agent"
+  },
+  {
+    "name": "builder.proposal.serviceTools",
+    "type": "string[]",
+    "description": "Proposed service tools for the agent"
+  },
+  {
+    "name": "builder.proposal.savedSkills",
+    "type": "object[]",
+    "description": "Proposed frozen skill refs to attach"
+  },
+  {
+    "name": "builder.proposal.savedSkills[].skillId",
+    "type": "string",
+    "description": "Unique skill identifier"
+  },
+  {
+    "name": "builder.proposal.savedSkills[].repo",
+    "type": "string",
+    "description": "Repository slug for the skill source"
+  },
+  {
+    "name": "builder.proposal.savedSkills[].name",
+    "type": "string",
+    "description": "Human-readable skill name"
+  },
+  {
+    "name": "builder.proposal.savedSkills[].url",
+    "type": "string",
+    "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "builder.proposal.companionAgents",
+    "type": "string[]",
+    "description": "Proposed companion agents to auto-include"
   },
   {
     "name": "defaultAgent",

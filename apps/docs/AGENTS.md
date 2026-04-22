@@ -42,7 +42,6 @@ apps/docs/
 │   │   ├── vector/         # Semantic search agent
 │   │   ├── objectstore/    # S3/object storage agent
 │   │   ├── model-arena/    # Multi-model comparison with LLM-as-judge
-│   │   ├── evals/          # Agent with quality evaluations
 │   │   └── ...             # (see src/agent/AGENTS.md)
 │   ├── api/                # HTTP routes
 │   │   ├── hello/          # Basic greeting endpoint

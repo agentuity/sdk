@@ -42,7 +42,7 @@ export function CardLink({
 	align = 'natural',
 }: CardLinkProps) {
 	const titleClassName = cn(
-		'text-base group-hover:text-cyan-500 transition-colors',
+		'text-base group-hover:text-cyan-800 dark:group-hover:text-cyan-500 transition-colors',
 		align === 'locked' && 'line-clamp-2 leading-6 min-h-12'
 	);
 	const descriptionClassName = 'text-sm mt-1 [&_p]:m-0 [&_p]:text-inherit [&_p]:leading-6';
@@ -62,13 +62,13 @@ export function CardLink({
 						</CardAction>
 					)}
 					{icon && (
-						<div className="mb-2 text-cyan-600 dark:text-cyan-400 [&>svg]:size-5 [&>img]:size-7 [&>picture>img]:size-7">
+						<div className="mb-2 text-cyan-800 dark:text-cyan-400 [&>svg]:size-5 [&>img]:size-7 [&>picture>img]:size-7">
 							{icon}
 						</div>
 					)}
 					<CardTitle className={titleClassName}>{title}</CardTitle>
 					{subtitle && (
-						<p className="text-cyan-600 dark:text-cyan-400 text-xs mt-0.5">{subtitle}</p>
+						<p className="text-cyan-800 dark:text-cyan-400 text-xs mt-0.5">{subtitle}</p>
 					)}
 					{description && (
 						<CardDescription className={descriptionClassName}>{description}</CardDescription>
@@ -92,7 +92,7 @@ export function ExternalCard({
 	align = 'natural',
 }: ExternalCardProps) {
 	const titleClassName = cn(
-		'text-base group-hover:text-cyan-500 transition-colors',
+		'text-base group-hover:text-cyan-800 dark:group-hover:text-cyan-500 transition-colors',
 		align === 'locked' && 'line-clamp-2 leading-6 min-h-12'
 	);
 	const descriptionClassName = 'text-sm mt-1 [&_p]:m-0 [&_p]:text-inherit [&_p]:leading-6';
@@ -108,10 +108,10 @@ export function ExternalCard({
 			>
 				<CardHeader>
 					<CardAction>
-						<ExternalLink className="size-4 text-zinc-400 group-hover:text-cyan-500 transition-colors" />
+						<ExternalLink className="size-4 text-zinc-400 group-hover:text-cyan-800 dark:group-hover:text-cyan-500 transition-colors" />
 					</CardAction>
 					{icon && (
-						<div className="mb-2 text-cyan-600 dark:text-cyan-400 [&>svg]:size-5 [&>img]:size-7 [&>picture>img]:size-7">
+						<div className="mb-2 text-cyan-800 dark:text-cyan-400 [&>svg]:size-5 [&>img]:size-7 [&>picture>img]:size-7">
 							{icon}
 						</div>
 					)}

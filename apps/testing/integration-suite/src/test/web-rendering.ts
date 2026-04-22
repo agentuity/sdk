@@ -170,9 +170,10 @@ test('web-rendering', 'vite-hmr-available', async () => {
 
 // Test: Static public assets work
 test('web-rendering', 'public-assets-load', async () => {
-	// Note: This test will fail if no public assets exist
-	// We're just verifying the proxy route works
-	const res = await fetch('http://127.0.0.1:3500/public/favicon.ico', {
+	// Vite serves src/web/public/* at the URL root (no '/public/' prefix).
+	// We verify the asset is accessible and is NOT served as HTML (which would
+	// mean the SPA fallback swallowed the request, the original bug).
+	const res = await fetch('http://127.0.0.1:3500/favicon.ico', {
 		redirect: 'manual', // Don't follow redirects
 	});
 

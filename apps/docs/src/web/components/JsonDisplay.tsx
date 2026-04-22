@@ -24,7 +24,7 @@ export function JsonDisplay({
 		colorClass = 'text-red-500 dark:text-red-400';
 	} else if (data !== null && data !== undefined) {
 		content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-		colorClass = 'text-cyan-600 dark:text-cyan-400';
+		colorClass = 'text-cyan-800 dark:text-cyan-400';
 	} else {
 		content = placeholder;
 		colorClass = 'text-zinc-500 dark:text-zinc-400';

@@ -14,7 +14,7 @@
  * The route (router.websocket) handles the connection lifecycle (onOpen, onClose).
  * This agent processes individual messages - it's a simple echo that adds timestamps.
  *
- * Docs: https://agentuity.dev/Routes/websockets
+ * Docs: https://agentuity.dev/routes/websockets
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
