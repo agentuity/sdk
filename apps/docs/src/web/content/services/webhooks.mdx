@@ -39,10 +39,11 @@ Webhooks are organization-level resources, not tied to a specific project. A sin
 All webhook functions take an `APIClient` as their first parameter.
 
 ```typescript
-import { APIClient, createLogger, getAPIBaseURL } from '@agentuity/server';
+import { APIClient, createLogger, getServiceUrls } from '@agentuity/server';
 
 const logger = createLogger();
-const client = new APIClient(getAPIBaseURL(), logger);
+const region = process.env.AGENTUITY_REGION ?? 'usc';
+const client = new APIClient(getServiceUrls(region).catalyst, logger);
 ```
 
 The examples below use `@agentuity/server` function exports because they expose the full management surface, including destination updates. For client-style usage, instantiate `WebhookClient` from `@agentuity/webhook`; it wraps the same service for common operations.
@@ -52,10 +53,11 @@ The examples below use `@agentuity/server` function exports because they expose 
 Create a webhook to get a unique ingest URL. Point external services at this URL to start receiving their callbacks.
 
 ```typescript
-import { APIClient, createLogger, createWebhook, getAPIBaseURL } from '@agentuity/server';
+import { APIClient, createLogger, createWebhook, getServiceUrls } from '@agentuity/server';
 
 const logger = createLogger();
-const client = new APIClient(getAPIBaseURL(), logger);
+const region = process.env.AGENTUITY_REGION ?? 'usc';
+const client = new APIClient(getServiceUrls(region).catalyst, logger);
 
 const webhook = await createWebhook(client, { // [!code highlight]
   name: 'stripe-events',

@@ -1,14 +1,14 @@
 ---
 title: Logging and Telemetry
 short_title: Observability
-description: Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer
+description: Collected logs and OpenTelemetry tracing via ctx.logger and ctx.tracer
 ---
 
-Structured logging via `ctx.logger` and distributed tracing via `ctx.tracer` (OpenTelemetry), available in agents, routes, and standalone scripts.
+Collected logs via `ctx.logger` and distributed tracing via `ctx.tracer` (OpenTelemetry), available in agents, routes, and standalone scripts.
 
 ## Logging
 
-Use `ctx.logger` to emit structured log lines that the platform captures and displays in the Console.
+Use `ctx.logger` to emit log lines that the platform captures and displays in the Console. Use child loggers when you want fields attached as log attributes.
 
 ### Logger Interface
 
@@ -28,7 +28,7 @@ interface Logger {
 
 ### Logging Methods
 
-All standard methods share the same signature: `(message: unknown, ...args: unknown[]): void`. Pass structured data as the second argument for queryable log fields.
+All standard methods share the same signature: `(message: unknown, ...args: unknown[]): void`. Additional arguments are formatted into the log body. Use `logger.child(fields)` for queryable log attributes.
 
 | Method | Level | Usage |
 |--------|-------|-------|
@@ -39,11 +39,11 @@ All standard methods share the same signature: `(message: unknown, ...args: unkn
 | `error(message, ...args)` | Error | Failures that need attention but don't crash |
 
 ```typescript
-ctx.logger.trace('Detailed diagnostic info', { data: complexObject });
-ctx.logger.debug('Processing request', { requestId: '123' });
-ctx.logger.info('Request processed successfully', { requestId: '123' });
-ctx.logger.warn('Resource not found', { resourceId: '456' });
-ctx.logger.error('Failed to process request', { error });
+ctx.logger.child({ data: complexObject }).trace('Detailed diagnostic info');
+ctx.logger.child({ requestId: '123' }).debug('Processing request');
+ctx.logger.child({ requestId: '123' }).info('Request processed successfully');
+ctx.logger.child({ resourceId: '456' }).warn('Resource not found');
+ctx.logger.child({ error }).error('Failed to process request');
 ```
 
 #### fatal
@@ -53,7 +53,7 @@ ctx.logger.error('Failed to process request', { error });
 Logs a fatal error message and terminates the current execution. The return type is `never` because the process exits after logging.
 
 ```typescript
-ctx.logger.fatal('Critical system failure', { error, context });
+ctx.logger.child({ error, context }).fatal('Critical system failure');
 // Code after this line will never execute
 ```
 
@@ -126,7 +126,7 @@ Logs are also visible in the Agentuity App session timeline.
 
 ### Route Logging
 
-In route handlers, the logger is available on `c.var.logger` instead of `ctx.logger`. The API is identical: same methods, same structured data support.
+In route handlers, the logger is available on `c.var.logger` instead of `ctx.logger`. The API is identical.
 
 ```typescript title="src/api/users/route.ts"
 import { Hono } from 'hono';
@@ -136,11 +136,12 @@ const router = new Hono<Env>();
 
 router.get('/:id', async (c) => {
   const userId = c.req.param('id');
-  c.var.logger.info('Fetching user', { userId });
+  const logger = c.var.logger.child({ userId });
+  logger.info('Fetching user');
 
   const user = await fetchUser(userId);
   if (!user) {
-    c.var.logger.warn('User not found', { userId });
+    logger.warn('User not found');
     return c.json({ error: 'Not found' }, 404);
   }
 

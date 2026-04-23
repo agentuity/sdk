@@ -460,7 +460,7 @@ export const navData: NavSection[] = [
 						title: 'Understanding Agents',
 						url: '/cookbook/tutorials/understanding-agents',
 						description:
-							'Learn how AI agents use tools, run in loops with stopping conditions, and leverage LLMs to complete tasks autonomously',
+							'Learn how AI agents use tools, run in loops with stopping conditions, and use LLMs to complete tasks autonomously',
 					},
 					{
 						title: 'RAG Agent',

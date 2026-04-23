@@ -170,7 +170,7 @@ export default await createApp({
 ```
 
 <Callout type="warning" title="Add Your Frontend Plugin">
-v2 doesn't include a default Vite plugin. You must add the plugin for your frontend framework:
+The CLI creates a React fallback config only when `vite.config.ts` is missing. Existing config files are passed to Vite directly, so include the plugin for your frontend framework:
 - **React**: `@vitejs/plugin-react`
 - **Vue**: `@vitejs/plugin-vue`
 - **Svelte**: `@sveltejs/vite-plugin-svelte`

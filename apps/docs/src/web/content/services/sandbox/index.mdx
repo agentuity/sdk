@@ -63,7 +63,6 @@ Use these for general code execution:
 | `node:lts` | Node.js LTS version |
 | `python:3.13` | Python 3.13 with uv package manager |
 | `python:3.14` | Python 3.14 with uv package manager |
-| `golang:latest` | Golang latest |
 
 ### Agent Runtimes
 
@@ -73,21 +72,7 @@ Pre-configured AI coding assistants:
 |---------|-------------|
 | `claude-code:latest` | Claude Code AI assistant |
 | `amp:latest` | Amp AI coding assistant |
-| `codex:latest` | OpenAI Codex CLI agent |
-| `copilot:latest` | GitHub Copilot CLI agent |
-| `cursor:latest` | Cursor AI coding agent |
-| `gemini:latest` | Google Gemini CLI agent |
 | `opencode:latest` | OpenCode AI coding assistant |
-| `agentuity:latest` | Agentuity CLI for building and running AI agents |
-
-### Testing Runtimes
-
-Pre-configured testing runtimes:
-
-| Runtime | Description |
-|---------|-------------|
-| `agent-browser:latest` | Headless browser automation CLI for AI agents |
-| `playwright:v1` | Playwright browser automation runtime (Chrome, Firefox, WebKit) |
 
 <Callout type="tip" title="List Available Runtimes">
 Run `agentuity cloud sandbox runtime list` to see all available runtimes, or view them in the [Web App](https://app.agentuity.com) under **Services > Sandbox > Runtimes**.
@@ -302,20 +287,19 @@ Each event includes:
 
 From the CLI, use `agentuity cloud sandbox events <sandbox-id>` to list events. See [CLI Commands](/reference/cli/sandbox) for options.
 
-## Auto-Resume on Execute
+## Resume Paused Sandboxes
 
-When you call `sandbox.execute()` on a suspended sandbox, the sandbox automatically resumes before running the command. The response includes `autoResumed: true` so you can detect and log this behavior.
+Call `sandbox.resume()` when a sandbox was paused and you need it ready before issuing commands.
 
 ```typescript
+await sandbox.resume();
 const execution = await sandbox.execute({ command: ['bun', 'run', 'test'] });
 
-if (execution.autoResumed) {
-  ctx.logger.info('Sandbox was resumed automatically before execution');
-}
+ctx.logger.child({ executionId: execution.executionId }).info('Sandbox command completed');
 ```
 
-<Callout type="info" title="Auto-resume vs explicit resume">
-Auto-resume is transparent: the command runs normally after the sandbox wakes up. Use explicit `sandbox.resume()` (or `agentuity cloud sandbox resume`) if you need the sandbox ready before issuing multiple commands.
+<Callout type="info" title="Resume before batches">
+Use explicit `sandbox.resume()` (or `agentuity cloud sandbox resume`) when you need the sandbox ready before issuing multiple commands.
 </Callout>
 
 ## When to Use Sandbox

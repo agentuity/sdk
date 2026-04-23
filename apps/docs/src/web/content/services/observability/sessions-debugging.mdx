@@ -41,10 +41,10 @@ import { createAgent } from '@agentuity/runtime';
 const agent = createAgent('SessionExample', {
   handler: async (ctx, input) => {
     // In agents
-    ctx.logger.info('Processing request', { sessionId: ctx.sessionId });
+    ctx.logger.child({ sessionId: ctx.sessionId }).info('Processing request');
 
     // Thread ID for conversation tracking
-    ctx.logger.info('Thread context', { threadId: ctx.thread.id });
+    ctx.logger.child({ threadId: ctx.thread.id }).info('Thread context');
 
     return { sessionId: ctx.sessionId };
   },
@@ -64,7 +64,7 @@ router.post('/', myAgent.validator(), async (c) => {
   const input = c.req.valid('json');
 
   // In routes
-  c.var.logger.info('Route called', { sessionId: c.var.sessionId });
+  c.var.logger.child({ sessionId: c.var.sessionId }).info('Route called');
 
   const result = await myAgent.run(input);
 
@@ -152,7 +152,7 @@ const agent = createAgent('TimingExample', {
 
     const startTime = ctx.session.state.get('startTime');
     const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
-    ctx.logger.info('Request completed', { durationMs: duration });
+    ctx.logger.child({ durationMs: duration }).info('Request completed');
 
     return result;
   },
@@ -181,12 +181,12 @@ const agent = createAgent('UserContext', {
 
     await ctx.thread.setMetadata(threadMetadata);
 
-    ctx.logger.info('Request context', {
+    ctx.logger.child({
       threadId: ctx.thread.id,
       sessionId: ctx.sessionId,
       userId: threadMetadata.userId,
       requestType: input.requestType,
-    });
+    }).info('Request context');
 
     return { success: true };
   },
@@ -211,11 +211,11 @@ Use metadata for values you might filter or query on later, like user IDs, reque
 ## Best Practices
 
 - **Include session ID in logs and error responses**: Makes it easy to trace issues back to specific requests
-- **Use structured logging**: Add context to logs for easier filtering
+- **Use logging context**: Add searchable fields to logs for easier filtering
 - **Create child loggers**: Add session context to component-specific loggers
 
 ## Next Steps
 
-- [Logging](/services/observability/logging): Structured logging patterns
+- [Logging](/services/observability/logging): Add searchable context to logs
 - [Tracing](/services/observability/tracing): OpenTelemetry spans for performance
 - [State Management](/agents/state-management): Session, thread, and request state

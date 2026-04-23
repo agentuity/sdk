@@ -19,8 +19,8 @@ Use the [`@agentuity/db`](/reference/standalone-packages#database) standalone pa
 | [Object (S3)](/services/storage/object) | Files, images, documents, media |
 | [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
 
-<Callout type="info" title="Credentials Auto-Injected">
-When you create a database with `agentuity cloud db create` from a project, the `DATABASE_URL` is added to your `.env` file. During deployment, credentials are injected automatically.
+<Callout type="info" title="DATABASE_URL Setup">
+When you create a database with `agentuity cloud db create` from a project, the `DATABASE_URL` is added to your local `.env` file. Deployed apps receive `DATABASE_URL` when the deployment is associated with that database resource; otherwise, set it as an environment variable before deploy.
 </Callout>
 
 ## Creating a Database

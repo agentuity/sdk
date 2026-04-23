@@ -54,7 +54,7 @@ export default createAgent('chat', {
 });
 ```
 
-Mastra handles the LLM interaction and tool orchestration. Agentuity provides per-conversation state via `ctx.thread.state` (with a sliding window to cap history size), structured logging, and deployment.
+Mastra handles the LLM interaction and tool orchestration. Agentuity provides per-conversation state via `ctx.thread.state` (with a sliding window to cap history size), logs with searchable context, and deployment.
 
 <Callout type="info" title="AI Gateway routing is automatic">
 When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/agents/ai-gateway) unless you provide your own OpenAI key. No bridge file is needed.

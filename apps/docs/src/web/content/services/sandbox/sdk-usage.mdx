@@ -457,12 +457,10 @@ Returned by `sandbox.execute()`:
 |-------|------|-------------|
 | `executionId` | `string` | Unique execution ID for debugging |
 | `status` | `string` | `'queued'`, `'running'`, `'completed'`, `'failed'`, `'timeout'`, `'cancelled'` |
-| `exitCode` | `number` | Process exit code, when available |
-| `durationMs` | `number` | Execution duration in milliseconds, when available |
-| `stdoutStreamUrl` | `string` | URL to fetch stdout stream |
-| `stderrStreamUrl` | `string` | URL to fetch stderr stream |
-| `outputTruncated` | `boolean` | Whether captured output was truncated |
-| `autoResumed` | `boolean` | Whether the sandbox resumed automatically before execution |
+| `exitCode` | `number \| undefined` | Process exit code, when available |
+| `durationMs` | `number \| undefined` | Execution duration in milliseconds, when available |
+| `stdoutStreamUrl` | `string \| undefined` | URL to fetch stdout stream |
+| `stderrStreamUrl` | `string \| undefined` | URL to fetch stderr stream |
 
 ### SandboxRunResult
 

@@ -177,8 +177,7 @@ router.post('/custom',
 <Callout type="info" title="Validator Overloads">
 `agent.validator()` supports three signatures:
 - `agent.validator()` — Uses agent's input/output schemas
-- `agent.validator({ output: schema })` — Uses the agent input schema when present, with custom
-  output validation
+- `agent.validator({ output: schema })` — Output-only validation with no input validation
 - `agent.validator({ input: schema, output?: schema })` — Custom schemas
 </Callout>
 
@@ -364,13 +363,13 @@ router.post('/api', validator({ input: schema }), async (c) => {
 });
 ```
 
-### Use structured logging
+### Add logging context
 
 Use `c.var.logger` instead of `console.log` for searchable, traceable logs:
 
 ```typescript
-c.var.logger.info('Request processed', { userId, duration: Date.now() - start });
-c.var.logger.error('Processing failed', { error: err.message });
+c.var.logger.child({ userId, duration: Date.now() - start }).info('Request processed');
+c.var.logger.child({ error: err.message }).error('Processing failed');
 ```
 
 ### Order routes correctly

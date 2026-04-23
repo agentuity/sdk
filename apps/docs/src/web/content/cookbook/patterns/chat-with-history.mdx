@@ -131,7 +131,12 @@ export function App() {
       const chunk = decoder.decode(value);
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1].content += chunk;
+        const lastMessage = updated.at(-1);
+
+        if (lastMessage) {
+          lastMessage.content += chunk;
+        }
+
         return updated;
       });
     }

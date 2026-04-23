@@ -130,7 +130,7 @@ Pass `skipDefaultPlugins: true` to `createAuth()` and add only the plugins you n
 
 Agentuity Auth needs a PostgreSQL database to store users, sessions, and keys.
 
-**Connection string (simplest).** Provide a URL and Agentuity creates the Bun SQL connection and Drizzle adapter internally:
+**Connection string (simplest).** Provide a URL and Agentuity creates the Drizzle adapter with the default resilient Postgres pool:
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
@@ -144,8 +144,7 @@ const auth = createAuth({
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
-import { drizzleAdapter } from '@agentuity/drizzle';
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
 import * as authSchema from '@agentuity/auth/schema';
 import * as appSchema from './schema';
 
@@ -158,7 +157,10 @@ function requireEnv(name: string): string {
 }
 
 const schema = { ...authSchema, ...appSchema };
-const db = drizzle(requireEnv('DATABASE_URL'), { schema });
+const { db } = createPostgresDrizzle({
+  connectionString: requireEnv('DATABASE_URL'),
+  schema,
+});
 
 const auth = createAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),

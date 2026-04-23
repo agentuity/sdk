@@ -1,9 +1,9 @@
 ---
 title: Logging
-description: Structured logging for agents and routes
+description: Collected logs for agents and routes
 ---
 
-Use `ctx.logger` in agents and `c.var.logger` in routes for structured logging. In deployed apps, session logs are available through the CLI and the [Agentuity Console](https://app.agentuity.com).
+Use `ctx.logger` in agents and `c.var.logger` in routes for collected logs. Use child loggers for fields that should be attached as log attributes. In deployed apps, session logs are available through the CLI and the [Agentuity Console](https://app.agentuity.com).
 
 For the full `Logger` interface, all method signatures, and OpenTelemetry tracing, see [Observability Reference](/reference/sdk-reference/observability).
 
@@ -12,7 +12,7 @@ For the full `Logger` interface, all method signatures, and OpenTelemetry tracin
 `ctx.logger` has methods for each configured level: `trace`, `debug`, `info`, `warn`, and `error`. Use the method that matches severity:
 
 ```typescript
-ctx.logger.info('Request processed', { requestId: '123' });
+ctx.logger.child({ requestId: '123' }).info('Request processed');
 ctx.logger.error('Failed to fetch data', error);
 ```
 
@@ -22,36 +22,40 @@ For the complete `Logger` interface and all method signatures, see [Observabilit
 
 ## Context Fields
 
-Pass useful context with the message:
+Attach searchable fields with child loggers:
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
+
 const agent = createAgent('ProductSearch', {
   handler: async (ctx, input) => {
     const startTime = Date.now();
+    const searchLogger = ctx.logger.child({
+      query: input.query,
+      userId: input.userId,
+    });
 
     const results = await searchProducts(input.query);
 
-    ctx.logger.info('Search completed', {
-      query: input.query,
+    searchLogger.child({
       resultCount: results.length,
-      userId: input.userId,
       durationMs: Date.now() - startTime,
-    });
+    }).info('Search completed');
 
     return { results };
   },
 });
 ```
 
-Use `ctx.logger.child(fields)` when the same fields should be attached to every log line.
+Additional arguments passed to `info()`, `warn()`, or `error()` are formatted into the log message body. Use `ctx.logger.child(fields)` when fields should be emitted as log attributes.
 
 ## Child Loggers
 
-`ctx.logger.child(fields)` creates a scoped logger that includes the given fields on every log line it emits:
+`ctx.logger.child(fields)` creates a scoped logger that attaches the given fields to every log line it emits:
 
 ```typescript
 const dbLogger = ctx.logger.child({ component: 'database', requestId: ctx.sessionId });
-dbLogger.info('Query executed', { duration: 45, rows: 10 });
+dbLogger.child({ duration: 45, rows: 10 }).info('Query executed');
 // Every line includes component and requestId automatically
 ```
 
@@ -72,10 +76,10 @@ const router = new Hono<Env>();
 router.post('/webhooks/payments', async (c) => {
   const eventType = c.req.header('x-webhook-event');
 
-  c.var.logger.info('Webhook received', {
+  c.var.logger.child({
     provider: 'stripe',
     eventType,
-  });
+  }).info('Webhook received');
 
   const payload = await c.req.json();
 
@@ -85,11 +89,11 @@ router.post('/webhooks/payments', async (c) => {
     amount: payload.amount,
   });
 
-  c.var.logger.info('Webhook processed', {
+  c.var.logger.child({
     eventType,
     customerId: payload.customer,
     success: result.success,
-  });
+  }).info('Webhook processed');
 
   return c.json({ received: true });
 });
@@ -116,7 +120,7 @@ See [Session Logs](/reference/cli/debugging#session-logs) for the full CLI comma
 ## Best Practices
 
 - **Use `ctx.logger`**: Use `ctx.logger` or `c.var.logger` instead of `console.log` for proper log collection
-- **Add context**: Include IDs, counts, and timing in log messages or child logger fields
+- **Add context**: Use child logger fields for searchable IDs, counts, and timing
 - **Use appropriate levels**: `info` for normal flow, `warn` for recoverable issues, `error` for failures
 - **Create child loggers**: For complex operations, create component-specific loggers
 

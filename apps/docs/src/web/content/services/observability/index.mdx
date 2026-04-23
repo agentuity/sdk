@@ -5,13 +5,13 @@ description: Monitor and debug your agents with built-in observability tools
 
 import { FileText, GitBranch, Bug, BarChart3 } from 'lucide-react';
 
-Monitor and debug your agents with built-in observability tools. Use structured logs, traces, session timelines, and web analytics to see what your app did and where it failed.
+Monitor and debug your agents with built-in observability tools. Use collected logs, traces, session timelines, and web analytics to see what your app did and where it failed.
 
 <Cards>
   <CardLink
     href="/services/observability/logging"
     title="Logging"
-    description="Structured logging with context"
+    description="Collected logs with searchable context"
     icon={<FileText />}
   />
   <CardLink
@@ -39,8 +39,8 @@ Monitor and debug your agents with built-in observability tools. Use structured 
 ### Logging
 
 ```typescript
-ctx.logger.info('Processing request', { userId, action });
-ctx.logger.error('Failed to process', { error: errorMessage });
+ctx.logger.child({ userId, action }).info('Processing request');
+ctx.logger.child({ error: errorMessage }).error('Failed to process');
 ```
 
 ### Tracing
@@ -60,7 +60,7 @@ await ctx.tracer.startActiveSpan('fetch-data', async (span) => {
 
 ```typescript
 // Access session ID for debugging
-ctx.logger.info('Session started', { sessionId: ctx.sessionId });
+ctx.logger.child({ sessionId: ctx.sessionId }).info('Session started');
 ```
 
 ## Access Patterns

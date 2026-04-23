@@ -216,7 +216,7 @@ const agent = createAgent('NamespaceManager', {
 | `>= 60` | Custom TTL in seconds (minimum 60 seconds, maximum 365 days) |
 
 <Callout type="info" title="TTL Limits">
-Managed cloud KV clamps TTL values below 60 seconds to 60 seconds, and values above 365 days (31,536,000 seconds) to 365 days. A TTL of 0 means the key never expires.
+Managed cloud KV clamps per-key TTL values passed to `set()` that are less than 60 seconds to 60 seconds, and greater than 365 days to 365 days. Namespace defaults passed to `createNamespace()` must be `0` or between 60 seconds and 365 days. Out-of-range namespace defaults return a validation error. A TTL of `0` means the key, or namespace default, never expires.
 </Callout>
 
 <Callout type="info" title="Sliding Expiration">

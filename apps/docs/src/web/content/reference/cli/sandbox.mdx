@@ -111,7 +111,7 @@ agentuity cloud sandbox run --network -- python3 -c "import urllib.request; prin
 agentuity cloud sandbox run --snapshot node-typescript --memory 1Gi -- npm run build
 
 # With timeout
-agentuity cloud sandbox run --timeout 10s -- sleep 5 && echo "Done"
+agentuity cloud sandbox run --timeout 10s -- sh -c 'sleep 5 && echo "Done"'
 ```
 
 ## Interactive Sandbox
@@ -156,7 +156,7 @@ agentuity cloud sandbox create --memory 1Gi --cpu 1000m --network
 agentuity cloud sandbox create --snapshot python-ml
 
 # Create with port exposed to internet
-agentuity cloud sandbox create --port 3000 --network --name my-server
+agentuity cloud sandbox create --port 3000 --name my-server
 
 # Create associated with a project
 agentuity cloud sandbox create --project-id proj_abc123
@@ -257,12 +257,12 @@ Expose a port from a sandbox to the public internet. This allows you to run web 
 ### Create with Port
 
 ```bash
-agentuity cloud sandbox create --port 3000 --network --name my-server
+agentuity cloud sandbox create --port 3000 --name my-server
 ```
 
 Port constraints:
 - Must be between 1024 and 65535 (no privileged ports)
-- Requires `--network` flag to enable network connectivity
+- Passing `--port` enables sandbox networking for the exposed port
 - Each sandbox can expose one port
 
 ### Access the Public URL
@@ -270,7 +270,7 @@ Port constraints:
 When you create a sandbox with `--port`, the public URL is returned directly in the create response:
 
 ```bash
-agentuity cloud sandbox create --port 3000 --network --name my-server --json
+agentuity cloud sandbox create --port 3000 --name my-server --json
 # { "sandboxId": "sbx_abc123", "status": "creating", "url": "https://my-server-abc123.agentuity.cloud", ... }
 ```
 

@@ -436,7 +436,7 @@ Routes also have access to `c.var.vector` and `c.var.stream` for Vector and Stre
 
 ## Logging with createLogger
 
-Create structured loggers for scripts or external services:
+Create loggers for scripts or external services:
 
 ```typescript
 import { createLogger } from '@agentuity/server';
@@ -444,8 +444,8 @@ import { createLogger } from '@agentuity/server';
 // Create a logger with info level, no timestamps, dark color scheme
 const logger = createLogger('info', false, 'dark');
 
-logger.info('Processing request', { userId: '123' });
-logger.error('Failed to connect', { error: err.message });
+logger.child({ userId: '123' }).info('Processing request');
+logger.child({ error: err.message }).error('Failed to connect');
 
 // Child logger with persistent context
 const requestLogger = logger.child({ requestId: 'req_abc' });
