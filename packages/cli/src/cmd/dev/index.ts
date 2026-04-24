@@ -576,7 +576,7 @@ export const command = createCommand({
 			// Declared early so signal handlers can reference them before
 			// servers are started.
 			let viteServer: ServerLike | null = null;
-			let frontDoorServer: import('node:net').Server | null = null;
+			let frontDoorServer: import('../build/vite/ws-proxy').WsProxyServer | null = null;
 			let gravityProcess: ProcessLike | null = null;
 			let gravityHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 			let stdinListenerRegistered = false;
@@ -891,21 +891,20 @@ export const command = createCommand({
 					inspect: opts.inspect,
 					inspectWait: opts.inspectWait,
 					inspectBrk: opts.inspectBrk,
+					// Register the subprocess BEFORE the readiness wait so a SIGINT
+					// during startup can clean it up via procManager. Without this,
+					// the only safety net is the synchronous process.on('exit')
+					// handler, which is fragile and runs too late on some signals.
+					onSpawn: (proc) => {
+						procManager.registerProcess({
+							id: 'bun-backend',
+							process: proc,
+							description: 'Bun backend server (--hot)',
+							port: bunBackendPort,
+							critical: true,
+						});
+					},
 				});
-
-				// Register Bun subprocess with process manager
-				// The subprocess is stored in globalThis.__AGENTUITY_BUN_SUBPROCESS__
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const bunSubprocess = (globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ as ProcessLike;
-				if (bunSubprocess) {
-					procManager.registerProcess({
-						id: 'bun-backend',
-						process: bunSubprocess,
-						description: 'Bun backend server (--hot)',
-						port: bunBackendPort,
-						critical: true,
-					});
-				}
 			} catch (error) {
 				tui.error(`Failed to start Bun backend server: ${error}`);
 				await cleanup(true, 1, true);
@@ -939,12 +938,38 @@ export const command = createCommand({
 					);
 				}
 
-				// Register Vite server with process manager
+				// Register Vite server with process manager.
+				// We wrap close() to first force-drop keep-alive HTTP/HMR sockets via
+				// httpServer.closeAllConnections() (Node 18.2+). Without this, idle
+				// keep-alive connections keep the listener bound until they time out,
+				// which leaves the Vite port reserved for several seconds after the
+				// CLI exits. We also extend the close timeout (Vite's chokidar +
+				// HMR teardown can exceed 1s under load).
+				const viteForCleanup = viteServer;
 				procManager.registerServer({
 					id: 'vite',
-					server: viteServer,
+					server: {
+						close: async () => {
+							try {
+								const http = (
+									viteForCleanup as unknown as {
+										httpServer?: {
+											closeAllConnections?: () => void;
+											closeIdleConnections?: () => void;
+										};
+									}
+								).httpServer;
+								http?.closeIdleConnections?.();
+								http?.closeAllConnections?.();
+							} catch {
+								// Best effort — these methods are runtime-dependent.
+							}
+							await viteForCleanup.close();
+						},
+					},
 					description: 'Vite dev server (frontend assets)',
 					port: vitePort,
+					closeTimeoutMs: 3000,
 				});
 
 				// Update dev lock with actual Vite port
@@ -976,13 +1001,15 @@ export const command = createCommand({
 					logger,
 				});
 
-				// Register front-door proxy with process manager
+				// Register front-door proxy with process manager. Use closeAll()
+				// (returns a Promise) so cleanup actually waits for the listener
+				// to release the user-facing port instead of fire-and-forgetting.
+				// closeAll() also destroys live piped sockets (HMR WS, backend WS)
+				// so the listener doesn't sit waiting for clients to disconnect.
 				procManager.registerServer({
 					id: 'front-door-proxy',
 					server: {
-						close: () => {
-							frontDoorServer?.close();
-						},
+						close: () => frontDoorServer?.closeAll() ?? Promise.resolve(),
 					},
 					description: 'Front-door TCP proxy (WS routing)',
 					port: opts.port,
