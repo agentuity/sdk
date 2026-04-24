@@ -1,16 +1,20 @@
 import type { Logger } from '../../logger.ts';
 import type { Readable, Writable } from 'node:stream';
 import { PassThrough } from 'node:stream';
+import { finished } from 'node:stream/promises';
 import { z } from 'zod';
 import { APIClient, PaymentRequiredError } from '../api.ts';
 import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';
+import { executionGet } from './execution.ts';
 import { sandboxGetStatus } from './getStatus.ts';
 import { ExecutionCancelledError, writeAndDrain } from './util.ts';
 import { SandboxRunOptionsSchema, type SandboxRunResult } from './types.ts';
 import { getServiceUrls } from '../config.ts';
 
 const timingLogsEnabled = false;
+const EXECUTION_WAIT_DURATION = '5m';
+const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'timeout', 'cancelled']);
 
 /**
  * Creates a Writable stream that captures all chunks to a buffer array
@@ -176,52 +180,45 @@ export async function sandboxRun(
 			}
 		}
 
-		// Wait for streams to complete — Pulse closes streams on sandbox termination (EOF).
-		// This is our primary completion signal; no polling needed.
-		logger?.debug('waiting for streams to complete...');
+		// Wait for execution completion in parallel with stream consumption. The old
+		// flow waited for stream EOF first and only then started polling for the
+		// final exit code, which adds avoidable tail latency now that create returns
+		// an execution ID immediately for oneshot sandboxes.
+		let finalExecution:
+			| {
+					exitCode?: number;
+					status: string;
+			  }
+			| undefined;
+		if (createResponse.executionId) {
+			logger?.debug(
+				'waiting for execution %s and %d stream(s) in parallel',
+				createResponse.executionId,
+				streamPromises.length
+			);
+			const executionPromise = waitForExecutionCompletion(
+				client,
+				createResponse.executionId,
+				orgId,
+				signal,
+				logger,
+				started
+			);
 
-		if (streamPromises.length > 0) {
-			if (signal) {
-				// Race streams against abort signal, cleaning up the listener
-				// in all cases so an orphaned reject cannot fire after settlement.
-				let onAbort: (() => void) | undefined;
-				try {
-					await Promise.race([
-						Promise.allSettled(streamPromises),
-						new Promise<never>((_, reject) => {
-							onAbort = () => {
-								abortController.abort();
-								reject(
-									new ExecutionCancelledError({
-										message: 'Sandbox execution cancelled',
-										sandboxId,
-									})
-								);
-							};
-							if (signal.aborted) {
-								onAbort();
-							} else {
-								signal.addEventListener('abort', onAbort, { once: true });
-							}
-						}),
-					]);
-				} finally {
-					if (onAbort && signal) {
-						signal.removeEventListener('abort', onAbort);
-					}
-				}
-			} else {
-				await Promise.allSettled(streamPromises);
-			}
+			finalExecution = signal
+				? await raceWithAbort(executionPromise, signal, abortController, sandboxId)
+				: await executionPromise;
+			await waitForStreamsToDrain(streamPromises, signal, abortController, sandboxId);
 		} else {
-			// No streams available (shouldn't happen for oneshot, but handle defensively).
-			// Fall back to a single wait then check.
-			logger?.debug('no streams to wait on, checking sandbox status directly');
+			logger?.debug(
+				'missing executionId on create response, falling back to stream-first completion'
+			);
+			await waitForStreamsToDrain(streamPromises, signal, abortController, sandboxId);
 		}
 
 		if (timingLogsEnabled)
-			console.error(`[TIMING] +${Date.now() - started}ms: all streams done, fetching exit code`);
-		logger?.debug('streams completed, fetching final status');
+			console.error(`[TIMING] +${Date.now() - started}ms: completion wait finished`);
+		logger?.debug('completion wait finished, resolving final exit code');
 
 		// Stream EOF means the sandbox is done — hadron only closes streams after the
 		// container exits. Poll for the exit code with retries because the lifecycle
@@ -252,75 +249,75 @@ export async function sandboxRun(
 				);
 			});
 
-		let exitCode = 0;
+		let exitCode = finalExecution?.exitCode ?? 0;
 		const maxStatusRetries = 15;
 		const statusPollInterval = 1000;
 		const statusPollStart = Date.now();
-		for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
-			if (signal?.aborted) {
-				break;
-			}
-			try {
-				const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
-				if (sandboxStatus.exitCode != null) {
-					exitCode = sandboxStatus.exitCode;
-					logger?.debug(
-						'[run] exit code %d found on attempt %d/%d (+%dms)',
-						exitCode,
-						attempt + 1,
-						maxStatusRetries,
-						Date.now() - statusPollStart
-					);
-					break;
-				} else if (sandboxStatus.status === 'failed') {
-					exitCode = 1;
-					logger?.debug(
-						'[run] sandbox failed on attempt %d/%d (+%dms)',
-						attempt + 1,
-						maxStatusRetries,
-						Date.now() - statusPollStart
-					);
-					break;
-				} else if (sandboxStatus.status === 'terminated') {
-					// Sandbox was destroyed. If exit code is missing, the
-					// terminated event may have overwritten it. Stop polling —
-					// no further updates will come.
-					logger?.debug(
-						'[run] sandbox terminated without exit code on attempt %d/%d (+%dms)',
-						attempt + 1,
-						maxStatusRetries,
-						Date.now() - statusPollStart
-					);
+		if (finalExecution?.exitCode == null) {
+			for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
+				if (signal?.aborted) {
 					break;
 				}
-				// Exit code not yet propagated — wait before next poll.
-				if (attempt < maxStatusRetries - 1) {
-					await abortAwareSleep(statusPollInterval);
-				}
-			} catch (err) {
-				if (err instanceof DOMException && err.name === 'AbortError') {
-					break;
-				}
-				// Transient failure (sandbox briefly unavailable, network error).
-				// Retry instead of giving up — the lifecycle event may still arrive.
-				logger?.debug(
-					'[run] sandboxGetStatus attempt %d/%d failed (+%dms): %s',
-					attempt + 1,
-					maxStatusRetries,
-					Date.now() - statusPollStart,
-					err
-				);
-				if (attempt < maxStatusRetries - 1) {
-					await abortAwareSleep(statusPollInterval);
+				try {
+					const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
+					if (sandboxStatus.exitCode != null) {
+						exitCode = sandboxStatus.exitCode;
+						logger?.debug(
+							'[run] exit code %d found on attempt %d/%d (+%dms)',
+							exitCode,
+							attempt + 1,
+							maxStatusRetries,
+							Date.now() - statusPollStart
+						);
+						break;
+					} else if (sandboxStatus.status === 'failed') {
+						exitCode = 1;
+						logger?.debug(
+							'[run] sandbox failed on attempt %d/%d (+%dms)',
+							attempt + 1,
+							maxStatusRetries,
+							Date.now() - statusPollStart
+						);
+						break;
+					} else if (sandboxStatus.status === 'terminated') {
+						logger?.debug(
+							'[run] sandbox terminated without exit code on attempt %d/%d (+%dms)',
+							attempt + 1,
+							maxStatusRetries,
+							Date.now() - statusPollStart
+						);
+						break;
+					}
+					if (attempt < maxStatusRetries - 1) {
+						await abortAwareSleep(statusPollInterval);
+					}
+				} catch (err) {
+					if (err instanceof DOMException && err.name === 'AbortError') {
+						break;
+					}
+					logger?.debug(
+						'[run] sandboxGetStatus attempt %d/%d failed (+%dms): %s',
+						attempt + 1,
+						maxStatusRetries,
+						Date.now() - statusPollStart,
+						err
+					);
+					if (attempt < maxStatusRetries - 1) {
+						await abortAwareSleep(statusPollInterval);
+					}
 				}
 			}
 		}
 		if (exitCode === 0) {
-			logger?.debug(
-				'[run] exit code polling finished with default 0 after %d attempts (+%dms)',
-				maxStatusRetries,
-				Date.now() - statusPollStart
-			);
+			if (finalExecution?.exitCode != null) {
+				logger?.debug('[run] using execution exit code 0 from long-poll result');
+			} else {
+				logger?.debug(
+					'[run] exit code polling finished with default 0 after %d attempts (+%dms)',
+					maxStatusRetries,
+					Date.now() - statusPollStart
+				);
+			}
 		}
 
 		if (timingLogsEnabled)
@@ -349,6 +346,119 @@ export async function sandboxRun(
 			// Ignore cleanup errors
 		}
 		throw error;
+	}
+}
+
+async function waitForExecutionCompletion(
+	client: APIClient,
+	executionId: string,
+	orgId: string | undefined,
+	signal: AbortSignal | undefined,
+	logger: Logger | undefined,
+	started: number
+): Promise<{ exitCode?: number; status: string }> {
+	while (true) {
+		if (signal?.aborted) {
+			throw new DOMException('Aborted', 'AbortError');
+		}
+
+		const result = await executionGet(client, {
+			executionId,
+			orgId,
+			wait: EXECUTION_WAIT_DURATION,
+			signal,
+		});
+		logger?.debug(
+			'[run] execution wait: id=%s status=%s exit=%s +%dms',
+			executionId,
+			result.status,
+			result.exitCode ?? 'undefined',
+			Date.now() - started
+		);
+
+		if (TERMINAL_EXECUTION_STATUSES.has(result.status)) {
+			return {
+				exitCode: result.exitCode,
+				status: result.status,
+			};
+		}
+	}
+}
+
+async function waitForStreamsToDrain(
+	streamPromises: Promise<void>[],
+	signal: AbortSignal | undefined,
+	abortController: AbortController,
+	sandboxId: string
+): Promise<void> {
+	if (streamPromises.length === 0) {
+		return;
+	}
+
+	if (signal) {
+		let onAbort: (() => void) | undefined;
+		try {
+			await Promise.race([
+				Promise.allSettled(streamPromises).then(() => undefined),
+				new Promise<never>((_, reject) => {
+					onAbort = () => {
+						abortController.abort();
+						reject(
+							new ExecutionCancelledError({
+								message: 'Sandbox execution cancelled',
+								sandboxId,
+							})
+						);
+					};
+					if (signal.aborted) {
+						onAbort();
+					} else {
+						signal.addEventListener('abort', onAbort, { once: true });
+					}
+				}),
+			]);
+		} finally {
+			if (onAbort) {
+				signal.removeEventListener('abort', onAbort);
+			}
+		}
+		return;
+	}
+
+	await Promise.allSettled(streamPromises);
+}
+
+async function raceWithAbort<T>(
+	promise: Promise<T>,
+	signal: AbortSignal,
+	abortController: AbortController,
+	sandboxId: string
+): Promise<T> {
+	let onAbort: (() => void) | undefined;
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<never>((_, reject) => {
+				onAbort = () => {
+					abortController.abort();
+					reject(
+						new ExecutionCancelledError({
+							message: 'Sandbox execution cancelled',
+							sandboxId,
+						})
+					);
+				};
+				if (signal.aborted) {
+					onAbort();
+				} else {
+					signal.addEventListener('abort', onAbort, { once: true });
+				}
+			}),
+		]);
+	} finally {
+		if (onAbort) {
+			signal.removeEventListener('abort', onAbort);
+		}
 	}
 }
 
@@ -526,6 +636,12 @@ async function streamUrlToWritable(
 		// Signal end-of-stream to the tee/pipe chain so downstream
 		// consumers (e.g. process.stdout pipe) know no more data is coming.
 		writable.end();
+		if ('once' in writable) {
+			await finished(writable as NodeJS.WritableStream).catch(() => {
+				// Ignore finish errors here; the main read/write path already
+				// reported meaningful stream errors.
+			});
+		}
 	} catch (err) {
 		if (err instanceof Error && err.name === 'AbortError') {
 			logger?.debug('[stream] aborted after %dms', Date.now() - streamStart);

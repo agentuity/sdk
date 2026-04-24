@@ -139,6 +139,10 @@ export const SandboxCreateDataSchema = z
 				'failed',
 			])
 			.describe('Current status of the sandbox'),
+		executionId: z
+			.string()
+			.optional()
+			.describe('Initial execution identifier for oneshot sandbox creation'),
 		url: z
 			.string()
 			.optional()
