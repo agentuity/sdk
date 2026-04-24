@@ -3,9 +3,9 @@ import { Writable } from 'node:stream';
 import { ErrorCode } from '../../../errors';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { createSandboxClient, resolveSandboxTarget } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxExecute, executionGet, sandboxResolve } from '@agentuity/server';
+import { sandboxExecute, executionGet } from '@agentuity/server';
 import { streamUrlToWritable } from '../../../utils/stream-url';
 
 const EXECUTION_WAIT_DURATION = '5m';
@@ -79,8 +79,14 @@ export const execSubcommand = createCommand({
 			}
 		}
 
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
@@ -225,13 +231,15 @@ export const execSubcommand = createCommand({
 				logger.debug('[exec] waiting for %d stream(s) to EOF', streamPromises.length);
 				const streamWaitStart = Date.now();
 				let graceTriggered = false;
+				const streamGraceMs = 500;
 				const streamGrace = setTimeout(() => {
 					graceTriggered = true;
 					logger.debug(
-						'[exec] stream grace period (5s) expired after execution complete — aborting streams'
+						'[exec] stream grace period (%dms) expired after execution complete — aborting streams',
+						streamGraceMs
 					);
 					streamAbortController.abort();
-				}, 5_000);
+				}, streamGraceMs);
 				try {
 					await Promise.all(streamPromises);
 				} finally {

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { cacheSandboxRegion, createSandboxClient } from './util';
+import { cacheSandboxTarget, createSandboxClient, resolveSandboxTarget } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxGet, sandboxResolve } from '@agentuity/server';
+import { sandboxGet } from '@agentuity/server';
 
 const SandboxResourcesSchema = z.object({
 	memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
@@ -62,6 +62,19 @@ export const getSubcommand = createCommand({
 		},
 	],
 	schema: {
+		options: z.object({
+			waitForStatus: z
+				.array(z.string())
+				.optional()
+				.describe('Wait for one of these statuses before returning'),
+			waitMs: z
+				.number()
+				.int()
+				.nonnegative()
+				.max(60000)
+				.optional()
+				.describe('Maximum time in milliseconds to wait for a desired status'),
+		}),
 		args: z.object({
 			sandboxId: z.string().describe('Sandbox ID'),
 		}),
@@ -69,10 +82,16 @@ export const getSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, logger, config, apiClient } = ctx;
+		const { args, opts, options, auth, logger, config, apiClient } = ctx;
 
-		// Resolve sandbox to get region and orgId using CLI API
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const sandboxInfo = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			config?.name ?? 'production',
+			config
+		);
 
 		// Create regional client and get full sandbox details
 		const client = createSandboxClient(logger, auth, sandboxInfo.region);
@@ -80,11 +99,13 @@ export const getSubcommand = createCommand({
 			sandboxId: args.sandboxId,
 			orgId: sandboxInfo.orgId,
 			includeDeleted: true,
+			waitForStatus: opts.waitForStatus,
+			waitMs: opts.waitMs,
 		});
 
-		// Cache the region for future lookups
+		// Cache routing context for future lookups
 		if (result.region) {
-			await cacheSandboxRegion(config?.name, args.sandboxId, result.region);
+			await cacheSandboxTarget(config?.name, args.sandboxId, result.region, sandboxInfo.orgId);
 		}
 
 		if (!options.json) {

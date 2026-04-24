@@ -231,80 +231,48 @@ export async function sandboxRun(
 		// linear 1s polling interval (not exponential backoff) so we don't overshoot
 		// the window — 15 attempts × 1s = 15s total, which comfortably covers the
 		// drain + lifecycle propagation delay.
-		// Abort-aware sleep that rejects when the caller's signal fires.
-		const abortAwareSleep = (ms: number): Promise<void> =>
-			new Promise((resolve, reject) => {
-				if (signal?.aborted) {
-					reject(new DOMException('Aborted', 'AbortError'));
-					return;
-				}
-				const timer = setTimeout(resolve, ms);
-				signal?.addEventListener(
-					'abort',
-					() => {
-						clearTimeout(timer);
-						reject(new DOMException('Aborted', 'AbortError'));
-					},
-					{ once: true }
-				);
-			});
-
 		let exitCode = finalExecution?.exitCode ?? 0;
-		const maxStatusRetries = 15;
-		const statusPollInterval = 1000;
 		const statusPollStart = Date.now();
 		if (finalExecution?.exitCode == null) {
-			for (let attempt = 0; attempt < maxStatusRetries; attempt++) {
-				if (signal?.aborted) {
-					break;
-				}
-				try {
-					const sandboxStatus = await sandboxGetStatus(client, { sandboxId, orgId });
-					if (sandboxStatus.exitCode != null) {
-						exitCode = sandboxStatus.exitCode;
-						logger?.debug(
-							'[run] exit code %d found on attempt %d/%d (+%dms)',
-							exitCode,
-							attempt + 1,
-							maxStatusRetries,
-							Date.now() - statusPollStart
-						);
-						break;
-					} else if (sandboxStatus.status === 'failed') {
-						exitCode = 1;
-						logger?.debug(
-							'[run] sandbox failed on attempt %d/%d (+%dms)',
-							attempt + 1,
-							maxStatusRetries,
-							Date.now() - statusPollStart
-						);
-						break;
-					} else if (sandboxStatus.status === 'terminated') {
-						logger?.debug(
-							'[run] sandbox terminated without exit code on attempt %d/%d (+%dms)',
-							attempt + 1,
-							maxStatusRetries,
-							Date.now() - statusPollStart
-						);
-						break;
-					}
-					if (attempt < maxStatusRetries - 1) {
-						await abortAwareSleep(statusPollInterval);
-					}
-				} catch (err) {
-					if (err instanceof DOMException && err.name === 'AbortError') {
-						break;
-					}
+			try {
+				const sandboxStatus = await sandboxGetStatus(client, {
+					sandboxId,
+					orgId,
+					waitForStatus: ['terminated', 'failed'],
+					waitMs: 15000,
+				});
+				if (sandboxStatus.exitCode != null) {
+					exitCode = sandboxStatus.exitCode;
 					logger?.debug(
-						'[run] sandboxGetStatus attempt %d/%d failed (+%dms): %s',
-						attempt + 1,
-						maxStatusRetries,
+						'[run] exit code %d found after server-side wait (+%dms)',
+						exitCode,
+						Date.now() - statusPollStart
+					);
+				} else if (sandboxStatus.status === 'failed') {
+					exitCode = 1;
+					logger?.debug(
+						'[run] sandbox failed after server-side wait (+%dms)',
+						Date.now() - statusPollStart
+					);
+				} else if (sandboxStatus.status === 'terminated') {
+					logger?.debug(
+						'[run] sandbox terminated without exit code after server-side wait (+%dms)',
+						Date.now() - statusPollStart
+					);
+				} else {
+					logger?.debug(
+						'[run] sandbox status wait expired with status=%s (+%dms)',
+						sandboxStatus.status,
+						Date.now() - statusPollStart
+					);
+				}
+			} catch (err) {
+				if (!(err instanceof DOMException && err.name === 'AbortError')) {
+					logger?.debug(
+						'[run] sandboxGetStatus server-side wait failed (+%dms): %s',
 						Date.now() - statusPollStart,
 						err
 					);
-					if (attempt < maxStatusRetries - 1) {
-						await abortAwareSleep(statusPollInterval);
-					}
 				}
 			}
 		}
@@ -313,8 +281,7 @@ export async function sandboxRun(
 				logger?.debug('[run] using execution exit code 0 from long-poll result');
 			} else {
 				logger?.debug(
-					'[run] exit code polling finished with default 0 after %d attempts (+%dms)',
-					maxStatusRetries,
+					'[run] exit code wait finished with default 0 (+%dms)',
 					Date.now() - statusPollStart
 				);
 			}

@@ -189,6 +189,16 @@ export const SandboxGetParamsSchema = z.object({
 		.boolean()
 		.optional()
 		.describe('Whether deleted sandboxes should be included in lookup'),
+	waitForStatus: z
+		.union([z.string(), z.array(z.string())])
+		.optional()
+		.describe('Optional desired status or statuses to wait for before responding'),
+	waitMs: z
+		.number()
+		.int()
+		.nonnegative()
+		.optional()
+		.describe('Maximum time in milliseconds to wait for the desired status'),
 });
 
 export type SandboxGetParams = z.infer<typeof SandboxGetParamsSchema>;
@@ -205,13 +215,22 @@ export async function sandboxGet(
 	client: APIClient,
 	params: SandboxGetParams
 ): Promise<SandboxInfo> {
-	const { sandboxId, orgId, includeDeleted } = params;
+	const { sandboxId, orgId, includeDeleted, waitForStatus, waitMs } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
 	}
 	if (includeDeleted) {
 		queryParams.set('includeDeleted', 'true');
+	}
+	if (waitForStatus) {
+		queryParams.set(
+			'waitForStatus',
+			Array.isArray(waitForStatus) ? waitForStatus.join(',') : waitForStatus
+		);
+	}
+	if (waitMs != null) {
+		queryParams.set('waitMs', String(waitMs));
 	}
 	const queryString = queryParams.toString();
 	const url = `/sandbox/${encodeURIComponent(sandboxId)}${queryString ? `?${queryString}` : ''}`;

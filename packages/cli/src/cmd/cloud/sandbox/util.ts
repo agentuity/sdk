@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { FileToWrite, Logger } from '@agentuity/core';
-import { APIClient, getServiceUrls, sandboxGet } from '@agentuity/server';
+import { APIClient, getServiceUrls, sandboxGet, sandboxResolve } from '@agentuity/server';
 import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache';
 import { getGlobalCatalystAPIClient } from '../../../config';
 import { ErrorCode } from '../../../errors';
@@ -10,6 +10,39 @@ import type { AuthData, Config } from '../../../types';
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
 	return new APIClient(getServiceUrls(region).catalyst, logger, auth.apiKey);
+}
+
+export interface ResolvedSandboxTarget {
+	region: string;
+	orgId: string;
+}
+
+/**
+ * Resolve sandbox routing context using cache-first lookup.
+ * Falls back to the CLI resolve endpoint on cache miss or partial cache.
+ */
+export async function resolveSandboxTarget(
+	logger: Logger,
+	auth: AuthData,
+	apiClient: APIClient,
+	sandboxId: string,
+	profileName = 'production',
+	config?: Config | null
+): Promise<ResolvedSandboxTarget> {
+	const cachedInfo = await getResourceInfo('sandbox', profileName, sandboxId);
+	if (cachedInfo?.region && cachedInfo?.orgId) {
+		logger.trace(
+			`[sandbox] Found cached target for ${sandboxId}: ${cachedInfo.region}/${cachedInfo.orgId}`
+		);
+		return { region: cachedInfo.region, orgId: cachedInfo.orgId };
+	}
+
+	logger.trace(`[sandbox] Cache miss for target ${sandboxId}, resolving via CLI API`);
+	const globalClient =
+		apiClient ?? (await getGlobalCatalystAPIClient(logger, auth, profileName, undefined, config));
+	const sandbox = await sandboxResolve(globalClient, sandboxId);
+	await setResourceInfo('sandbox', profileName, sandboxId, sandbox.region, sandbox.orgId);
+	return { region: sandbox.region, orgId: sandbox.orgId };
 }
 
 /**
@@ -62,6 +95,15 @@ export async function cacheSandboxRegion(
 	region: string
 ): Promise<void> {
 	await setResourceInfo('sandbox', profileName, sandboxId, region);
+}
+
+export async function cacheSandboxTarget(
+	profileName = 'production',
+	sandboxId: string,
+	region: string,
+	orgId?: string
+): Promise<void> {
+	await setResourceInfo('sandbox', profileName, sandboxId, region, orgId);
 }
 
 /**

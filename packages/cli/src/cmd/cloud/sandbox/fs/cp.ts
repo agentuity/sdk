@@ -1,17 +1,30 @@
 import { z } from 'zod';
-import { readFileSync, writeFileSync, mkdirSync, statSync, readdirSync } from 'node:fs';
+import {
+	readFileSync,
+	mkdirSync,
+	statSync,
+	readdirSync,
+	createWriteStream,
+	mkdtempSync,
+	rmSync,
+} from 'node:fs';
 import { dirname, resolve, basename, join, relative } from 'node:path';
+import { tmpdir } from 'node:os';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
+import * as tar from 'tar';
 import { createCommand } from '../../../../types';
 import { toForwardSlash } from '../../../../utils/normalize-path';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { createSandboxClient, resolveSandboxTarget } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import {
 	sandboxWriteFiles,
 	sandboxReadFile,
 	sandboxExecute,
 	executionGet,
-	sandboxResolve,
+	sandboxDownloadArchive,
+	sandboxUploadArchive,
 	type APIClient,
 } from '@agentuity/server';
 import type { Logger, FileToWrite } from '@agentuity/core';
@@ -125,9 +138,14 @@ export const cpSubcommand = createCommand({
 
 		const sandboxId = source.sandboxId ?? destination.sandboxId!;
 
-		// Resolve sandbox to get region and orgId using CLI API
-		const sandboxInfo = await sandboxResolve(apiClient, sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 		const recursive = opts.recursive ?? false;
@@ -337,7 +355,6 @@ async function uploadDirectory(
 		logger.fatal(`Directory is empty: ${localDir}`);
 	}
 
-	const files: FileToWrite[] = [];
 	let totalBytes = 0;
 	const effectiveRemotePath = remotePath || basename(localDir);
 	const baseRemotePath = effectiveRemotePath.endsWith('/')
@@ -371,14 +388,23 @@ async function uploadDirectory(
 	}
 
 	for (const filePath of allFiles) {
-		const relativePath = toForwardSlash(relative(localDir, filePath));
-		const targetPath = `${baseRemotePath}/${relativePath}`;
-		const buffer = readFileSync(filePath);
-		files.push({ path: targetPath, content: buffer });
-		totalBytes += buffer.length;
+		totalBytes += statSync(filePath).size;
 	}
 
-	await sandboxWriteFiles(client, { sandboxId, files, orgId });
+	const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-fs-cp-'));
+	const archivePath = join(tempDir, 'upload.tar.gz');
+	try {
+		await createTarGzArchive(localDir, allFiles, archivePath);
+		await sandboxUploadArchive(client, {
+			sandboxId,
+			archive: Bun.file(archivePath).stream(),
+			path: baseRemotePath,
+			format: 'tar.gz',
+			orgId,
+		});
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
 
 	if (!jsonOutput) {
 		tui.success(
@@ -386,7 +412,11 @@ async function uploadDirectory(
 		);
 	}
 
-	const implicitDirs = getImplicitDirectories(files.map((f) => f.path));
+	const implicitDirs = getImplicitDirectories(
+		allFiles.map(
+			(filePath) => `${baseRemotePath}/${toForwardSlash(relative(localDir, filePath))}`
+		)
+	);
 	return {
 		source: localDir,
 		destination: `${sandboxId}:${baseRemotePath}`,
@@ -444,15 +474,6 @@ async function downloadSingleFile(
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const stream = await sandboxReadFile(client, { sandboxId, path: remotePath, orgId });
 
-	const chunks: Uint8Array[] = [];
-	const reader = stream.getReader();
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		if (value) chunks.push(value);
-	}
-	const buffer = Buffer.concat(chunks);
-
 	let targetPath = localPath;
 	if (localPath.endsWith('/') || localPath === '.') {
 		targetPath = resolve(localPath, basename(remotePath));
@@ -462,101 +483,70 @@ async function downloadSingleFile(
 
 	const dir = dirname(targetPath);
 	mkdirSync(dir, { recursive: true });
-
-	writeFileSync(targetPath, buffer);
+	await pipeline(
+		Readable.fromWeb(stream as unknown as globalThis.ReadableStream<ArrayBufferView>),
+		createWriteStream(targetPath)
+	);
+	const buffer = Bun.file(targetPath);
 
 	if (!jsonOutput) {
-		tui.success(`Copied ${sandboxId}:${remotePath} → ${targetPath} (${buffer.length} bytes)`);
+		tui.success(`Copied ${sandboxId}:${remotePath} → ${targetPath} (${buffer.size} bytes)`);
 	}
 
 	return {
 		source: `${sandboxId}:${remotePath}`,
 		destination: targetPath,
-		bytesTransferred: buffer.length,
+		bytesTransferred: buffer.size,
 		filesTransferred: 1,
 	};
 }
 
 async function downloadDirectory(
 	client: APIClient,
-	logger: Logger,
+	_logger: Logger,
 	orgId: string,
 	sandboxId: string,
 	remotePath: string,
 	localPath: string,
-	timeout: string | undefined,
+	_timeout: string | undefined,
 	jsonOutput: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
-	const listExecution = await sandboxExecute(client, {
-		sandboxId,
-		options: {
-			command: ['find', remotePath, '-type', 'f'],
-			timeout,
-		},
-		orgId,
-	});
-
-	const listChunks: Buffer[] = [];
-	if (listExecution.stdoutStreamUrl) {
-		await streamToBuffer(listExecution.stdoutStreamUrl, listChunks, logger);
-	}
-
-	await waitForExecution(client, orgId, listExecution.executionId, logger);
-
-	const fileList = Buffer.concat(listChunks)
-		.toString('utf-8')
-		.trim()
-		.split('\n')
-		.filter((f) => f.length > 0);
-
-	if (fileList.length === 0) {
-		logger.fatal(`No files found in directory: ${remotePath}`);
-	}
-
-	const baseRemotePath = remotePath.endsWith('/') ? remotePath.slice(0, -1) : remotePath;
 	const baseLocalPath = resolve(localPath);
-	let totalBytes = 0;
-
-	for (const remoteFile of fileList) {
-		const relativePath = remoteFile.startsWith(baseRemotePath + '/')
-			? remoteFile.slice(baseRemotePath.length + 1)
-			: basename(remoteFile);
-
-		const localFilePath = join(baseLocalPath, relativePath);
-
-		try {
-			const stream = await sandboxReadFile(client, { sandboxId, path: remoteFile, orgId });
-			const chunks: Uint8Array[] = [];
-			const reader = stream.getReader();
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				if (value) chunks.push(value);
-			}
-			const buffer = Buffer.concat(chunks);
-			totalBytes += buffer.length;
-
-			const dir = dirname(localFilePath);
-			mkdirSync(dir, { recursive: true });
-			writeFileSync(localFilePath, buffer);
-
-			if (!jsonOutput) {
-				logger.info(`Downloaded ${remoteFile} (${buffer.length} bytes)`);
-			}
-		} catch (err) {
-			logger.warn(`Failed to read file: ${remoteFile}, skipping: ${err}`);
-			continue;
-		}
+	mkdirSync(baseLocalPath, { recursive: true });
+	const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-fs-cp-'));
+	const archivePath = join(tempDir, 'download.tar.gz');
+	try {
+		const archiveStream = await sandboxDownloadArchive(client, {
+			sandboxId,
+			path: remotePath,
+			format: 'tar.gz',
+			orgId,
+		});
+		await pipeline(
+			Readable.fromWeb(archiveStream as unknown as globalThis.ReadableStream<ArrayBufferView>),
+			createWriteStream(archivePath)
+		);
+		await tar.extract({
+			file: archivePath,
+			cwd: baseLocalPath,
+			preservePaths: false,
+			strict: true,
+		});
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
 	}
+
+	const fileList = getAllFiles(baseLocalPath);
+	const totalBytes = fileList.reduce((sum, filePath) => sum + statSync(filePath).size, 0);
 
 	if (!jsonOutput) {
 		tui.success(
-			`Copied ${sandboxId}:${baseRemotePath} → ${baseLocalPath} (${fileList.length} files, ${totalBytes} bytes)`
+			`Copied ${sandboxId}:${remotePath} → ${baseLocalPath} (${fileList.length} files, ${totalBytes} bytes)`
 		);
 	}
 
 	return {
-		source: `${sandboxId}:${baseRemotePath}`,
+		source: `${sandboxId}:${remotePath}`,
 		destination: baseLocalPath,
 		bytesTransferred: totalBytes,
 		filesTransferred: fileList.length,
@@ -601,42 +591,20 @@ async function waitForExecution(
 	logger.fatal('Execution timed out waiting for completion');
 }
 
-async function streamToBuffer(url: string, chunks: Buffer[], logger: Logger): Promise<void> {
-	const maxRetries = 10;
-	const retryDelay = 200;
-
-	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		try {
-			if (attempt > 0) {
-				logger.debug('stream retry attempt %d', attempt + 1);
-				await sleep(retryDelay);
-			}
-
-			const response = await fetch(url);
-
-			if (!response.ok || !response.body) {
-				continue;
-			}
-
-			const reader = response.body.getReader();
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) {
-					return;
-				}
-
-				if (value) {
-					chunks.push(Buffer.from(value));
-				}
-			}
-		} catch (err) {
-			if (err instanceof Error && err.name === 'AbortError') {
-				throw err;
-			}
-			logger.debug('stream error: %s', err);
-		}
-	}
+async function createTarGzArchive(
+	localDir: string,
+	allFiles: string[],
+	archivePath: string
+): Promise<void> {
+	const relativePaths = allFiles.map((filePath) => toForwardSlash(relative(localDir, filePath)));
+	await tar.create(
+		{
+			gzip: true,
+			file: archivePath,
+			cwd: localDir,
+		},
+		relativePaths
+	);
 }
 
 function sleep(ms: number): Promise<void> {

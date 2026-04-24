@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Writable } from 'node:stream';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
+import { createSandboxClient, parseFileArgs, cacheSandboxTarget } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxRun } from '@agentuity/server';
 import { validateAptDependencies } from '../../../utils/apt-validator';
@@ -195,8 +195,8 @@ export const runSubcommand = createCommand({
 				logger,
 			});
 
-			// Cache the region for future lookups (sandbox is destroyed after run but cache helps with lookups during execution)
-			await cacheSandboxRegion(config?.name, result.sandboxId, region);
+			// Cache routing context for follow-up lookup/debug flows during execution.
+			await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');

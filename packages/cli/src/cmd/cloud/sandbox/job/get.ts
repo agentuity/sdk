@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
-import { jobGet, sandboxResolve } from '@agentuity/server';
+import { createSandboxClient, resolveSandboxTarget } from '../util';
+import { jobGet } from '@agentuity/server';
 
 export const getSubcommand = createCommand({
 	name: 'get',
@@ -22,8 +22,14 @@ export const getSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, options, auth, logger, apiClient } = ctx;
 
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 
