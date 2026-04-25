@@ -1,67 +1,94 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { CoderSSEClient, streamCoderSessionSSE } from '../src/services/coder/sse.ts';
 
-const OriginalEventSource = globalThis.EventSource;
+const OriginalFetch = globalThis.fetch;
 
-type MockListener = (event: Event) => void;
+class MockSSEConnection {
+	static instances: MockSSEConnection[] = [];
 
-class MockEventSource {
-	static CONNECTING = 0;
-	static OPEN = 1;
-	static CLOSED = 2;
-	static instances: MockEventSource[] = [];
-
-	readyState = MockEventSource.CONNECTING;
-	onopen: ((event: Event) => void) | null = null;
-	onerror: ((event: Event) => void) | null = null;
 	readonly url: string;
-	readonly listeners = new Map<string, MockListener[]>();
+	readonly init?: RequestInit;
+	readonly response: Response;
+	closed = false;
+	#controller!: ReadableStreamDefaultController<Uint8Array>;
+	#encoder = new TextEncoder();
 
-	constructor(url: string) {
+	constructor(url: string, init?: RequestInit, status = 200, statusText = 'OK') {
 		this.url = url;
-		MockEventSource.instances.push(this);
-	}
+		this.init = init;
 
-	addEventListener(eventName: string, listener: MockListener) {
-		const existing = this.listeners.get(eventName) ?? [];
-		existing.push(listener);
-		this.listeners.set(eventName, existing);
-	}
+		const stream = new ReadableStream<Uint8Array>({
+			start: (controller) => {
+				this.#controller = controller;
+			},
+			cancel: () => {
+				this.closed = true;
+			},
+		});
 
-	close() {
-		this.readyState = MockEventSource.CLOSED;
-	}
-
-	open() {
-		this.readyState = MockEventSource.OPEN;
-		this.onopen?.(new Event('open'));
+		this.response = new Response(stream, {
+			status,
+			statusText,
+			headers: {
+				'content-type': 'text/event-stream',
+			},
+		});
+		MockSSEConnection.instances.push(this);
 	}
 
 	emit(eventName: string, payload: unknown) {
-		const listeners = this.listeners.get(eventName) ?? [];
-		const event = {
-			data: JSON.stringify(payload),
-		} as MessageEvent;
-		for (const listener of listeners) {
-			listener(event);
+		this.#controller.enqueue(
+			this.#encoder.encode(`event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`)
+		);
+	}
+
+	close() {
+		this.closed = true;
+		try {
+			this.#controller.close();
+		} catch {
+			// Already closed or aborted.
 		}
 	}
+
+	abort() {
+		this.closed = true;
+		try {
+			this.#controller.error(new DOMException('Aborted', 'AbortError'));
+		} catch {
+			// Already closed or aborted.
+		}
+	}
+}
+
+function installMockFetch(status = 200, statusText = 'OK') {
+	globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+		const connection = new MockSSEConnection(String(input), init, status, statusText);
+		const signal = init?.signal;
+		if (signal?.aborted) {
+			connection.abort();
+			return Promise.reject(new DOMException('Aborted', 'AbortError'));
+		}
+		signal?.addEventListener('abort', () => connection.abort(), { once: true });
+		return Promise.resolve(connection.response);
+	}) as typeof fetch;
 }
 
 async function flushAsyncWork() {
 	await Promise.resolve();
 	await Promise.resolve();
+	await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe('Coder SSE observer clients', () => {
 	beforeEach(() => {
-		MockEventSource.instances = [];
-		globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+		MockSSEConnection.instances = [];
+		installMockFetch();
 	});
 
 	afterEach(() => {
-		globalThis.EventSource = OriginalEventSource;
-		MockEventSource.instances = [];
+		globalThis.fetch = OriginalFetch;
+		MockSSEConnection.instances = [];
 	});
 
 	it('uses default observer subscriptions unless explicit filters are provided', async () => {
@@ -80,21 +107,73 @@ describe('Coder SSE observer clients', () => {
 		client.connect();
 		await flushAsyncWork();
 
-		const eventSource = MockEventSource.instances[0];
-		expect(eventSource).toBeDefined();
-		expect(decodeURIComponent(eventSource!.url)).toContain(
+		const connection = MockSSEConnection.instances[0];
+		expect(connection).toBeDefined();
+		expect(decodeURIComponent(connection!.url)).toContain(
 			'/api/hub/session/codesess_sse_default/events'
 		);
-		expect(decodeURIComponent(eventSource!.url)).toContain('api_key=ag_test');
-		expect(decodeURIComponent(eventSource!.url)).toContain('org_id=org_test');
-		expect(decodeURIComponent(eventSource!.url)).not.toContain('subscribe=');
-
-		eventSource!.open();
+		expect(decodeURIComponent(connection!.url)).toContain('api_key=ag_test');
+		expect(decodeURIComponent(connection!.url)).toContain('org_id=org_test');
+		expect(decodeURIComponent(connection!.url)).not.toContain('subscribe=');
+		expect(connection!.init?.headers).toEqual({ accept: 'text/event-stream' });
 		expect(client.state).toBe('connected');
 		expect(openCount).toBe(1);
+
+		client.close();
 	});
 
-	it('streams broadcast events when explicit raw-event subscriptions are requested', async () => {
+	it('dispatches Hub named broadcast SSE events to class client callbacks', async () => {
+		const seenEvents: Array<{ event: string; data: unknown }> = [];
+		const broadcasts: unknown[] = [];
+		const client = new CoderSSEClient({
+			url: 'https://hub.example',
+			sessionId: 'codesess_sse_client',
+			subscribe: ['*'],
+			reconnect: false,
+			onEvent: (event) => {
+				seenEvents.push(event);
+			},
+			onBroadcast: (event) => {
+				broadcasts.push(event);
+			},
+		});
+
+		client.connect();
+		await flushAsyncWork();
+
+		const connection = MockSSEConnection.instances[0];
+		expect(connection).toBeDefined();
+		connection!.emit('message_update', {
+			type: 'broadcast',
+			event: 'message_update',
+			data: {
+				assistantMessageEvent: {
+					type: 'text_delta',
+					delta: 'hello from named SSE',
+				},
+			},
+			category: 'streaming',
+			sessionId: 'codesess_sse_client',
+			timestamp: Date.now(),
+		});
+		await flushAsyncWork();
+
+		expect(seenEvents).toHaveLength(1);
+		expect(seenEvents[0]).toMatchObject({
+			event: 'message_update',
+			data: {
+				type: 'broadcast',
+				event: 'message_update',
+				category: 'streaming',
+				sessionId: 'codesess_sse_client',
+			},
+		});
+		expect(broadcasts).toHaveLength(1);
+
+		client.close();
+	});
+
+	it('streams Hub named broadcast SSE events when explicit raw-event subscriptions are requested', async () => {
 		const eventsPromise = (async () => {
 			const seen = [];
 			for await (const event of streamCoderSessionSSE({
@@ -111,12 +190,12 @@ describe('Coder SSE observer clients', () => {
 
 		await flushAsyncWork();
 
-		const eventSource = MockEventSource.instances[0];
-		expect(eventSource).toBeDefined();
-		expect(decodeURIComponent(eventSource!.url)).toContain('subscribe=*');
+		const connection = MockSSEConnection.instances[0];
+		expect(connection).toBeDefined();
+		expect(decodeURIComponent(connection!.url)).toContain('subscribe=*');
 
-		eventSource!.open();
-		eventSource!.emit('broadcast', {
+		connection!.emit('message_update', {
+			type: 'broadcast',
 			event: 'message_update',
 			data: {
 				assistantMessageEvent: {
@@ -132,7 +211,7 @@ describe('Coder SSE observer clients', () => {
 		const events = await eventsPromise;
 		expect(events).toHaveLength(1);
 		expect(events[0]).toMatchObject({
-			event: 'broadcast',
+			event: 'message_update',
 			data: {
 				type: 'broadcast',
 				event: 'message_update',
@@ -140,6 +219,6 @@ describe('Coder SSE observer clients', () => {
 				sessionId: 'codesess_sse_stream',
 			},
 		});
-		expect(eventSource!.readyState).toBe(MockEventSource.CLOSED);
+		expect(connection!.closed).toBe(true);
 	});
 });
