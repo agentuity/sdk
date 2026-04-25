@@ -20,7 +20,7 @@
  * EADDRINUSE.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterEach } from 'bun:test';
 import { join } from 'node:path';
 import { createServer, connect } from 'node:net';
 
@@ -56,7 +56,19 @@ interface OrchHandle {
 	vitePort: number;
 	bunPort: number;
 	stop: (signal?: NodeJS.Signals) => Promise<number | null>;
+	/** Set true by stop() so afterEach can skip already-cleaned-up handles. */
+	stopped: boolean;
 }
+
+/**
+ * Tracks every orchestrator started by the current test. Cleared after each
+
+ * test by the afterEach hook in the describe block, which force-stops any
+ * handle still alive (i.e. a test threw before reaching its happy-path
+ * stop()). Without this, a failed assertion would leak the detached process
+ * group and bind ports for subsequent tests.
+ */
+const startedHandles: OrchHandle[] = [];
 
 /**
  * Spawn the orchestrator and resolve once it prints "READY".
@@ -128,30 +140,48 @@ async function startOrchestrator(opts: {
 				// already dead
 			}
 		}
-		// Wait for exit. Force-kill after 5s.
-		const exitCode = await Promise.race([
-			proc.exited,
-			new Promise<number | null>((resolve) =>
-				setTimeout(() => {
-					try {
-						process.kill(-pid, 'SIGKILL');
-					} catch {
-						// already dead
-					}
-					resolve(null);
-				}, 5000)
-			),
-		]);
-		return typeof exitCode === 'number' ? exitCode : null;
+		// Wait for exit. Force-kill after 5s. We hold a reference to the
+		// fallback timer so we can clearTimeout() it when proc.exited wins;
+		// otherwise Promise.race leaves a live timer that will later try to
+		// SIGKILL a (now reused) PID and may also keep the test runner alive.
+		let killTimer: ReturnType<typeof setTimeout> | null = null;
+		try {
+			const exitCode = await Promise.race([
+				proc.exited,
+				new Promise<number | null>((resolve) => {
+					killTimer = setTimeout(() => {
+						try {
+							process.kill(-pid, 'SIGKILL');
+						} catch {
+							try {
+								proc.kill('SIGKILL');
+							} catch {
+								// already dead
+							}
+						}
+						resolve(null);
+					}, 5000);
+				}),
+			]);
+			return typeof exitCode === 'number' ? exitCode : null;
+		} finally {
+			if (killTimer) clearTimeout(killTimer);
+		}
 	};
 
-	return {
+	const handle: OrchHandle = {
 		pid,
 		proxyPort: opts.proxyPort,
 		vitePort: opts.vitePort,
 		bunPort: opts.bunPort,
-		stop,
+		stopped: false,
+		stop: async (signal?: NodeJS.Signals) => {
+			handle.stopped = true;
+			return stop(signal);
+		},
 	};
+	startedHandles.push(handle);
+	return handle;
 }
 
 async function expectPortServingHttp(port: number): Promise<string> {
@@ -162,6 +192,22 @@ async function expectPortServingHttp(port: number): Promise<string> {
 }
 
 describe('dev mode spawn / kill / respawn', () => {
+	afterEach(async () => {
+		// Force-tear-down any orchestrator still alive (a test failed before
+		// reaching its happy-path stop()). We use SIGKILL because we no
+		// longer care about graceful shutdown at this point \u2014 we just
+		// need the process group dead so the next test isn't poisoned.
+		const leaked = startedHandles.filter((h) => !h.stopped);
+		startedHandles.length = 0;
+		for (const h of leaked) {
+			try {
+				await h.stop('SIGKILL');
+			} catch {
+				// best effort
+			}
+		}
+	});
+
 	test('SIGTERM releases all three ports so a fresh instance can bind them', async () => {
 		// Pick three ports we can reuse.
 		const proxyPort = await findAvailablePort(18000);

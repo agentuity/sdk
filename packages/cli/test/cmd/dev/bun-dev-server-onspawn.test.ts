@@ -115,35 +115,40 @@ describe('startBunDevServer onSpawn callback', () => {
 		const events: string[] = [];
 		let captured: { pid?: number; kill: (s?: NodeJS.Signals) => void } | null = null;
 
-		await startBunDevServer({
-			rootDir: projectDir,
-			port,
-			logger: mockLogger,
-			vitePort: port + 1,
-			onSpawn: (proc) => {
-				events.push('onSpawn');
-				captured = proc;
-				expect(typeof proc.kill).toBe('function');
-				// pid should be a real OS pid (>1) so the procManager can target
-				// the process group via process.kill(-pid, ...).
-				expect(typeof proc.pid).toBe('number');
-				expect(proc.pid!).toBeGreaterThan(1);
-				// At spawn time the child is alive \u2014 exitCode is null.
-				expect(proc.exitCode).toBeNull();
-			},
-		});
-		events.push('resolved');
+		try {
+			await startBunDevServer({
+				rootDir: projectDir,
+				port,
+				logger: mockLogger,
+				vitePort: port + 1,
+				onSpawn: (proc) => {
+					events.push('onSpawn');
+					captured = proc;
+					expect(typeof proc.kill).toBe('function');
+					// pid should be a real OS pid (>1) so the procManager can target
+					// the process group via process.kill(-pid, ...).
+					expect(typeof proc.pid).toBe('number');
+					expect(proc.pid!).toBeGreaterThan(1);
+					// At spawn time the child is alive \u2014 exitCode is null.
+					expect(proc.exitCode).toBeNull();
+				},
+			});
+			events.push('resolved');
 
-		// onSpawn must have fired BEFORE startBunDevServer resolved. This is
-		// the core orphan-prevention guarantee: registration with procManager
-		// happens before the readiness wait completes.
-		expect(events).toEqual(['onSpawn', 'resolved']);
-		expect(captured).not.toBeNull();
-
-		// Cleanup: kill the running subprocess.
-		killHandle(captured!);
-		// Give the OS a moment to release the port.
-		await new Promise((r) => setTimeout(r, 200));
+			// onSpawn must have fired BEFORE startBunDevServer resolved. This is
+			// the core orphan-prevention guarantee: registration with procManager
+			// happens before the readiness wait completes.
+			expect(events).toEqual(['onSpawn', 'resolved']);
+			expect(captured).not.toBeNull();
+		} finally {
+			// Always tear down, even if an assertion above failed. Without this
+			// a failed expect() would leave the Bun child alive and could poison
+			// later tests via reused PIDs / bound ports.
+			if (captured) {
+				killHandle(captured);
+				await new Promise((r) => setTimeout(r, 200));
+			}
+		}
 	}, 30000);
 
 	test('kills subprocess and rethrows when onSpawn throws', async () => {
@@ -200,11 +205,13 @@ describe('startBunDevServer onSpawn callback', () => {
 		expect(free).toBe(true);
 	}, 30000);
 
-	test('onSpawn fires even before HTTP readiness probe succeeds', async () => {
-		// This is a stricter version of the first test. We record the time
-		// from spawn-call to onSpawn invocation, and from spawn-call to
-		// resolution. onSpawn should fire well before resolution \u2014 there's
-		// always a multi-100ms gap as Bun boots and starts listening.
+	test('onSpawn fires strictly before HTTP readiness probe succeeds', async () => {
+		// Stricter version of the first test. We record the time of onSpawn
+		// invocation vs. function resolution. onSpawn must fire STRICTLY
+		// before resolution \u2014 the readiness probe always takes time as
+		// Bun boots and starts listening, so there's always a measurable gap.
+		// A non-strict (<=) check would pass even if onSpawn fired
+		// concurrently with resolution, missing real ordering regressions.
 		const { startBunDevServer } = await import(bunDevServerPath);
 		const port = await findAvailablePort(17500);
 
@@ -212,30 +219,32 @@ describe('startBunDevServer onSpawn callback', () => {
 		let onSpawnAt = 0;
 		let captured: { pid?: number; kill: (s?: NodeJS.Signals) => void } | null = null;
 
-		await startBunDevServer({
-			rootDir: projectDir,
-			port,
-			logger: mockLogger,
-			vitePort: port + 1,
-			onSpawn: (proc) => {
-				onSpawnAt = Date.now();
-				captured = proc;
-			},
-		});
-		const resolvedAt = Date.now();
+		try {
+			await startBunDevServer({
+				rootDir: projectDir,
+				port,
+				logger: mockLogger,
+				vitePort: port + 1,
+				onSpawn: (proc) => {
+					onSpawnAt = Date.now();
+					captured = proc;
+				},
+			});
+			const resolvedAt = Date.now();
 
-		const onSpawnDelay = onSpawnAt - startedAt;
-		const totalDelay = resolvedAt - startedAt;
-
-		// onSpawn must have fired strictly before resolution.
-		expect(onSpawnAt).toBeGreaterThan(0);
-		expect(onSpawnAt).toBeLessThanOrEqual(resolvedAt);
-		// And meaningfully earlier \u2014 at least the readiness probe takes
-		// some time. We use a soft lower bound (>=0ms) but require that
-		// total is >= onSpawn time, which is the real guarantee.
-		expect(totalDelay).toBeGreaterThanOrEqual(onSpawnDelay);
-
-		killHandle(captured!);
-		await new Promise((r) => setTimeout(r, 200));
+			// onSpawn fired at all, with a real timestamp.
+			expect(onSpawnAt).toBeGreaterThan(0);
+			// Sanity: onSpawn happened at or after we started.
+			expect(onSpawnAt).toBeGreaterThanOrEqual(startedAt);
+			// Strict ordering: onSpawn must fire BEFORE resolution. This is
+			// the actual guarantee \u2014 the readiness probe takes time, so
+			// the timestamps are always distinguishable when the contract holds.
+			expect(onSpawnAt).toBeLessThan(resolvedAt);
+		} finally {
+			if (captured) {
+				killHandle(captured);
+				await new Promise((r) => setTimeout(r, 200));
+			}
+		}
 	}, 30000);
 });
