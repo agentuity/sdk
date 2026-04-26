@@ -372,6 +372,13 @@ function buildConnectionError(response: Response, sessionId: string): Error {
 	});
 }
 
+function isRetryableStreamError(error: Error): boolean {
+	if (error instanceof CoderSSEError) {
+		return error.code === 'connection_failed';
+	}
+	return true;
+}
+
 /**
  * Class-based SSE client for observing Coder Hub sessions.
  *
@@ -722,6 +729,7 @@ export async function* streamCoderSessionSSE(
 	let resolve: (() => void) | null = null;
 	let done = false;
 	let terminalError: Error | null = null;
+	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const wake = () => {
 		if (resolve) {
@@ -731,10 +739,70 @@ export async function* streamCoderSessionSSE(
 	};
 
 	const cleanup = () => {
+		if (reconnectTimer !== null) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = null;
+		}
 		if (activeController) {
 			activeController.abort();
 			activeController = null;
 		}
+	};
+
+	const finish = (error?: Error) => {
+		if (error) {
+			terminalError = error;
+		}
+		done = true;
+		wake();
+	};
+
+	const scheduleReconnect = (error?: Error) => {
+		if (done) {
+			return;
+		}
+
+		if (signal?.aborted || (error && isAbortError(error))) {
+			finish();
+			return;
+		}
+
+		if (error && !isRetryableStreamError(error)) {
+			finish(error);
+			return;
+		}
+
+		if (!reconnect) {
+			finish(error);
+			return;
+		}
+
+		if (reconnectAttempts >= maxReconnectAttempts) {
+			finish(
+				new CoderSSEError({
+					message: `Exceeded maximum reconnection attempts (${maxReconnectAttempts})`,
+					code: 'max_reconnects_exceeded',
+					sessionId: options.sessionId,
+				})
+			);
+			return;
+		}
+
+		const baseDelay = reconnectDelayMs * 2 ** reconnectAttempts;
+		const jitter = 0.5 + Math.random() * 0.5;
+		const delay = Math.min(Math.floor(baseDelay * jitter), maxReconnectDelayMs);
+
+		reconnectAttempts++;
+		logger.debug(
+			'SSE connection lost, reconnecting in %dms (attempt %d)',
+			delay,
+			reconnectAttempts
+		);
+
+		reconnectTimer = setTimeout(() => {
+			reconnectTimer = null;
+			void connect();
+		}, delay);
 	};
 
 	const connect = async (): Promise<void> => {
@@ -749,15 +817,12 @@ export async function* streamCoderSessionSSE(
 				logger,
 			});
 		} catch (err) {
-			terminalError = err as Error;
-			done = true;
-			wake();
+			finish(err instanceof Error ? err : new Error(String(err)));
 			return;
 		}
 
 		if (signal?.aborted) {
-			done = true;
-			wake();
+			finish();
 			return;
 		}
 
@@ -780,11 +845,10 @@ export async function* streamCoderSessionSSE(
 				activeController = null;
 			}
 			if (signal?.aborted || isAbortError(err)) {
-				done = true;
-				wake();
+				finish();
 				return;
 			}
-			terminalError =
+			const error =
 				err instanceof CoderSSEError
 					? err
 					: new CoderSSEError({
@@ -792,16 +856,14 @@ export async function* streamCoderSessionSSE(
 							code: 'connection_failed',
 							sessionId: options.sessionId,
 						});
-			done = true;
-			wake();
+			scheduleReconnect(error);
 			return;
 		}
 
 		if (signal?.aborted) {
 			signal?.removeEventListener('abort', abortFromCaller);
 			cleanup();
-			done = true;
-			wake();
+			finish();
 			return;
 		}
 
@@ -810,14 +872,13 @@ export async function* streamCoderSessionSSE(
 			if (activeController === controller) {
 				activeController = null;
 			}
-			terminalError = buildConnectionError(response, options.sessionId);
-			done = true;
-			wake();
+			scheduleReconnect(buildConnectionError(response, options.sessionId));
 			return;
 		}
 
 		reconnectAttempts = 0;
 		logger.debug('SSE connection established for session %s', options.sessionId);
+		let readFailed = false;
 
 		void readSSEStream(
 			response,
@@ -833,14 +894,8 @@ export async function* streamCoderSessionSSE(
 			options.sessionId
 		)
 			.catch((err) => {
-				if (signal?.aborted || isAbortError(err)) {
-					done = true;
-					wake();
-					return;
-				}
-				terminalError = err instanceof Error ? err : new Error(String(err));
-				done = true;
-				wake();
+				readFailed = true;
+				scheduleReconnect(err instanceof Error ? err : new Error(String(err)));
 			})
 			.finally(() => {
 				signal?.removeEventListener('abort', abortFromCaller);
@@ -849,45 +904,21 @@ export async function* streamCoderSessionSSE(
 				}
 
 				if (done || signal?.aborted) {
-					done = true;
-					wake();
+					finish();
 					return;
 				}
 
-				if (reconnect && reconnectAttempts < maxReconnectAttempts) {
-					const baseDelay = reconnectDelayMs * 2 ** reconnectAttempts;
-					const jitter = 0.5 + Math.random() * 0.5;
-					const delay = Math.min(Math.floor(baseDelay * jitter), maxReconnectDelayMs);
-
-					reconnectAttempts++;
-					logger.debug(
-						'SSE connection lost, reconnecting in %dms (attempt %d)',
-						delay,
-						reconnectAttempts
-					);
-
-					setTimeout(() => {
-						connect();
-					}, delay);
-				} else if (reconnect) {
-					terminalError = new CoderSSEError({
-						message: `Exceeded maximum reconnection attempts (${maxReconnectAttempts})`,
-						code: 'max_reconnects_exceeded',
-						sessionId: options.sessionId,
-					});
-					done = true;
-					wake();
-				} else {
-					done = true;
-					wake();
+				if (readFailed) {
+					return;
 				}
+
+				scheduleReconnect();
 			});
 	};
 
 	const onAbort = () => {
-		done = true;
 		cleanup();
-		wake();
+		finish();
 	};
 
 	signal?.addEventListener('abort', onAbort, { once: true });
@@ -918,6 +949,7 @@ export async function* streamCoderSessionSSE(
 		}
 	} finally {
 		signal?.removeEventListener('abort', onAbort);
+		done = true;
 		cleanup();
 	}
 }

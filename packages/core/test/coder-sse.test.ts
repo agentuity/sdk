@@ -59,6 +59,15 @@ class MockSSEConnection {
 			// Already closed or aborted.
 		}
 	}
+
+	fail(error = new Error('SSE stream failed')) {
+		this.closed = true;
+		try {
+			this.#controller.error(error);
+		} catch {
+			// Already closed or aborted.
+		}
+	}
 }
 
 function installMockFetch(status = 200, statusText = 'OK') {
@@ -78,6 +87,32 @@ async function flushAsyncWork() {
 	await Promise.resolve();
 	await Promise.resolve();
 	await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 250) {
+	const start = Date.now();
+	while (!predicate()) {
+		if (Date.now() - start > timeoutMs) {
+			throw new Error('Timed out waiting for condition');
+		}
+		await new Promise((resolve) => setTimeout(resolve, 1));
+	}
+}
+
+function makeMessageUpdate(sessionId: string, delta = 'hello from SSE') {
+	return {
+		type: 'broadcast',
+		event: 'message_update',
+		data: {
+			assistantMessageEvent: {
+				type: 'text_delta',
+				delta,
+			},
+		},
+		category: 'streaming',
+		sessionId,
+		timestamp: Date.now(),
+	};
 }
 
 describe('Coder SSE observer clients', () => {
@@ -143,19 +178,10 @@ describe('Coder SSE observer clients', () => {
 
 		const connection = MockSSEConnection.instances[0];
 		expect(connection).toBeDefined();
-		connection!.emit('message_update', {
-			type: 'broadcast',
-			event: 'message_update',
-			data: {
-				assistantMessageEvent: {
-					type: 'text_delta',
-					delta: 'hello from named SSE',
-				},
-			},
-			category: 'streaming',
-			sessionId: 'codesess_sse_client',
-			timestamp: Date.now(),
-		});
+		connection!.emit(
+			'message_update',
+			makeMessageUpdate('codesess_sse_client', 'hello from named SSE')
+		);
 		await flushAsyncWork();
 
 		expect(seenEvents).toHaveLength(1);
@@ -194,19 +220,7 @@ describe('Coder SSE observer clients', () => {
 		expect(connection).toBeDefined();
 		expect(decodeURIComponent(connection!.url)).toContain('subscribe=*');
 
-		connection!.emit('message_update', {
-			type: 'broadcast',
-			event: 'message_update',
-			data: {
-				assistantMessageEvent: {
-					type: 'text_delta',
-					delta: 'hello from SSE',
-				},
-			},
-			category: 'streaming',
-			sessionId: 'codesess_sse_stream',
-			timestamp: Date.now(),
-		});
+		connection!.emit('message_update', makeMessageUpdate('codesess_sse_stream'));
 
 		const events = await eventsPromise;
 		expect(events).toHaveLength(1);
@@ -220,5 +234,165 @@ describe('Coder SSE observer clients', () => {
 			},
 		});
 		expect(connection!.closed).toBe(true);
+	});
+
+	it('retries async iterator streams after transient fetch failures', async () => {
+		let fetchCalls = 0;
+		globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+			fetchCalls += 1;
+			if (fetchCalls === 1) {
+				return Promise.reject(new TypeError('network unavailable'));
+			}
+			const connection = new MockSSEConnection(String(input), init);
+			return Promise.resolve(connection.response);
+		}) as typeof fetch;
+
+		const eventsPromise = (async () => {
+			const seen = [];
+			for await (const event of streamCoderSessionSSE({
+				url: 'https://hub.example',
+				sessionId: 'codesess_sse_fetch_retry',
+				subscribe: ['*'],
+				reconnectDelayMs: 1,
+				maxReconnectDelayMs: 1,
+				maxReconnectAttempts: 2,
+			})) {
+				seen.push(event);
+				break;
+			}
+			return seen;
+		})();
+
+		await waitFor(() => fetchCalls >= 2 && MockSSEConnection.instances.length === 1);
+		MockSSEConnection.instances[0]!.emit(
+			'message_update',
+			makeMessageUpdate('codesess_sse_fetch_retry')
+		);
+
+		const events = await eventsPromise;
+		expect(fetchCalls).toBe(2);
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			event: 'message_update',
+			data: {
+				type: 'broadcast',
+				event: 'message_update',
+				sessionId: 'codesess_sse_fetch_retry',
+			},
+		});
+	});
+
+	it('retries async iterator streams after retryable HTTP responses', async () => {
+		let fetchCalls = 0;
+		globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+			fetchCalls += 1;
+			if (fetchCalls === 1) {
+				return Promise.resolve(new Response('retry later', { status: 503 }));
+			}
+			const connection = new MockSSEConnection(String(input), init);
+			return Promise.resolve(connection.response);
+		}) as typeof fetch;
+
+		const eventsPromise = (async () => {
+			const seen = [];
+			for await (const event of streamCoderSessionSSE({
+				url: 'https://hub.example',
+				sessionId: 'codesess_sse_http_retry',
+				subscribe: ['*'],
+				reconnectDelayMs: 1,
+				maxReconnectDelayMs: 1,
+				maxReconnectAttempts: 2,
+			})) {
+				seen.push(event);
+				break;
+			}
+			return seen;
+		})();
+
+		await waitFor(() => fetchCalls >= 2 && MockSSEConnection.instances.length === 1);
+		MockSSEConnection.instances[0]!.emit(
+			'message_update',
+			makeMessageUpdate('codesess_sse_http_retry')
+		);
+
+		const events = await eventsPromise;
+		expect(fetchCalls).toBe(2);
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			event: 'message_update',
+			data: {
+				type: 'broadcast',
+				event: 'message_update',
+				sessionId: 'codesess_sse_http_retry',
+			},
+		});
+	});
+
+	it('retries async iterator streams after reader failures', async () => {
+		const eventsPromise = (async () => {
+			const seen = [];
+			for await (const event of streamCoderSessionSSE({
+				url: 'https://hub.example',
+				sessionId: 'codesess_sse_read_retry',
+				subscribe: ['*'],
+				reconnectDelayMs: 1,
+				maxReconnectDelayMs: 1,
+				maxReconnectAttempts: 2,
+			})) {
+				seen.push(event);
+				break;
+			}
+			return seen;
+		})();
+
+		await waitFor(() => MockSSEConnection.instances.length === 1);
+		MockSSEConnection.instances[0]!.fail(new Error('socket reset'));
+		await waitFor(() => MockSSEConnection.instances.length === 2);
+		MockSSEConnection.instances[1]!.emit(
+			'message_update',
+			makeMessageUpdate('codesess_sse_read_retry')
+		);
+
+		const events = await eventsPromise;
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			event: 'message_update',
+			data: {
+				type: 'broadcast',
+				event: 'message_update',
+				sessionId: 'codesess_sse_read_retry',
+			},
+		});
+	});
+
+	it('does not retry async iterator streams after non-retryable auth responses', async () => {
+		let fetchCalls = 0;
+		globalThis.fetch = (() => {
+			fetchCalls += 1;
+			return Promise.resolve(new Response('unauthorized', { status: 401 }));
+		}) as typeof fetch;
+
+		const error = await (async () => {
+			try {
+				for await (const _event of streamCoderSessionSSE({
+					url: 'https://hub.example',
+					sessionId: 'codesess_sse_auth_failure',
+					reconnectDelayMs: 1,
+					maxReconnectDelayMs: 1,
+					maxReconnectAttempts: 2,
+				})) {
+					// The stream should fail before yielding.
+				}
+				return null;
+			} catch (err) {
+				return err;
+			}
+		})();
+
+		expect(fetchCalls).toBe(1);
+		expect(error).toMatchObject({
+			code: 'auth_failed',
+			sessionId: 'codesess_sse_auth_failure',
+		});
 	});
 });
