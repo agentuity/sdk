@@ -86,7 +86,7 @@ Conversation:
 ${historyText}`;
 
 			const response = await generateText({
-				model: openai('gpt-4o-mini'),
+				model: openai('gpt-5.4-mini'),
 				prompt,
 				system:
 					'You are a title generator for chat sessions. Generate concise, descriptive titles only. Output only the title text, nothing else.',

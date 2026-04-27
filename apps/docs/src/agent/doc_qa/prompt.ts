@@ -11,7 +11,96 @@ const PromptClassificationSchemaZod = z.object({
 	reasoning: z.string(),
 });
 
+const DOC_SEARCH_EXPANSIONS = [
+	{
+		aliases: ['ai gateway', 'llm gateway'],
+		terms: ['AI Gateway', 'model providers', 'OpenAI', 'Anthropic', 'Google'],
+	},
+	{
+		aliases: ['cors'],
+		terms: ['CORS', 'Cross-Origin Resource Sharing', 'frontend deployment'],
+	},
+	{
+		aliases: ['db'],
+		terms: ['database', 'Postgres', 'SQL', 'Drizzle'],
+	},
+	{
+		aliases: ['dlq'],
+		terms: ['dead letter queue', 'queue', 'nack', 'retry'],
+	},
+	{
+		aliases: ['kv'],
+		terms: ['key-value storage', 'KV storage'],
+	},
+	{
+		aliases: ['mcp'],
+		terms: ['MCP', 'Model Context Protocol', 'OpenCode plugin'],
+	},
+	{
+		aliases: ['oidc'],
+		terms: ['OIDC', 'OpenID Connect', 'OAuth', 'authentication'],
+	},
+	{
+		aliases: ['otel'],
+		terms: ['OpenTelemetry', 'observability', 'tracing', 'telemetry'],
+	},
+	{
+		aliases: ['rag'],
+		terms: ['retrieval augmented generation', 'vector search', 'embeddings'],
+	},
+	{
+		aliases: ['s3'],
+		terms: ['S3', 'object storage', 'Bun S3-compatible API'],
+	},
+	{
+		aliases: ['sse'],
+		terms: ['Server-Sent Events', 'streaming', 'routes'],
+	},
+	{
+		aliases: ['webrtc'],
+		terms: ['WebRTC', 'signaling', 'real-time communication'],
+	},
+] as const;
+
+function includesSearchTerm(input: string, term: string): boolean {
+	const normalizedInput = ` ${input.toLowerCase().split(/\W+/).filter(Boolean).join(' ')} `;
+	const normalizedTerm = ` ${term.toLowerCase().split(/\W+/).filter(Boolean).join(' ')} `;
+	return normalizedInput.includes(normalizedTerm);
+}
+
+function expandKnownDocsTerms(input: string): string {
+	const trimmedInput = input.trim();
+	if (!trimmedInput) {
+		return input;
+	}
+
+	const addedTerms: string[] = [];
+	for (const entry of DOC_SEARCH_EXPANSIONS) {
+		if (!entry.aliases.some((alias) => includesSearchTerm(trimmedInput, alias))) {
+			continue;
+		}
+
+		for (const term of entry.terms) {
+			if (!includesSearchTerm(trimmedInput, term)) {
+				addedTerms.push(term);
+			}
+		}
+	}
+
+	if (addedTerms.length === 0) {
+		return input;
+	}
+
+	return `${trimmedInput} ${addedTerms.join(' ')}`;
+}
+
 export async function rephraseVaguePrompt(ctx: any, input: string): Promise<string> {
+	const expandedQuery = expandKnownDocsTerms(input);
+	if (expandedQuery !== input) {
+		ctx.logger.info('Expanded query from "%s" to "%s"', input, expandedQuery);
+		return expandedQuery;
+	}
+
 	const systemPrompt = `You are a technical documentation search assistant for developer tools and AI agents. Your job is to CAREFULLY improve unclear queries ONLY when absolutely necessary.
 
 BE EXTREMELY CONSERVATIVE. Most queries should be returned UNCHANGED.
@@ -50,10 +139,9 @@ Return ONLY the query text, nothing else.`;
 
 	try {
 		const result = await generateText({
-			model: openai('gpt-4o-mini'),
+			model: openai('gpt-5.4-mini'),
 			system: systemPrompt,
 			prompt: `User query: "${input}"`,
-			temperature: 0.1,
 		});
 
 		const rephrasedQuery = result.text?.trim() || input;
@@ -106,7 +194,7 @@ Be conservative - when in doubt, default to "Normal" for better performance.`;
 
 	try {
 		const result = await generateObject({
-			model: openai('gpt-4o-mini'), // Use faster model for classification
+			model: openai('gpt-5.4-mini'),
 			system: systemPrompt,
 			prompt: `Classify this user query: "${input}"`,
 			schema: PromptClassificationSchemaZod,

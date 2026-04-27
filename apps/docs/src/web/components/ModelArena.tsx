@@ -329,7 +329,7 @@ export function ModelArena() {
 								<span className="text-green-600 dark:text-green-400">OpenAI</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
-									gpt-5.4-nano
+									gpt-5.4-mini
 								</span>
 							</Badge>
 							<Badge variant="outline">
