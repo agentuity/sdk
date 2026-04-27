@@ -1,6 +1,6 @@
 /**
- * API routes for translation.
- * All logic lives directly in the route handlers — no separate agent layer.
+ * API routes for translating text.
+ * Routes handle requests, call the model, and update thread state directly.
  */
 
 import { Hono } from 'hono';
@@ -16,6 +16,7 @@ import OpenAI from 'openai';
  */
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
+const MAX_TRANSLATION_TEXT_CHARS = 4000;
 const HISTORY_KEY = 'history';
 const TRANSLATION_COUNT_KEY = 'translationCount';
 
@@ -47,7 +48,10 @@ export type HistoryEntry = s.infer<typeof HistoryEntrySchema>;
 
 const TranslateInput = s.object({
 	model: s.enum(MODELS).optional().describe('AI model to use for translation'),
-	text: s.string().describe('The text to translate'),
+	text: s
+		.string()
+		.max(MAX_TRANSLATION_TEXT_CHARS)
+		.describe('The text to translate'),
 	toLanguage: s.enum(LANGUAGES).optional().describe('Target language for translation'),
 });
 
@@ -83,7 +87,7 @@ const api = new Hono<Env>()
 
 			let completion: Awaited<ReturnType<typeof openai.chat.completions.create>>;
 			try {
-				// Call OpenAI via AI Gateway, automatically routed and tracked.
+				// Call OpenAI via AI Gateway (automatically routed and tracked)
 				completion = await openai.chat.completions.create({
 					model,
 					messages: [{ role: 'user', content: prompt }],
@@ -102,7 +106,7 @@ const api = new Hono<Env>()
 			// Token usage from the response (also available via x-agentuity-tokens header)
 			const tokens = completion.usage?.total_tokens ?? 0;
 
-			// Add translation to history
+			// Store a short entry for the recent history list
 			const truncate = (str: string, len: number) =>
 				str.length > len ? `${str.slice(0, len)}...` : str;
 
@@ -116,7 +120,7 @@ const api = new Hono<Env>()
 				translation: truncate(translation, 50),
 			};
 
-			// Keep recent history small while tracking the total separately.
+			// Keep the visible history small while preserving the total count
 			await c.var.thread.state.push(HISTORY_KEY, newEntry, 5);
 
 			const previousTranslationCount =

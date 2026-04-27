@@ -7,6 +7,7 @@ import './App.css';
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
+const MAX_TRANSLATION_TEXT_CHARS = 4000;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This starter app translates text, remembers your recent requests, and shows how a typed API route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the terminal logs to see the request, session, and token details.';
 
@@ -155,6 +156,7 @@ export function App() {
 					<textarea
 						className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
 						disabled={isLoading}
+						maxLength={MAX_TRANSLATION_TEXT_CHARS}
 						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
 						placeholder="Enter text to translate..."
 						rows={4}
