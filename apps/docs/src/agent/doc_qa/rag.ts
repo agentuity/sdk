@@ -113,7 +113,7 @@ ${JSON.stringify(relevantDocs, null, 2)}
 
 	try {
 		const result = await generateObject({
-			model: openai('gpt-4o'),
+			model: openai('gpt-5.4-mini'),
 			system: systemPrompt,
 			prompt:
 				'The user is mostly a software engineer. Your answer should be concise, straightforward and in most cases, supplying the answer with examples code snipped is ideal.',
@@ -125,16 +125,8 @@ ${JSON.stringify(relevantDocs, null, 2)}
 
 		// Fallback response with MDX formatting
 		const fallbackAnswer: Answer = {
-			answer: `## Error
-
-I apologize, but I encountered an error while processing your question.
-
-**Please try:**
-- Rephrasing your question
-- Being more specific about what you're looking for
-- Checking if your question relates to Agentuity's documented features
-
-> If the problem persists, please contact support.`,
+			answer:
+				"I couldn't search the docs just now. You can still use keyword search, or try again in a moment.",
 			documents: [],
 		};
 

@@ -1,11 +1,15 @@
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import hello from '@agent/hello';
+import { validator } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
-const api = new Hono<Env>().post('/hello', hello.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const result = await hello.run(data);
-	return c.json(result);
+const HelloInput = s.object({
+	name: s.string(),
+});
+
+const api = new Hono<Env>().post('/hello', validator({ input: HelloInput }), async (c) => {
+	const { name } = c.req.valid('json');
+	return c.text(`Hello, ${name}!`);
 });
 
 export type ApiRouter = typeof api;

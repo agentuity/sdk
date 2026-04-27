@@ -47,6 +47,12 @@ export interface ManagedServer {
 	description: string;
 	/** The port this server uses */
 	port?: number;
+	/**
+	 * Maximum time (ms) to wait for this server's close() to resolve before
+	 * moving on. Defaults to 1000ms. Servers like Vite that own filesystem
+	 * watchers and HMR sockets may need more time.
+	 */
+	closeTimeoutMs?: number;
 }
 
 /**
@@ -208,14 +214,28 @@ export class ProcessManager {
 			const server = serverSnapshot[i];
 			if (!server) continue;
 
+			const closeTimeout = server.closeTimeoutMs ?? 1000;
 			try {
-				this.logger.debug('Closing server %s', server.id);
+				this.logger.debug('Closing server %s (timeout=%dms)', server.id, closeTimeout);
 				const closePromise = server.server.close();
 				if (closePromise instanceof Promise) {
+					let timedOut = false;
 					await Promise.race([
 						closePromise,
-						new Promise<void>((resolve) => setTimeout(resolve, 1000)),
+						new Promise<void>((resolve) =>
+							setTimeout(() => {
+								timedOut = true;
+								resolve();
+							}, closeTimeout)
+						),
 					]);
+					if (timedOut) {
+						this.logger.debug(
+							'Server %s did not close within %dms, continuing cleanup',
+							server.id,
+							closeTimeout
+						);
+					}
 				}
 			} catch (err) {
 				this.logger.debug('Error closing server %s: %s', server.id, err);

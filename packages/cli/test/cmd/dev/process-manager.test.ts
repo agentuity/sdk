@@ -197,6 +197,89 @@ describe('ProcessManager', () => {
 			expect(serverClosed).toBe(true);
 		});
 
+		test('default server close timeout (~1s) gives up on slow servers', async () => {
+			// A server whose close() never resolves should not block cleanup
+			// past the default 1s budget.
+			let resolved = false;
+
+			manager.registerServer({
+				id: 'slow-server',
+				server: {
+					close: () =>
+						new Promise<void>((resolve) => {
+							setTimeout(() => {
+								resolved = true;
+								resolve();
+							}, 5000);
+						}),
+				},
+				description: 'Slow server',
+			});
+
+			const start = Date.now();
+			await manager.cleanup('test', 200);
+			const elapsed = Date.now() - start;
+
+			// cleanup should bail out via the default 1000ms server-close cap,
+			// not wait for the 5s close().
+			expect(elapsed).toBeLessThan(1500);
+			expect(resolved).toBe(false);
+		});
+
+		test('respects per-server closeTimeoutMs override', async () => {
+			// A server with a longer override should be waited on past the
+			// 1s default. We use 1500ms close() with a 2500ms override and
+			// verify close() actually completed.
+			let resolved = false;
+
+			manager.registerServer({
+				id: 'patient-server',
+				server: {
+					close: () =>
+						new Promise<void>((resolve) => {
+							setTimeout(() => {
+								resolved = true;
+								resolve();
+							}, 1500);
+						}),
+				},
+				description: 'Patient server',
+				closeTimeoutMs: 2500,
+			});
+
+			await manager.cleanup('test', 200);
+
+			expect(resolved).toBe(true);
+		});
+
+		test('per-server closeTimeoutMs caps a hung close()', async () => {
+			// Override BELOW default to verify we use the override, not 1000ms.
+			let resolved = false;
+
+			manager.registerServer({
+				id: 'tight-budget',
+				server: {
+					close: () =>
+						new Promise<void>((resolve) => {
+							setTimeout(() => {
+								resolved = true;
+								resolve();
+							}, 5000);
+						}),
+				},
+				description: 'Tight budget server',
+				closeTimeoutMs: 100,
+			});
+
+			const start = Date.now();
+			await manager.cleanup('test', 200);
+			const elapsed = Date.now() - start;
+
+			// We should bail out around the 100ms override, well before 1000ms default.
+			expect(elapsed).toBeLessThan(500);
+			expect(resolved).toBe(false);
+		});
+
 		test('handles already-exited processes gracefully', async () => {
 			let killCalled = false;
 

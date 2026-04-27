@@ -28,7 +28,7 @@ const router = new Hono<Env>()
 		stream(async (c) => {
 			try {
 				const body = await c.req.json();
-				const { model = 'gpt-5.4-nano' } = body as { model?: string };
+				const { model = 'gpt-5.4-mini' } = body as { model?: string };
 
 				c.var.logger?.info('Gateway comparison started', {
 					prompt: FIXED_PROMPT.slice(0, 50),
