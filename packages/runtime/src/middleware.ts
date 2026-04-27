@@ -6,12 +6,12 @@
 import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
-import { setSignedCookie } from 'hono/cookie';
+import { getSignedCookie, setSignedCookie } from 'hono/cookie';
 import type { Env, CompressionConfig, CorsConfig } from './app';
 import { createTrustedCorsOrigin } from './cors';
 import type { Logger } from './logger';
 
-import { generateId } from './session';
+import { generateId, isValidThreadId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
 import { extractTraceContextFromRequest } from './otel/http';
@@ -1066,7 +1066,11 @@ export function createWebSessionMiddleware() {
 		// Use ThreadProvider.restore() to get/create thread (handles header, cookie, generation)
 		const threadProvider = getThreadProvider();
 		if (!threadProvider) {
-			const threadId = generateId('thrd');
+			const existingThreadId = await getSignedCookie(c, secret, 'atid_a');
+			const threadId =
+				typeof existingThreadId === 'string' && isValidThreadId(existingThreadId)
+					? existingThreadId
+					: generateId('thrd');
 			const isSecure = c.req.url.startsWith('https://');
 			await setSignedCookie(c, 'atid_a', threadId, secret, {
 				httpOnly: false,
