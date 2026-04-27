@@ -82,8 +82,6 @@ import { Agent, run, handoff } from '@openai/agents';
 import { z } from 'zod';
 
 // ... tool definitions above (lookupInvoice, processRefund)
-// Illustrative only. Store escalation reasons in request state or Agentuity storage.
-const refundEscalations: string[] = [];
 
 // Specialist agents with focused instructions
 const billingAgent = new Agent({
@@ -105,37 +103,40 @@ const EscalationData = z.object({
   reason: z.string().describe('Why this is being escalated'),
 });
 
-// Triage agent routes to specialists via handoffs
-const triageAgent = Agent.create({ // [!code highlight]
-  name: 'Triage Agent',
-  instructions: `Route requests to the right specialist:
+function createTriageAgent(onRefundEscalation: (reason: string) => void) {
+  return Agent.create({ // [!code highlight]
+    name: 'Triage Agent',
+    instructions: `Route requests to the right specialist:
 - Billing questions → Billing Agent
 - Refund requests → Refund Agent (use escalate_to_refund)`,
-  model: 'gpt-5.4',
-  handoffs: [
-    billingAgent, // basic handoff
-    handoff(refundAgent, { // [!code highlight]
-      onHandoff: (_ctx, input) => {
-        if (input?.reason) {
-          refundEscalations.push(input.reason);
-        }
-      },
-      inputType: EscalationData,
-      toolNameOverride: 'escalate_to_refund',
-    }),
-  ],
-});
+    model: 'gpt-5.4',
+    handoffs: [
+      billingAgent, // basic handoff
+      handoff(refundAgent, { // [!code highlight]
+        onHandoff: (_ctx, input) => {
+          if (input?.reason) {
+            onRefundEscalation(input.reason);
+          }
+        },
+        inputType: EscalationData,
+        toolNameOverride: 'escalate_to_refund',
+      }),
+    ],
+  });
+}
 ```
 
-Track which specialist handled the request using `result.lastAgent`:
+Inside the request handler, track which specialist handled the request using `result.lastAgent`:
 
 ```typescript
+const refundEscalations: string[] = [];
+const triageAgent = createTriageAgent((reason) => refundEscalations.push(reason));
 const result = await run(triageAgent, message);
 const handledBy = result.lastAgent?.name ?? 'Triage Agent';
-ctx.logger.info('Request routed', { handledBy });
+ctx.logger.info('Request routed', { handledBy, refundEscalations });
 ```
 
-The `handoff()` wrapper adds typed escalation data and a callback. After the run completes, `result.lastAgent.name` tells you which agent handled the request. Use `Agent.create()` for the triage agent to get full type inference across the handoff chain.
+The `handoff()` wrapper adds typed escalation data and a callback. Keep handoff side effects request-scoped, as shown above, or store them in Agentuity storage when another request needs to read them. After the run completes, `result.lastAgent.name` tells you which agent handled the request. Use `Agent.create()` for the triage agent to get full type inference across the handoff chain.
 
 <Callout type="tip" title="Agent.create() for type inference">
 Use `Agent.create()` instead of `new Agent()` for the triage agent. This gives TypeScript full type inference across the handoff chain, including typed `inputType` schemas.

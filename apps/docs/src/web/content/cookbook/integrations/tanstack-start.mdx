@@ -147,9 +147,20 @@ if (!agentuityBaseUrl) {
   throw new Error('VITE_AGENTUITY_BASE_URL is required');
 }
 
-const client = hc<ApiRouter>(
-  new URL('/api', agentuityBaseUrl).toString()
-);
+const client = hc<ApiRouter>(new URL('/api', agentuityBaseUrl).toString());
+```
+
+`VITE_AGENTUITY_BASE_URL` must be a full absolute URL, including the scheme, such as `https://my-app.agentuity.run`. `new URL()` throws if you pass a bare host or a relative path.
+
+`/api` replaces any path suffix in `VITE_AGENTUITY_BASE_URL`. If your backend is mounted under a subpath, preserve it with a relative URL segment:
+
+```tsx
+const baseUrl = new URL(agentuityBaseUrl);
+if (!baseUrl.pathname.endsWith('/')) {
+  baseUrl.pathname += '/';
+}
+
+const client = hc<ApiRouter>(new URL('api', baseUrl).toString());
 ```
 
 Then enable CORS in [App Configuration](/get-started/app-configuration).

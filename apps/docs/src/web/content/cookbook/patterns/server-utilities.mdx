@@ -375,7 +375,12 @@ router.get('/:id', async (c) => {
 // Create or update a session
 router.post('/:id', async (c) => {
   const sessionId = c.req.param('id');
-  const body: SessionPatch = SessionPatchSchema.parse(await c.req.json());
+  const payload = await c.req.json();
+  const parsed = SessionPatchSchema.safeParse(payload);
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid session payload' }, 400);
+  }
+  const body: SessionPatch = parsed.data;
 
   const existing = await c.var.kv.get<ChatSession>('sessions', sessionId);
   const session: ChatSession = existing.exists
@@ -474,6 +479,7 @@ safeStringify(obj); // '{"name":"Alice","self":"[Circular]"}'
 
 safeStringify({ id: 9007199254740991n }); // '{"id":"9007199254740991"}'
 
+const data = { user: obj, balance: 9007199254740991n };
 safeStringify(data, 2);
 ```
 
@@ -486,6 +492,7 @@ Enhanced errors with context and pretty printing:
 ```typescript
 import { RichError } from '@agentuity/core';
 
+const originalError = new Error('Upstream request timed out');
 const error = new RichError({
   message: 'Request failed',
   statusCode: 500,
@@ -506,6 +513,9 @@ Type-safe, discriminated errors with a `_tag` for pattern matching:
 
 ```typescript
 import { StructuredError, isStructuredError } from '@agentuity/core';
+import { createLogger } from '@agentuity/server';
+
+const logger = createLogger('error');
 
 // Create error types
 const NotFoundError = StructuredError('NotFound');
@@ -517,22 +527,22 @@ const ValidationError = StructuredError('ValidationError')<{
 // With a default message (message is preset, cannot be overridden)
 const UpgradeRequired = StructuredError('UpgradeRequired', 'Upgrade required to access this feature');
 
-// Throw with context
-throw new ValidationError({
-  field: 'email',
-  code: 'INVALID_FORMAT',
-  message: 'Email format is invalid',
-});
-
-// Type-safe handling
-if (isStructuredError(err) && err._tag === 'ValidationError') {
-  logger.error('Validation failed', { field: err.field, code: err.code });
+try {
+  throw new ValidationError({
+    field: 'email',
+    code: 'INVALID_FORMAT',
+    message: 'Email format is invalid',
+  });
+} catch (err) {
+  if (isStructuredError(err) && err._tag === 'ValidationError') {
+    logger.error('Validation failed', { field: err.field, code: err.code });
+  }
 }
 ```
 
 ## Schema Conversion
 
-Convert Agentuity or Zod schemas to JSON Schema for tooling or OpenAPI generation:
+Convert Agentuity schemas to JSON Schema for tooling or OpenAPI generation:
 
 ```typescript
 import { s } from '@agentuity/schema';

@@ -254,6 +254,14 @@ If you don't set provider API keys, LLM requests are routed through the Agentuit
 Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
 </Callout>
 
+### Agentuity Keys
+
+Use `AGENTUITY_SDK_KEY` in project code. The CLI writes this key to `.env` when you create, import, reconcile, or pull a project environment. Runtime services, AI Gateway calls, standalone packages, and deployed app code read it when they call Agentuity services.
+
+CLI authentication is separate. `agentuity auth login` stores the CLI credential in your OS keychain or Agentuity config. Automation can pass `AGENTUITY_API_KEY`, or `AGENTUITY_CLI_API_KEY` with `AGENTUITY_USER_ID`, so the CLI can run project and deployment commands without an interactive login. Do not read those variables from app code.
+
+`AGENTUITY_CLI_KEY` is not the CLI login variable. Some standalone clients accept it as a compatibility fallback API key env var, but new examples and projects should use `AGENTUITY_SDK_KEY` or pass `apiKey` directly.
+
 ### Environment-Specific Files
 
 Use separate `.env` files instead of commenting/uncommenting variables when switching between local development and deployed contexts.

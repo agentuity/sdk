@@ -77,8 +77,8 @@ Chain `.get()`, `.post()`, etc. directly on `new Hono<Env>()`. If you use separa
 
 ## Export Route Types to the Client
 
-<Callout type="warning" title="Never Import Server Route Files from Client Code">
-Even `import type` can cause bundlers to trace the module graph and pull server-only code into the client bundle.
+<Callout type="warning" title="Never Import Value Exports from Server Route Files">
+Use the type-only barrel shown below for client code. Type-only imports and exports are erased at compile time, while value imports can pull server-only code into the browser bundle.
 </Callout>
 
 Use a dedicated type-only file for frontend imports:
@@ -101,7 +101,7 @@ export const client = hc<UsersRoute>('/api');
 This works because:
 
 1. `src/shared/api-types.ts` uses only `export type { ... }`, so TypeScript erases it at compile time.
-2. The client build sees an empty runtime module and tree-shakes it away.
+2. `verbatimModuleSyntax: true` keeps `import type` and `export type` honest instead of rewriting them into value imports.
 3. Your server route file stays out of the browser bundle.
 
 <Callout type="info" title="Why Not Import Directly?">

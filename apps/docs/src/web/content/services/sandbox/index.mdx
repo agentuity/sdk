@@ -289,17 +289,19 @@ From the CLI, use `agentuity cloud sandbox events <sandbox-id>` to list events. 
 
 ## Resume Paused Sandboxes
 
-Call `sandbox.resume()` when a sandbox was paused and you need it ready before issuing commands.
+`sandbox.execute()` automatically resumes a suspended sandbox and returns `autoResumed: true` on the execution result. Call `sandbox.resume()` when you want the sandbox awake before issuing a batch of commands.
 
 ```typescript
 await sandbox.resume();
 const execution = await sandbox.execute({ command: ['bun', 'run', 'test'] });
 
-ctx.logger.child({ executionId: execution.executionId }).info('Sandbox command completed');
+ctx.logger
+  .child({ executionId: execution.executionId, autoResumed: execution.autoResumed })
+  .info('Sandbox command completed');
 ```
 
 <Callout type="info" title="Resume before batches">
-Use explicit `sandbox.resume()` (or `agentuity cloud sandbox resume`) when you need the sandbox ready before issuing multiple commands.
+Use explicit `sandbox.resume()` (or `agentuity cloud sandbox resume`) when startup latency matters before the first command. For single commands, `execute()` can wake the sandbox for you.
 </Callout>
 
 ## When to Use Sandbox

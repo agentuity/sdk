@@ -152,6 +152,8 @@ if (!agentuityBaseUrl) {
 const client = hc<ApiRouter>(new URL('/api', agentuityBaseUrl).toString());
 ```
 
+`NEXT_PUBLIC_AGENTUITY_BASE_URL` must be a full absolute URL, including the scheme, such as `https://my-app.agentuity.run`. `new URL()` throws if you pass a bare host or a relative path.
+
 `/api` replaces any path suffix in `NEXT_PUBLIC_AGENTUITY_BASE_URL`. If your backend is mounted under a subpath, preserve it with a relative URL segment:
 
 ```tsx

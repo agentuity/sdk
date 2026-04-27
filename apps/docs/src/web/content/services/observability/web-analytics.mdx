@@ -35,10 +35,15 @@ export default await createApp({
     enabled: true,
     trackClicks: true,
     trackScroll: true,
+    trackOutboundLinks: true,
+    trackForms: false,
     trackWebVitals: true,
     trackErrors: true,
     trackSPANavigation: true,
+    requireConsent: false,
     sampleRate: 1,
+    excludePatterns: ['/admin/*'],
+    globalProperties: { app: 'docs' },
   },
 });
 ```
@@ -46,12 +51,17 @@ export default await createApp({
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Enable or disable analytics |
+| `requireConsent` | `boolean` | `false` | Wait for explicit consent before tracking |
 | `trackClicks` | `boolean` | `true` | Track clicks on elements with `data-analytics` attribute |
 | `trackScroll` | `boolean` | `true` | Track scroll depth milestones (25%, 50%, 75%, 100%) |
+| `trackOutboundLinks` | `boolean` | `true` | Track clicks that leave the current origin |
+| `trackForms` | `boolean` | `false` | Track form submissions |
 | `trackWebVitals` | `boolean` | `true` | Track Core Web Vitals (FCP, LCP, CLS, INP) |
 | `trackErrors` | `boolean` | `true` | Track JavaScript errors and unhandled rejections |
 | `trackSPANavigation` | `boolean` | `true` | Track client-side route changes via `pushState`/`replaceState` |
 | `sampleRate` | `number` | `1` | Sample rate from 0 to 1 (1 = track 100% of page views) |
+| `excludePatterns` | `string[]` | `[]` | URL path patterns to skip |
+| `globalProperties` | `Record<string, unknown>` | `{}` | Properties attached to every analytics event |
 
 To disable analytics entirely:
 

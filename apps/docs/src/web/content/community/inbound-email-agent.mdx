@@ -169,7 +169,7 @@ Create the route handler in `src/api/index.ts`:
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import { Inbound, isInboundWebhook } from '@inboundemail/sdk';
+import { Inbound, isInboundWebhook, verifyWebhookFromHeaders } from '@inboundemail/sdk';
 import email from '@agent/email';
 
 const inboundApiKey = process.env.INBOUND_API_KEY;
@@ -181,6 +181,12 @@ const inbound = new Inbound(inboundApiKey);
 const api = new Hono<Env>();
 
 api.post('/email/inbound', async (c) => {
+	const verified = await verifyWebhookFromHeaders(c.req.raw.headers, inbound);
+	if (!verified) {
+		c.var.logger.warn('Invalid Inbound webhook signature');
+		return c.json({ error: 'Invalid webhook signature' }, 401);
+	}
+
 	const payload: unknown = await c.req.json();
 
 	if (!isInboundWebhook(payload)) {
@@ -252,6 +258,8 @@ Send a sample inbound payload:
 ```bash
 curl -X POST http://localhost:3500/api/email/inbound \
   -H "Content-Type: application/json" \
+  -H "X-Endpoint-ID: endp_test123" \
+  -H "X-Webhook-Verification-Token: your_endpoint_verification_token" \
   -d '{
     "event": "email.received",
     "timestamp": "2026-04-22T12:00:00Z",
@@ -270,7 +278,7 @@ curl -X POST http://localhost:3500/api/email/inbound \
   }'
 ```
 
-You should get a JSON response with `replySent` and agent output fields.
+Use the endpoint ID and verification token from Inbound. Requests without valid Inbound webhook headers return `401`.
 </Step>
 
 <Step>
@@ -311,7 +319,6 @@ For debugging deployed behavior, use [Debugging Deployments](/reference/cli/debu
 
 ## Extend the Agent
 
-- Validate webhook signatures before processing.
 - Use `ctx.thread.state` to keep multi-email conversation context.
 - Route messages by `to` address to different agents.
 - Process attachment metadata and hand off to specialized workflows.

@@ -156,9 +156,9 @@ ctx.logger.info('Greeting result', result);
 |--------|------|-------------|
 | `sessionId` | `string` | Custom session ID. Auto-generated from trace context if omitted |
 | `trigger` | `'agent' \| 'api' \| 'email' \| 'sms' \| 'cron' \| 'manual' \| 'discord' \| 'websocket'` | Trigger type for telemetry |
-| `thread` | `Thread` | Thread for multi-turn conversations |
-| `session` | `Session` | Session for this execution |
 | `parentContext` | `Context` | Parent OpenTelemetry context for distributed tracing |
+
+Each invocation creates a fresh thread and restores or creates a session from `sessionId`.
 
 ```typescript
 // Discord bot integration

@@ -1,10 +1,25 @@
 import crypto from 'node:crypto';
 import { createMiddleware } from 'hono/factory';
 import { getSignedCookie, setSignedCookie } from 'hono/cookie';
-import { getSessionSecret } from '@agentuity/runtime';
 
-function isSecureRequest(url: string, forwardedProto: string | undefined): boolean {
-	if (forwardedProto) {
+function shouldTrustProxyHeaders(): boolean {
+	return process.env.TRUST_PROXY_HEADERS === 'true';
+}
+
+function getCookieSecret(): string {
+	const secret = process.env.CHAT_USER_COOKIE_SECRET ?? process.env.AGENTUITY_SDK_KEY;
+	if (!secret) {
+		throw new Error('CHAT_USER_COOKIE_SECRET or AGENTUITY_SDK_KEY is required');
+	}
+	return secret;
+}
+
+function isSecureRequest(
+	url: string,
+	forwardedProto: string | undefined,
+	trustProxyHeaders: boolean
+): boolean {
+	if (trustProxyHeaders && forwardedProto) {
 		const clientProto = forwardedProto.split(',')[0]?.trim().toLowerCase();
 		return clientProto === 'https';
 	}
@@ -22,7 +37,7 @@ function isSecureRequest(url: string, forwardedProto: string | undefined): boole
  * Use this for public-facing endpoints that only need user identification
  */
 export const cookieAuth = createMiddleware(async (c, next) => {
-	const secret = getSessionSecret();
+	const secret = getCookieSecret();
 	let userId = await getSignedCookie(c, secret, 'chat_user_id');
 	if (userId === false) {
 		c.var.logger.warn('Invalid chat_user_id cookie signature');
@@ -32,12 +47,16 @@ export const cookieAuth = createMiddleware(async (c, next) => {
 		userId = `anon_${crypto.randomUUID()}`;
 		await setSignedCookie(c, 'chat_user_id', userId, secret, {
 			httpOnly: true,
-			secure: isSecureRequest(c.req.url, c.req.header('x-forwarded-proto')),
+			secure: isSecureRequest(
+				c.req.url,
+				c.req.header('x-forwarded-proto'),
+				shouldTrustProxyHeaders()
+			),
 			sameSite: 'Lax',
 			path: '/',
 			maxAge: 60 * 60 * 24 * 365,
 		});
-		c.var.logger.info('Issued chat_user_id cookie', { userId });
+		c.var.logger.info('Issued chat_user_id cookie');
 	}
 	c.set('userId', userId);
 	await next();
