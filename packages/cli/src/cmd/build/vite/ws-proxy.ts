@@ -33,7 +33,7 @@
  * ```
  */
 
-import { createServer, connect, type Server } from 'node:net';
+import { createServer, connect, type Server, type Socket } from 'node:net';
 import type { Logger } from '../../../types';
 
 export interface WsProxyOptions {
@@ -49,17 +49,43 @@ export interface WsProxyOptions {
 }
 
 /**
+ * Front-door TCP proxy server.
+ *
+ * Extends `net.Server` with a `closeAll()` method that destroys all live
+ * client + upstream sockets and waits for the listening socket to close.
+ * The native `Server.close()` only stops accepting new connections — long-
+ * lived piped sockets (Vite HMR WebSocket, backend WS) keep the listener
+ * bound until they close on their own. During dev-mode shutdown we want
+ * the user-facing port released immediately, so cleanup paths should
+ * prefer `closeAll()` over `close()`.
+ */
+export interface WsProxyServer extends Server {
+	closeAll(): Promise<void>;
+}
+
+/**
  * Start a front-door TCP proxy that routes WebSocket upgrades to the Bun
  * backend and everything else to Vite. Returns the `net.Server` instance.
  */
-export function startWsProxy(options: WsProxyOptions): Promise<Server> {
+export function startWsProxy(options: WsProxyOptions): Promise<WsProxyServer> {
 	const { port, vitePort, backendPort, routePaths, logger } = options;
 
 	// Prefixes whose WebSocket upgrades go to Bun instead of Vite
 	const wsPathPrefixes = ['/_agentuity', ...routePaths];
 
+	// Track every live socket pair so shutdown can drop them. Without this,
+	// `server.close()` waits for active connections to terminate by themselves
+	// (e.g. browser HMR WebSockets), which can keep the user-facing port bound
+	// for many seconds after dev mode exits.
+	const liveSockets = new Set<Socket>();
+	const trackSocket = (sock: Socket) => {
+		liveSockets.add(sock);
+		sock.once('close', () => liveSockets.delete(sock));
+	};
+
 	return new Promise((resolve, reject) => {
 		const server = createServer((socket) => {
+			trackSocket(socket);
 			let handled = false;
 
 			// Peek at the first chunk to decide where to route
@@ -87,6 +113,7 @@ export function startWsProxy(options: WsProxyOptions): Promise<Server> {
 				}
 
 				const target = connect(targetPort, '127.0.0.1');
+				trackSocket(target);
 
 				target.on('connect', () => {
 					target.write(firstChunk);
@@ -109,7 +136,29 @@ export function startWsProxy(options: WsProxyOptions): Promise<Server> {
 			socket.on('error', () => {
 				if (!handled) socket.destroy();
 			});
-		});
+		}) as WsProxyServer;
+
+		// Async close that destroys live sockets first, then waits for the
+		// listener to close. Idempotent: safe to call after the server has
+		// already been closed by other means.
+		server.closeAll = () => {
+			return new Promise<void>((resolveClose) => {
+				for (const sock of liveSockets) {
+					try {
+						if (!sock.destroyed) sock.destroy();
+					} catch {
+						// Best effort
+					}
+				}
+				liveSockets.clear();
+
+				if (!server.listening) {
+					resolveClose();
+					return;
+				}
+				server.close(() => resolveClose());
+			});
+		};
 
 		server.on('error', reject);
 

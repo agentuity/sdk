@@ -687,4 +687,302 @@ describe('WS Proxy', () => {
 			await new Promise<void>((resolve) => backendServer.close(() => resolve()));
 		});
 	});
+
+	describe('closeAll() shutdown semantics', () => {
+		// These tests verify the orphan-prevention fix: server.close() alone
+		// only stops accepting new connections, but leaves piped sockets (HMR
+		// WebSocket, backend WS) holding the listening port bound. closeAll()
+		// must destroy live sockets first so the user-facing port is released
+		// immediately on dev-mode shutdown.
+
+		test('exposes a closeAll() method that resolves with no connections', async () => {
+			const { startWsProxy } = await import(wsProxyPath);
+
+			const proxyPort = await findAvailablePort(15500);
+			const vitePort = await findAvailablePort(proxyPort + 1);
+			const backendPort = await findAvailablePort(vitePort + 1);
+
+			const viteServer = await createEchoServer(vitePort, 'VITE');
+			const backendServer = await createEchoServer(backendPort, 'BUN');
+
+			const proxy = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+
+			expect(typeof proxy.closeAll).toBe('function');
+			await proxy.closeAll();
+			expect(proxy.listening).toBe(false);
+
+			await new Promise<void>((resolve) => viteServer.close(() => resolve()));
+			await new Promise<void>((resolve) => backendServer.close(() => resolve()));
+		});
+
+		test('closeAll() releases the listening port (rebindable immediately)', async () => {
+			const { startWsProxy } = await import(wsProxyPath);
+
+			const proxyPort = await findAvailablePort(15600);
+			const vitePort = await findAvailablePort(proxyPort + 1);
+			const backendPort = await findAvailablePort(vitePort + 1);
+
+			const viteServer = await createEchoServer(vitePort, 'VITE');
+			const backendServer = await createEchoServer(backendPort, 'BUN');
+
+			const proxy = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+
+			await proxy.closeAll();
+
+			// We must be able to bind the same port immediately.
+			await new Promise<void>((resolve, reject) => {
+				const rebind = createServer();
+				rebind.once('error', reject);
+				rebind.listen(proxyPort, '127.0.0.1', () => {
+					rebind.close(() => resolve());
+				});
+			});
+
+			await new Promise<void>((resolve) => viteServer.close(() => resolve()));
+			await new Promise<void>((resolve) => backendServer.close(() => resolve()));
+		});
+
+		test('plain close() does NOT finish while a piped WebSocket is open', async () => {
+			// Establishes the orphan condition closeAll() must fix: native
+			// `Server.close(cb)` only stops accepting new connections — the
+			// callback does not fire until every active socket has closed.
+			// With long-lived HMR / backend WebSockets piped through the proxy
+			// this means dev-mode shutdown would hang indefinitely waiting for
+			// the listener to release the port.
+			const { startWsProxy } = await import(wsProxyPath);
+
+			const proxyPort = await findAvailablePort(15700);
+			const vitePort = await findAvailablePort(proxyPort + 1);
+			const backendPort = await findAvailablePort(vitePort + 1);
+
+			// Backend that never closes the socket — simulates a long-lived WS.
+			const stickyBackend = await new Promise<Server>((resolve, reject) => {
+				const s = createServer((sock) => {
+					sock.on('data', () => {
+						/* keep alive, never respond, never close */
+					});
+					sock.on('error', () => {});
+				});
+				s.on('error', reject);
+				s.listen(backendPort, '127.0.0.1', () => resolve(s));
+			});
+
+			const viteServer = await createEchoServer(vitePort, 'VITE');
+
+			const proxy = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+
+			// Open a WebSocket upgrade to the backend and keep the client alive.
+			const client = await new Promise<ReturnType<typeof connect>>((resolve, reject) => {
+				const c = connect(proxyPort, '127.0.0.1');
+				c.once('error', reject);
+				c.once('connect', () => {
+					c.write(createWebSocketUpgradeRequest('/api/stream', '127.0.0.1', proxyPort));
+					setTimeout(() => resolve(c), 100);
+				});
+			});
+
+			// Trigger native close() and watch for the callback. It must NOT
+			// fire while the WebSocket is still piped — that's the orphan
+			// condition the closeAll() fix addresses.
+			let closeCallbackFired = false;
+			proxy.close(() => {
+				closeCallbackFired = true;
+			});
+			await new Promise<void>((resolve) => setTimeout(resolve, 200));
+			expect(closeCallbackFired).toBe(false);
+
+			// Dropping the client lets close() finally complete — confirms it
+			// really was waiting on the WebSocket and not on something else.
+			client.destroy();
+			await new Promise<void>((resolve) => setTimeout(resolve, 200));
+			expect(closeCallbackFired).toBe(true);
+
+			await new Promise<void>((resolve) => viteServer.close(() => resolve()));
+			await new Promise<void>((resolve) => stickyBackend.close(() => resolve()));
+		});
+
+		test('closeAll() releases the port even with a long-lived WebSocket open', async () => {
+			// The fix: closeAll() destroys live piped sockets first, so the
+			// listening port is released immediately, regardless of any open
+			// HMR/backend WebSockets. This is the central orphan-prevention
+			// guarantee for the front-door proxy on dev-mode shutdown.
+			const { startWsProxy } = await import(wsProxyPath);
+
+			const proxyPort = await findAvailablePort(15800);
+			const vitePort = await findAvailablePort(proxyPort + 1);
+			const backendPort = await findAvailablePort(vitePort + 1);
+
+			const stickyBackend = await new Promise<Server>((resolve, reject) => {
+				const s = createServer((sock) => {
+					sock.on('data', () => {});
+					sock.on('error', () => {});
+				});
+				s.on('error', reject);
+				s.listen(backendPort, '127.0.0.1', () => resolve(s));
+			});
+
+			const viteServer = await createEchoServer(vitePort, 'VITE');
+
+			const proxy = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+
+			// Open a WS upgrade and keep the client alive; the proxy will
+			// pipe it to the sticky backend that never closes.
+			const client = await new Promise<ReturnType<typeof connect>>((resolve, reject) => {
+				const c = connect(proxyPort, '127.0.0.1');
+				c.once('error', reject);
+				c.once('connect', () => {
+					c.write(createWebSocketUpgradeRequest('/api/stream', '127.0.0.1', proxyPort));
+					setTimeout(() => resolve(c), 100);
+				});
+			});
+
+			// closeAll() must complete promptly even with the WS open.
+			const start = Date.now();
+			await proxy.closeAll();
+			const elapsed = Date.now() - start;
+
+			// Generous bound — we only need to confirm it didn't hang on the
+			// open client connection. With socket.destroy() this should be ~ms.
+			expect(elapsed).toBeLessThan(500);
+			expect(proxy.listening).toBe(false);
+
+			// And the port must be immediately rebindable — the actual orphan
+			// symptom we're preventing.
+			await new Promise<void>((resolve, reject) => {
+				const rebind = createServer();
+				rebind.once('error', reject);
+				rebind.listen(proxyPort, '127.0.0.1', () => {
+					rebind.close(() => resolve());
+				});
+			});
+
+			// The piped client socket should have been destroyed by closeAll().
+			// Wait briefly for the close event to propagate to the client side.
+			await new Promise<void>((resolve) => {
+				if (client.destroyed) return resolve();
+				client.once('close', () => resolve());
+				setTimeout(resolve, 200);
+			});
+			expect(client.destroyed).toBe(true);
+
+			await new Promise<void>((resolve) => viteServer.close(() => resolve()));
+			await new Promise<void>((resolve) => stickyBackend.close(() => resolve()));
+		});
+
+		test('closeAll() lets you immediately bind a fresh proxy on the same port (the orphan-prevention guarantee)', async () => {
+			// In-process equivalent of the spawn / kill / respawn cycle from
+			// dev-respawn.test.ts, but exercising only the proxy. This is the
+			// scenario where the closeAll() fix matters most: the parent
+			// process stays alive across cleanup, so we don't get the
+			// kernel-on-process-exit safety net. Without closeAll(), an open
+			// piped WebSocket would keep the listener bound and the second
+			// startWsProxy() on the same port would fail with EADDRINUSE.
+			const { startWsProxy } = await import(wsProxyPath);
+
+			const proxyPort = await findAvailablePort(15850);
+			const vitePort = await findAvailablePort(proxyPort + 1);
+			const backendPort = await findAvailablePort(vitePort + 1);
+
+			const stickyBackend = await new Promise<Server>((resolve, reject) => {
+				const s = createServer((sock) => {
+					sock.on('data', () => {});
+					sock.on('error', () => {});
+				});
+				s.on('error', reject);
+				s.listen(backendPort, '127.0.0.1', () => resolve(s));
+			});
+
+			const viteServer = await createEchoServer(vitePort, 'VITE');
+
+			const proxy1 = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+
+			// Open the long-lived WS that would otherwise leak the listener.
+			const client = await new Promise<ReturnType<typeof connect>>((resolve, reject) => {
+				const c = connect(proxyPort, '127.0.0.1');
+				c.once('error', reject);
+				c.once('connect', () => {
+					c.write(createWebSocketUpgradeRequest('/api/stream', '127.0.0.1', proxyPort));
+					setTimeout(() => resolve(c), 100);
+				});
+			});
+
+			await proxy1.closeAll();
+
+			// Immediate respawn on the same port — must succeed.
+			const proxy2 = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+			expect(proxy2.listening).toBe(true);
+
+			await proxy2.closeAll();
+			try {
+				client.destroy();
+			} catch {
+				// already dead
+			}
+			await new Promise<void>((resolve) => viteServer.close(() => resolve()));
+			await new Promise<void>((resolve) => stickyBackend.close(() => resolve()));
+		});
+
+		test('closeAll() is idempotent', async () => {
+			const { startWsProxy } = await import(wsProxyPath);
+
+			const proxyPort = await findAvailablePort(15900);
+			const vitePort = await findAvailablePort(proxyPort + 1);
+			const backendPort = await findAvailablePort(vitePort + 1);
+
+			const viteServer = await createEchoServer(vitePort, 'VITE');
+			const backendServer = await createEchoServer(backendPort, 'BUN');
+
+			const proxy = await startWsProxy({
+				port: proxyPort,
+				vitePort,
+				backendPort,
+				routePaths: ['/api'],
+				logger: mockLogger,
+			});
+
+			await proxy.closeAll();
+			// Second call must not throw.
+			await proxy.closeAll();
+			expect(proxy.listening).toBe(false);
+
+			await new Promise<void>((resolve) => viteServer.close(() => resolve()));
+			await new Promise<void>((resolve) => backendServer.close(() => resolve()));
+		});
+	});
 });

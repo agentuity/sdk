@@ -17,6 +17,18 @@ import type { Logger } from '../../../types';
 import { getAgentEnv } from '../../../agent-detection';
 import { createServer as createNetServer } from 'node:net';
 
+/**
+ * Minimal handle for the spawned Bun subprocess. Mirrors the shape used
+ * elsewhere (procManager, killBunSubprocess) so callers can register
+ * the process with their tracking layer without depending on Bun-specific
+ * Subprocess types.
+ */
+export interface BunSubprocessHandle {
+	kill: (signal?: number | NodeJS.Signals) => void;
+	exitCode: number | null;
+	pid?: number;
+}
+
 export interface BunDevServerOptions {
 	rootDir: string;
 	port?: number;
@@ -25,6 +37,15 @@ export interface BunDevServerOptions {
 	inspect?: boolean;
 	inspectWait?: boolean;
 	inspectBrk?: boolean;
+	/**
+	 * Optional callback fired the moment `Bun.spawn` returns, BEFORE the
+	 * readiness wait. Lets callers register the subprocess with a process
+	 * manager / shutdown handler immediately, eliminating the multi-second
+	 * window during which a SIGINT could orphan the child.
+	 *
+	 * If this throws, the subprocess is killed and the error is rethrown.
+	 */
+	onSpawn?: (proc: BunSubprocessHandle) => void;
 }
 
 export interface BunDevServerResult {
@@ -420,6 +441,35 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
+
+	// Notify caller IMMEDIATELY so the subprocess can be registered with the
+	// process manager before the readiness wait below. Without this, a SIGINT
+	// during the up-to-5s readiness wait would leave the subprocess unmanaged
+	// (only the synchronous exit-handler safety net would catch it).
+	if (options.onSpawn) {
+		try {
+			options.onSpawn(bunProcess as BunSubprocessHandle);
+		} catch (err) {
+			logger.debug('onSpawn callback threw, killing subprocess: %s', err);
+			const pid = bunProcess.pid;
+			try {
+				if (typeof pid === 'number' && pid > 1 && process.platform !== 'win32') {
+					try {
+						process.kill(-pid, 'SIGKILL');
+					} catch {
+						bunProcess.kill('SIGKILL');
+					}
+				} else {
+					bunProcess.kill('SIGKILL');
+				}
+			} catch {
+				// Best effort
+			}
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = undefined;
+			throw err;
+		}
+	}
 
 	// Wait for server to start listening
 	const maxRetries = 50;
