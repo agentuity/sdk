@@ -17,6 +17,18 @@ import type { Logger } from '../../../types';
 import { getAgentEnv } from '../../../agent-detection';
 import { createServer as createNetServer } from 'node:net';
 
+/**
+ * Minimal handle for the spawned Bun subprocess. Mirrors the shape used
+ * elsewhere (procManager, killBunSubprocess) so callers can register
+ * the process with their tracking layer without depending on Bun-specific
+ * Subprocess types.
+ */
+export interface BunSubprocessHandle {
+	kill: (signal?: number | NodeJS.Signals) => void;
+	exitCode: number | null;
+	pid?: number;
+}
+
 export interface BunDevServerOptions {
 	rootDir: string;
 	port?: number;
@@ -25,6 +37,15 @@ export interface BunDevServerOptions {
 	inspect?: boolean;
 	inspectWait?: boolean;
 	inspectBrk?: boolean;
+	/**
+	 * Optional callback fired the moment `Bun.spawn` returns, BEFORE the
+	 * readiness wait. Lets callers register the subprocess with a process
+	 * manager / shutdown handler immediately, eliminating the multi-second
+	 * window during which a SIGINT could orphan the child.
+	 *
+	 * If this throws, the subprocess is killed and the error is rethrown.
+	 */
+	onSpawn?: (proc: BunSubprocessHandle) => void;
 }
 
 export interface BunDevServerResult {
@@ -399,6 +420,15 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 			PORT: String(port),
 			FORCE_COLOR: '1', // Enable colors even though stdout is piped
 		},
+		// Make the child a process-group leader so the CLI's procManager /
+		// killBunSubprocess() can signal the whole tree via process.kill(-pid, ...).
+		// Without detached:true, bun --hot and any workers it spawns share our
+		// process group, process.kill(-pid) fails with EPERM (not a group leader),
+		// and we fall back to a direct PID kill that leaves children orphaned.
+		//
+		// We intentionally do NOT call .unref() here — the parent still tracks
+		// and drives the child's lifecycle, and piped stdio is unaffected.
+		detached: true,
 	});
 
 	// Start capturing streams in the background (don't await, we need to check server readiness)
@@ -411,6 +441,35 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = bunProcess;
+
+	// Notify caller IMMEDIATELY so the subprocess can be registered with the
+	// process manager before the readiness wait below. Without this, a SIGINT
+	// during the up-to-5s readiness wait would leave the subprocess unmanaged
+	// (only the synchronous exit-handler safety net would catch it).
+	if (options.onSpawn) {
+		try {
+			options.onSpawn(bunProcess as BunSubprocessHandle);
+		} catch (err) {
+			logger.debug('onSpawn callback threw, killing subprocess: %s', err);
+			const pid = bunProcess.pid;
+			try {
+				if (typeof pid === 'number' && pid > 1 && process.platform !== 'win32') {
+					try {
+						process.kill(-pid, 'SIGKILL');
+					} catch {
+						bunProcess.kill('SIGKILL');
+					}
+				} else {
+					bunProcess.kill('SIGKILL');
+				}
+			} catch {
+				// Best effort
+			}
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(globalThis as any).__AGENTUITY_BUN_SUBPROCESS__ = undefined;
+			throw err;
+		}
+	}
 
 	// Wait for server to start listening
 	const maxRetries = 50;
@@ -444,8 +503,28 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 	}
 
 	if (!serverReady) {
+		// The subprocess is spawned with detached:true and is therefore the
+		// leader of its own process group. bunProcess.kill() only targets the
+		// direct PID, which would leave any workers/grandchildren orphaned.
+		// Signal the whole process group with SIGKILL and fall back to the
+		// handle's kill() if the group-kill fails (EPERM, not-group-leader,
+		// or Windows where negative PIDs aren't supported).
+		const pid = bunProcess.pid;
 		try {
-			bunProcess.kill();
+			if (typeof pid === 'number' && pid > 1 && process.platform !== 'win32') {
+				try {
+					process.kill(-pid, 'SIGKILL');
+				} catch (groupErr) {
+					logger.debug(
+						'Process-group SIGKILL failed for pid %d (%s), falling back to direct kill',
+						pid,
+						(groupErr as NodeJS.ErrnoException).code ?? groupErr
+					);
+					bunProcess.kill('SIGKILL');
+				}
+			} else {
+				bunProcess.kill('SIGKILL');
+			}
 		} catch (err) {
 			logger.debug('Error killing subprocess during startup failure: %s', err);
 		}

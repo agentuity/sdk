@@ -156,8 +156,6 @@ Running `agentuity create` currently scaffolds a project with:
 - **Translation agent**: Demonstrates AI Gateway, thread state, and structured logging
 - **API routes**: Shows agent integration and state management endpoints
 - **React frontend**: Pre-configured with Tailwind CSS
-- **Workbench**: Local testing UI at `/workbench`
-- **Evaluations**: Example eval setup for testing agent behavior
 
 The agent uses the OpenAI SDK routed through Agentuity's AI Gateway. This means you don't need a separate OpenAI API key: requests are authenticated with your Agentuity credentials and billed through your Agentuity account.
 
@@ -173,7 +171,6 @@ The agent uses the OpenAI SDK routed through Agentuity's AI Gateway. This means 
 | `--no-register` | Don't register the project with Agentuity Cloud |
 | `--database <value>` | Database option: `skip`, `new`, or existing database name |
 | `--storage <value>` | Storage option: `skip`, `new`, or existing bucket name |
-| `--enable-auth` | Enable Agentuity Auth for the project |
 
 Example:
 
@@ -193,8 +190,7 @@ Create projects non-interactively for CI/CD pipelines and automation:
 agentuity project create \
   --name my-agent \
   --database new \
-  --storage new \
-  --enable-auth
+  --storage new
 
 # Skip optional resources
 agentuity project create \

@@ -57,22 +57,6 @@ These keys are set by the build system and will override any user-defined values
 - `process.env.NODE_ENV`
 </Callout>
 
-### workbench
-
-Workbench is now configured via `createApp()` in your `app.ts`, not in the build config. See [Testing with Workbench](/agents/workbench) for usage.
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-
-const app = await createApp({
-  workbench: true, // Enables at /workbench
-});
-
-export default app;
-```
-
-Omit the `workbench` option to disable Workbench.
-
 ## Environment Variables
 
 Environment variables with these prefixes are available in frontend code:
@@ -102,7 +86,6 @@ Agentuity uses a hybrid build system:
 | Component | Tool | Output |
 |-----------|------|--------|
 | Frontend (`src/web/`) | Vite | `.agentuity/client/` |
-| Workbench | Vite | `.agentuity/workbench/` |
 | Server (agents, routes) | Bun | `.agentuity/app.js` |
 
 This separation allows Vite's optimizations for frontend (HMR, tree-shaking, CSS processing) while using Bun's fast bundling for server code.

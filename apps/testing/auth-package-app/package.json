@@ -34,6 +34,8 @@
 		"@types/pg": "^8.15.4",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
-		"typescript": "^5"
+		"@vitejs/plugin-react": "^4.3.4",
+		"typescript": "^5",
+		"vite": "^5.4.11"
 	}
 }

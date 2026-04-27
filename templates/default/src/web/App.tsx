@@ -6,16 +6,16 @@ import './App.css';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
+const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
 const DEFAULT_TEXT =
-	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.';
+	'Welcome to Agentuity! This starter app translates text, remembers your recent requests, and shows how a typed API route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the terminal logs to see the request, session, and token details.';
 
 const client = hc<ApiRouter>('/api');
 
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
-	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5-nano');
+	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5.4-nano');
 
 	const [historyData, setHistoryData] = useState<{
 		history: any[];
@@ -55,6 +55,7 @@ export function App() {
 	const handleClearHistory = useCallback(async () => {
 		track('clear_history');
 		await client.translate.history.$delete();
+		setTranslateResult(null);
 		await fetchHistory();
 	}, [fetchHistory, track]);
 
@@ -86,7 +87,17 @@ export function App() {
 						/>
 					</svg>
 
-					<h1 className="text-5xl font-thin">Welcome to Agentuity</h1>
+					<h1 className="text-5xl font-thin">
+						Welcome to{' '}
+						<a
+							className="text-white transition-colors hover:text-cyan-400"
+							href="https://agentuity.com"
+							rel="noreferrer"
+							target="_blank"
+						>
+							Agentuity
+						</a>
+					</h1>
 
 					<p className="text-gray-400 text-lg">
 						The <span className="italic font-serif">Full-Stack</span> Platform for AI Agents
@@ -120,9 +131,9 @@ export function App() {
 							}
 							value={model}
 						>
-							<option value="gpt-5-nano">GPT-5 Nano</option>
-							<option value="gpt-5-mini">GPT-5 Mini</option>
-							<option value="gpt-5">GPT-5</option>
+							<option value="gpt-5.4-nano">GPT-5.4 Nano</option>
+							<option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+							<option value="gpt-5.4">GPT-5.4</option>
 						</select>
 						<div className="relative group ml-auto z-0">
 							<div className="absolute inset-0 bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 rounded-lg blur-xl opacity-75 group-hover:blur-2xl group-hover:opacity-100 transition-all duration-700" />
@@ -147,6 +158,7 @@ export function App() {
 						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
 						placeholder="Enter text to translate..."
 						rows={4}
+						spellCheck={false}
 						value={text}
 					/>
 
@@ -191,7 +203,7 @@ export function App() {
 												Your{' '}
 												<strong className="text-gray-200">conversation context</strong>{' '}
 												that persists across requests. All translations share this
-												thread, letting the agent remember history.
+												thread, so each request can use the same history.
 											</p>
 
 											<p className="text-gray-400">
@@ -221,7 +233,7 @@ export function App() {
 											<p className="text-gray-400">
 												A <strong className="text-gray-200">unique identifier</strong>{' '}
 												for this specific request. Useful for debugging and tracing
-												individual operations in your agent logs.
+												individual operations in your request logs.
 											</p>
 
 											<p className="text-gray-400">

@@ -4,6 +4,7 @@
  */
 
 import { Hono } from 'hono';
+import { StructuredError } from '@agentuity/core';
 import type { Env } from '@agentuity/runtime';
 import { validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
@@ -13,12 +14,24 @@ import OpenAI from 'openai';
  * AI Gateway: Routes requests to OpenAI, Anthropic, and other LLM providers.
  * One SDK key, unified observability and billing; no separate API keys needed.
  */
-const openai = new OpenAI();
-
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
+const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
+const HISTORY_KEY = 'history';
+const TRANSLATION_COUNT_KEY = 'translationCount';
 
-// ── Schemas ──────────────────────────────────────────────────────────────────
+const OpenAIProviderError = StructuredError('OpenAIProviderError')<{
+	readonly errorCode: string | undefined;
+	readonly provider: 'openai';
+}>();
+
+function getProviderErrorCode(error: unknown): string | undefined {
+	if (typeof error !== 'object' || error === null || !('code' in error)) {
+		return undefined;
+	}
+
+	const code = error.code;
+	return typeof code === 'string' ? code : undefined;
+}
 
 const HistoryEntrySchema = s.object({
 	model: s.string().describe('AI model used for the translation'),
@@ -49,18 +62,16 @@ const TranslateOutput = s.object({
 
 const HistoryOutput = TranslateOutput.pick(['history', 'threadId', 'translationCount']);
 
-// ── Routes ───────────────────────────────────────────────────────────────────
-
 const api = new Hono<Env>()
 	// Translate text
 	.post(
 		'/translate',
 		validator({ input: TranslateInput, output: TranslateOutput }),
 		async (c) => {
-			const { text, toLanguage = 'Spanish', model = 'gpt-5-nano' } = c.req.valid('json');
+			const { text, toLanguage = 'Spanish', model = 'gpt-5.4-nano' } = c.req.valid('json');
 
 			// Agentuity logger: structured logs visible in terminal and Agentuity console
-			c.var.logger.info('──── Translation ────');
+			c.var.logger.info('Translation request');
 			c.var.logger.info({ toLanguage, model, textLength: text.length });
 			c.var.logger.info('Request IDs', {
 				threadId: c.var.thread.id,
@@ -68,12 +79,23 @@ const api = new Hono<Env>()
 			});
 
 			const prompt = `Translate to ${toLanguage}:\n\n${text}`;
+			const openai = new OpenAI();
 
-			// Call OpenAI via AI Gateway (automatically routed and tracked)
-			const completion = await openai.chat.completions.create({
-				model,
-				messages: [{ role: 'user', content: prompt }],
-			});
+			let completion: Awaited<ReturnType<typeof openai.chat.completions.create>>;
+			try {
+				// Call OpenAI via AI Gateway, automatically routed and tracked.
+				completion = await openai.chat.completions.create({
+					model,
+					messages: [{ role: 'user', content: prompt }],
+				});
+			} catch (error) {
+				throw new OpenAIProviderError({
+					message: error instanceof Error ? error.message : 'OpenAI provider failed',
+					errorCode: getProviderErrorCode(error),
+					provider: 'openai',
+					cause: error,
+				});
+			}
 
 			const translation = completion.choices[0]?.message?.content ?? '';
 
@@ -94,14 +116,20 @@ const api = new Hono<Env>()
 				translation: truncate(translation, 50),
 			};
 
-			// Append to history (sliding window, keeps last 5 entries)
-			await c.var.thread.state.push('history', newEntry, 5);
+			// Keep recent history small while tracking the total separately.
+			await c.var.thread.state.push(HISTORY_KEY, newEntry, 5);
 
-			const history = (await c.var.thread.state.get<HistoryEntry[]>('history')) ?? [];
+			const previousTranslationCount =
+				(await c.var.thread.state.get<number>(TRANSLATION_COUNT_KEY)) ?? 0;
+			const translationCount = previousTranslationCount + 1;
+			await c.var.thread.state.set(TRANSLATION_COUNT_KEY, translationCount);
+
+			const history = (await c.var.thread.state.get<HistoryEntry[]>(HISTORY_KEY)) ?? [];
 
 			c.var.logger.info('Translation complete', {
 				tokens,
 				historyCount: history.length,
+				translationCount,
 			});
 
 			return c.json({
@@ -110,23 +138,26 @@ const api = new Hono<Env>()
 				threadId: c.var.thread.id,
 				tokens,
 				translation,
-				translationCount: history.length,
+				translationCount,
 			});
 		}
 	)
 	// Retrieve translation history
 	.get('/translate/history', validator({ output: HistoryOutput }), async (c) => {
-		const history = (await c.var.thread.state.get<HistoryEntry[]>('history')) ?? [];
+		const history = (await c.var.thread.state.get<HistoryEntry[]>(HISTORY_KEY)) ?? [];
+		const translationCount =
+			(await c.var.thread.state.get<number>(TRANSLATION_COUNT_KEY)) ?? history.length;
 
 		return c.json({
 			history,
 			threadId: c.var.thread.id,
-			translationCount: history.length,
+			translationCount,
 		});
 	})
 	// Clear translation history
 	.delete('/translate/history', validator({ output: HistoryOutput }), async (c) => {
-		await c.var.thread.state.delete('history');
+		await c.var.thread.state.delete(HISTORY_KEY);
+		await c.var.thread.state.delete(TRANSLATION_COUNT_KEY);
 
 		return c.json({
 			history: [],

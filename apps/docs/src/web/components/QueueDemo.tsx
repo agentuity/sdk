@@ -313,7 +313,7 @@ export function QueueDemo() {
 			case 'reset':
 				return 'text-zinc-400';
 			case 'publish':
-				return 'text-cyan-400';
+				return 'text-cyan-700 dark:text-cyan-400';
 			case 'receive':
 				return 'text-blue-400';
 			case 'ack':
@@ -425,7 +425,7 @@ export function QueueDemo() {
 									<span className="text-zinc-500 dark:text-zinc-400 block text-xs mb-1 uppercase">
 										Payload
 									</span>
-									<code className="text-xs font-mono text-cyan-600 dark:text-cyan-400">
+									<code className="text-xs font-mono text-cyan-800 dark:text-cyan-400">
 										{JSON.stringify(MESSAGE_PAYLOAD)}
 									</code>
 								</div>
@@ -627,7 +627,7 @@ export function QueueDemo() {
 			{/* Callout Tip */}
 			<div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg px-4 py-3">
 				<p className="text-zinc-600 dark:text-zinc-400 text-xs">
-					<span className="text-cyan-600 dark:text-cyan-400 font-medium">Tip:</span> Publish a
+					<span className="text-cyan-800 dark:text-cyan-400 font-medium">Tip:</span> Publish a
 					message, then receive and nack it 2 times to move it to the Dead Letter Queue. Replay
 					returns it to the main queue.
 				</p>

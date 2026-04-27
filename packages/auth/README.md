@@ -20,26 +20,27 @@ bun add @agentuity/auth
 
 ## Quick Start
 
-### 1. Setup with CLI
+### 1. Install
 
 ```bash
-agentuity project auth init
+bun add @agentuity/auth better-auth drizzle-orm
 ```
 
-This will:
+Or start from the template:
 
-- Install required dependencies
-- Generate `src/auth.ts` with default configuration
-- Set up environment variables
+```bash
+bunx agentuity create my-app --template agentuity-auth
+```
 
 ### 2. Configure Database
 
 ```bash
-# Create a database and get connection URL
+# Create a database and get a connection URL
 agentuity cloud database create --region use
 
-# Run auth migrations
-agentuity project auth setup
+# Generate and run auth migrations with the BetterAuth CLI
+npx @better-auth/cli generate
+npx @better-auth/cli migrate
 ```
 
 ### 3. Server Setup (Hono)
@@ -371,18 +372,18 @@ import type {
 
 ## CLI Commands
 
+Auth setup uses the BetterAuth CLI directly:
+
 ```bash
-# Initialize auth in a project
-agentuity project auth init
+# Generate the auth schema (SQL or Drizzle/Prisma based on your config)
+npx @better-auth/cli generate
 
 # Run database migrations
-agentuity project auth setup
+npx @better-auth/cli migrate
 
-# Generate Drizzle schema
-agentuity project auth generate
-
-# Generate a secure secret
-agentuity project auth secret
+# Generate a secure secret for AGENTUITY_AUTH_SECRET
+npx @better-auth/cli secret
+# or:  openssl rand -hex 32
 ```
 
 ## Security Best Practices

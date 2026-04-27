@@ -34,7 +34,7 @@ export function Steps({ children, className }: StepsProps) {
 						<div className="absolute left-[15px] top-8 -bottom-10 w-px bg-zinc-200 dark:bg-zinc-800" />
 					)}
 					{/* Number circle */}
-					<div className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-cyan-500 bg-white text-sm font-semibold text-cyan-600 dark:text-cyan-400 dark:bg-zinc-950">
+					<div className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-cyan-500 bg-white text-sm font-semibold text-cyan-700 dark:text-cyan-400 dark:bg-zinc-950">
 						{index + 1}
 					</div>
 					{/* Content */}

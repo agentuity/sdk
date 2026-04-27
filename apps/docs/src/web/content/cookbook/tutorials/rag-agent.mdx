@@ -24,8 +24,10 @@ A question-answering agent that:
 ```
 src/agent/knowledge/
 └── agent.ts    # RAG agent logic
+src/agent/indexer/
+└── agent.ts    # Document indexing logic
 src/api/
-└── index.ts    # HTTP endpoint
+└── index.ts    # Query and indexing endpoints
 ```
 
 <Steps>
@@ -45,6 +47,11 @@ import { createAgent } from '@agentuity/runtime';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
+
+interface KnowledgeMetadata extends Record<string, unknown> {
+  title: string;
+  category?: string;
+}
 
 const agent = createAgent('Knowledge Agent', {
   description: 'Answers questions using a knowledge base',
@@ -66,7 +73,7 @@ const agent = createAgent('Knowledge Agent', {
     ctx.logger.info('Searching knowledge base', { question: input.question });
 
     // Search for relevant documents
-    const results = await ctx.vector.search('knowledge-base', { // [!code highlight]
+    const results = await ctx.vector.search<KnowledgeMetadata>('knowledge-base', { // [!code highlight]
       query: input.question, // [!code highlight]
       limit: 5,
       similarity: 0.7, // [!code highlight]
@@ -82,9 +89,14 @@ const agent = createAgent('Knowledge Agent', {
       };
     }
 
-    // Build context from search results
+    const documents = await ctx.vector.getMany<KnowledgeMetadata>(
+      'knowledge-base',
+      ...results.map((result) => result.key)
+    );
+
+    // Build context from the matched documents
     const context = results // [!code highlight]
-      .map((r, i) => `[${i + 1}] ${r.document}`) // [!code highlight]
+      .map((r, i) => `[${i + 1}] ${documents.get(r.key)?.document ?? ''}`) // [!code highlight]
       .join('\n\n');
 
     ctx.logger.debug('Built context from documents', {
@@ -112,7 +124,7 @@ Answer the question using only the provided context. Cite your sources.`,
       answer: text,
       sources: results.map((r, i) => ({
         id: r.key,
-        title: (r.metadata?.title as string) || `Document ${i + 1}`,
+        title: r.metadata?.title || `Document ${i + 1}`,
         relevance: r.similarity,
       })),
       confidence: avgSimilarity,
@@ -121,32 +133,6 @@ Answer the question using only the provided context. Cite your sources.`,
 });
 
 export default agent;
-```
-</Step>
-
-<Step>
-## Create the Route
-
-The route exposes your agent over HTTP. Use `agent.validator()` for type-safe validation using the agent's schema.
-
-```typescript title="src/api/index.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import knowledgeAgent from '@agent/knowledge/agent';
-
-const router = new Hono<Env>();
-
-// Query endpoint - validates using agent's input schema
-router.post('/knowledge', knowledgeAgent.validator(), async (c) => { // [!code highlight]
-  const { question } = c.req.valid('json'); // [!code highlight]
-  const result = await knowledgeAgent.run({ question }); // [!code highlight]
-  return c.json(result);
-});
-
-// Health check
-router.get('/health', (c) => c.text('OK'));
-
-export default router;
 ```
 </Step>
 
@@ -213,6 +199,39 @@ export default agent;
 </Step>
 
 <Step>
+## Create the Route
+
+The route exposes both agents over HTTP. Use `agent.validator()` for type-safe validation using each agent's schema.
+
+```typescript title="src/api/index.ts"
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
+import knowledgeAgent from '@agent/knowledge/agent';
+import indexerAgent from '@agent/indexer/agent';
+
+const router = new Hono<Env>();
+
+router.post('/knowledge/index', indexerAgent.validator(), async (c) => {
+  const data = c.req.valid('json');
+  const result = await indexerAgent.run(data);
+  return c.json(result);
+});
+
+// Query endpoint - validates using agent's input schema
+router.post('/knowledge', knowledgeAgent.validator(), async (c) => { // [!code highlight]
+  const { question } = c.req.valid('json'); // [!code highlight]
+  const result = await knowledgeAgent.run({ question }); // [!code highlight]
+  return c.json(result);
+});
+
+// Health check
+router.get('/health', (c) => c.text('OK'));
+
+export default router;
+```
+</Step>
+
+<Step>
 ## Test Your Agent
 
 With both agents created, you can test the full flow: index some documents, then query them.
@@ -223,10 +242,12 @@ Start the dev server:
 agentuity dev
 ```
 
+The examples below assume your API router is mounted at `/api` in `app.ts`, as shown in the [quickstart](/get-started/quickstart).
+
 Index some test documents:
 
 ```bash
-curl -X POST http://localhost:3500/indexer \
+curl -X POST http://localhost:3500/api/knowledge/index \
   -H "Content-Type: application/json" \
   -d '{
     "documents": [
@@ -247,7 +268,7 @@ curl -X POST http://localhost:3500/indexer \
 Query the knowledge base:
 
 ```bash
-curl -X POST http://localhost:3500/knowledge \
+curl -X POST http://localhost:3500/api/knowledge \
   -H "Content-Type: application/json" \
   -d '{"question": "What storage options does Agentuity provide?"}'
 ```
@@ -401,7 +422,6 @@ createRoot(document.getElementById('root')!).render(
 
 ## Next Steps
 
-- Add an [evaluation](/agents/evaluations) to check answer quality
-- Implement [streaming](/agents/streaming-responses) for longer responses
-- Add metadata filtering to search specific categories
-- See the [Vector Storage](/services/storage/vector) guide for advanced search options
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Review answer quality with model-based checks
+- [Streaming Responses](/agents/streaming-responses): Stream longer answers as they are generated
+- [Vector Storage](/services/storage/vector): Add metadata filters and advanced search options

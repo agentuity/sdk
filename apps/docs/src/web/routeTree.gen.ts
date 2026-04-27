@@ -13,16 +13,18 @@ import { Route as DocsRouteRouteImport } from './routes/_docs/route';
 import { Route as IndexRouteImport } from './routes/index';
 import { Route as ExplorerIndexRouteImport } from './routes/explorer/index';
 import { Route as DemoIndexRouteImport } from './routes/demo/index';
+import { Route as ExplorerWebsocketRouteImport } from './routes/explorer/websocket';
+import { Route as ExplorerWebrtcRouteImport } from './routes/explorer/webrtc';
 import { Route as ExplorerVectorStorageRouteImport } from './routes/explorer/vector-storage';
 import { Route as ExplorerStreamingRouteImport } from './routes/explorer/streaming';
 import { Route as ExplorerSseStreamRouteImport } from './routes/explorer/sse-stream';
+import { Route as ExplorerSchedulesRouteImport } from './routes/explorer/schedules';
 import { Route as ExplorerQueueRouteImport } from './routes/explorer/queue';
 import { Route as ExplorerObjectStorageRouteImport } from './routes/explorer/object-storage';
 import { Route as ExplorerModelArenaRouteImport } from './routes/explorer/model-arena';
 import { Route as ExplorerKeyValueRouteImport } from './routes/explorer/key-value';
 import { Route as ExplorerHelloRouteImport } from './routes/explorer/hello';
 import { Route as ExplorerHandlerContextRouteImport } from './routes/explorer/handler-context';
-import { Route as ExplorerEvalsRouteImport } from './routes/explorer/evals';
 import { Route as ExplorerEmailRouteImport } from './routes/explorer/email';
 import { Route as ExplorerDurableStreamRouteImport } from './routes/explorer/durable-stream';
 import { Route as ExplorerDatabaseRouteImport } from './routes/explorer/database';
@@ -44,6 +46,7 @@ import { Route as DocsServicesWebhooksRouteImport } from './routes/_docs/service
 import { Route as DocsServicesTasksRouteImport } from './routes/_docs/services/tasks';
 import { Route as DocsServicesSchedulesRouteImport } from './routes/_docs/services/schedules';
 import { Route as DocsServicesQueuesRouteImport } from './routes/_docs/services/queues';
+import { Route as DocsServicesOidcProviderRouteImport } from './routes/_docs/services/oidc-provider';
 import { Route as DocsServicesEmailRouteImport } from './routes/_docs/services/email';
 import { Route as DocsServicesCoderRouteImport } from './routes/_docs/services/coder';
 import { Route as DocsServicesAuthenticationRouteImport } from './routes/_docs/services/authentication';
@@ -130,6 +133,7 @@ import { Route as DocsReferenceSdkReferenceAgentsRouteImport } from './routes/_d
 import { Route as DocsReferenceSdkReferenceAdvancedRouteImport } from './routes/_docs/reference/sdk-reference/advanced';
 import { Route as DocsReferenceCliStorageRouteImport } from './routes/_docs/reference/cli/storage';
 import { Route as DocsReferenceCliSandboxRouteImport } from './routes/_docs/reference/cli/sandbox';
+import { Route as DocsReferenceCliProfilesRouteImport } from './routes/_docs/reference/cli/profiles';
 import { Route as DocsReferenceCliOpencodePluginRouteImport } from './routes/_docs/reference/cli/opencode-plugin';
 import { Route as DocsReferenceCliOauthRouteImport } from './routes/_docs/reference/cli/oauth';
 import { Route as DocsReferenceCliMonitoringRouteImport } from './routes/_docs/reference/cli/monitoring';
@@ -213,6 +217,16 @@ const DemoIndexRoute = DemoIndexRouteImport.update({
 	path: '/demo/',
 	getParentRoute: () => rootRouteImport,
 } as any);
+const ExplorerWebsocketRoute = ExplorerWebsocketRouteImport.update({
+	id: '/explorer/websocket',
+	path: '/explorer/websocket',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ExplorerWebrtcRoute = ExplorerWebrtcRouteImport.update({
+	id: '/explorer/webrtc',
+	path: '/explorer/webrtc',
+	getParentRoute: () => rootRouteImport,
+} as any);
 const ExplorerVectorStorageRoute = ExplorerVectorStorageRouteImport.update({
 	id: '/explorer/vector-storage',
 	path: '/explorer/vector-storage',
@@ -226,6 +240,11 @@ const ExplorerStreamingRoute = ExplorerStreamingRouteImport.update({
 const ExplorerSseStreamRoute = ExplorerSseStreamRouteImport.update({
 	id: '/explorer/sse-stream',
 	path: '/explorer/sse-stream',
+	getParentRoute: () => rootRouteImport,
+} as any);
+const ExplorerSchedulesRoute = ExplorerSchedulesRouteImport.update({
+	id: '/explorer/schedules',
+	path: '/explorer/schedules',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const ExplorerQueueRoute = ExplorerQueueRouteImport.update({
@@ -256,11 +275,6 @@ const ExplorerHelloRoute = ExplorerHelloRouteImport.update({
 const ExplorerHandlerContextRoute = ExplorerHandlerContextRouteImport.update({
 	id: '/explorer/handler-context',
 	path: '/explorer/handler-context',
-	getParentRoute: () => rootRouteImport,
-} as any);
-const ExplorerEvalsRoute = ExplorerEvalsRouteImport.update({
-	id: '/explorer/evals',
-	path: '/explorer/evals',
 	getParentRoute: () => rootRouteImport,
 } as any);
 const ExplorerEmailRoute = ExplorerEmailRouteImport.update({
@@ -366,6 +380,11 @@ const DocsServicesSchedulesRoute = DocsServicesSchedulesRouteImport.update({
 const DocsServicesQueuesRoute = DocsServicesQueuesRouteImport.update({
 	id: '/services/queues',
 	path: '/services/queues',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsServicesOidcProviderRoute = DocsServicesOidcProviderRouteImport.update({
+	id: '/services/oidc-provider',
+	path: '/services/oidc-provider',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsServicesEmailRoute = DocsServicesEmailRouteImport.update({
@@ -810,6 +829,11 @@ const DocsReferenceCliSandboxRoute = DocsReferenceCliSandboxRouteImport.update({
 	path: '/reference/cli/sandbox',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
+const DocsReferenceCliProfilesRoute = DocsReferenceCliProfilesRouteImport.update({
+	id: '/reference/cli/profiles',
+	path: '/reference/cli/profiles',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
 const DocsReferenceCliOpencodePluginRoute = DocsReferenceCliOpencodePluginRouteImport.update({
 	id: '/reference/cli/opencode-plugin',
 	path: '/reference/cli/opencode-plugin',
@@ -1156,16 +1180,18 @@ export interface FileRoutesByFullPath {
 	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
 	'/explorer/email': typeof ExplorerEmailRoute;
-	'/explorer/evals': typeof ExplorerEvalsRoute;
 	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
 	'/explorer/hello': typeof ExplorerHelloRoute;
 	'/explorer/key-value': typeof ExplorerKeyValueRoute;
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
 	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/schedules': typeof ExplorerSchedulesRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
+	'/explorer/webrtc': typeof ExplorerWebrtcRoute;
+	'/explorer/websocket': typeof ExplorerWebsocketRoute;
 	'/demo/': typeof DemoIndexRoute;
 	'/explorer/': typeof ExplorerIndexRoute;
 	'/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
@@ -1213,6 +1239,7 @@ export interface FileRoutesByFullPath {
 	'/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/services/coder': typeof DocsServicesCoderRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
+	'/services/oidc-provider': typeof DocsServicesOidcProviderRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
 	'/services/tasks': typeof DocsServicesTasksRoute;
@@ -1289,6 +1316,7 @@ export interface FileRoutesByFullPath {
 	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
 	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
+	'/reference/cli/profiles': typeof DocsReferenceCliProfilesRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
@@ -1341,16 +1369,18 @@ export interface FileRoutesByTo {
 	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
 	'/explorer/email': typeof ExplorerEmailRoute;
-	'/explorer/evals': typeof ExplorerEvalsRoute;
 	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
 	'/explorer/hello': typeof ExplorerHelloRoute;
 	'/explorer/key-value': typeof ExplorerKeyValueRoute;
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
 	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/schedules': typeof ExplorerSchedulesRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
+	'/explorer/webrtc': typeof ExplorerWebrtcRoute;
+	'/explorer/websocket': typeof ExplorerWebsocketRoute;
 	'/demo': typeof DemoIndexRoute;
 	'/explorer': typeof ExplorerIndexRoute;
 	'/agents/ai-gateway': typeof DocsAgentsAiGatewayRoute;
@@ -1396,6 +1426,7 @@ export interface FileRoutesByTo {
 	'/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/services/coder': typeof DocsServicesCoderRoute;
 	'/services/email': typeof DocsServicesEmailRoute;
+	'/services/oidc-provider': typeof DocsServicesOidcProviderRoute;
 	'/services/queues': typeof DocsServicesQueuesRoute;
 	'/services/schedules': typeof DocsServicesSchedulesRoute;
 	'/services/tasks': typeof DocsServicesTasksRoute;
@@ -1472,6 +1503,7 @@ export interface FileRoutesByTo {
 	'/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
 	'/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
+	'/reference/cli/profiles': typeof DocsReferenceCliProfilesRoute;
 	'/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
 	'/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
@@ -1526,16 +1558,18 @@ export interface FileRoutesById {
 	'/explorer/database': typeof ExplorerDatabaseRoute;
 	'/explorer/durable-stream': typeof ExplorerDurableStreamRoute;
 	'/explorer/email': typeof ExplorerEmailRoute;
-	'/explorer/evals': typeof ExplorerEvalsRoute;
 	'/explorer/handler-context': typeof ExplorerHandlerContextRoute;
 	'/explorer/hello': typeof ExplorerHelloRoute;
 	'/explorer/key-value': typeof ExplorerKeyValueRoute;
 	'/explorer/model-arena': typeof ExplorerModelArenaRoute;
 	'/explorer/object-storage': typeof ExplorerObjectStorageRoute;
 	'/explorer/queue': typeof ExplorerQueueRoute;
+	'/explorer/schedules': typeof ExplorerSchedulesRoute;
 	'/explorer/sse-stream': typeof ExplorerSseStreamRoute;
 	'/explorer/streaming': typeof ExplorerStreamingRoute;
 	'/explorer/vector-storage': typeof ExplorerVectorStorageRoute;
+	'/explorer/webrtc': typeof ExplorerWebrtcRoute;
+	'/explorer/websocket': typeof ExplorerWebsocketRoute;
 	'/demo/': typeof DemoIndexRoute;
 	'/explorer/': typeof ExplorerIndexRoute;
 	'/_docs/reference/api': typeof DocsReferenceApiRouteRouteWithChildren;
@@ -1583,6 +1617,7 @@ export interface FileRoutesById {
 	'/_docs/services/authentication': typeof DocsServicesAuthenticationRoute;
 	'/_docs/services/coder': typeof DocsServicesCoderRoute;
 	'/_docs/services/email': typeof DocsServicesEmailRoute;
+	'/_docs/services/oidc-provider': typeof DocsServicesOidcProviderRoute;
 	'/_docs/services/queues': typeof DocsServicesQueuesRoute;
 	'/_docs/services/schedules': typeof DocsServicesSchedulesRoute;
 	'/_docs/services/tasks': typeof DocsServicesTasksRoute;
@@ -1659,6 +1694,7 @@ export interface FileRoutesById {
 	'/_docs/reference/cli/monitoring': typeof DocsReferenceCliMonitoringRoute;
 	'/_docs/reference/cli/oauth': typeof DocsReferenceCliOauthRoute;
 	'/_docs/reference/cli/opencode-plugin': typeof DocsReferenceCliOpencodePluginRoute;
+	'/_docs/reference/cli/profiles': typeof DocsReferenceCliProfilesRoute;
 	'/_docs/reference/cli/sandbox': typeof DocsReferenceCliSandboxRoute;
 	'/_docs/reference/cli/storage': typeof DocsReferenceCliStorageRoute;
 	'/_docs/reference/sdk-reference/advanced': typeof DocsReferenceSdkReferenceAdvancedRoute;
@@ -1713,16 +1749,18 @@ export interface FileRouteTypes {
 		| '/explorer/database'
 		| '/explorer/durable-stream'
 		| '/explorer/email'
-		| '/explorer/evals'
 		| '/explorer/handler-context'
 		| '/explorer/hello'
 		| '/explorer/key-value'
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
 		| '/explorer/queue'
+		| '/explorer/schedules'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
+		| '/explorer/webrtc'
+		| '/explorer/websocket'
 		| '/demo/'
 		| '/explorer/'
 		| '/reference/api'
@@ -1770,6 +1808,7 @@ export interface FileRouteTypes {
 		| '/services/authentication'
 		| '/services/coder'
 		| '/services/email'
+		| '/services/oidc-provider'
 		| '/services/queues'
 		| '/services/schedules'
 		| '/services/tasks'
@@ -1846,6 +1885,7 @@ export interface FileRouteTypes {
 		| '/reference/cli/monitoring'
 		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
+		| '/reference/cli/profiles'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
 		| '/reference/sdk-reference/advanced'
@@ -1898,16 +1938,18 @@ export interface FileRouteTypes {
 		| '/explorer/database'
 		| '/explorer/durable-stream'
 		| '/explorer/email'
-		| '/explorer/evals'
 		| '/explorer/handler-context'
 		| '/explorer/hello'
 		| '/explorer/key-value'
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
 		| '/explorer/queue'
+		| '/explorer/schedules'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
+		| '/explorer/webrtc'
+		| '/explorer/websocket'
 		| '/demo'
 		| '/explorer'
 		| '/agents/ai-gateway'
@@ -1953,6 +1995,7 @@ export interface FileRouteTypes {
 		| '/services/authentication'
 		| '/services/coder'
 		| '/services/email'
+		| '/services/oidc-provider'
 		| '/services/queues'
 		| '/services/schedules'
 		| '/services/tasks'
@@ -2029,6 +2072,7 @@ export interface FileRouteTypes {
 		| '/reference/cli/monitoring'
 		| '/reference/cli/oauth'
 		| '/reference/cli/opencode-plugin'
+		| '/reference/cli/profiles'
 		| '/reference/cli/sandbox'
 		| '/reference/cli/storage'
 		| '/reference/sdk-reference/advanced'
@@ -2082,16 +2126,18 @@ export interface FileRouteTypes {
 		| '/explorer/database'
 		| '/explorer/durable-stream'
 		| '/explorer/email'
-		| '/explorer/evals'
 		| '/explorer/handler-context'
 		| '/explorer/hello'
 		| '/explorer/key-value'
 		| '/explorer/model-arena'
 		| '/explorer/object-storage'
 		| '/explorer/queue'
+		| '/explorer/schedules'
 		| '/explorer/sse-stream'
 		| '/explorer/streaming'
 		| '/explorer/vector-storage'
+		| '/explorer/webrtc'
+		| '/explorer/websocket'
 		| '/demo/'
 		| '/explorer/'
 		| '/_docs/reference/api'
@@ -2139,6 +2185,7 @@ export interface FileRouteTypes {
 		| '/_docs/services/authentication'
 		| '/_docs/services/coder'
 		| '/_docs/services/email'
+		| '/_docs/services/oidc-provider'
 		| '/_docs/services/queues'
 		| '/_docs/services/schedules'
 		| '/_docs/services/tasks'
@@ -2215,6 +2262,7 @@ export interface FileRouteTypes {
 		| '/_docs/reference/cli/monitoring'
 		| '/_docs/reference/cli/oauth'
 		| '/_docs/reference/cli/opencode-plugin'
+		| '/_docs/reference/cli/profiles'
 		| '/_docs/reference/cli/sandbox'
 		| '/_docs/reference/cli/storage'
 		| '/_docs/reference/sdk-reference/advanced'
@@ -2269,16 +2317,18 @@ export interface RootRouteChildren {
 	ExplorerDatabaseRoute: typeof ExplorerDatabaseRoute;
 	ExplorerDurableStreamRoute: typeof ExplorerDurableStreamRoute;
 	ExplorerEmailRoute: typeof ExplorerEmailRoute;
-	ExplorerEvalsRoute: typeof ExplorerEvalsRoute;
 	ExplorerHandlerContextRoute: typeof ExplorerHandlerContextRoute;
 	ExplorerHelloRoute: typeof ExplorerHelloRoute;
 	ExplorerKeyValueRoute: typeof ExplorerKeyValueRoute;
 	ExplorerModelArenaRoute: typeof ExplorerModelArenaRoute;
 	ExplorerObjectStorageRoute: typeof ExplorerObjectStorageRoute;
 	ExplorerQueueRoute: typeof ExplorerQueueRoute;
+	ExplorerSchedulesRoute: typeof ExplorerSchedulesRoute;
 	ExplorerSseStreamRoute: typeof ExplorerSseStreamRoute;
 	ExplorerStreamingRoute: typeof ExplorerStreamingRoute;
 	ExplorerVectorStorageRoute: typeof ExplorerVectorStorageRoute;
+	ExplorerWebrtcRoute: typeof ExplorerWebrtcRoute;
+	ExplorerWebsocketRoute: typeof ExplorerWebsocketRoute;
 	DemoIndexRoute: typeof DemoIndexRoute;
 	ExplorerIndexRoute: typeof ExplorerIndexRoute;
 }
@@ -2313,6 +2363,20 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DemoIndexRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
+		'/explorer/websocket': {
+			id: '/explorer/websocket';
+			path: '/explorer/websocket';
+			fullPath: '/explorer/websocket';
+			preLoaderRoute: typeof ExplorerWebsocketRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/explorer/webrtc': {
+			id: '/explorer/webrtc';
+			path: '/explorer/webrtc';
+			fullPath: '/explorer/webrtc';
+			preLoaderRoute: typeof ExplorerWebrtcRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
 		'/explorer/vector-storage': {
 			id: '/explorer/vector-storage';
 			path: '/explorer/vector-storage';
@@ -2332,6 +2396,13 @@ declare module '@tanstack/react-router' {
 			path: '/explorer/sse-stream';
 			fullPath: '/explorer/sse-stream';
 			preLoaderRoute: typeof ExplorerSseStreamRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		'/explorer/schedules': {
+			id: '/explorer/schedules';
+			path: '/explorer/schedules';
+			fullPath: '/explorer/schedules';
+			preLoaderRoute: typeof ExplorerSchedulesRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/explorer/queue': {
@@ -2374,13 +2445,6 @@ declare module '@tanstack/react-router' {
 			path: '/explorer/handler-context';
 			fullPath: '/explorer/handler-context';
 			preLoaderRoute: typeof ExplorerHandlerContextRouteImport;
-			parentRoute: typeof rootRouteImport;
-		};
-		'/explorer/evals': {
-			id: '/explorer/evals';
-			path: '/explorer/evals';
-			fullPath: '/explorer/evals';
-			preLoaderRoute: typeof ExplorerEvalsRouteImport;
 			parentRoute: typeof rootRouteImport;
 		};
 		'/explorer/email': {
@@ -2528,6 +2592,13 @@ declare module '@tanstack/react-router' {
 			path: '/services/queues';
 			fullPath: '/services/queues';
 			preLoaderRoute: typeof DocsServicesQueuesRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/services/oidc-provider': {
+			id: '/_docs/services/oidc-provider';
+			path: '/services/oidc-provider';
+			fullPath: '/services/oidc-provider';
+			preLoaderRoute: typeof DocsServicesOidcProviderRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/services/email': {
@@ -3132,6 +3203,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceCliSandboxRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
+		'/_docs/reference/cli/profiles': {
+			id: '/_docs/reference/cli/profiles';
+			path: '/reference/cli/profiles';
+			fullPath: '/reference/cli/profiles';
+			preLoaderRoute: typeof DocsReferenceCliProfilesRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
 		'/_docs/reference/cli/opencode-plugin': {
 			id: '/_docs/reference/cli/opencode-plugin';
 			path: '/reference/cli/opencode-plugin';
@@ -3725,6 +3803,7 @@ interface DocsRouteRouteChildren {
 	DocsServicesAuthenticationRoute: typeof DocsServicesAuthenticationRoute;
 	DocsServicesCoderRoute: typeof DocsServicesCoderRoute;
 	DocsServicesEmailRoute: typeof DocsServicesEmailRoute;
+	DocsServicesOidcProviderRoute: typeof DocsServicesOidcProviderRoute;
 	DocsServicesQueuesRoute: typeof DocsServicesQueuesRoute;
 	DocsServicesSchedulesRoute: typeof DocsServicesSchedulesRoute;
 	DocsServicesTasksRoute: typeof DocsServicesTasksRoute;
@@ -3779,6 +3858,7 @@ interface DocsRouteRouteChildren {
 	DocsReferenceCliMonitoringRoute: typeof DocsReferenceCliMonitoringRoute;
 	DocsReferenceCliOauthRoute: typeof DocsReferenceCliOauthRoute;
 	DocsReferenceCliOpencodePluginRoute: typeof DocsReferenceCliOpencodePluginRoute;
+	DocsReferenceCliProfilesRoute: typeof DocsReferenceCliProfilesRoute;
 	DocsReferenceCliSandboxRoute: typeof DocsReferenceCliSandboxRoute;
 	DocsReferenceCliStorageRoute: typeof DocsReferenceCliStorageRoute;
 	DocsServicesDatabaseDrizzleRoute: typeof DocsServicesDatabaseDrizzleRoute;
@@ -3849,6 +3929,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsServicesAuthenticationRoute: DocsServicesAuthenticationRoute,
 	DocsServicesCoderRoute: DocsServicesCoderRoute,
 	DocsServicesEmailRoute: DocsServicesEmailRoute,
+	DocsServicesOidcProviderRoute: DocsServicesOidcProviderRoute,
 	DocsServicesQueuesRoute: DocsServicesQueuesRoute,
 	DocsServicesSchedulesRoute: DocsServicesSchedulesRoute,
 	DocsServicesTasksRoute: DocsServicesTasksRoute,
@@ -3910,6 +3991,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsReferenceCliMonitoringRoute: DocsReferenceCliMonitoringRoute,
 	DocsReferenceCliOauthRoute: DocsReferenceCliOauthRoute,
 	DocsReferenceCliOpencodePluginRoute: DocsReferenceCliOpencodePluginRoute,
+	DocsReferenceCliProfilesRoute: DocsReferenceCliProfilesRoute,
 	DocsReferenceCliSandboxRoute: DocsReferenceCliSandboxRoute,
 	DocsReferenceCliStorageRoute: DocsReferenceCliStorageRoute,
 	DocsServicesDatabaseDrizzleRoute: DocsServicesDatabaseDrizzleRoute,
@@ -3947,16 +4029,18 @@ const rootRouteChildren: RootRouteChildren = {
 	ExplorerDatabaseRoute: ExplorerDatabaseRoute,
 	ExplorerDurableStreamRoute: ExplorerDurableStreamRoute,
 	ExplorerEmailRoute: ExplorerEmailRoute,
-	ExplorerEvalsRoute: ExplorerEvalsRoute,
 	ExplorerHandlerContextRoute: ExplorerHandlerContextRoute,
 	ExplorerHelloRoute: ExplorerHelloRoute,
 	ExplorerKeyValueRoute: ExplorerKeyValueRoute,
 	ExplorerModelArenaRoute: ExplorerModelArenaRoute,
 	ExplorerObjectStorageRoute: ExplorerObjectStorageRoute,
 	ExplorerQueueRoute: ExplorerQueueRoute,
+	ExplorerSchedulesRoute: ExplorerSchedulesRoute,
 	ExplorerSseStreamRoute: ExplorerSseStreamRoute,
 	ExplorerStreamingRoute: ExplorerStreamingRoute,
 	ExplorerVectorStorageRoute: ExplorerVectorStorageRoute,
+	ExplorerWebrtcRoute: ExplorerWebrtcRoute,
+	ExplorerWebsocketRoute: ExplorerWebsocketRoute,
 	DemoIndexRoute: DemoIndexRoute,
 	ExplorerIndexRoute: ExplorerIndexRoute,
 };

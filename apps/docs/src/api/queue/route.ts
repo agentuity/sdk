@@ -17,9 +17,10 @@
  */
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
+import type { IssuesType, Logger } from '@agentuity/server';
 import {
 	APIClient,
-	type Logger,
+	ValidationOutputError,
 	getServiceUrls,
 	createQueue,
 	receiveMessage,
@@ -27,6 +28,7 @@ import {
 	nackMessage,
 	deleteQueue,
 	getQueue,
+	listMessages,
 	listDeadLetterMessages,
 	replayDeadLetterMessage,
 } from '@agentuity/server';
@@ -48,8 +50,23 @@ function createQueueClient(logger: Logger) {
 // Per-request context set by middleware
 type QueueVars = { queueName: string; queueClient: APIClient };
 
+function isMissingQueueError(error: unknown): boolean {
+	const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+	return msg.includes('not found') || msg.includes('404');
+}
+
 function isPayloadObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isEmptyReceiveValidationError(error: InstanceType<typeof ValidationOutputError>): boolean {
+	return (
+		error.issues.length > 0 &&
+		error.issues.every((issue: IssuesType[number]) => {
+			const path = issue.path.join('.');
+			return (path === 'data' || path === 'data.message') && issue.input == null;
+		})
+	);
 }
 
 const router = new Hono<Env & { Variables: QueueVars }>()
@@ -76,8 +93,7 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 	.post('/reset', async (c) => {
 		try {
 			await deleteQueue(c.var.queueClient, c.var.queueName).catch((err) => {
-				const msg = err instanceof Error ? err.message : String(err);
-				if (!msg.includes('not found') && !msg.includes('404')) throw err;
+				if (!isMissingQueueError(err)) throw err;
 			});
 			// Use APIClient directly — the agent's ctx.queue caches queue names
 			// and would short-circuit createQueue after a delete.
@@ -129,14 +145,18 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 
 	.get('/status', async (c) => {
 		try {
-			const [queue, dlq] = await Promise.all([
+			const [queue, pending, dlq] = await Promise.all([
 				getQueue(c.var.queueClient, c.var.queueName),
+				listMessages(c.var.queueClient, c.var.queueName, {
+					limit: 100,
+					state: 'pending',
+				}),
 				listDeadLetterMessages(c.var.queueClient, c.var.queueName),
 			]);
 			return c.json({
 				success: true,
 				data: {
-					message_count: queue.message_count ?? 0,
+					message_count: pending.total ?? pending.messages.length,
 					dlq_count: dlq.total ?? dlq.messages.length,
 					name: queue.name,
 					queue_type: queue.queue_type,
@@ -156,6 +176,15 @@ const router = new Hono<Env & { Variables: QueueVars }>()
 			}
 			return c.json({ success: true, data: null, message: 'No messages available' });
 		} catch (err) {
+			if (err instanceof ValidationOutputError) {
+				if (!isEmptyReceiveValidationError(err)) {
+					throw err;
+				}
+				c.var.logger?.warn('Queue receive returned an unexpected empty payload', {
+					queueName: c.var.queueName,
+				});
+				return c.json({ success: true, data: null, message: 'No messages available' });
+			}
 			const message = err instanceof Error ? err.message : String(err);
 			return c.json({ success: false, message }, 500);
 		}

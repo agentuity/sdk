@@ -23,6 +23,7 @@ import {
 	type RemoteLifecycleState,
 } from './remote-lifecycle.ts';
 import { resolveCoderOrgId } from './auth.ts';
+import { formatToolDisplay } from './agentuity-cli.ts';
 
 const DEBUG = !!process.env['AGENTUITY_DEBUG'];
 
@@ -1001,18 +1002,23 @@ export async function setupRemoteMode(
 				break;
 
 			case 'tool_execution_start': {
-				const tool = (event as { toolName?: string }).toolName ?? 'tool';
-				currentTool = tool;
+				const rawTool = (event as { toolName?: string }).toolName ?? 'tool';
+				const rawArgs = (event as { args?: string | Record<string, unknown> }).args;
+				const display = formatToolDisplay(rawTool, rawArgs);
+				currentTool = display.toolName;
 				if (extensionCtxRef?.hasUI) {
-					setNonLifecycleWorkingMessage(`Running ${tool}...`);
-					extensionCtxRef.ui.setStatus('remote_activity', `Running ${tool}...`);
+					setNonLifecycleWorkingMessage(`Running ${display.fullLabel}...`);
+					extensionCtxRef.ui.setStatus('remote_activity', `Running ${display.fullLabel}...`);
 				}
-				log(`Tool: ${tool}`);
+				log(`Tool: ${display.fullLabel}`);
 				break;
 			}
 
 			case 'tool_execution_end': {
-				const tool = (event as { toolName?: string }).toolName ?? currentTool ?? 'tool';
+				const rawTool = (event as { toolName?: string }).toolName ?? currentTool ?? 'tool';
+				const rawArgs = (event as { args?: string | Record<string, unknown> }).args;
+				const display = rawArgs ? formatToolDisplay(rawTool, rawArgs) : null;
+				const tool = display?.fullLabel ?? currentTool ?? rawTool;
 				currentTool = null;
 				if (extensionCtxRef?.hasUI) {
 					clearWorkingMessage();

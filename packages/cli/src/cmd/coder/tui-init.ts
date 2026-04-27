@@ -43,7 +43,7 @@ export async function probeHubInitAccess(
 	try {
 		const response = await fetchImpl(`${hubHttpUrl}/api/hub/init`, {
 			headers,
-			signal: AbortSignal.timeout(5_000),
+			signal: AbortSignal.timeout(10_000),
 		});
 
 		let payload: unknown;

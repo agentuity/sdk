@@ -50,39 +50,27 @@ handler: async (ctx, input) => {
 
 ## Quick Start
 
-<Tabs items={["New Project", "Existing Project", "Manual Setup"]}>
-<Tab value="New Project">
-Select authentication during project creation:
+Use the `agentuity-auth` template, or add auth to any project manually:
 
 ```bash
-agentuity project create
-# Select "Yes" when prompted for authentication
-```
-</Tab>
-<Tab value="Existing Project">
-Initialize auth in your existing Agentuity project:
+# Start from the auth template
+bunx agentuity create my-app --template agentuity-auth
 
-```bash
-agentuity project auth init
-```
-
-This command:
-- Sets up a Postgres database (or uses your existing one)
-- Installs `@agentuity/auth`, `better-auth`, and `drizzle-orm`
-- Generates `src/auth.ts` with sensible defaults
-- Runs database migrations (or prompts you to run them manually)
-- Shows integration examples for routes and frontend
-</Tab>
-<Tab value="Manual Setup">
-For non-Agentuity projects or custom setups:
-
-```bash
+# Or add auth to an existing project
 bun add @agentuity/auth better-auth drizzle-orm
 ```
 
-Then create your auth configuration manually (see [Server Setup](#server-setup) below).
-</Tab>
-</Tabs>
+Then create your auth configuration (see [Server Setup](#server-setup) below), set `DATABASE_URL` and `AGENTUITY_AUTH_SECRET` in your environment, and run the BetterAuth CLI to generate and apply the schema (use `bunx` or `npx`):
+
+```bash
+# With Bun
+bunx @better-auth/cli generate
+bunx @better-auth/cli migrate
+
+# Or with npm
+npx @better-auth/cli generate
+npx @better-auth/cli migrate
+```
 
 ## Server Setup
 
@@ -491,36 +479,25 @@ const token = await c.var.auth.getToken();
 See the [BetterAuth JWT Plugin docs](https://www.better-auth.com/docs/plugins/jwt) for token customization and verification.
 </Callout>
 
-## CLI Commands
+## Schema & Migrations
 
-### Initialize Auth
-
-```bash
-agentuity project auth init [options]
-```
-
-| Option | Description |
-|--------|-------------|
-| `--skipMigrations` | Skip running database migrations |
-| `--skipInstall` | Skip installing dependencies |
-
-<Callout type="info" title="ORM Detection">
-If Drizzle or Prisma is detected in your project, `init` will skip automatic migrations and prompt you to run them with your ORM tools instead.
-</Callout>
-
-### Generate Schema
-
-Generate SQL schema for auth tables (useful for manual migrations):
+Use the BetterAuth CLI to generate and apply the auth schema (use `bunx` or `npx`):
 
 ```bash
-agentuity project auth generate
+# Generate SQL for all auth tables (useful for review or manual migrations)
+bunx @better-auth/cli generate
+# or: npx @better-auth/cli generate
+
+# Apply migrations directly
+bunx @better-auth/cli migrate
+# or: npx @better-auth/cli migrate
 ```
 
-This outputs the SQL needed to create all auth tables, which you can then run with your preferred migration tool.
+If you use Drizzle or Prisma, prefer your ORM's own migration tooling and generate the schema with `@better-auth/cli generate`, then incorporate it into your migration files.
 
 ## Next Steps
 
 - [Middleware & Routes](/routes/middleware): Authentication and validation patterns
 - [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration for `@agentuity/react` apps
 - [React Hooks](/frontend/react-hooks): Building custom UIs
-- [Authentication Services](/services/authentication): Platform auth overview with OAuth/OIDC
+- [Authentication Services](/services/authentication): Choose between OIDC and app-owned auth

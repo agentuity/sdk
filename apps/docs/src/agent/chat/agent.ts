@@ -13,13 +13,13 @@
  * This agent uses push() with maxRecords for automatic sliding window behavior,
  * keeping only the last MAX_MESSAGES to prevent unbounded growth.
  *
- * Docs: https://agentuity.dev/Learn/Cookbook/Patterns/chat-with-history
+ * Docs: https://agentuity.dev/cookbook/patterns/chat-with-history
  */
 
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
+import { createGoogleProvider } from '../../lib/ai-gateway';
 import agentuityDocs from './agentuity-context.txt';
 
 interface Message {
@@ -94,7 +94,7 @@ const agent = createAgent('chat', {
 			default: {
 				// Generate response with Agentuity-focused context
 				const { text } = await generateText({
-					model: google('gemini-3-flash-preview'),
+					model: createGoogleProvider()('gemini-3-flash-preview'),
 					system: `You are an Agentuity expert assistant. Your primary purpose is to help users understand and use the Agentuity platform.
 
 ## Guidelines

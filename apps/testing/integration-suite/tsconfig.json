@@ -7,7 +7,7 @@
 		"noEmit": true,
 		"jsx": "react-jsx",
 		"lib": ["ESNext", "DOM"],
-		"types": ["bun-types"],
+		"types": ["bun-types", "vite/client"],
 		"skipLibCheck": true,
 		"paths": {
 			"@agents/*": ["./src/agent/*"],

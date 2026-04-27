@@ -179,7 +179,7 @@ export function KVExplorer() {
 									variant="ghost"
 									className={`w-full justify-start text-left rounded-none border-b border-zinc-200 dark:border-zinc-900 ${
 										selectedKey === key
-											? 'bg-zinc-100 dark:bg-zinc-900 text-cyan-600 dark:text-cyan-400'
+											? 'bg-zinc-100 dark:bg-zinc-900 text-cyan-800 dark:text-cyan-400'
 											: 'text-zinc-900 dark:text-white'
 									}`}
 								>
@@ -197,7 +197,7 @@ export function KVExplorer() {
 					<div className="flex-1 overflow-y-auto p-4">
 						{selectedKey ? (
 							<div>
-								<div className="text-cyan-600 dark:text-cyan-400 text-xs mb-2">
+								<div className="text-cyan-800 dark:text-cyan-400 text-xs mb-2">
 									{selectedKey}
 								</div>
 								<pre className="bg-zinc-100 dark:bg-zinc-950 rounded-md text-zinc-600 dark:text-zinc-400 text-[13px] m-0 overflow-auto p-3 whitespace-pre-wrap break-words">

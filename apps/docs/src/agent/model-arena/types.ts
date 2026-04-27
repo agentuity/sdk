@@ -37,27 +37,27 @@ export interface ModelResult {
 
 // Zod schemas for AI SDK generateObject
 export const ProviderScoreSchema = z.object({
-	provider: z.enum(PROVIDERS),
-	score: z.number(),
-	reason: z.string(),
+	provider: z.enum(PROVIDERS).describe('The provider being scored: openai or anthropic.'),
+	score: z.number().describe('Normalized score between 0.0 and 1.0.'),
+	reason: z.string().describe('Brief explanation for the score.'),
 });
 
 export const ProviderBinarySchema = z.object({
-	provider: z.enum(PROVIDERS),
-	passed: z.boolean(),
-	reason: z.string(),
+	provider: z.enum(PROVIDERS).describe('The provider being checked: openai or anthropic.'),
+	passed: z.boolean().describe('Whether the provider passed the check.'),
+	reason: z.string().describe('Brief explanation for the pass or fail result.'),
 });
 
 export const JudgmentSchema = z.object({
-	winner: z.enum(PROVIDERS),
-	reasoning: z.string(),
+	winner: z.enum(PROVIDERS).describe('Overall winning provider: openai or anthropic.'),
+	reasoning: z.string().describe('Short explanation for the overall winner.'),
 	scores: z.object({
-		creativity: z.array(ProviderScoreSchema),
-		engagement: z.array(ProviderScoreSchema),
+		creativity: z.array(ProviderScoreSchema).describe('Creativity scores for both providers.'),
+		engagement: z.array(ProviderScoreSchema).describe('Engagement scores for both providers.'),
 	}),
 	checks: z.object({
-		toneMatch: z.array(ProviderBinarySchema),
-		wordCount: z.array(ProviderBinarySchema),
+		toneMatch: z.array(ProviderBinarySchema).describe('Tone-match checks for both providers.'),
+		wordCount: z.array(ProviderBinarySchema).describe('Word-count checks for both providers.'),
 	}),
 });
 

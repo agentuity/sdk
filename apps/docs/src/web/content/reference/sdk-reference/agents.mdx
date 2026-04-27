@@ -34,7 +34,7 @@ Creates a new agent with schema validation and type inference.
 Returns an `AgentRunner` object with the following properties:
 - `metadata`: Agent metadata (`id`, `agentId`, `filename`, `version`, `name`, `description`)
 - `run(input)`: Execute the agent. Input is required when the agent has an input schema, omitted otherwise.
-- `createEval(name, config)`: Create quality evaluations for this agent
+- `createEval(name, config)`: Deprecated evaluation hook kept for older apps
 - `addEventListener(eventName, callback)`: Attach lifecycle event listeners
 - `removeEventListener(eventName, callback)`: Remove event listeners
 
@@ -112,6 +112,8 @@ agent.validator(options: { input: Schema; output?: Schema }): MiddlewareHandler
 - No options: Uses agent's input/output schemas
 - `{ output: Schema }`: Output-only validation (useful for GET routes)
 - `{ input: Schema, output?: Schema }`: Custom schema override
+
+For streaming agents, call `agent.validator()` normally. The runtime skips output validation when `schema.stream: true` is set. Use `stream: true` only with standalone `validator()` routes that return a stream without an agent.
 
 **Example**
 
@@ -429,22 +431,24 @@ For streaming patterns with routes, see [HTTP Routes](/routes/http).
 
 ### Route setup
 
-Streaming agents require the `stream()` middleware in the route handler. Without it the response may be buffered:
+Streaming agents can be returned directly from a validated route with `c.body(...)`:
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env, stream } from '@agentuity/runtime';
+import { type Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat-stream/agent';
 
 const router = new Hono<Env>();
 
-router.post('/chat', chatAgent.validator(), stream(async (c) => {
+router.post('/chat', chatAgent.validator(), async (c) => {
   const body = c.req.valid('json');
-  return chatAgent.run(body);
-}));
+  return c.body(await chatAgent.run(body));
+});
 
 export default router;
 ```
+
+Use `stream()` when the route builds the `ReadableStream` itself. For validated non-agent streams, `validator({ input, stream: true })` works too.
 
 ### Consuming a stream
 
