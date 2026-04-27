@@ -152,6 +152,17 @@ if (!agentuityBaseUrl) {
 const client = hc<ApiRouter>(new URL('/api', agentuityBaseUrl).toString());
 ```
 
+`/api` replaces any path suffix in `NEXT_PUBLIC_AGENTUITY_BASE_URL`. If your backend is mounted under a subpath, preserve it with a relative URL segment:
+
+```tsx
+const baseUrl = new URL(agentuityBaseUrl);
+if (!baseUrl.pathname.endsWith('/')) {
+  baseUrl.pathname += '/';
+}
+
+const client = hc<ApiRouter>(new URL('api', baseUrl).toString());
+```
+
 Then enable CORS in [App Configuration](/get-started/app-configuration).
 
 ## Next Steps

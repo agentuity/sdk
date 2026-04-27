@@ -153,12 +153,12 @@ if (info.url) {
 }
 ```
 
-<Callout type="info" title="Network Required">
-Setting `network.port` requires `network.enabled: true`. The sandbox must have network access to expose ports.
+<Callout type="info" title="Port mapping enables networking">
+Setting `network.port` enables networking for the exposed port. Include `network.enabled: true` when the sandbox also needs outbound network access.
 </Callout>
 
 <Callout type="tip" title="CLI Shortcut">
-When using the CLI with `--port`, the public URL is returned directly in the create response without needing a separate get call. See [CLI Sandbox Commands](/reference/cli/sandbox#port-mapping) for details.
+When using the CLI, `--port` enables networking for you and returns the public URL directly in the create response. See [CLI Sandbox Commands](/reference/cli/sandbox#port-mapping) for details.
 </Callout>
 
 ### Project Association

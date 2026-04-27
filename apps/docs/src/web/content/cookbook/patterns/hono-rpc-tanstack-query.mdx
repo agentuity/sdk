@@ -294,7 +294,7 @@ export const postsClient = hc<PostsRoute>('/api'); // [!code highlight]
 
 ## With Explicit Routing
 
-If you're mounting relative sub-routers with `createApp({ router })`, export the composed router type:
+If you're mounting sub-routers with `createApp({ router })`, export the composed router type. Mount routers at `/` when the imported route files already include their path prefixes.
 
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
@@ -302,14 +302,15 @@ import type { Env } from '@agentuity/runtime';
 import users from './users';
 import posts from './posts';
 
-// Imported routers use paths relative to these mount points
 const router = new Hono<Env>()
-   .route('/users', users)
-   .route('/posts', posts);
+   .route('/', users)
+   .route('/', posts);
 
 export type AppRoute = typeof router;
 export default router;
 ```
+
+If you prefer `.route('/users', users)`, define the users router with relative paths like `/` and `/:id`. Otherwise Hono will compose doubled paths such as `/users/users`.
 
 ```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime'; // [!code highlight]

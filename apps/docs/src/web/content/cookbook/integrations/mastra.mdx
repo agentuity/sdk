@@ -96,8 +96,17 @@ const weatherTool = createTool({
   }),
   execute: async ({ location }) => {
     const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`);
-    const geoData = GeoResponse.parse(await geo.json());
-    const firstResult = geoData.results?.[0];
+    if (!geo.ok) {
+      return `Unable to look up ${location}: ${geo.status}`;
+    }
+
+    const geoJson: unknown = await geo.json().catch(() => undefined);
+    const geoData = GeoResponse.safeParse(geoJson);
+    if (!geoData.success) {
+      return `Unable to read location data for ${location}`;
+    }
+
+    const firstResult = geoData.data.results?.[0];
 
     if (!firstResult) {
       return `No weather data found for ${location}`;
@@ -105,8 +114,17 @@ const weatherTool = createTool({
 
     const { latitude, longitude } = firstResult;
     const weather = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`);
-    const data = WeatherResponse.parse(await weather.json());
-    return `${location}: ${data.current.temperature_2m}°C`;
+    if (!weather.ok) {
+      return `Unable to fetch weather for ${location}: ${weather.status}`;
+    }
+
+    const weatherJson: unknown = await weather.json().catch(() => undefined);
+    const data = WeatherResponse.safeParse(weatherJson);
+    if (!data.success) {
+      return `Unable to read weather data for ${location}`;
+    }
+
+    return `${location}: ${data.data.current.temperature_2m}°C`;
   },
 });
 

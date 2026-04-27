@@ -187,7 +187,7 @@ The frontend reads the streaming response chunk by chunk and updates the UI as t
 
 ## Key Points
 
-- **Thread state** (`ctx.thread.state`) persists for up to 1 hour
+- **Thread state** (`ctx.thread.state`) expires after 1 hour of inactivity
 - **Async API**: All thread state methods are async (`await ctx.thread.state.get()`)
 - **Messages array** stores the full conversation history
 - **`waitUntil`** saves the response after streaming completes

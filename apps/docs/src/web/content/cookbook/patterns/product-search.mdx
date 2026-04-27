@@ -167,7 +167,8 @@ const router = new Hono<Env>()
     const query = c.req.query('q') ?? '';
     const category = c.req.query('category');
     const maxPrice = c.req.query('maxPrice');
-    const maxPriceFilter = maxPrice === undefined ? undefined : Number(maxPrice);
+    const maxPriceParam = maxPrice?.trim();
+    const maxPriceFilter = maxPriceParam ? Number(maxPriceParam) : undefined;
     const parsedLimit = Number(c.req.query('limit') ?? '10');
     const maxPriceInput =
       maxPriceFilter !== undefined && Number.isFinite(maxPriceFilter) ? maxPriceFilter : undefined;

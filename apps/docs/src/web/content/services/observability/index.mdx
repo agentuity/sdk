@@ -40,7 +40,7 @@ Monitor and debug your agents with built-in observability tools. Use collected l
 
 ```typescript
 ctx.logger.child({ userId, action }).info('Processing request');
-ctx.logger.child({ error: errorMessage }).error('Failed to process');
+ctx.logger.child({ error: 'OpenAI request timed out' }).error('Failed to process');
 ```
 
 ### Tracing
@@ -70,4 +70,4 @@ ctx.logger.child({ sessionId: ctx.sessionId }).info('Session started');
 | Agents | `ctx.logger` | `ctx.tracer` |
 | Routes | `c.var.logger` | `c.var.tracer` |
 
-Agent sessions use the trace ID as the session ID, so session logs and timelines line up in the [Agentuity Console](https://app.agentuity.com).
+Agent session IDs are derived from trace IDs with a `sess_` prefix, so session logs and timelines line up in the [Agentuity Console](https://app.agentuity.com).

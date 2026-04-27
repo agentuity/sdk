@@ -157,7 +157,7 @@ import type { Env } from '@agentuity/runtime';
 import { bot } from '@lib/bot';
 
 function isWebhookPlatform(platform: string): platform is keyof typeof bot.webhooks {
-  return platform in bot.webhooks;
+  return Object.prototype.hasOwnProperty.call(bot.webhooks, platform);
 }
 
 const api = new Hono<Env>()

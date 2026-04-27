@@ -54,7 +54,7 @@ export default defineConfig({
 
 <Callout type="warning" title="Reserved Keys">
 The development asset server sets these keys for Agentuity internals. Avoid redefining them in your Vite config:
-- `import.meta.env.AGENTUITY_PUBLIC_*` (Agentuity internal variables)
+- specific `import.meta.env.AGENTUITY_PUBLIC_*` keys that Agentuity injects internally
 - `process.env.NODE_ENV`
 </Callout>
 

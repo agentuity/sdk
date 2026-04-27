@@ -5,7 +5,8 @@ import { getSessionSecret } from '@agentuity/runtime';
 
 function isSecureRequest(url: string, forwardedProto: string | undefined): boolean {
 	if (forwardedProto) {
-		return forwardedProto === 'https';
+		const clientProto = forwardedProto.split(',')[0]?.trim().toLowerCase();
+		return clientProto === 'https';
 	}
 
 	try {

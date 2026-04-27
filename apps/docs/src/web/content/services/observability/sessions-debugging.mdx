@@ -96,10 +96,10 @@ const agent = createAgent('ErrorHandler', {
       return { success: true, data: result };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      ctx.logger.error('Request failed', {
+      ctx.logger.child({
         sessionId: ctx.sessionId,
         error: message,
-      });
+      }).error('Request failed');
 
       return {
         success: false,
@@ -163,7 +163,7 @@ Session state is cleared after the response. For persistent data, use [thread st
 
 ## Metadata
 
-Store unencrypted metadata for filtering and querying. Use session metadata for values tied to one request. Use thread metadata for values that should stay with the conversation.
+Store unencrypted metadata for filtering and querying. Keep metadata limited to non-sensitive values or opaque internal identifiers. Do not store secrets, tokens, raw emails, names, or other sensitive personal data. Use session metadata for values tied to one request. Use thread metadata for values that should stay with the conversation.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';

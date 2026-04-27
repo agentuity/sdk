@@ -181,8 +181,8 @@ The `build` section controls the sandbox where your project compiles during clou
   "region": "use",
   "deployment": {
     "resources": {
-      "cpu": "500m",
       "memory": "500Mi",
+      "cpu": "500m",
       "disk": "500Mi"
     },
     "domains": []
@@ -313,7 +313,12 @@ const api = new Hono<Env>()
   // WebSocket endpoint
   .get('/chat', websocket((c, ws) => {
     ws.onMessage(async (event) => {
-      const result = await chatHandler.run({ message: String(event.data) });
+      if (typeof event.data !== 'string') {
+        ws.send(JSON.stringify({ error: 'Only text frames are supported' }));
+        return;
+      }
+
+      const result = await chatHandler.run({ message: event.data });
       ws.send(JSON.stringify(result));
     });
   }));

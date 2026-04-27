@@ -445,7 +445,7 @@ import { createLogger } from '@agentuity/server';
 const logger = createLogger('info', false, 'dark');
 
 logger.child({ userId: '123' }).info('Processing request');
-logger.child({ error: err.message }).error('Failed to connect');
+logger.child({ error: 'Connection refused' }).error('Failed to connect');
 
 // Child logger with persistent context
 const requestLogger = logger.child({ requestId: 'req_abc' });
