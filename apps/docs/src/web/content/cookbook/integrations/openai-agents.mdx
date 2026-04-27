@@ -13,8 +13,10 @@ Define tools with the OpenAI Agents SDK `tool()` function and run them inside an
 Define your tools using `tool()` with Zod parameter schemas:
 
 ```typescript title="src/agent/tool-calling/index.ts"
-import { Agent, tool } from '@openai/agents';
+import { Agent, tool, setTracingDisabled } from '@openai/agents';
 import { z } from 'zod';
+
+setTracingDisabled(true);
 
 const search = tool({
   name: 'search',
@@ -68,7 +70,7 @@ export default createAgent('tool-calling', {
 - `result.finalOutput` contains the agent's final response; `result.newItems` contains the full execution trace
 
 <Callout type="info" title="Use one trace source">
-The OpenAI Agents SDK enables tracing by default in server runtimes. If Agentuity should be your trace source, set `OPENAI_AGENTS_DISABLE_TRACING=1` or configure the OpenAI runner with `tracingDisabled: true`.
+The OpenAI Agents SDK enables tracing by default in server runtimes. If Agentuity should be your trace source, set `OPENAI_AGENTS_DISABLE_TRACING=1`, configure the OpenAI runner with `tracingDisabled: true`, or call `setTracingDisabled(true)` during process startup.
 </Callout>
 
 ## Agent Handoffs

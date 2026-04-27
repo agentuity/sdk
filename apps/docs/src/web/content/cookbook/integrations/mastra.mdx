@@ -60,6 +60,10 @@ Mastra handles the LLM interaction and tool orchestration. Agentuity provides pe
 When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/agents/ai-gateway) unless you provide your own OpenAI key. No bridge file is needed.
 </Callout>
 
+<Callout type="tip" title="Older examples may still show a bridge helper">
+Some older Mastra examples in the examples repo still include `src/lib/gateway.ts` to set `OPENAI_API_KEY` and `OPENAI_BASE_URL` explicitly. That helper is optional with the current SDK when you run through `agentuity dev` or a deployed Agentuity build.
+</Callout>
+
 ## Tool Calling
 
 Mastra's `createTool()` defines typed tools with Zod schemas. The agent calls them automatically based on the user's message. Agentuity wraps the agent for deployment and schema validation.

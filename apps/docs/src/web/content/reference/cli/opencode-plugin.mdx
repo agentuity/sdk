@@ -113,6 +113,26 @@ Use these commands by typing them directly in OpenCode:
 /agentuity-coder Create a new agent that processes webhooks from Stripe
 ```
 
+## MCP Servers
+
+The plugin works without extra MCP servers, but Scout and Expert are more useful when `context7` and `grep_app` are configured in `opencode.json`.
+
+```json
+{
+  "mcp": {
+    "context7": { "type": "remote", "url": "https://mcp.context7.com/mcp" },
+    "grep_app": { "type": "remote", "url": "https://mcp.grep.app" }
+  }
+}
+```
+
+| MCP | Purpose | Free Tier |
+|-----|---------|-----------|
+| **context7** | Library docs lookup | 500 req/month |
+| **grep_app** | GitHub code search | Unlimited |
+
+The install command prints this recommendation, but it does not modify your MCP config automatically.
+
 ## Headless Mode
 
 Run Agentuity tasks from the command line without opening OpenCode:
@@ -155,6 +175,32 @@ For headless execution:
 agentuity ai opencode run "/agentuity-cadence Build the feature"
 ```
 
+## Tmux Integration
+
+When running inside tmux, the plugin can spawn agent work into separate panes for a visible multi-agent layout.
+
+<Callout type="warning" title="Server Mode Required">
+Tmux integration requires OpenCode server mode. Start OpenCode with `opencode --port 4096` or another port before using tmux panes.
+</Callout>
+
+Configure tmux settings in your Agentuity CLI profile (`~/.config/agentuity/production.yaml` by default):
+
+```yaml
+coder:
+  tmux:
+    enabled: true
+    maxPanes: 6
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enabled` | `false` | Enable tmux pane spawning |
+| `maxPanes` | `4` | Max agent panes before rotating the oldest out |
+| `mainPaneMinWidth` | `100` | Minimum width for the main pane in columns |
+| `agentPaneMinWidth` | `40` | Minimum width for agent panes in columns |
+
+When enabled, agents spawn in a dedicated `Agents` window with a tiled grid layout. Oldest panes close automatically when `maxPanes` is reached.
+
 ## Plugin Tools
 
 The plugin registers a small set of tools for the agents:
@@ -168,7 +214,7 @@ These are agent-facing tools. In normal use, call `/agentuity-coder`, `/agentuit
 
 ## Configuration
 
-Agent models are configured in `~/.config/opencode/opencode.json`. OpenCode reads plugin-provided agents and the `agent` entries in `opencode.json`, so you can override any Agentuity Coder agent by display name.
+Agent models are configured in `~/.config/opencode/opencode.json`. OpenCode reads plugin-provided agents and the `agent` entries in `opencode.json`, so you can override any Agentuity Coder agent by display name. Plugin behavior settings such as tmux live in your Agentuity CLI profile.
 
 ### Agent Model Overrides
 

@@ -1,15 +1,17 @@
 ---
 title: Gravity Network
-description: The layered infrastructure behind Agentuity services
+description: The layered infrastructure powering Agentuity's services
 ---
 
 import { Database, DatabaseZap, BookText, ListTodo, Container, Radio } from 'lucide-react';
 
-The Gravity Network is Agentuity's infrastructure layer for platform services. It is organized as primitives that lower layers expose and higher layers combine.
+The Gravity Network is Agentuity's infrastructure layer that powers all platform services. Rather than building monolithic, tightly-coupled systems, we've architected everything as composable primitives that stack on top of each other.
 
 ## Layered Architecture
 
-Agentuity is built on a layered primitive model. Each layer provides building blocks for the layers above it.
+Agentuity is built on a layered primitive model. Each layer provides building blocks for the layers above it, creating a flexible foundation.
+
+<GravityNetworkDiagram />
 
 ### Core Primitives
 
@@ -22,7 +24,7 @@ At the foundation, we have core primitives that nearly everything else is built 
 | **Compute** | Agent runtime and sandboxes | Agent execution, isolated code runs |
 | **OLAP Warehouse** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Analytical database | Logs, metrics, analytics |
 
-These core primitives are intentionally generic and protocol-based. Storage speaks S3. Databases speak standard wire protocols.
+These core primitives are intentionally generic and protocol-based. Storage speaks S3. Databases speak standard wire protocols. This design enables portability and flexibility at the infrastructure level.
 
 ### Platform Primitives
 
@@ -30,14 +32,14 @@ On top of the core primitives, we build higher-level platform primitives:
 
 | Primitive | Built On | Purpose |
 | --------- | -------- | ------- |
-| <Database className="inline w-4 h-4 mr-1" /> [**Database**](/services/database) | Postgres | Managed database access |
-| <DatabaseZap className="inline w-4 h-4 mr-1" /> [**Key Value**](/services/storage/key-value) | Postgres | State storage by key |
-| <BookText className="inline w-4 h-4 mr-1" /> [**Vector**](/services/storage/vector) | Postgres | Semantic search |
-| <ListTodo className="inline w-4 h-4 mr-1" /> [**Queues**](/services/queues) | Postgres | Message delivery |
-| <Container className="inline w-4 h-4 mr-1" /> [**Sandbox**](/services/sandbox) | Compute + Storage | Isolated code execution |
-| <Radio className="inline w-4 h-4 mr-1" /> [**Durable Streams**](/services/storage/durable-streams) | Storage | Persistent data streams |
+| <Database className="inline w-4 h-4 mr-1" /> [**Database**](https://app.agentuity.com/services/database) | Postgres | Managed database access |
+| <DatabaseZap className="inline w-4 h-4 mr-1" /> [**Key Value**](https://app.agentuity.com/services/kv) | Postgres | Fast state storage |
+| <BookText className="inline w-4 h-4 mr-1" /> [**Vector**](https://app.agentuity.com/services/vector) | Postgres | Semantic search |
+| <ListTodo className="inline w-4 h-4 mr-1" /> [**Queue**](https://app.agentuity.com/services/queue) | Postgres | Reliable message delivery |
+| <Container className="inline w-4 h-4 mr-1" /> [**Sandbox**](https://app.agentuity.com/services/sandbox) | Compute + Storage | Isolated code execution |
+| <Radio className="inline w-4 h-4 mr-1" /> [**Durable Stream**](https://app.agentuity.com/services/stream) | Storage | Persistent message streams |
 | **Agent Runtime** | Compute | Agent execution environment |
-| [**Observability**](/services/observability) | Warehouse | Logging, tracing, metrics |
+| **Observability** | Warehouse | Logging, tracing, metrics |
 
 These primitives use the Core Primitives but don't depend on each other horizontally. They only reach down the stack, never up.
 
@@ -47,12 +49,11 @@ The highest layer provides application-level services that combine multiple Plat
 
 | Service | Built On | Purpose |
 | ------- | -------- | ------- |
-| [**Authentication**](/services/authentication) | Database | User authentication and sessions |
-| [**Webhooks**](/services/webhooks) | Queues + Compute | Receive external events |
-| [**Schedules**](/services/schedules) | Queues + Compute | Cron-based delivery |
-| [**Email**](/services/email) | Webhooks + Queues | Inbound and outbound email |
-| [**Coder**](/services/coder) | Sandbox + Storage | Coding sessions and replay data |
-| [**Web Analytics**](/services/observability/web-analytics) | OLAP Warehouse | Frontend analytics |
+| **Auth** | Database | User authentication and sessions |
+| **Webhooks** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Queues + Compute | Receive external events |
+| **Scheduling** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Queues + Compute | Cron and delayed execution |
+| **Email** <span className="text-xs text-zinc-500 ml-1">(coming soon)</span> | Webhooks + Queues | Inbound/outbound email handling |
+| **App Analytics** | OLAP Warehouse | Metrics, dashboards, insights |
 
 For example, an inbound email service works like this:
 1. Email arrives at the Agentuity email service
@@ -67,8 +68,8 @@ Each service is composed from lower-level primitives rather than built from scra
 
 <span className="text-cyan-800 dark:text-cyan-500 font-semibold">Composability</span>: Higher-level services are built from lower-level primitives. Need a new capability? Combine existing primitives rather than building from scratch.
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Portability</span>: Because core primitives use standard protocols, the underlying infrastructure can be swapped.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Portability</span>: Because Core Primitives use standard protocols, the underlying infrastructure can be swapped. Your workloads aren't locked into proprietary systems.
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Reliability</span>: Services build on primitives like Postgres and S3 instead of each service inventing its own storage layer.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Reliability</span>: Built on battle-tested primitives like Postgres and S3, not experimental infrastructure. Your agents run on foundations that have proven themselves at scale.
 
-<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Agentic</span>: The same service boundaries that developers inspect can also give agents context about state, execution, and delivery.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Agentic</span>: Since you can peek behind the curtain and see what's happening across these abstractions, your agents can too. This creates better context and feedback loops, allowing your agents to build software quickly and effectively.

@@ -1,6 +1,19 @@
 import crypto from 'node:crypto';
 import { createMiddleware } from 'hono/factory';
-import { getCookie } from 'hono/cookie';
+import { getSignedCookie, setSignedCookie } from 'hono/cookie';
+import { getSessionSecret } from '@agentuity/runtime';
+
+function isSecureRequest(url: string, forwardedProto: string | undefined): boolean {
+	if (forwardedProto) {
+		return forwardedProto === 'https';
+	}
+
+	try {
+		return new URL(url).protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
 
 /**
  * Cookie-only authentication middleware
@@ -8,10 +21,22 @@ import { getCookie } from 'hono/cookie';
  * Use this for public-facing endpoints that only need user identification
  */
 export const cookieAuth = createMiddleware(async (c, next) => {
-	const userId = getCookie(c, 'chat_user_id');
+	const secret = getSessionSecret();
+	let userId = await getSignedCookie(c, secret, 'chat_user_id');
+	if (userId === false) {
+		c.var.logger.warn('Invalid chat_user_id cookie signature');
+		userId = undefined;
+	}
 	if (!userId) {
-		c.var.logger.warn('Missing chat_user_id cookie');
-		return c.json({ error: 'Missing chat_user_id cookie' }, 401);
+		userId = `anon_${crypto.randomUUID()}`;
+		await setSignedCookie(c, 'chat_user_id', userId, secret, {
+			httpOnly: true,
+			secure: isSecureRequest(c.req.url, c.req.header('x-forwarded-proto')),
+			sameSite: 'Lax',
+			path: '/',
+			maxAge: 60 * 60 * 24 * 365,
+		});
+		c.var.logger.info('Issued chat_user_id cookie', { userId });
 	}
 	c.set('userId', userId);
 	await next();

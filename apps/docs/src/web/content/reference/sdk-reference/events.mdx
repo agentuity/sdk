@@ -229,7 +229,7 @@ const erroredHandler = (
 const globalCompletedHandler = (
   _eventName: 'agent.completed',
   completedAgent: Agent,
-  _ctx: AgentContext
+  ctx: AgentContext
 ): void => {
   ctx.logger.info('Observed completion', {
     agentName: completedAgent.metadata.name,

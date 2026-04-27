@@ -218,7 +218,7 @@ Run custom steps before or after deployment using `predeploy` and `postdeploy` s
 
 Package manager lifecycle hooks run when you call `bun run deploy`. Running `agentuity deploy` directly skips `predeploy` and `postdeploy`.
 
-When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), defining `predeploy` gives you full control over the install step. Without it, the platform runs `bun install` automatically. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
+When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), the platform always runs `bun install` first. If `predeploy` is defined, it runs after dependency installation and before `agentuity deploy`. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
 
 ## Environment Variables
 

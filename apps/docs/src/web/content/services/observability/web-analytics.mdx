@@ -186,6 +186,22 @@ The analytics beacon keeps request data separate from agent sessions:
 - **Query strings stripped**: URLs are sanitized before sending to prevent leaking tokens or PII
 - **Sampling**: Use `sampleRate` to reduce data collection on high-traffic pages
 
+Users can opt out of tracking programmatically:
+
+```tsx
+import { isOptedOut, setOptOut } from '@agentuity/frontend';
+
+function PrivacyToggle() {
+  const optedOut = isOptedOut();
+
+  return (
+    <button onClick={() => setOptOut(!optedOut)}>
+      {optedOut ? 'Enable Analytics' : 'Disable Analytics'}
+    </button>
+  );
+}
+```
+
 To disable the beacon for an app, set `analytics: false` in `createApp()`.
 
 <Callout type="tip" title="Development Mode">

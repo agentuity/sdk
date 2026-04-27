@@ -77,16 +77,11 @@ Chain `.get()`, `.post()`, etc. directly on `new Hono<Env>()`. If you use separa
 
 ## Export Route Types to the Client
 
-Use `import type` in frontend code. Type-only imports are erased from the JavaScript bundle:
+<Callout type="warning" title="Never Import Server Route Files from Client Code">
+Even `import type` can cause bundlers to trace the module graph and pull server-only code into the client bundle.
+</Callout>
 
-```typescript title="src/web/api.ts"
-import { hc } from 'hono/client';
-import type { UsersRoute } from '../api/users';
-
-export const client = hc<UsersRoute>('/api');
-```
-
-For larger apps, you can keep a dedicated type-only barrel:
+Use a dedicated type-only file for frontend imports:
 
 ```typescript title="src/shared/api-types.ts"
 // Keep this file type-only
@@ -94,7 +89,7 @@ export type { UsersRoute } from '../api/users';
 export type { PostsRoute } from '../api/posts';
 ```
 
-Then import from this file on the client:
+Then import from that file in the frontend:
 
 ```typescript title="src/web/api.ts"
 import { hc } from 'hono/client';
@@ -102,6 +97,16 @@ import type { UsersRoute } from '../shared/api-types';
 
 export const client = hc<UsersRoute>('/api');
 ```
+
+This works because:
+
+1. `src/shared/api-types.ts` uses only `export type { ... }`, so TypeScript erases it at compile time.
+2. The client build sees an empty runtime module and tree-shakes it away.
+3. Your server route file stays out of the browser bundle.
+
+<Callout type="info" title="Why Not Import Directly?">
+A file like `src/api/users.ts` may import `@agentuity/runtime`, database clients, or read `process.env` at the top level. Keep those files behind a type-only barrel so the frontend never points at the server module directly.
+</Callout>
 
 ## Client: Use with TanStack Query
 
