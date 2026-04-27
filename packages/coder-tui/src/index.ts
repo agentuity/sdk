@@ -6,7 +6,7 @@ import {
 	ExtensionCommandContext,
 	ToolDefinition,
 } from '@mariozechner/pi-coding-agent';
-import { Type, type TSchema } from '@sinclair/typebox';
+import { Type, type TSchema } from 'typebox';
 import { createRequire } from 'node:module';
 import { HubClient } from './client.ts';
 import type { ConnectionState } from './client.ts';
