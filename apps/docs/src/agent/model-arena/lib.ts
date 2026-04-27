@@ -28,7 +28,7 @@ async function repairJudgmentText({ text }: { text: string }): Promise<string | 
 }
 
 export const MODELS: GenerationConfig[] = [
-	{ provider: 'openai', model: 'gpt-5.4-nano' },
+	{ provider: 'openai', model: 'gpt-5.4-mini' },
 	{ provider: 'anthropic', model: 'claude-haiku-4-5' },
 ];
 
