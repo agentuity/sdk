@@ -35,7 +35,7 @@ jobs:
       timeout-minutes: 30
       name: Windows WSL CLI Smoke Test
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup WSL
            uses: Vampire/setup-wsl@v5

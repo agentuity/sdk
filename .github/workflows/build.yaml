@@ -13,6 +13,7 @@ concurrency:
 
 env:
    CI: true
+   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
    AGENTUITY_API_URL: https://api.agentuity.com
    AGENTUITY_APP_URL: https://app.agentuity.com
    AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
@@ -32,7 +33,7 @@ jobs:
       env:
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
          - name: Install dependencies

@@ -13,6 +13,7 @@ concurrency:
 
 env:
    CI: true
+   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
    smoke-test:
@@ -20,7 +21,7 @@ jobs:
       timeout-minutes: 15
       name: Package Installation & Usage Test
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -36,7 +37,7 @@ jobs:
       timeout-minutes: 10
       name: Postgres SSL Integration Test
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -58,7 +59,7 @@ jobs:
       timeout-minutes: 5
       name: Installation Type Detection Test
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -71,7 +72,7 @@ jobs:
       timeout-minutes: 15
       name: Migrate Chain (v1 → v2 → v3)
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -92,7 +93,7 @@ jobs:
       timeout-minutes: 10
       name: Testing Apps (local tests)
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -130,7 +131,7 @@ jobs:
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -162,7 +163,7 @@ jobs:
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -191,7 +192,7 @@ jobs:
          AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_REGION: usc
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -242,7 +243,7 @@ jobs:
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_REGION: usc
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2

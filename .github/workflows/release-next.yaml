@@ -19,6 +19,7 @@ concurrency:
 env:
   CI: true
   NODE_ENV: production
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
@@ -38,7 +39,7 @@ jobs:
       AGENTUITY_REGION: usc
       AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -82,7 +83,7 @@ jobs:
     # Only run for pushes to main (next tag)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -91,7 +92,7 @@ jobs:
         run: bun install
 
       - name: Setup Node.js for npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 

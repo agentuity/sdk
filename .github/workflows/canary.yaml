@@ -17,6 +17,7 @@ concurrency:
 
 env:
    CI: true
+   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
    AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 }}
@@ -29,7 +30,7 @@ jobs:
       timeout-minutes: 15
       name: Pack & Upload
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@v5
            with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
