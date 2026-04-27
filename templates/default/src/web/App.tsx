@@ -7,7 +7,6 @@ import './App.css';
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
-const MAX_TRANSLATION_TEXT_CHARS = 4000;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This starter app translates text, remembers your recent requests, and shows how a typed API route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the terminal logs to see the request, session, and token details.';
 
@@ -49,8 +48,6 @@ export function App() {
 	// Prefer fresh data from translation, fall back to initial fetch
 	const history = translateResult?.history ?? historyData?.history ?? [];
 	const threadId = translateResult?.threadId ?? historyData?.threadId;
-	const textCharsRemaining = Math.max(0, MAX_TRANSLATION_TEXT_CHARS - text.length);
-	const isNearTextLimit = textCharsRemaining <= 200;
 
 	const handleTranslate = useCallback(async () => {
 		track('translate', { text, toLanguage, model });
@@ -163,30 +160,15 @@ export function App() {
 						</div>
 					</div>
 
-					<div className="flex flex-col gap-1.5">
-						<textarea
-							aria-describedby="translation-text-limit"
-							className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
-							disabled={isLoading}
-							maxLength={MAX_TRANSLATION_TEXT_CHARS}
-							onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-								setText(e.currentTarget.value)
-							}
-							placeholder="Enter text to translate..."
-							rows={4}
-							spellCheck={false}
-							value={text}
-						/>
-
-						<p
-							className={isNearTextLimit ? 'text-gray-600 text-xs text-right' : 'sr-only'}
-							id="translation-text-limit"
-						>
-							{isNearTextLimit
-								? `${textCharsRemaining.toLocaleString()} characters left`
-								: `Up to ${MAX_TRANSLATION_TEXT_CHARS.toLocaleString()} characters`}
-						</p>
-					</div>
+					<textarea
+						className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
+						disabled={isLoading}
+						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
+						placeholder="Enter text to translate..."
+						rows={4}
+						spellCheck={false}
+						value={text}
+					/>
 
 					{/* Translation Result */}
 					{isLoading ? (

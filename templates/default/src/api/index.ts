@@ -16,7 +16,6 @@ import OpenAI from 'openai';
  */
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
-const MAX_TRANSLATION_TEXT_CHARS = 4000;
 const HISTORY_KEY = 'history';
 const TRANSLATION_COUNT_KEY = 'translationCount';
 
@@ -48,10 +47,7 @@ export type HistoryEntry = s.infer<typeof HistoryEntrySchema>;
 
 const TranslateInput = s.object({
 	model: s.enum(MODELS).optional().describe('AI model to use for translation'),
-	text: s
-		.string()
-		.max(MAX_TRANSLATION_TEXT_CHARS)
-		.describe('The text to translate'),
+	text: s.string().describe('The text to translate'),
 	toLanguage: s.enum(LANGUAGES).optional().describe('Target language for translation'),
 });
 
