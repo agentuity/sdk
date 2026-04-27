@@ -51,4 +51,5 @@ src/web/public/**/*.md
 src/web/public/llms.txt
 src/web/public/llms-full.txt
 src/web/public/sitemap.xml
+src/web/public/pagefind/
 .firecrawl

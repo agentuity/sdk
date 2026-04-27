@@ -19,7 +19,6 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import {
 	Command,
-	CommandEmpty,
 	CommandGroup,
 	CommandInput,
 	CommandItem,
@@ -36,6 +35,7 @@ import { cn } from '../../lib/utils';
 import { navData, type NavItem } from './nav-data';
 import { useAISearch } from '../../hooks/use-ai-search';
 import { AISearchMessages, AISearchActions } from './ai-search-messages';
+import { searchPagefind } from '../../lib/pagefind-search';
 
 const MODE_STORAGE_KEY = 'agentuity-search-mode';
 
@@ -75,6 +75,39 @@ function getAllItems(): SearchItem[] {
 		items.push(...collectItems(section.items, section.title));
 	}
 	return items;
+}
+
+function normalizeSearchValue(value: string): string {
+	return value.toLowerCase().split(/\W+/).filter(Boolean).join(' ');
+}
+
+function getNavMatches(query: string, items: SearchItem[]): SearchItem[] {
+	const terms = normalizeSearchValue(query).split(' ').filter(Boolean);
+	if (terms.length === 0) {
+		return [];
+	}
+
+	return items.filter((item) => {
+		const haystack = normalizeSearchValue(
+			`${item.title} ${item.description ?? ''} ${item.section}`
+		);
+		return terms.every((term) => haystack.includes(term));
+	});
+}
+
+function mergeSearchItems(primaryItems: SearchItem[], fallbackItems: SearchItem[]): SearchItem[] {
+	const seen = new Set<string>();
+	const result: SearchItem[] = [];
+
+	for (const item of [...primaryItems, ...fallbackItems]) {
+		if (seen.has(item.url)) {
+			continue;
+		}
+		seen.add(item.url);
+		result.push(item);
+	}
+
+	return result;
 }
 
 const sectionIcons: Record<string, LucideIcon> = {
@@ -224,6 +257,10 @@ function KeywordSearchContent({
 	onSwitchMode: () => void;
 }) {
 	const [search, setSearch] = React.useState('');
+	const [pagefindItems, setPagefindItems] = React.useState<SearchItem[]>([]);
+	const [pagefindStatus, setPagefindStatus] = React.useState<
+		'idle' | 'loading' | 'ready' | 'error'
+	>('idle');
 	const allItems = React.useMemo(() => getAllItems(), []);
 
 	const handleSelect = (url: string) => {
@@ -231,19 +268,61 @@ function KeywordSearchContent({
 		onOpenChange(false);
 	};
 
-	const groupedItems = React.useMemo(() => {
+	React.useEffect(() => {
+		const query = search.trim();
+		if (!query) {
+			setPagefindItems([]);
+			setPagefindStatus('idle');
+			return;
+		}
+
+		let cancelled = false;
+		setPagefindItems([]);
+		setPagefindStatus('loading');
+
+		searchPagefind(query)
+			.then((results) => {
+				if (cancelled) {
+					return;
+				}
+				setPagefindItems(results);
+				setPagefindStatus('ready');
+			})
+			.catch(() => {
+				if (cancelled) {
+					return;
+				}
+				setPagefindItems([]);
+				setPagefindStatus('error');
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [search]);
+
+	const navMatches = React.useMemo(() => getNavMatches(search, allItems), [search, allItems]);
+	const searchItems = React.useMemo(
+		() => mergeSearchItems(pagefindItems, navMatches),
+		[pagefindItems, navMatches]
+	);
+
+	const groupedSearchItems = React.useMemo(() => {
 		const groups: Record<string, SearchItem[]> = {};
-		for (const item of allItems) {
+		for (const item of searchItems) {
 			if (!groups[item.section]) {
 				groups[item.section] = [];
 			}
 			groups[item.section]!.push(item);
 		}
 		return groups;
-	}, [allItems]);
+	}, [searchItems]);
 
 	return (
-		<Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+		<Command
+			shouldFilter={false}
+			className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+		>
 			<div className="flex items-center [&>[data-slot=command-input-wrapper]]:flex-1 [&>[data-slot=command-input-wrapper]]:border-b-0 border-b">
 				<CommandInput placeholder="Search pages..." value={search} onValueChange={setSearch} />
 				<button
@@ -270,8 +349,19 @@ function KeywordSearchContent({
 			<CommandList className="max-h-[400px]">
 				{search.trim() ? (
 					<>
-						<CommandEmpty>No results found.</CommandEmpty>
-						{Object.entries(groupedItems).map(([section, items]) => {
+						{pagefindStatus === 'loading' && searchItems.length === 0 && (
+							<div className="py-6 text-center text-sm text-muted-foreground">
+								Searching...
+							</div>
+						)}
+						{pagefindStatus !== 'loading' && searchItems.length === 0 && (
+							<div className="py-6 text-center text-sm text-muted-foreground">
+								{pagefindStatus === 'error'
+									? 'Search is unavailable right now.'
+									: 'No results found.'}
+							</div>
+						)}
+						{Object.entries(groupedSearchItems).map(([section, items]) => {
 							const Icon = sectionIcons[section] ?? FileTextIcon;
 							return (
 								<CommandGroup key={section} heading={section}>
