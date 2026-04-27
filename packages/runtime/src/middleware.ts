@@ -1065,6 +1065,21 @@ export function createWebSessionMiddleware() {
 
 		// Use ThreadProvider.restore() to get/create thread (handles header, cookie, generation)
 		const threadProvider = getThreadProvider();
+		if (!threadProvider) {
+			const threadId = generateId('thrd');
+			const isSecure = c.req.url.startsWith('https://');
+			await setSignedCookie(c, 'atid_a', threadId, secret, {
+				httpOnly: false,
+				secure: isSecure,
+				sameSite: 'Lax',
+				path: '/',
+				maxAge: 604800,
+			});
+			c.set('_webThreadId', threadId);
+			await next();
+			return;
+		}
+
 		const thread = await threadProvider.restore(c);
 
 		// Set thread cookie for analytics

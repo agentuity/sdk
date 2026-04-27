@@ -56,7 +56,7 @@ const agent = createAgent('AgentPulse', {
 		// Generate streaming response using AI SDK
 		// Returns StreamTextResult<any> which contains fullStream for processing
 		const result = streamText({
-			model: openai('gpt-4.1'),
+			model: openai('gpt-5.4-mini'),
 			messages: messages.map((msg) => ({
 				role: msg.author === 'USER' ? 'user' : 'assistant',
 				content: msg.content,
