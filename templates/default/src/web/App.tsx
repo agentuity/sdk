@@ -1,6 +1,6 @@
 import { useAnalytics } from '@agentuity/react';
 import { hc } from 'hono/client';
-import type { ApiRouter } from '../api/index';
+import type { ApiRouter, HistoryEntry } from '../api/index';
 import { type ChangeEvent, Fragment, useCallback, useEffect, useState } from 'react';
 import './App.css';
 
@@ -13,17 +13,25 @@ const DEFAULT_TEXT =
 
 const client = hc<ApiRouter>('/api');
 
+interface HistoryData {
+	readonly history: readonly HistoryEntry[];
+	readonly threadId?: string;
+	readonly translationCount: number;
+}
+
+interface TranslateResult extends HistoryData {
+	readonly sessionId: string;
+	readonly tokens: number;
+	readonly translation: string;
+}
+
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
 	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5.4-nano');
 
-	const [historyData, setHistoryData] = useState<{
-		history: any[];
-		threadId?: string;
-		translationCount: number;
-	} | null>(null);
-	const [translateResult, setTranslateResult] = useState<any>(null);
+	const [historyData, setHistoryData] = useState<HistoryData | null>(null);
+	const [translateResult, setTranslateResult] = useState<TranslateResult | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 
 	const { track } = useAnalytics();
@@ -41,6 +49,8 @@ export function App() {
 	// Prefer fresh data from translation, fall back to initial fetch
 	const history = translateResult?.history ?? historyData?.history ?? [];
 	const threadId = translateResult?.threadId ?? historyData?.threadId;
+	const textCharsRemaining = Math.max(0, MAX_TRANSLATION_TEXT_CHARS - text.length);
+	const isNearTextLimit = textCharsRemaining <= 200;
 
 	const handleTranslate = useCallback(async () => {
 		track('translate', { text, toLanguage, model });
@@ -153,16 +163,30 @@ export function App() {
 						</div>
 					</div>
 
-					<textarea
-						className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
-						disabled={isLoading}
-						maxLength={MAX_TRANSLATION_TEXT_CHARS}
-						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
-						placeholder="Enter text to translate..."
-						rows={4}
-						spellCheck={false}
-						value={text}
-					/>
+					<div className="flex flex-col gap-1.5">
+						<textarea
+							aria-describedby="translation-text-limit"
+							className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
+							disabled={isLoading}
+							maxLength={MAX_TRANSLATION_TEXT_CHARS}
+							onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+								setText(e.currentTarget.value)
+							}
+							placeholder="Enter text to translate..."
+							rows={4}
+							spellCheck={false}
+							value={text}
+						/>
+
+						<p
+							className={isNearTextLimit ? 'text-gray-600 text-xs text-right' : 'sr-only'}
+							id="translation-text-limit"
+						>
+							{isNearTextLimit
+								? `${textCharsRemaining.toLocaleString()} characters left`
+								: `Up to ${MAX_TRANSLATION_TEXT_CHARS.toLocaleString()} characters`}
+						</p>
+					</div>
 
 					{/* Translation Result */}
 					{isLoading ? (
