@@ -1,10 +1,14 @@
 import { z } from 'zod';
-import { writeFileSync } from 'node:fs';
+import { createWriteStream } from 'node:fs';
+import { dirname } from 'node:path';
+import { mkdir } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { createSandboxClient, resolveSandboxTarget } from '../util';
 import { getCommand } from '../../../../command-prefix';
-import { sandboxDownloadArchive, sandboxResolve } from '@agentuity/server';
+import { sandboxDownloadArchive } from '@agentuity/server';
 
 export const downloadSubcommand = createCommand({
 	name: 'download',
@@ -48,9 +52,14 @@ export const downloadSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, apiClient } = ctx;
 
-		// Resolve sandbox to get region and orgId using CLI API
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 
@@ -62,25 +71,9 @@ export const downloadSubcommand = createCommand({
 			format,
 			orgId,
 		});
-
-		const chunks: Uint8Array[] = [];
-		const reader = stream.getReader();
-
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			chunks.push(value);
-		}
-
-		const totalBytes = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-		const buffer = new Uint8Array(totalBytes);
-		let offset = 0;
-		for (const chunk of chunks) {
-			buffer.set(chunk, offset);
-			offset += chunk.length;
-		}
-
-		writeFileSync(args.output, buffer);
+		await mkdir(dirname(args.output), { recursive: true });
+		await pipeline(Readable.fromWeb(stream), createWriteStream(args.output));
+		const totalBytes = Bun.file(args.output).size;
 
 		if (!options.json) {
 			tui.success(`Downloaded ${formatSize(totalBytes)} to ${args.output}`);

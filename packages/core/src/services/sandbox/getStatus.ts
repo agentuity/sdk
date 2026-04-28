@@ -13,6 +13,16 @@ const SandboxStatusResponseSchema = APIResponseSchema(SandboxStatusDataSchema);
 export const SandboxGetStatusParamsSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID to retrieve status for'),
 	orgId: z.string().optional().describe('Optional org id for CLI auth context'),
+	waitForStatus: z
+		.union([z.string(), z.array(z.string())])
+		.optional()
+		.describe('Optional desired status or statuses to wait for before responding'),
+	waitMs: z
+		.number()
+		.int()
+		.nonnegative()
+		.optional()
+		.describe('Maximum time in milliseconds to wait for the desired status'),
 });
 
 export type SandboxGetStatusParams = z.infer<typeof SandboxGetStatusParamsSchema>;
@@ -26,10 +36,19 @@ export async function sandboxGetStatus(
 	client: APIClient,
 	params: SandboxGetStatusParams
 ): Promise<SandboxStatusResult> {
-	const { sandboxId, orgId } = params;
+	const { sandboxId, orgId, waitForStatus, waitMs } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
+	}
+	if (waitForStatus) {
+		queryParams.set(
+			'waitForStatus',
+			Array.isArray(waitForStatus) ? waitForStatus.join(',') : waitForStatus
+		);
+	}
+	if (waitMs != null) {
+		queryParams.set('waitMs', String(waitMs));
 	}
 	const queryString = queryParams.toString();
 	const url = `/sandbox/status/${sandboxId}${queryString ? `?${queryString}` : ''}`;

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, clearSandboxRegionCache } from './util';
+import { createSandboxClient, clearSandboxRegionCache, resolveSandboxTarget } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxDestroy, sandboxResolve } from '@agentuity/server';
+import { sandboxDestroy } from '@agentuity/server';
 
 const SandboxDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -57,8 +57,14 @@ export const deleteSubcommand = createCommand({
 
 		const started = Date.now();
 
-		// Resolve sandbox to get region and orgId using CLI API
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
+		const sandboxInfo = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			config?.name ?? 'production',
+			config
+		);
 
 		const client = createSandboxClient(logger, auth, sandboxInfo.region);
 

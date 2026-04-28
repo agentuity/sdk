@@ -1,9 +1,9 @@
-import { executionList, sandboxResolve } from '@agentuity/server';
+import { executionList } from '@agentuity/server';
 import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix';
 import * as tui from '../../../../tui';
 import { createCommand } from '../../../../types';
-import { createSandboxClient } from '../util';
+import { createSandboxClient, resolveSandboxTarget } from '../util';
 
 const ExecutionInfoSchema = z.object({
 	executionId: z.string().describe('Execution ID'),
@@ -54,9 +54,14 @@ export const listSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, apiClient } = ctx;
 
-		// Resolve sandbox to get region and orgId (like exec.ts does)
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId: resolvedOrgId } = sandboxInfo;
+		const { region, orgId: resolvedOrgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 		const effectiveOrgId = opts?.orgId || resolvedOrgId;
 		const client = createSandboxClient(logger, auth, region);
 
