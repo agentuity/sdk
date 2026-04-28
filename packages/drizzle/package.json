@@ -57,7 +57,7 @@
 	"sideEffects": false,
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/agentuity/sdk.git",
+		"url": "git+https://github.com/agentuity/sdk.git",
 		"directory": "packages/drizzle"
 	}
 }
