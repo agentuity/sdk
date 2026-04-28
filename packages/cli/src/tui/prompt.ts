@@ -14,6 +14,12 @@ export interface TextOptions {
 	message: string;
 	initial?: string;
 	hint?: string;
+	/**
+	 * Pre-generated suggestion shown dim in the hint line.
+	 * Submitting empty input accepts the placeholder.
+	 * Unlike `initial`, this is rendered visibly so the user knows what they'll get.
+	 */
+	placeholder?: string;
 	validate?: (value: string) => boolean | string | Promise<boolean | string>;
 }
 
@@ -94,20 +100,22 @@ export class PromptFlow {
 	 * Text input prompt
 	 */
 	async text(options: TextOptions): Promise<string> {
-		const { message, validate } = options;
-		const initial = options.initial ?? '';
-		const hasDefault = options.initial !== undefined;
+		const { message, validate, placeholder } = options;
+		// `placeholder` acts as a visible default: empty submit resolves to it.
+		// `initial` (legacy, invisible) still works but `placeholder` takes precedence.
+		const fallback = placeholder ?? options.initial ?? '';
+		const hasDefault = placeholder !== undefined || options.initial !== undefined;
 
 		if (!this.isInteractive()) {
 			if (hasDefault) {
-				const validationResult = validate ? await validate(initial) : true;
+				const validationResult = validate ? await validate(fallback) : true;
 				if (validationResult === true) {
-					return initial;
+					return fallback;
 				}
 				// Validation failed - include the error message if it's a string
 				const errorDetail = typeof validationResult === 'string' ? `: ${validationResult}` : '';
 				throw this.nonInteractiveError(
-					`Cannot prompt for "${message}" in non-interactive mode. Validation failed for default value "${initial}"${errorDetail}.`
+					`Cannot prompt for "${message}" in non-interactive mode. Validation failed for default value "${fallback}"${errorDetail}.`
 				);
 			}
 			throw this.nonInteractiveError(`Cannot prompt for "${message}" in non-interactive mode.`);
@@ -123,13 +131,24 @@ export class PromptFlow {
 			let hasError = false;
 			let hadValidationError = false;
 
+			// Count of hint lines we render so we know how many to clear on redraw.
+			let hintLines = 0;
+
 			const showPrompt = () => {
+				hintLines = 0;
 				// Show prompt with active symbol
 				process.stdout.write(`${colors.active(symbols.active)}  ${message}\n`);
 				if (options.hint) {
 					process.stdout.write(
 						`${colors.secondary(symbols.bar)}  ${colors.muted(options.hint)}\n`
 					);
+					hintLines++;
+				}
+				if (placeholder) {
+					process.stdout.write(
+						`${colors.secondary(symbols.bar)}  ${colors.muted(`↵ to use ${placeholder} · or type a custom name`)}\n`
+					);
+					hintLines++;
 				}
 				// Use readline's prompt for the input line
 				rl.prompt();
@@ -139,8 +158,8 @@ export class PromptFlow {
 
 			rl.on('line', async (input) => {
 				const trimmed = input.trim();
-				// After a validation error, require explicit input - don't fall back to initial
-				const value = trimmed.length > 0 ? trimmed : hadValidationError ? '' : initial;
+				// After a validation error, require explicit input - don't fall back to default.
+				const value = trimmed.length > 0 ? trimmed : hadValidationError ? '' : fallback;
 
 				// Validate
 				if (validate) {
@@ -149,8 +168,8 @@ export class PromptFlow {
 						if (result !== true) {
 							const errorMsg = typeof result === 'string' ? result : 'Invalid input';
 
-							// Clear all previous lines (prompt + optional error)
-							const linesToClear = hasError ? 3 : 2;
+							// Clear: input line + message + each hint line + (optional) error line.
+							const linesToClear = (hasError ? 2 : 1) + 1 + hintLines;
 							readline.moveCursor(process.stdout, 0, -linesToClear);
 							readline.clearScreenDown(process.stdout);
 
@@ -158,6 +177,8 @@ export class PromptFlow {
 							process.stdout.write(
 								`${colors.error(symbols.error)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n`
 							);
+							// After error, drop the placeholder hint so user is forced to type.
+							hintLines = 0;
 							// Use readline's prompt for the input line
 							rl.prompt();
 							hasError = true;
@@ -168,8 +189,8 @@ export class PromptFlow {
 						// Handle validation errors
 						const errorMsg = error instanceof Error ? error.message : 'Validation failed';
 
-						// Clear all previous lines
-						const linesToClear = hasError ? 3 : 2;
+						// Clear: input line + message + each hint line + (optional) error line.
+						const linesToClear = (hasError ? 2 : 1) + 1 + hintLines;
 						readline.moveCursor(process.stdout, 0, -linesToClear);
 						readline.clearScreenDown(process.stdout);
 
@@ -188,8 +209,9 @@ export class PromptFlow {
 					}
 				}
 
-				// Clear all lines and show completed state
-				const linesToClear = hasError ? 4 : 3;
+				// Clear all lines and show completed state.
+				// Layout: [error?] [message] [hint?] [placeholder hint?] [input line]
+				const linesToClear = (hasError ? 2 : 1) + 1 + hintLines;
 				readline.moveCursor(process.stdout, 0, -linesToClear);
 				readline.clearScreenDown(process.stdout);
 
