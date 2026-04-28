@@ -85,26 +85,17 @@ function getAllItems(): SearchItem[] {
 	return items;
 }
 
-function normalizeSearchValue(value: string): string {
-	return value.toLowerCase().split(/\W+/).filter(Boolean).join(' ');
+function getSearchWords(value: string): string[] {
+	return value.toLowerCase().split(/\W+/).filter(Boolean);
 }
 
-function getSearchTerms(value: string): string[] {
-	return normalizeSearchValue(value).split(' ').filter(Boolean);
-}
-
-function itemMatchesQuery(item: SearchItem, terms: string[]): boolean {
-	const words = getSearchTerms(`${item.title} ${item.description ?? ''} ${item.section}`);
-	return terms.every((term) => words.some((word) => word.startsWith(term)));
-}
-
-function valueMatchesQuery(value: string, terms: string[]): boolean {
-	const words = getSearchTerms(value);
+function matchesWordPrefixes(value: string, terms: string[]): boolean {
+	const words = getSearchWords(value);
 	return terms.every((term) => words.some((word) => word.startsWith(term)));
 }
 
 function getNavMatches(query: string, items: SearchItem[]): SearchItem[] {
-	const terms = getSearchTerms(query);
+	const terms = getSearchWords(query);
 	if (terms.length === 0) {
 		return [];
 	}
@@ -112,9 +103,11 @@ function getNavMatches(query: string, items: SearchItem[]): SearchItem[] {
 	const titleMatches: SearchItem[] = [];
 	const otherMatches: SearchItem[] = [];
 	for (const item of items) {
-		if (valueMatchesQuery(item.title, terms)) {
+		if (matchesWordPrefixes(item.title, terms)) {
 			titleMatches.push(item);
-		} else if (itemMatchesQuery(item, terms)) {
+		} else if (
+			matchesWordPrefixes(`${item.title} ${item.description ?? ''} ${item.section}`, terms)
+		) {
 			otherMatches.push(item);
 		}
 	}
@@ -122,18 +115,16 @@ function getNavMatches(query: string, items: SearchItem[]): SearchItem[] {
 	return [...titleMatches, ...otherMatches];
 }
 
-function mergeSearchItems(...itemGroups: SearchItem[][]): SearchItem[] {
+function mergeSearchItems(primaryItems: SearchItem[], secondaryItems: SearchItem[]): SearchItem[] {
 	const seen = new Set<string>();
 	const result: SearchItem[] = [];
 
-	for (const items of itemGroups) {
-		for (const item of items) {
-			if (seen.has(item.url)) {
-				continue;
-			}
-			seen.add(item.url);
-			result.push(item);
+	for (const item of [...primaryItems, ...secondaryItems]) {
+		if (seen.has(item.url)) {
+			continue;
 		}
+		seen.add(item.url);
+		result.push(item);
 	}
 
 	return result;
@@ -393,7 +384,7 @@ function KeywordSearchContent({
 				</button>
 			</div>
 			<CommandList ref={listRef} className="h-[400px] max-h-[60vh]">
-				{search.trim() ? (
+				{query ? (
 					<>
 						{pagefindStatus === 'loading' && searchItems.length === 0 && (
 							<div className="py-6 text-center text-sm text-muted-foreground">
