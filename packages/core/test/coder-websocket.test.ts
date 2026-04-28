@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { parseClientMessage } from '../src/services/coder/protocol.ts';
+import {
+	CoderHubEventNameSchema,
+	CoderHubEvents,
+	parseClientMessage,
+} from '../src/services/coder/protocol.ts';
 import {
 	CoderHubWebSocketClient,
 	CoderHubWebSocketError,
@@ -295,6 +299,28 @@ describe('Coder Hub protocol', () => {
 		).toEqual({
 			type: 'subscribe',
 			patterns: ['streaming', 'content'],
+		});
+	});
+
+	it('exposes rpc_ready as a known hub lifecycle event while accepting event requests', () => {
+		expect(CoderHubEvents.RPC_READY).toBe('rpc_ready');
+		expect(CoderHubEventNameSchema.parse(CoderHubEvents.RPC_READY)).toBe('rpc_ready');
+		expect(
+			parseClientMessage({
+				id: 'evt-1',
+				type: 'event',
+				event: CoderHubEvents.RPC_READY,
+				data: {
+					mode: 'rpc',
+				},
+			})
+		).toEqual({
+			id: 'evt-1',
+			type: 'event',
+			event: 'rpc_ready',
+			data: {
+				mode: 'rpc',
+			},
 		});
 	});
 });
