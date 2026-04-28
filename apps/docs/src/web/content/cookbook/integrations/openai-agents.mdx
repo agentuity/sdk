@@ -70,7 +70,7 @@ export default createAgent('tool-calling', {
 - `result.finalOutput` contains the agent's final response; `result.newItems` contains the full execution trace
 
 <Callout type="info" title="Use one trace source">
-The OpenAI Agents SDK enables tracing by default in server runtimes. If Agentuity should be your trace source, set `OPENAI_AGENTS_DISABLE_TRACING=1`, configure the OpenAI runner with `tracingDisabled: true`, or call `setTracingDisabled(true)` during process startup.
+The OpenAI Agents SDK enables tracing by default in server runtimes. If Agentuity should be your trace source, set `OPENAI_AGENTS_DISABLE_TRACING=1` or call `setTracingDisabled(true)` during process startup. If you instantiate `Runner` directly instead of using the `run()` helper, pass `new Runner({ tracingDisabled: true })`.
 </Callout>
 
 ## Agent Handoffs
