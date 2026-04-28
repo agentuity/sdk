@@ -13,8 +13,8 @@ Create an agent with `createAgent()`, providing a name and handler function:
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('Greeter', {
-  handler: async (ctx, input) => {
-    ctx.logger.info('Processing request', { input });
+  handler: async (ctx) => {
+    ctx.logger.info('Processing request');
     return { message: 'Hello from agent!' };
   },
 });
@@ -24,9 +24,7 @@ export default agent;
 
 For the complete `createAgent()` signature and all configuration options, see the [Agents Reference](/reference/sdk-reference/agents).
 
-The handler receives two parameters:
-- `ctx` - The agent context with logging, storage, and state management
-- `input` - The data passed to the agent (validated if schema is defined)
+The handler always receives `ctx`, the agent context with logging, storage, and state management. When you define `schema.input`, the handler receives validated `input` as its second parameter.
 
 <Callout type="info" title="Route vs Agent Context">
 In agents, access services directly on `ctx`: `ctx.logger`, `ctx.kv`, `ctx.thread`, etc.
@@ -225,7 +223,7 @@ const agent = createAgent('Search', {
     }),
   },
   handler: async (ctx, input) => {
-    // Full autocomplete for input.query, input.filters.category, etc.
+    // Full autocomplete for input.query and input.filters.category
     const category = input.filters.category; // type: 'tech' | 'business' | 'sports'
 
     return {
@@ -327,27 +325,7 @@ const agent = createAgent('Support Ticket Analyzer', {
 });
 ```
 
-The name is used for identification in logs, Workbench, and the Agentuity console. The description helps document what the agent does.
-
-## Adding Test Prompts
-
-Export a `welcome` function to add test prompts for [Workbench](/agents/workbench):
-
-```typescript
-export const welcome = () => ({
-  welcome: 'Welcome to the **Support Ticket Analyzer** agent.',
-  prompts: [
-    {
-      data: JSON.stringify({ ticketId: 'TKT-1234', subject: 'Login issue' }),
-      contentType: 'application/json',
-    },
-  ],
-});
-
-export default agent;
-```
-
-See [Testing with Workbench](/agents/workbench) for full setup and configuration.
+The name shows up in logs and the Agentuity console. Keep it short and specific so the agent is easy to spot when you have several running at once.
 
 ## Best Practices
 

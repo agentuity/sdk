@@ -31,13 +31,6 @@ import * as tui from '../../tui';
 import { createPrompt, note } from '../../tui';
 import type { AuthData, Config } from '../../types';
 import { getGithubBotIdentity } from '../git/api';
-import {
-	ensureAuthDependencies,
-	generateAuthFileContent,
-	generateAuthSchemaSql,
-	printIntegrationExamples,
-	runAuthMigrations,
-} from './auth/shared';
 import { downloadTemplate, initGitRepo, setupProject } from './download';
 import { fetchTemplates, type TemplateInfo } from './templates';
 
@@ -59,7 +52,6 @@ interface CreateFlowOptions {
 	apiClient?: APIClient;
 	database?: string;
 	storage?: string;
-	enableAuth?: boolean;
 }
 
 export interface CreateFlowResult {
@@ -92,7 +84,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		domains,
 		database: databaseOption,
 		storage: storageOption,
-		enableAuth: enableAuthOption,
 	} = options;
 
 	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
@@ -310,15 +301,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger.fatal(
 			'Cannot provision database/storage without being authenticated and registering the project.\n' +
 				'Remove --no-register or omit --database/--storage flags.',
-			ErrorCode.VALIDATION_FAILED
-		);
-	}
-
-	// Validate that --enable-auth requires authentication and registration
-	if (enableAuthOption && !canProvision) {
-		logger.fatal(
-			'Cannot enable Agentuity Auth without being authenticated and registering the project.\n' +
-				'Remove --no-register or omit --enable-auth flag.',
 			ErrorCode.VALIDATION_FAILED
 		);
 	}
@@ -556,111 +538,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Auth setup - either from template, CLI flag, or user choice
-	const templateHasAuth = selectedTemplate.id === 'agentuity-auth';
-
-	let authEnabled = templateHasAuth; // Auth templates have auth enabled by default
-	let authDatabaseName: string | undefined;
-	let authDatabaseUrl: string | undefined;
-
-	// Handle auth enablement: CLI flag > interactive prompt > disabled (headless)
-	if (enableAuthOption !== undefined) {
-		// CLI flag provided
-		authEnabled = enableAuthOption;
-	} else if (canProvision && isInteractive && !templateHasAuth) {
-		// For non-auth templates in interactive mode, ask if they want to enable auth
-		const enableAuth = await prompt.select({
-			message: 'Enable Agentuity Authentication?',
-			options: [
-				{ value: 'no', label: "No, I'll add auth later" },
-				{ value: 'yes', label: 'Yes, set up Agentuity Auth' },
-			],
-		});
-
-		if (enableAuth === 'yes') {
-			authEnabled = true;
-		}
-	}
-	// In headless mode without --enable-auth flag, authEnabled stays false (unless template has auth)
-
-	// Set up database and secret for any auth-enabled project
-	if (authEnabled && canProvision) {
-		// If a database was already selected/created above, use it for auth
-		if (resourceEnvVars.DATABASE_URL) {
-			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
-			// Extract database name from URL using proper URL parsing
-			try {
-				const dbUrl = new URL(authDatabaseUrl);
-				const dbName = dbUrl.pathname.replace(/^\/+/, ''); // Remove leading slashes
-				// Validate: non-empty and contains only safe characters
-				if (dbName && /^[A-Za-z0-9_-]+$/.test(dbName)) {
-					authDatabaseName = dbName;
-				}
-			} catch {
-				// Invalid URL format, authDatabaseName stays undefined
-			}
-		} else {
-			// No database selected yet, create one for auth
-			const created = await tui.spinner({
-				message: 'Provisioning database for auth',
-				clearOnSuccess: true,
-				callback: async () => {
-					return createResources(catalystClient!, orgId!, region!, [{ type: 'db' }]);
-				},
-			});
-			const createdDb = created[0];
-			if (!createdDb) {
-				logger.fatal('Failed to create database for auth', ErrorCode.RESOURCE_NOT_FOUND);
-				return undefined as never;
-			}
-			authDatabaseName = createdDb.name;
-
-			// Get env vars from created resource
-			if (createdDb.env) {
-				authDatabaseUrl = createdDb.env.DATABASE_URL;
-				// Also add to resourceEnvVars if not already set
-				if (!resourceEnvVars.DATABASE_URL) {
-					Object.assign(resourceEnvVars, createdDb.env);
-				}
-			}
-		}
-
-		// Install auth dependencies (skip for agentuity-auth template which has them)
-		if (!templateHasAuth) {
-			await ensureAuthDependencies({ projectDir: dest, logger });
-
-			// Generate auth.ts
-			const authFilePath = resolve(dest, 'src', 'auth.ts');
-			if (!existsSync(authFilePath)) {
-				const srcDir = resolve(dest, 'src');
-				if (!existsSync(srcDir)) {
-					await Bun.write(resolve(srcDir, '.gitkeep'), '');
-				}
-				await Bun.write(authFilePath, generateAuthFileContent());
-				tui.success('Created src/auth.ts');
-			}
-		}
-
-		// Run migrations
-		if (authDatabaseName) {
-			const sql = await tui.spinner({
-				message: 'Preparing auth database schema...',
-				clearOnSuccess: true,
-				callback: () => generateAuthSchemaSql(logger, dest),
-			});
-
-			await runAuthMigrations({
-				logger,
-				auth,
-				orgId,
-				region,
-				databaseName: authDatabaseName,
-				sql,
-				config,
-			});
-		}
-	}
-
 	let projectId: string | undefined;
 
 	if (auth && apiClient && orgId) {
@@ -702,28 +579,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			},
 		});
 
-		// Add auth secret to resourceEnvVars if auth is enabled
-		if (authEnabled && !resourceEnvVars.AGENTUITY_AUTH_SECRET) {
-			const devSecret = `dev-${crypto.randomUUID()}`;
-			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
-		}
-
 		// Write resource environment variables to .env
 		if (Object.keys(resourceEnvVars).length > 0) {
 			await addResourceEnvVars(dest, resourceEnvVars);
-
-			// Show user feedback for auth-related env vars
-			if (authEnabled) {
-				if (resourceEnvVars.DATABASE_URL) {
-					tui.success('DATABASE_URL added to .env');
-				}
-				if (resourceEnvVars.AGENTUITY_AUTH_SECRET) {
-					tui.success('AGENTUITY_AUTH_SECRET added to .env');
-					tui.info(
-						`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
-					);
-				}
-			}
 		}
 
 		// After registration, push any existing env/secrets from .env
@@ -817,11 +675,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
 			await promptForDNS(projectId, _domains, cloudRegion, config);
 		}
-	}
-
-	// Print auth integration examples if auth was enabled (skip for auth template - already set up)
-	if (authEnabled && !templateHasAuth) {
-		printIntegrationExamples();
 	}
 
 	return {

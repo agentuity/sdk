@@ -242,14 +242,14 @@ export function HandlerContextDemo() {
 					return (
 						<div className="bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-900 rounded-lg p-4">
 							<div className="flex items-center justify-between mb-2">
-								<code className="text-cyan-600 dark:text-cyan-400 font-mono text-sm">
+								<code className="text-cyan-800 dark:text-cyan-400 font-mono text-sm">
 									{selectedEndpoint?.codeHint}
 								</code>
 								<a
 									href="https://github.com/agentuity/sdk/blob/main/apps/docs/src/agent/context/agent.ts"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="text-xs text-zinc-500 hover:text-cyan-500 flex items-center gap-1"
+									className="text-xs text-zinc-500 hover:text-cyan-700 dark:hover:text-cyan-500 flex items-center gap-1"
 								>
 									<CodeBracketIcon className="w-3.5 h-3.5" />
 									View Code
@@ -266,7 +266,7 @@ export function HandlerContextDemo() {
 				<h3 className="text-zinc-600 dark:text-zinc-400 text-sm font-normal m-0 mb-4">
 					Response{' '}
 					{lastEndpoint && (
-						<span className="text-cyan-600 dark:text-cyan-400">/{lastEndpoint}</span>
+						<span className="text-cyan-800 dark:text-cyan-400">/{lastEndpoint}</span>
 					)}
 				</h3>
 				<JsonDisplay data={data} loading={loading} error={error} />

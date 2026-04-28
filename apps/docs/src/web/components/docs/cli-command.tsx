@@ -28,7 +28,7 @@ export function CLICommand({ command, children, className }: CLICommandProps) {
 		>
 			<div className="p-4 font-mono text-sm">
 				<div className="flex items-start gap-2">
-					<span className="text-cyan-600 dark:text-cyan-400 select-none">$</span>
+					<span className="text-cyan-800 dark:text-cyan-400 select-none">$</span>
 					<pre className="whitespace-pre-wrap">{command}</pre>
 				</div>
 				{children && (

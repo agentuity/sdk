@@ -12,9 +12,13 @@ Manage snapshots via the [Web App](https://app.agentuity.com) under **Services >
 A snapshot captures the filesystem state of a sandbox at a point in time. You create new sandboxes *from* snapshots, not run them directly.
 </Callout>
 
+<Callout type="info" title="Snapshots are different from checkpoints">
+Snapshots are reusable bases for new sandboxes. Checkpoints belong to one sandbox and support pause, resume, restore, and delete workflows.
+</Callout>
+
 ## How Snapshots Work
 
-Snapshots build on top of [runtimes](/services/Sandbox#runtimes). When you create a snapshot:
+Snapshots build on top of [runtimes](/services/sandbox#runtimes). When you create a snapshot:
 
 1. Start with a **runtime** (e.g., `bun:1`) as the base layer
 2. Add your **dependencies** (apt packages, npm modules, etc.)
@@ -43,7 +47,7 @@ Generate a template with helpful comments explaining each field:
 agentuity cloud sandbox snapshot generate > agentuity-snapshot.yaml
 ```
 
-The generated file includes documentation for all options: runtime selection, apt dependencies, file patterns, environment variables, and metadata. Customize it for your needs, then build:
+The generated file includes documentation for runtime selection, apt dependencies, npm/bun packages, file patterns, environment variables, and metadata. Customize it for your needs, then build:
 
 ```bash
 agentuity cloud sandbox snapshot build .
@@ -60,6 +64,9 @@ dependencies:  # Apt packages to install
   - curl
   - jq
 
+packages:  # npm/bun packages to install globally
+  - typescript
+
 files:  # Files to include from your project
   - src/**
   - package.json
@@ -73,11 +80,17 @@ env:
 ### Build Options
 
 ```bash
+# Build with a custom build file
+agentuity cloud sandbox snapshot build ./project --file custom-build.yaml
+
 # Build with a custom tag
 agentuity cloud sandbox snapshot build . --tag production
 
 # Build with environment variable substitution
 agentuity cloud sandbox snapshot build . --env API_KEY=secret
+
+# Add metadata substitution
+agentuity cloud sandbox snapshot build . --metadata VERSION=1.0.0
 
 # Force rebuild even if content unchanged
 agentuity cloud sandbox snapshot build . --force
@@ -152,11 +165,13 @@ const agent = createAgent('TypeScriptRunner', {
 ### Create Snapshot
 
 ```bash
-agentuity cloud sandbox snapshot create <sandbox-id> [--tag <name>]
+agentuity cloud sandbox snapshot create <sandbox-id> [options]
 
 # Examples
 agentuity cloud sandbox snapshot create sbx_abc123
 agentuity cloud sandbox snapshot create sbx_abc123 --tag python-ml
+agentuity cloud sandbox snapshot create sbx_abc123 --name python-ml --description "Python data tools"
+agentuity cloud sandbox snapshot create sbx_abc123 --public
 ```
 
 ### List Snapshots
@@ -283,12 +298,14 @@ When you create a snapshot, it captures:
 - All files in the sandbox workspace
 - Installed packages and dependencies
 - File permissions and structure
+- Environment variables from a declarative snapshot build file
 
 Snapshots don't include:
 
 - Running processes
 - Network connections
-- Environment variables (set these when creating the sandbox)
+
+For manual snapshots created from a sandbox, set runtime environment variables when you create or run the next sandbox. Declarative snapshot builds can include `env` values in the build file, or substitute them at build time with `--env KEY=VALUE`.
 
 ## Best Practices
 

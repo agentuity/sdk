@@ -88,44 +88,38 @@ Preview URLs are tied to the PR, not the commit. The URL stays the same for the 
 
 ## Build Process
 
-When the Agentuity GitHub App builds your project, it downloads your source code, installs dependencies, and runs `agentuity deploy` inside an isolated build environment. What happens during the install step depends on whether you define a `predeploy` script.
+When the Agentuity GitHub App builds your project, it downloads your source code, installs dependencies, and runs deploy lifecycle scripts around `agentuity deploy` from an isolated build environment.
 
-### Default Behavior (No predeploy Script)
+### Default Behavior
 
-If your `package.json` does not define a `predeploy` script, the platform runs `bun install` for you:
+The platform installs dependencies before running deployment scripts:
 
 1. Download and extract your source code
 2. Run `bun install` to install dependencies
-3. Run `agentuity deploy` to build and deploy your project
+3. Run `bun run --bun predeploy` if `package.json` defines `predeploy`
+4. Run `agentuity deploy` to build and deploy your project
+5. Run `bun run --bun postdeploy` if `package.json` defines `postdeploy`
 
-This is the zero-configuration path. No setup required beyond linking your repository.
+No extra setup is required beyond linking your repository.
 
-### Custom Behavior (With predeploy Script)
+### Pre-Deploy Scripts
 
-If your `package.json` defines a `predeploy` script, it runs **instead of** the automatic `bun install`. You control the entire installation and preparation step:
-
-1. Download and extract your source code
-2. Run `bun run predeploy` (your custom script)
-3. Run `agentuity deploy` to build and deploy your project
+If your `package.json` defines a `predeploy` script, it runs after dependency installation and before `agentuity deploy`:
 
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "cd ../.. && bun install && bun run build:packages",
+    "predeploy": "bun run build:packages",
     "deploy": "agentuity deploy"
   }
 }
 ```
 
-Use `predeploy` when you need to control dependency installation: monorepo workspaces, shared package builds, or custom preparation steps.
-
-<Callout type="warning" title="predeploy Replaces Automatic Install">
-When you define a `predeploy` script, the platform does not run `bun install`. Your `predeploy` script must handle dependency installation itself, or the build will fail with missing modules.
-</Callout>
+Use `predeploy` for monorepo package builds, generated assets, or validation that must happen before deployment.
 
 ### Post-Deploy Scripts
 
-If your `package.json` defines a `postdeploy` script, it runs after `agentuity deploy` completes successfully. Use it for notifications, changelog updates, or other post-deployment tasks.
+If your `package.json` defines a `postdeploy` script, it runs after `agentuity deploy` completes successfully. Use it for notifications, changelog updates, or downstream tasks.
 
 ### Build Resources
 

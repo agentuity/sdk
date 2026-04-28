@@ -25,7 +25,8 @@ src/api/
 ├── durable-stream/      # Persistent streams with public URLs
 ├── agent-calls/         # Agent invocation patterns (sync/background/chain)
 ├── model-arena/         # LLM-as-judge comparison (SSE)
-├── evals/               # Quality evaluations endpoint
+├── schedules/           # Managed schedule lifecycle demo
+├── webrtc/              # WebRTC signaling endpoint
 ├── websocket/           # WebSocket bidirectional communication
 └── sandbox/             # Cloud sandbox execution (SSE)
     ├── route.ts         # Sandbox execution endpoint
@@ -264,7 +265,7 @@ const router = createRouter();
 router.get('/stream', (c) =>
 	sse(async (c, stream) => {
 		const { textStream } = streamText({
-			model: openai('gpt-5-nano'),
+			model: openai('gpt-5.4-nano'),
 			prompt: 'Tell me a story',
 		});
 
@@ -308,7 +309,7 @@ const router = createRouter();
 router.post('/stream', (c) =>
 	stream(async () => {
 		const { textStream } = streamText({
-			model: openai('gpt-5-nano'),
+			model: openai('gpt-5.4-nano'),
 			prompt: 'Hello',
 		});
 		return textStream; // Returns ReadableStream directly

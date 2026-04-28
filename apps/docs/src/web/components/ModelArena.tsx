@@ -43,7 +43,45 @@ interface Judgment {
 	};
 }
 
-type ArenaStatus = 'idle' | 'connecting' | 'generating' | 'judging' | 'complete' | 'error';
+interface StreamEventMap {
+	start: {
+		prompt: string;
+		tone: string;
+		providers: ProviderInfo[];
+	};
+	story: StoryResult;
+	'provider-error': {
+		provider: string;
+		displayName: string;
+		error: string;
+	};
+	judging: {
+		count: number;
+	};
+	complete: {
+		judgment: Judgment;
+	};
+	error: {
+		error: string;
+	};
+	heartbeat: number;
+}
+
+type StreamEvent = {
+	[K in keyof StreamEventMap]: {
+		event: K;
+		data: StreamEventMap[K];
+	};
+}[keyof StreamEventMap];
+
+type ArenaStatus =
+	| 'idle'
+	| 'connecting'
+	| 'generating'
+	| 'judging'
+	| 'complete'
+	| 'error'
+	| 'stopped';
 
 interface ArenaState {
 	status: ArenaStatus;
@@ -56,7 +94,6 @@ interface ArenaState {
 	globalError: string | null;
 }
 
-// Fixed prompt and tone used by the backend
 const FIXED_PROMPT = 'A robot discovers it can dream';
 const FIXED_TONE = 'sci-fi';
 
@@ -80,11 +117,11 @@ const DEFAULT_PROVIDER_STYLE = {
 };
 
 function getProviderScore(scores: ProviderScore[], provider: string): ProviderScore | undefined {
-	return scores.find((s) => s.provider.toLowerCase() === provider.toLowerCase());
+	return scores.find((score) => score.provider.toLowerCase() === provider.toLowerCase());
 }
 
 function getProviderCheck(checks: ProviderBinary[], provider: string): ProviderBinary | undefined {
-	return checks.find((c) => c.provider.toLowerCase() === provider.toLowerCase());
+	return checks.find((check) => check.provider.toLowerCase() === provider.toLowerCase());
 }
 
 function formatTime(ms: number): string {
@@ -103,18 +140,77 @@ export function ModelArena() {
 		globalError: null,
 	});
 
-	const eventSourceRef = useRef<EventSource | null>(null);
+	const abortControllerRef = useRef<AbortController | null>(null);
 
-	// Cleanup on unmount
 	useEffect(() => {
 		return () => {
-			eventSourceRef.current?.close();
+			abortControllerRef.current?.abort();
 		};
 	}, []);
 
-	const startArena = useCallback(() => {
-		// Close any existing connection
-		eventSourceRef.current?.close();
+	const applyEvent = useCallback((event: StreamEvent) => {
+		switch (event.event) {
+			case 'start':
+				setState((prev) => ({
+					...prev,
+					status: 'generating',
+					prompt: event.data.prompt,
+					tone: event.data.tone,
+					providers: event.data.providers,
+				}));
+				return;
+			case 'story':
+				setState((prev) => {
+					const stories = new Map(prev.stories);
+					stories.set(event.data.provider, event.data);
+					return {
+						...prev,
+						status: 'generating',
+						stories,
+					};
+				});
+				return;
+			case 'provider-error':
+				setState((prev) => {
+					const errors = new Map(prev.errors);
+					errors.set(event.data.provider, event.data.error);
+					return {
+						...prev,
+						status: 'generating',
+						errors,
+					};
+				});
+				return;
+			case 'judging':
+				setState((prev) => ({
+					...prev,
+					status: 'judging',
+				}));
+				return;
+			case 'complete':
+				setState((prev) => ({
+					...prev,
+					status: 'complete',
+					judgment: event.data.judgment,
+				}));
+				return;
+			case 'error':
+				setState((prev) => ({
+					...prev,
+					status: 'error',
+					globalError: event.data.error,
+				}));
+				return;
+			case 'heartbeat':
+				return;
+		}
+	}, []);
+
+	const startArena = useCallback(async () => {
+		abortControllerRef.current?.abort();
+
+		const abortController = new AbortController();
+		abortControllerRef.current = abortController;
 
 		setState({
 			status: 'connecting',
@@ -127,96 +223,75 @@ export function ModelArena() {
 			globalError: null,
 		});
 
-		const eventSource = new EventSource('/api/model-arena/stream');
-		eventSourceRef.current = eventSource;
-
-		eventSource.onopen = () => {
-			setState((prev) => ({ ...prev, status: 'generating' }));
-		};
-
-		// Handle start event
-		eventSource.addEventListener('start', (event) => {
-			const data = JSON.parse(event.data);
-			setState((prev) => ({
-				...prev,
-				prompt: data.prompt,
-				tone: data.tone,
-				providers: data.providers,
-			}));
-		});
-
-		// Handle story events
-		eventSource.addEventListener('story', (event) => {
-			const data = JSON.parse(event.data) as StoryResult;
-			setState((prev) => {
-				const newStories = new Map(prev.stories);
-				newStories.set(data.provider, data);
-				return { ...prev, stories: newStories };
+		try {
+			const response = await fetch('/api/model-arena/stream', {
+				signal: abortController.signal,
 			});
-		});
 
-		// Handle error events for individual providers
-		eventSource.addEventListener('error', (event: Event) => {
-			const messageEvent = event as MessageEvent;
-			if (messageEvent.data) {
-				try {
-					const data = JSON.parse(messageEvent.data);
-					if (data.provider) {
-						setState((prev) => {
-							const newErrors = new Map(prev.errors);
-							newErrors.set(data.provider, data.error);
-							return { ...prev, errors: newErrors };
-						});
-					} else {
-						// Global error (e.g., judge failed)
-						setState((prev) => ({
-							...prev,
-							status: 'error',
-							globalError: data.error,
-						}));
-						eventSource.close();
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+
+			if (!response.body) {
+				throw new Error('No response body');
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+			let sawTerminalEvent = false;
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) {
+					break;
+				}
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+
+				for (const line of lines) {
+					if (!line.trim()) {
+						continue;
 					}
-				} catch {
-					// Parsing failed, treat as connection error
+
+					let event: StreamEvent;
+					try {
+						event = JSON.parse(line) as StreamEvent;
+					} catch {
+						continue;
+					}
+
+					if (event.event === 'complete' || event.event === 'error') {
+						sawTerminalEvent = true;
+					}
+					applyEvent(event);
 				}
 			}
-		});
 
-		// Handle judging event
-		eventSource.addEventListener('judging', () => {
-			setState((prev) => ({ ...prev, status: 'judging' }));
-		});
-
-		// Handle complete event
-		eventSource.addEventListener('complete', (event) => {
-			const data = JSON.parse(event.data);
-			setState((prev) => ({
-				...prev,
-				status: 'complete',
-				judgment: data.judgment,
-			}));
-			eventSource.close();
-		});
-
-		// Handle connection errors
-		eventSource.onerror = () => {
-			if (eventSource.readyState === EventSource.CLOSED) {
-				return;
-			}
-			setState((prev) => {
-				if (prev.status === 'complete') return prev;
-				return {
+			if (!abortController.signal.aborted && !sawTerminalEvent) {
+				setState((prev) => ({
 					...prev,
 					status: 'error',
 					globalError: 'Connection lost',
-				};
-			});
-			eventSource.close();
-		};
-	}, []);
+				}));
+			}
+		} catch (error) {
+			if (error instanceof Error && error.name === 'AbortError') {
+				return;
+			}
+
+			setState((prev) => ({
+				...prev,
+				status: 'error',
+				globalError: error instanceof Error ? error.message : 'Unknown error',
+			}));
+		}
+	}, [applyEvent]);
 
 	const reset = useCallback(() => {
-		eventSourceRef.current?.close();
+		abortControllerRef.current?.abort();
 		setState({
 			status: 'idle',
 			prompt: null,
@@ -229,12 +304,20 @@ export function ModelArena() {
 		});
 	}, []);
 
+	const stop = useCallback(() => {
+		abortControllerRef.current?.abort();
+		setState((prev) => ({
+			...prev,
+			status: prev.stories.size > 0 || prev.errors.size > 0 ? 'stopped' : 'idle',
+			globalError: null,
+		}));
+	}, []);
+
 	const isRunning =
 		state.status === 'connecting' || state.status === 'generating' || state.status === 'judging';
 
 	return (
 		<div className="flex flex-col gap-4">
-			{/* Models being compared */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
 				<div className="flex flex-col gap-4">
 					<div>
@@ -246,7 +329,7 @@ export function ModelArena() {
 								<span className="text-green-600 dark:text-green-400">OpenAI</span>
 								<span className="text-zinc-500 mx-1">/</span>
 								<span className="font-mono text-zinc-700 dark:text-zinc-300">
-									gpt-5-nano
+									gpt-5.4-mini
 								</span>
 							</Badge>
 							<Badge variant="outline">
@@ -275,10 +358,8 @@ export function ModelArena() {
 				</div>
 			</div>
 
-			{/* Action Section */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
 				<div className="flex flex-col gap-4">
-					{/* Prompt display */}
 					<div>
 						<span className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase">
 							Prompt
@@ -288,7 +369,6 @@ export function ModelArena() {
 						</div>
 					</div>
 
-					{/* Tone display */}
 					<div>
 						<span className="text-zinc-500 dark:text-zinc-400 block text-xs mb-2 uppercase">
 							Tone
@@ -298,7 +378,6 @@ export function ModelArena() {
 						</span>
 					</div>
 
-					{/* Progress Stepper */}
 					{state.status !== 'idle' && (
 						<ProgressStepper
 							status={state.status}
@@ -307,18 +386,19 @@ export function ModelArena() {
 						/>
 					)}
 
-					{/* Buttons */}
 					<div className="flex items-center gap-2">
 						{!isRunning ? (
 							<Button onClick={startArena} variant="outline" size="default">
 								{state.status === 'idle' ? 'Generate Stories' : 'Run Again'}
 							</Button>
 						) : (
-							<Button onClick={reset} variant="destructive" size="default">
+							<Button onClick={stop} variant="destructive" size="default">
 								Stop
 							</Button>
 						)}
-						{(state.status === 'complete' || state.status === 'error') && (
+						{(state.status === 'complete' ||
+							state.status === 'error' ||
+							state.status === 'stopped') && (
 							<Button onClick={reset} variant="ghost" size="default">
 								Clear
 							</Button>
@@ -327,14 +407,12 @@ export function ModelArena() {
 				</div>
 			</div>
 
-			{/* Global Error */}
 			{state.globalError && (
 				<div className="bg-red-100 dark:bg-red-950 border border-red-300 dark:border-red-900 rounded-lg text-red-700 dark:text-red-300 text-sm p-4">
 					Error: {state.globalError}
 				</div>
 			)}
 
-			{/* Judge Reasoning */}
 			{state.judgment && (
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-5">
 					<div className="flex items-center gap-2 mb-3">
@@ -347,7 +425,6 @@ export function ModelArena() {
 				</div>
 			)}
 
-			{/* Results */}
 			{state.providers.length > 0 && (
 				<div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(280px,1fr))]">
 					{state.providers.map((provider) => {
@@ -365,7 +442,6 @@ export function ModelArena() {
 									isWinner ? providerStyle.border : 'border-zinc-200 dark:border-zinc-800'
 								}`}
 							>
-								{/* Winner badge */}
 								{isWinner && (
 									<div className="absolute top-0 right-0">
 										<Badge
@@ -377,7 +453,6 @@ export function ModelArena() {
 									</div>
 								)}
 
-								{/* Header */}
 								<div className="p-4">
 									<div className="flex items-center gap-1.5 mb-1">
 										<span className={`text-sm font-medium ${providerStyle.text}`}>
@@ -397,9 +472,8 @@ export function ModelArena() {
 								</div>
 								<Separator />
 
-								{/* Story (scrollable) */}
 								<div className="text-zinc-700 dark:text-zinc-300 flex-1 text-[13px] leading-relaxed max-h-[300px] overflow-y-auto p-4">
-									{!story && !error && (
+									{!story && !error && isRunning && (
 										<StatusIndicator
 											status="running"
 											label="Generating..."
@@ -436,7 +510,6 @@ export function ModelArena() {
 									)}
 								</div>
 
-								{/* Scores */}
 								{state.judgment && story && (
 									<>
 										<Separator />
@@ -551,6 +624,11 @@ function ProgressStepper({
 			return 'pending';
 		}
 
+		if (status === 'stopped') {
+			if (stepId === 'generate' && storiesComplete > 0) return 'complete';
+			return 'pending';
+		}
+
 		switch (stepId) {
 			case 'generate':
 				if (status === 'connecting' || status === 'generating') return 'active';
@@ -570,17 +648,13 @@ function ProgressStepper({
 			{steps.map((step, index) => {
 				const stepStatus = getStepStatus(step.id);
 				const isLast = index === steps.length - 1;
-
 				const nextStep = steps[index + 1];
 				const nextStepStatus = nextStep ? getStepStatus(nextStep.id) : 'pending';
 
 				return (
 					<div key={step.id} className="flex items-center">
-						{/* Step */}
 						<div className="flex items-center gap-2">
-							{/* Circle indicator */}
 							<div className="relative">
-								{/* Pulsing ring for active state */}
 								{stepStatus === 'active' && (
 									<div className="absolute inset-0 rounded-full bg-cyan-500 animate-ping opacity-75" />
 								)}
@@ -589,7 +663,7 @@ function ProgressStepper({
 										stepStatus === 'complete'
 											? 'bg-green-500 text-white'
 											: stepStatus === 'active'
-												? 'bg-cyan-500 text-white dark:text-black'
+												? 'bg-cyan-500 text-cyan-950 dark:text-black'
 												: stepStatus === 'error'
 													? 'bg-red-500 text-white'
 													: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-500'
@@ -617,11 +691,10 @@ function ProgressStepper({
 									)}
 								</div>
 							</div>
-							{/* Label */}
 							<span
 								className={`text-xs whitespace-nowrap ${
 									stepStatus === 'active'
-										? 'text-cyan-600 dark:text-cyan-400 font-medium'
+										? 'text-cyan-700 dark:text-cyan-400 font-medium'
 										: stepStatus === 'complete'
 											? 'text-zinc-600 dark:text-zinc-400'
 											: 'text-zinc-400 dark:text-zinc-600'
@@ -636,7 +709,6 @@ function ProgressStepper({
 							</span>
 						</div>
 
-						{/* Connector line */}
 						{!isLast && (
 							<div
 								className={`w-6 h-0.5 mx-2 transition-colors ${

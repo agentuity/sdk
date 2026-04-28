@@ -30,12 +30,12 @@ if (!sessionId) {
 
 let stop = false;
 
-// Flip the flag on Ctrl-C so the for-await loop exits cleanly.
+// Flip the flag on Ctrl-C so the for-await loop exits cleanly
 process.once('SIGINT', () => {
   stop = true;
 });
 
-// Optional: stop after a wall-clock ceiling so a stray observer does not run forever.
+// Optional: stop after a wall-clock ceiling so a stray observer does not run forever
 const timeoutId = setTimeout(() => {
   stop = true;
 }, 5 * 60 * 1_000);
@@ -43,19 +43,19 @@ const timeoutId = setTimeout(() => {
 try {
   for await (const message of subscribeToCoderHub({
     sessionId,
-    // Observer role is read-only: it receives broadcasts without driving the session.
+    // Observer role is read-only: it receives broadcasts without driving the session
     role: 'observer',
   })) {
     if (stop) break;
 
-    // Only a subset of messages carry a `type` field; skip the rest before branching.
+    // Only a subset of messages carry a `type` field; skip the rest before branching
     if (!('type' in message)) continue;
 
     if (message.type === 'broadcast') {
-      // Broadcast carries the event name and the payload the session emitted.
+      // Broadcast carries the event name and the payload the session emitted
       console.log('Broadcast event:', message.event);
     } else if (message.type === 'presence') {
-      // Presence fires when a participant joins or leaves the session.
+      // Presence fires when a participant joins or leaves the session
       console.log('Presence:', message.event);
     }
   }
@@ -83,7 +83,7 @@ const PAGE = 50;
 let offset = 0;
 let fetched = 0;
 
-// Page through all events, stopping when a page returns fewer items than requested.
+// Page through all events, stopping when a page returns fewer items than requested
 while (true) {
   const { events, total } = await client.listEventHistory(sessionId, {
     limit: PAGE,
@@ -91,7 +91,7 @@ while (true) {
   });
 
   for (const ev of events) {
-    // Each event carries: id, event (name), category, agent, taskId, occurredAt, payload.
+    // Each event carries: id, event (name), category, agent, taskId, occurredAt, payload
     console.log(`[${ev.occurredAt}] ${ev.category ?? '-'} / ${ev.event} (agent: ${ev.agent ?? 'none'})`);
   }
 
@@ -121,9 +121,9 @@ if (!sessionId) {
 const client = new CoderClient();
 const replay = await client.getReplay(sessionId);
 
-// The replay payload is the accumulated hydration stream for this session.
+// The replay payload is the accumulated hydration stream for this session
 // A late-joining client consumes it to match the Hub's current state before
-// switching over to the live subscription for new events.
+// switching over to the live subscription for new events
 console.log(`Rehydrated replay for session ${replay.sessionId}`);
 ```
 

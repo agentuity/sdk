@@ -177,7 +177,7 @@ router.post('/custom',
 <Callout type="info" title="Validator Overloads">
 `agent.validator()` supports three signatures:
 - `agent.validator()` — Uses agent's input/output schemas
-- `agent.validator({ output: schema })` — Output-only validation (GET-compatible)
+- `agent.validator({ output: schema })` — Output-only validation with no input validation
 - `agent.validator({ input: schema, output?: schema })` — Custom schemas
 </Callout>
 
@@ -217,26 +217,29 @@ The standalone validator auto-detects the HTTP method:
 ```typescript
 import { Hono } from 'hono';
 import { type Env, validator } from '@agentuity/runtime';
-import * as v from 'valibot';
+import { s } from '@agentuity/schema';
 
 const router = new Hono<Env>();
 
 // GET route: validates query parameters
-const searchSchema = v.object({
-  q: v.string(),
-  limit: v.optional(v.number()),
+const searchSchema = s.object({
+  q: s.string(),
+  limit: s.coerce.number().optional(),
 });
 
 router.get('/search',
   validator({ input: searchSchema }),
   async (c) => {
     const { q, limit } = c.req.valid('query'); // GET uses query params
-    return c.json({ results: [], query: q, limit });
+    return c.json({ results: [], query: q, limit: limit ?? 10 });
   }
 );
 
 export default router;
 ```
+
+Query parameters arrive as strings. Use coercion when a query field should become a number,
+boolean, or date.
 
 #### Output Validation
 
@@ -278,7 +281,7 @@ export default router;
 ```
 
 <Callout type="info" title="Schema Libraries">
-Both validators work with any [Standard Schema](https://standardschema.dev/) library: `@agentuity/schema`, Zod, Valibot, or ArkType. Choose based on your needs: `@agentuity/schema` for zero dependencies, Zod for `.describe()` support with AI SDK, Valibot for minimal bundle size.
+Both validators work with any [Standard Schema](https://standardschema.dev/) library: `@agentuity/schema`, Zod, Valibot, or ArkType. Use `@agentuity/schema` when you want a lightweight schema library for straightforward validation. Reach for Zod, Valibot, or ArkType when you need their broader validation, transformation, metadata, or ecosystem features. The KV-backed API below uses Valibot.
 </Callout>
 
 <Callout type="warning" title="Import from @agentuity/runtime">
@@ -360,13 +363,13 @@ router.post('/api', validator({ input: schema }), async (c) => {
 });
 ```
 
-### Use structured logging
+### Add logging context
 
 Use `c.var.logger` instead of `console.log` for searchable, traceable logs:
 
 ```typescript
-c.var.logger.info('Request processed', { userId, duration: Date.now() - start });
-c.var.logger.error('Processing failed', { error: err.message });
+c.var.logger.child({ userId, duration: Date.now() - start }).info('Request processed');
+c.var.logger.child({ error: err.message }).error('Processing failed');
 ```
 
 ### Order routes correctly
@@ -417,7 +420,7 @@ router.post('/process', async (c) => {
 
 ## Streaming Responses
 
-Use the `stream()` middleware to return a `ReadableStream` directly to the client without buffering. The agent must be created with `schema: { stream: true }` for `agent.run()` to return a `ReadableStream`.
+Forward streaming agent responses with `c.body(await agent.run(data))`. Use `stream()` when the route creates its own `ReadableStream`.
 
 First, define a streaming agent:
 
@@ -442,19 +445,19 @@ export default createAgent('chat', {
 });
 ```
 
-Then use `stream()` in the route to forward the `ReadableStream` to the client:
+Then validate the request and return the agent stream from the route:
 
 ```typescript title="src/api/chat/route.ts"
 import { Hono } from 'hono';
-import { type Env, stream } from '@agentuity/runtime';
+import { type Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat/agent';
 
 const router = new Hono<Env>();
 
-router.post('/chat', stream(async (c) => {
-  const body = await c.req.json();
-  return chatAgent.run(body);
-}));
+router.post('/chat', chatAgent.validator(), async (c) => {
+  const body = c.req.valid('json');
+  return c.body(await chatAgent.run(body));
+});
 
 export default router;
 ```
@@ -486,18 +489,30 @@ export default router;
 
 ### With Middleware
 
-Stream routes support middleware:
+Custom stream routes support middleware:
 
 ```typescript
 import { Hono } from 'hono';
 import { type Env, stream } from '@agentuity/runtime';
-import streamAgent from '@agent/stream/agent';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  userId: string;
+};
 
-router.post('/protected', authMiddleware, stream(async (c) => {
-  return streamAgent.run({ userId: c.var.userId });
-}));
+const router = new Hono<Env & { Variables: RouteVariables }>();
+
+router.get(
+  '/protected/events',
+  authMiddleware,
+  stream<Env & { Variables: RouteVariables }>((c) => {
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(`user:${c.var.userId}\n`);
+        controller.close();
+      },
+    });
+  })
+);
 
 export default router;
 ```
@@ -608,7 +623,7 @@ Use agents when you need LLM orchestration, complex schemas, streaming AI respon
 
 ## Next Steps
 
-- [Explicit Routing](/routes/explicit-routing) for composing and mounting your own Hono routers with `createApp({ router })`
+- [Explicit Routing](/routes/explicit-routing): Compose and mount your own Hono routers with `createApp({ router })`
 - [Middleware](/routes/middleware): Authentication, rate limiting, logging
 - [Scheduled Jobs (Cron)](/routes/cron): Run tasks on a schedule
 - [WebSockets](/routes/websockets): Real-time bidirectional communication

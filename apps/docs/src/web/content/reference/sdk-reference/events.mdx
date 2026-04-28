@@ -4,7 +4,7 @@ short_title: Events
 description: Lifecycle hooks for monitoring agent, session, and thread events
 ---
 
-The runtime exposes two event layers: agent-scoped listeners attached to a specific agent, and global listeners registered with the top-level event bus. Use agent listeners for local instrumentation and global listeners for app-wide analytics or cleanup.
+The runtime exposes three event layers: agent-scoped listeners attached to a specific agent, global listeners registered with the top-level event bus, and instance listeners on `ctx.session` and `ctx.thread`. Use agent listeners for local instrumentation, global listeners for app-wide analytics or cleanup, and session or thread listeners when you want to react to the lifecycle of a specific run.
 
 ## Agent Events
 
@@ -19,7 +19,6 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
 
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   // Agent execution completed successfully
-  // Evals run during this event (see below)
 });
 
 agent.addEventListener('errored', (eventName, agent, ctx, error) => {
@@ -51,7 +50,7 @@ agent.addEventListener('started', (eventName, agent, ctx) => {
   });
 });
 
-// Log when agent completes (evals also run during this event)
+// Log when the agent completes
 agent.addEventListener('completed', (eventName, agent, ctx) => {
   ctx.logger.info('Agent completed', {
     agentName: agent.metadata.name,
@@ -114,7 +113,7 @@ addEventListener('agent.errored', (eventName, agent, ctx, error) => {
   ctx.logger.error('Agent error detected', {
     agentName: agent.metadata.name,
     error: error.message,
-    sessionId: ctx.sessionId
+    sessionId: ctx.sessionId,
   });
 });
 
@@ -144,6 +143,7 @@ import {
   removeEventListener,
 } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import type { Agent, AgentContext } from '@agentuity/runtime';
 
 const agent = createAgent('ActionHandler', {
   schema: {
@@ -153,13 +153,21 @@ const agent = createAgent('ActionHandler', {
   handler: async () => ({ success: true }),
 });
 
-const handler = (eventName, agent, ctx) => {
+const handler = (
+  _eventName: 'started' | 'completed',
+  _agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Agent started');
 };
 
 agent.addEventListener('started', handler);
 
-const completedHandler = (eventName, agent, ctx) => {
+const completedHandler = (
+  eventName: 'agent.completed',
+  agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info(`${agent.metadata.name} completed`);
 };
 
@@ -182,6 +190,7 @@ import {
   removeEventListener,
 } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import type { Agent, AgentContext } from '@agentuity/runtime';
 
 const agent = createAgent('ActionHandler', {
   schema: {
@@ -192,19 +201,36 @@ const agent = createAgent('ActionHandler', {
 });
 
 // Create handlers with references for cleanup
-const startedHandler = (eventName, agent, ctx) => {
+const startedHandler = (
+  _eventName: 'started' | 'completed',
+  _agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Started processing');
 };
 
-const completedHandler = (eventName, agent, ctx) => {
+const completedHandler = (
+  _eventName: 'started' | 'completed',
+  _agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Completed processing');
 };
 
-const erroredHandler = (eventName, agent, ctx, error) => {
+const erroredHandler = (
+  _eventName: 'errored',
+  _agent: Agent,
+  ctx: AgentContext,
+  error: Error
+): void => {
   ctx.logger.error('Error occurred', { error });
 };
 
-const globalCompletedHandler = (eventName, completedAgent, ctx) => {
+const globalCompletedHandler = (
+  _eventName: 'agent.completed',
+  completedAgent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Observed completion', {
     agentName: completedAgent.metadata.name,
   });
@@ -223,4 +249,4 @@ addEventListener('agent.completed', globalCompletedHandler);
 // removeEventListener('agent.completed', globalCompletedHandler);
 ```
 
-For eval creation and lifecycle, see [Evaluations](/reference/sdk-reference/evaluations).
+For output-quality patterns, see [LLM as a Judge](/cookbook/patterns/llm-as-a-judge).

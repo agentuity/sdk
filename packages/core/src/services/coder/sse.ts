@@ -45,7 +45,7 @@
  * })) {
  *   console.log('Event:', event.event, event.data);
  *
- *   if (event.event === 'broadcast' && event.data.event === 'session_complete') {
+ *   if (event.data.type === 'broadcast' && event.data.event === 'session_complete') {
  *     controller.abort(); // Stop the stream
  *   }
  * }
@@ -166,7 +166,7 @@ export const CoderSSEError = StructuredError('CoderSSEError')<{
  * A single SSE event with its event name and parsed data.
  */
 export interface CoderSSEEvent {
-	/** The SSE event name (e.g., 'snapshot', 'broadcast', 'presence') */
+	/** The SSE event name (e.g., 'snapshot', 'message_update', 'session_join') */
 	event: string;
 	/** The parsed event data */
 	data: ObserverSseMessage;
@@ -234,12 +234,149 @@ async function buildSSEUrl(
 	return queryString ? `${baseUrl}${path}?${queryString}` : `${baseUrl}${path}`;
 }
 
-function getSSEData(event: Event): string | null {
-	const msgEvent = event as unknown as { data?: unknown };
-	if (typeof msgEvent.data === 'string') {
-		return msgEvent.data;
+interface ParsedSSEFrame {
+	event: string;
+	data: string;
+}
+
+const TYPED_TRANSPORT_EVENTS = new Set(['snapshot', 'hydration', 'presence', 'broadcast']);
+
+function isAbortError(err: unknown): boolean {
+	return err instanceof Error && err.name === 'AbortError';
+}
+
+function parseSSEFrame(block: string): ParsedSSEFrame | null {
+	let event = 'message';
+	const dataLines: string[] = [];
+
+	for (const line of block.split('\n')) {
+		if (!line || line.startsWith(':')) continue;
+
+		const separatorIndex = line.indexOf(':');
+		const field = separatorIndex === -1 ? line : line.slice(0, separatorIndex);
+		let value = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1);
+		if (value.startsWith(' ')) {
+			value = value.slice(1);
+		}
+
+		if (field === 'event') {
+			event = value || 'message';
+		} else if (field === 'data') {
+			dataLines.push(value);
+		}
 	}
-	return null;
+
+	if (dataLines.length === 0) {
+		return null;
+	}
+
+	return {
+		event,
+		data: dataLines.join('\n'),
+	};
+}
+
+function consumeSSEBuffer(rawBuffer: string, onFrame: (frame: ParsedSSEFrame) => void): string {
+	const normalized = rawBuffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+	let cursor = 0;
+
+	while (true) {
+		const boundary = normalized.indexOf('\n\n', cursor);
+		if (boundary === -1) break;
+
+		const block = normalized.slice(cursor, boundary);
+		cursor = boundary + 2;
+		if (!block.trim()) continue;
+
+		const frame = parseSSEFrame(block);
+		if (frame) {
+			onFrame(frame);
+		}
+	}
+
+	return normalized.slice(cursor);
+}
+
+function decodeCoderSSEEvent(frame: ParsedSSEFrame, sessionId: string): CoderSSEEvent {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(frame.data);
+	} catch (err) {
+		throw new CoderSSEError({
+			message: `Failed to parse SSE ${frame.event} event: ${err instanceof Error ? err.message : String(err)}`,
+			code: 'parse_error',
+			sessionId,
+		});
+	}
+
+	const payload =
+		TYPED_TRANSPORT_EVENTS.has(frame.event) && parsed && typeof parsed === 'object'
+			? { type: frame.event, ...(parsed as Record<string, unknown>) }
+			: parsed;
+	const result = ObserverSseMessageSchema.safeParse(payload);
+
+	if (!result.success) {
+		throw new CoderSSEError({
+			message: `Invalid SSE ${frame.event} event format`,
+			code: 'parse_error',
+			sessionId,
+		});
+	}
+
+	const event = frame.event === 'message' ? result.data.type : frame.event;
+	return { event, data: result.data };
+}
+
+async function readSSEStream(
+	response: Response,
+	signal: AbortSignal,
+	onEvent: (event: CoderSSEEvent) => void,
+	sessionId: string
+): Promise<void> {
+	if (!response.body) {
+		throw new CoderSSEError({
+			message: 'SSE response did not include a readable body',
+			code: 'connection_failed',
+			sessionId,
+		});
+	}
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = '';
+
+	try {
+		while (!signal.aborted) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			buffer += decoder.decode(value, { stream: true });
+			buffer = consumeSSEBuffer(buffer, (frame) => {
+				onEvent(decodeCoderSSEEvent(frame, sessionId));
+			});
+		}
+	} finally {
+		try {
+			reader.releaseLock();
+		} catch {
+			// Some runtimes throw if the reader is already released after abort.
+		}
+	}
+}
+
+function buildConnectionError(response: Response, sessionId: string): Error {
+	return new CoderSSEError({
+		message: `SSE connection failed: ${response.status} ${response.statusText || 'HTTP error'}`,
+		code:
+			response.status === 401 || response.status === 403 ? 'auth_failed' : 'connection_failed',
+		sessionId,
+	});
+}
+
+function isRetryableStreamError(error: Error): boolean {
+	if (error instanceof CoderSSEError) {
+		return error.code === 'connection_failed';
+	}
+	return true;
 }
 
 /**
@@ -291,7 +428,7 @@ export class CoderSSEClient {
 		onError?: (error: Error) => void;
 	};
 	#state: CoderSSEState = 'closed';
-	#eventSource: EventSource | null = null;
+	#abortController: AbortController | null = null;
 	#reconnectAttempts = 0;
 	#reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	#intentionallyClosed = false;
@@ -336,7 +473,7 @@ export class CoderSSEClient {
 	 * Whether the client is currently connected and receiving events.
 	 */
 	get isConnected(): boolean {
-		return this.#state === 'connected' && this.#eventSource?.readyState === 1;
+		return this.#state === 'connected' && this.#abortController !== null;
 	}
 
 	/**
@@ -369,9 +506,9 @@ export class CoderSSEClient {
 			clearTimeout(this.#reconnectTimer);
 			this.#reconnectTimer = null;
 		}
-		if (this.#eventSource) {
-			this.#eventSource.close();
-			this.#eventSource = null;
+		if (this.#abortController) {
+			this.#abortController.abort();
+			this.#abortController = null;
 		}
 		this.#state = 'closed';
 		this.#options.onClose?.();
@@ -381,47 +518,18 @@ export class CoderSSEClient {
 		this.#state = state;
 	}
 
-	#handleEvent(eventName: string, typeOverride?: string): void {
-		this.#eventSource!.addEventListener(eventName, (event: Event) => {
-			const data = getSSEData(event);
-			if (!data) return;
+	#dispatchEvent(event: CoderSSEEvent): void {
+		this.#options.onEvent?.(event);
 
-			try {
-				const parsed = JSON.parse(data);
-				const payload = typeOverride ? { type: typeOverride, ...parsed } : parsed;
-				const result = ObserverSseMessageSchema.safeParse(payload);
-
-				if (result.success) {
-					const semanticEvent = typeOverride || result.data.type;
-					const sseEvent: CoderSSEEvent = { event: semanticEvent, data: result.data };
-					this.#options.onEvent?.(sseEvent);
-
-					if (result.data.type === 'snapshot') {
-						this.#options.onSnapshot?.(result.data);
-					} else if (result.data.type === 'hydration') {
-						this.#options.onHydration?.(result.data);
-					} else if (result.data.type === 'presence') {
-						this.#options.onPresence?.(result.data);
-					} else if (result.data.type === 'broadcast') {
-						this.#options.onBroadcast?.(result.data);
-					}
-				} else {
-					const parseError = new CoderSSEError({
-						message: `Invalid SSE ${eventName} event format`,
-						code: 'parse_error',
-						sessionId: this.#options.sessionId,
-					});
-					this.#options.onError?.(parseError);
-				}
-			} catch (err) {
-				const parseError = new CoderSSEError({
-					message: `Failed to parse SSE ${eventName} event: ${err instanceof Error ? err.message : String(err)}`,
-					code: 'parse_error',
-					sessionId: this.#options.sessionId,
-				});
-				this.#options.onError?.(parseError);
-			}
-		});
+		if (event.data.type === 'snapshot') {
+			this.#options.onSnapshot?.(event.data);
+		} else if (event.data.type === 'hydration') {
+			this.#options.onHydration?.(event.data);
+		} else if (event.data.type === 'presence') {
+			this.#options.onPresence?.(event.data);
+		} else if (event.data.type === 'broadcast') {
+			this.#options.onBroadcast?.(event.data);
+		}
 	}
 
 	async #connectInternal(): Promise<void> {
@@ -444,19 +552,27 @@ export class CoderSSEClient {
 			return;
 		}
 
-		// Workaround for bun-types EventSource constructor typing issue.
-		// The type definitions don't match the runtime signature, so we use
-		// a double type assertion to construct EventSource with a URL parameter.
+		const controller = new AbortController();
+		this.#abortController = controller;
+
+		let response: Response;
 		try {
-			const EventSourceCtor: typeof EventSource = EventSource;
-			this.#eventSource = new (EventSourceCtor as unknown as new (url: string) => EventSource)(
-				url
-			);
+			response = await fetch(url, {
+				headers: {
+					accept: 'text/event-stream',
+				},
+				signal: controller.signal,
+			});
 		} catch (err) {
+			this.#abortController = null;
+			if (this.#intentionallyClosed || isAbortError(err)) {
+				this.#setState('closed');
+				return;
+			}
 			this.#setState('closed');
 			this.#options.onError?.(
 				new CoderSSEError({
-					message: `Failed to create EventSource: ${err instanceof Error ? err.message : String(err)}`,
+					message: `Failed to connect SSE stream: ${err instanceof Error ? err.message : String(err)}`,
 					code: 'connection_failed',
 					sessionId: this.#options.sessionId,
 				})
@@ -465,23 +581,15 @@ export class CoderSSEClient {
 			return;
 		}
 
-		this.#eventSource.onerror = () => {
-			// Notify caller of transient error before reconnecting
-			this.#options.onError?.(new Error('EventSource transient error'));
-
-			if (this.#eventSource) {
-				this.#eventSource.close();
-				this.#eventSource = null;
-			}
-
-			if (this.#intentionallyClosed) {
-				return;
-			}
-
+		if (!response.ok) {
+			this.#abortController = null;
+			this.#setState('closed');
+			this.#options.onError?.(buildConnectionError(response, this.#options.sessionId));
 			this.#scheduleReconnect();
-		};
+			return;
+		}
 
-		this.#eventSource.onopen = () => {
+		try {
 			this.#reconnectAttempts = 0;
 			this.#setState('connected');
 			this.#options.logger.debug(
@@ -489,13 +597,27 @@ export class CoderSSEClient {
 				this.#options.sessionId
 			);
 			this.#options.onOpen?.();
-		};
 
-		this.#handleEvent('snapshot', 'snapshot');
-		this.#handleEvent('hydration', 'hydration');
-		this.#handleEvent('presence', 'presence');
-		this.#handleEvent('broadcast', 'broadcast');
-		this.#handleEvent('message');
+			await readSSEStream(
+				response,
+				controller.signal,
+				(event) => this.#dispatchEvent(event),
+				this.#options.sessionId
+			);
+		} catch (err) {
+			if (this.#intentionallyClosed || isAbortError(err)) {
+				return;
+			}
+			this.#options.onError?.(err instanceof Error ? err : new Error(String(err)));
+		} finally {
+			if (this.#abortController === controller) {
+				this.#abortController = null;
+			}
+		}
+
+		if (!this.#intentionallyClosed) {
+			this.#scheduleReconnect();
+		}
 	}
 
 	#scheduleReconnect(): void {
@@ -600,13 +722,14 @@ export async function* streamCoderSessionSSE(
 		return;
 	}
 
-	let eventSource: EventSource | null = null;
+	let activeController: AbortController | null = null;
 	let reconnectAttempts = 0;
 	const buffer: CoderSSEEvent[] = [];
 	const MAX_BUFFER = 1000;
 	let resolve: (() => void) | null = null;
 	let done = false;
 	let terminalError: Error | null = null;
+	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const wake = () => {
 		if (resolve) {
@@ -616,49 +739,70 @@ export async function* streamCoderSessionSSE(
 	};
 
 	const cleanup = () => {
-		if (eventSource) {
-			eventSource.close();
-			eventSource = null;
+		if (reconnectTimer !== null) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = null;
+		}
+		if (activeController) {
+			activeController.abort();
+			activeController = null;
 		}
 	};
 
-	const handleSSEEvent = (eventName: string, typeOverride?: string) => {
-		eventSource!.addEventListener(eventName, (event: Event) => {
-			const data = getSSEData(event);
-			if (!data) return;
-			try {
-				const parsed = JSON.parse(data);
-				const payload = typeOverride ? { type: typeOverride, ...parsed } : parsed;
-				const result = ObserverSseMessageSchema.safeParse(payload);
-				if (result.success) {
-					if (buffer.length >= MAX_BUFFER) {
-						buffer.shift();
-						logger.debug('SSE buffer full, dropped oldest event');
-					}
-					const semanticEvent = typeOverride || result.data.type;
-					buffer.push({ event: semanticEvent, data: result.data });
-					wake();
-				} else {
-					terminalError = new CoderSSEError({
-						message: `Invalid SSE ${eventName} event format`,
-						code: 'parse_error',
-						sessionId: options.sessionId,
-					});
-					done = true;
-					wake();
-					return;
-				}
-			} catch (err) {
-				terminalError = new CoderSSEError({
-					message: `Failed to parse SSE ${eventName} event: ${err instanceof Error ? err.message : String(err)}`,
-					code: 'parse_error',
+	const finish = (error?: Error) => {
+		if (error) {
+			terminalError = error;
+		}
+		done = true;
+		wake();
+	};
+
+	const scheduleReconnect = (error?: Error) => {
+		if (done) {
+			return;
+		}
+
+		if (signal?.aborted || (error && isAbortError(error))) {
+			finish();
+			return;
+		}
+
+		if (error && !isRetryableStreamError(error)) {
+			finish(error);
+			return;
+		}
+
+		if (!reconnect) {
+			finish(error);
+			return;
+		}
+
+		if (reconnectAttempts >= maxReconnectAttempts) {
+			finish(
+				new CoderSSEError({
+					message: `Exceeded maximum reconnection attempts (${maxReconnectAttempts})`,
+					code: 'max_reconnects_exceeded',
 					sessionId: options.sessionId,
-				});
-				done = true;
-				wake();
-				return;
-			}
-		});
+				})
+			);
+			return;
+		}
+
+		const baseDelay = reconnectDelayMs * 2 ** reconnectAttempts;
+		const jitter = 0.5 + Math.random() * 0.5;
+		const delay = Math.min(Math.floor(baseDelay * jitter), maxReconnectDelayMs);
+
+		reconnectAttempts++;
+		logger.debug(
+			'SSE connection lost, reconnecting in %dms (attempt %d)',
+			delay,
+			reconnectAttempts
+		);
+
+		reconnectTimer = setTimeout(() => {
+			reconnectTimer = null;
+			void connect();
+		}, delay);
 	};
 
 	const connect = async (): Promise<void> => {
@@ -673,94 +817,108 @@ export async function* streamCoderSessionSSE(
 				logger,
 			});
 		} catch (err) {
-			terminalError = err as Error;
-			done = true;
-			wake();
+			finish(err instanceof Error ? err : new Error(String(err)));
 			return;
 		}
 
 		if (signal?.aborted) {
-			done = true;
-			wake();
+			finish();
 			return;
 		}
 
-		// Workaround for bun-types EventSource constructor typing issue (see above).
+		const controller = new AbortController();
+		activeController = controller;
+		const abortFromCaller = () => controller.abort();
+		signal?.addEventListener('abort', abortFromCaller, { once: true });
+
+		let response: Response;
 		try {
-			const EventSourceCtor: typeof EventSource = EventSource;
-			eventSource = new (EventSourceCtor as unknown as new (url: string) => EventSource)(url);
-		} catch (err) {
-			terminalError = new CoderSSEError({
-				message: `Failed to create EventSource: ${err instanceof Error ? err.message : String(err)}`,
-				code: 'connection_failed',
-				sessionId: options.sessionId,
+			response = await fetch(url, {
+				headers: {
+					accept: 'text/event-stream',
+				},
+				signal: controller.signal,
 			});
-			done = true;
-			wake();
-			return;
-		}
-
-		if (signal?.aborted) {
-			cleanup();
-			done = true;
-			wake();
-			return;
-		}
-
-		eventSource.onerror = () => {
-			cleanup();
-
-			if (signal?.aborted) {
-				done = true;
-				wake();
+		} catch (err) {
+			signal?.removeEventListener('abort', abortFromCaller);
+			if (activeController === controller) {
+				activeController = null;
+			}
+			if (signal?.aborted || isAbortError(err)) {
+				finish();
 				return;
 			}
+			const error =
+				err instanceof CoderSSEError
+					? err
+					: new CoderSSEError({
+							message: `Failed to connect SSE stream: ${err instanceof Error ? err.message : String(err)}`,
+							code: 'connection_failed',
+							sessionId: options.sessionId,
+						});
+			scheduleReconnect(error);
+			return;
+		}
 
-			if (reconnect && reconnectAttempts < maxReconnectAttempts) {
-				const baseDelay = reconnectDelayMs * 2 ** reconnectAttempts;
-				const jitter = 0.5 + Math.random() * 0.5;
-				const delay = Math.min(Math.floor(baseDelay * jitter), maxReconnectDelayMs);
+		if (signal?.aborted) {
+			signal?.removeEventListener('abort', abortFromCaller);
+			cleanup();
+			finish();
+			return;
+		}
 
-				reconnectAttempts++;
-				logger.debug(
-					'SSE connection lost, reconnecting in %dms (attempt %d)',
-					delay,
-					reconnectAttempts
-				);
-
-				setTimeout(() => {
-					connect();
-				}, delay);
-			} else if (reconnect) {
-				terminalError = new CoderSSEError({
-					message: `Exceeded maximum reconnection attempts (${maxReconnectAttempts})`,
-					code: 'max_reconnects_exceeded',
-					sessionId: options.sessionId,
-				});
-				done = true;
-				wake();
-			} else {
-				done = true;
-				wake();
+		if (!response.ok) {
+			signal?.removeEventListener('abort', abortFromCaller);
+			if (activeController === controller) {
+				activeController = null;
 			}
-		};
+			scheduleReconnect(buildConnectionError(response, options.sessionId));
+			return;
+		}
 
-		eventSource.onopen = () => {
-			reconnectAttempts = 0;
-			logger.debug('SSE connection established for session %s', options.sessionId);
-		};
+		reconnectAttempts = 0;
+		logger.debug('SSE connection established for session %s', options.sessionId);
+		let readFailed = false;
 
-		handleSSEEvent('snapshot', 'snapshot');
-		handleSSEEvent('hydration', 'hydration');
-		handleSSEEvent('presence', 'presence');
-		handleSSEEvent('broadcast', 'broadcast');
-		handleSSEEvent('message');
+		void readSSEStream(
+			response,
+			controller.signal,
+			(event) => {
+				if (buffer.length >= MAX_BUFFER) {
+					buffer.shift();
+					logger.debug('SSE buffer full, dropped oldest event');
+				}
+				buffer.push(event);
+				wake();
+			},
+			options.sessionId
+		)
+			.catch((err) => {
+				readFailed = true;
+				scheduleReconnect(err instanceof Error ? err : new Error(String(err)));
+			})
+			.finally(() => {
+				signal?.removeEventListener('abort', abortFromCaller);
+				if (activeController === controller) {
+					activeController = null;
+				}
+
+				if (done || signal?.aborted) {
+					finish();
+					return;
+				}
+
+				if (readFailed) {
+					return;
+				}
+
+				scheduleReconnect();
+			});
 	};
 
 	const onAbort = () => {
-		done = true;
 		cleanup();
-		wake();
+		finish();
 	};
 
 	signal?.addEventListener('abort', onAbort, { once: true });
@@ -791,6 +949,7 @@ export async function* streamCoderSessionSSE(
 		}
 	} finally {
 		signal?.removeEventListener('abort', onAbort);
+		done = true;
 		cleanup();
 	}
 }

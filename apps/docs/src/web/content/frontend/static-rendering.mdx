@@ -7,16 +7,12 @@ When your frontend serves content that doesn't change per-request (docs, marketi
 
 ## Quick Start
 
-Three steps to enable static rendering:
+Static rendering runs during `agentuity build` or `agentuity deploy` when your project has `src/web/index.html` and `src/web/entry-server.tsx`.
 
-**1. Set the render mode** in your app configuration:
+**1. Add a placeholder** inside your root element:
 
-```typescript title="agentuity.config.ts"
-import type { AgentuityConfig } from '@agentuity/cli';
-
-export default {
-	render: 'static',
-} satisfies AgentuityConfig;
+```html title="src/web/index.html"
+<div id="root"><!--app-html--></div>
 ```
 
 **2. Create `src/web/entry-server.tsx`** with your render function and route tree:
@@ -52,22 +48,13 @@ agentuity deploy   # or deploy directly
 
 Every non-parameterized route is discovered automatically from the route tree. Each discovered path gets its own pre-rendered `index.html`.
 
-## Configuration
+## How Static Rendering Is Enabled
 
-The `render` option in your app configuration controls how the frontend is built:
+The build pipeline enables static rendering by file convention:
 
-| Mode              | Behavior                                                                     |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `'spa'` (default) | Standard single-page app. Client-side routing, JavaScript renders everything |
-| `'static'`        | Pre-renders all routes at build time. Full HTML in the initial response      |
-
-```typescript title="agentuity.config.ts"
-import type { AgentuityConfig } from '@agentuity/cli';
-
-export default {
-	render: 'static', // 'spa' | 'static'
-} satisfies AgentuityConfig;
-```
+- If `src/web/index.html` exists, the CLI builds the client bundle.
+- If `src/web/entry-server.tsx` also exists, the CLI runs a Vite SSR build, imports `entry-server.js`, discovers paths, and injects rendered HTML into the client template.
+- If `entry-server.tsx` is missing, the frontend is built as a standard single-page app.
 
 ## Entry Server
 
@@ -161,7 +148,7 @@ Your `src/web/index.html` needs a `<!--app-html-->` comment inside the root elem
 ```
 
 <Callout type="warning" title="Placeholder Required">
-Without `<!--app-html-->` inside your root element, the build has nowhere to inject the rendered HTML. The placeholder must be a direct child of the mount element (e.g., `<div id="root">`).
+Without `<!--app-html-->`, the build completes but the rendered HTML is not injected into the page. Put the placeholder inside the element your client app hydrates.
 </Callout>
 
 ## Hydration
@@ -174,7 +161,8 @@ Use `hydrateRoot` when the page has pre-rendered content, and fall back to `crea
 import { hydrateRoot, createRoot } from 'react-dom/client';
 import App from './App';
 
-const container = document.getElementById('root')!;
+const container = document.getElementById('root');
+if (!container) throw new Error('Root element not found');
 
 if (container.innerHTML.trim()) {
 	// Pre-rendered content exists: hydrate it
@@ -207,19 +195,11 @@ if (container.innerHTML.trim()) {
 - **Auto-discovery skips parameterized routes**: paths containing `$` (like `/blog/$slug`) are skipped during auto-discovery. Export `getStaticPaths()` to list the concrete URLs for these routes
 - **Undiscovered routes fall back to SPA**: any route not found via auto-discovery or `getStaticPaths()` serves the base `index.html` without pre-rendered content. Client-side routing still works
 - **Each path gets its own file**: `/blog/hello` becomes `.agentuity/client/blog/hello/index.html`
-- **Build time scales with routes**: 10 routes is fast; 10,000 routes takes longer. The rendering itself is synchronous per-route
+- **Build time scales with routes**: 10 routes is fast; 10,000 routes takes longer. Routes are rendered sequentially
 
 ## Full Example
 
-A complete minimal setup with all four files:
-
-```typescript title="agentuity.config.ts"
-import type { AgentuityConfig } from '@agentuity/cli';
-
-export default {
-	render: 'static',
-} satisfies AgentuityConfig;
-```
+A complete minimal setup with the three frontend files:
 
 ```html title="src/web/index.html"
 <!doctype html>
@@ -267,7 +247,8 @@ export function getStaticPaths(): string[] {
 import { hydrateRoot, createRoot } from 'react-dom/client';
 import App from './App';
 
-const container = document.getElementById('root')!;
+const container = document.getElementById('root');
+if (!container) throw new Error('Root element not found');
 
 if (container.innerHTML.trim()) {
 	hydrateRoot(container, <App />);
@@ -280,4 +261,4 @@ if (container.innerHTML.trim()) {
 
 - [Build Configuration](/reference/cli/build-configuration): Customize the Vite build with plugins and constants
 - [Deployment Scenarios](/frontend/deployment-scenarios): Deploy your frontend alongside agents or separately
-- [App Configuration](/get-started/app-configuration): All configuration options including `render`
+- [App Configuration](/get-started/app-configuration): Wire routes, CORS, and app-level settings

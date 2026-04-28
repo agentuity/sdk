@@ -39,7 +39,7 @@ On top of the core primitives, we build higher-level platform primitives:
 | <Container className="inline w-4 h-4 mr-1" /> [**Sandbox**](https://app.agentuity.com/services/sandbox) | Compute + Storage | Isolated code execution |
 | <Radio className="inline w-4 h-4 mr-1" /> [**Durable Stream**](https://app.agentuity.com/services/stream) | Storage | Persistent message streams |
 | **Agent Runtime** | Compute | Agent execution environment |
-| **Observability** | Warehouse | Logging, tracing, metrics |
+| **Observability** | OLAP Warehouse | Logging, tracing, metrics |
 
 These primitives use the Core Primitives but don't depend on each other horizontally. They only reach down the stack, never up.
 
@@ -66,10 +66,10 @@ Each service is composed from lower-level primitives rather than built from scra
 
 ## Why This Matters
 
-<span className="text-cyan-700 dark:text-cyan-500 font-semibold">Composability</span>: Higher-level services are built from lower-level primitives. Need a new capability? Combine existing primitives rather than building from scratch.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Composability</span>: Higher-level services are built from lower-level primitives. Need a new capability? Combine existing primitives rather than building from scratch.
 
-<span className="text-cyan-700 dark:text-cyan-500 font-semibold">Portability</span>: Because Core Primitives use standard protocols, the underlying infrastructure can be swapped. Your workloads aren't locked into proprietary systems.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Portability</span>: Because Core Primitives use standard protocols, the underlying infrastructure can be swapped. Your workloads aren't locked into proprietary systems.
 
-<span className="text-cyan-700 dark:text-cyan-500 font-semibold">Reliability</span>: Built on battle-tested primitives like Postgres and S3, not experimental infrastructure. Your agents run on foundations that have proven themselves at scale.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Reliability</span>: Built on battle-tested primitives like Postgres and S3, not experimental infrastructure. Your agents run on foundations that have proven themselves at scale.
 
-<span className="text-cyan-700 dark:text-cyan-500 font-semibold">Agentic</span>: Since you can peek behind the curtain and see what's happening across these abstractions, your agents can too. This creates better context and feedback loops, allowing your agents to build software quickly and effectively.
+<span className="text-cyan-800 dark:text-cyan-500 font-semibold">Agentic</span>: Since you can peek behind the curtain and see what's happening across these abstractions, your agents can too. This creates better context and feedback loops, allowing your agents to build software quickly and effectively.

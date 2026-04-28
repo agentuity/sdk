@@ -3,7 +3,7 @@ title: App Configuration
 description: Configure your Agentuity project
 ---
 
-Agentuity projects use minimal configuration. Most setup happens in code, not config files.
+Agentuity projects keep runtime behavior in code and deployment metadata in `agentuity.json`.
 
 ## agentuity.json
 
@@ -11,9 +11,18 @@ The project configuration file:
 
 ```json
 {
+  "$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
   "projectId": "proj_...",
   "orgId": "org_...",
-  "region": "use"
+  "region": "use",
+  "deployment": {
+    "resources": {
+      "memory": "500Mi",
+      "cpu": "500m",
+      "disk": "500Mi"
+    },
+    "domains": []
+  }
 }
 ```
 
@@ -31,7 +40,7 @@ import api from './src/api';
 const app = await createApp({
   router: { path: '/api', router: api },
   agents,
-  workbench: { route: '/workbench' },
+  analytics: true,
 });
 
 app.logger.debug('Running %s', app.server.url);
@@ -122,7 +131,7 @@ addEventListener('agent.completed', (eventName, agent, ctx) => {
 
 ## Build Configuration
 
-Use `vite.config.ts` for build settings (plugins, entry point, rollup options). Runtime settings like workbench and analytics belong in `createApp()`.
+Use `vite.config.ts` for build settings (plugins, entry point, rollup options). Runtime settings like analytics and service configuration belong in `createApp()`.
 
 ```typescript title="vite.config.ts"
 import react from '@vitejs/plugin-react';
@@ -172,8 +181,8 @@ The `build` section controls the sandbox where your project compiles during clou
   "region": "use",
   "deployment": {
     "resources": {
-      "cpu": "500m",
       "memory": "500Mi",
+      "cpu": "500m",
       "disk": "500Mi"
     },
     "domains": []
@@ -193,21 +202,23 @@ The `build` section controls the sandbox where your project compiles during clou
 
 For detailed options, see [Deploying to the Cloud](/reference/cli/deployment#resource-configuration).
 
-### Running Deploy Lifecycle Scripts
+### Run Deploy Lifecycle Scripts
 
 Run custom steps before or after deployment using `predeploy` and `postdeploy` scripts in `package.json`:
 
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "cd ../.. && bun install && bun run build:packages",
+    "predeploy": "bun run typecheck",
     "deploy": "agentuity deploy",
     "postdeploy": "echo 'Deploy complete'"
   }
 }
 ```
 
-When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), defining `predeploy` gives you full control over the install step. Without it, the platform runs `bun install` automatically. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
+Package manager lifecycle hooks run when you call `bun run deploy`. Running `agentuity deploy` directly skips `predeploy` and `postdeploy`.
+
+When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), the platform always runs `bun install` first. If `predeploy` is defined, it runs after dependency installation and before `agentuity deploy`. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
 
 ## Environment Variables
 
@@ -243,6 +254,14 @@ If you don't set provider API keys, LLM requests are routed through the Agentuit
 Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
 </Callout>
 
+### Agentuity Keys
+
+Use `AGENTUITY_SDK_KEY` in project code. The CLI writes this key to `.env` when you create, import, reconcile, or pull a project environment. Runtime services, AI Gateway calls, standalone packages, and deployed app code read it when they call Agentuity services.
+
+CLI authentication is separate. `agentuity auth login` stores the CLI credential in your OS keychain or Agentuity config. Automation can pass `AGENTUITY_API_KEY`, or `AGENTUITY_CLI_API_KEY` with `AGENTUITY_USER_ID`, so the CLI can run project and deployment commands without an interactive login. Do not read those variables from app code.
+
+`AGENTUITY_CLI_KEY` is not the CLI login variable. Some standalone clients accept it as a compatibility fallback API key env var, but new examples and projects should use `AGENTUITY_SDK_KEY` or pass `apiKey` directly.
+
 ### Environment-Specific Files
 
 Use separate `.env` files instead of commenting/uncommenting variables when switching between local development and deployed contexts.
@@ -255,6 +274,8 @@ Use separate `.env` files instead of commenting/uncommenting variables when swit
 | Production build or non-local profile | `.env.{profile}` → `.env` → `.env.production` |
 
 Files loaded later in the chain override earlier ones. For `agentuity dev`, the order is `.env.{profile}` then `.env.development` then `.env`, so `.env` wins when keys conflict. For deployed or non-local profiles, the order is `.env.{profile}` then `.env` then `.env.production`, so `.env.production` wins.
+
+Profile-specific files use the active CLI profile. See [CLI Profiles](/reference/cli/profiles) for switching profiles and profile-specific defaults.
 
 **Example setup:**
 
@@ -279,30 +300,33 @@ Instead of commenting out lines when switching contexts, put shared defaults in 
 
 - **`.env.local`**: Bun may use this for app runtime behavior, but the Agentuity CLI does not currently include `.env.local` when it searches for `AGENTUITY_SDK_KEY` during `agentuity dev` or deploy preflight. Keep required CLI credentials in one of the files listed above.
 
-**Git behavior:** The default `.gitignore` ignores `.env`. Other env files (`.env.development`, `.env.local`, profile-specific files) are not ignored by default. Add any files containing secrets to your `.gitignore`.
+**Git behavior:** The default `.gitignore` ignores `.env` and `.env.*`. If you add differently named secret files, add them to `.gitignore` too.
 
 ## Infrastructure as Code
 
-Unlike traditional platforms, Agentuity defines infrastructure in your route files:
+Agentuity defines route infrastructure in your source files:
 
 ```typescript
 // src/api/index.ts
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import { cron, websocket } from '@agentuity/runtime';
-import scheduler from '@agent/scheduler/agent';
+import { websocket } from '@agentuity/runtime';
 import chatHandler from '@agent/chat/agent';
 
 const api = new Hono<Env>()
-  // Cron job - runs every hour
-  .post('/cleanup', cron('0 * * * *', { auth: true }, async (c) => {
-    await scheduler.run({ task: 'cleanup' });
+  // Standard HTTP endpoint
+  .post('/cleanup', async (c) => {
     return c.text('OK');
-  }))
+  })
   // WebSocket endpoint
   .get('/chat', websocket((c, ws) => {
     ws.onMessage(async (event) => {
-      const result = await chatHandler.run({ message: event.data as string });
+      if (typeof event.data !== 'string') {
+        ws.send(JSON.stringify({ error: 'Only text frames are supported' }));
+        return;
+      }
+
+      const result = await chatHandler.run({ message: event.data });
       ws.send(JSON.stringify(result));
     });
   }));
@@ -310,13 +334,10 @@ const api = new Hono<Env>()
 export default api;
 ```
 
-This approach means:
-- **Deployments are self-contained**: rolling back restores exact configuration
-- **Version control**: your infrastructure changes are tracked in Git
-- **No config drift**: what's in code is what runs
+This keeps routes and agent registration in version control with the code that handles them.
 
 ## Next Steps
 
 - [HTTP Routes](/routes/http): Define HTTP endpoints
-- [Cron Jobs](/routes/cron): Schedule recurring tasks
+- [Schedules](/services/schedules): Run recurring tasks
 - [AI Gateway](/agents/ai-gateway): Configure LLM providers

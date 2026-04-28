@@ -10,7 +10,7 @@
  * - ctx.queue.createQueue(name, params) - Create a queue with settings
  * - ctx.queue.publish(name, payload, params) - Publish a message
  *
- * Docs: https://agentuity.dev/Services/Queues
+ * Docs: https://agentuity.dev/services/queues
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';

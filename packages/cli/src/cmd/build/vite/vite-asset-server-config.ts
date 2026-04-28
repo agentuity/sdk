@@ -126,7 +126,7 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[], workbenchPath?
 				const isDocumentRequest = secFetchDest === 'document' || accept.includes('text/html');
 
 				// Skip file requests (have an extension)
-				if (pathname !== '/' && /\.[a-zA-Z0-9]+$/.test(pathname)) return next();
+				if (pathname !== '/' && /\.[\w-]+$/.test(pathname)) return next();
 
 				// For non-document requests, only allow root path fallback.
 				// (e.g. don't turn module/script fetches into HTML accidentally)
@@ -309,13 +309,10 @@ export async function generateAssetServerConfig(
 		// Agentuity-specific plugins (Vite loads user plugins from vite.config.ts automatically)
 		plugins: await (async () => {
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
-			const { publicAssetPathPlugin } = await import('./public-asset-path-plugin');
 
 			return [
 				// Browser env plugin to map process.env to import.meta.env
 				browserEnvPlugin(),
-				// Warn about incorrect public asset paths in dev mode
-				publicAssetPathPlugin({ warnInDev: true }),
 				// Inject analytics scripts in dev HTML
 				devAnalyticsPlugin(),
 				// SPA fallback: serve src/web/index.html for navigation requests

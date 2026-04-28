@@ -30,8 +30,7 @@ function AgentuityLogo({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
-			className={className}
-			fill="none"
+			className={cn('fill-cyan-600 dark:fill-cyan-500', className)}
 			height="191"
 			viewBox="0 0 220 191"
 			width="220"
@@ -40,13 +39,11 @@ function AgentuityLogo({ className }: { className?: string }) {
 			<path
 				clipRule="evenodd"
 				d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.5879 136.5L24.2339 177H195.766L172.412 136.5H47.5879Z"
-				fill="#00FFFF"
 				fillRule="evenodd"
 			/>
 			<path
 				clipRule="evenodd"
 				d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.7021 82.5L110 28.0811L141.298 82.5H78.7021Z"
-				fill="#00FFFF"
 				fillRule="evenodd"
 			/>
 		</svg>

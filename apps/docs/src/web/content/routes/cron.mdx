@@ -6,6 +6,10 @@ description: Run tasks on a schedule with the cron() middleware
 
 Schedule recurring tasks using cron expressions. Schedules are defined in code, deployed with your agents, and automatically provisioned.
 
+<Callout type="info" title="When to Use Schedules Instead">
+[Schedules](/services/schedules) are a better fit when you want platform-managed delivery, tracking, and retries. Use `cron()` when the job should live alongside your app code and deploy with your routes.
+</Callout>
+
 <Callout type="info" title="Routes Location">
 All routes live in `src/api/`. Import agents you need and call them directly.
 </Callout>
@@ -126,7 +130,7 @@ If your cron route uses `{ auth: true }`, the request must include valid `X-Agen
 ## Best Practices
 
 - **Log job start and completion** for debugging scheduled tasks
-- **Use `c.var.kv` or object storage** to persist results for later inspection
+- **Use `c.var.kv` or Bun's S3 APIs** to persist results for later inspection
 - **Handle errors gracefully** so one failure doesn't break the schedule
 - **Keep jobs idempotent** when possible, in case of retries
 

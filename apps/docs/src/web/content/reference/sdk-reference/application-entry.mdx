@@ -4,7 +4,7 @@ short_title: Application Entry
 description: Initialize your Agentuity app with createApp() and configure the runtime entry file
 ---
 
-Every Agentuity v2 app starts in a root `app.ts` file. `createApp()` wires up your router, agents, middleware, services, and Bun server integration in one place.
+Every app that uses the Agentuity runtime starts in a root `app.ts` file. `createApp()` wires up your router, agents, middleware, services, and Bun server integration in one place.
 
 ## createApp
 
@@ -32,9 +32,9 @@ export default await createApp({
 | `requestTimeout` | `number` | Maximum request duration in seconds. `0` means no timeout |
 | `services` | `object` | Override built-in service implementations |
 | `analytics` | `boolean \| AnalyticsOptions` | Enable analytics with defaults or provide custom options |
-| `workbench` | `boolean \| string \| WorkbenchOptions` | Enable Workbench in development mode, choose a custom route, or provide full options |
+| `workbench` | `boolean \| string \| WorkbenchOptions` | Development UI route configuration |
 | `router` | `Hono \| RouteMount \| RouteMount[]` | Experimental explicit router mounting |
-| `agents` | `Agent[]` | Explicit list of agents to include in the app |
+| `agents` | `AgentRunner[]` | Explicit list of agents to include in the app |
 
 `router` accepts three forms:
 
@@ -83,10 +83,10 @@ interface AppResult {
   router: Hono<Env>;
   server: { url: string };
   logger: Logger;
-  fetch: (req: Request, ...args: any[]) => Response | Promise<Response>;
+  fetch: (req: Request, ...args: unknown[]) => Response | Promise<Response>;
   port: number;
   hostname: string;
-  websocket?: any;
+  websocket?: unknown;
 }
 ```
 
@@ -104,18 +104,17 @@ export default app;
 
 ## Common Patterns
 
-### Configure analytics and Workbench
+### Configure analytics
 
 ```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime';
 
 export default await createApp({
   analytics: true,
-  workbench: { route: '/workbench' },
 });
 ```
 
-`analytics` accepts `true`, `false`, or an options object. `workbench` accepts `true`, a custom route string like `'/debug'`, or a full config object. Workbench is only active in development when you opt in.
+`analytics` accepts `true`, `false`, or an options object. `workbench` accepts `true`, a custom route string like `'/debug'`, or a full config object.
 
 ### Restrict CORS to trusted origins
 

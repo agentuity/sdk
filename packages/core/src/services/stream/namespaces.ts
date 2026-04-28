@@ -40,11 +40,11 @@ export const StreamNamespaceEntrySchema = z.object({
 	chunks: z.number().describe('number of chunks'),
 	completed: z.boolean().describe('whether the stream upload is completed'),
 	size_bytes: z.number().describe('size in bytes'),
-	started_at: z.string().nullable().describe('ISO 8601 stream start timestamp'),
+	started_at: z.string().nullable().optional().describe('ISO 8601 stream start timestamp'),
 	ended_at: z.string().nullable().describe('ISO 8601 stream end timestamp'),
 	headers: z.record(z.string(), z.string()).nullable().optional().describe('stream headers'),
 	metadata: z.record(z.string(), z.string()).nullable().optional().describe('stream metadata'),
-	expires_at: z.string().nullable().describe('ISO 8601 expiration timestamp or null'),
+	expires_at: z.string().nullable().optional().describe('ISO 8601 expiration timestamp or null'),
 	url: z.string().describe('public URL to access the stream'),
 });
 

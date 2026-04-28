@@ -27,6 +27,7 @@ Create a new schedule with optional destinations. The schedule and its destinati
 | `name` | `string` | yes | Human-readable name |
 | `expression` | `string` | yes | Cron expression (e.g., `'0 9 * * 1-5'` for weekdays at 9 AM) |
 | `description` | `string` | no | Description of the schedule's purpose |
+| `internal` | `boolean` | no | System-managed schedule flag |
 | `destinations` | `CreateScheduleDestinationParams[]` | no | Destinations to create alongside the schedule |
 
 **`CreateScheduleDestinationParams` fields:**
@@ -60,6 +61,7 @@ interface Schedule {
   description: string | null;
   expression: string;      // Cron expression
   due_date: string;        // ISO 8601, next scheduled execution
+  internal: boolean;       // True for system-managed schedules
   created_at: string;
   updated_at: string;
   created_by: string;

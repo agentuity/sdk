@@ -41,6 +41,8 @@ router.get('/data', loggerMiddleware, (c) => {
 export default router;
 ```
 
+Use `new Hono<Env>()` when your middleware only reads built-in Agentuity context, like `c.var.logger`. If middleware stores custom values with `c.set()`, add those values to Hono's `Variables` type so downstream handlers can read them from `c.var`.
+
 ## Authentication Patterns
 
 ### API Key Authentication
@@ -50,7 +52,15 @@ import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  apiKeyOwner: string;
+};
+
+type ApiKeyRecord = {
+  readonly ownerId: string;
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const apiKeyAuth = createMiddleware(async (c, next) => {
   const apiKey = c.req.header('X-API-Key');
@@ -60,7 +70,7 @@ const apiKeyAuth = createMiddleware(async (c, next) => {
   }
 
   // Validate against stored keys
-  const keyData = await c.var.kv.get('api-keys', apiKey);
+  const keyData = await c.var.kv.get<ApiKeyRecord>('api-keys', apiKey);
   if (!keyData.exists) {
     return c.json({ error: 'Invalid API key' }, 401);
   }
@@ -86,7 +96,19 @@ import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import { verify } from 'hono/jwt';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  authUser: {
+    sub: string;
+    email?: string;
+  };
+};
+
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET is required');
+}
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const jwtAuth = createMiddleware(async (c, next) => {
   const authHeader = c.req.header('Authorization');
@@ -98,8 +120,15 @@ const jwtAuth = createMiddleware(async (c, next) => {
   const token = authHeader.slice(7);
 
   try {
-    const payload = await verify(token, process.env.JWT_SECRET!);
-    c.set('user', payload);
+    const payload = await verify(token, jwtSecret);
+    if (typeof payload.sub !== 'string' || payload.sub.trim().length === 0) {
+      return c.json({ error: 'Invalid token payload' }, 401);
+    }
+
+    c.set('authUser', {
+      sub: payload.sub,
+      email: typeof payload.email === 'string' ? payload.email : undefined,
+    });
     await next();
   } catch {
     return c.json({ error: 'Invalid token' }, 401);
@@ -107,7 +136,7 @@ const jwtAuth = createMiddleware(async (c, next) => {
 });
 
 router.get('/me', jwtAuth, (c) => {
-  const user = c.var.user;
+  const user = c.var.authUser;
   return c.json({ userId: user.sub, email: user.email });
 });
 
@@ -252,7 +281,11 @@ import type { Env } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import agent from './agent';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  userId: string;
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const rateLimiter = createMiddleware(async (c, next) => {
   const ip = c.req.header('x-forwarded-for') || 'unknown';

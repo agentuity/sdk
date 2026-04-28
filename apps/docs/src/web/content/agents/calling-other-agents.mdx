@@ -56,7 +56,12 @@ import analysisAgent from '@agent/analysis/agent';
 const pipeline = createAgent('Pipeline', {
   schema: {
     input: s.object({ rawData: s.string() }),
-    output: s.object({ processed: s.any() }),
+    output: s.object({
+      processed: s.object({
+        summary: s.string(),
+        tags: s.array(s.string()),
+      }),
+    }),
   },
   handler: async (ctx, input) => {
     // Each step depends on the previous result
@@ -95,7 +100,15 @@ import vectorSearchAgent from '@agent/vector-search/agent';
 const searchAgent = createAgent('Search', {
   schema: {
     input: s.object({ query: s.string() }),
-    output: s.object({ results: s.array(s.any()) }),
+    output: s.object({
+      results: s.array(
+        s.object({
+          title: s.string(),
+          url: s.optional(s.string()),
+          snippet: s.string(),
+        })
+      ),
+    }),
   },
   handler: async (ctx, input) => {
     // Execute all searches in parallel
@@ -127,7 +140,9 @@ import analyticsAgent from '@agent/analytics/agent';
 
 const processor = createAgent('Processor', {
   schema: {
-    input: s.object({ data: s.any() }),
+    input: s.object({
+      data: s.record(s.string(), s.unknown()),
+    }),
     output: s.object({ status: s.string(), id: s.string() }),
   },
   handler: async (ctx, input) => {
@@ -166,7 +181,7 @@ import technicalAgent from '@agent/technical/agent';
 handler: async (ctx, input) => {
   // Classify with a fast model, using Groq (via AI Gateway)
   const { object: intent } = await generateObject({
-    model: groq('llama-3.3-70b'),
+    model: groq('llama-3.3-70b-versatile'),
     schema: z.object({
       agentType: z.enum(['support', 'sales', 'technical']),
     }),
@@ -230,14 +245,16 @@ The orchestrator pattern is common in AI workflows where you want to separate co
 ## Public Agents
 
 <Callout type="warning" title="Cross-Project Limitation">
-Agent imports only work within the same project. To call agents in other projects or organizations, use `fetch()` with the agent's public URL.
+Agent imports only work within the same project. To call an agent in another project or organization, expose it through an HTTP route and call that route with `fetch()`.
 </Callout>
 
-Call public agents using standard HTTP:
+Call the deployed route using standard HTTP:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+
+const ExternalResponse = s.object({ response: s.string() });
 
 const agent = createAgent('External Caller', {
   schema: {
@@ -246,23 +263,25 @@ const agent = createAgent('External Caller', {
   },
   handler: async (ctx, input) => {
     try {
-      const response = await fetch(
-        'https://agentuity.ai/api/agent-id-here',
-        {
-          method: 'POST',
-          body: JSON.stringify({ query: input.query }),
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Public agent returned ${response.status}`);
+      const routeUrl = process.env.EXTERNAL_AGENT_ROUTE_URL;
+      if (!routeUrl) {
+        throw new Error('EXTERNAL_AGENT_ROUTE_URL is required');
       }
 
-      const data = await response.json();
+      const response = await fetch(routeUrl, {
+        method: 'POST',
+        body: JSON.stringify({ query: input.query }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error(`External agent route returned ${response.status}`);
+      }
+
+      const data = ExternalResponse.parse(await response.json());
       return { result: data.response };
     } catch (error) {
-      ctx.logger.error('Public agent call failed', { error });
+      ctx.logger.error('External agent call failed', { error });
       throw error;
     }
   },
@@ -278,10 +297,22 @@ export default agent;
 By default, errors propagate through the call chain:
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import validatorAgent from '@agent/validator/agent';
 import processorAgent from '@agent/processor/agent';
 
 const pipeline = createAgent('Pipeline', {
+  schema: {
+    input: s.object({
+      documentId: s.string(),
+      content: s.string(),
+    }),
+    output: s.object({
+      documentId: s.string(),
+      status: s.string(),
+    }),
+  },
   handler: async (ctx, input) => {
     // If validatorAgent throws, execution stops here
     const validated = await validatorAgent.run(input);
@@ -301,10 +332,21 @@ This is the recommended pattern for critical operations where later steps cannot
 For optional operations, catch errors and continue:
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import enrichmentAgent from '@agent/enrichment/agent';
 import processorAgent from '@agent/processor/agent';
 
 const resilientProcessor = createAgent('Resilient Processor', {
+  schema: {
+    input: s.object({
+      data: s.record(s.string(), s.unknown()),
+    }),
+    output: s.object({
+      status: s.string(),
+      resultId: s.string(),
+    }),
+  },
   handler: async (ctx, input) => {
     let enrichedData = input.data;
 
@@ -331,6 +373,8 @@ const resilientProcessor = createAgent('Resilient Processor', {
 Implement retry logic for unreliable operations:
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import externalServiceAgent from '@agent/external-service/agent';
 
 async function callWithRetry<T>(
@@ -353,6 +397,16 @@ async function callWithRetry<T>(
 }
 
 const retryHandler = createAgent('Retry Handler', {
+  schema: {
+    input: s.object({
+      endpoint: s.string(),
+      payload: s.record(s.string(), s.unknown()),
+    }),
+    output: s.object({
+      status: s.string(),
+      requestId: s.string(),
+    }),
+  },
   handler: async (ctx, input) => {
     const result = await callWithRetry(() =>
       externalServiceAgent.run(input)
@@ -367,9 +421,30 @@ const retryHandler = createAgent('Retry Handler', {
 Handle mixed success/failure results with `Promise.allSettled()`:
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import processingAgent from '@agent/processing/agent';
 
 const batchProcessor = createAgent('Batch Processor', {
+  schema: {
+    input: s.object({
+      items: s.array(
+        s.object({
+          id: s.string(),
+          payload: s.record(s.string(), s.unknown()),
+        })
+      ),
+    }),
+    output: s.object({
+      successful: s.array(
+        s.object({
+          itemId: s.string(),
+          status: s.string(),
+        })
+      ),
+      failedCount: s.number(),
+    }),
+  },
   handler: async (ctx, input) => {
     const results = await Promise.allSettled(
       input.items.map((item) => processingAgent.run({ item }))
@@ -406,7 +481,7 @@ const analysisAgent = createAgent('Analysis', { /* analyzes data */ });
 
 // Bad: monolithic agent
 const megaAgent = createAgent('MegaAgent', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     // Validates, enriches, analyzes all in one place
   },
 });
@@ -419,19 +494,21 @@ Focused agents are easier to test, reuse, and maintain.
 Define schemas on all agents for type-safe communication. See [Creating Agents](/agents/creating-agents) to learn more about using schemas.
 
 ```typescript
-import sourceAgent from '@agent/source/agent';
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
 
 // Source agent with output schema
 const source = createAgent('Source', {
   schema: {
+    input: z.object({ id: z.string() }),
     output: z.object({
       data: z.string(),
       metadata: z.object({ timestamp: z.string() }),
     }),
   },
-  handler: async (ctx, input) => {
+  handler: async (_ctx, input) => {
     return {
-      data: 'result',
+      data: `result:${input.id}`,
       metadata: { timestamp: new Date().toISOString() },
     };
   },
@@ -439,22 +516,38 @@ const source = createAgent('Source', {
 
 // Consumer agent - TypeScript validates the connection
 const consumer = createAgent('Consumer', {
-  handler: async (ctx, input) => {
-    const result = await source.run({});
+  schema: {
+    input: z.object({ id: z.string() }),
+    output: z.object({ processed: z.string() }),
+  },
+  handler: async (_ctx, input) => {
+    const result = await source.run({ id: input.id });
     // TypeScript knows result.data and result.metadata.timestamp exist
     return { processed: result.data };
   },
 });
 ```
 
-### Leverage Shared Context
+### Share Context
 
 Agent calls share the same session context:
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 import processingAgent from '@agent/processing/agent';
 
 const coordinator = createAgent('Coordinator', {
+  schema: {
+    input: s.object({
+      userId: s.string(),
+      data: s.record(s.string(), s.unknown()),
+    }),
+    output: s.object({
+      status: s.string(),
+      resultId: s.string(),
+    }),
+  },
   handler: async (ctx, input) => {
     // Store data in thread state (async)
     await ctx.thread.state.set('userId', input.userId);
@@ -508,7 +601,7 @@ const router = createAgent('Customer Router', {
     // Classify intent with graceful degradation
     try {
       const result = await generateObject({
-        model: groq('llama-3.3-70b'),
+        model: groq('llama-3.3-70b-versatile'),
         schema: IntentSchema,
         system: 'Classify the customer message by intent.',
         prompt: input.message,
@@ -598,4 +691,4 @@ This example combines several patterns:
 ## Next Steps
 
 - [State Management](/agents/state-management): Share data across agent calls with thread and session state
-- [Evaluations](/agents/evaluations): Add quality checks to your agent workflows
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Add quality checks to your agent workflows

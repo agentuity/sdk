@@ -10,11 +10,13 @@
 import { readdir, readFile, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import matter from 'gray-matter';
+import * as pagefind from 'pagefind';
 import { navData, type NavItem } from '../src/web/components/docs/nav-data.ts';
 
 const BASE_URL = 'https://agentuity.dev';
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
 const OUTPUT_DIR = join(import.meta.dir, '../src/web/public');
+const PAGEFIND_OUTPUT_DIR = join(OUTPUT_DIR, 'pagefind');
 
 interface DocPage {
 	title: string;
@@ -22,6 +24,21 @@ interface DocPage {
 	urlPath: string;
 	mdPath: string;
 	content: string;
+}
+
+interface SearchRecord {
+	title: string;
+	description: string;
+	urlPath: string;
+	section: string;
+	content: string;
+}
+
+interface NavSearchItem {
+	title: string;
+	urlPath: string;
+	description: string;
+	section: string;
 }
 
 async function getAllMdxFiles(dir: string): Promise<string[]> {
@@ -901,7 +918,121 @@ async function main() {
 	const sitemapXml = generateSitemapXml(pages);
 	await writeFile(join(OUTPUT_DIR, 'sitemap.xml'), sitemapXml, 'utf-8');
 
-	console.log(`Generated ${pages.length} markdown files + llms.txt + llms-full.txt + sitemap.xml`);
+	await generatePagefindIndex(pages);
+
+	console.log(
+		`Generated ${pages.length} markdown files + llms.txt + llms-full.txt + sitemap.xml + Pagefind index`
+	);
+}
+
+function collectNavSearchItems(): NavSearchItem[] {
+	const items: NavSearchItem[] = [];
+
+	const walk = (navItems: NavItem[], section: string) => {
+		for (const item of navItems) {
+			if (item.url) {
+				items.push({
+					title: item.title,
+					urlPath: item.url,
+					description: item.description ?? '',
+					section,
+				});
+			}
+			if (item.items) {
+				walk(item.items, section);
+			}
+		}
+	};
+
+	for (const section of navData) {
+		if (section.url) {
+			items.push({
+				title: section.title,
+				urlPath: section.url,
+				description: '',
+				section: section.title,
+			});
+		}
+		walk(section.items, section.title);
+	}
+
+	return items;
+}
+
+function createSearchRecords(pages: DocPage[]): SearchRecord[] {
+	const navItems = collectNavSearchItems();
+	const navByUrl = new Map(navItems.map((item) => [item.urlPath, item]));
+	const records = new Map<string, SearchRecord>();
+
+	for (const page of pages) {
+		const navItem = navByUrl.get(page.urlPath);
+		const section = navItem?.section ?? 'Docs';
+		records.set(page.urlPath, {
+			title: page.title,
+			description: page.description,
+			urlPath: page.urlPath,
+			section,
+			content: page.content,
+		});
+	}
+
+	for (const item of navItems) {
+		if (records.has(item.urlPath)) {
+			continue;
+		}
+		records.set(item.urlPath, {
+			title: item.title,
+			description: item.description,
+			urlPath: item.urlPath,
+			section: item.section,
+			content: [item.title, item.description, item.section].filter(Boolean).join('\n\n'),
+		});
+	}
+
+	return Array.from(records.values()).sort((a, b) => a.urlPath.localeCompare(b.urlPath));
+}
+
+async function generatePagefindIndex(pages: DocPage[]): Promise<void> {
+	const { errors, index } = await pagefind.createIndex({
+		forceLanguage: 'en',
+		includeCharacters: '_:@/.-',
+	});
+
+	if (errors.length > 0) {
+		throw new Error(`Pagefind index setup failed: ${errors.join('; ')}`);
+	}
+	if (!index) {
+		throw new Error('Pagefind index setup failed without an error message');
+	}
+
+	const records = createSearchRecords(pages);
+	for (const record of records) {
+		const result = await index.addCustomRecord({
+			url: record.urlPath,
+			content: record.content,
+			language: 'en',
+			meta: {
+				title: record.title,
+				description: record.description,
+				section: record.section,
+			},
+			filters: {
+				section: [record.section],
+			},
+		});
+
+		if (result.errors.length > 0) {
+			throw new Error(`Pagefind failed to index ${record.urlPath}: ${result.errors.join('; ')}`);
+		}
+	}
+
+	await rm(PAGEFIND_OUTPUT_DIR, { recursive: true, force: true });
+	const writeResult = await index.writeFiles({ outputPath: PAGEFIND_OUTPUT_DIR });
+	if (writeResult.errors.length > 0) {
+		throw new Error(`Pagefind write failed: ${writeResult.errors.join('; ')}`);
+	}
+
+	await pagefind.close();
 }
 
 function generateLlmsTxt(pages: DocPage[]): string {
@@ -1027,9 +1158,7 @@ Services include, but are not limited to:
 - **Authentication**: sessions, API keys, bearer tokens, and OAuth apps
 - **AI Gateway**: LLM provider routing with usage and cost visibility
 - **Observability**: OpenTelemetry traces, structured logs, and session analytics
-- **Evals**: evaluation runs attached to real sessions and traces
 - **Agent-to-agent communication**: type-safe calls between agents with context propagation
-- **Workbench**: interactive testing for local and deployed agents
 
 ## Notes
 

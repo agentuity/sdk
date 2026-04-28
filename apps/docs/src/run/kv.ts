@@ -3,7 +3,7 @@
  *
  * NOTE: Intentionally separate from src/agent/kv/agent.ts.
  * Uses "explorer-sandbox" bucket with cleanup (delete) operations.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Shows direct SDK calls: set → get → delete
  * Uses unique keys per run for isolation
@@ -47,7 +47,9 @@ try {
 	console.log(`  theme: "${sessionData.preferences.theme}"`);
 	console.log(`Get: ${result.exists ? 'found' : 'not found'}`);
 	console.log(`Deleted: "${key}"`);
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 }

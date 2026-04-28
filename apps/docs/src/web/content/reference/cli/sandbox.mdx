@@ -20,6 +20,8 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox get <id>` | Get sandbox details |
 | `sandbox delete <id>` | Destroy sandbox |
 | `sandbox exec <id> -- <cmd>` | Execute in existing sandbox |
+| `sandbox pause <id>` | Pause a running sandbox |
+| `sandbox resume <id>` | Resume a paused sandbox |
 | `sandbox fs cp` | Copy files to/from sandbox |
 | `sandbox fs ls <id>` | List files in sandbox |
 | `sandbox fs mkdir <id> <path>` | Create directory |
@@ -30,11 +32,13 @@ All sandbox commands require the `cloud` prefix. For example: `agentuity cloud s
 | `sandbox snapshot` | Manage snapshots |
 | `sandbox snapshot build <dir>` | Build snapshot from declarative file |
 | `sandbox snapshot generate` | Generate template snapshot build file |
+| `sandbox checkpoint` | Manage sandbox checkpoints |
 | `sandbox execution` | View execution history |
 | `sandbox events <id>` | List sandbox lifecycle events |
 | `sandbox runtime list` | List available runtimes |
 | `sandbox env <id>` | Manage environment variables |
 | `sandbox job` | Manage background jobs |
+| `sandbox stats` | View sandbox statistics |
 
 **Aliases:**
 - `sb` → `sandbox` (e.g., `agentuity cloud sb list`)
@@ -83,10 +87,14 @@ agentuity cloud sandbox run [options] -- <command>
 | `--timeout <duration>` | Execution timeout (e.g., `30s`, `5m`) |
 | `--snapshot <id-or-tag>` | Create from snapshot |
 | `--runtime <runtime>` | Runtime name (e.g., `bun:1`, `python:3.14`) |
+| `--runtime-id <id>` | Runtime ID (e.g., `srt_xxx`) |
 | `--dependency <package>` | Apt packages to install (repeatable) |
 | `--env <KEY=VALUE>` | Environment variables (repeatable) |
-| `--file <sandbox:local>` | Files to create (repeatable) |
+| `--file <sandbox-path:local-path>` | Files to create (repeatable) |
+| `--scope <scope>` | Permission scope for service access (repeatable) |
 | `--project-id <id>` | Associate with project |
+| `--org-id <id>` | Use a specific organization |
+| `--quiet` | Suppress stdout/stderr stream output |
 | `--json` | JSON output |
 | `--timestamps` | Include timestamps in stream output |
 
@@ -103,7 +111,7 @@ agentuity cloud sandbox run --network -- python3 -c "import urllib.request; prin
 agentuity cloud sandbox run --snapshot node-typescript --memory 1Gi -- npm run build
 
 # With timeout
-agentuity cloud sandbox run --timeout 10s -- sleep 5 && echo "Done"
+agentuity cloud sandbox run --timeout 10s -- sh -c 'sleep 5 && echo "Done"'
 ```
 
 ## Interactive Sandbox
@@ -125,14 +133,17 @@ agentuity cloud sandbox create [options]
 | `--snapshot <id-or-tag>` | Create from snapshot |
 | `--idle-timeout <duration>` | Auto-destroy after idle (e.g., `1h`) |
 | `--runtime <runtime>` | Runtime name (e.g., `bun:1`, `python:3.14`) |
+| `--runtime-id <id>` | Runtime ID (e.g., `srt_xxx`) |
 | `--name <name>` | Sandbox name |
 | `--description <text>` | Sandbox description |
 | `--port <port>` | Port to expose (1024-65535) |
 | `--dependency <package>` | Apt packages to install (repeatable) |
 | `--env <KEY=VALUE>` | Environment variables (repeatable) |
-| `--file <sandbox:local>` | Files to create (repeatable) |
+| `--file <sandbox-path:local-path>` | Files to create (repeatable) |
 | `--metadata <json>` | User-defined metadata (JSON) |
+| `--scope <scope>` | Permission scope for service access (repeatable) |
 | `--project-id <id>` | Associate with project |
+| `--org-id <id>` | Use a specific organization |
 
 ```bash
 # Create with defaults
@@ -145,7 +156,7 @@ agentuity cloud sandbox create --memory 1Gi --cpu 1000m --network
 agentuity cloud sandbox create --snapshot python-ml
 
 # Create with port exposed to internet
-agentuity cloud sandbox create --port 3000 --network --name my-server
+agentuity cloud sandbox create --port 3000 --name my-server
 
 # Create associated with a project
 agentuity cloud sandbox create --project-id proj_abc123
@@ -159,7 +170,9 @@ agentuity cloud sandbox exec <sandbox-id> [options] -- <command>
 
 | Option | Description |
 |--------|-------------|
+| `--timeout <duration>` | Execution timeout (e.g., `5m`, `1h`) |
 | `--timestamps` | Include timestamps in stream output |
+| `--quiet` | Suppress stdout/stderr stream output |
 
 ```bash
 # Run commands in sequence
@@ -176,7 +189,7 @@ agentuity cloud sandbox list [options]
 
 | Option | Description |
 |--------|-------------|
-| `--status <status>` | Filter by status (`idle`, `running`, `creating`, `terminated`, `failed`) |
+| `--status <status>` | Filter by status (`creating`, `idle`, `running`, `paused`, `stopping`, `suspended`, `terminated`, `failed`) |
 | `--name <name>` | Filter by sandbox name |
 | `--mode <mode>` | Filter by mode (`oneshot`, `interactive`) |
 | `--project-id <id>` | Filter by project |
@@ -226,6 +239,17 @@ agentuity cloud sandbox rm sbx_abc123
 `sandbox rm <sandbox-id>` deletes the sandbox itself (alias for `sandbox delete`). To remove a file *inside* a sandbox, use `sandbox fs rm <sandbox-id> <path>`.
 </Callout>
 
+### Pause and Resume
+
+Pause a running sandbox, then resume it later:
+
+```bash
+agentuity cloud sandbox pause sbx_abc123
+agentuity cloud sandbox resume sbx_abc123
+```
+
+**Aliases:** `pause` also accepts `hibernate`; `resume` also accepts `wake`.
+
 ## Port Mapping
 
 Expose a port from a sandbox to the public internet. This allows you to run web servers, APIs, or any network service inside a sandbox and access it from external clients.
@@ -233,12 +257,12 @@ Expose a port from a sandbox to the public internet. This allows you to run web 
 ### Create with Port
 
 ```bash
-agentuity cloud sandbox create --port 3000 --network --name my-server
+agentuity cloud sandbox create --port 3000 --name my-server
 ```
 
 Port constraints:
 - Must be between 1024 and 65535 (no privileged ports)
-- Requires `--network` flag to enable network connectivity
+- Passing `--port` enables sandbox networking for the exposed port
 - Each sandbox can expose one port
 
 ### Access the Public URL
@@ -246,7 +270,7 @@ Port constraints:
 When you create a sandbox with `--port`, the public URL is returned directly in the create response:
 
 ```bash
-agentuity cloud sandbox create --port 3000 --network --name my-server --json
+agentuity cloud sandbox create --port 3000 --name my-server --json
 # { "sandboxId": "sbx_abc123", "status": "creating", "url": "https://my-server-abc123.agentuity.cloud", ... }
 ```
 
@@ -266,8 +290,8 @@ agentuity cloud sandbox get sbx_abc123
 ### Example: Run a Web Server
 
 ```bash
-# Create sandbox with port 3000 — the URL is returned immediately
-agentuity cloud sandbox create --port 3000 --network --name my-api
+# Create sandbox with port 3000. The URL is returned immediately.
+agentuity cloud sandbox create --port 3000 --name my-api
 # ✓ created sandbox sbx_abc123 in 1200ms
 # ℹ url: https://my-api-abc123.agentuity.cloud
 
@@ -467,8 +491,16 @@ Manage sandbox snapshots for creating pre-configured environments.
 ### Create Snapshot
 
 ```bash
-agentuity cloud sandbox snapshot create <sandbox-id> [--tag <name>]
+agentuity cloud sandbox snapshot create <sandbox-id> [options]
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--name <name>` | Display name for the snapshot |
+| `--description <text>` | Snapshot description |
+| `--tag <tag>` | Snapshot tag (defaults to `latest`) |
+| `--public` | Make the snapshot publicly accessible |
+| `--org-id <id>` | Use a specific organization |
 
 ```bash
 # Create snapshot
@@ -476,6 +508,9 @@ agentuity cloud sandbox snapshot create sbx_abc123
 
 # Create with tag
 agentuity cloud sandbox snapshot create sbx_abc123 --tag python-ml-v2
+
+# Create public snapshot
+agentuity cloud sandbox snapshot create sbx_abc123 --public
 ```
 
 ### List Snapshots
@@ -546,13 +581,16 @@ agentuity cloud sandbox snapshot build <directory> [options]
 
 | Option | Description |
 |--------|-------------|
-| `--file <file>` | Path to build file (defaults to `agentuity-snapshot.yaml`) |
+| `--file <file>` | Path to build file (defaults to `agentuity-snapshot.[json|yaml|yml]`) |
 | `--tag <tag>` | Snapshot tag (defaults to `latest`) |
 | `--name <name>` | Snapshot name (overrides build file) |
 | `--description <text>` | Snapshot description (overrides build file) |
 | `--env <KEY=VALUE>` | Environment variable substitution (repeatable) |
 | `--metadata <KEY=VALUE>` | Metadata key-value pairs (repeatable) |
 | `--force` | Force rebuild even if content unchanged |
+| `--public` | Make the snapshot public |
+| `--confirm` | Confirm public snapshot publishing |
+| `--org-id <id>` | Use a specific organization |
 
 ```bash
 # Build from current directory
@@ -636,6 +674,27 @@ agentuity cloud sandbox snapshot generate --format json > agentuity-snapshot.jso
 The generated template includes helpful comments explaining each field. See [Creating and Using Snapshots](/services/sandbox/snapshots) for workflows and use cases.
 </Callout>
 
+## Sandbox Checkpoints
+
+Use checkpoints to save and restore a sandbox filesystem without creating a reusable snapshot.
+
+```bash
+# Create a checkpoint
+agentuity cloud sandbox checkpoint create sbx_abc123 my-checkpoint
+
+# List checkpoints
+agentuity cloud sandbox checkpoint list sbx_abc123
+
+# Restore by checkpoint ID or name
+agentuity cloud sandbox checkpoint restore sbx_abc123 ckpt_def456
+agentuity cloud sandbox checkpoint restore sbx_abc123 my-checkpoint
+
+# Delete a checkpoint
+agentuity cloud sandbox checkpoint delete sbx_abc123 ckpt_def456 --confirm
+```
+
+**Alias:** `ckpt` (e.g., `agentuity cloud sandbox ckpt list sbx_abc123`)
+
 ## Execution History
 
 View past command executions within a sandbox.
@@ -687,6 +746,15 @@ agentuity cloud sandbox events sbx_abc123 --limit 10
 ```
 
 Events include lifecycle state changes such as `create`, `destroy`, `pause`, `resume`, `lifecycle:started`, `lifecycle:completed`, `lifecycle:failed`, and `lifecycle:terminated`.
+
+## Statistics
+
+View sandbox usage statistics for an organization:
+
+```bash
+agentuity cloud sandbox stats
+agentuity cloud sandbox stats --start 2026-04-01T00:00:00Z --end 2026-04-22T00:00:00Z
+```
 
 ## Common Workflows
 
@@ -829,11 +897,12 @@ agentuity cloud sandbox job create sbx_abc123 -- npm install
 ### List Jobs
 
 ```bash
-agentuity cloud sandbox job list <sandbox-id>
+agentuity cloud sandbox job list <sandbox-id> [--limit <n>]
 ```
 
 ```bash
 agentuity cloud sandbox job list sbx_abc123
+agentuity cloud sandbox job list sbx_abc123 --limit 10
 ```
 
 ### Get Job Status

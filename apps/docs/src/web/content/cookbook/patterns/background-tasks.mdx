@@ -1,29 +1,29 @@
 ---
 title: Background Tasks
-description: Use waitUntil to run work after responding to the client
+description: Use waitUntil to return quickly while background work continues
 ---
 
-Run tasks after sending a response using `waitUntil`. This keeps response times fast while handling analytics, notifications, or other fire-and-forget work.
+Use `waitUntil` for work the caller does not need to wait on, such as analytics, notifications, or cleanup. The response returns immediately while the runtime tracks the work until it finishes.
 
 ## The Pattern
 
-`waitUntil` accepts an async function that runs after the response is sent. Multiple calls run concurrently.
+`waitUntil` accepts a promise or callback. The callback starts right away, runs independently of the response, and multiple callbacks can run at the same time.
 
-This example uses [ArkType](https://arktype.io) for schema validation:
+This example uses `@agentuity/schema` for lightweight input and output validation:
 
 ```typescript title="src/agent/order-processor/agent.ts"
 import { createAgent } from '@agentuity/runtime';
-import { type } from 'arktype';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('OrderProcessor', {
   schema: {
-    input: type({
-      orderId: 'string',
-      userId: 'string',
+    input: s.object({
+      orderId: s.string(),
+      userId: s.string(),
     }),
-    output: type({
-      status: 'string',
-      orderId: 'string',
+    output: s.object({
+      status: s.literal('confirmed'),
+      orderId: s.string(),
     }),
   },
   handler: async (ctx, input) => {
@@ -48,7 +48,7 @@ const agent = createAgent('OrderProcessor', {
       await notifyWarehouse(order);
     });
 
-    // Response sent immediately, background tasks continue
+    // Response returns immediately, background tasks continue
     return {
       status: 'confirmed',
       orderId,
@@ -67,14 +67,14 @@ Create a stream for the client to poll, then populate it in the background:
 import { createAgent } from '@agentuity/runtime';
 import { streamText } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { type } from 'arktype';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('AsyncGenerator', {
   schema: {
-    input: type({ prompt: 'string' }),
-    output: type({
-      streamId: 'string',
-      streamUrl: 'string',
+    input: s.object({ prompt: s.string() }),
+    output: s.object({
+      streamId: s.string(),
+      streamUrl: s.string(),
     }),
   },
   handler: async (ctx, input) => {
@@ -117,12 +117,12 @@ Write progress updates to a stream as background work proceeds:
 
 ```typescript title="src/agent/batch-processor/agent.ts"
 import { createAgent } from '@agentuity/runtime';
-import { type } from 'arktype';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('BatchProcessor', {
   schema: {
-    input: type({ items: 'string[]' }),
-    output: type({ progressUrl: 'string' }),
+    input: s.object({ items: s.array(s.string()) }),
+    output: s.object({ progressUrl: s.string() }),
   },
   handler: async (ctx, input) => {
     const progress = await ctx.stream.create('progress', {
@@ -131,13 +131,13 @@ const agent = createAgent('BatchProcessor', {
 
     ctx.waitUntil(async () => {
       try {
-        for (let i = 0; i < input.items.length; i++) {
-          await processItem(input.items[i]);
+        for (const [index, item] of input.items.entries()) {
+          await processItem(item);
 
           await progress.write(JSON.stringify({
-            completed: i + 1,
+            completed: index + 1,
             total: input.items.length,
-            percent: Math.round(((i + 1) / input.items.length) * 100),
+            percent: Math.round(((index + 1) / input.items.length) * 100),
           }) + '\n');
         }
 
@@ -150,12 +150,14 @@ const agent = createAgent('BatchProcessor', {
     return { progressUrl: progress.url };
   },
 });
+
+export default agent;
 ```
 
 ## Key Points
 
-- **Non-blocking**: Response returns immediately, tasks run after
-- **Concurrent**: Multiple `waitUntil` calls run in parallel
+- **Non-blocking**: Response returns immediately while tracked work continues
+- **Concurrent**: Multiple `waitUntil` callbacks run at the same time
 - **Error isolation**: Background task failures don't affect the response
 - **Always close streams**: Use `finally` blocks to ensure cleanup
 

@@ -7,8 +7,17 @@ The Agentuity plugin adds auto-activated skills to [Claude Code](https://docs.an
 
 ## Installation
 
+```bash
+agentuity ai claude-code install
+```
+
+The CLI installs `@agentuity/claude-code` under `~/.agentuity/plugins/claude-code`, configures Claude Code permissions, and prints the `claude --plugin-dir ...` command to start Claude Code with the local plugin.
+
+For a permanent Claude Code marketplace install, use the commands printed by the installer:
+
 ```text
-/install agentuity
+/plugin marketplace add agentuity/sdk
+/plugin install agentuity-coder@agentuity
 ```
 
 <Callout type="info" title="Prerequisites">
@@ -23,8 +32,8 @@ Skills activate automatically based on conversation context. No slash commands n
 |-------|----------------|--------|
 | **agentuity-project** | Deploying, hosting, or creating projects | Project structure, framework migration, `agentuity deploy` |
 | **agentuity-cloud** | Working with cloud infrastructure | Platform services overview (DB, storage, queues, sandboxes, etc.) |
-| **agentuity-backend** | Using Agentuity backend packages | `@agentuity/runtime`, `@agentuity/schema`, `@agentuity/drizzle`, `@agentuity/postgres`, `@agentuity/evals` |
-| **agentuity-frontend** | Using Agentuity frontend packages | `hc()` client patterns, `@agentuity/auth`, `@agentuity/frontend`, `@agentuity/workbench`, `@agentuity/react` compatibility |
+| **agentuity-backend** | Using Agentuity backend packages | `@agentuity/runtime`, `@agentuity/schema`, `@agentuity/drizzle`, `@agentuity/postgres` |
+| **agentuity-frontend** | Using Agentuity frontend packages | `hc()` client patterns, `@agentuity/auth`, `@agentuity/frontend`, `@agentuity/react` compatibility |
 | **agentuity-ops** | Running Agentuity CLI commands | CLI reference, cloud service management, deployments |
 
 ### Example Interactions

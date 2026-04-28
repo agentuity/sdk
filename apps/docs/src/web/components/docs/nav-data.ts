@@ -76,6 +76,11 @@ export const navData: NavSection[] = [
 				description: 'Structured streaming with event types and auto-reconnect',
 			},
 			{
+				title: 'WebSocket',
+				url: '/explorer/websocket',
+				description: 'Real-time bidirectional messaging over a persistent connection',
+			},
+			{
 				title: 'Durable Streams',
 				url: '/explorer/durable-stream',
 				description: 'Generate content and get a permanent, shareable URL',
@@ -86,9 +91,9 @@ export const navData: NavSection[] = [
 				description: 'Call agents from routes or other agents',
 			},
 			{
-				title: 'Cron Jobs',
-				url: '/explorer/cron',
-				description: 'Run tasks on a schedule with cron expressions',
+				title: 'Schedules',
+				url: '/explorer/schedules',
+				description: 'Create managed schedules and inspect delivery attempts',
 			},
 			{
 				title: 'Model Arena',
@@ -96,9 +101,9 @@ export const navData: NavSection[] = [
 				description: 'Compare AI models using another AI as judge',
 			},
 			{
-				title: 'Evals',
-				url: '/explorer/evals',
-				description: 'Run evaluations after your agent responds',
+				title: 'WebRTC',
+				url: '/explorer/webrtc',
+				description: 'Audio, video, and data channels directly between browsers',
 			},
 			{
 				title: 'Queues',
@@ -163,12 +168,6 @@ export const navData: NavSection[] = [
 				description: 'Build agents with createAgent(), schemas, and handlers',
 			},
 			{
-				title: 'Workbench',
-				url: '/agents/workbench',
-				description:
-					'Use the built-in development UI to test agents, validate schemas, and debug responses',
-			},
-			{
 				title: 'Schema Libraries',
 				url: '/agents/schema-libraries',
 				description: 'Choose from built-in, Zod, Valibot, or ArkType for validation',
@@ -203,11 +202,6 @@ export const navData: NavSection[] = [
 				url: '/agents/standalone-execution',
 				description:
 					'Execute agents programmatically for cron jobs, bots, CLI tools, and background workers',
-			},
-			{
-				title: 'Evaluations',
-				url: '/agents/evaluations',
-				description: 'Automatically test and validate agent outputs for quality and compliance',
 			},
 			{
 				title: 'Events & Lifecycle',
@@ -289,12 +283,6 @@ export const navData: NavSection[] = [
 				description: 'Add user authentication with Agentuity Auth',
 			},
 			{
-				title: 'Workbench',
-				url: '/frontend/workbench',
-				description:
-					'Configure routes, authentication, and embed Workbench in custom frontends',
-			},
-			{
 				title: 'Deployment Scenarios',
 				url: '/frontend/deployment-scenarios',
 				description:
@@ -342,7 +330,7 @@ export const navData: NavSection[] = [
 						title: 'Key-Value',
 						url: '/services/storage/key-value',
 						description:
-							'Fast, ephemeral storage for caching, session data, and configuration',
+							'Fast key-based storage for caching, session data, and configuration',
 					},
 					{
 						title: 'Vector',
@@ -364,7 +352,7 @@ export const navData: NavSection[] = [
 						title: 'Custom',
 						url: '/services/storage/custom',
 						description:
-							'Local development storage and bringing your own storage implementations',
+							'Local development storage and custom runtime storage implementations',
 					},
 				],
 			},
@@ -400,13 +388,20 @@ export const navData: NavSection[] = [
 			{
 				title: 'Authentication',
 				url: '/services/authentication',
-				description: 'Session auth, API keys, and bearer tokens for agents and routes',
+				description:
+					'Choose between Sign in with Agentuity and app-owned authentication for routes and apps',
+			},
+			{
+				title: 'OIDC Provider',
+				url: '/services/oidc-provider',
+				description:
+					'Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC',
 			},
 			{
 				title: 'Coder',
 				url: '/services/coder',
 				description:
-					'Manage AI coding sessions that run in cloud sandboxes with full lifecycle, replay, and reconnect support',
+					'Run coding agents in cloud sessions you can start, inspect, share, and resume',
 			},
 			{
 				title: 'Observability',
@@ -415,7 +410,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Logging',
 						url: '/services/observability/logging',
-						description: 'Structured logging for agents and routes',
+						description: 'Collected logs for agents and routes',
 					},
 					{
 						title: 'Tracing',
@@ -465,7 +460,7 @@ export const navData: NavSection[] = [
 						title: 'Understanding Agents',
 						url: '/cookbook/tutorials/understanding-agents',
 						description:
-							'Learn how AI agents use tools, run in loops with stopping conditions, and leverage LLMs to complete tasks autonomously',
+							'Learn how AI agents use tools, run in loops with stopping conditions, and use LLMs to complete tasks autonomously',
 					},
 					{
 						title: 'RAG Agent',
@@ -497,7 +492,7 @@ export const navData: NavSection[] = [
 								title: 'Built-In Agents',
 								url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
 								description:
-									'Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session',
+									'Use enabledAgents and defaultAgent to choose which built-in Coder agents are available in a session',
 							},
 							{
 								title: 'Attach Skills',
@@ -534,7 +529,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Background Tasks',
 						url: '/cookbook/patterns/background-tasks',
-						description: 'Use waitUntil to run work after responding to the client',
+						description: 'Use waitUntil to return quickly while background work continues',
 					},
 					{
 						title: 'Chat with History',
@@ -691,11 +686,6 @@ export const navData: NavSection[] = [
 							'Send and receive emails with managed addresses and webhook destinations',
 					},
 					{
-						title: 'Evaluations',
-						url: '/reference/api/evaluations',
-						description: 'List and retrieve evaluations and their run history',
-					},
-					{
 						title: 'Key-Value Storage',
 						url: '/reference/api/key-value',
 						description: 'Store and retrieve arbitrary data by key within namespaces',
@@ -834,7 +824,7 @@ export const navData: NavSection[] = [
 						title: 'Development',
 						url: '/reference/cli/development',
 						description:
-							'Run the development server with hot reload, local mode, and the interactive Workbench.',
+							'Run the development server with hot reload, type checking, and public URL support.',
 					},
 					{
 						title: 'Getting Started',
@@ -864,7 +854,13 @@ export const navData: NavSection[] = [
 						title: 'OpenCode Plugin',
 						url: '/reference/cli/opencode-plugin',
 						description:
-							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
+							'Install the Agentuity plugin for OpenCode and configure Agentuity Coder agents',
+					},
+					{
+						title: 'Profiles',
+						url: '/reference/cli/profiles',
+						description:
+							'Use separate CLI profiles for different accounts, organizations, and environments.',
 					},
 					{
 						title: 'Sandbox',
@@ -916,11 +912,6 @@ export const navData: NavSection[] = [
 						description: 'Send emails and manage addresses with ctx.email',
 					},
 					{
-						title: 'Evaluations',
-						url: '/reference/sdk-reference/evaluations',
-						description: 'Test and validate agent outputs with built-in evaluation framework',
-					},
-					{
 						title: 'Events',
 						url: '/reference/sdk-reference/events',
 						description: 'Lifecycle hooks for monitoring agent, session, and thread events',
@@ -929,7 +920,7 @@ export const navData: NavSection[] = [
 						title: 'Observability',
 						url: '/reference/sdk-reference/observability',
 						description:
-							'Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer',
+							'Collected logs and OpenTelemetry tracing via ctx.logger and ctx.tracer',
 					},
 					{
 						title: 'Queue Service',

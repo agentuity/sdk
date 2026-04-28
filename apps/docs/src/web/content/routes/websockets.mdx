@@ -87,7 +87,11 @@ import { type Env, websocket } from '@agentuity/runtime';
 import { createMiddleware } from 'hono/factory';
 import chat from '@agent/chat/agent';
 
-const router = new Hono<Env>();
+type RouteVariables = {
+  userId: string;
+};
+
+const router = new Hono<Env & { Variables: RouteVariables }>();
 
 const authMiddleware = createMiddleware(async (c, next) => {
   const token = c.req.query('token');
@@ -206,7 +210,7 @@ Failing to clean up can cause memory leaks and unexpected behavior.
 Connect from a browser or any WebSocket client:
 
 ```javascript
-const ws = new WebSocket('wss://your-project.agentuity.cloud/agent-name');
+const ws = new WebSocket('wss://your-project.agentuity.cloud/api/chat');
 
 ws.onopen = () => {
   console.log('Connected');

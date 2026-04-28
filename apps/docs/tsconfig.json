@@ -18,11 +18,13 @@
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
 		"noPropertyAccessFromIndexSignature": false,
+		"types": ["bun-types", "vite/client"],
 		"paths": {
 			"@agent/*": ["./src/agent/*"],
 			"@api/*": ["./src/api/*"],
 			"@middleware/*": ["./src/middleware/*"]
 		}
 	},
-	"include": ["src/**/*", "app.ts"]
+	"include": ["src/**/*", "app.ts"],
+	"exclude": ["src/web/public/pagefind"]
 }

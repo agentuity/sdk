@@ -18,7 +18,7 @@ agentuity cloud ssh
 agentuity cloud ssh proj_abc123xyz
 
 # SSH into specific deployment
-agentuity cloud ssh dep_abc123xyz
+agentuity cloud ssh deploy_abc123xyz
 
 # SSH into a sandbox
 agentuity cloud ssh sbx_abc123xyz
@@ -132,7 +132,7 @@ agentuity cloud session list --project-id=proj_abc123xyz
 agentuity cloud session list --org-id=org_abc123xyz
 
 # Filter by deployment
-agentuity cloud session list --deployment-id=dep_abc123xyz
+agentuity cloud session list --deployment-id=deploy_abc123xyz
 
 # Only successful sessions
 agentuity cloud session list --success=true
@@ -245,49 +245,22 @@ Use thread inspection to:
 | `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
 | `--all` | List all threads regardless of project context |
 
-## Evaluation Commands
-
-Monitor and inspect evaluation runs to understand agent performance against test cases.
-
-List and inspect evaluations and evaluation runs:
-
-```bash
-# List all evaluations
-agentuity cloud eval list
-
-# Get details for a specific evaluation
-agentuity cloud eval get eval_abc123xyz
-
-# List evaluation runs
-agentuity cloud eval-run list
-
-# Get details for a specific run
-agentuity cloud eval-run get run_abc123xyz
-```
-
-Use evaluation commands to:
-- Monitor eval progress and results
-- Debug failing evaluations
-- Track evaluation history across deployments
-
-For more on configuring evaluations, see [Evaluations](/agents/evaluations).
-
 ## Deployment Logs
 
 Stream logs from a specific deployment:
 
 ```bash
 # View deployment logs
-agentuity cloud deployment logs dep_abc123xyz
+agentuity cloud deployment logs deploy_abc123xyz
 
 # Limit to 50 log entries
-agentuity cloud deployment logs dep_abc123xyz --limit=50
+agentuity cloud deployment logs deploy_abc123xyz --limit=50
 
 # Hide timestamps
-agentuity cloud deployment logs dep_abc123xyz --no-timestamps
+agentuity cloud deployment logs deploy_abc123xyz --no-timestamps
 
 # Specify project explicitly
-agentuity cloud deployment logs dep_abc123xyz --project-id=proj_abc123xyz
+agentuity cloud deployment logs deploy_abc123xyz --project-id=proj_abc123xyz
 ```
 
 **Log output includes:**

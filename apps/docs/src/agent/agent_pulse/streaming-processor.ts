@@ -65,6 +65,8 @@ export function createStreamingProcessor<TOOLS extends Record<string, Tool>>(
 					case 'finish-step':
 					case 'finish':
 					case 'start':
+					case 'text-start':
+					case 'text-end':
 					case 'tool-input-start':
 					case 'tool-input-delta':
 					case 'tool-input-end':

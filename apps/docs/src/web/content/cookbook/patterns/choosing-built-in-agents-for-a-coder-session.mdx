@@ -1,13 +1,13 @@
 ---
 title: Choosing Built-In Agents for a Coder Session
 short_title: Built-In Agents
-description: Use agentSlugs and defaultAgent to choose which built-in Coder agents are available in a session
+description: Use enabledAgents and defaultAgent to choose which built-in Coder agents are available in a session
 ---
 
-A session can start with only the built-in Coder agents you care about. Use `agentSlugs` to pick which built-ins are mounted, and `defaultAgent` to route prompts to a specific one instead of the normal `lead` flow. A builder-plus-reviewer pair is a common shape.
+A session can start with only the built-in Coder agents you care about. Use `enabledAgents` to choose the agent roster for a session, and `defaultAgent` when you want routed work to prefer a specific agent. A builder-plus-reviewer pair is a common shape.
 
 <Callout type="tip" title="Read the session back after creation">
-`getSession()` returns the session's lifecycle state and its `defaultAgent`. That's usually enough to confirm the session started the way you intended.
+`getSession()` returns the session's lifecycle state, `enabledAgents`, and `defaultAgent`. That's usually enough to confirm the session started the way you intended.
 </Callout>
 
 ## The Pattern
@@ -19,7 +19,7 @@ import { CoderClient } from '@agentuity/coder';
 
 const DEFAULT_TASK =
   'Inspect the repo, identify the main implementation risks, and suggest a clean next step.';
-const AGENT_SLUGS = ['builder', 'reviewer'] as const;
+const ENABLED_AGENTS = ['builder', 'reviewer'] as const;
 const DEFAULT_AGENT = 'builder';
 
 function getTask(): string {
@@ -37,12 +37,12 @@ async function main(): Promise<void> {
       workflowMode: 'standard',
       // defaultAgent: the built-in the Hub routes to when no specific agent is named
       defaultAgent: DEFAULT_AGENT, // [!code highlight]
-      // agentSlugs: the only built-ins mounted for this session; others stay hidden
-      agentSlugs: [...AGENT_SLUGS], // [!code highlight]
+      // enabledAgents: the only built-ins mounted for this session; others stay hidden
+      enabledAgents: [...ENABLED_AGENTS], // [!code highlight]
       tags: ['docs-example', 'built-in-agents'],
     });
 
-    // Read the session back to confirm the default agent and lifecycle state
+    // Read the session back to confirm the agent roster, default agent, and lifecycle state
     const session = await client.getSession(created.sessionId);
 
     console.log(
@@ -50,6 +50,7 @@ async function main(): Promise<void> {
         {
           sessionId: session.sessionId,
           workflowMode: session.workflowMode,
+          enabledAgents: session.enabledAgents,
           defaultAgent: session.defaultAgent,
           status: session.status,
           bucket: session.bucket,
@@ -75,6 +76,7 @@ void main();
 {
   "sessionId": "codesess_142090f92556",
   "workflowMode": "standard",
+  "enabledAgents": ["builder", "reviewer"],
   "defaultAgent": "builder",
   "status": "creating",
   "bucket": "provisioning"
@@ -83,7 +85,7 @@ void main();
 
 What this means:
 
-- `agentSlugs` limits which built-ins are mounted when you create the session
+- `enabledAgents` limits which built-ins are mounted when you create the session
 - `defaultAgent` tells the Hub which built-in should handle routed work by default
 - `status` and `bucket` still describe the lifecycle state of the session itself
 
@@ -91,15 +93,15 @@ What this means:
 
 The simplest mental model:
 
-- `lead` is the default orchestration posture for a normal session
-- `agentSlugs` is the set of built-in specialists mounted for this session
-- `defaultAgent` is the built-in preferred when the session isn't using the normal `lead` path
+- `enabledAgents` is the set of built-in specialists mounted for this session
+- `defaultAgent` is the preferred route target for session prompts
+- omitting both fields lets the Hub use its normal roster
 
 So if you create a session with:
 
 ```typescript
 {
-  agentSlugs: ['builder', 'reviewer'],
+  enabledAgents: ['builder', 'reviewer'],
   defaultAgent: 'builder',
 }
 ```

@@ -3,7 +3,7 @@
  *
  * NOTE: Intentionally separate from src/agent/vector/agent.ts.
  * Uses "explorer-sandbox" namespace with cleanup (delete) operations.
- * See src/run/README.md for architecture details.
+ * See src/run/AGENTS.md for architecture details.
  *
  * Shows direct SDK calls: upsert → search → cleanup
  * Uses unique keys per run for isolation
@@ -64,7 +64,9 @@ try {
 			`  - "${r.metadata?.name}" ($${r.metadata?.price}) - ${Math.round(r.similarity * 100)}%`
 		);
 	}
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 }

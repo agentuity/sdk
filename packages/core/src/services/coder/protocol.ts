@@ -28,6 +28,127 @@ export const CoderHubInitRoleSchema = z
 	);
 export type CoderHubInitRole = z.infer<typeof CoderHubInitRoleSchema>;
 
+export const CoderHubEventNames = [
+	'session_start',
+	'session_complete',
+	'session_error',
+	'session_shutdown',
+	'session_before_compact',
+	'session_compact',
+	'rpc_ready',
+	'agent_start',
+	'agent_end',
+	'agent_progress',
+	'before_agent_start',
+	'turn_start',
+	'turn_end',
+	'tool_call',
+	'tool_result',
+	'tool_execution_start',
+	'tool_execution_end',
+	'tool_execution_update',
+	'runtime_process_start',
+	'runtime_process_output',
+	'runtime_process_error',
+	'runtime_process_stop',
+	'runtime_preview_available',
+	'task_start',
+	'task_complete',
+	'task_error',
+	'message_start',
+	'message_update',
+	'message_end',
+	'thinking_start',
+	'thinking_end',
+	'session_join',
+	'session_leave',
+	'session_label_updated',
+	'presence_update',
+	'loop_state_updated',
+	'loop_started',
+	'loop_resumed',
+	'loop_paused',
+	'loop_blocked',
+	'loop_completed',
+	'loop_cancelled',
+	'coord_job_created',
+	'coord_job_completed',
+	'coord_job_failed',
+	'coord_task_ready',
+	'coord_task_claimed',
+	'coord_task_completed',
+	'coord_task_failed',
+	'coord_task_discovered',
+	'coord_file_reserved',
+	'coord_file_released',
+	'coord_file_conflict',
+	'coord_contract_provided',
+	'coord_worker_joined',
+] as const;
+export type CoderHubEventName = (typeof CoderHubEventNames)[number];
+
+export const CoderHubEventNameSchema = z
+	.enum(CoderHubEventNames)
+	.describe('Known Coder Hub lifecycle event names.');
+
+export const CoderHubEvents = {
+	SESSION_START: 'session_start',
+	SESSION_COMPLETE: 'session_complete',
+	SESSION_ERROR: 'session_error',
+	SESSION_SHUTDOWN: 'session_shutdown',
+	SESSION_BEFORE_COMPACT: 'session_before_compact',
+	SESSION_COMPACT: 'session_compact',
+	RPC_READY: 'rpc_ready',
+	AGENT_START: 'agent_start',
+	AGENT_END: 'agent_end',
+	AGENT_PROGRESS: 'agent_progress',
+	BEFORE_AGENT_START: 'before_agent_start',
+	TURN_START: 'turn_start',
+	TURN_END: 'turn_end',
+	TOOL_CALL: 'tool_call',
+	TOOL_RESULT: 'tool_result',
+	TOOL_EXECUTION_START: 'tool_execution_start',
+	TOOL_EXECUTION_END: 'tool_execution_end',
+	TOOL_EXECUTION_UPDATE: 'tool_execution_update',
+	RUNTIME_PROCESS_START: 'runtime_process_start',
+	RUNTIME_PROCESS_OUTPUT: 'runtime_process_output',
+	RUNTIME_PROCESS_ERROR: 'runtime_process_error',
+	RUNTIME_PROCESS_STOP: 'runtime_process_stop',
+	RUNTIME_PREVIEW_AVAILABLE: 'runtime_preview_available',
+	TASK_START: 'task_start',
+	TASK_COMPLETE: 'task_complete',
+	TASK_ERROR: 'task_error',
+	MESSAGE_START: 'message_start',
+	MESSAGE_UPDATE: 'message_update',
+	MESSAGE_END: 'message_end',
+	THINKING_START: 'thinking_start',
+	THINKING_END: 'thinking_end',
+	SESSION_JOIN: 'session_join',
+	SESSION_LEAVE: 'session_leave',
+	SESSION_LABEL_UPDATED: 'session_label_updated',
+	PRESENCE_UPDATE: 'presence_update',
+	LOOP_STATE_UPDATED: 'loop_state_updated',
+	LOOP_STARTED: 'loop_started',
+	LOOP_RESUMED: 'loop_resumed',
+	LOOP_PAUSED: 'loop_paused',
+	LOOP_BLOCKED: 'loop_blocked',
+	LOOP_COMPLETED: 'loop_completed',
+	LOOP_CANCELLED: 'loop_cancelled',
+	COORD_JOB_CREATED: 'coord_job_created',
+	COORD_JOB_COMPLETED: 'coord_job_completed',
+	COORD_JOB_FAILED: 'coord_job_failed',
+	COORD_TASK_READY: 'coord_task_ready',
+	COORD_TASK_CLAIMED: 'coord_task_claimed',
+	COORD_TASK_COMPLETED: 'coord_task_completed',
+	COORD_TASK_FAILED: 'coord_task_failed',
+	COORD_TASK_DISCOVERED: 'coord_task_discovered',
+	COORD_FILE_RESERVED: 'coord_file_reserved',
+	COORD_FILE_RELEASED: 'coord_file_released',
+	COORD_FILE_CONFLICT: 'coord_file_conflict',
+	COORD_CONTRACT_PROVIDED: 'coord_contract_provided',
+	COORD_WORKER_JOINED: 'coord_worker_joined',
+} as const satisfies Record<string, CoderHubEventName>;
+
 /** Tool definition provided by the server to clients */
 export const CoderHubToolDefinitionSchema = z
 	.object({
@@ -70,6 +191,12 @@ export const AgentDefinitionSchema = z
 			.string()
 			.optional()
 			.describe('Human-friendly name shown in UIs; defaults to name if omitted.'),
+		source: z
+			.enum(['builtin', 'custom'])
+			.optional()
+			.describe(
+				'Whether this agent is part of the built-in roster or a custom user-defined agent.'
+			),
 		description: z.string().describe('Summary of the agent role and capabilities.'),
 		systemPrompt: z
 			.string()
@@ -99,6 +226,12 @@ export const AgentDefinitionSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Capability tags advertising what this agent can do (e.g. "code", "review").'),
+		strictToolSelection: z
+			.boolean()
+			.optional()
+			.describe(
+				'When true, unknown or unmatched tool names should not widen the effective Pi tool allowlist.'
+			),
 		status: z
 			.enum(['available', 'busy', 'offline'])
 			.optional()

@@ -54,10 +54,14 @@ export default createAgent('chat', {
 });
 ```
 
-Mastra handles the LLM interaction and tool orchestration. Agentuity provides per-conversation state via `ctx.thread.state` (with a sliding window to cap history size), structured logging, and deployment.
+Mastra handles the LLM interaction and tool orchestration. Agentuity provides per-conversation state via `ctx.thread.state` (with a sliding window to cap history size), logs with searchable context, and deployment.
 
-<Callout type="info" title="AI Gateway">
-When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/agents/ai-gateway) automatically. Set `OPENAI_BASE_URL` to point at the gateway, and Mastra uses it without code changes. See the [gateway bridge](#ai-gateway-bridge) section below.
+<Callout type="info" title="AI Gateway routing is automatic">
+When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/agents/ai-gateway) unless you provide your own OpenAI key. No bridge file is needed.
+</Callout>
+
+<Callout type="tip" title="Older examples may still show a bridge helper">
+Some older Mastra examples in the examples repo still include `src/lib/gateway.ts` to set `OPENAI_API_KEY` and `OPENAI_BASE_URL` explicitly. That helper is optional with the current SDK when you run through `agentuity dev` or a deployed Agentuity build.
 </Callout>
 
 ## Tool Calling
@@ -71,20 +75,56 @@ import { createTool } from '@mastra/core/tools';
 import { Agent } from '@mastra/core/agent';
 import { z } from 'zod';
 
-// Zod schema for tool input, used by the LLM to understand parameters
+// Validate API responses before returning tool output
+const GeoResponse = z.object({
+  results: z.array(z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+  })).optional(),
+});
+
+const WeatherResponse = z.object({
+  current: z.object({ temperature_2m: z.number() }),
+});
+
+// Tool input schema is shown to the LLM for parameter selection
 const weatherTool = createTool({
   id: 'get-weather',
   description: 'Fetches current weather for a location',
   inputSchema: z.object({
     location: z.string().describe('City or location name'),
   }),
-  execute: async ({ location }: { location: string }) => {
+  execute: async ({ location }) => {
     const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`);
-    const { results } = await geo.json();
-    const { latitude, longitude } = results[0];
+    if (!geo.ok) {
+      return `Unable to look up ${location}: ${geo.status}`;
+    }
+
+    const geoJson: unknown = await geo.json().catch(() => undefined);
+    const geoData = GeoResponse.safeParse(geoJson);
+    if (!geoData.success) {
+      return `Unable to read location data for ${location}`;
+    }
+
+    const firstResult = geoData.data.results?.[0];
+
+    if (!firstResult) {
+      return `No weather data found for ${location}`;
+    }
+
+    const { latitude, longitude } = firstResult;
     const weather = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m`);
-    const data = await weather.json();
-    return `${location}: ${data.current.temperature_2m}°C`;
+    if (!weather.ok) {
+      return `Unable to fetch weather for ${location}: ${weather.status}`;
+    }
+
+    const weatherJson: unknown = await weather.json().catch(() => undefined);
+    const data = WeatherResponse.safeParse(weatherJson);
+    if (!data.success) {
+      return `Unable to read weather data for ${location}`;
+    }
+
+    return `${location}: ${data.data.current.temperature_2m}°C`;
   },
 });
 
@@ -105,20 +145,19 @@ import { s } from '@agentuity/schema';
 export default createAgent('weather', {
   schema: {
     input: s.object({ message: s.string() }),
-    output: s.object({ response: s.string(), tokens: s.number() }),
+    output: s.object({ response: s.string() }),
   },
   handler: async (ctx, { message }) => {
     ctx.logger.info('Weather request', { message });
     const result = await weatherAgent.generate(message);
-    const tokens = (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0);
-    return { response: result.text, tokens };
+    return { response: result.text };
   },
 });
 ```
 
 - Mastra tools use `createTool()` with Zod schemas for parameter validation
 - `result.text` contains the LLM's final response after all tool calls complete
-- `result.usage?.inputTokens` and `outputTokens` track token consumption per request
+- `result.usage` contains token usage when the model provider returns it
 
 ## Structured Output
 
@@ -169,7 +208,8 @@ export default createAgent('day-planner', {
       structuredOutput: { schema: DayPlanSchema }, // [!code highlight]
     });
 
-    const plan = result.object; // typed as z.infer<typeof DayPlanSchema> // [!code highlight]
+    // result.object is typed from DayPlanSchema
+    const plan = result.object; // [!code highlight]
     ctx.logger.info('Plan generated', {
       blocks: plan?.plan.length,
       activities: plan?.plan.reduce((sum, b) => sum + b.activities.length, 0),
@@ -186,30 +226,9 @@ Access the parsed output via `result.object` instead of `result.text`. The two s
 Use Zod for Mastra's `structuredOutput` (LLM validation) and `@agentuity/schema` for Agentuity's I/O layer (API validation). They serve different purposes: Zod tells the LLM what shape to return, while `s` validates HTTP request/response payloads.
 </Callout>
 
-## AI Gateway Bridge
-
-Mastra uses standard OpenAI-compatible environment variables. To route LLM calls through the [AI Gateway](/agents/ai-gateway) when deployed, add a gateway bridge file:
-
-```typescript title="src/lib/gateway.ts"
-// Route Mastra's OpenAI calls through the Agentuity AI Gateway
-if (!process.env.OPENAI_API_KEY && process.env.AGENTUITY_SDK_KEY) {
-  const gw = process.env.AGENTUITY_AIGATEWAY_URL ?? 'https://catalyst.agentuity.cloud';
-  process.env.OPENAI_API_KEY = process.env.AGENTUITY_SDK_KEY;
-  process.env.OPENAI_BASE_URL = `${gw}/gateway/openai`;
-}
-```
-
-Import this file at the top of your agent modules:
-
-```typescript
-import '../lib/gateway';
-```
-
-When running locally with your own OpenAI key, the bridge is skipped. When deployed on Agentuity, LLM calls route through the gateway for unified billing and observability.
-
 ## Full Examples
 
-Each example is a complete project with agent code, React frontend, API routes, and evals:
+Each example is a complete project with agent code, a React frontend, and API routes:
 
 | Example | Pattern | Source |
 |---------|---------|--------|
@@ -224,5 +243,5 @@ Each example is a complete project with agent code, React frontend, API routes, 
 
 - [State Management](/agents/state-management): All state scopes (request, thread, global)
 - [AI Gateway](/agents/ai-gateway): Provider configuration and supported models
-- [Evaluations](/agents/evaluations): Test and validate agent outputs
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Test and validate agent outputs
 - [Chat with History](/cookbook/patterns/chat-with-history): Same pattern using the Vercel AI SDK directly

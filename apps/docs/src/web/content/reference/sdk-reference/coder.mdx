@@ -93,6 +93,22 @@ const session = await client.createSession({
 console.log(session.sessionId);
 ```
 
+### createAgentBuilderSession(body)
+
+Create a dedicated agent-builder session for creating or editing custom agents.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.label` | `string` | no | Builder session label override |
+| `body.prompt` | `string` | no | Optional focus prompt for the builder kickoff |
+| `body.mode` | `'new' \| 'edit' \| 'from_session'` | no | Builder launch mode. Inferred from IDs when omitted |
+| `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Builder session visibility |
+| `body.sourceSessionId` | `string` | required for `from_session` | Source session identifier |
+| `body.targetAgentId` | `string` | required for `edit` unless `targetAgentSlug` is set | Target custom-agent ID |
+| `body.targetAgentSlug` | `string` | required for `edit` unless `targetAgentId` is set | Target custom-agent slug |
+
+**Returns:** `Promise<CoderCreateSessionResponse>`
+
 ### getSession(sessionId)
 
 Retrieve a session by ID.
@@ -118,6 +134,8 @@ Update an existing session.
 | `body.agent` | `string` | no | Updated default agent |
 | `body.defaultAgent` | `string` | no | Updated preferred default agent identifier |
 | `body.visibility` | `'private' \| 'organization' \| 'collaborate'` | no | Updated visibility |
+| `body.workflowMode` | `'standard' \| 'loop'` | no | Updated workflow mode |
+| `body.loop` | `CoderSessionLoopConfig` | no | Updated loop-mode configuration |
 | `body.tags` | `string[]` | no | Updated tag set |
 | `body.enabledAgents` | `string[]` | no | Updated session agent roster |
 | `body.skills` | `CoderSkillRef[]` | no | Updated attached skills for the session |
@@ -327,6 +345,70 @@ Retrieve a workspace by ID.
 Delete a workspace.
 
 **Returns:** `Promise<void>`
+
+## Custom Agents
+
+### listCustomAgents(options?)
+
+List custom agents in the organization library.
+
+**`options` fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `includeArchived` | `boolean` | Include archived custom agents |
+
+**Returns:** `Promise<CoderCustomAgentListResponse>`
+
+### getCustomAgent(agentIdOrSlug)
+
+Retrieve a custom agent by ID or slug.
+
+**Returns:** `Promise<CoderCustomAgent>`
+
+### createCustomAgent(body)
+
+Create a new custom-agent draft.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `body.slug` | `string` | yes | Stable custom agent slug |
+| `body.displayName` | `string` | yes | Human-readable custom agent name |
+| `body.instructions` | `string` | yes | Standalone custom-agent system prompt |
+| `body.description` | `string` | no | Optional description |
+| `body.model` | `string` | no | Optional model override |
+| `body.thinkingLevel` | `'off' \| 'minimal' \| 'low' \| 'medium' \| 'high' \| 'xhigh'` | no | Optional thinking level override |
+| `body.headlessCompatible` | `boolean` | no | Whether the custom agent is safe for non-interactive callers |
+| `body.tools` | `CoderCustomAgentTool[]` | no | Workspace tools to grant |
+| `body.serviceTools` | `CoderCustomAgentServiceTool[]` | no | Service tools to grant |
+| `body.savedSkillIds` | `string[]` | no | Saved skill IDs to snapshot onto the custom agent |
+| `body.companionAgents` | `string[]` | no | Agent names to auto-include alongside this custom agent |
+
+**Returns:** `Promise<CoderCustomAgent>`
+
+### updateCustomAgent(agentIdOrSlug, body)
+
+Update an existing custom-agent draft. All body fields are optional; nullable fields such as `description`, `model`, and `thinkingLevel` can be set to `null` to clear them.
+
+**Returns:** `Promise<CoderCustomAgent>`
+
+### publishCustomAgent(agentIdOrSlug)
+
+Publish the latest draft as an immutable custom-agent version.
+
+**Returns:** `Promise<CoderCustomAgent>`
+
+### archiveCustomAgent(agentIdOrSlug)
+
+Archive a custom agent from the organization library.
+
+**Returns:** `Promise<CoderCustomAgent>`
+
+### listCustomAgentVersions(agentIdOrSlug)
+
+List published versions for a custom agent.
+
+**Returns:** `Promise<CoderCustomAgentVersionListResponse>`
 
 ## Skills
 

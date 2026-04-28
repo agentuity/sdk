@@ -283,7 +283,7 @@ s.coerce.date().parse('not-a-date'); // throws: Cannot coerce string to date
 
 ## JSON Schema Conversion
 
-Convert between `@agentuity/schema` schemas and JSON Schema (Draft 7). This is useful for LLM structured output, API documentation, and interoperability with tools that consume JSON Schema.
+Convert between `@agentuity/schema` schemas and a JSON Schema Draft 7 subset. This is useful for LLM structured output, API documentation, and interoperability with tools that consume JSON Schema.
 
 `toJSONSchema()` converts a schema to a JSON Schema object:
 
@@ -315,7 +315,7 @@ const strictSchema = s.toJSONSchema(UserSchema, { strict: true });
 // Adds additionalProperties: false to the object, required by some LLM providers
 ```
 
-`fromJSONSchema()` converts a JSON Schema object back into a schema, supporting round-trip conversion:
+`fromJSONSchema()` converts supported JSON Schema objects back into schemas, including the shapes emitted by `toJSONSchema()`:
 
 ```typescript
 const jsonSchema = {

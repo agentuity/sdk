@@ -8,13 +8,13 @@ Upgrading from v1 to v2? v2 replaces the old generated entry flow with an explic
 
 ## What's Changed in v2
 
-v2 introduces six fundamental architectural changes:
+v2 introduces seven fundamental architectural changes:
 
 ### 1. Agents are Declarative
 
 **v1**: Agents were auto-discovered from `src/agent/*/agent.ts` files at runtime.
 
-**v2**: Import agents explicitly into `createApp()`. This keeps the registered agents visible in one place and ensures they are included for runtime registration, workbench metadata, and agent-to-agent calls:
+**v2**: Import agents explicitly into `createApp()`. This keeps the registered agents visible in one place and ensures they are included for runtime registration and agent-to-agent calls:
 
 ```typescript
 // app.ts
@@ -40,7 +40,7 @@ createApp({
 ```
 
 **v2**: Use standard patterns:
-- **Initialization**: Module-level code (runs when file loads)
+- **Initialization**: Module-level code for env-independent setup, agent `setup()` for env-dependent SDK clients
 - **Cleanup**: `registerShutdownHook()` or Bun process hooks
 
 ### 3. Explicit Router for Typed Mounts
@@ -165,18 +165,49 @@ export default defineConfig({
 import { createApp } from '@agentuity/runtime';
 
 export default await createApp({
-  analytics: true,      // or { trackClicks: false, ... }
-  workbench: true,      // or '/debug' for custom route
+  analytics: true, // or { trackClicks: false, ... }
 });
 ```
 
 <Callout type="warning" title="Add Your Frontend Plugin">
-v2 doesn't include a default Vite plugin. You must add the plugin for your frontend framework:
+The CLI creates a React fallback config only when `vite.config.ts` is missing. Existing config files are passed to Vite directly, so include the plugin for your frontend framework:
 - **React**: `@vitejs/plugin-react`
 - **Vue**: `@vitejs/plugin-vue`
 - **Svelte**: `@sveltejs/vite-plugin-svelte`
 - **Solid**: `vite-plugin-solid`
 </Callout>
+
+### 7. Move Env-Dependent Agent Clients into setup()
+
+**v1**: Agent files often constructed SDK clients at module scope.
+
+**v2**: The build system imports agent files to read metadata. Keep clients that need environment variables inside agent `setup()` so build-time discovery does not require those variables:
+
+```typescript
+import OpenAI from 'openai';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export default createAgent('chat', {
+  schema: {
+    input: s.object({ prompt: s.string() }),
+    output: s.object({ answer: s.string() }),
+  },
+  setup: async () => ({
+    client: new OpenAI(),
+  }),
+  handler: async (ctx, input) => {
+    const completion = await ctx.config.client.chat.completions.create({
+      model: 'gpt-5.4-nano',
+      messages: [{ role: 'user', content: input.prompt }],
+    });
+
+    return {
+      answer: completion.choices[0]?.message?.content ?? '',
+    };
+  },
+});
+```
 
 <Callout type="tip" title="Why These Changes?">
 These changes make v2 more explicit and predictable:
@@ -223,7 +254,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 | `shutdown` in `createApp()` | Guidance to move cleanup into `registerShutdownHook()` or Bun process hooks |
 | No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
 | `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render |
-| `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
+| `agentuity.config.ts` has runtime settings | Remove — keep them in `createApp()` |
 | `agentuity.config.ts` empty | Can be deleted |
 
 ### Manual (instructions only, no auto-transform)
@@ -289,14 +320,14 @@ export default router;
 ```
 
 <Callout type="tip" title="Enables Hono RPC Client">
-The chained style allows you to use `hc<ApiRouter>()` from `hono/client` for fully typed API calls from your frontend:
+The chained style lets `hc<ApiRouter>()` from `hono/client` infer route types in your frontend:
 
 ```typescript
 import { hc } from 'hono/client';
 import type { ApiRouter } from './api';
 
 const client = hc<ApiRouter>('/api');
-const res = await client.hello.$get(); // Fully typed!
+const res = await client.hello.$get();
 ```
 </Callout>
 
@@ -319,7 +350,7 @@ import { createApp } from '@agentuity/runtime';
 
 export default createApp({
   setup: async (ctx) => {
-    // Initialize database, connections, etc.
+    // Initialize database and connections
     ctx.app.db = await connectDB();
   },
   shutdown: async (ctx) => {
@@ -350,7 +381,7 @@ export default await createApp({
 #### Configuration Consolidation
 
 Move all configuration from `agentuity.config.ts` to either:
-- `createApp()` in `app.ts` for runtime config (analytics, workbench, cors, compression)
+- `createApp()` in `app.ts` for runtime config (analytics, cors, compression)
 - `vite.config.ts` for build config (plugins, define, render)
 
 **Before (v1):**
@@ -377,8 +408,7 @@ export default defineConfig({
 import { createApp } from '@agentuity/runtime';
 
 export default await createApp({
-  analytics: true,
-  workbench: true
+  analytics: true
 });
 ```
 

@@ -1,9 +1,11 @@
 ---
 title: Coder
-description: Manage AI coding sessions that run in cloud sandboxes with full lifecycle, replay, and reconnect support
+description: Run coding agents in cloud sessions you can start, inspect, share, and resume
 ---
 
-Agentuity Coder runs AI coding sessions on a durable Hub where humans, apps, and agents all subscribe to the same event stream. Sessions carry full lifecycle state, a participant model, and a durable event log you can inspect or attach to from the SDK, CLI, or web app.
+Agentuity Coder is the session layer around coding agents. It runs coding agents in cloud sandboxes, gives each run a durable Hub, and lets humans, apps, and other agents attach to the same stream from the SDK, API, CLI/TUI, or web app.
+
+Use Coder when coding work needs to survive the terminal that started it: start a session from an app or internal tool, inspect it later, resume it after a disconnect, or let teammates watch the same session.
 
 <Callout type="tip" title="Standalone Package">
 Use the [`@agentuity/coder`](/reference/standalone-packages#coder) package to manage sessions from any Node.js or Bun application without the full runtime.
@@ -13,19 +15,20 @@ Use the [`@agentuity/coder`](/reference/standalone-packages#coder) package to ma
 
 | Approach | Best For |
 |----------|----------|
-| **Coder sessions** | Coding work that should run in a cloud sandbox and remain available as a session you can inspect, resume, or review later |
+| **Coder sessions** | Coding work that should run in a cloud sandbox and remain available as a session you can inspect, resume, share, or drive from another app |
 | [Claude Code/Cowork plugin](/reference/cli/claude-code-plugin) | Agentuity skills inside Claude Code and Cowork for SDK work, cloud services, and deploys. It does not manage Coder sessions. |
 | [OpenCode plugin](/reference/cli/opencode-plugin) | Agentuity multi-agent workflows inside OpenCode with specialized agents, slash commands, and headless runs. It is separate from managed Coder session lifecycle. |
 | [Sandbox service](/services/sandbox) | One-off isolated execution when you do not need Coder session state, replay, or reconnect flows |
 
-Use Coder when you want the unit of work to be a session with history, lifecycle, and reconnect semantics, not just a sandbox process.
+Use Coder when the unit of work is a shared session with history, lifecycle, and reconnect semantics, not just a sandbox process.
 
 ## Managing Sessions
 
 | Method | Best For |
 |--------|----------|
-| **SDK** (`CoderClient`) | Programmatic session management from your app, automation, or internal tooling |
-| **CLI** (`agentuity coder`) | Starting, attaching to, and driving sessions from the terminal |
+| **SDK** (`CoderClient`) | Programmatic session management from your app, automation, internal tooling, or another agent |
+| **[REST API](/reference/api/coder)** | Creating or inspecting sessions from services that do not use the SDK |
+| **CLI/TUI** (`agentuity coder`) | Starting, attaching to, and driving sessions from the terminal through [Pi](https://pi.dev/) |
 | **[Web App](https://app.agentuity.com)** | Inspecting session state, replay, and history from a browser |
 
 <Callout type="info" title="Hub URL is discovered when not explicitly set">
@@ -44,7 +47,7 @@ A Coder session has three components:
 2. **Agent**: An AI coding agent that connects to the Hub and executes tasks
 3. **Sandbox**: An isolated cloud environment where the agent writes, builds, and tests code
 
-Sessions support multiple participants: the primary agent, sub-agents that split work, and observers that stream the session transcript in real time.
+Sessions support multiple participants: the primary agent, sub-agents that split work, teammates in the web app, a terminal TUI, SDK/API clients, and observers that stream the session in real time.
 
 ## Agents and Skills
 
@@ -54,7 +57,9 @@ Coder has a few different layers that are easy to mix up:
 - **System skills** are Hub-managed skills that the platform injects automatically
 - **Saved skills and skill buckets** are user-managed selections you attach to sessions or workspaces
 
-If you want to choose which built-in specialists are available in a session, use `agentSlugs` and `defaultAgent`.
+Use `enabledAgents` to choose the agent roster for a session or workspace. Use `defaultAgent` when you want routed work to prefer a specific agent.
+
+Workspaces bundle the setup a coding session needs: repositories, saved skills, skill buckets, and agent selections. Custom agents let you package reusable domain knowledge, tools, service access, and companion agents. Use `createAgentBuilderSession()` when you want Agent Builder to help create or update a reusable custom agent programmatically.
 
 ## Reading Session State
 
@@ -62,8 +67,8 @@ When you inspect a session from the SDK or CLI, these fields do most of the work
 
 | Field | What It Tells You |
 |------|--------------------|
-| `status` | The current lifecycle state, such as creating, active, paused, or archived |
-| `bucket` | The broader lifecycle bucket, which is useful when grouping sessions in a UI |
+| `status` | The current service-provided lifecycle state, such as creating, provisioning, active, or paused |
+| `bucket` | The broader lifecycle bucket: running, paused, provisioning, or history |
 | `runtimeAvailable` | Whether the runtime is currently available for live interaction |
 | `controlAvailable` | Whether a controller client can actively drive the session |
 | `wakeAvailable` | Whether the session can be resumed or woken back up |
@@ -83,7 +88,7 @@ In practice:
 |------|------------|
 | One session's current state | `getSession()` |
 | A dashboard or picker of many sessions | `listSessions()` |
-| Sessions available to resume | `listConnectableSessions()` |
+| Running or resumable sessions that clients can attach to | `listConnectableSessions()` |
 | Wake a paused session before attaching | `prepareSessionForRemoteAttach()` |
 | Catch a late-joining client up to current state | `getReplay()` |
 | Build a structured timeline or audit view | `listEventHistory()` |
@@ -171,7 +176,7 @@ const loopState = await client.getLoopState(sessionId);
 
 ### Workspaces and Skills
 
-Workspaces group repositories and skills into reusable configurations that can be attached to sessions.
+Workspaces group repositories, skills, and agent selections into reusable configurations that can be attached to sessions.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -182,7 +187,7 @@ const client = new CoderClient();
 const workspace = await client.createWorkspace({
   name: 'Auth System',
   description: 'OAuth and session management',
-  agentSlugs: ['builder', 'reviewer'],
+  enabledAgents: ['builder', 'reviewer'],
 });
 
 // Save a reusable skill
@@ -260,23 +265,24 @@ See [Coder CLI Commands](/reference/cli/coder) for the full command reference.
 
 ### Session Modes
 
-Running `agentuity coder tui` with no extra flags launches the interactive terminal session. Using `agentuity coder tui --sandbox <task>` creates a cloud sandbox session and attaches to it. Using `agentuity coder tui --remote <session_id>` attaches to an existing remote session.
+Running `agentuity coder tui` with no extra flags launches the interactive terminal session. Using `agentuity coder tui --sandbox <task>` creates a cloud sandbox session and attaches to it. Using `agentuity coder tui --remote <session_id>` attaches to an existing connectable session, and bare `--remote` opens the session picker.
 
 | Mode | Description |
 |------|-------------|
 | `tui` | Interactive agent in your local terminal |
 | `sandbox` | Agent runs in a cloud sandbox; observe via CLI or web |
-| `remote` | Attach to a running cloud session by ID |
+| `remote` | Attach to an existing connectable cloud session |
 
 ## Session Lifecycle
 
-| State | Description |
-|-------|-------------|
-| **Created** | Session initialized, waiting for agent to connect |
-| **Active** | Agent is connected and working |
-| **Idle** | Agent has finished the current task, waiting for new instructions |
-| **Paused** | Agent disconnected, sandbox suspended. Resume with `resumeSession()` or `--remote` |
-| **Archived** | Session ended, session history remains available for replay and inspection |
+`status` is a detailed string from the Coder service. For UI grouping, use the SDK's `bucket` field.
+
+| Bucket | Description |
+|--------|-------------|
+| `provisioning` | Session is being created or waiting for its runtime to come online |
+| `running` | Runtime is live or expected to be live |
+| `paused` | Runtime is offline, but the session may still be wakeable |
+| `history` | Session is replay-only; use replay or event history instead of live attach |
 
 ## Connecting via Plugins
 

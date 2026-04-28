@@ -1,11 +1,48 @@
 ---
 title: Services
-description: Storage, messaging, observability, and infrastructure services
+description: Identity, storage, messaging, observability, and execution services
 ---
 
-import { Database, Search, HardDrive, Server, Activity, Eye, FileText, Route, Bug, Box, Camera, Mail, Webhook, ListTodo, Clock, MessageSquare, BrainCircuit } from 'lucide-react';
+import {
+  Activity,
+  Box,
+  BrainCircuit,
+  Bug,
+  Camera,
+  Clock,
+  Database,
+  Eye,
+  FileText,
+  HardDrive,
+  KeyRound,
+  ListTodo,
+  Mail,
+  MessageSquare,
+  Route,
+  Search,
+  Server,
+  ShieldCheck,
+  Webhook,
+} from 'lucide-react';
 
-Agentuity provides built-in services for storage, messaging, observability, and code execution. These pages cover patterns, configuration, and best practices. For method signatures and return types, see the [SDK Reference](/reference/sdk-reference).
+Agentuity provides built-in services for identity, storage, messaging, observability, and code execution. These pages cover patterns, configuration, and best practices. For method signatures and return types, see the [SDK Reference](/reference/sdk-reference).
+
+## Identity
+
+<Cards>
+  <CardLink
+    href="/services/oidc-provider"
+    title="Sign in with Agentuity"
+    description="Authenticate users with Agentuity accounts and OAuth scopes"
+    icon={<KeyRound />}
+  />
+  <CardLink
+    href="/services/authentication"
+    title="Authentication"
+    description="Choose between OIDC and app-owned auth with sessions, API keys, or bearer tokens"
+    icon={<ShieldCheck />}
+  />
+</Cards>
 
 ## Storage
 

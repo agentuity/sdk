@@ -19,14 +19,15 @@ export default defineConfig({
 
 ### plugins
 
-Add Vite plugins for frontend builds (`src/web/`). Plugins run after built-in plugins (React, environment variables).
+Add Vite plugins for frontend builds (`src/web/`). The CLI passes your `vite.config.ts` to Vite directly. If the file is missing, the CLI writes a React fallback config for older projects.
 
 ```typescript
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [tailwindcss()],
+  plugins: [react(), tailwindcss()],
 });
 ```
 
@@ -52,36 +53,30 @@ export default defineConfig({
 ```
 
 <Callout type="warning" title="Reserved Keys">
-These keys are set by the build system and will override any user-defined values:
-- `import.meta.env.AGENTUITY_PUBLIC_*` (Agentuity internal variables)
+The development asset server sets these keys for Agentuity internals. Avoid redefining them in your Vite config:
+- specific `import.meta.env.AGENTUITY_PUBLIC_*` keys that Agentuity injects internally
 - `process.env.NODE_ENV`
 </Callout>
 
-### workbench
-
-Workbench is now configured via `createApp()` in your `app.ts`, not in the build config. See [Testing with Workbench](/agents/workbench) for usage.
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-
-const app = await createApp({
-  workbench: true, // Enables at /workbench
-});
-
-export default app;
-```
-
-Omit the `workbench` option to disable Workbench.
-
 ## Environment Variables
 
-Environment variables with these prefixes are available in frontend code:
+Vite exposes `VITE_*` variables to frontend code by default. Agentuity's dev server and generated environment types also recognize these public prefixes:
 
 | Prefix | Description |
 |--------|-------------|
 | `VITE_*` | Standard Vite convention |
 | `AGENTUITY_PUBLIC_*` | Agentuity convention |
 | `PUBLIC_*` | Short form |
+
+For deployed frontend builds, add `envPrefix` if you want to expose `AGENTUITY_PUBLIC_*` or `PUBLIC_*` variables:
+
+```typescript
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
+});
+```
 
 ```typescript
 // .env.local
@@ -102,7 +97,6 @@ Agentuity uses a hybrid build system:
 | Component | Tool | Output |
 |-----------|------|--------|
 | Frontend (`src/web/`) | Vite | `.agentuity/client/` |
-| Workbench | Vite | `.agentuity/workbench/` |
 | Server (agents, routes) | Bun | `.agentuity/app.js` |
 
 This separation allows Vite's optimizations for frontend (HMR, tree-shaking, CSS processing) while using Bun's fast bundling for server code.
@@ -113,11 +107,14 @@ For details on how these components interact during development, see [Dev Server
 
 ```typescript title="vite.config.ts"
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   // Vite plugins for frontend
-  plugins: [tailwindcss()],
+  plugins: [react(), tailwindcss()],
+
+  envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 
   // Build-time constants
   define: {

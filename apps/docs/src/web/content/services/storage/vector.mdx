@@ -42,7 +42,7 @@ Store documents with automatic embedding generation. The `upsert` operation is i
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('KnowledgeLoader', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     // Upsert with text (auto-generates embeddings)
     const results = await ctx.vector.upsert('knowledge-base',
       {
@@ -82,7 +82,7 @@ TTL is enforced only in cloud deployments. During local development, vectors per
 ```typescript
 await ctx.vector.upsert('custom-embeddings', {
   key: 'embedding-1',
-  embeddings: [0.1, 0.2, 0.3, 0.4, ...],
+  embeddings: [0.12, 0.34, 0.56, 0.78],
   metadata: { source: 'external' },
   ttl: null,  // never expires
 });
@@ -97,7 +97,7 @@ Find semantically similar documents:
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('SemanticSearch', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     const results = await ctx.vector.search('knowledge-base', {
       query: 'What is an AI agent?',
       limit: 5,
@@ -110,7 +110,7 @@ const agent = createAgent('SemanticSearch', {
       results: results.map(r => ({
         key: r.key,
         similarity: r.similarity,
-        title: r.metadata?.title,
+        metadata: r.metadata,
         expiresAt: r.expiresAt,  // ISO timestamp when vector expires
       })),
     };
@@ -128,7 +128,7 @@ Retrieve a specific vector by key without similarity search:
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('DocumentRetriever', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     const result = await ctx.vector.get('knowledge-base', 'doc-1');
 
     if (result.exists) {
@@ -152,7 +152,7 @@ Retrieve multiple vectors efficiently:
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('BatchRetriever', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     const keys = ['doc-1', 'doc-2', 'doc-3'];
     const resultMap = await ctx.vector.getMany('knowledge-base', ...keys);
 
@@ -199,14 +199,19 @@ Use generics for type-safe metadata:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 interface DocumentMetadata {
-  title: string;
-  category: 'guide' | 'api' | 'tutorial';
-  author: string;
+  readonly title: string;
+  readonly category: 'guide' | 'api' | 'tutorial';
+  readonly author: string;
 }
 
 const agent = createAgent('TypedVectorAgent', {
+  schema: {
+    input: s.object({ question: s.string() }),
+    output: s.object({ titles: s.array(s.string()) }),
+  },
   handler: async (ctx, input) => {
     // Type-safe upsert
     await ctx.vector.upsert<DocumentMetadata>('docs', {
@@ -225,7 +230,9 @@ const agent = createAgent('TypedVectorAgent', {
     });
 
     // TypeScript knows metadata shape
-    const titles = results.map(r => r.metadata?.title);
+    const titles = results
+      .map((r) => r.metadata?.title)
+      .filter((title): title is string => title !== undefined);
 
     return { titles };
   },
@@ -242,6 +249,10 @@ import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { s } from '@agentuity/schema';
 
+interface KnowledgeMetadata {
+  readonly content: string;
+}
+
 const ragAgent = createAgent('RAG', {
   schema: {
     input: s.object({ question: s.string() }),
@@ -252,7 +263,7 @@ const ragAgent = createAgent('RAG', {
   },
   handler: async (ctx, input) => {
     // Search for relevant documents
-    const results = await ctx.vector.search('knowledge-base', {
+    const results = await ctx.vector.search<KnowledgeMetadata>('knowledge-base', {
       query: input.question,
       limit: 3,
       similarity: 0.7,
@@ -267,7 +278,7 @@ const ragAgent = createAgent('RAG', {
 
     // Build context from results
     const context = results
-      .map(r => r.metadata?.content || '')
+      .map((r) => r.metadata?.content ?? '')
       .join('\n\n');
 
     // Generate response using context
@@ -295,7 +306,7 @@ import type { Env } from '@agentuity/runtime';
 const router = new Hono<Env>();
 
 router.post('/search', async (c) => {
-  const { query } = await c.req.json();
+  const { query } = await c.req.json<{ query: string }>();
   const results = await c.var.vector.search('knowledge-base', {
     query,
     limit: 5,
@@ -313,12 +324,17 @@ Build a RAG endpoint that searches vectors and generates responses:
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env, validator } from '@agentuity/runtime';
+import { validator } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 const router = new Hono<Env>();
+
+interface KnowledgeMetadata {
+  readonly content: string;
+}
 
 const questionSchema = z.object({
   question: z.string().describe('User question'),
@@ -330,7 +346,7 @@ router.post('/ask',
     const { question } = c.req.valid('json');
 
     // Search for relevant context
-    const results = await c.var.vector.search('knowledge-base', {
+    const results = await c.var.vector.search<KnowledgeMetadata>('knowledge-base', {
       query: question,
       limit: 3,
       similarity: 0.7,
@@ -345,7 +361,7 @@ router.post('/ask',
 
     // Build context from search results
     const context = results
-      .map(r => r.metadata?.content || '')
+      .map((r) => r.metadata?.content ?? '')
       .join('\n\n');
 
     // Generate answer
@@ -384,7 +400,7 @@ const app = await createApp();
 export default app;
 
 // CLI tool to index documents
-async function indexDocuments(files: string[]) {
+async function indexDocuments(files: readonly string[]): Promise<void> {
   const ctx = createAgentContext();
 
   await ctx.invoke(async () => {
@@ -422,4 +438,4 @@ See [Running Agents Without HTTP](/agents/standalone-execution) for more pattern
 - [Object Storage (S3)](/services/storage/object): File and media storage
 - [Database](/services/database): Relational data with queries and transactions
 - [Durable Streams](/services/storage/durable-streams): Streaming large data exports
-- [Evaluations](/agents/evaluations): Quality checks for RAG systems
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Quality checks for RAG systems

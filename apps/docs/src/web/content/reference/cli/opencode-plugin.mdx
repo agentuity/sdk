@@ -1,9 +1,9 @@
 ---
 title: OpenCode Plugin
-description: Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents
+description: Install the Agentuity plugin for OpenCode and configure Agentuity Coder agents
 ---
 
-The OpenCode plugin adds Agentuity-aware AI agents and slash commands to [OpenCode](https://opencode.ai), providing intelligent assistance for building, deploying, and managing your agents.
+The OpenCode plugin adds Agentuity Coder agents, slash commands, and memory support to [OpenCode](https://opencode.ai). Use it to run Agentuity Coder inside OpenCode or from `agentuity ai opencode run`.
 
 ## Installation
 
@@ -13,10 +13,13 @@ Install the plugin using the CLI:
 agentuity ai opencode install
 ```
 
-This configures OpenCode with:
-- Specialized AI agents for different development tasks
-- Slash commands for common Agentuity operations
-- MCP servers for library documentation and code search
+This command adds `@agentuity/opencode` to your global OpenCode config at `~/.config/opencode/opencode.json`.
+
+After installation, OpenCode loads:
+
+- Agentuity Coder agents for planning, implementation, review, memory, and command execution
+- slash commands for Agentuity Coder, Cadence, cloud services, sandboxes, and memory
+- plugin tools for session dashboards and public memory sharing
 
 To remove the plugin:
 
@@ -24,33 +27,35 @@ To remove the plugin:
 agentuity ai opencode uninstall
 ```
 
-## Specialized Agents
+## Agents
 
-The plugin provides various specialized agents, each focused on a specific aspect of development:
+The plugin registers agents by display name. Use these exact names when overriding models in `opencode.json`.
 
-### Primary Agents
+### Coder Team
 
 | Agent | Role | When to Use |
 |-------|------|-------------|
-| **Lead** | Orchestrator | Automatically coordinates all work |
-| **Scout** | Explorer | Finding files, patterns, codebase analysis (read-only) |
+| **Lead** | Orchestrator | Entry point for `/agentuity-coder`, `/agentuity-cadence`, and headless runs |
+| **Scout** | Explorer | Finding files, patterns, and codebase context (read-only) |
 | **Builder** | Implementer | Interactive code changes, quick fixes, guided implementation |
 | **Architect** | Autonomous Implementer | Cadence mode, complex multi-file features, long-running tasks |
 | **Reviewer** | Code Reviewer | Reviewing changes, catching issues, suggesting fixes |
 | **Memory** | Context Manager | Storing/retrieving context, decisions, patterns across sessions |
 | **Expert** | Agentuity Specialist | CLI commands, cloud services, SDK questions |
 | **Runner** | Command Executor | Run lint/build/test/typecheck/format, returns structured summaries |
+| **Product** | Product Strategy | Clarifying requirements, validating scope, tracking PRD-style work |
 
-### Sub-Agents
+### Expert Subagents
 
-These agents work as sub-agents, called by other agents when needed:
+The Expert agent can route deeper Agentuity questions to hidden specialist subagents:
 
-| Agent | Role | Called By |
-|-------|------|-----------|
-| **Reasoner** | Conclusion Extractor | Memory: extracts structured conclusions from sessions |
-| **Product** | Product Strategy | Lead: defines requirements, validates features, generates PRDs |
+| Agent | Focus |
+|-------|-------|
+| **Expert Backend** | Runtime, agents, schemas, Drizzle, Postgres, storage |
+| **Expert Frontend** | React hooks, auth, browser integrations, frontend utilities |
+| **Expert Ops** | CLI, cloud services, deployments, sandboxes |
 
-OpenCode automatically routes tasks to the appropriate agent based on context.
+The Lead agent coordinates most user-facing work and delegates to the right subagent through OpenCode's task system.
 
 ### Builder vs Architect
 
@@ -58,15 +63,15 @@ OpenCode automatically routes tasks to the appropriate agent based on context.
 |--------|---------|-----------|
 | **Mode** | Interactive | Autonomous |
 | **Best for** | Quick fixes, guided work | Cadence mode, complex features |
-| **Model** | Claude Opus 4.6 | GPT 5.3 Codex |
-| **Reasoning** | High | Maximum (xhigh) |
+| **Default model** | `anthropic/claude-opus-4-6` | `openai/gpt-5.3-codex` |
+| **Default reasoning option** | `variant: "high"` | `reasoningEffort: "xhigh"` |
 | **Context** | Session-based | Checkpoint-based |
 
-Use **Builder** when working interactively, making quick changes, or needing guidance. Use **Architect** when running Cadence mode, implementing complex multi-file features, or needing autonomous execution with deep reasoning.
+Use **Builder** for interactive changes and small implementation tasks. Use **Architect** for Cadence mode, complex multi-file features, and longer autonomous work.
 
 ### Memory System
 
-The Memory agent uses entity-centric storage to persist context across sessions. It stores:
+The Memory agent stores reusable context by entity type:
 
 | Entity Type | Scope | Examples |
 |-------------|-------|----------|
@@ -75,9 +80,9 @@ The Memory agent uses entity-centric storage to persist context across sessions.
 | `repo` | Cross-project | Repository conventions, commit styles |
 | `agent` | Cross-project | Agent-specific behaviors, model preferences |
 
-Memory tracks **conclusions** (patterns learned from your work), **corrections** (mistakes to avoid), and **relationships** between entities. The Reasoner sub-agent periodically extracts new insights from sessions.
+Memory tracks conclusions, corrections, relationships, session summaries, and compaction history. The plugin stores this data in Agentuity Cloud [Key-Value Storage](/services/storage/key-value) and [Vector Storage](/services/storage/vector) namespaces used by the Memory agent.
 
-Use `/agentuity-memory-save` to explicitly save important context, or let Memory capture it automatically during Cadence sessions.
+Use `/agentuity-memory-save` to explicitly save important context. Use `/agentuity-memory-share` when you want to create a public share URL for a session summary or saved memory content.
 
 ### Model Configuration
 
@@ -86,7 +91,7 @@ Override any agent's model in `opencode.json`. See [Agent Model Overrides](#agen
 Run `opencode models` to see all available models.
 
 <Callout type="info" title="Security">
-Sensitive CLI commands are blocked by default: `agentuity cloud secrets`, `agentuity cloud apikey`, and `agentuity auth token`.
+The plugin's default deny list blocks these command patterns: `agentuity cloud secrets`, `agentuity cloud secret`, `agentuity cloud apikey`, and `agentuity auth token`.
 </Callout>
 
 ## Slash Commands
@@ -100,6 +105,7 @@ The plugin adds slash commands for common Agentuity tasks:
 | `/agentuity-cloud` | Interact with any Agentuity cloud service |
 | `/agentuity-sandbox` | Run code in isolated sandbox environments |
 | `/agentuity-memory-save` | Save session context to memory |
+| `/agentuity-memory-share` | Share memory or session content with a public URL |
 
 Use these commands by typing them directly in OpenCode:
 
@@ -109,11 +115,23 @@ Use these commands by typing them directly in OpenCode:
 
 ## MCP Servers
 
-The plugin configures two MCP servers that provide additional context to the AI agents:
+The plugin works without extra MCP servers, but Scout and Expert are more useful when `context7` and `grep_app` are configured in `opencode.json`.
 
-**context7**: Provides access to library documentation for common dependencies (AI SDK, Zod, Hono, etc.). Agents can look up API references and examples without leaving your editor.
+```json
+{
+  "mcp": {
+    "context7": { "type": "remote", "url": "https://mcp.context7.com/mcp" },
+    "grep_app": { "type": "remote", "url": "https://mcp.grep.app" }
+  }
+}
+```
 
-**grep_app**: Enables searching GitHub repositories for code examples and patterns. Useful when you need to see how others have implemented similar features.
+| MCP | Purpose | Free Tier |
+|-----|---------|-----------|
+| **context7** | Library docs lookup | 500 req/month |
+| **grep_app** | GitHub code search | Unlimited |
+
+The install command prints this recommendation, but it does not modify your MCP config automatically.
 
 ## Headless Mode
 
@@ -123,10 +141,15 @@ Run Agentuity tasks from the command line without opening OpenCode:
 agentuity ai opencode run "Create an agent that validates email addresses"
 ```
 
-This executes the task using the appropriate agents and outputs the result. Useful for:
-- CI/CD pipelines that need AI-assisted code generation
-- Scripting repetitive development tasks
-- Batch processing multiple requests
+This wraps `opencode run --agent "Agentuity Coder Lead"` and adds non-interactive instructions so the agents can continue without prompting you.
+
+```bash
+# Ask the team to use an Agentuity cloud sandbox for execution
+agentuity ai opencode run --sandbox "run the test suite"
+
+# Stream OpenCode's raw JSON events
+agentuity ai opencode run --json "fix the failing auth test"
+```
 
 ## Cadence Mode
 
@@ -136,7 +159,7 @@ Cadence enables long-running autonomous work sessions. Start it with the `/agent
 /agentuity-cadence Build a complete auth system with tests
 ```
 
-Control Cadence through natural language:
+Ask the Lead to adjust Cadence in natural language:
 
 | Action | How |
 |--------|-----|
@@ -152,46 +175,15 @@ For headless execution:
 agentuity ai opencode run "/agentuity-cadence Build the feature"
 ```
 
-## Background Agents
-
-Run agents in the background while continuing other work. Background agents execute asynchronously and notify you when complete.
-
-The plugin provides three tools for background task management:
-
-| Tool | Description |
-|------|-------------|
-| `background_task` | Launch an agent task in the background |
-| `background_output` | Retrieve the result of a completed task |
-| `background_cancel` | Cancel a running or pending background task |
-
-### Concurrency Control
-
-Background tasks are rate-limited to prevent overwhelming providers. Configure in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`):
-
-```yaml
-coder:
-  background:
-    enabled: true
-    defaultConcurrency: 3  # Override the default of 1
-```
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `enabled` | `true` | Enable/disable background tasks |
-| `defaultConcurrency` | `1` | Default max concurrent tasks per model |
-| `staleTimeoutMs` | `1800000` | Timeout for stale tasks (30 minutes) |
-| `providerConcurrency` | `{}` | Per-provider concurrency limits |
-| `modelConcurrency` | `{}` | Per-model concurrency limits |
-
 ## Tmux Integration
 
-When running inside tmux, background agents can spawn in separate panes for visual multi-agent execution.
+When running inside tmux, the plugin can spawn agent work into separate panes for a visible multi-agent layout.
 
 <Callout type="warning" title="Server Mode Required">
-Tmux integration requires OpenCode to run with an HTTP server enabled. Start OpenCode with `opencode --port 4096`.
+Tmux integration requires OpenCode server mode. Start OpenCode with `opencode --port 4096` or another port before using tmux panes.
 </Callout>
 
-Configure in your Agentuity CLI profile:
+Configure tmux settings in your Agentuity CLI profile (`~/.config/agentuity/production.yaml` by default):
 
 ```yaml
 coder:
@@ -203,15 +195,26 @@ coder:
 | Option | Default | Description |
 |--------|---------|-------------|
 | `enabled` | `false` | Enable tmux pane spawning |
-| `maxPanes` | `4` | Max agent panes before rotating oldest out |
-| `mainPaneMinWidth` | `100` | Minimum width for main pane (columns) |
-| `agentPaneMinWidth` | `40` | Minimum width for agent panes (columns) |
+| `maxPanes` | `4` | Max agent panes before rotating the oldest out |
+| `mainPaneMinWidth` | `100` | Minimum width for the main pane in columns |
+| `agentPaneMinWidth` | `40` | Minimum width for agent panes in columns |
 
-When enabled, agents spawn in a dedicated "Agents" window with a tiled grid layout. Oldest panes close automatically when `maxPanes` is reached.
+When enabled, agents spawn in a dedicated `Agents` window with a tiled grid layout. Oldest panes close automatically when `maxPanes` is reached.
+
+## Plugin Tools
+
+The plugin registers a small set of tools for the agents:
+
+| Tool | Description |
+|------|-------------|
+| `agentuity_session_dashboard` | Inspect a session tree from the local OpenCode SQLite database |
+| `agentuity_memory_share` | Create a public share URL for memory or session content through Agentuity Cloud Streams |
+
+These are agent-facing tools. In normal use, call `/agentuity-coder`, `/agentuity-memory-share`, or `/agentuity-cadence` and let the Lead or Memory agent choose the tool.
 
 ## Configuration
 
-Agent models are configured in `~/.config/opencode/opencode.json`. Plugin behavior settings go in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`).
+Agent models are configured in `~/.config/opencode/opencode.json`. OpenCode reads plugin-provided agents and the `agent` entries in `opencode.json`, so you can override any Agentuity Coder agent by display name. Plugin behavior settings such as tmux live in your Agentuity CLI profile.
 
 ### Agent Model Overrides
 
@@ -240,36 +243,7 @@ Override any agent's default model in `opencode.json`:
 | `variant` | For Anthropic: `low`, `medium`, `high`, `max` (extended thinking) |
 | `thinking` | For Anthropic: `{ "type": "enabled", "budgetTokens": 10000 }` |
 | `maxSteps` | Maximum tool use steps per turn |
-
-### MCP Server Configuration
-
-Add MCP servers for enhanced agent capabilities in `opencode.json`:
-
-```json
-{
-  "mcp": {
-    "context7": { "type": "remote", "url": "https://mcp.context7.com/mcp" },
-    "grep_app": { "type": "remote", "url": "https://mcp.grep.app" }
-  }
-}
-```
-
-| MCP | Purpose | Free Tier |
-|-----|---------|-----------|
-| **context7** | Library docs lookup | 500 req/month |
-| **grep_app** | GitHub code search | Unlimited |
-
-### Plugin Behavior Settings
-
-Configure plugin behavior in your Agentuity CLI profile (`~/.config/agentuity/production.yaml`):
-
-```yaml
-coder:
-  tmux:
-    enabled: true
-  background:
-    defaultConcurrency: 3
-```
+| provider-specific options | Additional fields passed through by OpenCode, such as provider or model options |
 
 ## Monitoring Sessions
 

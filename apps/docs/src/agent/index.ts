@@ -5,7 +5,6 @@ import database from './database/agent';
 import docProcessing from './doc_processing/agent';
 import docQa from './doc_qa/agent';
 import email from './email/agent';
-import evals from './evals/agent';
 import hello from './hello/agent';
 import kv from './kv/agent';
 import modelArena from './model-arena/agent';
@@ -24,7 +23,6 @@ export default [
 	docProcessing,
 	docQa,
 	email,
-	evals,
 	hello,
 	kv,
 	modelArena,

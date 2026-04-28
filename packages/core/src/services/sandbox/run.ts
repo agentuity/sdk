@@ -77,8 +77,19 @@ export async function sandboxRun(
 	let stdinStreamId: string | undefined;
 	let stdinStreamUrl: string | undefined;
 
-	// If stdin is provided and has data, create a stream for it
-	if (stdin && region && apiKey) {
+	// Handle stdin stream configuration:
+	// - If stdin is "ignore", pass it through to skip stdin handling on server
+	// - If stdin is an explicit stream ID, use it directly
+	// - If stdin readable is provided, create a stream for it
+	const stdinConfig = options.stream?.stdin;
+	if (stdinConfig === 'ignore') {
+		stdinStreamId = 'ignore';
+		logger?.debug('stdin explicitly ignored');
+	} else if (stdinConfig && stdinConfig !== 'ignore') {
+		// User provided an explicit stream ID
+		stdinStreamId = stdinConfig;
+		logger?.debug('using provided stdin stream ID: %s', stdinStreamId);
+	} else if (stdin && region && apiKey) {
 		const streamResult = await createStdinStream(region, apiKey, orgId, logger);
 		stdinStreamId = streamResult.id;
 		stdinStreamUrl = streamResult.url;

@@ -25,12 +25,12 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@mariozechner/pi-coding-agent": "^0.67.1",
-		"@mariozechner/pi-tui": "^0.67.1",
-		"@sinclair/typebox": "^0.34.48"
+		"@mariozechner/pi-coding-agent": "^0.70.2",
+		"@mariozechner/pi-tui": "^0.70.2",
+		"typebox": "^1.1.33"
 	},
 	"devDependencies": {
-		"@mariozechner/pi-ai": "^0.67.1",
+		"@mariozechner/pi-ai": "^0.70.2",
 		"@types/bun": "^1.3.9",
 		"bun-types": "^1.3.9",
 		"typescript": "^5.9.0"

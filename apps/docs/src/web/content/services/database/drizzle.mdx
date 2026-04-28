@@ -9,7 +9,7 @@ The `@agentuity/drizzle` package provides type-safe database access with [Drizzl
 ## Installation
 
 ```bash
-bun add @agentuity/drizzle drizzle-orm
+bun add @agentuity/drizzle
 ```
 
 ## Basic Usage
@@ -37,7 +37,7 @@ const [newUser] = await db
 
 ```typescript
 // schema.ts
-import { pgTable, serial, text, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, boolean, timestamp } from '@agentuity/drizzle/schema';
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -53,6 +53,8 @@ export const users = pgTable('users', {
 Use Drizzle's transaction API for atomic operations:
 
 ```typescript
+import { eq, sql } from '@agentuity/drizzle';
+
 await db.transaction(async (tx) => {
   await tx.update(schema.accounts)
     .set({ balance: sql`balance - ${100}` })
@@ -76,12 +78,18 @@ const { db, client, close } = createPostgresDrizzle({
 });
 ```
 
+By default, `client` is a resilient `PostgresPool` backed by the `pg` driver. Set `driver: 'bun-sql'` only when you specifically need Bun's SQL driver.
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `schema` | `object` | - | Your Drizzle schema definition |
 | `url` | `string` | `DATABASE_URL` | PostgreSQL connection string |
+| `connectionString` | `string` | `DATABASE_URL` | PostgreSQL connection string, kept for compatibility with `pg`-style configuration |
+| `connection` | `PostgresConfig` | - | Full `@agentuity/postgres` connection configuration |
+| `driver` | `'pg' \| 'bun-sql'` | `'pg'` | Database driver. The default uses `PostgresPool` |
 | `logger` | `boolean` | `false` | Enable query logging |
 | `reconnect` | `object` | - | Reconnection settings (see [postgres client](/services/database/postgres)) |
+| `onConnect` | `() => void` | - | Callback after the initial connection is established |
 | `onReconnected` | `() => void` | - | Callback when reconnection succeeds |
 
 ## Re-exported Utilities
@@ -117,12 +125,17 @@ bun add -D drizzle-kit
 // drizzle.config.ts
 import { defineConfig } from 'drizzle-kit';
 
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required for Drizzle migrations');
+}
+
 export default defineConfig({
   schema: './schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: databaseUrl,
   },
 });
 ```
@@ -143,15 +156,21 @@ Use with `@agentuity/auth` for user management:
 
 ```typescript
 import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
+import { createAuth } from '@agentuity/auth';
 import * as schema from './schema';
 
 const { db } = createPostgresDrizzle({ schema });
-const authAdapter = drizzleAdapter(db);
+
+const auth = createAuth({
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+  }),
+});
 ```
 
 See [Authentication](/frontend/authentication) for full setup.
 
 ## Next Steps
 
-- [Database Overview](/services/database): Bun SQL basics and provisioning
+- [Database Overview](/services/database): managed Postgres setup and provisioning
 - [Resilient Postgres Client](/services/database/postgres): Lower-level client without ORM

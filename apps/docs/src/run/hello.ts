@@ -17,7 +17,9 @@ try {
 
 	console.log('---OUTPUT---');
 	console.log(result);
+	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	console.log('---OUTPUT---');
 }

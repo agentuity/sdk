@@ -12,19 +12,19 @@ Agentuity supports two streaming patterns:
 
 ### Ephemeral Streaming
 
-Uses `stream()` middleware for direct streaming to the HTTP client. Data flows through and is not stored. Use this for real-time chat responses.
+Returns a `ReadableStream` directly to the HTTP client. Data flows through and is not stored. Use this for real-time chat responses.
 
 ```typescript
 // In src/api/index.ts
 import { Hono } from 'hono';
-import { type Env, stream } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat';
 
 const api = new Hono<Env>()
-  .post('/chat', chatAgent.validator(), stream(async (c) => {
+  .post('/chat', chatAgent.validator(), async (c) => {
     const body = c.req.valid('json');
-    return chatAgent.run(body);
-  }));
+    return c.body(await chatAgent.run(body));
+  });
 
 export default api;
 ```
@@ -42,10 +42,10 @@ await stream.write('data');
 await stream.close();
 ```
 
-This page focuses on ephemeral streaming with the AI SDK. For persistent streaming patterns, see the [Storage documentation](/services/storage/durable-streams).
+For stored streams with public URLs, see the [Storage documentation](/services/storage/durable-streams).
 
 <Callout type="info" title="Two Parts to Streaming">
-Streaming requires both: `schema.stream: true` in your agent (so the handler returns a stream) and `stream()` middleware in your route (so the response is streamed to the client).
+Streaming agent responses require both: `schema.stream: true` in your agent and a route that returns the resulting stream, usually with `return c.body(await agent.run(data))`. Use `agent.validator()` as usual. Streaming agents skip output validation automatically.
 </Callout>
 
 ## Basic Streaming
@@ -53,7 +53,7 @@ Streaming requires both: `schema.stream: true` in your agent (so the handler ret
 Enable streaming by setting `stream: true` in your schema and returning a `textStream`:
 
 <Callout type="info" title="AI SDK Integration">
-The `textStream` from AI SDK's `streamText()` works directly with Agentuity's streaming middleware. Return it from your handler without additional processing.
+The `textStream` from AI SDK's `streamText()` works directly with Agentuity. Return it from your handler, then return the resulting stream from your route without additional processing.
 </Callout>
 
 ```typescript
@@ -69,7 +69,7 @@ const agent = createAgent('ChatStream', {
   },
   handler: async (ctx, input) => {
     const { textStream } = streamText({
-      model: anthropic('claude-sonnet-4-5'),
+      model: anthropic('claude-sonnet-4-6'),
       prompt: input.message,
     });
 
@@ -82,27 +82,29 @@ export default agent;
 
 ## Route Configuration
 
-Use `stream()` middleware to handle streaming responses:
+For streaming agents, validate the request, run the agent, and return the resulting stream:
 
 ```typescript
 // src/api/index.ts
 import { Hono } from 'hono';
-import { type Env, stream } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat';
 
 const api = new Hono<Env>()
-  .post('/chat', chatAgent.validator(), stream(async (c) => {
+  .post('/chat', chatAgent.validator(), async (c) => {
     const body = c.req.valid('json');
-    return chatAgent.run(body);
-  }));
+    return c.body(await chatAgent.run(body));
+  });
 
 export type ApiRouter = typeof api;
 
 export default api;
 ```
 
+Use `c.body(await agent.run(data))` when the agent already returns a stream. Use `stream()` when the route itself creates the `ReadableStream`.
+
 <Callout type="info" title="Route Methods">
-Use `stream()` middleware for streaming agents. Regular `router.post()` works but may buffer the response depending on the client.
+Use `stream()` when the route itself creates the `ReadableStream`. When you are forwarding a streaming agent response, return the agent stream directly with `c.body(...)`. For non-agent routes that use `validator()` with an output schema, pass `stream: true` to skip output validation on the stream.
 </Callout>
 
 ## Consuming Streams
@@ -194,7 +196,7 @@ Add context to streaming responses:
 ```typescript
 handler: async (ctx, input) => {
   const { textStream } = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     system: 'You are a helpful assistant. Be concise.',
     messages: [
       { role: 'user', content: input.message },
@@ -218,7 +220,7 @@ handler: async (ctx, input) => {
   messages.push({ role: 'user', content: input.message });
 
   const { textStream, text } = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     messages,
   });
 
@@ -244,7 +246,7 @@ Use `ctx.waitUntil()` to save conversation history without blocking the stream. 
 | Chat interfaces | Stream for better UX |
 | Long-form content | Stream to show progress |
 | Quick classifications | Buffer (faster overall, consider Groq for speed) |
-| Structured data | Buffer (use `generateObject`) |
+| Structured data | Buffer (use AI SDK `Output.object()`) |
 
 ## Error Handling
 
@@ -252,9 +254,9 @@ Handle streaming errors with the `onError` callback:
 
 ```typescript
 const { textStream } = streamText({
-  model: anthropic('claude-sonnet-4-5'),
+  model: anthropic('claude-sonnet-4-6'),
   prompt: input.message,
-  onError: (error) => {
+  onError({ error }) {
     ctx.logger.error('Stream error', { error });
   },
 });

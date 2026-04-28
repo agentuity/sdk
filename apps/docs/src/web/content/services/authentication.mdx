@@ -1,14 +1,23 @@
 ---
-title: Protecting Agents and Routes
+title: Choosing Authentication
 short_title: Authentication
-description: Session auth, API keys, and bearer tokens for agents and routes
+description: Choose between Sign in with Agentuity and app-owned authentication for routes and apps
 ---
 
-import { Monitor, ShieldCheck, Terminal, Globe } from 'lucide-react';
+import { KeyRound, Monitor, ShieldCheck, Terminal } from 'lucide-react';
 
-Control who can access your agents and routes. Agentuity Auth supports sessions for browser users, API keys for programmatic access, and bearer tokens for service-to-service calls. Built on [BetterAuth](https://better-auth.com), it works with any PostgreSQL database.
+Choose the auth path based on who owns identity. For new apps that should let users sign in with their Agentuity account, start with [Sign in with Agentuity](/services/oidc-provider). Use `@agentuity/auth` when you need app-owned sessions, API keys, or bearer tokens.
 
-## Quick Start
+## Which Auth Path Should I Use?
+
+| Need | Use | Start Here |
+|------|-----|------------|
+| Users sign in with their Agentuity account | Agentuity OIDC provider | [Sign in with Agentuity](/services/oidc-provider) |
+| Users grant scoped access to Agentuity resources | Agentuity OIDC provider and OAuth scopes | [Sign in with Agentuity](/services/oidc-provider#scopes-and-consent) |
+| Your app owns users, sessions, API keys, or bearer tokens | `@agentuity/auth` | [Quick Start](#quick-start-with-agentuityauth) |
+| Manage OAuth app credentials and scopes | CLI or REST API | [CLI OAuth commands](/reference/cli/oauth) |
+
+## Quick Start with `@agentuity/auth`
 
 Install the auth and drizzle packages:
 
@@ -77,6 +86,12 @@ You can check which method authenticated a request with `ctx.auth.authMethod`, w
 
 <Cards>
   <CardLink
+    href="/services/oidc-provider"
+    title="Sign in with Agentuity"
+    description="Let users authenticate with Agentuity and grant scoped access"
+    icon={<KeyRound />}
+  />
+  <CardLink
     href="/frontend/authentication"
     title="React Frontend"
     description="AuthProvider, useAuth hooks, and login forms for browser apps"
@@ -93,12 +108,6 @@ You can check which method authenticated a request with `ctx.auth.authMethod`, w
     title="CLI OAuth"
     description="Create and manage OAuth/OIDC applications from the command line"
     icon={<Terminal />}
-  />
-  <CardLink
-    href="/reference/api/oauth"
-    title="REST API"
-    description="OAuth endpoints for any language or integration"
-    icon={<Globe />}
   />
 </Cards>
 
@@ -121,7 +130,7 @@ Pass `skipDefaultPlugins: true` to `createAuth()` and add only the plugins you n
 
 Agentuity Auth needs a PostgreSQL database to store users, sessions, and keys.
 
-**Connection string (simplest).** Provide a URL and Agentuity creates the Bun SQL connection and Drizzle adapter internally:
+**Connection string (simplest).** Provide a URL and Agentuity creates the Drizzle adapter with the default resilient Postgres pool:
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
@@ -135,13 +144,23 @@ const auth = createAuth({
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
-import { drizzleAdapter } from '@agentuity/drizzle';
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
 import * as authSchema from '@agentuity/auth/schema';
 import * as appSchema from './schema';
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
 const schema = { ...authSchema, ...appSchema };
-const db = drizzle(process.env.DATABASE_URL!, { schema });
+const { db } = createPostgresDrizzle({
+  connectionString: requireEnv('DATABASE_URL'),
+  schema,
+});
 
 const auth = createAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
@@ -158,155 +177,24 @@ The `@agentuity/auth/schema` export provides all auth-related Drizzle tables: `u
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | **Required** |
 | `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
-| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Falls back to `BETTER_AUTH_URL` |
+| `AGENTUITY_CLOUD_BASE_URL` | Platform-provided base URL for auth callbacks | Checked before `AGENTUITY_BASE_URL` |
+| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Checked before `BETTER_AUTH_URL` |
 
-Trusted origins are resolved automatically from `AGENTUITY_CLOUD_DOMAINS` (set by the platform on deploy) and `AUTH_TRUSTED_DOMAINS` (comma-separated, developer-set).
+By default, trusted origins include the resolved base URL, the incoming request origin, `AGENTUITY_CLOUD_DOMAINS`, and `AUTH_TRUSTED_DOMAINS`. `AGENTUITY_BASE_URL` is also trusted when set, even if `AGENTUITY_CLOUD_BASE_URL` supplied the resolved base URL. Passing `trustedOrigins` to `createAuth()` replaces that default list.
 
 <Callout type="warning" title="Replace Dev Secrets Before Deploying">
 Generate a secure secret with `openssl rand -hex 32` and store it in your environment variables before deploying.
 </Callout>
 
-## OAuth/OIDC Integration
+## Sign in with Agentuity
 
-When your app needs to authenticate users through an external OIDC provider (Google, GitHub, Okta, Auth0, or any OIDC-compliant service), use the OAuth flow utilities from `@agentuity/core/oauth`. These implement the standard authorization code flow with token management and storage.
+Use the Agentuity OIDC provider when your app should redirect users to Agentuity, receive an authorization code, and create its own local app session from the returned profile. The provider handles identity, consent, OAuth apps, scopes, and tokens.
 
-<Callout type="info" title="Different from BetterAuth">
-The BetterAuth-based auth above manages your own user sessions. OAuth/OIDC integration is for delegating authentication to a third-party provider, then storing and refreshing the resulting tokens.
-</Callout>
-
-### Environment Variables
-
-Set `OAUTH_ISSUER` and all endpoint URLs are derived automatically. Override individual endpoints when the provider uses non-standard paths.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OAUTH_CLIENT_ID` | Client ID from your OIDC provider | **Required** |
-| `OAUTH_CLIENT_SECRET` | Client secret (required for token exchange) | **Required** |
-| `OAUTH_ISSUER` | Base URL; derives all endpoint URLs | -- |
-| `OAUTH_AUTHORIZE_URL` | Override authorize endpoint | `{issuer}/authorize` |
-| `OAUTH_TOKEN_URL` | Override token endpoint | `{issuer}/oauth/token` |
-| `OAUTH_USERINFO_URL` | Override userinfo endpoint | `{issuer}/userinfo` |
-| `OAUTH_REVOKE_URL` | Override revoke endpoint | `{issuer}/revoke` |
-| `OAUTH_END_SESSION_URL` | Override end-session endpoint | `{issuer}/end_session` |
-| `OAUTH_SCOPES` | Space-separated scopes | `openid profile email` |
-
-### Authorization Code Flow
-
-A typical login flow: redirect the user, exchange the callback code for tokens, then fetch the user profile.
-
-```typescript title="src/api/index.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import {
-  buildAuthorizeUrl,
-  exchangeToken,
-  fetchUserInfo,
-  logout,
-} from '@agentuity/core/oauth';
-
-const api = new Hono<Env>();
-
-// Step 1: Redirect user to the OIDC provider
-api.get('/oauth/login', (c) => {
-  const redirectUri = `${new URL(c.req.url).origin}/api/oauth/callback`;
-  const loginUrl = buildAuthorizeUrl(redirectUri, { prompt: 'consent' });
-  return c.redirect(loginUrl);
-});
-
-// Step 2: Handle the callback, exchange code for tokens
-api.get('/oauth/callback', async (c) => {
-  const code = c.req.query('code');
-  if (!code) return c.json({ error: 'Missing authorization code' }, 400);
-
-  const redirectUri = `${new URL(c.req.url).origin}/api/oauth/callback`;
-  const token = await exchangeToken(code, redirectUri); // [!code highlight]
-  const user = await fetchUserInfo(token.access_token); // [!code highlight]
-
-  c.var.logger.info('user authenticated', { sub: user.sub, email: user.email });
-  // Store token and set session cookie (see Token Storage below)
-  return c.redirect('/');
-});
-
-// Step 3: Logout, revoke token
-api.get('/oauth/logout', async (c) => {
-  // Retrieve the stored token (from cookie, KV, or session)
-  const refreshToken = c.req.header('x-refresh-token');
-  if (refreshToken) {
-    await logout(refreshToken); // [!code highlight]
-  }
-  return c.redirect('/');
-});
-
-export default api;
-```
-
-Every function reads from `OAUTH_*` environment variables by default. Pass an `OAuthFlowConfig` object as the last argument to override any setting per-call.
-
-### Token Storage
-
-`KeyValueTokenStorage` persists tokens in `ctx.kv` and auto-refreshes expired access tokens on retrieval.
-
-```typescript title="src/api/index.ts"
-import { KeyValueTokenStorage, isTokenExpired } from '@agentuity/core/oauth';
-
-// Create once (pass ctx.kv from the request context)
-const tokenStore = new KeyValueTokenStorage(ctx.kv, {
-  namespace: 'oauth-tokens', // optional, this is the default
-  prefix: 'myapp:', // optional key prefix for multi-tenant scoping
-  config: { issuer: process.env.OAUTH_ISSUER }, // enables auto-refresh
-});
-
-// Store tokens after initial exchange
-await tokenStore.set('user:123', tokenResponse);
-
-// Retrieve: auto-refreshes if expired and a refresh_token exists
-const token = await tokenStore.get('user:123');
-
-if (token && isTokenExpired(token)) {
-  // Auto-refresh failed (no refresh_token, or provider rejected it)
-  // Redirect user to login again
-}
-```
-
-<Callout type="tip" title="TTL Behavior">
-Tokens with a `refresh_token` persist until explicitly invalidated, because `get()` auto-refreshes them. Tokens without a `refresh_token` receive a KV TTL matching their `expires_in` value, so they clean up automatically.
-</Callout>
-
-### Token Refresh
-
-Auto-refresh happens transparently when you call `tokenStore.get()`. If you need to refresh manually (outside of storage), use `refreshToken` directly:
-
-```typescript
-import { refreshToken } from '@agentuity/core/oauth';
-
-const newToken = await refreshToken(previousToken.refresh_token);
-// newToken contains a fresh access_token (and possibly a new refresh_token)
-```
-
-### Logout
-
-Full logout involves two steps: revoke the token server-side, then remove it from storage.
-
-```typescript
-// Revoke server-side and remove from storage in one call
-const removed = await tokenStore.invalidate('user:123');
-// `removed` is the token that was stored, or null if none existed
-```
-
-`invalidate()` revokes the refresh token (or access token as fallback) via the provider's revocation endpoint (RFC 7009), then deletes the entry from KV. Revocation is best-effort: the token is removed from storage even if the revocation request fails.
-
-For standalone revocation without storage, use `logout()` directly:
-
-```typescript
-import { logout } from '@agentuity/core/oauth';
-
-await logout(refreshToken); // Calls the revocation endpoint
-```
-
-For CLI-based OAuth app management (creating clients, rotating secrets, viewing activity), see [OAuth Commands](/reference/cli/oauth).
+See [Sign in with Agentuity](/services/oidc-provider) for the route example, token storage pattern, and OAuth app setup.
 
 ## Next Steps
 
+- [Sign in with Agentuity](/services/oidc-provider): Add Agentuity account sign-in and scoped access
 - [React Frontend Auth](/frontend/authentication): AuthProvider setup, useAuth hooks, and sign-in/sign-up forms
 - [ctx.auth Reference](/reference/sdk-reference/context-api#authentication): Complete method signatures and return types
 - [CLI OAuth Commands](/reference/cli/oauth): Create and manage OAuth/OIDC applications

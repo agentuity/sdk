@@ -22,13 +22,13 @@ Object storage requires a storage bucket linked to your project.
 
 ### New Projects
 
-When you run `agentuity project create`, the CLI prompts you to create a storage bucket. If you opt in, the bucket is created, linked, and credentials are written to `.env` automatically.
+When you run `agentuity project create`, the CLI prompts you to create or select a storage bucket. If you opt in, the bucket is linked and credentials are written to `.env` automatically.
 
 ### Existing Projects
 
 For projects that don't have a bucket yet:
 
-1. Create a bucket using the CLI or the [Agentuity dashboard](https://app.agentuity.com/services/storage):
+1. Create a bucket using the CLI or by signing in to the [Agentuity web app](https://app.agentuity.com/sign-in):
 
 ```bash
 agentuity cloud storage create
@@ -62,14 +62,16 @@ When deployed to Agentuity Cloud, S3 credentials for linked buckets are availabl
 ## Quick Start
 
 ```typescript
-import { s3 } from "bun";
+import { s3 } from 'bun';
 
 // Create a file reference
-const file = s3.file("documents/report.pdf");
+const file = s3.file('documents/report.pdf');
 
 // Write content
-await file.write("Hello, World!");
-await file.write(jsonData, { type: "application/json" });
+await file.write('Hello, World!');
+await file.write(JSON.stringify({ createdAt: new Date().toISOString() }), {
+  type: 'application/json',
+});
 
 // Read content
 const text = await file.text();
@@ -86,18 +88,26 @@ if (await file.exists()) {
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { s3 } from "bun";
+import { s } from '@agentuity/schema';
+import { s3 } from 'bun';
 
 const agent = createAgent('FileProcessor', {
+  schema: {
+    input: s.object({ userId: s.string() }),
+    output: s.object({
+      data: s.unknown().optional(),
+      error: s.string().optional(),
+    }),
+  },
   handler: async (ctx, input) => {
     const file = s3.file(`uploads/${input.userId}/data.json`);
 
     if (!(await file.exists())) {
-      return { error: "File not found" };
+      return { error: 'File not found' };
     }
 
     const data = await file.json();
-    ctx.logger.info("File loaded", { userId: input.userId });
+    ctx.logger.info('File loaded', { userId: input.userId });
     return { data };
   },
 });
@@ -108,7 +118,7 @@ const agent = createAgent('FileProcessor', {
 ```typescript
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import { s3 } from "bun";
+import { s3 } from 'bun';
 
 const router = new Hono<Env>();
 
@@ -146,18 +156,18 @@ Passing an `S3File` to `new Response()` returns a 302 redirect to a presigned UR
 Generate time-limited URLs for direct client access:
 
 ```typescript
-import { s3 } from "bun";
+import { s3 } from 'bun';
 
 // Download URL (default: GET, 24 hours)
-const downloadUrl = s3.presign("uploads/document.pdf", {
+const downloadUrl = s3.presign('uploads/document.pdf', {
   expiresIn: 3600,
 });
 
 // Upload URL
-const uploadUrl = s3.presign("uploads/new-file.pdf", {
-  method: "PUT",
+const uploadUrl = s3.presign('uploads/new-file.pdf', {
+  method: 'PUT',
   expiresIn: 900,
-  type: "application/pdf",
+  type: 'application/pdf',
 });
 ```
 
@@ -166,22 +176,30 @@ const uploadUrl = s3.presign("uploads/new-file.pdf", {
 For multiple buckets or external S3-compatible services:
 
 ```typescript
-import { S3Client } from "bun";
+import { S3Client } from 'bun';
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
 
 // Cloudflare R2
 const r2 = new S3Client({
-  accessKeyId: process.env.R2_ACCESS_KEY,
-  secretAccessKey: process.env.R2_SECRET_KEY,
-  bucket: "my-bucket",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  accessKeyId: requireEnv('R2_ACCESS_KEY'),
+  secretAccessKey: requireEnv('R2_SECRET_KEY'),
+  bucket: 'my-bucket',
+  endpoint: `https://${requireEnv('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`,
 });
 
 // AWS S3
 const aws = new S3Client({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  bucket: "my-bucket",
-  region: "us-east-1",
+  accessKeyId: requireEnv('AWS_ACCESS_KEY_ID'),
+  secretAccessKey: requireEnv('AWS_SECRET_ACCESS_KEY'),
+  bucket: 'my-bucket',
+  region: 'us-east-1',
 });
 ```
 
