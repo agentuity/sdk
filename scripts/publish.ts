@@ -1,12 +1,14 @@
 #!/usr/bin/env bun
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { $ } from 'bun';
 import * as readline from 'node:readline';
 
 const rootDir = join(import.meta.dir, '..');
 const packagesDir = join(rootDir, 'packages');
+const releaseNotesCacheDir = join(rootDir, '.cache', 'release-notes');
 
 const rl = readline.createInterface({
 	input: process.stdin,
@@ -29,9 +31,15 @@ Options:
   --version=X.Y.Z  Force a specific version instead of interactive prompt
   --tag=TAG        Override the npm dist-tag (e.g. alpha, next, beta, latest)
   --yes, -y        Skip all confirmation prompts and OTP (use with automation token)
+  --no-cache       Ignore cached release notes and regenerate them via opencode
   --dry-run        Run the publish process without actually publishing to npm.
                    Version changes will be automatically reverted after completion.
   --help           Show this help message
+
+  Release notes are cached under .cache/release-notes/ keyed by
+  version + previous tag + HEAD commit, so a re-run after a publish
+  failure will reuse the previously generated notes instead of
+  re-invoking opencode. Pass --no-cache to force regeneration.
 
 Description:
   Interactive script to publish packages to npm. Supports patch, minor, major,
@@ -413,10 +421,62 @@ const CONTRIBUTORS: Record<string, string> = {
 	'Dhilan Fye': 'https://github.com/dhilanfye34',
 };
 
+async function getHeadCommit(): Promise<string> {
+	try {
+		const sha = await $`git rev-parse HEAD`.text();
+		return sha.trim();
+	} catch {
+		return 'unknown';
+	}
+}
+
+function getReleaseNotesCachePath(
+	newVersion: string,
+	previousTag: string | null,
+	headCommit: string
+): string {
+	// Hash the cache key so we don't have to worry about characters in tags/SHAs
+	// that aren't filesystem-safe.
+	const key = `${newVersion}|${previousTag ?? 'initial'}|${headCommit}`;
+	const hash = createHash('sha256').update(key).digest('hex').slice(0, 12);
+	return join(releaseNotesCacheDir, `${newVersion}-${hash}.md`);
+}
+
+async function readCachedReleaseNotes(cachePath: string): Promise<string | null> {
+	try {
+		const contents = await readFile(cachePath, 'utf-8');
+		return contents.trim();
+	} catch {
+		return null;
+	}
+}
+
+async function writeCachedReleaseNotes(cachePath: string, notes: string): Promise<void> {
+	try {
+		await mkdir(releaseNotesCacheDir, { recursive: true });
+		await writeFile(cachePath, `${notes}\n`);
+	} catch (err) {
+		// Cache writes are best-effort; never fail the publish over them.
+		console.warn(`⚠️  Failed to cache release notes: ${(err as Error).message}`);
+	}
+}
+
 async function generateReleaseNotes(
 	newVersion: string,
-	previousTag: string | null
+	previousTag: string | null,
+	useCache: boolean
 ): Promise<string> {
+	const headCommit = await getHeadCommit();
+	const cachePath = getReleaseNotesCachePath(newVersion, previousTag, headCommit);
+
+	if (useCache) {
+		const cached = await readCachedReleaseNotes(cachePath);
+		if (cached) {
+			console.log(`\n📝 Using cached release notes (${cachePath.replace(rootDir + '/', '')})\n`);
+			return cached;
+		}
+	}
+
 	console.log('\n📝 Generating release notes with Opencode...\n');
 
 	// Get git log since previous tag
@@ -467,9 +527,9 @@ Formatting Instructions:
 
 	try {
 		// Invoke opencode to generate release notes (pipe prompt via stdin)
-		const releaseNotes = await $`echo ${prompt} | opencode run`.text();
-
-		return releaseNotes.trim();
+		const releaseNotes = (await $`echo ${prompt} | opencode run`.text()).trim();
+		await writeCachedReleaseNotes(cachePath, releaseNotes);
+		return releaseNotes;
 	} catch (err) {
 		console.error('✗ Failed to generate release notes with OpenCode:', err);
 		throw err;
@@ -566,6 +626,7 @@ async function main() {
 
 	const skipPrompts = process.argv.includes('--yes') || process.argv.includes('-y');
 	const isDryRun = process.argv.includes('--dry-run');
+	const useReleaseNotesCache = !process.argv.includes('--no-cache');
 
 	// Parse --version flag (supports both --version=X.Y.Z and --version X.Y.Z)
 	let forcedVersion: string | null = null;
@@ -673,7 +734,7 @@ async function main() {
 		let releaseNotes = '';
 		if (!isDryRun) {
 			const previousTag = await getPreviousReleaseTag();
-			releaseNotes = await generateReleaseNotes(newVersion, previousTag);
+			releaseNotes = await generateReleaseNotes(newVersion, previousTag, useReleaseNotesCache);
 			console.log('\n📋 Generated release notes:\n');
 			console.log('─'.repeat(80));
 			console.log(releaseNotes);
