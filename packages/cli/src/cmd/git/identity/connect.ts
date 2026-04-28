@@ -4,6 +4,7 @@ import type { APIClient } from '../../../api';
 import { getAPIBaseURL } from '../../../api';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { openInBrowser } from '../../../system/browser';
 import * as tui from '../../../tui';
 import type { Config } from '../../../types';
 import { createSubcommand } from '../../../types';
@@ -77,16 +78,7 @@ export async function runGitIdentityConnect(
 			timeoutMs: 600000,
 			clearOnSuccess: true,
 			onEnterPress: () => {
-				const platform = process.platform;
-				if (platform === 'win32') {
-					Bun.spawn(['cmd', '/c', 'start', '', url], {
-						stdout: 'ignore',
-						stderr: 'ignore',
-					});
-				} else {
-					const command = platform === 'darwin' ? 'open' : 'xdg-open';
-					Bun.spawn([command, url], { stdout: 'ignore', stderr: 'ignore' });
-				}
+				openInBrowser(url);
 			},
 			callback: async () => {
 				return await pollForGithubIntegration(apiClient, initialCount);

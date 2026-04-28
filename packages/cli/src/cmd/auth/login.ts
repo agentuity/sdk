@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { openInBrowser } from '../../system/browser';
 import { createSubcommand } from '../../types';
 import { getAPIBaseURL, getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
@@ -106,19 +107,7 @@ export const loginCommand = createSubcommand({
 				timeoutMs: 300000, // 5 minutes
 				clearOnSuccess: true,
 				onEnterPress: () => {
-					// Open URL in default browser
-					const platform = process.platform;
-					if (platform === 'win32') {
-						// Windows: use cmd.exe to invoke start (it's a shell builtin, not an executable)
-						// Empty string is required as the window title argument
-						Bun.spawn(['cmd', '/c', 'start', '', authURL], {
-							stdout: 'ignore',
-							stderr: 'ignore',
-						});
-					} else {
-						const command = platform === 'darwin' ? 'open' : 'xdg-open';
-						Bun.spawn([command, authURL], { stdout: 'ignore', stderr: 'ignore' });
-					}
+					openInBrowser(authURL);
 				},
 				callback: async () => {
 					return await pollForLoginCompletion(apiClient, code);

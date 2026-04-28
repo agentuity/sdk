@@ -19,7 +19,7 @@ import {
 	getGlobalCatalystAPIClient,
 } from '../../config';
 import { addResourceEnvVars } from '../../env-util';
-import { getDefaultBranch, isGitAvailable } from '../../git-helper';
+import { getDefaultBranch, isGitAvailable, runGit } from '../../git-helper';
 import { fetchRegionsWithCache } from '../../regions';
 import * as tui from '../../tui';
 import { createPrompt } from '../../tui';
@@ -538,36 +538,24 @@ async function pushToRepo(
 		clearOnSuccess: true,
 		callback: async () => {
 			// Add remote origin
-			const addRemote = Bun.spawnSync(['git', 'remote', 'add', 'origin', remoteUrl], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			const addRemote = await runGit(['remote', 'add', 'origin', remoteUrl], { cwd: dest });
 
-			if (addRemote.exitCode !== 0) {
+			if (!addRemote.ok) {
 				// Remote might already exist, try set-url instead
-				const setUrl = Bun.spawnSync(['git', 'remote', 'set-url', 'origin', remoteUrl], {
-					cwd: dest,
-					stdout: 'pipe',
-					stderr: 'pipe',
-				});
-				if (setUrl.exitCode !== 0) {
+				const setUrl = await runGit(['remote', 'set-url', 'origin', remoteUrl], { cwd: dest });
+				if (!setUrl.ok) {
 					throw new RemoteImportGitError({
-						message: `Failed to set git remote: ${sanitizeTokens(setUrl.stderr.toString())}`,
+						message: `Failed to set git remote: ${sanitizeTokens(setUrl.stderr)}`,
 					});
 				}
 			}
 
 			// Push to remote
-			const push = Bun.spawnSync(['git', 'push', '-u', 'origin', defaultBranch], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			const push = await runGit(['push', '-u', 'origin', defaultBranch], { cwd: dest });
 
-			if (push.exitCode !== 0) {
+			if (!push.ok) {
 				throw new RemoteImportGitError({
-					message: `Failed to push to remote: ${sanitizeTokens(push.stderr.toString())}`,
+					message: `Failed to push to remote: ${sanitizeTokens(push.stderr)}`,
 				});
 			}
 
@@ -629,20 +617,16 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 	} = options;
 
 	// Safety check: refuse to run inside an existing git repo
-	try {
-		const result = Bun.spawnSync(['git', 'rev-parse', '--is-inside-work-tree'], {
-			cwd: process.cwd(),
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		if (result.exitCode === 0 && result.stdout.toString().trim() === 'true') {
-			tui.fatal(
-				'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
-			);
-		}
-	} catch {
-		// git not found or command failed — not inside a repo, which is fine
+	const insideTree = await runGit(['rev-parse', '--is-inside-work-tree'], {
+		cwd: process.cwd(),
+	});
+	if (insideTree.ok && insideTree.stdout === 'true') {
+		tui.fatal(
+			'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
+		);
 	}
+	// If git wasn't found or the command failed for any other reason, we're not inside
+	// a repo (or can't tell), which is the same outcome — fall through.
 
 	// 1. Parse GitHub URL (async — may query GitHub API for default branch)
 	const parsed = await parseGitHubUrl(url, apiClient);
@@ -1320,11 +1304,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		if (repo) {
 			const { owner, name: repoName } = parseRepoTarget(repo);
 			const cleanUrl = `https://github.com/${owner}/${repoName}.git`;
-			Bun.spawnSync(['git', 'remote', 'set-url', 'origin', cleanUrl], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			await runGit(['remote', 'set-url', 'origin', cleanUrl], { cwd: dest });
 		}
 
 		tui.success(`Project created in ./${projectDirName}`);
