@@ -366,8 +366,52 @@ Inline. **No dependency.**
 
 ### 4.15 Shebang — `#!/usr/bin/env bun`
 
-Per direction: detect bun-or-node at install time. Approach options
-captured in §9 Open Question 1.
+**Resolved:** switch to **pure Node** at the published entry point.
+
+```json
+// packages/cli/package.json
+"bin": { "agentuity": "./dist/cli.js" },
+"main": "./dist/index.js"
+```
+
+```js
+// dist/cli.js (compiled from bin/cli.ts)
+#!/usr/bin/env node
+// ... compiled bundle
+```
+
+Rationale (see also §9 Q1):
+
+- The CLI is I/O-bound, not CPU-bound. Bun's startup-time edge over
+  Node is ~50–200 ms for a CLI invoked a few times per minute — not
+  worth the complexity of a runtime-detecting wrapper.
+- Where Bun's native APIs genuinely matter (S3 throughput), the
+  `@agentuity/storage` package's `"bun"` conditional export still
+  routes Bun-running consumers to the Bun backend automatically,
+  so Bun users don't lose anything important.
+- Almost every npm-distributed CLI ships a compiled `.js` with a
+  `node` shebang (`eslint`, `prettier`, `tsc`, `vite`, `vitest`,
+  `playwright`, `claude-code`). It's the well-trodden path.
+- Users who specifically want Bun-running CLI can still do
+  `bunx agentuity ...` — Bun runs Node-compat `.js` ESM files fine.
+
+Mechanical changes in Phase 4:
+
+- Update `bin/cli.ts` shebang from `#!/usr/bin/env bun` to
+  `#!/usr/bin/env node`. (Phase 3 migrates the rest of the source
+  off Bun globals; the shebang flip is the final switch.)
+- Update `packages/cli/package.json`:
+  - `"bin": { "agentuity": "./dist/cli.js" }` (was `./bin/cli.ts`).
+  - Remove `"bin"` from `"files"` (the source `bin/cli.ts` is no
+    longer the published entry; ship only `dist`, `src`, and docs).
+- Confirm the build emits an executable `dist/cli.js` (set
+  permissions in the publish script if `tsc` strips them — typical
+  compromise: a small `chmod +x dist/cli.js` in `prepublishOnly`).
+- Verify shebang preservation: `tsc` does not preserve shebangs. The
+  build step must either inject the shebang post-compilation (e.g.
+  `printf '#!/usr/bin/env node\n' | cat - dist/cli.js > tmp && mv tmp
+  dist/cli.js && chmod +x dist/cli.js`) or use a bundler that does
+  (esbuild's `--banner` flag, tsdown, etc.). Pick during Phase 4.
 
 ---
 
@@ -942,17 +986,12 @@ Things that might surprise users mid-migration:
 
 ## 9. Open questions
 
-1. **Shebang strategy.** Per direction: detect bun-or-node at install
-   time. Shape options:
-   - **A)** `bin: "./bin/agentuity"` wrapper script (POSIX sh +
-     `.cmd`) that picks the runtime per invocation.
-   - **B)** `bin: "./dist/cli.js"` with `#!/usr/bin/env node`, plus a
-     postinstall script that swaps in a Bun shebang if `bun` is
-     detected at install time.
-   - **C)** `bin: "./dist/cli.js"` always Node, document that Bun
-     users get no special treatment (simplest).
-   Prefer **(A)**: only one that truly auto-detects per-run. Confirm
-   before migration starts.
+1. ~~**Shebang strategy.**~~ **Resolved.** Pure Node:
+   `bin: "./dist/cli.js"` with `#!/usr/bin/env node`. The CLI's own
+   perf wins on Bun are too small to justify a runtime-detecting
+   wrapper, and `@agentuity/storage`'s conditional exports already
+   give Bun users the fast S3 path automatically. See §4.15 for the
+   mechanical changes.
 
 2. **`bun-types` in `package.json`.** Keep as `devDependency` (tests /
    scripts still use Bun) but stop importing `bun-types` from prod
