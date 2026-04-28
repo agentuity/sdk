@@ -98,6 +98,12 @@ export class PromptFlow {
 
 	/**
 	 * Text input prompt
+	 *
+	 * Two render paths:
+	 *  - With `placeholder`: custom raw-keypress renderer that paints the placeholder
+	 *    inline as dim ghost text at the cursor (autofill style). Vanishes on the first
+	 *    keystroke; Enter on an empty buffer accepts the placeholder.
+	 *  - Without `placeholder`: original readline-based renderer (untouched).
 	 */
 	async text(options: TextOptions): Promise<string> {
 		const { message, validate, placeholder } = options;
@@ -121,6 +127,10 @@ export class PromptFlow {
 			throw this.nonInteractiveError(`Cannot prompt for "${message}" in non-interactive mode.`);
 		}
 
+		if (placeholder) {
+			return this.textWithGhost(options, placeholder);
+		}
+
 		return new Promise((resolve, reject) => {
 			const rl = readline.createInterface({
 				input: process.stdin,
@@ -131,24 +141,13 @@ export class PromptFlow {
 			let hasError = false;
 			let hadValidationError = false;
 
-			// Count of hint lines we render so we know how many to clear on redraw.
-			let hintLines = 0;
-
 			const showPrompt = () => {
-				hintLines = 0;
 				// Show prompt with active symbol
 				process.stdout.write(`${colors.active(symbols.active)}  ${message}\n`);
 				if (options.hint) {
 					process.stdout.write(
 						`${colors.secondary(symbols.bar)}  ${colors.muted(options.hint)}\n`
 					);
-					hintLines++;
-				}
-				if (placeholder) {
-					process.stdout.write(
-						`${colors.secondary(symbols.bar)}  ${colors.muted(`↵ to use ${placeholder} · or type a custom name`)}\n`
-					);
-					hintLines++;
 				}
 				// Use readline's prompt for the input line
 				rl.prompt();
@@ -168,8 +167,8 @@ export class PromptFlow {
 						if (result !== true) {
 							const errorMsg = typeof result === 'string' ? result : 'Invalid input';
 
-							// Clear: input line + message + each hint line + (optional) error line.
-							const linesToClear = (hasError ? 2 : 1) + 1 + hintLines;
+							// Clear all previous lines (prompt + optional error)
+							const linesToClear = hasError ? 3 : 2;
 							readline.moveCursor(process.stdout, 0, -linesToClear);
 							readline.clearScreenDown(process.stdout);
 
@@ -177,8 +176,6 @@ export class PromptFlow {
 							process.stdout.write(
 								`${colors.error(symbols.error)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n`
 							);
-							// After error, drop the placeholder hint so user is forced to type.
-							hintLines = 0;
 							// Use readline's prompt for the input line
 							rl.prompt();
 							hasError = true;
@@ -189,8 +186,8 @@ export class PromptFlow {
 						// Handle validation errors
 						const errorMsg = error instanceof Error ? error.message : 'Validation failed';
 
-						// Clear: input line + message + each hint line + (optional) error line.
-						const linesToClear = (hasError ? 2 : 1) + 1 + hintLines;
+						// Clear all previous lines
+						const linesToClear = hasError ? 3 : 2;
 						readline.moveCursor(process.stdout, 0, -linesToClear);
 						readline.clearScreenDown(process.stdout);
 
@@ -209,9 +206,8 @@ export class PromptFlow {
 					}
 				}
 
-				// Clear all lines and show completed state.
-				// Layout: [error?] [message] [hint?] [placeholder hint?] [input line]
-				const linesToClear = (hasError ? 2 : 1) + 1 + hintLines;
+				// Clear all lines and show completed state
+				const linesToClear = hasError ? 4 : 3;
 				readline.moveCursor(process.stdout, 0, -linesToClear);
 				readline.clearScreenDown(process.stdout);
 
@@ -248,6 +244,194 @@ export class PromptFlow {
 				this.cancel('Operation cancelled');
 				reject(new Error('User cancelled'));
 			});
+		});
+	}
+
+	/**
+	 * Text input with inline ghost-text placeholder (autofill style).
+	 *
+	 * Layout:
+	 *   ◆  <message>
+	 *   │  <hint>           (optional)
+	 *   │  <typed>│<ghost>   ghost is dim, vanishes on first keystroke
+	 *
+	 * Behavior:
+	 *   - Typing any char hides the ghost permanently for this prompt instance.
+	 *   - Backspacing back to empty does NOT bring the ghost back.
+	 *   - Enter on empty buffer → resolves to placeholder.
+	 *   - Enter with typed text → resolves to typed text.
+	 *   - Validation error: shows inline error, ghost stays gone, user must type.
+	 *   - Ctrl+C: cancels.
+	 */
+	private async textWithGhost(options: TextOptions, placeholder: string): Promise<string> {
+		const { message, validate, hint } = options;
+
+		return new Promise((resolve, reject) => {
+			let buffer = '';
+			// Tracks whether the ghost should still be visible. Once any printable key is
+			// pressed it goes false and stays false for the rest of this prompt.
+			let ghostVisible = true;
+			let hasError = false;
+			let errorMsg = '';
+
+			const inputPrefix = `${colors.secondary(symbols.bar)}  `;
+			// Visible-character length of the input-line prefix ("│  " = 3 cells).
+			const PREFIX_VISIBLE = 3;
+
+			/**
+			 * Repaint everything from the message line down. Cursor must be on the
+			 * message line (column 0) when this is called for the first time, or we
+			 * just moved up to it after a clear.
+			 */
+			const paint = () => {
+				const symbol = hasError ? colors.error(symbols.error) : colors.active(symbols.active);
+				process.stdout.write(`${symbol}  ${message}\n`);
+
+				if (hasError) {
+					process.stdout.write(
+						`${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n`
+					);
+				} else if (hint) {
+					process.stdout.write(`${colors.secondary(symbols.bar)}  ${colors.muted(hint)}\n`);
+				}
+
+				// Input line.
+				process.stdout.write(inputPrefix);
+				process.stdout.write(buffer);
+
+				if (ghostVisible && buffer.length === 0) {
+					// Paint the ghost, then move the cursor back to the start of it so the
+					// caret sits where the user would start typing.
+					process.stdout.write(colors.muted(placeholder));
+					readline.moveCursor(process.stdout, -placeholder.length, 0);
+				}
+			};
+
+			/**
+			 * Number of terminal lines currently occupied by our render, so we know
+			 * how many to clear on the next repaint.
+			 * Always: message (1) + hint-or-error (0/1) + input (1).
+			 */
+			const renderedLines = (): number => {
+				let n = 1; // message
+				if (hasError || hint) n += 1;
+				n += 1; // input
+				return n;
+			};
+
+			const repaint = () => {
+				// Move cursor to column 0, then up to the start of our render block, then clear.
+				readline.cursorTo(process.stdout, 0);
+				readline.moveCursor(process.stdout, 0, -(renderedLines() - 1));
+				readline.clearScreenDown(process.stdout);
+				paint();
+			};
+
+			// Resume stdin if it was paused by a prior prompt.
+			if (process.stdin.isTTY && process.stdin.isPaused()) {
+				process.stdin.resume();
+			}
+
+			readline.emitKeypressEvents(process.stdin);
+			if (process.stdin.isTTY) {
+				process.stdin.setRawMode(true);
+			}
+
+			// Initial paint.
+			paint();
+
+			const cleanup = () => {
+				process.stdin.removeListener('keypress', onKeypress);
+				if (process.stdin.isTTY) {
+					process.stdin.setRawMode(false);
+					process.stdin.pause();
+				}
+			};
+
+			const finalize = (value: string) => {
+				// Repaint as completed: replace whole render block with the completed lines.
+				readline.cursorTo(process.stdout, 0);
+				readline.moveCursor(process.stdout, 0, -(renderedLines() - 1));
+				readline.clearScreenDown(process.stdout);
+
+				if (value === '') {
+					process.stdout.write(
+						`${colors.completed(symbols.completed)}  ${message}\n${colors.secondary(symbols.bar)}\n`
+					);
+				} else {
+					process.stdout.write(
+						`${colors.completed(symbols.completed)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.muted(value)}\n${colors.secondary(symbols.bar)}\n`
+					);
+				}
+
+				this.states.push({ type: 'completed', message, value });
+				cleanup();
+				resolve(value);
+			};
+
+			const onKeypress = async (str: string, key: KeypressEvent) => {
+				if (key.ctrl && key.name === 'c') {
+					cleanup();
+					console.log('\n');
+					this.cancel('Operation cancelled');
+					reject(new Error('User cancelled'));
+					return;
+				}
+
+				if (key.name === 'return') {
+					const trimmed = buffer.trim();
+					// Empty submit accepts the placeholder, but only if no error has occurred
+					// (after an error the user must type explicitly — same rule the readline
+					// path uses).
+					const value = trimmed.length > 0 ? trimmed : hasError ? '' : placeholder;
+
+					if (validate) {
+						try {
+							const result = await validate(value);
+							if (result !== true) {
+								errorMsg = typeof result === 'string' ? result : 'Invalid input';
+								hasError = true;
+								ghostVisible = false;
+								repaint();
+								return;
+							}
+						} catch (err) {
+							errorMsg = err instanceof Error ? err.message : 'Validation failed';
+							hasError = true;
+							ghostVisible = false;
+							repaint();
+							return;
+						}
+					}
+
+					finalize(value);
+					return;
+				}
+
+				if (key.name === 'backspace') {
+					if (buffer.length > 0) {
+						buffer = buffer.slice(0, -1);
+						repaint();
+					}
+					return;
+				}
+
+				// Printable single character (ignore arrow keys, function keys, etc.).
+				if (str && str.length === 1 && !key.ctrl && str >= ' ' && str !== '\x7f') {
+					buffer += str;
+					ghostVisible = false;
+					repaint();
+					return;
+				}
+
+				// Everything else (arrows, tab, etc.) is ignored.
+			};
+
+			// Mark the prefix length as used so the unused-var rule doesn't trip when we
+			// extend this in future. (Keeping it documented for cursor-math sanity.)
+			void PREFIX_VISIBLE;
+
+			process.stdin.on('keypress', onKeypress);
 		});
 	}
 
