@@ -48,8 +48,17 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 
 	return {
 		async list(opts?: S3ListOptions | null): Promise<S3ListResult> {
-			// `Bun.S3Client.list` accepts `null` for "no filter".
-			const out = (await client.list(opts ?? (null as any))) as {
+			// `Bun.S3Client.list` accepts `null` for "no filter". Translate
+			// our camelCase shape (continuationToken, maxKeys) to Bun's
+			// expected option keys.
+			const bunOpts = opts
+				? {
+						prefix: opts.prefix,
+						maxKeys: opts.maxKeys,
+						continuationToken: opts.continuationToken,
+					}
+				: (null as any);
+			const out = (await client.list(bunOpts)) as {
 				contents?: Array<{
 					key: string;
 					size?: number;
@@ -57,6 +66,7 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 					etag?: string;
 				}>;
 				isTruncated?: boolean;
+				nextContinuationToken?: string;
 			};
 			return {
 				contents: (out.contents ?? []).map((o) => ({
@@ -66,6 +76,7 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 					etag: o.etag,
 				})),
 				isTruncated: out.isTruncated ?? false,
+				nextContinuationToken: out.nextContinuationToken,
 			};
 		},
 
@@ -83,6 +94,11 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 		file(key: string): S3FileLike {
 			const f = client.file(key);
 			return {
+				// Bun's S3File exposes `type` as a getter that the underlying
+				// client populates as it sees fit. Forward it directly.
+				get type(): string | undefined {
+					return (f as { type?: string }).type;
+				},
 				arrayBuffer: () => f.arrayBuffer(),
 				text: () => f.text(),
 				stream: () => f.stream() as ReadableStream<Uint8Array>,

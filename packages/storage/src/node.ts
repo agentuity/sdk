@@ -117,6 +117,7 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 					Bucket: state.bucketLabel,
 					Prefix: opts?.prefix,
 					MaxKeys: opts?.maxKeys,
+					ContinuationToken: opts?.continuationToken,
 				})
 			);
 			return {
@@ -127,6 +128,7 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 					etag: o.ETag,
 				})),
 				isTruncated: out.IsTruncated ?? false,
+				nextContinuationToken: out.NextContinuationToken,
 			};
 		},
 
@@ -145,13 +147,21 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 		},
 
 		file(key: string): S3FileLike {
+			// Mutable holder for the most recently observed Content-Type.
+			// Populated by the first arrayBuffer/text/stream call; matches
+			// the contract documented on S3FileLike.type.
+			const meta: { type?: string } = {};
 			return {
+				get type(): string | undefined {
+					return meta.type;
+				},
 				async arrayBuffer(): Promise<ArrayBuffer> {
 					const sdk = await loadSdk();
 					const client = await getClient();
 					const out = await client.send(
 						new sdk.GetObjectCommand({ Bucket: state.bucketLabel, Key: key })
 					);
+					if (out.ContentType) meta.type = out.ContentType;
 					return readBodyAsArrayBuffer(out.Body);
 				},
 				async text(): Promise<string> {
@@ -174,6 +184,7 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 										Key: key,
 									})
 								);
+								if (out.ContentType) meta.type = out.ContentType;
 								inner = bodyToWebStream(out.Body);
 								reader = inner.getReader() as ReadableStreamDefaultReader<Uint8Array>;
 							}

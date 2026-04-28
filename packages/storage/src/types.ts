@@ -29,6 +29,12 @@ export interface S3ListOptions {
 	prefix?: string;
 	/** Maximum number of objects to return in this response. */
 	maxKeys?: number;
+	/**
+	 * Pagination token. If the previous `list()` call returned an
+	 * `S3ListResult` with `isTruncated: true`, pass its
+	 * `nextContinuationToken` here to fetch the next page.
+	 */
+	continuationToken?: string;
 }
 
 /** A single object entry in a list result. */
@@ -47,6 +53,11 @@ export interface S3Object {
 export interface S3ListResult {
 	contents: S3Object[];
 	isTruncated: boolean;
+	/**
+	 * Token to pass as `continuationToken` on the next `list()` call to
+	 * fetch the next page. Undefined when `isTruncated` is `false`.
+	 */
+	nextContinuationToken?: string;
 }
 
 /** Result of a `stat()` (HEAD) call. */
@@ -75,6 +86,15 @@ export type S3Body = string | Uint8Array | ArrayBuffer | Blob | ReadableStream<U
 
 /** A handle to an object on the server. Returned by `client.file(key)`. */
 export interface S3FileLike {
+	/**
+	 * Content-Type of the object, when known.
+	 *
+	 * Bun's S3File populates this lazily via the underlying client; the
+	 * Node backend captures it from the most recent `arrayBuffer()`,
+	 * `text()`, or `stream()` call. May be `undefined` until one of
+	 * those methods has been called at least once.
+	 */
+	readonly type: string | undefined;
 	/** Read the entire object into memory as an `ArrayBuffer`. */
 	arrayBuffer(): Promise<ArrayBuffer>;
 	/** Read the entire object as UTF-8 text. */

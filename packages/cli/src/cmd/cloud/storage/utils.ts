@@ -1,26 +1,18 @@
-import { S3Client } from 'bun';
-
 /**
- * Creates an S3Client configured for Agentuity storage buckets
+ * Re-export of `@agentuity/storage`'s `createS3Client`.
  *
- * Agentuity provides bucket-specific endpoints in virtual-hosted-style format.
- * The endpoint is already bucket-specific (e.g., bucket-name.agentuity.run),
- * so we use virtualHostedStyle: true WITHOUT passing a bucket parameter.
+ * Historically this file constructed a `Bun.S3Client` directly. The
+ * client construction has moved into `@agentuity/storage`, which
+ * exposes a single `createS3Client(bucket)` factory backed by either
+ * `Bun.S3Client` (under Bun) or `@aws-sdk/client-s3` (under Node) via
+ * conditional `exports`. Local callers do not need to change beyond
+ * updating their import path — and most do not, because this module
+ * still re-exports the same `createS3Client` symbol.
  *
- * @param bucket - Bucket configuration with endpoint, credentials, and region
- * @returns Configured S3Client instance
+ * Keeping the re-export here (rather than asking each call site to
+ * import `@agentuity/storage` directly) limits the blast radius if we
+ * later need to pre-/post-process bucket configs CLI-side (e.g. log
+ * which backend was selected, inject a custom retry policy, etc.).
  */
-export function createS3Client(bucket: {
-	endpoint: string;
-	access_key: string;
-	secret_key: string;
-	region?: string | null;
-}): S3Client {
-	return new S3Client({
-		endpoint: bucket.endpoint.startsWith('http') ? bucket.endpoint : `https://${bucket.endpoint}`,
-		accessKeyId: bucket.access_key,
-		secretAccessKey: bucket.secret_key,
-		region: bucket.region || 'auto',
-		virtualHostedStyle: true,
-	});
-}
+
+export { createS3Client } from '@agentuity/storage';

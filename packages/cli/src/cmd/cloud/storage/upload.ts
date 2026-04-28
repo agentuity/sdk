@@ -180,15 +180,18 @@ export const uploadSubcommand = createSubcommand({
 			region: bucket.region,
 		});
 
-		// Upload using streaming - wrap the stream in a Response object
-		// S3Client.write accepts Response which allows streaming without buffering in memory
+		// Upload using streaming. The S3ClientLike interface from
+		// @agentuity/storage accepts a ReadableStream<Uint8Array> directly
+		// for write() bodies; both backends handle streaming internally
+		// (Bun via its native S3Client, Node via a counting passthrough
+		// transform that reports exact bytes uploaded).
 		let bytesUploaded = 0;
 
 		await tui.spinner({
 			message: `Uploading ${objectKey} to ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				bytesUploaded = await s3Client.write(objectKey, new Response(stream), {
+				bytesUploaded = await s3Client.write(objectKey, stream, {
 					type: contentType,
 				});
 			},
