@@ -53,10 +53,14 @@ Description:
     Beta:       1.0.0 -> 2.0.0-beta.0 (first beta of next major)
                 2.0.0-beta.0 -> 2.0.0-beta.1 (increment beta)
 
+    Alpha:      1.0.0 -> 2.0.0-alpha.0 (first alpha of next major)
+                2.0.0-alpha.0 -> 2.0.0-alpha.1 (increment alpha)
+
   npm dist-tags:
     - Stable releases (patch/minor/major) are published with tag "latest"
     - Prereleases are published with tag "next"
     - Beta prereleases are published with tag "beta"
+    - Alpha prereleases are published with tag "alpha"
 
   GitHub Release:
     - Creates/updates GitHub release with generated release notes
@@ -139,9 +143,20 @@ function bumpBeta(version: string): string {
 	return `${nextMajor}-beta.0`;
 }
 
+function bumpAlpha(version: string): string {
+	// If already an alpha, increment: 2.0.0-alpha.0 → 2.0.0-alpha.1
+	const alphaMatch = version.match(/^(.+)-alpha\.(\d+)$/);
+	if (alphaMatch) {
+		return `${alphaMatch[1]}-alpha.${Number(alphaMatch[2]) + 1}`;
+	}
+	// Otherwise, create alpha of next major: 1.x.x → 2.0.0-alpha.0
+	const nextMajor = bumpMajor(version);
+	return `${nextMajor}-alpha.0`;
+}
+
 async function promptReleaseType(
 	currentVersion: string
-): Promise<'patch' | 'minor' | 'major' | 'prerelease' | 'beta'> {
+): Promise<'patch' | 'minor' | 'major' | 'prerelease' | 'beta' | 'alpha'> {
 	console.log(`\nCurrent version: ${currentVersion}`);
 	console.log('Options:');
 	console.log('  [1] prerelease - Create/increment prerelease version (default)');
@@ -149,15 +164,17 @@ async function promptReleaseType(
 	console.log('  [3] minor - Minor release (0.x.0)');
 	console.log('  [4] major - Major release (x.0.0)');
 	console.log('  [5] beta - Create/increment beta prerelease (x.0.0-beta.N)');
+	console.log('  [6] alpha - Create/increment alpha prerelease (x.0.0-alpha.N)');
 
 	while (true) {
-		const input = await readLine('Choose release type (1/2/3/4/5) [1]: ');
+		const input = await readLine('Choose release type (1/2/3/4/5/6) [1]: ');
 		if (!input || input === '1') return 'prerelease';
 		if (input === '2') return 'patch';
 		if (input === '3') return 'minor';
 		if (input === '4') return 'major';
 		if (input === '5') return 'beta';
-		console.log('Invalid choice. Please enter 1, 2, 3, 4, or 5.');
+		if (input === '6') return 'alpha';
+		console.log('Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.');
 	}
 }
 
@@ -576,7 +593,7 @@ async function main() {
 		// Validate version format (basic semver check)
 		if (!/^\d+\.\d+\.\d+(-(\d+|[a-z]+\.\d+))?$/.test(forcedVersion)) {
 			console.error(`\n❌ Invalid version format: ${forcedVersion}`);
-			console.error('   Expected format: X.Y.Z, X.Y.Z-N, or X.Y.Z-beta.N\n');
+			console.error('   Expected format: X.Y.Z, X.Y.Z-N, X.Y.Z-beta.N, or X.Y.Z-alpha.N\n');
 			rl.close();
 			process.exit(1);
 		}
@@ -600,6 +617,9 @@ async function main() {
 				break;
 			case 'beta':
 				newVersion = bumpBeta(currentVersion);
+				break;
+			case 'alpha':
+				newVersion = bumpAlpha(currentVersion);
 				break;
 		}
 	}
