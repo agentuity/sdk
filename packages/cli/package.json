@@ -50,14 +50,19 @@
 		"commander": "^14.0.2",
 		"enquirer": "^2.4.1",
 		"json-colorizer": "^3.0.1",
+		"semver": "^7.7.0",
+		"string-width": "^7.2.0",
 		"tar": "^7.5.2",
 		"typescript": "^5.9.0",
+		"yaml": "^2.6.0",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
 		"@types/archiver": "^7.0.0",
 		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
+		"@types/semver": "^7.5.8",
 		"bun-types": "latest",
 		"hono": "^4.7.13"
 	},
