@@ -55,6 +55,14 @@ interface SearchItem {
 	section: string;
 }
 
+type PagefindStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+interface PagefindSearchState {
+	readonly query: string;
+	readonly items: SearchItem[];
+	readonly status: PagefindStatus;
+}
+
 function collectItems(items: NavItem[], section: string): SearchItem[] {
 	const result: SearchItem[] = [];
 	for (const item of items) {
@@ -81,30 +89,51 @@ function normalizeSearchValue(value: string): string {
 	return value.toLowerCase().split(/\W+/).filter(Boolean).join(' ');
 }
 
+function getSearchTerms(value: string): string[] {
+	return normalizeSearchValue(value).split(' ').filter(Boolean);
+}
+
+function itemMatchesQuery(item: SearchItem, terms: string[]): boolean {
+	const words = getSearchTerms(`${item.title} ${item.description ?? ''} ${item.section}`);
+	return terms.every((term) => words.some((word) => word.startsWith(term)));
+}
+
+function valueMatchesQuery(value: string, terms: string[]): boolean {
+	const words = getSearchTerms(value);
+	return terms.every((term) => words.some((word) => word.startsWith(term)));
+}
+
 function getNavMatches(query: string, items: SearchItem[]): SearchItem[] {
-	const terms = normalizeSearchValue(query).split(' ').filter(Boolean);
+	const terms = getSearchTerms(query);
 	if (terms.length === 0) {
 		return [];
 	}
 
-	return items.filter((item) => {
-		const haystack = normalizeSearchValue(
-			`${item.title} ${item.description ?? ''} ${item.section}`
-		);
-		return terms.every((term) => haystack.includes(term));
-	});
+	const titleMatches: SearchItem[] = [];
+	const otherMatches: SearchItem[] = [];
+	for (const item of items) {
+		if (valueMatchesQuery(item.title, terms)) {
+			titleMatches.push(item);
+		} else if (itemMatchesQuery(item, terms)) {
+			otherMatches.push(item);
+		}
+	}
+
+	return [...titleMatches, ...otherMatches];
 }
 
-function mergeSearchItems(primaryItems: SearchItem[], fallbackItems: SearchItem[]): SearchItem[] {
+function mergeSearchItems(...itemGroups: SearchItem[][]): SearchItem[] {
 	const seen = new Set<string>();
 	const result: SearchItem[] = [];
 
-	for (const item of [...primaryItems, ...fallbackItems]) {
-		if (seen.has(item.url)) {
-			continue;
+	for (const items of itemGroups) {
+		for (const item of items) {
+			if (seen.has(item.url)) {
+				continue;
+			}
+			seen.add(item.url);
+			result.push(item);
 		}
-		seen.add(item.url);
-		result.push(item);
 	}
 
 	return result;
@@ -214,12 +243,13 @@ function renderTreeItems(
 		const indent = depth * 16;
 
 		if (item.url) {
+			const url = item.url;
 			const Icon = depth === 0 ? sectionIcon : FileTextIcon;
 			nodes.push(
 				<CommandItem
-					key={item.url}
-					value={item.title}
-					onSelect={() => onSelect(item.url!)}
+					key={url}
+					value={url}
+					onSelect={() => onSelect(url)}
 					style={{ paddingLeft: `${12 + indent}px` }}
 					className="py-1.5"
 				>
@@ -257,10 +287,13 @@ function KeywordSearchContent({
 	onSwitchMode: () => void;
 }) {
 	const [search, setSearch] = React.useState('');
-	const [pagefindItems, setPagefindItems] = React.useState<SearchItem[]>([]);
-	const [pagefindStatus, setPagefindStatus] = React.useState<
-		'idle' | 'loading' | 'ready' | 'error'
-	>('idle');
+	const [selectedValue, setSelectedValue] = React.useState('');
+	const [pagefindState, setPagefindState] = React.useState<PagefindSearchState>({
+		query: '',
+		items: [],
+		status: 'idle',
+	});
+	const listRef = React.useRef<HTMLDivElement>(null);
 	const allItems = React.useMemo(() => getAllItems(), []);
 
 	const handleSelect = (url: string) => {
@@ -271,29 +304,25 @@ function KeywordSearchContent({
 	React.useEffect(() => {
 		const query = search.trim();
 		if (!query) {
-			setPagefindItems([]);
-			setPagefindStatus('idle');
+			setPagefindState({ query: '', items: [], status: 'idle' });
 			return;
 		}
 
 		let cancelled = false;
-		setPagefindItems([]);
-		setPagefindStatus('loading');
+		setPagefindState({ query, items: [], status: 'loading' });
 
-		searchPagefind(query)
+		void searchPagefind(query)
 			.then((results) => {
 				if (cancelled) {
 					return;
 				}
-				setPagefindItems(results);
-				setPagefindStatus('ready');
+				setPagefindState({ query, items: results, status: 'ready' });
 			})
 			.catch(() => {
 				if (cancelled) {
 					return;
 				}
-				setPagefindItems([]);
-				setPagefindStatus('error');
+				setPagefindState({ query, items: [], status: 'error' });
 			});
 
 		return () => {
@@ -301,11 +330,26 @@ function KeywordSearchContent({
 		};
 	}, [search]);
 
-	const navMatches = React.useMemo(() => getNavMatches(search, allItems), [search, allItems]);
+	const query = search.trim();
+	const pagefindItems = pagefindState.query === query ? pagefindState.items : [];
+	const pagefindStatus: PagefindStatus =
+		query && pagefindState.query !== query ? 'loading' : pagefindState.status;
+	const navMatches = React.useMemo(() => getNavMatches(query, allItems), [query, allItems]);
 	const searchItems = React.useMemo(
-		() => mergeSearchItems(pagefindItems, navMatches),
-		[pagefindItems, navMatches]
+		() => mergeSearchItems(navMatches, pagefindItems),
+		[navMatches, pagefindItems]
 	);
+
+	React.useEffect(() => {
+		const firstVisibleItem = query ? searchItems[0] : allItems[0];
+		setSelectedValue(firstVisibleItem?.url ?? '');
+	}, [query, searchItems, allItems]);
+
+	React.useLayoutEffect(() => {
+		if (query || pagefindStatus === 'idle') {
+			listRef.current?.scrollTo({ top: 0 });
+		}
+	}, [query, pagefindStatus]);
 
 	const groupedSearchItems = React.useMemo(() => {
 		const groups: Record<string, SearchItem[]> = {};
@@ -320,6 +364,8 @@ function KeywordSearchContent({
 
 	return (
 		<Command
+			value={selectedValue}
+			onValueChange={setSelectedValue}
 			shouldFilter={false}
 			className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
 		>
@@ -346,7 +392,7 @@ function KeywordSearchContent({
 					</kbd>
 				</button>
 			</div>
-			<CommandList className="max-h-[400px]">
+			<CommandList ref={listRef} className="h-[400px] max-h-[60vh]">
 				{search.trim() ? (
 					<>
 						{pagefindStatus === 'loading' && searchItems.length === 0 && (
@@ -368,7 +414,7 @@ function KeywordSearchContent({
 									{items.map((item) => (
 										<CommandItem
 											key={item.url}
-											value={`${item.title} ${item.description ?? ''} ${item.section}`}
+											value={item.url}
 											onSelect={() => handleSelect(item.url)}
 											className="items-start py-2.5"
 										>

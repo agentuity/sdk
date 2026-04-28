@@ -6,6 +6,7 @@ const QUERY_ALIASES = {
 	otel: 'OpenTelemetry observability tracing telemetry',
 	rag: 'retrieval augmented generation vector search embeddings',
 } as const;
+const MIN_ALIAS_PREFIX_LENGTH = 3;
 
 export interface PagefindSearchItem {
 	title: string;
@@ -54,9 +55,14 @@ function expandSearchQuery(input: string): string {
 		return input;
 	}
 
-	const words = new Set(normalizeWords(trimmedInput).split(' '));
+	const words = normalizeWords(trimmedInput).split(' ');
 	const aliases = Object.entries(QUERY_ALIASES)
-		.filter(([alias]) => words.has(alias))
+		.filter(([alias]) =>
+			words.some(
+				(word) =>
+					word === alias || (word.length >= MIN_ALIAS_PREFIX_LENGTH && alias.startsWith(word))
+			)
+		)
 		.map(([, terms]) => terms);
 
 	return aliases.length > 0 ? `${trimmedInput} ${aliases.join(' ')}` : trimmedInput;
