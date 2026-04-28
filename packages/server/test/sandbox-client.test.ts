@@ -1683,14 +1683,24 @@ describe('SandboxClient', () => {
 	describe('sandboxPause', () => {
 		test('should pause a sandbox successfully', async () => {
 			let pauseCalled = false;
+			const terminatesAt = '2026-04-29T18:14:05.000Z';
 
 			mockFetch(async (url, opts) => {
 				if (opts?.method === 'POST' && url.includes('/pause')) {
 					pauseCalled = true;
-					return new Response(JSON.stringify({ success: true }), {
-						status: 200,
-						headers: { 'content-type': 'application/json' },
-					});
+					return new Response(
+						JSON.stringify({
+							success: true,
+							sandboxId: 'sandbox-123',
+							status: 'paused',
+							checkpointId: 'cp_123',
+							terminatesAt,
+						}),
+						{
+							status: 200,
+							headers: { 'content-type': 'application/json' },
+						}
+					);
 				}
 				return new Response(null, { status: 404 });
 			});
@@ -1701,8 +1711,14 @@ describe('SandboxClient', () => {
 				'test-sdk-key'
 			);
 
-			await sandboxPause(client, { sandboxId: 'sandbox-123' });
+			const result = await sandboxPause(client, { sandboxId: 'sandbox-123' });
 			expect(pauseCalled).toBe(true);
+			expect(result).toEqual({
+				sandboxId: 'sandbox-123',
+				status: 'paused',
+				checkpointId: 'cp_123',
+				terminatesAt,
+			});
 		});
 
 		test('should throw SandboxNotFoundError when sandbox not found', async () => {
