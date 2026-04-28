@@ -32,7 +32,12 @@ import { createPrompt, note } from '../../tui';
 import type { AuthData, Config } from '../../types';
 import { getGithubBotIdentity } from '../git/api';
 import { downloadTemplate, initGitRepo, setupProject } from './download';
+import { suggestBucketName, suggestDatabaseName } from './random-name';
 import { fetchTemplates, type TemplateInfo } from './templates';
+
+// Domain validator shared between the multi-select branch and the standalone prompt.
+const DOMAIN_REGEX =
+	/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}$/;
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -281,7 +286,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		};
 	}
 
-	// Add separator bar if we're going to show resource prompts
+	// Resource provisioning gates
 	const canProvision = auth && apiClient && catalystClient && orgId && region;
 	// Only count as resource flags if actually requesting provisioning (not explicit skip)
 	const hasResourceFlags =
@@ -306,13 +311,62 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	}
 
 	if (canProvision) {
-		// Fetch resources for selected org and region using Catalyst API (needed for both interactive and CLI flags)
-		let resources: Awaited<ReturnType<typeof listResources>> | undefined;
+		// CLI flags pre-resolve their respective per-resource decision; the multi-select
+		// is only used for resources where the user didn't pass a flag.
+		const dbFlagAction = resolveFlagAction(databaseOption, 'database');
+		const storageFlagAction = resolveFlagAction(storageOption, 'storage');
+		const domainFlagProvided = (domains?.length ?? 0) > 0;
 
+		// Determine which resources should run through the configuration phase.
+		// In interactive mode, ask the user via a single multi-select.
+		// In headless / non-interactive mode, only flagged resources are considered.
+		let wantDb = dbFlagAction !== undefined && dbFlagAction !== 'Skip';
+		let wantStorage = storageFlagAction !== undefined && storageFlagAction !== 'Skip';
+		let wantDomain = domainFlagProvided;
+
+		if (isInteractive) {
+			// Build multi-select options dynamically: only show resources the user hasn't
+			// already decided about via CLI flags. If all three came from flags, skip the prompt.
+			const msOptions: {
+				value: 'database' | 'storage' | 'domain';
+				label: string;
+				hint?: string;
+			}[] = [];
+			if (dbFlagAction === undefined) {
+				msOptions.push({ value: 'database', label: 'SQL Database', hint: 'PostgreSQL' });
+			}
+			if (storageFlagAction === undefined) {
+				msOptions.push({ value: 'storage', label: 'Storage Bucket', hint: 'S3-compatible' });
+			}
+			if (!domainFlagProvided) {
+				msOptions.push({ value: 'domain', label: 'Custom Domain', hint: 'BYO domain' });
+			}
+
+			if (msOptions.length > 0) {
+				const picked = await prompt.multiselect<'database' | 'storage' | 'domain'>({
+					message: 'What would you like to set up? (all optional)',
+					options: msOptions,
+					initial: [],
+				});
+				if (dbFlagAction === undefined) wantDb = picked.includes('database');
+				if (storageFlagAction === undefined) wantStorage = picked.includes('storage');
+				if (!domainFlagProvided) wantDomain = picked.includes('domain');
+			}
+		}
+
+		// Fetch existing resources only if we'll actually need them.
+		// Need them when:
+		//   - user wants db/storage in interactive mode (to offer "use existing")
+		//   - a CLI flag pointed at an existing resource by name
+		let resources: Awaited<ReturnType<typeof listResources>> | undefined;
 		const needResources =
-			isInteractive ||
-			(databaseOption && databaseOption !== 'skip' && databaseOption !== 'new') ||
-			(storageOption && storageOption !== 'skip' && storageOption !== 'new');
+			(isInteractive && (wantDb || wantStorage)) ||
+			(databaseOption !== undefined &&
+				dbFlagAction !== 'Create New' &&
+				dbFlagAction !== 'Skip') ||
+			(storageOption !== undefined &&
+				storageFlagAction !== 'Create New' &&
+				storageFlagAction !== 'Skip');
 
 		if (needResources) {
 			resources = await tui.spinner({
@@ -330,166 +384,66 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			logger.debug(
 				`Storage buckets: ${resources.s3.map((b) => b.bucket_name).join(', ') || '(none)'}`
 			);
-		}
 
-		// Determine database action: CLI flag > interactive prompt > skip (headless)
-		let db_action: string;
-		if (databaseOption !== undefined) {
-			// CLI flag provided - normalize to expected values
-			if (databaseOption.toLowerCase() === 'new') {
-				db_action = 'Create New';
-			} else if (databaseOption.toLowerCase() === 'skip') {
-				db_action = 'Skip';
-			} else {
-				// Existing database name - validate it exists
-				const existingDb = resources?.db.find((d) => d.name === databaseOption);
-				if (!existingDb) {
-					logger.fatal(
-						`Database '${databaseOption}' not found. Use 'new' to create a new database or 'skip' to skip.`,
-						ErrorCode.RESOURCE_NOT_FOUND
-					);
-				}
-				db_action = databaseOption;
+			// Validate flag-supplied resource names against the fetched list.
+			if (
+				databaseOption !== undefined &&
+				dbFlagAction !== 'Create New' &&
+				dbFlagAction !== 'Skip' &&
+				!resources.db.find((d) => d.name === dbFlagAction)
+			) {
+				logger.fatal(
+					`Database '${databaseOption}' not found. Use 'new' to create a new database or 'skip' to skip.`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				);
 			}
-		} else if (isInteractive) {
-			db_action = await prompt.select({
-				message: 'Create SQL Database?',
-				options: [
-					{ value: 'Skip', label: 'Skip or Setup later' },
-					{ value: 'Create New', label: 'Create a new database' },
-					...resources!.db.map((db) => ({
-						value: db.name,
-						label: `Use database: ${tui.tuiColors.primary(db.name)}`,
-					})),
-				],
-			});
-		} else {
-			// Headless without flag - skip
-			db_action = 'Skip';
-		}
-
-		// Determine storage action: CLI flag > interactive prompt > skip (headless)
-		let s3_action: string;
-		if (storageOption !== undefined) {
-			// CLI flag provided - normalize to expected values
-			if (storageOption.toLowerCase() === 'new') {
-				s3_action = 'Create New';
-			} else if (storageOption.toLowerCase() === 'skip') {
-				s3_action = 'Skip';
-			} else {
-				// Existing bucket name - validate it exists
-				const existingBucket = resources?.s3.find((b) => b.bucket_name === storageOption);
-				if (!existingBucket) {
-					logger.fatal(
-						`Storage bucket '${storageOption}' not found. Use 'new' to create a new bucket or 'skip' to skip.`,
-						ErrorCode.RESOURCE_NOT_FOUND
-					);
-				}
-				s3_action = storageOption;
-			}
-		} else if (isInteractive) {
-			s3_action = await prompt.select({
-				message: 'Create Storage Bucket?',
-				options: [
-					{ value: 'Skip', label: 'Skip or Setup later' },
-					{ value: 'Create New', label: 'Create a new bucket' },
-					...resources!.s3.map((bucket) => ({
-						value: bucket.bucket_name,
-						label: `Use bucket: ${tui.tuiColors.primary(bucket.bucket_name)}`,
-					})),
-				],
-			});
-		} else {
-			// Headless without flag - skip
-			s3_action = 'Skip';
-		}
-
-		// Custom DNS: only prompt in interactive mode if not already provided
-		if (!domains?.length && isInteractive) {
-			const customDns = await prompt.text({
-				message: 'Setup custom DNS?',
-				hint: 'Enter a domain name or press Enter to skip',
-				validate: (val: string) =>
-					val === ''
-						? true
-						: /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}$/.test(
-								val
-							),
-			});
-			if (customDns) {
-				_domains = [customDns];
+			if (
+				storageOption !== undefined &&
+				storageFlagAction !== 'Create New' &&
+				storageFlagAction !== 'Skip' &&
+				!resources.s3.find((b) => b.bucket_name === storageFlagAction)
+			) {
+				logger.fatal(
+					`Storage bucket '${storageOption}' not found. Use 'new' to create a new bucket or 'skip' to skip.`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				);
 			}
 		}
 
-		// Process storage action
-		switch (s3_action) {
-			case 'Create New': {
-				let bucketName: string | undefined;
-				let bucketDescription: string | undefined;
+		// === Configure each selected resource: Database → Storage → Domain ===
 
-				// Only prompt for name/description in interactive mode
-				if (isInteractive) {
-					const bucketNameInput = await prompt.text({
-						message: 'Bucket name',
-						hint: 'Optional - lowercase letters, digits, hyphens only',
-						validate: (value: string) => {
-							const trimmed = value.trim();
-							if (trimmed === '') return true;
-							const result = validateBucketName(trimmed);
-							return result.valid ? true : result.error!;
-						},
+		// Database
+		if (wantDb) {
+			let dbAction = dbFlagAction;
+			if (dbAction === undefined && isInteractive) {
+				const existing = resources?.db ?? [];
+				if (existing.length > 0) {
+					dbAction = await prompt.select<string>({
+						message: 'SQL Database',
+						options: [
+							{ value: 'Create New', label: 'Create a new database' },
+							...existing.map((db) => ({
+								value: db.name,
+								label: `Use database: ${tui.tuiColors.primary(db.name)}`,
+							})),
+						],
 					});
-					bucketName = bucketNameInput.trim() || undefined;
-					bucketDescription =
-						(await prompt.text({
-							message: 'Bucket description',
-							hint: 'Optional - press Enter to skip',
-						})) || undefined;
+				} else {
+					// No existing databases — user already opted in via the multi-select, so create new.
+					dbAction = 'Create New';
 				}
+			}
 
-				const created = await tui.spinner({
-					message: 'Provisioning New Bucket',
-					clearOnSuccess: true,
-					callback: async () => {
-						return createResources(catalystClient!, orgId!, region!, [
-							{
-								type: 's3',
-								name: bucketName,
-								description: bucketDescription,
-							},
-						]);
-					},
-				});
-				// Collect env vars from newly created resource
-				if (created[0]?.env) {
-					Object.assign(resourceEnvVars, created[0].env);
-				}
-				break;
-			}
-			case 'Skip': {
-				break;
-			}
-			default: {
-				// User selected an existing bucket - get env vars from the resources list
-				const selectedBucket = resources?.s3.find((b) => b.bucket_name === s3_action);
-				if (selectedBucket?.env) {
-					Object.assign(resourceEnvVars, selectedBucket.env);
-				}
-				break;
-			}
-		}
-
-		// Process database action
-		switch (db_action) {
-			case 'Create New': {
+			if (dbAction === 'Create New') {
 				let dbName: string | undefined;
 				let dbDescription: string | undefined;
 
-				// Only prompt for name/description in interactive mode
 				if (isInteractive) {
+					const suggestion = suggestDatabaseName(projectName);
 					const dbNameInput = await prompt.text({
 						message: 'Database name',
-						hint: 'Optional - lowercase letters, digits, underscores only',
+						hint: 'Optional · lowercase letters, digits, underscores',
+						placeholder: suggestion,
 						validate: (value: string) => {
 							const trimmed = value.trim();
 							if (trimmed === '') return true;
@@ -501,7 +455,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					dbDescription =
 						(await prompt.text({
 							message: 'Database description',
-							hint: 'Optional - press Enter to skip',
+							hint: 'Optional · press Enter to skip',
 						})) || undefined;
 				}
 
@@ -510,31 +464,93 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					clearOnSuccess: true,
 					callback: async () => {
 						return createResources(catalystClient!, orgId!, region!, [
-							{
-								type: 'db',
-								name: dbName,
-								description: dbDescription,
-							},
+							{ type: 'db', name: dbName, description: dbDescription },
 						]);
 					},
 				});
-				// Collect env vars from newly created resource
-				if (created[0]?.env) {
-					Object.assign(resourceEnvVars, created[0].env);
+				if (created[0]?.env) Object.assign(resourceEnvVars, created[0].env);
+			} else if (dbAction && dbAction !== 'Skip') {
+				// Existing database selected — reuse its env vars.
+				const selectedDb = resources?.db.find((d) => d.name === dbAction);
+				if (selectedDb?.env) Object.assign(resourceEnvVars, selectedDb.env);
+			}
+		}
+
+		// Storage
+		if (wantStorage) {
+			let s3Action = storageFlagAction;
+			if (s3Action === undefined && isInteractive) {
+				const existing = resources?.s3 ?? [];
+				if (existing.length > 0) {
+					s3Action = await prompt.select<string>({
+						message: 'Storage Bucket',
+						options: [
+							{ value: 'Create New', label: 'Create a new bucket' },
+							...existing.map((bucket) => ({
+								value: bucket.bucket_name,
+								label: `Use bucket: ${tui.tuiColors.primary(bucket.bucket_name)}`,
+							})),
+						],
+					});
+				} else {
+					s3Action = 'Create New';
 				}
-				break;
 			}
-			case 'Skip': {
-				break;
-			}
-			default: {
-				// User selected an existing database - get env vars from the resources list
-				const selectedDb = resources?.db.find((d) => d.name === db_action);
-				if (selectedDb?.env) {
-					Object.assign(resourceEnvVars, selectedDb.env);
+
+			if (s3Action === 'Create New') {
+				let bucketName: string | undefined;
+				let bucketDescription: string | undefined;
+
+				if (isInteractive) {
+					const suggestion = suggestBucketName(projectName);
+					const bucketNameInput = await prompt.text({
+						message: 'Bucket name',
+						hint: 'Optional · lowercase letters, digits, hyphens',
+						placeholder: suggestion,
+						validate: (value: string) => {
+							const trimmed = value.trim();
+							if (trimmed === '') return true;
+							const result = validateBucketName(trimmed);
+							return result.valid ? true : result.error!;
+						},
+					});
+					bucketName = bucketNameInput.trim() || undefined;
+					bucketDescription =
+						(await prompt.text({
+							message: 'Bucket description',
+							hint: 'Optional · press Enter to skip',
+						})) || undefined;
 				}
-				break;
+
+				const created = await tui.spinner({
+					message: 'Provisioning New Bucket',
+					clearOnSuccess: true,
+					callback: async () => {
+						return createResources(catalystClient!, orgId!, region!, [
+							{ type: 's3', name: bucketName, description: bucketDescription },
+						]);
+					},
+				});
+				if (created[0]?.env) Object.assign(resourceEnvVars, created[0].env);
+			} else if (s3Action && s3Action !== 'Skip') {
+				const selectedBucket = resources?.s3.find((b) => b.bucket_name === s3Action);
+				if (selectedBucket?.env) Object.assign(resourceEnvVars, selectedBucket.env);
 			}
+		}
+
+		// Custom Domain
+		if (wantDomain && !domainFlagProvided && isInteractive) {
+			const customDns = await prompt.text({
+				message: 'Custom domain',
+				hint: 'e.g. agents.example.com',
+				validate: (val: string) =>
+					val === ''
+						? 'Domain is required (or go back and uncheck Custom Domain)'
+						: DOMAIN_REGEX.test(val)
+							? true
+							: 'Invalid domain',
+			});
+			if (customDns) _domains = [customDns];
 		}
 	}
 
@@ -689,6 +705,28 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		success: setupResult.success,
 		error: setupResult.success ? undefined : 'Project setup completed with errors',
 	};
+}
+
+/**
+ * Normalize a CLI flag value (`--database` / `--storage`) into the same
+ * action vocabulary the interactive flow uses:
+ *   - 'new'  -> 'Create New'
+ *   - 'skip' -> 'Skip'
+ *   - any other string -> treated as an existing-resource name (returned as-is)
+ *   - undefined -> undefined (no flag passed; multi-select decides)
+ *
+ * The existence check for named resources happens later, after the resource
+ * list is fetched.
+ */
+function resolveFlagAction(
+	flag: string | undefined,
+	_kind: 'database' | 'storage'
+): string | undefined {
+	if (flag === undefined) return undefined;
+	const lower = flag.toLowerCase();
+	if (lower === 'new') return 'Create New';
+	if (lower === 'skip') return 'Skip';
+	return flag;
 }
 
 /**
