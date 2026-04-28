@@ -50,6 +50,7 @@ import type {
 	CreateJobOptions,
 	Job,
 	JobListResponse,
+	SandboxPauseResult,
 } from '@agentuity/core';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 
@@ -265,8 +266,8 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			});
 		},
 
-		async pause(): Promise<void> {
-			await withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
+		async pause(): Promise<SandboxPauseResult> {
+			return withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
 				sandboxPause(client, { sandboxId })
 			);
 		},
@@ -508,7 +509,7 @@ export class HTTPSandboxService implements SandboxService {
 		);
 	}
 
-	async pause(sandboxId: string): Promise<void> {
+	async pause(sandboxId: string): Promise<SandboxPauseResult> {
 		return withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
 			sandboxPause(this.client, { sandboxId })
 		);

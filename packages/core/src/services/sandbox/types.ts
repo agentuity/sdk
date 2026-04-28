@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { StructuredError } from '../../error.ts';
 import { SortDirectionSchema } from '../pagination.ts';
+import type { SandboxPauseResult } from './pause.ts';
 
 /**
  * Resource limits for a sandbox using Kubernetes-style units
@@ -274,6 +275,13 @@ export const SandboxTimeoutConfigSchema = z.object({
 		.string()
 		.optional()
 		.describe('Maximum execution time per command (e.g., "5m", "1h")'),
+	/** Maximum duration a sandbox can remain paused before termination (e.g., "24h", "0" for infinite) */
+	paused: z
+		.string()
+		.optional()
+		.describe(
+			'Maximum duration a sandbox can remain paused before termination (e.g., "24h", "0" for infinite)'
+		),
 });
 export type SandboxTimeoutConfig = z.infer<typeof SandboxTimeoutConfigSchema>;
 
@@ -399,7 +407,7 @@ export const SandboxSchema = z.object({
 		.describe('Set environment variables on the sandbox. Pass null to delete a variable.'),
 	/** Pause the sandbox, creating a checkpoint of its current state. */
 	pause: z
-		.custom<() => Promise<void>>()
+		.custom<() => Promise<SandboxPauseResult>>()
 		.describe('Pause the sandbox, creating a checkpoint of its current state.'),
 	/** Resume the sandbox from a paused or evacuated state. */
 	resume: z
@@ -592,6 +600,11 @@ export const SandboxInfoSchema = z.object({
 			idle: z.string().optional().describe('Idle timeout duration (e.g., "10m0s")'),
 			/** Execution timeout duration (e.g., "5m0s") */
 			execution: z.string().optional().describe('Execution timeout duration (e.g., "5m0s")'),
+			/** Paused timeout duration (e.g., "24h0s", "0s" for infinite) */
+			paused: z
+				.string()
+				.optional()
+				.describe('Paused timeout duration (e.g., "24h0s", "0s" for infinite)'),
 		})
 		.optional()
 		.describe('Timeout configuration for this sandbox'),
@@ -905,7 +918,7 @@ export interface SandboxService {
 	list(params?: ListSandboxesParams): Promise<ListSandboxesResponse>;
 	destroy(sandboxId: string): Promise<void>;
 	/** Pause a running sandbox, creating a checkpoint of its current state. */
-	pause(sandboxId: string): Promise<void>;
+	pause(sandboxId: string): Promise<SandboxPauseResult>;
 	/** Resume a paused or evacuated sandbox from its checkpoint. */
 	resume(sandboxId: string): Promise<void>;
 	snapshot: SnapshotService;

@@ -52,7 +52,7 @@ export {
 	diskCheckpointRestore,
 	diskCheckpointDelete,
 } from './disk-checkpoint.ts';
-export type { SandboxPauseParams } from './pause.ts';
+export type { SandboxPauseParams, SandboxPauseResult } from './pause.ts';
 export { PauseResponseSchema, SandboxPauseParamsSchema, sandboxPause } from './pause.ts';
 export type { SandboxResumeParams } from './resume.ts';
 export { ResumeResponseSchema, SandboxResumeParamsSchema, sandboxResume } from './resume.ts';
