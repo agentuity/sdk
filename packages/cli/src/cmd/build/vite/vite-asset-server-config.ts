@@ -126,7 +126,7 @@ function spaFallbackPlugin(rootDir: string, routePaths: string[], workbenchPath?
 				const isDocumentRequest = secFetchDest === 'document' || accept.includes('text/html');
 
 				// Skip file requests (have an extension)
-				if (pathname !== '/' && /\.[a-zA-Z0-9]+$/.test(pathname)) return next();
+				if (pathname !== '/' && /\.[\w-]+$/.test(pathname)) return next();
 
 				// For non-document requests, only allow root path fallback.
 				// (e.g. don't turn module/script fetches into HTML accidentally)
