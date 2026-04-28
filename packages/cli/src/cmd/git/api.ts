@@ -1,7 +1,7 @@
 import { StructuredError } from '@agentuity/core';
 import { APIResponseSchema } from '@agentuity/server';
 import { z } from 'zod';
-import type { APIClient } from '../../api';
+import type { APIClient } from '../../api.ts';
 
 const GithubStartDataSchema = z.object({
 	shortId: z.string(),

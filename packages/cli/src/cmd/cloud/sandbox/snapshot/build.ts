@@ -14,14 +14,14 @@ import {
 import { YAML } from 'bun';
 import * as tar from 'tar';
 import { z } from 'zod';
-import { getCommand } from '../../../../command-prefix';
-import { getCatalystAPIClient } from '../../../../config';
-import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
-import { ErrorCode, getExitCode } from '../../../../errors';
-import * as tui from '../../../../tui';
-import { createCommand } from '../../../../types';
-import { validateAptDependencies } from '../../../../utils/apt-validator';
-import { getGitInfo, mergeGitInfo } from '../../../../utils/git';
+import { getCommand } from '../../../../command-prefix.ts';
+import { getCatalystAPIClient } from '../../../../config.ts';
+import { encryptFIPSKEMDEMStream } from '../../../../crypto/box.ts';
+import { ErrorCode, getExitCode } from '../../../../errors.ts';
+import * as tui from '../../../../tui.ts';
+import { createCommand } from '../../../../types.ts';
+import { validateAptDependencies } from '../../../../utils/apt-validator.ts';
+import { getGitInfo, mergeGitInfo } from '../../../../utils/git.ts';
 
 export const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 export const MAX_SNAPSHOT_TAG_LENGTH = 128;

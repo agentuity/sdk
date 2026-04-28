@@ -1,7 +1,7 @@
 import type { Logger } from '@agentuity/core';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import * as tui from '../../../tui';
-import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
 
 export async function createOAuthClient(
 	ctx: {

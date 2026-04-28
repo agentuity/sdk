@@ -1,12 +1,12 @@
-import { createCommand } from '../../../../types';
-import { getCommand } from '../../../../command-prefix';
-import { rmSubcommand } from './rm';
-import { mkdirSubcommand } from './mkdir';
-import { rmdirSubcommand } from './rmdir';
-import { lsSubcommand } from './ls';
-import { cpSubcommand } from './cp';
-import { downloadSubcommand } from './download';
-import { uploadSubcommand } from './upload';
+import { createCommand } from '../../../../types.ts';
+import { getCommand } from '../../../../command-prefix.ts';
+import { rmSubcommand } from './rm.ts';
+import { mkdirSubcommand } from './mkdir.ts';
+import { rmdirSubcommand } from './rmdir.ts';
+import { lsSubcommand } from './ls.ts';
+import { cpSubcommand } from './cp.ts';
+import { downloadSubcommand } from './download.ts';
+import { uploadSubcommand } from './upload.ts';
 
 export const command = createCommand({
 	name: 'fs',

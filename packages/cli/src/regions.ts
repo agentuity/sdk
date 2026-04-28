@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { mkdir, unlink } from 'node:fs/promises';
 import type { Logger } from '@agentuity/core';
 import { listRegions, type RegionList } from '@agentuity/server';
-import { getDefaultConfigDir } from './config';
-import type { APIClient } from './api';
+import { getDefaultConfigDir } from './config.ts';
+import type { APIClient } from './api.ts';
 
 const REGIONS_CACHE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 const LEGACY_REGIONS_CACHE_FILE = 'regions.json';

@@ -6,7 +6,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import type { GrammarItem } from './tsc-output-parser';
+import type { GrammarItem } from './tsc-output-parser.ts';
 
 /**
  * Error codes for non-TypeScript errors.

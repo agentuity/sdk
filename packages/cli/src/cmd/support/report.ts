@@ -1,10 +1,10 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand } from '../../types.ts';
 import { z } from 'zod';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
-import { getLogSessionsInCurrentWindow } from '../../internal-logger';
-import * as tui from '../../tui';
+import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
+import * as tui from '../../tui.ts';
 import { randomBytes } from 'node:crypto';
 import archiver from 'archiver';
 import { APIResponseSchema } from '@agentuity/server';
@@ -103,7 +103,7 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 async function uploadReport(
 	presignedUrl: string,
 	zipPath: string,
-	logger: import('../../types').Logger
+	logger: import('../../types.ts').Logger
 ): Promise<void> {
 	// Use Bun.file() to stream the zip to S3 without loading it into memory.
 	// Bun automatically sets Content-Length from the file size.
@@ -182,7 +182,7 @@ ${description}
 /**
  * Open URL in default browser
  */
-async function openBrowser(url: string, logger: import('../../types').Logger): Promise<void> {
+async function openBrowser(url: string, logger: import('../../types.ts').Logger): Promise<void> {
 	try {
 		// Use platform-specific command to open URL
 		const platform = process.platform;

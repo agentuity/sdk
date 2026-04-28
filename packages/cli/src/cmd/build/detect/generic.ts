@@ -10,8 +10,8 @@
  */
 
 import { join } from 'node:path';
-import type { FrameworkDetector, DetectedFramework } from './types';
-import { detectPackageManager } from './util';
+import type { FrameworkDetector, DetectedFramework } from './types.ts';
+import { detectPackageManager } from './util.ts';
 
 export const genericDetector: FrameworkDetector = {
 	name: 'generic',

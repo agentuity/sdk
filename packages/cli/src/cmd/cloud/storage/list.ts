@@ -1,12 +1,12 @@
 import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
-import { setResourceInfo } from '../../../cache';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { createS3Client } from './utils';
+import { setResourceInfo } from '../../../cache/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { createS3Client } from './utils.ts';
 
 const StorageListResponseSchema = z.object({
 	buckets: z

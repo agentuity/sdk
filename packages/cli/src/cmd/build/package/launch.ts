@@ -7,8 +7,8 @@
 
 import { join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import type { BuildResult } from '../adapters/types';
-import type { DetectedFramework } from '../detect/types';
+import type { BuildResult } from '../adapters/types.ts';
+import type { DetectedFramework } from '../detect/types.ts';
 
 /**
  * Process definition for the launch metadata.

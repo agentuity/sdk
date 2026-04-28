@@ -2,11 +2,11 @@ import { fstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { FileToWrite, Logger } from '@agentuity/core';
 import { APIClient, getServiceUrls, sandboxGet, sandboxResolve } from '@agentuity/server';
-import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import type { AuthData, Config } from '../../../types';
+import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import type { AuthData, Config } from '../../../types.ts';
 
 /**
  * Detect if a file descriptor is redirected to /dev/null (or NUL on Windows).

@@ -1,7 +1,7 @@
-import { createCommand } from '../../types';
-import logs from './logs';
-import report from './report';
-import system from './system';
+import { createCommand } from '../../types.ts';
+import logs from './logs/index.ts';
+import report from './report.ts';
+import system from './system.ts';
 
 export const command = createCommand({
 	name: 'support',

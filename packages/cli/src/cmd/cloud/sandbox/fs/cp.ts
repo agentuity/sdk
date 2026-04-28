@@ -13,11 +13,11 @@ import { tmpdir } from 'node:os';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import * as tar from 'tar';
-import { createCommand } from '../../../../types';
-import { toForwardSlash } from '../../../../utils/normalize-path';
-import * as tui from '../../../../tui';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import { toForwardSlash } from '../../../../utils/normalize-path.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 import {
 	sandboxWriteFiles,
 	sandboxReadFile,

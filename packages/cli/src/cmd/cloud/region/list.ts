@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import * as tui from '../../../tui.ts';
 
 const RegionSchema = z.object({
 	region: z.string().describe('Region code'),

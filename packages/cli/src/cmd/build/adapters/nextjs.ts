@@ -9,8 +9,8 @@
 
 import { join } from 'node:path';
 import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types';
-import { installDependencies, runBuildCommand } from './generic';
+import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
+import { installDependencies, runBuildCommand } from './generic.ts';
 
 /**
  * Ensure next.config has output: 'standalone'.

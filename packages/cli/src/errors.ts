@@ -1,4 +1,4 @@
-import type { Logger } from './types';
+import type { Logger } from './types.ts';
 
 /**
  * Standard exit codes for the CLI.

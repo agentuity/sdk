@@ -9,21 +9,21 @@ import {
 	type OrganizationList,
 	type RegionList,
 } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import type { AuthData, Config, Project } from '../../types';
-import { loadProjectConfig, createProjectConfig } from '../../config';
-import * as tui from '../../tui';
-import { createPrompt } from '../../tui';
-import { isTTY } from '../../auth';
+import type { APIClient } from '../../api.ts';
+import type { AuthData, Config, Project } from '../../types.ts';
+import { loadProjectConfig, createProjectConfig } from '../../config.ts';
+import * as tui from '../../tui.ts';
+import { createPrompt } from '../../tui.ts';
+import { isTTY } from '../../auth.ts';
 import {
 	findExistingEnvFile,
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
-} from '../../env-util';
-import { fetchRegionsWithCache } from '../../regions';
-import { getCachedProject, setCachedProject } from '../../cache';
+} from '../../env-util.ts';
+import { fetchRegionsWithCache } from '../../regions.ts';
+import { getCachedProject, setCachedProject } from '../../cache/index.ts';
 
 export interface ReconcileResult {
 	status: 'valid' | 'imported' | 'skipped' | 'error';

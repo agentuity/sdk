@@ -1,14 +1,18 @@
 import { z } from 'zod';
 import { resolve, join, relative } from 'node:path';
-import { createCommand, DeployOptionsSchema } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import { typecheck } from './typecheck';
-import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
-import { detectFrameworkWithPackageJson } from './detect';
-import { getAdapter } from './adapters';
-import { packageBuildOutput } from './package';
+import { createCommand, DeployOptionsSchema } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import { typecheck } from './typecheck.ts';
+import {
+	BuildReportCollector,
+	setGlobalCollector,
+	clearGlobalCollector,
+} from '../../build-report.ts';
+import { detectFrameworkWithPackageJson } from './detect/index.ts';
+import { getAdapter } from './adapters/index.ts';
+import { packageBuildOutput } from './package/index.ts';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -64,7 +68,7 @@ export const command = createCommand({
 				tui.fatal('--url is required when using --ci mode', ErrorCode.CONFIG_INVALID);
 			}
 
-			const { runCIBuild } = await import('./ci');
+			const { runCIBuild } = await import('./ci.ts');
 			await runCIBuild(
 				{
 					url: opts.url,

@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { openInBrowser } from '../../system/browser';
-import { createSubcommand } from '../../types';
-import { getAPIBaseURL, getAppBaseURL } from '../../api';
-import { saveAuth } from '../../config';
-import { generateLoginCode, pollForLoginCompletion } from './api';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
+import { openInBrowser } from '../../system/browser.ts';
+import { createSubcommand } from '../../types.ts';
+import { getAPIBaseURL, getAppBaseURL } from '../../api.ts';
+import { saveAuth } from '../../config.ts';
+import { generateLoginCode, pollForLoginCompletion } from './api.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
 
 export const loginCommand = createSubcommand({
 	name: 'login',

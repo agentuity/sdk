@@ -1,9 +1,9 @@
-import { createCommand } from '../../../types';
-import { listSubcommand } from './list';
-import { createWorkspaceSubcommand } from './create';
-import { getWorkspaceSubcommand } from './get';
-import { deleteWorkspaceSubcommand } from './delete';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { createWorkspaceSubcommand } from './create.ts';
+import { getWorkspaceSubcommand } from './get.ts';
+import { deleteWorkspaceSubcommand } from './delete.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const workspaceCommand = createCommand({
 	name: 'workspace',

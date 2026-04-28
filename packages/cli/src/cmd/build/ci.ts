@@ -3,8 +3,8 @@ import { spawn } from 'bun';
 import { mkdir, mkdtemp, readdir, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ErrorCode } from '../../errors';
-import * as tui from '../../tui';
+import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui.ts';
 
 export interface CIBuildOptions {
 	url?: string;

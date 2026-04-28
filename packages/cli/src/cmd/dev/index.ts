@@ -10,13 +10,13 @@
 
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { createCommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import { loadProjectSDKKey, getAuth, loadConfig } from '../../config';
-import { detectFrameworkWithPackageJson } from '../build/detect';
-import { detectPackageManager, getRunCommand } from '../build/detect/util';
+import { createCommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import { loadProjectSDKKey, getAuth, loadConfig } from '../../config.ts';
+import { detectFrameworkWithPackageJson } from '../build/detect/index.ts';
+import { detectPackageManager, getRunCommand } from '../build/detect/util.ts';
 
 const DEFAULT_PORT = 3000;
 

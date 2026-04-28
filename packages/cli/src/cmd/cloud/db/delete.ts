@@ -1,14 +1,14 @@
 import { APIError, deleteResources, listOrganizations, listOrgResources } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache';
-import { getCommand } from '../../../command-prefix';
-import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
-import { removeResourceEnvVars } from '../../../env-util';
-import { ErrorCode } from '../../../errors';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
+import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config.ts';
+import { removeResourceEnvVars } from '../../../env-util.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { isDryRunMode, outputDryRun } from '../../../explain.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',

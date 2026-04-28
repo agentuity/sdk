@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
 import { projectAgentList } from '@agentuity/server';
 import Table from 'cli-table3';
-import { abbreviate, abbreviateDescription } from '../../../utils/format';
-import { getCommand } from '../../../command-prefix';
-import { AgentSchema } from './schema';
+import { abbreviate, abbreviateDescription } from '../../../utils/format.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { AgentSchema } from './schema.ts';
 
 export const listSubcommand = createSubcommand({
 	name: 'list',

@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { disconnectGithubIntegration, getGithubIntegrationStatus } from '../api';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { disconnectGithubIntegration, getGithubIntegrationStatus } from '../api.ts';
 
 const DisconnectOptionsSchema = z.object({
 	confirm: z.boolean().optional().describe('Skip confirmation prompt'),

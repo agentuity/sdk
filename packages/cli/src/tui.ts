@@ -10,12 +10,12 @@ import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
 import * as readline from 'readline';
-import type { ColorScheme } from './terminal';
-import type { Profile } from './types';
-import { type APIClient as APIClientType } from './api';
-import { getExitCode } from './errors';
-import { maskSecret } from './env-util';
-import { getExecutingAgent } from './agent-detection';
+import type { ColorScheme } from './terminal.ts';
+import type { Profile } from './types.ts';
+import { type APIClient as APIClientType } from './api.ts';
+import { getExitCode } from './errors.ts';
+import { maskSecret } from './env-util.ts';
+import { getExecutingAgent } from './agent-detection.ts';
 
 // Install global exit handler to always restore terminal cursor
 // This ensures cursor is restored even when process.exit() is called directly
@@ -54,18 +54,18 @@ ensureCursorRestoration();
 export { maskSecret };
 
 // Export new TUI components
-export { createPrompt, PromptFlow } from './tui/prompt';
-export { group } from './tui/group';
-export { note, drawBox, errorBox, warningBox } from './tui/box';
-export { symbols } from './tui/symbols';
-export { colors as tuiColors } from './tui/colors';
+export { createPrompt, PromptFlow } from './tui/prompt.ts';
+export { group } from './tui/group.ts';
+export { note, drawBox, errorBox, warningBox } from './tui/box.ts';
+export { symbols } from './tui/symbols.ts';
+export { colors as tuiColors } from './tui/colors.ts';
 export type {
 	TextOptions,
 	ConfirmOptions,
 	SelectOptions,
 	SelectOption,
 	MultiSelectOptions,
-} from './tui/prompt';
+} from './tui/prompt.ts';
 
 // Icons - use plain text alternatives when running from an AI coding agent
 function getIcons() {
@@ -320,7 +320,7 @@ export function error(message: string): void {
 /**
  * Print an error message with a red X and then exit
  */
-export function fatal(message: string, errorCode?: import('./errors').ErrorCode): never {
+export function fatal(message: string, errorCode?: import('./errors.ts').ErrorCode): never {
 	const color = getColor('error');
 	const reset = getColor('reset');
 	process.stderr.write(`${color}${ICONS.error} ${message}${reset}\n`);
@@ -1250,7 +1250,7 @@ export async function spinner<T>(
 	const reset = getColor('reset');
 
 	// Check if progress should be disabled (from global options)
-	const { getOutputOptions, shouldDisableProgress } = await import('./output');
+	const { getOutputOptions, shouldDisableProgress } = await import('./output.ts');
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
 	const isJsonMode = outputOptions?.json === true;

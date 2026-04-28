@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
+import { createSubcommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
 import { jobGet } from '@agentuity/server';
-import { getCommand } from '../../../../command-prefix';
-import { streamUrlToWritable } from '../../../../utils/stream-url';
+import { getCommand } from '../../../../command-prefix.ts';
+import { streamUrlToWritable } from '../../../../utils/stream-url.ts';
 
 const JobLogsResponseSchema = z.object({
 	jobId: z.string(),

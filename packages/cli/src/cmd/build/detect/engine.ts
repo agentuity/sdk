@@ -13,8 +13,8 @@
  */
 
 import { join } from 'node:path';
-import type { DetectorRule, FrameworkDefinition } from './frameworks';
-import type { PackageJsonData } from './types';
+import type { DetectorRule, FrameworkDefinition } from './frameworks.ts';
+import type { PackageJsonData } from './types.ts';
 
 /**
  * Check if a single detector rule matches the project.

@@ -12,8 +12,8 @@
 
 import { basename, join, resolve, relative } from 'node:path';
 import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types';
-import { getRunCommand } from '../detect/util';
+import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
+import { getRunCommand } from '../detect/util.ts';
 
 /**
  * Run a shell command and return exit code.
@@ -176,7 +176,7 @@ export const genericAdapter: BuildAdapter = {
 
 		if (!startCommand) {
 			// No start command (static-only build) — inject a minimal file server
-			const { injectStaticServer } = await import('./static-server');
+			const { injectStaticServer } = await import('./static-server.ts');
 			const injected = injectStaticServer(outputDir);
 			startCommand = injected.startCommand;
 			serverEntry = injected.serverEntry;

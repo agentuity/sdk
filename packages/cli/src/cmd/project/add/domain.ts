@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createPrompt } from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import { ErrorCode } from '../../../errors';
-import { loadProjectConfig, updateProjectConfig } from '../../../config';
-import { checkCustomDomainForDNS, isSuccess, isMisconfigured, isError } from '../../../domain';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createPrompt } from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { isDryRunMode, outputDryRun } from '../../../explain.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { loadProjectConfig, updateProjectConfig } from '../../../config.ts';
+import { checkCustomDomainForDNS, isSuccess, isMisconfigured, isError } from '../../../domain.ts';
 
 export const domainSubcommand = createSubcommand({
 	name: 'domain',

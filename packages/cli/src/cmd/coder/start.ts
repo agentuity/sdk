@@ -4,13 +4,13 @@ import { homedir } from 'node:os';
 import { z } from 'zod';
 import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
-import { toCoderHubWsUrl } from '../../coder-hub-url';
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import { resolveExtensionPath, resolveExtensionRuntimeModulePath } from './extension-path';
-import { probeHubInitAccess } from './tui-init';
+import { toCoderHubWsUrl } from '../../coder-hub-url.ts';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import { resolveExtensionPath, resolveExtensionRuntimeModulePath } from './extension-path.ts';
+import { probeHubInitAccess } from './tui-init.ts';
 
 /**
  * Find the `pi` binary.

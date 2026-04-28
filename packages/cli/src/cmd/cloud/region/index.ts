@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand, createCommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { saveRegion, clearRegion } from '../../../config';
-import * as tui from '../../../tui';
-import { listSubcommand } from './list';
+import { createSubcommand, createCommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { saveRegion, clearRegion } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import { listSubcommand } from './list.ts';
 
 const selectCommand = createSubcommand({
 	name: 'select',

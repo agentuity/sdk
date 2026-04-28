@@ -1,24 +1,24 @@
-import type { CommandDefinition } from '../types';
+import type { CommandDefinition } from '../types.ts';
 
 // Use dynamic imports for bundler compatibility while maintaining lazy loading
 export async function discoverCommands(): Promise<CommandDefinition[]> {
 	const commandModules = await Promise.all([
-		import('./ai').then((m) => m.command),
-		import('./auth').then((m) => m.command),
-		import('./build').then((m) => m.command),
-		import('./canary').then((m) => m.command),
-		import('./cloud').then((m) => m.command),
-		import('./coder').then((m) => m.command),
-		import('./dev').then((m) => m.command),
-		import('./git').then((m) => m.gitCommand),
-		import('./help').then((m) => m.command),
-		import('./profile').then((m) => m.command),
-		import('./project').then((m) => m.command),
-		import('./repl').then((m) => m.command),
-		import('./setup').then((m) => m.command),
-		import('./support').then((m) => m.command),
-		import('./upgrade').then((m) => m.command),
-		import('./version').then((m) => m.command),
+		import('./ai/index.ts').then((m) => m.command),
+		import('./auth/index.ts').then((m) => m.command),
+		import('./build/index.ts').then((m) => m.command),
+		import('./canary/index.ts').then((m) => m.command),
+		import('./cloud/index.ts').then((m) => m.command),
+		import('./coder/index.ts').then((m) => m.command),
+		import('./dev/index.ts').then((m) => m.command),
+		import('./git/index.ts').then((m) => m.gitCommand),
+		import('./help/index.ts').then((m) => m.command),
+		import('./profile/index.ts').then((m) => m.command),
+		import('./project/index.ts').then((m) => m.command),
+		import('./repl/index.ts').then((m) => m.command),
+		import('./setup/index.ts').then((m) => m.command),
+		import('./support/index.ts').then((m) => m.command),
+		import('./upgrade/index.ts').then((m) => m.command),
+		import('./version/index.ts').then((m) => m.command),
 	]);
 
 	const commands: CommandDefinition[] = [];

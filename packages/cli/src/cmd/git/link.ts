@@ -1,12 +1,12 @@
 import type { Logger } from '@agentuity/core';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import type { APIClient } from '../../api';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import * as tui from '../../tui';
-import { type Config, createSubcommand } from '../../types';
-import { runGit } from '../../git-helper';
+import type { APIClient } from '../../api.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui.ts';
+import { type Config, createSubcommand } from '../../types.ts';
+import { runGit } from '../../git-helper.ts';
 import {
 	type GithubInstallation,
 	type GithubRepo,
@@ -14,8 +14,8 @@ import {
 	getProjectGithubStatus,
 	linkProjectToRepo,
 	listGithubRepos,
-} from './api';
-import { runGitIdentityConnect } from './identity/connect';
+} from './api.ts';
+import { runGitIdentityConnect } from './identity/connect.ts';
 
 export interface DetectedGitInfo {
 	repo: string | null;

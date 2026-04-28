@@ -1,13 +1,13 @@
 import { basename, join } from 'path';
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { whoami } from '@agentuity/server';
 import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/core';
-import { getCachedUserInfo, setCachedUserInfo } from '../../../cache';
-import { defaultProfileName } from '../../../config';
+import { getCachedUserInfo, setCachedUserInfo } from '../../../cache/index.ts';
+import { defaultProfileName } from '../../../config.ts';
 
 const TaskCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

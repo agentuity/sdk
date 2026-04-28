@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs, cacheSandboxTarget } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createSandboxClient, parseFileArgs, cacheSandboxTarget } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { sandboxCreate } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
-import { validateAptDependencies } from '../../../utils/apt-validator';
-import { ErrorCode } from '../../../errors';
+import { validateAptDependencies } from '../../../utils/apt-validator.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 const InvalidMetadataError = StructuredError(
 	'InvalidMetadataError',

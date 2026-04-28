@@ -1,8 +1,8 @@
 import { KeyValueStorageService, type Logger } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
-import { getCatalystUrl } from '../../../catalyst';
-import * as tui from '../../../tui';
-import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
+import { getCatalystUrl } from '../../../catalyst.ts';
+import * as tui from '../../../tui.ts';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
 
 export function createStorageAdapter(
 	ctx: {

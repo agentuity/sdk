@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { createReadStream, statSync } from 'node:fs';
 import { Readable } from 'node:stream';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 import { sandboxUploadArchive } from '@agentuity/server';
 
 export const uploadSubcommand = createCommand({

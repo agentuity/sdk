@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createEmailAdapter } from './util';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createEmailAdapter } from './util.ts';
 
 const DeleteResponseSchema = z.object({
 	success: z.boolean(),

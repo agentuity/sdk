@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createWorkflowAdapter } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createWorkflowAdapter } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { WorkflowGetResultSchema } from '@agentuity/core';
 
 export const getSubcommand = createCommand({

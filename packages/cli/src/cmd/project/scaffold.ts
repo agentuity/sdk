@@ -9,10 +9,10 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
-import * as tui from '../../tui';
-import type { FrameworkScaffold } from './frameworks';
-import { applyOverlay } from './frameworks';
-import { getVersion } from '../../version';
+import * as tui from '../../tui.ts';
+import type { FrameworkScaffold } from './frameworks.ts';
+import { applyOverlay } from './frameworks.ts';
+import { getVersion } from '../../version.ts';
 
 interface ScaffoldOptions {
 	/** Absolute path to the target directory */
@@ -245,7 +245,7 @@ export async function initGitRepo(dest: string, options?: InitGitRepoOptions): P
 		return;
 	}
 
-	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
+	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper.ts');
 	const gitAvailable = await isGitAvailable();
 
 	if (gitAvailable) {

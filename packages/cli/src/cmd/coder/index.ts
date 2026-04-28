@@ -1,19 +1,19 @@
-import { createCommand } from '../../types';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
-import { startSubcommand } from './start';
-import { createCoderSubcommand } from './create';
-import { deleteSubcommand } from './delete';
-import { archiveSubcommand } from './archive';
-import { updateSubcommand } from './update';
-import { usersSubcommand } from './users';
-import { loopSubcommand } from './loop';
-import { replaySubcommand } from './replay';
-import { participantsSubcommand } from './participants';
-import { eventsSubcommand } from './events';
-import { workspaceCommand } from './workspace';
-import { skillCommand } from './skill';
-import { getCommand } from '../../command-prefix';
+import { createCommand } from '../../types.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
+import { startSubcommand } from './start.ts';
+import { createCoderSubcommand } from './create.ts';
+import { deleteSubcommand } from './delete.ts';
+import { archiveSubcommand } from './archive.ts';
+import { updateSubcommand } from './update.ts';
+import { usersSubcommand } from './users.ts';
+import { loopSubcommand } from './loop.ts';
+import { replaySubcommand } from './replay.ts';
+import { participantsSubcommand } from './participants.ts';
+import { eventsSubcommand } from './events.ts';
+import { workspaceCommand } from './workspace/index.ts';
+import { skillCommand } from './skill/index.ts';
+import { getCommand } from '../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'coder',

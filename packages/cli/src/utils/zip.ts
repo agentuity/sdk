@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
 import { Glob } from 'bun';
 import archiver from 'archiver';
-import { toForwardSlash } from './normalize-path';
+import { toForwardSlash } from './normalize-path.ts';
 
 interface Options {
 	progress?: (val: number) => void;

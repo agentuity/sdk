@@ -9,11 +9,11 @@ import {
 	updateBucketConfig,
 } from '@agentuity/server';
 import { z } from 'zod';
-import { getResourceInfo, setResourceInfo } from '../../../cache';
-import { getCommand } from '../../../command-prefix';
-import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
+import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getCatalystAPIClient, getGlobalCatalystAPIClient } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 function displayConfig(config: BucketConfig) {
 	tui.newline();

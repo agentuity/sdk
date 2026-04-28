@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
-import { getIONHost } from '../../config';
-import { getCommand } from '../../command-prefix';
-import { getIdentifierRegion } from './region-lookup';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { getIONHost } from '../../config.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { getIdentifierRegion } from './region-lookup.ts';
 const args = z.object({
 	identifier: z.string().optional().describe('The project, deployment, or sandbox id to use'),
 	command: z.string().optional().describe('The command to run'),

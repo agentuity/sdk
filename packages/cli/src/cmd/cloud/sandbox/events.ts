@@ -1,9 +1,9 @@
 import { sandboxEventList } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import * as tui from '../../../tui';
-import { createCommand } from '../../../types';
-import { createSandboxClient, getSandboxRegion } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { createSandboxClient, getSandboxRegion } from './util.ts';
 
 const SandboxEventInfoSchema = z.object({
 	eventId: z.string().describe('Event ID'),

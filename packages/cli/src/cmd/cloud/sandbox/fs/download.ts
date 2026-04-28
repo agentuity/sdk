@@ -4,10 +4,10 @@ import { dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 import { sandboxDownloadArchive } from '@agentuity/server';
 
 export const downloadSubcommand = createCommand({

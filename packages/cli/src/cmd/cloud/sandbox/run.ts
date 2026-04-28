@@ -1,12 +1,17 @@
 import { z } from 'zod';
 import { Writable } from 'node:stream';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { cacheSandboxTarget, createSandboxClient, detectNullStream, parseFileArgs } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import {
+	cacheSandboxTarget,
+	createSandboxClient,
+	detectNullStream,
+	parseFileArgs,
+} from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { sandboxRun } from '@agentuity/server';
-import { validateAptDependencies } from '../../../utils/apt-validator';
-import { ErrorCode } from '../../../errors';
+import { validateAptDependencies } from '../../../utils/apt-validator.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 const SandboxRunResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),

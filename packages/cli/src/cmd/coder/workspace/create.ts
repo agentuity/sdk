@@ -5,11 +5,11 @@ import {
 	CoderCreateWorkspaceRequestSchema,
 	type CoderCreateWorkspaceRequest,
 } from '@agentuity/core/coder';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { resolveGitHubRepo } from '../resolve-repo';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { resolveGitHubRepo } from '../resolve-repo.ts';
 
 const EMPTY_WORKSPACE_ERROR =
 	'A workspace needs at least one repo, saved skill, skill bucket, or agent';

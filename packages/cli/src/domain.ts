@@ -1,7 +1,7 @@
-import type { Config } from './types';
+import type { Config } from './types.ts';
 import { StructuredError } from '@agentuity/core';
-import { getIONHost } from './config';
-import * as tui from './tui';
+import { getIONHost } from './config.ts';
+import * as tui from './tui.ts';
 
 interface BaseDNSResult {
 	domain: string;

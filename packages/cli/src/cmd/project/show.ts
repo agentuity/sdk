@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
 import { projectGet } from '@agentuity/server';
-import { getCommand } from '../../command-prefix';
+import { getCommand } from '../../command-prefix.ts';
 
 const ProjectShowResponseSchema = z.object({
 	id: z.string().describe('Project ID'),

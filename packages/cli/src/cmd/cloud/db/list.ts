@@ -1,9 +1,9 @@
 import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 const DBListResponseSchema = z.object({
 	databases: z

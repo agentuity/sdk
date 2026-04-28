@@ -1,6 +1,6 @@
-import { createSubcommand, type CommandContext } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand, type CommandContext } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { z } from 'zod';
 
 const RunArgsSchema = z.object({

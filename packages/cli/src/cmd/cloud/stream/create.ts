@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { basename } from 'path';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
-import { getCommand } from '../../../command-prefix';
-import { getDefaultRegion } from '../../../config';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createStorageAdapter } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getDefaultRegion } from '../../../config.ts';
 
 const StreamCreateResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),

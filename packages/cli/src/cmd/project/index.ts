@@ -1,13 +1,13 @@
-import { createCommand } from '../../types';
-import { createProjectSubcommand } from './create';
-import { importSubcommand } from './import';
-import { listSubcommand } from './list';
-import { deleteSubcommand } from './delete';
-import { showSubcommand } from './show';
-import { addCommand } from './add';
-import { hostnameCommand } from './hostname';
-import { domainCommand } from './domain';
-import { getCommand } from '../../command-prefix';
+import { createCommand } from '../../types.ts';
+import { createProjectSubcommand } from './create.ts';
+import { importSubcommand } from './import.ts';
+import { listSubcommand } from './list.ts';
+import { deleteSubcommand } from './delete.ts';
+import { showSubcommand } from './show.ts';
+import { addCommand } from './add/index.ts';
+import { hostnameCommand } from './hostname/index.ts';
+import { domainCommand } from './domain/index.ts';
+import { getCommand } from '../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'project',

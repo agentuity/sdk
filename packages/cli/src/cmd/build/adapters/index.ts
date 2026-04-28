@@ -6,9 +6,9 @@
  * Frameworks without a specific adapter fall through to the generic adapter.
  */
 
-import type { BuildAdapter } from './types';
-import { genericAdapter } from './generic';
-import { nextjsAdapter } from './nextjs';
+import type { BuildAdapter } from './types.ts';
+import { genericAdapter } from './generic.ts';
+import { nextjsAdapter } from './nextjs.ts';
 
 /**
  * Registry of framework-specific build adapters.
@@ -27,4 +27,4 @@ export function getAdapter(frameworkName: string): BuildAdapter {
 }
 
 // Re-export types
-export type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types';
+export type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';

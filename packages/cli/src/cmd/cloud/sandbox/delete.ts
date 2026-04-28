@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient, clearSandboxRegionCache, resolveSandboxTarget } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createSandboxClient, clearSandboxRegionCache, resolveSandboxTarget } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { sandboxDestroy } from '@agentuity/server';
 
 const SandboxDeleteResponseSchema = z.object({

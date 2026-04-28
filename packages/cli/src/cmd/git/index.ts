@@ -1,10 +1,10 @@
-import { createCommand } from '../../types';
-import { accountCommand } from './account';
-import { identityCommand } from './identity';
-import { linkSubcommand } from './link';
-import { listSubcommand } from './list';
-import { statusSubcommand } from './status';
-import { unlinkSubcommand } from './unlink';
+import { createCommand } from '../../types.ts';
+import { accountCommand } from './account/index.ts';
+import { identityCommand } from './identity/index.ts';
+import { linkSubcommand } from './link.ts';
+import { listSubcommand } from './list.ts';
+import { statusSubcommand } from './status.ts';
+import { unlinkSubcommand } from './unlink.ts';
 
 export const gitCommand = createCommand({
 	name: 'git',

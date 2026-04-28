@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
 import { projectHostnameSet } from '@agentuity/server';
-import { getCommand } from '../../../command-prefix';
-import { isJSONMode } from '../../../output';
-import { ErrorCode } from '../../../errors';
+import { getCommand } from '../../../command-prefix.ts';
+import { isJSONMode } from '../../../output.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 // Client-side reserved names list (mirrors server-side list)
 const RESERVED_NAMES = new Set([

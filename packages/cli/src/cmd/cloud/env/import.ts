@@ -1,15 +1,15 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
 import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 	validateNoPublicSecrets,
-} from '../../../env-util';
-import { getCommand } from '../../../command-prefix';
-import { resolveOrgId, isOrgScope } from './org-util';
+} from '../../../env-util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { resolveOrgId, isOrgScope } from './org-util.ts';
 
 const EnvImportResponseSchema = z.object({
 	success: z.boolean().describe('Whether import succeeded'),

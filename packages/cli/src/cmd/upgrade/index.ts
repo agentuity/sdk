@@ -1,12 +1,12 @@
-import { createCommand } from '../../types';
-import { getVersion, getCompareUrl, getReleaseUrl, toTag } from '../../version';
-import { getCommand } from '../../command-prefix';
+import { createCommand } from '../../types.ts';
+import { getVersion, getCompareUrl, getReleaseUrl, toTag } from '../../version.ts';
+import { getCommand } from '../../command-prefix.ts';
 import { z } from 'zod';
-import { ErrorCode, createError, exitWithError } from '../../errors';
-import { isJSONMode } from '../../output';
-import * as tui from '../../tui';
+import { ErrorCode, createError, exitWithError } from '../../errors.ts';
+import { isJSONMode } from '../../output.ts';
+import * as tui from '../../tui.ts';
 import { tmpdir } from 'node:os';
-import { getInstallationType, type InstallationType } from '../../utils/installation-type';
+import { getInstallationType, type InstallationType } from '../../utils/installation-type.ts';
 
 const UpgradeOptionsSchema = z.object({
 	force: z.boolean().optional().describe('Force upgrade even if version is the same'),
@@ -81,10 +81,10 @@ async function performBunUpgrade(
 	// Remove 'v' prefix for npm version
 	const npmVersion = version.replace(/^v/, '');
 
-	const { installWithRetry } = await import('./npm-availability');
+	const { installWithRetry } = await import('./npm-availability.ts');
 
 	try {
-		const { spawnWithTimeout } = await import('./npm-availability');
+		const { spawnWithTimeout } = await import('./npm-availability.ts');
 
 		await installWithRetry(
 			async () => {
@@ -110,7 +110,7 @@ async function performBunUpgrade(
  * Verify the upgrade was successful by checking the installed version
  */
 async function verifyUpgrade(expectedVersion: string): Promise<void> {
-	const { spawnWithTimeout } = await import('./npm-availability');
+	const { spawnWithTimeout } = await import('./npm-availability.ts');
 
 	// Run agentuity version to check the installed version (5s timeout — local command, sub-second normally)
 	const result = await spawnWithTimeout(['agentuity', 'version'], { timeout: 5_000 });
@@ -213,7 +213,7 @@ export const command = createCommand({
 				message: 'Verifying npm availability...',
 				clearOnSuccess: true,
 				callback: async () => {
-					const { waitForNpmAvailability } = await import('./npm-availability');
+					const { waitForNpmAvailability } = await import('./npm-availability.ts');
 					return await waitForNpmAvailability(latestVersion, {
 						maxAttempts: 10,
 						initialDelayMs: 5000,

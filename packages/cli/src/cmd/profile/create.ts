@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { writeFile, readdir } from 'node:fs/promises';
-import { Config, createSubcommand } from '../../types';
+import { Config, createSubcommand } from '../../types.ts';
 import { z } from 'zod';
 import {
 	fetchProfiles,
@@ -10,10 +10,10 @@ import {
 	loadConfig,
 	saveConfig,
 	saveProfile,
-} from '../../config';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
+} from '../../config.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
 
 const PROFILE_NAME_REGEX = /^[\w_-]{3,}$/;
 

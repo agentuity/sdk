@@ -14,11 +14,11 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { type BuildMetadata, getContentType } from '@agentuity/server';
 import type { z } from 'zod';
 import { DeploymentConfig } from '@agentuity/server';
-import type { BuildResult } from './cmd/build/adapters/types';
-import type { PackageResult } from './cmd/build/package';
-import type { DeployOptions, Logger } from './types';
-import { getVersion } from './version';
-import { getGitInfo, buildGitTags } from './utils/git';
+import type { BuildResult } from './cmd/build/adapters/types.ts';
+import type { PackageResult } from './cmd/build/package/index.ts';
+import type { DeployOptions, Logger } from './types.ts';
+import { getVersion } from './version.ts';
+import { getGitInfo, buildGitTags } from './utils/git.ts';
 
 /**
  * Asset info matching the BuildMetadata schema.

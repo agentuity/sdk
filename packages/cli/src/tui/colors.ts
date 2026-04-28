@@ -1,7 +1,7 @@
 /**
  * Color utilities for TUI components using existing tui.ts color system
  */
-import { getExecutingAgent } from '../agent-detection';
+import { getExecutingAgent } from '../agent-detection.ts';
 
 // ANSI escape codes for additional colors not in main tui.ts
 const RESET = '\x1b[0m';

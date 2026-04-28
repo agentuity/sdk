@@ -11,27 +11,27 @@ import {
 	projectCreate,
 	validateDatabaseName,
 } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import { isTTY } from '../../auth';
+import type { APIClient } from '../../api.ts';
+import { isTTY } from '../../auth.ts';
 import {
 	createProjectConfig,
 	getCatalystAPIClient,
 	getGlobalCatalystAPIClient,
-} from '../../config';
-import { addResourceEnvVars } from '../../env-util';
-import { getDefaultBranch, isGitAvailable, runGit } from '../../git-helper';
-import { fetchRegionsWithCache } from '../../regions';
-import * as tui from '../../tui';
-import { createPrompt } from '../../tui';
-import type { AuthData, Config } from '../../types';
+} from '../../config.ts';
+import { addResourceEnvVars } from '../../env-util.ts';
+import { getDefaultBranch, isGitAvailable, runGit } from '../../git-helper.ts';
+import { fetchRegionsWithCache } from '../../regions.ts';
+import * as tui from '../../tui.ts';
+import { createPrompt } from '../../tui.ts';
+import type { AuthData, Config } from '../../types.ts';
 import {
 	checkGithubRepo,
 	createGithubRepo,
 	getGithubBotIdentity,
 	getGithubToken,
 	linkProjectToRepo,
-} from '../git/api';
-import { initGitRepo } from './scaffold';
+} from '../git/api.ts';
+import { initGitRepo } from './scaffold.ts';
 
 // ─── Structured Errors ───
 

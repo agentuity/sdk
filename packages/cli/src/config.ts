@@ -10,20 +10,20 @@ import {
 	APIClient as ServerAPIClient,
 } from '@agentuity/server';
 import { YAML } from 'bun';
-import { parseJSONC } from './utils/jsonc';
+import { parseJSONC } from './utils/jsonc.ts';
 import { z } from 'zod';
-import { clearProfileCache } from './cache';
-import { getCatalystUrl } from './catalyst';
-import { readEnvFile, writeEnvFile } from './env-util';
+import { clearProfileCache } from './cache/index.ts';
+import { getCatalystUrl } from './catalyst.ts';
+import { readEnvFile, writeEnvFile } from './env-util.ts';
 import {
 	deleteAuthFromKeychain,
 	getAuthFromKeychain,
 	isMacOS,
 	saveAuthToKeychain,
-} from './keychain';
-import * as tui from './tui';
-import type { AuthData, Config, Profile } from './types';
-import { ConfigSchema, ProjectSchema } from './types';
+} from './keychain.ts';
+import * as tui from './tui.ts';
+import type { AuthData, Config, Profile } from './types.ts';
+import { ConfigSchema, ProjectSchema } from './types.ts';
 
 export const defaultProfileName = 'production';
 

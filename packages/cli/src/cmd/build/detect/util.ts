@@ -3,7 +3,7 @@
  */
 
 import { join } from 'node:path';
-import type { PackageJsonData, PackageManager } from './types';
+import type { PackageJsonData, PackageManager } from './types.ts';
 
 /**
  * Check if a file exists (any of the given names) in a directory.

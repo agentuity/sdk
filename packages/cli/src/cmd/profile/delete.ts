@@ -1,10 +1,10 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand } from '../../types.ts';
 import { z } from 'zod';
-import { fetchProfiles } from '../../config';
+import { fetchProfiles } from '../../config.ts';
 import { unlink } from 'node:fs/promises';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
 
 export const deleteCommand = createSubcommand({
 	name: 'delete',

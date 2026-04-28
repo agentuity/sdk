@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createSubcommand, createCommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { saveOrgId, clearOrgId } from '../../../config';
-import * as tui from '../../../tui';
+import { createSubcommand, createCommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { saveOrgId, clearOrgId } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
 import { listOrganizations } from '@agentuity/server';
-import { enrollSubcommand } from './enroll';
-import { unenrollSubcommand } from './unenroll';
-import { statusSubcommand } from './status';
+import { enrollSubcommand } from './enroll.ts';
+import { unenrollSubcommand } from './unenroll.ts';
+import { statusSubcommand } from './status.ts';
 
 const selectCommand = createSubcommand({
 	name: 'select',

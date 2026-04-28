@@ -1,8 +1,8 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand } from '../../types.ts';
 import { z } from 'zod';
-import { fetchProfiles, saveProfile } from '../../config';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
+import { fetchProfiles, saveProfile } from '../../config.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
 
 export const useCommand = createSubcommand({
 	name: 'use',

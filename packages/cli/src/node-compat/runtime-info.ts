@@ -53,7 +53,7 @@ export function entryScriptPath(): string {
  * Usage:
  *
  *   ```ts
- *   import { currentDir } from '../node-compat/runtime-info';
+ *   import { currentDir } from '../node-compat/runtime-info.ts';
  *   const here = currentDir(import.meta);
  *   ```
  */

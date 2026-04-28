@@ -1,5 +1,11 @@
-import type { Logger, GlobalOptions } from './types';
-import { exitWithError, type StructuredError, ErrorCode, createError, getExitCode } from './errors';
+import type { Logger, GlobalOptions } from './types.ts';
+import {
+	exitWithError,
+	type StructuredError,
+	ErrorCode,
+	createError,
+	getExitCode,
+} from './errors.ts';
 
 /**
  * Enhanced logger wrapper that supports structured errors

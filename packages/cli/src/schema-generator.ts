@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
-import type { CommandDefinition, SubcommandDefinition, CommandSchemas } from './types';
-import { exitCodeDescriptions } from './errors';
-import { parseArgsSchema, parseOptionsSchema } from './schema-parser';
+import type { CommandDefinition, SubcommandDefinition, CommandSchemas } from './types.ts';
+import { exitCodeDescriptions } from './errors.ts';
+import { parseArgsSchema, parseOptionsSchema } from './schema-parser.ts';
 import * as z from 'zod';
 
 export interface SchemaArgument {
