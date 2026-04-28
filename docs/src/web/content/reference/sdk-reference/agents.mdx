@@ -60,13 +60,13 @@ const agent = createAgent('CachedProcessor', {
     input: s.object({ key: s.string() }),
     output: s.object({ value: s.string() }),
   },
-  // Called once when the app starts. Return value is available via ctx.config.
+  // Called once when the app starts, return value is available via ctx.config
   setup: async () => {
     const cache = new Map<string, string>();
     const client = await initializeExternalService();
     return { cache, client };
   },
-  // Called when the app shuts down.
+  // Called when the app shuts down
   shutdown: async (_app, config) => {
     await config.client.disconnect();
     config.cache.clear();
@@ -352,7 +352,7 @@ const agent = createAgent('UserFetcher', {
 const agent = createAgent('RiskyOperator', {
   schema: {
     input: z.object({ id: z.string() }),
-    output: z.object({ data: z.any() }),
+    output: z.object({ data: z.unknown() }),
   },
   handler: async (ctx, input) => {
     try {
@@ -410,7 +410,7 @@ import { anthropic } from '@ai-sdk/anthropic';
 export default createAgent('chat-stream', {
   schema: {
     input: s.object({ message: s.string() }),
-    // No output schema needed — the stream is the output
+    // No output schema needed, the stream is the output
     stream: true,
   },
   handler: async (ctx, input) => {
@@ -419,13 +419,13 @@ export default createAgent('chat-stream', {
       prompt: input.message,
     });
 
-    // textStream is a ReadableStream<string> — return it directly
+    // textStream is a ReadableStream<string>, return it directly
     return textStream;
   },
 });
 ```
 
-**Handler return type**: When `stream: true`, return any `ReadableStream<string>` or `ReadableStream<Uint8Array>`. AI SDK's `textStream` (from `streamText`) satisfies this directly.
+**Handler return type**: When `stream: true`, return a `ReadableStream<string>` or `ReadableStream<Uint8Array>`. AI SDK's `textStream` (from `streamText`) satisfies this directly.
 
 For streaming patterns with routes, see [HTTP Routes](/routes/http).
 
@@ -435,7 +435,7 @@ Streaming agents can be returned directly from a validated route with `c.body(..
 
 ```typescript
 import { Hono } from 'hono';
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat-stream/agent';
 
 const router = new Hono<Env>();
@@ -448,7 +448,7 @@ router.post('/chat', chatAgent.validator(), async (c) => {
 export default router;
 ```
 
-Use `stream()` when the route builds the `ReadableStream` itself. For validated non-agent streams, `validator({ input, stream: true })` works too.
+Use `stream()` when the route builds the `ReadableStream` itself. For validated non-agent streams, use the standalone `validator({ input, stream: true })` helper from `@agentuity/runtime`.
 
 ### Consuming a stream
 

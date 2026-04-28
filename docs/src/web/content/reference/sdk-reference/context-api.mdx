@@ -206,7 +206,7 @@ When `@agentuity/auth` middleware is configured, `ctx.auth` provides access to t
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('protected-agent', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     if (!ctx.auth) {
       return { error: 'Please sign in' };
     }
@@ -236,6 +236,7 @@ export default createAgent('protected-agent', {
 - `getUser()` returns the authenticated user (id, email, name, image, timestamps).
 - `getToken()` returns the raw JWT token, or null.
 - `org` is the active organization context (id, slug, name, role, memberId), or null if no org is active.
+- `getOrg()` returns the active organization context, or null.
 - `getOrgRole()` returns the user's role in the active organization, or null.
 - `hasOrgRole(...roles)` returns true if the user's org role matches one of the provided roles.
 - `authMethod` indicates how the request was authenticated: `'session'`, `'api-key'`, or `'bearer'`.
@@ -283,7 +284,11 @@ ctx.session.metadata.requestType = 'chat';
 
 ```typescript
 ctx.state.set('processingStep', 'validation');
-const step = ctx.state.get('processingStep') as string;
+const step = ctx.state.get('processingStep');
+
+if (typeof step === 'string') {
+  ctx.logger.info('Processing step', { step });
+}
 ```
 
 For a complete chat example, see [Chat with Conversation History](/cookbook/patterns/chat-with-history).
@@ -360,7 +365,7 @@ export default createAgent('my-agent', {
     cache: new Map<string, string>(),
     maxRetries: 3,
   }),
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     // ctx.config is typed as { cache: Map<string, string>, maxRetries: number }
     ctx.config.cache.set('key', 'value'); // [!code highlight]
     ctx.logger.info('Max retries: %d', ctx.config.maxRetries);

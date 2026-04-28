@@ -12,6 +12,10 @@ Use the [`@agentuity/queue`](/reference/standalone-packages#message-queues) stan
 
 For concepts, patterns, and consumer configuration, see [Queues](/services/queues).
 
+<Callout type="info" title="Local queues do not need provisioning">
+In local development, `publish()` stores messages in SQLite. `createQueue()` returns a queue descriptor and `deleteQueue()` is a no-op because local queues are created as messages are written.
+</Callout>
+
 ## publish(queueName, payload, params?)
 
 Publish a message to a queue. Objects are automatically JSON-stringified before publishing.
@@ -38,7 +42,7 @@ Publish a message to a queue. Objects are automatically JSON-stringified before 
 
 ```typescript
 interface QueuePublishResult {
-  id: string;          // Message ID (prefixed with msg_)
+  id: string;          // Message ID (prefixed with qmsg_)
   offset: number;      // Sequential offset in the queue
   publishedAt: string; // ISO 8601 timestamp
 }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
+import { createSandboxClient, parseFileArgs, cacheSandboxTarget } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxCreate } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
@@ -72,6 +72,10 @@ export const createSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('Idle timeout before sandbox is reaped (e.g., "10m", "1h")'),
+			pausedTimeout: z
+				.string()
+				.optional()
+				.describe('Maximum time sandbox can remain paused before termination (e.g., "24h")'),
 			env: z.array(z.string()).optional().describe('Environment variables (KEY=VALUE)'),
 			file: z
 				.array(z.string())
@@ -195,7 +199,13 @@ export const createSubcommand = createCommand({
 					opts.network || opts.port
 						? { enabled: opts.network || opts.port !== undefined, port: opts.port }
 						: undefined,
-				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
+				timeout:
+					opts.idleTimeout || opts.pausedTimeout
+						? {
+								idle: opts.idleTimeout,
+								paused: opts.pausedTimeout,
+							}
+						: undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
 				files: hasFiles ? files : undefined,
 				snapshot: opts.snapshot,
@@ -206,8 +216,8 @@ export const createSubcommand = createCommand({
 			orgId,
 		});
 
-		// Cache the region for future lookups
-		await cacheSandboxRegion(config?.name, result.sandboxId, region);
+		// Cache routing context for future sandbox commands.
+		await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
 
 		if (!options.json) {
 			const duration = Date.now() - started;

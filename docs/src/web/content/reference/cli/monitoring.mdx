@@ -21,6 +21,7 @@ agentuity cloud monitor [options]
 | `--deployment <id>` | Monitor machines running a specific deployment |
 | `--distressed` | Show only distressed machines |
 | `--snapshot` | One-shot snapshot (no live stream) |
+| `--org-id <id>` | Use a specific organization |
 | `--json` | JSON output |
 
 ## Monitoring Modes
@@ -69,7 +70,7 @@ agentuity cloud monitor --machine mach_abc123
 Show only machines that are running containers for a specific deployment:
 
 ```bash
-agentuity cloud monitor --deployment dep_xyz789
+agentuity cloud monitor --deployment deploy_xyz789
 ```
 
 ### Distressed Only

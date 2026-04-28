@@ -27,29 +27,38 @@ bun add -D tailwindcss @tailwindcss/vite
 
 ## Step 2: Create Build Configuration
 
-Add the Tailwind plugin to your `vite.config.ts`:
+Add the Tailwind plugin to your existing `vite.config.ts`. Keep the React plugin and any Agentuity build settings already in the file:
 
 ```typescript title="vite.config.ts"
-import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vite';
+import { join } from 'node:path';
 
 export default defineConfig({
-  plugins: [tailwindcss()],
+  plugins: [react(), tailwindcss()],
+  root: '.',
+  publicDir: 'src/web/public',
+  build: {
+    rollupOptions: {
+      input: join(import.meta.dirname, 'src/web/index.html'),
+    },
+  },
 });
 ```
 
 ## Step 3: Import Tailwind in Your CSS
 
-Create or update your main CSS file (`src/web/styles.css`):
+Create or update the CSS file imported by your frontend, for example `src/web/App.css`:
 
 ```css
 @import 'tailwindcss';
 ```
 
-Then import it in your entry point (`src/web/frontend.tsx`):
+Then import it from your frontend entry or root component:
 
-```typescript
-import './styles.css';
+```typescript title="src/web/App.tsx"
+import './App.css';
 ```
 
 ## Step 4: Use Tailwind Classes

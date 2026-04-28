@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { readFileSync, statSync } from 'node:fs';
+import { createReadStream, statSync } from 'node:fs';
+import { Readable } from 'node:stream';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { createSandboxClient, resolveSandboxTarget } from '../util';
 import { getCommand } from '../../../../command-prefix';
-import { sandboxUploadArchive, sandboxResolve } from '@agentuity/server';
+import { sandboxUploadArchive } from '@agentuity/server';
 
 export const uploadSubcommand = createCommand({
 	name: 'upload',
@@ -47,9 +48,14 @@ export const uploadSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, apiClient } = ctx;
 
-		// Resolve sandbox to get region and orgId using CLI API
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 
@@ -58,8 +64,8 @@ export const uploadSubcommand = createCommand({
 			logger.fatal(`${args.archive} is not a file`);
 		}
 
-		const content = readFileSync(args.archive);
-		const bytes = content.length;
+		const bytes = stat.size;
+		const content = Readable.toWeb(createReadStream(args.archive)) as ReadableStream<Uint8Array>;
 
 		const format = opts.format ?? detectFormat(args.archive);
 

@@ -18,6 +18,9 @@ async function getDatabase(): Promise<Database> {
 
 	const dbPath = join(configDir, 'resource.db');
 	db = new Database(dbPath);
+	db.run('PRAGMA journal_mode = WAL');
+	db.run('PRAGMA busy_timeout = 5000');
+	db.run('PRAGMA synchronous = NORMAL');
 
 	db.run(`
 		CREATE TABLE IF NOT EXISTS resource_region_cache (
@@ -85,37 +88,46 @@ export async function getResourceInfo(
 	profile: string,
 	id: string
 ): Promise<ResourceInfo | null> {
-	const database = await getDatabase();
-	const cutoff = Date.now() - TTL_MS;
+	try {
+		const database = await getDatabase();
+		const cutoff = Date.now() - TTL_MS;
 
-	const row = database
-		.query<
-			{ region: string; org_id: string | null; project_id: string | null; last_updated: number },
-			[string, string, string]
-		>(
-			'SELECT region, org_id, project_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
-		)
-		.get(type, profile, id);
+		const row = database
+			.query<
+				{
+					region: string;
+					org_id: string | null;
+					project_id: string | null;
+					last_updated: number;
+				},
+				[string, string, string]
+			>(
+				'SELECT region, org_id, project_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
+			)
+			.get(type, profile, id);
 
-	if (!row) {
+		if (!row) {
+			return null;
+		}
+
+		// Check if entry is expired
+		if (row.last_updated < cutoff) {
+			// Remove stale entry
+			database.run(
+				'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
+				[type, profile, id]
+			);
+			return null;
+		}
+
+		return {
+			region: row.region,
+			orgId: row.org_id ?? undefined,
+			projectId: row.project_id ?? undefined,
+		};
+	} catch {
 		return null;
 	}
-
-	// Check if entry is expired
-	if (row.last_updated < cutoff) {
-		// Remove stale entry
-		database.run(
-			'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
-			[type, profile, id]
-		);
-		return null;
-	}
-
-	return {
-		region: row.region,
-		orgId: row.org_id ?? undefined,
-		projectId: row.project_id ?? undefined,
-	};
 }
 
 /**
@@ -144,16 +156,20 @@ export async function setResourceInfo(
 	orgId?: string,
 	projectId?: string
 ): Promise<void> {
-	const database = await getDatabase();
+	try {
+		const database = await getDatabase();
 
-	pruneOldEntries(database);
+		pruneOldEntries(database);
 
-	database.run(
-		`INSERT OR REPLACE INTO resource_region_cache 
-		 (resource_type, profile, id, region, org_id, project_id, last_updated)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		[type, profile, id, region, orgId ?? null, projectId ?? null, Date.now()]
-	);
+		database.run(
+			`INSERT OR REPLACE INTO resource_region_cache 
+			 (resource_type, profile, id, region, org_id, project_id, last_updated)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			[type, profile, id, region, orgId ?? null, projectId ?? null, Date.now()]
+		);
+	} catch {
+		// Non-critical cache failure should never block the CLI.
+	}
 }
 
 /**
@@ -179,12 +195,16 @@ export async function deleteResourceRegion(
 	profile: string,
 	id: string
 ): Promise<void> {
-	const database = await getDatabase();
+	try {
+		const database = await getDatabase();
 
-	database.run(
-		'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
-		[type, profile, id]
-	);
+		database.run(
+			'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
+			[type, profile, id]
+		);
+	} catch {
+		// Non-critical cache failure should never block the CLI.
+	}
 }
 
 /**
@@ -192,9 +212,13 @@ export async function deleteResourceRegion(
  * Useful when switching profiles or logging out.
  */
 export async function clearProfileCache(profile: string): Promise<void> {
-	const database = await getDatabase();
+	try {
+		const database = await getDatabase();
 
-	database.run('DELETE FROM resource_region_cache WHERE profile = ?', [profile]);
+		database.run('DELETE FROM resource_region_cache WHERE profile = ?', [profile]);
+	} catch {
+		// Non-critical cache failure should never block the CLI.
+	}
 }
 
 /**

@@ -34,7 +34,7 @@ import {
 	sandboxRmDir,
 	sandboxSetEnv,
 } from './files.ts';
-import { sandboxPause } from './pause.ts';
+import { sandboxPause, type SandboxPauseResult } from './pause.ts';
 import { sandboxResume } from './resume.ts';
 import { sandboxRun } from './run.ts';
 import {
@@ -281,7 +281,7 @@ export interface SandboxInstance {
 	/**
 	 * Pause the sandbox, creating a checkpoint of its current state
 	 */
-	pause(): Promise<void>;
+	pause(): Promise<SandboxPauseResult>;
 
 	/**
 	 * Resume the sandbox from a paused or evacuated state
@@ -399,7 +399,7 @@ function createSandboxInstanceMethods(
 			return sandboxGet(client, { sandboxId, orgId });
 		},
 
-		async pause(): Promise<void> {
+		async pause(): Promise<SandboxPauseResult> {
 			return sandboxPause(client, { sandboxId, orgId });
 		},
 
@@ -725,7 +725,7 @@ export class SandboxClient {
 	 *
 	 * @param sandboxId - The sandbox ID to pause
 	 */
-	async pause(sandboxId: string): Promise<void> {
+	async pause(sandboxId: string): Promise<SandboxPauseResult> {
 		return sandboxPause(this.#client, { sandboxId, orgId: this.#orgId });
 	}
 

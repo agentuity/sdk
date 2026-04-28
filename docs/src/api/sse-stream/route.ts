@@ -25,7 +25,7 @@ const router = new Hono<Env>()
 	.get(
 		'/stream',
 		sse(async (c, stream) => {
-			const model = c.req.query('model') ?? 'gpt-5.4-nano';
+			const model = c.req.query('model') ?? 'gpt-5.4-mini';
 
 			c.var.logger?.info('SSE stream started', {
 				prompt: FIXED_PROMPT.slice(0, 50),

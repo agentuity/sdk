@@ -80,7 +80,7 @@ async function main(): Promise<void> {
     });
 
     if (session.historyOnly) {
-      // The live runtime is gone. Hydrate from replay or a read-only view instead
+      // The live runtime is gone, hydrate from replay or a read-only view instead
       console.log('Session is history-only. Use replay or session detail instead of re-attaching.');
       return;
     }
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     }
 
     // wakeAvailable is false, so prepareSessionForRemoteAttach returned immediately
-    // without polling. Typical for provisioning-bucket sessions that aren't yet wakeable
+    // without polling, typical for provisioning-bucket sessions that aren't yet wakeable
     console.log('Session is not attachable yet.');
     console.log(
       JSON.stringify(

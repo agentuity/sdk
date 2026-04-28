@@ -17,7 +17,7 @@ Returns a `ReadableStream` directly to the HTTP client. Data flows through and i
 ```typescript
 // In src/api/index.ts
 import { Hono } from 'hono';
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat';
 
 const api = new Hono<Env>()
@@ -69,7 +69,7 @@ const agent = createAgent('ChatStream', {
   },
   handler: async (ctx, input) => {
     const { textStream } = streamText({
-      model: anthropic('claude-sonnet-4-5'),
+      model: anthropic('claude-sonnet-4-6'),
       prompt: input.message,
     });
 
@@ -87,7 +87,7 @@ For streaming agents, validate the request, run the agent, and return the result
 ```typescript
 // src/api/index.ts
 import { Hono } from 'hono';
-import { type Env } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
 import chatAgent from '@agent/chat';
 
 const api = new Hono<Env>()
@@ -196,7 +196,7 @@ Add context to streaming responses:
 ```typescript
 handler: async (ctx, input) => {
   const { textStream } = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     system: 'You are a helpful assistant. Be concise.',
     messages: [
       { role: 'user', content: input.message },
@@ -220,7 +220,7 @@ handler: async (ctx, input) => {
   messages.push({ role: 'user', content: input.message });
 
   const { textStream, text } = streamText({
-    model: anthropic('claude-sonnet-4-5'),
+    model: anthropic('claude-sonnet-4-6'),
     messages,
   });
 
@@ -246,7 +246,7 @@ Use `ctx.waitUntil()` to save conversation history without blocking the stream. 
 | Chat interfaces | Stream for better UX |
 | Long-form content | Stream to show progress |
 | Quick classifications | Buffer (faster overall, consider Groq for speed) |
-| Structured data | Buffer (use `generateObject`) |
+| Structured data | Buffer (use AI SDK `Output.object()`) |
 
 ## Error Handling
 
@@ -254,9 +254,9 @@ Handle streaming errors with the `onError` callback:
 
 ```typescript
 const { textStream } = streamText({
-  model: anthropic('claude-sonnet-4-5'),
+  model: anthropic('claude-sonnet-4-6'),
   prompt: input.message,
-  onError: (error) => {
+  onError({ error }) {
     ctx.logger.error('Stream error', { error });
   },
 });

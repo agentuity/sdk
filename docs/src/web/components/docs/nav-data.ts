@@ -330,7 +330,7 @@ export const navData: NavSection[] = [
 						title: 'Key-Value',
 						url: '/services/storage/key-value',
 						description:
-							'Fast, ephemeral storage for caching, session data, and configuration',
+							'Fast key-based storage for caching, session data, and configuration',
 					},
 					{
 						title: 'Vector',
@@ -352,7 +352,7 @@ export const navData: NavSection[] = [
 						title: 'Custom',
 						url: '/services/storage/custom',
 						description:
-							'Local development storage and bringing your own storage implementations',
+							'Local development storage and custom runtime storage implementations',
 					},
 				],
 			},
@@ -401,7 +401,7 @@ export const navData: NavSection[] = [
 				title: 'Coder',
 				url: '/services/coder',
 				description:
-					'Manage AI coding sessions that run in cloud sandboxes with full lifecycle, replay, and reconnect support',
+					'Run coding agents in cloud sessions you can start, inspect, share, and resume',
 			},
 			{
 				title: 'Observability',
@@ -410,7 +410,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Logging',
 						url: '/services/observability/logging',
-						description: 'Structured logging for agents and routes',
+						description: 'Collected logs for agents and routes',
 					},
 					{
 						title: 'Tracing',
@@ -460,7 +460,7 @@ export const navData: NavSection[] = [
 						title: 'Understanding Agents',
 						url: '/cookbook/tutorials/understanding-agents',
 						description:
-							'Learn how AI agents use tools, run in loops with stopping conditions, and leverage LLMs to complete tasks autonomously',
+							'Learn how AI agents use tools, run in loops with stopping conditions, and use LLMs to complete tasks autonomously',
 					},
 					{
 						title: 'RAG Agent',
@@ -529,7 +529,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Background Tasks',
 						url: '/cookbook/patterns/background-tasks',
-						description: 'Use waitUntil to run work after responding to the client',
+						description: 'Use waitUntil to return quickly while background work continues',
 					},
 					{
 						title: 'Chat with History',
@@ -854,7 +854,7 @@ export const navData: NavSection[] = [
 						title: 'OpenCode Plugin',
 						url: '/reference/cli/opencode-plugin',
 						description:
-							'Install the Agentuity plugin for OpenCode to enable AI-assisted development with specialized agents',
+							'Install the Agentuity plugin for OpenCode and configure Agentuity Coder agents',
 					},
 					{
 						title: 'Profiles',
@@ -920,7 +920,7 @@ export const navData: NavSection[] = [
 						title: 'Observability',
 						url: '/reference/sdk-reference/observability',
 						description:
-							'Structured logging and OpenTelemetry tracing via ctx.logger and ctx.tracer',
+							'Collected logs and OpenTelemetry tracing via ctx.logger and ctx.tracer',
 					},
 					{
 						title: 'Queue Service',

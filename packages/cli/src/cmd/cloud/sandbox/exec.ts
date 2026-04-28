@@ -3,12 +3,14 @@ import { Writable } from 'node:stream';
 import { ErrorCode } from '../../../errors';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, detectNullStream } from './util';
+import { createSandboxClient, detectNullStream, resolveSandboxTarget } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxExecute, executionGet, sandboxResolve } from '@agentuity/server';
+import { sandboxExecute, executionGet } from '@agentuity/server';
 import { streamUrlToWritable } from '../../../utils/stream-url';
 
 const EXECUTION_WAIT_DURATION = '5m';
+const EMPTY_STREAM_FAST_POLL_MS = 100;
+const EMPTY_STREAM_FAST_TIMEOUT_MS = 2000;
 
 const SandboxExecResponseSchema = z.object({
 	executionId: z.string().describe('Unique execution identifier'),
@@ -84,8 +86,14 @@ export const execSubcommand = createCommand({
 			}
 		}
 
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
@@ -152,7 +160,7 @@ export const execSubcommand = createCommand({
 			const stdoutStreamUrl = execution.stdoutStreamUrl;
 			const stderrStreamUrl = execution.stderrStreamUrl;
 			const streamAbortController = new AbortController();
-			const streamPromises: Promise<void>[] = [];
+			const streamPromises: Promise<{ bytesRead: number; chunks: number }>[] = [];
 			const streamLabels: string[] = [];
 
 			const isCombinedOutput =
@@ -192,7 +200,7 @@ export const execSubcommand = createCommand({
 						label: 'combined',
 						raw: true,
 						v2: true,
-					}).then(() => {})
+					})
 				);
 			} else {
 				if (stdoutStreamUrl) {
@@ -204,7 +212,7 @@ export const execSubcommand = createCommand({
 							label: 'stdout',
 							raw: true,
 							v2: true,
-						}).then(() => {})
+						})
 					);
 				}
 
@@ -217,7 +225,7 @@ export const execSubcommand = createCommand({
 							label: 'stderr',
 							raw: true,
 							v2: true,
-						}).then(() => {})
+						})
 					);
 				}
 			}
@@ -229,13 +237,53 @@ export const execSubcommand = createCommand({
 			);
 
 			let finalExecution: Awaited<ReturnType<typeof executionGet>>;
+			let streamResults: { bytesRead: number; chunks: number }[] | undefined;
 			const pollStart = Date.now();
+			const executionWaitAbortController = new AbortController();
 			try {
-				finalExecution = await executionGet(client, {
+				const executionWaitPromise = executionGet(client, {
 					executionId: execution.executionId,
 					orgId,
 					wait: EXECUTION_WAIT_DURATION,
+					signal: executionWaitAbortController.signal,
 				});
+
+				if (streamPromises.length > 0) {
+					const winner = await Promise.race([
+						executionWaitPromise.then((result) => ({ type: 'execution' as const, result })),
+						Promise.all(streamPromises).then((results) => ({
+							type: 'streams' as const,
+							results,
+						})),
+					]);
+
+					if (winner.type === 'execution') {
+						finalExecution = winner.result;
+					} else {
+						streamResults = winner.results;
+						const bytesRead = streamResults.reduce(
+							(sum, result) => sum + result.bytesRead,
+							0
+						);
+						if (bytesRead === 0) {
+							logger.debug(
+								'[exec] all streams EOF with 0 bytes before executionGet completed — switching to fast terminal poll'
+							);
+							void executionWaitPromise.catch(() => undefined);
+							executionWaitAbortController.abort();
+							finalExecution = await waitForTerminalExecutionFast(
+								client,
+								execution.executionId,
+								orgId,
+								logger
+							);
+						} else {
+							finalExecution = await executionWaitPromise;
+						}
+					}
+				} else {
+					finalExecution = await executionWaitPromise;
+				}
 			} catch (err) {
 				streamAbortController.abort();
 				throw err;
@@ -251,17 +299,21 @@ export const execSubcommand = createCommand({
 				logger.debug('[exec] waiting for %d stream(s) to EOF', streamPromises.length);
 				const streamWaitStart = Date.now();
 				let graceTriggered = false;
-				const streamGrace = setTimeout(() => {
-					graceTriggered = true;
-					logger.debug(
-						'[exec] stream grace period (5s) expired after execution complete — aborting streams'
-					);
-					streamAbortController.abort();
-				}, 5_000);
-				try {
-					await Promise.all(streamPromises);
-				} finally {
-					clearTimeout(streamGrace);
+				if (!streamResults) {
+					const streamGraceMs = 500;
+					const streamGrace = setTimeout(() => {
+						graceTriggered = true;
+						logger.debug(
+							'[exec] stream grace period (%dms) expired after execution complete — aborting streams',
+							streamGraceMs
+						);
+						streamAbortController.abort();
+					}, streamGraceMs);
+					try {
+						streamResults = await Promise.all(streamPromises);
+					} finally {
+						clearTimeout(streamGrace);
+					}
 				}
 				logger.debug(
 					'[exec] all streams done in %dms (graceTriggered=%s)',
@@ -338,6 +390,43 @@ function createCaptureStream(onChunk: (chunk: string) => void): NodeJS.WritableS
 			callback();
 		},
 	});
+}
+
+const TERMINAL_EXECUTION_STATUSES = new Set([
+	'completed',
+	'failed',
+	'error',
+	'timeout',
+	'killed',
+	'cancelled',
+]);
+
+async function waitForTerminalExecutionFast(
+	client: Parameters<typeof executionGet>[0],
+	executionId: string,
+	orgId: string,
+	logger: Parameters<typeof streamUrlToWritable>[2]
+) {
+	const deadline = Date.now() + EMPTY_STREAM_FAST_TIMEOUT_MS;
+	while (Date.now() < deadline) {
+		const info = await executionGet(client, { executionId, orgId });
+		if (TERMINAL_EXECUTION_STATUSES.has(info.status)) {
+			logger.debug(
+				'[exec] fast terminal poll observed status=%s for executionId=%s',
+				info.status,
+				executionId
+			);
+			return info;
+		}
+		await new Promise((resolve) => setTimeout(resolve, EMPTY_STREAM_FAST_POLL_MS));
+	}
+
+	logger.debug(
+		'[exec] fast terminal poll timed out after %dms for executionId=%s, falling back to long-poll',
+		EMPTY_STREAM_FAST_TIMEOUT_MS,
+		executionId
+	);
+	return executionGet(client, { executionId, orgId, wait: EXECUTION_WAIT_DURATION });
 }
 
 export default execSubcommand;

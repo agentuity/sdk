@@ -1,7 +1,7 @@
 ---
 title: Key-Value Storage
 short_title: Key-Value
-description: Fast, ephemeral storage for caching, session data, and configuration
+description: Fast key-based storage for caching, session data, and configuration
 ---
 
 Key-value ("KV") storage provides fast data access for agents. Use it for caching, configuration, rate limiting, and data that needs quick lookups.
@@ -35,12 +35,16 @@ Use built-in state (`ctx.state`, `ctx.thread.state`, `ctx.session.state`) for da
 | Frontend | Via routes | [React Hooks](/frontend/react-hooks) |
 
 <Callout type="info" title="Same API Everywhere">
-The KV API is identical in all contexts. `ctx.kv.get()` and `c.var.kv.get()` work the same way. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the full reference.
+The runtime surface is the same in agents and routes. `ctx.kv.get()` and `c.var.kv.get()` call the same storage interface. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the full reference.
 </Callout>
 
 ## Basic Operations
 
-Access key-value storage through `ctx.kv` in agents or `c.var.kv` in routes. Buckets are auto-created on first use.
+Access key-value storage through `ctx.kv` in agents or `c.var.kv` in routes. Namespaces are created when you write the first key.
+
+<Callout type="info" title="Local KV supports the basic operations">
+Local development KV supports `get()`, `set()`, and `delete()`. Managed cloud KV also supports search, key listing, namespace stats, and namespace management.
+</Callout>
 
 ### Storing Data
 
@@ -48,8 +52,10 @@ Access key-value storage through `ctx.kv` in agents or `c.var.kv` in routes. Buc
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('CacheManager', {
-  handler: async (ctx, input) => {
-    // Store with custom TTL (minimum 60 seconds, maximum 365 days)
+  handler: async (ctx) => {
+    const responseData = { status: 'ok', cachedAt: new Date().toISOString() };
+
+    // Store with custom TTL
     await ctx.kv.set('cache', 'api-response', responseData, {
       ttl: 3600,  // expires in 1 hour
       contentType: 'application/json',
@@ -77,7 +83,7 @@ const agent = createAgent('CacheManager', {
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('CacheRetriever', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     const result = await ctx.kv.get('cache', 'api-response');
 
     if (result.exists) {
@@ -98,8 +104,13 @@ const agent = createAgent('CacheRetriever', {
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent('SessionCleaner', {
+  schema: {
+    input: s.object({ sessionId: s.string() }),
+    output: s.object({ deleted: s.boolean() }),
+  },
   handler: async (ctx, input) => {
     await ctx.kv.delete('sessions', input.sessionId);
     return { deleted: true };
@@ -113,17 +124,21 @@ Use generics for type-safe data access:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { type } from 'arktype';
+import { s } from '@agentuity/schema';
 
-const UserPreferences = type({
-  theme: "'light' | 'dark'",
-  language: 'string',
-  notifications: 'boolean',
+const UserPreferencesSchema = s.object({
+  theme: s.enum(['light', 'dark']),
+  language: s.string(),
+  notifications: s.boolean(),
 });
 
-type UserPreferences = typeof UserPreferences.infer;
+type UserPreferences = s.infer<typeof UserPreferencesSchema>;
 
 const agent = createAgent('PreferenceLoader', {
+  schema: {
+    input: s.object({ userId: s.string() }),
+    output: s.object({ theme: s.enum(['light', 'dark']) }),
+  },
   handler: async (ctx, input) => {
     const result = await ctx.kv.get<UserPreferences>('prefs', input.userId);
 
@@ -144,7 +159,7 @@ const agent = createAgent('PreferenceLoader', {
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('StorageExplorer', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     // Search keys by keyword (returns keys with metadata)
     const matches = await ctx.kv.search('cache', 'user-');
 
@@ -173,7 +188,7 @@ Create and delete namespaces programmatically:
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('NamespaceManager', {
-  handler: async (ctx, input) => {
+  handler: async (ctx) => {
     // Create a namespace with default TTL for all keys
     await ctx.kv.createNamespace('cache', {
       defaultTTLSeconds: 3600,  // all keys expire in 1 hour by default
@@ -196,16 +211,16 @@ const agent = createAgent('NamespaceManager', {
 
 | Value | Behavior |
 |-------|----------|
-| `undefined` | Keys expire after 7 days (default) |
+| `undefined` | Inherits the namespace default TTL (7 days for auto-created namespaces) |
 | `null` or `0` | Keys never expire |
 | `>= 60` | Custom TTL in seconds (minimum 60 seconds, maximum 365 days) |
 
 <Callout type="info" title="TTL Limits">
-The minimum TTL is 60 seconds. The maximum is 365 days (31,536,000 seconds). Values outside this range will be clamped to valid bounds. A TTL of 0 means the key never expires.
+Managed cloud KV clamps per-key TTL values passed to `set()` that are less than 60 seconds to 60 seconds, and greater than 365 days to 365 days. Namespace defaults passed to `createNamespace()` must be `0` or between 60 seconds and 365 days. Out-of-range namespace defaults return a validation error. A TTL of `0` means the key, or namespace default, never expires.
 </Callout>
 
 <Callout type="info" title="Sliding Expiration">
-When a key is read with less than 50% of its TTL remaining, the expiration is automatically extended. This keeps frequently-accessed data alive without manual renewal.
+Managed cloud KV extends a key when it is read with less than 50% of its TTL remaining. This keeps frequently accessed data alive without manual renewal.
 </Callout>
 
 <Callout type="warning" title="Destructive Operation">
@@ -225,15 +240,31 @@ Keys expire after 7 days by default unless a namespace-level or per-key TTL is s
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 interface UserSession {
-  userId: string;
-  email: string;
-  loginAt: string;
-  preferences: { theme: string };
+  readonly userId: string;
+  readonly email: string;
+  readonly loginAt: string;
+  readonly preferences: { readonly theme: string };
 }
 
 const agent = createAgent('SessionManager', {
+  schema: {
+    input: s.object({
+      token: s.string(),
+      userId: s.string(),
+      email: s.string(),
+    }),
+    output: s.object({
+      session: s.object({
+        userId: s.string(),
+        email: s.string(),
+        loginAt: s.string(),
+        preferences: s.object({ theme: s.string() }),
+      }),
+    }),
+  },
   handler: async (ctx, input) => {
     const sessionKey = `session:${input.token}`;
 
@@ -272,7 +303,7 @@ const router = new Hono<Env>();
 
 router.get('/session/:id', async (c) => {
   const sessionId = c.req.param('id');
-  const result = await c.var.kv.get('sessions', sessionId);
+  const result = await c.var.kv.get<{ userId: string; email: string }>('sessions', sessionId);
 
   if (!result.exists) {
     return c.json({ error: 'Session not found' }, 404);
@@ -298,22 +329,21 @@ import { createApp, createAgentContext } from '@agentuity/runtime';
 const app = await createApp();
 export default app;
 
-// Discord bot example
-client.on('messageCreate', async (message) => {
+async function ensurePreferences(userId: string): Promise<void> {
   const ctx = createAgentContext();
 
   await ctx.invoke(async () => {
     // Check user preferences
-    const prefs = await ctx.kv.get('prefs', message.author.id);
+    const prefs = await ctx.kv.get('prefs', userId);
 
     if (!prefs.exists) {
-      await ctx.kv.set('prefs', message.author.id, {
+      await ctx.kv.set('prefs', userId, {
         theme: 'dark',
         notifications: true,
       });
     }
   });
-});
+}
 ```
 
 See [Running Agents Without HTTP](/agents/standalone-execution) for more patterns including Discord bots, CLI tools, and queue workers.

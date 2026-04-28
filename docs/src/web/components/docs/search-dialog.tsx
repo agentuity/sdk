@@ -19,7 +19,6 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import {
 	Command,
-	CommandEmpty,
 	CommandGroup,
 	CommandInput,
 	CommandItem,
@@ -36,6 +35,7 @@ import { cn } from '../../lib/utils';
 import { navData, type NavItem } from './nav-data';
 import { useAISearch } from '../../hooks/use-ai-search';
 import { AISearchMessages, AISearchActions } from './ai-search-messages';
+import { searchPagefind } from '../../lib/pagefind-search';
 
 const MODE_STORAGE_KEY = 'agentuity-search-mode';
 
@@ -53,6 +53,14 @@ interface SearchItem {
 	url: string;
 	description?: string;
 	section: string;
+}
+
+type PagefindStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+interface PagefindSearchState {
+	readonly query: string;
+	readonly items: SearchItem[];
+	readonly status: PagefindStatus;
 }
 
 function collectItems(items: NavItem[], section: string): SearchItem[] {
@@ -75,6 +83,51 @@ function getAllItems(): SearchItem[] {
 		items.push(...collectItems(section.items, section.title));
 	}
 	return items;
+}
+
+function getSearchWords(value: string): string[] {
+	return value.toLowerCase().split(/\W+/).filter(Boolean);
+}
+
+function matchesWordPrefixes(value: string, terms: string[]): boolean {
+	const words = getSearchWords(value);
+	return terms.every((term) => words.some((word) => word.startsWith(term)));
+}
+
+function getNavMatches(query: string, items: SearchItem[]): SearchItem[] {
+	const terms = getSearchWords(query);
+	if (terms.length === 0) {
+		return [];
+	}
+
+	const titleMatches: SearchItem[] = [];
+	const otherMatches: SearchItem[] = [];
+	for (const item of items) {
+		if (matchesWordPrefixes(item.title, terms)) {
+			titleMatches.push(item);
+		} else if (
+			matchesWordPrefixes(`${item.title} ${item.description ?? ''} ${item.section}`, terms)
+		) {
+			otherMatches.push(item);
+		}
+	}
+
+	return [...titleMatches, ...otherMatches];
+}
+
+function mergeSearchItems(primaryItems: SearchItem[], secondaryItems: SearchItem[]): SearchItem[] {
+	const seen = new Set<string>();
+	const result: SearchItem[] = [];
+
+	for (const item of [...primaryItems, ...secondaryItems]) {
+		if (seen.has(item.url)) {
+			continue;
+		}
+		seen.add(item.url);
+		result.push(item);
+	}
+
+	return result;
 }
 
 const sectionIcons: Record<string, LucideIcon> = {
@@ -181,12 +234,13 @@ function renderTreeItems(
 		const indent = depth * 16;
 
 		if (item.url) {
+			const url = item.url;
 			const Icon = depth === 0 ? sectionIcon : FileTextIcon;
 			nodes.push(
 				<CommandItem
-					key={item.url}
-					value={item.title}
-					onSelect={() => onSelect(item.url!)}
+					key={url}
+					value={url}
+					onSelect={() => onSelect(url)}
 					style={{ paddingLeft: `${12 + indent}px` }}
 					className="py-1.5"
 				>
@@ -224,6 +278,13 @@ function KeywordSearchContent({
 	onSwitchMode: () => void;
 }) {
 	const [search, setSearch] = React.useState('');
+	const [selectedValue, setSelectedValue] = React.useState('');
+	const [pagefindState, setPagefindState] = React.useState<PagefindSearchState>({
+		query: '',
+		items: [],
+		status: 'idle',
+	});
+	const listRef = React.useRef<HTMLDivElement>(null);
 	const allItems = React.useMemo(() => getAllItems(), []);
 
 	const handleSelect = (url: string) => {
@@ -231,19 +292,74 @@ function KeywordSearchContent({
 		onOpenChange(false);
 	};
 
-	const groupedItems = React.useMemo(() => {
+	React.useEffect(() => {
+		const query = search.trim();
+		if (!query) {
+			setPagefindState({ query: '', items: [], status: 'idle' });
+			return;
+		}
+
+		let cancelled = false;
+		setPagefindState({ query, items: [], status: 'loading' });
+
+		void searchPagefind(query)
+			.then((results) => {
+				if (cancelled) {
+					return;
+				}
+				setPagefindState({ query, items: results, status: 'ready' });
+			})
+			.catch(() => {
+				if (cancelled) {
+					return;
+				}
+				setPagefindState({ query, items: [], status: 'error' });
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [search]);
+
+	const query = search.trim();
+	const pagefindItems = pagefindState.query === query ? pagefindState.items : [];
+	const pagefindStatus: PagefindStatus =
+		query && pagefindState.query !== query ? 'loading' : pagefindState.status;
+	const navMatches = React.useMemo(() => getNavMatches(query, allItems), [query, allItems]);
+	const searchItems = React.useMemo(
+		() => mergeSearchItems(navMatches, pagefindItems),
+		[navMatches, pagefindItems]
+	);
+
+	React.useEffect(() => {
+		const firstVisibleItem = query ? searchItems[0] : allItems[0];
+		setSelectedValue(firstVisibleItem?.url ?? '');
+	}, [query, searchItems, allItems]);
+
+	React.useLayoutEffect(() => {
+		if (query || pagefindStatus === 'idle') {
+			listRef.current?.scrollTo({ top: 0 });
+		}
+	}, [query, pagefindStatus]);
+
+	const groupedSearchItems = React.useMemo(() => {
 		const groups: Record<string, SearchItem[]> = {};
-		for (const item of allItems) {
+		for (const item of searchItems) {
 			if (!groups[item.section]) {
 				groups[item.section] = [];
 			}
 			groups[item.section]!.push(item);
 		}
 		return groups;
-	}, [allItems]);
+	}, [searchItems]);
 
 	return (
-		<Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+		<Command
+			value={selectedValue}
+			onValueChange={setSelectedValue}
+			shouldFilter={false}
+			className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+		>
 			<div className="flex items-center [&>[data-slot=command-input-wrapper]]:flex-1 [&>[data-slot=command-input-wrapper]]:border-b-0 border-b">
 				<CommandInput placeholder="Search pages..." value={search} onValueChange={setSearch} />
 				<button
@@ -267,18 +383,29 @@ function KeywordSearchContent({
 					</kbd>
 				</button>
 			</div>
-			<CommandList className="max-h-[400px]">
-				{search.trim() ? (
+			<CommandList ref={listRef} className="h-[400px] max-h-[60vh]">
+				{query ? (
 					<>
-						<CommandEmpty>No results found.</CommandEmpty>
-						{Object.entries(groupedItems).map(([section, items]) => {
+						{pagefindStatus === 'loading' && searchItems.length === 0 && (
+							<div className="py-6 text-center text-sm text-muted-foreground">
+								Searching...
+							</div>
+						)}
+						{pagefindStatus !== 'loading' && searchItems.length === 0 && (
+							<div className="py-6 text-center text-sm text-muted-foreground">
+								{pagefindStatus === 'error'
+									? 'Search is unavailable right now.'
+									: 'No results found.'}
+							</div>
+						)}
+						{Object.entries(groupedSearchItems).map(([section, items]) => {
 							const Icon = sectionIcons[section] ?? FileTextIcon;
 							return (
 								<CommandGroup key={section} heading={section}>
 									{items.map((item) => (
 										<CommandItem
 											key={item.url}
-											value={`${item.title} ${item.description ?? ''} ${item.section}`}
+											value={item.url}
 											onSelect={() => handleSelect(item.url)}
 											className="items-start py-2.5"
 										>

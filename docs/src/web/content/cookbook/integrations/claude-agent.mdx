@@ -13,9 +13,33 @@ Wrap a Claude Agent SDK `query()` call inside Agentuity's [`createAgent()`](/age
 Define schemas and create the agent handler:
 
 ```typescript title="src/agent/claude-code/index.ts"
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
+
+interface StoredMessage {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+}
+
+function buildPrompt(history: readonly StoredMessage[], prompt: string): string {
+  if (history.length === 0) {
+    return prompt;
+  }
+
+  const previousTurns = history
+    .map((message) => `${message.role}: ${message.content}`)
+    .join('\n');
+
+  return `${previousTurns}\nuser: ${prompt}`;
+}
+
+function getResultMessage(messages: readonly SDKMessage[]): SDKResultMessage | undefined {
+  return messages.find((message): message is SDKResultMessage => message.type === 'result');
+}
 
 const AgentInput = s.object({
   prompt: s.string().describe('The user prompt to send to Claude'),
@@ -33,8 +57,12 @@ export default createAgent('claude-code', {
   handler: async (ctx, { prompt }) => {
     ctx.logger.info('Claude Agent invoked', { promptLength: prompt.length });
 
+    const workspaceDir = join(tmpdir(), 'claude-code-workspaces', ctx.thread.id);
+    initWorkspace(workspaceDir);
+
     // Load conversation history from thread state
-    const history = (await ctx.thread.state.get<Message[]>('messages')) ?? []; // [!code highlight]
+    const history = (await ctx.thread.state.get<StoredMessage[]>('messages')) ?? []; // [!code highlight]
+    const fullPrompt = buildPrompt(history, prompt);
 
     const systemPrompt = [
       'You are a helpful code assistant running inside an Agentuity agent.',
@@ -45,12 +73,13 @@ export default createAgent('claude-code', {
     ].join('\n');
 
     // Claude Agent SDK manages the conversation loop and tool calls
-    const collectedMessages = [];
+    const collectedMessages: SDKMessage[] = [];
     const q = query({ // [!code highlight]
       prompt: fullPrompt,
       options: {
         systemPrompt,
         allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep'], // [!code highlight]
+        permissionMode: 'dontAsk',
         cwd: workspaceDir,
         maxTurns: 10,
       },
@@ -60,7 +89,10 @@ export default createAgent('claude-code', {
       collectedMessages.push(msg);
     }
 
-    const responseText = extractResponseText(collectedMessages);
+    const resultMessage = getResultMessage(collectedMessages);
+    const responseText = resultMessage?.subtype === 'success'
+      ? resultMessage.result
+      : 'No response generated';
 
     // Persist with a sliding window via thread state
     await ctx.thread.state.push('messages', { role: 'user', content: prompt }, 20);
@@ -70,12 +102,13 @@ export default createAgent('claude-code', {
       response: responseText,
       sessionId: ctx.sessionId,
       threadId: ctx.thread.id,
+      ...(resultMessage ? { costUsd: resultMessage.total_cost_usd } : {}),
     };
   },
 });
 ```
 
-Claude Agent SDK iterates through an async generator of messages, calling tools (Read, Write, Edit, Glob, Grep) as needed. Each turn is bounded by `maxTurns` to prevent runaway loops. Agentuity's [`ctx.thread.state`](/agents/state-management) persists conversation history across requests with a 20-message sliding window.
+Claude Agent SDK iterates through an async generator of messages. `allowedTools` pre-approves the listed tools, and `permissionMode: 'dontAsk'` denies tools that were not pre-approved instead of prompting. Each query is bounded by `maxTurns`, and Agentuity's [`ctx.thread.state`](/agents/state-management) persists conversation history across requests with a 20-message sliding window.
 
 ## Sandbox Execution
 

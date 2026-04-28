@@ -136,8 +136,8 @@ Both `cloud storage` and `cloud s3` work interchangeably. Examples below use `s3
 ### Create Storage Resource
 
 ```bash
-agentuity cloud storage create
-# or: agentuity cloud s3 create
+agentuity cloud storage create --name my-bucket
+# or: agentuity cloud s3 create --name my-bucket
 ```
 
 This adds S3 credentials to your local `.env` file automatically.
@@ -171,25 +171,28 @@ agentuity cloud s3 list --limit=10 --offset=0
 ### Upload a File
 
 ```bash
-agentuity cloud s3 upload ./local-file.pdf
+agentuity cloud s3 upload my-bucket ./local-file.pdf --key docs/local-file.pdf
 ```
 
 ### Download a File
 
 ```bash
-agentuity cloud s3 download <file-id> --output ./downloaded-file.pdf
+agentuity cloud s3 download my-bucket docs/local-file.pdf ./downloaded-file.pdf
 ```
 
 ### Get Storage Details
 
 ```bash
-agentuity cloud s3 get <storage-id>
+agentuity cloud s3 get <bucket-name>
 ```
 
 ### Delete Storage Resource
 
 ```bash
-agentuity cloud s3 delete <storage-id>
+agentuity cloud s3 delete <bucket-name>
+
+# Delete a file from a bucket
+agentuity cloud s3 delete <bucket-name> docs/local-file.pdf
 ```
 
 **In agents:** Use Bun's `s3` API (`import { s3 } from "bun"`). See [Object Storage (S3)](/services/storage/object).
@@ -348,7 +351,7 @@ This adds `DATABASE_URL` to your local `.env` file automatically.
 ### Get Database Details
 
 ```bash
-agentuity cloud db get <database-id>
+agentuity cloud db get <database-name>
 ```
 
 ### Run SQL Queries
@@ -357,28 +360,28 @@ Execute SQL queries directly from the CLI:
 
 ```bash
 # Simple query
-agentuity cloud db sql "SELECT * FROM users LIMIT 10"
+agentuity cloud db sql my-database "SELECT * FROM users LIMIT 10"
 
 # Query with filtering
-agentuity cloud db sql "SELECT name, email FROM users WHERE active = true"
+agentuity cloud db sql my-database "SELECT name, email FROM users WHERE active = true"
 
 # Insert data
-agentuity cloud db sql "INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com')"
+agentuity cloud db sql my-database "INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com')"
 ```
 
 ### View Database Logs
 
 ```bash
-agentuity cloud db logs <database-id>
+agentuity cloud db logs <database-name>
 ```
 
 ### Delete a Database
 
 ```bash
-agentuity cloud db delete <database-id>
+agentuity cloud db delete <database-name>
 ```
 
-**In agents:** Use Bun's `sql` API (`import { sql } from "bun"`). See [Database](/services/database/overview).
+**In agents:** Use Bun's `sql` API (`import { sql } from "bun"`). See [Database](/services/database).
 
 ## Streams
 
@@ -468,5 +471,5 @@ REDIS_URL=redis://...
 - [Configuration Commands](/reference/cli/configuration): Manage environment variables, secrets, and API keys
 - [Key-Value Storage](/services/storage/key-value): Programmatic KV access in agents
 - [Object Storage (S3)](/services/storage/object): File storage with Bun S3
-- [Database](/services/database/overview): SQL queries with Bun SQL
+- [Database](/services/database): SQL queries with Bun SQL
 - [Vector Storage](/services/storage/vector): Semantic search in agents

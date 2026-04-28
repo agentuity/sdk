@@ -114,7 +114,8 @@ export function useAISearch() {
 				{
 					id: `ai-${Date.now()}`,
 					type: 'ai' as const,
-					content: 'Sorry, I encountered an error while searching. Please try again.',
+					content:
+						"I couldn't search the docs just now. You can still use keyword search, or try again in a moment.",
 					timestamp: new Date(),
 				},
 			]);

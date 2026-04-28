@@ -22,9 +22,7 @@ return <div>Welcome, {user.name}</div>;
 </Tab>
 <Tab value="API Route">
 ```typescript
-router.use('/api/*', authMiddleware);
-
-router.get('/api/me', async (c) => {
+router.get('/me', authMiddleware, async (c) => {
   const user = await c.var.auth.getUser();
   return c.json(user);
 });
@@ -118,8 +116,8 @@ import { auth } from '../auth';
 
 const router = new Hono<Env>();
 
-// Mount auth routes at /api/auth/*
-router.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
+// If app.ts mounts this router at /api, these are served at /api/auth/*
+router.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
 
 export default router;
 ```
@@ -163,17 +161,20 @@ const adminOnly = createSessionMiddleware(auth, { hasOrgRole: ['admin', 'owner']
 **Usage examples:**
 
 ```typescript
-// Protect all API routes
-router.use('/api/*', authMiddleware);
+// Protect one route
+router.get('/me', authMiddleware, async (c) => {
+  const user = await c.var.auth.getUser();
+  return c.json({ id: user.id, email: user.email, name: user.name });
+});
 
 // Allow both authenticated and anonymous access
-router.get('/api/content', optionalAuth, async (c) => {
+router.get('/content', optionalAuth, async (c) => {
   const user = await c.var.auth.getUser().catch(() => null);
   return c.json({ premium: !!user });
 });
 
 // Admin-only route
-router.get('/api/admin', adminOnly, async (c) => {
+router.get('/admin', adminOnly, async (c) => {
   return c.json({ message: 'Welcome, admin!' });
 });
 ```
@@ -212,7 +213,7 @@ When middleware authenticates a request, `c.var.auth` provides these methods:
 **Example:**
 
 ```typescript
-router.get('/api/profile', authMiddleware, async (c) => {
+router.get('/profile', authMiddleware, async (c) => {
   const user = await c.var.auth.getUser();
   const org = await c.var.auth.getOrg();
   const isAdmin = await c.var.auth.hasOrgRole('admin', 'owner');
@@ -370,6 +371,7 @@ export default createAgent('hello', {
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | **Required** |
 | `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
+| `AGENTUITY_CLOUD_BASE_URL` | Platform-provided base URL for auth callbacks | Checked before `AGENTUITY_BASE_URL` |
 | `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Falls back to `BETTER_AUTH_URL` |
 
 **Auto-resolved trusted origins:**
@@ -411,7 +413,10 @@ import * as authSchema from '@agentuity/auth/schema';
 import * as appSchema from './schema';
 
 const schema = { ...authSchema, ...appSchema };
-const db = drizzle(process.env.DATABASE_URL!, { schema });
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+const db = drizzle(databaseUrl, { schema });
 
 export const auth = createAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),

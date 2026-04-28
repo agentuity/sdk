@@ -16,6 +16,10 @@ For caching patterns, TTL strategies, and best practices, see [Key-Value Storage
 
 The Key-Value Storage API provides a simple way to store and retrieve data. Use `ctx.kv` in agents and `c.var.kv` in routes.
 
+<Callout type="warning" title="Local KV has a smaller API surface">
+In local development, `get()`, `set()`, and `delete()` use SQLite. Namespace, stats, key listing, and search methods are cloud-backed and throw locally.
+</Callout>
+
 ### get
 
 `get(name: string, key: string): Promise<DataResult>`
@@ -200,9 +204,35 @@ ctx.logger.info('Cache stats', { keys: stats.count, totalBytes: stats.sum });
 
 ### getAllStats
 
-`getAllStats(): Promise<Record<string, KeyValueStats>>`
+`getAllStats(params?: GetAllStatsParams): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated>`
 
-Returns statistics for all namespaces.
+Returns statistics for all namespaces. Pass `params` to filter, sort, or paginate the response.
+
+**Parameters**
+
+- `params` (optional):
+  - `limit`: Max namespaces per page (default 100, max 1000)
+  - `offset`: Namespaces to skip
+  - `sort`: Sort field, one of `'name'`, `'size'`, `'records'`, `'created'`, or `'lastUsed'`
+  - `direction`: `'asc'` or `'desc'`
+  - `name`: Filter namespaces by name substring
+  - `projectId`, `agentId`, `projectName`, `agentName`: Cloud metadata filters
+
+**Return Value**
+
+Without `params`: a flat `Record<string, KeyValueStats>`.
+
+With `params`: a paginated `KeyValueStatsPaginated` object:
+
+```typescript
+interface KeyValueStatsPaginated {
+  namespaces: Record<string, KeyValueStats>;
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+```
 
 **Example**
 
@@ -210,6 +240,11 @@ Returns statistics for all namespaces.
 const allStats = await ctx.kv.getAllStats();
 for (const [namespace, stats] of Object.entries(allStats)) {
   ctx.logger.info(`${namespace}: ${stats.count} keys, ${stats.sum} bytes`);
+}
+
+const page = await ctx.kv.getAllStats({ limit: 10, sort: 'records', direction: 'desc' });
+if ('hasMore' in page) {
+  ctx.logger.info(`Showing ${Object.keys(page.namespaces).length} of ${page.total} namespaces`);
 }
 ```
 
@@ -787,6 +822,7 @@ Creates a new writable stream in the given namespace.
   - `metadata`: Key-value pairs for identifying and searching streams
   - `contentType`: Content type of the stream (defaults to `application/octet-stream`)
   - `compress`: Enable automatic gzip compression (defaults to `false`)
+  - `ttl`: Time-to-live in seconds. Use `null` or `0` for no expiration
 
 **Return Value**
 
@@ -871,6 +907,7 @@ interface StreamInfo {
   metadata: Record<string, string>;  // User-defined metadata
   url: string;                       // Public URL to access the stream
   sizeBytes: number;                 // Size of stream content in bytes
+  expiresAt: string | null;          // ISO 8601 expiration timestamp, null if no expiry
 }
 ```
 
@@ -926,10 +963,13 @@ Lists and searches streams with filtering and pagination.
 **Parameters**
 
 - `params` (optional):
-  - `namespace`: Filter by stream namespace
+  - `namespace`: Filter by stream namespace. Takes precedence when `name` is also provided
+  - `name`: Filter streams by namespace/name substring
   - `metadata`: Filter by metadata key-value pairs
   - `limit`: Maximum streams to return (1-1000, default 100)
   - `offset`: Number of streams to skip
+  - `sort`: Sort field, one of `'name'`, `'created'`, `'updated'`, `'size'`, `'count'`, or `'lastUsed'`
+  - `direction`: `'asc'` or `'desc'`
 
 **Return Value**
 

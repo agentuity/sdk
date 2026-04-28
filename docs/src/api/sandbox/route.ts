@@ -34,7 +34,12 @@ const SESSION_BUCKET = 'explorer-sessions';
 const SESSION_TTL = 600; // 10 min, matches sandbox idle timeout
 const SANDBOX_IDLE_TIMEOUT = '10m';
 const SSE_HEARTBEAT_INTERVAL_MS = 5_000;
-const SANDBOX_SERVICE_SCOPES = ['services:read', 'services:write'];
+const SANDBOX_SERVICE_SCOPES = [
+	'services:read',
+	'services:write',
+	'schedule:read',
+	'schedule:write',
+];
 
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);

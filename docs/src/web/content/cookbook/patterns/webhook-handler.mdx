@@ -7,96 +7,61 @@ Process webhooks from external services (Stripe, GitHub, Slack) with proper sign
 
 ## The Pattern
 
-Webhooks require quick responses (usually under 3 seconds). Use `waitUntil` to acknowledge immediately and process in the background.
+Webhooks require quick responses, usually under 3 seconds. Verify the raw request body first, then use `waitUntil` to acknowledge immediately and process in the background.
+
+For Stripe, use the official Node SDK to verify the `stripe-signature` header against the raw body:
 
 ```typescript title="src/api/webhooks/route.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
-import crypto from 'crypto';
-import paymentProcessor from '@agent/payment-processor/agent';
-import subscriptionHandler from '@agent/subscription-handler/agent';
+import Stripe from 'stripe';
+import stripeEventHandler from '@agent/stripe-event-handler/agent';
 
 const router = new Hono<Env>();
 
 router.post('/stripe', async (c) => {
-  // Get raw body for signature verification
   const rawBody = await c.req.text();
   const signature = c.req.header('stripe-signature');
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  // Verify signature
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret || !verifyStripeSignature(rawBody, signature, secret)) { // [!code highlight]
-    c.var.logger.warn('Invalid webhook signature');
-    return c.text('Invalid signature', 401);
+  if (!apiKey || !webhookSecret || !signature) {
+    c.var.logger.error('Stripe webhook is missing configuration');
+    return c.text('Webhook not configured', 500);
   }
 
-  const event = JSON.parse(rawBody);
+  const stripe = new Stripe(apiKey);
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret); // [!code highlight]
+  } catch (error) {
+    c.var.logger.warn('Invalid Stripe webhook signature', { error });
+    return c.text('Invalid signature', 400);
+  }
+
   c.var.logger.info('Webhook received', { type: event.type });
 
-  // Process in background, respond immediately
   c.waitUntil(async () => { // [!code highlight]
     try {
-      switch (event.type) {
-        case 'payment_intent.succeeded':
-          await paymentProcessor.run({
-            paymentId: event.data.object.id,
-            amount: event.data.object.amount,
-            customerId: event.data.object.customer,
-          });
-          break;
-
-        case 'customer.subscription.updated':
-          await subscriptionHandler.run({
-            subscriptionId: event.data.object.id,
-            status: event.data.object.status,
-          });
-          break;
-
-        default:
-          c.var.logger.debug('Unhandled event type', { type: event.type });
-      }
+      await stripeEventHandler.run({
+        eventId: event.id,
+        type: event.type,
+        payload: event.data.object,
+      });
     } catch (error) {
       c.var.logger.error('Webhook processing failed', { error, eventType: event.type });
-      // Store for retry
+
       await c.var.kv.set('failed-webhooks', event.id, {
         event,
-        error: String(error),
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: Date.now(),
       }, { ttl: 86400 }); // 24 hours
     }
   });
 
-  // Return 200 immediately
   return c.json({ received: true }); // [!code highlight]
 });
-
-function verifyStripeSignature(
-  payload: string,
-  signature: string | undefined,
-  secret: string
-): boolean {
-  if (!signature) return false;
-
-  const parts = signature.split(',').reduce((acc, part) => {
-    const [key, value] = part.split('=');
-    acc[key] = value;
-    return acc;
-  }, {} as Record<string, string>);
-
-  const timestamp = parts['t'];
-  const expectedSig = parts['v1'];
-
-  const signedPayload = `${timestamp}.${payload}`;
-  const computedSig = crypto
-    .createHmac('sha256', secret)
-    .update(signedPayload)
-    .digest('hex');
-
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedSig),
-    Buffer.from(computedSig)
-  );
-}
 
 export default router;
 ```
@@ -104,17 +69,17 @@ export default router;
 ## Slack Webhook Example
 
 ```typescript title="src/api/webhooks/route.ts"
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import slackHandler from '@agent/slack-handler/agent';
 
 router.post('/slack', async (c) => {
-  // Slack retries on failure - skip duplicates
+  // Slack retries on failure, skip duplicates
   if (c.req.header('x-slack-retry-num')) {
     return c.text('OK');
   }
 
   const rawBody = await c.req.text();
 
-  // Verify Slack signature
   const timestamp = c.req.header('x-slack-request-timestamp');
   const signature = c.req.header('x-slack-signature');
   const secret = process.env.SLACK_SIGNING_SECRET;
@@ -123,30 +88,66 @@ router.post('/slack', async (c) => {
     return c.text('Invalid signature', 401);
   }
 
-  const payload = JSON.parse(rawBody);
+  const payload: unknown = JSON.parse(rawBody);
 
-  // Handle URL verification challenge
-  if (payload.type === 'url_verification') {
+  if (isSlackUrlVerification(payload)) {
     return c.text(payload.challenge);
   }
 
-  // Process event in background
   c.waitUntil(async () => { // [!code highlight]
     await slackHandler.run(payload);
   });
 
   return c.text('OK');
 });
+
+function verifySlackSignature(
+  rawBody: string,
+  timestamp: string | undefined,
+  signature: string | undefined,
+  secret: string | undefined
+): boolean {
+  if (!timestamp || !signature || !secret) return false;
+
+  const timestampSeconds = Number(timestamp);
+  if (!Number.isFinite(timestampSeconds)) return false;
+
+  const ageSeconds = Math.abs(Date.now() / 1000 - timestampSeconds);
+  if (ageSeconds > 60 * 5) return false;
+
+  const expected = 'v0=' + createHmac('sha256', secret)
+    .update(`v0:${timestamp}:${rawBody}`)
+    .digest('hex');
+
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const signatureBuffer = Buffer.from(signature, 'utf8');
+
+  if (expectedBuffer.length !== signatureBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, signatureBuffer);
+}
+
+function isSlackUrlVerification(
+  payload: unknown
+): payload is { type: 'url_verification'; challenge: string } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'type' in payload &&
+    payload.type === 'url_verification' &&
+    'challenge' in payload &&
+    typeof payload.challenge === 'string'
+  );
+}
 ```
 
 ## Key Points
 
 - **Raw body first**: Read body as text before parsing for signature verification
-- **Fast response**: Return 200 immediately, process with `waitUntil`
+- **Fast response**: Return a 2xx quickly, process with `waitUntil`
 - **Error handling**: Store failed webhooks for retry/debugging
 - **Signature verification**: Always verify webhooks from external services
 
 ## See Also
 
 - [HTTP Routes](/routes/http) for route patterns
-- [Background Tasks](/agents/calling-other-agents#background-execution) for `waitUntil`
+- [Calling Agents from Routes](/routes/calling-agents) for `c.waitUntil()` handoff patterns

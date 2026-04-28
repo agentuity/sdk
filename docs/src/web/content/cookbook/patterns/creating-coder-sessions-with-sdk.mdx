@@ -32,7 +32,7 @@ import { CoderClient } from '@agentuity/coder';
 export const coder = new CoderClient();
 ```
 
-With `AGENTUITY_SDK_KEY` set in your environment, this picks up your org, region, and Hub URL. Pass `orgId` or `region` explicitly when your app needs to pin a specific one.
+With `AGENTUITY_SDK_KEY` set in your environment, this authenticates and discovers the Hub URL for your region. Pass `orgId` or `region` explicitly when your app needs to pin a specific one.
 
 The standalone scripts on this page keep `new CoderClient()` inline so each one stays copy-pasteable. Move to a shared module once your app has more than one call site.
 
@@ -143,7 +143,7 @@ type StartSessionInput = {
 export async function startSession(input: StartSessionInput) {
   return coder.createSession({
     task: input.task,
-    // label shows up in list UIs; falls back to the task prompt when unset
+    // label shows up in list UIs; set it when your task prompt is too long for display
     label: input.task.slice(0, 100),
     // metadata is for app correlation ids and app-owned session context
     metadata: {
@@ -184,7 +184,7 @@ async function main(): Promise<void> {
   const client = new CoderClient();
 
   try {
-    // Start with session detail. It's the fullest single view
+    // Start with session detail; it's the fullest single view
     const session = await client.getSession(sessionId); // [!code highlight]
 
     // Pull related data in parallel when you need more than session detail alone
@@ -294,7 +294,7 @@ async function main(): Promise<void> {
 
   let github;
   try {
-    // Sign in to Agentuity first. Without that OAuth login, the Hub returns HTTP 409
+    // Sign in to Agentuity first; without that OAuth login, the Hub returns HTTP 409
     github = await client.listGitHubAccounts();
   } catch {
     throw new Error(
@@ -311,7 +311,7 @@ async function main(): Promise<void> {
     throw new Error('No GitHub accounts connected. Install the Agentuity GitHub App first.');
   }
 
-  // Pick the first account, or match by accountName in your own logic.
+  // Pick the first account, or match by accountName in your own logic
   const account = accounts[0];
   if (!account) {
     throw new Error('No GitHub account selected.');
@@ -323,7 +323,7 @@ async function main(): Promise<void> {
     throw new Error(`No repositories found under account ${account.accountName}`);
   }
 
-  // Pick a repository. This example just takes the first
+  // Pick a repository; this example just takes the first
   const repo = repositories[0];
   if (!repo) {
     throw new Error('No repository selected.');
@@ -351,7 +351,7 @@ void main();
 
 ## Updating and Cleaning Up
 
-Use `updateSession()` to relabel a session, retag it, adjust its visibility, or patch its `metadata`. Metadata merges into the session's _existing_ metadata, so you can change one key without resending the rest. Then archive the session for later replay, or delete it.
+Use `updateSession()` to relabel a session, retag it, adjust its visibility, or update its `metadata`. Then archive the session for later replay, or delete it.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -373,8 +373,7 @@ async function main(): Promise<void> {
     await client.updateSession(sessionId, { // [!code highlight]
       tags: ['docs', 'follow-up'],
       visibility: 'organization',
-      // metadata is merged into the session's existing metadata, so you can patch
-      // one correlation id without resending the rest
+      // metadata carries app-owned session context for later lookup
       metadata: {
         reviewStage: 'follow-up',
       },

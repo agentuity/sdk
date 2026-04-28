@@ -4,24 +4,24 @@ short_title: Hono RPC + TanStack
 description: Get end-to-end type safety between your Agentuity API routes and React frontend using Hono RPC and TanStack Query
 ---
 
-This guide shows how to get end-to-end type safety between your Agentuity API routes and React frontend using [Hono RPC](https://hono.dev/docs/guides/rpc) and [TanStack Query](https://tanstack.com/query).
+Use [Hono RPC](https://hono.dev/docs/guides/rpc) when your React frontend should call Agentuity API routes with route-inferred request and response types. Add [TanStack Query](https://tanstack.com/query) when you want caching, request state, and invalidation around those calls.
 
 ## Overview
 
-Hono RPC lets you infer client types directly from your route definitions — no codegen, no schemas to maintain. Combined with TanStack Query, you get:
+Hono RPC infers client types directly from your route definitions. Combined with TanStack Query, you get:
 
-- **Type-safe API calls** — request params, body, and response types are inferred from route handlers
-- **Automatic caching and revalidation** — TanStack Query manages server state
-- **Zero duplication** — the route definition is the single source of truth
+- **Type-safe API calls**: request params, body, and response types are inferred from route handlers
+- **Caching and revalidation**: TanStack Query manages server state
+- **One route contract**: the route definition is the source of truth
 
 ## Installation
 
 ```bash
-bun add @tanstack/react-query hono
+bun add @tanstack/react-query zod @hono/zod-validator
 ```
 
 <Callout type="info" title="Hono Dependency">
-`hono` is already a dependency of `@agentuity/runtime`, but you need it in your app for the `hc` client import.
+Agentuity templates already include `hono` as an app dependency. If your project does not, add it too because the browser imports `hc` from `hono/client`.
 </Callout>
 
 ## Server: Define Typed Routes
@@ -31,6 +31,13 @@ Use method chaining on `new Hono<Env>()` so TypeScript can infer the full route 
 ```typescript title="src/api/users.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+
+const CreateUserSchema = z.object({
+   name: z.string().min(1),
+   email: z.string().email(),
+});
 
 const router = new Hono<Env>()
    .get('/users', async (c) => {
@@ -47,8 +54,9 @@ const router = new Hono<Env>()
    })
    .post(
       '/users',
+      zValidator('json', CreateUserSchema),
       async (c) => {
-         const body = await c.req.json<{ name: string; email: string }>();
+         const body = c.req.valid('json');
          const user = { id: crypto.randomUUID(), ...body };
          return c.json({ user }, 201);
       }
@@ -58,7 +66,7 @@ const router = new Hono<Env>()
       return c.json({ deleted: id });
    });
 
-// Export the type — this is what the client imports
+// Export the type the client imports
 export type UsersRoute = typeof router;
 export default router;
 ```
@@ -67,21 +75,21 @@ export default router;
 Chain `.get()`, `.post()`, etc. directly on `new Hono<Env>()`. If you use separate `router.get(...)` statements, TypeScript can't infer the combined type.
 </Callout>
 
-## Safely Exporting Types to the Client
+## Export Route Types to the Client
 
-<Callout type="warning" title="Never Import Server Route Files from Client Code">
-Even `import type` can cause bundlers to trace the module graph and pull server-only code (database clients, secrets, etc.) into the client bundle.
+<Callout type="warning" title="Never Import Value Exports from Server Route Files">
+Use the type-only barrel shown below for client code. Type-only imports and exports are erased at compile time, while value imports can pull server-only code into the browser bundle.
 </Callout>
 
-Use a dedicated types file that re-exports only the types:
+Use a dedicated type-only file for frontend imports:
 
 ```typescript title="src/shared/api-types.ts"
-// This file contains ONLY type re-exports — no runtime code
+// Keep this file type-only
 export type { UsersRoute } from '../api/users';
 export type { PostsRoute } from '../api/posts';
 ```
 
-Then import from this file on the client:
+Then import from that file in the frontend:
 
 ```typescript title="src/web/api.ts"
 import { hc } from 'hono/client';
@@ -92,12 +100,12 @@ export const client = hc<UsersRoute>('/api');
 
 This works because:
 
-1. `src/shared/api-types.ts` uses only `export type { ... }` — TypeScript erases these completely at compile time
-2. Vite's client build sees an empty module after type erasure and tree-shakes it away
-3. Your server code (database queries, secrets, env vars) never enters the client bundle
+1. `src/shared/api-types.ts` uses only `export type { ... }`, so TypeScript erases it at compile time.
+2. `verbatimModuleSyntax: true` keeps `import type` and `export type` honest instead of rewriting them into value imports.
+3. Your server route file stays out of the browser bundle.
 
 <Callout type="info" title="Why Not Import Directly?">
-A file like `src/api/users.ts` may import `@agentuity/runtime`, database clients, or read `process.env` at the top level. Even with `import type`, some bundlers evaluate the module to resolve its exports, which can leak server dependencies into the client build or cause build errors.
+A file like `src/api/users.ts` may import `@agentuity/runtime`, database clients, or read `process.env` at the top level. Keep those files behind a type-only barrel so the frontend never points at the server module directly.
 </Callout>
 
 ## Client: Use with TanStack Query
@@ -113,12 +121,18 @@ import { App } from './App';
 const queryClient = new QueryClient({
    defaultOptions: {
       queries: {
-         staleTime: 30_000, // 30 seconds
+         staleTime: 30_000,
       },
    },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+
+if (!root) {
+   throw new Error('Root element not found');
+}
+
+ReactDOM.createRoot(root).render(
    <React.StrictMode>
       <QueryClientProvider client={queryClient}>
          <App />
@@ -278,40 +292,9 @@ export const usersClient = hc<UsersRoute>('/api'); // [!code highlight]
 export const postsClient = hc<PostsRoute>('/api'); // [!code highlight]
 ```
 
-Or with the explicit routing API, compose them into a single typed router and export one type:
-
-```typescript title="src/api/index.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import users from './users'; // [!code highlight]
-import posts from './posts'; // [!code highlight]
-
-const router = new Hono<Env>()
-   .route('/users', users) // [!code highlight]
-   .route('/posts', posts); // [!code highlight]
-
-export type AppRoute = typeof router; // [!code highlight]
-export default router;
-```
-
-```typescript title="src/shared/api-types.ts"
-export type { AppRoute } from '../api/index'; // [!code highlight]
-```
-
-```typescript title="src/web/api.ts"
-import { hc } from 'hono/client';
-import type { AppRoute } from '../shared/api-types'; // [!code highlight]
-
-// Single client for all routes
-export const client = hc<AppRoute>('/api'); // [!code highlight]
-
-// client.users.$get()  — typed
-// client.posts.$get()  — typed
-```
-
 ## With Explicit Routing
 
-If you're using `createApp({ router })`, export the type from the shared types file:
+If you're mounting sub-routers with `createApp({ router })`, export the composed router type. Mount routers at `/` when the imported route files already include their path prefixes.
 
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
@@ -320,16 +303,18 @@ import users from './users';
 import posts from './posts';
 
 const router = new Hono<Env>()
-   .route('/users', users)
-   .route('/posts', posts);
+   .route('/', users)
+   .route('/', posts);
 
 export type AppRoute = typeof router;
 export default router;
 ```
 
-```typescript title="src/app.ts"
+If you prefer `.route('/users', users)`, define the users router with relative paths like `/` and `/:id`. Otherwise Hono will compose doubled paths such as `/users/users`.
+
+```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime'; // [!code highlight]
-import router from './api/index'; // [!code highlight]
+import router from './src/api/index'; // [!code highlight]
 
 const app = await createApp({ router }); // [!code highlight]
 
@@ -344,15 +329,14 @@ export type { AppRoute } from '../api/index';
 import { hc } from 'hono/client';
 import type { AppRoute } from '../shared/api-types';
 
-// Default mount is /api
 export const client = hc<AppRoute>('/api');
 ```
 
 For custom mount paths:
 
-```typescript title="src/app.ts"
+```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime';
-import myRouter from './api/index';
+import myRouter from './src/api/index';
 
 const app = await createApp({
    router: { path: '/v1', router: myRouter }, // [!code highlight]
@@ -365,52 +349,23 @@ export default app;
 export const client = hc<AppRoute>('/v1'); // [!code highlight]
 ```
 
-## Validated Input with Zod
+## Why Validation Matters
 
-For request validation, use [Hono's Zod validator](https://hono.dev/docs/guides/validation#with-zod) — the types flow through to the client automatically:
+Hono RPC infers request body types from validator middleware. A `c.req.json<T>()` annotation only types the local server value, so use `zValidator()` and `c.req.valid('json')` when the client should know the request shape.
 
-```bash
-bun add zod @hono/zod-validator
-```
+This is separate from Agentuity agent schemas, where `@agentuity/schema` is the lightweight default. For Hono middleware, [Hono's Zod validator](https://hono.dev/docs/guides/validation#with-zod) is the direct integration.
 
-```typescript title="src/api/users.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator'; // [!code highlight]
-import { z } from 'zod'; // [!code highlight]
-
-const createUserSchema = z.object({ // [!code highlight]
-   name: z.string().min(1), // [!code highlight]
-   email: z.string().email(), // [!code highlight]
-}); // [!code highlight]
-
-const router = new Hono<Env>()
-   .get('/users', async (c) => {
-      return c.json({ users: [] });
-   })
-   .post('/users', zValidator('json', createUserSchema), async (c) => { // [!code highlight]
-      const { name, email } = c.req.valid('json'); // [!code highlight]
-      //      ^? { name: string; email: string } — validated and typed
-      const user = { id: crypto.randomUUID(), name, email };
-      return c.json({ user }, 201);
-   });
-
-export type UsersRoute = typeof router;
-export default router;
-```
-
-The client mutation is now type-safe against the Zod schema:
+The client mutation gets the route-inferred body shape. Content rules such as `.email()` still run on the server:
 
 ```typescript
-// TypeScript error if you pass invalid data
 createUser.mutate({ name: '', email: 'not-an-email' }); // runtime validation catches this
 createUser.mutate({ wrong: 'field' }); // compile-time error
 ```
 
 ## Tips
 
-- **Chain methods** on `new Hono<Env>()` — separate statements lose type inference
-- **Never import server files from client code** — use `src/shared/api-types.ts` with `export type` to avoid leaking server code into the client bundle
-- **Match mount paths** — the `hc()` base URL must match where the router is mounted
-- **Error handling** — always check `res.ok` before calling `res.json()` in query functions
-- **Key structure** — use hierarchical query keys (`['users']`, `['users', id]`) for granular invalidation
+- **Chain methods** on `new Hono<Env>()`: separate statements lose type inference
+- **Use type-only imports**: import route types with `import type`, or use a type-only shared barrel for stable paths
+- **Match mount paths**: the `hc()` base URL must match where the router is mounted
+- **Check responses**: always check `res.ok` before calling `res.json()` in query functions
+- **Use hierarchical query keys**: keys like `['users']` and `['users', id]` make invalidation precise

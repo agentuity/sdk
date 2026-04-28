@@ -49,6 +49,12 @@ export const SandboxCreateRequestSchema = z
 			.object({
 				idle: z.string().optional().describe('Idle timeout duration (e.g., "5m", "1h")'),
 				execution: z.string().optional().describe('Maximum execution time (e.g., "30m", "2h")'),
+				paused: z
+					.string()
+					.optional()
+					.describe(
+						'Maximum time sandbox can remain paused before termination (e.g., "24h", "0s" for infinite)'
+					),
 			})
 			.optional()
 			.describe('Timeout settings for the sandbox'),
@@ -139,6 +145,10 @@ export const SandboxCreateDataSchema = z
 				'failed',
 			])
 			.describe('Current status of the sandbox'),
+		executionId: z
+			.string()
+			.optional()
+			.describe('Initial execution identifier for oneshot sandbox creation'),
 		url: z
 			.string()
 			.optional()

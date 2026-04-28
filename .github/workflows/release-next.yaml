@@ -71,9 +71,9 @@ jobs:
         run: bun typecheck
 
       - name: Unit tests
-        run: bun run test:unit
         env:
           NODE_ENV: test
+        run: bun run test:unit
 
   release:
     name: Release to npm

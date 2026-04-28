@@ -201,9 +201,9 @@ const GroundingJudgment = z.object({
   reason: z.string(),
 });
 
-interface DocumentMetadata {
+interface DocumentMetadata extends Record<string, unknown> {
   content: string;
-  title?: string;
+  title: string | undefined;
 }
 
 const ragAgent = createAgent('RAGWithGrounding', {
@@ -362,7 +362,7 @@ Evaluate each criterion, then provide an overall assessment.`;
 
 ## Best Practices
 
-- **Use fast models for judging**: Groq, gpt-5.4-nano, or claude-haiku-4-5 work well
+- **Use lower-latency judge models**: examples here use Groq `openai/gpt-oss-120b`, OpenAI `gpt-5.4-nano`, and Anthropic `claude-haiku-4-5`
 - **Separate scores from checks**: Scores for gradients, checks for pass/fail
 - **Structure prompts clearly**: List criteria explicitly with descriptions
 - **Log low scores**: Track failures for debugging and model improvement
@@ -372,7 +372,7 @@ Evaluate each criterion, then provide an overall assessment.`;
 
 LLM-as-judge adds model calls. Optimize by:
 
-- Using the fastest capable model (Groq for speed, nano models for cost)
+- Using the fastest capable model for the rubric, such as Groq `openai/gpt-oss-120b` or a smaller provider model
 - Running the judge asynchronously when the request path does not need a score
 - Sampling a percentage of requests in high-volume scenarios
 - Batching judgments when evaluating multiple items

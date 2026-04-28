@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { createSandboxClient, resolveSandboxTarget } from '../util';
 import { getCommand } from '../../../../command-prefix';
-import { sandboxListFiles, sandboxResolve } from '@agentuity/server';
+import { sandboxListFiles } from '@agentuity/server';
 
 const FileInfoSchema = z.object({
 	path: z.string(),
@@ -63,9 +63,14 @@ export const lsSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, apiClient } = ctx;
 
-		// Resolve sandbox to get region and orgId using CLI API
-		const sandboxInfo = await sandboxResolve(apiClient, args.sandboxId);
-		const { region, orgId } = sandboxInfo;
+		const { region, orgId } = await resolveSandboxTarget(
+			logger,
+			auth,
+			apiClient,
+			args.sandboxId,
+			ctx.config?.name ?? 'production',
+			ctx.config
+		);
 
 		const client = createSandboxClient(logger, auth, region);
 

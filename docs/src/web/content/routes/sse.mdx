@@ -82,7 +82,7 @@ const authMiddleware = createMiddleware(async (c, next) => {
 router.get('/events', authMiddleware, sse(async (c, stream) => {
   await stream.writeSSE({ event: 'connected', data: 'Authenticated!' });
 
-  // Stream events...
+  // Stream events
   stream.close();
 }));
 
@@ -212,7 +212,7 @@ SSE connections stay open until closed. Use a pending promise to keep the handle
 
 ```typescript
 router.get('/stream', sse(async (c, stream) => {
-  // Set up intervals, subscriptions, etc.
+  // Set up intervals or subscriptions
 
   // Keep connection open until client disconnects or stream.close()
   await new Promise(() => {});

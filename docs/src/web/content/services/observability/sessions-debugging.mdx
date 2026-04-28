@@ -7,11 +7,11 @@ Every request to your agents gets a unique session ID (`sess_...`). Sessions lin
 
 ## Why Sessions?
 
-Traditional observability tracks individual HTTP requests. That works for stateless web servers. Agents go beyond single requests—a conversation might span dozens of LLM calls, tool executions, and orchestration steps across multiple interactions.
+Traditional observability tracks individual HTTP requests. That works for stateless web servers. Agents go beyond single requests: a conversation might span dozens of LLM calls, tool executions, and orchestration steps across multiple interactions.
 
 Without sessions, debugging becomes guesswork. You see individual logs but can't connect them. Was that error from the same conversation? What happened before it failed? Which user was affected?
 
-Agentuity tracks all of this automatically. Every run ties to a session. Every conversation thread is preserved. You get full context into what happened, when, and why—*without* writing tracking code.
+Agentuity tracks runs as sessions and groups related sessions into threads. That gives you a shared ID to connect logs, spans, thread state, and request-scoped session state.
 
 **In practice:**
 
@@ -25,7 +25,7 @@ Agentuity tracks all of this automatically. Every run ties to a session. Every c
 | Scope | Lifetime | ID Prefix | Use For |
 |-------|----------|-----------|---------|
 | **Session** | Single request | `sess_` | Debugging, request-scoped state |
-| **Thread** | 1 hour (conversation) | `thrd_` | Chat history, user preferences |
+| **Thread** | Up to 1 hour of inactivity | `thrd_` | Chat history, user preferences |
 
 A thread contains multiple sessions. When a user has a multi-turn conversation, each message creates a new session within the same thread.
 
@@ -41,10 +41,10 @@ import { createAgent } from '@agentuity/runtime';
 const agent = createAgent('SessionExample', {
   handler: async (ctx, input) => {
     // In agents
-    ctx.logger.info('Processing request', { sessionId: ctx.sessionId });
+    ctx.logger.child({ sessionId: ctx.sessionId }).info('Processing request');
 
     // Thread ID for conversation tracking
-    ctx.logger.info('Thread context', { threadId: ctx.thread.id });
+    ctx.logger.child({ threadId: ctx.thread.id }).info('Thread context');
 
     return { sessionId: ctx.sessionId };
   },
@@ -64,7 +64,7 @@ router.post('/', myAgent.validator(), async (c) => {
   const input = c.req.valid('json');
 
   // In routes
-  c.var.logger.info('Route called', { sessionId: c.var.sessionId });
+  c.var.logger.child({ sessionId: c.var.sessionId }).info('Route called');
 
   const result = await myAgent.run(input);
 
@@ -82,7 +82,7 @@ Use the CLI to view logs for a specific session:
 agentuity cloud session logs sess_abc123xyz
 ```
 
-See [CLI Reference](/reference/cli) for additional session commands.
+See [Session Logs](/reference/cli/debugging#session-logs) for additional session commands.
 
 ## Including Session ID in Responses
 
@@ -95,15 +95,16 @@ const agent = createAgent('ErrorHandler', {
       const result = await processRequest(input);
       return { success: true, data: result };
     } catch (error) {
-      ctx.logger.error('Request failed', {
+      const message = error instanceof Error ? error.message : String(error);
+      ctx.logger.child({
         sessionId: ctx.sessionId,
-        error: error.message,
-      });
+        error: message,
+      }).error('Request failed');
 
       return {
         success: false,
         error: 'Processing failed',
-        sessionId: ctx.sessionId,  // Helpful for debugging
+        sessionId: ctx.sessionId, // Helpful for debugging
       };
     }
   },
@@ -149,8 +150,9 @@ const agent = createAgent('TimingExample', {
 
     const result = await processRequest(input);
 
-    const duration = Date.now() - (ctx.session.state.get('startTime') as number);
-    ctx.logger.info('Request completed', { durationMs: duration });
+    const startTime = ctx.session.state.get('startTime');
+    const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
+    ctx.logger.child({ durationMs: duration }).info('Request completed');
 
     return result;
   },
@@ -159,35 +161,32 @@ const agent = createAgent('TimingExample', {
 
 Session state is cleared after the response. For persistent data, use [thread state](/agents/state-management) or [KV storage](/services/storage/key-value).
 
-## Thread and Session Metadata
+## Metadata
 
-Store unencrypted metadata for filtering and querying. Unlike state (which is encrypted), metadata is stored as-is with database indexes for efficient lookups.
+Store unencrypted metadata for filtering and querying. Keep metadata limited to non-sensitive values or opaque internal identifiers. Do not store secrets, tokens, raw emails, names, or other sensitive personal data. Use session metadata for values tied to one request. Use thread metadata for values that should stay with the conversation.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('UserContext', {
   handler: async (ctx, input) => {
-    // Thread metadata persists across sessions within a thread
+    ctx.session.metadata.requestType = input.requestType;
+
     const threadMetadata = {
       ...(await ctx.thread.getMetadata()), // keep existing keys
       userId: input.userId,
       department: 'sales',
-      plan: 'enterprise',
+      plan: input.plan,
     };
 
     await ctx.thread.setMetadata(threadMetadata);
 
-    // Session metadata is request-scoped
-    ctx.session.metadata.requestType = 'chat';
-    ctx.session.metadata.clientVersion = input.clientVersion;
-    ctx.session.metadata.source = 'web';
-
-    ctx.logger.info('Request context', {
+    ctx.logger.child({
       threadId: ctx.thread.id,
+      sessionId: ctx.sessionId,
       userId: threadMetadata.userId,
-      requestType: ctx.session.metadata.requestType,
-    });
+      requestType: input.requestType,
+    }).info('Request context');
 
     return { success: true };
   },
@@ -200,23 +199,23 @@ export default agent;
 
 | Aspect | Metadata | State |
 |--------|----------|-------|
-| **Storage** | Unencrypted, indexed | Encrypted |
-| **Use case** | Filtering, querying, analytics | Sensitive data, conversation history |
-| **Access** | `await ctx.thread.getMetadata()` / `ctx.session.metadata` | `ctx.thread.state` / `ctx.session.state` |
-| **Best for** | User IDs, request types, feature flags | Messages, preferences, tokens |
+| **Storage** | Unencrypted, indexed | Serialized user data |
+| **Use case** | Filtering, querying, analytics | Conversation or request data |
+| **Access** | `ctx.session.metadata` or `await ctx.thread.getMetadata()` / `await ctx.thread.setMetadata(...)` | `ctx.session.state` / `ctx.thread.state` |
+| **Best for** | User IDs, request types, account plans | Messages, preferences, temporary request values |
 
 <Callout type="tip" title="When to Use Metadata">
-Use metadata for values you might filter or query on later, like user IDs, request types, or client versions. Use state for data that should remain private, like conversation history or user preferences.
+Use metadata for values you might filter or query on later, like user IDs, request types, or account plans. Use state for data your agent needs to read and update while it runs.
 </Callout>
 
 ## Best Practices
 
 - **Include session ID in logs and error responses**: Makes it easy to trace issues back to specific requests
-- **Use structured logging**: Add context to logs for easier filtering
+- **Use logging context**: Add searchable fields to logs for easier filtering
 - **Create child loggers**: Add session context to component-specific loggers
 
 ## Next Steps
 
-- [Logging](/services/observability/logging): Structured logging patterns
+- [Logging](/services/observability/logging): Add searchable context to logs
 - [Tracing](/services/observability/tracing): OpenTelemetry spans for performance
 - [State Management](/agents/state-management): Session, thread, and request state

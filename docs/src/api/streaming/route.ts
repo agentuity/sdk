@@ -30,7 +30,7 @@ const router = new Hono<Env>()
 				const model =
 					typeof (body as { model?: unknown }).model === 'string'
 						? (body as { model: string }).model
-						: 'gpt-5-nano';
+						: 'gpt-5.4-mini';
 
 				c.var.logger?.info('Raw stream started', {
 					prompt: FIXED_PROMPT.slice(0, 50),

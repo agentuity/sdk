@@ -49,6 +49,8 @@ export const HistoryEntrySchema = s.object({
   translation: s.string(),
 });
 
+export type HistoryEntry = s.infer<typeof HistoryEntrySchema>;
+
 export const TranslateInputSchema = s.object({
   model: s.enum(MODELS).optional(),
   text: s.string(),
@@ -90,14 +92,11 @@ The agent imports schemas from the shared package. Agentuity's [AI Gateway](/age
 ```typescript title="apps/agentuity/src/agent/translate/index.ts"
 import { createAgent } from '@agentuity/runtime';
 import OpenAI from 'openai';
+import type { HistoryEntry } from '@my-monorepo/shared';
 import {
   TranslateInputSchema,
   TranslateOutputSchema,
-  type HistoryEntry,
 } from '@my-monorepo/shared';
-
-// AI Gateway routes to OpenAI, Anthropic, and others from one client
-const client = new OpenAI();
 
 export default createAgent('translate', {
   description: 'Translates text to different languages',
@@ -105,10 +104,16 @@ export default createAgent('translate', {
     input: TranslateInputSchema,
     output: TranslateOutputSchema,
   },
+  setup: async () => {
+    return {
+      // Create the AI Gateway client at runtime, not during route discovery
+      client: new OpenAI(),
+    };
+  },
   handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5.4-nano' }) => {
     ctx.logger.info('Translation request', { toLanguage, model });
 
-    const completion = await client.chat.completions.create({
+    const completion = await ctx.config.client.chat.completions.create({
       model,
       messages: [{ role: 'user', content: `Translate to ${toLanguage}:\n\n${text}` }],
     });
@@ -120,12 +125,19 @@ export default createAgent('translate', {
     await ctx.thread.state.push('history', { text, translation, tokens, toLanguage, model }, 5);
     const history = (await ctx.thread.state.get<HistoryEntry[]>('history')) ?? [];
 
-    return { history, sessionId: ctx.sessionId, threadId: ctx.thread.id, tokens, translation, translationCount: history.length };
+    return {
+      history,
+      sessionId: ctx.sessionId,
+      threadId: ctx.thread.id,
+      tokens,
+      translation,
+      translationCount: history.length,
+    };
   },
 });
 ```
 
-The agent validates input and output against the shared schemas automatically — if the handler returns a shape that doesn't match `TranslateOutputSchema`, TypeScript catches it at build time.
+The agent validates input and output against the shared schemas automatically. If the handler returns a shape that doesn't match `TranslateOutputSchema`, TypeScript catches it at build time.
 
 ## API Routes
 
@@ -133,9 +145,11 @@ Routes handle HTTP concerns that don't belong in the agent itself. Export the ro
 
 ```typescript title="apps/agentuity/src/api/index.ts"
 import { Hono } from 'hono';
-import { type Env, validator } from '@agentuity/runtime';
+import type { Env } from '@agentuity/runtime';
+import { validator } from '@agentuity/runtime';
 import translate from '../agent/translate';
-import { TranslateOutputSchema, type HistoryEntry } from '@my-monorepo/shared';
+import type { HistoryEntry } from '@my-monorepo/shared';
+import { TranslateOutputSchema } from '@my-monorepo/shared';
 
 // Subset of output schema for state-only routes
 const StateSchema = TranslateOutputSchema.pick(['history', 'threadId', 'translationCount']);
@@ -187,8 +201,9 @@ The `apps/web` package imports the router type from the Agentuity workspace pack
 ```tsx title="apps/web/src/components/TranslateDemo.tsx"
 import { hc } from 'hono/client'; // [!code highlight]
 import type { ApiRouter } from '@my-monorepo/agentuity/api'; // [!code highlight]
+import type { Language, Model } from '@my-monorepo/shared';
 import { useState } from 'react';
-import { LANGUAGES, MODELS, type Language, type Model } from '@my-monorepo/shared';
+import { LANGUAGES, MODELS } from '@my-monorepo/shared';
 
 const client = hc<ApiRouter>('/api'); // [!code highlight]
 
