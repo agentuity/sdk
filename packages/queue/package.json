@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/queue",
-	"version": "2.0.9",
+	"version": "2.0.12",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
