@@ -4,13 +4,13 @@ short_title: Authentication
 description: Add user authentication with Agentuity Auth
 ---
 
-Protect your agents and routes with user authentication. Agentuity provides a first-party auth solution powered by [BetterAuth](https://better-auth.com).
+Protect your agents and routes with user authentication. Agentuity provides a first-party auth solution powered by [Better Auth](https://better-auth.com).
 
 <Callout type="info" title="Platform Auth Overview">
 This page covers React frontend auth setup. For a platform overview covering API keys, bearer tokens, and session auth configuration, see [Authentication Services](/services/authentication).
 </Callout>
 
-## Full-Stack Auth in Seconds
+## Auth in the Frontend, Routes, and Agents
 
 <Tabs items={["Frontend", "API Route", "Agent"]}>
 <Tab value="Frontend">
@@ -43,48 +43,129 @@ handler: async (ctx, input) => {
 - **Email/password authentication** out of the box
 - **Session and API key middleware** for routes
 - **Native `ctx.auth` support** in agents
-- **Organizations, teams, and roles** via BetterAuth plugins
+- **Organizations, teams, and roles** via Better Auth plugins
 - **JWT tokens** for external service integration
 
 ## Quick Start
 
-Use the `agentuity-auth` template, or add auth to any project manually:
+Start with an Agentuity project, then add the auth packages:
 
 ```bash
-# Start from the auth template
-bunx agentuity create my-app --template agentuity-auth
+agentuity create --name my-app
+cd my-app
 
-# Or add auth to an existing project
 bun add @agentuity/auth better-auth drizzle-orm
+bun add -D drizzle-kit
 ```
 
-Then create your auth configuration (see [Server Setup](#server-setup) below), set `DATABASE_URL` and `AGENTUITY_AUTH_SECRET` in your environment, and run the BetterAuth CLI to generate and apply the schema (use `bunx` or `npx`):
+If your project does not already have `DATABASE_URL`, create a Postgres database:
 
 ```bash
-# With Bun
-bunx @better-auth/cli generate
-bunx @better-auth/cli migrate
-
-# Or with npm
-npx @better-auth/cli generate
-npx @better-auth/cli migrate
+agentuity cloud db create --name my_app_auth --region usc
+agentuity cloud db get my_app_auth --show-credentials --json
 ```
 
-## Server Setup
+Database names must be unique and can only use lowercase letters, digits, and underscores. If the create command fails with a name conflict, use a more specific name.
 
-### The Basics
+Generate a secret for `AGENTUITY_AUTH_SECRET`:
 
-Create an auth instance with just a connection string:
+```bash
+openssl rand -hex 32
+```
+
+Add the database URL and auth secret to `.env`:
+
+```env
+DATABASE_URL=postgresql://...
+AGENTUITY_AUTH_SECRET=...
+BETTER_AUTH_URL=http://127.0.0.1:3500
+```
+
+Use the same host in `BETTER_AUTH_URL` that you open in the browser. For local development, use the exact local URL:
+
+```env
+BETTER_AUTH_URL=http://127.0.0.1:3500
+# or
+BETTER_AUTH_URL=http://localhost:3500
+```
+
+If you use the DevMode public tunnel, use the `Public` URL printed by `agentuity dev`:
+
+```env
+BETTER_AUTH_URL=https://<devmode-host>.agentuity-us.live
+```
+
+For a deployed app, use the deployed app URL from `urls.app`:
+
+```bash
+agentuity --json project show <project-id>
+```
+
+```env
+BETTER_AUTH_URL=https://<your-app-host>.agentuity.run
+```
+
+Use the app URL here. The dashboard URL is only for managing the project.
+
+Create `src/auth.ts`:
 
 ```typescript title="src/auth.ts"
 import { createAuth } from '@agentuity/auth';
 
 export const auth = createAuth({
   connectionString: process.env.DATABASE_URL,
+  trustedOrigins: [process.env.BETTER_AUTH_URL],
 });
 ```
 
-That's it! This gives you:
+Create `src/schema.ts` so Drizzle Kit can apply the auth tables:
+
+```typescript title="src/schema.ts"
+export * from '@agentuity/auth/schema';
+```
+
+Mount the auth routes in your API router:
+
+```typescript title="src/api/index.ts"
+import { mountAuthRoutes } from '@agentuity/auth';
+import { auth } from '../auth';
+
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
+```
+
+If `app.ts` mounts this router at `/api`, auth is available at `/api/auth/*`. If your router variable has a different name, mount the route on that object.
+
+Apply the auth tables:
+
+```bash
+set -a
+source .env
+set +a
+
+bunx drizzle-kit push \
+  --dialect postgresql \
+  --schema ./src/schema.ts \
+  --url "$DATABASE_URL"
+```
+
+Drizzle Kit does not read `.env` for the inline command above, so export it before running `push`.
+
+## Server Setup
+
+### The Basics
+
+Create an auth instance with a database connection string:
+
+```typescript title="src/auth.ts"
+import { createAuth } from '@agentuity/auth';
+
+export const auth = createAuth({
+  connectionString: process.env.DATABASE_URL,
+  trustedOrigins: [process.env.BETTER_AUTH_URL],
+});
+```
+
+This gives you:
 - Email/password authentication
 - Session management
 - All default plugins (see below)
@@ -132,9 +213,9 @@ export const auth = createAuth({
   // Or: database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
 
   skipDefaultPlugins: false, // Set true for full control over plugins
+  trustedOrigins: [process.env.BETTER_AUTH_URL],
   apiKey: { enabled: true, defaultPrefix: 'ag_', defaultKeyLength: 64 },
-  trustedOrigins: ['https://your-domain.com'], // Auto-resolved from env by default
-  plugins: [], // Add custom BetterAuth plugins
+  plugins: [], // Add custom Better Auth plugins
 });
 ```
 
@@ -373,6 +454,7 @@ export default createAgent('hello', {
 | `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
 | `AGENTUITY_CLOUD_BASE_URL` | Platform-provided base URL for auth callbacks | Checked before `AGENTUITY_BASE_URL` |
 | `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Falls back to `BETTER_AUTH_URL` |
+| `BETTER_AUTH_URL` | Better Auth base URL, useful for local browser auth | Used after Agentuity base URL vars |
 
 **Auto-resolved trusted origins:**
 - `AGENTUITY_CLOUD_DOMAINS` - Platform-set domains (deployment URLs, custom domains)
@@ -384,21 +466,22 @@ export default createAgent('hello', {
 openssl rand -hex 32
 ```
 
-<Callout type="warning" title="Replace Dev Secret Before Deploying">
-If you're using a development secret, generate a new one before deploying to production. Store it securely in your environment variables.
+<Callout type="warning" title="Use the same browser origin">
+For local browser auth, `BETTER_AUTH_URL` must match the URL you open. If you open `http://127.0.0.1:3500`, do not set `BETTER_AUTH_URL` to `http://localhost:3500`.
 </Callout>
 
 ## Database Configuration
 
 ### Connection String (Simplest)
 
-Just provide the connection string and Agentuity handles the rest:
+Provide the connection string and Agentuity configures Better Auth with the default plugins:
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
 
 export const auth = createAuth({
   connectionString: process.env.DATABASE_URL,
+  trustedOrigins: [process.env.BETTER_AUTH_URL],
 });
 ```
 
@@ -448,7 +531,7 @@ if (await c.var.auth.hasOrgRole('admin', 'owner')) {
 ```
 
 <Callout type="info" title="Full Organization API">
-See the [BetterAuth Organization Plugin docs](https://www.better-auth.com/docs/plugins/organization) for the complete API including invitations, member management, and role configuration.
+See the [Better Auth Organization Plugin docs](https://www.better-auth.com/docs/plugins/organization) for the complete API including invitations, member management, and role configuration.
 </Callout>
 
 ### API Keys
@@ -468,7 +551,7 @@ console.log('API Key:', result.key); // Only shown once!
 ```
 
 <Callout type="info" title="Full API Key API">
-See the [BetterAuth API Key Plugin docs](https://www.better-auth.com/docs/plugins/api-key) for listing, revoking, and permission schemas.
+See the [Better Auth API Key Plugin docs](https://www.better-auth.com/docs/plugins/api-key) for listing, revoking, and permission schemas.
 </Callout>
 
 ### JWT & Bearer Tokens
@@ -481,24 +564,33 @@ const token = await c.var.auth.getToken();
 ```
 
 <Callout type="info" title="Full JWT API">
-See the [BetterAuth JWT Plugin docs](https://www.better-auth.com/docs/plugins/jwt) for token customization and verification.
+See the [Better Auth JWT Plugin docs](https://www.better-auth.com/docs/plugins/jwt) for token customization and verification.
 </Callout>
 
-## Schema & Migrations
+## Schema Setup
 
-Use the BetterAuth CLI to generate and apply the auth schema (use `bunx` or `npx`):
+The default Agentuity Auth schema is exported from `@agentuity/auth/schema`. Re-export it from your project, then use your normal Drizzle workflow.
 
-```bash
-# Generate SQL for all auth tables (useful for review or manual migrations)
-bunx @better-auth/cli generate
-# or: npx @better-auth/cli generate
-
-# Apply migrations directly
-bunx @better-auth/cli migrate
-# or: npx @better-auth/cli migrate
+```typescript title="src/schema.ts"
+export * from '@agentuity/auth/schema';
 ```
 
-If you use Drizzle or Prisma, prefer your ORM's own migration tooling and generate the schema with `@better-auth/cli generate`, then incorporate it into your migration files.
+For a quick setup, push the schema directly:
+
+```bash
+set -a
+source .env
+set +a
+
+bunx drizzle-kit push \
+  --dialect postgresql \
+  --schema ./src/schema.ts \
+  --url "$DATABASE_URL"
+```
+
+The Better Auth CLI migration commands are not the default path here. `@agentuity/auth` already ships the Drizzle schema; use Drizzle Kit to apply it.
+
+For a team app, put the same schema file behind a `drizzle.config.ts` and use `drizzle-kit generate` / `drizzle-kit migrate` with your normal migration review process.
 
 ## Next Steps
 

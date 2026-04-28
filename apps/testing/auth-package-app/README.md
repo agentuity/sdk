@@ -4,11 +4,11 @@ A canonical example demonstrating **Agentuity Auth** (BetterAuth) integration wi
 
 ## What This Demonstrates
 
-- ✅ **BetterAuth Integration** - Full auth setup with `@agentuity/auth/agentuity`
+- ✅ **BetterAuth Integration** - Full auth setup with `@agentuity/auth`
 - ✅ **Session & API Key Auth** - Both authentication methods via unified middleware
-- ✅ **Protected Routes** - Using `authMiddleware` and `requireScopes()`
-- ✅ **Protected Agents** - Using `withSession()` wrapper
-- ✅ **React Client** - `AgentuityBetterAuth` provider with `useSession()`
+- ✅ **Protected Routes** - Using `createSessionMiddleware()`
+- ✅ **Protected Agents** - Using propagated auth context
+- ✅ **React Client** - `AuthProvider` with `useSession()`
 - ✅ **Optional Auth** - Routes that work for both authenticated and anonymous users
 
 ## Project Structure
@@ -37,27 +37,28 @@ ag-auth-test-app/
 The single source of truth for authentication:
 
 ```typescript
-import { Pool } from 'pg';
-import { createAuth, createMiddleware } from '@agentuity/auth/agentuity';
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+import { createAuth } from '@agentuity/auth';
 
 export const auth = createAuth({
-	database: pool,
-	secret: process.env.BETTER_AUTH_SECRET,
-	basePath: '/api/auth',
-	emailAndPassword: { enabled: true },
+	connectionString: process.env.DATABASE_URL,
+	trustedOrigins: [
+		process.env.BETTER_AUTH_URL,
+		'http://localhost:3500',
+		'http://127.0.0.1:3500',
+	],
 });
-
-export const authMiddleware = createMiddleware(auth);
-export const optionalAuthMiddleware = createMiddleware(auth, { optional: true });
 ```
 
 ### `src/api/index.ts` - Route Protection
 
 ```typescript
-// BetterAuth routes (signup, signin, signout, session, etc.)
-api.on(['GET', 'POST'], '/auth/*', (c) => auth.handler(c.req.raw));
+import { mountAuthRoutes, createSessionMiddleware } from '@agentuity/auth';
+
+const authMiddleware = createSessionMiddleware(auth);
+const optionalAuthMiddleware = createSessionMiddleware(auth, { optional: true });
+
+// Better Auth routes (signup, signin, signout, session, etc.)
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
 
 // Protected route - requires auth
 api.get('/me', authMiddleware, async (c) => {
@@ -75,8 +76,8 @@ api.get('/greeting', optionalAuthMiddleware, async (c) => {
 	}
 });
 
-// Scope-based protection
-api.get('/admin', authMiddleware, requireScopes(['admin']), async (c) => {
+// Role-based protection
+api.get('/admin', createSessionMiddleware(auth, { hasOrgRole: ['admin'] }), async (c) => {
 	return c.json({ message: 'Admin access granted' });
 });
 ```
@@ -84,9 +85,9 @@ api.get('/admin', authMiddleware, requireScopes(['admin']), async (c) => {
 ### `src/web/auth-client.ts` - React Client
 
 ```typescript
-import { createAuthClient } from 'better-auth/react';
+import { createAuthClient } from '@agentuity/auth/react';
 
-export const authClient = createAuthClient({ baseURL: window.location.origin });
+export const authClient = createAuthClient();
 export const { useSession, signIn, signUp, signOut } = authClient;
 ```
 
@@ -94,13 +95,13 @@ export const { useSession, signIn, signUp, signOut } = authClient;
 
 ```tsx
 import { AgentuityProvider } from '@agentuity/react';
-import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
+import { AuthProvider } from '@agentuity/auth/react';
 import { authClient } from './auth-client';
 
 export function App() {
 	return (
 		<AgentuityProvider>
-			<AgentuityBetterAuth authClient={authClient}>{/* Your app */}</AgentuityBetterAuth>
+			<AuthProvider authClient={authClient}>{/* Your app */}</AuthProvider>
 		</AgentuityProvider>
 	);
 }
@@ -110,14 +111,22 @@ export function App() {
 
 ### 1. Database
 
-Auth tables are stored in your Postgres database. Generate and apply them with the BetterAuth CLI:
+Auth tables are stored in your Postgres database. Re-export the Agentuity Auth schema, then apply it with Drizzle Kit:
+
+```typescript
+// src/schema.ts
+export * from '@agentuity/auth/schema';
+```
 
 ```bash
-# Generate the schema (SQL or your configured ORM)
-npx @better-auth/cli generate
+set -a
+source .env
+set +a
 
-# Apply migrations
-npx @better-auth/cli migrate
+bunx drizzle-kit push \
+	--dialect postgresql \
+	--schema ./src/schema.ts \
+	--url "$DATABASE_URL"
 ```
 
 ### 2. Environment Variables
@@ -128,6 +137,9 @@ DATABASE_URL="postgresql://..."
 
 # Optional (defaults to dev secret)
 AGENTUITY_AUTH_SECRET="your-32-char-secret"
+
+# Local auth URL
+BETTER_AUTH_URL="http://127.0.0.1:3500"
 ```
 
 ### 3. Install Dependencies

@@ -12,7 +12,7 @@ import { lastLoginMethod } from 'better-auth/plugins';
  * Database URL for authentication.
  *
  * Set via DATABASE_URL environment variable.
- * Get yours from: `agentuity cloud database list --region use --json`
+ * Get yours from: `agentuity cloud db get <name> --json`
  */
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -38,6 +38,7 @@ export const auth = createAuth({
 	// Simplest setup: just provide the connection string
 	// We create Bun.sql + Drizzle internally with joins enabled
 	connectionString: DATABASE_URL,
+	trustedOrigins: [process.env.BETTER_AUTH_URL, 'http://localhost:3500', 'http://127.0.0.1:3500'],
 	// All options below have sensible defaults and can be omitted:
 	// secret: process.env.AGENTUITY_AUTH_SECRET, // auto-resolved from env
 	// basePath: '/api/auth', // default

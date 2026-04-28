@@ -24,23 +24,20 @@ bun add @agentuity/auth
 
 ```bash
 bun add @agentuity/auth better-auth drizzle-orm
-```
-
-Or start from the template:
-
-```bash
-bunx agentuity create my-app --template agentuity-auth
+bun add -D drizzle-kit
 ```
 
 ### 2. Configure Database
 
 ```bash
-# Create a database and get a connection URL
-agentuity cloud database create --region use
+agentuity cloud db create --name my-app-auth --region usc
+agentuity cloud db get my-app-auth --json
+```
 
-# Generate and run auth migrations with the BetterAuth CLI
-npx @better-auth/cli generate
-npx @better-auth/cli migrate
+Use the database URL in `.env`, then generate an auth secret:
+
+```bash
+openssl rand -hex 32
 ```
 
 ### 3. Server Setup (Hono)
@@ -51,6 +48,11 @@ import { createAuth, createSessionMiddleware, mountAuthRoutes } from '@agentuity
 
 export const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
+	trustedOrigins: [
+		process.env.BETTER_AUTH_URL,
+		'http://localhost:3500',
+		'http://127.0.0.1:3500',
+	],
 	// Uses AGENTUITY_AUTH_SECRET env var by default
 });
 
@@ -67,12 +69,12 @@ import { mountAuthRoutes } from '@agentuity/auth';
 const api = createRouter();
 
 // Mount auth routes (sign-in, sign-up, sign-out, session, etc.)
-api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
 
 // Protect API routes
-api.use('/api/*', authMiddleware);
+api.use('/*', authMiddleware);
 
-api.get('/api/me', async (c) => {
+api.get('/me', async (c) => {
 	const user = await c.var.auth.getUser();
 	return c.json({ id: user.id, email: user.email });
 });
@@ -113,6 +115,27 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 
 # Auth secret (generate with: openssl rand -hex 32)
 AGENTUITY_AUTH_SECRET=your-secret-here
+
+# Local auth URL
+BETTER_AUTH_URL=http://127.0.0.1:3500
+```
+
+### 6. Schema Setup
+
+```typescript
+// src/schema.ts
+export * from '@agentuity/auth/schema';
+```
+
+```bash
+set -a
+source .env
+set +a
+
+bunx drizzle-kit push \
+	--dialect postgresql \
+	--schema ./src/schema.ts \
+	--url "$DATABASE_URL"
 ```
 
 ## Usage
@@ -370,37 +393,28 @@ import type {
 } from '@agentuity/auth';
 ```
 
-## CLI Commands
+## Schema Setup
 
-Auth setup uses the BetterAuth CLI directly:
+`@agentuity/auth` exports the Drizzle schema used by the default plugins. Re-export it from your app and apply it with Drizzle Kit:
+
+```typescript
+export * from '@agentuity/auth/schema';
+```
 
 ```bash
-# Generate the auth schema (SQL or Drizzle/Prisma based on your config)
-npx @better-auth/cli generate
-
-# Run database migrations
-npx @better-auth/cli migrate
-
-# Generate a secure secret for AGENTUITY_AUTH_SECRET
-npx @better-auth/cli secret
-# or:  openssl rand -hex 32
+bunx drizzle-kit push \
+	--dialect postgresql \
+	--schema ./src/schema.ts \
+	--url "$DATABASE_URL"
 ```
 
 ## Security Best Practices
 
-1. **Use HTTPS in production** - Always use TLS for deployments
+1. **Use HTTPS in deployed apps** - Always use TLS outside local development
 2. **Keep secrets secret** - Never commit `.env` files or expose `AGENTUITY_AUTH_SECRET`
 3. **Rotate secrets periodically** - Rotate `AGENTUITY_AUTH_SECRET` on a regular schedule
 4. **Control OTEL PII** - Use `otelSpans: { email: false }` to exclude sensitive data from telemetry
 5. **Validate permissions** - Always check `hasPermission()` for API key routes
-
-## Templates
-
-Get started quickly:
-
-```bash
-bunx agentuity create my-app --template agentuity-auth
-```
 
 ## Third-Party Providers
 
