@@ -69,7 +69,7 @@ for attempt in $(seq 1 $MAX_RETRIES); do
         exit 0
     else
         response_json=$(printf '%s\n' "$response" | tail -n 1)
-        if [ -n "$response_json" ] && echo "$response_json" | jq -e '.status == "ok" and .stats' >/dev/null 2>&1; then
+        if [ -n "$response_json" ] && echo "$response_json" | jq -e '.status == "ok" and (.stats.processed | type == "number")' >/dev/null 2>&1; then
             echo "Received success response after curl transport error:" >&2
             echo "$response_json" >&2
             echo "$response_json"
