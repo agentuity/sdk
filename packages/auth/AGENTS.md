@@ -94,6 +94,12 @@ const authClient = createAuthClient();
 2. **database** - Bring your own drizzle adapter or other BetterAuth adapter
 3. **@agentuity/auth/schema** - Export for merging with app schema
 
+## Documentation Patterns
+
+- Put local-only auth callback values in `.env.local`.
+- Show `@agentuity/auth/schema` through `drizzle.config.ts`, then run Drizzle Kit from that config.
+- Avoid inline Drizzle Kit `--dialect`, `--schema`, and `--url` commands unless the docs are about those flags.
+
 ## Default Plugins
 
 - `organization` - Multi-tenancy

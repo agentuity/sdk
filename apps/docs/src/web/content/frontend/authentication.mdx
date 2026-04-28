@@ -78,10 +78,9 @@ Add the database URL and auth secret to `.env`:
 ```env
 DATABASE_URL=postgresql://...
 AGENTUITY_AUTH_SECRET=...
-BETTER_AUTH_URL=http://127.0.0.1:3500
 ```
 
-Use the same host in `BETTER_AUTH_URL` that you open in the browser. For local development, use the exact local URL:
+For local development, put the browser origin in `.env.local`. This keeps the local callback URL separate from deployed app configuration:
 
 ```env
 BETTER_AUTH_URL=http://127.0.0.1:3500
@@ -98,11 +97,18 @@ BETTER_AUTH_URL=https://<devmode-host>.agentuity-us.live
 For a deployed app, use the deployed app URL from `urls.app`:
 
 ```bash
-agentuity --json project show <project-id>
+agentuity --json project show <project-id> | jq -r '.urls.app'
 ```
 
 ```env
 BETTER_AUTH_URL=https://<your-app-host>.agentuity.run
+```
+
+Set that value on the deployed project:
+
+```bash
+agentuity cloud env set "BETTER_AUTH_URL=https://<your-app-host>.agentuity.run" \
+  --project-id <project-id>
 ```
 
 Use the app URL here. The dashboard URL is only for managing the project.
@@ -124,6 +130,21 @@ Create `src/schema.ts` so Drizzle Kit can apply the auth tables:
 export * from '@agentuity/auth/schema';
 ```
 
+Create `drizzle.config.ts`:
+
+```typescript title="drizzle.config.ts"
+import { defineConfig } from 'drizzle-kit';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/schema.ts',
+  dbCredentials: { url: databaseUrl },
+});
+```
+
 Mount the auth routes in your API router:
 
 ```typescript title="src/api/index.ts"
@@ -138,17 +159,10 @@ If `app.ts` mounts this router at `/api`, auth is available at `/api/auth/*`. If
 Apply the auth tables:
 
 ```bash
-set -a
-source .env
-set +a
-
-bunx drizzle-kit push \
-  --dialect postgresql \
-  --schema ./src/schema.ts \
-  --url "$DATABASE_URL"
+bunx drizzle-kit push
 ```
 
-Drizzle Kit does not read `.env` for the inline command above, so export it before running `push`.
+The config reads `DATABASE_URL` from your environment.
 
 ## Server Setup
 
@@ -575,22 +589,30 @@ The default Agentuity Auth schema is exported from `@agentuity/auth/schema`. Re-
 export * from '@agentuity/auth/schema';
 ```
 
+Create a Drizzle config:
+
+```typescript title="drizzle.config.ts"
+import { defineConfig } from 'drizzle-kit';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/schema.ts',
+  dbCredentials: { url: databaseUrl },
+});
+```
+
 For a quick setup, push the schema directly:
 
 ```bash
-set -a
-source .env
-set +a
-
-bunx drizzle-kit push \
-  --dialect postgresql \
-  --schema ./src/schema.ts \
-  --url "$DATABASE_URL"
+bunx drizzle-kit push
 ```
 
 The Better Auth CLI migration commands are not the default path here. `@agentuity/auth` already ships the Drizzle schema; use Drizzle Kit to apply it.
 
-For a team app, put the same schema file behind a `drizzle.config.ts` and use `drizzle-kit generate` / `drizzle-kit migrate` with your normal migration review process.
+For a team app, use `drizzle-kit generate` / `drizzle-kit migrate` with your normal migration review process.
 
 ## Next Steps
 

@@ -115,8 +115,11 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 
 # Auth secret (generate with: openssl rand -hex 32)
 AGENTUITY_AUTH_SECRET=your-secret-here
+```
 
-# Local auth URL
+For local browser auth, put the callback URL in `.env.local`:
+
+```env
 BETTER_AUTH_URL=http://127.0.0.1:3500
 ```
 
@@ -127,15 +130,22 @@ BETTER_AUTH_URL=http://127.0.0.1:3500
 export * from '@agentuity/auth/schema';
 ```
 
-```bash
-set -a
-source .env
-set +a
+```typescript
+// drizzle.config.ts
+import { defineConfig } from 'drizzle-kit';
 
-bunx drizzle-kit push \
-	--dialect postgresql \
-	--schema ./src/schema.ts \
-	--url "$DATABASE_URL"
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+export default defineConfig({
+	dialect: 'postgresql',
+	schema: './src/schema.ts',
+	dbCredentials: { url: databaseUrl },
+});
+```
+
+```bash
+bunx drizzle-kit push
 ```
 
 ## Usage
@@ -401,11 +411,21 @@ import type {
 export * from '@agentuity/auth/schema';
 ```
 
+```typescript
+import { defineConfig } from 'drizzle-kit';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+export default defineConfig({
+	dialect: 'postgresql',
+	schema: './src/schema.ts',
+	dbCredentials: { url: databaseUrl },
+});
+```
+
 ```bash
-bunx drizzle-kit push \
-	--dialect postgresql \
-	--schema ./src/schema.ts \
-	--url "$DATABASE_URL"
+bunx drizzle-kit push
 ```
 
 ## Security Best Practices

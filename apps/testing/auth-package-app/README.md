@@ -118,15 +118,22 @@ Auth tables are stored in your Postgres database. Re-export the Agentuity Auth s
 export * from '@agentuity/auth/schema';
 ```
 
-```bash
-set -a
-source .env
-set +a
+```typescript
+// drizzle.config.ts
+import { defineConfig } from 'drizzle-kit';
 
-bunx drizzle-kit push \
-	--dialect postgresql \
-	--schema ./src/schema.ts \
-	--url "$DATABASE_URL"
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required');
+
+export default defineConfig({
+	dialect: 'postgresql',
+	schema: './src/schema.ts',
+	dbCredentials: { url: databaseUrl },
+});
+```
+
+```bash
+bunx drizzle-kit push
 ```
 
 ### 2. Environment Variables
@@ -137,8 +144,11 @@ DATABASE_URL="postgresql://..."
 
 # Optional (defaults to dev secret)
 AGENTUITY_AUTH_SECRET="your-32-char-secret"
+```
 
-# Local auth URL
+For local browser auth, put the callback URL in `.env.local`:
+
+```env
 BETTER_AUTH_URL="http://127.0.0.1:3500"
 ```
 
