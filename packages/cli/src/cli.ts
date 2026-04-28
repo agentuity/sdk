@@ -40,14 +40,11 @@ import {
 } from './output.ts';
 import { StructuredError } from '@agentuity/core';
 import { setProgram } from './program-ref.ts';
-import { generateIntroPrompt } from './cmd/ai/intro.ts';
 import {
 	getCachedProject,
 	getResourceInfo,
 	setCachedProject,
 	type ResourceType,
-	hasAgentSeenIntro,
-	markAgentIntroSeen,
 } from './cache/index.ts';
 
 /**
@@ -716,22 +713,13 @@ export async function createCLI(version: string): Promise<Command> {
 			// Format each section (show banner for root command)
 			let output = '';
 
-			// Show intro for first-time agents (before normal help output)
-			// AGENTUITY_SHOW_INTRO=1 forces showing the intro (useful for testing)
+			// When an AI coding agent is invoking the CLI, point them at the
+			// dedicated intro command rather than dumping a 150-line primer
+			// in front of every --help. The intro itself lives in
+			// `agentuity ai intro` and can be requested on demand.
 			const agent = getExecutingAgent();
-			const forceShowIntro = process.env.AGENTUITY_SHOW_INTRO === '1';
-			const hasSeenIntro = agent ? hasAgentSeenIntro(agent) : true;
-
-			if (agent && (forceShowIntro || !hasSeenIntro)) {
-				// Only mark as seen if this is their first time (not on forced re-shows)
-				if (!hasSeenIntro) {
-					markAgentIntroSeen(agent);
-				}
-
-				const separator = '='.repeat(79);
-				output += `${separator}\n\n`;
-				output += generateIntroPrompt(agent);
-				output += `\n${separator}\n\n`;
+			if (agent) {
+				output += `${tui.colorMuted(`AI agents: run '${getCommand('ai intro')}' for an Agentuity primer.`)}\n\n`;
 			}
 
 			// Show banner (full for root, compact for subcommands)
@@ -1344,17 +1332,15 @@ async function registerSubcommand(
 			return;
 		}
 
-		// One-time hint for agents about structured input/output features
-		// Emitted on stderr so it doesn't interfere with --json stdout
+		// Hint for AI agents about structured input/output features.
+		// Emitted on stderr so it never pollutes --json stdout. Always shown
+		// when an agent is detected; agents that already know about these
+		// flags can simply ignore the line.
 		const detectedAgent = getExecutingAgent();
 		if (detectedAgent) {
-			const { hasAgentSeenInputHint, markAgentInputHintSeen } = await import('./cache/index.ts');
-			if (!hasAgentSeenInputHint(detectedAgent)) {
-				markAgentInputHintSeen(detectedAgent);
-				console.error(
-					`[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.`
-				);
-			}
+			console.error(
+				`[agent] This CLI supports structured I/O for agents: --input <json> (structured input), --describe (schema introspection), --fields (output filtering). Run --ai-help for details.`
+			);
 		}
 
 		// Merge global --org-id and --project-id into subcommand options when the schema

@@ -1,7 +1,7 @@
-import { Database } from 'bun:sqlite';
-import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { getDefaultConfigDir } from '../config.ts';
+import { type Database, openDatabase } from '../node-compat/sqlite.ts';
 
 const TTL_DAYS = 7;
 const TTL_MS = TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -17,12 +17,12 @@ async function getDatabase(): Promise<Database> {
 	await mkdir(configDir, { recursive: true });
 
 	const dbPath = join(configDir, 'resource.db');
-	db = new Database(dbPath);
-	db.run('PRAGMA journal_mode = WAL');
-	db.run('PRAGMA busy_timeout = 5000');
-	db.run('PRAGMA synchronous = NORMAL');
+	db = await openDatabase(dbPath);
+	db.exec('PRAGMA journal_mode = WAL');
+	db.exec('PRAGMA busy_timeout = 5000');
+	db.exec('PRAGMA synchronous = NORMAL');
 
-	db.run(`
+	db.exec(`
 		CREATE TABLE IF NOT EXISTS resource_region_cache (
 			resource_type TEXT NOT NULL,
 			profile TEXT NOT NULL,
@@ -35,14 +35,14 @@ async function getDatabase(): Promise<Database> {
 		)
 	`);
 
-	db.run(`
+	db.exec(`
 		CREATE INDEX IF NOT EXISTS idx_last_updated 
 		ON resource_region_cache(last_updated)
 	`);
 
 	// Migration: Add project_id column if it doesn't exist (for existing databases)
 	try {
-		db.run('ALTER TABLE resource_region_cache ADD COLUMN project_id TEXT');
+		db.exec('ALTER TABLE resource_region_cache ADD COLUMN project_id TEXT');
 	} catch {
 		// Column already exists, ignore the error
 	}
@@ -52,7 +52,7 @@ async function getDatabase(): Promise<Database> {
 
 function pruneOldEntries(database: Database): void {
 	const cutoff = Date.now() - TTL_MS;
-	database.run('DELETE FROM resource_region_cache WHERE last_updated < ?', [cutoff]);
+	database.prepare('DELETE FROM resource_region_cache WHERE last_updated < ?').run(cutoff);
 }
 
 export type ResourceType =
@@ -79,6 +79,13 @@ export interface ResourceInfo {
 	projectId?: string;
 }
 
+interface ResourceRow {
+	region: string;
+	org_id: string | null;
+	project_id: string | null;
+	last_updated: number;
+}
+
 /**
  * Get the cached info (region and orgId) for a resource.
  * Returns null if not found or expired.
@@ -93,18 +100,10 @@ export async function getResourceInfo(
 		const cutoff = Date.now() - TTL_MS;
 
 		const row = database
-			.query<
-				{
-					region: string;
-					org_id: string | null;
-					project_id: string | null;
-					last_updated: number;
-				},
-				[string, string, string]
-			>(
+			.prepare(
 				'SELECT region, org_id, project_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
 			)
-			.get(type, profile, id);
+			.get<ResourceRow>(type, profile, id);
 
 		if (!row) {
 			return null;
@@ -113,10 +112,11 @@ export async function getResourceInfo(
 		// Check if entry is expired
 		if (row.last_updated < cutoff) {
 			// Remove stale entry
-			database.run(
-				'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
-				[type, profile, id]
-			);
+			database
+				.prepare(
+					'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
+				)
+				.run(type, profile, id);
 			return null;
 		}
 
@@ -161,12 +161,13 @@ export async function setResourceInfo(
 
 		pruneOldEntries(database);
 
-		database.run(
-			`INSERT OR REPLACE INTO resource_region_cache 
+		database
+			.prepare(
+				`INSERT OR REPLACE INTO resource_region_cache 
 			 (resource_type, profile, id, region, org_id, project_id, last_updated)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			[type, profile, id, region, orgId ?? null, projectId ?? null, Date.now()]
-		);
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`
+			)
+			.run(type, profile, id, region, orgId ?? null, projectId ?? null, Date.now());
 	} catch {
 		// Non-critical cache failure should never block the CLI.
 	}
@@ -198,10 +199,11 @@ export async function deleteResourceRegion(
 	try {
 		const database = await getDatabase();
 
-		database.run(
-			'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
-			[type, profile, id]
-		);
+		database
+			.prepare(
+				'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
+			)
+			.run(type, profile, id);
 	} catch {
 		// Non-critical cache failure should never block the CLI.
 	}
@@ -215,7 +217,7 @@ export async function clearProfileCache(profile: string): Promise<void> {
 	try {
 		const database = await getDatabase();
 
-		database.run('DELETE FROM resource_region_cache WHERE profile = ?', [profile]);
+		database.prepare('DELETE FROM resource_region_cache WHERE profile = ?').run(profile);
 	} catch {
 		// Non-critical cache failure should never block the CLI.
 	}

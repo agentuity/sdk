@@ -12,11 +12,4 @@ export {
 
 export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache.ts';
 
-export {
-	hasAgentSeenIntro,
-	markAgentIntroSeen,
-	hasAgentSeenInputHint,
-	markAgentInputHintSeen,
-} from './agent-intro.ts';
-
 export { getCachedUserInfo, setCachedUserInfo, clearCachedUserInfo } from './user-cache.ts';
