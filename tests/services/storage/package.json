@@ -1,0 +1,20 @@
+{
+	"name": "storage-test",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"start": "bun run start:bun",
+		"start:bun": "bun run index.ts",
+		"start:node": "node --no-warnings=ExperimentalWarning --experimental-strip-types index.ts",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/storage": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/node": "^22.0.0"
+	}
+}
