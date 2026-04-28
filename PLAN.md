@@ -415,44 +415,105 @@ Mechanical changes in Phase 4:
 
 ---
 
-## 5. Proposed `node-compat` shim layer
+## 5. `node-compat` shim layer (transitional)
 
-To minimize churn at every call site, introduce a small compat module
-inside the CLI:
+A small compat module lives at `packages/cli/src/node-compat/`. It is
+**transitional**: the long-term goal is for the CLI to use Node 24+
+native APIs directly throughout the source. The shim layer exists to
+make the migration mechanical — each Bun call site swaps to a thin
+shim instead of having to reason about the Node equivalent at every
+site.
+
+### 5.1 Layout (Phase 2a, currently in tree)
 
 ```text
 packages/cli/src/node-compat/
 ├── index.ts           // re-exports
 ├── fs.ts              // pathExists, readText, readJson, writeText,
 │                      // writeBytes, streamToFile, copyFileTo
-├── proc.ts            // run(), spawnInherit(), waitFor()
+├── proc.ts            // run(), spawnInherit(), runStreaming(),
+│                      // spawnDetached()
 ├── timers.ts          // sleep()
 ├── ansi.ts            // color(), stripAnsi(); re-exports stringWidth
 ├── stdin.ts           // readStdinText(), stdinWebStream()
 ├── runtime-info.ts    // runtimeKind(), runtimeVersion(),
-│                      // entryScriptPath(), gitSha()
+│                      // currentDir(meta), entryScriptPath(), gitSha()
 ├── which.ts           // which()
+├── yaml.ts            // parseYaml(), stringifyYaml()
 └── crypto.ts          // sha256Hex(), sha1Hex(), shortHash16()
 ```
 
-`yaml`, `semver` are imported directly where used (no shim — single-site
-dependencies).
+### 5.2 End state — `node-compat/` becomes mostly inlined
 
-`@agentuity/storage` is its own workspace package (§6), not part of the
-shim layer.
+**Decision:** after Phase 3 completes, most of the `node-compat/`
+shims are inlined at their call sites. The shim layer is **not**
+the project's permanent house style. We end up with plain Node code
+throughout the CLI source, with a small residual port-layer for the
+handful of helpers where Node's native surface is genuinely uglier
+than the shim.
 
-Migration is one PR per area:
+Reasoning:
 
-1. Add shims, add deps, no behavior change.
-2. Migrate `config.ts` + `auth.ts` (heaviest single chunks).
-3. Migrate `cmd/cloud/*` (excluding `storage/`, which moves to
-   `@agentuity/storage`).
-4. Migrate `cmd/build/*`.
-5. Migrate `cmd/project/*`, `cmd/coder/*`, `cmd/support/*`.
-6. Migrate `tui.ts` + `banner.ts` + `tui/box.ts` (TUI / ANSI).
-7. Switch shebang + `bin` field, add Node-versions matrix to CI.
-8. Remove `bun-types` runtime references where no longer needed (keep
-   for `test/`, `scripts/`).
+- Most `node-compat/` shims are 1–3-line wrappers. Inlining
+  `await readFile(p, 'utf-8')` is no harder to read than
+  `readText(p)` and saves an import.
+- Eliminating the abstraction layer makes the CLI source more
+  approachable to anyone who reads Node code: there's no
+  project-specific port layer to learn first.
+- Keeping the layer would constrain future call sites to follow it,
+  even when Node natives are clearer. Removing it lets each call
+  site pick the cleanest expression.
+- Most large CLI projects (eslint, prettier, vite, pnpm,
+  claude-code) just use Node natives directly. We follow the
+  industry mainstream.
+
+The handful of shims that survive deletion are the **genuinely
+non-trivial** ones — helpers that encode either
+project-specific semantics or substantially reduce verbosity:
+
+| Shim | Survives? | Why |
+|---|---|---|
+| `node-compat/proc.ts` | **keep** | `run()` wraps ~15 lines of `child_process.spawn` plumbing per use site. Strong usability win. |
+| `node-compat/which.ts` | **keep** | Non-trivial PATH walking with PATHEXT handling. Not in `node:`. |
+| `node-compat/ansi.ts` | **keep** | `color()` recreates a Bun API with no Node equivalent. `stripAnsi` plus `stringWidth` re-export are standard. |
+| `node-compat/runtime-info.ts` | **keep** | Project-domain helpers (`runtimeKind`, `gitSha`), not just thin shims. |
+| `node-compat/crypto.ts` | **keep** *only* `shortHash16` | Domain-specific (SHA-256 truncated). `sha1Hex` / `sha256Hex` get inlined. |
+| `node-compat/stdin.ts` | **keep** | The Web-stream bridge incantation is awkward enough to justify the wrapper. |
+| `node-compat/fs.ts` | **partial** | Keep `pathExists`, `streamToFile`, `openReadStream`. Inline `readText`, `readJson`, `readBytes`, `fileSize`, `writeText`, `writeBytes`, `removeFile`, `copyFileTo`. |
+| `node-compat/timers.ts` | **delete** | `await setTimeout(ms)` from `node:timers/promises` is a one-liner inline. |
+| `node-compat/yaml.ts` | **delete** | `import { parse, stringify } from 'yaml'` is a one-liner. |
+
+This collapses from 10 modules to ~7, and most `cli/src/*` files end
+up importing only from `node:fs/promises`, `node:crypto`, `'yaml'`,
+and `'../node-compat/proc'` etc., not from a wholesale
+project-internal port layer.
+
+### 5.3 Phase 3 execution plan
+
+Migration is **one PR per area**, each doing a single pass that
+lands at the end state directly:
+
+For each migrated file:
+  - For each Bun call site, ask: *is the Node native equivalent
+    cleanly inline-able?*
+  - If yes, inline it (`Bun.file(p).text()` →
+    `await readFile(p, 'utf-8')`).
+  - If no, use the corresponding `node-compat/` helper
+    (`Bun.file(p).exists()` → `pathExists(p)`).
+
+**Phase order** (largest single files first to validate the
+approach):
+
+1. `tui.ts` + `banner.ts` + `tui/box.ts` (heaviest single area: ~32 Bun calls, mostly clipboard, paging, color, stringWidth).
+2. `config.ts` + `auth.ts` (~25 calls, all file I/O + YAML).
+3. `cmd/cloud/*` (excluding `storage/`, which already moved to `@agentuity/storage`).
+4. `cmd/build/*`.
+5. `cmd/project/*`, `cmd/coder/*`, `cmd/support/*`.
+6. Remaining one-offs: `cmd/dev/*`, `cmd/setup/*`, `cmd/git/*` (the SSH/SCP spawns), `cmd/ai/*`, `cmd/upgrade/*`, `cmd/canary/*`.
+7. Switch shebang + `bin` field, add Node-versions matrix to CI (Phase 4).
+8. Phase 5: delete the shim files that no longer have any importers,
+   trim `node-compat/index.ts`. Remove `bun-types` from prod
+   `tsconfig.json` (kept in `test/` and `scripts/`).
 
 ---
 
@@ -1041,68 +1102,105 @@ Things that might surprise users mid-migration:
 
 ### Phase 0 — Foundation (this branch, no behavior change)
 
-- [ ] Branch `cli/node-compat` cut from `v3` (done).
-- [ ] Land this `PLAN.md` (done by this commit).
-- [ ] Resolve Open Questions 1, 6, 7 with the team.
+- [x] Branch `cli/node-compat` cut from `v3`.
+- [x] Land `PLAN.md`.
+- [x] Resolve Open Question 1 (shebang → pure Node, see §4.15).
+- [x] Resolve Open Question 6 (storage shape — see Phase 1 below).
+- [ ] Open Question 7 (bytes-uploaded reporting) — chose counting
+      passthrough; implemented in `packages/storage/src/node.ts`.
 
 ### Phase 1 — `@agentuity/storage` extraction
 
-- [ ] Create `packages/storage/` (package.json, AGENTS.md, README.md,
+- [x] Create `packages/storage/` (package.json, AGENTS.md, README.md,
       tsconfig.json, src/).
-- [ ] Implement `src/types.ts` (`S3ClientLike`, `BucketConfig`, etc.).
-- [ ] Implement `src/bun.ts` (thin wrapper around `Bun.S3Client`).
-- [ ] Implement `src/node.ts` (over `@aws-sdk/client-s3`, with
+- [x] Implement `src/types.ts` (`S3ClientLike`, `BucketConfig`, etc.).
+- [x] Implement `src/bun.ts` (thin wrapper around `Bun.S3Client`).
+- [x] Implement `src/node.ts` (over `@aws-sdk/client-s3`, with
       counting passthrough for streamed uploads).
-- [ ] Implement `src/index.ts` (re-export the Node backend as the
+- [x] Implement `src/index.ts` (re-export the Node backend as the
       condition-fallback).
-- [ ] Add to workspace, run `bun install`, verify build under both
+- [x] Add to workspace, run `bun install`, verify build under both
       Bun and Node.
-- [ ] Add a smoke test that exercises both backends against a local
-      MinIO container (or mock).
+- [x] Smoke test (see `tests/services/storage/index.ts`) verifies
+      both backends end-to-end against a real bucket.
+- [x] First publish to npm under `alpha` tag
+      (`@agentuity/storage@3.0.0-alpha.7`).
+- [x] Wire CLI to depend on `@agentuity/storage`; drop the
+      `new Response(stream)` wrap in `cmd/cloud/storage/upload.ts`.
+- [ ] Republish `@agentuity/storage` after the
+      `nextContinuationToken` and `S3FileLike.type` extensions
+      (deferred to next coordinated workspace publish).
 
-### Phase 2 — CLI compat shim
+### Phase 2 — CLI compat shim layer (transitional)
 
-- [ ] Add `packages/cli/src/node-compat/` shim modules (no behavior
-      change).
-- [ ] Add deps to `packages/cli`: `string-width`, `yaml`, `semver`,
-      `@agentuity/storage` (workspace).
+- [x] Add `packages/cli/src/node-compat/` shim modules (`fs`,
+      `proc`, `timers`, `which`, `crypto`, `yaml`, `ansi`, `stdin`,
+      `runtime-info`).
+- [x] Add deps to `packages/cli`: `string-width`, `yaml`, `semver`,
+      `@types/node`, `@types/semver`, `@agentuity/storage`
+      (workspace).
+- [x] Smoke-test every shim under both Bun (1.3.11) and Node
+      (24.0.2). All identical except runtime-info fields.
+- [x] Phase 2b: extract semantic helpers `system/browser.ts`
+      (absorbs 6 spawn sites in 3 files) and `git-helper.ts:runGit`
+      (absorbs 9 spawn sites across 3 files).
 
-### Phase 3 — CLI source migration (one PR per chunk)
+### Phase 3 — CLI source migration (single-pass per file)
 
-- [ ] `cmd/cloud/storage/utils.ts` switches to
-      `import { createS3Client } from '@agentuity/storage'` (one-line).
-      Verify `upload.ts`, `download.ts`, `list.ts`, `delete.ts` work
-      unchanged.
-- [ ] Migrate `config.ts`, `auth.ts`.
-- [ ] Migrate `cmd/cloud/**` (excluding `storage/`).
-- [ ] Migrate `cmd/build/**` (typecheck shell, patch loader).
-- [ ] Migrate `cmd/project/**` (scaffold, reconcile, remote-import,
+Migration policy: for each migrated file, inline Node natives where
+clean (`await readFile(p, 'utf-8')`), use `node-compat/` shims where
+Node's surface is genuinely uglier (`pathExists(p)`, `run(opts)`,
+`color(spec)`, etc.). See §5.2 for the per-shim survival decisions.
+
+Ordered largest-first to validate the approach early:
+
+- [ ] `tui.ts` + `banner.ts` + `tui/box.ts` (~32 sites: clipboard,
+      paging, color, stringWidth, stripANSI, plus a handful of
+      `Bun.spawn`).
+- [ ] `config.ts` + `auth.ts` (~25 sites: file I/O + YAML).
+- [ ] `cmd/cloud/**` (excluding `storage/`, already done).
+- [ ] `cmd/build/**` (typecheck shell, patch loader).
+- [ ] `cmd/project/**` (scaffold, reconcile, remote-import,
       template-flow).
-- [ ] Migrate `cmd/coder/**`, `cmd/support/**`, `cmd/setup/**`,
-      `cmd/git/**`, `cmd/auth/**`, `cmd/ai/**`, `cmd/dev/**`,
-      `cmd/upgrade/**`, `cmd/canary/**`.
-- [ ] Migrate `tui.ts`, `banner.ts`, `tui/box.ts` (ANSI / stringWidth).
-- [ ] Migrate `keychain.ts`, `git-helper.ts`, `utils/**`,
-      `internal-logger.ts`, `version.ts`, `runtime.ts`,
-      `deploy-metadata.ts`, `domain.ts`, `bun-path.ts`,
-      `agent-detection.ts`, `sound.ts`, `repl.ts`, `regions.ts`,
-      `env-util.ts`, `version-check.ts`, `typescript-errors.ts`,
-      `build-report.ts`.
+- [ ] `cmd/coder/**`, `cmd/support/**`, `cmd/setup/**`,
+      `cmd/git/**` (SSH/SCP spawns), `cmd/auth/**`, `cmd/ai/**`,
+      `cmd/dev/**`, `cmd/upgrade/**`, `cmd/canary/**`.
+- [ ] `keychain.ts`, `utils/**`, `internal-logger.ts`, `version.ts`,
+      `runtime.ts`, `deploy-metadata.ts`, `domain.ts`,
+      `bun-path.ts`, `agent-detection.ts`, `sound.ts`, `repl.ts`,
+      `regions.ts`, `env-util.ts`, `version-check.ts`,
+      `typescript-errors.ts`, `build-report.ts`.
 
 ### Phase 4 — entrypoint + CI
 
-- [ ] Update shebang and `bin` field per Open Question 1.
+- [ ] Update `bin/cli.ts` shebang to `#!/usr/bin/env node`.
+- [ ] Update `packages/cli/package.json` `bin` to
+      `"./dist/cli.js"`. Remove `bin` from `files`.
+- [ ] Wire shebang preservation into the build (tsc strips them).
 - [ ] Add Node-24 row to `release-next.yaml`.
-- [ ] Smoke test: `agentuity --version`, `agentuity --help`,
-      `agentuity auth whoami`, `agentuity cloud deploy --dry-run`,
-      `agentuity dev`, `agentuity cloud sandbox list`,
-      `agentuity cloud storage list`, `agentuity cloud storage upload`,
-      `agentuity cloud storage download` — under both Bun and Node.
+- [ ] Smoke test the full command surface under both Bun and Node:
+      `agentuity --version`, `--help`, `auth whoami`,
+      `cloud deploy --dry-run`, `dev`, `cloud sandbox list`,
+      `cloud storage list/upload/download`.
 
 ### Phase 5 — cleanup
 
-- [ ] Update `packages/cli/AGENTS.md` with the new convention (no Bun
-      globals in prod source).
+- [ ] Inline-and-delete `node-compat/timers.ts` (sleep) and
+      `node-compat/yaml.ts` at remaining call sites.
+- [ ] Inline trivial `node-compat/fs.ts` helpers (`readText`,
+      `readJson`, `readBytes`, `fileSize`, `writeText`,
+      `writeBytes`, `removeFile`, `copyFileTo`) at call sites.
+      Keep the non-trivial ones (`pathExists`, `streamToFile`,
+      `openReadStream`).
+- [ ] Inline `crypto.ts:sha1Hex` and `crypto.ts:sha256Hex` at call
+      sites. Keep `shortHash16` (project-domain helper).
+- [ ] Trim `node-compat/index.ts` to re-export only the surviving
+      shims.
+- [ ] `git rm` empty shim files; verify nothing imports them.
+- [ ] Remove `bun-types` from prod `tsconfig.json` (kept in
+      `test/` and `scripts/` configs).
+- [ ] Update `packages/cli/AGENTS.md` with the new convention
+      (no Bun globals in prod source).
 - [ ] Update `packages/storage/AGENTS.md` with publish ordering note.
 - [ ] Remove this `PLAN.md` (or move to `packages/cli/AGENTS.md` as
       historical context).
