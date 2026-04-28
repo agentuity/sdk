@@ -85,7 +85,7 @@ export const DEMOS: DemoConfig[] = [
 				to see what tools are available inside your handler.
 			</>
 		),
-		docsUrl: '/agents/creating-agents',
+		docsUrl: '/patterns/agents-as-a-pattern',
 		category: 'basics',
 		component: HelloDemo,
 		codeExample: CODE_EXAMPLES.hello,
@@ -236,7 +236,7 @@ export const DEMOS: DemoConfig[] = [
 				with the Vercel AI SDK for streaming and structured output.
 			</>
 		),
-		docsUrl: '/agents/ai-gateway',
+		docsUrl: '/services/ai-gateway',
 		category: 'services',
 		component: AIGatewayDemo,
 		codeExample: CODE_EXAMPLES['ai-gateway'],
@@ -269,7 +269,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/agents/streaming-responses',
+		docsUrl: '/patterns/chat-and-streaming',
 		category: 'io-patterns',
 		component: StreamingDemo,
 		codeExample: CODE_EXAMPLES.streaming,
@@ -301,7 +301,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/routes/sse',
+		docsUrl: '/patterns/chat-and-streaming',
 		category: 'io-patterns',
 		component: SSEStreamDemo,
 		codeExample: CODE_EXAMPLES['sse-stream'],
@@ -333,7 +333,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/routes/websockets',
+		docsUrl: '/patterns/chat-and-streaming',
 		category: 'io-patterns',
 		component: WebSocketDemo,
 		codeExample: CODE_EXAMPLES.websocket,
@@ -390,7 +390,7 @@ export const DEMOS: DemoConfig[] = [
 				background tasks.
 			</>
 		),
-		docsUrl: '/agents/calling-other-agents',
+		docsUrl: '/patterns/agents-as-a-pattern',
 		category: 'io-patterns',
 		component: AgentCallsDemo,
 		codeExample: CODE_EXAMPLES['agent-calls'],

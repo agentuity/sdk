@@ -4,7 +4,7 @@ short_title: LangChain
 description: Build LangChain agents with Agentuity's deployment runtime, persistent storage, and observability
 ---
 
-[LangChain](https://js.langchain.com) provides agent primitives, chains, and tool orchestration, but deploying and running those agents requires infrastructure: state management, credential routing, observability. Agentuity handles that layer. Write your agent logic with LangChain, deploy it on Agentuity with built-in storage, logging, and an [AI gateway](/agents/ai-gateway).
+[LangChain](https://js.langchain.com) provides agent primitives, chains, and tool orchestration, but deploying and running those agents requires infrastructure: state management, credential routing, observability. Agentuity handles that layer. Write your agent logic with LangChain, deploy it on Agentuity with built-in storage, logging, and an [AI gateway](/services/ai-gateway).
 
 ## ReAct Agent with Tools
 
@@ -98,7 +98,7 @@ export default createAgent('basic', {
 - Extract the final AI response by finding the last `AIMessage` in the array
 
 <Callout type="info" title="Agentuity handles model credentials">
-When deployed to Agentuity, model credentials are managed through the [AI Gateway](/agents/ai-gateway). No API keys needed in your code.
+When deployed to Agentuity, model credentials are managed through the [AI Gateway](/services/ai-gateway). No API keys needed in your code.
 </Callout>
 
 ## Streaming with Timeline
@@ -191,6 +191,6 @@ Explore complete working examples for each pattern:
 
 ## Next Steps
 
-- [Creating Agents](/agents/creating-agents): Agentuity agent patterns and schemas
-- [AI Gateway](/agents/ai-gateway): Managed model credentials across providers
-- [State Management](/agents/state-management): Persist conversation history across requests
+- [Creating Agents](/patterns/agents-as-a-pattern): Agentuity agent patterns and schemas
+- [AI Gateway](/services/ai-gateway): Managed model credentials across providers
+- [State Management](/services/storage/key-value): Persist conversation history across requests

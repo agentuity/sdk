@@ -1,0 +1,42 @@
+---
+title: Using Nuxt with Agentuity
+short_title: Nuxt
+description: Add Agentuity CLI wiring and deployment validation to a Nuxt app
+---
+
+Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity keeps Nuxt's route and Nitro layout, then adds local development, project linking, and deploy validation around that shape.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-nuxt-app --framework nuxt
+cd my-nuxt-app
+```
+
+The starter runs `nuxi init`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an AI example at `server/api/translate.ts` plus `app.vue`.
+
+For an existing Nuxt app, add the CLI and link the project:
+
+```bash
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity dev` runs the Nuxt `dev` script and passes Agentuity environment values into that process.
+
+## Validate Before Deploy
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+Nuxt is detected as its own framework, and the current build path packages it through the generic adapter. Check that launch metadata points at the Nitro server you expect and that static assets are coming from `.output/public`.
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
+- [Standalone Packages](/reference/standalone-packages): add Agentuity services from server routes and server utilities

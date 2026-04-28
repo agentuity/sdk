@@ -28,7 +28,7 @@ my-monorepo/
 
 ## Shared Schemas
 
-Define schemas once in `packages/shared`, then import them from both the agent and the frontend. The schemas use [`@agentuity/schema`](/agents/schema-libraries), but any [StandardSchema-compatible](/agents/schema-libraries) library works:
+Define schemas once in `packages/shared`, then import them from both the agent and the frontend. The schemas use [`@agentuity/schema`](/reference/sdk-reference/schema), but any [StandardSchema-compatible](/reference/sdk-reference/schema) library works:
 
 ```typescript title="packages/shared/src/translate.ts"
 import { s } from '@agentuity/schema';
@@ -87,7 +87,7 @@ The frontend should use `import type { ApiRouter } from '@my-monorepo/agentuity/
 
 ## The Agent
 
-The agent imports schemas from the shared package. Agentuity's [AI Gateway](/agents/ai-gateway) handles model routing, so no separate provider-specific client setup is required in the frontend:
+The agent imports schemas from the shared package. Agentuity's [AI Gateway](/services/ai-gateway) handles model routing, so no separate provider-specific client setup is required in the frontend:
 
 ```typescript title="apps/agentuity/src/agent/translate/index.ts"
 import { createAgent } from '@agentuity/runtime';
@@ -295,7 +295,7 @@ When deployed, either keep routing `/api/*` to the Agentuity backend at your edg
 
 ## Next Steps
 
-- [Schema Libraries](/agents/schema-libraries): Use Zod, Valibot, ArkType, or `@agentuity/schema` for shared schemas
+- [Schema Libraries](/reference/sdk-reference/schema): Use Zod, Valibot, ArkType, or `@agentuity/schema` for shared schemas
 - [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
-- [HTTP Routes](/routes/http): Define and validate backend API routes
+- [Using Hono with Agentuity](/frameworks/hono): Define and validate backend API routes
 - [Deployment Scenarios](/frontend/deployment-scenarios): Route frontend traffic to a deployed agent

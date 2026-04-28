@@ -1,0 +1,67 @@
+---
+title: Running Local Development
+short_title: Local Development
+description: Run your framework dev script with Agentuity environment wiring.
+---
+
+`agentuity dev` runs your project's package-manager `dev` script and passes Agentuity environment values into that process. Use it when you want your normal framework dev server plus Agentuity local wiring.
+
+```bash
+agentuity dev
+```
+
+## What Runs
+
+The CLI reads `package.json`, detects the package manager, and runs the selected script:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "next dev",
+    "dev:web": "vite --host 0.0.0.0"
+  }
+}
+```
+
+```bash
+agentuity dev
+agentuity dev --script dev:web
+```
+
+If the script is missing, the command exits and prints the available scripts.
+
+## Port
+
+`agentuity dev` sets `PORT` for the child process. The default is `3000`; pass `--port` when your framework should listen elsewhere:
+
+```bash
+agentuity dev --port 4321
+```
+
+Frameworks differ in how they read `PORT`. If your framework ignores it, configure the port in the framework's own dev script.
+
+## AI Gateway Environment
+
+When `AGENTUITY_SDK_KEY` is available, `agentuity dev` injects provider-compatible environment variables for OpenAI, Anthropic, and Groq unless you already set your own provider key.
+
+```bash
+agentuity dev
+```
+
+This lets provider SDK calls route through Agentuity during local development. If no project SDK key is found, the CLI can fall back to your CLI auth key for gateway routing and prints a reminder to run `agentuity project import`.
+
+Service clients should still use a project SDK key. Link the app when local routes need key-value storage, vector search, object storage, or other Agentuity services.
+
+<Callout type="info" title="Local development uses your framework server">
+`agentuity dev` does not replace Next.js, Vite, Hono, or another framework dev server. It starts the script you already defined and passes Agentuity environment values into that process.
+</Callout>
+
+## Validate Before Running
+
+Use import validation when you want to check project shape without creating or deploying anything:
+
+```bash
+agentuity project import --validate-only
+```
+
+For local environment behavior, see [Environment Variables](/deploy-operate/environment-variables): it explains which values are read from `.env` and which values are synced to Agentuity Cloud.

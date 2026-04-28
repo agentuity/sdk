@@ -59,4 +59,5 @@ Repo-level test apps live under `tests/`:
 - **Verification**: Run format, lint, typecheck, build, test before committing
 - **Main branch**: NEVER commit directly
 - **Documentation**: Don't create docs unless explicitly asked
+- **Docs examples**: Treat external framework memory as stale. Before shipping examples for Next, Nuxt, SvelteKit, Drizzle, Better Auth, Vite, or similar tools, check current upstream docs and align with their recommended patterns. Verify the Agentuity integration locally, but also verify that the surrounding framework usage is idiomatic. Working code is not enough if the setup is not how the framework expects users to do it.
 - **Clarification**: Ask before major code changes if unsure

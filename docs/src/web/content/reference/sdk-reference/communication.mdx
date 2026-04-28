@@ -1,205 +1,147 @@
 ---
-title: Calling Other Agents
+title: Calling App Code
 short_title: Communication
-description: Call agents from routes or other agents with type-safe imports
+description: Call shared workflow functions from routes, workers, scripts, and other server code
 ---
 
-Import other agents by name and call them with full type safety. The `@agent/` path alias gives you compile-time type checking and IDE autocomplete.
+In v3, "calling another agent" usually means calling ordinary TypeScript. Put the reusable work in a function, import it from the route or worker that owns the trigger, and use Agentuity clients inside that function when it needs service state.
 
-<Callout type="tip" title="Looking for patterns?">
-For orchestration strategies, retry logic, and conditional routing between agents, see [Calling Other Agents](/agents/calling-other-agents).
+<Callout type="tip" title="Looking for orchestration patterns?">
+See [Agents as a Pattern](/patterns/agents-as-a-pattern) for model-backed workflows and [Background Work](/patterns/background-work) for moving slower work out of request handlers.
 </Callout>
 
-## Agent Registry
+## Shared Function
 
-```typescript
-import otherAgent from '@agent/other/agent';
-
-// Call another agent
-const result = await otherAgent.run(input);
+```bash
+bun add @agentuity/keyvalue@alpha @agentuity/schema@alpha
 ```
 
-The `@agent/` path alias provides access to all agents in your project with compile-time type checking.
-
-## Single Agent Call
-
-Import an agent and call it directly. TypeScript infers the result type from the called agent's output schema.
-
-```typescript
-// src/agent/processor/agent.ts
-import { createAgent } from '@agentuity/runtime';
+```typescript title="src/workflows/enrich-message.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
 import { s } from '@agentuity/schema';
-import enrichmentAgent from '@agent/enrichment/agent';
 
-export default createAgent('Processor', {
-  schema: {
-    input: s.object({ userInput: s.string() }),
-    output: s.object({
-      processed: s.boolean(),
-      analysis: s.object({
-        sentiment: s.string(),
-        keywords: s.array(s.string()),
-      }),
-    }),
-  },
-  handler: async (ctx, input) => {
-    const enriched = await enrichmentAgent.run({
-      text: input.userInput,
-    });
-
-    // TypeScript knows enriched has the shape from the agent's schema
-
-    return {
-      processed: true,
-      analysis: {
-        sentiment: enriched.sentiment,
-        keywords: enriched.keywords,
-      },
-    };
-  },
-});
-```
-
-## Parallel Agent Calls
-
-Use `Promise.all` to call multiple agents concurrently and combine their results.
-
-```typescript
-// src/agent/coordinator/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-import webSearchAgent from '@agent/web-search/agent';
-import databaseAgent from '@agent/database/agent';
-import cacheAgent from '@agent/cache/agent';
-
-export default createAgent('Coordinator', {
-  schema: {
-    input: s.object({ query: s.string() }),
-    output: s.object({
-      results: s.array(s.object({
-        id: s.string(),
-        source: s.string(),
-        content: s.string(),
-      })),
-      metadata: s.object({
-        sources: s.number(),
-        processingTime: s.number(),
-      }),
-    }),
-  },
-  handler: async (ctx, input) => {
-    const startTime = Date.now();
-
-    // Call multiple agents in parallel rather than sequentially
-    const [webResults, dbResults, cacheResults] = await Promise.all([
-      webSearchAgent.run({ query: input.query }),
-      databaseAgent.run({ query: input.query }),
-      cacheAgent.run({ key: input.query }),
-    ]);
-
-    const allResults = [
-      ...webResults.items,
-      ...dbResults.records,
-      ...(cacheResults.found ? [cacheResults.data] : []),
-    ];
-
-    return {
-      results: allResults,
-      metadata: {
-        sources: 3,
-        processingTime: Date.now() - startTime,
-      },
-    };
-  },
-});
-```
-
-## Calling from Routes
-
-Import agents into route handlers the same way you import them in other agents. The `@agent/` alias works in any file within your project.
-
-```typescript title="src/api/summarize/route.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import summarizeAgent from '@agent/summarize/agent';
-
-const router = new Hono<Env>();
-
-router.post('/', summarizeAgent.validator(), async (c) => {
-  const body = c.req.valid('json');
-  const result = await summarizeAgent.run(body);
-  return c.json(result);
+const inputSchema = s.object({
+  userId: s.string(),
+  message: s.string(),
 });
 
-export default router;
-```
+const outputSchema = s.object({
+  userId: s.string(),
+  previousMessage: s.nullable(s.string()),
+  message: s.string(),
+});
 
-`summarizeAgent.run()` returns the same typed result as calling it from another agent. Use `agent.validator()` to validate the request body against the agent's input schema before calling `.run()`.
+type EnrichOutput = s.infer<typeof outputSchema>;
 
-## Typed Responses
+const kv = new KeyValueClient();
 
-TypeScript infers the return type of `.run()` from the called agent's output schema. No manual type annotations are needed:
+export async function enrichMessage(body: unknown): Promise<EnrichOutput> {
+  const input = inputSchema.parse(body);
+  const previous = await kv.get<string>('messages', input.userId);
 
-```typescript
-import enrichmentAgent from '@agent/enrichment/agent';
+  const output = {
+    userId: input.userId,
+    previousMessage: previous.exists ? previous.data : null,
+    message: input.message,
+  } satisfies EnrichOutput;
 
-// result is automatically typed as { sentiment: string; keywords: string[] }
-const result = await enrichmentAgent.run({ text: 'Hello world' });
-result.sentiment; // string, autocomplete works
-```
+  await kv.set('messages', input.userId, input.message, {
+    ttl: 60 * 60 * 24 * 30,
+  });
 
-When you need an explicit type (for function signatures or intermediate variables), use `Awaited<ReturnType<>>`:
-
-```typescript
-import enrichmentAgent from '@agent/enrichment/agent';
-
-// Extract the output type from the agent
-type EnrichmentOutput = Awaited<ReturnType<typeof enrichmentAgent.run>>;
-
-function formatEnrichment(data: EnrichmentOutput): string {
-  return `${data.sentiment}: ${data.keywords.join(', ')}`;
+  return outputSchema.parse(output);
 }
 ```
 
-## Error Handling
+The function owns validation and service calls. Any server entry point can call it without recreating a runtime agent registry.
 
-Wrap agent calls in try/catch to handle failures gracefully. This example falls back to cached data when an external agent is unavailable.
+## Framework Route
+
+```typescript title="app/api/messages/route.ts"
+import { enrichMessage } from '@/workflows/enrich-message';
+
+export async function POST(request: Request): Promise<Response> {
+  const result = await enrichMessage(await request.json());
+  return Response.json(result);
+}
+```
+
+Use the same function from a server action, queue consumer, cron job, or script when that trigger should run the same work.
+
+## Hono Route
+
+Use `@agentuity/hono` when you want Hono context variables for shared service clients.
+
+```bash
+bun add @agentuity/hono@alpha hono
+```
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import { enrichMessage } from './workflows/enrich-message';
+import type { Logger } from '@agentuity/hono';
+
+interface Variables {
+  readonly logger: Logger;
+}
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.post('/messages', async (c) => {
+  const result = await enrichMessage(await c.req.json());
+  c.var.logger.info('message enriched', { userId: result.userId });
+
+  return c.json(result);
+});
+
+export default app;
+```
+
+Direct clients are still the portable default. Hono middleware is useful when a route should receive clients and telemetry through `c.var.*`.
+
+## Parallel Calls
+
+Use `Promise.all` when independent workflows can run at the same time.
 
 ```typescript
-// src/agent/robust/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-import externalService from '@agent/external-service/agent';
+import { enrichMessage } from './enrich-message';
+import { scoreMessage } from './score-message';
+import { routeMessage } from './route-message';
 
-type CachedData = { id: string; content: string };
+export async function processMessage(body: unknown): Promise<{
+  readonly enriched: Awaited<ReturnType<typeof enrichMessage>>;
+  readonly score: Awaited<ReturnType<typeof scoreMessage>>;
+  readonly route: Awaited<ReturnType<typeof routeMessage>>;
+}> {
+  const [enriched, score, route] = await Promise.all([
+    enrichMessage(body),
+    scoreMessage(body),
+    routeMessage(body),
+  ]);
 
-export default createAgent('Robust', {
-  schema: {
-    input: s.object({ userId: s.string() }),
-    output: s.object({
-      success: s.boolean(),
-      data: s.nullable(s.object({ id: s.string(), content: s.string() })),
-    }),
-  },
-  handler: async (ctx, input) => {
-    try {
-      const result = await externalService.run({
-        userId: input.userId,
-      });
-
-      return { success: true, data: result };
-    } catch (error) {
-      ctx.logger.error('External service failed', { error });
-
-      // Fall back to cached data rather than returning an error
-      const cached = await ctx.kv.get<CachedData>('user-cache', input.userId);
-
-      if (cached.exists) {
-        return { success: true, data: cached.data };
-      }
-
-      return { success: false, data: null };
-    }
-  },
-});
+  return { enriched, score, route };
+}
 ```
+
+Keep sequential `await` when the second call depends on the first result.
+
+## Typed Outputs
+
+Export function return types from the implementation instead of duplicating output shapes in callers.
+
+```typescript
+import { enrichMessage } from './enrich-message';
+
+export type EnrichedMessage = Awaited<ReturnType<typeof enrichMessage>>;
+
+export function formatEnrichedMessage(message: EnrichedMessage): string {
+  return `${message.userId}: ${message.message}`;
+}
+```
+
+## Existing v2 Runtime Apps
+
+Existing v2 projects that use `createAgent()` from `@agentuity/runtime` can keep direct agent imports and `.run()` calls while they stay on the runtime app model. New v3 code should prefer framework routes, shared functions, and standalone service clients.

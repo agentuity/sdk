@@ -1,6 +1,6 @@
 ---
 title: Services
-description: Identity, storage, messaging, observability, and execution services
+description: Agentuity service clients for identity, storage, messaging, observability, and execution
 ---
 
 import {
@@ -25,7 +25,18 @@ import {
   Webhook,
 } from 'lucide-react';
 
-Agentuity provides built-in services for identity, storage, messaging, observability, and code execution. These pages cover patterns, configuration, and best practices. For method signatures and return types, see the [SDK Reference](/reference/sdk-reference).
+Use Agentuity services when your framework app needs managed state, search, messaging, observability, or code execution. Start with the service's direct client or API; Hono apps can add `@agentuity/hono` to expose the managed clients on `c.var.*`.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+await kv.set('cache', 'homepage', { generatedAt: new Date().toISOString() });
+const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage');
+```
+
+For method signatures and return types, see the [SDK Reference](/reference/sdk-reference). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
 
 ## Identity
 
@@ -126,7 +137,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/observability/logging"
     title="Logging"
-    description="Structured logging with ctx.logger"
+    description="Structured application logs"
     icon={<FileText />}
   />
   <CardLink
@@ -140,12 +151,6 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
     title="Sessions & Debugging"
     description="View request history and debug issues"
     icon={<Bug />}
-  />
-  <CardLink
-    href="/services/observability/web-analytics"
-    title="Web Analytics"
-    description="Track page views and user events from your frontend"
-    icon={<Activity />}
   />
 </Cards>
 
@@ -172,7 +177,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/sandbox/sdk-usage"
     title="SDK Usage"
-    description="Use the sandbox from your agents"
+    description="Use the sandbox client from app code"
     icon={<Eye />}
   />
   <CardLink

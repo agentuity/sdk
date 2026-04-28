@@ -1,13 +1,13 @@
 ---
-title: Using Message Queues
+title: Message Queues (v2 Compatibility)
 short_title: Queue Service
-description: Publish messages and manage queues with ctx.queue
+description: Compatibility reference for v2 runtime ctx.queue APIs
 ---
 
-Publish messages for async processing, webhooks, and event-driven workflows. The queue service is available via `ctx.queue` in agents and `c.var.queue` in routes.
+This page documents v2 runtime queue access through `ctx.queue` in agents and `c.var.queue` in runtime routes. In v3 apps, start with [Queues](/services/queues) and [Using Standalone Packages](/reference/standalone-packages#message-queues): use `QueueClient` from `@agentuity/queue`.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/queue`](/reference/standalone-packages#message-queues) standalone package to access this service from any Node.js or Bun app without the runtime.
+<Callout type="info" title="Use QueueClient for new v3 code">
+The `ctx.queue` examples below still work for existing v2 runtime apps. New v3 code usually creates a `QueueClient` from `@agentuity/queue`.
 </Callout>
 
 For concepts, patterns, and consumer configuration, see [Queues](/services/queues).

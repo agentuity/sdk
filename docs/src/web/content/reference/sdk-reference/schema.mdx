@@ -10,7 +10,7 @@ The SDK includes built-in schema validation using the StandardSchemaV1 interface
 
 The SDK validates agent input and output using the [StandardSchemaV1](https://github.com/standard-schema/standard-schema) interface. Any validation library that implements this interface works out of the box: Zod, Valibot, ArkType, or the built-in `@agentuity/schema` package.
 
-For choosing between schema libraries and integration patterns, see [Schema Libraries](/agents/schema-libraries). For how schemas attach to agents, see [Agents](/reference/sdk-reference/agents#agent-configuration).
+For choosing between schema libraries and integration patterns, see [Schema Libraries](/reference/sdk-reference/schema). For how schemas attach to agents, see [Agents](/reference/sdk-reference/agents#agent-configuration).
 
 ## Type Inference
 
@@ -347,7 +347,7 @@ const SentimentSchema = s.object({
 });
 
 const { object } = await generateObject({
-  model: openai('gpt-4o'),
+  model: openai('gpt-5.4-mini'),
   schema: s.toJSONSchema(SentimentSchema, { strict: true }),
   prompt: 'Analyze the sentiment of: "I love this product!"',
 });
@@ -357,7 +357,7 @@ const { object } = await generateObject({
 
 This approach works with any provider that accepts JSON Schema for structured output.
 
-For supported LLM providers, see [AI Gateway](/agents/ai-gateway).
+For supported LLM providers, see [AI Gateway](/services/ai-gateway).
 
 ## Validation Errors
 

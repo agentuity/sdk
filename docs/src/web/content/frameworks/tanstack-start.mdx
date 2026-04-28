@@ -1,0 +1,102 @@
+---
+title: Using TanStack Start with Agentuity
+short_title: TanStack Start
+description: Add Agentuity service clients to a TanStack Start app and validate the detected build path
+---
+
+Use this page for an existing [TanStack Start](https://tanstack.com/start/latest/docs/framework/react/overview) app. TanStack Start is not currently a `project create --framework` starter, so start with TanStack's CLI and validate the Agentuity build output before deploying.
+
+## Create the Framework App
+
+Use TanStack's own CLI first:
+
+```bash
+bunx @tanstack/cli@latest create my-start-app --framework React --package-manager bun
+cd my-start-app
+```
+
+Then add Agentuity:
+
+```bash
+bun add @agentuity/keyvalue@alpha
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity project import` registers the app and writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy for existing apps.
+
+## Add a Server Route
+
+TanStack Start server routes can use Agentuity service clients directly.
+
+```tsx title="src/routes/api.visits.tsx"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { createFileRoute } from '@tanstack/react-router';
+
+interface VisitCounter {
+	readonly count: number;
+}
+
+const kv = new KeyValueClient();
+
+export const Route = createFileRoute('/api/visits')({
+	server: {
+		handlers: {
+			GET: async () => {
+				const current = await kv.get<VisitCounter>('metrics', 'visits');
+				const count = current.exists ? current.data.count + 1 : 1;
+
+				await kv.set('metrics', 'visits', { count }, { ttl: null });
+
+				return Response.json({ count });
+			},
+		},
+	},
+});
+```
+
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the runtime environment. During local development, `agentuity dev` runs your app's `dev` script and injects the same Agentuity environment variables that the framework process would otherwise need.
+
+## Run Locally
+
+```bash
+agentuity dev
+```
+
+If you need Bun's runtime flag for your app, keep it in the package script:
+
+```json title="package.json"
+{
+	"scripts": {
+		"dev": "bun --bun vite dev --port 3000",
+		"build": "vite build",
+		"start": "node .output/server/index.mjs",
+		"deploy": "agentuity deploy"
+	}
+}
+```
+
+## Validate Before Deploy
+
+Use `agentuity build` as the packaging check before relying on `agentuity deploy`.
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+If the Agentuity build cannot find the local `vite` binary, run it with the app's package binaries on `PATH`:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+```
+
+For an SSR app, the launch metadata should point at your server entry, not only an injected static file server. If the package only contains static assets, keep the framework app on its current host and use Agentuity service clients from server routes until your build packaging is explicit.
+
+## Next Steps
+
+- [Key-Value Storage](/services/storage/key-value): use the same client API from TanStack server routes
+- [Deployment](/reference/cli/deployment): review deploy behavior before wiring CI
+- [Build Configuration](/reference/cli/build-configuration): inspect detected framework output and launch metadata

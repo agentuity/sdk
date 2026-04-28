@@ -14,7 +14,10 @@ export const command = createCommand({
 	description: 'Project related commands',
 	tags: ['fast', 'requires-auth'],
 	examples: [
-		{ command: getCommand('project create my-agent'), description: 'Create a new project' },
+		{
+			command: getCommand('project create --name my-agent'),
+			description: 'Create a new project',
+		},
 		{ command: getCommand('project import'), description: 'Import an existing project' },
 		{ command: getCommand('project list'), description: 'List all projects' },
 		{ command: getCommand('project add database'), description: 'Link an existing database' },

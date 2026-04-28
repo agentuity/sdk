@@ -68,7 +68,7 @@ No filesystem changes. No heuristics.
 Phase 1 — Comprehensive v0 Project Scan
 Recursively scan all files and folders that belong to the v0 project, including (but not limited to):
   src/agent*, src/agents*
-  src/api*, src/routes*
+  src/api*, src/frameworks*
   src/tools/
   src/utils/, src/helpers/, src/lib/
   Any other files contributing to runtime behavior or business logic

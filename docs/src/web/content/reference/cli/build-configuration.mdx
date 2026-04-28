@@ -1,109 +1,123 @@
 ---
-title: Build Configuration
-description: Customize the build process with Vite plugins and build-time constants
+title: Building Deployment Bundles
+short_title: Build Configuration
+description: Build framework apps into Agentuity deployment bundles with launch metadata and static assets.
 ---
 
-Customize how your project is built using `vite.config.ts` in your project root. Add Vite plugins for frontend builds or define build-time constants.
+Use `agentuity build` to turn a framework app into the `.agentuity` deployment bundle that `agentuity deploy` uploads.
 
-## Basic Configuration
+## Basic Build
 
-```typescript
-import { defineConfig } from 'vite';
+Build the current project:
 
-export default defineConfig({
-  // Configuration options here
-});
+```bash
+agentuity build
 ```
 
-## Configuration Options
+Write the bundle somewhere else:
 
-### plugins
-
-Add Vite plugins for frontend builds (`src/web/`). The CLI passes your `vite.config.ts` to Vite directly. If the file is missing, the CLI writes a React fallback config for older projects.
-
-```typescript
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
-
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-});
+```bash
+agentuity build --outdir ./dist-agentuity
 ```
 
-See the [Vite plugin documentation](https://vitejs.dev/plugins/) for available plugins.
+Skip the post-build type check:
 
-<Callout type="info" title="Frontend Only">
-Vite plugins apply to frontend builds only. Server code is bundled separately with Bun.
+```bash
+agentuity build --skip-type-check
+```
+
+The command detects the framework from `package.json`, runs the matching adapter, writes launch metadata, enumerates static assets, and type checks the project unless you skip that step.
+
+## Read the Build Output
+
+The first few lines tell you what the detector found and which adapter packaged the app:
+
+```text
+Detecting framework...
+Detected nextjs (node)
+Building with nextjs adapter to .agentuity
+✓ Dependencies installed in 510ms
+✓ Next.js build completed in 3400ms
+✓ Standalone output packaged
+Build complete (nextjs, 4012ms)
+```
+
+Detection checks known framework packages and config files first, then falls back to a generic `package.json` shape. `BUILD010` usually means the CLI did not find a known framework or a generic build/start entry it can package.
+
+For frameworks that produce static assets or standalone servers, the adapter logs the important packaging step. For example, Next.js should report `Standalone output packaged`; static-oriented builds may report that a static file server was injected or assets were copied into the bundle.
+
+<Callout type="tip" title="Expose local framework binaries when needed">
+If `agentuity build` cannot find a framework CLI that exists in `node_modules/.bin`, run it with local binaries on `PATH`:
+
+```bash
+PATH="$PWD/node_modules/.bin:$PATH" agentuity build
+```
 </Callout>
 
-### define
+## Build Options
 
-Replace identifiers with constant values at build time. Values must be JSON-stringified.
-
-```typescript
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  define: {
-    'API_VERSION': JSON.stringify('v2'),
-    '__DEV__': JSON.stringify(false),
-  },
-});
-```
-
-<Callout type="warning" title="Reserved Keys">
-The development asset server sets these keys for Agentuity internals. Avoid redefining them in your Vite config:
-- specific `import.meta.env.AGENTUITY_PUBLIC_*` keys that Agentuity injects internally
-- `process.env.NODE_ENV`
-</Callout>
-
-## Environment Variables
-
-Vite exposes `VITE_*` variables to frontend code by default. Agentuity's dev server and generated environment types also recognize these public prefixes:
-
-| Prefix | Description |
+| Option | Description |
 |--------|-------------|
-| `VITE_*` | Standard Vite convention |
-| `AGENTUITY_PUBLIC_*` | Agentuity convention |
-| `PUBLIC_*` | Short form |
+| `--dir <path>` | Project directory, defaults to the current directory |
+| `--outdir <path>` | Output directory for build artifacts, defaults to `.agentuity` |
+| `--dev` | Enable development build mode |
+| `--skip-type-check` | Skip type checking after the framework build |
+| `--report-file <path>` | Write build diagnostics as JSON |
+| `--project-id <id>` | Project ID, alternative to resolving from `--dir` |
 
-For deployed frontend builds, add `envPrefix` if you want to expose `AGENTUITY_PUBLIC_*` or `PUBLIC_*` variables:
+### CI Build Options
 
-```typescript
-import { defineConfig } from 'vite';
+| Option | Description |
+|--------|-------------|
+| `--ci` | Run CI build mode from a source archive |
+| `--url <url>` | Source archive URL, required with `--ci` |
+| `--directory <path>` | Subdirectory within the extracted source |
+| `--logs-url <url>` | URL to CI build logs |
+| `--trigger <trigger>` | Build trigger: `cli`, `workflow`, or `webhook` |
+| `--event <event>` | Build event: `manual`, `push`, `pull_request`, or `workflow` |
+| `--pull-request-number <number>` | Pull request number |
+| `--pull-request-url <url>` | Pull request URL |
 
-export default defineConfig({
-  envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-});
+### Git Metadata Options
+
+| Option | Description |
+|--------|-------------|
+| `--message <message>` | Message to associate with the build |
+| `--commit <sha>` | Git commit SHA |
+| `--branch <branch>` | Git branch |
+| `--repo <url>` | Git repository URL |
+| `--provider <provider>` | Git provider, such as `github`, `gitlab`, or `bitbucket` |
+| `--commit-url <url>` | URL to the commit |
+
+## Deployment Bundle Contents
+
+The build output is a self-contained deployment bundle. It includes framework output plus Agentuity metadata:
+
+| File or data | Purpose |
+|--------------|---------|
+| `.agentuity/` | Default deployment bundle directory |
+| `launch.json` | Machine-readable launch metadata for starting the app |
+| `Procfile` | Process command compatibility file |
+| `.agentuity-build` | Build marker with framework, runtime, and build date |
+| static asset metadata | Asset filenames, content types, sizes, and gzip hints for CDN upload |
+
+`agentuity deploy` uses this bundle, the launch metadata, and the static asset list when it creates a deployment.
+
+## Framework Notes
+
+Next.js generated projects can build with the framework command:
+
+```bash
+bun run build
 ```
 
-```typescript
-// .env.local
-AGENTUITY_PUBLIC_API_URL=https://api.example.com
+If `agentuity build` cannot resolve `next` or another local framework binary, use the `PATH` form shown above.
 
-// src/web/App.tsx
-const apiUrl = import.meta.env.AGENTUITY_PUBLIC_API_URL;
-```
+Generated Hono projects include `build` and `start` scripts so the generic detector has a process to package. If `agentuity build` reports `BUILD010`, check that `package.json` still has both scripts and that `start` points at the built server entry.
 
-<Callout type="warning" title="Security">
-Public environment variables are bundled into frontend code and visible in the browser. Never put secrets or API keys in public variables.
-</Callout>
+## Vite Projects
 
-## Build Architecture
-
-Agentuity uses a hybrid build system:
-
-| Component | Tool | Output |
-|-----------|------|--------|
-| Frontend (`src/web/`) | Vite | `.agentuity/client/` |
-| Server (agents, routes) | Bun | `.agentuity/app.js` |
-
-This separation allows Vite's optimizations for frontend (HMR, tree-shaking, CSS processing) while using Bun's fast bundling for server code.
-
-For details on how these components interact during development, see [Dev Server Architecture](/reference/cli/development#dev-server-architecture).
-
-## Full Example
+For Vite-based apps, use `vite.config.ts` the same way you would in a normal Vite project.
 
 ```typescript title="vite.config.ts"
 import { defineConfig } from 'vite';
@@ -111,20 +125,19 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  // Vite plugins for frontend
   plugins: [react(), tailwindcss()],
-
   envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
-
-  // Build-time constants
-  define: {
-    'APP_VERSION': JSON.stringify('1.0.0'),
-  },
 });
 ```
 
+<Callout type="warning" title="Public env vars are browser-visible">
+Values exposed through Vite public prefixes are bundled into frontend code. Do not put secrets or API keys in public variables.
+</Callout>
+
+Use framework-native config files for non-Vite frameworks such as Next.js, Nuxt, SvelteKit, Astro, and React Router.
+
 ## Next Steps
 
-- [Tailwind CSS Setup](/cookbook/patterns/tailwind-setup): Add Tailwind styling to your frontend
-- [Development Server](/reference/cli/development): Run the dev server with your configuration
-- [Deployment](/reference/cli/deployment): Deploy with build configuration
+- [Local Development](/reference/cli/development): Run the framework dev server with Agentuity environment wiring
+- [Deployment](/reference/cli/deployment): Upload and provision the deployment bundle
+- [App Configuration](/get-started/app-configuration): Configure regions, resources, and environment files

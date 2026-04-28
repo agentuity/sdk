@@ -24,6 +24,9 @@ async function frameworkDefToDetected(
 	buildCommand: string | null,
 	outputDirectory: string | null,
 	staticDirectory: string | null | undefined,
+	startCommand: string | undefined,
+	serverEntry: string | undefined,
+	runtime: 'node' | 'bun' | undefined,
 	projectDir: string,
 	pkg: PackageJsonData
 ): Promise<DetectedFramework> {
@@ -46,11 +49,13 @@ async function frameworkDefToDetected(
 
 	return {
 		name: slug,
-		runtime: 'node',
+		runtime: runtime ?? 'node',
 		packageManager: pm,
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
+		startCommand,
+		serverEntry,
 		confidence: 'high',
 	};
 }
@@ -74,6 +79,9 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 			match.buildCommand,
 			match.outputDirectory,
 			match.staticDir,
+			match.startCommand,
+			match.serverEntry,
+			match.runtime,
 			projectDir,
 			pkg
 		);
@@ -101,6 +109,9 @@ export async function detectFrameworkWithPackageJson(
 			match.buildCommand,
 			match.outputDirectory,
 			match.staticDir,
+			match.startCommand,
+			match.serverEntry,
+			match.runtime,
 			projectDir,
 			pkg
 		);

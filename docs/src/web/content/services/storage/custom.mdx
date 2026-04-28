@@ -1,142 +1,155 @@
 ---
 title: Custom Storage
 short_title: Custom
-description: Local development storage and custom runtime storage implementations
+description: Swap storage backends behind small app-owned interfaces
 ---
 
-Agentuity uses local runtime storage when you are unauthenticated or when local mode is enabled, and managed runtime storage when your app runs with cloud credentials. You can override the runtime implementations for key-value, vector, and stream storage.
-
-## Local Development
-
-During local development, KV, vector, and stream storage are backed by a local SQLite database and project-scoped by the project path. This happens automatically when you're not authenticated, or when you explicitly enable local mode:
+Most v3 apps should use the dedicated service clients directly: `KeyValueClient`, `VectorClient`, `StreamClient`, and Bun's `s3` APIs. When you need a different backend, put that choice behind a small interface in your app instead of depending on runtime storage overrides.
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
+import { KeyValueClient } from '@agentuity/keyvalue';
 
-const app = await createApp({
-  services: {
-    useLocal: true,  // Force local storage even when authenticated
-  },
+interface Session {
+  readonly userId: string;
+  readonly email: string;
+}
+
+interface SessionStore {
+  get(id: string): Promise<Session | undefined>;
+  set(id: string, session: Session): Promise<void>;
+}
+
+class AgentuitySessionStore implements SessionStore {
+  readonly #kv = new KeyValueClient();
+
+  async get(id: string): Promise<Session | undefined> {
+    const result = await this.#kv.get<Session>('sessions', id);
+    return result.exists ? result.data : undefined;
+  }
+
+  async set(id: string, session: Session): Promise<void> {
+    await this.#kv.set('sessions', id, session, {
+      ttl: 60 * 60 * 24 * 30,
+    });
+  }
+}
+```
+
+Keep the app interface as small as the feature needs. A session store usually does not need the full key-value namespace API, search, stats, and namespace deletion methods.
+
+## When to Customize
+
+| Need | Pattern |
+|------|---------|
+| use Agentuity managed storage | instantiate the dedicated client directly |
+| swap Redis, Postgres, or another backend | define an app-owned interface and provide another implementation |
+| share the complete Agentuity method shape | implement the exported storage interface |
+| use a different S3-compatible object store | create a Bun `S3Client` with explicit credentials |
+| test without managed credentials | use fakes, mocks, or Bun-only local implementations |
+
+## Dedicated Clients
+
+Direct clients are the default v3 path. They read `AGENTUITY_SDK_KEY` from the environment and also accept explicit `apiKey`, `url`, `orgId`, and `logger` options.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { StreamClient } from '@agentuity/stream';
+import { VectorClient } from '@agentuity/vector';
+
+const kv = new KeyValueClient();
+const streams = new StreamClient();
+const vector = new VectorClient();
+
+const kvForAnotherOrg = new KeyValueClient({
+  orgId: 'org_123',
+});
+```
+
+Use constructor options when you are writing admin scripts, tests, or multi-org tools. Most application code should let the client read project environment variables.
+
+## Full Storage Interfaces
+
+The dedicated packages re-export the complete service interfaces from `@agentuity/core`. Use these when you want a drop-in adapter with the same method names as Agentuity storage.
+
+```typescript
+import type { KeyValueStorage } from '@agentuity/keyvalue';
+import type { StreamStorage } from '@agentuity/stream';
+import type { VectorStorage } from '@agentuity/vector';
+```
+
+| Interface | Core methods |
+|-----------|--------------|
+| `KeyValueStorage` | `get`, `set`, `delete`, `search`, `getKeys`, `getStats`, namespace methods |
+| `VectorStorage` | `upsert`, `get`, `getMany`, `search`, `delete`, `exists`, stats and namespace methods |
+| `StreamStorage` | `create`, `get`, `download`, `list`, `delete` |
+
+Only implement these full interfaces when callers need full compatibility. For most apps, a smaller interface is easier to test and harder to misuse.
+
+## Object Storage
+
+Object storage is not part of the key-value, vector, or stream interface set. Use Bun's `S3Client` when you need another bucket or S3-compatible provider.
+
+```typescript
+import { S3Client } from 'bun';
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+
+  return value;
+}
+
+const assets = new S3Client({
+  accessKeyId: requireEnv('ASSETS_ACCESS_KEY'),
+  secretAccessKey: requireEnv('ASSETS_SECRET_KEY'),
+  bucket: 'assets',
+  endpoint: 'https://example.r2.cloudflarestorage.com',
 });
 
-export default app;
+await assets.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 ```
 
-Local data is stored in `~/.config/agentuity/local.db`, with stream buffers under `~/.config/agentuity/streams`. It persists between runs without affecting cloud data.
+## Local Tests
 
-## Production
-
-When deployed to Agentuity, your agents use managed KV, vector, and stream storage unless you pass custom implementations in `createApp()`.
-
-## Custom Storage Implementations
-
-You can replace runtime storage services with your own implementations. This is useful when you need to:
-
-- **Use existing infrastructure**: Connect to your company's Redis, Postgres, or vector database
-- **Meet compliance requirements**: Keep data in specific regions or systems
-- **Self-host**: Run entirely on your own infrastructure
-
-Pass your implementation to `createApp()`:
+For unit tests, prefer a small fake that matches your app-owned interface. That keeps tests independent from managed credentials and avoids pulling in storage behavior your feature does not use.
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
-import { MyRedisKV, MyPineconeVector } from './my-storage';
+class MemorySessionStore implements SessionStore {
+  readonly #sessions = new Map<string, Session>();
 
-const app = await createApp({
-  services: {
-    keyvalue: new MyRedisKV(),
-    vector: new MyPineconeVector(),
-    // stream uses the Agentuity default
-  },
+  async get(id: string): Promise<Session | undefined> {
+    return this.#sessions.get(id);
+  }
+
+  async set(id: string, session: Session): Promise<void> {
+    this.#sessions.set(id, session);
+  }
+}
+```
+
+For Bun-only local storage checks, `@agentuity/local` exports implementations backed by `~/.config/agentuity/local.db`.
+
+```typescript
+import { getLocalDB, LocalKeyValueStorage } from '@agentuity/local';
+
+const localKv = new LocalKeyValueStorage(getLocalDB(), process.cwd());
+
+await localKv.set('sessions', 'session_123', {
+  userId: 'user_123',
+  email: 'ada@example.com',
 });
-
-export default app;
 ```
 
-<Callout type="info" title="Object storage uses Bun S3">
-Object storage is not configured through `createApp({ services })`. Use Bun's `s3`/`S3Client` APIs with the credentials written by `agentuity project add storage` or `agentuity cloud storage create`.
-</Callout>
-
-### Storage Interfaces
-
-Your implementation must satisfy the interface for the storage type you override. When your agent calls `ctx.kv.get()`, the SDK calls your implementation's `get()` method.
-
-These interfaces are exported from `@agentuity/core`:
-
-#### KeyValueStorage
-
-```typescript
-interface KeyValueStorage {
-  get<T>(name: string, key: string): Promise<DataResult<T>>;
-  set<T = unknown>(
-    name: string,
-    key: string,
-    value: T,
-    params?: { ttl?: number | null; contentType?: string }
-  ): Promise<void>;
-  delete(name: string, key: string): Promise<void>;
-  getStats(name: string): Promise<KeyValueStats>;
-  getAllStats(
-    params?: GetAllStatsParams
-  ): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated>;
-  getNamespaces(): Promise<string[]>;
-  search<T = unknown>(
-    name: string,
-    keyword: string
-  ): Promise<Record<string, KeyValueItemWithMetadata<T>>>;
-  getKeys(name: string): Promise<string[]>;
-  deleteNamespace(name: string): Promise<void>;
-  createNamespace(name: string, params?: CreateNamespaceParams): Promise<void>;
-}
-```
-
-#### VectorStorage
-
-```typescript
-interface VectorStorage {
-  upsert(name: string, ...documents: VectorUpsertParams[]): Promise<VectorUpsertResult[]>;
-  get<T extends Record<string, unknown> = Record<string, unknown>>(
-    name: string,
-    key: string
-  ): Promise<VectorResult<T>>;
-  getMany<T extends Record<string, unknown> = Record<string, unknown>>(
-    name: string,
-    ...keys: string[]
-  ): Promise<Map<string, VectorSearchResultWithDocument<T>>>;
-  search<T extends Record<string, unknown> = Record<string, unknown>>(
-    name: string,
-    params: VectorSearchParams<T>
-  ): Promise<VectorSearchResult<T>[]>;
-  delete(name: string, ...keys: string[]): Promise<number>;
-  exists(name: string): Promise<boolean>;
-  getStats(name: string): Promise<VectorNamespaceStatsWithSamples>;
-  getAllStats(
-    params?: VectorGetAllStatsParams
-  ): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated>;
-  getNamespaces(): Promise<string[]>;
-  deleteNamespace(name: string): Promise<void>;
-}
-```
-
-#### StreamStorage
-
-```typescript
-interface StreamStorage {
-  create(namespace: string, props?: CreateStreamProps): Promise<Stream>;
-  get(id: string): Promise<StreamInfo>;
-  download(id: string): Promise<ReadableStream<Uint8Array>>;
-  list(params?: ListStreamsParams): Promise<ListStreamsResponse>;
-  delete(id: string): Promise<void>;
-}
-```
-
-<Callout type="warning" title="Production Requirements">
-Custom storage must be accessible from Agentuity's infrastructure when deployed. Ensure your storage endpoints are reachable and properly authenticated.
+<Callout type="info" title="Local implementations are for local checks">
+Local storage is useful for constructor and API-shape tests. Validate managed-service behavior, search relevance, TTLs, and permissions against the managed service before relying on those details.
 </Callout>
 
 ## Next Steps
 
-- [Key-Value Storage](/services/storage/key-value): Fast caching and configuration
-- [Vector Storage](/services/storage/vector): Semantic search and embeddings
-- [Object Storage](/services/storage/object): File and media storage
-- [Durable Streams](/services/storage/durable-streams): Streaming large data exports
+- [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
+- [Vector Storage](/services/storage/vector): use semantic search when exact keys are not enough
+- [Durable Streams](/services/storage/durable-streams): write generated output that remains readable by URL
+- [Object Storage](/services/storage/object): store files and binary blobs with Bun S3

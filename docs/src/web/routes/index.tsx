@@ -3,10 +3,7 @@ import {
 	Rocket,
 	Download,
 	Zap,
-	Bot,
-	Route as RouteIcon,
 	Server,
-	Monitor,
 	Play,
 	BookOpen,
 	Users,
@@ -42,18 +39,18 @@ function HomePage() {
 				sandboxes, observability, and more.
 			</p>
 			<p className="text-lg text-zinc-600 dark:text-zinc-400 mb-10">
-				Start with a guide, explore interactive demos, or dive into the reference docs.
+				Start with your framework, add Agentuity services, then deploy the app.
 			</p>
 
-			<Link to="/explorer" className="block group mb-10">
+			<Link to="/get-started/quickstart" className="block group mb-10">
 				<Alert variant="tip" className="transition-colors hover:border-cyan-500/50">
 					<Play className="size-4" />
 					<AlertTitle className="group-hover:text-cyan-700 dark:group-hover:text-cyan-500 transition-colors">
-						Try the SDK in Your Browser
+						Start with the v3 quickstart
 					</AlertTitle>
 					<AlertDescription>
-						The SDK Explorer has live, interactive demos for agents, storage, streaming, and
-						more. No setup required.
+						Create a framework app, run it with `agentuity dev`, and validate the build before
+						deploying.
 					</AlertDescription>
 				</Alert>
 			</Link>
@@ -77,7 +74,7 @@ function HomePage() {
 				<CardLink
 					href="/get-started/quickstart"
 					title="Quickstart"
-					description="Build and deploy your first agent in minutes"
+					description="Create, run, and deploy a framework app"
 					icon={<Zap />}
 				/>
 			</Cards>
@@ -87,16 +84,10 @@ function HomePage() {
 			</h2>
 			<Cards className="lg:grid-cols-2">
 				<CardLink
-					href="/agents"
-					title="Agents"
-					description="Define handlers, validate input, manage state, and stream responses"
-					icon={<Bot />}
-				/>
-				<CardLink
-					href="/routes"
-					title="Routes"
-					description="Expose APIs, schedule cron jobs, and handle real-time connections"
-					icon={<RouteIcon />}
+					href="/frameworks"
+					title="Frameworks"
+					description="Start from Next.js, Nuxt, Hono, SvelteKit, Astro, or another app shape"
+					icon={<Code />}
 				/>
 				<CardLink
 					href="/services"
@@ -105,10 +96,16 @@ function HomePage() {
 					icon={<Server />}
 				/>
 				<CardLink
-					href="/frontend"
-					title="Frontend"
-					description="Connect your React app to agents with type-safe hooks and auth"
-					icon={<Monitor />}
+					href="/deploy-operate"
+					title="Build & Deploy"
+					description="Run local development, build deployable output, and manage environment values"
+					icon={<Terminal />}
+				/>
+				<CardLink
+					href="/patterns"
+					title="Patterns"
+					description="Build model-backed workflows, streaming routes, and background work"
+					icon={<BookOpen />}
 				/>
 			</Cards>
 
@@ -117,9 +114,9 @@ function HomePage() {
 			</h2>
 			<Cards className="lg:grid-cols-2">
 				<CardLink
-					href="/cookbook"
-					title="Cookbook"
-					description="Step-by-step guides for RAG, chat history, background tasks, and more"
+					href="/migration"
+					title="Migration"
+					description="Move older runtime apps toward the v3 framework model"
 					icon={<BookOpen />}
 				/>
 				<CardLink
@@ -137,7 +134,7 @@ function HomePage() {
 				<CardLink
 					href="/reference/sdk-reference"
 					title="SDK Reference"
-					description="Method signatures for agents, routes, and every service API"
+					description="Compatibility reference for older runtime APIs"
 					icon={<Code />}
 				/>
 				<CardLink

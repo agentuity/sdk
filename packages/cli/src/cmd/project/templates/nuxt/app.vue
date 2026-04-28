@@ -1,25 +1,70 @@
 <script setup lang="ts">
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = [
+	{ value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
+	{ value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+	{ value: 'gpt-5.4', label: 'GPT-5.4' },
+] as const;
 const DEFAULT_TEXT =
-	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
+	'Welcome to Agentuity! This starter app translates text, stores recent requests in key-value storage, and shows how a typed framework route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the app session, model, and token details below.';
+
+interface HistoryEntry {
+	readonly model: string;
+	readonly sessionId: string;
+	readonly text: string;
+	readonly timestamp: string;
+	readonly tokens: number;
+	readonly toLanguage: string;
+	readonly translation: string;
+}
+
+interface HistoryData {
+	readonly history: readonly HistoryEntry[];
+	readonly sessionId: string;
+	readonly translationCount: number;
+}
+
+interface TranslateResult extends HistoryData {
+	readonly model: string;
+	readonly toLanguage: string;
+	readonly tokens: number;
+	readonly translation: string;
+}
 
 const text = ref(DEFAULT_TEXT);
 const toLanguage = ref<(typeof LANGUAGES)[number]>('Spanish');
-const model = ref<(typeof MODELS)[number]>('gpt-4o-mini');
+const model = ref<(typeof MODELS)[number]['value']>('gpt-5.4-nano');
+
+const { data: historyData } = await useFetch<HistoryData>('/api/translate');
 
 const {
 	data: result,
 	error,
 	status,
-	execute: handleTranslate,
-} = useFetch('/api/translate', {
+	execute: executeTranslate,
+} = useFetch<TranslateResult>('/api/translate', {
 	method: 'POST',
 	body: computed(() => ({ text: text.value, toLanguage: toLanguage.value, model: model.value })),
 	immediate: false,
+	watch: false,
 });
 
 const isLoading = computed(() => status.value === 'pending');
+const currentHistory = computed(() => result.value ?? historyData.value);
+const history = computed(() => currentHistory.value?.history ?? []);
+
+async function handleTranslate(): Promise<void> {
+	await executeTranslate();
+	if (result.value) {
+		historyData.value = result.value;
+	}
+}
+
+async function handleClearHistory(): Promise<void> {
+	const next = await $fetch<HistoryData>('/api/translate', { method: 'DELETE' });
+	result.value = null;
+	historyData.value = next;
+}
 </script>
 
 <template>
@@ -49,9 +94,19 @@ const isLoading = computed(() => status.value === 'pending');
 						fill-rule="evenodd"
 					/>
 				</svg>
-				<h1 class="text-5xl font-thin">Welcome to Agentuity</h1>
+				<h1 class="text-5xl font-thin">
+					Welcome to
+					<a
+						class="text-white transition-colors hover:text-cyan-400"
+						href="https://agentuity.com"
+						rel="noreferrer"
+						target="_blank"
+					>
+						Agentuity
+					</a>
+				</h1>
 				<p class="text-lg text-gray-400">
-					<span class="font-serif italic">Nuxt</span> + AI Gateway
+					The <span class="font-serif italic">Full-Stack</span> Platform for AI Agents
 				</p>
 			</div>
 
@@ -74,7 +129,7 @@ const isLoading = computed(() => status.value === 'pending');
 						:disabled="isLoading"
 						v-model="model"
 					>
-						<option v-for="m in MODELS" :key="m" :value="m">{{ m }}</option>
+						<option v-for="m in MODELS" :key="m.value" :value="m.value">{{ m.label }}</option>
 					</select>
 					<div class="group relative z-0 ml-auto">
 						<div
@@ -127,19 +182,64 @@ const isLoading = computed(() => status.value === 'pending');
 							{{ result.translation }}
 						</div>
 						<div class="flex gap-4 text-xs text-gray-500">
-							<span v-if="(result as any).tokens > 0">
-								Tokens <strong class="text-gray-400">{{ (result as any).tokens }}</strong>
+							<span v-if="result.tokens > 0">
+								Tokens <strong class="text-gray-400">{{ result.tokens }}</strong>
 							</span>
 							<span>
-								Model <strong class="text-gray-400">{{ (result as any).model }}</strong>
+								Model <strong class="text-gray-400">{{ result.model }}</strong>
 							</span>
 							<span>
 								Language
-								<strong class="text-gray-400">{{ (result as any).toLanguage }}</strong>
+								<strong class="text-gray-400">{{ result.toLanguage }}</strong>
+							</span>
+							<span>
+								App session
+								<strong class="text-gray-400">{{ result.sessionId.slice(0, 12) }}...</strong>
 							</span>
 						</div>
 					</div>
 				</template>
+			</div>
+
+			<!-- Recent History -->
+			<div class="flex flex-col gap-6 rounded-lg border border-gray-900 bg-black p-8">
+				<div class="flex items-center justify-between">
+					<h3 class="text-xl font-normal text-white">Recent translations</h3>
+					<button
+						v-if="history.length > 0"
+						class="rounded border border-gray-900 bg-transparent px-3 py-1.5 text-xs text-gray-500 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 hover:text-white"
+						@click="handleClearHistory()"
+						type="button"
+					>
+						Clear
+					</button>
+				</div>
+				<div class="rounded-md bg-gray-950">
+					<div
+						v-for="entry in [...history].reverse()"
+						:key="`${entry.timestamp}-${entry.sessionId}`"
+						class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-3 rounded px-3 py-2 text-xs"
+					>
+						<span class="truncate text-gray-400">{{ entry.text }}</span>
+						<span class="text-gray-700">→</span>
+						<span class="truncate text-gray-400">{{ entry.translation }}</span>
+						<span class="rounded border border-gray-800 bg-gray-900 px-1 py-0.5 text-gray-400">
+							{{ entry.toLanguage }}
+						</span>
+					</div>
+					<div v-if="history.length === 0" class="px-3 py-2 text-sm text-gray-600">
+						History will appear here
+					</div>
+				</div>
+				<div v-if="currentHistory" class="flex gap-4 text-xs text-gray-500">
+					<span>
+						App session
+						<strong class="text-gray-400">{{ currentHistory.sessionId.slice(0, 12) }}...</strong>
+					</span>
+					<span>
+						Translations <strong class="text-gray-400">{{ currentHistory.translationCount }}</strong>
+					</span>
+				</div>
 			</div>
 
 			<!-- How it works -->
@@ -148,12 +248,16 @@ const isLoading = computed(() => status.value === 'pending');
 				<div class="flex flex-col gap-6">
 					<div v-for="step in [
 						{
+							title: 'Key-value history',
+							text: '`KeyValueClient` stores recent translations for this browser session.',
+						},
+						{
 							title: 'AI Gateway routing',
-							text: '`agentuity dev` automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the Agentuity gateway.',
+							text: '`agentuity dev` automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the OpenAI SDK routes through Agentuity\'s AI Gateway.',
 						},
 						{
 							title: 'Server routes',
-							text: 'Edit `server/api/translate.post.ts` to change the AI model, prompt, or add new server routes.',
+							text: 'Edit `server/api/translate.ts` to change the AI model, prompt, or add new server routes.',
 						},
 						{
 							title: 'Nuxt',

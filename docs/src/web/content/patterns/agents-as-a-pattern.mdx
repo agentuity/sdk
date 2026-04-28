@@ -1,0 +1,151 @@
+---
+title: Agents as a Pattern
+description: Build model-backed workflows with framework routes and Agentuity service clients
+---
+
+Use an agent when a request needs a bounded decision loop: validate input, gather context, call a model, store useful state, and return a result. In v3, that is ordinary framework code. There is no `createAgent()` step in the default path.
+
+```bash
+bun add ai @ai-sdk/openai @agentuity/keyvalue@alpha @agentuity/schema@alpha
+```
+
+```typescript title="app/api/triage/route.ts"
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+
+const inputSchema = s.object({
+  customerId: s.string(),
+  message: s.string(),
+});
+
+const outputSchema = s.object({
+  priority: s.enum(['low', 'medium', 'high']),
+  summary: s.string(),
+  nextAction: s.string(),
+});
+
+type TriageInput = s.infer<typeof inputSchema>;
+type TriageResult = s.infer<typeof outputSchema>;
+
+const kv = new KeyValueClient();
+
+async function runSupportTriage(input: TriageInput): Promise<TriageResult> {
+  const previous = await kv.get<TriageResult>('support-triage', input.customerId);
+
+  const { text } = await generateText({
+    model: openai('gpt-5.4-mini'),
+    system:
+      'Return JSON with priority, summary, and nextAction. Do not include markdown.',
+    prompt: [
+      `Customer message: ${input.message}`,
+      `Previous summary: ${previous.exists ? previous.data.summary : 'None'}`,
+    ].join('\n\n'),
+  });
+
+  const raw: unknown = JSON.parse(text);
+  const result = outputSchema.parse(raw);
+
+  await kv.set('support-triage', input.customerId, result, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return result;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+  const input = inputSchema.parse(body);
+  const result = await runSupportTriage(input);
+
+  return Response.json(result);
+}
+```
+
+This is the v3 agent shape: the route belongs to your framework, the model call belongs to your AI SDK or provider SDK, and Agentuity stores the durable context.
+
+<Callout type="info" title="v2 runtime projects still have a supported path">
+If an existing project uses `createAgent()` from `@agentuity/runtime`, keep using the v2 docs for that app or follow the migration guide when you are ready to move it. New v3 pages use framework routes and service clients.
+</Callout>
+
+## Split the Route from the Work
+
+Keep the model-backed work in a plain function. That makes the same behavior usable from an HTTP route, a schedule, a queue destination, or a script.
+
+```typescript
+export async function triageMessage(body: unknown): Promise<TriageResult> {
+  const input = inputSchema.parse(body);
+  return runSupportTriage(input);
+}
+```
+
+The route becomes a thin adapter:
+
+```typescript
+export async function POST(request: Request): Promise<Response> {
+  const result = await triageMessage(await request.json());
+  return Response.json(result);
+}
+```
+
+## Use Hono Middleware When It Helps
+
+Direct clients are the portable default. In Hono apps, `@agentuity/hono` can initialize the same clients once and expose them on `c.var.*`.
+
+```bash
+bun add hono @agentuity/hono@alpha
+```
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import { s } from '@agentuity/schema';
+import type { Logger } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
+
+const inputSchema = s.object({
+  customerId: s.string(),
+  message: s.string(),
+});
+
+interface TriageSnapshot {
+  readonly summary: string;
+}
+
+type Variables = Pick<Services, 'kv'> & {
+  logger: Logger;
+};
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.post('/api/triage', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = inputSchema.parse(body);
+
+  const previous = await c.var.kv.get<TriageSnapshot>('support-triage', input.customerId);
+  c.var.logger.info('triage requested', { customerId: input.customerId });
+
+  return c.json({
+    previousSummary: previous.exists ? previous.data.summary : null,
+  });
+});
+
+export default app;
+```
+
+## When to Use This Pattern
+
+| Use this pattern for | Reach for something else when |
+|----------------------|-------------------------------|
+| classifying, routing, summarizing, drafting, or reviewing input | the work is pure CRUD with no model decision |
+| workflows that need durable context between requests | the state belongs in a database transaction |
+| small orchestration functions that may later run from queues or schedules | you need a long-running sandbox or Coder session |
+
+## Next Steps
+
+- [Chat and Streaming](/patterns/chat-and-streaming): return model output as it is generated
+- [Background Work](/patterns/background-work): move slow model or export work out of request handlers
+- [Key-Value Storage](/services/storage/key-value): store compact state by namespace and key

@@ -1,0 +1,40 @@
+---
+title: Build & Deploy
+description: Run local development, builds, deploys, and environment management with the v3 CLI.
+---
+
+import { KeyRound, Play, Rocket } from 'lucide-react';
+
+Use these pages when you want to run a framework app locally, package it for Agentuity, deploy it, and manage the environment values it needs.
+
+<Cards>
+  <CardLink
+    href="/deploy-operate/local-development"
+    title="Local Development"
+    description="Run your framework dev script with Agentuity environment wiring"
+    icon={<Play />}
+  />
+  <CardLink
+    href="/deploy-operate/deploy-framework-apps"
+    title="Deploy Framework Apps"
+    description="Register a project, build `.agentuity`, and deploy the bundle"
+    icon={<Rocket />}
+  />
+  <CardLink
+    href="/deploy-operate/environment-variables"
+    title="Environment Variables"
+    description="Manage local `.env`, cloud variables, public values, and secrets"
+    icon={<KeyRound />}
+  />
+</Cards>
+
+## Common Flow
+
+```bash
+agentuity project import
+agentuity dev
+agentuity build
+agentuity deploy
+```
+
+Use [Local Development](/deploy-operate/local-development) when you want to run your framework server with Agentuity values injected. Use [Deploy Framework Apps](/deploy-operate/deploy-framework-apps) when the project is registered and the local build step succeeds.

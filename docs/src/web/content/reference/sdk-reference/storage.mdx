@@ -1,20 +1,20 @@
 ---
-title: Storage APIs
+title: Storage APIs (v2 Compatibility)
 short_title: Storage
-description: KV, Vector, Database, Object, and Stream storage reference
+description: Compatibility reference for v2 runtime ctx.* storage APIs
 ---
 
-The SDK provides five storage options: Key-Value, Vector, Database (SQL), Object (S3), and Stream. KV, Vector, and Stream are built into the runtime and are available as `ctx.*` in agents and `c.var.*` in routes. Database and Object storage use Bun's native APIs (`sql`, `s3`) instead.
+This page documents the v2 runtime storage shape used by `ctx.*` examples. In v3 apps, start with [Storage](/services/storage) and [Using Standalone Packages](/reference/standalone-packages): use `KeyValueClient`, `VectorClient`, `StreamClient`, direct database clients, Bun S3 APIs, or `@agentuity/hono` when Hono routes should read clients from `c.var.*`.
 
-<Callout type="info" title="Built-in services vs Bun-native APIs">
-Use `ctx.kv` / `c.var.kv`, `ctx.vector` / `c.var.vector`, and `ctx.stream` / `c.var.stream` for the runtime-managed storage services. Use Bun's `sql` and `s3` directly for database and object storage.
+<Callout type="info" title="Use direct clients for new v3 code">
+The v3 storage clients expose the same core operations through `@agentuity/keyvalue`, `@agentuity/vector`, and `@agentuity/stream`. Keep the `ctx.kv`, `ctx.vector`, and `ctx.stream` examples here for existing runtime apps while you migrate.
 </Callout>
 
 ## Key-Value Storage
 
 For caching patterns, TTL strategies, and best practices, see [Key-Value Storage](/services/storage/key-value).
 
-The Key-Value Storage API provides a simple way to store and retrieve data. Use `ctx.kv` in agents and `c.var.kv` in routes.
+The v2 runtime API uses `ctx.kv` in agents and `c.var.kv` in routes. The v3 `KeyValueClient` and Hono `c.var.kv` expose the same core methods.
 
 <Callout type="warning" title="Local KV has a smaller API surface">
 In local development, `get()`, `set()`, and `delete()` use SQLite. Namespace, stats, key listing, and search methods are cloud-backed and throw locally.
@@ -289,7 +289,7 @@ await ctx.kv.deleteNamespace('old-cache');
 
 For semantic search patterns, RAG examples, and metadata filtering, see [Vector Storage](/services/storage/vector).
 
-The Vector Storage API provides a way to store and search for data using vector embeddings. Use `ctx.vector` in agents and `c.var.vector` in routes.
+The v2 runtime API uses `ctx.vector` in agents and `c.var.vector` in routes. The v3 `VectorClient` and Hono `c.var.vector` expose the same core methods.
 
 ### upsert
 
@@ -807,7 +807,7 @@ For Agentuity-specific patterns, see [Object Storage](/services/storage/object).
 
 For streaming patterns and the dual-stream approach, see [Durable Streams](/services/storage/durable-streams).
 
-The Stream Storage API provides first-class support for creating and managing server-side streams. Use `ctx.stream` in agents and `c.var.stream` in routes.
+The v2 runtime API uses `ctx.stream` in agents and `c.var.stream` in routes. The v3 `StreamClient` and Hono `c.var.stream` expose stream creation, download, listing, and delete methods.
 
 ### create
 

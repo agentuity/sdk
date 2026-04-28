@@ -1,10 +1,16 @@
 ---
-title: Router and Routes
+title: Router and Routes (v2 Compatibility)
 short_title: Router
-description: HTTP endpoints, middleware, WebSocket, SSE, and cron handlers
+description: Compatibility reference for v2 runtime route handlers
 ---
 
-The SDK uses Hono for HTTP routes. Define routes in `src/api/index.ts`, mount them from your root `app.ts`, and export the router type when you want typed clients with `hc()`.
+This page documents v2 runtime route handlers built with `@agentuity/runtime` and Hono. In v3 apps, keep routes in your framework and use [Frameworks](/frameworks), [Deploying Framework Apps](/deploy-operate/deploy-framework-apps), and [Using Standalone Packages](/reference/standalone-packages) for the current app model.
+
+<Callout type="info" title="Use framework routes for new v3 code">
+The route examples below still work for existing v2 runtime apps. New v3 code usually uses Next.js, Hono, TanStack Start, or another framework route shape directly.
+</Callout>
+
+In the v2 runtime model, the SDK uses Hono for HTTP routes. Define routes in `src/api/index.ts`, mount them from your root `app.ts`, and export the router type when you want typed clients with `hc()`.
 
 ## Creating Routes
 
@@ -195,7 +201,7 @@ await ctx.invoke(async () => {
 await ctx.run(cleanupAgent, { namespace: 'cache' });
 ```
 
-See [Running Agents Without HTTP](/agents/standalone-execution) for Discord bots, CLI tools, and queue worker patterns.
+See [Running Agents Without HTTP](/reference/standalone-packages) for Discord bots, CLI tools, and queue worker patterns.
 
 ### From External Backends (Next.js, Express)
 
@@ -512,7 +518,7 @@ router.post('/data', stream(async (c) => {
 export default router;
 ```
 
-For streaming agent outputs, see [Streaming Responses](/agents/streaming-responses).
+For streaming agent outputs, see [Streaming Responses](/patterns/chat-and-streaming).
 
 ### Cron Routes
 

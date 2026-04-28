@@ -1,13 +1,13 @@
 ---
-title: Using Sandboxes
+title: Using Sandboxes (v2 Compatibility)
 short_title: Sandbox Service
-description: Run code in isolated containers with ctx.sandbox
+description: Compatibility reference for v2 runtime ctx.sandbox APIs
 ---
 
-Execute code in isolated, ephemeral containers with configurable runtimes, networking, and file access. The sandbox service is available via `ctx.sandbox` in agents and `c.var.sandbox` in routes.
+This page documents v2 runtime sandbox access through `ctx.sandbox` in agents and `c.var.sandbox` in runtime routes. In v3 apps, start with [Running Code in Sandboxes](/services/sandbox), [Sandbox SDK Usage](/services/sandbox/sdk-usage), and [Using Standalone Packages](/reference/standalone-packages#sandbox): use `SandboxClient` from `@agentuity/sandbox`.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/sandbox`](/reference/standalone-packages#sandbox) standalone package to access this service from any Node.js or Bun app without the runtime.
+<Callout type="info" title="Use SandboxClient for new v3 code">
+The `ctx.sandbox` examples below still work for existing v2 runtime apps. New v3 code usually creates a `SandboxClient` from `@agentuity/sandbox`.
 </Callout>
 
 For patterns, one-shot vs interactive workflows, and snapshot configuration, see [Sandbox SDK Usage](/services/sandbox/sdk-usage).

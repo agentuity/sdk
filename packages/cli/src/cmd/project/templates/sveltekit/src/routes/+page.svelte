@@ -2,16 +2,45 @@
 import { enhance } from '$app/forms';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = [
+	{ value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
+	{ value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+	{ value: 'gpt-5.4', label: 'GPT-5.4' },
+] as const;
 const DEFAULT_TEXT =
-	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
+	'Welcome to Agentuity! This starter app translates text, stores recent requests in key-value storage, and shows how a typed framework route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the app session, model, and token details below.';
+
+interface HistoryEntry {
+	readonly model: string;
+	readonly sessionId: string;
+	readonly text: string;
+	readonly timestamp: string;
+	readonly tokens: number;
+	readonly toLanguage: string;
+	readonly translation: string;
+}
+
+interface HistoryData {
+	readonly history: readonly HistoryEntry[];
+	readonly sessionId: string;
+	readonly translationCount: number;
+}
+
+interface TranslateForm extends HistoryData {
+	readonly model?: string;
+	readonly toLanguage?: string;
+	readonly tokens?: number;
+	readonly translation?: string;
+}
 
 let text = $state(DEFAULT_TEXT);
 let toLanguage: (typeof LANGUAGES)[number] = $state('Spanish');
-let model: (typeof MODELS)[number] = $state('gpt-4o-mini');
+let model: (typeof MODELS)[number]['value'] = $state('gpt-5.4-nano');
 let isLoading = $state(false);
 
-let { form } = $props();
+let { data, form }: { data: HistoryData; form?: TranslateForm } = $props();
+let historyData = $derived(form?.history ? form : data);
+let history = $derived(historyData.history ?? []);
 </script>
 
 <svelte:head>
@@ -44,9 +73,15 @@ let { form } = $props();
 					fill-rule="evenodd"
 				/>
 			</svg>
-			<h1 class="text-5xl font-thin">Welcome to Agentuity</h1>
+			<h1 class="text-5xl font-thin">
+				Welcome to <a
+					class="text-white transition-colors hover:text-cyan-400"
+					href="https://agentuity.com"
+					rel="noreferrer"
+					target="_blank">Agentuity</a>
+			</h1>
 			<p class="text-lg text-gray-400">
-				<span class="font-serif italic">SvelteKit</span> + AI Gateway
+				The <span class="font-serif italic">Full-Stack</span> Platform for AI Agents
 			</p>
 		</div>
 
@@ -81,49 +116,41 @@ let { form } = $props();
 					name="model"
 					bind:value={model}
 				>
-					{#each MODELS as m}
-						<option value={m}>{m}</option>
-					{/each}
-				</select>
-				<div class="group relative z-0 ml-auto">
-					<div
-						class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
-					/>
-					<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
-					<button
-						class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
-						disabled={isLoading || !text.trim()}
-						type="submit"
-						data-loading={isLoading}
-					>
-						{isLoading ? 'Translating' : 'Translate'}
-					</button>
-				</div>
+				{#each MODELS as m}
+					<option value={m.value}>{m.label}</option>
+				{/each}
+			</select>
+			<div class="group relative z-0 ml-auto">
+				<div
+					class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
+				></div>
+				<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl"></div>
+				<button
+					class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
+					disabled={isLoading || !text.trim()}
+					type="submit"
+					data-loading={isLoading}
+				>
+					{isLoading ? 'Translating' : 'Translate'}
+				</button>
+			</div>
 			</div>
 
-			<input type="hidden" name="text" bind:value={text} />
 			<textarea
 				class="z-10 min-h-28 resize-y rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-white focus:outline-2 focus:outline-offset-2 focus:outline-cyan-500"
 				disabled={isLoading}
 				bind:value={text}
 				placeholder="Enter text to translate..."
 				rows="4"
-				name="textDisplay"
-				oninput={() => { text = (event?.target as HTMLTextAreaElement)?.value ?? text; }}
-			/>
+				name="text"
+			></textarea>
 
 			<!-- Translation Result -->
-			{#if form?.error}
-				<div
-					class="rounded-md border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-400"
-				>
-					{form.error.message ?? 'Translation failed'}
-				</div>
-			{:else if isLoading}
+			{#if isLoading}
 				<div
 					class="rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600"
 					data-loading="true"
-				/>
+				></div>
 			{:else if !form?.translation}
 				<div
 					class="output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600"
@@ -138,7 +165,7 @@ let { form } = $props();
 						{form.translation}
 					</div>
 					<div class="flex gap-4 text-xs text-gray-500">
-						{#if form.tokens > 0}
+						{#if (form.tokens ?? 0) > 0}
 							<span>
 								Tokens <strong class="text-gray-400">{form.tokens}</strong>
 							</span>
@@ -149,10 +176,66 @@ let { form } = $props();
 						<span>
 							Language <strong class="text-gray-400">{form.toLanguage}</strong>
 						</span>
+						<span>
+							App session <strong class="text-gray-400">{form.sessionId.slice(0, 12)}...</strong>
+						</span>
 					</div>
 				</div>
 			{/if}
 		</form>
+
+		<!-- Recent History -->
+		<div class="flex flex-col gap-6 rounded-lg border border-gray-900 bg-black p-8">
+			<div class="flex items-center justify-between">
+				<h3 class="text-xl font-normal text-white">Recent translations</h3>
+				{#if history.length > 0}
+					<form
+						method="POST"
+						action="?/clear"
+						use:enhance={() => {
+							isLoading = true;
+							return async ({ update }) => {
+								await update();
+								isLoading = false;
+							};
+						}}
+					>
+						<button
+							class="rounded border border-gray-900 bg-transparent px-3 py-1.5 text-xs text-gray-500 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 hover:text-white"
+							type="submit"
+						>
+							Clear
+						</button>
+					</form>
+				{/if}
+			</div>
+			<div class="rounded-md bg-gray-950">
+				{#if history.length > 0}
+					{#each [...history].reverse() as entry}
+						<div
+							class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-3 rounded px-3 py-2 text-xs"
+						>
+							<span class="truncate text-gray-400">{entry.text}</span>
+							<span class="text-gray-700">→</span>
+							<span class="truncate text-gray-400">{entry.translation}</span>
+							<span class="rounded border border-gray-800 bg-gray-900 px-1 py-0.5 text-gray-400">
+								{entry.toLanguage}
+							</span>
+						</div>
+					{/each}
+				{:else}
+					<div class="px-3 py-2 text-sm text-gray-600">History will appear here</div>
+				{/if}
+			</div>
+			<div class="flex gap-4 text-xs text-gray-500">
+				<span>
+					App session <strong class="text-gray-400">{historyData.sessionId.slice(0, 12)}...</strong>
+				</span>
+				<span>
+					Translations <strong class="text-gray-400">{historyData.translationCount}</strong>
+				</span>
+			</div>
+		</div>
 
 		<!-- How it works -->
 		<div class="rounded-lg border border-gray-900 bg-black p-8">
@@ -160,8 +243,12 @@ let { form } = $props();
 			<div class="flex flex-col gap-6">
 				{#each [
 					{
+						title: 'Key-value history',
+						text: '`KeyValueClient` stores recent translations for this browser session.',
+					},
+					{
 						title: 'AI Gateway routing',
-						text: '`agentuity dev` automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the Agentuity gateway.',
+						text: "`agentuity dev` automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the OpenAI SDK routes through Agentuity's AI Gateway.",
 					},
 					{
 						title: 'Form actions',

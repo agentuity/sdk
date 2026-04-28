@@ -23,7 +23,7 @@ interface StreamState {
 // Note: Google/Gemini excluded due to streaming issues (see issue #248)
 const MODELS = [
 	{ value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', provider: 'OpenAI' },
-	{ value: 'gpt-5-mini', label: 'GPT-5 Mini', provider: 'OpenAI' },
+	{ value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano', provider: 'OpenAI' },
 	{ value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'Anthropic' },
 	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'Anthropic' },
 	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', provider: 'Groq' },

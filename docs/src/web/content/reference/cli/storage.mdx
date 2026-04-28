@@ -4,7 +4,7 @@ short_title: Storage
 description: Manage Key-Value, S3, Vector, Database, and Stream storage from the CLI.
 ---
 
-These CLI commands help you inspect and manage cloud storage during development and debugging.
+Use these commands to inspect and manage Agentuity storage from the terminal. For app code, start with [Storage](/services/storage). For framework routes, workers, scripts, or CLIs, use [Using Standalone Packages](/reference/standalone-packages).
 
 <Callout type="info" title="Cloud Prefix Required">
 All storage commands require the `cloud` prefix. For example: `agentuity cloud kv get ...`
@@ -125,7 +125,7 @@ agentuity cloud kv create-namespace staging
 agentuity cloud kv delete-namespace old-cache
 ```
 
-**In agents:** Use `ctx.kv` for programmatic access. See [Key-Value Storage](/services/storage/key-value).
+For app code, see [Key-Value Storage](/services/storage/key-value). For direct-client setup, see [Using Standalone Packages](/reference/standalone-packages).
 
 ## S3 Storage
 
@@ -195,7 +195,7 @@ agentuity cloud s3 delete <bucket-name>
 agentuity cloud s3 delete <bucket-name> docs/local-file.pdf
 ```
 
-**In agents:** Use Bun's `s3` API (`import { s3 } from "bun"`). See [Object Storage (S3)](/services/storage/object).
+For app code, use Bun's `s3` API (`import { s3 } from "bun"`). See [Object Storage (S3)](/services/storage/object).
 
 ## Vector Storage
 
@@ -302,7 +302,7 @@ agentuity cloud vector delete-namespace old-products
 Deleting a namespace removes all vectors within it. This cannot be undone.
 </Callout>
 
-**In agents:** Use `ctx.vector` for programmatic access. See [Vector Storage](/services/storage/vector).
+For app code, see [Vector Storage](/services/storage/vector). For direct-client setup, see [Using Standalone Packages](/reference/standalone-packages).
 
 ## Database
 
@@ -381,7 +381,7 @@ agentuity cloud db logs <database-name>
 agentuity cloud db delete <database-name>
 ```
 
-**In agents:** Use Bun's `sql` API (`import { sql } from "bun"`). See [Database](/services/database).
+For app code, use Bun's `sql` API (`import { sql } from "bun"`). See [Database](/services/database).
 
 ## Streams
 
@@ -437,7 +437,7 @@ agentuity cloud stream get <stream-id>
 agentuity cloud stream delete <stream-id>
 ```
 
-**In agents:** Use `ctx.stream` for programmatic access. See [Durable Streams](/services/storage/durable-streams).
+For app code, see [Durable Streams](/services/storage/durable-streams). For direct-client setup, see [Using Standalone Packages](/reference/standalone-packages).
 
 ## Redis
 
@@ -469,7 +469,9 @@ REDIS_URL=redis://...
 ## Next Steps
 
 - [Configuration Commands](/reference/cli/configuration): Manage environment variables, secrets, and API keys
-- [Key-Value Storage](/services/storage/key-value): Programmatic KV access in agents
-- [Object Storage (S3)](/services/storage/object): File storage with Bun S3
-- [Database](/services/database): SQL queries with Bun SQL
-- [Vector Storage](/services/storage/vector): Semantic search in agents
+- [Storage](/services/storage): Choose a storage type and v3 access pattern
+- [Using Standalone Packages](/reference/standalone-packages): Use direct service clients from framework routes, workers, scripts, or CLIs
+- [Key-Value Storage](/services/storage/key-value): Store exact-key cache and state
+- [Object Storage (S3)](/services/storage/object): Store files and binary blobs with Bun S3
+- [Database](/services/database): Query relational data with Bun SQL or database clients
+- [Vector Storage](/services/storage/vector): Use semantic search when exact keys are not enough

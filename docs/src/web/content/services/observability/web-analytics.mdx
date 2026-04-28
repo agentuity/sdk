@@ -3,223 +3,178 @@ title: Web Analytics
 description: Track page views, user engagement, and custom events in your frontend
 ---
 
-Understand how users experience your frontend without adding page-view instrumentation. The beacon collects page views, scroll depth, Web Vitals, browser errors, and click events from elements you mark with `data-analytics`.
+Use `@agentuity/analytics` in browser code when you want page views, Web Vitals, scroll depth, client errors, and custom events. The package works with framework client entries, server-injected config, or direct event calls.
 
-## What Gets Tracked
+```bash
+bun add @agentuity/analytics@alpha
+```
 
-The beacon automatically collects the following on every page view:
+## Initialize Analytics
 
-| Category | Data |
-|----------|------|
-| **Page context** | URL, path, referrer, title (query strings stripped for privacy) |
-| **Device** | Screen dimensions, viewport size, pixel ratio, user agent, language |
-| **Geolocation** | Country, region, city, timezone, and coarse coordinates from the location service |
-| **Performance** | Load time, DOM ready, TTFB |
-| **Web Vitals** | FCP, LCP, CLS, INP |
-| **Engagement** | Scroll depth, time on page, visibility sessions |
-| **UTM params** | `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` |
-| **SPA navigation** | Virtual page views on `pushState`/`replaceState` |
-| **Errors** | JavaScript errors and unhandled promise rejections |
+Call `init()` from a client-side entry point. `orgId` and `projectId` are identifiers, not secrets, so they can come from your framework's public runtime config.
 
-Events are batched, then sent when the user navigates away or changes routes. The beacon sends on `visibilitychange`, `pagehide`, and `beforeunload`, forces a send on SPA navigation, and uses a `sessionStorage` fallback to recover data if unload events don't fire.
+```typescript
+import { init } from '@agentuity/analytics';
 
-## Configuration
+interface AnalyticsRuntimeConfig {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly isDevmode: boolean;
+}
 
-Analytics are enabled by default. Configure tracking in `createApp()`:
-
-```typescript title="app.ts"
-import { createApp } from '@agentuity/runtime';
-
-export default await createApp({
-  analytics: {
+export function startAnalytics(config: AnalyticsRuntimeConfig): void {
+  init({
     enabled: true,
+    orgId: config.orgId,
+    projectId: config.projectId,
+    isDevmode: config.isDevmode,
     trackClicks: true,
     trackScroll: true,
-    trackOutboundLinks: true,
-    trackForms: false,
     trackWebVitals: true,
     trackErrors: true,
     trackSPANavigation: true,
-    requireConsent: false,
-    sampleRate: 1,
-    excludePatterns: ['/admin/*'],
-    globalProperties: { app: 'docs' },
-  },
-});
+  });
+}
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable or disable analytics |
-| `requireConsent` | `boolean` | `false` | Wait for explicit consent before tracking |
-| `trackClicks` | `boolean` | `true` | Track clicks on elements with `data-analytics` attribute |
-| `trackScroll` | `boolean` | `true` | Track scroll depth milestones (25%, 50%, 75%, 100%) |
-| `trackOutboundLinks` | `boolean` | `true` | Track clicks that leave the current origin |
-| `trackForms` | `boolean` | `false` | Track form submissions |
-| `trackWebVitals` | `boolean` | `true` | Track Core Web Vitals (FCP, LCP, CLS, INP) |
-| `trackErrors` | `boolean` | `true` | Track JavaScript errors and unhandled rejections |
-| `trackSPANavigation` | `boolean` | `true` | Track client-side route changes via `pushState`/`replaceState` |
-| `sampleRate` | `number` | `1` | Sample rate from 0 to 1 (1 = track 100% of page views) |
-| `excludePatterns` | `string[]` | `[]` | URL path patterns to skip |
-| `globalProperties` | `Record<string, unknown>` | `{}` | Properties attached to every analytics event |
+`init()` stores config on `window.__AGENTUITY_ANALYTICS__` and loads the beacon. The beacon initializes page-view tracking, sets up event listeners, and exposes `window.agentuityAnalytics`.
 
-To disable analytics entirely:
+## Server-Injected Config
 
-```typescript title="app.ts"
-import { createApp } from '@agentuity/runtime';
+If your framework injects script tags, set `window.__AGENTUITY_ANALYTICS__` before loading a module that imports the beacon.
 
-export default await createApp({
-  analytics: false,
-});
+```html
+<script>
+  window.__AGENTUITY_ANALYTICS__ = {
+    enabled: true,
+    orgId: 'org_abc123',
+    projectId: 'proj_abc123',
+    isDevmode: false,
+    trackClicks: true,
+    trackScroll: true,
+    trackWebVitals: true,
+    trackErrors: true,
+    trackSPANavigation: true,
+  };
+</script>
+<script type="module" src="/analytics-entry.js"></script>
 ```
 
-## Custom Event Tracking
+```typescript title="analytics-entry.ts"
+import '@agentuity/analytics/beacon';
+```
 
-### Data Attributes
+<Callout type="warning" title="Set config before importing the beacon">
+Static ESM imports run before the rest of the module body. Use `init()` or inject `window.__AGENTUITY_ANALYTICS__` before loading a separate beacon entry.
+</Callout>
 
-Add `data-analytics` to any element to track clicks without writing JavaScript. The beacon records these as `click:<value>` custom events:
+## Custom Events
+
+Track named events from framework components, route transitions, or plain browser handlers.
+
+```typescript
+import { flush, identify, track } from '@agentuity/analytics';
+
+identify('user_456', { plan: 'pro' });
+
+track('purchase_completed', {
+  productId: 'prod_123',
+  amountCents: 9999,
+  currency: 'USD',
+});
+
+flush();
+```
+
+`track()` queues the event with the current page view. `identify()` stores a user ID and stringified traits for the payload. `flush()` forces a send.
+
+## Data Attributes
+
+Add `data-analytics` to elements when you want click events without a custom handler. The beacon records them as `click:<value>` events.
 
 ```html
 <button data-analytics="signup_button">Sign Up</button>
 <a href="/pricing" data-analytics="pricing_link">View Pricing</a>
 ```
 
-### JavaScript API
+## Access the Client
 
-Track events programmatically using the `@agentuity/frontend` package:
+Use `getAnalytics()` when non-module code needs the global client after the beacon is ready.
 
 ```typescript
-import { track, getAnalytics } from '@agentuity/frontend';
+import { getAnalytics } from '@agentuity/analytics';
 
-// Track a custom event
-track('purchase_completed', {
-  productId: 'prod_123',
-  amount: 99.99,
-  currency: 'USD',
-});
-
-// Access the full analytics client for identify and flush
 const analytics = getAnalytics();
 analytics?.identify('user_456', { plan: 'pro' });
+analytics?.track('cta_clicked', { location: 'hero' });
 analytics?.flush();
 ```
 
-The same client is also available globally as `window.agentuityAnalytics` for non-module contexts (inline scripts, third-party integrations):
+The same client is available globally:
 
 ```typescript
 window.agentuityAnalytics?.track('cta_clicked', { location: 'hero' });
 ```
 
-<Callout type="info" title="Initialization Timing">
-The analytics client initializes when the beacon script loads. In module code, `getAnalytics()` returns `null` until the beacon is ready. In React, check the `ready` value from `useAnalytics()` before relying on immediate `identify()` or `flush()` calls.
-</Callout>
+`getAnalytics()` returns `null` until the beacon has initialized.
 
-## React Integration
+## What Gets Tracked
 
-If you already use `@agentuity/react`, its compatibility hooks can track analytics from React components. For new apps, prefer `@agentuity/frontend` for browser-level analytics calls.
+| Category | Data |
+|----------|------|
+| page context | URL, path, referrer, title, with query strings stripped |
+| device | screen size, viewport size, pixel ratio, user agent, language |
+| geolocation | country, region, city, timezone, and coarse coordinates from the location service |
+| performance | load time, DOM ready, TTFB |
+| Web Vitals | FCP, LCP, CLS, INP |
+| engagement | scroll depth, time on page, visibility sessions |
+| UTM params | `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` |
+| SPA navigation | virtual page views on `pushState`, `replaceState`, and `popstate` |
+| errors | JavaScript errors and unhandled promise rejections |
 
-### useAnalytics
+Events are sent when the page becomes hidden, unloads, or changes SPA routes. The client uses `navigator.sendBeacon()` when available and falls back to `fetch()` with `keepalive`.
 
-```tsx
-import { useAnalytics } from '@agentuity/react';
-
-function ProductPage({ productId }: { productId: string }) {
-  const { track, trackClick, identify, ready } = useAnalytics();
-
-  const handlePurchase = () => {
-    track('purchase_started', { productId });
-  };
-
-  return (
-    <div>
-      <button onClick={trackClick('add_to_cart', { productId })}>
-        Add to Cart
-      </button>
-      <button onClick={handlePurchase}>Buy Now</button>
-    </div>
-  );
-}
-```
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `track` | `(eventName, properties?) => void` | Track a custom event |
-| `trackClick` | `(eventName, properties?) => (event) => void` | Returns a click handler that tracks an event |
-| `identify` | `(userId, traits?) => void` | Identify the current user |
-| `flush` | `() => void` | Force-send pending events |
-| `ready` | `boolean` | `true` when the analytics client is available |
-
-### useTrackOnMount
-
-Track an event when a component mounts:
-
-```tsx
-import { useTrackOnMount } from '@agentuity/react';
-
-function ProductPage({ productId }: { productId: string }) {
-  // Fires once per component instance by default
-  useTrackOnMount({
-    eventName: 'product_viewed',
-    properties: { productId },
-  });
-
-  return <div>Product {productId}</div>;
-}
-```
+## Configuration
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `eventName` | `string` | - | Event name to track |
-| `properties` | `object` | - | Event properties |
-| `once` | `boolean` | `true` | Only track once per component instance |
-
-### withPageTracking
-
-Higher-order component that tracks a `page_view` event on mount:
-
-```tsx
-import { withPageTracking } from '@agentuity/react';
-
-function HomePage() {
-  return <div>Welcome!</div>;
-}
-
-export default withPageTracking(HomePage, 'home');
-```
+| `enabled` | `boolean` | required | Enable tracking |
+| `orgId` | `string` | required | Agentuity organization ID |
+| `projectId` | `string` | required | Agentuity project ID |
+| `isDevmode` | `boolean` | `false` | Log payloads to the browser console instead of sending |
+| `trackClicks` | `boolean` | `true` | Track clicks on `[data-analytics]` elements |
+| `trackScroll` | `boolean` | `true` | Track scroll depth milestones |
+| `trackWebVitals` | `boolean` | `true` | Track FCP, LCP, CLS, and INP |
+| `trackErrors` | `boolean` | `true` | Track JavaScript errors and unhandled rejections |
+| `trackSPANavigation` | `boolean` | `true` | Track client-side route changes |
+| `sampleRate` | `number` | `1` | Sample rate from 0 to 1 |
+| `endpoint` | `string` | `/_agentuity/webanalytics/collect` | Custom collection endpoint |
 
 ## Privacy
 
-The analytics beacon keeps request data separate from agent sessions:
+The analytics package is browser-scoped and keeps the payload focused on page-view data.
 
-- **No agent session for page views**: Web analytics uses a signed `atid_a` thread cookie and does not create `sess_...` records or `x-session-id` headers
-- **Visitor IDs use localStorage**: Users can clear `agentuity_visitor_id` from browser storage
-- **Query strings stripped**: URLs are sanitized before sending to prevent leaking tokens or PII
-- **Sampling**: Use `sampleRate` to reduce data collection on high-traffic pages
+- Query strings are stripped before URLs are sent.
+- Visitor IDs use `localStorage` under `agentuity_visitor_id`.
+- Geo data is cached in `sessionStorage` under `agentuity_geo`.
+- `sampleRate` can reduce collection on high-traffic pages.
+- `isDevmode: true` logs payloads to the browser console instead of sending them.
 
 Users can opt out of tracking programmatically:
 
-```tsx
-import { isOptedOut, setOptOut } from '@agentuity/frontend';
+```typescript
+import { isOptedOut, setOptOut } from '@agentuity/analytics';
 
-function PrivacyToggle() {
+export function toggleAnalyticsOptOut(): boolean {
   const optedOut = isOptedOut();
-
-  return (
-    <button onClick={() => setOptOut(!optedOut)}>
-      {optedOut ? 'Enable Analytics' : 'Disable Analytics'}
-    </button>
-  );
+  setOptOut(!optedOut);
+  return !optedOut;
 }
 ```
 
-To disable the beacon for an app, set `analytics: false` in `createApp()`.
-
-<Callout type="tip" title="Development Mode">
-In development, analytics data is logged to the browser console instead of being sent to the collection endpoint. This lets you verify tracking behavior without generating real data.
-</Callout>
+To disable analytics for a page or environment, initialize with `enabled: false` or do not initialize the package.
 
 ## Next Steps
 
-- [React Hooks](/frontend/react-hooks): `useAnalytics` and other hooks for React integration
-- [Logging](/services/observability/logging): Collected logs for agents and routes
-- [Tracing](/services/observability/tracing): OpenTelemetry spans for performance debugging
+- [Logging](/services/observability/logging): collect logs from server routes and scripts
+- [Tracing](/services/observability/tracing): add OpenTelemetry spans for performance debugging

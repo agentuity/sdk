@@ -1,7 +1,0 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../components/docs/mdx-page';
-
-export const Route = createFileRoute('/_docs/agents/creating-agents')({
-	component: () => <MDXPage route="agents/creating-agents" />,
-	staticData: { crumb: 'Creating Agents' },
-});

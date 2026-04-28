@@ -1,130 +1,171 @@
 ---
 title: Logging
-description: Collected logs for agents and routes
+description: Write structured logs from framework apps and Hono routes
 ---
 
-Use `ctx.logger` in agents and `c.var.logger` in routes for collected logs. Use child loggers for fields that should be attached as log attributes. In deployed apps, session logs are available through the CLI and the [Agentuity Console](https://app.agentuity.com).
+Use `@agentuity/telemetry` when framework code needs logs that can travel with traces and session records. Hono apps can use `@agentuity/hono` when route handlers should read the same logger from `c.var.logger`.
 
-For the full `Logger` interface, all method signatures, and OpenTelemetry tracing, see [Observability Reference](/reference/sdk-reference/observability).
+```bash
+bun add @agentuity/telemetry@alpha
+```
+
+```typescript
+import { logger } from '@agentuity/telemetry';
+
+interface CheckoutInput {
+  readonly orderId: string;
+  readonly userId: string;
+  readonly totalCents: number;
+}
+
+export async function recordCheckout(
+  input: CheckoutInput
+): Promise<{ readonly accepted: boolean }> {
+  const checkoutLogger = logger.child({
+    orderId: input.orderId,
+    userId: input.userId,
+  });
+
+  checkoutLogger.info('Checkout started');
+
+  if (input.totalCents <= 0) {
+    checkoutLogger.warn('Checkout rejected');
+    return { accepted: false };
+  }
+
+  checkoutLogger.child({ totalCents: input.totalCents }).info('Checkout accepted');
+  return { accepted: true };
+}
+```
+
+`logger.child(fields)` attaches fields as log attributes. Additional arguments passed to `info()`, `warn()`, or `error()` are formatted into the log message body.
+
+## Configure at Startup
+
+The named exports initialize telemetry from Agentuity environment variables on first use. Call `register()` once at app startup when you want explicit service metadata or a different log level.
+
+```typescript
+import { register } from '@agentuity/telemetry';
+
+const telemetry = register({
+  name: 'checkout-api',
+  version: '1.4.0',
+  environment: process.env.NODE_ENV ?? 'development',
+  logLevel: 'info',
+});
+
+telemetry.logger.info('Telemetry initialized');
+```
+
+The telemetry package supports `trace`, `debug`, `info`, `warn`, and `error` as minimum levels. If you do not pass `logLevel`, the package default is `warn`.
 
 ## Log Levels
 
-`ctx.logger` has methods for each configured level: `trace`, `debug`, `info`, `warn`, and `error`. Use the method that matches severity:
+| Method | Use For |
+|--------|---------|
+| `trace()` | noisy diagnostics you only enable briefly |
+| `debug()` | local request context and intermediate values |
+| `info()` | normal milestones, state changes, and accepted work |
+| `warn()` | recoverable problems or missing optional configuration |
+| `error()` | failed operations that should be investigated |
+| `fatal()` | unrecoverable errors that should exit the process |
 
-```typescript
-ctx.logger.child({ requestId: '123' }).info('Request processed');
-ctx.logger.error('Failed to fetch data', error);
-```
-
-Configured levels from most to least verbose: `trace`, `debug`, `info`, `warn`, and `error`. The default minimum level is `info`. `fatal()` is also available, but it logs through `error()` and exits the process.
-
-For the complete `Logger` interface and all method signatures, see [Observability Reference](/reference/sdk-reference/observability).
-
-## Context Fields
-
-Attach searchable fields with child loggers:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('ProductSearch', {
-  handler: async (ctx, input) => {
-    const startTime = Date.now();
-    const searchLogger = ctx.logger.child({
-      query: input.query,
-      userId: input.userId,
-    });
-
-    const results = await searchProducts(input.query);
-
-    searchLogger.child({
-      resultCount: results.length,
-      durationMs: Date.now() - startTime,
-    }).info('Search completed');
-
-    return { results };
-  },
-});
-```
-
-Additional arguments passed to `info()`, `warn()`, or `error()` are formatted into the log message body. Use `ctx.logger.child(fields)` when fields should be emitted as log attributes.
+`fatal()` logs through the error path and exits the process. Use it sparingly in server apps, because it terminates the current process.
 
 ## Child Loggers
 
-`ctx.logger.child(fields)` creates a scoped logger that attaches the given fields to every log line it emits:
+Create child loggers when every line in a small scope should carry the same IDs or category fields.
 
 ```typescript
-const dbLogger = ctx.logger.child({ component: 'database', requestId: ctx.sessionId });
-dbLogger.child({ duration: 45, rows: 10 }).info('Query executed');
-// Every line includes component and requestId automatically
+import { logger } from '@agentuity/telemetry';
+
+const requestLogger = logger.child({
+  requestId: 'req_123',
+  component: 'billing',
+});
+
+requestLogger.info('Invoice requested');
+requestLogger.child({ durationMs: 42, rows: 8 }).debug('Invoice rows loaded');
 ```
 
-See [Creating Child Loggers](/reference/sdk-reference/observability#creating-child-loggers) for nesting patterns.
+Nested children inherit parent fields and add their own fields.
 
-## Logging in Routes
+## Hono Routes
 
-Routes access the logger via `c.var.logger`:
+`@agentuity/hono` initializes telemetry once and exposes the logger on `c.var.logger`.
+
+```bash
+bun add @agentuity/hono@alpha hono
+```
 
 ```typescript
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
+import type { Logger } from '@agentuity/hono';
 
-import paymentHandler from '@agent/payment-handler/agent';
+interface Env {
+  readonly Variables: {
+    readonly logger: Logger;
+  };
+}
 
-const router = new Hono<Env>();
+function readEventType(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || !('type' in value)) {
+    return undefined;
+  }
 
-router.post('/webhooks/payments', async (c) => {
-  const eventType = c.req.header('x-webhook-event');
+  const { type } = value;
+  return typeof type === 'string' && type.trim() ? type.trim() : undefined;
+}
 
-  c.var.logger.child({
+const app = new Hono<Env>();
+
+app.use('*', agentuity({ telemetry: { logLevel: 'info' } }));
+
+app.post('/webhooks/payments', async (c) => {
+  const body: unknown = await c.req.json();
+  const eventType = readEventType(body);
+  const routeLogger = c.var.logger.child({
     provider: 'stripe',
-    eventType,
-  }).info('Webhook received');
-
-  const payload = await c.req.json();
-
-  const result = await paymentHandler.run({
-    event: eventType,
-    customerId: payload.customer,
-    amount: payload.amount,
+    eventType: eventType ?? 'unknown',
   });
 
-  c.var.logger.child({
-    eventType,
-    customerId: payload.customer,
-    success: result.success,
-  }).info('Webhook processed');
+  routeLogger.info('Webhook received');
 
+  if (!eventType) {
+    routeLogger.warn('Webhook missing event type');
+    return c.json({ error: 'type is required' }, 400);
+  }
+
+  routeLogger.info('Webhook accepted');
   return c.json({ received: true });
 });
 
-export default router;
+export default app;
 ```
-
-## Configuration
-
-Control the minimum log level with `AGENTUITY_LOG_LEVEL` in your `.env`:
-
-```bash
-AGENTUITY_LOG_LEVEL=debug
-```
-
-See [Log Configuration](/reference/sdk-reference/observability#log-configuration) for the SDK reference section.
 
 ## Viewing Logs
 
-In dev mode, logs stream directly to your terminal. In deployed environments, use `agentuity cloud session logs <session-id>` or the Agentuity Console session timeline.
+During local development, `agentuity dev` runs your framework's own `dev` script with Agentuity environment behavior. In deployed apps, inspect logs by session or deployment.
 
-See [Session Logs](/reference/cli/debugging#session-logs) for the full CLI commands.
+```bash
+agentuity dev
+
+agentuity cloud session list
+agentuity cloud session logs sess_abc123xyz
+
+agentuity cloud deployment logs deploy_abc123xyz --limit=50
+```
 
 ## Best Practices
 
-- **Use `ctx.logger`**: Use `ctx.logger` or `c.var.logger` instead of `console.log` for proper log collection
-- **Add context**: Use child logger fields for searchable IDs, counts, and timing
-- **Use appropriate levels**: `info` for normal flow, `warn` for recoverable issues, `error` for failures
-- **Create child loggers**: For complex operations, create component-specific loggers
+- Use `logger` or `c.var.logger` for app logs you want to inspect later.
+- Add IDs, counts, and durations through child logger fields.
+- Keep log messages short. Put queryable context in attributes.
+- Use `info` for accepted work, `warn` for recoverable problems, and `error` for failed operations.
+- Avoid logging secrets, tokens, raw emails, or full request bodies.
 
 ## Next Steps
 
-- [Tracing](/services/observability/tracing): Track timing and debug performance with OpenTelemetry spans
-- [Sessions & Debugging](/services/observability/sessions-debugging): Use session IDs to trace issues across logs and spans
+- [Tracing](/services/observability/tracing): add OpenTelemetry spans around slow or multi-step work
+- [Sessions & Debugging](/services/observability/sessions-debugging): find the session that contains a log line

@@ -1,221 +1,124 @@
 ---
 title: Sessions & Debugging
-description: Debug agents using session IDs, CLI commands, and trace timelines
+description: Inspect session records, logs, and timelines
 ---
 
-Every request to your agents gets a unique session ID (`sess_...`). Sessions link logs, traces, and state, making them essential for debugging.
+Use sessions when you need to move from "something failed" to the exact request, log lines, and trace timeline. In v3 framework apps, sessions are platform observability records you inspect through the CLI, Console, or core API helpers rather than a runtime-only `ctx.session` object in every example.
 
-## Why Sessions?
-
-Traditional observability tracks individual HTTP requests. That works for stateless web servers. Agents go beyond single requests: a conversation might span dozens of LLM calls, tool executions, and orchestration steps across multiple interactions.
-
-Without sessions, debugging becomes guesswork. You see individual logs but can't connect them. Was that error from the same conversation? What happened before it failed? Which user was affected?
-
-Agentuity tracks runs as sessions and groups related sessions into threads. That gives you a shared ID to connect logs, spans, thread state, and request-scoped session state.
-
-**In practice:**
-
-- **Unified tracing**: All logs, spans, and state from a single request are linked by session ID
-- **Conversation context**: Sessions group into threads, so you can trace multi-turn conversations
-- **Automatic correlation**: No manual tracking code, every call in a session is connected
-- **Session inspection**: Review what happened in a session to reproduce issues
-
-## Sessions vs Threads
-
-| Scope | Lifetime | ID Prefix | Use For |
-|-------|----------|-----------|---------|
-| **Session** | Single request | `sess_` | Debugging, request-scoped state |
-| **Thread** | Up to 1 hour of inactivity | `thrd_` | Chat history, user preferences |
-
-A thread contains multiple sessions. When a user has a multi-turn conversation, each message creates a new session within the same thread.
-
-<Callout type="tip" title="Quick Mental Model">
-Threads "wrap" sessions. Think of a *thread* as a conversation and a *session* as one message in that conversation.
+<Callout type="info" title="Existing v2 session APIs still exist">
+Existing v2 apps can keep using runtime `ctx.session` and `ctx.thread` patterns. The v3 docs default to framework routes, telemetry packages, and platform inspection APIs.
 </Callout>
 
-## Accessing Session ID
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('SessionExample', {
-  handler: async (ctx, input) => {
-    // In agents
-    ctx.logger.child({ sessionId: ctx.sessionId }).info('Processing request');
-
-    // Thread ID for conversation tracking
-    ctx.logger.child({ threadId: ctx.thread.id }).info('Thread context');
-
-    return { sessionId: ctx.sessionId };
-  },
-});
-```
-
-In routes:
-
-```typescript
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import myAgent from '@agent/my-agent/agent';
-
-const router = new Hono<Env>();
-
-router.post('/', myAgent.validator(), async (c) => {
-  const input = c.req.valid('json');
-
-  // In routes
-  c.var.logger.child({ sessionId: c.var.sessionId }).info('Route called');
-
-  const result = await myAgent.run(input);
-
-  return c.json({ ...result, sessionId: c.var.sessionId });
-});
-
-export default router;
-```
-
-## Viewing Session Logs
-
-Use the CLI to view logs for a specific session:
+## Start with the CLI
 
 ```bash
+agentuity cloud session list --count=25
+agentuity cloud session list --success=false
+agentuity cloud session get sess_abc123xyz
 agentuity cloud session logs sess_abc123xyz
 ```
 
-See [Session Logs](/reference/cli/debugging#session-logs) for additional session commands.
+`session get` shows request details and a timeline when trace data is available. `session logs` prints collected log entries for that session.
 
-## Including Session ID in Responses
+## Filter Sessions
 
-For easier debugging, include the session ID in error responses:
+The session list command supports common filters:
 
-```typescript
-const agent = createAgent('ErrorHandler', {
-  handler: async (ctx, input) => {
-    try {
-      const result = await processRequest(input);
-      return { success: true, data: result };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      ctx.logger.child({
-        sessionId: ctx.sessionId,
-        error: message,
-      }).error('Request failed');
+| Filter | Example |
+|--------|---------|
+| project | `agentuity cloud session list --project-id=proj_abc123` |
+| deployment | `agentuity cloud session list --deployment-id=deploy_abc123` |
+| success | `agentuity cloud session list --success=false` |
+| dev mode | `agentuity cloud session list --devmode=false` |
+| trigger | `agentuity cloud session list --trigger=api` |
+| environment | `agentuity cloud session list --env=production` |
+| time window | `agentuity cloud session list --start-after=2026-04-01T00:00:00Z` |
 
-      return {
-        success: false,
-        error: 'Processing failed',
-        sessionId: ctx.sessionId, // Helpful for debugging
-      };
-    }
-  },
-});
+Use `--all` when you want sessions outside the current project context:
+
+```bash
+agentuity cloud session list --all --count=50
 ```
 
-## Linking External Logs
+## Programmatic Inspection
 
-If you use external logging services, include the session ID so you can connect logs across systems:
+Use the CLI for day-to-day debugging. If you are building an internal tool, `@agentuity/core` exports session helpers for platform API access.
 
-```typescript
-const agent = createAgent('WebhookHandler', {
-  handler: async (ctx, input) => {
-    // Create a logger with session context for external services
-    const requestLogger = ctx.logger.child({
-      sessionId: ctx.sessionId,
-      threadId: ctx.thread.id,
-      service: 'webhook-handler',
-    });
-
-    requestLogger.info('Processing webhook', { eventType: input.event });
-
-    // External service call with session context
-    await externalApi.process({
-      ...input,
-      metadata: { agentuitySessionId: ctx.sessionId },
-    });
-
-    return { success: true };
-  },
-});
+```bash
+bun add @agentuity/core@alpha @agentuity/telemetry@alpha
 ```
 
-## Session State
-
-Use session state for request-scoped data that doesn't persist:
-
 ```typescript
-const agent = createAgent('TimingExample', {
-  handler: async (ctx, input) => {
-    // Track timing within this request
-    ctx.session.state.set('startTime', Date.now());
+import {
+  APIClient,
+  sessionGet,
+  sessionList,
+} from '@agentuity/core';
+import { logger } from '@agentuity/telemetry';
 
-    const result = await processRequest(input);
+const projectId = process.env.AGENTUITY_CLOUD_PROJECT_ID;
 
-    const startTime = ctx.session.state.get('startTime');
-    const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
-    ctx.logger.child({ durationMs: duration }).info('Request completed');
+if (!projectId) {
+  throw new Error('AGENTUITY_CLOUD_PROJECT_ID is required');
+}
 
-    return result;
-  },
-});
-```
+const catalystUrl =
+  process.env.AGENTUITY_CATALYST_URL ?? 'https://catalyst-usc.agentuity.cloud';
+const client = new APIClient(catalystUrl, logger);
 
-Session state is cleared after the response. For persistent data, use [thread state](/agents/state-management) or [KV storage](/services/storage/key-value).
-
-## Metadata
-
-Store unencrypted metadata for filtering and querying. Keep metadata limited to non-sensitive values or opaque internal identifiers. Do not store secrets, tokens, raw emails, names, or other sensitive personal data. Use session metadata for values tied to one request. Use thread metadata for values that should stay with the conversation.
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('UserContext', {
-  handler: async (ctx, input) => {
-    ctx.session.metadata.requestType = input.requestType;
-
-    const threadMetadata = {
-      ...(await ctx.thread.getMetadata()), // keep existing keys
-      userId: input.userId,
-      department: 'sales',
-      plan: input.plan,
-    };
-
-    await ctx.thread.setMetadata(threadMetadata);
-
-    ctx.logger.child({
-      threadId: ctx.thread.id,
-      sessionId: ctx.sessionId,
-      userId: threadMetadata.userId,
-      requestType: input.requestType,
-    }).info('Request context');
-
-    return { success: true };
-  },
+const failedSessions = await sessionList(client, {
+  projectId,
+  success: false,
+  limit: 10,
 });
 
-export default agent;
+const firstFailure = failedSessions[0];
+const detail = firstFailure
+  ? await sessionGet(client, { id: firstFailure.id })
+  : null;
+
+logger.info('Failed sessions', failedSessions.map((session) => session.id));
+logger.info('First failure detail', detail);
 ```
 
-### Metadata vs State
+`sessionList()` supports filters for project, deployment, trigger, environment, dev mode, success, time range, thread ID, agent identifier, and metadata.
 
-| Aspect | Metadata | State |
-|--------|----------|-------|
-| **Storage** | Unencrypted, indexed | Serialized user data |
-| **Use case** | Filtering, querying, analytics | Conversation or request data |
-| **Access** | `ctx.session.metadata` or `await ctx.thread.getMetadata()` / `await ctx.thread.setMetadata(...)` | `ctx.session.state` / `ctx.thread.state` |
-| **Best for** | User IDs, request types, account plans | Messages, preferences, temporary request values |
+## Add Useful Context to Logs
 
-<Callout type="tip" title="When to Use Metadata">
-Use metadata for values you might filter or query on later, like user IDs, request types, or account plans. Use state for data your agent needs to read and update while it runs.
+Session records tell you when and where a request ran. Your logs should add the application context you will search for later.
+
+```typescript
+import { logger } from '@agentuity/telemetry';
+
+interface SupportRequest {
+  readonly ticketId: string;
+  readonly customerId: string;
+  readonly priority: 'low' | 'normal' | 'high';
+}
+
+export function logSupportRequest(request: SupportRequest): void {
+  logger.child({
+    ticketId: request.ticketId,
+    customerId: request.customerId,
+    priority: request.priority,
+  }).info('Support request accepted');
+}
+```
+
+Prefer opaque internal IDs over raw emails, names, tokens, prompts, or full request bodies. Metadata returned on session records is unencrypted and should follow the same rule.
+
+## Debugging Flow
+
+1. List recent failures with `agentuity cloud session list --success=false`.
+2. Open one record with `agentuity cloud session get <session-id>`.
+3. Read logs with `agentuity cloud session logs <session-id>`.
+4. Use the timeline to find slow spans or failed operations.
+
+<Callout type="tip" title="Use deployment logs for process output">
+Session logs are request-scoped. Use `agentuity cloud deployment logs <deployment-id>` when you need deployment-level process logs.
 </Callout>
-
-## Best Practices
-
-- **Include session ID in logs and error responses**: Makes it easy to trace issues back to specific requests
-- **Use logging context**: Add searchable fields to logs for easier filtering
-- **Create child loggers**: Add session context to component-specific loggers
 
 ## Next Steps
 
-- [Logging](/services/observability/logging): Add searchable context to logs
-- [Tracing](/services/observability/tracing): OpenTelemetry spans for performance
-- [State Management](/agents/state-management): Session, thread, and request state
+- [Logging](/services/observability/logging): add searchable fields to log records
+- [Tracing](/services/observability/tracing): create spans that show up in session timelines

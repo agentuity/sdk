@@ -1,0 +1,42 @@
+---
+title: Using Vite React with Agentuity
+short_title: Vite + React
+description: Add Agentuity CLI wiring and deployment validation to a Vite React app
+---
+
+Start with a normal [Vite](https://vite.dev/guide/) React app. Agentuity adds local development and deploy wiring, plus an optional example server, without replacing the usual Vite project shape.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-vite-app --framework vite-react
+cd my-vite-app
+```
+
+The starter runs `create-vite`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an example `server.ts`, `src/App.tsx`, and `vite.config.ts`.
+
+For an existing Vite React app, add the CLI and link the project:
+
+```bash
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity dev` runs your Vite `dev` script with Agentuity environment values. Use that when the app needs `AGENTUITY_SDK_KEY` locally.
+
+## Validate Before Deploy
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+`vite-react` is a create slug. The build path detects the app as generic `vite`, so validate the packaged output before deploy. For a static SPA, confirm the bundle is treated as static output. If you keep the optional `server.ts` or add your own server, confirm the launch metadata points at that process instead.
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
+- [Standalone Packages](/reference/standalone-packages): add Agentuity services from server code or utilities

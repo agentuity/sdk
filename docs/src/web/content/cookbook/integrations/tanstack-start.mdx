@@ -4,7 +4,7 @@ short_title: TanStack Start
 description: Connect a TanStack Start frontend to an Agentuity backend using a Vite proxy and direct router types
 ---
 
-Already have a [TanStack Start](https://tanstack.com/start/latest/docs/framework/react/overview) app? Keep your frontend where it is and run Agentuity in an `agentuity/` subdirectory. TanStack Start uses Vite under the hood, so the same `/api` proxy pattern used in the SDK testing app works here too.
+Already have a [TanStack Start](https://tanstack.com/start/latest/docs/framework/react/overview) app? Keep your frontend where it is and run Agentuity in an `agentuity/` subdirectory. TanStack Start uses Vite under the hood, so you can proxy `/api` requests to the Agentuity dev server.
 
 ## Project Structure
 
@@ -43,7 +43,7 @@ export default defineConfig({
 ```
 
 <Callout type="info" title="No generated route registry">
-This pattern does not use `@agentuity/routes` or `src/generated/routes.ts`. The frontend imports `type ApiRouter` directly from the backend source file, and `hc()` infers the request shape from that type.
+This pattern does not use `@agentuity/frameworks` or `src/generated/frameworks.ts`. The frontend imports `type ApiRouter` directly from the backend source file, and `hc()` infers the request shape from that type.
 </Callout>
 
 ## Import the Router Type Directly
@@ -169,4 +169,4 @@ Then enable CORS in [App Configuration](/get-started/app-configuration).
 
 - [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
 - [Provider Setup](/frontend/provider-setup): Add auth, analytics, or WebRTC hooks
-- [HTTP Routes](/routes/http): Define the backend API router you export to the frontend
+- [Using Hono with Agentuity](/frameworks/hono): Define the backend API router you export to the frontend

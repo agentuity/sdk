@@ -1,14 +1,18 @@
 ---
-title: Context API
+title: Context API (v2 Compatibility)
 short_title: Context API
-description: Storage, logging, and services available via the ctx.* object
+description: Compatibility reference for the v2 runtime AgentContext ctx.* object
 ---
 
-`AgentContext` is what your agent handler and agent-scoped event listeners receive. It combines request-scoped state, conversation state, platform services, observability, and metadata about the current agent run.
+This page documents the v2 runtime `AgentContext` shape from `@agentuity/runtime` and `createAgent()` apps. In v3 framework apps, use standalone service clients, [Observability](/services/observability), and [Using Standalone Packages](/reference/standalone-packages) instead of treating `ctx.*` as the default API.
+
+<Callout type="info" title="Keep this for existing runtime apps">
+Use this page when maintaining a v2 runtime app. For new v3 code, put Agentuity clients where your framework initializes server dependencies, or use `@agentuity/hono` when Hono route handlers should read services from `c.var.*`.
+</Callout>
 
 ## Context Properties
 
-The context object passed to your agent handler contains the following properties:
+The context object passed to a v2 runtime agent handler contains the following properties:
 
 ```typescript
 interface AgentContext<TConfig = unknown, TAppState = Record<string, never>> {
@@ -58,7 +62,7 @@ interface AgentContext<TConfig = unknown, TAppState = Record<string, never>> {
 
 ## Platform Services
 
-Each service on the context object is documented on its own reference page:
+Each service on the v2 runtime context object is documented on its own reference page:
 
 | Service | Property | Reference |
 |---------|----------|-----------|
@@ -77,7 +81,7 @@ Database and object storage use Bun's native `sql` and `s3` APIs rather than `ct
 
 ## Service Access
 
-All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalone scripts. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the complete access pattern reference.
+In this v2 runtime shape, agents read services from `ctx.*` and routes read them from `c.var.*`. In v3 apps, prefer direct clients or `@agentuity/hono`; see [Using Standalone Packages](/reference/standalone-packages) for the current access patterns.
 
 **Key Properties Explained**
 
@@ -95,13 +99,13 @@ All services are available in agents (`ctx.*`), routes (`c.var.*`), and standalo
 
 **Configuration:**
 - `config`: Agent-specific configuration returned from the agent's `setup()` function. Fully typed based on what setup returns.
-- `app`: Reserved app-level shared state. Defaults to `{}`, so prefer module-scoped dependencies, service objects, or `registerShutdownHook()` in new code.
+- `app`: Reserved app-level shared state. Defaults to `{}`, so prefer module-scoped dependencies, service objects, or `registerShutdownHook()` in runtime code.
 
 **Agent Calling:**
 - Import agents directly: `import otherAgent from '@agent/other-agent/agent'`
 - Call with: `await otherAgent.run(input)`
 
-For orchestration patterns, see [Calling Other Agents](/agents/calling-other-agents).
+For orchestration patterns, see [Calling Other Agents](/patterns/agents-as-a-pattern).
 
 **State Management:**
 - `session`: Request-scoped session object for the current execution and its sub-agent calls.
@@ -374,5 +378,5 @@ export default createAgent('my-agent', {
 ```
 
 <Callout type="info" title="Shared App State Today">
-`ctx.config` is the stable, documented place for agent-local setup results. The runtime types still include `ctx.app`, but it defaults to `{}`. Prefer module-scoped shared dependencies plus `registerShutdownHook()` for cleanup instead of new examples built around app-level setup state.
+For v2 runtime apps, `ctx.config` is the stable, documented place for agent-local setup results. The runtime types still include `ctx.app`, but it defaults to `{}`. Prefer module-scoped shared dependencies plus `registerShutdownHook()` for cleanup instead of new examples built around app-level setup state.
 </Callout>

@@ -1,49 +1,109 @@
-import { useState, type ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import type { Route } from './+types/home';
 
 export function meta({}: Route.MetaArgs) {
 	return [
 		{ title: 'Agentuity + React Router' },
-		{ name: 'description', content: 'AI translation demo with Agentuity' },
+		{ name: 'description', content: 'AI translation starter with Agentuity' },
 	];
 }
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
 const DEFAULT_TEXT =
-	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
+	'Welcome to Agentuity! This starter app translates text, stores recent requests in key-value storage, and shows how a typed framework route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the app session, model, and token details below.';
+
+interface HistoryEntry {
+	readonly model: string;
+	readonly sessionId: string;
+	readonly text: string;
+	readonly timestamp: string;
+	readonly tokens: number;
+	readonly toLanguage: string;
+	readonly translation: string;
+}
+
+interface HistoryData {
+	readonly history: readonly HistoryEntry[];
+	readonly sessionId: string;
+	readonly translationCount: number;
+}
+
+interface TranslateResult extends HistoryData {
+	readonly model: string;
+	readonly toLanguage: string;
+	readonly tokens: number;
+	readonly translation: string;
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+	const res = await fetch(url, init);
+	if (!res.ok) {
+		const errBody = await res.json().catch(() => ({ message: `API error ${res.status}` }));
+		throw new Error(errBody.message || `API error ${res.status}`);
+	}
+	return res.json();
+}
 
 export default function Home() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
-	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-4o-mini');
-	const [result, setResult] = useState<{
-		translation: string;
-		tokens: number;
-		model: string;
-		toLanguage: string;
-	} | null>(null);
+	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5.4-nano');
+	const [result, setResult] = useState<TranslateResult | null>(null);
+	const [historyData, setHistoryData] = useState<HistoryData | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const history = (result ?? historyData)?.history ?? [];
+
+	useEffect(() => {
+		let ignore = false;
+
+		async function loadHistory(): Promise<void> {
+			try {
+				const next = await fetchJson<HistoryData>('/api/translate');
+				if (!ignore) {
+					setHistoryData(next);
+				}
+			} catch {
+				if (!ignore) {
+					setHistoryData(null);
+				}
+			}
+		}
+
+		void loadHistory();
+
+		return () => {
+			ignore = true;
+		};
+	}, []);
 
 	const handleTranslate = async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const res = await fetch('/api/translate', {
+			const next = await fetchJson<TranslateResult>('/api/translate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ text, toLanguage, model }),
 			});
-			if (!res.ok) {
-				const errBody = await res.json().catch(() => ({ message: `API error ${res.status}` }));
-				throw new Error(errBody.message || `API error ${res.status}`);
-			}
-			setResult(await res.json());
+			setResult(next);
+			setHistoryData(next);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Translation failed');
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const handleClearHistory = async () => {
+		try {
+			const next = await fetchJson<HistoryData>('/api/translate', { method: 'DELETE' });
+			setResult(null);
+			setHistoryData(next);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not clear history');
 		}
 	};
 
@@ -74,9 +134,19 @@ export default function Home() {
 							fillRule="evenodd"
 						/>
 					</svg>
-					<h1 className="text-5xl font-thin">Welcome to Agentuity</h1>
+					<h1 className="text-5xl font-thin">
+						Welcome to{' '}
+						<a
+							className="text-white transition-colors hover:text-cyan-400"
+							href="https://agentuity.com"
+							rel="noreferrer"
+							target="_blank"
+						>
+							Agentuity
+						</a>
+					</h1>
 					<p className="text-lg text-gray-400">
-						<span className="font-serif italic">React Router</span> + AI Gateway
+						The <span className="font-serif italic">Full-Stack</span> Platform for AI Agents
 					</p>
 				</div>
 
@@ -107,11 +177,9 @@ export default function Home() {
 							}
 							value={model}
 						>
-							{MODELS.map((m) => (
-								<option key={m} value={m}>
-									{m}
-								</option>
-							))}
+							<option value="gpt-5.4-nano">GPT-5.4 Nano</option>
+							<option value="gpt-5.4-mini">GPT-5.4 Mini</option>
+							<option value="gpt-5.4">GPT-5.4</option>
 						</select>
 						<div className="group relative z-0 ml-auto">
 							<div className="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
@@ -168,7 +236,62 @@ export default function Home() {
 								<span>
 									Language <strong className="text-gray-400">{result.toLanguage}</strong>
 								</span>
+								<span>
+									App session{' '}
+									<strong className="text-gray-400">{result.sessionId.slice(0, 12)}...</strong>
+								</span>
 							</div>
+						</div>
+					)}
+				</div>
+
+				{/* Recent History */}
+				<div className="flex flex-col gap-6 rounded-lg border border-gray-900 bg-black p-8">
+					<div className="flex items-center justify-between">
+						<h3 className="text-xl font-normal text-white">Recent translations</h3>
+						{history.length > 0 && (
+							<button
+								className="rounded border border-gray-900 bg-transparent px-3 py-1.5 text-xs text-gray-500 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 hover:text-white"
+								onClick={handleClearHistory}
+								type="button"
+							>
+								Clear
+							</button>
+						)}
+					</div>
+					<div className="rounded-md bg-gray-950">
+						{history.length > 0 ? (
+							[...history].reverse().map((entry) => (
+								<div
+									className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-3 rounded px-3 py-2 text-xs"
+									key={`${entry.timestamp}-${entry.sessionId}`}
+								>
+									<span className="truncate text-gray-400">{entry.text}</span>
+									<span className="text-gray-700">→</span>
+									<span className="truncate text-gray-400">{entry.translation}</span>
+									<span className="rounded border border-gray-800 bg-gray-900 px-1 py-0.5 text-gray-400">
+										{entry.toLanguage}
+									</span>
+								</div>
+							))
+						) : (
+							<div className="px-3 py-2 text-sm text-gray-600">History will appear here</div>
+						)}
+					</div>
+					{(result ?? historyData) && (
+						<div className="flex gap-4 text-xs text-gray-500">
+							<span>
+								App session{' '}
+								<strong className="text-gray-400">
+									{(result ?? historyData)?.sessionId.slice(0, 12)}...
+								</strong>
+							</span>
+							<span>
+								Translations{' '}
+								<strong className="text-gray-400">
+									{(result ?? historyData)?.translationCount}
+								</strong>
+							</span>
 						</div>
 					)}
 				</div>
@@ -179,12 +302,21 @@ export default function Home() {
 					<div className="flex flex-col gap-6">
 						{[
 							{
+								title: 'Key-value history',
+								text: (
+									<>
+										<code className="text-white">KeyValueClient</code> stores recent
+										translations for this browser session.
+									</>
+								),
+							},
+							{
 								title: 'AI Gateway routing',
 								text: (
 									<>
 										<code className="text-white">agentuity dev</code> automatically sets
-										OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the
-										Agentuity gateway.
+										OPENAI_API_KEY and OPENAI_BASE_URL so the OpenAI SDK routes through
+										Agentuity's AI Gateway.
 									</>
 								),
 							},

@@ -1,62 +1,66 @@
 ---
 title: Using the Sandbox API
 short_title: SDK Usage
-description: Programmatic API for creating and managing sandboxes
+description: Create, execute, inspect, and clean up sandboxes with SandboxClient
 ---
 
-Access sandbox functionality through `ctx.sandbox` in agents or `c.var.sandbox` in routes. Choose between one-shot execution for single commands or interactive sandboxes for multi-step workflows.
+Use `SandboxClient` when you want to create sandboxes from a script, server route, worker, or agent process. Set `AGENTUITY_SDK_KEY` in the environment, or pass `apiKey` to the constructor.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/sandbox`](/reference/standalone-packages#sandbox) standalone package to access this service from any Node.js or Bun app without the runtime.
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient({
+  apiKey: process.env.AGENTUITY_SDK_KEY,
+});
+```
+
+<Callout type="info" title="Older runtime examples are v2 compatibility">
+If you are maintaining v2 runtime code, you may still see `ctx.sandbox` or `c.var.sandbox`. New v3 code should use `SandboxClient` from `@agentuity/sandbox`.
 </Callout>
 
 ## One-shot Execution
 
-Use `sandbox.run()` when you need to execute a single command. The sandbox is automatically created and destroyed.
+Use `client.run()` for a disposable sandbox. The client creates the sandbox, runs the command, captures output, and destroys the sandbox.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { SandboxClient } from '@agentuity/sandbox';
 
-const agent = createAgent('CodeRunner', {
-  schema: {
-    input: z.object({ code: z.string() }),
-    output: z.object({
-      success: z.boolean(),
-      output: z.string(),
-      exitCode: z.number(),
-    }),
-  },
-  handler: async (ctx, input) => {
-    const result = await ctx.sandbox.run({
-      command: {
-        exec: ['python3', '-c', input.code],
-      },
-      resources: { memory: '256Mi', cpu: '500m' },
-      timeout: { execution: '30s' },
-    });
+const client = new SandboxClient();
 
-    return {
-      success: result.exitCode === 0,
-      output: result.stdout || result.stderr || '',
-      exitCode: result.exitCode,
-    };
+const result = await client.run({
+  runtime: 'python:3.14',
+  command: {
+    exec: ['python3', '-c', 'print(sum([1, 2, 3]))'],
   },
+  resources: { memory: '256Mi', cpu: '500m' },
+  timeout: { execution: '30s' },
+});
+
+console.log({
+  exitCode: result.exitCode,
+  stdout: result.stdout,
+  stderr: result.stderr,
 });
 ```
 
-### With File Input
+### Write Files Before Running
 
-Write files to the sandbox before execution:
+Pass `command.files` to write files into the sandbox before the one-shot command starts.
 
 ```typescript
-const result = await ctx.sandbox.run({
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'bun:1',
   command: {
     exec: ['bun', 'run', 'index.ts'],
     files: [
       {
         path: 'index.ts',
-        content: Buffer.from('console.log("Hello from TypeScript!")'),
+        content: Buffer.from('console.log("hello from TypeScript")'),
       },
       {
         path: 'data.json',
@@ -64,174 +68,152 @@ const result = await ctx.sandbox.run({
       },
     ],
   },
-  resources: { memory: '512Mi' },
 });
+
+console.log(result.stdout);
 ```
 
-## Interactive Sandbox
+### Stream Output
 
-Use `sandbox.create()` for multi-step workflows. The sandbox persists until you explicitly destroy it.
+The optional second argument to `run()` accepts Node streams and an `AbortSignal`.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+import { SandboxClient } from '@agentuity/sandbox';
 
-const agent = createAgent('ProjectBuilder', {
-  handler: async (ctx, input) => {
-    // Create a persistent sandbox
-    const sandbox = await ctx.sandbox.create({
-      runtime: 'node:lts',
-      resources: { memory: '1Gi', cpu: '1000m' },
-      network: { enabled: true }, // Allow package downloads
-      dependencies: ['git'], // Pre-install apt packages
-    });
+const client = new SandboxClient();
 
-    try {
-      // Run multiple commands in sequence
-      await sandbox.execute({ command: ['npm', 'init', '-y'] });
-      await sandbox.execute({ command: ['npm', 'install', 'zod'] });
-
-      // Write project files
-      await sandbox.writeFiles([
-        {
-          path: 'index.ts',
-          content: Buffer.from(`
-            import { z } from 'zod';
-            const schema = z.object({ name: z.string() });
-            console.log(schema.parse({ name: 'test' }));
-          `),
-        },
-      ]);
-
-      // Build and run
-      const result = await sandbox.execute({
-        command: ['npx', 'tsx', 'index.ts'],
-      });
-
-      return {
-        exitCode: result.exitCode,
-        stdoutStreamUrl: result.stdoutStreamUrl,
-      };
-    } finally {
-      // Always clean up
-      await sandbox.destroy();
-    }
+const result = await client.run(
+  {
+    runtime: 'bun:1',
+    command: { exec: ['bun', '-e', 'console.error("err"); console.log("out")'] },
   },
+  {
+    stdout: process.stdout,
+    stderr: process.stderr,
+  }
+);
+
+console.log('exit code:', result.exitCode);
+```
+
+## Interactive Sandboxes
+
+Use `client.create()` when the workflow needs persistent files or multiple commands.
+
+```typescript
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  resources: { memory: '1Gi', cpu: '1000m' },
+  network: { enabled: true },
+  timeout: { idle: '10m', execution: '2m' },
 });
-```
-
-### Writing Files
-
-Write files to the sandbox workspace before or during execution:
-
-```typescript
-await sandbox.writeFiles([
-  { path: 'src/main.py', content: Buffer.from('print("Hello")') },
-  { path: 'config.json', content: Buffer.from('{"debug": true}') },
-]);
-```
-
-### Exposing Ports
-
-Expose a port from the sandbox to make it accessible via a public URL:
-
-```typescript
-const sandbox = await ctx.sandbox.create({
-  network: {
-    enabled: true,
-    port: 3000,  // Expose port 3000 (valid range: 1024-65535)
-  },
-  resources: { memory: '512Mi' },
-});
-
-// Start a web server inside the sandbox
-await sandbox.execute({ command: ['npm', 'run', 'serve'] });
-
-// Get the public URL
-const info = await ctx.sandbox.get(sandbox.id);
-if (info.url) {
-  ctx.logger.info('Server accessible at', { url: info.url, port: info.networkPort });
-}
-```
-
-<Callout type="info" title="Port mapping enables networking">
-Setting `network.port` enables networking for the exposed port. Include `network.enabled: true` when the sandbox also needs outbound network access.
-</Callout>
-
-<Callout type="tip" title="CLI Shortcut">
-When using the CLI, `--port` enables networking for you and returns the public URL directly in the create response. See [CLI Sandbox Commands](/reference/cli/sandbox#port-mapping) for details.
-</Callout>
-
-### Project Association
-
-Associate sandboxes with a project for organization and filtering:
-
-```typescript
-const sandbox = await ctx.sandbox.create({
-  projectId: 'proj_abc123',  // Associate with project
-  resources: { memory: '512Mi' },
-});
-
-// List sandboxes by project
-const { sandboxes } = await ctx.sandbox.list({
-  projectId: 'proj_abc123',
-});
-```
-
-### Reading Files
-
-Read files from the sandbox as streams:
-
-```typescript
-const stream = await sandbox.readFile('output/results.json');
-const reader = stream.getReader();
-const chunks: Uint8Array[] = [];
-
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  chunks.push(value);
-}
-
-const content = new TextDecoder().decode(Buffer.concat(chunks));
-const data = JSON.parse(content);
-```
-
-### Reading Execution Output
-
-`sandbox.execute()` waits for the command to finish, then returns stream URLs for stdout and stderr when output was captured. Fetch those URLs when you need the command output without loading it into the execution response.
-
-```typescript
-const sandbox = await ctx.sandbox.create();
 
 try {
-  // Run the command and wait for its final status
-  const execution = await sandbox.execute({ command: ['npm', 'run', 'build'] });
+  await sandbox.execute({ command: ['bun', 'init', '-y'] });
+  await sandbox.execute({ command: ['bun', 'add', 'zod'] });
 
-  // Read captured output only when the service returned stream URLs
-  const stdout = execution.stdoutStreamUrl
-    ? await readTextStream(execution.stdoutStreamUrl)
-    : '';
-  const stderr = execution.stderrStreamUrl
-    ? await readTextStream(execution.stderrStreamUrl)
-    : '';
+  await sandbox.writeFiles([
+    {
+      path: 'index.ts',
+      content: Buffer.from(`
+        import { z } from 'zod';
 
-  if (execution.exitCode !== 0) {
-    ctx.logger.error('Build failed', {
-      exitCode: execution.exitCode,
-      stderr,
-    });
-  }
+        const schema = z.object({ name: z.string() });
+        console.log(schema.parse({ name: 'Ada' }).name);
+      `),
+    },
+  ]);
 
-  return {
+  const execution = await sandbox.execute({
+    command: ['bun', 'run', 'index.ts'],
+  });
+
+  console.log({
+    executionId: execution.executionId,
     exitCode: execution.exitCode,
-    stdout,
-    stderr,
-  };
+  });
+} finally {
+  await sandbox.destroy();
+}
+```
+
+## File Operations
+
+Interactive sandbox instances support file reads, writes, directory creation, listing, and removal.
+
+```typescript
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+const sandbox = await client.create({ runtime: 'bun:1' });
+
+try {
+  await sandbox.mkDir('src', true);
+
+  const filesWritten = await sandbox.writeFiles([
+    { path: 'src/index.ts', content: Buffer.from('console.log("ok")') },
+  ]);
+
+  const files = await sandbox.listFiles('src');
+  const stream = await sandbox.readFile('src/index.ts');
+  const source = await readText(stream);
+
+  console.log({ filesWritten, files, source });
 } finally {
   await sandbox.destroy();
 }
 
-async function readTextStream(url: string): Promise<string> {
+async function readText(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let output = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    output += decoder.decode(value, { stream: true });
+  }
+
+  return output + decoder.decode();
+}
+```
+
+Remove files and directories with `rmFile()` and `rmDir()`:
+
+```typescript
+const removedFile = await sandbox.rmFile('src/index.ts');
+const removedDir = await sandbox.rmDir('src', true);
+
+console.log({
+  fileExisted: removedFile.found,
+  dirExisted: removedDir.found,
+});
+```
+
+## Reading Execution Output
+
+`sandbox.execute()` waits for the command to finish and returns stream URLs when output was captured. Fetch those URLs when you need stdout or stderr after the command completes.
+
+```typescript
+const execution = await sandbox.execute({
+  command: ['bun', '-e', 'console.log("build output")'],
+});
+
+const stdout = execution.stdoutStreamUrl
+  ? await readOutputUrl(execution.stdoutStreamUrl)
+  : '';
+
+console.log({
+  exitCode: execution.exitCode,
+  stdout,
+});
+
+async function readOutputUrl(url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok || !response.body) {
     throw new Error(`Unable to read sandbox output: ${response.status}`);
@@ -247,400 +229,354 @@ async function readTextStream(url: string): Promise<string> {
     output += decoder.decode(value, { stream: true });
   }
 
-  output += decoder.decode();
-  return output;
+  return output + decoder.decode();
 }
-```
-
-## Creating from Snapshot
-
-Start sandboxes from pre-configured snapshots for faster cold starts:
-
-<Callout type="info" title="How Snapshots Work">
-A snapshot is a saved filesystem state. You create sandboxes *from* snapshots rather than running them directly. See [Snapshots](/services/sandbox/snapshots) for how to create them.
-</Callout>
-
-```typescript
-const sandbox = await ctx.sandbox.create({
-  snapshot: 'node-project-base',  // Use tag or snapshot ID
-  resources: { memory: '512Mi' },
-});
-
-// Sandbox already has node_modules and dependencies installed
-await sandbox.execute({ command: ['npm', 'run', 'build'] });
 ```
 
 ## Environment Variables
 
-Pass environment variables when creating or running sandboxes:
+Pass environment variables when creating or running a sandbox.
 
 ```typescript
-const result = await ctx.sandbox.run({
-  command: { exec: ['node', '-e', 'console.log(process.env.API_KEY)'] },
+const result = await client.run({
+  runtime: 'bun:1',
+  command: { exec: ['bun', '-e', 'console.log(process.env.API_URL)'] },
   env: {
-    API_KEY: 'secret-key',
-    NODE_ENV: 'test',
-    DEBUG: 'true',
+    API_URL: 'https://api.example.com',
   },
-  resources: { memory: '256Mi' },
 });
+
+console.log(result.stdout);
 ```
 
-Update an existing interactive sandbox with `setEnv()`. Set a value to `null` to delete that variable.
+Update an interactive sandbox with `setEnv()`. Set a value to `null` to delete that variable.
 
 ```typescript
-const sandbox = await ctx.sandbox.create();
-
-await sandbox.setEnv({
-  API_KEY: 'secret-key',
+const updated = await sandbox.setEnv({
+  API_URL: 'https://api.example.com',
   DEBUG: 'true',
 });
 
 await sandbox.setEnv({
-  DEBUG: null,  // Delete DEBUG
+  DEBUG: null,
 });
+
+console.log(updated.API_URL);
 ```
 
-Code running inside the sandbox is not running in your agent process. Use standard logging (`console.log`, `print`, etc.) inside the sandboxed command, and pass any values it needs explicitly with `env` or `setEnv()`.
+Code inside the sandbox is a separate process. Pass values explicitly with `env`, `setEnv()`, or files.
 
-## Cancelling Execution
+## Exposing Ports
 
-Use an `AbortSignal` to cancel long-running commands:
+Set `network.port` to expose one port from the sandbox. Set `network.enabled: true` too when commands inside the sandbox need outbound network access.
 
 ```typescript
-const controller = new AbortController();
-
-// Set a 5-second timeout
-setTimeout(() => controller.abort(), 5000);
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  network: {
+    enabled: true,
+    port: 3000,
+  },
+});
 
 try {
-  const result = await sandbox.execute({
-    command: ['npm', 'run', 'long-task'],
-    signal: controller.signal,
+  await sandbox.writeFiles([
+    {
+      path: 'server.ts',
+      content: Buffer.from(`
+        Bun.serve({
+          port: 3000,
+          fetch: () => new Response('ok'),
+        });
+      `),
+    },
+  ]);
+
+  await client.createJob(sandbox.id, {
+    command: ['bun', 'run', 'server.ts'],
   });
-  return { exitCode: result.exitCode };
-} catch (error) {
-  if (error instanceof DOMException && error.name === 'AbortError') {
-    ctx.logger.warn('Execution cancelled');
-    return { exitCode: null, cancelled: true };
-  }
-  throw error;
+
+  const info = await sandbox.get();
+  console.log(info.url);
+} finally {
+  await sandbox.destroy();
 }
 ```
 
-## Using in Routes
+## Cancelling Commands
 
-Routes access sandbox through `c.var.sandbox`:
+Pass an `AbortSignal` to `execute()` or as the second argument to `run()`.
 
 ```typescript
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+const controller = new AbortController();
+const timeout = setTimeout(() => controller.abort(), 5_000);
 
-const router = new Hono<Env>();
+try {
+  const execution = await sandbox.execute({
+    command: ['sh', '-c', 'sleep 60'],
+    signal: controller.signal,
+  });
 
-router.post('/execute', async (c) => {
-  const { language, code } = await c.req.json();
-
-  const commands: Record<string, string[]> = {
-    python: ['python3', '-c', code],
-    javascript: ['node', '-e', code],
-    typescript: ['bun', '-e', code],
-  };
-
-  const command = commands[language];
-  if (!command) {
-    return c.json({ error: 'Unsupported language' }, 400);
+  console.log(execution.status);
+} catch (error) {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    console.log('execution cancelled');
+  } else {
+    throw error;
   }
-
-  const result = await c.var.sandbox.run({
-    command: { exec: command },
-    timeout: { execution: '10s' },
-    resources: { memory: '128Mi', cpu: '250m' },
-  });
-
-  return c.json({
-    success: result.exitCode === 0,
-    output: result.stdout || result.stderr,
-    exitCode: result.exitCode,
-    durationMs: result.durationMs,
-  });
-});
-
-export default router;
+} finally {
+  clearTimeout(timeout);
+}
 ```
 
 ## Sandbox Management
 
-### Listing Sandboxes
+Use `list()`, `get()`, `connect()`, and `destroy()` for existing sandboxes.
 
 ```typescript
-const { sandboxes, total } = await ctx.sandbox.list({
-  status: 'idle',      // Filter by status
-  projectId: 'proj_x', // Filter by project
-  snapshotId: 'snp_y', // Filter by snapshot
+const { sandboxes, total } = await client.list({
+  status: 'idle',
   limit: 10,
   offset: 0,
 });
 
+console.log('total:', total);
+
 for (const info of sandboxes) {
-  ctx.logger.info('Sandbox', {
-    id: info.sandboxId,
-    status: info.status,
-    executions: info.executions,
-  });
+  console.log(info.sandboxId, info.status, info.executions);
 }
 ```
 
-### Getting Sandbox Info
+`get()` returns metadata. `connect()` returns a full interactive instance with methods like `execute()` and `writeFiles()`.
 
 ```typescript
-const info = await ctx.sandbox.get('sbx_abc123');
-ctx.logger.info('Sandbox details', {
-  status: info.status,
-  createdAt: info.createdAt,
-  snapshot: info.snapshot?.id,
-});
+const info = await client.get('sbx_abc123');
+console.log(info.status, info.createdAt);
+
+const existing = await client.connect('sbx_abc123');
+const files = await existing.listFiles();
+console.log(files.map((file) => file.path));
+
+await client.destroy('sbx_abc123');
 ```
 
-### Destroying Sandboxes
+## Background Jobs
+
+Use jobs for commands that should keep running after the request that started them returns.
 
 ```typescript
-// Via sandbox instance
-await sandbox.destroy();
+const sandbox = await client.create({ runtime: 'bun:1' });
 
-// Via service (by ID)
-await ctx.sandbox.destroy('sbx_abc123');
+try {
+  const job = await client.createJob(sandbox.id, {
+    command: ['sh', '-c', 'sleep 30 && echo done'],
+  });
+
+  const current = await job.get();
+  console.log(current.status);
+
+  const { jobs } = await client.listJobs(sandbox.id, 10);
+  console.log(jobs.map((item) => item.jobId));
+
+  await job.stop();
+} finally {
+  await sandbox.destroy();
+}
+```
+
+Job statuses are `pending`, `running`, `completed`, `failed`, or `cancelled`.
+
+## Pause, Resume, and Checkpoints
+
+Pause a sandbox when you want to preserve its filesystem but stop the runtime. Resume it before issuing a batch of commands.
+
+```typescript
+await sandbox.pause();
+await sandbox.resume();
+
+const execution = await sandbox.execute({
+  command: ['bun', 'run', 'test'],
+});
+
+console.log(execution.autoResumed);
+```
+
+Disk checkpoints are named restore points for one sandbox.
+
+```typescript
+const checkpoint = await client.createDiskCheckpoint(sandbox.id, 'before-upgrade');
+
+await sandbox.execute({ command: ['bun', 'add', 'typescript'] });
+await checkpoint.restore();
+
+const checkpoints = await client.listDiskCheckpoints(sandbox.id);
+console.log(checkpoints.map((item) => item.name));
+
+await checkpoint.delete();
+```
+
+## Snapshots
+
+Snapshots are reusable bases for future sandboxes. Create them from a configured sandbox, then create new sandboxes with `snapshot`.
+
+```typescript
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  network: { enabled: true },
+});
+
+try {
+  await sandbox.execute({ command: ['bun', 'init', '-y'] });
+  await sandbox.execute({ command: ['bun', 'add', 'zod'] });
+
+  const snapshot = await client.createSnapshot(sandbox.id, {
+    name: 'bun-zod',
+    tag: 'bun-zod',
+    description: 'Bun project with Zod installed',
+  });
+
+  console.log(snapshot.snapshotId);
+} finally {
+  await sandbox.destroy();
+}
+
+const next = await client.create({
+  snapshot: 'bun-zod',
+  resources: { memory: '512Mi' },
+});
+
+await next.destroy();
+```
+
+Manage snapshots with the same client:
+
+```typescript
+const { snapshots } = await client.listSnapshots({ limit: 20 });
+const snapshot = await client.getSnapshot('snp_xyz789');
+
+await client.tagSnapshot(snapshot.snapshotId, 'v1.0');
+await client.tagSnapshot(snapshot.snapshotId, null);
+await client.deleteSnapshot(snapshot.snapshotId);
+
+console.log(snapshots.length);
+```
+
+When `snapshot` is set, do not also set `runtime` or `runtimeId`. The snapshot already includes its base runtime.
+
+## Events
+
+List lifecycle events when you need to inspect sandbox history.
+
+```typescript
+const { events } = await client.listEvents(sandbox.id, {
+  limit: 50,
+  direction: 'asc',
+});
+
+for (const event of events) {
+  console.log(event.type, event.createdAt);
+}
 ```
 
 ## Configuration Reference
+
+### SandboxClientOptions
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `apiKey` | `string` | API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY` |
+| `url` | `string` | Sandbox API URL override |
+| `orgId` | `string` | Organization ID for multi-tenant operations |
+| `logger` | `Logger` | Custom logger |
 
 ### SandboxCreateOptions
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `runtime` | `string` | Runtime environment: `'bun:1'`, `'python:3.14'` |
+| `runtime` | `string` | Runtime name, such as `'bun:1'` or `'python:3.14'` |
 | `runtimeId` | `string` | Runtime ID, such as `'srt_xxx'` |
 | `name` | `string` | Optional sandbox name |
-| `description` | `string` | Optional description |
-| `resources.memory` | `string` | Memory limit: `'256Mi'`, `'1Gi'` |
-| `resources.cpu` | `string` | CPU in millicores: `'500m'`, `'1000m'` |
-| `resources.disk` | `string` | Disk limit: `'512Mi'`, `'2Gi'` |
-| `network.enabled` | `boolean` | Enable outbound network (default: `false`) |
-| `network.port` | `number` | Port to expose to internet (1024-65535) |
-| `projectId` | `string` | Associate sandbox with a project |
-| `timeout.idle` | `string` | Auto-destroy after idle: `'10m'`, `'1h'` |
-| `timeout.execution` | `string` | Max command duration: `'30s'`, `'5m'` |
-| `dependencies` | `string[]` | Apt packages: `['python3', 'git']` |
+| `description` | `string` | Optional sandbox description |
+| `resources.memory` | `string` | Memory limit, such as `'256Mi'` or `'1Gi'` |
+| `resources.cpu` | `string` | CPU limit in millicores, such as `'500m'` or `'1000m'` |
+| `resources.disk` | `string` | Disk limit, such as `'512Mi'` or `'2Gi'` |
+| `network.enabled` | `boolean` | Enables outbound network access |
+| `network.port` | `number` | Port to expose to the internet, 1024-65535 |
+| `projectId` | `string` | Project ID to associate with the sandbox |
+| `timeout.idle` | `string` | Idle timeout before cleanup, such as `'10m'` |
+| `timeout.execution` | `string` | Max command duration, such as `'30s'` |
+| `dependencies` | `string[]` | Apt packages to install |
 | `packages` | `string[]` | npm/bun packages to install globally |
-| `snapshot` | `string` | Snapshot ID or tag to restore from |
 | `env` | `Record<string, string>` | Environment variables |
-| `metadata` | `Record<string, unknown>` | User-defined metadata for tracking |
+| `files` | `FileToWrite[]` | Files to write on creation |
+| `snapshot` | `string` | Snapshot ID or tag |
+| `metadata` | `Record<string, unknown>` | User-defined metadata |
 | `scopes` | `string[]` | Permission scopes for automatic service access |
-
-When `snapshot` is set, do not also set `runtime` or `runtimeId`. The snapshot already includes its base runtime.
 
 ### ExecuteOptions
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `command` | `string[]` | Command and arguments |
-| `files` | `FileToWrite[]` | Files to create before execution |
-| `timeout` | `string` | Override execution timeout |
+| `files` | `FileToWrite[]` | Files to write before execution |
+| `timeout` | `string` | Execution timeout override |
 | `stream` | `object` | Optional stdout, stderr, and timestamp stream configuration |
 | `signal` | `AbortSignal` | Cancel the execution |
 
-### Execution
+### SandboxInstance
 
-Returned by `sandbox.execute()`:
+| Property or method | Type |
+|--------------------|------|
+| `id` | `string` |
+| `status` | `SandboxStatus` |
+| `execute(options)` | `Promise<Execution>` |
+| `writeFiles(files)` | `Promise<number>` |
+| `readFile(path)` | `Promise<ReadableStream<Uint8Array>>` |
+| `listFiles(path?)` | `Promise<SandboxFileInfo[]>` |
+| `mkDir(path, recursive?)` | `Promise<void>` |
+| `rmFile(path)` | `Promise<{ found: boolean }>` |
+| `rmDir(path, recursive?)` | `Promise<{ found: boolean }>` |
+| `setEnv(env)` | `Promise<Record<string, string>>` |
+| `get()` | `Promise<SandboxInfo>` |
+| `pause()` | `Promise<void>` |
+| `resume()` | `Promise<void>` |
+| `destroy()` | `Promise<void>` |
+
+### Execution
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `executionId` | `string` | Unique execution ID for debugging |
-| `status` | `string` | `'queued'`, `'running'`, `'completed'`, `'failed'`, `'timeout'`, `'cancelled'` |
+| `executionId` | `string` | Unique execution ID |
+| `status` | `'queued' \| 'running' \| 'completed' \| 'failed' \| 'timeout' \| 'cancelled'` | Execution status |
 | `exitCode` | `number \| undefined` | Process exit code, when available |
-| `durationMs` | `number \| undefined` | Execution duration in milliseconds, when available |
-| `stdoutStreamUrl` | `string \| undefined` | URL to fetch stdout stream |
-| `stderrStreamUrl` | `string \| undefined` | URL to fetch stderr stream |
+| `durationMs` | `number \| undefined` | Execution duration in milliseconds |
+| `stdoutStreamUrl` | `string \| undefined` | URL for stdout |
+| `stderrStreamUrl` | `string \| undefined` | URL for stderr |
+| `outputTruncated` | `boolean \| undefined` | Whether captured output was truncated |
+| `autoResumed` | `boolean \| undefined` | Whether the sandbox was resumed automatically |
 
 ### SandboxRunResult
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `sandboxId` | `string` | Sandbox ID (for debugging) |
+| `sandboxId` | `string` | Sandbox ID used for the run |
 | `exitCode` | `number` | Process exit code |
-| `durationMs` | `number` | Execution duration |
-| `stdout` | `string` | Captured stdout (if available) |
-| `stderr` | `string` | Captured stderr (if available) |
+| `durationMs` | `number` | Execution duration in milliseconds |
+| `stdout` | `string \| undefined` | Captured stdout |
+| `stderr` | `string \| undefined` | Captured stderr |
 
-### SandboxInfo
+### Snapshot Methods
 
-Returned by `ctx.sandbox.get()` and in list results:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `sandboxId` | `string` | Unique sandbox identifier |
-| `status` | `SandboxStatus` | `'creating'`, `'idle'`, `'running'`, `'paused'`, `'stopping'`, `'suspended'`, `'terminated'`, `'failed'`, `'deleted'` |
-| `createdAt` | `string` | ISO timestamp |
-| `runtime` | `SandboxRuntimeInfo` | Runtime details, when available |
-| `snapshot` | `SandboxSnapshotInfo` | Source snapshot, when available |
-| `networkPort` | `number` | Port exposed from sandbox (if configured) |
-| `url` | `string` | Public URL (when port is configured) |
-| `user` | `SandboxUserInfo` | User who created the sandbox |
-| `agent` | `SandboxAgentInfo` | Agent that created the sandbox |
-| `project` | `SandboxProjectInfo` | Associated project |
-| `org` | `SandboxOrgInfo` | Organization (always present) |
-
-Access context information from sandbox info:
-
-```typescript
-const info = await ctx.sandbox.get('sbx_abc123');
-
-// Organization is always present
-ctx.logger.info('Organization', { id: info.org.id, name: info.org.name });
-
-// User info (when created by a user)
-if (info.user) {
-  ctx.logger.info('Created by', {
-    userId: info.user.id,
-    name: `${info.user.firstName} ${info.user.lastName}`,
-  });
-}
-
-// Agent info (when created by an agent)
-if (info.agent) {
-  ctx.logger.info('Agent', { id: info.agent.id, name: info.agent.name });
-}
-
-// Project info (when associated with a project)
-if (info.project) {
-  ctx.logger.info('Project', { id: info.project.id, name: info.project.name });
-}
-```
-
-## Snapshot Management API
-
-Manage snapshots programmatically through `ctx.sandbox.snapshot`. This lets agents create, list, and manage snapshots without CLI access.
-
-### Creating Snapshots
-
-Save the current state of a sandbox as a snapshot:
-
-```typescript
-const sandbox = await ctx.sandbox.create({
-  runtime: 'node:lts',
-  network: { enabled: true },
-  resources: { memory: '1Gi' },
-});
-
-// Set up the environment
-await sandbox.execute({ command: ['npm', 'init', '-y'] });
-await sandbox.execute({ command: ['npm', 'install', 'typescript', 'zod'] });
-
-// Save as snapshot
-const snapshot = await ctx.sandbox.snapshot.create(sandbox.id, {
-  name: 'typescript-zod-env',
-  description: 'TypeScript environment with Zod validation',
-  tag: 'latest',
-  public: false,  // Keep private to your org
-});
-
-ctx.logger.info('Snapshot created', {
-  snapshotId: snapshot.snapshotId,
-  sizeBytes: snapshot.sizeBytes,
-  fileCount: snapshot.fileCount,
-});
-
-await sandbox.destroy();
-```
-
-### Listing Snapshots
-
-```typescript
-const { snapshots, total } = await ctx.sandbox.snapshot.list({
-  sandboxId: 'sbx_abc123',  // Filter by source sandbox
-  limit: 50,
-  offset: 0,
-});
-
-for (const snap of snapshots) {
-  ctx.logger.info('Snapshot', {
-    id: snap.snapshotId,
-    name: snap.name,
-    tag: snap.tag,
-    createdAt: snap.createdAt,
-  });
-}
-```
-
-### Getting Snapshot Details
-
-```typescript
-const snapshot = await ctx.sandbox.snapshot.get('snp_xyz789');
-
-ctx.logger.info('Snapshot details', {
-  name: snapshot.name,
-  sizeBytes: snapshot.sizeBytes,
-  fileCount: snapshot.fileCount,
-  files: snapshot.files,  // Array of file info
-});
-```
-
-### Tagging Snapshots
-
-Update or remove a snapshot's tag:
-
-```typescript
-// Add or update tag
-await ctx.sandbox.snapshot.tag('snp_xyz789', 'v1.0');
-
-// Point "latest" to a new snapshot
-await ctx.sandbox.snapshot.tag('snp_newversion', 'latest');
-
-// Remove tag
-await ctx.sandbox.snapshot.tag('snp_xyz789', null);
-```
-
-### Deleting Snapshots
-
-```typescript
-await ctx.sandbox.snapshot.delete('snp_xyz789');
-```
-
-### SnapshotCreateOptions
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `name` | `string` | Display name (URL-safe: letters, numbers, underscores, dashes) |
-| `description` | `string` | Description of the snapshot |
-| `tag` | `string` | Tag name (defaults to "latest") |
-| `public` | `boolean` | Make snapshot publicly accessible (default: `false`) |
-
-### SnapshotInfo
-
-Returned by create, get, and list operations:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `snapshotId` | `string` | Unique identifier |
-| `name` | `string` | Display name |
-| `tag` | `string \| null` | Current tag |
-| `sizeBytes` | `number` | Total size in bytes |
-| `fileCount` | `number` | Number of files |
-| `files` | `SnapshotFileInfo[]` | File details (path, size, mime type) |
-| `createdAt` | `string` | ISO timestamp |
-| `downloadUrl` | `string` | URL to download snapshot archive |
-| `public` | `boolean` | Whether publicly accessible |
-
-## Best Practices
-
-- **Set [resource limits](#sandboxcreateoptions)**: Control memory and CPU usage for predictable performance
-- **Use timeouts**: Always set execution timeouts for untrusted code
-- **Enable network when needed**: Required for package installation, API calls, and external requests
-- **Clean up interactive sandboxes**: Use try/finally to ensure `destroy()` is called
-- **Use snapshots for common environments**: Pre-install dependencies to reduce cold start time
-- **Tag important snapshots**: Use semantic versioning tags (`v1.0`, `latest`) for reproducibility
+| Method | Returns |
+|--------|---------|
+| `createSnapshot(sandboxId, options?)` | `Promise<SnapshotInfo>` |
+| `getSnapshot(snapshotId)` | `Promise<SnapshotInfo>` |
+| `listSnapshots(params?)` | `Promise<SnapshotListResponse>` |
+| `tagSnapshot(snapshotId, tag)` | `Promise<SnapshotInfo>` |
+| `deleteSnapshot(snapshotId)` | `Promise<void>` |
+| `getSnapshotLineage(params?)` | `Promise<SnapshotLineageResponse>` |
 
 ## Next Steps
 
-- [Snapshots](/services/sandbox/snapshots): CLI commands and declarative snapshot definitions
-- [CLI Commands](/reference/cli/sandbox): Debug sandboxes from the terminal
+- [Creating and Using Snapshots](/services/sandbox/snapshots): declarative snapshot files and CLI snapshot workflows
+- [CLI Sandbox Commands](/reference/cli/sandbox): inspect sandboxes, jobs, files, and snapshots from the terminal

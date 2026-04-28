@@ -1,22 +1,24 @@
 ---
 title: Reference
-description: SDK, API, and CLI reference documentation
+description: Reference docs for Agentuity v3 clients, framework apps, CLI, REST API, and compatibility SDK surfaces
 ---
 
-import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'lucide-react';
+import { Code, Globe, Terminal, Package, ArrowRight, Network, Github, Layers } from 'lucide-react';
+
+Use this page to choose the right v3 entry point. New apps usually start with standalone service clients inside a framework app, then use the CLI for local and deploy workflows or the REST API for non-TypeScript callers.
 
 <Cards>
   <CardLink
-    href="/reference/sdk-reference"
-    title="SDK Reference"
-    description="TypeScript method signatures for agents, routes, and services"
-    icon={<Code />}
+    href="/reference/standalone-packages"
+    title="Standalone Packages"
+    description="Install service clients for Node.js, Bun, and server framework code"
+    icon={<Package />}
   />
   <CardLink
-    href="/reference/api"
-    title="REST API Reference"
-    description="HTTP endpoints for platform services from any language"
-    icon={<Globe />}
+    href="/frameworks"
+    title="Framework Apps"
+    description="Add Agentuity services to Next.js, Hono, TanStack Start, and other apps"
+    icon={<Code />}
   />
   <CardLink
     href="/reference/cli"
@@ -25,10 +27,10 @@ import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'luc
     icon={<Terminal />}
   />
   <CardLink
-    href="/reference/standalone-packages"
-    title="Standalone Packages"
-    description="Use platform services from any Node.js or Bun app"
-    icon={<Package />}
+    href="/reference/api"
+    title="REST API Reference"
+    description="HTTP endpoints for platform services from any language"
+    icon={<Globe />}
   />
 </Cards>
 
@@ -36,17 +38,24 @@ import { Code, Globe, Terminal, Package, ArrowRight, Network, Github } from 'luc
 
 | I want to... | Use |
 |---|---|
-| Write an agent handler (`ctx.*`) | [SDK Reference](/reference/sdk-reference) |
-| Write an API route (`c.var.*`) | [SDK Reference](/reference/sdk-reference/router) |
-| Access services from Next.js, Express, or scripts | [Standalone Packages](/reference/standalone-packages) |
-| Call Agentuity services from any language via HTTP | [REST API Reference](/reference/api) |
+| Use Agentuity services from Node.js, Bun, scripts, workers, or server routes | [Standalone Packages](/reference/standalone-packages) |
+| Add Agentuity to Next.js, Hono, TanStack Start, or another framework app | [Framework Apps](/frameworks) |
 | Create, deploy, or manage projects from the terminal | [CLI Reference](/reference/cli) |
+| Call Agentuity services from any language via HTTP | [REST API Reference](/reference/api) |
+| Compare storage, messaging, observability, execution, and Coder services | [Service Guides](/services) |
+| Maintain an existing v2 runtime app that uses `createApp()`, `createAgent()`, `ctx.*`, or runtime routes | [SDK Reference](/reference/sdk-reference) |
 
-## Additional Resources
+## Compatibility and Platform References
 
-Other reference pages for platform infrastructure, upgrades, and integrations.
+The SDK reference still includes v2 runtime pages for existing apps. Treat those as compatibility references, not the default v3 path.
 
 <Cards>
+  <CardLink
+    href="/reference/sdk-reference"
+    title="SDK Reference"
+    description="Shared SDK pages plus compatibility references for existing v2 runtime apps"
+    icon={<Layers />}
+  />
   <CardLink
     href="/reference/migration-guide"
     title="Migration Guide"

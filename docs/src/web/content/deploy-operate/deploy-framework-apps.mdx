@@ -1,0 +1,133 @@
+---
+title: Deploying Framework Apps
+short_title: Deploy Framework Apps
+description: Build and deploy framework projects with the v3 Agentuity CLI.
+---
+
+Deploy a `package.json`-backed framework app after it is registered with Agentuity, has `AGENTUITY_SDK_KEY` in `.env`, and passes `agentuity build`.
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+agentuity build
+agentuity deploy
+```
+
+## Validate the Project
+
+Check the local project shape before registration:
+
+```bash
+agentuity project import --validate-only
+```
+
+This verifies that the directory looks like a JavaScript or TypeScript project without creating cloud resources or writing files. When you run `agentuity project import` without `--validate-only`, the CLI can register the project and write `agentuity.json` plus the project SDK key.
+
+Run `agentuity project import` before the first deploy for any existing app that does not already have `agentuity.json`. `agentuity deploy` expects registered project metadata before its deploy handler runs, so it is not the import step for fresh directories.
+
+## Build Locally
+
+Run your framework's native build first, then run the Agentuity packaging check:
+
+```bash
+bun run build
+agentuity build
+```
+
+The CLI detects supported JavaScript frameworks from `package.json` and framework config files. Some frameworks have dedicated handling; other app shapes use the generic web-process adapter.
+
+`agentuity build`:
+
+- detects the framework from `package.json` and framework config files
+- installs dependencies with the detected package manager
+- runs the framework build command
+- writes deployable output to `.agentuity` unless you pass `--outdir`
+- packages launch metadata so Agentuity knows how to start the app
+- runs TypeScript type checking unless you pass `--dev` or `--skip-type-check`
+
+Useful checks:
+
+```bash
+agentuity build --dev
+agentuity build --outdir .agentuity-check
+agentuity build --skip-type-check
+agentuity build --report-file build-report.json
+```
+
+`--dev` and `--skip-type-check` are useful for fast packaging checks because they skip the final typecheck step. Use the normal `agentuity build` path before deploy when you want the same verification deploy uses.
+
+See [Building Deployment Bundles](/reference/cli/build-configuration): read the detected framework, adapter name, and packaging output before you deploy.
+
+<Callout type="tip" title="Use local package binaries for build commands">
+If `agentuity build` starts from a shell where package binaries are not on `PATH`, prefix the command with your project's local bin directory:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+```
+
+Run this from the app directory after dependencies are installed.
+</Callout>
+
+<Callout type="info" title="Treat agentuity build as the deploy gate">
+Generated starters can be useful local starting points, but only deploy app shapes that pass `agentuity build` in your project. If your framework's own build passes and `agentuity build` does not, keep working locally until the Agentuity packaging step passes.
+</Callout>
+
+## Deploy
+
+Deploy from the project directory:
+
+```bash
+agentuity deploy
+```
+
+The deploy command requires an authenticated CLI session and a registered project. For an existing app, run `agentuity project import` before the first deploy so the CLI can resolve the project and local SDK key.
+
+During deploy, the CLI:
+
+1. checks that `AGENTUITY_SDK_KEY` exists in the local project environment
+2. validates deployment resource settings and configured domains
+3. attempts to sync non-reserved values from local `.env`
+4. typechecks, builds, and packages the framework output
+5. uploads the encrypted deployment bundle and static assets
+
+<Callout type="warning" title="Deploy reads the project SDK key from local env files">
+If deploy cannot find `AGENTUITY_SDK_KEY`, it exits before building. Run `agentuity cloud env pull` from a registered project when you need to restore the local `.env` file.
+</Callout>
+
+The env sync step is best effort. If syncing fails, deploy continues and reports that step as skipped.
+
+## What Gets Uploaded
+
+The deploy flow zips `.agentuity`, excludes local `.env` files from the bundle, encrypts the archive, and uploads client assets separately when the build produced them.
+
+That upload is based on the `.agentuity` output and the generated metadata file. Keep framework-specific assumptions conservative unless you have verified them in the exact project shape you are deploying.
+
+## Package Scripts
+
+Calling `agentuity deploy` directly runs the deploy command only. If you rely on package manager lifecycle scripts, call your package script instead:
+
+```json title="package.json"
+{
+  "scripts": {
+    "predeploy": "bun run typecheck",
+    "deploy": "agentuity deploy",
+    "postdeploy": "bun run notify"
+  }
+}
+```
+
+```bash
+bun run deploy
+```
+
+See [Automating Deployments with the GitHub App](/reference/github-app): linked repositories run the deploy flow from Agentuity's build environment after dependency installation.
+
+## Existing v2 Projects
+
+For v2 projects, inspect the migration CLI before changing the deploy flow:
+
+```bash
+npx @agentuity/migrate@alpha --help
+```
+
+The alpha tag includes the v2 to v3 migration command. Keep v2 projects on their existing deploy path until you have migrated and validated the v3 build.

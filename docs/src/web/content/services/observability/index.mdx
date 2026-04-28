@@ -1,73 +1,118 @@
 ---
 title: Observability
-description: Monitor and debug your agents with built-in observability tools
+description: Monitor framework apps with telemetry, sessions, and deployment logs
 ---
 
-import { FileText, GitBranch, Bug, BarChart3 } from 'lucide-react';
+import { FileText, GitBranch, Bug } from 'lucide-react';
 
-Monitor and debug your agents with built-in observability tools. Use collected logs, traces, session timelines, and web analytics to see what your app did and where it failed.
+Use observability when you need to answer what ran, how long it took, and where it failed. In v3, start with telemetry in your framework app, then use Agentuity session and deployment views to inspect what happened after it runs.
 
 <Cards>
   <CardLink
     href="/services/observability/logging"
     title="Logging"
-    description="Collected logs with searchable context"
+    description="Structured application logs"
     icon={<FileText />}
   />
   <CardLink
     href="/services/observability/tracing"
     title="Tracing"
-    description="Distributed tracing with OpenTelemetry"
+    description="OpenTelemetry spans and timing"
     icon={<GitBranch />}
   />
   <CardLink
     href="/services/observability/sessions-debugging"
     title="Sessions & Debugging"
-    description="Debug sessions and inspect state"
+    description="Session records, timelines, and logs"
     icon={<Bug />}
-  />
-  <CardLink
-    href="/services/observability/web-analytics"
-    title="Web Analytics"
-    description="Frontend page views and browser events"
-    icon={<BarChart3 />}
   />
 </Cards>
 
 ## Quick Reference
 
-### Logging
+| Need | Use |
+|------|-----|
+| application logs | `logger` from `@agentuity/telemetry` |
+| route logs in Hono | `c.var.logger` from `@agentuity/hono` |
+| custom spans | `tracer` from `@agentuity/telemetry` or `c.var.tracer` in Hono |
+| request/session history | `agentuity cloud session` and the Agentuity Console |
+| deployment output | `agentuity cloud deployment logs` |
+| browser page views and events | v2 web analytics or a framework-owned analytics tool while v3 analytics UI is finalized |
 
-```typescript
-ctx.logger.child({ userId, action }).info('Processing request');
-ctx.logger.child({ error: 'OpenAI request timed out' }).error('Failed to process');
+## Access Patterns
+
+| App Shape | Logging | Tracing | Analytics |
+|-----------|---------|---------|-----------|
+| Any server framework or script | `logger` from `@agentuity/telemetry` | `tracer` from `@agentuity/telemetry` | framework analytics |
+| Hono with `@agentuity/hono` | `c.var.logger` | `c.var.tracer` | framework analytics |
+| CLI and Console inspection | session and deployment log commands | session timeline views | v2 web analytics views |
+
+```bash
+bun add @agentuity/telemetry@alpha
 ```
 
-### Tracing
-
 ```typescript
-await ctx.tracer.startActiveSpan('fetch-data', async (span) => {
+import { logger, tracer } from '@agentuity/telemetry';
+
+logger.child({ route: 'POST /api/chat' }).info('Request received');
+
+await tracer.startActiveSpan('load-context', async (span) => {
   try {
-    span.setAttribute('source', 'api');
-    return await fetchData();
+    span.setAttribute('source', 'kv');
+    return { ready: true };
   } finally {
     span.end();
   }
 });
 ```
 
-### Sessions
+`@agentuity/telemetry` reads Agentuity environment variables in dev and deployed environments. Use explicit `register()` options when the code runs outside an Agentuity project or you want to set service metadata yourself.
 
-```typescript
-// Access session ID for debugging
-ctx.logger.child({ sessionId: ctx.sessionId }).info('Session started');
+## Hono Middleware
+
+Hono apps can install one middleware to initialize telemetry and inject Agentuity services into `c.var`.
+
+```bash
+bun add @agentuity/hono@alpha @opentelemetry/api hono
 ```
 
-## Access Patterns
+```typescript
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import type { Logger } from '@agentuity/hono';
+import type { Tracer } from '@opentelemetry/api';
 
-| Context | Logger | Tracer |
-|---------|--------|--------|
-| Agents | `ctx.logger` | `ctx.tracer` |
-| Routes | `c.var.logger` | `c.var.tracer` |
+interface Env {
+  readonly Variables: {
+    readonly logger: Logger;
+    readonly tracer: Tracer;
+  };
+}
 
-Agent session IDs are derived from trace IDs with a `sess_` prefix, so session logs and timelines line up in the [Agentuity Console](https://app.agentuity.com).
+const app = new Hono<Env>();
+
+app.use('*', agentuity({ telemetry: { logLevel: 'info' } }));
+
+app.get('/health', (c) => {
+  c.var.logger.info('Health check');
+  return c.json({ ok: true });
+});
+
+export default app;
+```
+
+## Sessions
+
+Sessions are platform observability records. The v3 framework docs do not teach runtime `ctx.session` or `ctx.thread` as the default app API, but the CLI and Console can inspect session records created by deployed or dev-mode framework requests when that data is available.
+
+```bash
+agentuity cloud session list
+agentuity cloud session get sess_abc123xyz
+agentuity cloud session logs sess_abc123xyz
+```
+
+## Next Steps
+
+- [Logging](/services/observability/logging): write structured server logs
+- [Tracing](/services/observability/tracing): add OpenTelemetry spans around important work
+- [Sessions & Debugging](/services/observability/sessions-debugging): inspect session records, timelines, and logs

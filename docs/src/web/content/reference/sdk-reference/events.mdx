@@ -1,10 +1,16 @@
 ---
-title: Event System
+title: Event System (v2 Compatibility)
 short_title: Events
-description: Lifecycle hooks for monitoring agent, session, and thread events
+description: Compatibility reference for v2 runtime lifecycle event APIs
 ---
 
-The runtime exposes three event layers: agent-scoped listeners attached to a specific agent, global listeners registered with the top-level event bus, and instance listeners on `ctx.session` and `ctx.thread`. Use agent listeners for local instrumentation, global listeners for app-wide analytics or cleanup, and session or thread listeners when you want to react to the lifecycle of a specific run.
+This page documents v2 runtime lifecycle hooks from `@agentuity/runtime`, including agent-scoped listeners, global listeners, and `ctx.session` or `ctx.thread` listeners. In v3 apps, start with [Observability](/services/observability) and [Frameworks](/frameworks): use framework lifecycle hooks, logs, traces, and platform session inspection instead of runtime event listeners.
+
+<Callout type="info" title="Keep runtime events for existing apps">
+The event examples below still work for existing v2 runtime apps. New v3 code usually puts lifecycle behavior in framework hooks, middleware, queue consumers, or telemetry instrumentation.
+</Callout>
+
+The v2 runtime exposes three event layers: agent-scoped listeners attached to a specific agent, global listeners registered with the top-level event bus, and instance listeners on `ctx.session` and `ctx.thread`. Use agent listeners for local instrumentation, global listeners for app-wide analytics or cleanup, and session or thread listeners when you want to react to the lifecycle of a specific run.
 
 ## Agent Events
 

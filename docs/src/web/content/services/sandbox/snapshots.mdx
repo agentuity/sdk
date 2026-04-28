@@ -1,320 +1,256 @@
 ---
 title: Creating and Using Snapshots
 short_title: Snapshots
-description: Save and restore sandbox filesystem states for faster cold starts
+description: Save sandbox filesystem states and reuse them as bases for new sandboxes
 ---
 
-Skip slow dependency installation on every run by saving sandbox filesystem states as snapshots.
+Use snapshots when a sandbox needs the same dependencies or files on many runs. Create the environment once, save it, then start future sandboxes from that snapshot.
 
-Manage snapshots via the [Web App](https://app.agentuity.com) under **Services > Sandbox > Snapshots**, the [SDK](/services/sandbox/sdk-usage), or [CLI](/reference/cli/sandbox).
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
 
-<Callout type="warning" title="Snapshots Are Not Executable">
-A snapshot captures the filesystem state of a sandbox at a point in time. You create new sandboxes *from* snapshots, not run them directly.
-</Callout>
+const client = new SandboxClient();
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  network: { enabled: true },
+});
 
-<Callout type="info" title="Snapshots are different from checkpoints">
-Snapshots are reusable bases for new sandboxes. Checkpoints belong to one sandbox and support pause, resume, restore, and delete workflows.
+try {
+  await sandbox.execute({ command: ['bun', 'init', '-y'] });
+  await sandbox.execute({ command: ['bun', 'add', 'zod'] });
+
+  const snapshot = await client.createSnapshot(sandbox.id, {
+    name: 'bun-zod',
+    tag: 'bun-zod',
+    description: 'Bun project with Zod installed',
+  });
+
+  console.log(snapshot.snapshotId);
+} finally {
+  await sandbox.destroy();
+}
+```
+
+<Callout type="warning" title="Create sandboxes from snapshots">
+A snapshot is not executable by itself. Use the snapshot ID or tag in `client.create({ snapshot })`.
 </Callout>
 
 ## How Snapshots Work
 
-Snapshots build on top of [runtimes](/services/sandbox#runtimes). When you create a snapshot:
+Snapshots build on top of [runtimes](/services/sandbox#runtimes). A snapshot captures the runtime layer plus the files and dependencies present in the sandbox workspace.
 
-1. Start with a **runtime** (e.g., `bun:1`) as the base layer
-2. Add your **dependencies** (apt packages, npm modules, etc.)
-3. Include your **files** (source code, config)
-4. The snapshot captures everything: runtime + dependencies + files
+Create a new sandbox from a snapshot:
 
-When you create a sandbox from a snapshot, it starts with all of this pre-configured.
+```typescript
+const sandbox = await client.create({
+  snapshot: 'bun-zod',
+  resources: { memory: '512Mi' },
+});
 
-## The Snapshot Workflow
+try {
+  const execution = await sandbox.execute({
+    command: ['bun', 'run', 'index.ts'],
+  });
 
-1. Create a sandbox
-2. Install dependencies and configure the environment
-3. Save a snapshot (captures the filesystem state)
-4. Later, create new sandboxes from that snapshot
-5. New sandboxes start with everything pre-configured
+  console.log(execution.exitCode);
+} finally {
+  await sandbox.destroy();
+}
+```
 
-## Declarative Snapshots (Recommended)
+When `snapshot` is set, do not also set `runtime` or `runtimeId`. The snapshot already includes its base runtime.
 
-Define snapshots in a YAML file for reproducible, version-controlled environments. This approach is ideal for CI/CD pipelines and team collaboration.
+## Declarative Snapshots
 
-### Quick Start
-
-Generate a template with helpful comments explaining each field:
+Use a snapshot file when you want the environment definition in version control.
 
 ```bash
 agentuity cloud sandbox snapshot generate > agentuity-snapshot.yaml
 ```
 
-The generated file includes documentation for runtime selection, apt dependencies, npm/bun packages, file patterns, environment variables, and metadata. Customize it for your needs, then build:
-
-```bash
-agentuity cloud sandbox snapshot build .
-```
-
-### Build File Example
+The generated file includes commented fields for the runtime, dependencies, packages, included files, environment variables, and metadata. A minimal file looks like this:
 
 ```yaml
 version: 1
-runtime: bun:1  # Base runtime - snapshot layers on top of this
-description: Node.js environment with common dependencies
+runtime: bun:1
+name: bun-zod
+description: Bun project with Zod installed
 
-dependencies:  # Apt packages to install
-  - curl
-  - jq
+packages:
+  - zod
 
-packages:  # npm/bun packages to install globally
-  - typescript
-
-files:  # Files to include from your project
+files:
   - src/**
   - package.json
-  - "!**/*.test.ts"    # Exclude test files
-  - "!node_modules/**" # Exclude node_modules
+  - "!**/*.test.ts"
+  - "!node_modules/**"
 
 env:
-  NODE_ENV: production
+  NODE_ENV: test
 ```
 
-### Build Options
+Build it from the directory that contains the files you want to include:
 
 ```bash
-# Build with a custom build file
+agentuity cloud sandbox snapshot build . --tag bun-zod
+```
+
+Common build options:
+
+```bash
+# Use a custom build file
 agentuity cloud sandbox snapshot build ./project --file custom-build.yaml
 
-# Build with a custom tag
-agentuity cloud sandbox snapshot build . --tag production
+# Override the tag
+agentuity cloud sandbox snapshot build . --tag staging
 
-# Build with environment variable substitution
+# Substitute values used by the snapshot file
 agentuity cloud sandbox snapshot build . --env API_KEY=secret
 
-# Add metadata substitution
+# Attach metadata
 agentuity cloud sandbox snapshot build . --metadata VERSION=1.0.0
 
-# Force rebuild even if content unchanged
+# Upload even when the content hash matches an existing snapshot
 agentuity cloud sandbox snapshot build . --force
 ```
 
-### When to Use Declarative vs Manual
+## Manual Snapshots
 
-| Approach | Best For |
-|----------|----------|
-| **Declarative** | CI/CD pipelines, reproducible environments, team collaboration, version control |
-| **Manual** | Quick experimentation, one-off debugging, exploring new configurations |
-
-## Creating a Snapshot Manually
-
-Create a sandbox, configure it, then save a snapshot:
+Manual snapshots are useful while you are exploring an environment from the CLI.
 
 ```bash
-# Create a sandbox with a runtime
 agentuity cloud sandbox create --runtime bun:1 --memory 1Gi --network
 # Returns: sbx_abc123
 
-# Install dependencies
-agentuity cloud sandbox exec sbx_abc123 -- npm init -y
-agentuity cloud sandbox exec sbx_abc123 -- npm install typescript zod
+agentuity cloud sandbox exec sbx_abc123 -- bun init -y
+agentuity cloud sandbox exec sbx_abc123 -- bun add zod
 
-# Create snapshot with a tag
-agentuity cloud sandbox snapshot create sbx_abc123 --tag node-typescript
-
-# Clean up the original sandbox
+agentuity cloud sandbox snapshot create sbx_abc123 --name bun-zod --tag bun-zod
 agentuity cloud sandbox delete sbx_abc123
 ```
 
-## Using Snapshots in Code
-
-Create sandboxes from snapshots using the `snapshot` option:
+You can do the same from code:
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  network: { enabled: true },
+});
 
-const agent = createAgent('TypeScriptRunner', {
-  handler: async (ctx, input) => {
-    // Create sandbox from snapshot - dependencies already installed
-    const sandbox = await ctx.sandbox.create({
-      snapshot: 'node-typescript',  // Use tag or snapshot ID
-      resources: { memory: '512Mi' },
-    });
+try {
+  await sandbox.execute({ command: ['bun', 'init', '-y'] });
+  await sandbox.execute({ command: ['bun', 'add', 'zod'] });
 
-    try {
-      // Write the user's code
-      await sandbox.writeFiles([
-        { path: 'index.ts', content: Buffer.from(input.code) },
-      ]);
+  const snapshot = await client.createSnapshot(sandbox.id, {
+    name: 'bun-zod',
+    tag: 'bun-zod',
+  });
 
-      // Run immediately - no npm install needed
-      const result = await sandbox.execute({
-        command: ['npx', 'tsx', 'index.ts'],
-      });
+  console.log(snapshot.snapshotId);
+} finally {
+  await sandbox.destroy();
+}
+```
 
-      return { success: true, exitCode: result.exitCode };
-    } catch (error) {
-      ctx.logger.error('Sandbox execution failed', { error });
-      return { success: false, exitCode: -1, error: String(error) };
-    } finally {
-      await sandbox.destroy();
-    }
-  },
+## Managing Snapshots
+
+List and inspect snapshots with `SandboxClient`:
+
+```typescript
+const { snapshots, total } = await client.listSnapshots({
+  limit: 20,
+  offset: 0,
+  sort: 'created',
+  direction: 'desc',
+});
+
+console.log('total snapshots:', total);
+
+for (const snapshot of snapshots) {
+  console.log(snapshot.snapshotId, snapshot.name, snapshot.tag ?? '');
+}
+
+const snapshot = await client.getSnapshot('snp_xyz789');
+console.log({
+  name: snapshot.name,
+  sizeBytes: snapshot.sizeBytes,
+  fileCount: snapshot.fileCount,
 });
 ```
 
-## CLI Commands
+Update or remove a tag:
 
-### Create Snapshot
-
-```bash
-agentuity cloud sandbox snapshot create <sandbox-id> [options]
-
-# Examples
-agentuity cloud sandbox snapshot create sbx_abc123
-agentuity cloud sandbox snapshot create sbx_abc123 --tag python-ml
-agentuity cloud sandbox snapshot create sbx_abc123 --name python-ml --description "Python data tools"
-agentuity cloud sandbox snapshot create sbx_abc123 --public
+```typescript
+await client.tagSnapshot('snp_xyz789', 'v1.0');
+await client.tagSnapshot('snp_xyz789', null);
 ```
 
-### List Snapshots
+Delete a snapshot when you no longer need it:
+
+```typescript
+await client.deleteSnapshot('snp_xyz789');
+```
+
+From the CLI:
 
 ```bash
-agentuity cloud sandbox snapshot list [--sandbox <id>] [--limit <n>]
-
-# Examples
 agentuity cloud sandbox snapshot list
 agentuity cloud sandbox snapshot list --sandbox sbx_abc123
-```
-
-### Get Snapshot Details
-
-```bash
-agentuity cloud sandbox snapshot get <snapshot-id>
-
-# Shows file listing, size, and sandboxes using this snapshot
-```
-
-### Tag a Snapshot
-
-```bash
-agentuity cloud sandbox snapshot tag <snapshot-id> <tag-name>
-agentuity cloud sandbox snapshot tag <snapshot-id> --clear
-
-# Examples
+agentuity cloud sandbox snapshot get snp_xyz789
 agentuity cloud sandbox snapshot tag snp_xyz789 v1.0
-agentuity cloud sandbox snapshot tag snp_xyz789 latest
-agentuity cloud sandbox snapshot tag snp_xyz789 --clear  # Remove tag
-```
-
-### Delete Snapshot
-
-```bash
-agentuity cloud sandbox snapshot delete <snapshot-id> [--confirm]
-
-# Example
+agentuity cloud sandbox snapshot tag snp_xyz789 --clear
 agentuity cloud sandbox snapshot delete snp_xyz789 --confirm
 ```
 
-### Create Sandbox from Snapshot
+## Versioned Environments
+
+Use tags when callers should not need to know snapshot IDs.
 
 ```bash
-agentuity cloud sandbox create --snapshot <id-or-tag> [options]
-
-# Examples
-agentuity cloud sandbox create --snapshot node-typescript
-agentuity cloud sandbox create --snapshot snp_xyz789 --memory 1Gi
-```
-
-## Use Cases
-
-### Pre-configured Language Environments
-
-Create snapshots for each language you support:
-
-```bash
-# Python with common packages
-agentuity cloud sandbox create --runtime base:latest --network
-agentuity cloud sandbox exec sbx_... -- apt-get update
-agentuity cloud sandbox exec sbx_... -- apt-get install -y python3 python3-pip
-agentuity cloud sandbox exec sbx_... -- pip install numpy pandas requests
-agentuity cloud sandbox snapshot create sbx_... --tag python-data
-
-# Node.js with TypeScript
-agentuity cloud sandbox create --runtime bun:1 --network
-agentuity cloud sandbox exec sbx_... -- npm install -g typescript tsx
-agentuity cloud sandbox snapshot create sbx_... --tag node-typescript
-```
-
-Then use in your agent:
-
-```typescript
-const languageSnapshots: Record<string, string> = {
-  python: 'python-data',
-  typescript: 'node-typescript',
-  javascript: 'node-typescript',
-};
-
-const sandbox = await ctx.sandbox.create({
-  snapshot: languageSnapshots[input.language],
-});
-```
-
-### Version-controlled Environments
-
-Use tags for versioning:
-
-```bash
-# Create v1.0
-agentuity cloud sandbox snapshot create sbx_... --tag project-env-v1.0
-
-# Later, create v2.0 with updated dependencies
-agentuity cloud sandbox snapshot create sbx_... --tag project-env-v2.0
-
-# Keep "latest" pointing to current version
+agentuity cloud sandbox snapshot create sbx_abc123 --name project-env --tag project-env-v1
+agentuity cloud sandbox snapshot create sbx_def456 --name project-env --tag project-env-v2
 agentuity cloud sandbox snapshot tag snp_newid latest
 ```
 
-### Faster Cold Starts
-
-Without snapshots, every sandbox creation requires dependency installation:
+Then choose the tag from code:
 
 ```typescript
-// Slow: Install dependencies every time
-const sandbox = await ctx.sandbox.create({ network: { enabled: true } });
-await sandbox.execute({ command: ['npm', 'install'] });  // 30+ seconds
-await sandbox.execute({ command: ['npm', 'run', 'build'] });
+const sandbox = await client.create({
+  snapshot: 'latest',
+});
 ```
 
-With snapshots:
+## What Snapshots Include
+
+Snapshots include:
+
+- files in the sandbox workspace
+- installed dependencies and packages
+- file permissions and directory structure
+- environment variables from a declarative snapshot build file
+
+Snapshots do not include running processes or active network connections. For manual snapshots, pass environment variables again when you create or run the next sandbox.
+
+## Snapshots vs Checkpoints
+
+Snapshots are reusable bases for new sandboxes. Checkpoints belong to one sandbox and let you restore that same sandbox to a previous filesystem state.
 
 ```typescript
-// Fast: Dependencies already installed
-const sandbox = await ctx.sandbox.create({ snapshot: 'project-deps' });
-await sandbox.execute({ command: ['npm', 'run', 'build'] });  // Immediate
+const checkpoint = await client.createDiskCheckpoint(sandbox.id, 'before-upgrade');
+
+await sandbox.execute({ command: ['bun', 'add', 'typescript'] });
+await checkpoint.restore();
+await checkpoint.delete();
 ```
-
-## Snapshot Data
-
-When you create a snapshot, it captures:
-
-- All files in the sandbox workspace
-- Installed packages and dependencies
-- File permissions and structure
-- Environment variables from a declarative snapshot build file
-
-Snapshots don't include:
-
-- Running processes
-- Network connections
-
-For manual snapshots created from a sandbox, set runtime environment variables when you create or run the next sandbox. Declarative snapshot builds can include `env` values in the build file, or substitute them at build time with `--env KEY=VALUE`.
 
 ## Best Practices
 
-- **Tag important snapshots**: Use descriptive tags like `python-ml-v2` instead of relying on IDs
-- **Keep snapshots lean**: Only include necessary dependencies to minimize size
-- **Version your snapshots**: Use semantic versioning tags for reproducibility
-- **Clean up unused snapshots**: Delete snapshots you no longer need
+- Use snapshots for dependencies that are expensive to install repeatedly.
+- Keep snapshot contents small. Include only files and packages needed by the run.
+- Tag snapshots that application code will reference, such as `latest`, `v1.0`, or `python-data-v2`.
+- Delete old snapshots once no active workflow depends on them.
 
 ## Next Steps
 
-- [SDK Usage](/services/sandbox/sdk-usage): File I/O, streaming, and advanced configuration options
-- [CLI Commands](/reference/cli/sandbox): Debug sandboxes and manage snapshots from the terminal
+- [Using the Sandbox API](/services/sandbox/sdk-usage): file I/O, jobs, checkpoints, and method reference tables
+- [CLI Sandbox Commands](/reference/cli/sandbox): manage sandbox resources from the terminal

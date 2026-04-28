@@ -1,86 +1,90 @@
 ---
 title: Choosing Authentication
 short_title: Authentication
-description: Choose between Sign in with Agentuity and app-owned authentication for routes and apps
+description: Choose between Agentuity OIDC and framework-owned authentication for v3 apps
 ---
 
-import { KeyRound, Monitor, ShieldCheck, Terminal } from 'lucide-react';
+import { KeyRound, Monitor, Server, Terminal } from 'lucide-react';
 
-Choose the auth path based on who owns identity. For new apps that should let users sign in with their Agentuity account, start with [Sign in with Agentuity](/services/oidc-provider). Use `@agentuity/auth` when you need app-owned sessions, API keys, or bearer tokens.
+In v3, your framework owns the user session. Use Agentuity OIDC when users should sign in with their Agentuity account or grant scoped Agentuity access. Use your framework or auth provider when your app owns users, teams, roles, and sessions.
 
-## Which Auth Path Should I Use?
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface AppUser {
+  readonly id: string;
+  readonly email: string;
+}
+
+interface AppSession {
+  readonly user: AppUser;
+}
+
+interface Preferences {
+  readonly theme: 'light' | 'dark';
+}
+
+declare function getSession(request: Request): Promise<AppSession | null>;
+
+const kv = new KeyValueClient();
+
+export async function getPreferences(request: Request): Promise<Response> {
+  const session = await getSession(request);
+
+  if (!session) {
+    return Response.json({ error: 'Sign in required' }, { status: 401 });
+  }
+
+  const result = await kv.get<Preferences>('user-preferences', session.user.id);
+
+  return Response.json({
+    user: session.user,
+    preferences: result.exists ? result.data : { theme: 'light' } satisfies Preferences,
+  });
+}
+```
+
+Keep `AGENTUITY_SDK_KEY`, OAuth client secrets, and refresh tokens on the server. Browser code should call your framework routes, not Agentuity service APIs directly.
+
+## Pick the Auth Path
 
 | Need | Use | Start Here |
 |------|-----|------------|
 | Users sign in with their Agentuity account | Agentuity OIDC provider | [Sign in with Agentuity](/services/oidc-provider) |
-| Users grant scoped access to Agentuity resources | Agentuity OIDC provider and OAuth scopes | [Sign in with Agentuity](/services/oidc-provider#scopes-and-consent) |
-| Your app owns users, sessions, API keys, or bearer tokens | `@agentuity/auth` | [Quick Start](#quick-start-with-agentuityauth) |
-| Manage OAuth app credentials and scopes | CLI or REST API | [CLI OAuth commands](/reference/cli/oauth) |
+| Users grant scoped access to Agentuity resources | Agentuity OIDC provider with OAuth scopes | [Scopes and Consent](/services/oidc-provider#scopes-and-consent) |
+| Your app already owns users and sessions | Your framework or auth provider | [Framework-Owned Sessions](#framework-owned-sessions) |
+| Server routes call Agentuity services | Agentuity service clients with server env vars | [App Configuration](/get-started/app-configuration#environment-variables) |
+| Manage OAuth app credentials | CLI or REST API | [CLI OAuth Commands](/reference/cli/oauth) |
 
-## Quick Start with `@agentuity/auth`
+## Framework-Owned Sessions
 
-Install the auth and drizzle packages:
+Most v3 apps should authenticate users before they reach Agentuity service calls:
+
+1. Your auth provider signs the user in.
+2. Your framework stores a session cookie or server-side session.
+3. Your route handler validates that session.
+4. The route handler calls Agentuity service clients with server-only credentials.
+
+That shape works with Next.js, TanStack Start, Hono, Remix, SvelteKit, Nuxt, Astro, and custom backends because Agentuity services do not require a specific auth package in the request path.
+
+## Sign in with Agentuity
+
+Use Agentuity OIDC when Agentuity is the identity provider for the sign-in step, or when your app needs a user's consent to access Agentuity resources.
 
 ```bash
-bun add @agentuity/auth @agentuity/drizzle
+agentuity cloud oidc create \
+  --name "My App" \
+  --homepage-url "https://example.com" \
+  --type confidential \
+  --redirect-uris "https://example.com/auth/callback" \
+  --scopes "openid,profile,email"
 ```
 
-<Tabs items={["Server Setup", "Agent Handler"]}>
-<Tab value="Server Setup">
-Create an auth instance, mount the auth routes, and protect your API with session middleware:
+The callback route still creates your app's local session. Agentuity handles the identity check, consent screen, client credentials, scopes, and token endpoints.
 
-```typescript title="src/api/index.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { createAuth, mountAuthRoutes, createSessionMiddleware } from '@agentuity/auth';
-
-const auth = createAuth({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const router = new Hono<Env>();
-
-// Expose sign-in, sign-up, session, and token endpoints
-router.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
-
-// Require a valid session for all other API routes
-router.use('/api/*', createSessionMiddleware(auth));
-
-export default router;
-```
-</Tab>
-<Tab value="Agent Handler">
-When middleware is configured, `ctx.auth` is available in every agent handler:
-
-```typescript title="src/agent/protected/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-
-export default createAgent('protected', {
-  handler: async (ctx, input) => {
-    if (!ctx.auth) {
-      ctx.logger.warn('unauthenticated request');
-      return { error: 'Please sign in' };
-    }
-
-    const user = await ctx.auth.getUser();
-    ctx.logger.info('authenticated request', { userId: user.id });
-
-    return { greeting: `Hello, ${user.name}` };
-  },
-});
-```
-</Tab>
-</Tabs>
-
-## Auth Methods
-
-| Method | When to Use | How It Works |
-|--------|------------|--------------|
-| Session | Browser users with a login flow | Cookie-based, managed by BetterAuth |
-| API Key | Server-to-server or CLI tools | Header: `x-agentuity-auth-api-key` or `Authorization: ApiKey <key>` |
-| Bearer Token | JWT-based service auth | Header: `Authorization: Bearer <token>` |
-
-You can check which method authenticated a request with `ctx.auth.authMethod`, which returns `'session'`, `'api-key'`, or `'bearer'`.
+<Callout type="info" title="v2 auth remains supported for existing apps">
+Existing v2 apps that use `@agentuity/auth` can keep using the v2 path. For new v3 work, start with framework-owned auth or Agentuity OIDC instead of adding `@agentuity/auth` as the default session layer.
+</Callout>
 
 ## Auth in Different Contexts
 
@@ -88,113 +92,32 @@ You can check which method authenticated a request with `ctx.auth.authMethod`, w
   <CardLink
     href="/services/oidc-provider"
     title="Sign in with Agentuity"
-    description="Let users authenticate with Agentuity and grant scoped access"
+    description="Redirect users to Agentuity, receive a code, and create your app session"
     icon={<KeyRound />}
   />
   <CardLink
-    href="/frontend/authentication"
-    title="React Frontend"
-    description="AuthProvider, useAuth hooks, and login forms for browser apps"
+    href="/services/authentication#framework-owned-sessions"
+    title="Frontend Auth"
+    description="Keep browser auth state in your framework and call your own routes"
     icon={<Monitor />}
   />
   <CardLink
-    href="/reference/sdk-reference/context-api#authentication"
-    title="Agent Handlers"
-    description="Full ctx.auth reference with method signatures and return types"
-    icon={<ShieldCheck />}
+    href="/frameworks/hono"
+    title="Hono"
+    description="Add Agentuity service clients to Hono routes with middleware"
+    icon={<Server />}
   />
   <CardLink
     href="/reference/cli/oauth"
     title="CLI OAuth"
-    description="Create and manage OAuth/OIDC applications from the command line"
+    description="Create OAuth apps, rotate secrets, and inspect connected users"
     icon={<Terminal />}
   />
 </Cards>
 
-## Default Plugins
-
-Agentuity Auth includes four plugins automatically:
-
-| Plugin | Purpose |
-|--------|---------|
-| `organization` | Multi-tenancy with teams, roles, and invitations |
-| `jwt` | JWT token generation with a JWKS endpoint |
-| `bearer` | Bearer token auth via the `Authorization` header |
-| `apiKey` | API key authentication for programmatic access |
-
-<Callout type="tip" title="Full Control Over Plugins">
-Pass `skipDefaultPlugins: true` to `createAuth()` and add only the plugins you need. This is useful when you want a minimal setup or need to customize plugin options.
-</Callout>
-
-## Database Setup
-
-Agentuity Auth needs a PostgreSQL database to store users, sessions, and keys.
-
-**Connection string (simplest).** Provide a URL and Agentuity creates the Drizzle adapter with the default resilient Postgres pool:
-
-```typescript
-import { createAuth } from '@agentuity/auth';
-
-const auth = createAuth({
-  connectionString: process.env.DATABASE_URL,
-});
-```
-
-**Bring your own adapter.** If you already have a Drizzle setup, pass it directly:
-
-```typescript
-import { createAuth } from '@agentuity/auth';
-import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
-import * as authSchema from '@agentuity/auth/schema';
-import * as appSchema from './schema';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-  return value;
-}
-
-const schema = { ...authSchema, ...appSchema };
-const { db } = createPostgresDrizzle({
-  connectionString: requireEnv('DATABASE_URL'),
-  schema,
-});
-
-const auth = createAuth({
-  database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
-});
-```
-
-<Callout type="info" title="Schema Exports">
-The `@agentuity/auth/schema` export provides all auth-related Drizzle tables: `user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`, and `apiKey`.
-</Callout>
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | **Required** |
-| `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
-| `AGENTUITY_CLOUD_BASE_URL` | Platform-provided base URL for auth callbacks | Checked before `AGENTUITY_BASE_URL` |
-| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Checked before `BETTER_AUTH_URL` |
-
-By default, trusted origins include the resolved base URL, the incoming request origin, `AGENTUITY_CLOUD_DOMAINS`, and `AUTH_TRUSTED_DOMAINS`. `AGENTUITY_BASE_URL` is also trusted when set, even if `AGENTUITY_CLOUD_BASE_URL` supplied the resolved base URL. Passing `trustedOrigins` to `createAuth()` replaces that default list.
-
-<Callout type="warning" title="Replace Dev Secrets Before Deploying">
-Generate a secure secret with `openssl rand -hex 32` and store it in your environment variables before deploying.
-</Callout>
-
-## Sign in with Agentuity
-
-Use the Agentuity OIDC provider when your app should redirect users to Agentuity, receive an authorization code, and create its own local app session from the returned profile. The provider handles identity, consent, OAuth apps, scopes, and tokens.
-
-See [Sign in with Agentuity](/services/oidc-provider) for the route example, token storage pattern, and OAuth app setup.
-
 ## Next Steps
 
-- [Sign in with Agentuity](/services/oidc-provider): Add Agentuity account sign-in and scoped access
-- [React Frontend Auth](/frontend/authentication): AuthProvider setup, useAuth hooks, and sign-in/sign-up forms
-- [ctx.auth Reference](/reference/sdk-reference/context-api#authentication): Complete method signatures and return types
-- [CLI OAuth Commands](/reference/cli/oauth): Create and manage OAuth/OIDC applications
+- [Sign in with Agentuity](/services/oidc-provider): add Agentuity account sign-in and scoped access
+- [Framework-Owned Sessions](/services/authentication#framework-owned-sessions): wire browser UI to server-owned sessions
+- [CLI OAuth Commands](/reference/cli/oauth): create and manage OAuth/OIDC applications
+- [App Configuration](/get-started/app-configuration#environment-variables): keep service keys in local and deployed environments

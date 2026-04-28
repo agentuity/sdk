@@ -34,6 +34,12 @@ export interface FrameworkDefinition {
 	buildCommand: string | null;
 	/** Default output directory for static assets */
 	outputDirectory: string | null;
+	/** Command to launch the copied build output */
+	startCommand?: string;
+	/** Server entrypoint after the output directory is copied */
+	serverEntry?: string;
+	/** Runtime used by the launch command */
+	runtime?: 'node' | 'bun';
 	/**
 	 * Static/CDN asset directory, relative to the project root.
 	 *
@@ -87,7 +93,9 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'Nuxt',
 		slug: 'nuxt',
 		buildCommand: 'nuxt build',
-		outputDirectory: 'dist',
+		outputDirectory: '.output',
+		startCommand: 'node server/index.mjs',
+		serverEntry: 'server/index.mjs',
 		staticDir: '.output/public', // Nitro output; static assets served from here
 		envPrefix: 'NUXT_ENV_',
 		detectors: {
@@ -118,6 +126,8 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'react-router',
 		buildCommand: 'react-router build',
 		outputDirectory: 'build',
+		startCommand: 'node node_modules/.bin/react-router-serve ./server/index.js',
+		serverEntry: 'server/index.js',
 		staticDir: 'build/client', // Client-side assets
 		detectors: {
 			some: [
@@ -132,7 +142,9 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'SvelteKit',
 		slug: 'sveltekit',
 		buildCommand: 'vite build',
-		outputDirectory: 'public',
+		outputDirectory: 'build',
+		startCommand: 'node index.js',
+		serverEntry: 'index.js',
 		staticDir: 'build/client', // adapter-node client assets
 		detectors: {
 			every: [
@@ -148,7 +160,9 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'astro',
 		buildCommand: 'astro build',
 		outputDirectory: 'dist',
-		staticDir: null, // Entire dist/ is static (SSG default); dist/client/ for SSR
+		startCommand: 'node server/entry.mjs',
+		serverEntry: 'server/entry.mjs',
+		staticDir: 'dist/client',
 		envPrefix: 'PUBLIC_',
 		detectors: {
 			every: [{ matchPackage: 'astro' }],
@@ -316,6 +330,9 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		slug: 'vite',
 		buildCommand: 'vite build',
 		outputDirectory: 'dist',
+		startCommand: 'NODE_ENV=production bun server.js',
+		serverEntry: 'server.js',
+		runtime: 'bun',
 		staticDir: null, // Entire dist/ is static output
 		envPrefix: 'VITE_',
 		detectors: {

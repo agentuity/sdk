@@ -237,13 +237,13 @@ When calling finish_research, write a clear 2-3 paragraph summary that synthesiz
 
 ## When to Use Direct Provider SDKs
 
-The [AI SDK](/agents/ai-sdk-integration) provides a unified interface across providers, which is the right default for most agents. Use a provider SDK directly when you need:
+The [AI SDK](/patterns/agents-as-a-pattern) provides a unified interface across providers, which is the right default for most agents. Use a provider SDK directly when you need:
 
 - Full access to provider-specific features (streaming events, content block types, caching)
 - Precise control over the message format and conversation structure
 - Minimal abstraction for debugging or learning how tool calling works
 
-Both approaches work with `createAgent()` and the [AI Gateway](/agents/ai-gateway). When you run with an Agentuity SDK key through `agentuity dev` or a deployed Agentuity app, provider SDK calls route through the AI Gateway. If you set provider API keys directly, those SDKs talk to the provider.
+Both approaches work with `createAgent()` and the [AI Gateway](/services/ai-gateway). When you run with an Agentuity SDK key through `agentuity dev` or a deployed Agentuity app, provider SDK calls route through the AI Gateway. If you set provider API keys directly, those SDKs talk to the provider.
 
 <Callout type="tip" title="Full Working Example">
 See the [Research Agent](https://github.com/agentuity/examples/tree/main/features/research-agent) example for the complete implementation with a React frontend, SSE streaming, and topic input UI.
@@ -251,7 +251,7 @@ See the [Research Agent](https://github.com/agentuity/examples/tree/main/feature
 
 ## Next Steps
 
-- [AI SDK Integration](/agents/ai-sdk-integration): The unified approach to tool calling across providers
-- [AI Gateway](/agents/ai-gateway): How LLM calls are routed, observed, and billed
+- [AI SDK Integration](/patterns/agents-as-a-pattern): The unified approach to tool calling across providers
+- [AI Gateway](/services/ai-gateway): How LLM calls are routed, observed, and billed
 - [Understanding Agents](/cookbook/tutorials/understanding-agents): The agent loop concept explained
-- [Creating Agents](/agents/creating-agents): Agent schemas, handlers, and lifecycle
+- [Creating Agents](/patterns/agents-as-a-pattern): Agent schemas, handlers, and lifecycle

@@ -1,207 +1,164 @@
 ---
 title: Chat with Conversation History
 short_title: Chat with History
-description: Build a chat agent that remembers previous messages using thread state
+description: Store chat history with key-value storage from a framework route
 ---
 
-Use thread state to keep conversation history across multiple requests. Thread state expires after 1 hour of inactivity, which fits short-lived chat sessions.
+Use key-value storage when a chat route needs to remember recent turns. In v3, keep the route in your framework and store the conversation under an explicit `conversationId`.
 
-## The Pattern
+```bash
+bun add hono openai @agentuity/keyvalue@alpha @agentuity/schema@alpha
+```
 
-Store each turn in `ctx.thread.state`, then pass the saved messages back to the model on the next request. Each browser session gets its own thread, so conversations stay separate.
-
-```typescript title="src/agent/chat/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { streamText } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import OpenAI from 'openai';
+import { KeyValueClient } from '@agentuity/keyvalue';
 import { s } from '@agentuity/schema';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
+const chatRequestSchema = s.object({
+  conversationId: s.string(),
+  message: s.string(),
+});
+
+const messageSchema = s.object({
+  role: s.enum(['user', 'assistant']),
+  content: s.string(),
+});
+
+const historySchema = s.array(messageSchema);
+
+type ChatMessage = s.infer<typeof messageSchema>;
+
+const HISTORY_NAMESPACE = 'chat-history';
+const HISTORY_LIMIT = 20;
+const HISTORY_TTL_SECONDS = 60 * 60 * 24 * 30;
+
+const app = new Hono();
+const kv = new KeyValueClient();
+const openai = new OpenAI();
+
+async function readHistory(conversationId: string): Promise<readonly ChatMessage[]> {
+  const stored = await kv.get<unknown>(HISTORY_NAMESPACE, conversationId);
+  return stored.exists ? historySchema.parse(stored.data) : [];
 }
 
-const agent = createAgent('Chat Agent', {
-  description: 'Conversational agent with memory',
-  schema: {
-    input: s.object({
-      message: s.string(),
-    }),
-    stream: true,
-  },
-  handler: async (ctx, input) => {
-    // Load this thread's conversation history
-    const messages = (await ctx.thread.state.get<Message[]>('messages')) || []; // [!code highlight]
+async function saveHistory(
+  conversationId: string,
+  messages: readonly ChatMessage[]
+): Promise<readonly ChatMessage[]> {
+  const next = messages.slice(-HISTORY_LIMIT);
+  await kv.set(HISTORY_NAMESPACE, conversationId, next, {
+    ttl: HISTORY_TTL_SECONDS,
+  });
 
-    // Include the new user turn before calling the model
-    messages.push({ role: 'user', content: input.message });
-
-    const { textStream, text } = streamText({
-      model: anthropic('claude-sonnet-4-6'),
-      system: 'You are a helpful assistant. Be concise but friendly.',
-      messages,
-    });
-
-    // Save the assistant turn after streaming completes
-    ctx.waitUntil(async () => { // [!code highlight]
-      const fullResponse = await text;
-      messages.push({ role: 'assistant', content: fullResponse });
-      await ctx.thread.state.set('messages', messages); // [!code highlight]
-      ctx.logger.info('Conversation updated', {
-        messageCount: messages.length,
-        threadId: ctx.thread.id,
-      });
-    });
-
-    return textStream;
-  },
-});
-
-export default agent;
-```
-
-## Route Example
-
-```typescript title="src/api/chat/route.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import chatAgent from '@agent/chat/agent';
-
-const router = new Hono<Env>();
-
-router.post('/', chatAgent.validator(), async (c) => {
-  const { message } = c.req.valid('json');
-  return c.body(await chatAgent.run({ message })); // [!code highlight]
-});
-
-router.delete('/', async (c) => {
-  await c.var.thread.destroy(); // [!code highlight]
-  return c.json({ reset: true });
-});
-
-export default router;
-```
-
-## Frontend
-
-A simple chat interface that displays streaming responses:
-
-```tsx title="src/web/App.tsx"
-import { useState, useRef, useEffect } from 'react';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
+  return next;
 }
 
-export function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+app.post('/api/chat', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = chatRequestSchema.parse(body);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const sendMessage = async () => {
-    if (!input.trim() || isStreaming) return;
-
-    const userMessage = input.trim();
-    setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
-    setIsStreaming(true);
-
-    // Reserve a bubble for the streaming assistant response
-    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMessage }),
-    });
-
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-
-    while (reader) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastMessage = updated.at(-1);
-
-        if (lastMessage) {
-          lastMessage.content += chunk;
-        }
-
-        return updated;
-      });
-    }
-
-    setIsStreaming(false);
+  const history = await readHistory(input.conversationId);
+  const userMessage: ChatMessage = {
+    role: 'user',
+    content: input.message,
   };
 
-  return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '1rem' }}>
-      <div style={{ height: '400px', overflowY: 'auto', marginBottom: '1rem' }}>
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            style={{
-              padding: '0.75rem',
-              margin: '0.5rem 0',
-              borderRadius: '8px',
-              background: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5',
-              marginLeft: msg.role === 'user' ? '20%' : '0',
-              marginRight: msg.role === 'assistant' ? '20%' : '0',
-            }}
-          >
-            {msg.content || '...'}
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+  const messages = [...history, userMessage];
 
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="Type a message..."
-          disabled={isStreaming}
-          style={{ flex: 1, padding: '0.75rem' }}
-        />
-        <button onClick={sendMessage} disabled={isStreaming || !input.trim()}>
-          {isStreaming ? '...' : 'Send'}
-        </button>
-      </div>
-    </div>
-  );
-}
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-5.4-mini',
+    messages: [
+      { role: 'system', content: 'You are a concise product support assistant.' },
+      ...messages,
+    ],
+  });
+
+  const assistantMessage: ChatMessage = {
+    role: 'assistant',
+    content: completion.choices[0]?.message?.content ?? '',
+  };
+
+  const nextHistory = await saveHistory(input.conversationId, [
+    ...messages,
+    assistantMessage,
+  ]);
+
+  return c.json({
+    conversationId: input.conversationId,
+    message: assistantMessage,
+    messageCount: nextHistory.length,
+    model: completion.model,
+    tokens: completion.usage?.total_tokens ?? 0,
+  });
+});
+
+app.get('/api/chat/:conversationId', async (c) => {
+  const conversationId = c.req.param('conversationId');
+  const messages = await readHistory(conversationId);
+
+  return c.json({ conversationId, messages });
+});
+
+app.delete('/api/chat/:conversationId', async (c) => {
+  const conversationId = c.req.param('conversationId');
+  await kv.delete(HISTORY_NAMESPACE, conversationId);
+
+  return c.json({ conversationId, messages: [] });
+});
+
+export default app;
 ```
 
-The frontend reads the streaming response chunk by chunk and updates the UI as text arrives.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run this through `agentuity dev` or a linked Agentuity project when you want managed key-value storage and AI Gateway routing.
 
-## Key Points
+## Call the Route
 
-- **Thread state** (`ctx.thread.state`) expires after 1 hour of inactivity
-- **Async API**: All thread state methods are async (`await ctx.thread.state.get()`)
-- **Messages array** stores the full conversation history
-- **`waitUntil`** saves the response after streaming completes
-- **Thread ID** (`ctx.thread.id`) identifies the conversation
-
-<Callout type="tip" title="Simpler with push()">
-For append-only patterns like chat history, use `push()` with `maxRecords` for automatic sliding window behavior:
+Generate a conversation ID in your app, cookie, or authenticated user session. Pass that ID on each request.
 
 ```typescript
-await ctx.thread.state.push('messages', newMessage, 100);  // Keep last 100
+const conversationId = crypto.randomUUID();
+
+const response = await fetch('/api/chat', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    conversationId,
+    message: 'What changed in the v3 Agentuity starter?',
+  }),
+});
+
+if (!response.ok) {
+  throw new Error(`Chat failed with ${response.status}`);
+}
+
+const result = await response.json();
 ```
+
+The response includes the assistant message, model name, token count when the provider returns usage, and the stored message count.
+
+## Reset a Conversation
+
+Delete the key when the user starts over:
+
+```typescript
+await fetch(`/api/chat/${conversationId}`, { method: 'DELETE' });
+```
+
+## Notes
+
+- use one namespace for chat history and make the key explicit
+- store a rolling window or summary instead of unlimited messages
+- keep provider token usage in the response when the UI should show model details
+- use key-value storage or a database for v3 app state, not v2 runtime thread state
+
+<Callout type="info" title="Existing v2 thread-state apps can keep running">
+Older v2 apps that use `ctx.thread.state` can keep that model while you plan a migration. New v3 examples should use framework-owned state boundaries: cookies, database rows, key-value records, or authenticated user IDs.
 </Callout>
 
-## See Also
+## Next Steps
 
-- [State Management](/agents/state-management) for all state scopes
-- [Streaming Responses](/agents/streaming-responses) for streaming patterns
+- [Chat and Streaming](/patterns/chat-and-streaming): stream assistant text while storing the final transcript
+- [Key-Value Storage](/services/storage/key-value): configure TTLs, search keys, and manage namespaces
+- [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks): move v2 agent runtime state into v3 app-owned state

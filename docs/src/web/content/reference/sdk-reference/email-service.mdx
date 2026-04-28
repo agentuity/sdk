@@ -1,19 +1,19 @@
 ---
-title: Using Email
+title: Email (v2 Compatibility)
 short_title: Email Service
-description: Send emails and manage addresses with ctx.email
+description: Compatibility reference for v2 runtime ctx.email APIs
 ---
 
-Send outbound emails and manage email addresses under the `@agentuity.email` domain. The email service is available via `ctx.email` in agents and `c.var.email` in routes.
+This page documents v2 runtime email access through `ctx.email` in agents and `c.var.email` in runtime routes. In v3 apps, start with [Email](/services/email) and [Using Standalone Packages](/reference/standalone-packages#email): use `EmailClient` from `@agentuity/email`.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/email`](/reference/standalone-packages#email) standalone package to access this service from any Node.js or Bun app without the runtime.
+<Callout type="info" title="Use EmailClient for new v3 code">
+The `ctx.email` examples below still work for existing v2 runtime apps. New v3 code usually creates an `EmailClient` from `@agentuity/email`.
 </Callout>
 
 For concepts, inbound processing patterns, and webhook setup, see [Email](/services/email).
 
-<Callout type="warning" title="Cloud Only">
-Email is not available in local development. Deploy to Agentuity Cloud to use `ctx.email`.
+<Callout type="warning" title="Email runs in Agentuity Cloud">
+Email is not available in local development for these v2 runtime examples. Deploy to Agentuity Cloud to use the runtime email service.
 </Callout>
 
 ## send(params)

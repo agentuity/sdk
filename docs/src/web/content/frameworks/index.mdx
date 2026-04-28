@@ -1,0 +1,113 @@
+---
+title: Frameworks
+description: Start with your framework and add Agentuity services
+---
+
+Start with the framework's own app shape, then add Agentuity services, local development, and deploy metadata where they fit.
+
+<Cards>
+  <CardLink
+    href="/frameworks/nextjs"
+    title="Next.js"
+    description="Use App Router route handlers with Agentuity service clients"
+    icon={<picture><img src="/images/integrations/nextjs.svg" alt="Next.js" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/nuxt"
+    title="Nuxt"
+    description="Add Agentuity CLI wiring and deployment validation to a Nuxt app"
+    icon={<picture><img src="/images/integrations/nuxt.svg" alt="Nuxt" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/react-router"
+    title="React Router"
+    description="Add Agentuity CLI wiring and deployment validation to a React Router app"
+    icon={<picture><img src="/images/integrations/react-router.svg" alt="React Router" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/sveltekit"
+    title="SvelteKit"
+    description="Add Agentuity CLI wiring and deployment validation to a SvelteKit app"
+    icon={<picture><img src="/images/integrations/svelte.svg" alt="Svelte" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/astro"
+    title="Astro"
+    description="Add Agentuity CLI wiring and deployment validation to an Astro app"
+    icon={<picture><img src="/images/integrations/astro.svg" alt="Astro" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/hono"
+    title="Hono"
+    description="Use standard Hono handlers with Agentuity service clients"
+    icon={<picture><img src="/images/integrations/hono.svg" alt="Hono" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/vite-react"
+    title="Vite + React"
+    description="Add Agentuity CLI wiring and deployment validation to a Vite React app"
+    icon={<picture><img src="/images/integrations/vite.svg" alt="Vite" width={28} height={28} /></picture>}
+  />
+  <CardLink
+    href="/frameworks/tanstack-start"
+    title="TanStack Start"
+    description="Add service clients to server routes and check the build output before deploy"
+    icon={<picture><img src="/images/integrations/tanstack.svg" alt="TanStack" width={28} height={28} /></picture>}
+  />
+</Cards>
+
+## How the v3 Shape Works
+
+Agentuity does not ask every app to become an Agentuity runtime app. Keep the framework's normal file conventions:
+
+| Framework | Use the framework's route shape | Add Agentuity through |
+| --- | --- | --- |
+| Next.js | `app/api/**/route.ts` | standalone service clients |
+| Hono | `new Hono()` routes | standalone service clients |
+| TanStack Start | server routes and server functions | standalone service clients |
+
+`agentuity dev` runs your package manager's `dev` script with the environment your app needs. `agentuity build` packages the app and writes `.agentuity/launch.json` and related deployment files when packaging succeeds.
+
+## Framework Starters
+
+`bun create agentuity@alpha --framework <name>` currently scaffolds these starters:
+
+| Slug | Framework |
+| --- | --- |
+| `nextjs` | Next.js |
+| `nuxt` | Nuxt |
+| `remix` | React Router |
+| `sveltekit` | SvelteKit |
+| `astro` | Astro |
+| `hono` | Hono |
+| `vite-react` | Vite + React |
+
+Some framework app shapes work through the build path even when they do not have a `project create` starter yet. TanStack Start falls into that group, so start with TanStack's own CLI and validate the build output before you deploy.
+
+<Callout type="tip" title="Validate packaging before deploy">
+Run `bun run build`, then `agentuity build`, and inspect `.agentuity/launch.json` before your first deploy. Use `--skip-type-check` only for a faster packaging check while iterating.
+</Callout>
+
+## Add Services
+
+Use standalone service clients as the default path:
+
+```bash
+bun add @agentuity/keyvalue@alpha
+```
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+await kv.set('sessions', 'latest', { updatedAt: new Date().toISOString() });
+```
+
+Use direct clients when you want the same code to run across frameworks, scripts, and server routes.
+
+## Next Steps
+
+- [Services](/services): choose storage, messaging, identity, observability, and execution clients
+- [Deployment](/reference/cli/deployment): review deploy flags and lifecycle behavior
+- [Build Configuration](/reference/cli/build-configuration): inspect framework detection and launch metadata

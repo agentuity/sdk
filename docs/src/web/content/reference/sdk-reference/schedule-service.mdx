@@ -1,13 +1,13 @@
 ---
-title: Using Schedules
+title: Schedules (v2 Compatibility)
 short_title: Schedule Service
-description: Create and manage cron-based scheduled jobs with ctx.schedule
+description: Compatibility reference for v2 runtime ctx.schedule APIs
 ---
 
-Create platform-managed cron jobs that fire on a schedule and deliver HTTP requests to configured destinations. The schedule service is available via `ctx.schedule` in agents and `c.var.schedule` in routes.
+This page documents v2 runtime schedule access through `ctx.schedule` in agents and `c.var.schedule` in runtime routes. In v3 apps, start with [Schedules](/services/schedules) and [Using Standalone Packages](/reference/standalone-packages#schedules): use `ScheduleClient` from `@agentuity/schedule`.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/schedule`](/reference/standalone-packages#schedules) standalone package to access this service from any Node.js or Bun app without the runtime.
+<Callout type="info" title="Use ScheduleClient for new v3 code">
+The `ctx.schedule` examples below still work for existing v2 runtime apps. New v3 code usually creates a `ScheduleClient` from `@agentuity/schedule`.
 </Callout>
 
 For concepts, cron routes vs platform schedules, and when-to-use guidance, see [Schedules](/services/schedules).

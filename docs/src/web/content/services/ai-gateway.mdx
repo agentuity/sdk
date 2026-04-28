@@ -1,0 +1,101 @@
+---
+title: AI Gateway
+short_title: AI Gateway
+description: Route supported LLM SDK calls through Agentuity during local development and local builds
+---
+
+Use AI Gateway when you want framework code to call supported LLM SDKs without adding separate provider keys for local work. In v3, the path here is `agentuity dev` environment wiring plus the CLI's build-time SDK patches.
+
+```typescript
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+export async function summarize(message: string): Promise<string> {
+  const { text } = await generateText({
+    model: openai('gpt-5.4-mini'),
+    prompt: `Summarize this in one sentence:\n\n${message}`,
+  });
+
+  return text;
+}
+```
+
+Run the app with `agentuity dev`. If `AGENTUITY_SDK_KEY` is available and `OPENAI_API_KEY` is not set, the CLI passes OpenAI-compatible gateway variables to the child process before your framework server starts.
+
+<Callout type="info" title="This page covers the local v3 path">
+The examples here use `agentuity dev` and the CLI build patches. Set your own provider key when you want direct provider traffic instead.
+</Callout>
+
+## When to Use AI Gateway
+
+| Need | Use |
+|------|-----|
+| local framework development without separate provider keys | AI Gateway through `agentuity dev` |
+| keep provider SDK code and let the CLI inject gateway config | AI Gateway |
+| use a provider account, limits, or base URL directly | Set your own provider key and bypass the gateway |
+
+## Local Development
+
+`agentuity dev` looks for `AGENTUITY_SDK_KEY`, then wires supported provider env vars into the framework process before it loads your app code.
+
+| Provider | API key env | Base URL env |
+|----------|-------------|--------------|
+| OpenAI | `OPENAI_API_KEY` | `OPENAI_BASE_URL` |
+| Anthropic | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` |
+| Groq | `GROQ_API_KEY` | `GROQ_BASE_URL` |
+
+Start your app the same way you already do for v3 framework work:
+
+```bash
+agentuity dev
+```
+
+If the project SDK key is missing locally, the CLI tries to load it from project config and `.env`. When the project is not linked yet, the CLI can fall back to your authenticated CLI key for gateway routing and prints `agentuity project import`.
+
+See [Running Local Development](/deploy-operate/local-development#ai-gateway-environment): how `agentuity dev` starts the framework server and loads Agentuity env values.
+
+## Bring Your Own Provider Key
+
+Set a provider key when you want the SDK to talk to that provider directly:
+
+```bash title=".env"
+AGENTUITY_SDK_KEY=sdk_...
+OPENAI_API_KEY=sk-your-own-key
+```
+
+When `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY` already holds your provider key, `agentuity dev` leaves it in place. Use that path when you want provider-specific credentials or base URLs instead of Agentuity's gateway wiring.
+
+## Build Patching
+
+`agentuity build` also patches supported SDKs so bundled code can read gateway settings at runtime. This matters when you create a provider explicitly instead of relying only on a convenience export.
+
+```typescript
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateText } from 'ai';
+
+const openai = createOpenAI({});
+
+export async function rewrite(message: string): Promise<string> {
+  const { text } = await generateText({
+    model: openai('gpt-5.4-mini'),
+    prompt: `Rewrite this more clearly:\n\n${message}`,
+  });
+
+  return text;
+}
+```
+
+In the current v3 CLI, the build patches include:
+
+- Raw provider SDKs: `openai`, `@anthropic-ai/sdk`, `groq-sdk`
+- AI SDK provider factories: `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/groq`
+
+For those patched paths, the bundle can inject `apiKey` and `baseURL` from `AGENTUITY_SDK_KEY` and `AGENTUITY_TRANSPORT_URL` when you have not already supplied provider credentials.
+
+See [Managing Environment Variables](/deploy-operate/environment-variables): how the CLI finds `AGENTUITY_SDK_KEY` locally and how deploy sync handles `.env` values.
+
+## Next Steps
+
+- [Running Local Development](/deploy-operate/local-development): run your framework server through `agentuity dev`
+- [Managing Environment Variables](/deploy-operate/environment-variables): keep `AGENTUITY_SDK_KEY` and provider keys in the right place
+- [App Configuration](/get-started/app-configuration#environment-variables): review the v3 env var layout for framework projects

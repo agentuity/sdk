@@ -10,6 +10,7 @@ Writing conventions for Agentuity docs pages in this directory.
 4. **Scannable**: Headings, callouts, inline comments that explain "why" not "what"
 5. **Benefit-focused, not salesy**: Explain _why_ someone would use a feature without hollow adjectives
 6. **Source-verified**: Read SDK source and AGENTS.md files before documenting APIs or CLI flags.
+7. **Framework-native**: Check current upstream framework docs before documenting framework examples. Local Agentuity verification is required, but working code is not enough if the framework shape is not idiomatic.
 
 ## Exemplar Pages
 
@@ -17,9 +18,9 @@ Before writing a new page, read these as reference implementations:
 
 - **Feature doc**: `agents/creating-agents.mdx` -- context-then-code flow, callouts, progressive examples
 - **Service doc**: `services/storage/key-value.mdx` -- comparison table, access patterns, comprehensive operations
-- **Cookbook pattern**: `cookbook/patterns/chat-with-history.mdx` -- concise, code highlights, thread state
+- **Cookbook pattern**: `cookbook/patterns/chat-with-history.mdx` -- concise, code-first, key-value history
 - **Getting started**: `get-started/quickstart.mdx` -- step-by-step, CardLinks, tips
-- **Reference**: `agents/ai-gateway.mdx` -- provider tables, how-it-works flow
+- **Reference**: `services/ai-gateway.mdx` -- provider tables, how-it-works flow
 - **SDK Reference**: `reference/sdk-reference/storage.mdx` -- hybrid narrative + structured method docs
 
 ## Page Types
@@ -134,7 +135,7 @@ Agentuity supports raw provider SDKs and AI SDK providers. When writing docs:
 - Keep feature docs provider-agnostic where possible
 - Use current model names in code examples; verify they're up to date before publishing
 - When listing providers or models in tables, link to each provider's model page
-- See [AI Gateway](/agents/ai-gateway) for the canonical list of supported providers
+- See [AI Gateway](/services/ai-gateway) for the canonical list of supported providers
 
 ## Code Examples
 
@@ -185,7 +186,7 @@ Available components in doc pages:
 
 ### Links and Callouts
 
-- **Cross-links** include context: "See [Streaming Responses](/agents/streaming-responses) for chunked output patterns" not "See also: Streaming"
+- **Cross-links** include context: "See [Chat and Streaming](/patterns/chat-and-streaming) for chunked output patterns" not "See also: Streaming"
 - **External links**: link on first mention. Don't re-link on the same page
 - **Canonical docs**: link to existing docs instead of re-explaining. One location is canonical, others link to it
 - **Callouts**: `info` for context and clarifications, `warning` for gotchas and required setup, `tip` for optimizations and advanced patterns

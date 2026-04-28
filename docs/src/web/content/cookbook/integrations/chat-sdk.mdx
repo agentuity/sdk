@@ -4,7 +4,7 @@ short_title: Chat SDK
 description: Build multi-platform chatbots for Slack and Discord with Chat SDK and Agentuity agents
 ---
 
-[Chat SDK](https://chat-sdk.dev) handles platform connections: authenticating with Slack and Discord, receiving webhooks, normalizing messages, and posting responses. Agentuity provides the agent runtime, [KV storage](/services/storage/key-value) for conversation history, and the [AI Gateway](/agents/ai-gateway) for LLM calls. One `handleMessage` function serves both platforms.
+[Chat SDK](https://chat-sdk.dev) handles platform connections: authenticating with Slack and Discord, receiving webhooks, normalizing messages, and posting responses. Agentuity provides the agent runtime, [KV storage](/services/storage/key-value) for conversation history, and the [AI Gateway](/services/ai-gateway) for LLM calls. One `handleMessage` function serves both platforms.
 
 ## The Integration Pattern
 
@@ -241,6 +241,6 @@ Chat SDK also supports [GitHub, Teams, Google Chat, and Linear](https://chat-sdk
 ## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): Full KV API with namespaces, TTL, and dashboard access
-- [AI Gateway](/agents/ai-gateway): Route LLM calls through a single API with observability
-- [Standalone Execution](/agents/standalone-execution): Run agents from bots, CLI tools, and background workers
+- [AI Gateway](/services/ai-gateway): Route LLM calls through a single API with observability
+- [Standalone Execution](/reference/standalone-packages): Run agents from bots, CLI tools, and background workers
 - [Chat with History](/cookbook/patterns/chat-with-history): The same conversation memory pattern using thread state

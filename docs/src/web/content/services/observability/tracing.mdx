@@ -3,202 +3,254 @@ title: Tracing
 description: OpenTelemetry spans for performance debugging and operation tracking
 ---
 
-Use `ctx.tracer` in agents and `c.var.tracer` in routes to create OpenTelemetry spans. Spans help you understand timing, track operations through your system, and debug performance issues.
+Use tracing when logs tell you something happened but not where the time went. `@agentuity/telemetry` gives framework apps an OpenTelemetry tracer, and `@agentuity/hono` exposes the same tracer as `c.var.tracer` in Hono routes.
+
+```bash
+bun add @agentuity/telemetry@alpha @opentelemetry/api
+```
 
 ## Basic Span Pattern
 
-Wrap operations in spans to track their duration and status:
-
 ```typescript
-import { createAgent } from '@agentuity/runtime';
 import { SpanStatusCode } from '@opentelemetry/api';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { logger, tracer } from '@agentuity/telemetry';
 
-const agent = createAgent('TracingExample', {
-  handler: async (ctx, input) => {
-    return ctx.tracer.startActiveSpan('generate-response', async (span) => {
-      try {
-        span.setAttribute('model', 'gpt-5-mini');
-        span.setAttribute('promptLength', input.prompt.length);
+interface SearchInput {
+  readonly query: string;
+  readonly limit: number;
+}
 
-        const { text, usage } = await generateText({
-          model: openai('gpt-5-mini'),
-          prompt: input.prompt,
-        });
+export async function searchProducts(input: SearchInput): Promise<readonly string[]> {
+  return tracer.startActiveSpan('search-products', async (span) => {
+    try {
+      span.setAttribute('queryLength', input.query.length);
+      span.setAttribute('limit', input.limit);
 
-        span.setAttribute('outputLength', text.length);
-        span.setAttribute('totalTokens', usage.totalTokens);
-        span.setStatus({ code: SpanStatusCode.OK });
+      const catalog = ['cyan jacket', 'black backpack', 'white notebook'];
+      const results = catalog
+        .filter((item) => item.includes(input.query.toLowerCase()))
+        .slice(0, input.limit);
 
-        return { response: text };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        span.recordException(error instanceof Error ? error : message);
-        span.setStatus({ code: SpanStatusCode.ERROR, message });
-        ctx.logger.error('Generation failed', error);
-        throw error;
-      } finally {
-        span.end();
-      }
-    });
-  },
-});
+      span.setAttribute('resultCount', results.length);
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      return results;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      span.recordException(error instanceof Error ? error : new Error(message));
+      span.setStatus({ code: SpanStatusCode.ERROR, message });
+      logger.child({ error: message }).error('Product search failed');
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
 ```
 
 `startActiveSpan()` makes the span active while the callback runs, but it does not close the span. Call `span.end()` in a `finally` block, and set status when the outcome is meaningful.
 
-## Adding Context with Attributes
+## Adding Attributes
 
-Use `setAttribute` to add searchable metadata to spans:
+Use attributes for searchable span context: IDs, counts, categories, and boolean flags. Avoid raw prompts, tokens, secrets, or personal data.
 
 ```typescript
-return ctx.tracer.startActiveSpan('user-lookup', async (span) => {
-  try {
-    span.setAttribute('userId', input.userId);
-    span.setAttribute('source', 'api');
-    span.setAttribute('cached', false);
+import { SpanStatusCode } from '@opentelemetry/api';
+import { tracer } from '@agentuity/telemetry';
 
-    const user = await fetchUser(input.userId);
+interface UserLookup {
+  readonly userId: string;
+  readonly source: 'api' | 'job';
+}
 
-    span.setAttribute('userFound', !!user);
-    span.setAttribute('accountType', user?.type ?? 'unknown');
+export async function loadUser(input: UserLookup): Promise<{ readonly found: boolean }> {
+  return tracer.startActiveSpan('user-lookup', async (span) => {
+    try {
+      span.setAttribute('userId', input.userId);
+      span.setAttribute('source', input.source);
 
-    span.setStatus({ code: SpanStatusCode.OK });
-    return user;
-  } finally {
-    span.end();
-  }
-});
+      const found = input.userId.startsWith('user_');
+
+      span.setAttribute('userFound', found);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return { found };
+    } finally {
+      span.end();
+    }
+  });
+}
 ```
-
-Common attributes: IDs, counts, categories, boolean flags. These appear in trace views and can be filtered.
 
 ## Recording Events
 
-Use `addEvent` to mark significant moments within a span:
+Use `addEvent()` to mark important moments inside a longer span.
 
 ```typescript
-return ctx.tracer.startActiveSpan('data-pipeline', async (span) => {
-  try {
-    span.addEvent('pipeline-started', { inputSize: data.length });
+import { SpanStatusCode } from '@opentelemetry/api';
+import { tracer } from '@agentuity/telemetry';
 
-    const validated = await validateData(data);
-    span.addEvent('validation-complete', { validRecords: validated.length });
+export async function processBatch(records: readonly string[]): Promise<{ readonly count: number }> {
+  return tracer.startActiveSpan('batch-import', async (span) => {
+    try {
+      span.addEvent('validation-started', { recordCount: records.length });
 
-    const enriched = await enrichData(validated);
-    span.addEvent('enrichment-complete', { enrichedFields: 5 });
+      const valid = records.filter((record) => record.trim().length > 0);
+      span.addEvent('validation-complete', { validCount: valid.length });
 
-    const stored = await storeData(enriched);
-    span.addEvent('storage-complete', { recordsStored: stored.count });
-
-    span.setStatus({ code: SpanStatusCode.OK });
-    return { processed: stored.count };
-  } finally {
-    span.end();
-  }
-});
+      span.setAttribute('recordCount', valid.length);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return { count: valid.length };
+    } finally {
+      span.end();
+    }
+  });
+}
 ```
 
-Events create a timeline within the span, useful for understanding where time is spent.
+Events create a timeline inside the span. Use them for milestones, not for every loop iteration.
 
 ## Nested Spans
 
-Create child spans for multi-step operations:
+Create child spans for multi-step operations. Inner spans inherit the active parent span.
 
 ```typescript
-return ctx.tracer.startActiveSpan('rag-pipeline', async (parentSpan) => {
-  try {
-    parentSpan.setAttribute('query', input.query);
+import { SpanStatusCode } from '@opentelemetry/api';
+import { tracer } from '@agentuity/telemetry';
 
-    // Retrieve relevant context
-    const context = await ctx.tracer.startActiveSpan('retrieve-context', async (span) => {
-      try {
-        span.setAttribute('index', 'knowledge-base');
-        const results = await ctx.vector.search('docs', { query: input.query, limit: 5 });
-        span.setAttribute('resultsFound', results.length);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return results;
-      } finally {
-        span.end();
-      }
-    });
+export async function answerQuestion(question: string): Promise<{ readonly answer: string }> {
+  return tracer.startActiveSpan('answer-question', async (parentSpan) => {
+    try {
+      parentSpan.setAttribute('questionLength', question.length);
 
-    // Rerank results
-    const ranked = await ctx.tracer.startActiveSpan('rerank-results', async (span) => {
-      try {
-        span.setAttribute('inputCount', context.length);
-        const reranked = await rerankByRelevance(context, input.query);
-        span.setAttribute('outputCount', reranked.length);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return reranked;
-      } finally {
-        span.end();
-      }
-    });
+      const context = await tracer.startActiveSpan('load-context', async (span) => {
+        try {
+          const snippets = ['pricing docs', 'account docs'];
+          span.setAttribute('snippetCount', snippets.length);
+          span.setStatus({ code: SpanStatusCode.OK });
+          return snippets;
+        } finally {
+          span.end();
+        }
+      });
 
-    // Generate answer
-    const answer = await ctx.tracer.startActiveSpan('generate-answer', async (span) => {
-      try {
-        span.setAttribute('model', 'gpt-5-mini');
-        span.setAttribute('contextChunks', ranked.length);
-        const response = await generateWithContext(input.query, ranked);
-        span.setAttribute('responseLength', response.length);
-        span.setStatus({ code: SpanStatusCode.OK });
-        return response;
-      } finally {
-        span.end();
-      }
-    });
+      const answer = await tracer.startActiveSpan('compose-answer', async (span) => {
+        try {
+          span.setAttribute('contextChunks', context.length);
+          span.setStatus({ code: SpanStatusCode.OK });
+          return `Answer based on ${context.length} snippets`;
+        } finally {
+          span.end();
+        }
+      });
 
-    parentSpan.setStatus({ code: SpanStatusCode.OK });
-    return { answer, sources: ranked.map((r) => r.id) };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    parentSpan.recordException(error instanceof Error ? error : message);
-    parentSpan.setStatus({ code: SpanStatusCode.ERROR, message });
-    throw error;
-  } finally {
-    parentSpan.end();
-  }
+      parentSpan.setStatus({ code: SpanStatusCode.OK });
+      return { answer };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      parentSpan.recordException(error instanceof Error ? error : new Error(message));
+      parentSpan.setStatus({ code: SpanStatusCode.ERROR, message });
+      throw error;
+    } finally {
+      parentSpan.end();
+    }
+  });
+}
+```
+
+Nested spans show parent-child timing in session timeline views.
+
+## Fetch Propagation
+
+After telemetry initializes, `fetch()` calls made inside an active span get a child HTTP span and trace-context headers.
+
+```typescript
+import { SpanStatusCode } from '@opentelemetry/api';
+import { tracer } from '@agentuity/telemetry';
+
+export async function loadCatalog(): Promise<Response> {
+  return tracer.startActiveSpan('load-catalog', async (span) => {
+    try {
+      const response = await fetch('https://api.example.com/catalog');
+      span.setAttribute('status', response.status);
+      span.setStatus({ code: response.ok ? SpanStatusCode.OK : SpanStatusCode.ERROR });
+      return response;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      span.recordException(error instanceof Error ? error : new Error(message));
+      span.setStatus({ code: SpanStatusCode.ERROR, message });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+## AI SDK Telemetry
+
+AI SDK calls emit OpenTelemetry spans when telemetry is enabled for the call. Pass the Agentuity tracer when you want those spans to share the same trace pipeline as your framework code.
+
+```typescript
+import { generateText } from 'ai';
+import { tracer } from '@agentuity/telemetry';
+
+await generateText({
+  model,
+  prompt,
+  experimental_telemetry: {
+    isEnabled: true,
+    functionId: 'translate-text',
+    metadata: {
+      route: 'POST /api/translate',
+    },
+    tracer,
+  },
 });
 ```
 
-Nested spans create a parent-child hierarchy in trace views, showing how operations relate.
+In local testing with AI SDK 6, `generateText()` produced `ai.generateText` and `ai.generateText.doGenerate` spans. `streamText()` produced `ai.streamText` and `ai.streamText.doStream` spans plus `ai.stream.firstChunk` and `ai.stream.finish` events. Token counts appear on span attributes such as `ai.usage.inputTokens`, `ai.usage.outputTokens`, and `ai.usage.totalTokens`.
 
-## Tracing in Routes
+Telemetry metadata is copied to `ai.telemetry.metadata.*` span attributes. Session or request IDs are not added by the AI SDK on their own; pass the IDs you want to search for in `metadata`.
 
-Routes access the tracer via `c.var.tracer`:
+## Hono Routes
+
+Hono routes can read the tracer from `c.var.tracer` after installing the Agentuity middleware.
+
+```bash
+bun add @agentuity/hono@alpha @opentelemetry/api hono
+```
 
 ```typescript
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
 import { SpanStatusCode } from '@opentelemetry/api';
-import notificationSender from '@agent/notification-sender/agent';
+import type { Logger } from '@agentuity/hono';
+import type { Tracer } from '@opentelemetry/api';
 
-const router = new Hono<Env>();
+interface Env {
+  readonly Variables: {
+    readonly logger: Logger;
+    readonly tracer: Tracer;
+  };
+}
 
-router.post('/customers/:id/notify', async (c) => {
+const app = new Hono<Env>();
+
+app.use('*', agentuity({ telemetry: { logLevel: 'info' } }));
+
+app.post('/customers/:id/notify', async (c) => {
   return c.var.tracer.startActiveSpan('send-notification', async (span) => {
     try {
       const customerId = c.req.param('id');
       span.setAttribute('customerId', customerId);
 
-      const body = await c.req.json();
-      span.setAttribute('notificationType', body.type);
-      span.setAttribute('channel', body.channel);
-
-      const result = await notificationSender.run({
-        customerId,
-        ...body,
-      });
-
-      span.setAttribute('delivered', result.success);
+      c.var.logger.child({ customerId }).info('Notification accepted');
+      span.setAttribute('delivered', true);
       span.setStatus({ code: SpanStatusCode.OK });
-      return c.json(result);
+      return c.json({ delivered: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      span.recordException(error instanceof Error ? error : message);
+      span.recordException(error instanceof Error ? error : new Error(message));
       span.setStatus({ code: SpanStatusCode.ERROR, message });
       throw error;
     } finally {
@@ -207,81 +259,7 @@ router.post('/customers/:id/notify', async (c) => {
   });
 });
 
-export default router;
-```
-
-### Nested Spans in Routes
-
-Use nested spans to track multi-step operations within a route:
-
-```typescript
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { SpanStatusCode } from '@opentelemetry/api';
-
-const router = new Hono<Env>();
-
-router.post('/process', async (c) => {
-  return c.var.tracer.startActiveSpan('process-request', async (parentSpan) => {
-    try {
-      const body = await c.req.json();
-      parentSpan.setAttribute('inputSize', JSON.stringify(body).length);
-
-      // Validate input
-      const validated = await c.var.tracer.startActiveSpan('validate', async (span) => {
-        try {
-          span.setAttribute('fields', Object.keys(body).length);
-          const result = validateInput(body);
-          span.setStatus({ code: SpanStatusCode.OK });
-          return result;
-        } finally {
-          span.end();
-        }
-      });
-
-      // Store in KV
-      await c.var.tracer.startActiveSpan('store-data', async (span) => {
-        try {
-          span.setAttribute('bucket', 'processed');
-          await c.var.kv.set('processed', validated.id, validated);
-          span.setStatus({ code: SpanStatusCode.OK });
-        } finally {
-          span.end();
-        }
-      });
-
-      // Search related items
-      const related = await c.var.tracer.startActiveSpan('search-related', async (span) => {
-        try {
-          span.setAttribute('query', validated.category);
-          const results = await c.var.vector.search('items', {
-            query: validated.category,
-            limit: 5,
-          });
-          span.setAttribute('resultsFound', results.length);
-          span.setStatus({ code: SpanStatusCode.OK });
-          return results;
-        } finally {
-          span.end();
-        }
-      });
-
-      parentSpan.setAttribute('relatedCount', related.length);
-      parentSpan.setStatus({ code: SpanStatusCode.OK });
-
-      return c.json({ processed: validated, related });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      parentSpan.recordException(error instanceof Error ? error : message);
-      parentSpan.setStatus({ code: SpanStatusCode.ERROR, message });
-      throw error;
-    } finally {
-      parentSpan.end();
-    }
-  });
-});
-
-export default router;
+export default app;
 ```
 
 ## Viewing Traces
@@ -289,11 +267,10 @@ export default router;
 View traces for a session using the CLI:
 
 ```bash
-# Get session details including trace timeline
 agentuity cloud session get sess_abc123xyz
 ```
 
-Traces are also visible in the [Agentuity Console](https://app.agentuity.com) session timeline, showing the span hierarchy with timing. See [Session Logs](/reference/cli/debugging#session-logs) for related session CLI commands.
+The command includes the session timeline when it is available. Traces are also visible in the [Agentuity Console](https://app.agentuity.com) session timeline.
 
 ## When to Use Tracing
 
@@ -303,18 +280,18 @@ Traces are also visible in the [Agentuity Console](https://app.agentuity.com) se
 | Multi-step workflows | Create spans for each step |
 | Performance debugging | Add spans to identify bottlenecks |
 | External API calls | Wrap in spans to track latency |
-| Agent-to-agent calls | Spans automatically propagate context |
+| Cross-service calls | Let trace context propagate through active spans and fetch |
 
 ## Best Practices
 
-- **Name spans descriptively**: `generate-summary` not `step-2`
-- **End every span**: Call `span.end()` in a `finally` block
-- **Set useful status**: Use `SpanStatusCode.OK` or `SpanStatusCode.ERROR` when the operation outcome matters
-- **Add relevant attributes**: IDs, counts, and categories for filtering
-- **Use events for milestones**: Mark significant points within long operations
-- **Keep spans focused**: One span per logical operation
+- Name spans after work, not implementation steps: `generate-summary`, not `step-2`.
+- End every span in `finally`.
+- Set `SpanStatusCode.OK` or `SpanStatusCode.ERROR` when the outcome matters.
+- Add IDs, counts, categories, and booleans as attributes.
+- Keep sensitive payloads out of span attributes and events.
+- Use events for milestones inside long operations.
 
 ## Next Steps
 
-- [Logging](/services/observability/logging): Add searchable context to logs
-- [Sessions & Debugging](/services/observability/sessions-debugging): Use session IDs for debugging
+- [Logging](/services/observability/logging): add searchable context to logs
+- [Sessions & Debugging](/services/observability/sessions-debugging): inspect timelines and logs from the CLI

@@ -8,7 +8,7 @@ description: Deploy Mastra agents on Agentuity with persistent state, observabil
 
 ## The Integration Pattern
 
-Wrap a Mastra `Agent` in Agentuity's `createAgent()`. Mastra runs the LLM calls and tool orchestration. Agentuity provides [schemas](/agents/schema-libraries), [thread-isolated state](/agents/state-management), [logging](/services/observability/logging) via `ctx.logger`, and deployment.
+Wrap a Mastra `Agent` in Agentuity's `createAgent()`. Mastra runs the LLM calls and tool orchestration. Agentuity provides [schemas](/reference/sdk-reference/schema), [thread-isolated state](/services/storage/key-value), [logging](/services/observability/logging) via `ctx.logger`, and deployment.
 
 Create the Mastra agent with your model and instructions:
 
@@ -57,7 +57,7 @@ export default createAgent('chat', {
 Mastra handles the LLM interaction and tool orchestration. Agentuity provides per-conversation state via `ctx.thread.state` (with a sliding window to cap history size), logs with searchable context, and deployment.
 
 <Callout type="info" title="AI Gateway routing is automatic">
-When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/agents/ai-gateway) unless you provide your own OpenAI key. No bridge file is needed.
+When deployed on Agentuity, Mastra's `openai/gpt-5.4` model string routes through the [AI Gateway](/services/ai-gateway) unless you provide your own OpenAI key. No bridge file is needed.
 </Callout>
 
 <Callout type="tip" title="Older examples may still show a bridge helper">
@@ -241,7 +241,7 @@ Each example is a complete project with agent code, a React frontend, and API ro
 
 ## Next Steps
 
-- [State Management](/agents/state-management): All state scopes (request, thread, global)
-- [AI Gateway](/agents/ai-gateway): Provider configuration and supported models
+- [State Management](/services/storage/key-value): All state scopes (request, thread, global)
+- [AI Gateway](/services/ai-gateway): Provider configuration and supported models
 - [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Test and validate agent outputs
 - [Chat with History](/cookbook/patterns/chat-with-history): Same pattern using the Vercel AI SDK directly

@@ -1,0 +1,57 @@
+---
+title: Migration
+description: Move existing Agentuity projects toward the v3 framework-first model
+---
+
+import { ArrowRightLeft, Route, Terminal } from 'lucide-react';
+
+Use these pages when you are moving an existing Agentuity app toward the v3 framework-first model. v2 remains supported for existing apps. v3 is the default path for new work.
+
+```bash
+npx @agentuity/migrate@alpha --v2-to-v3 --dry-run
+```
+
+<Cards>
+  <CardLink
+    href="/migration/from-v2"
+    title="Migrating from v2"
+    description="Plan the v2 to v3 migration, then validate local build and deploy readiness"
+    icon={<ArrowRightLeft />}
+  />
+  <CardLink
+    href="/migration/runtime-to-frameworks"
+    title="Runtime to Frameworks"
+    description="Map createApp, createAgent, and ctx services to framework routes and clients"
+    icon={<Route />}
+  />
+  <CardLink
+    href="/migration/migrate-cli"
+    title="Migration CLI"
+    description="Run the alpha migration tool, review its changes, and handle manual follow-up"
+    icon={<Terminal />}
+  />
+</Cards>
+
+## Which Guide to Use
+
+| Starting point | Use |
+| --- | --- |
+| v2 app using `@agentuity/runtime`, `createApp()`, or `createAgent()` | [Migrating from v2](/migration/from-v2): move toward a framework app with Agentuity services |
+| v2 runtime concepts are still unclear | [Runtime to Frameworks](/migration/runtime-to-frameworks): translate the app model before editing code |
+| You want the exact migration command and flags | [Migration CLI](/migration/migrate-cli): run `npx @agentuity/migrate@alpha` safely |
+| v1 app moving to v2 first | [Migrating from v1 to v2](/reference/migration-guide): use the existing v1 to v2 guide |
+
+<Callout type="info" title="Keep v2 apps on their current path until you migrate">
+You do not need to rewrite a working v2 app just because v3 is the default docs path. Migrate when you want the framework-first app shape, standalone service clients, or the v3 deploy flow.
+</Callout>
+
+## Migration Shape
+
+The v3 migration is not a package bump only. It changes where Agentuity sits in your app:
+
+- your framework owns the routes, entry point, and build shape
+- Agentuity service clients are imported where the code needs them
+- `@agentuity/hono` is available when Hono `c.var.*` access is the better fit
+- `agentuity project import`, `agentuity build`, and `agentuity deploy` connect the app to Agentuity Cloud
+
+Start with a dry run, review the report, then migrate in a branch with a clean git worktree.

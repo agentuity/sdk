@@ -221,7 +221,7 @@ These changes make v2 more explicit and predictable:
 ## Usage
 
 ```bash
-npx @agentuity/migrate [project-dir] [options]
+npx @agentuity/migrate@alpha [project-dir] [options]
 ```
 
 Run in your project root (or pass a path). The tool checks that your **git worktree is clean** before touching anything, so you can always `git diff` to review changes or `git checkout .` to roll back.
@@ -270,7 +270,7 @@ Run in your project root (or pass a path). The tool checks that your **git workt
 ### Step 1: Run the Migration Tool
 
 ```bash
-npx @agentuity/migrate
+npx @agentuity/migrate@alpha
 ```
 
 This will analyze your project and present a migration report. Use `--dry-run` first to preview changes without modifying files.
@@ -493,7 +493,7 @@ router.post('/daily-cleanup', cron('0 0 * * *', { auth: true }, (c) => {
 }));
 ```
 
-The deprecated form still works but defaults to `auth: false`. Set `auth: true` to require signed requests (recommended for deployed apps). See [Scheduling Cron Jobs](/routes/cron) for the full cron route API.
+The deprecated form still works but defaults to `auth: false`. Set `auth: true` to require signed requests (recommended for deployed apps). See [Scheduling Cron Jobs](/services/schedules) for the full cron route API.
 
 #### Platform-Managed Schedules
 

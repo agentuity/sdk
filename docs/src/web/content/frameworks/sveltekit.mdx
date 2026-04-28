@@ -1,0 +1,42 @@
+---
+title: Using SvelteKit with Agentuity
+short_title: SvelteKit
+description: Add Agentuity CLI wiring and deployment validation to a SvelteKit app
+---
+
+Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. Agentuity keeps the SvelteKit file layout and adds project linking, local development, and deploy validation around it.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-sveltekit-app --framework sveltekit
+cd my-sveltekit-app
+```
+
+The starter runs `sv create`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an AI example at `src/routes/+page.server.ts` plus `src/routes/+page.svelte`.
+
+For an existing SvelteKit app, add the CLI and link the project:
+
+```bash
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
+
+## Validate Before Deploy
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+SvelteKit is detected as its own framework, but the current build path still uses the generic adapter. In practice, validate the packaged server entry and static assets before deploy, especially if your app depends on a specific SvelteKit adapter.
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
+- [Standalone Packages](/reference/standalone-packages): add Agentuity services from SvelteKit server code

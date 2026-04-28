@@ -1,14 +1,18 @@
 ---
-title: Logging and Telemetry
+title: Logging and Telemetry (v2 Compatibility)
 short_title: Observability
-description: Collected logs and OpenTelemetry tracing via ctx.logger and ctx.tracer
+description: Compatibility reference for v2 runtime ctx.logger and ctx.tracer APIs
 ---
 
-Collected logs via `ctx.logger` and distributed tracing via `ctx.tracer` (OpenTelemetry), available in agents, routes, and standalone scripts.
+This page documents the v2 runtime `ctx.logger` and `ctx.tracer` APIs. In v3 framework apps, use [Logging](/services/observability/logging) and [Tracing](/services/observability/tracing), or install `@agentuity/hono` when Hono routes should read `c.var.logger` and `c.var.tracer`.
+
+<Callout type="info" title="Use telemetry packages for new v3 code">
+The v3 default is `logger` and `tracer` from `@agentuity/telemetry`. Keep the `ctx.*` examples here for existing runtime apps while you migrate.
+</Callout>
 
 ## Logging
 
-Use `ctx.logger` to emit log lines that the platform captures and displays in the Console. Use child loggers when you want fields attached as log attributes.
+In v2 runtime agents, use `ctx.logger` to emit log lines that the platform captures and displays in the Console. Use child loggers when you want fields attached as log attributes.
 
 ### Logger Interface
 
@@ -90,7 +94,7 @@ stepLogger.warn('Missing optional field');
 
 ### Log Configuration
 
-Set the minimum log level with the `AGENTUITY_LOG_LEVEL` environment variable:
+Legacy runtime apps can set the minimum log level with the `AGENTUITY_LOG_LEVEL` environment variable:
 
 ```bash
 # .env
@@ -104,9 +108,8 @@ AGENTUITY_LOG_LEVEL=debug
 | `info` | info, warn, error, fatal (default in deployed environments) |
 | `warn` | warn, error, fatal |
 | `error` | error, fatal |
-| `fatal` | fatal only |
 
-The default is `info` unless `AGENTUITY_LOG_LEVEL` is set.
+For v3 telemetry configuration, see [Logging](/services/observability/logging): set `logLevel` when calling `register()` or through the Hono middleware options.
 
 ### Viewing Logs
 
@@ -126,13 +129,22 @@ Logs are also visible in the Agentuity App session timeline.
 
 ### Route Logging
 
-In route handlers, the logger is available on `c.var.logger` instead of `ctx.logger`. The API is identical.
+In Hono route handlers with `@agentuity/hono`, the logger is available on `c.var.logger` instead of `ctx.logger`. The API is identical.
 
 ```typescript title="src/api/users/route.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
+import type { Logger } from '@agentuity/hono';
+
+interface Env {
+  readonly Variables: {
+    readonly logger: Logger;
+  };
+}
 
 const router = new Hono<Env>();
+
+router.use('*', agentuity());
 
 router.get('/:id', async (c) => {
   const userId = c.req.param('id');
@@ -167,11 +179,11 @@ For patterns, best practices, and advanced logging strategies, see [Logging](/se
 
 ## Telemetry
 
-The SDK integrates with OpenTelemetry for tracing.
+The v2 runtime integrates with OpenTelemetry for tracing.
 
 ### Tracing
 
-Use `ctx.tracer` to create OpenTelemetry spans that track operations across agents and services.
+In v2 runtime agents, use `ctx.tracer` to create OpenTelemetry spans that track operations across agents and services.
 
 ```typescript
 import { SpanStatusCode } from '@opentelemetry/api';
@@ -280,7 +292,7 @@ await ctx.tracer.startActiveSpan('handle-request', async (parentSpan) => {
 
 ### Trace Propagation
 
-When one agent calls another via `.run()`, trace context is propagated automatically. The called agent's spans appear as children of the calling agent's span, giving you a complete trace across the full request chain.
+When one v2 runtime agent calls another via `.run()`, trace context is propagated automatically. The called agent's spans appear as children of the calling agent's span, giving you a complete trace across the full request chain.
 
 No manual header injection or context passing is needed. The SDK handles propagation for both agent-to-agent calls and outbound HTTP requests made with `fetch`.
 

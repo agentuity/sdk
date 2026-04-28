@@ -1,0 +1,112 @@
+---
+title: Using Hono with Agentuity
+short_title: Hono
+description: Add Agentuity services and deployment context to a Hono app
+---
+
+Start with a normal [Hono](https://hono.dev/docs/) app. Use Agentuity service clients inside Hono handlers, then validate the packaged build before you deploy.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-hono-api --framework hono
+cd my-hono-api
+```
+
+The starter creates a Hono app, adds `@agentuity/cli`, package scripts for local development, build, start, and deploy, plus an optional AI route example in `src/index.ts`.
+
+## Add a Service Client
+
+Install a service client:
+
+```bash
+bun add @agentuity/keyvalue@alpha
+```
+
+Then call it from your route handlers.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const app = new Hono();
+const kv = new KeyValueClient();
+
+function readTitle(value: unknown): string | undefined {
+	if (typeof value !== 'object' || value === null || !('title' in value)) {
+		return undefined;
+	}
+
+	const { title } = value;
+	return typeof title === 'string' && title.trim() ? title.trim() : undefined;
+}
+
+app.post('/api/events', async (c) => {
+	const body: unknown = await c.req.json();
+	const title = readTitle(body);
+
+	if (!title) {
+		return c.json({ error: 'title is required' }, 400);
+	}
+
+	const id = crypto.randomUUID();
+	const event = {
+		id,
+		title,
+		createdAt: new Date().toISOString(),
+	};
+
+	await kv.set('events', id, event, { ttl: null });
+
+	return c.json(event, 201);
+});
+
+export default app;
+```
+
+<Callout type="info" title="Use standard Hono patterns">
+Keep request parsing, validation, and responses in normal Hono handlers. Add Agentuity clients only where the route needs platform services.
+</Callout>
+
+## Local Development
+
+`agentuity dev` runs your package manager's `dev` script and injects Agentuity environment variables into that child process.
+
+```bash
+agentuity dev
+```
+
+Pass a custom script when your Hono app uses a different dev entry:
+
+```bash
+agentuity dev --script dev:api
+```
+
+## Validate Before Deploy
+
+Treat `agentuity build` as the packaging check before deploy. For some Hono app shapes, you may need an explicit `start` script and entrypoint so the packaged app has a clear process to run:
+
+```json title="package.json"
+{
+	"scripts": {
+		"dev": "bun run --hot src/index.ts",
+		"build": "bun build src/index.ts --target=bun --outdir=dist",
+		"start": "bun dist/index.js",
+		"deploy": "agentuity deploy"
+	}
+}
+```
+
+Then validate before deploying:
+
+```bash
+agentuity build
+```
+
+Deploy only after the build writes `.agentuity/launch.json` with the expected web process.
+
+## Next Steps
+
+- [Hono Routing](https://hono.dev/docs/api/routing): use standard Hono request and response helpers
+- [Logging](/services/observability/logging): add structured logging in routes
+- [Standalone Packages](/reference/standalone-packages): use service clients without Hono middleware

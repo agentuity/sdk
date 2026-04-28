@@ -23,7 +23,7 @@ my-nextjs-app/
 
 ## Rewrite `/api` to Agentuity
 
-Add a rewrite that proxies API traffic to `agentuity dev`. The SDK testing app runs Next.js on `3001` and Agentuity on `3501` to avoid conflicts:
+Add a rewrite that proxies API traffic to `agentuity dev`. This example runs Next.js on `3001` and Agentuity on `3501` to avoid port conflicts:
 
 ```typescript title="next.config.ts"
 import type { NextConfig } from 'next';
@@ -48,7 +48,7 @@ export default nextConfig;
 ```
 
 <Callout type="info" title="No generated route registry">
-This pattern does not use `@agentuity/routes` or `src/generated/routes.ts`. The frontend imports `type ApiRouter` directly from the backend source file, and `hc()` infers requests from that type.
+This pattern does not use `@agentuity/frameworks` or `src/generated/frameworks.ts`. The frontend imports `type ApiRouter` directly from the backend source file, and `hc()` infers requests from that type.
 </Callout>
 
 ## Import the Router Type Directly
@@ -171,4 +171,4 @@ Then enable CORS in [App Configuration](/get-started/app-configuration).
 
 - [RPC Client](/frontend/rpc-client): More `hc()` patterns, custom fetch, and error handling
 - [Provider Setup](/frontend/provider-setup): Add auth, analytics, or WebRTC hooks
-- [HTTP Routes](/routes/http): Define the backend API router you export to the frontend
+- [Using Hono with Agentuity](/frameworks/hono): Define the backend API router you export to the frontend

@@ -1,0 +1,106 @@
+---
+title: Using Next.js with Agentuity
+short_title: Next.js
+description: Add Agentuity service clients, local development, and deployment metadata to a Next.js app
+---
+
+Start with a normal [Next.js](https://nextjs.org/docs) App Router project. Agentuity adds service clients, local development support, and deploy validation around the framework's own routes and build output.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-next-app --framework nextjs
+cd my-next-app
+```
+
+The starter creates a Next.js app, adds `@agentuity/cli`, a `deploy` script, and an optional AI route example under `src/app/api`.
+
+For an existing Next.js app, add the CLI and import the project instead:
+
+```bash
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity project import` registers the app and writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy for existing apps.
+
+## Add a Service Client
+
+Use standalone service clients from route handlers. This keeps the code portable and does not require an Agentuity-specific router.
+
+```bash
+bun add @agentuity/keyvalue@alpha
+```
+
+```typescript title="src/app/api/notes/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { NextResponse } from 'next/server';
+
+interface Note {
+	readonly id: string;
+	readonly text: string;
+	readonly createdAt: string;
+}
+
+const kv = new KeyValueClient();
+
+function readText(value: unknown): string | undefined {
+	if (typeof value !== 'object' || value === null || !('text' in value)) {
+		return undefined;
+	}
+
+	const { text } = value;
+	return typeof text === 'string' && text.trim() ? text.trim() : undefined;
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
+	const body: unknown = await request.json();
+	const text = readText(body);
+
+	if (!text) {
+		return NextResponse.json({ error: 'text is required' }, { status: 400 });
+	}
+
+	const note: Note = {
+		id: crypto.randomUUID(),
+		text,
+		createdAt: new Date().toISOString(),
+	};
+
+	await kv.set('notes', note.id, note, { ttl: 60 * 60 * 24 * 7 });
+
+	return NextResponse.json({ note });
+}
+```
+
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Link the app before local service calls or deploys that need it.
+
+## Validate Before Deploy
+
+Build the app with Next.js first, then run the Agentuity build before deploying.
+
+Validate in this order:
+
+```bash
+bun run build
+agentuity build
+```
+
+If the Agentuity build cannot find the local `next` binary, run it with the app's package binaries on `PATH`:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+```
+
+Deploy only after `agentuity build` succeeds and `.agentuity/launch.json` points at the process you expect. If your app uses Next.js standalone output, inspect the packaged server entry before deploying.
+
+<Callout type="tip" title="Use the framework route shape">
+Keep API handlers in `app/api/**/route.ts`. Agentuity does not require `createApp()` or an Agentuity-owned router for v3 Next.js apps.
+</Callout>
+
+## Next Steps
+
+- [Key-Value Storage](/services/storage/key-value): store short-lived state from route handlers
+- [Deployment](/reference/cli/deployment): see CLI deploy flags and lifecycle script behavior
+- [App Configuration](/get-started/app-configuration): configure project IDs, domains, and environment files

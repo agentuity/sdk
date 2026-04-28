@@ -1,313 +1,173 @@
 ---
 title: Vector Storage
 short_title: Vector
-description: Semantic search and retrieval for knowledge bases and RAG systems
+description: Store documents and embeddings for semantic search and retrieval
 ---
 
-Vector storage enables semantic search, allowing agents to find information by *meaning* rather than keywords. Use it for knowledge bases, RAG systems, recommendations, and persistent agent memory.
+Use vector storage when exact keys or SQL filters are not enough, for example knowledge search, RAG retrieval, recommendations, or long-lived memory. Start with `VectorClient`; Hono apps can use `c.var.vector` after installing the Agentuity middleware.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/vector`](/reference/standalone-packages#vector-search) standalone package to access this service from any Node.js or Bun app without the runtime.
-</Callout>
+```bash
+bun add @agentuity/vector@alpha
+```
+
+```typescript
+import { VectorClient } from '@agentuity/vector';
+
+interface DocumentMetadata {
+  readonly category: 'guide' | 'api';
+  readonly source: string;
+}
+
+const vector = new VectorClient();
+
+await vector.upsert(
+  'docs',
+  {
+    key: 'deploy-guide',
+    document: 'Deploy framework apps to Agentuity with agentuity deploy.',
+    metadata: { category: 'guide', source: 'docs' } satisfies DocumentMetadata,
+  },
+  {
+    key: 'service-clients',
+    document: 'Agentuity services can be used through dedicated client packages.',
+    metadata: { category: 'api', source: 'docs' } satisfies DocumentMetadata,
+  }
+);
+
+const results = await vector.search<DocumentMetadata>('docs', {
+  query: 'How do I use Agentuity services from my app?',
+  limit: 3,
+  similarity: 0.7,
+});
+```
+
+`VectorClient` reads `AGENTUITY_SDK_KEY` by default. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
 
 ## When to Use Vector Storage
 
-| Storage Type | Best For |
-|--------------|----------|
-| **Vector** | Semantic search, embeddings, RAG, recommendations |
-| [Key-Value](/services/storage/key-value) | Fast lookups, caching, configuration |
-| [Object (S3)](/services/storage/object) | Files, images, documents, media |
-| [Database](/services/database) | Structured data, complex queries, transactions |
-| [Durable Streams](/services/storage/durable-streams) | Large exports, audit logs |
+| Need | Use |
+|------|-----|
+| semantic search or RAG retrieval | [Vector](/services/storage/vector) |
+| exact key lookup | [Key-Value](/services/storage/key-value) |
+| relational joins or transactions | [Database](/services/database) |
+| files or binary data | [Object Storage](/services/storage/object) |
+| append-only ordered data | [Durable Streams](/services/storage/durable-streams) |
 
-## Access Patterns
+## Upsert Data
 
-| Context | Access | Details |
-|---------|--------|---------|
-| Agents | `ctx.vector` | See examples below |
-| Routes | `c.var.vector` | See [Using in Routes](#using-in-routes) |
-| Standalone | `createAgentContext()` | See [Standalone Usage](#standalone-usage) |
-| External backends | HTTP routes | [SDK Utilities for External Apps](/cookbook/patterns/server-utilities) |
-| Frontend | Via routes | [React Hooks](/frontend/react-hooks) |
-
-<Callout type="info" title="Same API Everywhere">
-The Vector API is identical in all contexts. `ctx.vector.search()` and `c.var.vector.search()` work the same way. See [Accessing Services](/reference/sdk-reference/router#accessing-services) for the full reference.
-</Callout>
-
-## Upserting Documents
-
-Store documents with automatic embedding generation. The `upsert` operation is idempotent: using an existing key updates the vector rather than creating a duplicate.
+Pass `document` when you want Agentuity to generate embeddings. Pass `embeddings` when you already have vectors from another model.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+await vector.upsert('products', {
+  key: 'chair-001',
+  document: 'Ergonomic office chair with lumbar support',
+  metadata: { category: 'furniture', source: 'catalog' },
+  ttl: 60 * 60 * 24 * 90,
+});
 
-const agent = createAgent('KnowledgeLoader', {
-  handler: async (ctx) => {
-    // Upsert with text (auto-generates embeddings)
-    const results = await ctx.vector.upsert('knowledge-base',
-      {
-        key: 'doc-1',
-        document: 'Agentuity is an agent-native cloud platform',
-        metadata: { category: 'platform', source: 'docs' },
-        ttl: 86400 * 7,  // expires in 7 days
-      },
-      {
-        key: 'doc-2',
-        document: 'Vector storage enables semantic search capabilities',
-        metadata: { category: 'features', source: 'docs' },
-        // No TTL specified: uses 30-day default
-      }
-    );
-
-    // Returns: [{ key: 'doc-1', id: 'internal-id' }, ...]
-    return { inserted: results.length };
-  },
+await vector.upsert('custom-embeddings', {
+  key: 'embedding-001',
+  embeddings: [0.12, 0.34, 0.56, 0.78],
+  metadata: { source: 'external-model' },
+  ttl: null,
 });
 ```
 
-**TTL semantics:**
+The operation is idempotent by key: upserting the same key updates the stored vector.
+
+## TTL
+
+Vectors expire after 30 days unless you pass `ttl`.
 
 | Value | Behavior |
 |-------|----------|
-| `undefined` | Vectors expire after 30 days (default) |
-| `null` or `0` | Vectors never expire |
-| `>= 60` | Custom TTL in seconds (minimum 60 seconds, maximum 90 days) |
+| omitted | expire after 30 days |
+| `null` or `0` | never expire |
+| `>= 60` | expire after that many seconds |
 
-<Callout type="info" title="TTL in Local Development">
-TTL is enforced only in cloud deployments. During local development, vectors persist indefinitely regardless of the TTL value. The `expiresAt` field will not be populated in local search results.
+<Callout type="info" title="Managed vector storage clamps TTL values">
+Managed vector storage clamps TTL values below 60 seconds to 60 seconds and values above 90 days to 90 days.
 </Callout>
 
-**With pre-computed embeddings:**
+## Search
+
+Search accepts a natural-language query, optional result limit, optional similarity threshold, and optional metadata filter.
 
 ```typescript
-await ctx.vector.upsert('custom-embeddings', {
-  key: 'embedding-1',
-  embeddings: [0.12, 0.34, 0.56, 0.78],
-  metadata: { source: 'external' },
-  ttl: null,  // never expires
+const furniture = await vector.search('products', {
+  query: 'comfortable seating for a desk',
+  limit: 5,
+  similarity: 0.65,
+  metadata: { category: 'furniture', source: 'catalog' },
 });
+
+const rankedKeys = furniture.map((result) => result.key);
 ```
 
+Search results include `id`, `key`, `similarity`, optional `metadata`, and optional `expiresAt`.
 
-## Searching
+## Retrieve and Delete
 
-Find semantically similar documents:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('SemanticSearch', {
-  handler: async (ctx) => {
-    const results = await ctx.vector.search('knowledge-base', {
-      query: 'What is an AI agent?',
-      limit: 5,
-      similarity: 0.7,  // minimum similarity threshold
-      metadata: { category: 'platform' },  // filter by metadata
-    });
-
-    // Each result includes: id, key, similarity, metadata, expiresAt
-    return {
-      results: results.map(r => ({
-        key: r.key,
-        similarity: r.similarity,
-        metadata: r.metadata,
-        expiresAt: r.expiresAt,  // ISO timestamp when vector expires
-      })),
-    };
-  },
-});
-```
-
-## Direct Retrieval
-
-### get() - Single Item
-
-Retrieve a specific vector by key without similarity search:
+Use `get()` when you already know the key, `getMany()` for batches, and `delete()` when you want to remove one or more vectors.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+const document = await vector.get('products', 'chair-001');
 
-const agent = createAgent('DocumentRetriever', {
-  handler: async (ctx) => {
-    const result = await ctx.vector.get('knowledge-base', 'doc-1');
-
-    if (result.exists) {
-      return {
-        id: result.data.id,
-        key: result.data.key,
-        metadata: result.data.metadata,
-      };
-    }
-
-    return { error: 'Document not found' };
-  },
-});
-```
-
-### getMany() - Batch Retrieval
-
-Retrieve multiple vectors efficiently:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('BatchRetriever', {
-  handler: async (ctx) => {
-    const keys = ['doc-1', 'doc-2', 'doc-3'];
-    const resultMap = await ctx.vector.getMany('knowledge-base', ...keys);
-
-    // resultMap is Map<string, VectorSearchResultWithDocument>
-    return {
-      found: resultMap.size,
-      documents: Array.from(resultMap.values()).map(doc => ({
-        key: doc.key,
-        content: doc.document,
-      })),
-    };
-  },
-});
-```
-
-### exists() - Check Namespace
-
-Check if a namespace contains any vectors:
-
-```typescript
-const hasData = await ctx.vector.exists('knowledge-base');
-if (!hasData) {
-  return { error: 'Knowledge base not initialized' };
+if (document.exists) {
+  const metadata = document.data.metadata;
 }
+
+const batch = await vector.getMany('products', 'chair-001', 'desk-001');
+const deleted = await vector.delete('products', 'chair-001', 'desk-001');
 ```
 
-<Callout type="info" title="Empty Namespace Behavior">
-`exists()` returns `false` for namespaces that exist but contain no vectors. Use this to verify your knowledge base has been populated with data before searching.
+## Namespaces and Stats
+
+Vector namespaces are created on first upsert. Use stats and namespace methods to inspect or clean up stored data.
+
+```typescript
+const hasProducts = await vector.exists('products');
+const stats = await vector.getStats('products');
+const namespaces = await vector.getNamespaces();
+
+await vector.deleteNamespace('old-products');
+```
+
+<Callout type="warning" title="Deleting a namespace removes every vector">
+`deleteNamespace()` permanently removes the namespace and all vectors inside it.
 </Callout>
 
-## Deleting Vectors
+<Callout type="info" title="Use local vector search for development, not relevance tuning">
+Local vector storage is useful for development and API-shape checks. Validate embedding quality, ranking, and TTL behavior against the managed vector service before relying on search relevance.
+</Callout>
 
-```typescript
-// Delete single vector
-await ctx.vector.delete('knowledge-base', 'doc-1');
+## Hono
 
-// Delete multiple vectors, returns count deleted
-const count = await ctx.vector.delete('knowledge-base', 'doc-1', 'doc-2', 'doc-3');
+In Hono apps, `@agentuity/hono` initializes `VectorClient` once and exposes it on `c.var.vector`.
+
+```bash
+bun add @agentuity/hono@alpha hono
 ```
-
-## Type Safety
-
-Use generics for type-safe metadata:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-
-interface DocumentMetadata {
-  readonly title: string;
-  readonly category: 'guide' | 'api' | 'tutorial';
-  readonly author: string;
-}
-
-const agent = createAgent('TypedVectorAgent', {
-  schema: {
-    input: s.object({ question: s.string() }),
-    output: s.object({ titles: s.array(s.string()) }),
-  },
-  handler: async (ctx, input) => {
-    // Type-safe upsert
-    await ctx.vector.upsert<DocumentMetadata>('docs', {
-      key: 'guide-1',
-      document: 'Getting started with agents',
-      metadata: {
-        title: 'Getting Started',
-        category: 'guide',
-        author: 'team',
-      },
-    });
-
-    // Type-safe search
-    const results = await ctx.vector.search<DocumentMetadata>('docs', {
-      query: input.question,
-    });
-
-    // TypeScript knows metadata shape
-    const titles = results
-      .map((r) => r.metadata?.title)
-      .filter((title): title is string => title !== undefined);
-
-    return { titles };
-  },
-});
-```
-
-## Simple RAG Example
-
-Search for relevant context and generate an informed response:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { s } from '@agentuity/schema';
-
-interface KnowledgeMetadata {
-  readonly content: string;
-}
-
-const ragAgent = createAgent('RAG', {
-  schema: {
-    input: s.object({ question: s.string() }),
-    output: s.object({
-      answer: s.string(),
-      sources: s.array(s.string()),
-    }),
-  },
-  handler: async (ctx, input) => {
-    // Search for relevant documents
-    const results = await ctx.vector.search<KnowledgeMetadata>('knowledge-base', {
-      query: input.question,
-      limit: 3,
-      similarity: 0.7,
-    });
-
-    if (results.length === 0) {
-      return {
-        answer: "I couldn't find relevant information.",
-        sources: [],
-      };
-    }
-
-    // Build context from results
-    const context = results
-      .map((r) => r.metadata?.content ?? '')
-      .join('\n\n');
-
-    // Generate response using context
-    const { text } = await generateText({
-      model: openai('gpt-5.4-nano'),
-      prompt: `Answer based on this context:\n\n${context}\n\nQuestion: ${input.question}`,
-    });
-
-    return {
-      answer: text,
-      sources: results.map(r => r.key),
-    };
-  },
-});
-```
-
-## Using in Routes
-
-Routes have the same vector access via `c.var.vector`:
 
 ```typescript
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
 
-const router = new Hono<Env>();
+type Variables = Pick<Services, 'vector'>;
 
-router.post('/search', async (c) => {
-  const { query } = await c.req.json<{ query: string }>();
-  const results = await c.var.vector.search('knowledge-base', {
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.get('/search', async (c) => {
+  const query = c.req.query('q');
+
+  if (!query) {
+    return c.json({ error: 'Missing q query parameter' }, 400);
+  }
+
+  const results = await c.var.vector.search('docs', {
     query,
     limit: 5,
   });
@@ -315,127 +175,11 @@ router.post('/search', async (c) => {
   return c.json({ results });
 });
 
-export default router;
-```
-
-### Route-Based RAG
-
-Build a RAG endpoint that searches vectors and generates responses:
-
-```typescript
-import { Hono } from 'hono';
-import { validator } from '@agentuity/runtime';
-import type { Env } from '@agentuity/runtime';
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { z } from 'zod';
-
-const router = new Hono<Env>();
-
-interface KnowledgeMetadata {
-  readonly content: string;
-}
-
-const questionSchema = z.object({
-  question: z.string().describe('User question'),
-});
-
-router.post('/ask',
-  validator({ input: questionSchema }),
-  async (c) => {
-    const { question } = c.req.valid('json');
-
-    // Search for relevant context
-    const results = await c.var.vector.search<KnowledgeMetadata>('knowledge-base', {
-      query: question,
-      limit: 3,
-      similarity: 0.7,
-    });
-
-    if (results.length === 0) {
-      return c.json({
-        answer: "I couldn't find relevant information.",
-        sources: [],
-      });
-    }
-
-    // Build context from search results
-    const context = results
-      .map((r) => r.metadata?.content ?? '')
-      .join('\n\n');
-
-    // Generate answer
-    const { text } = await generateText({
-      model: openai('gpt-5.4-nano'),
-      prompt: `Answer based on this context:\n\n${context}\n\nQuestion: ${question}`,
-    });
-
-    c.var.logger.info('RAG query completed', {
-      question,
-      sourcesFound: results.length,
-    });
-
-    return c.json({
-      answer: text,
-      sources: results.map(r => r.key),
-    });
-  }
-);
-
-export default router;
-```
-
-<Callout type="tip" title="External Backend Access">
-Need to access vector storage from a Next.js backend or other external service? Create authenticated routes that expose storage operations, then call them via HTTP. See [SDK Utilities for External Apps](/cookbook/patterns/server-utilities).
-</Callout>
-
-## Standalone Usage
-
-Use vector storage in background jobs or external scripts with `createAgentContext()`:
-
-```typescript
-import { createApp, createAgentContext } from '@agentuity/runtime';
-
-const app = await createApp();
 export default app;
-
-// CLI tool to index documents
-async function indexDocuments(files: readonly string[]): Promise<void> {
-  const ctx = createAgentContext();
-
-  await ctx.invoke(async () => {
-    for (const file of files) {
-      const content = await Bun.file(file).text();
-      await ctx.vector.upsert('knowledge-base', {
-        key: file,
-        document: content,
-        metadata: { source: 'cli-import' },
-      });
-    }
-    ctx.logger.info('Indexed documents', { count: files.length });
-  });
-}
 ```
-
-See [Running Agents Without HTTP](/agents/standalone-execution) for more patterns including Discord bots, CLI tools, and queue workers.
-
-## Troubleshooting
-
-- **Empty results**: Lower your similarity threshold (try 0.5 instead of 0.8) or check metadata filters
-- **Duplicates**: Ensure consistent key naming; upsert with same key updates rather than duplicates
-- **Poor relevance**: Results with similarity < 0.7 may be weak matches; filter post-search if needed
-
-## Best Practices
-
-- **Include context in documents**: Store enough text so documents are meaningful when retrieved
-- **Use descriptive metadata**: Include title, category, tags for filtering and identification
-- **Batch upserts**: Insert documents in batches of 100-500 for better performance
-- **Combine get + search**: Use `search` for finding, `getMany` for fetching full details
 
 ## Next Steps
 
-- [Key-Value Storage](/services/storage/key-value): Fast caching and configuration
-- [Object Storage (S3)](/services/storage/object): File and media storage
-- [Database](/services/database): Relational data with queries and transactions
-- [Durable Streams](/services/storage/durable-streams): Streaming large data exports
-- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Quality checks for RAG systems
+- [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
+- [Database](/services/database): store relational data with SQL and transactions
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): evaluate retrieval quality

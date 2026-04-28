@@ -1,24 +1,24 @@
 ---
 title: SDK Reference
-description: TypeScript method signatures, parameters, and return types for the Agentuity SDK
+description: TypeScript SDK surfaces for standalone clients, framework code, and existing runtime apps
 ---
 
 import { Rocket, Box, Shield, Database, Globe, Radio, Layers, Zap, Package, Eye, MessageSquare, ListTodo, Mail, Clock, Container, BrainCircuit } from 'lucide-react';
 
-These pages document method signatures, parameters, and return types for the Agentuity TypeScript SDK. For concepts and patterns, see [Agents](/agents), [Routes](/routes), [Frontend](/frontend), [Services](/services), and [Cookbook](/cookbook). For using services outside the runtime, see [Standalone Packages](/reference/standalone-packages).
+Use this reference to choose the right v3 SDK surface. New v3 apps usually use standalone service clients in framework or server code; existing v2 runtime apps can keep using the runtime references while they migrate.
 
 <Cards>
   <CardLink
-    href="/reference/sdk-reference/application-entry"
-    title="Application Entry"
-    description="Initialize your app with createApp()"
-    icon={<Rocket />}
+    href="/reference/standalone-packages"
+    title="Standalone Packages"
+    description="Use service clients from Node.js, Bun, and framework routes"
+    icon={<Package />}
   />
   <CardLink
-    href="/reference/sdk-reference/agents"
-    title="Agents"
-    description="Define agents with createAgent() and handle inputs"
-    icon={<Box />}
+    href="/reference/sdk-reference/communication"
+    title="Calling App Code"
+    description="Call shared functions from routes, workers, and other server code"
+    icon={<Radio />}
   />
   <CardLink
     href="/reference/sdk-reference/schema"
@@ -27,58 +27,22 @@ These pages document method signatures, parameters, and return types for the Age
     icon={<Shield />}
   />
   <CardLink
-    href="/reference/sdk-reference/context-api"
-    title="Context API"
-    description="Storage, logging, state management, and services via ctx.*"
-    icon={<Database />}
-  />
-  <CardLink
-    href="/reference/sdk-reference/router"
-    title="Router &amp; Routes"
-    description="HTTP endpoints, middleware, and WebSocket handlers"
-    icon={<Globe />}
-  />
-  <CardLink
-    href="/reference/sdk-reference/communication"
-    title="Calling Other Agents"
-    description="Call agents from routes or other agents"
-    icon={<Radio />}
-  />
-  <CardLink
-    href="/reference/sdk-reference/storage"
-    title="Storage APIs"
-    description="KV, Vector, Database, Object, and Stream storage"
+    href="/services"
+    title="Service Guides"
+    description="Build with KV, vector, queues, email, schedules, tasks, sandbox, and Coder"
     icon={<Layers />}
   />
   <CardLink
-    href="/reference/sdk-reference/queue-service"
-    title="Message Queues"
-    description="Publish and manage messages with ctx.queue"
-    icon={<MessageSquare />}
+    href="/frameworks"
+    title="Frameworks"
+    description="Use Agentuity from Hono, Next.js, TanStack Start, and other server frameworks"
+    icon={<Globe />}
   />
   <CardLink
-    href="/reference/sdk-reference/task-service"
-    title="Tasks"
-    description="Track work items with ctx.task"
-    icon={<ListTodo />}
-  />
-  <CardLink
-    href="/reference/sdk-reference/email-service"
-    title="Email"
-    description="Send and manage email with ctx.email"
-    icon={<Mail />}
-  />
-  <CardLink
-    href="/reference/sdk-reference/schedule-service"
-    title="Schedules"
-    description="Cron-based scheduled jobs with ctx.schedule"
-    icon={<Clock />}
-  />
-  <CardLink
-    href="/reference/sdk-reference/sandbox-service"
-    title="Sandbox"
-    description="Isolated code execution with ctx.sandbox"
-    icon={<Container />}
+    href="/reference/api"
+    title="REST API"
+    description="Call Agentuity services from any language or HTTP client"
+    icon={<Radio />}
   />
   <CardLink
     href="/reference/sdk-reference/coder"
@@ -86,22 +50,91 @@ These pages document method signatures, parameters, and return types for the Age
     description="Manage AI coding sessions with CoderClient"
     icon={<BrainCircuit />}
   />
+</Cards>
+
+<Callout type="info" title="v2 runtime references are still available">
+Pages below that mention `createApp()`, `createAgent()`, `ctx.*`, or runtime route context describe the v2 runtime app model. Use them for existing v2 apps. For new v3 apps, start with [Standalone Packages](/reference/standalone-packages) and the service guides.
+</Callout>
+
+## Existing Runtime App References
+
+<Cards>
+  <CardLink
+    href="/reference/sdk-reference/application-entry"
+    title="Application Entry"
+    description="v2 runtime app initialization with createApp()"
+    icon={<Rocket />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/agents"
+    title="Agents"
+    description="v2 runtime agent handlers created with createAgent()"
+    icon={<Box />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/context-api"
+    title="Context API"
+    description="v2 runtime context, state, and service access via ctx.*"
+    icon={<Database />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/router"
+    title="Router &amp; Routes"
+    description="v2 runtime route context, middleware, WebSockets, SSE, and cron"
+    icon={<Globe />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/storage"
+    title="Storage APIs"
+    description="Runtime storage reference for existing ctx.* examples"
+    icon={<Layers />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/queue-service"
+    title="Message Queues"
+    description="v2 runtime queue access via ctx.queue"
+    icon={<MessageSquare />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/task-service"
+    title="Tasks"
+    description="v2 runtime task access via ctx.task"
+    icon={<ListTodo />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/email-service"
+    title="Email"
+    description="v2 runtime email access via ctx.email"
+    icon={<Mail />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/schedule-service"
+    title="Schedules"
+    description="v2 runtime schedule access via ctx.schedule"
+    icon={<Clock />}
+  />
+  <CardLink
+    href="/reference/sdk-reference/sandbox-service"
+    title="Sandbox"
+    description="v2 runtime sandbox access via ctx.sandbox"
+    icon={<Container />}
+  />
   <CardLink
     href="/reference/sdk-reference/observability"
     title="Observability"
-    description="Structured logging and OpenTelemetry tracing"
+    description="Runtime logging and tracing reference for existing apps"
     icon={<Eye />}
   />
   <CardLink
     href="/reference/sdk-reference/events"
     title="Event System"
-    description="Lifecycle hooks for monitoring agents"
+    description="v2 runtime lifecycle hooks for monitoring agents"
     icon={<Zap />}
   />
   <CardLink
     href="/reference/sdk-reference/advanced"
     title="Runtime Utilities"
-    description="File imports, standalone execution, context detection, and build metadata"
+    description="v2 runtime utilities, imports, context helpers, and build metadata"
     icon={<Package />}
   />
 </Cards>

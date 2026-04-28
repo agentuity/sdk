@@ -1,0 +1,55 @@
+---
+title: Using React Router with Agentuity
+short_title: React Router
+description: Add Agentuity CLI wiring and deployment validation to a React Router app
+---
+
+Use this page for current [React Router](https://reactrouter.com/home) apps. The create flow still uses the slug `remix`, but it scaffolds a React Router app and the build detector also recognizes React Router projects separately.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-react-router-app --framework remix
+cd my-react-router-app
+```
+
+The starter runs `create-react-router`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an AI example at `app/routes/api.translate.ts` plus `app/routes/home.tsx`.
+
+React Router framework mode uses `app/routes.ts` as the route map. If you add a resource route by hand, register it there too:
+
+```ts title="app/routes.ts"
+import { type RouteConfig, index, route } from '@react-router/dev/routes';
+
+export default [
+	index('routes/home.tsx'),
+	route('api/translate', 'routes/api.translate.ts'),
+] satisfies RouteConfig;
+```
+
+For an existing React Router app, add the CLI and link the project:
+
+```bash
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+<Callout type="info" title="The current create slug is still remix">
+Use `--framework remix` for project creation today. Build detection can still recognize React Router apps from `react-router.config.*` or the React Router Vite plugin.
+</Callout>
+
+## Validate Before Deploy
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+React Router currently packages through the generic build adapter. Check that the launch metadata and static asset paths match the app's `build/` output before the first deploy.
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
+- [Standalone Packages](/reference/standalone-packages): add Agentuity services from route handlers and server code

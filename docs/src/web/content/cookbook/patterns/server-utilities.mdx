@@ -333,7 +333,7 @@ For one-off queue management, use the CLI instead: `agentuity cloud queue create
 
 ## Alternative: HTTP Routes
 
-If you want to centralize storage logic in your Agentuity project (for [middleware](/routes/middleware), sharing across multiple apps, or avoiding SDK key distribution), use [HTTP routes](/routes/http) instead.
+If you want to centralize storage logic in your Agentuity project (for [Hono middleware](/frameworks/hono), sharing across multiple apps, or avoiding SDK key distribution), use [Hono routes](/frameworks/hono) instead.
 
 ```typescript title="src/api/sessions/route.ts"
 import { Hono } from 'hono';
@@ -565,6 +565,5 @@ const jsonSchema = toJSONSchema(schema);
 
 - [Standalone Packages](/reference/standalone-packages): Full list of service packages and their APIs
 - [Queues](/services/queues): Queue concepts and CLI commands
-- [HTTP Routes](/routes/http): Route creation with Hono
-- [Route Middleware](/routes/middleware): Authentication patterns
+- [Using Hono with Agentuity](/frameworks/hono): Route creation and middleware patterns
 - [RPC Client](/frontend/rpc-client): Typed client generation

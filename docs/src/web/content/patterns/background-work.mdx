@@ -1,0 +1,157 @@
+---
+title: Background Work
+description: Use queues, status records, and durable streams for work that should outlive a request
+---
+
+Use background work when a request starts something slow: report generation, webhook fan-out, email preparation, model evaluation, or file processing. The route should enqueue the job and return a handle the client can poll.
+
+```bash
+bun add hono @agentuity/queue@alpha @agentuity/keyvalue@alpha @agentuity/stream@alpha @agentuity/schema@alpha
+```
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { QueueClient } from '@agentuity/queue';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { StreamClient } from '@agentuity/stream';
+import { s } from '@agentuity/schema';
+
+const requestSchema = s.object({
+  accountId: s.string(),
+  reportMonth: s.string(),
+});
+
+const jobSchema = s.object({
+  jobId: s.string(),
+  accountId: s.string(),
+  reportMonth: s.string(),
+});
+
+type ReportJob = s.infer<typeof jobSchema>;
+
+type ReportStatus =
+  | { readonly kind: 'queued'; readonly messageId: string }
+  | { readonly kind: 'processing' }
+  | { readonly kind: 'done'; readonly streamUrl: string }
+  | { readonly kind: 'failed'; readonly message: string };
+
+const queue = new QueueClient();
+const kv = new KeyValueClient();
+const streams = new StreamClient();
+const app = new Hono();
+
+// Create this once from setup code, a script, or the Console.
+await queue.createQueue('report-jobs', {
+  queueType: 'worker',
+  description: 'Monthly report generation jobs',
+});
+
+app.post('/api/reports', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = requestSchema.parse(body);
+  const jobId = crypto.randomUUID();
+
+  const job: ReportJob = {
+    jobId,
+    accountId: input.accountId,
+    reportMonth: input.reportMonth,
+  };
+
+  const message = await queue.publish('report-jobs', job, {
+    idempotencyKey: jobId,
+  });
+
+  await kv.set<ReportStatus>('report-status', jobId, {
+    kind: 'queued',
+    messageId: message.id,
+  });
+
+  return c.json({ jobId, statusUrl: `/api/reports/${jobId}` }, 202);
+});
+
+app.get('/api/reports/:jobId', async (c) => {
+  const result = await kv.get<ReportStatus>('report-status', c.req.param('jobId'));
+
+  if (!result.exists) {
+    return c.json({ error: 'Report job not found' }, 404);
+  }
+
+  return c.json(result.data);
+});
+
+export default app;
+```
+
+The request route stays short. It validates the payload, publishes a queue message, records status in KV, and returns `202 Accepted`.
+
+## Process the Job
+
+Use the same job function from a queue destination, schedule destination, webhook route, or local script. The route below assumes the request body is the job payload.
+
+```typescript title="src/index.ts"
+async function writeReport(job: ReportJob): Promise<string> {
+  const stream = await streams.create('monthly-reports', {
+    contentType: 'text/csv',
+    metadata: {
+      accountId: job.accountId,
+      reportMonth: job.reportMonth,
+    },
+    ttl: 60 * 60 * 24 * 90,
+  });
+
+  try {
+    await stream.write('account_id,report_month,total\n');
+    await stream.write(`${job.accountId},${job.reportMonth},42817\n`);
+  } finally {
+    await stream.close();
+  }
+
+  return stream.url;
+}
+
+app.post('/api/workers/report-jobs', async (c) => {
+  const body: unknown = await c.req.json();
+  const job = jobSchema.parse(body);
+
+  await kv.set<ReportStatus>('report-status', job.jobId, { kind: 'processing' });
+
+  try {
+    const streamUrl = await writeReport(job);
+    await kv.set<ReportStatus>('report-status', job.jobId, {
+      kind: 'done',
+      streamUrl,
+    });
+
+    return c.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Report generation failed';
+
+    await kv.set<ReportStatus>('report-status', job.jobId, {
+      kind: 'failed',
+      message,
+    });
+
+    return c.json({ ok: false }, 500);
+  }
+});
+```
+
+<Callout type="info" title="Queues decouple the request from the worker">
+The queue message is the handoff. KV stores the user-visible status, and durable streams store output that is too large or too useful to keep in the response body.
+</Callout>
+
+## Pick the Right Service
+
+| Need | Use |
+|------|-----|
+| async handoff between routes or workers | [Queues](/services/queues) |
+| user-visible job status | [Key-Value Storage](/services/storage/key-value) |
+| large generated output | [Durable Streams](/services/storage/durable-streams) |
+| cron-based starts | [Schedules](/services/schedules) |
+| external event intake | [Webhooks](/services/webhooks) |
+
+## Next Steps
+
+- [Queues](/services/queues): publish work with idempotency and metadata
+- [Durable Streams](/services/storage/durable-streams): write generated files and logs
+- [Schedules](/services/schedules): start recurring work without an incoming user request

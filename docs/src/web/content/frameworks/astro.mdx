@@ -1,0 +1,42 @@
+---
+title: Using Astro with Agentuity
+short_title: Astro
+description: Add Agentuity CLI wiring and deployment validation to an Astro app
+---
+
+Start with a normal [Astro](https://docs.astro.build) app. Agentuity adds local development and deploy wiring around Astro's own pages, API routes, and build output.
+
+## Create a Starter
+
+```bash
+bun create agentuity@alpha --name my-astro-app --framework astro
+cd my-astro-app
+```
+
+The starter runs `create-astro`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an AI example at `src/pages/api/translate.ts` plus `src/pages/index.astro`.
+
+For an existing Astro app, add the CLI and link the project:
+
+```bash
+bun add -d @agentuity/cli@alpha
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity dev` then runs your Astro `dev` script with Agentuity environment values, including `AGENTUITY_SDK_KEY` when the project is linked.
+
+## Validate Before Deploy
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+Astro is detected as its own framework, but the current build path still uses the generic adapter. Check that `.agentuity/launch.json` matches the Astro output you expect, especially if the app is no longer using the starter's default static shape.
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
+- [Standalone Packages](/reference/standalone-packages): add Agentuity services from Astro server code

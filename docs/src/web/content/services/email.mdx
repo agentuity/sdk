@@ -3,347 +3,240 @@ title: Email
 description: Send and receive emails with managed addresses, destinations, and delivery tracking
 ---
 
-Send outbound emails and receive inbound messages through managed addresses under your organization, with webhook forwarding for inbound processing.
+Use email when your app needs managed sending, inbound addresses, and delivery history. Start with `EmailClient`; Hono apps can use `c.var.email` after installing the Agentuity middleware.
 
-<Callout type="tip" title="Not inside an agent or route?">
-Use the [`@agentuity/email`](/reference/standalone-packages#email) standalone package to access this service from any Node.js or Bun app without the runtime.
-</Callout>
+```bash
+bun add @agentuity/email@alpha
+```
+
+```typescript
+import { EmailClient } from '@agentuity/email';
+
+const email = new EmailClient();
+
+export async function sendWelcomeEmail(to: string): Promise<string> {
+  const result = await email.send({
+    from: 'notifications@agentuity.email',
+    to: [to],
+    subject: 'Welcome',
+    text: 'Your workspace is ready.',
+    html: '<p>Your workspace is ready.</p>',
+  });
+
+  return result.id;
+}
+```
+
+`EmailClient` reads `AGENTUITY_SDK_KEY` by default. In Agentuity projects, keep the key in `.env` for local `agentuity dev` and configure the same environment variable for deployed apps.
 
 ## When to Use Email
 
-| Service | Best For |
-|---------|----------|
-| **Email** | Sending notifications, receiving customer emails, auto-responders |
-| [Webhooks](/services/webhooks) | Receiving HTTP callbacks from external services |
-| [Queues](/services/queues) | Async message passing between internal services |
+| Need | Use |
+|------|-----|
+| send transactional or notification email | [Email](/services/email) |
+| receive email at managed addresses | [Email](/services/email) |
+| receive HTTP callbacks from external services | [Webhooks](/services/webhooks) |
+| hand email work to a background process | [Queues](/services/queues) |
 
-## Managing Email
+## Client Setup
 
-| Context | Access | Details |
-|---------|--------|---------|
-| Agents | `ctx.email` | See examples below |
-| Routes | `c.var.email` | See [Using in Routes](#using-in-routes) |
-| CLI | `agentuity cloud email` | Manage addresses and view activity |
-| Web App | [Web App](https://app.agentuity.com/services/email) | Manage addresses and view history |
-
-<Callout type="warning" title="Cloud Only">
-Email is not available in local development. Deploy to Agentuity Cloud to use `ctx.email`.
-</Callout>
-
-## Creating Addresses
-
-Email addresses are created under the `@agentuity.email` domain. The local part (before the `@`) is supplied by you.
+Construct the client once at module scope and reuse it from handlers, routes, or scripts.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+import { EmailClient } from '@agentuity/email';
 
-const agent = createAgent('EmailSetup', {
-  handler: async (ctx, input) => {
-    // Creates support@agentuity.email // [!code highlight]
-    const address = await ctx.email.createAddress('support');
-    ctx.logger.info('Address created', { email: address.email, id: address.id });
+const email = new EmailClient({
+  orgId: process.env.AGENTUITY_ORG_ID,
+});
+```
 
-    // List all addresses in the organization
-    const addresses = await ctx.email.listAddresses();
+| Option | Description |
+|--------|-------------|
+| `apiKey` | Optional API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. |
+| `orgId` | Optional organization ID for org-scoped requests. |
+| `url` | Optional Email API URL. Defaults to `AGENTUITY_EMAIL_URL`, then the regional Agentuity email service URL. |
+| `logger` | Optional logger instance. |
 
-    // Look up a specific address by ID
-    const found = await ctx.email.getAddress(address.id);
+## Create Addresses
 
-    // Remove an address when no longer needed
-    await ctx.email.deleteAddress(address.id);
+Email addresses use the `@agentuity.email` domain. You provide the local part before the `@`.
 
-    return { created: address.email };
+```typescript
+const address = await email.createAddress('support');
+
+const addresses = await email.listAddresses();
+const current = await email.getAddress(address.id);
+```
+
+Address IDs are prefixed with `eaddr_`. Delete an address only when you no longer need inbound or outbound records associated with it.
+
+```typescript
+await email.deleteAddress(address.id);
+```
+
+## Send Email
+
+`send()` queues the outbound email and returns an outbound record.
+
+```typescript
+const outbound = await email.send({
+  from: 'support@agentuity.email',
+  to: ['customer@example.com'],
+  subject: 'We received your request',
+  text: 'Thanks. We will follow up shortly.',
+  headers: {
+    'X-Ticket-ID': 'task_123',
   },
 });
 ```
 
-<Callout type="info" title="@agentuity.email Domain">
-All addresses are created under `@agentuity.email`. The local part must be unique within the organization. Address IDs are prefixed with `eaddr_`.
-</Callout>
+| Field | Required | Description |
+|-------|----------|-------------|
+| `from` | Yes | Sender address owned by the organization. |
+| `to` | Yes | Recipient email addresses. |
+| `subject` | Yes | Email subject. |
+| `text` | No | Plain text body. |
+| `html` | No | HTML body. |
+| `attachments` | No | Base64-encoded attachments. |
+| `headers` | No | Custom email headers, such as `In-Reply-To` or `References`. |
 
-## Sending Email
-
-Send transactional or notification emails with `ctx.email.send()`. Both plain text and HTML bodies are supported.
+Outbound records can be `pending`, `success`, or `failed`.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('Notifier', {
-  handler: async (ctx, input) => {
-    const result = await ctx.email.send({ // [!code highlight]
-      from: 'notifications@agentuity.email', // must be owned by the organization
-      to: ['user@example.com'],
-      subject: 'Your report is ready',
-      text: 'Your weekly report has been generated.',
-      html: '<p>Your weekly <strong>report</strong> has been generated.</p>',
-    });
-
-    ctx.logger.info('Email queued', { id: result.id, status: result.status });
-    return { id: result.id };
-  },
-});
+const delivered = await email.getOutbound(outbound.id);
+const outboundForAddress = await email.listOutbound(address.id);
 ```
-
-**`EmailSendParams` fields:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `from` | `string` | Yes | Sender address (must be owned by the organization) |
-| `to` | `string[]` | Yes | Recipient addresses, up to 50 per send |
-| `subject` | `string` | Yes | Email subject line |
-| `text` | `string` | No | Plain text body |
-| `html` | `string` | No | HTML body |
-| `attachments` | `EmailAttachment[]` | No | File attachments (see [Attachments](#attachments)) |
-| `headers` | `Record<string, string>` | No | Custom headers, e.g. `In-Reply-To` for threading |
-
-<Callout type="info" title="Async Delivery">
-`send()` returns immediately with `status: 'pending'`. Delivery happens asynchronously. Check the outbound email record later with `getOutbound(id)` to see if status changed to `'success'` or `'failed'`. Outbound email IDs are prefixed with `eout_`.
-</Callout>
 
 ## Attachments
 
-Include files by providing base64-encoded content in the `attachments` array.
+Attachments are included as base64 content in the `attachments` array.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+const csv = Buffer.from('date,total\n2026-04-28,42').toString('base64');
 
-const agent = createAgent('ReportMailer', {
-  handler: async (ctx, input) => {
-    // Read or generate file content, then base64-encode it
-    const csvContent = 'date,value\n2026-03-01,42';
-    const encoded = Buffer.from(csvContent).toString('base64');
-
-    const result = await ctx.email.send({
-      from: 'reports@agentuity.email',
-      to: ['manager@example.com'],
-      subject: 'Monthly Report',
-      text: 'Please find the report attached.',
-      attachments: [ // [!code highlight]
-        {
-          filename: 'report.csv',
-          content: encoded,       // base64-encoded file content
-          contentType: 'text/csv', // optional MIME type
-        },
-      ],
-    });
-
-    return { id: result.id };
-  },
+await email.send({
+  from: 'reports@agentuity.email',
+  to: ['manager@example.com'],
+  subject: 'Daily report',
+  text: 'The report is attached.',
+  attachments: [
+    {
+      filename: 'daily-report.csv',
+      content: csv,
+      contentType: 'text/csv',
+    },
+  ],
 });
 ```
 
-The total RFC 822 message size, including all attachments, must not exceed 25 MB.
-
-## Tracking Delivery Status
-
-After sending, use `getOutbound` to check whether delivery succeeded or failed. You can also list all outbound emails, optionally filtered by sender address.
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('DeliveryTracker', {
-  handler: async (ctx, input) => {
-    // Send an email and capture the outbound ID
-    const result = await ctx.email.send({
-      from: 'notifications@agentuity.email',
-      to: ['user@example.com'],
-      subject: 'Your report is ready',
-      text: 'Your report has been generated.',
-    });
-
-    // Check delivery status by ID (prefixed with eout_)
-    const outbound = await ctx.email.getOutbound(result.id); // [!code highlight]
-    if (outbound) {
-      ctx.logger.info('Delivery status', { status: outbound.status, error: outbound.error });
-      // outbound.status: 'pending' | 'success' | 'failed'
-    }
-
-    // List all outbound emails, or filter by sender address
-    const all = await ctx.email.listOutbound();
-    const filtered = await ctx.email.listOutbound('eaddr_abc123');
-
-    // Delete an outbound record when no longer needed
-    await ctx.email.deleteOutbound(result.id);
-
-    return { status: outbound?.status };
-  },
-});
-```
+Keep the full RFC 822 message, including attachments, under the service size limit for your org.
 
 ## Inbound Email
 
-Emails sent to your addresses are stored and can be retrieved by ID or listed for an address. The `addressId` filter is optional; omit it to list inbound across all addresses.
+List inbound messages across the organization, or pass an address ID to filter.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+const allInbound = await email.listInbound();
+const supportInbound = await email.listInbound(address.id);
+const firstInbound = supportInbound.at(0);
 
-const agent = createAgent('InboxReader', {
-  handler: async (ctx, input) => {
-    // List inbound across all addresses
-    const all = await ctx.email.listInbound();
-
-    // Or filter by a specific address
-    const messages = await ctx.email.listInbound('eaddr_abc123'); // [!code highlight]
-
-    for (const msg of messages) {
-      ctx.logger.info('Inbound message', {
-        from: msg.from,
-        subject: msg.subject,
-        receivedAt: msg.received_at,
-      });
-    }
-
-    // Fetch a single message by its ID (prefixed with einb_)
-    const message = await ctx.email.getInbound('einb_abc123');
-    if (message) {
-      ctx.logger.info('Message body', { text: message.text });
-    }
-
-    // Delete an inbound message when no longer needed
-    await ctx.email.deleteInbound('einb_abc123'); // [!code highlight]
-
-    return { count: messages.length };
-  },
-});
+const message = firstInbound
+  ? await email.getInbound(firstInbound.id)
+  : null;
 ```
 
-Inbound emails are also automatically forwarded to configured [Destinations](#destinations) as they arrive.
+Inbound email records include sender, recipient, subject, optional text, optional HTML, headers, and stored attachment metadata.
+
+```typescript
+await email.deleteInbound('einb_123');
+```
 
 ## Destinations
 
-Destinations tell the platform where to forward inbound emails. When a message arrives at an address, the platform forwards it to each configured destination. One destination type is currently supported: `'url'` (HTTP webhook).
+Destinations forward inbound emails to an HTTP endpoint as they arrive.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('DestinationSetup', {
-  handler: async (ctx, input) => {
-    // Forward inbound emails to an HTTP endpoint // [!code highlight]
-    const dest = await ctx.email.createDestination('eaddr_abc123', 'url', {
-      url: 'https://example.com/inbound-email',
-      headers: { 'X-API-Key': 'secret' },
-      method: 'POST',
-    });
-
-    ctx.logger.info('Destination created', { id: dest.id });
-
-    // List all destinations for an address
-    const destinations = await ctx.email.listDestinations('eaddr_abc123');
-
-    // Remove a destination
-    await ctx.email.deleteDestination('eaddr_abc123', dest.id);
-
-    return { destinationId: dest.id };
+const destination = await email.createDestination(address.id, 'url', {
+  url: 'https://api.example.com/email/inbound',
+  method: 'POST',
+  headers: {
+    'X-Email-Source': 'agentuity',
   },
 });
+
+const destinations = await email.listDestinations(address.id);
+
+await email.deleteDestination(address.id, destination.id);
 ```
 
-**Destination config options (`'url'` type):**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `url` | `string` | Yes | Webhook URL to POST the inbound email payload |
-| `headers` | `Record<string, string>` | No | Custom headers sent with each forwarded request |
-| `method` | `'POST' \| 'PUT' \| 'PATCH'` | No | HTTP method (defaults to `POST`) |
-
-The URL must use `http` or `https` and must not point to private or loopback addresses.
-
-Destination IDs are prefixed with `edst_`.
+For `url` destinations, pass a public `http` or `https` URL. Destination IDs are prefixed with `edst_`.
 
 ## Connection Config
 
-Retrieve IMAP and POP3 credentials to connect an existing email client directly to an address.
+Use `getConnectionConfig()` when a mail client needs IMAP or POP3 access to an Agentuity address.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+const config = await email.getConnectionConfig(address.id);
 
-const agent = createAgent('MailClientSetup', {
-  handler: async (ctx, input) => {
-    const config = await ctx.email.getConnectionConfig('eaddr_abc123'); // [!code highlight]
-
-    if (config) {
-      ctx.logger.info('IMAP config', {
-        host: config.imap.host,
-        port: config.imap.port,
-        tls: config.imap.tls,
-        username: config.imap.username,
-      });
-    }
-
-    return { email: config?.email };
-  },
-});
+if (config) {
+  const imapHost = config.imap.host;
+  const pop3Host = config.pop3.host;
+}
 ```
 
-The returned `EmailConnectionConfig` includes `imap` and `pop3` fields, each with `host`, `port`, `tls`, `username`, and `password`.
+The returned config includes `host`, `port`, `tls`, `username`, and `password` for both protocols.
 
-<Callout type="tip" title="Integrating with Existing Clients">
-Use connection config to configure Thunderbird, Outlook, or any IMAP-compatible client to read emails received at your Agentuity address without writing additional code.
-</Callout>
+## Activity
 
-## Activity Analytics
-
-Query daily send and receive counts for trend analysis and monitoring.
+Use `getActivity()` for daily inbound and outbound counts.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('ActivityReporter', {
-  handler: async (ctx, input) => {
-    // Retrieve the last 30 days of activity // [!code highlight]
-    const result = await ctx.email.getActivity({ days: 30 });
-
-    for (const point of result.activity) {
-      ctx.logger.info('Daily activity', {
-        date: point.date,
-        inbound: point.inbound,
-        outbound: point.outbound,
-      });
-    }
-
-    return { days: result.days, points: result.activity.length };
-  },
-});
+const activity = await email.getActivity({ days: 30 });
 ```
 
-The `days` parameter is optional and defaults to 7. Values below 7 are clamped to 7; values above 365 are clamped to 365.
+The `days` option defaults to 7. Values outside the supported range are clamped by the service.
 
-## Using in Routes
+## Hono
 
-Routes access the same email service via `c.var.email`:
+In Hono apps, `@agentuity/hono` initializes `EmailClient` once and exposes it on `c.var.email`.
+
+```bash
+bun add @agentuity/hono@alpha hono
+```
 
 ```typescript
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
 
-const router = new Hono<Env>();
+type Variables = Pick<Services, 'email'>;
 
-router.post('/notify', async (c) => {
-  const { to, subject, text } = await c.req.json();
+const app = new Hono<{ Variables: Variables }>();
 
-  const result = await c.var.email.send({ // [!code highlight]
+app.use('*', agentuity());
+
+app.post('/notify', async (c) => {
+  const to = c.req.query('to');
+
+  if (!to) {
+    return c.json({ error: 'to is required' }, 400);
+  }
+
+  const outbound = await c.var.email.send({
     from: 'notifications@agentuity.email',
     to: [to],
-    subject,
-    text,
+    subject: 'Notification',
+    text: 'You have a new notification.',
   });
 
-  return c.json({ id: result.id, status: result.status });
+  return c.json({ id: outbound.id, status: outbound.status }, 202);
 });
 
-export default router;
+export default app;
 ```
-
-## Best Practices
-
-- **Verify sender addresses**: The `from` address must be owned by the organization. Sending from an unregistered address will fail.
-- **Check delivery status**: `send()` always returns `status: 'pending'`. Poll `getOutbound(id)` or use activity analytics to confirm delivery.
-- **Use destinations for real-time processing**: Polling `listInbound()` works for batch jobs, but destinations forward emails immediately as they arrive.
-- **Keep attachments small**: Each send call has a 25 MB total size cap. For larger files, store them in [Object Storage](/services/storage/object) and include a download link instead.
-- **Use `headers` for threading**: Set `In-Reply-To` and `References` headers when responding to an existing conversation so mail clients group messages correctly.
 
 ## Next Steps
 
-- [Queues](/services/queues): Decouple email processing from your agent handlers with async message queues
-- [Object Storage](/services/storage/object): Store email attachments beyond the 25 MB send limit
-- [Webhooks](/services/webhooks): Receive HTTP callbacks from external services alongside inbound email
+- [Queues](/services/queues): move email sending out of request paths
+- [Webhooks](/services/webhooks): receive HTTP callbacks alongside inbound email
+- [Using Standalone Packages](/reference/standalone-packages): configure service clients outside Agentuity projects

@@ -1,0 +1,95 @@
+---
+title: Migrating from v2 to v3
+short_title: From v2
+description: Move a v2 runtime app toward the v3 framework-first app shape.
+---
+
+Start with a dry run so you can see which parts of your v2 app are automatic and which parts need review.
+
+```bash
+npx @agentuity/migrate@alpha --v2-to-v3 --dry-run
+```
+
+## Before You Start
+
+Work from a branch with a clean git worktree. The migration tool checks this before writing files, because it rewrites source files and package metadata.
+
+<Callout type="info" title="v2 remains supported for existing apps">
+You can keep a v2 app on the v2 runtime model until you are ready to migrate. Use v3 when you want the framework-first app shape for new work or for an existing app you are actively moving.
+</Callout>
+
+## What Changes
+
+| v2 runtime app | v3 framework app |
+| --- | --- |
+| `app.ts` calls `createApp()` | your framework owns the app entry point |
+| `createAgent()` wraps handlers | handlers become framework code, server functions, or plain functions |
+| services arrive through `ctx.*` or `c.var.*` | standalone clients are imported directly, with Hono middleware as an option |
+| `ctx.thread`, `ctx.session`, `ctx.sessionId`, or `c.var.thread` | explicit app state, cookies, database rows, KV records, or platform session inspection |
+| `agentuity.config.ts` carries runtime settings | framework config and `agentuity.json` carry their own concerns |
+| `src/agent/index.ts` registers agents with the runtime | functions are imported where they are called |
+
+The [Runtime to Frameworks](/migration/runtime-to-frameworks) page shows the same shift with code.
+
+## Run the Migration
+
+Use the alpha tag for v3 migrations so the `--v2-to-v3` flag is available.
+
+```bash
+npx @agentuity/migrate@alpha --v2-to-v3
+```
+
+The migrator can:
+
+- replace `createApp()` with a Hono starting point in `src/index.ts`
+- add `hono` and `@agentuity/hono`
+- generate `src/services.ts` for detected service clients
+- convert simple `createAgent()` files to plain exported functions
+- rewrite `ctx.kv`, `ctx.vector`, and other detected service access to direct imports
+- remove `@agentuity/runtime` and v2-only packages from `package.json`
+- run `bun install` and a TypeScript check after it writes changes
+
+## Review Manual Work
+
+Some v2 patterns need a person to choose the replacement:
+
+| Pattern | What to do |
+| --- | --- |
+| `setup()` or `shutdown()` lifecycle hooks | move initialization and cleanup into normal framework or module-level code |
+| `ctx.thread.state`, `ctx.session.state`, or `c.var.thread` | choose the app-owned state boundary: cookie, database, KV, durable stream, or platform session lookup |
+| `ctx.config` or `ctx.app` | replace shared runtime state with explicit imports or framework state |
+| event listeners on agents | move the behavior into your app's own event flow |
+| `agentuity.config.ts` runtime options | move build options to framework config and project metadata to `agentuity.json` |
+| files importing `@agentuity/evals` | rebuild the eval flow separately if you still need it |
+
+The migration tool also strips v2 validator middleware from routes. Validate request bodies inside the framework route, usually with Zod or your existing validation library.
+
+The migrator may leave stubs for thread and session APIs. Treat those as review markers, not as working conversation memory.
+
+## Register Before Deploy
+
+Migrated apps usually need to be linked to Agentuity Cloud before their first v3 deploy. Validate the local project shape, then import it:
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity project import` can write `agentuity.json`, register the project, and write `AGENTUITY_SDK_KEY` to the local env file. After that, validate the framework build when the package has one, then run the Agentuity build:
+
+```bash
+# If your package has a build script:
+bun run build
+agentuity build
+agentuity deploy
+```
+
+<Callout type="warning" title="Deploy only after the Agentuity build passes">
+Framework projects should pass `agentuity build` before deploy. For Hono migrations, check the generated `package.json` scripts and `.agentuity/launch.json` before treating the project as deploy-ready.
+</Callout>
+
+## Next Steps
+
+- [Migration CLI](/migration/migrate-cli): see the full command flow and flags
+- [Deploying Framework Apps](/deploy-operate/deploy-framework-apps): register, build, and deploy framework projects
+- [Services](/services): choose standalone service clients after the runtime migration

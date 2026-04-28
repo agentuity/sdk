@@ -1,10 +1,16 @@
 ---
-title: Agent Creation and Handlers
+title: Agent Creation and Handlers (v2 Compatibility)
 short_title: Agents
-description: Define agents with createAgent(), configure schemas, and write handlers
+description: Compatibility reference for v2 runtime createAgent() handlers
 ---
 
-Agents are the core building blocks of an Agentuity application. Use `createAgent()` to define typed handlers with schema validation, lifecycle hooks, and route middleware.
+This page documents v2 runtime agents created with `createAgent()` from `@agentuity/runtime`. In v3 apps, start with [Agents as a Pattern](/patterns/agents-as-a-pattern), [Frameworks](/frameworks), and [Runtime to Frameworks](/migration/runtime-to-frameworks): model agent-like work as framework routes, shared functions, workers, or standalone service clients.
+
+<Callout type="info" title="Keep createAgent() for existing runtime apps">
+The `createAgent()` examples below still work for existing v2 runtime apps. New v3 code usually keeps model-backed work in plain functions and calls it from framework routes or workers.
+</Callout>
+
+In the v2 runtime model, agents are the core building blocks of an Agentuity application. Use `createAgent()` to define typed handlers with schema validation, lifecycle hooks, and route middleware.
 
 ## Agent Creation
 
@@ -393,7 +399,7 @@ const agent = createAgent('ValueChecker', {
 });
 ```
 
-For concepts, LLM integration, and progressive examples, see [Creating Agents](/agents/creating-agents).
+For the v3 pattern, see [Agents as a Pattern](/patterns/agents-as-a-pattern). For older runtime projects, the examples on this page remain the compatibility reference.
 
 ---
 
@@ -427,7 +433,7 @@ export default createAgent('chat-stream', {
 
 **Handler return type**: When `stream: true`, return a `ReadableStream<string>` or `ReadableStream<Uint8Array>`. AI SDK's `textStream` (from `streamText`) satisfies this directly.
 
-For streaming patterns with routes, see [HTTP Routes](/routes/http).
+For streaming patterns with Hono routes, see [Using Hono with Agentuity](/frameworks/hono).
 
 ### Route setup
 
@@ -469,4 +475,4 @@ while (reader) {
 }
 ```
 
-For streaming patterns, chunked responses, and AI SDK integration, see [Streaming Responses](/agents/streaming-responses).
+For streaming patterns, chunked responses, and AI SDK integration, see [Streaming Responses](/patterns/chat-and-streaming).

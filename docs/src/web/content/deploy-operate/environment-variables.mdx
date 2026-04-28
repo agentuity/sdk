@@ -1,0 +1,117 @@
+---
+title: Managing Environment Variables
+short_title: Environment Variables
+description: Manage local .env files, cloud environment variables, public variables, and secrets.
+---
+
+Use this page when you want to know exactly which env values the current CLI reads from local files and which values it syncs to Agentuity Cloud.
+
+```bash
+agentuity cloud env list
+agentuity cloud env set OPENAI_API_KEY "sk_..." --secret
+agentuity cloud env pull
+```
+
+## Local Development
+
+`agentuity dev` looks up `AGENTUITY_SDK_KEY` for the local dev process. It does not try to fully load every local env value itself.
+
+```bash
+agentuity dev
+```
+
+The CLI searches project env files for that key using the active profile. For a local profile, it prefers `.env.<profile>`, then `.env.development`, then `.env`. For non-local or production-style profiles, it prefers `.env.<profile>`, then `.env`, then `.env.production`.
+
+When the key is available, the CLI can patch OpenAI, Anthropic, and Groq env vars for the dev process. It only does that when the provider key is missing or already matches the SDK key.
+
+<Callout type="info" title="The CLI does not load every local variable for every framework">
+The CLI looks up `AGENTUITY_SDK_KEY` itself. Other local variables are usually loaded by the runtime, your shell, or your own app tooling.
+</Callout>
+
+## Deploy Sync
+
+During `agentuity deploy`, the CLI reads local `.env`, removes reserved Agentuity system keys, splits the remaining values into environment variables and secrets, and attempts to sync them before the build step.
+
+```bash
+agentuity deploy
+```
+
+The sync step is non-fatal. If it cannot sync variables, deploy continues and reports that step as skipped.
+
+## Public Variables and Secrets
+
+Public prefixes are always treated as environment variables, never secrets:
+
+| Prefix | Use for |
+|--------|---------|
+| `VITE_` | Vite browser-exposed values |
+| `PUBLIC_` | Frameworks that expose public values with `PUBLIC_` |
+| `AGENTUITY_PUBLIC_` | Agentuity public values |
+
+Values are treated as secrets when the key is `DATABASE_URL` or ends with one of these suffixes:
+
+```text
+_SECRET
+_KEY
+_TOKEN
+_PASSWORD
+_PRIVATE
+```
+
+Use `--secret` when setting a value that should be encrypted and masked:
+
+```bash
+agentuity cloud env set API_KEY "sk_..." --secret
+```
+
+## List Current Cloud Values
+
+List current variables from the cloud when you want to inspect what a deploy will see:
+
+```bash
+agentuity cloud env list
+agentuity cloud env list --org
+```
+
+Project-scoped `list` shows a merged project and organization view. When the same key exists in both places, the project value takes precedence.
+
+## Pull Cloud Values
+
+Pull cloud values into local `.env`:
+
+```bash
+agentuity cloud env pull
+```
+
+Without `--force`, local values win when a key already exists. With `--force`, cloud values overwrite local values after confirmation:
+
+```bash
+agentuity cloud env pull --force
+```
+
+Project pulls also write the project `AGENTUITY_SDK_KEY` when the cloud project returns one.
+
+## Push Local Values
+
+Push local `.env` values to the project or organization:
+
+```bash
+agentuity cloud env push
+agentuity cloud env push --org
+```
+
+The CLI reads `.env`, filters reserved `AGENTUITY_*` keys, shows a diff, and asks for confirmation before overwriting existing cloud values unless you pass `--force`:
+
+```bash
+agentuity cloud env push --force
+```
+
+## Organization Scope
+
+Use `--org` for variables shared across projects in the same organization:
+
+```bash
+agentuity cloud env set OPENAI_API_KEY "sk_..." --secret --org
+agentuity cloud env pull --org
+agentuity cloud env push --org
+```

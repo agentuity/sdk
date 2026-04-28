@@ -1,0 +1,128 @@
+---
+title: Moving from Runtime Apps to Framework Apps
+short_title: Runtime to Frameworks
+description: Translate v2 runtime concepts into the v3 framework-first model.
+---
+
+In v2, Agentuity owns the app shape. In v3, the framework owns the app shape and Agentuity adds services, local development, build metadata, and deploy.
+
+```typescript title="app.ts"
+import { createApp } from '@agentuity/runtime';
+import api from './src/api';
+import agents from './src/agent';
+
+export default await createApp({
+  router: { path: '/api', router: api },
+  agents,
+});
+```
+
+## Keep the Framework Shape
+
+A v3 app keeps the framework's normal entry point. In a Hono app, that means `new Hono()` and normal route mounting:
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import api from './api';
+
+const app = new Hono();
+
+app.use('*', agentuity());
+app.route('/api', api);
+
+export default app;
+```
+
+For Next.js, TanStack Start, Astro, SvelteKit, Remix, or Nuxt, keep that framework's route and server conventions instead of recreating the v2 runtime structure.
+
+## Replace Runtime Concepts
+
+| v2 concept | v3 replacement |
+| --- | --- |
+| `createApp()` | framework entry point, such as `src/index.ts` for Hono or route handlers for Next.js |
+| `createRouter()` | the framework router directly, such as `new Hono()` |
+| `createAgent()` | plain functions, AI SDK calls, server functions, or route handlers |
+| `ctx.kv`, `ctx.vector`, `ctx.queue` | standalone service clients imported where needed |
+| `c.var.kv` in Hono routes | standalone clients, or `@agentuity/hono` middleware when `c.var.*` fits the route |
+| `ctx.thread`, `ctx.session`, `ctx.sessionId` | explicit app state, cookies, databases, KV records, or platform session inspection |
+| `agentuity.config.ts` | framework config plus `agentuity.json` |
+| app-level `setup()` and `shutdown()` | module initialization, framework lifecycle hooks, or process cleanup |
+
+The `@agentuity/runtime` package in v3 is a deprecation shim for old imports. It is there to fail clearly if runtime APIs are installed under v3, not as the current app model.
+
+## Prefer Service Clients First
+
+Direct service clients are the portable default because the same code can run in routes, server functions, scripts, and workers.
+
+```typescript title="src/services.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+export const kv = new KeyValueClient();
+```
+
+```typescript title="src/api/events.ts"
+import { Hono } from 'hono';
+import { kv } from '../services';
+
+const router = new Hono();
+
+router.post('/', async (c) => {
+  const body: unknown = await c.req.json();
+  const id = crypto.randomUUID();
+
+  await kv.set('events', id, {
+    id,
+    body,
+    createdAt: new Date().toISOString(),
+  });
+
+  return c.json({ id }, 201);
+});
+
+export default router;
+```
+
+Use `@agentuity/hono` when a Hono route reads better with injected services:
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+
+const app = new Hono();
+
+app.use('*', agentuity());
+
+app.get('/api/latest', async (c) => {
+  const latest = await c.var.kv.get('events', 'latest');
+
+  return c.json({ latest });
+});
+
+export default app;
+```
+
+## Move Agents Into App Code
+
+Simple v2 agents usually become plain functions:
+
+```typescript title="src/agent/summarize.ts"
+export async function summarize(input: {
+  readonly text: string;
+}): Promise<{ readonly summary: string }> {
+  // Call your model provider or AI SDK here.
+  return { summary: input.text.slice(0, 120) };
+}
+```
+
+Then call that function from the framework route, queue worker, task handler, or server function that owns the request.
+
+Complex agents need review when they use lifecycle hooks, event listeners, `ctx.config`, or `ctx.app`. Those concepts were tied to the v2 runtime container, so the right v3 replacement depends on where that state belongs in your framework app.
+
+Thread and session state also need a design pass. A chat app might move message history to KV or a database keyed by an app session cookie. A debugging tool might use platform session and thread records only for inspection.
+
+## Next Steps
+
+- [Migrating from v2](/migration/from-v2): run the migration in order
+- [Migration CLI](/migration/migrate-cli): inspect what the tool changes automatically
+- [Frameworks](/frameworks): choose framework-specific setup guidance

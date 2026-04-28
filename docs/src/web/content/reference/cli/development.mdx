@@ -1,225 +1,95 @@
 ---
 title: Local Development
 short_title: Development
-description: Run the development server with hot reload, type checking, and public URL support.
+description: Run your framework development server with Agentuity environment wiring.
 ---
 
-Run your Agentuity project locally with automatic hot reload and type checking. If your project is connected to Agentuity Cloud, `agentuity dev` also enables a public URL by default outside CI for sharing or webhook testing.
+`agentuity dev` runs your project's package script and passes the Agentuity environment it can resolve for the current project.
 
 ## Starting the Dev Server
 
+Run the default `dev` script:
+
 ```bash
 agentuity dev
-# or
-bun run dev
 ```
 
-The server starts on port 3500 by default with:
-- Hot reload on file changes
-- TypeScript type checking
-- Public URL tunneling when cloud-connected (disable with `--no-public`)
-- Interactive keyboard shortcuts
+Pass a port through the `PORT` environment variable:
 
-## Dev Server Options
+```bash
+agentuity dev --port 8080
+```
+
+Run a different package script:
+
+```bash
+agentuity dev --script dev:web
+```
+
+The command reads `package.json`, detects the package manager, and runs that package manager's `run` command for the selected script. The framework still owns hot reload, routing, terminal output, and local server behavior.
+
+## Dev Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--dir <path>` | current directory | Project directory |
-| `--local` | false | Use local services instead of cloud services |
-| `--port` | 3500 (or `PORT` env) | TCP port for the dev server |
-| `--no-public` | - | Disable public URL tunneling |
-| `--no-interactive` | - | Disable interactive keyboard shortcuts |
-| `--inspect` | - | Enable Bun debugger for debugging |
-| `--inspect-wait` | - | Enable debugger and wait for connection before starting |
-| `--inspect-brk` | - | Enable debugger and break on first line |
-| `--no-typecheck` | - | Skip TypeScript type checking on startup and restarts |
-| `--resume <id>` | - | Resume a paused Hub session by ID |
-| `--project-id <id>` | - | Use a specific project instead of resolving from `--dir` |
+| `--port <port>` | `3000` | Port to pass to the child process as `PORT` |
+| `--script <script>` | `dev` | Package script to run |
+| `--project-id <id>` | inferred from project | Project ID, alternative to resolving from `--dir` |
 
-<Callout type="tip" title="PORT Environment Variable">
-The dev server respects the `PORT` environment variable. The `--port` flag takes precedence if both are set.
+<Callout type="info" title="Use the flags shown in CLI help">
+The v3 dev command exposes only the options listed above. Use your framework, package script, or runtime debugger directly when you need behavior outside that surface.
 </Callout>
 
-```bash
-# Custom port
-agentuity dev --port 8080
+## Environment Loading
 
-# Disable public URL
-agentuity dev --no-public
-
-# Non-interactive mode (useful for CI/CD)
-agentuity dev --no-interactive
-
-# Local services mode
-agentuity dev --local
-```
-
-## Debugging with Inspector
-
-Use the inspector flags to debug your agents with Chrome DevTools or VS Code:
+`agentuity dev` starts with your current shell environment. If `AGENTUITY_SDK_KEY` is not already set, the CLI tries to load a project SDK key from local project configuration and `.env` files. If the project is not linked yet, it can fall back to your CLI auth key for AI Gateway routing and prints the import command to link the project.
 
 ```bash
-# Enable inspector (attach debugger anytime)
-agentuity dev --inspect
-
-# Wait for debugger before starting the server
-agentuity dev --inspect-wait
-
-# Break on first line of executed code
-agentuity dev --inspect-brk
+agentuity project import --name my-app
 ```
 
-Bun dynamically selects an available port and prints it to the console. Check the output for the debugger URL and port number.
+When an Agentuity SDK key is available, the CLI can route supported provider SDKs through the Agentuity AI Gateway by setting provider API key and base URL environment variables in the child process.
 
-After starting, open `chrome://inspect` in Chrome or use VS Code's debugger to attach.
+## Framework Scripts
 
-<Callout type="tip" title="VS Code Debugging">
-Create a launch configuration that attaches to the running process. Update the port to match the one shown in the console output:
+Use the same dev script you would use without Agentuity:
 
-```json
+```json title="package.json"
 {
-  "type": "node",
-  "request": "attach",
-  "name": "Attach to Agentuity",
-  "port": 6499
+  "scripts": {
+    "dev": "next dev",
+    "dev:web": "vite --host 0.0.0.0"
+  }
 }
 ```
-</Callout>
 
-## Keyboard Shortcuts
-
-Press keys during development to control the server:
-
-| Key | Action |
-|-----|--------|
-| `h` | Show help |
-| `c` | Clear console |
-| `q` | Quit |
-
-## Public URLs
-
-If your project is connected to Agentuity Cloud, public URLs are enabled by default outside CI to share your local dev server or receive webhooks:
+Then choose the script at runtime:
 
 ```bash
-# Public URL enabled by default outside CI
-agentuity dev
-
-# Disable if not needed
-agentuity dev --no-public
+agentuity dev --script dev:web
 ```
 
-<Callout type="info" title="Cloud-Connected Projects">
-If your project is not registered with Agentuity Cloud yet, `agentuity dev` still runs locally, but the public URL and other cloud-backed features stay disabled until you connect the project.
-</Callout>
+For generated Hono projects, `agentuity dev` is the local path to use today. If you are preparing a deployable bundle, see [Build Configuration](/reference/cli/build-configuration) for the current build caveats.
 
-### Why Public URLs?
+## Building Locally
 
-Testing webhooks and external integrations during local development is painful. You either deploy constantly, configure port forwarding, or pay for third-party tunneling services. Each option adds friction to the development loop.
-
-Agentuity's Gravity network handles this automatically. When you run `agentuity dev` on a connected project, your local server gets a public HTTPS URL instantly. No configuration, no separate tools, no accounts to manage. External services can reach your local agents as if they were already deployed.
-
-**This means:**
-
-- **Instant HTTPS URLs**: Automatic certificate generation
-- **Zero setup**: Works out of the box, no firewall rules or port forwarding
-- **Secure tunneling**: Encrypted connections through Agentuity's edge network
-- **Automatic reconnection**: Handles network interruptions gracefully
-
-**Example output:**
-```
-⨺ Agentuity DevMode
-  Local:   http://127.0.0.1:3500
-  Public:  https://abc123.devmode.agentuity.com
-
-  Press h for keyboard shortcuts
-```
-
-**Example use cases:**
-- Testing Slack, Discord, or Twilio webhooks
-- Sharing with team members
-- Testing from mobile devices
-- OAuth callback URLs
-
-## Building Your Project
-
-Bundle your project for deployment:
+Build a deployment bundle with:
 
 ```bash
 agentuity build
 ```
 
-**What happens during build:**
-1. TypeScript compilation
-2. Bundle agents, routes, and frontend
-3. Generate registry and types
-4. Type check with `tsc`
-5. Create `.agentuity/` output directory
+The build command is separate from `agentuity dev`. It detects the framework, runs the build adapter, writes launch metadata, and creates the `.agentuity` output directory for deployment.
 
-### Build Options
+## Environment Files
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--dev` | false | Enable development mode |
-| `--outdir` | `.agentuity` | Output directory |
-| `--skip-type-check` | false | Skip TypeScript type checking |
+Keep local-only values in `.env.local` or your framework's standard local env file. Keep shared deploy values in `.env` when you want `agentuity deploy` to sync them to Agentuity Cloud.
 
-```bash
-# Skip type checking (faster builds)
-agentuity build --skip-type-check
-
-# Custom output directory
-agentuity build --outdir ./dist
-```
-
-<Callout type="warning" title="Type Check Failures">
-Build fails if TypeScript errors are detected. Fix type errors or use `--skip-type-check` to override (not recommended for deployments).
-</Callout>
-
-## Hot Reload Behavior
-
-The dev server watches for file changes and automatically:
-- Rebuilds on source file changes (`.ts`, `.tsx`, `.js`, `.jsx`)
-- Runs TypeScript type checking
-- Restarts the server
-- Preserves background tasks
-
-**Ignored files:**
-- `node_modules/`
-- `.agentuity/` (build output)
-- Generated files (`*.generated.ts`)
-- Temporary files
-
-**Cooldown period:** 500ms after build completes to prevent restart loops.
-
-## Dev Server Architecture
-
-The dev server uses Vite for frontend hot module replacement (HMR) and Bun for server-side code. All requests go through a single port (3500), so you don't need to manage multiple servers or ports during development.
-
-- **Frontend changes** (React, CSS) reload instantly via Vite HMR
-- **Server changes** (agents, routes) trigger a fast Bun rebuild
-- **WebSocket connections** work seamlessly
-
-## Development vs Production
-
-Understanding the differences between local development and deployed production:
-
-| Aspect | Local (`agentuity dev`) | Production (`agentuity deploy`) |
-|--------|------------------------|--------------------------------|
-| **Storage** | Cloud services for connected projects | Cloud services always |
-| **AI Gateway** | Available for connected projects, or use provider keys in local-only projects | Available always |
-| **URL** | `localhost:3500` + optional public tunnel when cloud-connected | `*.agentuity.cloud` or custom domain |
-| **Hot Reload** | Yes | No (redeploy required) |
-| **Debugging** | Local logs, Bun inspector | SSH access, cloud logs |
-| **Environment** | `.env`, `.env.development` ([details](/get-started/app-configuration#environment-specific-files)) | Cloud variables (via `cloud env`) |
-
-### Environment Files
-
-The dev server loads environment variables from multiple `.env` files. The CLI reads `.env.development` and `.env`, with `.env` winning if both define the same key. Bun also auto-loads `.env.local` for machine-specific values.
-
-See [Environment-Specific Files](/get-started/app-configuration#environment-specific-files) for the full loading order and examples.
+See [App Configuration](/get-started/app-configuration) for environment file conventions.
 
 ## Next Steps
 
-- [Deploying to the Cloud](/reference/cli/deployment): Deploy to Agentuity Cloud
-- [Creating Agents](/agents/creating-agents): Create your first agent
-- [HTTP Routes](/routes/http): Add HTTP endpoints
+- [Build Configuration](/reference/cli/build-configuration): Create and inspect the deployment bundle
+- [Deployment](/reference/cli/deployment): Deploy the registered project
+- [App Configuration](/get-started/app-configuration): Configure project and environment files

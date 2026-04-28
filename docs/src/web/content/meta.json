@@ -1,12 +1,13 @@
 {
 	"sections": [
 		"get-started",
-		"agents",
-		"routes",
-		"frontend",
+		"frameworks",
 		"services",
+		"deploy-operate",
+		"patterns",
 		"cookbook",
 		"community",
-		"reference"
+		"reference",
+		"migration"
 	]
 }

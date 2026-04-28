@@ -1,508 +1,188 @@
 ---
-title: Adding Authentication
+title: Frontend Authentication
 short_title: Authentication
-description: Add user authentication with Agentuity Auth
+description: Connect browser UI to framework-owned sessions and Agentuity OIDC routes
 ---
 
-Protect your agents and routes with user authentication. Agentuity provides a first-party auth solution powered by [BetterAuth](https://better-auth.com).
+In v3, frontend auth state belongs to your app. The browser signs in through your framework routes, then calls your own API routes with cookies or headers. Those server routes validate the user and call Agentuity services with server-only credentials.
 
-<Callout type="info" title="Platform Auth Overview">
-This page covers React frontend auth setup. For a platform overview covering API keys, bearer tokens, and session auth configuration, see [Authentication Services](/services/authentication).
-</Callout>
-
-## Full-Stack Auth in Seconds
-
-<Tabs items={["Frontend", "API Route", "Agent"]}>
-<Tab value="Frontend">
 ```tsx
-const { user, isAuthenticated } = useAuth();
-if (!isAuthenticated) return <LoginForm />;
-return <div>Welcome, {user.name}</div>;
-```
-</Tab>
-<Tab value="API Route">
-```typescript
-router.get('/me', authMiddleware, async (c) => {
-  const user = await c.var.auth.getUser();
-  return c.json(user);
-});
-```
-</Tab>
-<Tab value="Agent">
-```typescript
-handler: async (ctx, input) => {
-  const user = await ctx.auth?.getUser();
-  return `Hello, ${user?.name ?? 'anonymous'}!`;
+import { useEffect, useState } from 'react';
+
+interface AppUser {
+  readonly id: string;
+  readonly email: string | null;
+  readonly name: string | null;
 }
-```
-</Tab>
-</Tabs>
 
-## What You Get
+interface SessionResponse {
+  readonly authenticated: boolean;
+  readonly user: AppUser | null;
+}
 
-- **Email/password authentication** out of the box
-- **Session and API key middleware** for routes
-- **Native `ctx.auth` support** in agents
-- **Organizations, teams, and roles** via BetterAuth plugins
-- **JWT tokens** for external service integration
+function readAppUser(value: unknown): AppUser | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
 
-## Quick Start
+  if (!('id' in value) || typeof value.id !== 'string') {
+    return null;
+  }
 
-Use the `agentuity-auth` template, or add auth to any project manually:
+  if (!('email' in value) || (typeof value.email !== 'string' && value.email !== null)) {
+    return null;
+  }
 
-```bash
-# Start from the auth template
-bunx agentuity create my-app --template agentuity-auth
+  if (!('name' in value) || (typeof value.name !== 'string' && value.name !== null)) {
+    return null;
+  }
 
-# Or add auth to an existing project
-bun add @agentuity/auth better-auth drizzle-orm
-```
+  return {
+    id: value.id,
+    email: value.email,
+    name: value.name,
+  };
+}
 
-Then create your auth configuration (see [Server Setup](#server-setup) below), set `DATABASE_URL` and `AGENTUITY_AUTH_SECRET` in your environment, and run the BetterAuth CLI to generate and apply the schema (use `bunx` or `npx`):
+function readSessionResponse(value: unknown): SessionResponse {
+  if (typeof value !== 'object' || value === null) {
+    return { authenticated: false, user: null };
+  }
 
-```bash
-# With Bun
-bunx @better-auth/cli generate
-bunx @better-auth/cli migrate
+  if (!('authenticated' in value) || typeof value.authenticated !== 'boolean') {
+    return { authenticated: false, user: null };
+  }
 
-# Or with npm
-npx @better-auth/cli generate
-npx @better-auth/cli migrate
-```
+  if (!value.authenticated || !('user' in value)) {
+    return { authenticated: false, user: null };
+  }
 
-## Server Setup
+  const user = readAppUser(value.user);
 
-### The Basics
+  if (!user) {
+    return { authenticated: false, user: null };
+  }
 
-Create an auth instance with just a connection string:
+  return {
+    authenticated: true,
+    user,
+  };
+}
 
-```typescript title="src/auth.ts"
-import { createAuth } from '@agentuity/auth';
+export function AccountMenu() {
+  const [session, setSession] = useState<SessionResponse | null>(null);
 
-export const auth = createAuth({
-  connectionString: process.env.DATABASE_URL,
-});
-```
+  useEffect(() => {
+    let active = true;
 
-That's it! This gives you:
-- Email/password authentication
-- Session management
-- All default plugins (see below)
+    async function loadSession(): Promise<void> {
+      const response = await fetch('/auth/me', { credentials: 'include' });
+      const nextSession = readSessionResponse(await response.json());
 
-### Default Plugins
+      if (active) {
+        setSession(nextSession);
+      }
+    }
 
-Agentuity Auth includes these plugins automatically:
+    void loadSession();
 
-| Plugin | Purpose |
-|--------|---------|
-| `organization` | Multi-tenancy with teams, roles, and invitations |
-| `jwt` | JWT token generation with JWKS endpoint |
-| `bearer` | Bearer token auth via `Authorization` header |
-| `apiKey` | API key authentication for programmatic access |
+    return () => {
+      active = false;
+    };
+  }, []);
 
-<Callout type="info" title="Skip Default Plugins">
-If you need full control over plugins, use `skipDefaultPlugins: true` and add only what you need.
-</Callout>
+  if (!session) {
+    return <button disabled>Checking session</button>;
+  }
 
-### Mounting Auth Routes
-
-Mount the auth handler to expose sign-in, sign-up, session, and other endpoints:
-
-```typescript title="src/api/index.ts"
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { mountAuthRoutes } from '@agentuity/auth';
-import { auth } from '../auth';
-
-const router = new Hono<Env>();
-
-// If app.ts mounts this router at /api, these are served at /api/auth/*
-router.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
-
-export default router;
-```
-
-### Advanced Configuration
-
-```typescript title="src/auth.ts"
-import { createAuth } from '@agentuity/auth';
-
-export const auth = createAuth({
-  connectionString: process.env.DATABASE_URL,
-  // Or: database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
-
-  skipDefaultPlugins: false, // Set true for full control over plugins
-  apiKey: { enabled: true, defaultPrefix: 'ag_', defaultKeyLength: 64 },
-  trustedOrigins: ['https://your-domain.com'], // Auto-resolved from env by default
-  plugins: [], // Add custom BetterAuth plugins
-});
-```
-
-## Middleware
-
-### Session Middleware
-
-Protect routes with session-based authentication:
-
-```typescript
-import { createSessionMiddleware } from '@agentuity/auth';
-import { auth } from '../auth';
-
-// Required authentication (returns 401 if not authenticated)
-const authMiddleware = createSessionMiddleware(auth);
-
-// Optional authentication (continues without auth context if not authenticated)
-const optionalAuth = createSessionMiddleware(auth, { optional: true });
-
-// Role-based access (returns 403 if user lacks required role)
-const adminOnly = createSessionMiddleware(auth, { hasOrgRole: ['admin', 'owner'] });
-```
-
-**Usage examples:**
-
-```typescript
-// Protect one route
-router.get('/me', authMiddleware, async (c) => {
-  const user = await c.var.auth.getUser();
-  return c.json({ id: user.id, email: user.email, name: user.name });
-});
-
-// Allow both authenticated and anonymous access
-router.get('/content', optionalAuth, async (c) => {
-  const user = await c.var.auth.getUser().catch(() => null);
-  return c.json({ premium: !!user });
-});
-
-// Admin-only route
-router.get('/admin', adminOnly, async (c) => {
-  return c.json({ message: 'Welcome, admin!' });
-});
-```
-
-### API Key Middleware
-
-For programmatic access via API keys:
-
-```typescript
-import { createApiKeyMiddleware } from '@agentuity/auth';
-import { auth } from '../auth';
-
-const apiKeyAuth = createApiKeyMiddleware(auth);
-const optionalApiKey = createApiKeyMiddleware(auth, { optional: true });
-const writeAccess = createApiKeyMiddleware(auth, { hasPermission: { project: 'write' } });
-const fullAccess = createApiKeyMiddleware(auth, { hasPermission: { project: ['read', 'write'], admin: '*' } });
-```
-
-**API keys are sent via headers:** `x-agentuity-auth-api-key: your_key` or `Authorization: ApiKey your_key`
-
-### The Auth Context
-
-When middleware authenticates a request, `c.var.auth` provides these methods:
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `getUser()` | `Promise<AuthUser>` | Get the authenticated user |
-| `getOrg()` | `Promise<AuthOrgContext \| null>` | Get active organization with full details |
-| `getOrgRole()` | `Promise<string \| null>` | Get user's role in active org |
-| `hasOrgRole(...roles)` | `Promise<boolean>` | Check if user has one of the specified roles |
-| `hasPermission(resource, ...actions)` | `boolean` | Check API key permissions |
-| `getToken()` | `Promise<string \| null>` | Get the bearer token from request |
-| `authMethod` | `'session' \| 'api-key' \| 'bearer'` | How the request was authenticated |
-| `apiKey` | `AuthApiKeyContext \| null` | API key details (if authenticated via API key) |
-
-**Example:**
-
-```typescript
-router.get('/profile', authMiddleware, async (c) => {
-  const user = await c.var.auth.getUser();
-  const org = await c.var.auth.getOrg();
-  const isAdmin = await c.var.auth.hasOrgRole('admin', 'owner');
-
-  return c.json({
-    user: { id: user.id, email: user.email, name: user.name },
-    organization: org ? { id: org.id, name: org.name, role: org.role } : null,
-    isAdmin,
-  });
-});
-```
-
-<Callout type="info" title="Full Type Reference">
-See the complete type definitions in the [auth package types](https://github.com/agentuity/sdk/tree/main/packages/auth/src/agentuity/types.ts).
-</Callout>
-
-## Client Setup
-
-### Creating the Auth Client
-
-```typescript title="src/web/auth-client.ts"
-import { createAuthClient } from '@agentuity/auth/react';
-
-export const authClient = createAuthClient();
-
-// Export methods for use in components
-export const { signIn, signUp, signOut, useSession, getSession } = authClient;
-```
-
-### AuthProvider
-
-Wrap your app with `AuthProvider`. Add `AgentuityProvider` only if you also use `@agentuity/react` transport hooks and need `AuthProvider` to mirror the bearer token into them:
-
-```tsx title="src/web/frontend.tsx"
-import { useState } from 'react';
-import { AgentuityProvider } from '@agentuity/react';
-import { AuthProvider, createAuthClient } from '@agentuity/auth/react';
-import { App } from './App';
-
-const authClient = createAuthClient();
-
-export function Root() {
-  const [authHeader, setAuthHeader] = useState<string | null>(null);
+  if (!session.authenticated) {
+    return <a href="/auth/login">Sign in with Agentuity</a>;
+  }
 
   return (
-    <AgentuityProvider authHeader={authHeader}>
-      <AuthProvider
-        authClient={authClient}
-        onAuthHeaderChange={setAuthHeader}
-      >
-        <App />
-      </AuthProvider>
-    </AgentuityProvider>
+    <form method="post" action="/auth/logout">
+      <span>{session.user?.email}</span>
+      <button type="submit">Sign out</button>
+    </form>
   );
 }
 ```
 
-### useAuth Hook
+The component above does not import an Agentuity auth provider. It reads your app's session endpoint and sends the user to your app's login route.
 
-Access auth state in your components:
+## Server Routes Own the Session
+
+Keep the auth provider, session lookup, and Agentuity service calls on the server side.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface AppUser {
+  readonly id: string;
+  readonly email: string;
+}
+
+interface AppSession {
+  readonly user: AppUser;
+}
+
+interface DashboardState {
+  readonly lastOpenedAt: string;
+}
+
+declare function getSession(request: Request): Promise<AppSession | null>;
+
+const kv = new KeyValueClient();
+
+export async function GET(request: Request): Promise<Response> {
+  const session = await getSession(request);
+
+  if (!session) {
+    return Response.json({ authenticated: false }, { status: 401 });
+  }
+
+  const result = await kv.get<DashboardState>('dashboard-state', session.user.id);
+
+  return Response.json({
+    authenticated: true,
+    user: session.user,
+    state: result.exists ? result.data : null,
+  });
+}
+```
+
+Use your framework's normal route shape for this code. In Next.js this is a route handler. In TanStack Start, Remix, SvelteKit, Nuxt, Astro, or Hono, the same work happens in the server route for that framework.
+
+## Add Sign in with Agentuity
+
+When Agentuity is the identity provider, the frontend only needs links or forms to your auth routes:
 
 ```tsx
-import { useAuth } from '@agentuity/auth/react';
-
-function Profile() {
-  const { user, isAuthenticated, isPending, error } = useAuth();
-
-  if (isPending) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
-  if (!isAuthenticated) return <div>Please sign in</div>;
-
+export function SignedOutActions() {
   return (
     <div>
-      <h1>Welcome, {user.name}!</h1>
-      <p>Email: {user.email}</p>
+      <a href="/auth/login">Sign in with Agentuity</a>
     </div>
   );
 }
 ```
 
-### Sign In / Sign Up / Sign Out
+The `/auth/login`, `/auth/callback`, `/auth/me`, and `/auth/logout` routes live on the server. See [Sign in with Agentuity](/services/oidc-provider): it shows the OAuth redirect, callback state check, token exchange, and local app session.
 
-```tsx
-import { signIn, signUp, signOut } from './auth-client';
+## Protect Browser Calls
 
-// Email/password sign in
-await signIn.email({ email, password });
+- Call your own API routes from the browser.
+- Validate the session in each route that needs a signed-in user.
+- Keep `AGENTUITY_SDK_KEY`, `OAUTH_CLIENT_SECRET`, and refresh tokens out of browser bundles.
+- Store OAuth tokens server-side when you request scoped Agentuity access.
 
-// Email/password sign up
-await signUp.email({ email, password, name });
-
-// Sign out
-await signOut();
-```
-
-## Using Auth in Agents
-
-### The ctx.auth Interface
-
-Auth is available natively on `ctx.auth` in agent handlers:
-
-```typescript title="src/agent/protected/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-
-export default createAgent('protected', {
-  schema: {
-    input: s.object({ query: s.string() }),
-    output: s.object({ result: s.string(), userId: s.string() }),
-  },
-  handler: async (ctx, { query }) => {
-    if (!ctx.auth) {
-      return { result: 'Please sign in', userId: '' };
-    }
-
-    const user = await ctx.auth.getUser();
-    const org = await ctx.auth.getOrg();
-
-    // Check organization roles
-    if (org && await ctx.auth.hasOrgRole('admin')) {
-      // Admin-only logic
-    }
-
-    return { result: `Hello ${user.name}`, userId: user.id };
-  },
-});
-```
-
-### Agent-to-Agent Auth Propagation
-
-When one agent calls another, auth context propagates automatically:
-
-```typescript title="src/agent/hello/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import poemAgent from '../poem/agent';
-
-export default createAgent('hello', {
-  handler: async (ctx, { name }) => {
-    const user = ctx.auth ? await ctx.auth.getUser() : null;
-
-    // Auth context passes through to poem agent automatically
-    const poem = await poemAgent.run({
-      userEmail: user?.email,
-      userName: name,
-    });
-
-    return `Hello ${name}!\n\n${poem}`;
-  },
-});
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | **Required** |
-| `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
-| `AGENTUITY_CLOUD_BASE_URL` | Platform-provided base URL for auth callbacks | Checked before `AGENTUITY_BASE_URL` |
-| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Falls back to `BETTER_AUTH_URL` |
-
-**Auto-resolved trusted origins:**
-- `AGENTUITY_CLOUD_DOMAINS` - Platform-set domains (deployment URLs, custom domains)
-- `AUTH_TRUSTED_DOMAINS` - Developer-set additional trusted domains (comma-separated)
-
-**Generate a secure secret:**
-
-```bash
-openssl rand -hex 32
-```
-
-<Callout type="warning" title="Replace Dev Secret Before Deploying">
-If you're using a development secret, generate a new one before deploying to production. Store it securely in your environment variables.
+<Callout type="info" title="v2 frontend auth remains available for existing apps">
+The v2 `@agentuity/auth/react` provider and hooks are not the default v3 frontend path. Existing v2 apps can keep using the v2 docs while new v3 apps use framework-owned auth or Agentuity OIDC routes.
 </Callout>
-
-## Database Configuration
-
-### Connection String (Simplest)
-
-Just provide the connection string and Agentuity handles the rest:
-
-```typescript
-import { createAuth } from '@agentuity/auth';
-
-export const auth = createAuth({
-  connectionString: process.env.DATABASE_URL,
-});
-```
-
-### Bring Your Own Drizzle
-
-If you have an existing Drizzle setup:
-
-```typescript
-import { drizzle } from 'drizzle-orm/bun-sql';
-import { drizzleAdapter } from '@agentuity/drizzle';
-import * as authSchema from '@agentuity/auth/schema';
-import * as appSchema from './schema';
-
-const schema = { ...authSchema, ...appSchema };
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error('DATABASE_URL is required');
-
-const db = drizzle(databaseUrl, { schema });
-
-export const auth = createAuth({
-  database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
-});
-```
-
-The `@agentuity/auth/schema` export provides all auth-related Drizzle tables (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`, `apiKey`).
-
-## Built-in Features
-
-### Organizations & Teams
-
-Create and manage organizations:
-
-```typescript
-// Create an organization
-const org = await auth.api.createOrganization({
-  body: { name: 'My Team', slug: 'my-team' },
-  headers: c.req.raw.headers,
-});
-
-// Get user's role in active org
-const role = await c.var.auth.getOrgRole();
-
-// Check role
-if (await c.var.auth.hasOrgRole('admin', 'owner')) {
-  // Admin actions
-}
-```
-
-<Callout type="info" title="Full Organization API">
-See the [BetterAuth Organization Plugin docs](https://www.better-auth.com/docs/plugins/organization) for the complete API including invitations, member management, and role configuration.
-</Callout>
-
-### API Keys
-
-Create API keys for programmatic access:
-
-```typescript
-const result = await auth.api.createApiKey({
-  body: {
-    name: 'my-integration',
-    userId: user.id,
-    expiresIn: 60 * 60 * 24 * 30, // 30 days
-    permissions: { project: ['read', 'write'] },
-  },
-});
-console.log('API Key:', result.key); // Only shown once!
-```
-
-<Callout type="info" title="Full API Key API">
-See the [BetterAuth API Key Plugin docs](https://www.better-auth.com/docs/plugins/api-key) for listing, revoking, and permission schemas.
-</Callout>
-
-### JWT & Bearer Tokens
-
-```typescript
-// Get token in route handler
-const token = await c.var.auth.getToken();
-
-// JWKS endpoint: GET /api/auth/.well-known/jwks.json
-```
-
-<Callout type="info" title="Full JWT API">
-See the [BetterAuth JWT Plugin docs](https://www.better-auth.com/docs/plugins/jwt) for token customization and verification.
-</Callout>
-
-## Schema & Migrations
-
-Use the BetterAuth CLI to generate and apply the auth schema (use `bunx` or `npx`):
-
-```bash
-# Generate SQL for all auth tables (useful for review or manual migrations)
-bunx @better-auth/cli generate
-# or: npx @better-auth/cli generate
-
-# Apply migrations directly
-bunx @better-auth/cli migrate
-# or: npx @better-auth/cli migrate
-```
-
-If you use Drizzle or Prisma, prefer your ORM's own migration tooling and generate the schema with `@better-auth/cli generate`, then incorporate it into your migration files.
 
 ## Next Steps
 
-- [Middleware & Routes](/routes/middleware): Authentication and validation patterns
-- [Provider Setup](/frontend/provider-setup): `AgentuityProvider` configuration for `@agentuity/react` apps
-- [React Hooks](/frontend/react-hooks): Building custom UIs
-- [Authentication Services](/services/authentication): Choose between OIDC and app-owned auth
+- [Sign in with Agentuity](/services/oidc-provider): add OIDC routes for Agentuity account sign-in
+- [Choosing Authentication](/services/authentication): decide where identity and sessions should live
+- [Using Hono with Agentuity](/frameworks/hono): expose Agentuity service clients in Hono routes
+- [App Configuration](/get-started/app-configuration#environment-variables): configure server-only Agentuity keys

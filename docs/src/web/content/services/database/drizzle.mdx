@@ -9,7 +9,7 @@ The `@agentuity/drizzle` package provides type-safe database access with [Drizzl
 ## Installation
 
 ```bash
-bun add @agentuity/drizzle
+bun add @agentuity/drizzle@alpha
 ```
 
 ## Basic Usage
@@ -150,25 +150,23 @@ bunx drizzle-kit migrate
 
 See the [Drizzle documentation](https://orm.drizzle.team/docs/migrations) for more migration options.
 
-## Auth Integration
+## Auth and User Tables
 
-Use with `@agentuity/auth` for user management:
+In v3 apps, keep authentication in your framework or identity provider, then use Drizzle for the user, account, or session tables your app owns.
 
 ```typescript
-import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
-import { createAuth } from '@agentuity/auth';
+import { createPostgresDrizzle } from '@agentuity/drizzle';
 import * as schema from './schema';
 
 const { db } = createPostgresDrizzle({ schema });
 
-const auth = createAuth({
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-  }),
+await db.insert(schema.users).values({
+  id: 'user_123',
+  email: 'ada@example.com',
 });
 ```
 
-See [Authentication](/frontend/authentication) for full setup.
+See [Authentication](/services/authentication): choose between framework-owned sessions and Agentuity OIDC.
 
 ## Next Steps
 

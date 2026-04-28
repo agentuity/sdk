@@ -1,330 +1,251 @@
 ---
 title: Running Code in Sandboxes
-description: Run code in isolated, secure containers with configurable resources
+description: Run code in isolated containers with configurable runtimes, resources, and file access
 ---
 
-Execute code in isolated Linux containers with configurable resource limits, network controls, and execution timeouts.
+Use sandboxes when your app needs to execute code without running it on your own host. The v3 path is the standalone `@agentuity/sandbox` package, which you can use from any Bun or Node.js process.
 
-## Why Sandboxes?
+```bash
+bun add @agentuity/sandbox@alpha
+```
 
-Agents that reason about code need somewhere safe to execute it. Whether generating Python scripts, validating builds, or running user-provided code, you can't let arbitrary execution happen on your infrastructure.
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
 
-The pattern keeps repeating: spin up a secure environment, run code, tear it down. Without proper isolation, a single bad script could access sensitive data, exhaust resources, or compromise your systems.
+const client = new SandboxClient({
+  // Optional. Defaults to AGENTUITY_SDK_KEY, then AGENTUITY_CLI_KEY.
+  apiKey: process.env.AGENTUITY_SDK_KEY,
+});
 
-Agentuity sandboxes handle the isolation layer. One-shot runs create a sandbox, execute a command, and destroy it. Interactive sandboxes keep their filesystem until you destroy them or the idle timeout reaps them.
+const result = await client.run({
+  runtime: 'python:3.14',
+  command: { exec: ['python3', '-c', 'print("hello from a sandbox")'] },
+  resources: { memory: '256Mi', cpu: '500m' },
+  timeout: { execution: '30s' },
+});
 
-**What this gives you:**
+console.log(result.stdout);
+```
 
-- **Security by default**: Network disabled, filesystem isolated, resource limits enforced
-- **No infrastructure management**: Containers spin up and tear down automatically
-- **Multi-language support**: Run Python, Node.js, shell scripts, and more
-- **Consistent environments**: Use snapshots to get the same setup every time, with dependencies pre-installed
-
-## Three Ways to Use Sandboxes
-
-| Method | Best For |
-|--------|----------|
-| **[Web App](https://app.agentuity.com)** | Visual management, browsing runtimes and snapshots |
-| **[SDK](/services/sandbox/sdk-usage)** | Programmatic use in agents and routes (`ctx.sandbox`) |
-| **[CLI](/reference/cli/sandbox)** | Local development, scripting, CI/CD |
-
-<Callout type="info" title="Multi-language Execution">
-Your agents are written in TypeScript, but the sandbox can run any language safely. Use `ctx.sandbox.run()` to execute Python, Node.js, shell scripts, or anything available via `apt install` in isolated containers.
+<Callout type="info" title="v3 uses the package client directly">
+Older v2 runtime examples may show `ctx.sandbox`, `c.var.sandbox`, or `createAgent()`. These pages use `SandboxClient` directly because that is the v3 service client.
 </Callout>
+
+## When to Use Sandboxes
+
+| Use case | Example |
+|----------|---------|
+| Code execution agents | Run user-provided Python or JavaScript without sharing your host filesystem |
+| Code validation | Check whether generated code compiles, tests, or produces expected output |
+| Build jobs | Install dependencies and run builds in a disposable environment |
+| AI coding assistants | Give an assistant a workspace where it can edit and execute files |
+| Data processing | Run short-lived scripts with explicit CPU, memory, and timeout limits |
 
 ## Key Concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Runtime** | A pre-configured base environment (OS + language tools) provided by Agentuity |
-| **Sandbox** | A running container created from a runtime where you execute commands |
-| **Snapshot** | A saved sandbox state that can be used to create new sandboxes |
-| **Checkpoint** | A saved filesystem state for one sandbox, used by pause/resume and restore workflows |
+| **Runtime** | A base environment such as `bun:1`, `node:lts`, or `python:3.14` |
+| **Sandbox** | A running container created from a runtime or snapshot |
+| **Snapshot** | A reusable filesystem state for starting future sandboxes faster |
+| **Checkpoint** | A filesystem state for one sandbox, used by pause, resume, restore, and delete workflows |
 
-Runtimes, sandboxes, and snapshots build on each other: **Runtime → Sandbox → Snapshot**. Checkpoints are sandbox-scoped: you restore the same sandbox back to a saved filesystem state instead of creating a reusable base image.
+Runtimes, sandboxes, and snapshots build on each other: **Runtime -> Sandbox -> Snapshot**. Checkpoints stay scoped to one sandbox.
 
-1. Pick a **runtime** (e.g., `bun:1` or `node:latest`)
-2. Create a **sandbox** from that runtime
-3. Optionally save a **snapshot** to reuse your configured environment
+## Execution Modes
+
+Use `client.run()` for one command. It creates a sandbox, runs the command, streams/captures output, and cleans up the sandbox.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'bun:1',
+  command: {
+    exec: ['bun', '-e', 'console.log(JSON.stringify({ ok: true }))'],
+  },
+  timeout: { execution: '15s' },
+});
+
+console.log({
+  exitCode: result.exitCode,
+  stdout: result.stdout,
+});
+```
+
+Use `client.create()` when the workflow needs multiple commands or persistent files. Destroy interactive sandboxes when you are done with them.
+
+```typescript
+import { Buffer } from 'node:buffer';
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  resources: { memory: '1Gi', cpu: '1000m' },
+  network: { enabled: true },
+  timeout: { idle: '10m', execution: '2m' },
+});
+
+try {
+  await sandbox.writeFiles([
+    {
+      path: 'index.ts',
+      content: Buffer.from('console.log("ready")'),
+    },
+  ]);
+
+  const execution = await sandbox.execute({
+    command: ['bun', 'run', 'index.ts'],
+  });
+
+  console.log({ exitCode: execution.exitCode });
+} finally {
+  await sandbox.destroy();
+}
+```
+
+See [Using the Sandbox API](/services/sandbox/sdk-usage) for file I/O, background jobs, checkpoints, snapshots, and method reference tables.
 
 ## Runtimes
 
-Runtimes are pre-configured base environments that Agentuity provides. Each includes an operating system, language toolchain, and common utilities.
+Runtimes are preconfigured base environments. List the runtimes available to your org from code or from the CLI:
 
-### Language Runtimes
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
 
-Use these for general code execution:
+const client = new SandboxClient();
+const { runtimes } = await client.listRuntimes({ limit: 20 });
+
+for (const runtime of runtimes) {
+  console.log(runtime.name, runtime.description ?? '');
+}
+```
+
+```bash
+agentuity cloud sandbox runtime list
+```
+
+Common runtime names include:
 
 | Runtime | Description |
 |---------|-------------|
-| `base:latest` | Minimal base runtime with essential tools (default) |
-| `bun:1` | Bun 1.x with JavaScript/TypeScript support |
-| `node:latest` | Node.js latest version |
-| `node:lts` | Node.js LTS version |
+| `base:latest` | Minimal base runtime with common tools |
+| `bun:1` | Bun 1.x with JavaScript and TypeScript support |
+| `node:latest` | Latest Node.js runtime |
+| `node:lts` | Node.js LTS runtime |
 | `python:3.13` | Python 3.13 with uv package manager |
 | `python:3.14` | Python 3.14 with uv package manager |
+| `claude-code:latest` | Claude Code coding assistant runtime |
+| `amp:latest` | Amp coding assistant runtime |
+| `opencode:latest` | OpenCode coding assistant runtime |
 
-### Agent Runtimes
-
-Pre-configured AI coding assistants:
-
-| Runtime | Description |
-|---------|-------------|
-| `claude-code:latest` | Claude Code AI assistant |
-| `amp:latest` | Amp AI coding assistant |
-| `opencode:latest` | OpenCode AI coding assistant |
-
-<Callout type="tip" title="List Available Runtimes">
-Run `agentuity cloud sandbox runtime list` to see all available runtimes, or view them in the [Web App](https://app.agentuity.com) under **Services > Sandbox > Runtimes**.
-</Callout>
-
-### Runtime Metadata
-
-Each runtime includes metadata for identification and resource planning:
-
-| Field | Description |
-|-------|-------------|
-| `description` | What the runtime provides |
-| `iconUrl` | URL to runtime icon |
-| `brandColor` | Hex color for UI display |
-| `url` | Link to runtime documentation or homepage |
-| `tags` | Categories like `language`, `testing`, `agent` |
-| `requirements` | Minimum memory, CPU, disk, and `networkEnabled` requirements |
-
-View runtime details with `agentuity cloud sandbox runtime list --json`.
+Runtime responses include metadata such as `description`, `iconUrl`, `brandColor`, `url`, `tags`, and `requirements`.
 
 ## Snapshots
 
-A snapshot captures the filesystem state of a sandbox. You create new sandboxes *from* a snapshot rather than running it directly.
-
-Snapshots build on top of runtimes. When you create a snapshot, it includes everything from the base runtime plus your installed dependencies and files.
-
-**Workflow:**
-1. Create a sandbox from a runtime
-2. Install dependencies and configure the environment
-3. Save a snapshot
-4. Create new sandboxes from that snapshot (fast, no reinstallation needed)
-
-See [Creating and Using Snapshots](/services/sandbox/snapshots) for details.
-
-## Two Execution Modes
-
-Choose based on your use case:
-
-### One-shot (`sandbox.run()`)
-
-Creates a sandbox, runs a single command, then destroys the sandbox. Best for stateless code execution.
+A snapshot captures a sandbox filesystem so new sandboxes can start with dependencies and files already present.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+import { SandboxClient } from '@agentuity/sandbox';
 
-const agent = createAgent('CodeRunner', {
-  handler: async (ctx, input) => {
-    const result = await ctx.sandbox.run({
-      command: { exec: ['python3', '-c', 'print("Hello!")'] },
-      resources: { memory: '256Mi', cpu: '500m' },
-    });
+const client = new SandboxClient();
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  network: { enabled: true },
+});
 
-    ctx.logger.info('Output', { stdout: result.stdout, exitCode: result.exitCode });
-    return { output: result.stdout, exitCode: result.exitCode };
-  },
+try {
+  await sandbox.execute({ command: ['bun', 'init', '-y'] });
+  await sandbox.execute({ command: ['bun', 'add', 'zod'] });
+
+  const snapshot = await client.createSnapshot(sandbox.id, {
+    name: 'bun-zod',
+    tag: 'bun-zod',
+    description: 'Bun project with Zod installed',
+  });
+
+  console.log(snapshot.snapshotId);
+} finally {
+  await sandbox.destroy();
+}
+```
+
+Create future sandboxes from the snapshot ID or tag:
+
+```typescript
+const sandbox = await client.create({
+  snapshot: 'bun-zod',
+  resources: { memory: '512Mi' },
 });
 ```
 
-### Interactive (`sandbox.create()`)
-
-Creates a persistent sandbox for multiple commands. Best for stateful workflows like dependency installation.
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
-const agent = createAgent('ProjectBuilder', {
-  handler: async (ctx, input) => {
-    const sandbox = await ctx.sandbox.create({
-      runtime: 'node:lts',
-      resources: { memory: '1Gi' },
-      network: { enabled: true },  // Required for package installation
-    });
-
-    try {
-      await sandbox.execute({ command: ['npm', 'init', '-y'] });
-      await sandbox.execute({ command: ['npm', 'install', 'zod'] });
-      const result = await sandbox.execute({
-        command: ['node', '-e', 'console.log("ready")'],
-      });
-
-      return { exitCode: result.exitCode };
-    } finally {
-      await sandbox.destroy();
-    }
-  },
-});
-```
+See [Creating and Using Snapshots](/services/sandbox/snapshots) for declarative snapshot files, CLI commands, and snapshot management APIs.
 
 ## Background Jobs
 
-Jobs let you run long-running commands in a sandbox without blocking. Unlike regular execution, jobs:
-
-- **Run in parallel**: Multiple jobs can execute simultaneously
-- **Don't block**: Control returns immediately after creation
-- **Persist**: Jobs continue even after the creating request completes
-- **Capture output**: Stdout/stderr are captured to streams for later retrieval
-
-### Creating Jobs
+Use jobs for commands that should keep running while your process does other work. Jobs are managed from `SandboxClient` with a sandbox ID.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
+import { SandboxClient } from '@agentuity/sandbox';
 
-const agent = createAgent('JobRunner', {
-  handler: async (ctx, input) => {
-    const sandbox = await ctx.sandbox.create({
-      runtime: 'node:lts',
-      resources: { memory: '2Gi' },
-      network: { enabled: true },
-    });
+const client = new SandboxClient();
+const sandbox = await client.create({ runtime: 'bun:1' });
 
-    // Create a background job
-    const job = await sandbox.createJob({
-      command: ['sh', '-c', 'sleep 30 && echo done'],
-    });
+try {
+  const job = await client.createJob(sandbox.id, {
+    command: ['sh', '-c', 'sleep 30 && echo done'],
+  });
 
-    ctx.logger.info('Job started', { jobId: job.jobId });
+  const current = await job.get();
+  console.log({ jobId: job.id, status: current.status });
 
-    // Check status later
-    const status = await sandbox.getJob(job.jobId);
-    if (status.status === 'completed') {
-      ctx.logger.info('Job completed', { exitCode: status.exitCode });
-    }
+  await job.stop();
+} finally {
+  await sandbox.destroy();
+}
+```
 
-    return { jobId: job.jobId };
-  },
+## Events and Lifecycle
+
+Every sandbox records lifecycle events. Use `client.listEvents()` when you need to inspect what happened to a sandbox.
+
+```typescript
+const { events } = await client.listEvents('sbx_abc123', {
+  limit: 50,
+  direction: 'asc',
 });
+
+for (const event of events) {
+  console.log(event.type, event.createdAt);
+}
 ```
 
-### Job Lifecycle
-
-| Status | Description |
-|--------|-------------|
-| `pending` | Job created, waiting to start |
-| `running` | Job actively executing |
-| `completed` | Finished with exit code 0 |
-| `failed` | Finished with non-zero exit code |
-| `cancelled` | Terminated by user request |
-
-### Stopping Jobs
-
-```typescript
-// Graceful stop (SIGTERM, then SIGKILL after grace period)
-await sandbox.stopJob(job.jobId);
-
-// Force kill immediately
-await sandbox.stopJob(job.jobId, true);
-```
-
-### Use Cases
-
-| Use Case | Example |
-|----------|---------|
-| Build processes | Run `npm run build` in background |
-| Long-running tests | Execute test suites without blocking |
-| Data processing | Process large files asynchronously |
-| Service daemons | Run background services in sandbox |
-
-## SDK Access
-
-| Context | Access |
-|---------|--------|
-| Agents | `ctx.sandbox` |
-| Routes | `c.var.sandbox` |
-
-The API is identical in both contexts.
-
-## Configuration Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `runtime` | Runtime environment | `'bun:1'`, `'python:3.14'` |
-| `resources.memory` | Memory limit (Kubernetes-style) | `'512Mi'`, `'1Gi'` |
-| `resources.cpu` | CPU limit in millicores | `'500m'`, `'1000m'` |
-| `resources.disk` | Disk space limit | `'1Gi'` |
-| `network.enabled` | Allow outbound network | `true` (default: `false`) |
-| `network.port` | Port to expose to internet (1024-65535) | `3000` |
-| `projectId` | Associate sandbox with a project | `'proj_abc123'` |
-| `timeout.idle` | Idle timeout before cleanup | `'10m'`, `'1h'` |
-| `timeout.execution` | Max execution time per command | `'5m'`, `'30s'` |
-| `dependencies` | Apt packages to install | `['python3', 'git']` |
-| `packages` | npm/bun packages to install globally | `['typescript', 'tsx']` |
-| `env` | Environment variables | `{ NODE_ENV: 'test' }` |
-| `snapshot` | Create from existing snapshot | `'my-env'` or `snp_abc123` |
-
-## Sandbox Events
-
-Every sandbox records lifecycle events as it transitions through states. Use `sandboxEventList` to retrieve these events for auditing or debugging.
-
-<Callout type="info" title="Server Utility">
-`sandboxEventList` is a server-side function from `@agentuity/server`. It requires an `APIClient` instance, typically used in CLI tools or standalone scripts rather than agent handlers.
-</Callout>
-
-```typescript
-import { sandboxEventList } from '@agentuity/server';
-
-const { events } = await sandboxEventList(client, {
-  sandboxId: 'sbx_abc123',
-  limit: 50,            // optional, default 50
-  direction: 'asc',    // optional: 'asc' (oldest first, default) or 'desc'
-});
-```
-
-Each event includes:
-
-| Field | Description |
-|-------|-------------|
-| `eventId` | Unique identifier for the event |
-| `sandboxId` | ID of the sandbox |
-| `type` | Event type (e.g., `create`, `destroy`, `lifecycle:started`) |
-| `event` | Arbitrary payload data for the event |
-| `createdAt` | ISO timestamp when the event was recorded |
-
-From the CLI, use `agentuity cloud sandbox events <sandbox-id>` to list events. See [CLI Commands](/reference/cli/sandbox) for options.
-
-## Resume Paused Sandboxes
-
-`sandbox.execute()` automatically resumes a suspended sandbox and returns `autoResumed: true` on the execution result. Call `sandbox.resume()` when you want the sandbox awake before issuing a batch of commands.
+Use `sandbox.pause()` and `sandbox.resume()` when you want to checkpoint and later restart an interactive sandbox. `sandbox.execute()` can also auto-resume a suspended sandbox before running a command and may return `autoResumed: true`.
 
 ```typescript
 await sandbox.resume();
-const execution = await sandbox.execute({ command: ['bun', 'run', 'test'] });
 
-ctx.logger
-  .child({ executionId: execution.executionId, autoResumed: execution.autoResumed })
-  .info('Sandbox command completed');
+const execution = await sandbox.execute({
+  command: ['bun', 'run', 'test'],
+});
+
+console.log({
+  executionId: execution.executionId,
+  autoResumed: execution.autoResumed,
+});
 ```
 
-<Callout type="info" title="Resume before batches">
-Use explicit `sandbox.resume()` (or `agentuity cloud sandbox resume`) when startup latency matters before the first command. For single commands, `execute()` can wake the sandbox for you.
-</Callout>
+## Security Defaults
 
-## When to Use Sandbox
+Sandboxes give each run an isolated workspace and explicit resource limits. Network access is disabled unless you enable it with `network.enabled` or expose a port with `network.port`.
 
-| Use Case | Example |
-|----------|---------|
-| Code execution agents | Run user-provided Python/JavaScript safely |
-| Code validation | Verify generated code compiles and runs |
-| AI coding assistants | Execute code suggested by LLMs |
-| Automated testing | Run tests in clean environments |
-| Build systems | Compile projects in isolated containers |
-
-## Security
-
-Sandboxes provide isolation through:
-
-- **Network disabled by default**: Enable explicitly when needed
-- **Resource limits**: Prevent resource exhaustion
-- **Execution timeouts**: Prevent runaway processes
-- **Filesystem isolation**: Each sandbox has its own workspace
+Set timeouts for untrusted commands, keep resource limits tight, and use snapshots for shared dependencies instead of reinstalling packages on every run.
 
 ## Next Steps
 
-- [SDK Usage](/services/sandbox/sdk-usage): Detailed API for file I/O, streaming, and advanced configuration
-- [Snapshots](/services/sandbox/snapshots): Skip dependency installation with pre-configured environments
-- [CLI Commands](/reference/cli/sandbox): Debug sandboxes and create snapshots manually
+- [Using the Sandbox API](/services/sandbox/sdk-usage): method examples for `SandboxClient`
+- [Creating and Using Snapshots](/services/sandbox/snapshots): declarative and manual snapshot workflows
+- [CLI Sandbox Commands](/reference/cli/sandbox): inspect and manage sandboxes from the terminal

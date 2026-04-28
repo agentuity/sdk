@@ -1,10 +1,16 @@
 ---
-title: Using Runtime Utilities
+title: Using Runtime Utilities (v2 Compatibility)
 short_title: Runtime Utilities
-description: File imports, standalone execution, context detection, process lifecycle, and build metadata
+description: Compatibility reference for v2 runtime utilities and helpers
 ---
 
-Utilities for file bundling, standalone agent execution, runtime detection, process lifecycle, and build metadata.
+This page documents v2 runtime utilities from `@agentuity/runtime`, including file imports, standalone agent execution, context detection, process lifecycle helpers, and build metadata. In v3 apps, start with [Frameworks](/frameworks), [Using Standalone Packages](/reference/standalone-packages), and [SDK Utilities for External Apps](/cookbook/patterns/server-utilities): put service clients and lifecycle code where your framework or script already initializes server dependencies.
+
+<Callout type="info" title="Keep runtime utilities for existing apps">
+The runtime utility examples below still work for existing v2 runtime apps. New v3 code usually uses framework build behavior, direct service clients, and package-specific helpers instead of `@agentuity/runtime` as the app container.
+</Callout>
+
+These v2 utilities cover file bundling, standalone agent execution, runtime detection, process lifecycle, and build metadata.
 
 ## File Imports
 

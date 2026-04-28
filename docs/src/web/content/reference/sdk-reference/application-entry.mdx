@@ -1,10 +1,16 @@
 ---
-title: Application Entry Point
+title: Application Entry Point (v2 Compatibility)
 short_title: Application Entry
-description: Initialize your Agentuity app with createApp() and configure the runtime entry file
+description: Compatibility reference for v2 runtime createApp() entry files
 ---
 
-Every app that uses the Agentuity runtime starts in a root `app.ts` file. `createApp()` wires up your router, agents, middleware, services, and Bun server integration in one place.
+This page documents the v2 runtime entry point built around `createApp()` from `@agentuity/runtime`. In v3 apps, start with [Frameworks](/frameworks) and [Runtime to Frameworks](/migration/runtime-to-frameworks): keep your framework's app entry and initialize Agentuity clients where that framework expects server dependencies.
+
+<Callout type="info" title="Keep createApp() for existing runtime apps">
+The `createApp()` examples below still work for existing v2 runtime apps. New v3 apps usually use the framework's route, middleware, and server conventions instead of exporting a runtime `app.ts`.
+</Callout>
+
+In the v2 runtime model, every app starts in a root `app.ts` file. `createApp()` wires up your router, agents, middleware, services, and Bun server integration in one place.
 
 ## createApp
 

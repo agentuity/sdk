@@ -101,11 +101,6 @@ export const navData: NavSection[] = [
 				description: 'Compare AI models using another AI as judge',
 			},
 			{
-				title: 'WebRTC',
-				url: '/explorer/webrtc',
-				description: 'Audio, video, and data channels directly between browsers',
-			},
-			{
 				title: 'Queues',
 				url: '/explorer/queue',
 				description: 'Publish, consume, retry, and inspect dead-letter messages',
@@ -127,178 +122,78 @@ export const navData: NavSection[] = [
 		url: '/get-started',
 		items: [
 			{
-				title: 'What is Agentuity?',
-				url: '/get-started/what-is-agentuity',
-				description: 'The full-stack platform for building, deploying, and operating AI agents',
+				title: 'Quickstart',
+				url: '/get-started/quickstart',
+				description: 'Create a framework app, add an AI route, and deploy it to Agentuity',
 			},
 			{
 				title: 'Installation',
 				url: '/get-started/installation',
-				description: 'Set up your development environment',
-			},
-			{
-				title: 'Quickstart',
-				url: '/get-started/quickstart',
-				description: 'Build your first agent in 5 minutes',
+				description: 'Install the Agentuity CLI and create a framework project',
 			},
 			{
 				title: 'Project Structure',
 				url: '/get-started/project-structure',
-				description: 'Understand how Agentuity projects are organized',
+				description: 'Understand how Agentuity fits into framework projects',
 			},
 			{
 				title: 'App Configuration',
 				url: '/get-started/app-configuration',
-				description: 'Configure your Agentuity project',
+				description: 'Configure a v3 Agentuity framework project',
+			},
+			{
+				title: 'What is Agentuity?',
+				url: '/get-started/what-is-agentuity',
+				description:
+					'Build, deploy, and operate TypeScript framework apps with Agentuity services',
 			},
 		],
 	},
 	{
-		title: 'Agents',
-		url: '/agents',
+		title: 'Frameworks',
+		url: '/frameworks',
 		items: [
 			{
-				title: 'When to Use',
-				url: '/agents/when-to-use',
-				description: 'When to create an agent vs handling requests directly in routes',
-			},
-			{
-				title: 'Creating Agents',
-				url: '/agents/creating-agents',
-				description: 'Build agents with createAgent(), schemas, and handlers',
-			},
-			{
-				title: 'Schema Libraries',
-				url: '/agents/schema-libraries',
-				description: 'Choose from built-in, Zod, Valibot, or ArkType for validation',
-			},
-			{
-				title: 'AI Gateway',
-				url: '/agents/ai-gateway',
-				description: 'Automatic LLM routing with observability and cost tracking',
-			},
-			{
-				title: 'AI SDK Integration',
-				url: '/agents/ai-sdk-integration',
-				description: 'Generate text, structured data, and streams with the Vercel AI SDK',
-			},
-			{
-				title: 'Streaming Responses',
-				url: '/agents/streaming-responses',
-				description: 'Return real-time LLM output with streaming agents',
-			},
-			{
-				title: 'State Management',
-				url: '/agents/state-management',
-				description: 'Request and thread state for stateful agents',
-			},
-			{
-				title: 'Calling Other Agents',
-				url: '/agents/calling-other-agents',
-				description: 'Build multi-agent systems with type-safe agent-to-agent communication',
-			},
-			{
-				title: 'Standalone Execution',
-				url: '/agents/standalone-execution',
+				title: 'Next.js',
+				url: '/frameworks/nextjs',
 				description:
-					'Execute agents programmatically for cron jobs, bots, CLI tools, and background workers',
+					'Add Agentuity service clients, local development, and deployment metadata to a Next.js app',
 			},
 			{
-				title: 'Events & Lifecycle',
-				url: '/agents/events-lifecycle',
-				description: 'Lifecycle hooks for monitoring and extending agent behavior',
-			},
-		],
-	},
-	{
-		title: 'Routes',
-		url: '/routes',
-		items: [
-			{
-				title: 'HTTP',
-				url: '/routes/http',
-				description: 'Define GET, POST, and other HTTP endpoints with Hono',
+				title: 'Nuxt',
+				url: '/frameworks/nuxt',
+				description: 'Add Agentuity CLI wiring and deployment validation to a Nuxt app',
 			},
 			{
-				title: 'Middleware',
-				url: '/routes/middleware',
-				description: 'Add authentication, validation, and request processing to your routes',
+				title: 'React Router',
+				url: '/frameworks/react-router',
+				description: 'Add Agentuity CLI wiring and deployment validation to a React Router app',
 			},
 			{
-				title: 'Calling Agents',
-				url: '/routes/calling-agents',
-				description: 'Import and invoke agents from your routes',
+				title: 'SvelteKit',
+				url: '/frameworks/sveltekit',
+				description: 'Add Agentuity CLI wiring and deployment validation to a SvelteKit app',
 			},
 			{
-				title: 'Cron',
-				url: '/routes/cron',
-				description: 'Run tasks on a schedule with the cron() middleware',
+				title: 'Astro',
+				url: '/frameworks/astro',
+				description: 'Add Agentuity CLI wiring and deployment validation to an Astro app',
 			},
 			{
-				title: 'WebSockets',
-				url: '/routes/websockets',
-				description: 'Real-time bidirectional communication with the websocket middleware',
+				title: 'Hono',
+				url: '/frameworks/hono',
+				description: 'Add Agentuity services and deployment context to a Hono app',
 			},
 			{
-				title: 'SSE',
-				url: '/routes/sse',
-				description: 'Stream updates from server to client using SSE middleware',
+				title: 'Vite + React',
+				url: '/frameworks/vite-react',
+				description: 'Add Agentuity CLI wiring and deployment validation to a Vite React app',
 			},
 			{
-				title: 'Using WebRTC',
-				url: '/routes/webrtc',
-				description: 'Peer-to-peer audio, video, and data channels with the webrtc middleware',
-			},
-			{
-				title: 'Using Explicit Routing',
-				url: '/routes/explicit-routing',
+				title: 'TanStack Start',
+				url: '/frameworks/tanstack-start',
 				description:
-					'Pass your own Hono router to createApp() when you need custom mount paths or an exported router type',
-			},
-		],
-	},
-	{
-		title: 'Frontend',
-		url: '/frontend',
-		items: [
-			{
-				title: 'React Hooks',
-				url: '/frontend/react-hooks',
-				description: 'Provider, auth, analytics, and WebRTC hooks from @agentuity/react',
-			},
-			{
-				title: 'RPC Client',
-				url: '/frontend/rpc-client',
-				description:
-					'Type-safe API calls from any JavaScript environment using hc() from hono/client',
-			},
-			{
-				title: 'Provider Setup',
-				url: '/frontend/provider-setup',
-				description: 'Legacy AgentuityProvider setup for @agentuity/react apps',
-			},
-			{
-				title: 'Authentication',
-				url: '/frontend/authentication',
-				description: 'Add user authentication with Agentuity Auth',
-			},
-			{
-				title: 'Deployment Scenarios',
-				url: '/frontend/deployment-scenarios',
-				description:
-					'Deploy your frontend alongside agents or separately on Vercel, Netlify, etc.',
-			},
-			{
-				title: 'Static Rendering',
-				url: '/frontend/static-rendering',
-				description:
-					'Pre-render your frontend to static HTML for faster page loads and better SEO',
-			},
-			{
-				title: 'Advanced Hooks',
-				url: '/frontend/advanced-hooks',
-				description:
-					'Advanced WebRTC callbacks plus low-level WebSocket and SSE client utilities',
+					'Add Agentuity service clients to a TanStack Start app and validate the detected build path',
 			},
 		],
 	},
@@ -306,6 +201,37 @@ export const navData: NavSection[] = [
 		title: 'Services',
 		url: '/services',
 		items: [
+			{
+				title: 'Storage',
+				url: '/services/storage',
+				items: [
+					{
+						title: 'Key-Value',
+						url: '/services/storage/key-value',
+						description: 'Store small durable values by namespace and key with optional TTL',
+					},
+					{
+						title: 'Vector',
+						url: '/services/storage/vector',
+						description: 'Store documents and embeddings for semantic search and retrieval',
+					},
+					{
+						title: 'Object',
+						url: '/services/storage/object',
+						description: "Store files and binary data with Bun's native S3 APIs",
+					},
+					{
+						title: 'Durable Streams',
+						url: '/services/storage/durable-streams',
+						description: 'Write generated output incrementally and keep it available by URL',
+					},
+					{
+						title: 'Custom',
+						url: '/services/storage/custom',
+						description: 'Swap storage backends behind small app-owned interfaces',
+					},
+				],
+			},
 			{
 				title: 'Database',
 				url: '/services/database',
@@ -323,40 +249,6 @@ export const navData: NavSection[] = [
 				],
 			},
 			{
-				title: 'Storage',
-				url: '/services/storage',
-				items: [
-					{
-						title: 'Key-Value',
-						url: '/services/storage/key-value',
-						description:
-							'Fast key-based storage for caching, session data, and configuration',
-					},
-					{
-						title: 'Vector',
-						url: '/services/storage/vector',
-						description: 'Semantic search and retrieval for knowledge bases and RAG systems',
-					},
-					{
-						title: 'Object',
-						url: '/services/storage/object',
-						description: "Durable file storage using Bun's native S3 APIs",
-					},
-					{
-						title: 'Durable Streams',
-						url: '/services/storage/durable-streams',
-						description:
-							'Streaming storage for large exports, audit logs, and real-time data',
-					},
-					{
-						title: 'Custom',
-						url: '/services/storage/custom',
-						description:
-							'Local development storage and custom runtime storage implementations',
-					},
-				],
-			},
-			{
 				title: 'Queues',
 				url: '/services/queues',
 				description:
@@ -369,10 +261,9 @@ export const navData: NavSection[] = [
 					'Send and receive emails with managed addresses, destinations, and delivery tracking',
 			},
 			{
-				title: 'Webhooks',
-				url: '/services/webhooks',
-				description:
-					'Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry',
+				title: 'Tasks',
+				url: '/services/tasks',
+				description: 'Track work items, issues, and agent activity with lifecycle management',
 			},
 			{
 				title: 'Schedules',
@@ -380,22 +271,34 @@ export const navData: NavSection[] = [
 				description: 'Create platform-managed cron jobs with HTTP and sandbox destinations',
 			},
 			{
-				title: 'Tasks',
-				url: '/services/tasks',
+				title: 'Webhooks',
+				url: '/services/webhooks',
 				description:
-					'Track work items, issues, and agent activity with built-in lifecycle management',
+					'Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry',
 			},
 			{
-				title: 'Authentication',
-				url: '/services/authentication',
-				description:
-					'Choose between Sign in with Agentuity and app-owned authentication for routes and apps',
+				title: 'Sandbox',
+				url: '/services/sandbox',
+				items: [
+					{
+						title: 'SDK Usage',
+						url: '/services/sandbox/sdk-usage',
+						description:
+							'Create, execute, inspect, and clean up sandboxes with SandboxClient',
+					},
+					{
+						title: 'Snapshots',
+						url: '/services/sandbox/snapshots',
+						description:
+							'Save sandbox filesystem states and reuse them as bases for new sandboxes',
+					},
+				],
 			},
 			{
-				title: 'OIDC Provider',
-				url: '/services/oidc-provider',
+				title: 'AI Gateway',
+				url: '/services/ai-gateway',
 				description:
-					'Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC',
+					'Route supported LLM SDK calls through Agentuity during local development and local builds',
 			},
 			{
 				title: 'Coder',
@@ -410,7 +313,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Logging',
 						url: '/services/observability/logging',
-						description: 'Collected logs for agents and routes',
+						description: 'Write structured logs from framework apps and Hono routes',
 					},
 					{
 						title: 'Tracing',
@@ -421,31 +324,67 @@ export const navData: NavSection[] = [
 					{
 						title: 'Sessions & Debugging',
 						url: '/services/observability/sessions-debugging',
-						description: 'Debug agents using session IDs, CLI commands, and trace timelines',
-					},
-					{
-						title: 'Web Analytics',
-						url: '/services/observability/web-analytics',
-						description:
-							'Track page views, user engagement, and custom events in your frontend',
+						description: 'Inspect session records, logs, and timelines',
 					},
 				],
 			},
 			{
-				title: 'Sandbox',
-				url: '/services/sandbox',
-				items: [
-					{
-						title: 'SDK Usage',
-						url: '/services/sandbox/sdk-usage',
-						description: 'Programmatic API for creating and managing sandboxes',
-					},
-					{
-						title: 'Snapshots',
-						url: '/services/sandbox/snapshots',
-						description: 'Save and restore sandbox filesystem states for faster cold starts',
-					},
-				],
+				title: 'Authentication',
+				url: '/services/authentication',
+				description:
+					'Choose between Agentuity OIDC and framework-owned authentication for v3 apps',
+			},
+			{
+				title: 'OIDC Provider',
+				url: '/services/oidc-provider',
+				description:
+					'Add Agentuity account sign-in and scoped access to your app with OAuth 2.0 and OIDC',
+			},
+		],
+	},
+	{
+		title: 'Build & Deploy',
+		url: '/deploy-operate',
+		items: [
+			{
+				title: 'Local Development',
+				url: '/deploy-operate/local-development',
+				description: 'Run your framework dev script with Agentuity environment wiring.',
+			},
+			{
+				title: 'Deploy Framework Apps',
+				url: '/deploy-operate/deploy-framework-apps',
+				description: 'Build and deploy framework projects with the v3 Agentuity CLI.',
+			},
+			{
+				title: 'Environment Variables',
+				url: '/deploy-operate/environment-variables',
+				description:
+					'Manage local .env files, cloud environment variables, public variables, and secrets.',
+			},
+		],
+	},
+	{
+		title: 'Patterns',
+		url: '/patterns',
+		items: [
+			{
+				title: 'Agents as a Pattern',
+				url: '/patterns/agents-as-a-pattern',
+				description:
+					'Build model-backed workflows with framework routes and Agentuity service clients',
+			},
+			{
+				title: 'Chat and Streaming',
+				url: '/patterns/chat-and-streaming',
+				description:
+					'Stream model output from framework routes and persist chat state with Agentuity clients',
+			},
+			{
+				title: 'Background Work',
+				url: '/patterns/background-work',
+				description:
+					'Use queues, status records, and durable streams for work that should outlive a request',
 			},
 		],
 	},
@@ -534,8 +473,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Chat with History',
 						url: '/cookbook/patterns/chat-with-history',
-						description:
-							'Build a chat agent that remembers previous messages using thread state',
+						description: 'Store chat history with key-value storage from a framework route',
 					},
 					{
 						title: 'Cron with Storage',
@@ -654,6 +592,101 @@ export const navData: NavSection[] = [
 		title: 'Reference',
 		url: '/reference',
 		items: [
+			{
+				title: 'Standalone Packages',
+				url: '/reference/standalone-packages',
+				description:
+					'Use Agentuity service clients from Node.js, Bun, and server framework code',
+			},
+			{
+				title: 'SDK Reference',
+				url: '/reference/sdk-reference',
+				items: [
+					{
+						title: 'Agents',
+						url: '/reference/sdk-reference/agents',
+						description: 'Compatibility reference for v2 runtime createAgent() handlers',
+					},
+					{
+						title: 'Application Entry',
+						url: '/reference/sdk-reference/application-entry',
+						description: 'Compatibility reference for v2 runtime createApp() entry files',
+					},
+					{
+						title: 'Coder',
+						url: '/reference/sdk-reference/coder',
+						description: 'Manage AI coding sessions, workspaces, and skills with CoderClient',
+					},
+					{
+						title: 'Communication',
+						url: '/reference/sdk-reference/communication',
+						description:
+							'Call shared workflow functions from routes, workers, scripts, and other server code',
+					},
+					{
+						title: 'Context API',
+						url: '/reference/sdk-reference/context-api',
+						description:
+							'Compatibility reference for the v2 runtime AgentContext ctx.* object',
+					},
+					{
+						title: 'Email Service',
+						url: '/reference/sdk-reference/email-service',
+						description: 'Compatibility reference for v2 runtime ctx.email APIs',
+					},
+					{
+						title: 'Events',
+						url: '/reference/sdk-reference/events',
+						description: 'Compatibility reference for v2 runtime lifecycle event APIs',
+					},
+					{
+						title: 'Observability',
+						url: '/reference/sdk-reference/observability',
+						description:
+							'Compatibility reference for v2 runtime ctx.logger and ctx.tracer APIs',
+					},
+					{
+						title: 'Queue Service',
+						url: '/reference/sdk-reference/queue-service',
+						description: 'Compatibility reference for v2 runtime ctx.queue APIs',
+					},
+					{
+						title: 'Router',
+						url: '/reference/sdk-reference/router',
+						description: 'Compatibility reference for v2 runtime route handlers',
+					},
+					{
+						title: 'Runtime Utilities',
+						url: '/reference/sdk-reference/advanced',
+						description: 'Compatibility reference for v2 runtime utilities and helpers',
+					},
+					{
+						title: 'Sandbox Service',
+						url: '/reference/sdk-reference/sandbox-service',
+						description: 'Compatibility reference for v2 runtime ctx.sandbox APIs',
+					},
+					{
+						title: 'Schedule Service',
+						url: '/reference/sdk-reference/schedule-service',
+						description: 'Compatibility reference for v2 runtime ctx.schedule APIs',
+					},
+					{
+						title: 'Schema',
+						url: '/reference/sdk-reference/schema',
+						description: 'Type-safe runtime validation with StandardSchema support',
+					},
+					{
+						title: 'Storage',
+						url: '/reference/sdk-reference/storage',
+						description: 'Compatibility reference for v2 runtime ctx.* storage APIs',
+					},
+					{
+						title: 'Task Service',
+						url: '/reference/sdk-reference/task-service',
+						description: 'Compatibility reference for v2 runtime ctx.task APIs',
+					},
+				],
+			},
 			{
 				title: 'API Reference',
 				url: '/reference/api',
@@ -790,7 +823,7 @@ export const navData: NavSection[] = [
 						title: 'Build Configuration',
 						url: '/reference/cli/build-configuration',
 						description:
-							'Customize the build process with Vite plugins and build-time constants',
+							'Build framework apps into Agentuity deployment bundles with launch metadata and static assets.',
 					},
 					{
 						title: 'Claude Code Plugin',
@@ -817,20 +850,19 @@ export const navData: NavSection[] = [
 					{
 						title: 'Deployment',
 						url: '/reference/cli/deployment',
-						description:
-							'Deploy your agents to Agentuity Cloud with automatic infrastructure provisioning.',
+						description: 'Deploy registered framework apps to Agentuity Cloud.',
 					},
 					{
 						title: 'Development',
 						url: '/reference/cli/development',
 						description:
-							'Run the development server with hot reload, type checking, and public URL support.',
+							'Run your framework development server with Agentuity environment wiring.',
 					},
 					{
 						title: 'Getting Started',
 						url: '/reference/cli/getting-started',
 						description:
-							'Install the Agentuity CLI and authenticate to start building agents.',
+							'Install the Agentuity CLI, sign in, create framework projects, and register existing apps.',
 					},
 					{
 						title: 'Git Integration',
@@ -847,8 +879,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Managing OAuth Apps',
 						url: '/reference/cli/oauth',
-						description:
-							'Create and manage OAuth/OIDC applications for third-party integrations from the CLI',
+						description: 'Create and manage OAuth/OIDC applications from the CLI',
 					},
 					{
 						title: 'OpenCode Plugin',
@@ -876,102 +907,6 @@ export const navData: NavSection[] = [
 				],
 			},
 			{
-				title: 'SDK Reference',
-				url: '/reference/sdk-reference',
-				items: [
-					{
-						title: 'Agents',
-						url: '/reference/sdk-reference/agents',
-						description:
-							'Define agents with createAgent(), configure schemas, and write handlers',
-					},
-					{
-						title: 'Application Entry',
-						url: '/reference/sdk-reference/application-entry',
-						description:
-							'Initialize your Agentuity app with createApp() and configure the runtime entry file',
-					},
-					{
-						title: 'Coder',
-						url: '/reference/sdk-reference/coder',
-						description: 'Manage AI coding sessions, workspaces, and skills with CoderClient',
-					},
-					{
-						title: 'Communication',
-						url: '/reference/sdk-reference/communication',
-						description: 'Call agents from routes or other agents with type-safe imports',
-					},
-					{
-						title: 'Context API',
-						url: '/reference/sdk-reference/context-api',
-						description: 'Storage, logging, and services available via the ctx.* object',
-					},
-					{
-						title: 'Email Service',
-						url: '/reference/sdk-reference/email-service',
-						description: 'Send emails and manage addresses with ctx.email',
-					},
-					{
-						title: 'Events',
-						url: '/reference/sdk-reference/events',
-						description: 'Lifecycle hooks for monitoring agent, session, and thread events',
-					},
-					{
-						title: 'Observability',
-						url: '/reference/sdk-reference/observability',
-						description:
-							'Collected logs and OpenTelemetry tracing via ctx.logger and ctx.tracer',
-					},
-					{
-						title: 'Queue Service',
-						url: '/reference/sdk-reference/queue-service',
-						description: 'Publish messages and manage queues with ctx.queue',
-					},
-					{
-						title: 'Router',
-						url: '/reference/sdk-reference/router',
-						description: 'HTTP endpoints, middleware, WebSocket, SSE, and cron handlers',
-					},
-					{
-						title: 'Runtime Utilities',
-						url: '/reference/sdk-reference/advanced',
-						description:
-							'File imports, standalone execution, context detection, process lifecycle, and build metadata',
-					},
-					{
-						title: 'Sandbox Service',
-						url: '/reference/sdk-reference/sandbox-service',
-						description: 'Run code in isolated containers with ctx.sandbox',
-					},
-					{
-						title: 'Schedule Service',
-						url: '/reference/sdk-reference/schedule-service',
-						description: 'Create and manage cron-based scheduled jobs with ctx.schedule',
-					},
-					{
-						title: 'Schema',
-						url: '/reference/sdk-reference/schema',
-						description: 'Type-safe runtime validation with StandardSchema support',
-					},
-					{
-						title: 'Storage',
-						url: '/reference/sdk-reference/storage',
-						description: 'KV, Vector, Database, Object, and Stream storage reference',
-					},
-					{
-						title: 'Task Service',
-						url: '/reference/sdk-reference/task-service',
-						description: 'Track work items with lifecycle management via ctx.task',
-					},
-				],
-			},
-			{
-				title: 'Standalone Packages',
-				url: '/reference/standalone-packages',
-				description:
-					'Use Agentuity services from any Node.js or Bun application without the full runtime',
-			},
-			{
 				title: 'GitHub App',
 				url: '/reference/github-app',
 				description:
@@ -982,11 +917,26 @@ export const navData: NavSection[] = [
 				url: '/reference/gravity-network',
 				description: "The layered infrastructure powering Agentuity's services",
 			},
+		],
+	},
+	{
+		title: 'Migration',
+		url: '/migration',
+		items: [
 			{
-				title: 'Migration Guide',
-				url: '/reference/migration-guide',
-				description:
-					'Migrate from v1 to v2 for explicit routing, Hono-native routers, and standard Vite config.',
+				title: 'From v2',
+				url: '/migration/from-v2',
+				description: 'Move a v2 runtime app toward the v3 framework-first app shape.',
+			},
+			{
+				title: 'Runtime to Frameworks',
+				url: '/migration/runtime-to-frameworks',
+				description: 'Translate v2 runtime concepts into the v3 framework-first model.',
+			},
+			{
+				title: 'Migration CLI',
+				url: '/migration/migrate-cli',
+				description: 'Run the Agentuity migration tool for v2 to v3 projects.',
 			},
 		],
 	},

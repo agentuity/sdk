@@ -1,0 +1,104 @@
+---
+title: Using the Migration CLI
+short_title: Migration CLI
+description: Run the Agentuity migration tool for v2 to v3 projects.
+---
+
+Use the alpha tag for v3 migrations so the CLI includes `--v2-to-v3`.
+
+```bash
+npx @agentuity/migrate@alpha --v2-to-v3 --dry-run
+```
+
+## Command
+
+Run from the project root, or pass the project directory as the first argument:
+
+```bash
+npx @agentuity/migrate@alpha [project-dir] --v2-to-v3
+```
+
+Useful flags:
+
+| Flag | Use |
+| --- | --- |
+| `--v2-to-v3` | force the v2 to v3 migration mode |
+| `--dry-run` | print the migration report without changing files |
+| `--yes`, `-y` | skip confirmation prompts |
+| `--help`, `-h` | print available modes and flags |
+
+The tool can also auto-detect migration mode from `@agentuity/runtime` in `package.json`, but pass `--v2-to-v3` when you are following the v3 migration docs.
+
+## Safe Workflow
+
+Preview first:
+
+```bash
+npx @agentuity/migrate@alpha --v2-to-v3 --dry-run
+```
+
+Apply after the report looks right:
+
+```bash
+npx @agentuity/migrate@alpha --v2-to-v3
+```
+
+The tool refuses to write changes when it detects a dirty git worktree. Commit, stash, or otherwise clear unrelated local changes before applying the migration.
+
+## What the Tool Changes
+
+The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically:
+
+| Area | Change |
+| --- | --- |
+| entry point | replaces `app.ts` and `createApp()` with a Hono starting point in `src/index.ts` |
+| packages | removes `@agentuity/runtime`, adds `hono`, `@agentuity/hono`, and detected service packages |
+| services | generates `src/services.ts` with singleton service clients |
+| simple agents | converts simple `createAgent()` handlers into plain exported functions |
+| routes | rewrites detected `ctx.*` and `c.var.*` service access to direct service imports |
+| thread and session APIs | leaves review markers where runtime thread/session state needs an app-owned replacement |
+| removed packages | removes v2-only packages such as `@agentuity/evals`, `@agentuity/frontend`, and `@agentuity/workbench` |
+| schema usage | ports detected `@agentuity/schema` usage to Zod when that transform applies |
+
+After writing changes, the tool runs `bun install` and a TypeScript check. If TypeScript reports errors, keep the diff and fix the remaining migration work manually.
+
+## What Still Needs Review
+
+Manual work is normal for apps that used runtime container features:
+
+- lifecycle hooks such as `setup()` or `shutdown()`
+- agent event listeners
+- thread or session state used for chat memory, request grouping, or browser sessions
+- shared app state through `ctx.app`
+- setup output read through `ctx.config`
+- Hono route validation previously handled by Agentuity validator middleware
+- files importing `@agentuity/evals` and custom Workbench/frontend flows
+
+<Callout type="warning" title="Review generated service and entry files">
+The migrator gives you a starting point, not a deploy guarantee. Review `src/index.ts`, `src/services.ts`, package scripts, and the TypeScript output before deploying.
+</Callout>
+
+## After Migration
+
+Link the project to Agentuity Cloud before the first v3 deploy:
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+```
+
+Then run the framework build if the package has one, followed by the Agentuity build:
+
+```bash
+# If your package has a build script:
+bun run build
+agentuity build
+```
+
+Deploy only after the build succeeds for your app shape.
+
+## Next Steps
+
+- [Migrating from v2](/migration/from-v2): put the CLI into the full migration flow
+- [Runtime to Frameworks](/migration/runtime-to-frameworks): map runtime APIs to framework code
+- [Deploying Framework Apps](/deploy-operate/deploy-framework-apps): register, build, and deploy after migration

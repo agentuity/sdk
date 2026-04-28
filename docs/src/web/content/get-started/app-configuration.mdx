@@ -1,20 +1,44 @@
 ---
 title: App Configuration
-description: Configure your Agentuity project
+description: Configure a v3 Agentuity framework project
 ---
 
-Agentuity projects keep runtime behavior in code and deployment metadata in `agentuity.json`.
+In v3, your framework owns routing and startup. Agentuity configuration lives in `agentuity.json`, package scripts, environment variables, and the service clients you import.
+
+## package.json
+
+The framework's create command owns your `dev` and `build` scripts. Agentuity adds a `deploy` script:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "...",
+    "build": "...",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+Use `agentuity dev` when you want the CLI to run your framework's `dev` script with Agentuity development behavior:
+
+```bash
+agentuity dev
+agentuity dev --port 8080
+agentuity dev --script dev:web
+```
+
+`agentuity dev` reads `package.json` and runs the selected script. The default script is `dev`.
 
 ## agentuity.json
 
-The project configuration file:
+Registered projects use `agentuity.json` for cloud project metadata and deploy resources:
 
-```json
+```json title="agentuity.json"
 {
   "$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
   "projectId": "proj_...",
   "orgId": "org_...",
-  "region": "use",
+  "region": "usc",
   "deployment": {
     "resources": {
       "memory": "500Mi",
@@ -26,166 +50,29 @@ The project configuration file:
 }
 ```
 
-No agent definitions, no trigger configurations. Those live in your code.
+The CLI writes this file when a project is registered during `agentuity project create` or linked later with `agentuity project import`.
 
-## app.ts
-
-The app entry point wires agents, routes, and configuration together:
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-import agents from './src/agent';
-import api from './src/api';
-
-const app = await createApp({
-  router: { path: '/api', router: api },
-  agents,
-  analytics: true,
-});
-
-app.logger.debug('Running %s', app.server.url);
-
-export default app;
-```
-
-### With Startup and Cleanup Logic
-
-Initialize shared resources in modules or startup code, then register cleanup with `registerShutdownHook()`:
-
-```typescript
-import { createApp, registerShutdownHook } from '@agentuity/runtime';
-
-const db = await connectDatabase();
-
-registerShutdownHook(async () => {
-  await db.close();
-});
-
-const app = await createApp({
-  router: { path: '/api', router: api },
-  agents,
-});
-
-app.logger.debug('Running %s', app.server.url);
-
-export default app;
-```
-
-### With Additional Options
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-import agents from './src/agent';
-import api from './src/api';
-
-const app = await createApp({
-  router: { path: '/api', router: api },
-  agents,
-
-  // CORS configuration
-  cors: {
-    sameOrigin: true,
-    allowedOrigins: ['https://myapp.com'],
-  },
-
-  // Response compression (gzip/deflate)
-  compression: {
-    threshold: 1024, // Compress responses larger than 1KB (default)
-  },
-
-  // Custom storage implementations (optional)
-  services: {
-    keyvalue: myCustomKV,
-    vector: myCustomVector,
-  },
-});
-
-export default app;
-```
-
-#### Compression Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable/disable compression |
-| `threshold` | `number` | `1024` | Minimum response size (bytes) to compress |
-| `filter` | `(c) => boolean` | - | Custom filter function |
-
-Compression automatically bypasses WebSocket upgrades and requests without `Accept-Encoding` headers.
-
-### Event Listeners
-
-Listen for agent lifecycle events using the top-level `addEventListener`:
-
-```typescript
-import { addEventListener } from '@agentuity/runtime';
-
-addEventListener('agent.started', (eventName, agent, ctx) => {
-  ctx.logger.info('Agent started', { name: agent.metadata.name });
-});
-
-addEventListener('agent.completed', (eventName, agent, ctx) => {
-  ctx.logger.info('Agent completed', { session: ctx.sessionId });
-});
-```
-
-## Build Configuration
-
-Use `vite.config.ts` for build settings (plugins, entry point, rollup options). Runtime settings like analytics and service configuration belong in `createApp()`.
-
-```typescript title="vite.config.ts"
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
-import { join } from 'node:path';
-
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  root: '.',
-  build: {
-    rollupOptions: {
-      input: join(import.meta.dirname, 'src/web/index.html'),
-    },
-  },
-});
-```
-
-<Callout type="info" title="When to Customize">
-Most projects only need to change `plugins` in `vite.config.ts`. The default template includes React and Tailwind CSS. Replace them with your framework of choice (e.g., `@sveltejs/vite-plugin-svelte`).
+<Callout type="info" title="Keep application routing in the framework">
+`agentuity.json` stores deployment metadata. Define pages, API routes, middleware, and server handlers in your framework files.
 </Callout>
 
-See the [reference page](/reference/cli/build-configuration) for all options and examples.
+## Deployment Resources
 
-## Configuring Deployment and Build Resources
+Use `deployment` for the running app and `build` for the cloud build sandbox:
 
-Configure how your project runs and builds in the cloud using the `deployment` and `build` sections of `agentuity.json`.
-
-### deployment
-
-The `deployment` section controls resources allocated when your project is handling requests, and any custom domains:
-
-- `deployment.resources`: CPU, memory, and disk allocated to the running service
-- `deployment.domains`: custom domains attached to the project
-
-### build
-
-The `build` section controls the sandbox where your project compiles during cloud deployment:
-
-- `build.timeout`: maximum time allowed for the build (e.g., `"30m"`)
-- `build.resources`: memory, CPU, and disk for the build sandbox
-
-```json
+```json title="agentuity.json"
 {
+  "$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
   "projectId": "proj_...",
   "orgId": "org_...",
-  "region": "use",
+  "region": "usc",
   "deployment": {
     "resources": {
       "memory": "500Mi",
       "cpu": "500m",
       "disk": "500Mi"
     },
-    "domains": []
+    "domains": ["app.example.com"]
   },
   "build": {
     "timeout": "30m",
@@ -198,13 +85,57 @@ The `build` section controls the sandbox where your project compiles during clou
 }
 ```
 
-`deployment.resources` controls what your service gets when handling requests. `build.resources` controls the isolated sandbox where your project compiles. Increase build resources if you have large dependencies or complex compilation steps.
+Increase `build.resources` when dependency installation or framework compilation needs more room. Increase `deployment.resources` when the running app needs more CPU, memory, or disk.
 
-For detailed options, see [Deploying to the Cloud](/reference/cli/deployment#resource-configuration).
+See [Deploying to the Cloud](/reference/cli/deployment#resource-configuration): resource options and deploy behavior.
 
-### Run Deploy Lifecycle Scripts
+## Environment Variables
 
-Run custom steps before or after deployment using `predeploy` and `postdeploy` scripts in `package.json`:
+Use `.env` files for local development and cloud environment sync:
+
+```bash title=".env"
+AGENTUITY_SDK_KEY=sdk_...
+OPENAI_API_KEY=sk-...
+AGENTUITY_PUBLIC_API_URL=https://your-project.agentuity.run
+```
+
+Common variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `AGENTUITY_SDK_KEY` | Authenticates service clients and AI Gateway requests from app code |
+| `PORT` | Set by `agentuity dev --port` for framework dev servers that honor `PORT` |
+| `OPENAI_API_KEY` | Optional provider key. If omitted, `agentuity dev` can route OpenAI through AI Gateway when `AGENTUITY_SDK_KEY` is available |
+| `ANTHROPIC_API_KEY` | Optional provider key. If omitted, `agentuity dev` can route Anthropic through AI Gateway when `AGENTUITY_SDK_KEY` is available |
+| `GROQ_API_KEY` | Optional provider key. If omitted, `agentuity dev` can route Groq through AI Gateway when `AGENTUITY_SDK_KEY` is available |
+
+<Callout type="warning" title="Do not expose secrets to the browser">
+Frameworks have their own public env var prefixes. The Agentuity CLI treats `AGENTUITY_PUBLIC_`, `VITE_`, and `PUBLIC_` as public when syncing environment variables. Never put API keys or tokens in public variables.
+</Callout>
+
+Keep `AGENTUITY_SDK_KEY` in the same local env files your framework already uses. Commands such as `agentuity dev` and `agentuity deploy` need that key when your app calls Agentuity services or AI Gateway.
+
+## Service Clients
+
+Add Agentuity services to the framework code that needs them. Standalone clients read `AGENTUITY_SDK_KEY` by default:
+
+```bash
+bun add @agentuity/keyvalue@alpha
+```
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+await kv.set('settings', 'theme', { value: 'dark' });
+```
+
+Use the same pattern for queues, vector storage, email, schedules, tasks, sandbox, and other standalone packages. See [Using Standalone Packages](/reference/standalone-packages): package names and constructor options.
+
+## Deploy Lifecycle Scripts
+
+Package manager lifecycle hooks run when you call the package script:
 
 ```json title="package.json"
 {
@@ -216,128 +147,14 @@ Run custom steps before or after deployment using `predeploy` and `postdeploy` s
 }
 ```
 
-Package manager lifecycle hooks run when you call `bun run deploy`. Running `agentuity deploy` directly skips `predeploy` and `postdeploy`.
+Run `bun run deploy` to include `predeploy` and `postdeploy`. Run `agentuity deploy` directly when you want only the CLI deploy command.
 
-When deploying via the [Agentuity GitHub App](/reference/github-app#build-process), the platform always runs `bun install` first. If `predeploy` is defined, it runs after dependency installation and before `agentuity deploy`. See [Running Deploy Lifecycle Scripts](/reference/cli/deployment#running-deploy-lifecycle-scripts) for the full reference.
+## Existing v2 Apps
 
-## Environment Variables
-
-```bash
-# Required
-AGENTUITY_SDK_KEY=...        # API key for Agentuity services
-
-# Optional
-AGENTUITY_LOG_LEVEL=info     # trace, debug, info, warn, error
-PORT=3500                    # Dev server port (default: 3500)
-
-# Resource Credentials (auto-added by CLI when creating resources)
-DATABASE_URL=postgresql://...   # Added by: agentuity cloud db create
-# S3 credentials                # Added by: agentuity cloud s3 create
-# REDIS_URL=redis://...         # From: agentuity cloud redis show
-
-# LLM Provider Keys (optional; if using your own API keys instead of the AI Gateway)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Frontend-accessible (exposed to browser)
-AGENTUITY_PUBLIC_API_URL=... # Any of these prefixes work:
-VITE_MY_VAR=...              # - AGENTUITY_PUBLIC_*
-PUBLIC_MY_VAR=...            # - VITE_*
-                             # - PUBLIC_*
-```
-
-<Callout type="info" title="AI Gateway">
-If you don't set provider API keys, LLM requests are routed through the Agentuity AI Gateway using your SDK key. This provides unified billing and monitoring.
-</Callout>
-
-<Callout type="warning" title="Public Environment Variables">
-Environment variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` are exposed to the frontend bundle and visible in the browser. Never put secrets or API keys in these variables.
-</Callout>
-
-### Agentuity Keys
-
-Use `AGENTUITY_SDK_KEY` in project code. The CLI writes this key to `.env` when you create, import, reconcile, or pull a project environment. Runtime services, AI Gateway calls, standalone packages, and deployed app code read it when they call Agentuity services.
-
-CLI authentication is separate. `agentuity auth login` stores the CLI credential in your OS keychain or Agentuity config. Automation can pass `AGENTUITY_API_KEY`, or `AGENTUITY_CLI_API_KEY` with `AGENTUITY_USER_ID`, so the CLI can run project and deployment commands without an interactive login. Do not read those variables from app code.
-
-`AGENTUITY_CLI_KEY` is not the CLI login variable. Some standalone clients accept it as a compatibility fallback API key env var, but new examples and projects should use `AGENTUITY_SDK_KEY` or pass `apiKey` directly.
-
-### Environment-Specific Files
-
-Use separate `.env` files instead of commenting/uncommenting variables when switching between local development and deployed contexts.
-
-**File loading order today:**
-
-| Mode | Files checked |
-|------|---------------|
-| `agentuity dev` / local profile | `.env.{profile}` → `.env.development` → `.env` |
-| Production build or non-local profile | `.env.{profile}` → `.env` → `.env.production` |
-
-Files loaded later in the chain override earlier ones. For `agentuity dev`, the order is `.env.{profile}` then `.env.development` then `.env`, so `.env` wins when keys conflict. For deployed or non-local profiles, the order is `.env.{profile}` then `.env` then `.env.production`, so `.env.production` wins.
-
-Profile-specific files use the active CLI profile. See [CLI Profiles](/reference/cli/profiles) for switching profiles and profile-specific defaults.
-
-**Example setup:**
-
-```bash title=".env"
-# Shared defaults loaded in development and production
-AGENTUITY_SDK_KEY=sdk_...
-OPENAI_API_KEY=sk-...
-AGENTUITY_PUBLIC_API_URL=https://your-project.agentuity.run
-```
-
-```bash title=".env.development"
-# Development-only values
-DEBUG=true
-TRUSTED_ORIGINS=http://localhost:3000
-```
-
-<Callout type="info" title="Separate Files, Not Comments">
-Instead of commenting out lines when switching contexts, put shared defaults in `.env` and values that only exist in local development in `.env.development`. Be careful with duplicate keys: the CLI loads `.env.development` before `.env`, so `.env` (loaded last) wins when both define the same variable.
-</Callout>
-
-**Additional files:**
-
-- **`.env.local`**: Bun may use this for app runtime behavior, but the Agentuity CLI does not currently include `.env.local` when it searches for `AGENTUITY_SDK_KEY` during `agentuity dev` or deploy preflight. Keep required CLI credentials in one of the files listed above.
-
-**Git behavior:** The default `.gitignore` ignores `.env` and `.env.*`. If you add differently named secret files, add them to `.gitignore` too.
-
-## Infrastructure as Code
-
-Agentuity defines route infrastructure in your source files:
-
-```typescript
-// src/api/index.ts
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import { websocket } from '@agentuity/runtime';
-import chatHandler from '@agent/chat/agent';
-
-const api = new Hono<Env>()
-  // Standard HTTP endpoint
-  .post('/cleanup', async (c) => {
-    return c.text('OK');
-  })
-  // WebSocket endpoint
-  .get('/chat', websocket((c, ws) => {
-    ws.onMessage(async (event) => {
-      if (typeof event.data !== 'string') {
-        ws.send(JSON.stringify({ error: 'Only text frames are supported' }));
-        return;
-      }
-
-      const result = await chatHandler.run({ message: event.data });
-      ws.send(JSON.stringify(result));
-    });
-  }));
-
-export default api;
-```
-
-This keeps routes and agent registration in version control with the code that handles them.
+Existing v2 apps can keep using runtime configuration in `app.ts`, including `createApp()` options and runtime-managed agents or routes. New v3 framework projects should configure the framework directly and use `agentuity.json` for Agentuity deployment metadata.
 
 ## Next Steps
 
-- [HTTP Routes](/routes/http): Define HTTP endpoints
-- [Schedules](/services/schedules): Run recurring tasks
-- [AI Gateway](/agents/ai-gateway): Configure LLM providers
+- [Project Structure](/get-started/project-structure): See where files live across frameworks
+- [Using Standalone Packages](/reference/standalone-packages): Add Agentuity services to framework routes and scripts
+- [Deployment](/reference/cli/deployment): Configure cloud deploy behavior

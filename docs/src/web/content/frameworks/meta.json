@@ -1,0 +1,14 @@
+{
+	"title": "Frameworks",
+	"pages": [
+		"index",
+		"nextjs",
+		"nuxt",
+		"react-router",
+		"sveltekit",
+		"astro",
+		"hono",
+		"vite-react",
+		"tanstack-start"
+	]
+}

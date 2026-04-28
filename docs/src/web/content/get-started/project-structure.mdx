@@ -1,163 +1,81 @@
 ---
 title: Project Structure
-description: Understand how Agentuity projects are organized
+description: Understand how Agentuity fits into framework projects
 ---
 
-Agentuity projects use explicit wiring: you define agents, routes, and configuration in code.
+Agentuity v3 keeps your framework's file layout. The CLI adds project metadata, a deploy script, and optional example files without moving your app into an Agentuity-owned runtime structure.
 
-<Callout type="tip" title="Just Add a Folder">
-Creating a new agent is as simple as adding a folder to `src/agent/` with an `agent.ts` file and registering it in `src/agent/index.ts`.
-</Callout>
+## What the CLI Adds
 
-## Directory Layout
+After `bun create agentuity@alpha`, expect the framework's normal files plus a few Agentuity pieces:
 
-```
-my-project/
-├── agentuity.json        # Project configuration
-├── vite.config.ts        # Build configuration (Vite plugins, entry point)
-├── app.ts                # App entry point (wires agents + router)
-├── .env                  # Environment variables
-├── package.json          # Dependencies
-└── src/
-    ├── agent/            # Agent code
-    │   ├── index.ts      # Agent registry (exports array of agents)
-    │   └── translate/
-    │       └── index.ts  # Default translation agent
-    ├── api/              # HTTP routes
-    │   └── index.ts      # Router, imports agents
-    └── web/              # Frontend code (scaffolded by default)
-        ├── index.html    # HTML entry point
-        ├── frontend.tsx  # React entry point
-        └── App.tsx       # Main component
-```
+| File or field | Added when | Purpose |
+|---------------|------------|---------|
+| `@agentuity/cli` | Every v3 create flow | Runs `agentuity dev`, `agentuity build`, and `agentuity deploy` from the project |
+| `scripts.deploy` | Every v3 create flow | Lets `bun run deploy` call `agentuity deploy` |
+| AI example files | When you include the AI example | Adds a route and UI that call the OpenAI SDK through Agentuity's gateway |
+| `agentuity.json` | Registered or imported projects | Stores project id, org id, region, domains, and resource settings |
+| `.env` | Registered or imported projects | Stores `AGENTUITY_SDK_KEY` and linked resource credentials |
+| Local ignore entries | Every v3 create flow | Ignores common local files such as `.agentuity/` and `.env` |
 
-Agent names come from the first argument to `createAgent()`. Examples often use `agent.ts`; the default project template uses `index.ts` inside each agent folder. Register each exported agent in `src/agent/index.ts`.
+If you create a project with `--no-register`, add cloud metadata later with `agentuity project import`.
 
-<Callout type="info" title="Utility Files">
-You can add helper files (like `types.ts`, `helpers.ts`, `utils.ts`) alongside your agents and routes.
-</Callout>
+## Framework File Layouts
 
-## Agents and Routes
+The exact files come from the framework's own create command. Agentuity's generated AI example follows each framework's conventions:
 
-Agents and routes are separate concerns in Agentuity:
+| Framework | API route location | App UI location |
+|-----------|--------------------|-----------------|
+| Next.js | `src/app/api/translate/route.ts` | `src/app/page.tsx` |
+| Nuxt | `server/api/translate.ts` | `app.vue` |
+| React Router | `app/routes/api.translate.ts` | `app/routes/home.tsx` |
+| SvelteKit | `src/routes/+page.server.ts` | `src/routes/+page.svelte` |
+| Astro | `src/pages/api/translate.ts` | `src/pages/index.astro` |
+| Hono | `src/index.ts` | `src/index.ts` |
+| Vite + React | `server.ts` | `src/App.tsx` |
 
-| Concept | Location | Purpose |
-|---------|----------|---------|
-| **Agents** | `src/agent/` | Core logic, schemas, validation |
-| **Routes** | `src/api/` | HTTP endpoints, streams, WebSockets, and cron handlers |
+## Routes and Services
 
-Agents contain your core logic with schema validation and lifecycle hooks. Routes define HTTP endpoints and handlers for streaming, WebSockets, and cron. This separation keeps concerns clear: agents don't know how they're called, and routes handle the protocol details.
-
-### app.ts
-
-`app.ts` is the entry point that wires agents and routes together via `createApp()`:
+In v3, route handlers usually live where the framework expects them. Add Agentuity services with standalone clients when the route needs platform storage, queues, email, schedules, sandbox execution, or other services.
 
 ```typescript
-import { createApp } from '@agentuity/runtime';
-import agents from './src/agent';
-import api from './src/api';
+import { KeyValueClient } from '@agentuity/keyvalue';
 
-export default await createApp({
-  router: { path: '/api', router: api },
-  agents,
+const kv = new KeyValueClient();
+
+await kv.set('sessions', 'user-123', {
+  lastSeenAt: new Date().toISOString(),
 });
 ```
 
-### agent.ts
+This pattern works in framework server code, background scripts, and local tools as long as `AGENTUITY_SDK_KEY` is available.
 
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-
-const agent = createAgent('chat', {
-  schema: {
-    input: s.object({ message: s.string() }),
-    output: s.object({ response: s.string() }),
-  },
-  handler: async (ctx, input) => {
-    return { response: `Echo: ${input.message}` };
-  },
-});
-
-export default agent;
-```
-
-### src/agent/index.ts
-
-The agent registry imports all agents and exports them as an array:
-
-```typescript
-import chat from './chat/agent';
-
-export default [chat];
-```
-
-### src/api/index.ts
-
-Routes import agents directly and call them:
-
-```typescript
-import { createRouter } from '@agentuity/runtime';
-import chat from '@agent/chat/agent';
-
-const router = createRouter();
-
-router.post('/chat', chat.validator(), async (c) => {
-  const data = c.req.valid('json');
-  return c.json(await chat.run(data));
-});
-
-export type ApiRouter = typeof router;
-
-export default router;
-```
-
-`chat.validator()` validates the request body against the agent's input schema and provides type-safe access via `c.req.valid('json')`.
-
-## When to Use Agents vs Direct Routes
-
-| | Agents | Direct Routes (no agent) |
-|---|---|---|
-| **Location** | `src/agent/` | `src/api/` |
-| **Schema validation** | Built-in with `agent.validator()` | Manual |
-| **Events & Post-response Hooks** | Yes | No |
-| **Storage access** | Full | Full |
-| **Best for** | Validated workflows, LLM processing | Health checks, webhooks, simple endpoints |
-
-Use simple routes (without calling an agent) for lightweight endpoints like health checks. For structured processing with validation, create an agent and call it from your route.
-
-## Frontend (`src/web/`)
-
-Place frontend code in `src/web/` to deploy alongside your agents. The CLI bundles and serves it automatically.
-
-React is supported out of the box. Use Hono's `hc()` client for type-safe API calls. For browser utilities, prefer `@agentuity/frontend` and `@agentuity/auth/react`; the older `@agentuity/react` package remains available as a compatibility layer.
-
-Point `hc()` at the same `/api` mount path you configured in `app.ts`, then import your router type from `src/api/index.ts`.
-
-```tsx
-// src/web/App.tsx
-import { hc } from 'hono/client';
-import type { ApiRouter } from '../api';
-
-const client = hc<ApiRouter>('/api');
-
-function App() {
-  const handleClick = async () => {
-    const res = await client.chat.$post({ json: { message: 'Hello' } });
-    const data = await res.json();
-    console.log(data.response);
-  };
-
-  return <button onClick={handleClick}>Say Hello</button>;
-}
-```
-
-<Callout type="info" title="Deployment Scenarios">
-You can also deploy your frontend elsewhere (e.g., Vercel, Netlify) and call your Agentuity API routes using the Hono `hc()` client with a configured base URL.
+<Callout type="info" title="Hono can also use route context">
+In Hono projects, Agentuity integrations can expose services on `c.var.*`. Use standalone clients as the portable default, and use Hono context when you want Hono-specific route ergonomics.
 </Callout>
+
+## App Entrypoints
+
+There is no required v3 `app.ts` entrypoint for framework projects. Your framework owns startup and routing:
+
+| Framework | Typical entrypoint |
+|-----------|--------------------|
+| Next.js | `src/app/` and `next.config.*` |
+| Nuxt | `app.vue`, `server/`, and `nuxt.config.*` |
+| React Router | `app/` and `react-router.config.*` |
+| SvelteKit | `src/routes/` and `svelte.config.*` |
+| Astro | `src/pages/` and `astro.config.*` |
+| Hono | `src/index.ts` |
+| Vite + React | `src/` for the client, `server.ts` for the example API |
+
+During build, Agentuity packages the framework output for deployment.
+
+## Existing v2 Apps
+
+Existing v2 apps can continue using `src/agent`, `src/api`, `createApp()`, `createAgent()`, and runtime-managed routes. For new v3 apps, keep the framework layout and add Agentuity services where the framework code needs them.
 
 ## Next Steps
 
-- [App Configuration](/get-started/app-configuration): Configure `app.ts` and `agentuity.json`
-- [Creating Agents](/agents/creating-agents): Deep dive into agent creation
-- [Routes](/routes): Learn about HTTP and other triggers
+- [App Configuration](/get-started/app-configuration): Configure `agentuity.json`, scripts, env vars, and service clients
+- [Using Standalone Packages](/reference/standalone-packages): Use Agentuity services from framework routes and scripts
+- [Deployment](/reference/cli/deployment): Configure deploy behavior and resources
