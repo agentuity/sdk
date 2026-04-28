@@ -31,8 +31,8 @@ agent.addEventListener('started', (event, agent, ctx) => {
 });
 
 agent.addEventListener('completed', (event, agent, ctx) => {
-  const startTime = ctx.state.get('startTime') as number;
-  const duration = Date.now() - startTime;
+  const startTime = ctx.state.get('startTime');
+  const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
 
   ctx.logger.info('Agent completed', {
     agent: agent.metadata.name,
@@ -46,8 +46,8 @@ agent.addEventListener('completed', (event, agent, ctx) => {
 });
 
 agent.addEventListener('errored', (event, agent, ctx, error) => {
-  const startTime = ctx.state.get('startTime') as number;
-  const duration = Date.now() - startTime;
+  const startTime = ctx.state.get('startTime');
+  const duration = typeof startTime === 'number' ? Date.now() - startTime : 0;
 
   ctx.logger.error('Agent failed', {
     agent: agent.metadata.name,
@@ -138,17 +138,21 @@ Individual agents can also define `setup` and `shutdown` functions for agent-spe
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
+const fetchValue = async (key: string): Promise<string> => {
+  return `value:${key}`;
+};
+
 const agent = createAgent('CachedLookup', {
   schema: {
     input: s.object({ key: s.string() }),
     output: s.object({ value: s.string() }),
   },
-  // Called once when the app starts. Return value becomes ctx.config.
+  // Called once when the app starts, return value becomes ctx.config
   setup: async () => {
     const cache = new Map<string, string>();
     return { cache };
   },
-  // Called when the app shuts down.
+  // Called when the app shuts down
   shutdown: async (_app, config) => {
     config.cache.clear();
   },

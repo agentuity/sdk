@@ -4,10 +4,10 @@ short_title: Use Workspaces
 description: Store reusable Coder selections in a workspace and attach them to sessions with workspaceId
 ---
 
-Workspaces save a session setup once and reuse it everywhere by `workspaceId`. They hold the selections your app repeats most often: saved skills, agent selection, and (once your app has them) repository refs. That means you aren't re-listing those on every `createSession()` call.
+Workspaces save a session setup once and reuse it everywhere by `workspaceId`. They hold the selections your app repeats most often: repositories, saved skills, skill buckets, and agent selection. That means you aren't re-listing those on every `createSession()` call.
 
 <Callout type="tip" title="Start with what you already repeat">
-This example stores a saved skill and an agent selection, then pulls both in by `workspaceId`. Repositories can join the same workspace later.
+This example stores a saved skill and an agent selection, then pulls both in by `workspaceId`. Repositories and skill buckets can join the same workspace later.
 </Callout>
 
 ## The Pattern
@@ -104,19 +104,20 @@ What this means:
 
 ## Where Repositories Fit
 
-Once your app has a valid `CoderSessionRepositoryRef`, add it to the same workspace:
+Once your app has a valid `CoderSessionRepositoryRef`, add it to the same workspace. If you already grouped skills into a bucket, attach that by `skillBucketIds` too:
 
 ```typescript
-// Store repo, skill, and agent selections together so later createSession calls need only workspaceId
+// Store repo, skill, bucket, and agent selections together so later createSession calls need only workspaceId
 const workspace = await client.createWorkspace({
   name: 'review-workspace',
   repos: [repoRef], // Repository ref your app already resolved
   savedSkillIds: [savedSkill.id],
+  skillBucketIds: [bucketId], // Skill bucket id your app already selected
   enabledAgents: ['builder', 'reviewer'],
 });
 ```
 
-That keeps repo, skill, and agent selections in one reusable object. If your app doesn't have repository refs yet, start with skills and agents and layer repositories in later.
+That keeps repo, skill, bucket, and agent selections in one reusable object. If your app doesn't have repository refs yet, start with skills and agents and layer repositories in later.
 
 ## When to Use This Pattern
 

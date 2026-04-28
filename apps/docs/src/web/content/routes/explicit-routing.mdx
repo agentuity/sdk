@@ -56,7 +56,7 @@ Pass a single router and it mounts at `/api`:
 import { createApp } from '@agentuity/runtime';
 import api from './src/api/index';
 
-// Mounted at /api — routes are reachable at /api/health, /api/users, etc.
+// Mounted at /api, routes are reachable at /api/health and /api/users
 const app = await createApp({ router: api });
 
 export default app;
@@ -70,7 +70,7 @@ Wrap the router in `{ path, router }` to control the mount path:
 import { createApp } from '@agentuity/runtime';
 import api from './src/api/index';
 
-// Mounted at /v1 — routes are reachable at /v1/health, /v1/users, etc.
+// Mounted at /v1, routes are reachable at /v1/health and /v1/users
 const app = await createApp({
   router: { path: '/v1', router: api }, // [!code highlight]
 });

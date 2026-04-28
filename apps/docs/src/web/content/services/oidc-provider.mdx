@@ -50,7 +50,7 @@ OAUTH_SCOPES=openid profile email
 
 | Variable | Description |
 |----------|-------------|
-| `OAUTH_ISSUER` | Agentuity's OIDC issuer. The SDK derives authorize, token, userinfo, and revoke URLs from this value. |
+| `OAUTH_ISSUER` | Agentuity's OIDC issuer. The SDK derives `/authorize`, `/oauth/token`, `/userinfo`, `/revoke`, and `/end_session` from this value unless you pass explicit endpoint URLs. |
 | `OAUTH_CLIENT_ID` | Client ID from your OAuth app. |
 | `OAUTH_CLIENT_SECRET` | Client secret for confidential clients. |
 | `OAUTH_SCOPES` | Space-separated scopes requested during sign-in. |
@@ -100,7 +100,7 @@ router.get('/oauth/login', (c) => {
   const redirectUri = getRedirectUri(c.req.url);
   const loginUrl = new URL(buildAuthorizeUrl(redirectUri, oauthConfig));
 
-  // The callback must return the same state to prevent CSRF attacks.
+  // The callback must return the same state to prevent CSRF attacks
   loginUrl.searchParams.set('state', state);
   setCookie(c, 'agentuity_oauth_state', state, {
     path: '/',
@@ -129,7 +129,7 @@ router.get('/oauth/callback', async (c) => {
     const token = await exchangeToken(code, redirectUri, oauthConfig);
     const user = await fetchUserInfo(token.access_token, oauthConfig);
 
-    // Store your own app session. Avoid putting access tokens in browser cookies.
+    // Store your own app session, avoid putting access tokens in browser cookies
     setCookie(
       c,
       'app_session',
@@ -177,7 +177,7 @@ If your app needs to call Agentuity APIs after sign-in, store tokens server-side
 import { KeyValueTokenStorage, isTokenExpired } from '@agentuity/core/oauth';
 
 router.get('/oauth/callback', async (c) => {
-  // ...validate callback state, exchange the code, and fetch the user...
+  // Validate callback state, exchange the code, and fetch the user
   const tokenStore = new KeyValueTokenStorage(c.var.kv, {
     config: oauthConfig,
     prefix: 'agentuity:',

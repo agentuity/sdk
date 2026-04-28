@@ -7,8 +7,17 @@ The Agentuity plugin adds auto-activated skills to [Claude Code](https://docs.an
 
 ## Installation
 
+```bash
+agentuity ai claude-code install
+```
+
+The CLI installs `@agentuity/claude-code` under `~/.agentuity/plugins/claude-code`, configures Claude Code permissions, and prints the `claude --plugin-dir ...` command to start Claude Code with the local plugin.
+
+For a permanent Claude Code marketplace install, use the commands printed by the installer:
+
 ```text
-/install agentuity
+/plugin marketplace add agentuity/sdk
+/plugin install agentuity-coder@agentuity
 ```
 
 <Callout type="info" title="Prerequisites">

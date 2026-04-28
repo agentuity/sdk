@@ -2918,11 +2918,11 @@ Uploads a gzip archive for public snapshots. Content-Type must be application/gz
 
 ---
 
-## Disk Checkpoints
+## Sandbox Checkpoints
 
 ### Create Checkpoint
 
-Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Disk checkpoints are persisted across pause/resume cycles.
+Create a named checkpoint of the sandbox filesystem. Checkpoint names must be unique — creating a checkpoint with a name that already exists returns 409 Conflict. Checkpoints are persisted across pause/resume cycles.
 
 <ApiEndpoint method="POST" path="/sandbox/{sandboxId}/checkpoint" />
 
@@ -3008,7 +3008,7 @@ Returns the created checkpoint.
 
 ### List Checkpoints
 
-List checkpoints for a specific sandbox. Disk checkpoints are persisted across pause/resume cycles.
+List checkpoints for a specific sandbox. Checkpoints are persisted across pause/resume cycles.
 
 <ApiEndpoint method="GET" path="/sandbox/checkpoints/{sandboxId}" />
 

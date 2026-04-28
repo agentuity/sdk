@@ -12,7 +12,7 @@ Vector search finds semantically similar products. Combine with metadata filteri
 
 ```typescript title="src/agent/product-search/agent.ts"
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 interface ProductMetadata extends Record<string, unknown> {
   name: string;
@@ -25,25 +25,27 @@ interface ProductMetadata extends Record<string, unknown> {
 const agent = createAgent('Product Search', {
   description: 'Semantic search for products',
   schema: {
-    input: z.object({
-      query: z.string().describe('Natural language search query'),
-      category: z.string().optional().describe('Filter by category'),
-      maxPrice: z.number().optional().describe('Maximum price filter'),
-      limit: z.number().min(1).max(50).default(10),
+    input: s.object({
+      query: s.string().describe('Natural language search query'),
+      category: s.optional(s.string()).describe('Filter by category'),
+      maxPrice: s.optional(s.number()).describe('Maximum price filter'),
+      limit: s.optional(s.number().min(1).max(50)).describe('Maximum results to return'),
     }),
-    output: z.object({
-      products: z.array(z.object({
-        id: z.string(),
-        name: z.string(),
-        description: z.string(),
-        price: z.number(),
-        category: z.string(),
-        relevance: z.number(),
+    output: s.object({
+      products: s.array(s.object({
+        id: s.string(),
+        name: s.string(),
+        description: s.string(),
+        price: s.number(),
+        category: s.string(),
+        relevance: s.number(),
       })),
-      total: z.number(),
+      total: s.number(),
     }),
   },
   handler: async (ctx, input) => {
+    const limit = input.limit ?? 10;
+
     ctx.logger.info('Searching products', {
       query: input.query,
       category: input.category,
@@ -53,7 +55,7 @@ const agent = createAgent('Product Search', {
     // Search with semantic similarity
     const results = await ctx.vector.search<ProductMetadata>('products', { // [!code highlight]
       query: input.query,
-      limit: input.limit * 2, // Fetch extra for filtering
+      limit: limit * 2, // Fetch extra for filtering
       similarity: 0.6,
     });
 
@@ -77,12 +79,12 @@ const agent = createAgent('Product Search', {
     filtered = filtered.filter(r => r.metadata?.inStock !== false);
 
     // Limit to requested count
-    const products = filtered.slice(0, input.limit).map(r => ({
+    const products = filtered.slice(0, limit).map(r => ({
       id: r.key,
-      name: r.metadata?.name || 'Unknown',
-      description: r.metadata?.description || '',
-      price: r.metadata?.price || 0,
-      category: r.metadata?.category || 'Uncategorized',
+      name: r.metadata?.name ?? 'Unknown',
+      description: r.metadata?.description ?? '',
+      price: r.metadata?.price ?? 0,
+      category: r.metadata?.category ?? 'Uncategorized',
       relevance: r.similarity,
     }));
 
@@ -103,28 +105,28 @@ export default agent;
 
 ## Indexing Products
 
-Add products to the vector database. This example uses [Valibot](https://valibot.dev) for schema validation:
+Add products to the vector database. Upserts are idempotent, so the same product ID can be indexed again after a catalog update.
 
 ```typescript title="src/agent/product-indexer/agent.ts"
 import { createAgent } from '@agentuity/runtime';
-import * as v from 'valibot';
+import { s } from '@agentuity/schema';
 
-const ProductSchema = v.object({
-  id: v.string(),
-  name: v.string(),
-  description: v.string(),
-  price: v.number(),
-  category: v.string(),
-  inStock: v.optional(v.boolean(), true),
+const ProductSchema = s.object({
+  id: s.string(),
+  name: s.string(),
+  description: s.string(),
+  price: s.number(),
+  category: s.string(),
+  inStock: s.optional(s.boolean()),
 });
 
 const agent = createAgent('ProductIndexer', {
   schema: {
-    input: v.object({
-      products: v.array(ProductSchema),
+    input: s.object({
+      products: s.array(ProductSchema),
     }),
-    output: v.object({
-      indexed: v.number(),
+    output: s.object({
+      indexed: s.number(),
     }),
   },
   handler: async (ctx, input) => {
@@ -138,7 +140,7 @@ const agent = createAgent('ProductIndexer', {
           description: product.description,
           price: product.price,
           category: product.category,
-          inStock: product.inStock,
+          inStock: product.inStock ?? true,
         },
       });
     }
@@ -152,28 +154,41 @@ export default agent;
 
 ## Route with Query Parameters
 
+Expose the basic search over `GET /api/products/search` and the advisor over `POST /api/products/advisor`:
+
 ```typescript title="src/api/products/route.ts"
 import { Hono } from 'hono';
 import type { Env } from '@agentuity/runtime';
 import productSearch from '@agent/product-search/agent';
+import productAdvisor from '@agent/product-advisor/agent';
 
-const router = new Hono<Env>();
+const router = new Hono<Env>()
+  .get('/search', async (c) => {
+    const query = c.req.query('q') ?? '';
+    const category = c.req.query('category');
+    const maxPrice = c.req.query('maxPrice');
+    const maxPriceParam = maxPrice?.trim();
+    const maxPriceFilter = maxPriceParam ? Number(maxPriceParam) : undefined;
+    const parsedLimit = Number(c.req.query('limit') ?? '10');
+    const maxPriceInput =
+      maxPriceFilter !== undefined && Number.isFinite(maxPriceFilter) ? maxPriceFilter : undefined;
+    const limitInput = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 50)
+      : 10;
 
-router.get('/search', async (c) => {
-  const query = c.req.query('q') || '';
-  const category = c.req.query('category');
-  const maxPrice = c.req.query('maxPrice');
-  const limit = parseInt(c.req.query('limit') || '10');
+    const result = await productSearch.run({
+      query,
+      category,
+      maxPrice: maxPriceInput,
+      limit: limitInput,
+    });
 
-  const result = await productSearch.run({
-    query,
-    category,
-    maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-    limit,
+    return c.json(result);
+  })
+  .post('/advisor', productAdvisor.validator(), async (c) => {
+    const input = c.req.valid('json');
+    return c.json(await productAdvisor.run(input));
   });
-
-  return c.json(result);
-});
 
 export default router;
 ```
@@ -189,7 +204,7 @@ import { openai } from '@ai-sdk/openai';
 import { s } from '@agentuity/schema';
 import { z } from 'zod';
 
-interface ProductMetadata {
+interface ProductMetadata extends Record<string, unknown> {
   sku: string;
   name: string;
   price: number;
@@ -320,7 +335,7 @@ export function App() {
     if (!query.trim()) return;
     setLoading(true);
 
-    const response = await fetch('/api/products/search', { // [!code highlight]
+    const response = await fetch('/api/products/advisor', { // [!code highlight]
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
@@ -413,8 +428,11 @@ export function App() {
 Use the frontend to search interactively. If you need to call the endpoint directly:
 
 ```bash
-curl "http://localhost:3500/products/search?q=comfortable%20office%20chair"
-curl "http://localhost:3500/products/search?q=laptop&category=electronics&maxPrice=1000"
+curl "http://localhost:3500/api/products/search?q=comfortable%20office%20chair"
+curl "http://localhost:3500/api/products/search?q=laptop&category=electronics&maxPrice=1000"
+curl -X POST "http://localhost:3500/api/products/advisor" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"comfortable office chair"}'
 ```
 
 ## Key Points

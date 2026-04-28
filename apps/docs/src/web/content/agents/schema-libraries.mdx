@@ -9,12 +9,12 @@ Agentuity uses the [StandardSchema](https://github.com/standard-schema/standard-
 
 | Library | Syntax | Best For |
 |---------|--------|----------|
-| `@agentuity/schema` | `s.object({ name: s.string() })` | Zero dependencies, basic validation |
+| `@agentuity/schema` | `s.object({ name: s.string() })` | Lightweight validation without extra dependencies |
 | [Zod](https://zod.dev) | `z.object({ name: z.string() })` | AI SDK integration (`.describe()` support) |
 | [Valibot](https://valibot.dev) | `v.object({ name: v.string() })` | Smallest bundle size |
 | [ArkType](https://arktype.io) | `type({ name: 'string' })` | TypeScript-native syntax, fast runtime |
 
-**Recommendation:** Start with `@agentuity/schema` for simple cases. Use other libraries depending on your needs. For example, Zod is recommended when working with `generateObject()` (its `.describe()` helps guide LLM output).
+**Recommendation:** Use `@agentuity/schema` when you want a lightweight schema library for straightforward validation. It is not trying to replace Zod. Reach for Zod, Valibot, or ArkType when you need their broader validation, transformation, metadata, or ecosystem features. For example, Zod is useful with AI SDK structured output because `.describe()` adds field hints for the model.
 
 <Callout type="info" title="Built-in Schema Reference">
 For the complete `@agentuity/schema` API including coercion helpers and JSON Schema conversion, see [Schema Validation](/reference/sdk-reference/schema).
@@ -22,7 +22,7 @@ For the complete `@agentuity/schema` API including coercion helpers and JSON Sch
 
 ## Using @agentuity/schema
 
-The built-in schema library provides simple validation with zero external dependencies.
+The built-in schema library is a lightweight option for straightforward validation.
 
 ### Basic Schema
 
@@ -71,7 +71,7 @@ s.unknown()                   // Unknown value (safer any)
 // Objects and arrays
 s.object({ name: s.string() })    // Object shape
 s.array(s.string())               // Array of strings
-s.record(s.number())              // { [key: string]: number }
+s.record(s.string(), s.number())  // { [key: string]: number }
 
 // Optional and nullable
 s.optional(s.string())            // string | undefined
@@ -131,7 +131,7 @@ Use `{ strict: true }` when generating schemas for LLM structured output (e.g., 
 </Callout>
 
 <Callout type="info" title="When to Use">
-Use `@agentuity/schema` for simple validation needs. For advanced features like email validation, string length constraints, or complex transformations, consider Zod or Valibot.
+Use `@agentuity/schema` when you want a small validation layer for common object, array, union, enum, literal, and coercion cases. Use Zod, Valibot, or ArkType when you need deeper validation rules, transformations, metadata, or ecosystem integrations.
 </Callout>
 
 ## Using Valibot
@@ -227,7 +227,7 @@ import { type } from 'arktype';
 
 const InputSchema = type({
   email: 'string.email',
-  age: 'number>=0&<=120',
+  age: '0 <= number <= 120',
   role: '"admin"|"user"|"guest"',
 });
 
@@ -260,25 +260,25 @@ import { type } from 'arktype';
 
 // Strings
 type('string')                    // Any string
-type('string>5')                  // Minimum length (greater than 5 chars)
-type('string<100')                // Maximum length
+type('string > 5')                // Minimum length (greater than 5 chars)
+type('string < 100')              // Maximum length
 type('string.email')              // Email format
 type('string.url')                // URL format
 
 // Numbers
 type('number')                    // Any number
-type('number>0')                  // Greater than 0
-type('number<=100')               // Less than or equal to 100
-type('integer')                   // Integer only
-type('number>=0&<=120')           // Range (0 to 120)
+type('number > 0')                // Greater than 0
+type('number <= 100')             // Less than or equal to 100
+type('number.integer')            // Integer only
+type('0 <= number <= 120')        // Range (0 to 120)
 
 // Arrays and objects
 type('string[]')                  // Array of strings
 type({ name: 'string' })          // Object shape
 
-// Optional and union
-type('string?')                   // string | undefined
-type('string|null')               // string | null
+// Optional properties and unions
+type({ 'nickname?': 'string' })    // Optional object property
+type('string | null')              // string | null
 
 // Enums and literals
 type('"a"|"b"|"c"')               // One of these values

@@ -113,7 +113,7 @@ addEventListener('agent.errored', (eventName, agent, ctx, error) => {
   ctx.logger.error('Agent error detected', {
     agentName: agent.metadata.name,
     error: error.message,
-    sessionId: ctx.sessionId
+    sessionId: ctx.sessionId,
   });
 });
 
@@ -143,6 +143,7 @@ import {
   removeEventListener,
 } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import type { Agent, AgentContext } from '@agentuity/runtime';
 
 const agent = createAgent('ActionHandler', {
   schema: {
@@ -152,13 +153,21 @@ const agent = createAgent('ActionHandler', {
   handler: async () => ({ success: true }),
 });
 
-const handler = (eventName, agent, ctx) => {
+const handler = (
+  _eventName: 'started' | 'completed',
+  _agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Agent started');
 };
 
 agent.addEventListener('started', handler);
 
-const completedHandler = (eventName, agent, ctx) => {
+const completedHandler = (
+  eventName: 'agent.completed',
+  agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info(`${agent.metadata.name} completed`);
 };
 
@@ -181,6 +190,7 @@ import {
   removeEventListener,
 } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import type { Agent, AgentContext } from '@agentuity/runtime';
 
 const agent = createAgent('ActionHandler', {
   schema: {
@@ -191,19 +201,36 @@ const agent = createAgent('ActionHandler', {
 });
 
 // Create handlers with references for cleanup
-const startedHandler = (eventName, agent, ctx) => {
+const startedHandler = (
+  _eventName: 'started' | 'completed',
+  _agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Started processing');
 };
 
-const completedHandler = (eventName, agent, ctx) => {
+const completedHandler = (
+  _eventName: 'started' | 'completed',
+  _agent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Completed processing');
 };
 
-const erroredHandler = (eventName, agent, ctx, error) => {
+const erroredHandler = (
+  _eventName: 'errored',
+  _agent: Agent,
+  ctx: AgentContext,
+  error: Error
+): void => {
   ctx.logger.error('Error occurred', { error });
 };
 
-const globalCompletedHandler = (eventName, completedAgent, ctx) => {
+const globalCompletedHandler = (
+  _eventName: 'agent.completed',
+  completedAgent: Agent,
+  ctx: AgentContext
+): void => {
   ctx.logger.info('Observed completion', {
     agentName: completedAgent.metadata.name,
   });

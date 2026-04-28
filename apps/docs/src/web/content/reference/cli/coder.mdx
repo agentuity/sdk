@@ -48,6 +48,7 @@ Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The 
 
 | Option | Description |
 |--------|-------------|
+| `--dir <path>` | Local project directory to start from |
 | `--url <url>` | Coder API URL override |
 | `--extension <path>` | Coder extension path override |
 | `--pi <path>` | Path to [Pi](https://pi.dev/) binary override |
@@ -56,6 +57,7 @@ Launches a [Pi](https://pi.dev/) coding session connected to the Coder Hub. The 
 | `--remote [session-id]` | Connect to an existing sandbox session. Paused sessions are auto-resumed. Omit the ID to browse available sessions |
 | `--sandbox <task>` | Create a new sandbox session with the given task and attach |
 | `--repo <url>` | Git repo URL to clone in the sandbox (used with `--sandbox`) |
+| `--org-id <id>` | Organization ID override |
 
 ### Examples
 
@@ -93,6 +95,7 @@ Creates a new Coder session. Pass `--connect` to attach immediately after creati
 |--------|-------------|
 | `--url <url>` | Coder API URL override |
 | `--connect` | Connect to the session after creation |
+| `--extension <path>` | Coder extension path override (used with `--connect`) |
 | `--label <text>` | Human-readable session label |
 | `--agent <role>` | Default agent role |
 | `--visibility <level>` | `private`, `org`, or `collaborate` |
@@ -106,10 +109,11 @@ Creates a new Coder session. Pass `--connect` to attach immediately after creati
 | `--workspace-id <id>` | Workspace to use |
 | `--tags <list>` | Comma-separated tags |
 | `--default-agent <slug>` | Preferred default built-in or custom agent |
-| `--enabled-agents <list>` | Comma-separated agent slugs to include. Built-in roles like `builder` also work. Alias: `--agent-slugs` |
+| `--enabled-agents <list>` | Comma-separated agent slugs to include. Built-in roles like `builder` also work |
 | `--saved-skill-ids <list>` | Comma-separated saved skill IDs |
 | `--skill-bucket-ids <list>` | Comma-separated skill bucket IDs |
 | `--env <pairs>` | Comma-separated `KEY=VALUE` environment variables |
+| `--org-id <id>` | Organization ID override |
 
 ## Listing Sessions
 
@@ -124,6 +128,7 @@ Shows all active sessions on the connected Hub.
 | Option | Description |
 |--------|-------------|
 | `--url <url>` | Coder API URL override |
+| `--org-id <id>` | Organization ID override |
 
 ### Output Fields
 
@@ -152,6 +157,7 @@ Shows detailed information about a specific session, including participants, tas
 | Option | Description |
 |--------|-------------|
 | `--url <url>` | Coder API URL override |
+| `--org-id <id>` | Organization ID override |
 
 ## Workspaces
 
@@ -187,7 +193,8 @@ agentuity coder workspace delete ws_abc123
 | `--scope <scope>` | `user` or `org` |
 | `--repo <url>` | Git repository URL to store on the workspace |
 | `--repo-branch <branch>` | Branch to associate with the repository |
-| `--enabled-agents <list>` | Comma-separated agent slugs. Built-in roles like `builder` also work. Alias: `--agent-slugs` |
+| `--enabled-agents <list>` | Comma-separated agent slugs. Built-in roles like `builder` also work |
+| `--org-id <id>` | Organization ID override |
 
 ## Skills
 

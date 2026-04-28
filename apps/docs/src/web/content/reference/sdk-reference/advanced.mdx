@@ -90,7 +90,7 @@ For TypeScript projects, add type declarations:
 ```typescript
 // src/types/assets.d.ts
 declare module '*.json' {
-  const value: any;
+  const value: unknown;
   export default value;
 }
 
@@ -147,7 +147,7 @@ const greeter = createAgent('greeter', {
 
 const ctx = createAgentContext();
 const result = await ctx.run(greeter, { name: 'World' });
-console.log(result); // { greeting: 'Hello, World!' }
+ctx.logger.info('Greeting result', result);
 ```
 
 **`StandaloneContextOptions`** (all fields optional):
@@ -155,10 +155,10 @@ console.log(result); // { greeting: 'Hello, World!' }
 | Option | Type | Description |
 |--------|------|-------------|
 | `sessionId` | `string` | Custom session ID. Auto-generated from trace context if omitted |
-| `trigger` | `string` | Trigger type for telemetry (e.g., `'cron'`, `'discord'`, `'manual'`) |
-| `thread` | `Thread` | Thread for multi-turn conversations |
-| `session` | `Session` | Session for this execution |
+| `trigger` | `'agent' \| 'api' \| 'email' \| 'sms' \| 'cron' \| 'manual' \| 'discord' \| 'websocket'` | Trigger type for telemetry |
 | `parentContext` | `Context` | Parent OpenTelemetry context for distributed tracing |
+
+Each invocation creates a fresh thread and restores or creates a session from `sessionId`.
 
 ```typescript
 // Discord bot integration
@@ -232,13 +232,11 @@ import {
 // Prevent agent code from calling process.exit(), which would crash the server
 enableProcessExitProtection();
 
-// Check if background tasks (from ctx.waitUntil) are still running
-if (hasWaitUntilPending()) {
-  console.log('Background tasks are still in progress');
-}
+// Check if background tasks from ctx.waitUntil are still running
+const hasPendingBackgroundWork = hasWaitUntilPending();
 
-// Register cleanup logic that runs on graceful shutdown.
-// Returns an unregister function.
+// Register cleanup logic that runs on graceful shutdown
+// Returns an unregister function
 const unregister = registerShutdownHook(async () => {
   await database.close();
 });
@@ -270,9 +268,11 @@ const deploymentId = getDeploymentId();   // string | undefined
 // Full build metadata from agentuity.metadata.json (cached after first load)
 const metadata = loadBuildMetadata();
 if (metadata) {
-  console.log(`Project: ${metadata.project.name}`);
-  console.log(`Agents: ${metadata.agents.length}`);
-  console.log(`Routes: ${metadata.routes.length}`);
+  const summary = {
+    project: metadata.project.name,
+    agents: metadata.agents.length,
+    routes: metadata.routes.length,
+  };
 }
 ```
 

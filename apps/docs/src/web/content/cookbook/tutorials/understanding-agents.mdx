@@ -1,10 +1,10 @@
 ---
 title: Understanding How Agents Work
 short_title: Understanding Agents
-description: Learn how AI agents use tools, run in loops with stopping conditions, and leverage LLMs to complete tasks autonomously
+description: Learn how AI agents use tools, run in loops with stopping conditions, and use LLMs to complete tasks autonomously
 ---
 
-This tutorial explains the core concepts that make AI agents "agentic": the ability to use tools, reason about results, and loop until a task is complete.
+An agent is an LLM call with a feedback loop around it: call a tool, read the result, then decide whether to answer or keep working. The research agent below keeps that loop visible in code.
 
 ## What Makes an Agent "Agentic"?
 
@@ -56,19 +56,40 @@ Tools are functions the LLM can call. Each tool has three parts:
 import { tool } from 'ai';
 import { z } from 'zod';
 
+const WikipediaSearchResponseSchema = z.object({
+  query: z.object({
+    search: z.array(
+      z.object({
+        pageid: z.number(),
+        snippet: z.string(),
+        title: z.string(),
+      })
+    ),
+  }),
+});
+
 const searchWikipedia = tool({
   description: 'Search Wikipedia for information on a topic', // [!code highlight]
   inputSchema: z.object({ // [!code highlight]
     query: z.string().describe('The search query'), // [!code highlight]
   }), // [!code highlight]
   execute: async ({ query }) => { // [!code highlight]
-    const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=3`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const url = new URL('https://en.wikipedia.org/w/api.php');
+    url.search = new URLSearchParams({
+      action: 'query',
+      format: 'json',
+      list: 'search',
+      origin: '*',
+      srlimit: '3',
+      srsearch: query,
+    }).toString();
 
-    return data.query.search.map((result: any) => ({
+    const response = await fetch(url);
+    const data = WikipediaSearchResponseSchema.parse(await response.json());
+
+    return data.query.search.map((result) => ({
       title: result.title,
-      snippet: result.snippet.replace(/<[^>]*>/g, ''), // Strip HTML tags
+      snippet: result.snippet.replace(/<[^>]*>/g, ''), // Wikipedia snippets include HTML tags
       pageId: result.pageid,
     }));
   },
@@ -89,20 +110,40 @@ import { generateText, tool, stepCountIs } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
-// Define the search tool
+const WikipediaSearchResponseSchema = z.object({
+  query: z.object({
+    search: z.array(
+      z.object({
+        pageid: z.number(),
+        snippet: z.string(),
+        title: z.string(),
+      })
+    ),
+  }),
+});
+
 const searchWikipedia = tool({
   description: 'Search Wikipedia for information on a topic',
   inputSchema: z.object({
     query: z.string().describe('The search query'),
   }),
   execute: async ({ query }) => {
-    const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=3`;
-    const response = await fetch(url);
-    const data = await response.json();
+    const url = new URL('https://en.wikipedia.org/w/api.php');
+    url.search = new URLSearchParams({
+      action: 'query',
+      format: 'json',
+      list: 'search',
+      origin: '*',
+      srlimit: '3',
+      srsearch: query,
+    }).toString();
 
-    return data.query.search.map((result: any) => ({
+    const response = await fetch(url);
+    const data = WikipediaSearchResponseSchema.parse(await response.json());
+
+    return data.query.search.map((result) => ({
       title: result.title,
-      snippet: result.snippet.replace(/<[^>]*>/g, ''), // Strip HTML tags
+      snippet: result.snippet.replace(/<[^>]*>/g, ''), // Wikipedia snippets include HTML tags
       pageId: result.pageid,
     }));
   },
@@ -318,14 +359,17 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root');
+if (!root) {
+  throw new Error('Root element not found');
+}
+
+createRoot(root).render(
   <StrictMode>
     <App />
   </StrictMode>
 );
 ```
-
-Add `AgentuityProvider` later only if you use `@agentuity/react` hooks.
 
 Check the logs to see the agent loop in action: the search tool being called, results being processed, and the final summary being generated.
 </Step>
@@ -346,4 +390,3 @@ Check the logs to see the agent loop in action: the search tool being called, re
 
 - [AI SDK Integration](/agents/ai-sdk-integration): More patterns for tool use and streaming
 - [Calling Other Agents](/agents/calling-other-agents): Build multi-agent systems
-- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): Test agent output quality

@@ -62,7 +62,7 @@ try {
   const savepoint = await tx.savepoint();
   try {
     await tx`INSERT INTO users (name) VALUES (${'Bob'})`;
-    // Something goes wrong...
+    // Something goes wrong
     throw new Error('Oops');
   } catch {
     await savepoint.rollback();  // Only rolls back Bob's insert
@@ -80,6 +80,8 @@ try {
 ```typescript
 const sql = postgres({
   url: 'postgres://user:pass@localhost:5432/mydb',
+  max: 10,
+  prepare: false,
   reconnect: {
     enabled: true,
     maxAttempts: 10,
@@ -89,13 +91,22 @@ const sql = postgres({
     jitterMs: 1000,
   },
   onclose: (error) => console.log('Connection closed', error),
+  onreconnect: (attempt) => console.log('Reconnecting', { attempt }),
   onreconnected: () => console.log('Reconnected!'),
 });
 ```
 
+Common options from `PostgresConfig`:
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `url` | `string` | `DATABASE_URL` | PostgreSQL connection string |
+| `hostname`, `port`, `username`, `password`, `database` | connection fields | - | Individual connection fields when not using `url` |
+| `max` | `number` | `10` | Maximum connections in the pool |
+| `preconnect` | `boolean` | `false` | Run a test query during client creation instead of connecting lazily |
+| `prepare` | `boolean` | `false` | Use named prepared statements. Leave this `false` for connection poolers |
+| `bigint` | `boolean` | `false` | Return large integers as `BigInt` instead of strings |
+| `maxLifetime` | `number` | `0` | Maximum connection lifetime in seconds. `0` disables the limit |
 | `reconnect.enabled` | `boolean` | `true` | Enable automatic reconnection |
 | `reconnect.maxAttempts` | `number` | `10` | Maximum reconnection attempts |
 | `reconnect.initialDelayMs` | `number` | `100` | Initial delay before first retry |
@@ -103,7 +114,9 @@ const sql = postgres({
 | `reconnect.multiplier` | `number` | `2` | Exponential backoff multiplier |
 | `reconnect.jitterMs` | `number` | `1000` | Maximum random jitter added to delays |
 | `onclose` | `(error) => void` | - | Callback when connection closes |
+| `onreconnect` | `(attempt) => void` | - | Callback when a reconnection attempt starts |
 | `onreconnected` | `() => void` | - | Callback when reconnection succeeds |
+| `onreconnectfailed` | `(error) => void` | - | Callback when reconnection fails permanently |
 
 ## Connection Stats
 
@@ -112,7 +125,7 @@ Monitor connection health with detailed statistics:
 ```typescript
 const sql = postgres();
 
-// After some queries...
+// After some queries
 console.log(sql.stats);
 ```
 
@@ -140,19 +153,20 @@ await sql.waitForConnection(5000);
 
 ### Graceful Shutdown
 
-Signal that no new queries should be accepted:
+Signal shutdown to prevent reconnection attempts, then close the client when in-flight work has drained:
 
 ```typescript
-await sql.shutdown();
+sql.shutdown();
+await sql.close();
 ```
 
 ### Unsafe Queries
 
-Execute raw SQL strings (use with caution):
+Execute raw SQL strings. Use `unsafeQuery` when you still want retry behavior around a trusted raw SQL string:
 
 ```typescript
 // Only use for trusted queries, not user input
-const result = await sql.unsafe('SELECT version()');
+const result = await sql.unsafeQuery('SELECT version()');
 ```
 
 ### Access Raw Client

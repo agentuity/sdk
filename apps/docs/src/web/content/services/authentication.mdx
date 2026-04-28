@@ -130,7 +130,7 @@ Pass `skipDefaultPlugins: true` to `createAuth()` and add only the plugins you n
 
 Agentuity Auth needs a PostgreSQL database to store users, sessions, and keys.
 
-**Connection string (simplest).** Provide a URL and Agentuity creates the Bun SQL connection and Drizzle adapter internally:
+**Connection string (simplest).** Provide a URL and Agentuity creates the Drizzle adapter with the default resilient Postgres pool:
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
@@ -144,13 +144,23 @@ const auth = createAuth({
 
 ```typescript
 import { createAuth } from '@agentuity/auth';
-import { drizzleAdapter } from '@agentuity/drizzle';
-import { drizzle } from 'drizzle-orm/bun-sql';
+import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
 import * as authSchema from '@agentuity/auth/schema';
 import * as appSchema from './schema';
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
 const schema = { ...authSchema, ...appSchema };
-const db = drizzle(process.env.DATABASE_URL!, { schema });
+const { db } = createPostgresDrizzle({
+  connectionString: requireEnv('DATABASE_URL'),
+  schema,
+});
 
 const auth = createAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
@@ -167,9 +177,10 @@ The `@agentuity/auth/schema` export provides all auth-related Drizzle tables: `u
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | **Required** |
 | `AGENTUITY_AUTH_SECRET` | Secret for signing tokens | Falls back to `BETTER_AUTH_SECRET` |
-| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Falls back to `BETTER_AUTH_URL` |
+| `AGENTUITY_CLOUD_BASE_URL` | Platform-provided base URL for auth callbacks | Checked before `AGENTUITY_BASE_URL` |
+| `AGENTUITY_BASE_URL` | Base URL for auth callbacks | Checked before `BETTER_AUTH_URL` |
 
-Trusted origins are resolved automatically from `AGENTUITY_CLOUD_DOMAINS` (set by the platform on deploy) and `AUTH_TRUSTED_DOMAINS` (comma-separated, developer-set).
+By default, trusted origins include the resolved base URL, the incoming request origin, `AGENTUITY_CLOUD_DOMAINS`, and `AUTH_TRUSTED_DOMAINS`. `AGENTUITY_BASE_URL` is also trusted when set, even if `AGENTUITY_CLOUD_BASE_URL` supplied the resolved base URL. Passing `trustedOrigins` to `createAuth()` replaces that default list.
 
 <Callout type="warning" title="Replace Dev Secrets Before Deploying">
 Generate a secure secret with `openssl rand -hex 32` and store it in your environment variables before deploying.

@@ -17,6 +17,43 @@ import { s } from '@agentuity/schema';
 
 const client = new Anthropic();
 const MAX_STEPS = 8;
+
+const SearchWikipediaInput = s.object({ query: s.string() });
+const GetArticleInput = s.object({ title: s.string() });
+const FinishResearchInput = s.object({
+  summary: s.string(),
+  sourcesUsed: s.number(),
+});
+
+const WikipediaSearchResponse = s.object({
+  query: s.optional(
+    s.object({
+      search: s.optional(
+        s.array(
+          s.object({
+            title: s.string(),
+            snippet: s.string(),
+          })
+        )
+      ),
+    })
+  ),
+});
+
+const WikipediaExtractResponse = s.object({
+  query: s.optional(
+    s.object({
+      pages: s.optional(
+        s.record(
+          s.string(),
+          s.object({
+            extract: s.optional(s.string()),
+          })
+        )
+      ),
+    })
+  ),
+});
 ```
 
 ## Defining Tools
@@ -62,7 +99,7 @@ const tools: Anthropic.Tool[] = [
 ];
 ```
 
-The `finish_research` tool doubles as the structured output mechanism. When the model has enough information, it calls this tool with the final summary and source count. No post-processing or separate summarization step needed.
+The `finish_research` tool doubles as the structured output mechanism. When the model has enough information, it calls this tool with the final summary and source count. No separate summarization step needed.
 
 ## The Agent Loop
 
@@ -107,12 +144,12 @@ const agent = createAgent('researcher', {
 
         // finish_research carries the final output
         if (block.name === 'finish_research') { // [!code highlight]
-          const result = block.input as { summary: string; sourcesUsed: number };
+          const result = FinishResearchInput.parse(block.input);
           ctx.logger.info('Research complete: %d sources used', result.sourcesUsed);
           return result; // [!code highlight]
         }
 
-        const result = await executeTool(block.name, block.input as Record<string, unknown>);
+        const result = await executeTool(block.name, block.input);
         toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
       }
 
@@ -135,12 +172,16 @@ The message history grows with each iteration: assistant messages contain `tool_
 Tool implementations are plain async functions. The Wikipedia API provides search and article content without authentication.
 
 ```typescript title="src/agent/researcher/agent.ts"
-async function executeTool(name: string, input: Record<string, unknown>): Promise<string> {
+async function executeTool(name: string, input: unknown): Promise<string> {
   switch (name) {
-    case 'search_wikipedia':
-      return searchWikipedia(input.query as string);
-    case 'get_article':
-      return getArticle(input.title as string);
+    case 'search_wikipedia': {
+      const { query } = SearchWikipediaInput.parse(input);
+      return searchWikipedia(query);
+    }
+    case 'get_article': {
+      const { title } = GetArticleInput.parse(input);
+      return getArticle(title);
+    }
     default:
       return `Unknown tool: ${name}`;
   }
@@ -151,11 +192,13 @@ async function searchWikipedia(query: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) return `Wikipedia search failed: HTTP ${res.status}`;
 
-  const data = await res.json();
-  const results = data?.query?.search;
-  if (!results?.length) return 'No results found.';
+  const data = WikipediaSearchResponse.safeParse(await res.json());
+  if (!data.success) return 'No results found.';
 
-  return JSON.stringify(results.map((r: { title: string; snippet: string }) => ({
+  const results = data.data.query?.search ?? [];
+  if (results.length === 0) return 'No results found.';
+
+  return JSON.stringify(results.map((r) => ({
     title: r.title,
     snippet: r.snippet.replace(/<[^>]*>/g, ''),
   })));
@@ -166,11 +209,13 @@ async function getArticle(title: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) return `Failed to fetch article: HTTP ${res.status}`;
 
-  const data = await res.json();
-  const pages = data?.query?.pages;
+  const data = WikipediaExtractResponse.safeParse(await res.json());
+  if (!data.success) return 'No content found.';
+
+  const pages = data.data.query?.pages;
   if (!pages) return 'No content found.';
-  const page = Object.values(pages)[0] as { extract?: string };
-  return page.extract ?? 'No content found.';
+  const [page] = Object.values(pages);
+  return page?.extract ?? 'No content found.';
 }
 ```
 
@@ -198,7 +243,7 @@ The [AI SDK](/agents/ai-sdk-integration) provides a unified interface across pro
 - Precise control over the message format and conversation structure
 - Minimal abstraction for debugging or learning how tool calling works
 
-Both approaches work with `createAgent()` and the [AI Gateway](/agents/ai-gateway). LLM calls through the Anthropic SDK are routed through the gateway automatically when deployed, giving you observability and cost tracking regardless of which SDK you use.
+Both approaches work with `createAgent()` and the [AI Gateway](/agents/ai-gateway). When you run with an Agentuity SDK key through `agentuity dev` or a deployed Agentuity app, provider SDK calls route through the AI Gateway. If you set provider API keys directly, those SDKs talk to the provider.
 
 <Callout type="tip" title="Full Working Example">
 See the [Research Agent](https://github.com/agentuity/examples/tree/main/features/research-agent) example for the complete implementation with a React frontend, SSE streaming, and topic input UI.

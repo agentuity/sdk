@@ -145,7 +145,7 @@ import enrichmentAgent from '@agent/enrichment/agent';
 
 // result is automatically typed as { sentiment: string; keywords: string[] }
 const result = await enrichmentAgent.run({ text: 'Hello world' });
-result.sentiment; // string -- autocomplete works
+result.sentiment; // string, autocomplete works
 ```
 
 When you need an explicit type (for function signatures or intermediate variables), use `Awaited<ReturnType<>>`:
@@ -171,6 +171,8 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 import externalService from '@agent/external-service/agent';
 
+type CachedData = { id: string; content: string };
+
 export default createAgent('Robust', {
   schema: {
     input: s.object({ userId: s.string() }),
@@ -190,7 +192,7 @@ export default createAgent('Robust', {
       ctx.logger.error('External service failed', { error });
 
       // Fall back to cached data rather than returning an error
-      const cached = await ctx.kv.get('user-cache', input.userId);
+      const cached = await ctx.kv.get<CachedData>('user-cache', input.userId);
 
       if (cached.exists) {
         return { success: true, data: cached.data };

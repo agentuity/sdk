@@ -116,7 +116,7 @@ const agent = createAgent('TaskWorker', {
       assignee: { id: ctx.current.id, name: ctx.current.name, type: 'agent' },
     });
 
-    // ... do the work ...
+    // Do the work
 
     // Mark complete when done
     await ctx.task.update(task.id, {
@@ -196,7 +196,7 @@ const agent = createAgent('TaskRouter', {
 
 ## Comments
 
-Add threaded comments to any task. `userId` identifies the commenter; `author` is an optional `UserEntityRef` (`{ id, name, type? }`) that adds a display name and optional human/agent type discrimination.
+Add threaded comments to any task. `userId` identifies the commenter; `author` is an optional `{ id, name }` reference that adds a display name.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
@@ -250,6 +250,10 @@ const agent = createAgent('TagManager', {
 ## Attachments
 
 Attachments use a two-phase upload: first call `uploadAttachment()` to get a presigned S3 URL, PUT your file bytes directly to that URL, then call `confirmAttachment()` to mark the upload complete.
+
+<Callout type="warning" title="Task attachments need cloud-backed storage">
+Local task storage supports tasks, comments, tags, and changelog data. Attachment methods throw `AttachmentNotSupportedError` in local storage.
+</Callout>
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
@@ -333,9 +337,11 @@ const agent = createAgent('TaskDashboard', {
 | `type` | Filter by task type |
 | `priority` | Filter by priority level |
 | `assigned_id` | Filter by assigned user ID |
+| `created_id` | Filter by creator user ID |
 | `parent_id` | Filter by parent task (returns subtasks) |
 | `project_id` | Filter by project ID |
 | `tag_id` | Filter by a specific tag |
+| `include` | Include additional fields such as `description`, `metadata`, `tags`, `subtask_count`, `created_id`, or `deleted` |
 | `sort` | Sort field: `'created_at'`, `'updated_at'`, `'priority'`. Prefix with `-` for descending |
 | `order` | Sort direction: `'asc'` or `'desc'` |
 | `limit` | Maximum results to return |
@@ -400,7 +406,7 @@ const agent = createAgent('TaskCleaner', {
 
 ## Hierarchical Tasks
 
-Set `parent_id` to build epic-to-feature-to-task hierarchies. Query subtasks with `list({ parent_id: epicId })`. List responses include a `subtask_count` field with the number of direct child tasks, so you can display task counts without fetching all subtasks.
+Set `parent_id` to build epic-to-feature-to-task hierarchies. Query subtasks with `list({ parent_id: epicId })`. Pass `include: ['subtask_count']` when you need direct child counts without fetching every subtask.
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
@@ -483,7 +489,7 @@ export default router;
 - **Set `type: 'agent'` for programmatic tasks**: This lets dashboards distinguish automated work items from human-filed tickets.
 - **Prefer `update()` over ad-hoc field sets**: Partial updates only modify provided fields, so you won't accidentally overwrite data you didn't intend to change.
 - **Use `metadata` for integration fields**: Store external IDs, trace IDs, or service names in `metadata` rather than encoding them in the title or description.
-- **Page results with `limit` and `offset`**: There is no default page cap, so always set an explicit `limit` when listing tasks in agents to avoid unbounded responses.
+- **Page results with `limit` and `offset`**: Set an explicit `limit` when listing tasks in agents so pagination stays predictable.
 
 ## Next Steps
 

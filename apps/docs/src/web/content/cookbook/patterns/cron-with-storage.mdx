@@ -3,7 +3,7 @@ title: Cron with Storage
 description: Cache scheduled task results in KV for later retrieval
 ---
 
-Schedule tasks to run automatically and cache results for later retrieval. The platform triggers your endpoint on schedule, and KV storage persists the data between runs.
+Refresh data on a schedule, cache it in KV, then serve the last result from a regular GET route. This keeps reads fast and avoids refetching external APIs for every request.
 
 ## The Pattern
 
@@ -11,31 +11,42 @@ Fetch external data on a schedule and store it in KV. A separate GET endpoint re
 
 ```typescript title="src/api/hn/route.ts"
 import { Hono } from 'hono';
-import { type Env, cron } from '@agentuity/runtime'; // [!code highlight]
+import type { Env } from '@agentuity/runtime';
+import { cron } from '@agentuity/runtime'; // [!code highlight]
+import { s } from '@agentuity/schema';
 
 const router = new Hono<Env>();
 
-interface Story {
-  id: number;
-  title: string;
-  score: number;
-  by: string;
-  url: string;
-}
+const TopStoryIdsSchema = s.array(s.number());
 
-// Runs every hour - fetches top HN stories and caches them
+const StorySchema = s.object({
+  id: s.number(),
+  title: s.string(),
+  score: s.number(),
+  by: s.string(),
+  url: s.optional(s.string()),
+});
+
+type Story = s.infer<typeof StorySchema>;
+
+const CachedStoriesSchema = s.object({
+  stories: s.array(StorySchema),
+  fetchedAt: s.string(),
+});
+
+type CachedStories = s.infer<typeof CachedStoriesSchema>;
+
+// Runs every hour and caches top HN stories
 router.post('/digest', cron('0 * * * *', { auth: true }, async (c) => { // [!code highlight]
   c.var.logger.info('Fetching HN stories');
 
-  // Get top story IDs
   const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
-  const ids = (await idsRes.json()) as number[];
+  const ids = TopStoryIdsSchema.parse(await idsRes.json());
 
-  // Fetch details for top 5
   const stories = await Promise.all(
     ids.slice(0, 5).map(async (id) => {
       const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
-      const story = (await res.json()) as Story;
+      const story = StorySchema.parse(await res.json());
       return {
         id: story.id,
         title: story.title,
@@ -46,7 +57,6 @@ router.post('/digest', cron('0 * * * *', { auth: true }, async (c) => { // [!cod
     })
   );
 
-  // Cache in KV with 24-hour TTL
   await c.var.kv.set('cache', 'hn-stories', { // [!code highlight]
     stories,
     fetchedAt: new Date().toISOString(),
@@ -56,9 +66,8 @@ router.post('/digest', cron('0 * * * *', { auth: true }, async (c) => { // [!cod
   return c.json({ success: true, count: stories.length });
 }));
 
-// Retrieve cached stories
 router.get('/stories', async (c) => {
-  const result = await c.var.kv.get<{ stories: Story[]; fetchedAt: string }>('cache', 'hn-stories'); // [!code highlight]
+  const result = await c.var.kv.get<CachedStories>('cache', 'hn-stories'); // [!code highlight]
 
   if (!result.exists) {
     return c.json({ stories: [], fetchedAt: null });
@@ -72,7 +81,7 @@ export default router;
 
 ## Frontend
 
-A simple interface to trigger the cron job and display cached stories:
+A simple interface can read the cached result without calling the protected cron endpoint:
 
 ```tsx title="src/web/App.tsx"
 import { useState, useEffect } from 'react';
@@ -97,9 +106,8 @@ export function App() {
     setFetchedAt(data.fetchedAt);
   };
 
-  const triggerFetch = async () => {
+  const refreshStories = async () => {
     setIsLoading(true);
-    await fetch('/api/hn/digest', { method: 'POST' }); // [!code highlight]
     await loadStories();
     setIsLoading(false);
   };
@@ -113,8 +121,8 @@ export function App() {
       <h1>HN Top Stories</h1>
 
       <div style={{ marginBottom: '1rem' }}>
-        <button onClick={triggerFetch} disabled={isLoading}>
-          {isLoading ? 'Fetching...' : 'Fetch Latest'}
+        <button onClick={refreshStories} disabled={isLoading}>
+          {isLoading ? 'Refreshing...' : 'Refresh'}
         </button>
         {fetchedAt && (
           <span style={{ marginLeft: '1rem', color: '#666' }}>
@@ -124,7 +132,7 @@ export function App() {
       </div>
 
       {stories.length === 0 ? (
-        <p>No stories cached. Click "Fetch Latest" to load.</p>
+        <p>No stories cached yet.</p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {stories.map((story) => (
@@ -146,19 +154,20 @@ export function App() {
 
 ## Testing Locally
 
-Cron schedules only trigger in deployed environments. Use the "Fetch Latest" button in the UI to test locally. If you need to call the endpoints directly:
+Cron schedules only trigger in deployed environments. Locally, you can read cached data with the GET route:
 
 ```bash
-curl -X POST http://localhost:3500/api/hn/digest
 curl http://localhost:3500/api/hn/stories
 ```
+
+To exercise the cron handler locally, temporarily set `{ auth: false }` or send a signed request with `X-Agentuity-Cron-Signature` and `X-Agentuity-Cron-Timestamp`. Keep `{ auth: true }` for deployed cron routes.
 
 ## Key Points
 
 - **`cron()` middleware** wraps POST handlers with a schedule expression
 - **KV with TTL** automatically expires stale data (24 hours in this example)
-- **Separate GET endpoint** lets clients retrieve cached results anytime
-- **Local testing** requires manual triggers since schedules only run when deployed
+- **Separate GET endpoint** lets clients retrieve cached results without cron auth
+- **Local testing** requires a manual POST because schedules only run when deployed
 
 <Callout type="tip" title="Full Working Example">
 See the [Scheduled Digest](https://github.com/agentuity/examples/tree/main/features/scheduled-digest) example for a Hacker News + GitHub digest using cron, KV storage, and durable streams.

@@ -109,6 +109,7 @@ List tasks with optional filtering and pagination.
 | `project_id` | `string` | Filter by project |
 | `tag_id` | `string` | Filter by tag |
 | `deleted` | `boolean` | Include soft-deleted tasks (default `false`) |
+| `include` | `TaskIncludeField[]` | Extra fields to include: `'description'`, `'metadata'`, `'tags'`, `'subtask_count'`, `'created_id'`, or `'deleted'` |
 | `sort` | `string` | Sort field, prefix with `-` for descending (e.g., `'-created_at'`) |
 | `order` | `'asc' \| 'desc'` | Sort direction |
 | `limit` | `number` | Max results to return |
@@ -231,6 +232,65 @@ const result = await ctx.task.batchDelete({
 ctx.logger.info('Deleted %d cancelled tasks', result.count);
 ```
 
+## batchUpdate(params)
+
+Batch update tasks matching the given filters. At least one filter or `ids` value must be provided, and at least one update field must be provided.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `params` | `BatchUpdateTasksParams` | yes | Filters and update fields |
+
+**Common fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status`, `type`, `priority`, `parent_id`, `created_id`, `assigned_id`, `project_id`, `tag_id` | varies | Filters selecting tasks to update |
+| `older_than`, `newer_than` | `string` | Duration filter, e.g., `'30m'`, `'24h'`, `'7d'`, or `'2w'` |
+| `ids` | `string[]` | Specific task IDs to update instead of filter-only selection |
+| `limit` | `number` | Max tasks to update (default 50, max 200) |
+| `new_status`, `new_priority`, `new_assigned_id`, `new_assignee`, `new_title`, `new_description`, `new_metadata`, `new_type` | varies | Fields to set on matching tasks |
+| `dry_run` | `boolean` | Preview the operation without changing tasks |
+
+**Returns:** `Promise<BatchUpdateTasksResult>`
+
+```typescript
+interface BatchUpdateTasksResult {
+  updated: { id: string; title: string; status: TaskStatus; priority: TaskPriority }[];
+  count: number;
+  dry_run: boolean;
+}
+```
+
+## batchClose(params)
+
+Batch close tasks matching the given filters by setting their status to `'done'` and recording the closed date. At least one filter or `ids` value must be provided.
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `params` | `BatchCloseTasksParams` | yes | Filters and close options |
+
+**Common fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status`, `type`, `priority`, `parent_id`, `created_id`, `assigned_id`, `project_id`, `tag_id` | varies | Filters selecting tasks to close |
+| `older_than`, `newer_than` | `string` | Duration filter, e.g., `'30m'`, `'24h'`, `'7d'`, or `'2w'` |
+| `ids` | `string[]` | Specific task IDs to close instead of filter-only selection |
+| `limit` | `number` | Max tasks to close (default 50, max 200) |
+| `closed_id` | `string` | ID of the user closing the tasks |
+| `closer` | `UserEntityRef` | Display reference for the closer |
+| `dry_run` | `boolean` | Preview the operation without changing tasks |
+
+**Returns:** `Promise<BatchCloseTasksResult>`
+
+```typescript
+interface BatchCloseTasksResult {
+  closed: { id: string; title: string; status: TaskStatus; closed_date?: string }[];
+  count: number;
+  dry_run: boolean;
+}
+```
+
 ## Comments
 
 ### createComment(taskId, body, userId, author?)
@@ -309,6 +369,10 @@ List all tags on a specific task. **Returns:** `Promise<Tag[]>`
 CRUD operations on individual tags.
 
 ## Attachments
+
+<Callout type="warning" title="Attachments require cloud storage">
+Task attachments are not supported by the local task storage implementation. Attachment upload, download, confirmation, listing, and deletion methods throw locally.
+</Callout>
 
 ### uploadAttachment(taskId, params)
 

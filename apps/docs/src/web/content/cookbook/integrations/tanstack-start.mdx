@@ -22,12 +22,15 @@ my-tanstack-app/
 
 ## Vite Proxy Configuration
 
-Add a proxy entry to your existing `vite.config.ts` so browser requests to `/api` go to `agentuity dev`:
+Keep your existing TanStack Start plugins, then add a proxy entry so browser requests to `/api` go to `agentuity dev`:
 
 ```typescript title="vite.config.ts"
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  plugins: [tanstackStart(), viteReact()],
   server: {
     proxy: {
       '/api': {
@@ -139,9 +142,25 @@ If you keep same-origin routing in production, keep `hc<ApiRouter>('/api')` and 
 If the frontend and backend live on different origins, point `hc()` at the deployed backend instead:
 
 ```tsx
-const client = hc<ApiRouter>(
-  new URL('/api', import.meta.env.VITE_AGENTUITY_BASE_URL).toString()
-);
+const agentuityBaseUrl = import.meta.env.VITE_AGENTUITY_BASE_URL;
+if (!agentuityBaseUrl) {
+  throw new Error('VITE_AGENTUITY_BASE_URL is required');
+}
+
+const client = hc<ApiRouter>(new URL('/api', agentuityBaseUrl).toString());
+```
+
+`VITE_AGENTUITY_BASE_URL` must be a full absolute URL, including the scheme, such as `https://my-app.agentuity.run`. `new URL()` throws if you pass a bare host or a relative path.
+
+`/api` replaces any path suffix in `VITE_AGENTUITY_BASE_URL`. If your backend is mounted under a subpath, preserve it with a relative URL segment:
+
+```tsx
+const baseUrl = new URL(agentuityBaseUrl);
+if (!baseUrl.pathname.endsWith('/')) {
+  baseUrl.pathname += '/';
+}
+
+const client = hc<ApiRouter>(new URL('api', baseUrl).toString());
 ```
 
 Then enable CORS in [App Configuration](/get-started/app-configuration).

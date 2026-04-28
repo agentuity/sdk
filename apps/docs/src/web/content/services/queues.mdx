@@ -30,7 +30,7 @@ Use the [`@agentuity/queue`](/reference/standalone-packages#message-queues) stan
 |---------|--------|---------|
 | Agents | `ctx.queue` | See examples below |
 | Routes | `c.var.queue` | See [Using in Routes](#using-in-routes) |
-| Standalone | `createAgentContext()` | See [Standalone Usage](#standalone-usage) |
+| Standalone package | `QueueClient` | See [Standalone Usage](#standalone-usage) |
 
 <Callout type="info" title="Same API Everywhere">
 The Queue API is identical in all contexts. `ctx.queue.publish()` and `c.var.queue.publish()` work the same way.
@@ -230,38 +230,29 @@ Use queues for webhooks that need quick acknowledgment. Return 200 immediately, 
 
 ## Standalone Usage
 
-Use queues from background jobs with `createAgentContext()`:
+Use queues from external workers or background jobs with `QueueClient`:
 
 ```typescript
-import { createApp, createAgentContext } from '@agentuity/runtime';
+import { QueueClient } from '@agentuity/queue';
 
-const app = await createApp();
-export default app;
+const queue = new QueueClient();
 
-// Scheduled job to send daily reports
-async function sendDailyReports() {
-  const ctx = createAgentContext({ trigger: 'cron' });
-
-  await ctx.invoke(async () => {
-    const users = await getActiveUsers();
-
-    for (const user of users) {
-      await ctx.queue.publish('email-reports', {
-        userId: user.id,
-        reportType: 'daily',
-      });
-    }
-
-    ctx.logger.info('Queued daily reports', { count: users.length });
-  });
+export async function queueDailyReports(users: readonly { id: string }[]) {
+  for (const user of users) {
+    await queue.publish('email-reports', {
+      userId: user.id,
+      reportType: 'daily',
+    });
+  }
 }
 ```
 
-See [Running Agents Without HTTP](/agents/standalone-execution) for more patterns.
+Use [Running Agents Without HTTP](/agents/standalone-execution) when you need a full runtime context instead of the standalone queue client.
 
 ## Error Handling
 
 ```typescript
+import { createAgent } from '@agentuity/runtime';
 import { QueueNotFoundError, QueueValidationError } from '@agentuity/core';
 
 const agent = createAgent('SafePublisher', {
@@ -392,17 +383,20 @@ When you need to process messages as they arrive rather than polling, use the We
 #### Callback-Based API
 
 ```typescript
-import { createQueueWebSocket } from '@agentuity/server';
+import { createLogger, createQueueWebSocket, getServiceUrls } from '@agentuity/server';
+
+const logger = createLogger();
+const baseUrl = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc').catalyst;
 
 const connection = createQueueWebSocket({
   queueName: 'order-processing',
-  baseUrl: 'https://catalyst.agentuity.cloud',
+  baseUrl,
   onMessage: (message) => {
-    console.log('Received:', message.id, message.payload);
+    logger.info('Received: %s %o', message.id, message.payload);
   },
-  onOpen: () => console.log('Connected'),
-  onClose: (code, reason) => console.log('Closed:', code, reason),
-  onError: (error) => console.error('Error:', error),
+  onOpen: () => logger.info('Connected'),
+  onClose: (code, reason) => logger.info('Closed: %d %s', code, reason),
+  onError: (error) => logger.error('Error: %s', error.message),
 });
 
 // Later: close the connection
@@ -416,16 +410,18 @@ The connection handle exposes `state`, `clientId`, and `lastOffset` properties f
 For `for await...of` consumption, use `subscribeToQueue`:
 
 ```typescript
-import { subscribeToQueue } from '@agentuity/server';
+import { createLogger, getServiceUrls, subscribeToQueue } from '@agentuity/server';
 
+const logger = createLogger();
+const baseUrl = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc').catalyst;
 const controller = new AbortController();
 
 for await (const message of subscribeToQueue({
   queueName: 'order-processing',
-  baseUrl: 'https://catalyst.agentuity.cloud',
+  baseUrl,
   signal: controller.signal,
 })) {
-  console.log('Received:', message.id, message.payload);
+  logger.info('Received: %s %o', message.id, message.payload);
 }
 
 // To stop: controller.abort()
@@ -436,7 +432,10 @@ for await (const message of subscribeToQueue({
 Save `clientId` and `lastOffset` from a connection and pass them back on reconnect to avoid reprocessing messages:
 
 ```typescript
-import { createQueueWebSocket } from '@agentuity/server';
+import { createLogger, createQueueWebSocket, getServiceUrls } from '@agentuity/server';
+
+const logger = createLogger();
+const baseUrl = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc').catalyst;
 
 // Save state from a previous connection
 const savedClientId = previousConnection.clientId;
@@ -445,11 +444,11 @@ const savedOffset = previousConnection.lastOffset;
 // Resume from where you left off
 const connection = createQueueWebSocket({
   queueName: 'order-processing',
-  baseUrl: 'https://catalyst.agentuity.cloud',
+  baseUrl,
   clientId: savedClientId,     // Resume this subscription
   lastOffset: savedOffset,     // Skip already-processed messages
   onMessage: (message) => {
-    console.log('Received:', message.id, message.payload);
+    logger.info('Received: %s %o', message.id, message.payload);
   },
 });
 ```
