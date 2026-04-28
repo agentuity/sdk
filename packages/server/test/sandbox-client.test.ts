@@ -776,6 +776,36 @@ describe('SandboxClient', () => {
 			expect(info.executions).toBe(5);
 		});
 
+		test('get should tolerate pending sandbox responses with null org', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'GET' && url.includes('/sandbox') && url.includes('sandbox-123')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-123',
+								status: 'creating',
+								createdAt: '2025-01-01T00:00:00Z',
+								executions: 0,
+								org: null,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger(), orgId: 'org-123' });
+			const info = await client.get('sandbox-123');
+
+			expect(info.sandboxId).toBe('sandbox-123');
+			expect(info.status).toBe('creating');
+			expect(info.executions).toBe(0);
+			expect(info.org).toEqual({ id: 'org-123', name: '' });
+		});
+
 		test('destroy should call sandbox destroy API', async () => {
 			let destroyCalled = false;
 

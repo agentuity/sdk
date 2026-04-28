@@ -156,7 +156,7 @@ export const SandboxInfoDataSchema = z
 		user: SandboxUserInfoSchema.optional().describe('User who created the sandbox'),
 		agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox'),
 		project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox'),
-		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
+		org: SandboxOrgInfoSchema.nullish().describe('Organization associated with the sandbox'),
 		timeout: z
 			.object({
 				idle: z.string().optional().describe('Idle timeout duration (e.g., "5m", "1h").'),
@@ -241,6 +241,12 @@ export async function sandboxGet(
 	);
 
 	if (resp.success) {
+		// Newly created sandboxes can be served from the server's pending cache before
+		// the backing row and related org hydration are fully available. That response
+		// serializes `org: null`, so normalize it to a placeholder object instead of
+		// failing response validation for an otherwise valid sandbox status poll.
+		const org = resp.data.org ?? { id: orgId ?? '', name: '' };
+
 		return {
 			sandboxId: resp.data.sandboxId,
 			identifier: resp.data.identifier,
@@ -271,7 +277,7 @@ export async function sandboxGet(
 			user: resp.data.user,
 			agent: resp.data.agent,
 			project: resp.data.project,
-			org: resp.data.org,
+			org,
 			timeout: resp.data.timeout,
 			command: resp.data.command,
 		};
