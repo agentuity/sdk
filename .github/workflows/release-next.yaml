@@ -67,6 +67,8 @@ jobs:
         run: bun typecheck
 
       - name: Unit tests
+        env:
+          NODE_ENV: test
         run: bun run test:unit
 
   release:
