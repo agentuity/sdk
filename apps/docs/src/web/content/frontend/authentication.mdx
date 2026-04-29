@@ -130,10 +130,16 @@ export default defineConfig({
 Mount the auth routes in your API router:
 
 ```typescript title="src/api/index.ts"
+import { Hono } from 'hono';
+import type { Env } from '@agentuity/runtime';
 import { mountAuthRoutes } from '@agentuity/auth';
 import { auth } from '../auth';
 
+const api = new Hono<Env>();
+
 api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
+
+export default api;
 ```
 
 If `app.ts` mounts this router at `/api`, auth is available at `/api/auth/*`. If your router variable has a different name, mount the route on that object.
