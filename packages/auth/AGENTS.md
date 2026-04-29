@@ -53,9 +53,15 @@ const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 });
 
-api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
-api.use('/api/*', createSessionMiddleware(auth));
+// In src/api/index.ts, app.ts mounts this router at /api
+// This exposes /api/auth/*
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
+
+// Protect routes inside this mounted API router
+api.use('/*', createSessionMiddleware(auth));
 ```
+
+Important: Use `/auth/*` inside Agentuity v2 `src/api/index.ts` because `app.ts` already mounts that router at `/api`. Use `/api/auth/*` only when mounting Better Auth on a root Hono app directly.
 
 ### Agent Handler (ctx.auth is native)
 
