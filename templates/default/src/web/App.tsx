@@ -4,7 +4,6 @@ import type { ApiRouter, HistoryEntry } from '../api/index';
 import { type ChangeEvent, Fragment, useCallback, useEffect, useState } from 'react';
 import './App.css';
 
-const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5.4-nano', 'gpt-5.4-mini', 'gpt-5.4'] as const;
 const DEFAULT_TEXT =
@@ -370,22 +369,7 @@ export function App() {
 									</>
 								),
 							},
-							WORKBENCH_PATH
-								? {
-										key: 'workbench',
-										title: (
-											<>
-												Try{' '}
-												<a href={WORKBENCH_PATH} className="underline relative">
-													Workbench
-												</a>
-											</>
-										),
-										text: <>Test your API routes directly in the dev UI.</>,
-									}
-								: null,
 						]
-							.filter((step): step is NonNullable<typeof step> => Boolean(step))
 							.map((step) => (
 								<div key={step.key} className="items-start flex gap-3">
 									<div className="items-center bg-green-950 border border-green-500 rounded flex size-4 shrink-0 justify-center">
