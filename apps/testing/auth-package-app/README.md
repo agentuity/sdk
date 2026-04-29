@@ -206,6 +206,6 @@ Both methods produce the same `c.var.auth` context in routes.
 
 ## Learn More
 
-- [Agentuity Auth Documentation](https://agentuity.dev/Frontend/authentication)
+- [Agentuity Auth Documentation](https://agentuity.dev/frontend/authentication)
 - [BetterAuth Documentation](https://better-auth.com/docs)
 - [Agentuity SDK](https://github.com/agentuity/sdk)
