@@ -1,0 +1,53 @@
+---
+title: Build
+description: Build model calls, streaming routes, and background work in v3 framework apps
+---
+
+import { Bot, Database, MessageSquareText, Rows3, Wrench } from 'lucide-react';
+
+Build v3 apps inside your framework's routes, server functions, workers, and scripts. Call models with the provider SDK or AI SDK you already use, then add Agentuity service clients when the workflow needs durable state, queues, streams, telemetry, or deploy support.
+
+<Cards>
+  <CardLink
+    href="/build/agents"
+    title="Build Agents"
+    description="Build model-backed workflows with ordinary framework code"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/build/chat-and-streaming"
+    title="Chat and Streaming"
+    description="Stream model output and keep conversation state in a service client"
+    icon={<MessageSquareText />}
+  />
+  <CardLink
+    href="/build/tool-calling"
+    title="Tool Calling"
+    description="Let models call bounded app functions with typed inputs"
+    icon={<Wrench />}
+  />
+  <CardLink
+    href="/build/state-and-memory"
+    title="State and Memory"
+    description="Store app memory explicitly with KV, databases, and cookies"
+    icon={<Database />}
+  />
+  <CardLink
+    href="/build/background-work"
+    title="Background Work"
+    description="Move slow work out of request handlers with queues, KV, and durable streams"
+    icon={<Rows3 />}
+  />
+</Cards>
+
+## How to Use These
+
+Use these pages when you know the behavior you want but need the v3 shape. The examples use direct service clients first because that path works across supported server frameworks and scripts. Hono apps can also install `@agentuity/hono` and read the same clients from `c.var.*`.
+
+Legacy runtime apps can stay on the [v2 docs](https://v2.agentuity.dev). These pages use "agent" as an application design pattern, not as `createAgent()`.
+
+## Related Docs
+
+- [Frameworks](/frameworks): start from Next.js, Hono, TanStack Start, or another supported framework
+- [Services](/services): choose the Agentuity client for storage, queues, tasks, schedules, sandbox, and observability
+- [Deploying Apps](/deploy-operate): run the same framework project with `agentuity dev` and `agentuity deploy`

@@ -4,7 +4,7 @@ short_title: Migration CLI
 description: Run the Agentuity migration tool for v2 to v3 projects.
 ---
 
-Use the alpha tag for v3 migrations so the CLI includes `--v2-to-v3`.
+Use the alpha tag for v3 migrations so the command includes `--v2-to-v3`.
 
 ```bash
 npx @agentuity/migrate@alpha --v2-to-v3 --dry-run
@@ -27,7 +27,14 @@ Useful flags:
 | `--yes`, `-y` | skip confirmation prompts |
 | `--help`, `-h` | print available modes and flags |
 
-The tool can also auto-detect migration mode from `@agentuity/runtime` in `package.json`, but pass `--v2-to-v3` when you are following the v3 migration docs.
+The tool can also auto-detect migration mode from `@agentuity/runtime` in `package.json`:
+
+| Runtime version | Detected mode |
+| --- | --- |
+| `^1.x` or `1.x` | v1 to v2 |
+| `^2.x`, `2.x`, `latest`, `*`, or `workspace:*` | v2 to v3 |
+
+Pass `--v2-to-v3` when you are following the v3 migration docs.
 
 ## Safe Workflow
 
@@ -47,18 +54,20 @@ The tool refuses to write changes when it detects a dirty git worktree. Commit, 
 
 ## What the Tool Changes
 
-The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically:
+The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically. It creates a Hono starting point because that is the closest mechanical replacement for the old runtime container.
 
 | Area | Change |
 | --- | --- |
-| entry point | replaces `app.ts` and `createApp()` with a Hono starting point in `src/index.ts` |
+| entry point | generates `src/index.ts` with `new Hono()` and `agentuity()` when `createApp()` is detected |
 | packages | removes `@agentuity/runtime`, adds `hono`, `@agentuity/hono`, and detected service packages |
 | services | generates `src/services.ts` with singleton service clients |
-| simple agents | converts simple `createAgent()` handlers into plain exported functions |
-| routes | rewrites detected `ctx.*` and `c.var.*` service access to direct service imports |
+| simple agents | converts simple `createAgent()` handlers to plain exported functions |
+| routes | rewrites detected `ctx.*` and some `c.var.*` service access to direct imports |
 | thread and session APIs | leaves review markers where runtime thread/session state needs an app-owned replacement |
+| removed files | deletes `app.ts`, `agentuity.config.ts`, and the top-level `src/agent/index.ts` barrel when they match the v2 runtime shape |
 | removed packages | removes v2-only packages such as `@agentuity/evals`, `@agentuity/frontend`, and `@agentuity/workbench` |
 | schema usage | ports detected `@agentuity/schema` usage to Zod when that transform applies |
+| dev workflow | adds a Vite proxy and dev scripts when it detects a Hono plus Vite SPA shape |
 
 After writing changes, the tool runs `bun install` and a TypeScript check. If TypeScript reports errors, keep the diff and fix the remaining migration work manually.
 
@@ -73,12 +82,27 @@ Manual work is normal for apps that used runtime container features:
 - setup output read through `ctx.config`
 - Hono route validation previously handled by Agentuity validator middleware
 - files importing `@agentuity/evals` and custom Workbench/frontend flows
+- moving the generated Hono starting point into a different final framework, such as Next.js or SvelteKit
 
 <Callout type="warning" title="Review generated service and entry files">
 The migrator gives you a starting point, not a deploy guarantee. Review `src/index.ts`, `src/services.ts`, package scripts, and the TypeScript output before deploying.
 </Callout>
 
 ## After Migration
+
+Review the diff first:
+
+```bash
+git diff
+```
+
+Then run your app's checks. For a TypeScript app with a build script, that usually means:
+
+```bash
+bun run typecheck
+bun run build
+agentuity build
+```
 
 Link the project to Agentuity Cloud before the first v3 deploy:
 
@@ -87,15 +111,9 @@ agentuity project import --validate-only
 agentuity project import
 ```
 
-Then run the framework build if the package has one, followed by the Agentuity build:
+`agentuity project import` registers the project, writes `agentuity.json`, and creates or updates `.env` with `AGENTUITY_SDK_KEY`.
 
-```bash
-# If your package has a build script:
-bun run build
-agentuity build
-```
-
-Deploy only after the build succeeds for your app shape.
+Deploy only after the framework build and `agentuity build` both succeed for your app shape.
 
 ## Next Steps
 

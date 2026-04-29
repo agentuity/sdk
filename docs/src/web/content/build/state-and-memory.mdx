@@ -1,0 +1,107 @@
+---
+title: State and Memory
+description: Store app state explicitly with KV, databases, cookies, and service clients
+---
+
+In v3, state belongs to your app. Use cookies or request headers for the current browser/session identity, then store durable state in KV or a database with keys you control.
+
+```bash
+bun add hono @agentuity/keyvalue@alpha @agentuity/schema@alpha
+```
+
+```typescript title="src/index.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+import type { Context } from 'hono';
+import { Hono } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
+
+const memorySchema = s.object({
+  displayName: s.string(),
+  lastIntent: s.string(),
+});
+
+type UserMemory = s.infer<typeof memorySchema>;
+
+const kv = new KeyValueClient();
+const app = new Hono();
+
+function getSessionId(c: Context): string {
+  const existing = getCookie(c, 'app_session');
+
+  if (existing) {
+    return existing;
+  }
+
+  const sessionId = crypto.randomUUID();
+
+  setCookie(c, 'app_session', sessionId, {
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: new URL(c.req.url).protocol === 'https:',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+
+  return sessionId;
+}
+
+app.post('/api/memory', async (c) => {
+  const sessionId = getSessionId(c);
+  const body: unknown = await c.req.json();
+  const memory = memorySchema.parse(body);
+
+  await kv.set<UserMemory>('app-memory', sessionId, memory, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return c.json({ ok: true });
+});
+
+app.get('/api/memory', async (c) => {
+  const sessionId = getSessionId(c);
+  const result = await kv.get<UserMemory>('app-memory', sessionId);
+
+  return c.json({
+    memory: result.exists ? result.data : null,
+  });
+});
+
+export default app;
+```
+
+For legacy runtime apps, this is the replacement for thread or session state. The key is now part of your app contract.
+
+## Choose the Store
+
+| State | Store |
+|-------|-------|
+| app session ID | signed cookie or your auth session |
+| compact user or conversation memory | [Key-Value Storage](/services/storage/key-value) |
+| relational user data | [Database](/services/database) |
+| generated files, transcripts, or exports | [Durable Streams](/services/storage/durable-streams) |
+| async job status | KV status record plus [Queues](/services/queues) |
+
+## Keep Memory Small
+
+Store summaries, preferences, IDs, and pointers. Put large transcripts in a database or durable stream, then store the stream ID or row ID in KV.
+
+```typescript
+interface ConversationPointer {
+  readonly summary: string;
+  readonly streamId: string;
+  readonly updatedAt: string;
+}
+
+await kv.set<ConversationPointer>('conversation-memory', sessionId, {
+  summary: 'User prefers concise answers about billing issues',
+  streamId: 'stream_123',
+  updatedAt: new Date().toISOString(),
+});
+```
+
+## Next Steps
+
+- [Build Agents](/build/agents): read memory before model calls
+- [Chat and Streaming](/build/chat-and-streaming): persist chat history after streamed responses
+- [Key-Value Storage](/services/storage/key-value): configure TTL and inspect namespaces
+- [Moving from Runtime Apps to Framework Apps](/migration/runtime-to-frameworks): map legacy runtime state to framework app state

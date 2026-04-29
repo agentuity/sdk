@@ -1,4 +1,4 @@
 {
-	"title": "Build & Deploy",
+	"title": "Deploy & Operate",
 	"pages": ["local-development", "deploy-framework-apps", "environment-variables"]
 }

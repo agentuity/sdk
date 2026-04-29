@@ -4,7 +4,7 @@ short_title: Local Development
 description: Run your framework dev script with Agentuity environment wiring.
 ---
 
-`agentuity dev` runs your project's package-manager `dev` script and passes Agentuity environment values into that process. Use it when you want your normal framework dev server plus Agentuity local wiring.
+`agentuity dev` runs your project's package-manager `dev` script and passes Agentuity environment values into that process. Use it when you want your normal framework dev server with Agentuity local wiring.
 
 ```bash
 agentuity dev
@@ -56,7 +56,7 @@ Service clients should still use a project SDK key. Link the app when local rout
 `agentuity dev` does not replace Next.js, Vite, Hono, or another framework dev server. It starts the script you already defined and passes Agentuity environment values into that process.
 </Callout>
 
-## Validate Before Running
+## Validate Project Shape
 
 Use import validation when you want to check project shape without creating or deploying anything:
 

@@ -3,20 +3,30 @@ title: Database
 description: Use Agentuity-managed Postgres with direct database clients
 ---
 
-Use database storage when your app needs SQL, joins, constraints, or transactions. Agentuity database resources are Postgres databases; app code usually uses `@agentuity/postgres` or `@agentuity/drizzle`, while scripts and admin tools can use `DBClient` to query a named Agentuity database through the service API.
+Use database storage when your app needs SQL, joins, constraints, or transactions. Agentuity database resources are Postgres databases, and v3 apps access them with direct clients.
 
 ## Create or Link a Database
 
 ```bash
-agentuity cloud db create --name app-data
-agentuity project add database app-data
+agentuity cloud db create --name app_data
+agentuity project add database app_data
 ```
 
-Creating a database from a project, or linking an existing database to a project, writes `DATABASE_URL` to your local `.env`. Deployed apps receive `DATABASE_URL` when the deployment is associated with that database resource.
+Creating a database from a project, or linking an existing database to a project, writes `DATABASE_URL` to your local `.env`. If you do not need a specific name, omit `--name` and let the CLI generate one.
+
+## Choose a Database Client
+
+| Need | Use |
+|------|-----|
+| tagged SQL from Bun server code | [`@agentuity/postgres`](/services/database/postgres) |
+| type-safe schema-first queries from Bun app code | [`@agentuity/drizzle`](/services/database/drizzle) |
+| query an Agentuity database by resource name and org ID | `@agentuity/db` |
+
+Use `@agentuity/postgres` or `@agentuity/drizzle` inside Bun app code that has `DATABASE_URL`. Use `DBClient` for scripts and admin tools that should call the Agentuity database service API instead of opening a direct Postgres connection.
 
 ## Use Postgres from App Code
 
-`@agentuity/postgres` wraps Bun's SQL driver with automatic reconnection. It reads `DATABASE_URL` by default.
+`@agentuity/postgres` wraps Bun's SQL driver with reconnection behavior. It reads `DATABASE_URL` by default.
 
 ```bash
 bun add @agentuity/postgres@alpha
@@ -42,7 +52,7 @@ Pass dynamic values through `${value}` in the tagged template. Do not concatenat
 
 ## Use Drizzle
 
-Use `@agentuity/drizzle` when you want schema-first, type-safe queries on the same Postgres resource. The default driver uses `pg` with Agentuity's resilient pool; `driver: 'bun-sql'` is available when you want Bun SQL explicitly.
+Use `@agentuity/drizzle` when you want Drizzle ORM queries on the same Postgres resource. The default driver uses `pg` through Agentuity's resilient pool. Set `driver: 'bun-sql'` only when you specifically want Bun SQL.
 
 ```bash
 bun add @agentuity/drizzle@alpha drizzle-orm
@@ -66,6 +76,18 @@ try {
 } finally {
   await close();
 }
+```
+
+For schema files that are imported by `drizzle-kit`, use the schema-only entry point:
+
+```typescript title="src/db/schema.ts"
+import { boolean, pgTable, serial, text } from '@agentuity/drizzle/schema';
+
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  active: boolean('active').notNull().default(true),
+});
 ```
 
 ## Query Through the Database Service API
@@ -93,9 +115,7 @@ const tables = await db.tables();
 const logs = await db.logs({ limit: 50 });
 ```
 
-<Callout type="info" title="Choose the client by where the code runs">
-Use `@agentuity/postgres` or `@agentuity/drizzle` inside your app when you have `DATABASE_URL`. Use `DBClient` when a script should target an Agentuity database by name and org ID through the service API.
-</Callout>
+`DBClient` does not read `DATABASE_URL`. Pass the Agentuity database resource name and organization ID explicitly.
 
 ## Framework Routes
 

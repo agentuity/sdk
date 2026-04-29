@@ -3,7 +3,7 @@ title: Schedules
 description: Create platform-managed cron jobs with HTTP and sandbox destinations
 ---
 
-Use schedules when timing should live in Agentuity instead of inside your app process. Start with `ScheduleClient`; Hono apps can use `c.var.schedule` after installing the Agentuity middleware.
+Use schedules when timing should live in Agentuity instead of inside your app process. Start with `ScheduleClient` from any server runtime, route handler, script, or worker.
 
 ```bash
 bun add @agentuity/schedule@alpha
@@ -94,7 +94,7 @@ const nextRun = result.schedule.due_date;
 | `name` | Yes | Human-readable schedule name. |
 | `expression` | Yes | Standard five-field cron expression. |
 | `description` | No | Optional purpose or owner note. |
-| `destinations` | No | Optional URL or sandbox destinations created with the schedule. |
+| `destinations` | No | Optional destinations created with the schedule. |
 
 Destinations are created atomically with the schedule. If a destination fails validation, the schedule is not created.
 
@@ -116,10 +116,10 @@ The service validates cron expressions on create and update, then computes `due_
 
 Each schedule can have multiple destinations. When the schedule fires, Agentuity creates one delivery record per destination.
 
-| Type | Config |
-|------|--------|
-| `url` | `{ url, headers?, method? }` |
-| `sandbox` | `{ sandbox_id, command? }` |
+| Type | Use |
+|------|-----|
+| `url` | Send an HTTP request to a public endpoint. Config is `{ url, headers?, method? }`. |
+| `sandbox` | Run work in an Agentuity sandbox. Pass the sandbox config required by your target sandbox workflow. |
 
 Add a destination after the schedule exists:
 
@@ -129,18 +129,6 @@ const { destination } = await schedules.createDestination(result.schedule.id, {
   config: {
     url: 'https://api.example.com/reports/daily',
     method: 'POST',
-  },
-});
-```
-
-Use a sandbox destination when the scheduled work should run as a command in an Agentuity sandbox.
-
-```typescript
-await schedules.createDestination(result.schedule.id, {
-  type: 'sandbox',
-  config: {
-    sandbox_id: 'sbx_123',
-    command: 'bun run scripts/sync.ts',
   },
 });
 ```
@@ -195,9 +183,9 @@ await schedules.delete(result.schedule.id);
 `delete()` permanently removes the schedule, its destinations, and its delivery records.
 </Callout>
 
-## Hono
+## Hono Convenience
 
-In Hono apps, `@agentuity/hono` initializes `ScheduleClient` once and exposes it on `c.var.schedule`.
+If your app already uses Hono, `@agentuity/hono` can initialize `ScheduleClient` once and expose it on `c.var.schedule`.
 
 ```bash
 bun add @agentuity/hono@alpha hono

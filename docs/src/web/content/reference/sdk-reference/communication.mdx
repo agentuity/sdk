@@ -7,7 +7,7 @@ description: Call shared workflow functions from routes, workers, scripts, and o
 In v3, "calling another agent" usually means calling ordinary TypeScript. Put the reusable work in a function, import it from the route or worker that owns the trigger, and use Agentuity clients inside that function when it needs service state.
 
 <Callout type="tip" title="Looking for orchestration patterns?">
-See [Agents as a Pattern](/patterns/agents-as-a-pattern) for model-backed workflows and [Background Work](/patterns/background-work) for moving slower work out of request handlers.
+See [Build Agents](/build/agents) for model-backed workflows and [Background Work](/build/background-work) for moving slower work out of request handlers.
 </Callout>
 
 ## Shared Function
@@ -53,7 +53,7 @@ export async function enrichMessage(body: unknown): Promise<EnrichOutput> {
 }
 ```
 
-The function owns validation and service calls. Any server entry point can call it without recreating a runtime agent registry.
+The function owns validation and service calls. Any server entry point can call it without recreating a separate app registry.
 
 ## Framework Route
 
@@ -142,6 +142,6 @@ export function formatEnrichedMessage(message: EnrichedMessage): string {
 }
 ```
 
-## Existing v2 Runtime Apps
+## Legacy Runtime Apps
 
-Existing v2 projects that use `createAgent()` from `@agentuity/runtime` can keep direct agent imports and `.run()` calls while they stay on the runtime app model. New v3 code should prefer framework routes, shared functions, and standalone service clients.
+If a legacy app still uses `createAgent()` from `@agentuity/runtime`, treat direct agent imports and `.run()` calls as migration context. New v3 code should use framework routes, shared functions, and standalone service clients.

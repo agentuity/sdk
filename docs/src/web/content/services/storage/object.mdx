@@ -4,7 +4,7 @@ short_title: Object
 description: Store files and binary data with Bun's native S3 APIs
 ---
 
-Use object storage for files, images, documents, media, backups, and other data that should live outside your database. Use [Bun's S3 APIs](https://bun.sh/docs/runtime/s3) from server code with the bucket credentials linked to your project.
+Use object storage for files, images, documents, media, backups, and other data that belongs outside your database. Agentuity exposes storage buckets through S3-compatible credentials, and Bun apps can use Bun's native `s3` APIs directly.
 
 ```typescript
 import { s3 } from 'bun';
@@ -15,30 +15,25 @@ await file.write(JSON.stringify({ month: '2026-04', total: 42817 }), {
   type: 'application/json',
 });
 
-const exists = await file.exists();
-const summary = exists ? await file.json() : undefined;
+const summary = (await file.exists()) ? await file.json() : undefined;
 ```
 
 `s3.file()` creates a lazy file reference. Network work starts when you read, write, check existence, delete, or stream the file.
 
+<Callout type="info" title="Object storage is Bun-native">
+The examples on this page use Bun's `s3` and `S3Client` APIs. In a non-Bun server process, use that runtime's S3-compatible client with the same bucket credentials.
+</Callout>
+
 ## Setup
 
 Object storage requires a storage bucket linked to your project.
-
-### New Projects
-
-When you run `agentuity project create`, the CLI can create or select a storage bucket for the project. If you opt in, the bucket is linked and credentials are written to `.env`.
-
-### Existing Projects
-
-Create a bucket, then link it to the project:
 
 ```bash
 agentuity cloud storage create --name app-uploads
 agentuity project add storage app-uploads
 ```
 
-`agentuity cloud storage create` writes credentials to `.env` when you run it from a project directory. `agentuity project add storage` links an existing bucket and writes the same credentials.
+`agentuity cloud storage create` writes bucket credentials to `.env` when you run it from a project directory. `agentuity project add storage` links an existing bucket to the current project and writes the same credentials.
 
 The credentials written to `.env` are:
 
@@ -58,7 +53,7 @@ Do not expose bucket credentials to browser code. Create presigned URLs from a s
 | files or binary data | [Object Storage](/services/storage/object) |
 | exact key lookup | [Key-Value](/services/storage/key-value) |
 | semantic search or RAG retrieval | [Vector](/services/storage/vector) |
-| append-only generated output | [Durable Streams](/services/storage/durable-streams) |
+| generated output readable by URL | [Durable Streams](/services/storage/durable-streams) |
 | relational joins or transactions | [Database](/services/database) |
 
 ## Read, Write, and Delete
@@ -77,6 +72,8 @@ await avatar.write(await fetch('https://example.com/avatar.png'), {
 if (await avatar.exists()) {
   const bytes = await avatar.bytes();
   const contentType = avatar.type;
+
+  console.log({ byteLength: bytes.byteLength, contentType });
 }
 
 await avatar.delete();
@@ -125,9 +122,9 @@ const uploadUrl = s3.presign('uploads/invoice.pdf', {
 Keep browser uploads direct to S3 by returning a short-lived upload URL from your backend.
 
 ```typescript title="src/index.ts"
-import { Hono } from 'hono';
-import { s3 } from 'bun';
 import { s } from '@agentuity/schema';
+import { s3 } from 'bun';
+import { Hono } from 'hono';
 
 const uploadRequestSchema = s.object({
   filename: s.string(),
@@ -169,7 +166,7 @@ app.get('/api/uploads/download', async (c) => {
 export default app;
 ```
 
-Passing an `S3File` to `new Response()` redirects the client to a presigned download URL, so the file does not flow through your route process.
+Passing an `S3File` to `new Response()` returns a redirect to a presigned download URL, so the file does not flow through your route process.
 
 ## Custom S3 Clients
 
@@ -204,5 +201,5 @@ For Agentuity-managed buckets, prefer the environment variables written by the C
 ## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
-- [Durable Streams](/services/storage/durable-streams): write generated output that should remain accessible by URL
+- [Durable Streams](/services/storage/durable-streams): write generated output that remains accessible by URL
 - [Database](/services/database): store relational data with SQL and transactions

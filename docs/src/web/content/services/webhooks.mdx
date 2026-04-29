@@ -3,7 +3,7 @@ title: Webhooks
 description: Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry
 ---
 
-Use webhooks when an external service needs a stable Agentuity ingest URL and you want receipts, destination delivery history, and retry. Start with `WebhookClient`; this service is not injected by `@agentuity/hono`, so use the client directly in any framework.
+Use webhooks when an external service needs a stable Agentuity ingest URL and you want receipts, destination delivery history, and retry. Start with `WebhookClient` from any server runtime, route handler, script, or worker.
 
 ```bash
 bun add @agentuity/webhook@alpha
@@ -45,7 +45,7 @@ export async function createStripeWebhook(destinationUrl: string): Promise<strin
 | Need | Use |
 |------|-----|
 | managed ingest URL with receipts and delivery tracking | [Webhooks](/services/webhooks) |
-| process callbacks directly in your app route | [Webhook Handler Pattern](/cookbook/patterns/webhook-handler) |
+| process callbacks directly in your app route | validate the signature in a framework route, then call your service code |
 | hand received events to background processing | [Queues](/services/queues) |
 | send inbound email to an HTTP endpoint | [Email](/services/email) |
 
@@ -209,7 +209,7 @@ await webhooks.delete(webhook.id);
 `delete()` permanently removes the webhook, destinations, receipts, and delivery records.
 </Callout>
 
-## Framework Routes
+## Use From Framework Routes
 
 Use the same direct client inside Hono, Next.js route handlers, or server functions.
 
@@ -231,6 +231,6 @@ export default app;
 
 ## Next Steps
 
-- [Webhook Handler Pattern](/cookbook/patterns/webhook-handler): verify signatures and process payloads in your app
+- [Frameworks](/frameworks): choose the route shape for your app
 - [Queues](/services/queues): move webhook processing out of request paths
 - [Email](/services/email): receive inbound email through managed addresses and destinations

@@ -1,9 +1,9 @@
 ---
 title: Reference
-description: Reference docs for Agentuity v3 clients, framework apps, CLI, REST API, and compatibility SDK surfaces
+description: Reference docs for Agentuity v3 clients, framework apps, CLI, and REST API
 ---
 
-import { Code, Globe, Terminal, Package, ArrowRight, Network, Github, Layers } from 'lucide-react';
+import { Code, Globe, Terminal, Package, Network, Github, Layers } from 'lucide-react';
 
 Use this page to choose the right v3 entry point. New apps usually start with standalone service clients inside a framework app, then use the CLI for local and deploy workflows or the REST API for non-TypeScript callers.
 
@@ -43,24 +43,18 @@ Use this page to choose the right v3 entry point. New apps usually start with st
 | Create, deploy, or manage projects from the terminal | [CLI Reference](/reference/cli) |
 | Call Agentuity services from any language via HTTP | [REST API Reference](/reference/api) |
 | Compare storage, messaging, observability, execution, and Coder services | [Service Guides](/services) |
-| Maintain an existing v2 runtime app that uses `createApp()`, `createAgent()`, `ctx.*`, or runtime routes | [SDK Reference](/reference/sdk-reference) |
+| Validate shared TypeScript helpers, schemas, and Coder sessions | [SDK Reference](/reference/sdk-reference) |
 
 ## Compatibility and Platform References
 
-The SDK reference still includes v2 runtime pages for existing apps. Treat those as compatibility references, not the default v3 path.
+Use these pages when you need package-level SDK details or platform reference material.
 
 <Cards>
   <CardLink
     href="/reference/sdk-reference"
     title="SDK Reference"
-    description="Shared SDK pages plus compatibility references for existing v2 runtime apps"
+    description="Shared SDK pages for schemas, workflow functions, and Coder"
     icon={<Layers />}
-  />
-  <CardLink
-    href="/reference/migration-guide"
-    title="Migration Guide"
-    description="Upgrade between SDK versions"
-    icon={<ArrowRight />}
   />
   <CardLink
     href="/reference/gravity-network"

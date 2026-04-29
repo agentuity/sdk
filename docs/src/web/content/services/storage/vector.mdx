@@ -41,7 +41,7 @@ const results = await vector.search<DocumentMetadata>('docs', {
 });
 ```
 
-`VectorClient` reads `AGENTUITY_SDK_KEY` by default. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
+`VectorClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
 
 ## When to Use Vector Storage
 
@@ -182,4 +182,4 @@ export default app;
 
 - [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
 - [Database](/services/database): store relational data with SQL and transactions
-- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): evaluate retrieval quality
+- [Build Agents](/build/agents): use retrieved context in a model-backed workflow

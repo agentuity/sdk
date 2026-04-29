@@ -25,7 +25,7 @@ import {
   Webhook,
 } from 'lucide-react';
 
-Use Agentuity services when your framework app needs managed state, search, messaging, observability, or code execution. Start with the service's direct client or API; Hono apps can add `@agentuity/hono` to expose the managed clients on `c.var.*`.
+Use Agentuity services when your framework app needs managed state, search, messaging, observability, or code execution. In v3, start with the service's direct client in your framework route, server function, script, or worker.
 
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -37,6 +37,8 @@ const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage
 ```
 
 For method signatures and return types, see the [SDK Reference](/reference/sdk-reference). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
+
+Hono apps can also install `@agentuity/hono` when they want middleware to create the common clients once and expose them on `c.var.*`.
 
 ## Identity
 

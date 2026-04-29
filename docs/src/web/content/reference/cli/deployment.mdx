@@ -187,8 +187,8 @@ MY_CUSTOM_API_KEY=xxx
 
 Variables with secret-looking suffixes such as `_SECRET`, `_KEY`, `_TOKEN`, `_PASSWORD`, or `_PRIVATE` are stored as secrets. Other values are stored as regular environment variables.
 
-<Callout type="info" title="Provider keys are optional with AI Gateway">
-If your code uses the Agentuity AI Gateway, you do not need to deploy provider keys such as `OPENAI_API_KEY`. Include provider keys only when you want to bypass the gateway.
+<Callout type="info" title="Set provider keys unless gateway env is verified">
+For deployed apps, set provider keys such as `OPENAI_API_KEY` when you want an explicit provider-owned path. Rely on AI Gateway env only after you have verified the deployed project receives the gateway values your provider SDK expects.
 </Callout>
 
 ## Regions

@@ -161,7 +161,7 @@ Nested spans show parent-child timing in session timeline views.
 
 ## Fetch Propagation
 
-After telemetry initializes, `fetch()` calls made inside an active span get a child HTTP span and trace-context headers.
+When telemetry starts with an exporter or console debug exporter, `fetch()` calls made inside an active span get a child HTTP span and trace-context headers.
 
 ```typescript
 import { SpanStatusCode } from '@opentelemetry/api';
@@ -208,7 +208,7 @@ await generateText({
 });
 ```
 
-In local testing with AI SDK 6, `generateText()` produced `ai.generateText` and `ai.generateText.doGenerate` spans. `streamText()` produced `ai.streamText` and `ai.streamText.doStream` spans plus `ai.stream.firstChunk` and `ai.stream.finish` events. Token counts appear on span attributes such as `ai.usage.inputTokens`, `ai.usage.outputTokens`, and `ai.usage.totalTokens`.
+With AI SDK 6 telemetry enabled, `generateText()` produces `ai.generateText` and `ai.generateText.doGenerate` spans. `streamText()` produces `ai.streamText` and `ai.streamText.doStream` spans plus `ai.stream.firstChunk` and `ai.stream.finish` events. Token counts appear on span attributes such as `ai.usage.inputTokens`, `ai.usage.outputTokens`, and `ai.usage.totalTokens`.
 
 Telemetry metadata is copied to `ai.telemetry.metadata.*` span attributes. Session or request IDs are not added by the AI SDK on their own; pass the IDs you want to search for in `metadata`.
 

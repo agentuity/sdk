@@ -3,7 +3,7 @@ title: Email
 description: Send and receive emails with managed addresses, destinations, and delivery tracking
 ---
 
-Use email when your app needs managed sending, inbound addresses, and delivery history. Start with `EmailClient`; Hono apps can use `c.var.email` after installing the Agentuity middleware.
+Use email when your app needs managed sending, inbound addresses, and delivery history. Start with `EmailClient` from any server runtime, route handler, script, or worker.
 
 ```bash
 bun add @agentuity/email@alpha
@@ -14,9 +14,9 @@ import { EmailClient } from '@agentuity/email';
 
 const email = new EmailClient();
 
-export async function sendWelcomeEmail(to: string): Promise<string> {
+export async function sendWelcomeEmail(from: string, to: string): Promise<string> {
   const result = await email.send({
-    from: 'notifications@agentuity.email',
+    from,
     to: [to],
     subject: 'Welcome',
     text: 'Your workspace is ready.',
@@ -28,6 +28,8 @@ export async function sendWelcomeEmail(to: string): Promise<string> {
 ```
 
 `EmailClient` reads `AGENTUITY_SDK_KEY` by default. In Agentuity projects, keep the key in `.env` for local `agentuity dev` and configure the same environment variable for deployed apps.
+
+The `from` address must belong to your organization. Create one with `createAddress()` first, then store the returned email address in your app config.
 
 ## When to Use Email
 
@@ -80,7 +82,7 @@ await email.deleteAddress(address.id);
 
 ```typescript
 const outbound = await email.send({
-  from: 'support@agentuity.email',
+  from: address.email,
   to: ['customer@example.com'],
   subject: 'We received your request',
   text: 'Thanks. We will follow up shortly.',
@@ -113,9 +115,10 @@ Attachments are included as base64 content in the `attachments` array.
 
 ```typescript
 const csv = Buffer.from('date,total\n2026-04-28,42').toString('base64');
+const reports = await email.createAddress(`reports-${Date.now().toString(36)}`);
 
 await email.send({
-  from: 'reports@agentuity.email',
+  from: reports.email,
   to: ['manager@example.com'],
   subject: 'Daily report',
   text: 'The report is attached.',
@@ -196,9 +199,9 @@ const activity = await email.getActivity({ days: 30 });
 
 The `days` option defaults to 7. Values outside the supported range are clamped by the service.
 
-## Hono
+## Hono Convenience
 
-In Hono apps, `@agentuity/hono` initializes `EmailClient` once and exposes it on `c.var.email`.
+If your app already uses Hono, `@agentuity/hono` can initialize `EmailClient` once and expose it on `c.var.email`.
 
 ```bash
 bun add @agentuity/hono@alpha hono
@@ -217,13 +220,18 @@ app.use('*', agentuity());
 
 app.post('/notify', async (c) => {
   const to = c.req.query('to');
+  const from = process.env.AGENTUITY_EMAIL_FROM;
 
   if (!to) {
     return c.json({ error: 'to is required' }, 400);
   }
 
+  if (!from) {
+    return c.json({ error: 'AGENTUITY_EMAIL_FROM is required' }, 500);
+  }
+
   const outbound = await c.var.email.send({
-    from: 'notifications@agentuity.email',
+    from,
     to: [to],
     subject: 'Notification',
     text: 'You have a new notification.',

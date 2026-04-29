@@ -97,13 +97,13 @@ function HomePage() {
 				/>
 				<CardLink
 					href="/deploy-operate"
-					title="Build & Deploy"
+					title="Deploy & Operate"
 					description="Run local development, build deployable output, and manage environment values"
 					icon={<Terminal />}
 				/>
 				<CardLink
-					href="/patterns"
-					title="Patterns"
+					href="/build"
+					title="Build"
 					description="Build model-backed workflows, streaming routes, and background work"
 					icon={<BookOpen />}
 				/>

@@ -85,7 +85,7 @@ export const DEMOS: DemoConfig[] = [
 				to see what tools are available inside your handler.
 			</>
 		),
-		docsUrl: '/patterns/agents-as-a-pattern',
+		docsUrl: '/build/agents',
 		category: 'basics',
 		component: HelloDemo,
 		codeExample: CODE_EXAMPLES.hello,
@@ -269,7 +269,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/patterns/chat-and-streaming',
+		docsUrl: '/build/chat-and-streaming',
 		category: 'io-patterns',
 		component: StreamingDemo,
 		codeExample: CODE_EXAMPLES.streaming,
@@ -301,7 +301,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/patterns/chat-and-streaming',
+		docsUrl: '/build/chat-and-streaming',
 		category: 'io-patterns',
 		component: SSEStreamDemo,
 		codeExample: CODE_EXAMPLES['sse-stream'],
@@ -333,7 +333,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/patterns/chat-and-streaming',
+		docsUrl: '/build/chat-and-streaming',
 		category: 'io-patterns',
 		component: WebSocketDemo,
 		codeExample: CODE_EXAMPLES.websocket,
@@ -390,7 +390,7 @@ export const DEMOS: DemoConfig[] = [
 				background tasks.
 			</>
 		),
-		docsUrl: '/patterns/agents-as-a-pattern',
+		docsUrl: '/build/agents',
 		category: 'io-patterns',
 		component: AgentCallsDemo,
 		codeExample: CODE_EXAMPLES['agent-calls'],

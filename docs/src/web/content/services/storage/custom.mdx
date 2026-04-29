@@ -4,7 +4,7 @@ short_title: Custom
 description: Swap storage backends behind small app-owned interfaces
 ---
 
-Most v3 apps should use the dedicated service clients directly: `KeyValueClient`, `VectorClient`, `StreamClient`, and Bun's `s3` APIs. When you need a different backend, put that choice behind a small interface in your app instead of depending on runtime storage overrides.
+Most v3 apps should use the dedicated service clients directly: `KeyValueClient`, `VectorClient`, `StreamClient`, and Bun's `s3` APIs. When a feature needs another backend, hide that decision behind a small app-owned interface.
 
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -35,13 +35,13 @@ class AgentuitySessionStore implements SessionStore {
 }
 ```
 
-Keep the app interface as small as the feature needs. A session store usually does not need the full key-value namespace API, search, stats, and namespace deletion methods.
+Keep the app interface as small as the feature needs. A session store usually does not need search, stats, namespace deletion, or the full storage API.
 
 ## When to Customize
 
 | Need | Pattern |
 |------|---------|
-| use Agentuity managed storage | instantiate the dedicated client directly |
+| use Agentuity-managed storage | instantiate the dedicated client directly |
 | swap Redis, Postgres, or another backend | define an app-owned interface and provide another implementation |
 | share the complete Agentuity method shape | implement the exported storage interface |
 | use a different S3-compatible object store | create a Bun `S3Client` with explicit credentials |
@@ -49,7 +49,7 @@ Keep the app interface as small as the feature needs. A session store usually do
 
 ## Dedicated Clients
 
-Direct clients are the default v3 path. They read `AGENTUITY_SDK_KEY` from the environment and also accept explicit `apiKey`, `url`, `orgId`, and `logger` options.
+Direct clients are the default v3 path. They read `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, and also accept explicit `apiKey`, `url`, `orgId`, and `logger` options.
 
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -87,7 +87,7 @@ Only implement these full interfaces when callers need full compatibility. For m
 
 ## Object Storage
 
-Object storage is not part of the key-value, vector, or stream interface set. Use Bun's `S3Client` when you need another bucket or S3-compatible provider.
+Object storage is not part of the key-value, vector, or stream interface set. In Bun code, use `S3Client` when you need another bucket or S3-compatible provider.
 
 ```typescript
 import { S3Client } from 'bun';
@@ -112,6 +112,8 @@ const assets = new S3Client({
 await assets.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 ```
 
+Use a runtime-native S3-compatible client instead when the code does not run on Bun.
+
 ## Local Tests
 
 For unit tests, prefer a small fake that matches your app-owned interface. That keeps tests independent from managed credentials and avoids pulling in storage behavior your feature does not use.
@@ -130,10 +132,10 @@ class MemorySessionStore implements SessionStore {
 }
 ```
 
-For Bun-only local storage checks, `@agentuity/local` exports implementations backed by `~/.config/agentuity/local.db`.
+For Bun-only local storage checks, `@agentuity/local` exports local implementations backed by `~/.config/agentuity/local.db`.
 
 ```typescript
-import { getLocalDB, LocalKeyValueStorage } from '@agentuity/local';
+import { LocalKeyValueStorage, getLocalDB } from '@agentuity/local';
 
 const localKv = new LocalKeyValueStorage(getLocalDB(), process.cwd());
 
@@ -143,7 +145,7 @@ await localKv.set('sessions', 'session_123', {
 });
 ```
 
-<Callout type="info" title="Local implementations are for local checks">
+<Callout type="info" title="Local implementations are Bun-only checks">
 Local storage is useful for constructor and API-shape tests. Validate managed-service behavior, search relevance, TTLs, and permissions against the managed service before relying on those details.
 </Callout>
 

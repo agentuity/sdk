@@ -16,23 +16,23 @@ Writing conventions for Agentuity docs pages in this directory.
 
 Before writing a new page, read these as reference implementations:
 
-- **Feature doc**: `agents/creating-agents.mdx` -- context-then-code flow, callouts, progressive examples
+- **Feature doc**: `build/agents.mdx` -- context-then-code flow, callouts, progressive examples
 - **Service doc**: `services/storage/key-value.mdx` -- comparison table, access patterns, comprehensive operations
 - **Cookbook pattern**: `cookbook/patterns/chat-with-history.mdx` -- concise, code-first, key-value history
 - **Getting started**: `get-started/quickstart.mdx` -- step-by-step, CardLinks, tips
 - **Reference**: `services/ai-gateway.mdx` -- provider tables, how-it-works flow
-- **SDK Reference**: `reference/sdk-reference/storage.mdx` -- hybrid narrative + structured method docs
+- **SDK Reference**: `reference/sdk-reference/coder.mdx` -- hybrid narrative + structured method docs
 
 ## Page Types
 
 | Type                 | Structure                                        | Example                          |
 | -------------------- | ------------------------------------------------ | -------------------------------- |
 | **Getting started**  | Step-by-step, minimal options, one happy path    | `get-started/quickstart.mdx`     |
-| **Feature doc**      | Context, basic, advanced, best practices         | `agents/creating-agents.mdx`     |
+| **Feature doc**      | Context, basic, advanced, best practices         | `build/agents.mdx`               |
 | **Service doc**      | When-to-use table, access patterns, operations   | `services/storage/key-value.mdx` |
 | **Cookbook pattern** | Problem statement, complete solution, variations | `cookbook/patterns/*.mdx`        |
 | **Reference**        | Factual, tables, complete flag/option lists      | `reference/cli/*.mdx`            |
-| **SDK Reference**    | Narrative intro, then structured method docs     | `reference/sdk-reference/storage.mdx` |
+| **SDK Reference**    | Narrative intro, then structured method docs     | `reference/sdk-reference/coder.mdx` |
 
 ### SDK Reference Page Convention
 
@@ -44,7 +44,7 @@ SDK Reference pages use a hybrid format: narrative intro followed by structured 
 ---
 title: Descriptive Title
 short_title: Short Sidebar Label
-description: One sentence about ctx.X usage
+description: One sentence about the SDK surface
 ---
 
 Brief intro (1-2 sentences), standalone callout if applicable, cross-link to how-to page.
@@ -66,13 +66,13 @@ One sentence describing what this method does.
 **Example:**
 
 \```typescript
-const result = await ctx.service.methodName('value', 'key');
+const result = await client.methodName('value', 'key');
 \```
 ```
 
 Each method gets: **parameters + return type + example**. Mark optional parameters explicitly. Use param tables (`| Param | Type | Required | Description |`) for methods with many parameters.
 
-**Exemplars:** `reference/sdk-reference/storage.mdx`, `reference/sdk-reference/agents.mdx`
+**Exemplars:** `reference/sdk-reference/coder.mdx`, `reference/sdk-reference/schema.mdx`
 
 ## Page Structure
 
@@ -146,7 +146,7 @@ Code blocks fall into two categories:
 
 General rules:
 
-- Use `ctx.logger` in server/agent examples, not `console.log`
+- Use `c.var.logger` in Hono route examples or `logger` from `@agentuity/telemetry` in standalone server examples, not `console.log`
 - Inline comments explain intent ("why"), not syntax ("what")
 - No `// @ts-ignore`, `// eslint-disable`, or other suppression comments
 - Error handling: include in substantial examples, optional in short ones
@@ -186,7 +186,7 @@ Available components in doc pages:
 
 ### Links and Callouts
 
-- **Cross-links** include context: "See [Chat and Streaming](/patterns/chat-and-streaming) for chunked output patterns" not "See also: Streaming"
+- **Cross-links** include context: "See [Chat and Streaming](/build/chat-and-streaming) for chunked output patterns" not "See also: Streaming"
 - **External links**: link on first mention. Don't re-link on the same page
 - **Canonical docs**: link to existing docs instead of re-explaining. One location is canonical, others link to it
 - **Callouts**: `info` for context and clarifications, `warning` for gotchas and required setup, `tip` for optimizations and advanced patterns
@@ -220,7 +220,7 @@ Available components in doc pages:
 
 - First code block appears early
 - Standalone examples have imports and are runnable
-- `ctx.logger` in agents, `c.var.logger` in routes (not `console.log`)
+- `c.var.logger` in Hono route examples and `logger` from `@agentuity/telemetry` in standalone server examples, not `console.log`
 - No suppression comments (`@ts-ignore`, `eslint-disable`)
 - Optional parameters explicitly marked
 - Model names are current; provider tables link to model pages

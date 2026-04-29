@@ -1,10 +1,41 @@
 ---
 title: AI Gateway
 short_title: AI Gateway
-description: Route supported LLM SDK calls through Agentuity during local development and local builds
+description: Route supported LLM SDK calls through Agentuity during local development
 ---
 
-Use AI Gateway when you want framework code to call supported LLM SDKs without adding separate provider keys for local work. In v3, the path here is `agentuity dev` environment wiring plus the CLI's build-time SDK patches.
+Use AI Gateway when framework server code should call supported model providers through Agentuity instead of requiring separate provider keys for local work. In v3, the documented path is `agentuity dev` environment wiring.
+
+```bash
+bun add openai
+```
+
+```typescript
+import OpenAI from 'openai';
+
+const openai = new OpenAI();
+
+export async function summarize(message: string): Promise<string> {
+  const response = await openai.responses.create({
+    model: 'gpt-5.5',
+    input: `Summarize this in one sentence:\n\n${message}`,
+  });
+
+  return response.output_text;
+}
+```
+
+Run the app with `agentuity dev`. If `AGENTUITY_SDK_KEY` is available and you have not set your own OpenAI key, the CLI injects `OPENAI_API_KEY` and `OPENAI_BASE_URL` into the framework process before your app starts.
+
+<Callout type="info" title="This page covers local v3 gateway wiring">
+The examples here use `agentuity dev` and provider SDK env vars. Set your own provider key when you want direct provider traffic or when you have not verified gateway behavior in a deployed app yet.
+</Callout>
+
+## AI SDK
+
+```bash
+bun add ai @ai-sdk/openai
+```
 
 ```typescript
 import { generateText } from 'ai';
@@ -12,7 +43,7 @@ import { openai } from '@ai-sdk/openai';
 
 export async function summarize(message: string): Promise<string> {
   const { text } = await generateText({
-    model: openai('gpt-5.4-mini'),
+    model: openai('gpt-5.5'),
     prompt: `Summarize this in one sentence:\n\n${message}`,
   });
 
@@ -20,11 +51,36 @@ export async function summarize(message: string): Promise<string> {
 }
 ```
 
-Run the app with `agentuity dev`. If `AGENTUITY_SDK_KEY` is available and `OPENAI_API_KEY` is not set, the CLI passes OpenAI-compatible gateway variables to the child process before your framework server starts.
+AI SDK 6 accepts current and future OpenAI model IDs as strings. `@ai-sdk/openai` reads `OPENAI_API_KEY` and `OPENAI_BASE_URL`, so it works with the env vars injected by `agentuity dev`.
 
-<Callout type="info" title="This page covers the local v3 path">
-The examples here use `agentuity dev` and the CLI build patches. Set your own provider key when you want direct provider traffic instead.
-</Callout>
+## Raw Anthropic SDK
+
+```bash
+bun add @anthropic-ai/sdk
+```
+
+```typescript
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic();
+
+export async function classify(message: string): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 128,
+    messages: [
+      {
+        role: 'user',
+        content: `Classify the tone of this message:\n\n${message}`,
+      },
+    ],
+  });
+
+  return response.content.find((block) => block.type === 'text')?.text ?? '';
+}
+```
+
+`@anthropic-ai/sdk` reads `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL`, so it works with the env vars injected by `agentuity dev`.
 
 ## When to Use AI Gateway
 
@@ -36,7 +92,7 @@ The examples here use `agentuity dev` and the CLI build patches. Set your own pr
 
 ## Local Development
 
-`agentuity dev` looks for `AGENTUITY_SDK_KEY`, then wires supported provider env vars into the framework process before it loads your app code.
+`agentuity dev` looks for `AGENTUITY_SDK_KEY`, then wires supported provider env vars into the framework process before it loads your app code. Local env injection currently covers OpenAI, Anthropic, and Groq.
 
 | Provider | API key env | Base URL env |
 |----------|-------------|--------------|
@@ -59,15 +115,15 @@ See [Running Local Development](/deploy-operate/local-development#ai-gateway-env
 Set a provider key when you want the SDK to talk to that provider directly:
 
 ```bash title=".env"
-AGENTUITY_SDK_KEY=sdk_...
+AGENTUITY_SDK_KEY=sdk_your_project_key
 OPENAI_API_KEY=sk-your-own-key
 ```
 
-When `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY` already holds your provider key, `agentuity dev` leaves it in place. Use that path when you want provider-specific credentials or base URLs instead of Agentuity's gateway wiring.
+When `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY` contains your own provider key, `agentuity dev` leaves it in place. Use that path when you want provider-specific credentials or base URLs instead of Agentuity's gateway wiring.
 
-## Build Patching
+## Explicit Provider Factories
 
-`agentuity build` also patches supported SDKs so bundled code can read gateway settings at runtime. This matters when you create a provider explicitly instead of relying only on a convenience export.
+Provider factories can still use AI Gateway locally when they read the provider env vars that `agentuity dev` injects.
 
 ```typescript
 import { createOpenAI } from '@ai-sdk/openai';
@@ -77,7 +133,7 @@ const openai = createOpenAI({});
 
 export async function rewrite(message: string): Promise<string> {
   const { text } = await generateText({
-    model: openai('gpt-5.4-mini'),
+    model: openai('gpt-5.5'),
     prompt: `Rewrite this more clearly:\n\n${message}`,
   });
 
@@ -85,12 +141,18 @@ export async function rewrite(message: string): Promise<string> {
 }
 ```
 
-In the current v3 CLI, the build patches include:
+This example does not pass `apiKey` or `baseURL`. In local development, `@ai-sdk/openai` reads `OPENAI_API_KEY` and `OPENAI_BASE_URL` from the `agentuity dev` process env.
 
-- Raw provider SDKs: `openai`, `@anthropic-ai/sdk`, `groq-sdk`
-- AI SDK provider factories: `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/groq`
+## Deployed Apps
 
-For those patched paths, the bundle can inject `apiKey` and `baseURL` from `AGENTUITY_SDK_KEY` and `AGENTUITY_TRANSPORT_URL` when you have not already supplied provider credentials.
+For deployed apps, choose one of these paths:
+
+| Path | Use When |
+|------|----------|
+| set provider keys directly | you need the provider path to be explicit and provider-owned |
+| rely on Agentuity gateway env | you have verified the deployed project receives the gateway env needed by your provider SDK |
+
+Local gateway wiring is the default documented path. In deployed apps, set provider keys directly unless you have confirmed the project receives the gateway env needed by your provider SDK.
 
 See [Managing Environment Variables](/deploy-operate/environment-variables): how the CLI finds `AGENTUITY_SDK_KEY` locally and how deploy sync handles `.env` values.
 

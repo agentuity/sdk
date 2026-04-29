@@ -11,9 +11,11 @@ Use this page for an existing [TanStack Start](https://tanstack.com/start/latest
 Use TanStack's own CLI first:
 
 ```bash
-bunx @tanstack/cli@latest create my-start-app --framework React --package-manager bun
+npx @tanstack/cli@latest create
 cd my-start-app
 ```
+
+Choose Bun as the package manager when the CLI prompts.
 
 Then add Agentuity:
 
@@ -94,6 +96,8 @@ PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
 ```
 
 For an SSR app, the launch metadata should point at your server entry, not only an injected static file server. If the package only contains static assets, keep the framework app on its current host and use Agentuity service clients from server routes until your build packaging is explicit.
+
+For TanStack Start SSR output, also confirm the launch command points at the file that actually exists in `.agentuity`. A build that emits `.agentuity/server/server.js` should not launch `bun server.js`.
 
 ## Next Steps
 

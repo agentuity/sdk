@@ -8,6 +8,15 @@ import { KeyRound, Monitor, Server, Terminal } from 'lucide-react';
 
 In v3, your framework owns the user session. Use Agentuity OIDC when users should sign in with their Agentuity account or grant scoped Agentuity access. Use your framework or auth provider when your app owns users, teams, roles, and sessions.
 
+The v2 `@agentuity/auth` package is not the primary v3 path. It remains relevant for legacy v2 apps, but new v3 apps should start with one of these shapes:
+
+| Need | Use |
+|------|-----|
+| users sign in to your app | your framework session layer or auth provider |
+| users sign in with Agentuity | Agentuity OIDC provider |
+| users grant your app Agentuity access | Agentuity OIDC provider with OAuth scopes |
+| server code calls Agentuity services | Agentuity service clients with server-only env vars |
+
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
 
@@ -65,7 +74,9 @@ Most v3 apps should authenticate users before they reach Agentuity service calls
 3. Your route handler validates that session.
 4. The route handler calls Agentuity service clients with server-only credentials.
 
-That shape works with Next.js, TanStack Start, Hono, Remix, SvelteKit, Nuxt, Astro, and custom backends because Agentuity services do not require a specific auth package in the request path.
+That same boundary fits Next.js, TanStack Start, Hono, Remix, SvelteKit, Nuxt, Astro, and custom backends because Agentuity services do not require a specific auth package in the request path.
+
+Keep the boundary simple: browser code talks to your app routes, and those routes decide which Agentuity services to call. Do not expose `AGENTUITY_SDK_KEY`, OAuth client secrets, access tokens, or refresh tokens to the browser.
 
 ## Sign in with Agentuity
 
@@ -80,10 +91,10 @@ agentuity cloud oidc create \
   --scopes "openid,profile,email"
 ```
 
-The callback route still creates your app's local session. Agentuity handles the identity check, consent screen, client credentials, scopes, and token endpoints.
+The callback route still creates your app's local session. Agentuity handles the identity check, consent screen, client credentials, scopes, and token endpoints. Your framework still owns cookies, roles, redirects, and authorization checks inside the app.
 
 <Callout type="info" title="v2 auth remains supported for existing apps">
-Existing v2 apps that use `@agentuity/auth` can keep using the v2 path. For new v3 work, start with framework-owned auth or Agentuity OIDC instead of adding `@agentuity/auth` as the default session layer.
+Existing v2 apps that use `@agentuity/auth` can keep using the [v2 docs](https://v2.agentuity.dev). For new v3 work, start with framework-owned auth or Agentuity OIDC instead of adding `@agentuity/auth` as the default session layer.
 </Callout>
 
 ## Auth in Different Contexts

@@ -4,7 +4,7 @@ short_title: Runtime to Frameworks
 description: Translate v2 runtime concepts into the v3 framework-first model.
 ---
 
-In v2, Agentuity owns the app shape. In v3, the framework owns the app shape and Agentuity adds services, local development, build metadata, and deploy.
+In v2, Agentuity owns the app container. In v3, your framework owns the app and Agentuity adds services, local development, build metadata, and deploy.
 
 ```typescript title="app.ts"
 import { createApp } from '@agentuity/runtime';
@@ -17,7 +17,7 @@ export default await createApp({
 });
 ```
 
-## Keep the Framework Shape
+## Keep the Framework Entry Point
 
 A v3 app keeps the framework's normal entry point. In a Hono app, that means `new Hono()` and normal route mounting:
 
@@ -25,8 +25,11 @@ A v3 app keeps the framework's normal entry point. In a Hono app, that means `ne
 import { Hono } from 'hono';
 import { agentuity } from '@agentuity/hono';
 import api from './api';
+import type { Services } from '@agentuity/hono';
 
-const app = new Hono();
+type Variables = Services;
+
+const app = new Hono<{ Variables: Variables }>();
 
 app.use('*', agentuity());
 app.route('/api', api);
@@ -49,7 +52,7 @@ For Next.js, TanStack Start, Astro, SvelteKit, Remix, or Nuxt, keep that framewo
 | `agentuity.config.ts` | framework config plus `agentuity.json` |
 | app-level `setup()` and `shutdown()` | module initialization, framework lifecycle hooks, or process cleanup |
 
-The `@agentuity/runtime` package in v3 is a deprecation shim for old imports. It is there to fail clearly if runtime APIs are installed under v3, not as the current app model.
+The `@agentuity/runtime` package in v3 exists to catch old imports and point you at the framework model. Existing v2 apps can keep using their v2 packages until they migrate. Do not install the v3 runtime package expecting the v2 app container to run unchanged.
 
 ## Prefer Service Clients First
 
@@ -88,8 +91,11 @@ Use `@agentuity/hono` when a Hono route reads better with injected services:
 ```typescript title="src/index.ts"
 import { Hono } from 'hono';
 import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
 
-const app = new Hono();
+type Variables = Pick<Services, 'kv'>;
+
+const app = new Hono<{ Variables: Variables }>();
 
 app.use('*', agentuity());
 
@@ -115,11 +121,45 @@ export async function summarize(input: {
 }
 ```
 
-Then call that function from the framework route, queue worker, task handler, or server function that owns the request.
+Then call that function from the route, queue consumer, scheduled job, task handler, or server function that owns the request.
+
+```typescript title="src/api/summarize.ts"
+import { s } from '@agentuity/schema';
+import { Hono } from 'hono';
+import { summarize } from '../agent/summarize';
+
+const inputSchema = s.object({
+  text: s.string(),
+});
+
+const router = new Hono();
+
+router.post('/', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = inputSchema.parse(body);
+  const result = await summarize(input);
+
+  return c.json(result);
+});
+
+export default router;
+```
 
 Complex agents need review when they use lifecycle hooks, event listeners, `ctx.config`, or `ctx.app`. Those concepts were tied to the v2 runtime container, so the right v3 replacement depends on where that state belongs in your framework app.
 
 Thread and session state also need a design pass. A chat app might move message history to KV or a database keyed by an app session cookie. A debugging tool might use platform session and thread records only for inspection.
+
+## Register and Build the Framework App
+
+After the app shape is framework-native, link it to Agentuity Cloud and run the packaging check:
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+agentuity build
+```
+
+`agentuity project import` writes `agentuity.json` and creates or updates `.env` with `AGENTUITY_SDK_KEY`. `agentuity build` detects the framework, runs the framework build, writes `.agentuity`, and packages launch metadata for deploy.
 
 ## Next Steps
 

@@ -4,7 +4,7 @@ short_title: Environment Variables
 description: Manage local .env files, cloud environment variables, public variables, and secrets.
 ---
 
-Use this page when you want to know exactly which env values the current CLI reads from local files and which values it syncs to Agentuity Cloud.
+Use this page when you want to know which env values the current CLI reads from local files and which values it syncs to Agentuity Cloud.
 
 ```bash
 agentuity cloud env list
@@ -20,7 +20,7 @@ agentuity cloud env pull
 agentuity dev
 ```
 
-The CLI searches project env files for that key using the active profile. For a local profile, it prefers `.env.<profile>`, then `.env.development`, then `.env`. For non-local or production-style profiles, it prefers `.env.<profile>`, then `.env`, then `.env.production`.
+The CLI searches project env files for that key using the active profile. For the local profile, it prefers `.env.<profile>`, then `.env.development`, then `.env`. For non-local profiles, it prefers `.env.<profile>`, then `.env`, then `.env.production`.
 
 When the key is available, the CLI can patch OpenAI, Anthropic, and Groq env vars for the dev process. It only does that when the provider key is missing or already matches the SDK key.
 

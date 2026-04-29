@@ -1,82 +1,60 @@
 ---
 title: Schema Validation
 short_title: Schema
-description: Type-safe runtime validation with StandardSchema support
+description: Validate route inputs, shared function inputs, and structured outputs with StandardSchema support
 ---
 
-The SDK includes built-in schema validation using the StandardSchemaV1 interface, providing runtime type safety and automatic validation.
+Use `@agentuity/schema` when you want a small StandardSchema-compatible validator for route handlers, shared functions, and structured output. It is optional: Zod, Valibot, ArkType, and other StandardSchema libraries work too.
 
 ## StandardSchema Support
 
-The SDK validates agent input and output using the [StandardSchemaV1](https://github.com/standard-schema/standard-schema) interface. Any validation library that implements this interface works out of the box: Zod, Valibot, ArkType, or the built-in `@agentuity/schema` package.
-
-For choosing between schema libraries and integration patterns, see [Schema Libraries](/reference/sdk-reference/schema). For how schemas attach to agents, see [Agents](/reference/sdk-reference/agents#agent-configuration).
+`@agentuity/schema` implements the [StandardSchemaV1](https://github.com/standard-schema/standard-schema) interface. That makes schemas usable at app boundaries, service helpers, AI SDK structured output calls, and any code that accepts StandardSchema validators.
 
 ## Type Inference
 
-TypeScript automatically infers types from your schemas, providing full autocomplete and type checking:
+Derive TypeScript types from the schema instead of writing a second interface.
 
 ```typescript
-import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
-const agent = createAgent('SearchAgent', {
-  schema: {
-    input: z.object({
-      query: z.string(),
-      filters: z.object({
-        category: z.enum(['tech', 'business', 'sports']),
-        limit: z.number().default(10),
-      }),
-    }),
-    output: z.object({
-      results: z.array(z.object({
-        id: z.string(),
-        title: z.string(),
-        score: z.number(),
-      })),
-      total: z.number(),
-    }),
-  },
-  handler: async (ctx, input) => {
-    // TypeScript knows:
-    // - input.query is string
-    // - input.filters.category is 'tech' | 'business' | 'sports'
-    // - input.filters.limit is number
-
-    // Return type is also validated
-    return {
-      results: [
-        { id: '1', title: 'Example', score: 0.95 },
-      ],
-      total: 1,
-    };
-
-    // This would cause a TypeScript error:
-    // return { invalid: 'structure' };
-  },
+const SearchInputSchema = s.object({
+  query: s.string().min(1),
+  category: s.enum(['docs', 'issues', 'pull-requests']),
+  limit: s.optional(s.number().min(1).max(20)),
 });
 
-// When calling the agent from another agent:
-import searchAgent from '@agent/search/agent';
-
-const result = await searchAgent.run({
-  query: 'agentic AI',
-  filters: { category: 'tech', limit: 5 },
+const SearchResultSchema = s.object({
+  results: s.array(
+    s.object({
+      id: s.string(),
+      title: s.string(),
+      score: s.number(),
+    })
+  ),
+  total: s.number(),
 });
 
-// TypeScript knows result has this shape:
-// {
-//   results: Array<{ id: string; title: string; score: number }>;
-//   total: number;
-// }
+type SearchInput = s.infer<typeof SearchInputSchema>;
+type SearchResult = s.infer<typeof SearchResultSchema>;
+
+async function searchDocuments(input: SearchInput): Promise<SearchResult> {
+  const limit = input.limit ?? 10;
+
+  return {
+    results: [{ id: 'doc_123', title: `Result for ${input.query}`, score: 0.95 }],
+    total: limit,
+  };
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const input = SearchInputSchema.parse(await request.json());
+  const output = await searchDocuments(input);
+
+  return Response.json(SearchResultSchema.parse(output));
+}
 ```
 
-**Benefits of Type Inference:**
-- Full IDE autocomplete for input and output
-- Compile-time type checking catches errors before runtime
-- No need to manually define TypeScript interfaces
-- Refactoring is safer - changes to schemas update types automatically
+Type inference keeps route code, shared functions, and tests tied to the same source of truth. Change the schema and callers see the new type.
 
 ## Primitive Types
 
@@ -210,7 +188,7 @@ const nullableNum = s.number().nullable();  // number | null
 
 ## Extracting Types with `s.infer`
 
-Use `s.infer<typeof Schema>` to extract the TypeScript type from any schema. This is the recommended way to derive types rather than writing separate interfaces.
+Use `s.infer<typeof Schema>` to extract the TypeScript type from any schema. Derive the type from the schema instead of writing a separate interface.
 
 ```typescript
 import { s } from '@agentuity/schema';
@@ -331,14 +309,14 @@ const schema = s.fromJSONSchema(jsonSchema);
 const result = schema.parse({ name: 'Alice', score: 95 });
 ```
 
-### Using with LLM Structured Output
+### Using with AI SDK Structured Output
 
-Combine `toJSONSchema()` with `{ strict: true }` to generate schemas compatible with LLM structured output APIs. The `strict` flag adds `additionalProperties: false` to every object, which providers like OpenAI require.
+Use `toJSONSchema()` with `{ strict: true }` when passing an `@agentuity/schema` schema to AI SDK structured output. The `strict` flag adds `additionalProperties: false` to every object, which providers like OpenAI require.
 
 ```typescript
-import { s } from '@agentuity/schema';
-import { generateObject } from 'ai';
+import { Output, generateText, jsonSchema } from 'ai';
 import { openai } from '@ai-sdk/openai';
+import { s } from '@agentuity/schema';
 
 const SentimentSchema = s.object({
   sentiment: s.enum(['positive', 'negative', 'neutral']),
@@ -346,13 +324,30 @@ const SentimentSchema = s.object({
   reasoning: s.string(),
 });
 
-const { object } = await generateObject({
-  model: openai('gpt-5.4-mini'),
-  schema: s.toJSONSchema(SentimentSchema, { strict: true }),
+type Sentiment = s.infer<typeof SentimentSchema>;
+
+const SentimentOutput = jsonSchema<Sentiment>(
+  s.toJSONSchema(SentimentSchema, { strict: true }),
+  {
+    validate: (value) => {
+      const result = SentimentSchema.safeParse(value);
+
+      return result.success
+        ? { success: true, value: result.data }
+        : { success: false, error: result.error };
+    },
+  }
+);
+
+const { output } = await generateText({
+  model: openai('gpt-5.5'),
+  output: Output.object({
+    schema: SentimentOutput,
+  }),
   prompt: 'Analyze the sentiment of: "I love this product!"',
 });
 
-// object is typed as { sentiment: string; confidence: number; reasoning: string }
+const sentiment = output.sentiment;
 ```
 
 This approach works with any provider that accepts JSON Schema for structured output.

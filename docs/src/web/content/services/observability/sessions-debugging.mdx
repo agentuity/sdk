@@ -20,6 +20,8 @@ agentuity cloud session logs sess_abc123xyz
 
 `session get` shows request details and a timeline when trace data is available. `session logs` prints collected log entries for that session.
 
+Add `--json` when you want to pipe session output into another tool.
+
 ## Filter Sessions
 
 The session list command supports common filters:
@@ -80,6 +82,8 @@ const detail = firstFailure
 logger.info('Failed sessions', failedSessions.map((session) => session.id));
 logger.info('First failure detail', detail);
 ```
+
+`APIClient` reads `AGENTUITY_SDK_KEY` from the environment when you do not pass a key explicitly. Keep that key server-side.
 
 `sessionList()` supports filters for project, deployment, trigger, environment, dev mode, success, time range, thread ID, agent identifier, and metadata.
 

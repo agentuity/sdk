@@ -3,7 +3,7 @@ title: Running Code in Sandboxes
 description: Run code in isolated containers with configurable runtimes, resources, and file access
 ---
 
-Use sandboxes when your app needs to execute code without running it on your own host. The v3 path is the standalone `@agentuity/sandbox` package, which you can use from any Bun or Node.js process.
+Use sandboxes when your app needs to execute code without running it on your own host. The v3 path is `SandboxClient` from `@agentuity/sandbox`, which you can use from server code, scripts, workers, and Hono routes.
 
 ```bash
 bun add @agentuity/sandbox@alpha
@@ -12,10 +12,7 @@ bun add @agentuity/sandbox@alpha
 ```typescript
 import { SandboxClient } from '@agentuity/sandbox';
 
-const client = new SandboxClient({
-  // Optional. Defaults to AGENTUITY_SDK_KEY, then AGENTUITY_CLI_KEY.
-  apiKey: process.env.AGENTUITY_SDK_KEY,
-});
+const client = new SandboxClient();
 
 const result = await client.run({
   runtime: 'python:3.14',
@@ -27,34 +24,36 @@ const result = await client.run({
 console.log(result.stdout);
 ```
 
-<Callout type="info" title="v3 uses the package client directly">
-Older v2 runtime examples may show `ctx.sandbox`, `c.var.sandbox`, or `createAgent()`. These pages use `SandboxClient` directly because that is the v3 service client.
+`SandboxClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Pass `apiKey`, `url`, `orgId`, or `logger` only when your script needs to override the project defaults.
+
+<Callout type="info" title="Use the package client directly">
+Older runtime examples may show `ctx.sandbox` inside `createAgent()` handlers. New v3 code should use `SandboxClient` directly, or `c.var.sandbox` when using the Hono middleware.
 </Callout>
 
 ## When to Use Sandboxes
 
 | Use case | Example |
 |----------|---------|
-| Code execution agents | Run user-provided Python or JavaScript without sharing your host filesystem |
-| Code validation | Check whether generated code compiles, tests, or produces expected output |
-| Build jobs | Install dependencies and run builds in a disposable environment |
-| AI coding assistants | Give an assistant a workspace where it can edit and execute files |
-| Data processing | Run short-lived scripts with explicit CPU, memory, and timeout limits |
+| code execution agents | run user-provided Python or JavaScript without sharing your host filesystem |
+| code validation | check whether generated code compiles, tests, or produces expected output |
+| build jobs | install dependencies and run builds in a disposable environment |
+| AI coding assistants | give an assistant a workspace where it can edit and execute files |
+| data processing | run short-lived scripts with explicit CPU, memory, and timeout limits |
 
 ## Key Concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Runtime** | A base environment such as `bun:1`, `node:lts`, or `python:3.14` |
-| **Sandbox** | A running container created from a runtime or snapshot |
-| **Snapshot** | A reusable filesystem state for starting future sandboxes faster |
-| **Checkpoint** | A filesystem state for one sandbox, used by pause, resume, restore, and delete workflows |
+| Runtime | A base environment such as `bun:1`, `node:lts`, or `python:3.14` |
+| Sandbox | A running container created from a runtime or snapshot |
+| Snapshot | A reusable filesystem state for starting future sandboxes |
+| Checkpoint | A filesystem state for one sandbox, used by pause, resume, restore, and delete workflows |
 
-Runtimes, sandboxes, and snapshots build on each other: **Runtime -> Sandbox -> Snapshot**. Checkpoints stay scoped to one sandbox.
+Runtimes, sandboxes, and snapshots build on each other: runtime, sandbox, snapshot. Checkpoints stay scoped to one sandbox.
 
 ## Execution Modes
 
-Use `client.run()` for one command. It creates a sandbox, runs the command, streams/captures output, and cleans up the sandbox.
+Use `client.run()` for one command. It creates a sandbox, runs the command, captures output, and cleans up the sandbox.
 
 ```typescript
 import { SandboxClient } from '@agentuity/sandbox';
@@ -128,21 +127,7 @@ for (const runtime of runtimes) {
 agentuity cloud sandbox runtime list
 ```
 
-Common runtime names include:
-
-| Runtime | Description |
-|---------|-------------|
-| `base:latest` | Minimal base runtime with common tools |
-| `bun:1` | Bun 1.x with JavaScript and TypeScript support |
-| `node:latest` | Latest Node.js runtime |
-| `node:lts` | Node.js LTS runtime |
-| `python:3.13` | Python 3.13 with uv package manager |
-| `python:3.14` | Python 3.14 with uv package manager |
-| `claude-code:latest` | Claude Code coding assistant runtime |
-| `amp:latest` | Amp coding assistant runtime |
-| `opencode:latest` | OpenCode coding assistant runtime |
-
-Runtime responses include metadata such as `description`, `iconUrl`, `brandColor`, `url`, `tags`, and `requirements`.
+Runtime responses include metadata such as `description`, `iconUrl`, `brandColor`, `url`, `tags`, and `requirements`. Names can change as new images are added, so list runtimes before hard-coding one in a long-lived workflow.
 
 ## Snapshots
 
@@ -208,6 +193,33 @@ try {
 }
 ```
 
+## Hono
+
+`@agentuity/hono` initializes `SandboxClient` once and exposes it on `c.var.sandbox`.
+
+```typescript
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
+import { Hono } from 'hono';
+
+type Variables = Pick<Services, 'sandbox'>;
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.post('/run', async (c) => {
+  const result = await c.var.sandbox.run({
+    runtime: 'bun:1',
+    command: { exec: ['bun', '-e', 'console.log("ok")'] },
+  });
+
+  return c.json({ stdout: result.stdout, exitCode: result.exitCode });
+});
+
+export default app;
+```
+
 ## Events and Lifecycle
 
 Every sandbox records lifecycle events. Use `client.listEvents()` when you need to inspect what happened to a sandbox.
@@ -240,7 +252,7 @@ console.log({
 
 ## Security Defaults
 
-Sandboxes give each run an isolated workspace and explicit resource limits. Network access is disabled unless you enable it with `network.enabled` or expose a port with `network.port`.
+Sandboxes give each run an isolated workspace and explicit resource limits. Outbound network access is disabled unless you set `network.enabled: true`. Expose inbound access separately with `network.port`.
 
 Set timeouts for untrusted commands, keep resource limits tight, and use snapshots for shared dependencies instead of reinstalling packages on every run.
 

@@ -6,6 +6,8 @@ description: Add Agentuity account sign-in and scoped access to your app with OA
 
 Use Sign in with Agentuity when users should authenticate with their Agentuity account or grant scoped access to Agentuity resources. Your app still owns its local session after the callback.
 
+The v3 OAuth helpers are flow helpers, not a full session framework. They build authorization URLs, exchange codes, fetch user info, refresh tokens, and store tokens when you need scoped access. Your framework still creates cookies, sessions, redirects, roles, and app-specific authorization.
+
 ```bash
 bun add @agentuity/core@alpha hono
 ```
@@ -162,6 +164,8 @@ export default app;
 
 This example uses Hono because the flow is easy to see in one file. The same boundary applies in Next.js, TanStack Start, Remix, SvelteKit, Nuxt, Astro, or any framework route: redirect from the server, exchange the code on the server, then create your app session.
 
+The cookie in this example is intentionally small. In an app with roles, teams, or long-lived sessions, store the session server-side or use your framework's session adapter.
+
 ## Create an OAuth App
 
 Create the OAuth app in the [Agentuity Console](https://app.agentuity.com/settings/oauth-apps) or with the CLI. For server-backed framework apps, use a confidential client so the client secret stays on the server.
@@ -179,6 +183,10 @@ agentuity cloud oidc create \
 <Callout type="warning" title="Save the client secret when it is shown">
 The client secret is returned when you create the OAuth app or rotate its secret. Store it in your environment variables before leaving that output.
 </Callout>
+
+The redirect URI must match the URL your callback route actually serves. Register local and deployed callback URLs separately when both are used.
+
+The examples on this page use confidential clients. Do not put the client secret in browser code.
 
 ## Configure Environment Variables
 
@@ -222,7 +230,7 @@ The CLI `--scopes` flag is comma-separated, for example `openid,profile,email`. 
 
 ## Store Tokens for Scoped Access
 
-If your app needs to call Agentuity APIs on behalf of the signed-in user, store OAuth tokens server-side. `KeyValueTokenStorage` stores tokens in Agentuity KV and refreshes expired access tokens when a refresh token is available.
+If your app needs to call Agentuity APIs on behalf of the signed-in user, store OAuth tokens server-side. `KeyValueTokenStorage` stores tokens in Agentuity KV and refreshes expired access tokens when a refresh token and OAuth config are available.
 
 ```bash
 bun add @agentuity/keyvalue@alpha
@@ -273,6 +281,8 @@ export async function getUsableAccessToken(userId: string): Promise<string | nul
   return token.access_token;
 }
 ```
+
+`tokenStore.get()` attempts refresh before it returns. If refresh fails, it can still return the expired token, so keep the `isTokenExpired()` check before using `access_token`.
 
 Request `offline_access` only when your app needs refresh tokens:
 

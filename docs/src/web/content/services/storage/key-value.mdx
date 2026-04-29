@@ -34,7 +34,7 @@ const preferences = result.exists
   : { theme: 'light', notifications: true } satisfies UserPreferences;
 ```
 
-`KeyValueClient` reads `AGENTUITY_SDK_KEY` by default. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
 
 ## When to Use KV
 

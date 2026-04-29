@@ -198,6 +198,41 @@ export const navData: NavSection[] = [
 		],
 	},
 	{
+		title: 'Build',
+		url: '/build',
+		items: [
+			{
+				title: 'Build Agents',
+				url: '/build/agents',
+				description:
+					'Build model-backed workflows with framework routes and Agentuity service clients',
+			},
+			{
+				title: 'Chat and Streaming',
+				url: '/build/chat-and-streaming',
+				description:
+					'Stream model output from framework routes and persist chat state with Agentuity clients',
+			},
+			{
+				title: 'Tool Calling',
+				url: '/build/tool-calling',
+				description: 'Let models call bounded app functions from framework routes',
+			},
+			{
+				title: 'State and Memory',
+				url: '/build/state-and-memory',
+				description:
+					'Store app state explicitly with KV, databases, cookies, and service clients',
+			},
+			{
+				title: 'Background Work',
+				url: '/build/background-work',
+				description:
+					'Use queues, status records, and durable streams for work that should outlive a request',
+			},
+		],
+	},
+	{
 		title: 'Services',
 		url: '/services',
 		items: [
@@ -239,7 +274,7 @@ export const navData: NavSection[] = [
 					{
 						title: 'Postgres',
 						url: '/services/database/postgres',
-						description: 'Auto-reconnecting PostgreSQL client for serverless environments',
+						description: 'Use Bun-native tagged SQL with Agentuity-managed Postgres',
 					},
 					{
 						title: 'Drizzle',
@@ -297,8 +332,7 @@ export const navData: NavSection[] = [
 			{
 				title: 'AI Gateway',
 				url: '/services/ai-gateway',
-				description:
-					'Route supported LLM SDK calls through Agentuity during local development and local builds',
+				description: 'Route supported LLM SDK calls through Agentuity during local development',
 			},
 			{
 				title: 'Coder',
@@ -326,6 +360,12 @@ export const navData: NavSection[] = [
 						url: '/services/observability/sessions-debugging',
 						description: 'Inspect session records, logs, and timelines',
 					},
+					{
+						title: 'Web Analytics',
+						url: '/services/observability/web-analytics',
+						description:
+							'Track page views, user engagement, and custom events in your frontend',
+					},
 				],
 			},
 			{
@@ -343,7 +383,7 @@ export const navData: NavSection[] = [
 		],
 	},
 	{
-		title: 'Build & Deploy',
+		title: 'Deploy & Operate',
 		url: '/deploy-operate',
 		items: [
 			{
@@ -365,50 +405,9 @@ export const navData: NavSection[] = [
 		],
 	},
 	{
-		title: 'Patterns',
-		url: '/patterns',
-		items: [
-			{
-				title: 'Agents as a Pattern',
-				url: '/patterns/agents-as-a-pattern',
-				description:
-					'Build model-backed workflows with framework routes and Agentuity service clients',
-			},
-			{
-				title: 'Chat and Streaming',
-				url: '/patterns/chat-and-streaming',
-				description:
-					'Stream model output from framework routes and persist chat state with Agentuity clients',
-			},
-			{
-				title: 'Background Work',
-				url: '/patterns/background-work',
-				description:
-					'Use queues, status records, and durable streams for work that should outlive a request',
-			},
-		],
-	},
-	{
 		title: 'Cookbook',
 		url: '/cookbook',
 		items: [
-			{
-				title: 'Tutorials',
-				items: [
-					{
-						title: 'Understanding Agents',
-						url: '/cookbook/tutorials/understanding-agents',
-						description:
-							'Learn how AI agents use tools, run in loops with stopping conditions, and use LLMs to complete tasks autonomously',
-					},
-					{
-						title: 'RAG Agent',
-						url: '/cookbook/tutorials/rag-agent',
-						description:
-							'Create a retrieval-augmented generation agent with vector search and citations',
-					},
-				],
-			},
 			{
 				title: 'Patterns',
 				items: [
@@ -460,37 +459,15 @@ export const navData: NavSection[] = [
 						],
 					},
 					{
-						title: 'Autonomous Research',
-						url: '/cookbook/patterns/autonomous-research',
-						description:
-							'Build a recursive research loop using the Anthropic SDK with native tool calling',
-					},
-					{
-						title: 'Background Tasks',
-						url: '/cookbook/patterns/background-tasks',
-						description: 'Use waitUntil to return quickly while background work continues',
-					},
-					{
 						title: 'Chat with History',
 						url: '/cookbook/patterns/chat-with-history',
 						description: 'Store chat history with key-value storage from a framework route',
 					},
 					{
-						title: 'Cron with Storage',
-						url: '/cookbook/patterns/cron-with-storage',
-						description: 'Cache scheduled task results in KV for later retrieval',
-					},
-					{
 						title: 'Hono RPC + TanStack',
 						url: '/cookbook/patterns/hono-rpc-tanstack-query',
 						description:
-							'Get end-to-end type safety between your Agentuity API routes and React frontend using Hono RPC and TanStack Query',
-					},
-					{
-						title: 'LLM as a Judge',
-						url: '/cookbook/patterns/llm-as-a-judge',
-						description:
-							'Use LLMs to evaluate and score agent outputs for quality, safety, and compliance',
+							'Share Hono route types with a React client and wrap calls in TanStack Query',
 					},
 					{
 						title: 'Server Utilities',
@@ -499,79 +476,9 @@ export const navData: NavSection[] = [
 							'Use storage, queues, logging, and error handling utilities from external backends like Next.js or Express',
 					},
 					{
-						title: 'Product Search',
-						url: '/cookbook/patterns/product-search',
-						description: 'Semantic product search with metadata filtering',
-					},
-					{
 						title: 'Tailwind Setup',
 						url: '/cookbook/patterns/tailwind-setup',
-						description: 'Add Tailwind CSS styling to your Agentuity frontend',
-					},
-					{
-						title: 'Web Exploration',
-						url: '/cookbook/patterns/web-exploration',
-						description:
-							'Run a headless browser in a sandbox to let agents browse, screenshot, and extract web content',
-					},
-					{
-						title: 'Webhook Handler',
-						url: '/cookbook/patterns/webhook-handler',
-						description:
-							'Handle incoming webhooks with signature verification and background processing',
-					},
-				],
-			},
-			{
-				title: 'Integrations',
-				items: [
-					{
-						title: 'Mastra',
-						url: '/cookbook/integrations/mastra',
-						description:
-							'Deploy Mastra agents on Agentuity with persistent state, observability, and the AI Gateway',
-					},
-					{
-						title: 'LangChain',
-						url: '/cookbook/integrations/langchain',
-						description:
-							"Build LangChain agents with Agentuity's deployment runtime, persistent storage, and observability",
-					},
-					{
-						title: 'OpenAI Agents SDK',
-						url: '/cookbook/integrations/openai-agents',
-						description:
-							"Run OpenAI Agents SDK tool calling, handoffs, and structured output on Agentuity's deployment runtime",
-					},
-					{
-						title: 'Claude Agent SDK',
-						url: '/cookbook/integrations/claude-agent',
-						description:
-							'Build conversational code intelligence agents with Claude Agent SDK and Agentuity sandboxes',
-					},
-					{
-						title: 'Chat SDK',
-						url: '/cookbook/integrations/chat-sdk',
-						description:
-							'Build multi-platform chatbots for Slack and Discord with Chat SDK and Agentuity agents',
-					},
-					{
-						title: 'Next.js',
-						url: '/cookbook/integrations/nextjs',
-						description:
-							'Connect a Next.js frontend to an Agentuity backend using rewrites and direct router types',
-					},
-					{
-						title: 'TanStack Start',
-						url: '/cookbook/integrations/tanstack-start',
-						description:
-							'Connect a TanStack Start frontend to an Agentuity backend using a Vite proxy and direct router types',
-					},
-					{
-						title: 'Turborepo',
-						url: '/cookbook/integrations/turborepo',
-						description:
-							'Add Agentuity as a workspace app, share schemas across packages, and import router types directly',
+						description: 'Add Tailwind CSS to the framework app you deploy with Agentuity',
 					},
 				],
 			},
@@ -580,13 +487,7 @@ export const navData: NavSection[] = [
 	{
 		title: 'Community',
 		url: '/community',
-		items: [
-			{
-				title: 'Inbound Email Agent',
-				url: '/community/inbound-email-agent',
-				description: 'Create an AI email auto-responder with Agentuity + Inbound webhooks.',
-			},
-		],
+		items: [],
 	},
 	{
 		title: 'Reference',
@@ -603,16 +504,6 @@ export const navData: NavSection[] = [
 				url: '/reference/sdk-reference',
 				items: [
 					{
-						title: 'Agents',
-						url: '/reference/sdk-reference/agents',
-						description: 'Compatibility reference for v2 runtime createAgent() handlers',
-					},
-					{
-						title: 'Application Entry',
-						url: '/reference/sdk-reference/application-entry',
-						description: 'Compatibility reference for v2 runtime createApp() entry files',
-					},
-					{
 						title: 'Coder',
 						url: '/reference/sdk-reference/coder',
 						description: 'Manage AI coding sessions, workspaces, and skills with CoderClient',
@@ -624,66 +515,10 @@ export const navData: NavSection[] = [
 							'Call shared workflow functions from routes, workers, scripts, and other server code',
 					},
 					{
-						title: 'Context API',
-						url: '/reference/sdk-reference/context-api',
-						description:
-							'Compatibility reference for the v2 runtime AgentContext ctx.* object',
-					},
-					{
-						title: 'Email Service',
-						url: '/reference/sdk-reference/email-service',
-						description: 'Compatibility reference for v2 runtime ctx.email APIs',
-					},
-					{
-						title: 'Events',
-						url: '/reference/sdk-reference/events',
-						description: 'Compatibility reference for v2 runtime lifecycle event APIs',
-					},
-					{
-						title: 'Observability',
-						url: '/reference/sdk-reference/observability',
-						description:
-							'Compatibility reference for v2 runtime ctx.logger and ctx.tracer APIs',
-					},
-					{
-						title: 'Queue Service',
-						url: '/reference/sdk-reference/queue-service',
-						description: 'Compatibility reference for v2 runtime ctx.queue APIs',
-					},
-					{
-						title: 'Router',
-						url: '/reference/sdk-reference/router',
-						description: 'Compatibility reference for v2 runtime route handlers',
-					},
-					{
-						title: 'Runtime Utilities',
-						url: '/reference/sdk-reference/advanced',
-						description: 'Compatibility reference for v2 runtime utilities and helpers',
-					},
-					{
-						title: 'Sandbox Service',
-						url: '/reference/sdk-reference/sandbox-service',
-						description: 'Compatibility reference for v2 runtime ctx.sandbox APIs',
-					},
-					{
-						title: 'Schedule Service',
-						url: '/reference/sdk-reference/schedule-service',
-						description: 'Compatibility reference for v2 runtime ctx.schedule APIs',
-					},
-					{
 						title: 'Schema',
 						url: '/reference/sdk-reference/schema',
-						description: 'Type-safe runtime validation with StandardSchema support',
-					},
-					{
-						title: 'Storage',
-						url: '/reference/sdk-reference/storage',
-						description: 'Compatibility reference for v2 runtime ctx.* storage APIs',
-					},
-					{
-						title: 'Task Service',
-						url: '/reference/sdk-reference/task-service',
-						description: 'Compatibility reference for v2 runtime ctx.task APIs',
+						description:
+							'Validate route inputs, shared function inputs, and structured outputs with StandardSchema support',
 					},
 				],
 			},

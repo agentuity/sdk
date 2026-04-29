@@ -3,7 +3,7 @@ title: Durable Streams
 description: Write generated output incrementally and keep it available by URL
 ---
 
-Use durable streams when output is produced over time and should remain readable after the request or worker finishes: CSV exports, logs, generated reports, transcripts, and long model outputs. Start with `StreamClient`; Hono apps can use `c.var.stream` after installing the Agentuity middleware.
+Use durable streams when output is produced over time and should remain readable after the request or worker finishes: CSV exports, logs, generated reports, transcripts, and long model outputs.
 
 ```bash
 bun add @agentuity/stream@alpha
@@ -30,13 +30,13 @@ try {
 const url = stream.url;
 ```
 
-`StreamClient` reads `AGENTUITY_SDK_KEY` by default. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
+`StreamClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Pass constructor options only when a script needs an explicit `apiKey`, `url`, `orgId`, or `logger`.
 
 ## When to Use Durable Streams
 
 | Need | Use |
 |------|-----|
-| append-only generated output | [Durable Streams](/services/storage/durable-streams) |
+| generated output readable by URL | [Durable Streams](/services/storage/durable-streams) |
 | files or binary data | [Object Storage](/services/storage/object) |
 | exact key lookup | [Key-Value](/services/storage/key-value) |
 | semantic search or RAG retrieval | [Vector](/services/storage/vector) |
@@ -71,7 +71,7 @@ async function writeAuditLog(userId: string, events: readonly string[]): Promise
 }
 ```
 
-`write()` accepts strings, `Uint8Array`, `ArrayBuffer`, and objects. Objects are serialized as JSON. Split large payloads across multiple writes instead of sending one oversized chunk.
+`write()` accepts strings, `Uint8Array`, `ArrayBuffer`, and objects. Objects are serialized as JSON. Each write can send up to 5 MB, so split larger payloads across multiple writes.
 
 <Callout type="warning" title="Close streams after writing">
 Streams do not auto-close. Use `finally` around writes so the stream is finalized even when generation fails partway through.
@@ -124,6 +124,8 @@ const recentExports = await streams.list({
   limit: 25,
 });
 
+console.log(recentExports.total);
+
 await streams.delete(info.id);
 ```
 
@@ -161,7 +163,7 @@ export async function writeReport(job: ReportJob): Promise<string> {
 }
 ```
 
-See [Background Work](/patterns/background-work): it pairs queues, KV status records, and durable streams for jobs that should continue after a request returns.
+See [Background Work](/build/background-work): it pairs queues, KV status records, and durable streams for jobs that should continue after a request returns.
 
 ## Hono
 
@@ -172,9 +174,9 @@ bun add @agentuity/hono@alpha hono
 ```
 
 ```typescript
-import { Hono } from 'hono';
 import { agentuity } from '@agentuity/hono';
 import type { Services } from '@agentuity/hono';
+import { Hono } from 'hono';
 
 type Variables = Pick<Services, 'stream'>;
 
@@ -201,6 +203,6 @@ export default app;
 
 ## Next Steps
 
-- [Background Work](/patterns/background-work): run long jobs with queues, status records, and streams
+- [Background Work](/build/background-work): run long jobs with queues, status records, and streams
 - [Object Storage](/services/storage/object): store files and binary blobs with Bun S3
 - [Key-Value Storage](/services/storage/key-value): store job status and exact-key state

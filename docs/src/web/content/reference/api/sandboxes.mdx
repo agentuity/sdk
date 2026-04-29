@@ -173,6 +173,12 @@ Sandbox creation payload.
     "required": false
   },
   {
+    "name": "timeout.paused",
+    "type": "string",
+    "description": "Maximum time sandbox can remain paused before termination (e.g., \"24h\", \"0s\" for infinite)",
+    "required": false
+  },
+  {
     "name": "command",
     "type": "object",
     "description": "Initial command to run in the sandbox",
@@ -281,6 +287,12 @@ Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.
     "type": "string",
     "description": "Current status of the sandbox",
     "required": true
+  },
+  {
+    "name": "executionId",
+    "type": "string",
+    "description": "Initial execution identifier for oneshot sandbox creation",
+    "required": false
   },
   {
     "name": "url",
@@ -745,6 +757,12 @@ Returns paginated list of sandboxes.
     "name": "sandboxes[].timeout.execution",
     "type": "string",
     "description": "Execution timeout duration (e.g., \"5m0s\")",
+    "required": false
+  },
+  {
+    "name": "sandboxes[].timeout.paused",
+    "type": "string",
+    "description": "Paused timeout duration (e.g., \"24h0s\", \"0s\" for infinite)",
     "required": false
   },
   {

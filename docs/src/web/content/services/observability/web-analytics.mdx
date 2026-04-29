@@ -3,7 +3,9 @@ title: Web Analytics
 description: Track page views, user engagement, and custom events in your frontend
 ---
 
-Use `@agentuity/analytics` in browser code when you want page views, Web Vitals, scroll depth, client errors, and custom events. The package works with framework client entries, server-injected config, or direct event calls.
+Use `@agentuity/analytics` in browser code when you have a collection endpoint for page views, Web Vitals, scroll depth, client errors, and custom events. The package works with framework client entries, server-injected config, or direct event calls.
+
+The v3 package is a browser collector. It queues events in the page and sends them to the configured endpoint. If your app or platform environment does not provide that endpoint yet, set `isDevmode: true`, set a custom `endpoint`, or use your framework analytics tool instead.
 
 ```bash
 bun add @agentuity/analytics@alpha
@@ -20,6 +22,7 @@ interface AnalyticsRuntimeConfig {
   readonly orgId: string;
   readonly projectId: string;
   readonly isDevmode: boolean;
+  readonly endpoint: string;
 }
 
 export function startAnalytics(config: AnalyticsRuntimeConfig): void {
@@ -28,6 +31,7 @@ export function startAnalytics(config: AnalyticsRuntimeConfig): void {
     orgId: config.orgId,
     projectId: config.projectId,
     isDevmode: config.isDevmode,
+    endpoint: config.endpoint,
     trackClicks: true,
     trackScroll: true,
     trackWebVitals: true,
@@ -38,6 +42,8 @@ export function startAnalytics(config: AnalyticsRuntimeConfig): void {
 ```
 
 `init()` stores config on `window.__AGENTUITY_ANALYTICS__` and loads the beacon. The beacon initializes page-view tracking, sets up event listeners, and exposes `window.agentuityAnalytics`.
+
+The default endpoint is `/_agentuity/webanalytics/collect`. Use an explicit endpoint when that route is not available in your app.
 
 ## Server-Injected Config
 
@@ -50,6 +56,7 @@ If your framework injects script tags, set `window.__AGENTUITY_ANALYTICS__` befo
     orgId: 'org_abc123',
     projectId: 'proj_abc123',
     isDevmode: false,
+    endpoint: '/_agentuity/webanalytics/collect',
     trackClicks: true,
     trackScroll: true,
     trackWebVitals: true,
@@ -148,7 +155,13 @@ Events are sent when the page becomes hidden, unloads, or changes SPA routes. Th
 | `trackErrors` | `boolean` | `true` | Track JavaScript errors and unhandled rejections |
 | `trackSPANavigation` | `boolean` | `true` | Track client-side route changes |
 | `sampleRate` | `number` | `1` | Sample rate from 0 to 1 |
-| `endpoint` | `string` | `/_agentuity/webanalytics/collect` | Custom collection endpoint |
+| `endpoint` | `string` | `/_agentuity/webanalytics/collect` | Collection endpoint that receives browser payloads |
+
+## Collection Endpoint
+
+The analytics client sends JSON payloads to `endpoint` with `navigator.sendBeacon()` when available and `fetch()` as a fallback. In dev mode, it logs the payload to the browser console instead of sending it.
+
+If you provide your own endpoint, accept the `AnalyticsPayload` shape exported by `@agentuity/analytics`, validate it, and store or forward it from server-side code. Do not send browser analytics payloads directly to Agentuity service APIs from the client.
 
 ## Privacy
 

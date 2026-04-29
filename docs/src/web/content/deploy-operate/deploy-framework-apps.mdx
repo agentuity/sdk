@@ -4,7 +4,7 @@ short_title: Deploy Framework Apps
 description: Build and deploy framework projects with the v3 Agentuity CLI.
 ---
 
-Deploy a `package.json`-backed framework app after it is registered with Agentuity, has `AGENTUITY_SDK_KEY` in `.env`, and passes `agentuity build`.
+Deploy a `package.json`-backed framework app after it is registered with Agentuity, has `AGENTUITY_SDK_KEY` available locally, and passes `agentuity build`.
 
 ```bash
 agentuity project import --validate-only
@@ -13,7 +13,7 @@ agentuity build
 agentuity deploy
 ```
 
-## Validate the Project
+## Register the Project
 
 Check the local project shape before registration:
 
@@ -23,7 +23,7 @@ agentuity project import --validate-only
 
 This verifies that the directory looks like a JavaScript or TypeScript project without creating cloud resources or writing files. When you run `agentuity project import` without `--validate-only`, the CLI can register the project and write `agentuity.json` plus the project SDK key.
 
-Run `agentuity project import` before the first deploy for any existing app that does not already have `agentuity.json`. `agentuity deploy` expects registered project metadata before its deploy handler runs, so it is not the import step for fresh directories.
+Run `agentuity project import` before the first non-interactive deploy for any existing app that does not already have `agentuity.json`. In an interactive terminal, `agentuity deploy` can also offer to register the app before the upload flow continues.
 
 ## Build Locally
 
@@ -39,8 +39,7 @@ The CLI detects supported JavaScript frameworks from `package.json` and framewor
 `agentuity build`:
 
 - detects the framework from `package.json` and framework config files
-- installs dependencies with the detected package manager
-- runs the framework build command
+- runs the framework build command through the detected adapter
 - writes deployable output to `.agentuity` unless you pass `--outdir`
 - packages launch metadata so Agentuity knows how to start the app
 - runs TypeScript type checking unless you pass `--dev` or `--skip-type-check`
@@ -80,7 +79,7 @@ Deploy from the project directory:
 agentuity deploy
 ```
 
-The deploy command requires an authenticated CLI session and a registered project. For an existing app, run `agentuity project import` before the first deploy so the CLI can resolve the project and local SDK key.
+The deploy command requires an authenticated CLI session, project metadata, and a local project SDK key. For an existing app, run `agentuity project import` before CI or other non-interactive deploys so the CLI can resolve the project and local SDK key without prompting.
 
 During deploy, the CLI:
 

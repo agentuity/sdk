@@ -1,371 +1,294 @@
 ---
 title: Type-Safe API Calls with Hono RPC and TanStack Query
 short_title: Hono RPC + TanStack
-description: Get end-to-end type safety between your Agentuity API routes and React frontend using Hono RPC and TanStack Query
+description: Share Hono route types with a React client and wrap calls in TanStack Query
 ---
 
-Use [Hono RPC](https://hono.dev/docs/guides/rpc) when your React frontend should call Agentuity API routes with route-inferred request and response types. Add [TanStack Query](https://tanstack.com/query) when you want caching, request state, and invalidation around those calls.
-
-## Overview
-
-Hono RPC infers client types directly from your route definitions. Combined with TanStack Query, you get:
-
-- **Type-safe API calls**: request params, body, and response types are inferred from route handlers
-- **Caching and revalidation**: TanStack Query manages server state
-- **One route contract**: the route definition is the source of truth
-
-## Installation
+Use [Hono RPC](https://hono.dev/docs/guides/rpc) when a React client should call a Hono route with inferred request and response types. Add [TanStack Query](https://tanstack.com/query) when the UI needs caching, request state, and invalidation around those calls.
 
 ```bash
-bun add @tanstack/react-query zod @hono/zod-validator
+bun add hono @tanstack/react-query zod @hono/zod-validator
 ```
 
-<Callout type="info" title="Hono Dependency">
-Agentuity templates already include `hono` as an app dependency. If your project does not, add it too because the browser imports `hc` from `hono/client`.
-</Callout>
+## Define Typed Routes
 
-## Server: Define Typed Routes
-
-Use method chaining on `new Hono<Env>()` so TypeScript can infer the full route tree:
+Chain route methods on the same `Hono` instance. Hono infers the client contract from that chained route tree.
 
 ```typescript title="src/api/users.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 
-const CreateUserSchema = z.object({
-   name: z.string().min(1),
-   email: z.string().email(),
+const createUserSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
 });
 
-const router = new Hono<Env>()
-   .get('/users', async (c) => {
-      // In a real app, query your database here
-      const users = [
-         { id: '1', name: 'Alice', email: 'alice@example.com' },
-         { id: '2', name: 'Bob', email: 'bob@example.com' },
-      ];
-      return c.json({ users });
-   })
-   .get('/users/:id', async (c) => {
-      const id = c.req.param('id');
-      return c.json({ id, name: 'Alice', email: 'alice@example.com' });
-   })
-   .post(
-      '/users',
-      zValidator('json', CreateUserSchema),
-      async (c) => {
-         const body = c.req.valid('json');
-         const user = { id: crypto.randomUUID(), ...body };
-         return c.json({ user }, 201);
-      }
-   )
-   .delete('/users/:id', async (c) => {
-      const id = c.req.param('id');
-      return c.json({ deleted: id });
-   });
+const router = new Hono()
+  .get('/users', async (c) => {
+    const users = [
+      { id: '1', name: 'Alice', email: 'alice@example.com' },
+      { id: '2', name: 'Bob', email: 'bob@example.com' },
+    ];
 
-// Export the type the client imports
+    return c.json({ users });
+  })
+  .get('/users/:id', async (c) => {
+    const id = c.req.param('id');
+    return c.json({ id, name: 'Alice', email: 'alice@example.com' });
+  })
+  .post('/users', zValidator('json', createUserSchema), async (c) => {
+    const body = c.req.valid('json');
+    const user = { id: crypto.randomUUID(), ...body };
+
+    return c.json({ user }, 201);
+  })
+  .delete('/users/:id', async (c) => {
+    const id = c.req.param('id');
+    return c.json({ deleted: id });
+  });
+
 export type UsersRoute = typeof router;
 export default router;
 ```
 
-<Callout type="info" title="Chain Your Methods">
-Chain `.get()`, `.post()`, etc. directly on `new Hono<Env>()`. If you use separate `router.get(...)` statements, TypeScript can't infer the combined type.
+<Callout type="info" title="Keep route files server-only">
+Route files can import service clients, read environment variables, or use server-only framework APIs. Export their types through a type-only file so the browser never imports the route module as runtime code.
 </Callout>
 
-## Export Route Types to the Client
+## Export Route Types
 
-<Callout type="warning" title="Never Import Value Exports from Server Route Files">
-Use the type-only barrel shown below for client code. Type-only imports and exports are erased at compile time, while value imports can pull server-only code into the browser bundle.
-</Callout>
-
-Use a dedicated type-only file for frontend imports:
+Use a dedicated type-only file for client imports:
 
 ```typescript title="src/shared/api-types.ts"
-// Keep this file type-only
 export type { UsersRoute } from '../api/users';
 export type { PostsRoute } from '../api/posts';
 ```
 
-Then import from that file in the frontend:
+Then create the browser client:
 
-```typescript title="src/web/api.ts"
+```typescript title="src/client/api.ts"
 import { hc } from 'hono/client';
 import type { UsersRoute } from '../shared/api-types';
 
-export const client = hc<UsersRoute>('/api');
+export const usersClient = hc<UsersRoute>('/api');
 ```
 
-This works because:
+The `hc()` base URL must match where the route is mounted. For a Hono app mounted at `/api`, use `'/api'`. For a framework proxy or deployed app with a different base path, use that path instead.
 
-1. `src/shared/api-types.ts` uses only `export type { ... }`, so TypeScript erases it at compile time.
-2. `verbatimModuleSyntax: true` keeps `import type` and `export type` honest instead of rewriting them into value imports.
-3. Your server route file stays out of the browser bundle.
+## Add TanStack Query
 
-<Callout type="info" title="Why Not Import Directly?">
-A file like `src/api/users.ts` may import `@agentuity/runtime`, database clients, or read `process.env` at the top level. Keep those files behind a type-only barrel so the frontend never points at the server module directly.
-</Callout>
+Wrap your React app once:
 
-## Client: Use with TanStack Query
-
-### Setup the Query Provider
-
-```tsx title="src/web/frontend.tsx"
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+```tsx title="src/client/main.tsx"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createRoot } from 'react-dom/client';
 import { App } from './App';
 
 const queryClient = new QueryClient({
-   defaultOptions: {
-      queries: {
-         staleTime: 30_000,
-      },
-   },
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+    },
+  },
 });
 
 const root = document.getElementById('root');
 
 if (!root) {
-   throw new Error('Root element not found');
+  throw new Error('Root element not found');
 }
 
-ReactDOM.createRoot(root).render(
-   <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-         <App />
-      </QueryClientProvider>
-   </React.StrictMode>
+createRoot(root).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
 );
 ```
 
-### Query Hooks
+Create query and mutation hooks around the Hono client:
 
-```typescript title="src/web/hooks/useUsers.ts"
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { client } from '../api';
+```typescript title="src/client/use-users.ts"
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usersClient } from './api';
 
-// Fetch all users
 export function useUsers() {
-   return useQuery({
-      queryKey: ['users'],
-      queryFn: async () => {
-         const res = await client.users.$get();
-         if (!res.ok) throw new Error('Failed to fetch users');
-         return res.json();
-         //     ^? { users: { id: string; name: string; email: string }[] }
-      },
-   });
+  return useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const res = await usersClient.users.$get();
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch users: ${res.status}`);
+      }
+
+      return res.json();
+    },
+  });
 }
 
-// Fetch a single user by ID
 export function useUser(id: string) {
-   return useQuery({
-      queryKey: ['users', id],
-      queryFn: async () => {
-         const res = await client.users[':id'].$get({ param: { id } });
-         if (!res.ok) throw new Error('Failed to fetch user');
-         return res.json();
-         //     ^? { id: string; name: string; email: string }
-      },
-      enabled: !!id,
-   });
+  return useQuery({
+    queryKey: ['users', id],
+    queryFn: async () => {
+      const res = await usersClient.users[':id'].$get({ param: { id } });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch user: ${res.status}`);
+      }
+
+      return res.json();
+    },
+    enabled: id.length > 0,
+  });
 }
 
-// Create a new user
 export function useCreateUser() {
-   const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-   return useMutation({
-      mutationFn: async (data: { name: string; email: string }) => {
-         const res = await client.users.$post({ json: data });
-         if (!res.ok) throw new Error('Failed to create user');
-         return res.json();
-      },
-      onSuccess: () => {
-         // Invalidate the users list so it refetches
-         queryClient.invalidateQueries({ queryKey: ['users'] });
-      },
-   });
-}
+  return useMutation({
+    mutationFn: async (data: { readonly name: string; readonly email: string }) => {
+      const res = await usersClient.users.$post({ json: data });
 
-// Delete a user
-export function useDeleteUser() {
-   const queryClient = useQueryClient();
+      if (!res.ok) {
+        throw new Error(`Failed to create user: ${res.status}`);
+      }
 
-   return useMutation({
-      mutationFn: async (id: string) => {
-         const res = await client.users[':id'].$delete({ param: { id } });
-         if (!res.ok) throw new Error('Failed to delete user');
-         return res.json();
-      },
-      onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['users'] });
-      },
-   });
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
 }
 ```
 
-### Use in Components
+Use the hooks from a component:
 
-```tsx title="src/web/components/UserList.tsx"
-import { useUsers, useCreateUser, useDeleteUser } from '../hooks/useUsers';
+```tsx title="src/client/UserList.tsx"
 import { useState } from 'react';
+import { useCreateUser, useUsers } from './use-users';
 
 export function UserList() {
-   const { data, isLoading, error } = useUsers();
-   const createUser = useCreateUser();
-   const deleteUser = useDeleteUser();
-   const [name, setName] = useState('');
-   const [email, setEmail] = useState('');
+  const { data, error, isLoading } = useUsers();
+  const createUser = useCreateUser();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
-   if (isLoading) return <div>Loading...</div>;
-   if (error) return <div>Error: {error.message}</div>;
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
-   return (
-      <div>
-         <form
-            onSubmit={(e) => {
-               e.preventDefault();
-               createUser.mutate({ name, email });
-               setName('');
-               setEmail('');
-            }}
-         >
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-            <button type="submit" disabled={createUser.isPending}>
-               {createUser.isPending ? 'Adding...' : 'Add User'}
-            </button>
-         </form>
+  if (error) {
+    return <div>Error: {error.message}</div>;
+  }
 
-         <ul>
-            {data?.users.map((user) => (
-               <li key={user.id}>
-                  {user.name} ({user.email})
-                  <button
-                     onClick={() => deleteUser.mutate(user.id)}
-                     disabled={deleteUser.isPending}
-                  >
-                     Delete
-                  </button>
-               </li>
-            ))}
-         </ul>
-      </div>
-   );
+  return (
+    <div>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          createUser.mutate({ name, email });
+          setName('');
+          setEmail('');
+        }}
+      >
+        <input value={name} onChange={(event) => setName(event.target.value)} />
+        <input value={email} onChange={(event) => setEmail(event.target.value)} />
+        <button disabled={createUser.isPending} type="submit">
+          {createUser.isPending ? 'Adding...' : 'Add User'}
+        </button>
+      </form>
+
+      <ul>
+        {data?.users.map((user) => (
+          <li key={user.id}>
+            {user.name} ({user.email})
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 ```
 
-## Multiple Route Files
+## Compose Multiple Routers
 
-When you have multiple route files, export all types from a shared file:
+When you split routes across files, compose them with Hono and export the composed type:
 
 ```typescript title="src/api/posts.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
 
-const router = new Hono<Env>()
-   .get('/posts', async (c) => {
-      return c.json({ posts: [] });
-   })
-   .get('/posts/:id', async (c) => {
-      return c.json({ id: c.req.param('id'), title: '', body: '' });
-   });
+const router = new Hono()
+  .get('/posts', async (c) => {
+    return c.json({ posts: [] });
+  })
+  .get('/posts/:id', async (c) => {
+    return c.json({ id: c.req.param('id'), title: '', body: '' });
+  });
 
 export type PostsRoute = typeof router;
 export default router;
 ```
 
-```typescript title="src/shared/api-types.ts"
-export type { UsersRoute } from '../api/users';
-export type { PostsRoute } from '../api/posts'; // [!code highlight]
-```
-
-```typescript title="src/web/api.ts"
-import { hc } from 'hono/client';
-import type { UsersRoute, PostsRoute } from '../shared/api-types'; // [!code highlight]
-
-export const usersClient = hc<UsersRoute>('/api'); // [!code highlight]
-export const postsClient = hc<PostsRoute>('/api'); // [!code highlight]
-```
-
-## With Explicit Routing
-
-If you're mounting sub-routers with `createApp({ router })`, export the composed router type. Mount routers at `/` when the imported route files already include their path prefixes.
-
 ```typescript title="src/api/index.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-import users from './users';
 import posts from './posts';
+import users from './users';
 
-const router = new Hono<Env>()
-   .route('/', users)
-   .route('/', posts);
+const app = new Hono()
+  .route('/', users)
+  .route('/', posts);
 
-export type AppRoute = typeof router;
-export default router;
-```
-
-If you prefer `.route('/users', users)`, define the users router with relative paths like `/` and `/:id`. Otherwise Hono will compose doubled paths such as `/users/users`.
-
-```typescript title="app.ts"
-import { createApp } from '@agentuity/runtime'; // [!code highlight]
-import router from './src/api/index'; // [!code highlight]
-
-const app = await createApp({ router }); // [!code highlight]
-
+export type AppRoute = typeof app;
 export default app;
 ```
 
 ```typescript title="src/shared/api-types.ts"
-export type { AppRoute } from '../api/index';
+export type { AppRoute } from '../api';
 ```
 
-```typescript title="src/web/api.ts"
+```typescript title="src/client/api.ts"
 import { hc } from 'hono/client';
 import type { AppRoute } from '../shared/api-types';
 
 export const client = hc<AppRoute>('/api');
 ```
 
-For custom mount paths:
+If you mount a router at `.route('/users', users)`, define the users router with relative paths like `/` and `/:id`. Otherwise Hono composes doubled paths such as `/users/users`.
 
-```typescript title="app.ts"
-import { createApp } from '@agentuity/runtime';
-import myRouter from './src/api/index';
+## With Agentuity Services
 
-const app = await createApp({
-   router: { path: '/v1', router: myRouter }, // [!code highlight]
+Hono RPC works with ordinary Hono route handlers. If the route needs Agentuity service clients, install `@agentuity/hono` and add the middleware before the route handlers that read `c.var.*`.
+
+```bash
+bun add @agentuity/hono@alpha
+```
+
+```typescript title="src/api/index.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
+
+type Variables = Pick<Services, 'kv'>;
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.get('/sessions/:id', async (c) => {
+  const result = await c.var.kv.get('sessions', c.req.param('id'));
+  return c.json(result.exists ? result.data : null);
 });
 
+export type AppRoute = typeof app;
 export default app;
-```
-
-```typescript title="src/web/api.ts"
-export const client = hc<AppRoute>('/v1'); // [!code highlight]
-```
-
-## Why Validation Matters
-
-Hono RPC infers request body types from validator middleware. A `c.req.json<T>()` annotation only types the local server value, so use `zValidator()` and `c.req.valid('json')` when the client should know the request shape.
-
-This is separate from Agentuity agent schemas, where `@agentuity/schema` is the lightweight default. For Hono middleware, [Hono's Zod validator](https://hono.dev/docs/guides/validation#with-zod) is the direct integration.
-
-The client mutation gets the route-inferred body shape. Content rules such as `.email()` still run on the server:
-
-```typescript
-createUser.mutate({ name: '', email: 'not-an-email' }); // runtime validation catches this
-createUser.mutate({ wrong: 'field' }); // compile-time error
 ```
 
 ## Tips
 
-- **Chain methods** on `new Hono<Env>()`: separate statements lose type inference
-- **Use type-only imports**: import route types with `import type`, or use a type-only shared barrel for stable paths
-- **Match mount paths**: the `hc()` base URL must match where the router is mounted
-- **Check responses**: always check `res.ok` before calling `res.json()` in query functions
-- **Use hierarchical query keys**: keys like `['users']` and `['users', id]` make invalidation precise
+- chain route methods on the same `Hono` instance when you want RPC inference
+- import route types with `import type` or a type-only barrel
+- keep the `hc()` base URL aligned with your framework proxy or route mount
+- check `res.ok` before calling `res.json()` in query functions
+- use validators such as `zValidator()` when the client should know the request body shape

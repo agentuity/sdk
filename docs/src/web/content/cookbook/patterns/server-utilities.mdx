@@ -331,16 +331,24 @@ if (message) {
 For one-off queue management, use the CLI instead: `agentuity cloud queue create worker --name my-queue`, `agentuity cloud queue dlq list my-queue`, etc. See [Queues](/services/queues) for CLI commands.
 </Callout>
 
-## Alternative: HTTP Routes
+## Alternative: Hono Routes
 
-If you want to centralize storage logic in your Agentuity project (for [Hono middleware](/frameworks/hono), sharing across multiple apps, or avoiding SDK key distribution), use [Hono routes](/frameworks/hono) instead.
+If you want to centralize storage logic in a Hono app, use the Agentuity middleware and keep service access behind routes.
+
+```bash
+bun add @agentuity/hono@alpha hono
+```
 
 ```typescript title="src/api/sessions/route.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
 import { s } from '@agentuity/schema';
 
-const router = new Hono<Env>();
+type Variables = Pick<Services, 'kv' | 'vector' | 'stream' | 'logger'>;
+
+const router = new Hono<{ Variables: Variables }>();
+router.use('*', agentuity());
 
 const MessageSchema = s.object({
   role: s.string(),
@@ -355,12 +363,11 @@ type Message = s.infer<typeof MessageSchema>;
 type SessionPatch = s.infer<typeof SessionPatchSchema>;
 
 interface ChatSession {
-  messages: Message[];
-  createdAt: string;
-  updatedAt: string;
+  readonly messages: readonly Message[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
-// Get a session by ID
 router.get('/:id', async (c) => {
   const sessionId = c.req.param('id');
   const result = await c.var.kv.get<ChatSession>('sessions', sessionId); // [!code highlight]
@@ -372,7 +379,6 @@ router.get('/:id', async (c) => {
   return c.json(result.data);
 });
 
-// Create or update a session
 router.post('/:id', async (c) => {
   const sessionId = c.req.param('id');
   const payload = await c.req.json();
@@ -393,7 +399,6 @@ router.post('/:id', async (c) => {
   return c.json(session);
 });
 
-// Delete a session
 router.delete('/:id', async (c) => {
   const sessionId = c.req.param('id');
   await c.var.kv.delete('sessions', sessionId); // [!code highlight]
@@ -411,12 +416,16 @@ Add authentication middleware to protect storage endpoints:
 
 ```typescript title="src/api/sessions/route.ts"
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
 import { createMiddleware } from 'hono/factory';
 
-const router = new Hono<Env>();
+type Variables = Pick<Services, 'kv' | 'logger'>;
 
-const requireAuth = createMiddleware(async (c, next) => {
+const router = new Hono<{ Variables: Variables }>();
+router.use('*', agentuity());
+
+const requireAuth = createMiddleware<{ Variables: Variables }>(async (c, next) => {
   const apiKey = c.req.header('x-api-key');
 
   if (!apiKey || apiKey !== process.env.STORAGE_API_KEY) {
@@ -566,4 +575,4 @@ const jsonSchema = toJSONSchema(schema);
 - [Standalone Packages](/reference/standalone-packages): Full list of service packages and their APIs
 - [Queues](/services/queues): Queue concepts and CLI commands
 - [Using Hono with Agentuity](/frameworks/hono): Route creation and middleware patterns
-- [RPC Client](/frontend/rpc-client): Typed client generation
+- [Hono RPC + TanStack](/cookbook/patterns/hono-rpc-tanstack-query): Share Hono route types with a React client

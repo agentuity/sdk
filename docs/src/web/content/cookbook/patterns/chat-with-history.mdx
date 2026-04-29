@@ -68,7 +68,7 @@ app.post('/api/chat', async (c) => {
   const messages = [...history, userMessage];
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-5.4-mini',
+    model: 'gpt-5.5',
     messages: [
       { role: 'system', content: 'You are a concise product support assistant.' },
       ...messages,
@@ -151,14 +151,14 @@ await fetch(`/api/chat/${conversationId}`, { method: 'DELETE' });
 - use one namespace for chat history and make the key explicit
 - store a rolling window or summary instead of unlimited messages
 - keep provider token usage in the response when the UI should show model details
-- use key-value storage or a database for v3 app state, not v2 runtime thread state
+- use key-value storage or a database for new app state, not legacy runtime thread state
 
-<Callout type="info" title="Existing v2 thread-state apps can keep running">
+<Callout type="info" title="Legacy thread-state apps can keep running">
 Older v2 apps that use `ctx.thread.state` can keep that model while you plan a migration. New v3 examples should use framework-owned state boundaries: cookies, database rows, key-value records, or authenticated user IDs.
 </Callout>
 
 ## Next Steps
 
-- [Chat and Streaming](/patterns/chat-and-streaming): stream assistant text while storing the final transcript
+- [Chat and Streaming](/build/chat-and-streaming): stream assistant text while storing the final transcript
 - [Key-Value Storage](/services/storage/key-value): configure TTLs, search keys, and manage namespaces
-- [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks): move v2 agent runtime state into v3 app-owned state
+- [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks): move legacy runtime state into v3 app-owned state

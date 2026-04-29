@@ -98,21 +98,14 @@ agentuity cloud sandbox snapshot build . --tag bun-zod
 Common build options:
 
 ```bash
-# Use a custom build file
 agentuity cloud sandbox snapshot build ./project --file custom-build.yaml
-
-# Override the tag
 agentuity cloud sandbox snapshot build . --tag staging
-
-# Substitute values used by the snapshot file
 agentuity cloud sandbox snapshot build . --env API_KEY=secret
-
-# Attach metadata
 agentuity cloud sandbox snapshot build . --metadata VERSION=1.0.0
-
-# Upload even when the content hash matches an existing snapshot
 agentuity cloud sandbox snapshot build . --force
 ```
+
+Use `--public --confirm` only when you intentionally want a public snapshot.
 
 ## Manual Snapshots
 
@@ -185,7 +178,7 @@ await client.tagSnapshot('snp_xyz789', 'v1.0');
 await client.tagSnapshot('snp_xyz789', null);
 ```
 
-Delete a snapshot when you no longer need it:
+Delete a snapshot when no workflow depends on it:
 
 ```typescript
 await client.deleteSnapshot('snp_xyz789');

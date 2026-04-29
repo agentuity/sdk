@@ -42,14 +42,16 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 ```
 
-`agentuity dev` runs your framework's dev script and can route provider SDK calls through Agentuity AI Gateway when `AGENTUITY_SDK_KEY` is available. If your app already uses provider keys, it can keep using them.
+`agentuity dev` runs your framework's dev script and can route provider SDK calls through Agentuity's AI Gateway when `AGENTUITY_SDK_KEY` is available. If your app already uses provider keys, it can keep using them.
+
+When you build or deploy, Agentuity detects the framework and uses the right adapter for that app shape. You keep the framework conventions; the CLI handles the packaging details.
 
 ## What Agentuity Adds
 
 | Area | What you use |
 |------|--------------|
 | Local development | `agentuity dev` around your framework dev server |
-| Deployment | `agentuity build` and `agentuity deploy` |
+| Deployment | framework-aware `agentuity build` and `agentuity deploy` |
 | Project metadata | `agentuity.json` for project id, org id, region, domains, and resources |
 | Services | standalone clients such as `@agentuity/keyvalue`, `@agentuity/queue`, `@agentuity/sandbox`, and `@agentuity/email` |
 | Operations | deployments, logs, resource settings, and project management in the [web app](https://app.agentuity.com) |
@@ -72,7 +74,7 @@ You can still call a model-backed workflow an agent when it classifies, summariz
 
 It is not the default runtime layer for new apps. New v3 projects do not need a required `src/agent` folder or `createAgent()` wrapper.
 
-See [Agents as a Pattern](/patterns/agents-as-a-pattern): structure model-backed workflows without returning to the old runtime layer.
+See [Build Agents](/build/agents): structure model-backed workflows without returning to the old runtime layer.
 
 <Callout type="info" title="Existing v2 apps can stay on the v2 runtime model">
 If an app already uses `@agentuity/runtime`, `createApp()`, or `createAgent()`, you can keep that app working while you plan a migration. See [Migration](/migration): move an existing runtime app toward the v3 framework-first model when you are ready.

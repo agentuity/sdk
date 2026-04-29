@@ -3,7 +3,7 @@ title: Observability
 description: Monitor framework apps with telemetry, sessions, and deployment logs
 ---
 
-import { FileText, GitBranch, Bug } from 'lucide-react';
+import { FileText, GitBranch, Bug, MousePointerClick } from 'lucide-react';
 
 Use observability when you need to answer what ran, how long it took, and where it failed. In v3, start with telemetry in your framework app, then use Agentuity session and deployment views to inspect what happened after it runs.
 
@@ -26,6 +26,12 @@ Use observability when you need to answer what ran, how long it took, and where 
     description="Session records, timelines, and logs"
     icon={<Bug />}
   />
+  <CardLink
+    href="/services/observability/web-analytics"
+    title="Web Analytics"
+    description="Browser page views and events when a collector endpoint is configured"
+    icon={<MousePointerClick />}
+  />
 </Cards>
 
 ## Quick Reference
@@ -37,15 +43,15 @@ Use observability when you need to answer what ran, how long it took, and where 
 | custom spans | `tracer` from `@agentuity/telemetry` or `c.var.tracer` in Hono |
 | request/session history | `agentuity cloud session` and the Agentuity Console |
 | deployment output | `agentuity cloud deployment logs` |
-| browser page views and events | v2 web analytics or a framework-owned analytics tool while v3 analytics UI is finalized |
+| browser page views and events | `@agentuity/analytics` when a collect endpoint is configured, or your framework analytics tool |
 
 ## Access Patterns
 
 | App Shape | Logging | Tracing | Analytics |
 |-----------|---------|---------|-----------|
-| Any server framework or script | `logger` from `@agentuity/telemetry` | `tracer` from `@agentuity/telemetry` | framework analytics |
-| Hono with `@agentuity/hono` | `c.var.logger` | `c.var.tracer` | framework analytics |
-| CLI and Console inspection | session and deployment log commands | session timeline views | v2 web analytics views |
+| Any server framework or script | `logger` from `@agentuity/telemetry` | `tracer` from `@agentuity/telemetry` | framework analytics or `@agentuity/analytics` |
+| Hono with `@agentuity/hono` | `c.var.logger` | `c.var.tracer` | framework analytics or `@agentuity/analytics` |
+| CLI and Console inspection | session and deployment log commands | session timeline views | session and deployment views |
 
 ```bash
 bun add @agentuity/telemetry@alpha
@@ -111,8 +117,13 @@ agentuity cloud session get sess_abc123xyz
 agentuity cloud session logs sess_abc123xyz
 ```
 
+<Callout type="info" title="Session records are not app sessions">
+Use your framework or auth provider for user sessions. Agentuity session records are observability records used for debugging requests, logs, and traces.
+</Callout>
+
 ## Next Steps
 
 - [Logging](/services/observability/logging): write structured server logs
 - [Tracing](/services/observability/tracing): add OpenTelemetry spans around important work
 - [Sessions & Debugging](/services/observability/sessions-debugging): inspect session records, timelines, and logs
+- [Web Analytics](/services/observability/web-analytics): add browser analytics when a collection endpoint is available

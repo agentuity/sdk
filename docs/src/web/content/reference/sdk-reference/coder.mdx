@@ -4,7 +4,7 @@ short_title: Coder
 description: Manage AI coding sessions, workspaces, and skills with CoderClient
 ---
 
-Method reference for `CoderClient` from the standalone [`@agentuity/coder`](/reference/standalone-packages#coder) package. Coder is not a `ctx.*` service; the client is used from agents, scripts, or external apps.
+Method reference for `CoderClient` from the standalone [`@agentuity/coder`](/reference/standalone-packages#coder) package. Coder is not a `ctx.*` service; use the client from framework routes, scripts, workers, or external apps.
 
 <Callout type="info" title="Hub URL is discovered first">
 Coder has HTTP endpoints, but no single static base URL. `CoderClient` calls the Agentuity API to discover your org's Hub address, then routes session and workspace requests there. For concepts, session lifecycle, and workflows, see [Coder](/services/coder).
@@ -79,7 +79,7 @@ Create a new coder session.
 | `body.repo` | `CoderSessionRepositoryRef` | no | Primary repository to mount |
 | `body.repos` | `CoderSessionRepositoryRef[]` | no | Multiple repositories to mount |
 | `body.workspaceId` | `string` | no | Workspace to attach to the session |
-| `body.env` | `Record<string, string>` | no | Environment variables injected into the runtime |
+| `body.env` | `Record<string, string>` | no | Environment variables injected into the Coder session runtime |
 | `body.metadata` | `Record<string, string>` | no | Arbitrary metadata |
 
 **Returns:** `Promise<CoderCreateSessionResponse>`
@@ -218,7 +218,7 @@ await client.resumeSession('codesess_abc123');
 
 ### prepareSessionForRemoteAttach(sessionId, options?)
 
-Ensure a paused remote session is attachable before opening a controller socket. If the session is history-only, returns immediately. If the session is wakeable and the runtime is unavailable, calls `resumeSession` and polls `getSession` until the runtime is back or the timeout elapses.
+Ensure a paused remote session is attachable before opening a controller socket. If the session is history-only, returns immediately. If the session is wakeable and the Coder runtime is unavailable, calls `resumeSession` and polls `getSession` until the Coder runtime is back or the timeout elapses.
 
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|

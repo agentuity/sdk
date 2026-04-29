@@ -1,0 +1,341 @@
+---
+title: Tool Calling
+description: Let models call bounded app functions from framework routes
+---
+
+Use tools when the model needs fresh app data, a controlled action, or a typed handoff. Keep tool functions small, validate their input, and cap the loop with `stopWhen`.
+
+```bash
+bun add ai @ai-sdk/openai @agentuity/keyvalue@alpha zod
+```
+
+```typescript title="app/api/orders/answer/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { openai } from '@ai-sdk/openai';
+import { generateText, stepCountIs, tool } from 'ai';
+import { z } from 'zod';
+
+const requestSchema = z.object({
+  orderId: z.string(),
+  question: z.string(),
+});
+
+interface OrderSummary {
+  readonly orderId: string;
+  readonly status: string;
+  readonly eta: string;
+}
+
+const kv = new KeyValueClient();
+
+export async function answerOrderQuestion(
+  orderId: string,
+  question: string
+): Promise<string> {
+  const { text } = await generateText({
+    model: openai('gpt-5.5'),
+    system: 'Answer with the order facts returned by tools.',
+    prompt: question,
+    tools: {
+      getOrder: tool({
+        description: 'Read the current order summary',
+        inputSchema: z.object({
+          id: z.string().describe('Order ID'),
+        }),
+        execute: async ({ id }): Promise<OrderSummary> => {
+          const result = await kv.get<OrderSummary>('orders', id);
+
+          return result.exists
+            ? result.data
+            : { orderId: id, status: 'unknown', eta: 'unknown' };
+        },
+      }),
+    },
+    stopWhen: stepCountIs(4),
+  });
+
+  // Keep a short audit trail for support debugging
+  await kv.set('order-support', orderId, { question, answer: text }, { ttl: 3600 });
+
+  return text;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  const body: unknown = await request.json();
+  const input = requestSchema.parse(body);
+  const answer = await answerOrderQuestion(input.orderId, input.question);
+
+  return Response.json({ answer });
+}
+```
+
+AI SDK 6 validates tool inputs with `inputSchema` before `execute` runs. `stepCountIs(4)` keeps the model from looping forever if it keeps asking for more tool results.
+
+## Raw Provider SDKs
+
+Use AI SDK when you want one tool loop across providers. If your app already uses provider SDKs, keep that code. The Agentuity pieces stay the same: validate tool input, call your service clients, and return compact results.
+
+```bash
+bun add openai @anthropic-ai/sdk @agentuity/keyvalue@alpha zod
+```
+
+OpenAI's Responses API returns `function_call` items. Run your tool, then send a `function_call_output` item back with the matching `call_id`.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+import OpenAI from 'openai';
+import type {
+  FunctionTool,
+  ResponseFunctionToolCall,
+  ResponseOutputItem,
+} from 'openai/resources/responses/responses';
+import { z } from 'zod';
+
+const orderToolInputSchema = z.object({
+  id: z.string(),
+});
+
+interface OrderSummary {
+  readonly orderId: string;
+  readonly status: string;
+  readonly eta: string;
+}
+
+const kv = new KeyValueClient();
+const openai = new OpenAI();
+
+const getOrderTool: FunctionTool = {
+  type: 'function',
+  name: 'get_order',
+  description: 'Read the current order summary',
+  strict: true,
+  parameters: {
+    type: 'object',
+    properties: {
+      id: {
+        type: 'string',
+        description: 'Order ID',
+      },
+    },
+    required: ['id'],
+    additionalProperties: false,
+  },
+};
+
+async function readOrderSummary(id: string): Promise<OrderSummary> {
+  const result = await kv.get<OrderSummary>('orders', id);
+
+  return result.exists
+    ? result.data
+    : { orderId: id, status: 'unknown', eta: 'unknown' };
+}
+
+function isOrderToolCall(item: ResponseOutputItem): item is ResponseFunctionToolCall {
+  return item.type === 'function_call' && item.name === 'get_order';
+}
+
+export async function answerWithOpenAI(question: string): Promise<string> {
+  const response = await openai.responses.create({
+    model: 'gpt-5.5',
+    input: question,
+    tools: [getOrderTool],
+  });
+
+  const toolCall = response.output.find(isOrderToolCall);
+  if (!toolCall) {
+    return response.output_text;
+  }
+
+  const input = orderToolInputSchema.parse(JSON.parse(toolCall.arguments));
+  const order = await readOrderSummary(input.id);
+
+  const finalResponse = await openai.responses.create({
+    model: 'gpt-5.5',
+    // Reuse the model state from the tool-call turn
+    previous_response_id: response.id,
+    input: [
+      {
+        type: 'function_call_output',
+        call_id: toolCall.call_id,
+        output: JSON.stringify(order),
+      },
+    ],
+    tools: [getOrderTool],
+  });
+
+  return finalResponse.output_text;
+}
+```
+
+Anthropic's Messages API returns `tool_use` blocks. Run the tool, then continue with a user message whose first content block is the matching `tool_result`.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+import Anthropic from '@anthropic-ai/sdk';
+import type {
+  ContentBlock,
+  TextBlockParam,
+  Tool,
+  ToolUseBlock,
+  ToolUseBlockParam,
+} from '@anthropic-ai/sdk/resources/messages';
+import { z } from 'zod';
+
+const orderToolInputSchema = z.object({
+  id: z.string(),
+});
+
+interface OrderSummary {
+  readonly orderId: string;
+  readonly status: string;
+  readonly eta: string;
+}
+
+const kv = new KeyValueClient();
+const anthropic = new Anthropic();
+
+const getOrderTool: Tool = {
+  name: 'get_order',
+  description: 'Read the current order summary for a support workflow.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      id: {
+        type: 'string',
+        description: 'Order ID',
+      },
+    },
+    required: ['id'],
+  },
+  strict: true,
+};
+
+async function readOrderSummary(id: string): Promise<OrderSummary> {
+  const result = await kv.get<OrderSummary>('orders', id);
+
+  return result.exists
+    ? result.data
+    : { orderId: id, status: 'unknown', eta: 'unknown' };
+}
+
+function isOrderToolUse(block: ContentBlock): block is ToolUseBlock {
+  return block.type === 'tool_use' && block.name === 'get_order';
+}
+
+function textFromContent(blocks: readonly ContentBlock[]): string {
+  const text: string[] = [];
+
+  for (const block of blocks) {
+    if (block.type === 'text') {
+      text.push(block.text);
+    }
+  }
+
+  return text.join('\n');
+}
+
+function toAssistantContent(
+  blocks: readonly ContentBlock[]
+): Array<TextBlockParam | ToolUseBlockParam> {
+  const content: Array<TextBlockParam | ToolUseBlockParam> = [];
+
+  for (const block of blocks) {
+    if (block.type === 'text') {
+      content.push({ type: 'text', text: block.text });
+    }
+
+    if (block.type === 'tool_use') {
+      content.push({
+        type: 'tool_use',
+        id: block.id,
+        name: block.name,
+        input: block.input,
+      });
+    }
+  }
+
+  return content;
+}
+
+export async function answerWithAnthropic(question: string): Promise<string> {
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    system: 'Answer with the order facts returned by tools.',
+    messages: [{ role: 'user', content: question }],
+    tools: [getOrderTool],
+  });
+
+  const toolUse = message.content.find(isOrderToolUse);
+  if (!toolUse) {
+    return textFromContent(message.content);
+  }
+
+  const input = orderToolInputSchema.parse(toolUse.input);
+  const order = await readOrderSummary(input.id);
+
+  const finalMessage = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    system: 'Answer with the order facts returned by tools.',
+    messages: [
+      { role: 'user', content: question },
+      { role: 'assistant', content: toAssistantContent(message.content) },
+      {
+        role: 'user',
+        // Tool results must come before follow-up text
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: toolUse.id,
+            content: JSON.stringify(order),
+          },
+        ],
+      },
+    ],
+    tools: [getOrderTool],
+  });
+
+  return textFromContent(finalMessage.content);
+}
+```
+
+## What Belongs in a Tool
+
+| Good fit | Avoid |
+|----------|-------|
+| read one record from KV, Postgres, or an API | broad database access with no query limits |
+| write a small status update after approval | irreversible actions without a user decision |
+| enqueue a job or create a task | long-running work inside the request |
+| return a compact typed result | returning large files or full transcripts |
+
+## Require Approval for Risky Tools
+
+Use `needsApproval` when the model can suggest an action but your app or user should approve it before execution.
+
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+const refundOrder = tool({
+  description: 'Issue a refund for an order',
+  inputSchema: z.object({
+    orderId: z.string(),
+    amount: z.number(),
+  }),
+  needsApproval: async ({ amount }) => amount > 100,
+  execute: async ({ orderId, amount }) => {
+    // Call your payment system after approval
+    return { orderId, amount, status: 'refunded' };
+  },
+});
+```
+
+Approval requests come back in the model result content. Store that pending action in your app state, collect the decision, then send the approval response back through your chat or workflow loop.
+
+## Next Steps
+
+- [Build Agents](/build/agents): wrap tool calls in reusable app functions
+- [State and Memory](/build/state-and-memory): store tool results and pending approvals
+- [Background Work](/build/background-work): enqueue tool actions that should outlive the request
+- [Key-Value Storage](/services/storage/key-value): keep compact state by namespace and key

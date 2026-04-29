@@ -3,7 +3,7 @@ title: Tasks
 description: Track work items, issues, and agent activity with lifecycle management
 ---
 
-Use tasks when work needs a durable lifecycle: status, priority, assignee, comments, tags, attachments, and history. Start with `TaskClient`; Hono apps can use `c.var.task` after installing the Agentuity middleware.
+Use tasks when work needs a durable lifecycle: status, priority, assignee, comments, tags, attachments, and history. Start with `TaskClient` from any server runtime, route handler, script, or worker.
 
 ```bash
 bun add @agentuity/task@alpha
@@ -133,7 +133,7 @@ Use `close(id)` for completed work. Use `update(id, { status: 'cancelled' })` wh
 Comments need the task ID, comment body, and author ID. Pass `author` for display name and type.
 
 ```typescript
-const comment = await tasks.createComment(
+await tasks.createComment(
   task.id,
   'Refund matched the manual review policy.',
   reporter.id,
@@ -219,9 +219,9 @@ const activity = await tasks.getActivity({ days: 30 });
 
 The `days` option is optional and defaults to 7.
 
-## Hono
+## Hono Convenience
 
-In Hono apps, `@agentuity/hono` initializes `TaskClient` once and exposes it on `c.var.task`.
+If your app already uses Hono, `@agentuity/hono` can initialize `TaskClient` once and expose it on `c.var.task`.
 
 ```bash
 bun add @agentuity/hono@alpha hono

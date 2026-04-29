@@ -2,9 +2,9 @@
 	"sections": [
 		"get-started",
 		"frameworks",
+		"build",
 		"services",
 		"deploy-operate",
-		"patterns",
 		"cookbook",
 		"community",
 		"reference",

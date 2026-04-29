@@ -3,7 +3,7 @@ title: Logging
 description: Write structured logs from framework apps and Hono routes
 ---
 
-Use `@agentuity/telemetry` when framework code needs logs that can travel with traces and session records. Hono apps can use `@agentuity/hono` when route handlers should read the same logger from `c.var.logger`.
+Use `@agentuity/telemetry` when framework code needs structured server logs. Hono apps can use `@agentuity/hono` when route handlers should read the same logger from `c.var.logger`.
 
 ```bash
 bun add @agentuity/telemetry@alpha
@@ -38,11 +38,11 @@ export async function recordCheckout(
 }
 ```
 
-`logger.child(fields)` attaches fields as log attributes. Additional arguments passed to `info()`, `warn()`, or `error()` are formatted into the log message body.
+`logger.child(fields)` attaches fields as log attributes. Additional arguments passed to `info()`, `warn()`, or `error()` are formatted into the log message body. When Agentuity telemetry env is present, these logs export through the same telemetry pipeline as traces.
 
 ## Configure at Startup
 
-The named exports initialize telemetry from Agentuity environment variables on first use. Call `register()` once at app startup when you want explicit service metadata or a different log level.
+The named exports initialize telemetry from Agentuity environment variables on first use. Call `register()` once at app startup when you want explicit service metadata, a different log level, or predictable initialization before other modules log.
 
 ```typescript
 import { register } from '@agentuity/telemetry';

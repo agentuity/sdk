@@ -4,7 +4,7 @@ short_title: SDK Usage
 description: Create, execute, inspect, and clean up sandboxes with SandboxClient
 ---
 
-Use `SandboxClient` when you want to create sandboxes from a script, server route, worker, or agent process. Set `AGENTUITY_SDK_KEY` in the environment, or pass `apiKey` to the constructor.
+Use `SandboxClient` when a script, route, worker, or agent process needs to create and control sandboxes.
 
 ```typescript
 import { SandboxClient } from '@agentuity/sandbox';
@@ -14,9 +14,7 @@ const client = new SandboxClient({
 });
 ```
 
-<Callout type="info" title="Older runtime examples are v2 compatibility">
-If you are maintaining v2 runtime code, you may still see `ctx.sandbox` or `c.var.sandbox`. New v3 code should use `SandboxClient` from `@agentuity/sandbox`.
-</Callout>
+`apiKey` is optional when `AGENTUITY_SDK_KEY` or `AGENTUITY_CLI_KEY` is already set.
 
 ## One-shot Execution
 
@@ -95,6 +93,8 @@ const result = await client.run(
 
 console.log('exit code:', result.exitCode);
 ```
+
+If you pass `stdin` in the second argument, the client needs an API key value so it can create the backing stream.
 
 ## Interactive Sandboxes
 
@@ -215,6 +215,7 @@ console.log({
 
 async function readOutputUrl(url: string): Promise<string> {
   const response = await fetch(url);
+
   if (!response.ok || !response.body) {
     throw new Error(`Unable to read sandbox output: ${response.status}`);
   }
@@ -271,6 +272,8 @@ Code inside the sandbox is a separate process. Pass values explicitly with `env`
 Set `network.port` to expose one port from the sandbox. Set `network.enabled: true` too when commands inside the sandbox need outbound network access.
 
 ```typescript
+import { Buffer } from 'node:buffer';
+
 const sandbox = await client.create({
   runtime: 'bun:1',
   network: {
@@ -357,7 +360,7 @@ const existing = await client.connect('sbx_abc123');
 const files = await existing.listFiles();
 console.log(files.map((file) => file.path));
 
-await client.destroy('sbx_abc123');
+await existing.destroy();
 ```
 
 ## Background Jobs
@@ -478,6 +481,33 @@ for (const event of events) {
 }
 ```
 
+## Hono
+
+In Hono apps, `@agentuity/hono` initializes `SandboxClient` once and exposes it on `c.var.sandbox`.
+
+```typescript
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
+import { Hono } from 'hono';
+
+type Variables = Pick<Services, 'sandbox'>;
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.post('/execute', async (c) => {
+  const result = await c.var.sandbox.run({
+    runtime: 'bun:1',
+    command: { exec: ['bun', '-e', 'console.log("ok")'] },
+  });
+
+  return c.json(result);
+});
+
+export default app;
+```
+
 ## Configuration Reference
 
 ### SandboxClientOptions
@@ -486,7 +516,7 @@ for (const event of events) {
 |--------|------|-------------|
 | `apiKey` | `string` | API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY` |
 | `url` | `string` | Sandbox API URL override |
-| `orgId` | `string` | Organization ID for multi-tenant operations |
+| `orgId` | `string` | Organization ID for multi-org operations |
 | `logger` | `Logger` | Custom logger |
 
 ### SandboxCreateOptions
@@ -501,12 +531,12 @@ for (const event of events) {
 | `resources.cpu` | `string` | CPU limit in millicores, such as `'500m'` or `'1000m'` |
 | `resources.disk` | `string` | Disk limit, such as `'512Mi'` or `'2Gi'` |
 | `network.enabled` | `boolean` | Enables outbound network access |
-| `network.port` | `number` | Port to expose to the internet, 1024-65535 |
+| `network.port` | `number` | Port to expose, 1024-65535 |
 | `projectId` | `string` | Project ID to associate with the sandbox |
 | `timeout.idle` | `string` | Idle timeout before cleanup, such as `'10m'` |
 | `timeout.execution` | `string` | Max command duration, such as `'30s'` |
 | `dependencies` | `string[]` | Apt packages to install |
-| `packages` | `string[]` | npm/bun packages to install globally |
+| `packages` | `string[]` | npm or Bun packages to install globally |
 | `env` | `Record<string, string>` | Environment variables |
 | `files` | `FileToWrite[]` | Files to write on creation |
 | `snapshot` | `string` | Snapshot ID or tag |
@@ -521,7 +551,7 @@ for (const event of events) {
 | `files` | `FileToWrite[]` | Files to write before execution |
 | `timeout` | `string` | Execution timeout override |
 | `stream` | `object` | Optional stdout, stderr, and timestamp stream configuration |
-| `signal` | `AbortSignal` | Cancel the execution |
+| `signal` | `AbortSignal` | Cancels the execution |
 
 ### SandboxInstance
 
@@ -538,7 +568,7 @@ for (const event of events) {
 | `rmDir(path, recursive?)` | `Promise<{ found: boolean }>` |
 | `setEnv(env)` | `Promise<Record<string, string>>` |
 | `get()` | `Promise<SandboxInfo>` |
-| `pause()` | `Promise<void>` |
+| `pause()` | `Promise<SandboxPauseResult>` |
 | `resume()` | `Promise<void>` |
 | `destroy()` | `Promise<void>` |
 

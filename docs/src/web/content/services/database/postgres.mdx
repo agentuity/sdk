@@ -1,35 +1,60 @@
 ---
 title: Resilient Postgres Client
 short_title: Postgres
-description: Auto-reconnecting PostgreSQL client for serverless environments
+description: Use Bun-native tagged SQL with Agentuity-managed Postgres
 ---
 
-The `@agentuity/postgres` package provides a PostgreSQL client built for serverless environments with automatic reconnection.
-
-## Installation
+Use `@agentuity/postgres` when Bun server code needs direct SQL access through `DATABASE_URL`. The client wraps Bun's native SQL driver and adds reconnect behavior around connection loss.
 
 ```bash
 bun add @agentuity/postgres@alpha
 ```
 
-## Basic Usage
+```typescript
+import { postgres } from '@agentuity/postgres';
+
+const sql = postgres();
+
+const users = await sql`
+  SELECT id, email
+  FROM users
+  WHERE active = ${true}
+`;
+```
+
+<Callout type="info" title="This client is Bun-native">
+`@agentuity/postgres` imports Bun's SQL driver. Use it in Bun-based Agentuity apps and scripts. In other Node.js processes, use a Node Postgres client or the `@agentuity/db` service client.
+</Callout>
+
+## Connection Setup
+
+`postgres()` reads `DATABASE_URL` by default. You can also pass a connection URL or a configuration object.
 
 ```typescript
 import { postgres } from '@agentuity/postgres';
 
-// Create client (uses DATABASE_URL by default)
-const sql = postgres();
-
-// Queries automatically retry on connection errors
-const users = await sql`SELECT * FROM users WHERE active = ${true}`;
+const sql = postgres({
+  url: process.env.DATABASE_URL,
+  max: 10,
+  prepare: false,
+  reconnect: {
+    enabled: true,
+    maxAttempts: 10,
+    initialDelayMs: 100,
+    maxDelayMs: 30_000,
+  },
+});
 ```
+
+Leave `prepare: false` when your database connection may pass through a connection pooler.
 
 ## Transactions
 
-Transactions ensure multiple operations succeed or fail together:
+Transactions group related queries so they succeed or roll back together.
 
 ```typescript
 const tx = await sql.begin();
+
 try {
   await tx`UPDATE accounts SET balance = balance - ${100} WHERE name = ${'Alice'}`;
   await tx`UPDATE accounts SET balance = balance + ${100} WHERE name = ${'Bob'}`;
@@ -40,152 +65,105 @@ try {
 }
 ```
 
-### Transaction Options
+Pass transaction options when you need a specific isolation level.
 
 ```typescript
 const tx = await sql.begin({
-  isolationLevel: 'serializable',  // 'read uncommitted' | 'read committed' | 'repeatable read' | 'serializable'
-  readOnly: true,                   // Read-only transaction
-  deferrable: true,                 // Deferrable transaction (only with serializable + readOnly)
+  isolationLevel: 'serializable',
+  readOnly: true,
+  deferrable: true,
 });
 ```
 
-### Savepoints
-
-Use savepoints for partial rollbacks within a transaction:
+Use savepoints when only part of the transaction should roll back.
 
 ```typescript
 const tx = await sql.begin();
+
 try {
   await tx`INSERT INTO users (name) VALUES (${'Alice'})`;
 
   const savepoint = await tx.savepoint();
+
   try {
     await tx`INSERT INTO users (name) VALUES (${'Bob'})`;
-    // Something goes wrong
-    throw new Error('Oops');
+    throw new Error('Rollback Bob only');
   } catch {
-    await savepoint.rollback();  // Only rolls back Bob's insert
+    await savepoint.rollback();
   }
 
-  await tx.commit();  // Alice's insert is committed
+  await tx.commit();
 } catch (error) {
   await tx.rollback();
   throw error;
 }
 ```
 
-## Configuration
+## Connection Options
 
-```typescript
-const sql = postgres({
-  url: 'postgres://user:pass@localhost:5432/mydb',
-  max: 10,
-  prepare: false,
-  reconnect: {
-    enabled: true,
-    maxAttempts: 10,
-    initialDelayMs: 100,
-    maxDelayMs: 30000,
-    multiplier: 2,
-    jitterMs: 1000,
-  },
-  onclose: (error) => console.log('Connection closed', error),
-  onreconnect: (attempt) => console.log('Reconnecting', { attempt }),
-  onreconnected: () => console.log('Reconnected!'),
-});
-```
+| Option | Default | Description |
+|--------|---------|-------------|
+| `url` | `DATABASE_URL` | PostgreSQL connection string |
+| `hostname`, `port`, `username`, `password`, `database` | none | Individual connection fields when not using `url` |
+| `max` | `10` | Maximum connections in the pool |
+| `preconnect` | `false` | Run a test query during client creation instead of connecting lazily |
+| `prepare` | `false` | Use named prepared statements |
+| `bigint` | `false` | Return large integers as `BigInt` instead of strings |
+| `maxLifetime` | `0` | Maximum connection lifetime in seconds. `0` disables the limit |
+| `reconnect.enabled` | `true` | Enable automatic reconnection |
+| `reconnect.maxAttempts` | `10` | Maximum reconnection attempts |
+| `reconnect.initialDelayMs` | `100` | Initial delay before first retry |
+| `reconnect.maxDelayMs` | `30000` | Maximum delay between retries |
 
-Common options from `PostgresConfig`:
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `url` | `string` | `DATABASE_URL` | PostgreSQL connection string |
-| `hostname`, `port`, `username`, `password`, `database` | connection fields | - | Individual connection fields when not using `url` |
-| `max` | `number` | `10` | Maximum connections in the pool |
-| `preconnect` | `boolean` | `false` | Run a test query during client creation instead of connecting lazily |
-| `prepare` | `boolean` | `false` | Use named prepared statements. Leave this `false` for connection poolers |
-| `bigint` | `boolean` | `false` | Return large integers as `BigInt` instead of strings |
-| `maxLifetime` | `number` | `0` | Maximum connection lifetime in seconds. `0` disables the limit |
-| `reconnect.enabled` | `boolean` | `true` | Enable automatic reconnection |
-| `reconnect.maxAttempts` | `number` | `10` | Maximum reconnection attempts |
-| `reconnect.initialDelayMs` | `number` | `100` | Initial delay before first retry |
-| `reconnect.maxDelayMs` | `number` | `30000` | Maximum delay between retries |
-| `reconnect.multiplier` | `number` | `2` | Exponential backoff multiplier |
-| `reconnect.jitterMs` | `number` | `1000` | Maximum random jitter added to delays |
-| `onclose` | `(error) => void` | - | Callback when connection closes |
-| `onreconnect` | `(attempt) => void` | - | Callback when a reconnection attempt starts |
-| `onreconnected` | `() => void` | - | Callback when reconnection succeeds |
-| `onreconnectfailed` | `(error) => void` | - | Callback when reconnection fails permanently |
+The client also supports callbacks such as `onclose`, `onreconnect`, `onreconnected`, and `onreconnectfailed`.
 
 ## Connection Stats
 
-Monitor connection health with detailed statistics:
+Use `sql.stats` when you need to inspect connection state.
 
 ```typescript
-const sql = postgres();
+const stats = sql.stats;
 
-// After some queries
-console.log(sql.stats);
+if (stats.reconnecting) {
+  console.warn('Database is reconnecting');
+}
 ```
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `connected` | `boolean` | Whether currently connected |
-| `reconnecting` | `boolean` | Whether currently reconnecting |
-| `totalConnections` | `number` | Total connections established |
-| `reconnectAttempts` | `number` | Current reconnection attempt count |
-| `failedReconnects` | `number` | Total failed reconnection attempts |
-| `lastConnectedAt` | `Date \| null` | When last connected |
-| `lastDisconnectedAt` | `Date \| null` | When last disconnected |
-| `lastReconnectAttemptAt` | `Date \| null` | When last reconnection was attempted |
+| Property | Description |
+|----------|-------------|
+| `connected` | Whether the client is currently connected |
+| `reconnecting` | Whether a reconnect attempt is in progress |
+| `totalConnections` | Total successful connections |
+| `reconnectAttempts` | Current reconnect attempt count |
+| `failedReconnects` | Total failed reconnect attempts |
+| `lastConnectedAt` | Last successful connection time |
+| `lastDisconnectedAt` | Last disconnection time |
+| `lastReconnectAttemptAt` | Last reconnect attempt time |
 
-## Additional Methods
+## Utility Methods
 
-### Wait for Connection
-
-Block until a connection is established:
+Wait for a lazy connection to be established:
 
 ```typescript
-// Wait up to 5 seconds for connection
-await sql.waitForConnection(5000);
+await sql.waitForConnection(5_000);
 ```
 
-### Graceful Shutdown
-
-Signal shutdown to prevent reconnection attempts, then close the client when in-flight work has drained:
+Shut down without starting new reconnect attempts:
 
 ```typescript
 sql.shutdown();
 await sql.close();
 ```
 
-### Unsafe Queries
-
-Execute raw SQL strings. Use `unsafeQuery` when you still want retry behavior around a trusted raw SQL string:
+Run a trusted raw SQL string with retry behavior:
 
 ```typescript
-// Only use for trusted queries, not user input
-const result = await sql.unsafeQuery('SELECT version()');
+const rows = await sql.unsafeQuery('SELECT version()');
 ```
 
-### Access Raw Client
-
-Access the underlying Bun.SQL instance:
-
-```typescript
-const bunSql = sql.raw;
-```
-
-## Key Features
-
-- **Automatic reconnection** with exponential backoff and jitter
-- **Query retry** on retryable errors (connection lost, etc.)
-- **Graceful shutdown** on SIGTERM/SIGINT
-- **Transaction support** with isolation levels and savepoints
-- **Connection stats** for monitoring and debugging
+Use `unsafeQuery()` only for trusted SQL. For dynamic values, prefer tagged templates or pass parameters to `unsafeQuery(query, params)`.
 
 ## Next Steps
 
-- [Database Overview](/services/database): Bun SQL basics and provisioning
-- [Drizzle ORM](/services/database/drizzle): Type-safe queries with Drizzle
+- [Database Overview](/services/database): create or link Agentuity-managed Postgres
+- [Drizzle ORM](/services/database/drizzle): use schema-first type-safe queries
