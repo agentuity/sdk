@@ -80,38 +80,21 @@ DATABASE_URL=postgresql://...
 AGENTUITY_AUTH_SECRET=...
 ```
 
-For local development, put the browser origin in `.env.local`. This keeps the local callback URL separate from deployed app configuration:
+Create `.env.local` with the local app URL. This keeps local auth callbacks separate from deployed app configuration:
 
 ```env
+AGENTUITY_BASE_URL=http://127.0.0.1:3500
 BETTER_AUTH_URL=http://127.0.0.1:3500
-# or
-BETTER_AUTH_URL=http://localhost:3500
 ```
+
+Use the `Local` URL printed by `agentuity dev`, then restart the dev server after changing env vars.
 
 If you use the DevMode public tunnel, use the `Public` URL printed by `agentuity dev`:
 
 ```env
+AGENTUITY_BASE_URL=https://<devmode-host>.agentuity-us.live
 BETTER_AUTH_URL=https://<devmode-host>.agentuity-us.live
 ```
-
-For a deployed app, use the deployed app URL from `urls.app`:
-
-```bash
-agentuity --json project show <project-id> | jq -r '.urls.app'
-```
-
-```env
-BETTER_AUTH_URL=https://<your-app-host>.agentuity.run
-```
-
-Set that value on the deployed project:
-
-```bash
-agentuity cloud env set "BETTER_AUTH_URL=https://<your-app-host>.agentuity.run" \
-  --project-id <project-id>
-```
-
-Use the app URL here. The dashboard URL is only for managing the project.
 
 Create `src/auth.ts`:
 
@@ -120,7 +103,6 @@ import { createAuth } from '@agentuity/auth';
 
 export const auth = createAuth({
   connectionString: process.env.DATABASE_URL,
-  trustedOrigins: [process.env.BETTER_AUTH_URL],
 });
 ```
 
@@ -164,6 +146,47 @@ bunx drizzle-kit push
 
 The config reads `DATABASE_URL` from your environment.
 
+Verify the auth routes locally:
+
+```bash
+curl http://127.0.0.1:3500/api/auth/get-session
+```
+
+A signed-out app returns `null`.
+
+For your deployed app, use the stable app URL from `urls.app`:
+
+```bash
+agentuity --json project show <project-id> | jq -r '.urls.app'
+```
+
+Set that value on your deployed project:
+
+```bash
+agentuity cloud env set "BETTER_AUTH_URL=https://<your-app-host>.agentuity.run" \
+  --project-id <project-id>
+```
+
+Use the app URL here. The dashboard URL is only for managing the project.
+
+If your deployed project does not already have the database URL and auth secret, set those too:
+
+```bash
+agentuity cloud env set "DATABASE_URL=postgresql://..." --secret \
+  --project-id <project-id>
+agentuity cloud env set "AGENTUITY_AUTH_SECRET=..." --secret \
+  --project-id <project-id>
+```
+
+Deploy and verify the same route in your deployed app:
+
+```bash
+agentuity deploy --confirm
+curl https://<your-app-host>.agentuity.run/api/auth/get-session
+```
+
+A signed-out app also returns `null`.
+
 ## Server Setup
 
 ### The Basics
@@ -175,7 +198,6 @@ import { createAuth } from '@agentuity/auth';
 
 export const auth = createAuth({
   connectionString: process.env.DATABASE_URL,
-  trustedOrigins: [process.env.BETTER_AUTH_URL],
 });
 ```
 
@@ -227,11 +249,14 @@ export const auth = createAuth({
   // Or: database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
 
   skipDefaultPlugins: false, // Set true for full control over plugins
-  trustedOrigins: [process.env.BETTER_AUTH_URL],
   apiKey: { enabled: true, defaultPrefix: 'ag_', defaultKeyLength: 64 },
   plugins: [], // Add custom Better Auth plugins
 });
 ```
+
+<Callout type="tip" title="Set trusted origins only for extra frontends">
+Same-origin Agentuity apps do not need `trustedOrigins` in `createAuth()`. Add `AUTH_TRUSTED_DOMAINS` or pass `trustedOrigins` only when a separate frontend origin calls these auth routes. See Better Auth's [Trusted Origins](https://better-auth.com/docs/reference/security#trusted-origins) docs for the underlying origin checks.
+</Callout>
 
 ## Middleware
 
@@ -404,6 +429,14 @@ await signUp.email({ email, password, name });
 await signOut();
 ```
 
+These are Better Auth's standard client methods. See Better Auth's [Client](https://better-auth.com/docs/concepts/client) docs for `useSession` and error handling, and [Email & Password](https://better-auth.com/docs/authentication/email-password) for the sign-in and sign-up method options.
+
+### Build the UI
+
+Agentuity Auth wires Better Auth into your project, but it does not require a specific sign-in screen. Use the client methods above from your own form, or use a Better Auth-compatible UI package.
+
+If your app already uses shadcn/ui or HeroUI, [Better Auth UI](https://better-auth-ui.com/docs) provides prebuilt auth screens. Point it at the same `authClient` and keep the server setup on this page.
+
 ## Using Auth in Agents
 
 ### The ctx.auth Interface
@@ -480,8 +513,8 @@ export default createAgent('hello', {
 openssl rand -hex 32
 ```
 
-<Callout type="warning" title="Use the same browser origin">
-For local browser auth, `BETTER_AUTH_URL` must match the URL you open. If you open `http://127.0.0.1:3500`, do not set `BETTER_AUTH_URL` to `http://localhost:3500`.
+<Callout type="warning" title="Set Better Auth's base URL">
+For local browser auth, set `AGENTUITY_BASE_URL` and `BETTER_AUTH_URL` to the `Local` URL printed by `agentuity dev`. For your deployed app, set `BETTER_AUTH_URL` to the app URL from `urls.app`.
 </Callout>
 
 ## Database Configuration
@@ -495,7 +528,6 @@ import { createAuth } from '@agentuity/auth';
 
 export const auth = createAuth({
   connectionString: process.env.DATABASE_URL,
-  trustedOrigins: [process.env.BETTER_AUTH_URL],
 });
 ```
 
