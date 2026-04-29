@@ -738,8 +738,10 @@ async function testTemplate(
 		} else if (template.id === 'clerk') {
 			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
-		} else if (template.id === 'agentuity-auth') {
-			// Auth template requires DATABASE_URL to be set (throws at import time otherwise)
+		} else if (template.id === 'auth') {
+			// Auth template needs Postgres + auth secret to actually serve protected routes.
+			// db.ts is lazy, so the server boots without these — but setting them anyway
+			// lets future test extensions exercise the auth flow.
 			envVars.DATABASE_URL = 'postgres://user:pass@localhost:5432/testdb';
 			envVars.AGENTUITY_AUTH_SECRET = 'test-secret-for-auth-template';
 		}
