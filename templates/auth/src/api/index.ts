@@ -5,7 +5,7 @@ import { auth } from '../auth';
 
 // Chained method calls so the route types propagate into `typeof api`,
 // which the Hono `hc<ApiRouter>` client uses for typed calls like
-// `client.me.$get()`.
+// `client.me.$get()`
 const api = new Hono<Env>()
 	.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth))
 	.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))

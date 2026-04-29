@@ -4,16 +4,16 @@ An Agentuity project with [Better Auth](https://better-auth.com) wired up: auth 
 
 ## What you get
 
-- ✅ **Better Auth** — email + password auth via `@agentuity/auth`
-- ✅ **Postgres + Drizzle** — one shared client. Add your own tables in `src/schema.ts`
-- ✅ **`/api/auth/*`** — sign-up, sign-in, sign-out, sessions
-- ✅ **`/api/me`** — protected route that returns the signed-in user
-- ✅ **Better Auth UI** — drop-in sign-in and sign-up screens themed to Agentuity cyan
-- ✅ **React frontend** — `<SignedIn>` / `<SignedOut>` gating, sign-out, session detail card
+- ✅ **Better Auth** - email + password auth via `@agentuity/auth`
+- ✅ **Postgres + Drizzle** - one shared client. Add your own tables in `src/schema.ts`
+- ✅ **`/api/auth/*`** - sign-up, sign-in, sign-out, sessions
+- ✅ **`/api/me`** - protected route that returns the signed-in user
+- ✅ **Better Auth UI** - drop-in sign-in and sign-up screens themed to Agentuity cyan
+- ✅ **React frontend** - `<SignedIn>` / `<SignedOut>` gating, sign-out, session detail card
 
 ## Project structure
 
-```
+```text
 {{PROJECT_NAME}}/
 ├── src/
 │   ├── auth.ts              # createAuth() with drizzleAdapter

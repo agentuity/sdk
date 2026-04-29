@@ -9,7 +9,7 @@ import {
 	useAuthenticate,
 } from '@daveyplate/better-auth-ui';
 import { hc } from 'hono/client';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import type { ApiRouter } from '../api/index';
 import { authClient } from './auth-client';
 import './App.css';
@@ -71,7 +71,7 @@ interface ProtectedRouteResult {
 }
 
 function formatDate(value: string | null | undefined): string {
-	if (!value) return '—';
+	if (!value) return 'Not set';
 	try {
 		return new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' });
 	} catch {
@@ -226,6 +226,8 @@ export function App() {
 			setRouteResult(null);
 			setRouteError(null);
 			replace('/');
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : 'Sign out failed');
 		} finally {
 			setIsSigningOut(false);
 		}

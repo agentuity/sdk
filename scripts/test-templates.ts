@@ -580,11 +580,14 @@ async function startServer(
 	return { proc, success: false, error: 'Server failed to start within 30 seconds' };
 }
 
-async function testEndpoints(port: number): Promise<{ health: boolean; errors: string[] }> {
+async function testEndpoints(
+	port: number,
+	templateId: string
+): Promise<{ health: boolean; errors: string[] }> {
 	const errors: string[] = [];
 	let health = false;
 
-	// Test health endpoint only - sufficient to verify template builds and starts correctly
+	// Test health endpoint first, this verifies every template builds and starts
 	try {
 		const response = await fetch(`http://127.0.0.1:${port}/_health`);
 		health = response.ok;
@@ -593,6 +596,33 @@ async function testEndpoints(port: number): Promise<{ health: boolean; errors: s
 		}
 	} catch (e) {
 		errors.push(`Health endpoint failed: ${e}`);
+	}
+
+	if (templateId === 'auth') {
+		const origin = `http://127.0.0.1:${port}`;
+
+		try {
+			const response = await fetch(`${origin}/api/auth/get-session`, {
+				headers: { Origin: origin },
+			});
+			const body = await response.text();
+			if (!response.ok) {
+				errors.push(`Auth session endpoint returned ${response.status}`);
+			} else if (body.trim() !== 'null') {
+				errors.push(`Auth session endpoint returned unexpected body: ${body}`);
+			}
+		} catch (e) {
+			errors.push(`Auth session endpoint failed: ${e}`);
+		}
+
+		try {
+			const response = await fetch(`${origin}/api/me`);
+			if (response.status !== 401) {
+				errors.push(`Protected auth endpoint returned ${response.status}, expected 401`);
+			}
+		} catch (e) {
+			errors.push(`Protected auth endpoint failed: ${e}`);
+		}
 	}
 
 	return { health, errors };
@@ -739,11 +769,13 @@ async function testTemplate(
 			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
 		} else if (template.id === 'auth') {
-			// Auth template needs Postgres + auth secret to actually serve protected routes.
-			// db.ts is lazy, so the server boots without these — but setting them anyway
-			// lets future test extensions exercise the auth flow.
+			// Auth template needs Postgres + auth secret to actually serve protected routes
+			// db.ts is lazy, so the server boots without these, but setting them anyway
+			// lets future test extensions exercise the auth flow
 			envVars.DATABASE_URL = 'postgres://user:pass@localhost:5432/testdb';
-			envVars.AGENTUITY_AUTH_SECRET = 'test-secret-for-auth-template';
+			envVars.AGENTUITY_AUTH_SECRET =
+				'8f88a98d2c9f7f0da2b0a52f0d71a84767f5d7207fdfdecbf39d5b8b8c2a7d6b';
+			envVars.BETTER_AUTH_URL = `http://127.0.0.1:${basePort}`;
 		}
 
 		// Step 4: Typecheck
@@ -784,23 +816,24 @@ async function testTemplate(
 		}
 		logSuccess('Server started');
 
-		// Step 6: Test health endpoint
-		logStep('Testing health endpoint...');
+		// Step 6: Test endpoints
+		logStep('Testing endpoints...');
 		stepStart = Date.now();
-		const endpointResults = await testEndpoints(basePort);
+		const endpointResults = await testEndpoints(basePort, template.id);
+		const endpointsPassed = endpointResults.health && endpointResults.errors.length === 0;
 
 		result.steps.push({
-			name: 'Test health endpoint',
-			passed: endpointResults.health,
+			name: 'Test endpoints',
+			passed: endpointsPassed,
 			error: endpointResults.errors.length > 0 ? endpointResults.errors.join('; ') : undefined,
 			duration: Date.now() - stepStart,
 		});
 
-		if (!endpointResults.health) {
+		if (!endpointsPassed) {
 			result.passed = false;
-			logError(`Health endpoint test failed: ${endpointResults.errors.join('; ')}`);
+			logError(`Endpoint test failed: ${endpointResults.errors.join('; ')}`);
 		} else {
-			logSuccess('Health endpoint test passed');
+			logSuccess('Endpoint tests passed');
 		}
 
 		// Step 7: Check outdated dependencies (report-only)

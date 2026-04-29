@@ -24,13 +24,13 @@ Read the [AGENTS.md](./node_modules/@agentuity/cli/AGENTS.md) file in the Agentu
 
 One Drizzle client serves both Better Auth's tables and your own (the "Bring Your Own Drizzle" pattern).
 
-**Files:**
+**File Structure:**
 
-- `src/db.ts`. Builds a single Drizzle client lazily via `createPostgresDrizzle({ connectionString, schema })`.
-- `src/auth.ts`. Wraps that client with `drizzleAdapter` and passes it to `createAuth`.
-- `src/schema.ts`. Re-exports `@agentuity/auth/schema` so drizzle-kit sees Better Auth's tables. Add your own tables here.
-- `src/api/index.ts`. Registers `/auth/*` (mountAuthRoutes) and `/me` (createSessionMiddleware). The router is mounted under `/api` in `app.ts`, so the served URLs are `/api/auth/*` and `/api/me`.
-- `src/agent/index.ts`. Inherited from the base template and intentionally empty. Add agents only if this app needs them.
+- `src/db.ts` - Builds one Drizzle client lazily via `createPostgresDrizzle({ connectionString, schema })`
+- `src/auth.ts` - Wraps that client with `drizzleAdapter` and passes it to `createAuth`
+- `src/schema.ts` - Re-exports `@agentuity/auth/schema` so drizzle-kit sees Better Auth's tables. Add your own tables here
+- `src/api/index.ts` - Registers `/auth/*` with `mountAuthRoutes` and `/me` with `createSessionMiddleware`. The router is mounted under `/api` in `app.ts`, so the served URLs are `/api/auth/*` and `/api/me`
+- `src/agent/index.ts` - Inherited from the base template and intentionally empty. Add agents only if this app needs them
 
 ## Adding your own tables
 
@@ -72,13 +72,13 @@ For optional auth (route works signed in or out), pass `{ optional: true }`.
 
 The `src/web/` folder contains your React frontend, which is automatically bundled by the Agentuity build system.
 
-**File structure:**
+**File Structure:**
 
-- `index.html` — Main HTML file with `<script type="module" src="./frontend.tsx">`
-- `frontend.tsx` — Entry point. Wires `AgentuityProvider` + `AuthProvider` from `@agentuity/auth/react`.
-- `auth-client.ts` — `createAuthClient()` from `@agentuity/auth/react`.
-- `App.tsx` — Renders the auth UI. Uses `<SignedIn>` / `<SignedOut>` from `@daveyplate/better-auth-ui` to gate content.
-- `App.css` — Tailwind theme tokens (Agentuity cyan + Better Auth UI shadcn variables).
+- `index.html` - Main HTML file with `<script type="module" src="./frontend.tsx">`
+- `frontend.tsx` - Entry point that wires `AgentuityProvider` and `AuthProvider`
+- `auth-client.ts` - `createAuthClient()` from `@agentuity/auth/react`
+- `App.tsx` - Main React component. Uses `<SignedIn>` and `<SignedOut>` from `@daveyplate/better-auth-ui`
+- `App.css` - Tailwind theme tokens for Agentuity cyan and Better Auth UI
 
 **Key Points:**
 
