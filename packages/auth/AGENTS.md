@@ -53,9 +53,15 @@ const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 });
 
-api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
-api.use('/api/*', createSessionMiddleware(auth));
+// In src/api/index.ts, app.ts mounts this router at /api
+// This exposes /api/auth/*
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
+
+// Protect routes inside this mounted API router
+api.use('/*', createSessionMiddleware(auth));
 ```
+
+Important: Use `/auth/*` inside Agentuity v2 `src/api/index.ts` because `app.ts` already mounts that router at `/api`. Use `/api/auth/*` only when mounting Better Auth on a root Hono app directly.
 
 ### Agent Handler (ctx.auth is native)
 
@@ -93,6 +99,12 @@ const authClient = createAuthClient();
 1. **connectionString** - Simplest: we create Bun SQL connection + drizzle internally
 2. **database** - Bring your own drizzle adapter or other BetterAuth adapter
 3. **@agentuity/auth/schema** - Export for merging with app schema
+
+## Documentation Patterns
+
+- Put local-only auth callback values in `.env.local`.
+- Show `@agentuity/auth/schema` through `drizzle.config.ts`, then run Drizzle Kit from that config.
+- Avoid inline Drizzle Kit `--dialect`, `--schema`, and `--url` commands unless the docs are about those flags.
 
 ## Default Plugins
 

@@ -104,7 +104,7 @@ export function App() {
 						</label>
 						<p className="poem-note">
 							This triggers an agent-to-agent handoff to the Poem Agent, demonstrating auth
-							propagation via withSession.
+							context propagation.
 						</p>
 					</div>
 
