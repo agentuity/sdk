@@ -1,5 +1,6 @@
 import { fstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathExists } from '../../../node-compat/fs.ts';
 import type { FileToWrite, Logger } from '@agentuity/core';
 import { APIClient, getServiceUrls, sandboxGet, sandboxResolve } from '@agentuity/server';
 import { deleteResourceRegion, getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
@@ -173,8 +174,7 @@ export async function parseFileArgs(fileArgs: string[] | undefined): Promise<Fil
 		}
 
 		const resolvedPath = resolve(localPath);
-		// Use Bun.file().exists() instead of Node's existsSync per coding guidelines
-		const fileExists = await Bun.file(resolvedPath).exists();
+		const fileExists = await pathExists(resolvedPath);
 		if (!fileExists) {
 			throw new Error(`File not found: ${localPath} (resolved to ${resolvedPath})`);
 		}

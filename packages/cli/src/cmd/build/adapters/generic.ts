@@ -10,10 +10,11 @@
  * and is also the base logic that specific adapters build on.
  */
 
-import { basename, join, resolve, relative } from 'node:path';
 import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
+import { basename, join, relative, resolve } from 'node:path';
+import { run } from '../../../node-compat/proc.ts';
 import { getRunCommand } from '../detect/util.ts';
+import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 
 /**
  * Run a shell command and return exit code.
@@ -23,24 +24,11 @@ async function runCommand(
 	cwd: string,
 	env?: Record<string, string>
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	const proc = Bun.spawn(cmd, {
-		cwd,
-		env: { ...process.env, ...env },
-		stdout: 'pipe',
-		stderr: 'pipe',
-	});
-
-	const [stdout, stderr] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-	]);
-
-	await proc.exited;
-
+	const result = await run({ cmd, cwd, env });
 	return {
-		exitCode: proc.exitCode ?? 1,
-		stdout,
-		stderr,
+		exitCode: result.exitCode ?? 1,
+		stdout: result.stdout,
+		stderr: result.stderr,
 	};
 }
 

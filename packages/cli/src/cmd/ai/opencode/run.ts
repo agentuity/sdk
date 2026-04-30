@@ -1,7 +1,8 @@
-import { createSubcommand, type CommandContext } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
 import { z } from 'zod';
+import { getCommand } from '../../../command-prefix.ts';
+import { spawnInherit } from '../../../node-compat/proc.ts';
+import * as tui from '../../../tui.ts';
+import { type CommandContext, createSubcommand } from '../../../types.ts';
 
 const RunArgsSchema = z.object({
 	task: z.string().describe('The task description to execute'),
@@ -77,10 +78,9 @@ export const runSubcommand = createSubcommand({
 
 		logger.debug(`Spawning: opencode ${openCodeArgs.join(' ')}`);
 
-		const proc = Bun.spawn(['opencode', ...openCodeArgs], {
-			stdio: ['inherit', 'inherit', 'inherit'],
+		const { exitCode } = await spawnInherit({
+			cmd: ['opencode', ...openCodeArgs],
 			env: {
-				...process.env,
 				AGENTUITY_CODER_MODE: 'non-interactive',
 				AGENTUITY_AGENT_MODE: 'opencode',
 				// Pass through profile if set
@@ -90,11 +90,9 @@ export const runSubcommand = createSubcommand({
 			},
 		});
 
-		const exitCode = await proc.exited;
-
 		// In JSON mode, let opencode's output speak for itself - exit code indicates success
 		if (json) {
-			process.exit(exitCode);
+			process.exit(exitCode ?? 1);
 		}
 
 		if (exitCode === 0) {
@@ -105,7 +103,7 @@ export const runSubcommand = createSubcommand({
 			tui.error(`Task failed with exit code ${exitCode}`);
 		}
 
-		return { success: exitCode === 0, task, exitCode, sandbox: !!sandbox };
+		return { success: exitCode === 0, task, exitCode: exitCode ?? 1, sandbox: !!sandbox };
 	},
 });
 

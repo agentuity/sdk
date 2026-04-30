@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { writeFile, readdir } from 'node:fs/promises';
-import { Config, createSubcommand } from '../../types.ts';
+import { type Config, createSubcommand } from '../../types.ts';
 import { z } from 'zod';
 import {
 	fetchProfiles,

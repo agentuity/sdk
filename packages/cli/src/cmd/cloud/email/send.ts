@@ -1,10 +1,13 @@
+import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { z } from 'zod';
 import type { EmailAttachment } from '@agentuity/core';
-import { createCommand } from '../../../types.ts';
+import { getContentType } from '@agentuity/server';
+import { z } from 'zod';
+import { pathExists } from '../../../node-compat/fs.ts';
 import * as tui from '../../../tui.ts';
-import { createEmailAdapter, truncate } from './util.ts';
+import { createCommand } from '../../../types.ts';
 import { EmailOutboundSchema } from './outbound/schemas.ts';
+import { createEmailAdapter, truncate } from './util.ts';
 
 export const sendSubcommand = createCommand({
 	name: 'send',
@@ -36,15 +39,14 @@ export const sendSubcommand = createCommand({
 
 		const attachments: EmailAttachment[] = [];
 		for (const filePath of fileValues) {
-			const file = Bun.file(filePath);
-			if (!(await file.exists())) {
+			if (!(await pathExists(filePath))) {
 				tui.fatal(`Attachment file not found: ${filePath}`);
 			}
 
-			const buffer = Buffer.from(await file.arrayBuffer());
+			const buffer = await readFile(filePath);
 			attachments.push({
 				filename: basename(filePath),
-				contentType: file.type || 'application/octet-stream',
+				contentType: getContentType(filePath) || 'application/octet-stream',
 				content: buffer.toString('base64'),
 			});
 		}

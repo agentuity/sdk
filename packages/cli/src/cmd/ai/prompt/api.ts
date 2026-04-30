@@ -1,8 +1,18 @@
-import { createSubcommand } from '../../../types.ts';
-import type { CommandContext } from '../../../types.ts';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getCommand } from '../../../command-prefix.ts';
+import type { CommandContext } from '../../../types.ts';
+import { createSubcommand } from '../../../types.ts';
 import { appendHashComment } from './version.ts';
-import apiPromptContent from './api.md' with { type: 'text' };
+
+// See note on the equivalent web.ts — Bun supports the `with { type:
+// 'text' }` import attribute, Node 24 does not yet, so we read the
+// file synchronously at module load (works under both).
+const apiPromptContent = readFileSync(
+	join(dirname(fileURLToPath(import.meta.url)), 'api.md'),
+	'utf-8'
+);
 
 export const apiSubcommand = createSubcommand({
 	name: 'api',

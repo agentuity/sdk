@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types.ts';
+import { readStdinText } from '../../../node-compat/stdin.ts';
 import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 import { orgAuthEnroll } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
@@ -52,7 +53,7 @@ export const enrollSubcommand = createSubcommand({
 			} else if (!process.stdin.isTTY) {
 				try {
 					const stdin = await Promise.race([
-						Bun.stdin.text(),
+						readStdinText(),
 						new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
 					]);
 

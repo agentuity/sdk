@@ -10,19 +10,21 @@
  * inline code snippets and produces complete, working files.
  */
 
-import { join } from 'node:path';
 import { cpSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { currentDir } from '../../node-compat/runtime-info.ts';
 
 // Resolve the templates directory relative to this file.
-// When running from src/ (via bun), import.meta.dir is src/cmd/project/.
-// When running from dist/ (via compiled JS), import.meta.dir is dist/cmd/project/.
+// When running from src/ (via bun), thisDir is src/cmd/project/.
+// When running from dist/ (via compiled JS), thisDir is dist/cmd/project/.
 // Templates live under src/cmd/project/templates/ but are also shipped
 // in the npm package at that path. We check both locations.
 const templatesDir = (() => {
-	const srcDir = join(import.meta.dir, 'templates');
+	const thisDir = currentDir(import.meta);
+	const srcDir = join(thisDir, 'templates');
 	if (existsSync(join(srcDir, 'nextjs'))) return srcDir;
 	// Fallback: from dist/cmd/project/ → src/cmd/project/templates/
-	const fallbackDir = join(import.meta.dir, '..', '..', 'src', 'cmd', 'project', 'templates');
+	const fallbackDir = join(thisDir, '..', '..', 'src', 'cmd', 'project', 'templates');
 	if (existsSync(join(fallbackDir, 'nextjs'))) return fallbackDir;
 	return srcDir; // will fail with a clear error if neither exists
 })();

@@ -1,17 +1,20 @@
 import { z } from 'zod';
 import {
-	readFileSync,
-	mkdirSync,
-	statSync,
-	readdirSync,
+	createReadStream,
 	createWriteStream,
+	mkdirSync,
 	mkdtempSync,
+	readdirSync,
+	readFileSync,
 	rmSync,
+	statSync,
 } from 'node:fs';
-import { dirname, resolve, basename, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
-import { pipeline } from 'node:stream/promises';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
+import { pathExists } from '../../../../node-compat/fs.ts';
 import * as tar from 'tar';
 import { createCommand } from '../../../../types.ts';
 import { toForwardSlash } from '../../../../utils/normalize-path.ts';
@@ -234,7 +237,7 @@ async function uploadToSandbox(
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const resolvedPath = resolve(localPath);
 
-	if (!(await Bun.file(resolvedPath).exists())) {
+	if (!(await pathExists(resolvedPath))) {
 		const stat = statSync(resolvedPath, { throwIfNoEntry: false });
 		if (!stat) {
 			logger.fatal(`Local path not found: ${localPath}`);
@@ -397,7 +400,9 @@ async function uploadDirectory(
 		await createTarGzArchive(localDir, allFiles, archivePath);
 		await sandboxUploadArchive(client, {
 			sandboxId,
-			archive: Bun.file(archivePath).stream(),
+			archive: Readable.toWeb(
+				createReadStream(archivePath)
+			) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>,
 			path: baseRemotePath,
 			format: 'tar.gz',
 			orgId,
@@ -487,16 +492,16 @@ async function downloadSingleFile(
 		Readable.fromWeb(stream as unknown as globalThis.ReadableStream<ArrayBufferView>),
 		createWriteStream(targetPath)
 	);
-	const buffer = Bun.file(targetPath);
+	const targetSize = statSync(targetPath).size;
 
 	if (!jsonOutput) {
-		tui.success(`Copied ${sandboxId}:${remotePath} → ${targetPath} (${buffer.size} bytes)`);
+		tui.success(`Copied ${sandboxId}:${remotePath} → ${targetPath} (${targetSize} bytes)`);
 	}
 
 	return {
 		source: `${sandboxId}:${remotePath}`,
 		destination: targetPath,
-		bytesTransferred: buffer.size,
+		bytesTransferred: targetSize,
 		filesTransferred: 1,
 	};
 }

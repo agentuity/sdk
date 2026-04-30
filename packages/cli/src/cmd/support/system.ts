@@ -1,8 +1,9 @@
-import { createSubcommand } from '../../types.ts';
-import { z } from 'zod';
 import { existsSync, readFileSync } from 'node:fs';
+import { arch, cpus, homedir, platform, totalmem } from 'node:os';
 import { join } from 'node:path';
-import { platform, arch, cpus, totalmem, homedir } from 'node:os';
+import { z } from 'zod';
+import { runtimeVersion } from '../../node-compat/runtime-info.ts';
+import { createSubcommand } from '../../types.ts';
 import { getLatestLogSession } from '../../internal-logger.ts';
 import * as tui from '../../tui.ts';
 import { getVersion, getPackageName } from '../../version.ts';
@@ -87,7 +88,7 @@ export default createSubcommand({
 			},
 			bun: {
 				path: process.execPath || 'unknown',
-				version: Bun.version || process.version,
+				version: runtimeVersion(),
 			},
 			system: {
 				platform: platform(),

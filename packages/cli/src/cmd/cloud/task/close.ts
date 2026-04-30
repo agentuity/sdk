@@ -1,10 +1,12 @@
+import { readFile } from 'node:fs/promises';
+import type { BatchClosedTask, TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createStorageAdapter, resolveMeId, parseDuration, truncate } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { isDryRunMode, outputDryRun } from '../../../explain.ts';
-import type { TaskPriority, TaskStatus, TaskType, BatchClosedTask } from '@agentuity/core';
+import { pathExists } from '../../../node-compat/fs.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { createStorageAdapter, parseDuration, resolveMeId, truncate } from './util.ts';
 
 const TaskCloseResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -186,12 +188,11 @@ export const closeSubcommand = createCommand({
 		// Handle IDs file
 		let explicitIds: string[] | undefined;
 		if (opts.idsFile) {
-			const file = Bun.file(opts.idsFile);
-			if (!(await file.exists())) {
+			if (!(await pathExists(opts.idsFile))) {
 				tui.fatal(`IDs file not found: ${opts.idsFile}`);
 			}
 			try {
-				const content = await file.json();
+				const content = JSON.parse(await readFile(opts.idsFile, 'utf-8'));
 				if (Array.isArray(content)) {
 					explicitIds = content.map((id) => String(id));
 				} else if (content && Array.isArray((content as { ids?: string[] }).ids)) {

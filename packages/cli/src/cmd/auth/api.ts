@@ -1,7 +1,8 @@
-import { z } from 'zod';
-import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server';
-import type { APIClient } from '../../api.ts';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { StructuredError } from '@agentuity/core';
+import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server';
+import { z } from 'zod';
+import type { APIClient } from '../../api.ts';
 
 // Zod schemas for API validation
 const CodeStartDataSchema = z.object({
@@ -89,7 +90,7 @@ export async function pollForLoginCompletion(
 			};
 		}
 
-		await Bun.sleep(2000);
+		await sleep(2000);
 	}
 
 	throw new PollForLoginTimeout();
@@ -146,13 +147,13 @@ export async function pollForSignupCompletion(
 			}
 		} catch (error) {
 			if (error instanceof APIError && error.status === 404) {
-				await Bun.sleep(2000);
+				await sleep(2000);
 				continue;
 			}
 			throw error;
 		}
 
-		await Bun.sleep(2000);
+		await sleep(2000);
 	}
 
 	throw new PollForSignupTimeoutError();

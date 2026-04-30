@@ -1,8 +1,8 @@
-import { z } from 'zod';
-import { createWriteStream } from 'node:fs';
-import { dirname } from 'node:path';
+import { createWriteStream, statSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { z } from 'zod';
 import { Readable } from 'node:stream';
 import { createCommand } from '../../../../types.ts';
 import * as tui from '../../../../tui.ts';
@@ -73,7 +73,7 @@ export const downloadSubcommand = createCommand({
 		});
 		await mkdir(dirname(args.output), { recursive: true });
 		await pipeline(Readable.fromWeb(stream), createWriteStream(args.output));
-		const totalBytes = Bun.file(args.output).size;
+		const totalBytes = statSync(args.output).size;
 
 		if (!options.json) {
 			tui.success(`Downloaded ${formatSize(totalBytes)} to ${args.output}`);

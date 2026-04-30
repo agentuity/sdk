@@ -7,12 +7,13 @@
  */
 
 import { existsSync, mkdirSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
+import { getVersion } from '../../version.ts';
 import type { FrameworkScaffold } from './frameworks.ts';
 import { applyOverlay } from './frameworks.ts';
-import { getVersion } from '../../version.ts';
 
 interface ScaffoldOptions {
 	/** Absolute path to the target directory */
@@ -118,7 +119,7 @@ async function augmentProject(
  */
 async function mergePackageJson(dest: string, framework: FrameworkScaffold): Promise<void> {
 	const pkgPath = join(dest, 'package.json');
-	const pkg = await Bun.file(pkgPath).json();
+	const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 
 	// Ensure sections exist
 	pkg.dependencies = pkg.dependencies ?? {};
@@ -159,7 +160,7 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 		}
 	}
 
-	await Bun.write(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
+	await writeFile(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
 }
 
 /**
@@ -187,13 +188,13 @@ async function appendGitignore(dest: string): Promise<void> {
 
 	let content = '';
 	if (existsSync(gitignorePath)) {
-		content = await Bun.file(gitignorePath).text();
+		content = await readFile(gitignorePath, 'utf-8');
 	}
 
 	const missing = entries.filter((entry) => !content.includes(entry));
 	if (missing.length > 0) {
 		const section = '\n# Agentuity\n' + missing.join('\n') + '\n';
-		await Bun.write(gitignorePath, content.trimEnd() + section);
+		await writeFile(gitignorePath, content.trimEnd() + section);
 	}
 }
 

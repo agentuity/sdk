@@ -1,7 +1,15 @@
+import { readFile } from 'node:fs/promises';
 import { generatePatches as aisdkGeneratePatches } from './aisdk.ts';
+import { buildPatchFilter, type PatchModule, searchBackwards } from './_util.ts';
 import { generatePatches as llmGeneratePatches } from './llm.ts';
 import { generatePatches as otelLlmGeneratePatches } from './otel-llm.ts';
-import { type PatchModule, searchBackwards, buildPatchFilter } from './_util.ts';
+
+/**
+ * Loader kinds we emit. The CLI's patch step only ever produces JS or
+ * TS output; the broader `Bun.Loader` union (json, jsx, tsx, etc.) is
+ * unused here.
+ */
+export type PatchLoader = 'js' | 'ts';
 export { buildPatchFilter };
 
 export function generatePatches(): Map<string, PatchModule> {
@@ -21,8 +29,8 @@ export function generatePatches(): Map<string, PatchModule> {
 export async function applyPatch(
 	filename: string,
 	patch: PatchModule
-): Promise<[string, Bun.Loader]> {
-	let contents = await Bun.file(filename).text();
+): Promise<[string, PatchLoader]> {
+	let contents = await readFile(filename, 'utf-8');
 	const isJS = filename.endsWith('.js') || filename.endsWith('.mjs');
 	let suffix = '';
 	if (patch.functions) {

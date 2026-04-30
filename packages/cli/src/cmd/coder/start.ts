@@ -1,13 +1,15 @@
-import { dirname, resolve } from 'node:path';
+import { spawn } from 'node:child_process';
 import { stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { z } from 'zod';
-import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
+import { dirname, resolve } from 'node:path';
 import { ValidationOutputError } from '@agentuity/core';
+import { CoderClient, type CoderSessionListItem } from '@agentuity/core/coder';
+import { z } from 'zod';
 import { toCoderHubWsUrl } from '../../coder-hub-url.ts';
-import { createSubcommand } from '../../types.ts';
-import * as tui from '../../tui.ts';
 import { getCommand } from '../../command-prefix.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types.ts';
 import { ErrorCode } from '../../errors.ts';
 import { resolveExtensionPath, resolveExtensionRuntimeModulePath } from './extension-path.ts';
 import { probeHubInitAccess } from './tui-init.ts';
@@ -34,11 +36,11 @@ async function resolvePiBinary(flagPath?: string, extensionDir?: string): Promis
 				paths: [extensionDir],
 			});
 			const piCli = resolve(dirname(pkgJson), 'dist', 'cli.js');
-			if (await Bun.file(piCli).exists()) return piCli;
+			if (await pathExists(piCli)) return piCli;
 		} catch {
 			// Fallback: direct .bin symlink check
 			const bundledPi = resolve(extensionDir, 'node_modules', '.bin', 'pi');
-			if (await Bun.file(bundledPi).exists()) return bundledPi;
+			if (await pathExists(bundledPi)) return bundledPi;
 		}
 	}
 
@@ -411,21 +413,21 @@ export const startSubcommand = createSubcommand({
 
 		// Spawn pi as a child process, inheriting stdio for interactive TUI
 		try {
-			const proc = Bun.spawn([piBinary, ...piArgs], {
-				env,
+			const proc = spawn(piBinary, piArgs, {
+				env: { ...process.env, ...env },
 				cwd,
-				stdin: 'inherit',
-				stdout: 'inherit',
-				stderr: 'inherit',
+				stdio: 'inherit',
 			});
 
 			// Forward signals to the child process so Ctrl+C exits cleanly
-			const onSigInt = () => proc.kill(2);
-			const onSigTerm = () => proc.kill(15);
+			const onSigInt = () => proc.kill('SIGINT');
+			const onSigTerm = () => proc.kill('SIGTERM');
 			process.on('SIGINT', onSigInt);
 			process.on('SIGTERM', onSigTerm);
 
-			const exitCode = await proc.exited;
+			const exitCode = await new Promise<number | null>((resolve) => {
+				proc.once('close', (code) => resolve(code));
+			});
 
 			// Clean up only our signal handlers (preserve other modules' listeners)
 			process.removeListener('SIGINT', onSigInt);

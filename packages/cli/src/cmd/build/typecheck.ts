@@ -1,7 +1,9 @@
 import { join } from 'node:path';
-import { parse, type GrammarItem } from '../../tsc-output-parser.ts';
-import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors.ts';
 import type { BuildReportCollector } from '../../build-report.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import { run } from '../../node-compat/proc.ts';
+import { type GrammarItem, parse } from '../../tsc-output-parser.ts';
+import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors.ts';
 
 interface TypeError {
 	success: false;
@@ -76,19 +78,17 @@ function filterNodeModulesErrors(output: string): string {
 export async function typecheck(dir: string, options?: TypecheckOptions): Promise<TypeResult> {
 	// Skip typecheck for projects without tsconfig.json (plain JS projects)
 	const tsconfigPath = join(dir, 'tsconfig.json');
-	const tsconfigFile = Bun.file(tsconfigPath);
-	const tsconfigExists = await tsconfigFile.exists();
-	if (!tsconfigExists) {
+	if (!(await pathExists(tsconfigPath))) {
 		return { success: true };
 	}
 
 	const { collector } = options ?? {};
-	const result = await Bun.$`bunx tsc --noEmit --skipLibCheck --pretty false`
-		.cwd(dir)
-		.quiet()
-		.nothrow();
+	const result = await run({
+		cmd: ['bunx', 'tsc', '--noEmit', '--skipLibCheck', '--pretty', 'false'],
+		cwd: dir,
+	});
 
-	const output = await result.text();
+	const output = result.stdout;
 
 	// Filter out node_modules errors before parsing to prevent parser crashes.
 	// The PEG parser is strict and fails on lines it cannot match as tsc error items.
@@ -101,11 +101,11 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 		// If the parser still fails (e.g. unexpected tsc output format), treat as
 		// an unknown error and show the raw output instead of crashing.
 		if (collector) {
-			collector.addGeneralError('typescript', output || result.stderr.toString());
+			collector.addGeneralError('typescript', output || result.stderr);
 		}
 		return {
 			success: false,
-			output: output || result.stderr.toString(),
+			output: output || result.stderr,
 		};
 	}
 
@@ -130,12 +130,12 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 	} else {
 		// Unknown error - add to collector as general error
 		if (collector) {
-			collector.addGeneralError('typescript', output || result.stderr.toString());
+			collector.addGeneralError('typescript', output || result.stderr);
 		}
 
 		return {
 			success: false,
-			output: output || result.stderr.toString(),
+			output: output || result.stderr,
 		};
 	}
 }

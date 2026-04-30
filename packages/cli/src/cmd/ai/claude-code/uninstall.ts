@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { createSubcommand, type CommandContext } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { getCommand } from '../../../command-prefix.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import * as tui from '../../../tui.ts';
+import { type CommandContext, createSubcommand } from '../../../types.ts';
 import {
 	type ClaudeSettings,
 	CLAUDE_SETTINGS_FILE,
@@ -33,7 +34,7 @@ export const uninstallSubcommand = createSubcommand({
 		let removedPlugin = false;
 		let removedPermissions = false;
 
-		if (await Bun.file(`${PLUGIN_INSTALL_DIR}/package.json`).exists()) {
+		if (await pathExists(`${PLUGIN_INSTALL_DIR}/package.json`)) {
 			try {
 				rmSync(PLUGIN_INSTALL_DIR, { recursive: true, force: true });
 				removedPlugin = true;
@@ -51,7 +52,7 @@ export const uninstallSubcommand = createSubcommand({
 			}
 		}
 
-		if (await Bun.file(CLAUDE_SETTINGS_FILE).exists()) {
+		if (await pathExists(CLAUDE_SETTINGS_FILE)) {
 			try {
 				const content = readFileSync(CLAUDE_SETTINGS_FILE, 'utf-8');
 				const settings: ClaudeSettings = JSON.parse(content);

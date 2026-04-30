@@ -1,5 +1,6 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pathExists } from '../../node-compat/fs.ts';
 
 export type ExtensionPathResolverOptions = {
 	cwd?: string;
@@ -32,7 +33,7 @@ export async function resolveExtensionPath(
 		const entryPath = require.resolve('@agentuity/coder-tui', { paths: [cliDir] });
 		let dir = dirname(entryPath);
 		while (dir !== dirname(dir)) {
-			if (await Bun.file(resolve(dir, 'package.json')).exists()) return dir;
+			if (await pathExists(resolve(dir, 'package.json'))) return dir;
 			dir = dirname(dir);
 		}
 	} catch {
@@ -46,7 +47,7 @@ export async function resolveExtensionPath(
 		let dir = cliDir;
 		for (let i = 0; i < 10; i++) {
 			const candidate = resolve(dir, 'node_modules', '@agentuity', 'coder-tui');
-			if (await Bun.file(resolve(candidate, 'package.json')).exists()) return candidate;
+			if (await pathExists(resolve(candidate, 'package.json'))) return candidate;
 			const parent = dirname(dir);
 			if (parent === dir) break;
 			dir = parent;
@@ -62,10 +63,10 @@ export async function resolveExtensionRuntimeModulePath(
 	extensionPath: string
 ): Promise<string | null> {
 	const sourceModulePath = resolve(extensionPath, 'src', 'remote-tui.ts');
-	if (await Bun.file(sourceModulePath).exists()) return sourceModulePath;
+	if (await pathExists(sourceModulePath)) return sourceModulePath;
 
 	const distModulePath = resolve(extensionPath, 'dist', 'remote-tui.js');
-	if (await Bun.file(distModulePath).exists()) return distModulePath;
+	if (await pathExists(distModulePath)) return distModulePath;
 
 	return null;
 }

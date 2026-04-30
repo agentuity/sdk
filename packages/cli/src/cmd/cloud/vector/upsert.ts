@@ -1,9 +1,12 @@
-import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createStorageAdapter } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { readFile } from 'node:fs/promises';
 import type { VectorUpsertParams } from '@agentuity/core';
+import { z } from 'zod';
+import { getCommand } from '../../../command-prefix.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import { readStdinText } from '../../../node-compat/stdin.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { createStorageAdapter } from './util.ts';
 
 const VectorUpsertResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -100,25 +103,12 @@ export const upsertSubcommand = createCommand({
 			let content: string;
 
 			if (fileArg === '-') {
-				// Read from stdin
-				const chunks: Uint8Array[] = [];
-				const reader = Bun.stdin.stream().getReader();
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					chunks.push(value);
-				}
-
-				const decoder = new TextDecoder();
-				content = chunks.map((chunk) => decoder.decode(chunk, { stream: true })).join('');
+				content = await readStdinText();
 			} else {
-				// Read from file
-				const file = Bun.file(fileArg);
-				if (!(await file.exists())) {
+				if (!(await pathExists(fileArg))) {
 					tui.fatal(`File not found: ${fileArg}`);
 				}
-				content = await file.text();
+				content = await readFile(fileArg, 'utf-8');
 			}
 
 			try {

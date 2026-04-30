@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { StructuredError } from '@agentuity/core';
 import { APIResponseSchema } from '@agentuity/server';
 import { z } from 'zod';
@@ -170,7 +171,7 @@ export async function pollForGithubIntegration(
 			};
 		}
 
-		await Bun.sleep(delay);
+		await sleep(delay);
 		delay = Math.min(delay * 1.5, maxDelay);
 	}
 

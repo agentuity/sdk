@@ -1,5 +1,6 @@
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
+import { pathExists } from '../../../node-compat/fs.ts';
 
 export const REQUIRED_TABLES = new Set(['session', 'message', 'part', 'todo']);
 
@@ -32,12 +33,12 @@ export async function resolveOpenCodeDBPath(): Promise<string | null> {
 	const envPath = process.env.OPENCODE_DB_PATH;
 	if (envPath) {
 		if (isMemoryPath(envPath)) return envPath;
-		if (await Bun.file(envPath).exists()) return envPath;
+		if (await pathExists(envPath)) return envPath;
 	}
 
 	const candidates = getDefaultDBCandidates();
 	for (const candidate of candidates) {
-		if (await Bun.file(candidate).exists()) {
+		if (await pathExists(candidate)) {
 			return candidate;
 		}
 	}

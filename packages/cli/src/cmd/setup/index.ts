@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { createCommand } from '../../types.ts';
 import { hasLoggedInBefore } from '../../auth.ts';
 import { showBanner } from '../../banner.ts';
-import * as tui from '../../tui.ts';
 import { getCommand } from '../../command-prefix.ts';
+import { run } from '../../node-compat/proc.ts';
 import { getAgentPromptMarkdown } from '../../onboarding/agentPrompt.ts';
+import * as tui from '../../tui.ts';
+import { createCommand } from '../../types.ts';
 
 const validateToken = /[\d]{7,}\.[\w-_.]{22}/;
 
@@ -45,14 +46,9 @@ export const command = createCommand({
 								setupIndex >= 0
 									? [...argv.slice(0, setupIndex), 'login', ...argv.slice(setupIndex + 1)]
 									: argv;
-							const r = Bun.spawn({
-								cmd: cmd.concat('--json'),
-								stdout: 'pipe',
-								stderr: 'inherit',
-							});
-							await r.exited;
+							const r = await run({ cmd: cmd.concat('--json') });
 							try {
-								const res = JSON.parse(await r.stdout.text()) as { success: boolean };
+								const res = JSON.parse(r.stdout) as { success: boolean };
 								return res.success;
 							} catch {
 								/* fall through */

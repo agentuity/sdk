@@ -1,9 +1,10 @@
-import { z } from 'zod';
-import { streamGet } from '@agentuity/server';
+import { createWriteStream, statSync } from 'node:fs';
 import { StructuredError } from '@agentuity/core';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
+import { streamGet } from '@agentuity/server';
+import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
 
 const StreamGetError = StructuredError('StreamGetError')<{
 	streamId?: string;
@@ -78,8 +79,7 @@ export const getSubcommand = createCommand({
 					});
 				}
 
-				const file = Bun.file(opts.output);
-				const writer = file.writer();
+				const writer = createWriteStream(opts.output);
 
 				const reader = response.body?.getReader();
 				if (!reader) {
@@ -92,9 +92,13 @@ export const getSubcommand = createCommand({
 						if (done) break;
 						writer.write(value);
 					}
-					await writer.end();
+					await new Promise<void>((resolve, reject) => {
+						writer.end((err: NodeJS.ErrnoException | null | undefined) =>
+							err ? reject(err) : resolve()
+						);
+					});
 					const downloadDurationMs = Date.now() - downloadStarted;
-					const stats = await Bun.file(opts.output).stat();
+					const stats = statSync(opts.output);
 					tui.success(
 						`downloaded ${tui.formatBytes(stats.size)} to ${opts.output} in ${downloadDurationMs.toFixed(1)}ms`
 					);

@@ -1,9 +1,11 @@
+import { copyFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
 import { z } from 'zod';
-import { resolve, join, relative } from 'node:path';
-import { createCommand, DeployOptionsSchema } from '../../types.ts';
-import * as tui from '../../tui.ts';
 import { getCommand } from '../../command-prefix.ts';
 import { ErrorCode } from '../../errors.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import * as tui from '../../tui.ts';
+import { createCommand, DeployOptionsSchema } from '../../types.ts';
 import { typecheck } from './typecheck.ts';
 import {
 	BuildReportCollector,
@@ -172,9 +174,8 @@ export const command = createCommand({
 				const envSourcePath = join(absoluteProjectDir, `.env.${ctx.config.name}`);
 				const envDestPath = join(buildResult.outputDir, '.env');
 
-				const envFile = Bun.file(envSourcePath);
-				if (await envFile.exists()) {
-					await Bun.write(envDestPath, envFile);
+				if (await pathExists(envSourcePath)) {
+					await copyFile(envSourcePath, envDestPath);
 					ctx.logger.debug(`Copied ${envSourcePath} to ${envDestPath}`);
 				} else {
 					ctx.logger.debug(`No .env.${ctx.config.name} file found, skipping env copy`);

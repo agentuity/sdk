@@ -1,10 +1,12 @@
+import { basename } from 'node:path';
 import { listOrgResources } from '@agentuity/server';
-import { basename } from 'path';
 import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { getGlobalCatalystAPIClient } from '../../../config.ts';
 import { ErrorCode } from '../../../errors.ts';
+import { openReadStream, pathExists } from '../../../node-compat/fs.ts';
+import { stdinWebStream } from '../../../node-compat/stdin.ts';
 import * as tui from '../../../tui.ts';
 import { createSubcommand } from '../../../types.ts';
 import { createS3Client } from './utils.ts';
@@ -123,14 +125,13 @@ export const uploadSubcommand = createSubcommand({
 
 		if (args.filename === '-') {
 			// Stream from STDIN
-			stream = Bun.stdin.stream();
+			stream = stdinWebStream();
 		} else {
 			// Stream from file
-			const file = Bun.file(args.filename);
-			if (!(await file.exists())) {
+			if (!(await pathExists(args.filename))) {
 				tui.fatal(`File not found: ${args.filename}`, ErrorCode.FILE_NOT_FOUND);
 			}
-			stream = file.stream();
+			stream = openReadStream(args.filename);
 		}
 
 		// Derive the remote object key:
@@ -172,7 +173,7 @@ export const uploadSubcommand = createSubcommand({
 			contentType = ext ? mimeTypes[ext] : 'application/octet-stream';
 		}
 
-		// Upload using Bun.s3
+		// Upload via @agentuity/storage's S3ClientLike.
 		const s3Client = createS3Client({
 			endpoint: bucket.endpoint,
 			access_key: bucket.access_key,

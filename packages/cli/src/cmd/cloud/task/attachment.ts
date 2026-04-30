@@ -1,11 +1,16 @@
-import { basename, join } from 'path';
-import { stat as fsStat } from 'node:fs/promises';
-import { z } from 'zod';
-import { createCommand } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { createStorageAdapter } from './util.ts';
-import { getCommand } from '../../../command-prefix.ts';
+import { createReadStream, statSync } from 'node:fs';
+import { stat as fsStat, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import type { Attachment } from '@agentuity/core';
+import { getContentType } from '@agentuity/server';
+import { z } from 'zod';
+import { getCommand } from '../../../command-prefix.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { createStorageAdapter } from './util.ts';
 
 function formatBytes(bytes: number | undefined): string {
 	if (bytes === undefined || bytes === null) return '—';
@@ -55,14 +60,13 @@ const uploadSubcommand = createCommand({
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
 
-		const file = Bun.file(args.file);
-		if (!(await file.exists())) {
+		if (!(await pathExists(args.file))) {
 			tui.fatal(`File not found: ${args.file}`);
 		}
 
 		const filename = basename(args.file);
-		const contentType = file.type || 'application/octet-stream';
-		const size = file.size;
+		const contentType = getContentType(args.file) || 'application/octet-stream';
+		const size = statSync(args.file).size;
 
 		// Step 1: Get presigned upload URL
 		const presign = await tui.spinner({
@@ -82,14 +86,18 @@ const uploadSubcommand = createCommand({
 			message: `Uploading ${filename}`,
 			clearOnSuccess: true,
 			callback: async () => {
+				const uploadBody = Readable.toWeb(
+					createReadStream(args.file)
+				) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 				const response = await fetch(presign.presigned_url, {
 					method: 'PUT',
-					body: file.stream(),
+					body: uploadBody,
 					headers: {
 						'Content-Type': contentType,
+						'Content-Length': String(size),
 					},
 					duplex: 'half',
-				});
+				} as RequestInit & { duplex: 'half' });
 				if (!response.ok) {
 					tui.fatal(`Upload failed: ${response.statusText}`);
 				}
@@ -331,8 +339,9 @@ const downloadSubcommand = createCommand({
 			message: `Saving to ${outputPath}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				const bytes = await Bun.write(outputPath, response);
-				return bytes;
+				const buffer = Buffer.from(await response.arrayBuffer());
+				await writeFile(outputPath, buffer);
+				return buffer.byteLength;
 			},
 		});
 

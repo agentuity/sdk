@@ -1,9 +1,10 @@
-import { type Database, openDatabase } from '../../../node-compat/sqlite.ts';
-import { createSubcommand, type CommandContext } from '../../../types.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import { isJSONMode, outputJSON } from '../../../output.ts';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { z } from 'zod';
+import { getCommand } from '../../../command-prefix.ts';
+import { type Database, openDatabase } from '../../../node-compat/sqlite.ts';
+import { isJSONMode, outputJSON } from '../../../output.ts';
+import * as tui from '../../../tui.ts';
+import { type CommandContext, createSubcommand } from '../../../types.ts';
 import {
 	REQUIRED_TABLES,
 	isMemoryPath,
@@ -754,7 +755,7 @@ export const dashboardSubcommand = createSubcommand({
 			const sleepChunk = 100;
 			let elapsed = 0;
 			while (elapsed < intervalMs && !shouldExit && !shouldRefresh) {
-				await Bun.sleep(sleepChunk);
+				await sleep(sleepChunk);
 				elapsed += sleepChunk;
 			}
 

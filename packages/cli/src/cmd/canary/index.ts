@@ -1,7 +1,7 @@
 import { createCommand } from '../../types.ts';
-import { z } from 'zod';
-import { $ } from 'bun';
 import { tmpdir } from 'node:os';
+import { z } from 'zod';
+import { run, spawnInherit } from '../../node-compat/proc.ts';
 import * as tui from '../../tui.ts';
 
 const CANARY_BASE_URL = 'https://agentuity-sdk-objects.t3.storageapi.dev/npm';
@@ -101,10 +101,13 @@ export const command = createCommand({
 		try {
 			// Install the canary version globally using the tarball URL
 			// Run from tmpdir to avoid interference from any local package.json/node_modules
-			const installResult = await $`bun add -g ${tarballUrl}`.cwd(tmpdir()).quiet().nothrow();
+			const installResult = await run({
+				cmd: ['bun', 'add', '-g', tarballUrl],
+				cwd: tmpdir(),
+			});
 
 			if (installResult.exitCode !== 0) {
-				const stderr = installResult.stderr.toString();
+				const stderr = installResult.stderr;
 				tui.error(`Failed to install canary version: ${stderr}`);
 				return {
 					executed: false,
@@ -129,7 +132,7 @@ export const command = createCommand({
 			tui.info(`Running: agentuity ${forwardArgs.join(' ')}`);
 			tui.newline();
 
-			const result = await $`agentuity ${forwardArgs}`.nothrow();
+			const result = await spawnInherit({ cmd: ['agentuity', ...forwardArgs] });
 
 			return {
 				executed: true,

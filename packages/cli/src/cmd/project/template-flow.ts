@@ -6,6 +6,7 @@
  */
 
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, resolve } from 'node:path';
 import { cwd } from 'node:process';
@@ -520,7 +521,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		const pkgJsonPath = resolve(dest, 'package.json');
 		let pkgJson: { description?: string; keywords?: string[] } = {};
 		if (existsSync(pkgJsonPath)) {
-			pkgJson = await Bun.file(pkgJsonPath).json();
+			pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf-8'));
 		}
 
 		const keywords = Array.isArray(pkgJson.keywords) ? pkgJson.keywords : [];

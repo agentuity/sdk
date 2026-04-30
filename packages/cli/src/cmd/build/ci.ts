@@ -1,9 +1,11 @@
-import type { Logger } from '@agentuity/core';
-import { spawn } from 'bun';
-import { mkdir, mkdtemp, readdir, realpath, rm, stat } from 'node:fs/promises';
+import { Buffer } from 'node:buffer';
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Logger } from '@agentuity/core';
 import { ErrorCode } from '../../errors.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import { spawnInherit } from '../../node-compat/proc.ts';
 import * as tui from '../../tui.ts';
 
 export interface CIBuildOptions {
@@ -23,16 +25,8 @@ export interface CIBuildOptions {
 }
 
 async function runCommand(cmd: string[], cwd: string): Promise<number> {
-	const proc = spawn({
-		cmd,
-		cwd,
-		env: { ...process.env, CI: 'true' },
-		stdin: 'ignore',
-		stdout: 'inherit',
-		stderr: 'inherit',
-	});
-	await proc.exited;
-	return proc.exitCode ?? 1;
+	const { exitCode } = await spawnInherit({ cmd, cwd, env: { CI: 'true' } });
+	return exitCode ?? 1;
 }
 async function downloadSource(url: string, targetPath: string): Promise<void> {
 	let lastError: unknown;
@@ -44,7 +38,7 @@ async function downloadSource(url: string, targetPath: string): Promise<void> {
 				throw new Error(`Download failed with status ${response.status}`);
 			}
 
-			await Bun.write(targetPath, await response.arrayBuffer());
+			await writeFile(targetPath, Buffer.from(await response.arrayBuffer()));
 			return;
 		} catch (error) {
 			lastError = error;
@@ -153,7 +147,7 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 
 		const sdkKey = process.env.AGENTUITY_SDK_KEY;
 		if (sdkKey) {
-			await Bun.write(join(projectDir, '.env'), `AGENTUITY_SDK_KEY=${sdkKey}\n`);
+			await writeFile(join(projectDir, '.env'), `AGENTUITY_SDK_KEY=${sdkKey}\n`);
 		}
 
 		tui.info('3️⃣ Installing your project dependencies...');
@@ -165,10 +159,9 @@ export async function runCIBuild(opts: CIBuildOptions, _logger: Logger): Promise
 		}
 
 		const packageJsonPath = join(projectDir, 'package.json');
-		const packageJsonFile = Bun.file(packageJsonPath);
 		let scripts: Record<string, string> | undefined;
-		if (await packageJsonFile.exists()) {
-			const packageJson = (await packageJsonFile.json()) as {
+		if (await pathExists(packageJsonPath)) {
+			const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8')) as {
 				scripts?: Record<string, string>;
 			};
 			scripts = packageJson.scripts;

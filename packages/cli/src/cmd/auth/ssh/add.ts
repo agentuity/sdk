@@ -1,13 +1,14 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import enquirer from 'enquirer';
+import { z } from 'zod';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { readStdinText } from '../../../node-compat/stdin.ts';
+import * as tui from '../../../tui.ts';
 import { createSubcommand } from '../../../types.ts';
 import { addSSHKey, computeSSHKeyFingerprint, listSSHKeys } from './api.ts';
-import * as tui from '../../../tui.ts';
-import { getCommand } from '../../../command-prefix.ts';
-import enquirer from 'enquirer';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import { z } from 'zod';
-import { ErrorCode } from '../../../errors.ts';
 
 const optionsSchema = z.object({
 	file: z.string().optional().describe('File containing the public key'),
@@ -92,7 +93,7 @@ function discoverSSHKeys(): SSHKeyOption[] {
 /**
  * Read stdin once if non-TTY and return its contents, or null when there is
  * no piped data (e.g. timeout).
- * This helper should be the only place that consumes Bun.stdin.
+ * This helper should be the only place that consumes process.stdin.
  */
 async function readStdinIfPiped(): Promise<string | null> {
 	if (process.stdin.isTTY) {
@@ -101,7 +102,7 @@ async function readStdinIfPiped(): Promise<string | null> {
 
 	try {
 		const stdin = await Promise.race([
-			Bun.stdin.text(),
+			readStdinText(),
 			new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
 		]);
 

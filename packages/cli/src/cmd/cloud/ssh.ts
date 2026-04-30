@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../types.ts';
-import * as tui from '../../tui.ts';
-import { getIONHost } from '../../config.ts';
 import { getCommand } from '../../command-prefix.ts';
+import { getIONHost } from '../../config.ts';
+import { spawnInherit } from '../../node-compat/proc.ts';
+import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types.ts';
 import { getIdentifierRegion } from './region-lookup.ts';
 const args = z.object({
 	identifier: z.string().optional().describe('The project, deployment, or sandbox id to use'),
@@ -99,16 +100,7 @@ export const sshSubcommand = createSubcommand({
 			process.exit(0);
 		}
 
-		const spawn = Bun.spawn({
-			cmd,
-			cwd: projectDir,
-			stdout: 'inherit',
-			stderr: 'inherit',
-			stdin: 'inherit',
-		});
-
-		await spawn.exited;
-
-		process.exit(spawn.exitCode);
+		const { exitCode } = await spawnInherit({ cmd, cwd: projectDir });
+		process.exit(exitCode ?? 1);
 	},
 });

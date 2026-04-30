@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
 import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
@@ -177,7 +178,7 @@ export const downloadSubcommand = createSubcommand({
 			process.stdout.write(fileContent);
 		} else {
 			// Write to file
-			await Bun.write(outputPath, fileContent);
+			await writeFile(outputPath, fileContent);
 			if (!options.json) {
 				tui.success(
 					`Downloaded ${tui.bold(args.filename)} to ${tui.bold(outputPath)} (${fileContent.length} bytes)`
