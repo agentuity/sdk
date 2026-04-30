@@ -97,25 +97,22 @@ export class VectorClient {
 		return this.#service.upsert(name, ...documents);
 	}
 
-	async get<T extends Record<string, unknown> = Record<string, unknown>>(
-		name: string,
-		key: string
-	): Promise<VectorResult<T>> {
-		return this.#service.get(name, key);
+	async get<T = Record<string, unknown>>(name: string, key: string): Promise<VectorResult<T>> {
+		return this.#service.get<T>(name, key);
 	}
 
-	async getMany<T extends Record<string, unknown> = Record<string, unknown>>(
+	async getMany<T = Record<string, unknown>>(
 		name: string,
 		...keys: string[]
 	): Promise<Map<string, VectorSearchResultWithDocument<T>>> {
-		return this.#service.getMany(name, ...keys);
+		return this.#service.getMany<T>(name, ...keys);
 	}
 
-	async search<T extends Record<string, unknown> = Record<string, unknown>>(
+	async search<T = Record<string, unknown>>(
 		name: string,
 		params: VectorSearchParams<T>
 	): Promise<VectorSearchResult<T>[]> {
-		return this.#service.search(name, params);
+		return this.#service.search<T>(name, params);
 	}
 
 	async delete(name: string, ...keys: string[]): Promise<number> {

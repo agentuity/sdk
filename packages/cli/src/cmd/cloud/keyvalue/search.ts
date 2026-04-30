@@ -50,16 +50,13 @@ export const searchSubcommand = createCommand({
 		const kv = await createStorageAdapter(ctx);
 
 		const results = await kv.search(args.name, args.keyword);
-		const keys = Object.keys(results);
 
 		if (!options.json) {
-			if (keys.length === 0) {
+			if (results.size === 0) {
 				tui.info(`No keys found matching ${tui.bold(args.keyword)} in ${tui.bold(args.name)}`);
 			} else {
-				tui.info(`Found ${keys.length} key(s) matching ${tui.bold(args.keyword)}:`);
-				for (const key of keys) {
-					const item = results[key];
-					if (!item) continue;
+				tui.info(`Found ${results.size} key(s) matching ${tui.bold(args.keyword)}:`);
+				for (const [key, item] of results) {
 					const sizeMB = (item.size / (1024 * 1024)).toFixed(2);
 					const date =
 						item.lastUsed != null ? new Date(item.lastUsed).toLocaleString() : 'unknown';
@@ -71,15 +68,12 @@ export const searchSubcommand = createCommand({
 		return {
 			namespace: args.name,
 			keyword: args.keyword,
-			results: keys.map((key) => {
-				const item = results[key]!;
-				return {
-					key,
-					size: item.size,
-					contentType: item.contentType,
-					updatedAt: item.lastUsed != null ? new Date(item.lastUsed).toISOString() : '',
-				};
-			}),
+			results: Array.from(results, ([key, item]) => ({
+				key,
+				size: item.size,
+				contentType: item.contentType,
+				updatedAt: item.lastUsed != null ? new Date(item.lastUsed).toISOString() : '',
+			})),
 		};
 	},
 });

@@ -317,12 +317,18 @@ export interface KeyValueStorage {
 	 *
 	 * @param name - the name of the key value storage
 	 * @param keyword - the keyword to search for
-	 * @returns map of keys to items with metadata
+	 * @returns a Map of keys to items with metadata, in the order returned by the server.
+	 *
+	 * @remarks
+	 * Returns a `Map` (not a plain object) for consistency with other multi-result
+	 * SDK methods such as `vector.getMany()`. Iterate with `for (const [key, item] of results)`
+	 * or `results.entries()` / `results.keys()` / `results.values()`. Use `results.size`
+	 * for the count and `results.get(key)` for direct lookup.
 	 */
 	search<T = unknown>(
 		name: string,
 		keyword: string
-	): Promise<Record<string, KeyValueItemWithMetadata<T>>>;
+	): Promise<Map<string, KeyValueItemWithMetadata<T>>>;
 
 	/**
 	 * get all keys in a namespace
@@ -361,7 +367,8 @@ function base64ToBytes(base64: string): Uint8Array {
 }
 
 /**
- * Deserializes search result values from the server's wire format.
+ * Deserializes search result values from the server's wire format and
+ * returns them as a Map preserving insertion order.
  *
  * The Go server stores values as []byte, which Go's json.Marshal
  * base64-encodes when embedding in a JSON response. This function
@@ -370,8 +377,9 @@ function base64ToBytes(base64: string): Uint8Array {
  */
 function deserializeSearchResults<T>(
 	data: Record<string, KeyValueItemWithMetadata<T>>
-): Record<string, KeyValueItemWithMetadata<T>> {
-	for (const item of Object.values(data)) {
+): Map<string, KeyValueItemWithMetadata<T>> {
+	const out = new Map<string, KeyValueItemWithMetadata<T>>();
+	for (const [key, item] of Object.entries(data)) {
 		if (typeof item.value === 'string') {
 			try {
 				const bytes = base64ToBytes(item.value);
@@ -389,8 +397,9 @@ function deserializeSearchResults<T>(
 				// If base64 decoding or parsing fails, leave value as-is
 			}
 		}
+		out.set(key, item);
 	}
-	return data;
+	return out;
 }
 
 export class KeyValueStorageService implements KeyValueStorage {
@@ -601,7 +610,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 	async search<T = unknown>(
 		name: string,
 		keyword: string
-	): Promise<Record<string, KeyValueItemWithMetadata<T>>> {
+	): Promise<Map<string, KeyValueItemWithMetadata<T>>> {
 		const url = buildUrl(
 			this.#baseUrl,
 			`/kv/search/${encodeURIComponent(name)}/${encodeURIComponent(keyword)}`

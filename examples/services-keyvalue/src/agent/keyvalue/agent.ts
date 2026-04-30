@@ -68,7 +68,11 @@ export default createAgent('keyvalue', {
 
 			case 'search': {
 				const results = await ctx.kv.search(store, input.keyword);
-				return { results, count: Object.keys(results).length };
+				// Convert Map to a plain object for JSON serialization in the response.
+				return {
+					results: Object.fromEntries(results),
+					count: results.size,
+				};
 			}
 
 			default:

@@ -99,10 +99,7 @@ export class LocalVectorStorage implements VectorStorage {
 		return results;
 	}
 
-	async get<T extends Record<string, unknown> = Record<string, unknown>>(
-		name: string,
-		key: string
-	): Promise<VectorResult<T>> {
+	async get<T = Record<string, unknown>>(name: string, key: string): Promise<VectorResult<T>> {
 		if (!name?.trim() || !key?.trim()) {
 			throw new Error('Vector storage name and key are required');
 		}
@@ -138,7 +135,7 @@ export class LocalVectorStorage implements VectorStorage {
 		};
 	}
 
-	async getMany<T extends Record<string, unknown> = Record<string, unknown>>(
+	async getMany<T = Record<string, unknown>>(
 		name: string,
 		...keys: string[]
 	): Promise<Map<string, VectorSearchResultWithDocument<T>>> {
@@ -166,7 +163,7 @@ export class LocalVectorStorage implements VectorStorage {
 		return map;
 	}
 
-	async search<T extends Record<string, unknown> = Record<string, unknown>>(
+	async search<T = Record<string, unknown>>(
 		name: string,
 		params: VectorSearchParams<T>
 	): Promise<VectorSearchResult<T>[]> {
