@@ -1,5 +1,25 @@
-import { dlopen, FFIType, ptr } from 'bun:ffi';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { readFileSync, readlinkSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { runtimeKind } from './node-compat/runtime-info.ts';
+
+/**
+ * `bun:ffi` shape we depend on. Pulled in via `createRequire` only
+ * under Bun (see `initDarwinFFI`) so Node never tries to resolve
+ * the `bun:` URL.
+ *
+ * The signatures here are intentionally loose — we cast to a
+ * concrete shape inside `initDarwinFFI` after `dlopen` returns.
+ */
+type BunFfi = {
+	// `symbols` is `any` because the real surface lives in `bun-types`
+	// and we deliberately don't import it here (would require Bun-typed
+	// build under Node). The cast cost is paid once inside
+	// `initDarwinFFI`.
+	dlopen: (lib: string, defs: Record<string, unknown>) => { symbols: any };
+	FFIType: Record<string, number>;
+	ptr: (buf: ArrayBufferView) => number;
+};
 
 /**
  * Map of process names to internal agent short names.
@@ -104,24 +124,35 @@ const unsupportedFFI: FFIFunctions = {
 };
 
 /**
- * Initialize FFI functions for the current platform.
- * Returns null functions for unsupported platforms or if FFI initialization fails.
+ * Initialize the per-platform process-introspection helpers.
+ *
+ * - **Linux**: pure Node — reads `/proc/<pid>/{exe,stat,cmdline}` via
+ *   `readlinkSync` and `readFileSync`. Works identically under Bun
+ *   and Node, no FFI needed.
+ * - **macOS** under Bun: loads `libSystem.dylib` via `bun:ffi` and
+ *   calls `proc_pidpath` and `sysctl` directly. Fast (no subprocess).
+ * - **macOS** under Node: shells out to `ps -o pid=,ppid=,comm=,args=`
+ *   for each PID we walk. Slower but portable.
+ * - **Windows / other**: unsupported — returns the stub
+ *   (`getExecutingAgent()` will simply return undefined).
+ *
+ * Returns the unsupported stub on any error so detection failures are
+ * never fatal.
  */
-function initFFI(): FFIFunctions {
+function initImpl(): FFIFunctions {
 	try {
+		if (process.platform === 'linux') {
+			return initLinuxImpl();
+		}
 		if (process.platform === 'darwin') {
-			return initDarwinFFI();
-		} else if (process.platform === 'linux') {
-			return initLinuxFFI();
+			return runtimeKind() === 'bun' ? initDarwinFFI() : initDarwinPsImpl();
 		}
 	} catch (err) {
-		// FFI initialization failed (e.g., missing libc on musl/Alpine, dlopen error)
-		// Fall back to unsupported stub - agent detection will be skipped
+		// Initialization failed (e.g., dlopen error on musl/Alpine,
+		// missing `ps`, etc.). Fall back to stub — agent detection just
+		// gets skipped.
 		if (process.env.AGENTUITY_DEBUG_AGENT_DETECTION === '1') {
-			console.error(
-				'[agent-detection] FFI initialization failed:',
-				err instanceof Error ? err.message : err
-			);
+			console.error('[agent-detection] init failed:', err instanceof Error ? err.message : err);
 		}
 		return unsupportedFFI;
 	}
@@ -130,13 +161,22 @@ function initFFI(): FFIFunctions {
 }
 
 /**
- * Initialize macOS FFI functions using libSystem.dylib
+ * Initialize macOS FFI functions using libSystem.dylib (Bun runtime
+ * only).
  *
- * NOTE: Shared mutable buffers (pathBuf, argBuf, kinfoBuffer) are safe only in
- * single-threaded use. Detection is synchronous and single-threaded, but any
- * future concurrent usage would corrupt these buffers.
+ * Loads `bun:ffi` synchronously via `createRequire` so Node parses of
+ * this file never try to resolve the `bun:` URL. Callers must gate
+ * this on `runtimeKind() === 'bun'`; the dispatch in `initImpl()`
+ * does that.
+ *
+ * NOTE: Shared mutable buffers (pathBuf, argBuf, kinfoBuffer) are
+ * safe only in single-threaded use. Detection is synchronous and
+ * single-threaded, but any future concurrent usage would corrupt
+ * these buffers.
  */
 function initDarwinFFI(): FFIFunctions {
+	const { dlopen, FFIType, ptr } = createRequire(import.meta.url)('bun:ffi') as BunFfi;
+
 	// Shared buffers - reused across calls (single-threaded assumption)
 	const pathBuf = new Uint8Array(PATH_MAX);
 	const argBuf = new Uint8Array(ARG_MAX);
@@ -253,30 +293,27 @@ function initDarwinFFI(): FFIFunctions {
 }
 
 /**
- * Initialize Linux FFI functions using libc.so.6
+ * Initialize Linux process introspection. Pure Node API — no FFI
+ * needed because `/proc` already exposes everything we want.
+ *
+ * - `getProcessPath` reads `readlink('/proc/<pid>/exe')` via
+ *   `node:fs.readlinkSync`, which is what FFI did the long way
+ *   around.
+ * - `getParentPid` parses `/proc/<pid>/stat`.
+ * - `getProcessCmdline` reads `/proc/<pid>/cmdline` and turns the
+ *   null-separated args into a space-separated string.
+ *
+ * Works identically under Bun and Node.
  */
-function initLinuxFFI(): FFIFunctions {
-	const pathBuf = new Uint8Array(PATH_MAX);
-
-	const lib = dlopen('libc.so.6', {
-		readlink: {
-			args: [FFIType.cstring, FFIType.ptr, FFIType.u64],
-			returns: FFIType.i64,
-		},
-	});
-
+function initLinuxImpl(): FFIFunctions {
 	const getProcessPath: GetProcessPath = (pid: number) => {
 		if (pid <= 0) return null;
 		try {
-			const procPath = Buffer.from(`/proc/${pid}/exe\0`);
-			const len = Number(lib.symbols.readlink(ptr(procPath), ptr(pathBuf), PATH_MAX));
-			if (len > 0) {
-				return new TextDecoder().decode(pathBuf.subarray(0, len));
-			}
+			return readlinkSync(`/proc/${pid}/exe`);
 		} catch {
-			// Ignore errors (process may have died, permission denied, etc.)
+			// Process may have died, permission denied, etc.
+			return null;
 		}
-		return null;
 	};
 
 	const getParentPid: GetParentPid = (pid: number) => {
@@ -320,12 +357,86 @@ function initLinuxFFI(): FFIFunctions {
 	return { getProcessPath, getParentPid, getProcessCmdline };
 }
 
-// Initialize FFI functions lazily
+/**
+ * macOS implementation that uses `ps` instead of FFI. This is the
+ * Node-runtime path on macOS — `bun:ffi` isn't available there, and
+ * macOS has no `/proc` filesystem to read directly.
+ *
+ * Each call shells out to `ps -o pid=,ppid=,comm=,args= -p <pid>`,
+ * which prints one line per matching PID with the four requested
+ * fields separated by whitespace. We split off `pid` and `ppid`
+ * (always single-token integers), then `comm` (the executable
+ * basename, single-token), and treat the rest as the full command
+ * line.
+ *
+ * Slower than FFI — a `ps` invocation per process tree level — but
+ * the result is cached, so the cost is paid once per CLI run.
+ */
+function initDarwinPsImpl(): FFIFunctions {
+	interface PsRow {
+		ppid: number;
+		comm: string;
+		args: string;
+	}
+
+	function queryPs(pid: number): PsRow | null {
+		if (pid <= 0) return null;
+		try {
+			const result = spawnSync('ps', ['-o', 'pid=,ppid=,comm=,args=', '-p', String(pid)], {
+				encoding: 'utf-8',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			});
+			if (result.status !== 0 || !result.stdout) return null;
+			const line = result.stdout.split('\n').find((l) => l.trim().length > 0);
+			if (!line) return null;
+			// Format (after column-trim): "<pid> <ppid> <comm> <args...>".
+			// `pid` and `ppid` are always integers; `comm` is the executable
+			// basename (no spaces); `args` is the rest of the line.
+			const trimmed = line.trim();
+			const firstSpace = trimmed.indexOf(' ');
+			if (firstSpace < 0) return null;
+			const rest1 = trimmed.slice(firstSpace + 1).trimStart();
+			const secondSpace = rest1.indexOf(' ');
+			if (secondSpace < 0) return null;
+			const ppidStr = rest1.slice(0, secondSpace);
+			const ppid = Number.parseInt(ppidStr, 10);
+			if (Number.isNaN(ppid)) return null;
+			const rest2 = rest1.slice(secondSpace + 1).trimStart();
+			const thirdSpace = rest2.indexOf(' ');
+			const comm = thirdSpace < 0 ? rest2 : rest2.slice(0, thirdSpace);
+			const args = thirdSpace < 0 ? '' : rest2.slice(thirdSpace + 1).trimStart();
+			return { ppid, comm, args };
+		} catch {
+			return null;
+		}
+	}
+
+	const getProcessPath: GetProcessPath = (pid: number) => {
+		const row = queryPs(pid);
+		// `comm` is the basename, not the full path. The matcher only
+		// looks at the basename anyway, so this is sufficient.
+		return row?.comm ?? null;
+	};
+
+	const getParentPid: GetParentPid = (pid: number) => {
+		const row = queryPs(pid);
+		return row && row.ppid > 1 ? row.ppid : null;
+	};
+
+	const getProcessCmdline: GetProcessCmdline = (pid: number) => {
+		const row = queryPs(pid);
+		return row?.args ?? null;
+	};
+
+	return { getProcessPath, getParentPid, getProcessCmdline };
+}
+
+// Initialize the per-platform implementation lazily.
 let ffi: FFIFunctions | null = null;
 
 function getFFI(): FFIFunctions {
 	if (!ffi) {
-		ffi = initFFI();
+		ffi = initImpl();
 	}
 	return ffi;
 }
