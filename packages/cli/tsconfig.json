@@ -3,14 +3,15 @@
 	"compilerOptions": {
 		"composite": true,
 		"outDir": "./dist",
-		"rootDir": "./src",
+		"rootDir": ".",
+		"tsBuildInfoFile": "./tsconfig.tsbuildinfo",
 		"paths": {
 			"@agentuity/core": ["../core/src"],
 			"@agentuity/server": ["../server/src"],
 			"@agentuity/storage": ["../storage/src"]
 		}
 	},
-	"include": ["src/**/*"],
+	"include": ["src/**/*", "bin/**/*", "package.json"],
 	"exclude": ["test/**/*", "src/cmd/project/templates/**/*"],
 	"references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../storage" }]
 }

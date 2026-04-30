@@ -15,18 +15,41 @@ import { join } from 'node:path';
 import { currentDir } from '../../node-compat/runtime-info.ts';
 
 // Resolve the templates directory relative to this file.
-// When running from src/ (via bun), thisDir is src/cmd/project/.
-// When running from dist/ (via compiled JS), thisDir is dist/cmd/project/.
-// Templates live under src/cmd/project/templates/ but are also shipped
-// in the npm package at that path. We check both locations.
+//
+// Three layouts to handle:
+//
+//   - Running from source (bun packages/cli/bin/cli.ts):
+//       thisDir = packages/cli/src/cmd/project/
+//       templates at thisDir/templates/
+//
+//   - Running from compiled dist with rootDir: "." (Phase 4):
+//       thisDir = packages/cli/dist/src/cmd/project/
+//       templates ship under packages/cli/dist/src/cmd/project/templates/
+//       (copied by scripts/copy-assets.ts at build time)
+//
+//   - Older layout (rootDir: "./src") for backwards-compat with
+//     in-flight installations:
+//       thisDir = packages/cli/dist/cmd/project/
+//       templates at thisDir/../../src/cmd/project/templates/
+//
+// We check candidate paths in order and pick the first one with a
+// recognizable child (the 'nextjs' template, present in all valid
+// layouts).
 const templatesDir = (() => {
 	const thisDir = currentDir(import.meta);
-	const srcDir = join(thisDir, 'templates');
-	if (existsSync(join(srcDir, 'nextjs'))) return srcDir;
-	// Fallback: from dist/cmd/project/ → src/cmd/project/templates/
-	const fallbackDir = join(thisDir, '..', '..', 'src', 'cmd', 'project', 'templates');
-	if (existsSync(join(fallbackDir, 'nextjs'))) return fallbackDir;
-	return srcDir; // will fail with a clear error if neither exists
+	const candidates = [
+		join(thisDir, 'templates'),
+		// dist/src/cmd/project/ -> ../../../src/cmd/project/templates/
+		join(thisDir, '..', '..', '..', 'src', 'cmd', 'project', 'templates'),
+		// dist/cmd/project/ -> ../../src/cmd/project/templates/
+		join(thisDir, '..', '..', 'src', 'cmd', 'project', 'templates'),
+	];
+	for (const dir of candidates) {
+		if (existsSync(join(dir, 'nextjs'))) return dir;
+	}
+	// will fail with a clear error if none exist; use the first candidate
+	// (sibling 'templates/' dir) as a representative default for the error.
+	return candidates[0]!;
 })();
 
 export interface FrameworkScaffold {

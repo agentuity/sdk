@@ -7,7 +7,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"agentuity": "./bin/cli.ts"
+		"agentuity": "./dist/bin/cli.js"
 	},
 	"exports": {
 		".": {
@@ -22,13 +22,12 @@
 	"files": [
 		"AGENTS.md",
 		"README.md",
-		"src",
-		"dist",
-		"bin"
+		"dist"
 	],
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build --force",
+		"build": "bunx tsc --build --force && bun run build:assets",
+		"build:assets": "bun ./scripts/copy-assets.ts",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts && bun scripts/test-concurrent-sessions.ts",
 		"test:create": "bun scripts/test-create-flow.ts",

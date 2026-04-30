@@ -1,8 +1,12 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 // Fast-path for version command - check before loading heavy modules
 const versionArgs = process.argv.slice(2);
-if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(versionArgs[0])) {
+if (
+	versionArgs.length === 1 &&
+	versionArgs[0] !== undefined &&
+	['version', '-v', '--version', '-V'].includes(versionArgs[0])
+) {
 	const { getVersion } = await import('../src/version.ts');
 	console.log(getVersion());
 	process.exit(0);
@@ -41,6 +45,7 @@ function getProjectDirFromArgs(): string | undefined {
 	const args = process.argv;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
+		if (arg === undefined) continue;
 
 		// Handle --dir=<path>
 		if (arg.startsWith('--dir=')) {
@@ -51,7 +56,7 @@ function getProjectDirFromArgs(): string | undefined {
 		if (arg === '--dir' && i + 1 < args.length) {
 			const nextArg = args[i + 1];
 			// Make sure next arg isn't another flag
-			if (!nextArg.startsWith('-')) {
+			if (nextArg !== undefined && !nextArg.startsWith('-')) {
 				return nextArg;
 			}
 		}
@@ -101,8 +106,10 @@ const preprocessedArgs = process.argv.slice(2).flatMap((arg) => {
 	return arg;
 });
 // Preserve the original process.argv[0] (runtime) and process.argv[1] (script path)
-// This is important for Bun, Node, and bundled executables
-process.argv = [process.argv[0], process.argv[1], ...preprocessedArgs];
+// This is important for Bun, Node, and bundled executables.
+// argv[0] and argv[1] are guaranteed-present in any Node/Bun process,
+// so the non-null assertions are safe.
+process.argv = [process.argv[0]!, process.argv[1]!, ...preprocessedArgs];
 
 const helpFlags = ['--help', '-h', 'help'];
 const hasHelp = helpFlags.some((flag) => preprocessedArgs.includes(flag));
