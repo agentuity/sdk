@@ -71,6 +71,8 @@ import { zipDir } from '../../utils/zip';
 import { typecheck } from '../build/typecheck';
 import { detectFrameworkWithPackageJson } from '../build/detect';
 import { getAdapter } from '../build/adapters';
+import { buildDiscoverStep } from './deploy/discover';
+import type { DiscoverResult } from './deploy/types';
 import { packageBuildOutput } from '../build/package';
 import type { BuildResult } from '../build/adapters/types';
 import type { PackageResult } from '../build/package';
@@ -118,14 +120,7 @@ function formatUploadSummary(count: number, rawBytes: number, transferredBytes: 
 export const deploySubcommand = createSubcommand({
 	name: 'deploy',
 	description: 'Deploy project to the Agentuity Cloud',
-	tags: [
-		'mutating',
-		'creates-resource',
-		'slow',
-		'api-intensive',
-		'requires-auth',
-		'requires-project',
-	],
+	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
 	examples: [
 		{ command: getCommand('cloud deploy'), description: 'Deploy current project' },
 		{
@@ -135,12 +130,18 @@ export const deploySubcommand = createSubcommand({
 	],
 	toplevel: true,
 	idempotent: false,
-	requires: { auth: true, project: true, apiClient: true },
+	// `project` is optional at the CLI gate level: in a vanilla JS/TS dir we
+	// want `agentuity deploy` to work end-to-end (discover -> register ->
+	// deploy) without first running `agentuity project import`. The handler
+	// below guarantees a registered project before any deploy work happens
+	// via the Register phase (`reconcileProject`).
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	prerequisites: ['auth login'],
 	resourceRules: [
 		{
 			resource: 'project',
-			required: true,
+			required: false,
 			flag: 'project-id',
 			envVar: 'AGENTUITY_CLOUD_PROJECT_ID',
 			impliedFrom: 'agentuity.json',
@@ -180,10 +181,21 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		let { project } = ctx;
 		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
 
-		// Verify project access and offer import if needed
+		// Cached discover result. Populated by the "Detect Project" step that
+		// runs early in the deploy pipeline; reused later by the build step so
+		// we only run framework detection once per deploy.
+		const pipelineState: { discover?: DiscoverResult } = {};
+
+		// Project handling under `optional.project: true`:
+		//   - If `agentuity.json` exists in the directory and is accessible,
+		//     `ctx.project` is already populated by cli.ts.
+		//   - If not, ctx.project is undefined and we rely on `reconcileProject`
+		//     below to register/import the project before any deploy work.
+		let projectMaybe = ctx.project;
+
+		// Verify project access and offer import/registration if needed
 		const { reconcileProject } = await import('../project/reconcile');
 		const { isTTY } = await import('../../auth');
 
@@ -208,10 +220,29 @@ export const deploySubcommand = createSubcommand({
 		}
 
 		if (reconcileResult.status === 'imported' && reconcileResult.project) {
-			// Project was imported - use the new project config
-			project = reconcileResult.project;
+			// Project was imported / freshly registered — use the new project config
+			projectMaybe = reconcileResult.project;
 			tui.newline();
 		}
+
+		if (reconcileResult.status === 'valid' && reconcileResult.project) {
+			projectMaybe = reconcileResult.project;
+		}
+
+		if (!projectMaybe) {
+			// Reconcile reported success but didn't return a project config and we
+			// didn't have one to start with. Treat this as a hard error so we
+			// never attempt to deploy without a registered project.
+			tui.fatal(
+				'Could not resolve a registered project for this directory.',
+				ErrorCode.PROJECT_NOT_FOUND
+			);
+		}
+
+		// From here on, `project` is guaranteed to be defined. The rest of the
+		// handler used to assume this implicitly via `requires.project: true`;
+		// the explicit alias keeps that assumption visible in one place.
+		const project = projectMaybe;
 
 		// Check if local region differs from server region and handle confirmation
 		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
@@ -581,6 +612,11 @@ export const deploySubcommand = createSubcommand({
 
 			await runSteps(
 				[
+					// Detect Project — runs once, caches the result on pipelineState
+					// for the build step below to reuse. Skipped in child mode
+					// because the parent process already validated the project and
+					// the duplicate output would just clutter the deploy log.
+					isChildProcess ? null : buildDiscoverStep(projectDir, logger, pipelineState),
 					!project.deployment?.domains?.length
 						? null
 						: {
@@ -674,22 +710,38 @@ export const deploySubcommand = createSubcommand({
 								return stepError('Typecheck failed\n\n' + typeResult.output);
 							}
 							try {
-								// Step 1: Detect framework
-								const { framework, packageJson } =
-									await detectFrameworkWithPackageJson(rootDir);
+								// Reuse the framework detection from the Discover phase when
+								// available (the common case). Falls back to a fresh detect
+								// call only when no Discover step ran — currently that means
+								// child-mode deploys, which skip Discover to avoid duplicate
+								// UI noise.
+								const discovered =
+									pipelineState.discover ??
+									(await detectFrameworkWithPackageJson(rootDir).then((res) =>
+										res.framework && res.packageJson
+											? { framework: res.framework, packageJson: res.packageJson }
+											: null
+									));
 
-								if (!framework) {
+								if (!discovered) {
 									return stepError(
 										'Could not detect a JS framework. Ensure package.json exists with a build script.'
 									);
 								}
 
-								const frameworkLabel = framework.version
-									? `${framework.name} v${framework.version}`
-									: framework.name;
-								capturedOutput.push(
-									tui.muted(`✓ Detected ${frameworkLabel} (${framework.runtime})`)
-								);
+								const { framework, packageJson } = discovered;
+
+								// In child mode we didn't run the Discover step, so emit the
+								// detection summary inline. In normal mode the Discover step
+								// already showed a richer summary, so don't repeat it here.
+								if (!pipelineState.discover) {
+									const frameworkLabel = framework.version
+										? `${framework.name} v${framework.version}`
+										: framework.name;
+									capturedOutput.push(
+										tui.muted(`✓ Detected ${frameworkLabel} (${framework.runtime})`)
+									);
+								}
 
 								// Step 2: Get adapter and build
 								const outDir = join(rootDir, '.agentuity');
@@ -699,7 +751,7 @@ export const deploySubcommand = createSubcommand({
 								const buildResult: BuildResult = await adapter.build({
 									projectDir: rootDir,
 									framework,
-									packageJson: packageJson!,
+									packageJson,
 									outputDir: outDir,
 									logger: ctx.logger,
 									collector,
