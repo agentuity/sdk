@@ -31,7 +31,7 @@
  */
 
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
-import { type Readable, type Writable } from 'node:stream';
+import type { Readable } from 'node:stream';
 import { text } from 'node:stream/consumers';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { Readable as NodeReadable } from 'node:stream';
@@ -197,41 +197,6 @@ export function spawnStreamingOutput(opts: Omit<ProcOptions, 'stdin' | 'timeoutM
 		child.once('close', (code) => resolve({ exitCode: code }));
 	});
 	return { stdout, stderr, exited };
-}
-
-/**
- * Spawn a process with a writable stdin handle and capture stdout /
- * stderr. Use this for cases where the caller needs to *stream*
- * input progressively (rather than passing a fixed `stdin` chunk via
- * `run()`).
- *
- * The caller writes to `child.stdin`, then awaits `done` to get the
- * final `RunResult`.
- */
-export function runStreaming(opts: Omit<ProcOptions, 'stdin'>): {
-	stdin: Writable;
-	done: Promise<RunResult>;
-} {
-	if (opts.cmd.length === 0) {
-		throw new Error('runStreaming: cmd must not be empty');
-	}
-	const [command, ...args] = opts.cmd;
-	const child = spawn(command!, args, {
-		cwd: opts.cwd,
-		env: buildEnv(opts.env, opts.inheritEnv),
-		stdio: ['pipe', 'pipe', 'pipe'],
-	});
-	if (!child.stdin) {
-		throw new Error('runStreaming: failed to open stdin');
-	}
-	const stdoutPromise = text(child.stdout as Readable);
-	const stderrPromise = text(child.stderr as Readable);
-	const done = (async () => {
-		const { exitCode, timedOut } = await waitForExit(child, opts.timeoutMs);
-		const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
-		return { exitCode, stdout, stderr, timedOut };
-	})();
-	return { stdin: child.stdin, done };
 }
 
 // =============================================================================

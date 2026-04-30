@@ -8,7 +8,7 @@
  * This allows detecting if the source template has changed.
  */
 
-import { sha256Hex } from '../../../node-compat/crypto.ts';
+import { createHash } from 'node:crypto';
 
 const HASH_REGEX = /\n?<!-- prompt_hash: ([a-f0-9]+) -->\n?$/;
 
@@ -16,7 +16,7 @@ const HASH_REGEX = /\n?<!-- prompt_hash: ([a-f0-9]+) -->\n?$/;
  * Compute SHA256 hash of content.
  */
 export function computeHash(content: string): string {
-	return sha256Hex(content);
+	return createHash('sha256').update(content).digest('hex');
 }
 
 /**
