@@ -1,8 +1,15 @@
-import { createSubcommand, type CommandContext, type AuthData } from '../../types.ts';
+import { resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { z } from 'zod';
-import { runCreateFlow } from './template-flow.ts';
+import { isTTY } from '../../auth.ts';
 import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui.ts';
+import { type AuthData, type CommandContext, createSubcommand } from '../../types.ts';
 import type { APIClient as APIClientType } from '../../api.ts';
+import { detectExistingProject, type ExistingProjectHit } from './detect-existing.ts';
+import { runProjectImport } from './reconcile.ts';
+import { runCreateFlow } from './template-flow.ts';
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -16,6 +23,8 @@ const ProjectCreateResponseSchema = z.object({
 	built: z.boolean().describe('Whether the project was built'),
 	domains: z.array(z.string()).optional().describe('Array of custom domains'),
 });
+
+type ProjectCreateResponse = z.infer<typeof ProjectCreateResponseSchema>;
 
 export const createProjectSubcommand = createSubcommand({
 	name: 'create',
@@ -93,6 +102,35 @@ export const createProjectSubcommand = createSubcommand({
 			);
 		}
 
+		// ─── Existing-project import detour ─────────────────────────────────
+		//
+		// If the user runs `agentuity project create` while standing inside
+		// (or pointing at) a supported framework project, the right thing
+		// is almost always to register THAT project rather than scaffold a
+		// brand-new one alongside it.
+		//
+		// We only short-circuit when:
+		//   - registration is requested (`--register`, the default), AND
+		//   - no `--name` was given (a name signals "new subdir scaffold"),
+		//   - and the resolved target dir matches a framework in our scaffold
+		//     catalog (next, nuxt, remix, sveltekit, astro, hono, vite-react)
+		//     OR already has agentuity.json.
+		//
+		// In TTY: ask once. In non-TTY: refuse with a helpful message
+		// unless `--confirm` was passed (which signals "I know what I'm
+		// doing, just scaffold here").
+		const importDetour = await maybeImportExistingProject(ctx, {
+			register: opts.register !== false,
+			name: opts.name,
+			dir: opts.dir,
+			confirm: opts.confirm === true,
+			orgId,
+			region,
+		});
+		if (importDetour) {
+			return importDetour;
+		}
+
 		const result = await runCreateFlow({
 			projectName: opts.name,
 			dir: opts.dir,
@@ -130,3 +168,137 @@ export const createProjectSubcommand = createSubcommand({
 		};
 	},
 });
+
+/**
+ * Detect-and-import detour for `agentuity project create`.
+ *
+ * Returns the response object the create handler should return when we
+ * successfully diverted to the import flow; returns `null` when the
+ * caller should continue with the normal create flow.
+ *
+ * Skipped when registration is disabled (`--no-register`), when a
+ * project name was passed (signals "new subdir scaffold"), when no
+ * supported framework / agentuity.json is present, or when the user
+ * declines the prompt.
+ */
+async function maybeImportExistingProject(
+	ctx: CommandContext,
+	opts: {
+		register: boolean;
+		name?: string;
+		dir?: string;
+		confirm: boolean;
+		orgId?: string;
+		region?: string;
+	}
+): Promise<ProjectCreateResponse | null> {
+	if (!opts.register) {
+		// `--no-register` is an explicit "just scaffold" signal.
+		return null;
+	}
+	if (opts.name) {
+		// `--name foo` means "create a new subdir named foo here". The
+		// user already told us they want a brand-new project; don't ask.
+		return null;
+	}
+
+	// Mirror runCreateFlow's resolution of the target directory so the
+	// detection sees the same path the would-be scaffold would target.
+	let targetDir = opts.dir;
+	if (targetDir?.startsWith('~')) {
+		targetDir = targetDir.replace(/^~/, homedir());
+	}
+	const dir = targetDir ? resolve(targetDir) : process.cwd();
+
+	const hit = await detectExistingProject(dir);
+	if (!hit) {
+		return null;
+	}
+
+	const interactive = isTTY();
+	if (!interactive) {
+		if (!opts.confirm) {
+			tui.fatal(
+				`Detected an existing ${hit.detectedName} project in ${dir}.\n` +
+					`Run \`${getCommand('project import')}\` to register it, or pass --confirm to scaffold a new project here anyway.`,
+				ErrorCode.RESOURCE_ALREADY_EXISTS
+			);
+		}
+		// User explicitly opted out via --confirm; fall through to scaffold.
+		return null;
+	}
+
+	// Auth is required to run the import flow. If the user isn't signed
+	// in we can't divert; leave them to the create flow which can run
+	// without auth (with `--no-register` semantics implicit at runtime).
+	if (!ctx.auth || !ctx.apiClient) {
+		return null;
+	}
+
+	const wantImport = await promptImportInsteadOfCreate(hit);
+	if (!wantImport) {
+		return null;
+	}
+
+	const result = await runProjectImport({
+		dir,
+		auth: ctx.auth,
+		apiClient: ctx.apiClient,
+		config: ctx.config!,
+		logger: ctx.logger,
+		interactive: true,
+		validateOnly: false,
+		confirm: false,
+		orgId: opts.orgId,
+		region: opts.region,
+	});
+
+	if (result.status === 'error') {
+		tui.fatal(result.message ?? 'Failed to import project', ErrorCode.PROJECT_NOT_FOUND);
+	}
+
+	if (result.status === 'skipped') {
+		tui.info(result.message || 'Import cancelled.');
+		// The user declined registration mid-flow; don't fall through to
+		// scaffold (they already said no by leaving the import prompt).
+		return {
+			success: false,
+			error: result.message ?? 'Import cancelled',
+			name: '',
+			path: dir,
+			framework: hit.scaffoldSlug,
+			installed: false,
+			built: false,
+		};
+	}
+
+	// Shape the response to match ProjectCreateResponseSchema so the
+	// JSON output stays stable between create-and-scaffold and
+	// create-redirected-to-import.
+	return {
+		success: result.status === 'valid' || result.status === 'imported',
+		name: '',
+		path: dir,
+		projectId: result.project?.projectId,
+		orgId: result.project?.orgId,
+		framework: hit.scaffoldSlug,
+		installed: true,
+		built: false,
+	};
+}
+
+/**
+ * Single yes/no prompt that asks the user whether they want to import
+ * the existing project instead of scaffolding a new one.
+ *
+ * Defaults to `true` because the heuristic up-stream already filtered
+ * to high-confidence matches.
+ */
+async function promptImportInsteadOfCreate(hit: ExistingProjectHit): Promise<boolean> {
+	const label = hit.version ? `${hit.detectedName} v${hit.version}` : hit.detectedName;
+	const message = hit.hasAgentuityJson
+		? `Detected ${tui.bold(label)} with an existing agentuity.json. Register/import this project instead of scaffolding a new one?`
+		: `Detected an existing ${tui.bold(label)} project. Register/import it instead of scaffolding a new one?`;
+
+	return tui.confirm(message, true);
+}
