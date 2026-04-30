@@ -775,7 +775,7 @@ async function waitForKey(): Promise<string> {
 class ActivityIndicator {
 	private frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 	private currentFrame = 0;
-	private intervalId: Timer | null = null;
+	private intervalId: ReturnType<typeof setInterval> | null = null;
 	private message: string;
 
 	constructor(message: string = 'Running') {

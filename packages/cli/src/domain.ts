@@ -148,7 +148,7 @@ export async function checkCustomDomainForDNS(
 
 			// Step 1: Check CNAME record
 			try {
-				let timeoutId: Timer | undefined;
+				let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					timeoutId = setTimeout(() => {
@@ -217,7 +217,7 @@ export async function checkCustomDomainForDNS(
 			// Step 2: Check A record (supports apex domains and ALIAS/ANAME/CNAME-flattening)
 			if (ionIPs.length > 0) {
 				try {
-					let aTimeoutId: Timer | undefined;
+					let aTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
 					const aTimeoutPromise = new Promise<never>((_, reject) => {
 						aTimeoutId = setTimeout(() => {

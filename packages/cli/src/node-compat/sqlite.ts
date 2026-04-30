@@ -66,18 +66,30 @@ export interface OpenDatabaseOptions {
  * file does not pin the consumer to either runtime — the choice is
  * made at the first call.
  */
+type BunSqliteModule = {
+	Database: new (filename: string, opts?: { readonly?: boolean }) => Database;
+};
+
+type NodeSqliteModule = {
+	DatabaseSync: new (filename: string, opts?: { readOnly?: boolean }) => Database;
+};
+
 export async function openDatabase(
 	filename: string,
 	opts?: OpenDatabaseOptions
 ): Promise<Database> {
 	if (runtimeKind() === 'bun') {
-		const mod = await import('bun:sqlite');
+		// Stash the specifier in a const so tsc doesn't try to resolve
+		// `bun:sqlite` at type-check time — we don't ship `bun-types` in
+		// the cli's prod tsconfig anymore. The dynamic import is also
+		// guarded at runtime by the runtimeKind() check above, so Node
+		// never hits this branch.
+		const spec = 'bun:sqlite';
+		const mod = (await import(spec)) as BunSqliteModule;
 		const bunOpts = opts?.readonly ? { readonly: true } : undefined;
-		// The structural shapes match the Database interface; TS can't see
-		// that across the dynamic boundary, so we cast.
-		return new mod.Database(filename, bunOpts) as unknown as Database;
+		return new mod.Database(filename, bunOpts);
 	}
-	const mod = await import('node:sqlite');
+	const mod = (await import('node:sqlite')) as unknown as NodeSqliteModule;
 	const nodeOpts = opts?.readonly ? { readOnly: true } : undefined;
-	return new mod.DatabaseSync(filename, nodeOpts) as unknown as Database;
+	return new mod.DatabaseSync(filename, nodeOpts);
 }

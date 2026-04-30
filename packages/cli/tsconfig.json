@@ -5,6 +5,7 @@
 		"outDir": "./dist",
 		"rootDir": ".",
 		"tsBuildInfoFile": "./tsconfig.tsbuildinfo",
+		"types": ["node"],
 		"paths": {
 			"@agentuity/core": ["../core/src"],
 			"@agentuity/server": ["../server/src"],
@@ -12,6 +13,6 @@
 		}
 	},
 	"include": ["src/**/*", "bin/**/*", "package.json"],
-	"exclude": ["test/**/*", "src/cmd/project/templates/**/*"],
+	"exclude": ["test/**/*", "src/**/*.test.ts", "src/cmd/project/templates/**/*"],
 	"references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../storage" }]
 }
