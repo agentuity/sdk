@@ -31,8 +31,10 @@
  */
 
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
-import type { Readable, Writable } from 'node:stream';
+import { type Readable, type Writable } from 'node:stream';
 import { text } from 'node:stream/consumers';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
+import { Readable as NodeReadable } from 'node:stream';
 
 /** Options for `run()` and `spawnInherit()`. */
 export interface ProcOptions {
@@ -156,6 +158,45 @@ export function spawnDetached(opts: Omit<ProcOptions, 'stdin' | 'timeoutMs'>): C
 	// without waiting for or signaling the child.
 	child.unref();
 	return child;
+}
+
+/**
+ * Spawn a process and expose its stdout/stderr as Web
+ * `ReadableStream<Uint8Array>`s for the caller to consume
+ * incrementally. Use this when the caller wants to render output
+ * progressively (e.g. a TUI spinner that shows the latest stderr
+ * line). Returns a promise that resolves to the final exit code
+ * once both streams have closed.
+ *
+ * Note: callers must `await exited` after they finish reading the
+ * streams, otherwise the child may stay live indefinitely (the OS
+ * pipe stays open).
+ */
+export function spawnStreamingOutput(opts: Omit<ProcOptions, 'stdin' | 'timeoutMs'>): {
+	stdout: ReadableStream<Uint8Array>;
+	stderr: ReadableStream<Uint8Array>;
+	exited: Promise<{ exitCode: number | null }>;
+} {
+	if (opts.cmd.length === 0) {
+		throw new Error('spawnStreamingOutput: cmd must not be empty');
+	}
+	const [command, ...args] = opts.cmd;
+	const child = spawn(command!, args, {
+		cwd: opts.cwd,
+		env: buildEnv(opts.env, opts.inheritEnv),
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+	const stdout = NodeReadable.toWeb(
+		child.stdout as NodeReadable
+	) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
+	const stderr = NodeReadable.toWeb(
+		child.stderr as NodeReadable
+	) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
+	const exited = new Promise<{ exitCode: number | null }>((resolve, reject) => {
+		child.once('error', reject);
+		child.once('close', (code) => resolve({ exitCode: code }));
+	});
+	return { stdout, stderr, exited };
 }
 
 /**

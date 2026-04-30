@@ -1,21 +1,24 @@
 /**
  * Terminal UI utilities for formatted, colorized output
  *
- * Provides semantic helpers for console output with automatic icons and colors.
- * Uses Bun's built-in color support and ANSI escape codes.
+ * Provides semantic helpers for console output with automatic icons
+ * and colors. ANSI escape generation, string-width measurement, and
+ * subprocess invocation (clipboard, paging) all go through the
+ * `node-compat/` layer so this file works under both Bun and Node.
  */
-import { stringWidth } from 'bun';
 import { resolve } from 'node:path';
+import * as readline from 'node:readline';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
-import * as readline from 'readline';
-import type { ColorScheme } from './terminal.ts';
-import type { Profile } from './types.ts';
 import { type APIClient as APIClientType } from './api.ts';
 import { getExitCode } from './errors.ts';
 import { maskSecret } from './env-util.ts';
 import { getExecutingAgent } from './agent-detection.ts';
+import { color, stringWidth } from './node-compat/ansi.ts';
+import { run, spawnInherit, spawnStreamingOutput } from './node-compat/proc.ts';
+import type { ColorScheme } from './terminal.ts';
+import type { Profile } from './types.ts';
 
 // Install global exit handler to always restore terminal cursor
 // This ensures cursor is restored even when process.exit() is called directly
@@ -161,7 +164,7 @@ export function shouldUseColors(): boolean {
 }
 
 // Color definitions (light/dark adaptive)
-// Note: We use direct ANSI codes instead of Bun.color() because Bun.color()
+// Note: We use direct ANSI codes instead of color() because color()
 // returns corrupted sequences when stdout is not a TTY (even with FORCE_COLOR=1)
 function getColors() {
 	const USE_COLORS = shouldUseColors();
@@ -505,15 +508,15 @@ export function output(message: string): void {
 /**
  * Get the display width of a string, handling ANSI codes and OSC 8 hyperlinks
  *
- * Note: Bun.stringWidth() counts OSC 8 hyperlink escape sequences in the width,
- * which causes incorrect alignment. We strip OSC 8 codes first, then use Bun.stringWidth()
+ * Note: stringWidth() counts OSC 8 hyperlink escape sequences in the width,
+ * which causes incorrect alignment. We strip OSC 8 codes first, then use stringWidth()
  * to handle regular ANSI codes and unicode characters correctly.
  */
 export function getDisplayWidth(str: string): number {
 	// Remove OSC-8 hyperlink sequences using Unicode escapes (\u001b = ESC, \u0007 = BEL) to satisfy linter
 	// eslint-disable-next-line no-control-regex
 	const withoutOSC8 = str.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
-	return Bun.stringWidth(withoutOSC8);
+	return stringWidth(withoutOSC8);
 }
 
 /**
@@ -554,7 +557,7 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 		const seg = segments[i];
 		if (!seg) continue;
 		const segment = seg.segment;
-		const segmentWidth = Bun.stringWidth(segment);
+		const segmentWidth = stringWidth(segment);
 
 		if (currentWidth + segmentWidth > targetWidth) {
 			break;
@@ -644,7 +647,7 @@ interface BannerOptions {
  * Display a formatted banner with title and body content
  * Creates a bordered box around the content
  *
- * Uses Bun.stringWidth() for accurate width calculation with ANSI codes and unicode
+ * Uses stringWidth() for accurate width calculation with ANSI codes and unicode
  * Responsive to terminal width - adapts to narrow terminals
  */
 export function banner(title: string, body: string, options?: BannerOptions): void {
@@ -856,9 +859,8 @@ export async function confirm(message: string, defaultValue = true): Promise<boo
  * Shows the value proposition for creating an Agentuity account
  */
 export function showSignupBenefits(): void {
-	const CYAN = Bun.color('cyan', 'ansi-16m');
-	const TEXT =
-		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const CYAN = color('cyan', 'ansi-16m');
+	const TEXT = currentColorScheme === 'dark' ? color('white', 'ansi') : color('black', 'ansi');
 	const RESET = '\x1b[0m';
 
 	const lines = [
@@ -883,9 +885,8 @@ export function showSignupBenefits(): void {
  * @param hasProfile - If true, user has logged in before so only show "Login" instead of "Sign up / Login"
  */
 export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): void {
-	const YELLOW = Bun.color('yellow', 'ansi-16m');
-	const TEXT =
-		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const YELLOW = color('yellow', 'ansi-16m');
+	const TEXT = currentColorScheme === 'dark' ? color('white', 'ansi') : color('black', 'ansi');
 	const RESET = '\x1b[0m';
 
 	const signupTitle = hasProfile ? 'Login' : 'Sign up / Login';
@@ -928,9 +929,8 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
  * This is shown during `agentuity dev` when the project hasn't been registered with Agentuity Cloud
  */
 export function showLocalOnlyWarning(): void {
-	const YELLOW = Bun.color('yellow', 'ansi-16m');
-	const TEXT =
-		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const YELLOW = color('yellow', 'ansi-16m');
+	const TEXT = currentColorScheme === 'dark' ? color('white', 'ansi') : color('black', 'ansi');
 	const RESET = '\x1b[0m';
 
 	const lines = [
@@ -963,40 +963,26 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 
 		if (platform === 'darwin') {
 			// macOS - use pbcopy
-			const proc = Bun.spawn(['pbcopy'], {
-				stdin: 'pipe',
-			});
-			proc.stdin.write(text);
-			proc.stdin.end();
-			await proc.exited;
+			const proc = await run({ cmd: ['pbcopy'], stdin: text });
 			return proc.exitCode === 0;
 		} else if (platform === 'win32') {
 			// Windows - use clip
-			const proc = Bun.spawn(['clip'], {
-				stdin: 'pipe',
-			});
-			proc.stdin.write(text);
-			proc.stdin.end();
-			await proc.exited;
+			const proc = await run({ cmd: ['clip'], stdin: text });
 			return proc.exitCode === 0;
 		} else {
 			// Linux - try xclip first, then xsel
 			try {
-				const proc = Bun.spawn(['xclip', '-selection', 'clipboard'], {
-					stdin: 'pipe',
+				const proc = await run({
+					cmd: ['xclip', '-selection', 'clipboard'],
+					stdin: text,
 				});
-				proc.stdin.write(text);
-				proc.stdin.end();
-				await proc.exited;
 				return proc.exitCode === 0;
 			} catch {
 				// Try xsel as fallback
-				const proc = Bun.spawn(['xsel', '--clipboard', '--input'], {
-					stdin: 'pipe',
+				const proc = await run({
+					cmd: ['xsel', '--clipboard', '--input'],
+					stdin: text,
 				});
-				proc.stdin.write(text);
-				proc.stdin.end();
-				await proc.exited;
 				return proc.exitCode === 0;
 			}
 		}
@@ -1602,27 +1588,22 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 
 	// If not a TTY, just run the command normally and log output
 	if (!isTTY) {
-		const proc = Bun.spawn(cmd, {
-			cwd,
-			env: { ...process.env, ...env },
-			stdout: 'inherit',
-			stderr: 'inherit',
-		});
-		return await proc.exited;
+		const { exitCode } = await spawnInherit({ cmd, cwd, env });
+		return exitCode ?? 1;
 	}
 
-	// Colors using Bun.color
+	// Colors via the node-compat ANSI helper
 	const blue =
 		currentColorScheme === 'light'
-			? Bun.color('#0000FF', 'ansi') || '\x1b[34m'
-			: Bun.color('#5C9CFF', 'ansi') || '\x1b[94m';
+			? color('#0000FF', 'ansi') || '\x1b[34m'
+			: color('#5C9CFF', 'ansi') || '\x1b[94m';
 	const green = getColor('success');
 	const red = getColor('error');
 	const cmdColor =
 		currentColorScheme === 'light'
-			? '\x1b[1m' + (Bun.color('#00008B', 'ansi') || '\x1b[34m')
-			: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
-	const mutedColor = Bun.color('#808080', 'ansi') || '\x1b[90m';
+			? '\x1b[1m' + (color('#00008B', 'ansi') || '\x1b[34m')
+			: color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
+	const mutedColor = color('#808080', 'ansi') || '\x1b[90m';
 	const reset = getColor('reset');
 
 	// Get terminal width
@@ -1669,13 +1650,11 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	renderOutput(maxLinesOutput);
 
 	try {
-		// Spawn the command
-		const proc = Bun.spawn(cmd, {
-			cwd,
-			env: { ...process.env, ...env },
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
+		// Spawn the command and stream both stdout and stderr line-by-line
+		// so the TUI can update with the latest N lines while the child is
+		// running. Both streams are normal Web ReadableStream<Uint8Array>
+		// values; the shim wraps Node's Readable behind the same interface.
+		const proc = spawnStreamingOutput({ cmd, cwd, env });
 
 		// Process output streams
 		const processStream = async (stream: ReadableStream<Uint8Array>) => {
@@ -1709,7 +1688,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		await Promise.all([processStream(proc.stdout), processStream(proc.stderr)]);
 
 		// Wait for process to exit
-		const exitCode = await proc.exited;
+		const { exitCode } = await proc.exited;
 
 		// If clearOnSuccess is true and command succeeded, clear everything
 		if (clearOnSuccess && exitCode === 0) {
@@ -1777,7 +1756,10 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		// If we're showing more lines than we had before, the extra lines may contain old content
 		// We've already written over them, so they're clean now
 
-		return exitCode;
+		// `exitCode` is null when the process was killed by a signal; surface
+		// that to callers as 1 (the same convention `bash`'s $? would use
+		// for an unspecified failure).
+		return exitCode ?? 1;
 	} catch (err) {
 		// Move cursor up to clear our UI
 		if (linesRendered > 0) {

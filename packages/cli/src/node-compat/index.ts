@@ -32,6 +32,7 @@ export {
 	runStreaming,
 	spawnInherit,
 	spawnDetached,
+	spawnStreamingOutput,
 	type ProcOptions,
 	type RunResult,
 	type SpawnInheritResult,
