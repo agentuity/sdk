@@ -12,8 +12,6 @@ function createStatsReport(reports: PartialStats[]): RTCStatsReport {
 }
 
 class MockRTCPeerConnection {
-	constructor(_configuration?: RTCConfiguration) {}
-
 	ontrack: ((event: RTCTrackEvent) => void) | null = null;
 	ondatachannel: ((event: RTCDataChannelEvent) => void) | null = null;
 	onicecandidate: ((event: RTCPeerConnectionIceEvent) => void) | null = null;

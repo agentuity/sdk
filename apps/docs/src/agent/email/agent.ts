@@ -49,7 +49,7 @@ const agent = createAgent('email-sender', {
 
 		const { subject, html, text } = generateEmailContent();
 
-		ctx.logger.info('Sending email demo', { subject, to: recipients });
+		ctx.logger.info('Sending email demo', { template, subject, to: recipients });
 
 		const result = await ctx.email.send({
 			from: EMAIL_FROM,
