@@ -156,7 +156,7 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 	async search<T = unknown>(
 		_name: string,
 		_keyword: string
-	): Promise<Record<string, KeyValueItemWithMetadata<T>>> {
+	): Promise<Map<string, KeyValueItemWithMetadata<T>>> {
 		throw new Error('search not implemented for local storage');
 	}
 

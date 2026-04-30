@@ -162,7 +162,7 @@ export const VectorSearchParamsSchema = <T extends z.ZodTypeAny>(metadataSchema:
 			),
 	});
 
-export type VectorSearchParams<T extends Record<string, unknown> = Record<string, unknown>> = {
+export type VectorSearchParams<T = Record<string, unknown>> = {
 	query: string;
 	limit?: number;
 	similarity?: number;
@@ -210,7 +210,7 @@ export const VectorSearchResultSchema = <T extends z.ZodTypeAny>(metadataSchema:
 			.describe('the expiration time of the vector as an ISO 8601 timestamp.'),
 	});
 
-export type VectorSearchResult<T extends Record<string, unknown> = Record<string, unknown>> = {
+export type VectorSearchResult<T = Record<string, unknown>> = {
 	id: string;
 	key: string;
 	metadata?: T;
@@ -237,9 +237,7 @@ export const VectorSearchResultWithDocumentSchema = <T extends z.ZodTypeAny>(met
 		embeddings: z.array(z.number()).optional().describe('the embeddings of the vector object'),
 	});
 
-export type VectorSearchResultWithDocument<
-	T extends Record<string, unknown> = Record<string, unknown>,
-> = VectorSearchResult<T> & {
+export type VectorSearchResultWithDocument<T = Record<string, unknown>> = VectorSearchResult<T> & {
 	document?: string;
 	embeddings?: Array<number>;
 };
@@ -277,7 +275,7 @@ export const VectorResultFoundSchema = <T extends z.ZodTypeAny>(metadataSchema: 
 		exists: z.literal(true).describe('the vector was found'),
 	});
 
-export type VectorResultFound<T extends Record<string, unknown> = Record<string, unknown>> = {
+export type VectorResultFound<T = Record<string, unknown>> = {
 	data: VectorSearchResultWithDocument<T>;
 	exists: true;
 };
@@ -302,9 +300,7 @@ export type VectorResultNotFound = z.infer<typeof VectorResultNotFoundSchema>;
 /**
  * Result of a get operation
  */
-export type VectorResult<T extends Record<string, unknown> = Record<string, unknown>> =
-	| VectorResultFound<T>
-	| VectorResultNotFound;
+export type VectorResult<T = Record<string, unknown>> = VectorResultFound<T> | VectorResultNotFound;
 
 export const VectorResultSchema = <T extends z.ZodTypeAny>(metadataSchema: T) =>
 	z.discriminatedUnion('exists', [
@@ -525,10 +521,7 @@ export interface VectorStorage {
 	 * }
 	 * ```
 	 */
-	get<T extends Record<string, unknown> = Record<string, unknown>>(
-		name: string,
-		key: string
-	): Promise<VectorResult<T>>;
+	get<T = Record<string, unknown>>(name: string, key: string): Promise<VectorResult<T>>;
 
 	/**
 	 * Get multiple vectors by their keys in a single request
@@ -545,7 +538,7 @@ export interface VectorStorage {
 	 * }
 	 * ```
 	 */
-	getMany<T extends Record<string, unknown> = Record<string, unknown>>(
+	getMany<T = Record<string, unknown>>(
 		name: string,
 		...keys: string[]
 	): Promise<Map<string, VectorSearchResultWithDocument<T>>>;
@@ -579,7 +572,7 @@ export interface VectorStorage {
 	 * }
 	 * ```
 	 */
-	search<T extends Record<string, unknown> = Record<string, unknown>>(
+	search<T = Record<string, unknown>>(
 		name: string,
 		params: VectorSearchParams<T>
 	): Promise<VectorSearchResult<T>[]>;
@@ -897,10 +890,7 @@ export class VectorStorageService implements VectorStorage {
 		throw await toServiceException('PUT', url, res.response);
 	}
 
-	async get<T extends Record<string, unknown> = Record<string, unknown>>(
-		name: string,
-		key: string
-	): Promise<VectorResult<T>> {
+	async get<T = Record<string, unknown>>(name: string, key: string): Promise<VectorResult<T>> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
 			throw new VectorStorageNameRequiredError();
 		}
@@ -947,7 +937,7 @@ export class VectorStorageService implements VectorStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async getMany<T extends Record<string, unknown> = Record<string, unknown>>(
+	async getMany<T = Record<string, unknown>>(
 		name: string,
 		...keys: string[]
 	): Promise<Map<string, VectorSearchResultWithDocument<T>>> {
@@ -978,7 +968,7 @@ export class VectorStorageService implements VectorStorage {
 		return resultMap;
 	}
 
-	async search<T extends Record<string, unknown> = Record<string, unknown>>(
+	async search<T = Record<string, unknown>>(
 		name: string,
 		params: VectorSearchParams<T>
 	): Promise<VectorSearchResult<T>[]> {

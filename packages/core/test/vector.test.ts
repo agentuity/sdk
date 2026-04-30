@@ -1,6 +1,11 @@
 import { describe, test, expect } from 'bun:test';
 import { VectorStorageService } from '../src/services/vector/index.ts';
-import type { VectorUpsertParams } from '../src/services/vector/index.ts';
+import type {
+	VectorResult,
+	VectorSearchParams,
+	VectorSearchResult,
+	VectorUpsertParams,
+} from '../src/services/vector/index.ts';
 import { createMockAdapter } from '@agentuity/test-utils';
 
 describe('VectorStorageService', () => {
@@ -1261,6 +1266,43 @@ describe('VectorStorageService', () => {
 			expect('namespaces' in result).toBe(false);
 			expect(Object.keys(result)).toContain('products');
 			expect(Object.keys(result)).toContain('embeddings');
+		});
+	});
+
+	// ===================================================================
+	// Type-level regression: metadata generic accepts plain interfaces
+	// without an index signature. This used to require
+	// `T extends Record<string, unknown>`, which forced consumers to write
+	// `type Metadata = {...} & Record<string, unknown>` workarounds.
+	// ===================================================================
+	describe('Type-level: metadata generic accepts interfaces', () => {
+		test('plain interfaces (no index signature) satisfy VectorSearchParams<T>', () => {
+			interface ProductMetadata {
+				category: string;
+				inStock: boolean;
+				price: number;
+			}
+
+			const params: VectorSearchParams<ProductMetadata> = {
+				query: 'office chair',
+				limit: 5,
+				metadata: { category: 'furniture', inStock: true, price: 199 },
+			};
+
+			const result: VectorSearchResult<ProductMetadata> = {
+				id: 'id-1',
+				key: 'chair-001',
+				metadata: { category: 'furniture', inStock: true, price: 199 },
+				similarity: 0.9,
+			};
+
+			const getResult: VectorResult<ProductMetadata> = {
+				exists: false,
+			} as VectorResult<ProductMetadata>;
+
+			expect(params.query).toBe('office chair');
+			expect(result.metadata?.category).toBe('furniture');
+			expect(getResult.exists).toBe(false);
 		});
 	});
 });

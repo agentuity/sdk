@@ -301,9 +301,10 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const results = await service.search<typeof jsonObj>('users', 'user:');
 
-			expect(results['user:123']).toBeDefined();
-			expect(results['user:123']!.value).toEqual(jsonObj);
-			expect(typeof results['user:123']!.value).toBe('object');
+			expect(results).toBeInstanceOf(Map);
+			expect(results.has('user:123')).toBe(true);
+			expect(results.get('user:123')!.value).toEqual(jsonObj);
+			expect(typeof results.get('user:123')!.value).toBe('object');
 		});
 
 		test('should deserialize text values from base64', async () => {
@@ -328,7 +329,8 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const results = await service.search<string>('messages', 'msg:');
 
-			expect(results['msg:1']!.value).toBe(textValue);
+			expect(results).toBeInstanceOf(Map);
+			expect(results.get('msg:1')!.value).toBe(textValue);
 		});
 
 		test('should deserialize binary values from base64 as ArrayBuffer', async () => {
@@ -353,19 +355,21 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const results = await service.search<ArrayBuffer>('blobs', 'bin:');
 
-			const resultValue = results['bin:1']!.value;
+			expect(results).toBeInstanceOf(Map);
+			const resultValue = results.get('bin:1')!.value;
 			expect(resultValue).toBeInstanceOf(ArrayBuffer);
 			const resultBytes = new Uint8Array(resultValue);
 			expect(resultBytes).toEqual(binaryData);
 		});
 
-		test('should return empty object when no results', async () => {
+		test('should return empty Map when no results', async () => {
 			const { adapter } = createMockAdapter([{ ok: true, data: {} }]);
 
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const results = await service.search('empty', 'nope');
 
-			expect(Object.keys(results)).toHaveLength(0);
+			expect(results).toBeInstanceOf(Map);
+			expect(results.size).toBe(0);
 		});
 
 		test('should pass through already-parsed values unchanged', async () => {
@@ -389,7 +393,8 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const results = await service.search<typeof jsonObj>('ns', 'key:');
 
-			expect(results['key:1']!.value).toEqual(jsonObj);
+			expect(results).toBeInstanceOf(Map);
+			expect(results.get('key:1')!.value).toEqual(jsonObj);
 		});
 
 		test('should handle multiple results', async () => {
@@ -422,9 +427,12 @@ describe('KeyValueStorageService', () => {
 			const service = new KeyValueStorageService(baseUrl, adapter);
 			const results = await service.search<{ id: number }>('items', 'item:');
 
-			expect(Object.keys(results)).toHaveLength(2);
-			expect(results['item:1']!.value).toEqual(obj1);
-			expect(results['item:2']!.value).toEqual(obj2);
+			expect(results).toBeInstanceOf(Map);
+			expect(results.size).toBe(2);
+			expect(results.get('item:1')!.value).toEqual(obj1);
+			expect(results.get('item:2')!.value).toEqual(obj2);
+			// Insertion order from the server response is preserved
+			expect(Array.from(results.keys())).toEqual(['item:1', 'item:2']);
 		});
 
 		test('should encode special characters in name and keyword', async () => {
@@ -477,7 +485,8 @@ describe('KeyValueStorageService', () => {
 			const results = await service.search<string>('ns', 'key:');
 
 			// Value should be left as the original string when decoding fails
-			expect(results['key:1']!.value).toBe(invalidBase64);
+			expect(results).toBeInstanceOf(Map);
+			expect(results.get('key:1')!.value).toBe(invalidBase64);
 		});
 	});
 

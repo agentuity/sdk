@@ -1,60 +1,26 @@
-import { createPublicKey } from 'node:crypto';
-import {
-	createReadStream,
-	createWriteStream,
-	existsSync,
-	mkdirSync,
-	statSync,
-	unlinkSync,
-	writeFileSync,
-} from 'node:fs';
-import { rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
-import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
-import { setTimeout as sleep } from 'node:timers/promises';
-import { createGzip } from 'node:zlib';
-import { pathExists } from '../../node-compat/fs.ts';
+import { writeFileSync } from 'node:fs';
 import { StructuredError } from '@agentuity/core';
 import {
-	type BuildMetadata,
 	type Deployment,
 	type DeploymentComplete,
-	type DeploymentInstructions,
-	type DeploymentStatusResult,
 	getAppBaseURL,
 	type MalwareCheckResult,
-	projectDeploymentComplete,
-	projectDeploymentCreate,
 	projectDeploymentMalwareCheck,
-	projectDeploymentStatus,
-	projectDeploymentUpdate,
 	projectEnvUpdate,
-	projectGet,
-	projectUpdateRegion,
-	validateResources,
 } from '@agentuity/server';
 import { z } from 'zod';
-import { getUserAgent } from '../../api.ts';
 import {
 	BuildReportCollector,
 	clearGlobalCollector,
 	setGlobalCollector,
 } from '../../build-report.ts';
-import { getCachedProject, setCachedProject } from '../../cache/index.ts';
 import { getCommand } from '../../command-prefix.ts';
 import {
-	getDefaultConfigDir,
 	getGlobalCatalystAPIClient,
-	getStreamURL,
-	loadBuildMetadata,
 	loadProjectSDKKey,
 	saveProjectDir,
 	updateProjectConfig,
 } from '../../config.ts';
-import { encryptFIPSKEMDEMStream } from '../../crypto/box.ts';
 import * as domain from '../../domain.ts';
 import {
 	filterAgentuitySdkKeys,
@@ -67,7 +33,6 @@ import {
 	pauseStepUI,
 	runSteps,
 	type Step,
-	type StepContext,
 	StepInterruptError,
 	stepError,
 	stepSkipped,
@@ -75,16 +40,14 @@ import {
 } from '../../steps.ts';
 import * as tui from '../../tui.ts';
 import { createSubcommand, DeployOptionsSchema } from '../../types.ts';
-import { validateAptDependencies } from '../../utils/apt-validator.ts';
 import { extractDependencies } from '../../utils/deps.ts';
-import { zipDir } from '../../utils/zip.ts';
-import { typecheck } from '../build/typecheck.ts';
-import { detectFrameworkWithPackageJson } from '../build/detect/index.ts';
-import { getAdapter } from '../build/adapters/index.ts';
-import { packageBuildOutput } from '../build/package/index.ts';
-import type { BuildResult } from '../build/adapters/types.ts';
-import type { PackageResult } from '../build/package/index.ts';
-import { generateDeployMetadata } from '../../deploy-metadata.ts';
+import { buildBuildStep } from './deploy/build.ts';
+import { buildDiscoverStep } from './deploy/discover.ts';
+import { PreflightAptValidationError, runPreflight } from './deploy/preflight.ts';
+import { runRegister } from './deploy/register.ts';
+import type { DeployPipelineState } from './deploy/types.ts';
+import { buildEncryptUploadStep, buildProvisionStep } from './deploy/upload.ts';
+import { runWaitForDeployment } from './deploy/wait.ts';
 import { getProjectGithubStatus } from '../git/api.ts';
 import { runGitLink } from '../git/link.ts';
 import { runForkedDeploy } from './deploy-fork.ts';
@@ -110,32 +73,10 @@ const DeployResponseSchema = z.object({
 		.describe('Deployment URLs'),
 });
 
-/**
- * Render the final "Uploaded N assets ..." line after a successful CDN
- * upload pass. Reports both the original and on-the-wire totals when gzip
- * compressed at least one file, so the user can see the real transfer cost.
- */
-function formatUploadSummary(count: number, rawBytes: number, transferredBytes: number): string {
-	const noun = tui.plural(count, 'asset', 'assets');
-	// When no compression happened (icons, fonts, binaries), rawBytes ===
-	// transferredBytes and the extra detail would just be noise.
-	if (transferredBytes === rawBytes) {
-		return `✓ Uploaded ${count} ${noun} (${tui.formatBytes(rawBytes)}) to CDN`;
-	}
-	return `✓ Uploaded ${count} ${noun} (${tui.formatBytes(transferredBytes)} on wire, ${tui.formatBytes(rawBytes)} raw) to CDN`;
-}
-
 export const deploySubcommand = createSubcommand({
 	name: 'deploy',
 	description: 'Deploy project to the Agentuity Cloud',
-	tags: [
-		'mutating',
-		'creates-resource',
-		'slow',
-		'api-intensive',
-		'requires-auth',
-		'requires-project',
-	],
+	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
 	examples: [
 		{ command: getCommand('cloud deploy'), description: 'Deploy current project' },
 		{
@@ -145,12 +86,18 @@ export const deploySubcommand = createSubcommand({
 	],
 	toplevel: true,
 	idempotent: false,
-	requires: { auth: true, project: true, apiClient: true },
+	// `project` is optional at the CLI gate level: in a vanilla JS/TS dir we
+	// want `agentuity deploy` to work end-to-end (discover -> register ->
+	// deploy) without first running `agentuity project import`. The handler
+	// below guarantees a registered project before any deploy work happens
+	// via the Register phase (`reconcileProject`).
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	prerequisites: ['auth login'],
 	resourceRules: [
 		{
 			resource: 'project',
-			required: true,
+			required: false,
 			flag: 'project-id',
 			envVar: 'AGENTUITY_CLOUD_PROJECT_ID',
 			impliedFrom: 'agentuity.json',
@@ -190,111 +137,31 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		let { project } = ctx;
 		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
 
-		// Verify project access and offer import if needed
-		const { reconcileProject } = await import('../project/reconcile.ts');
-		const { isTTY } = await import('../../auth.ts');
+		// Mutable, shared accumulator threaded through the deploy steps.
+		// Each phase writes its own outputs onto this object so later steps
+		// can read them without ballooning the step factory signatures.
+		const pipelineState: DeployPipelineState = {};
 
-		const reconcileResult = await reconcileProject({
-			dir: projectDir,
-			auth,
+		// Resolve a registered project for this directory. Under `optional.project`
+		// the cli.ts gate may hand us `ctx.project=undefined` (no agentuity.json);
+		// the Register phase guarantees a real project is in hand before any
+		// deploy work happens, registering/importing one if necessary.
+		const { isTTY } = await import('../../auth.ts');
+		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+
+		const registerResult = await runRegister({
+			project: ctx.project,
+			projectDir,
 			apiClient,
+			auth,
 			config: config!,
 			logger,
+			confirm: opts.confirm,
 			interactive: isTTY(),
 		});
-
-		if (reconcileResult.status === 'error') {
-			tui.fatal(reconcileResult.message!, ErrorCode.PROJECT_NOT_FOUND);
-		}
-
-		if (reconcileResult.status === 'skipped') {
-			tui.fatal(
-				'Project must be registered with Agentuity Cloud to deploy.',
-				ErrorCode.PROJECT_NOT_FOUND
-			);
-		}
-
-		if (reconcileResult.status === 'imported' && reconcileResult.project) {
-			// Project was imported - use the new project config
-			project = reconcileResult.project;
-			tui.newline();
-		}
-
-		// Check if local region differs from server region and handle confirmation
-		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
-		if (project.region) {
-			try {
-				// Check cache first to avoid duplicate API calls
-				const profile = config?.name ?? 'default';
-				let serverProject = getCachedProject(profile, project.projectId);
-				if (!serverProject) {
-					serverProject = await projectGet(apiClient, {
-						id: project.projectId,
-						keys: false,
-					});
-					setCachedProject(profile, project.projectId, serverProject);
-				}
-				const serverRegion = serverProject.cloudRegion;
-
-				if (serverRegion && serverRegion !== project.region) {
-					logger.debug(
-						'Region mismatch detected: local=%s, server=%s',
-						project.region,
-						serverRegion
-					);
-
-					if (hasTTY) {
-						// Interactive mode: prompt for confirmation
-						tui.newline();
-						tui.warning(
-							`Region change detected: ${tui.bold(serverRegion)} → ${tui.bold(project.region)}`
-						);
-						const confirmChange = await tui.confirm(
-							'Do you want to update the project region?',
-							false
-						);
-
-						if (!confirmChange) {
-							tui.newline();
-							tui.fatal(
-								'Deployment cancelled. Update the region in agentuity.json or keep the current region.',
-								ErrorCode.CONFIG_INVALID
-							);
-						}
-					} else {
-						// Non-interactive mode: require --confirm flag
-						if (!opts.confirm) {
-							tui.fatal(
-								`Region change detected (${serverRegion} → ${project.region}). Use --confirm flag to proceed with region change in non-interactive mode.`,
-								ErrorCode.CONFIG_INVALID
-							);
-						}
-						logger.debug('Region change confirmed via --confirm flag');
-					}
-
-					// Update the region on the server
-					await tui.spinner({
-						message: 'Updating project region...',
-						type: 'simple',
-						callback: async () => {
-							await projectUpdateRegion(apiClient, project.projectId, project.region);
-						},
-					});
-					tui.success(`Project region updated to ${tui.bold(project.region)}`);
-					tui.newline();
-				}
-			} catch (err) {
-				// If it's a fatal error we threw, re-throw it
-				if (err instanceof Error && err.message.includes('Region change detected')) {
-					throw err;
-				}
-				// Log other errors as non-fatal and continue (e.g., network issues fetching project)
-				logger.trace('Failed to check project region: %s', err);
-			}
-		}
+		const project = registerResult.project;
 
 		// Initialize build report collector if reportFile is specified
 		const collector = new BuildReportCollector();
@@ -304,12 +171,17 @@ export const deploySubcommand = createSubcommand({
 			setGlobalCollector(collector);
 		}
 
+		// Mutable state that survives between phases. The build/upload
+		// products (`build`, `buildOutputDir`, `instructions`) live on
+		// `pipelineState` and are written by the Build step; downstream
+		// readers (Encrypt + Upload, Provision Deployment) consume them
+		// from there directly.
 		let deployment: Deployment | undefined;
-		let build: BuildMetadata | undefined;
-		let buildOutputDir: string | undefined;
-		let instructions: DeploymentInstructions | undefined;
-		let complete: DeploymentComplete | undefined;
-		let statusResult: DeploymentStatusResult | undefined;
+		// `complete` is produced by the Provision step but read by the wait
+		// phase that follows `runSteps()`. We thread it through a ref-cell
+		// so the step can mutate it without us creating a separate result
+		// channel just for one value.
+		const completeRef: { current?: DeploymentComplete } = {};
 		let malwareCheckPromise: Promise<MalwareCheckResult | null> | undefined;
 		const logs: string[] = [];
 
@@ -332,76 +204,28 @@ export const deploySubcommand = createSubcommand({
 		if (!isChildProcess && !deploymentEnv) {
 			logger.debug('Running deploy as fork wrapper');
 
-			// First, create the deployment to get the ID, publicKey, and stream URL
-			const deploymentConfig = project.deployment ?? {};
-
-			// Validate resource configuration before creating deployment
-			if (deploymentConfig.resources) {
-				const validation = validateResources(deploymentConfig.resources);
-				if (!validation.valid) {
-					tui.error('Invalid resource configuration in agentuity.json:');
-					for (const error of validation.errors) {
-						tui.error(`  ${error}`);
-					}
-					tui.fatal('Fix the resource configuration and try again.', ErrorCode.CONFIG_INVALID);
-				}
-			}
-
-			// Validate apt dependencies before creating deployment
-			if (deploymentConfig.dependencies && deploymentConfig.dependencies.length > 0) {
-				const aptValidation = await tui.spinner({
-					message: 'Validating apt dependencies...',
-					type: 'simple',
-					callback: async () => {
-						return await validateAptDependencies(
-							deploymentConfig.dependencies!,
-							project.region,
-							config,
-							logger
-						);
-					},
+			// Preflight: validate the deploy section of agentuity.json (resource
+			// limits + apt dependencies) and create the deployment record on the
+			// server. Returns the Deployment with id/publicKey/stream URLs that
+			// the forked child needs to encrypt + upload + tail logs.
+			let initialDeployment: Deployment;
+			try {
+				const preflight = await runPreflight({
+					project,
+					apiClient,
+					config,
+					logger,
+					json: options.json === true,
 				});
-
-				if (aptValidation.invalid.length > 0) {
-					if (options.json) {
-						return {
-							success: false,
-							deploymentId: '',
-							projectId: project.projectId,
-							errors: aptValidation.invalid.map((pkg) => ({
-								type: 'invalid-apt-dependency',
-								package: pkg.package,
-								error: pkg.error,
-								searchUrl: pkg.searchUrl,
-								availableVersions: pkg.availableVersions,
-							})),
-						} as never;
-					}
-
-					tui.error('Invalid apt dependencies in agentuity.json:');
-					tui.newline();
-					for (const pkg of aptValidation.invalid) {
-						tui.bullet(`${tui.bold(pkg.package)}: ${pkg.error}`);
-						if (pkg.availableVersions && pkg.availableVersions.length > 0) {
-							tui.muted(`    Available versions: ${pkg.availableVersions.join(', ')}`);
-						}
-						tui.muted(`    Search: ${tui.link(pkg.searchUrl)}`);
-					}
-					tui.newline();
-					tui.fatal(
-						'Fix the apt dependencies and try again. Search for valid packages at: https://packages.debian.org/stable/',
-						ErrorCode.CONFIG_INVALID
-					);
+				initialDeployment = preflight.deployment;
+			} catch (err) {
+				if (err instanceof PreflightAptValidationError) {
+					// JSON mode: surface the structured error envelope through the
+					// command's normal return path so callers can render it.
+					return err.payload as never;
 				}
+				throw err;
 			}
-
-			const initialDeployment = await projectDeploymentCreate(
-				apiClient,
-				project.projectId,
-				deploymentConfig
-			);
-
-			logger.debug('Created deployment: %s', initialDeployment.id);
 
 			// Build args to pass to child, excluding child-mode specific ones
 			const childArgs: string[] = [];
@@ -591,6 +415,11 @@ export const deploySubcommand = createSubcommand({
 
 			await runSteps(
 				[
+					// Detect Project — runs once, caches the result on pipelineState
+					// for the build step below to reuse. Skipped in child mode
+					// because the parent process already validated the project and
+					// the duplicate output would just clutter the deploy log.
+					isChildProcess ? null : buildDiscoverStep(projectDir, logger, pipelineState),
 					!project.deployment?.domains?.length
 						? null
 						: {
@@ -656,134 +485,17 @@ export const deploySubcommand = createSubcommand({
 						},
 					},
 
-					{
-						label: 'Build, Verify and Package',
-						run: async (stepCtx: StepContext) => {
-							if (!deployment) {
-								return stepError('deployment was null');
-							}
-							const capturedOutput: string[] = [];
-							const rootDir = resolve(projectDir);
-
-							// Run typecheck with collector for error reporting
-							const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-							const started = Date.now();
-							const typeResult = await typecheck(rootDir, { collector });
-							endTypecheckDiagnostic();
-
-							if (typeResult.success) {
-								capturedOutput.push(
-									tui.muted(`✓ Typechecked in ${Date.now() - started}ms`)
-								);
-							} else {
-								// Errors already added to collector by typecheck()
-								// Write report before returning error
-								if (opts.reportFile) {
-									await collector.forceWrite();
-								}
-								return stepError('Typecheck failed\n\n' + typeResult.output);
-							}
-							try {
-								// Step 1: Detect framework
-								const { framework, packageJson } =
-									await detectFrameworkWithPackageJson(rootDir);
-
-								if (!framework) {
-									return stepError(
-										'Could not detect a JS framework. Ensure package.json exists with a build script.'
-									);
-								}
-
-								const frameworkLabel = framework.version
-									? `${framework.name} v${framework.version}`
-									: framework.name;
-								capturedOutput.push(
-									tui.muted(`✓ Detected ${frameworkLabel} (${framework.runtime})`)
-								);
-
-								// Step 2: Get adapter and build
-								const outDir = join(rootDir, '.agentuity');
-								const adapter = getAdapter(framework.name);
-
-								const endBuildDiagnostic = collector.startDiagnostic('build');
-								const buildResult: BuildResult = await adapter.build({
-									projectDir: rootDir,
-									framework,
-									packageJson: packageJson!,
-									outputDir: outDir,
-									logger: ctx.logger,
-									collector,
-									dev: false,
-									projectId: project.projectId,
-									orgId: deployment.orgId,
-									region: project.region,
-									deploymentId: deployment.id,
-									deploymentOptions: opts,
-									deploymentConfig: project.deployment,
-								});
-								endBuildDiagnostic();
-
-								capturedOutput.push(...buildResult.logs);
-								buildOutputDir = buildResult.outputDir;
-
-								// Step 3: Package output (launch.json, Procfile, .agentuity-build)
-								const packageResult: PackageResult = packageBuildOutput(
-									framework,
-									buildResult,
-									buildResult.outputDir
-								);
-
-								// Step 4: Generate deploy metadata
-								const isAgentuity = framework.name === 'agentuity';
-
-								if (isAgentuity) {
-									// Agentuity native: the Vite pipeline writes agentuity.metadata.json
-									// with full routes, agents, and assets — load it and add launch metadata
-									build = await loadBuildMetadata(buildResult.outputDir);
-									build.launch = packageResult.launch;
-								} else {
-									// Non-Agentuity: generate metadata from build result
-									build = await generateDeployMetadata({
-										buildResult,
-										packageResult,
-										projectDir: rootDir,
-										projectId: project.projectId,
-										orgId: deployment.orgId,
-										region: project.region,
-										deploymentId: deployment.id,
-										deploymentConfig: project.deployment,
-										deploymentOptions: opts,
-										logger: ctx.logger,
-									});
-								}
-
-								ctx.logger.debug(
-									'Launch metadata: %s',
-									JSON.stringify(build.launch, null, 2)
-								);
-
-								// Step 5: Send metadata to API to get upload URLs
-								instructions = await projectDeploymentUpdate(
-									apiClient,
-									deployment.id,
-									build,
-									stepCtx.signal
-								);
-								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
-							} catch (ex) {
-								const _ex = ex as Error;
-								// Write report before returning error
-								if (opts.reportFile) {
-									await collector.forceWrite();
-								}
-								return stepError(
-									_ex.message ?? 'Error building your project',
-									_ex,
-									capturedOutput.length > 0 ? capturedOutput : undefined
-								);
-							}
-						},
-					},
+					buildBuildStep({
+						project,
+						projectDir,
+						apiClient,
+						logger,
+						collector,
+						deployment,
+						deployOptions: opts,
+						hasReportFile: Boolean(opts.reportFile),
+						state: pipelineState,
+					}),
 					{
 						label: 'Security Scan',
 						run: async () => {
@@ -827,313 +539,27 @@ export const deploySubcommand = createSubcommand({
 							return stepSuccess([`Scanned ${result.summary.scanned} packages`]);
 						},
 					},
-					{
-						label: 'Encrypt and Upload Deployment',
-						run: async (stepCtx: StepContext) => {
-							const progress = stepCtx.progress;
-							if (!deployment) {
-								return stepError('deployment was null');
-							}
-							if (!instructions) {
-								return stepError('deployment instructions were null');
-							}
-
-							// Start diagnostic for zip/encrypt phase
-							const endZipDiagnostic = collector.startDiagnostic('zip-package');
-							progress(5);
-							ctx.logger.trace('Starting deployment zip creation');
-							// zip up the build output directory
-							const zipSourceDir = buildOutputDir ?? join(projectDir, '.agentuity');
-							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
-							await zipDir(zipSourceDir, deploymentZip, {
-								filter: (_filename: string, relative: string) => {
-									if (relative.startsWith('.vite/')) {
-										return false;
-									}
-									// ignore common stuff we never want to include in the zip
-									if (relative.startsWith('.env')) return false;
-									if (relative.startsWith('.git/')) return false;
-									if (relative.startsWith('.ssh/')) return false;
-									if (relative === '.DS_Store') return false;
-									return true;
-								},
-							});
-							ctx.logger.trace(`Deployment zip created: ${deploymentZip}`);
-
-							endZipDiagnostic();
-
-							progress(20);
-							// Encrypt the deployment zip using the public key from deployment
-							const endEncryptDiagnostic = collector.startDiagnostic('encrypt');
-							const encryptedZip = join(tmpdir(), `${deployment.id}.enc.zip`);
-							try {
-								ctx.logger.trace('Creating public key');
-								const publicKey = createPublicKey({
-									key: deployment.publicKey,
-									format: 'pem',
-									type: 'spki',
-								});
-
-								ctx.logger.trace('Creating read/write streams');
-								const src = createReadStream(deploymentZip);
-								const dst = createWriteStream(encryptedZip);
-
-								ctx.logger.trace('Starting encryption');
-								// Wait for encryption to complete
-								await encryptFIPSKEMDEMStream(publicKey, src, dst);
-								ctx.logger.trace('Encryption complete');
-
-								progress(40);
-								ctx.logger.trace('Waiting for stream to finish');
-								// End stream and wait for it to finish writing
-								await new Promise<void>((resolve, reject) => {
-									dst.once('finish', resolve);
-									dst.once('error', reject);
-									dst.end();
-								});
-								ctx.logger.trace('Stream finished');
-								endEncryptDiagnostic();
-
-								progress(50);
-								// Start code upload diagnostic
-								const endCodeUploadDiagnostic = collector.startDiagnostic('code-upload');
-								ctx.logger.trace(`Uploading deployment to ${instructions.deployment}`);
-								const fileSize = statSync(encryptedZip).size;
-								ctx.logger.trace(`Upload file size: ${fileSize} bytes`);
-								const zipBody = Readable.toWeb(
-									createReadStream(encryptedZip)
-								) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
-								const resp = await fetch(instructions.deployment, {
-									method: 'PUT',
-									headers: {
-										'Content-Type': 'application/zip',
-										'Content-Length': String(fileSize),
-									},
-									body: zipBody,
-									signal: stepCtx.signal,
-									duplex: 'half',
-								} as RequestInit & { duplex: 'half' });
-								ctx.logger.trace(`Upload response: ${resp.status}`);
-								if (!resp.ok) {
-									endCodeUploadDiagnostic();
-									const errorMsg = `Error uploading deployment: ${await resp.text()}`;
-									collector.addGeneralError('deploy', errorMsg, 'DEPLOY002');
-									if (opts.reportFile) {
-										await collector.forceWrite();
-									}
-									return stepError(errorMsg);
-								}
-								endCodeUploadDiagnostic();
-
-								progress(70);
-								ctx.logger.trace('Cancelling upload response body');
-								// No response payload is needed for successful uploads.
-								// Cancel to release resources without buffering into memory.
-								await resp.body?.cancel();
-								ctx.logger.trace('Deleting encrypted zip');
-								await rm(encryptedZip, { force: true });
-							} finally {
-								ctx.logger.trace('Cleanup');
-								// Cleanup in case of error
-								if (await pathExists(encryptedZip)) {
-									await rm(encryptedZip, { force: true });
-								}
-								await rm(deploymentZip, { force: true });
-							}
-
-							progress(80);
-							// Track both the raw on-disk size and the actual bytes we put on
-							// the wire. For gzipped assets these differ significantly; reporting
-							// the transferred total gives the user an honest view of CDN cost.
-							let rawBytes = 0;
-							let transferredBytes = 0;
-							if (build?.assets && build.assets.length > 0) {
-								// Start CDN upload diagnostic
-								const endCdnUploadDiagnostic = collector.startDiagnostic('cdn-upload');
-								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
-								if (!instructions.assets) {
-									const errorMsg =
-										'server did not provide asset upload URLs; upload aborted';
-									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
-									if (opts.reportFile) {
-										await collector.forceWrite();
-									}
-									return stepError(errorMsg);
-								}
-
-								// Pre-flight: every asset the build emitted must have a signed
-								// PUT URL from the backend. Failing up-front gives a single
-								// clear error instead of aborting mid-batch with partial uploads.
-								for (const asset of build.assets) {
-									if (!instructions.assets[asset.filename]) {
-										const errorMsg = `server did not provide upload URL for asset "${asset.filename}"; upload aborted`;
-										collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
-										if (opts.reportFile) {
-											await collector.forceWrite();
-										}
-										return stepError(errorMsg);
-									}
-									rawBytes += asset.size;
-								}
-
-								// Track every temp gzip file we create so we can clean them up
-								// even if the deploy is aborted mid-upload (e.g. Ctrl+C).
-								const tempFiles = new Set<string>();
-								const cleanupTempFiles = () => {
-									for (const p of tempFiles) {
-										try {
-											unlinkSync(p);
-										} catch {
-											// ignore — may already be gone
-										}
-									}
-									tempFiles.clear();
-								};
-
-								// Hoist narrowed locals for use inside the async upload closure;
-								// TS doesn't propagate narrowings of `build` / `instructions`
-								// across async callbacks, and we've already null-checked both
-								// above.
-								const assets = build.assets;
-								const assetUrls = instructions.assets;
-								// v3 buildpack pipeline emits assets into `buildOutputDir`; fall
-								// back to `.agentuity` for the legacy path.
-								const assetBaseDir = buildOutputDir ?? join(projectDir, '.agentuity');
-
-								try {
-									// Upload each asset with bounded concurrency. gzip compression
-									// runs inside the per-asset task, so compressible files
-									// compress in parallel (up to `concurrency`) rather than
-									// serially — a meaningful win for builds with many JS/CSS
-									// chunks since gzip is single-threaded per call.
-									const uploadOne = async (
-										asset: (typeof assets)[number]
-									): Promise<void> => {
-										const assetUrl = assetUrls[asset.filename]!;
-										// Asset filename already includes the subdirectory
-										// (e.g., "client/assets/main-abc123.js").
-										const filePath = join(assetBaseDir, asset.filename);
-
-										const headers: Record<string, string> = {
-											'Content-Type': asset.contentType,
-										};
-
-										let bodyPath: string;
-										let gzTempPath: string | undefined;
-										let onWireSize = asset.size;
-
-										if (asset.contentEncoding === 'gzip') {
-											// Gzip to a temp file so we can provide a known
-											// Content-Length to S3 (streaming bodies use chunked
-											// transfer encoding which S3 rejects).
-											gzTempPath = join(
-												tmpdir(),
-												`agentuity-asset-${deployment.id}-${Date.now()}-${asset.filename.replace(/\//g, '_')}.gz`
-											);
-											tempFiles.add(gzTempPath);
-											await pipeline(
-												createReadStream(filePath),
-												createGzip(),
-												createWriteStream(gzTempPath)
-											);
-											headers['Content-Encoding'] = 'gzip';
-											bodyPath = gzTempPath;
-											onWireSize = statSync(gzTempPath).size;
-											ctx.logger.trace(
-												`Gzip compressed ${asset.filename} (${asset.size} -> ${onWireSize} bytes)`
-											);
-										} else {
-											bodyPath = filePath;
-											onWireSize = statSync(filePath).size;
-										}
-
-										headers['Content-Length'] = String(onWireSize);
-										const body = Readable.toWeb(
-											createReadStream(bodyPath)
-										) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
-
-										const response = await fetch(assetUrl, {
-											method: 'PUT',
-											headers,
-											body,
-											signal: stepCtx.signal,
-											duplex: 'half',
-										} as unknown as RequestInit & { duplex: 'half' });
-
-										if (gzTempPath) {
-											try {
-												unlinkSync(gzTempPath);
-											} catch {
-												// ignore
-											}
-											tempFiles.delete(gzTempPath);
-										}
-
-										if (!response.ok) {
-											throw new Error(
-												`asset "${asset.filename}" upload failed: ${response.status} ${await response.text()}`
-											);
-										}
-
-										transferredBytes += onWireSize;
-									};
-
-									const concurrency = Math.min(4, assets.length);
-									for (let i = 0; i < assets.length; i += concurrency) {
-										const batch = assets.slice(i, i + concurrency);
-										await Promise.all(batch.map(uploadOne));
-									}
-								} catch (error) {
-									cleanupTempFiles();
-									const errorMsg = error instanceof Error ? error.message : String(error);
-									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
-									if (opts.reportFile) {
-										await collector.forceWrite();
-									}
-									return stepError(errorMsg);
-								}
-
-								ctx.logger.trace(
-									`Asset uploads complete: ${build.assets.length} files, raw=${rawBytes}B, on-wire=${transferredBytes}B`
-								);
-								endCdnUploadDiagnostic();
-								progress(95);
-							} else {
-								ctx.logger.debug('No assets to upload to CDN');
-							}
-
-							progress(100);
-							const output = build?.assets.length
-								? [
-										tui.muted(
-											formatUploadSummary(
-												build.assets.length,
-												rawBytes,
-												transferredBytes
-											)
-										),
-									]
-								: undefined;
-							return stepSuccess(output);
-						},
-					},
-					{
-						label: 'Provision Deployment',
-						run: async (stepCtx: StepContext) => {
-							if (!deployment) {
-								return stepError('deployment was null');
-							}
-							complete = await projectDeploymentComplete(
-								apiClient,
-								deployment.id,
-								stepCtx.signal
-							);
-							return stepSuccess();
-						},
-					},
+					buildEncryptUploadStep({
+						projectDir,
+						collector,
+						deployment,
+						hasReportFile: Boolean(opts.reportFile),
+						state: pipelineState,
+						logger,
+					}),
+					buildProvisionStep({
+						apiClient,
+						deployment,
+						completeRef,
+					}),
 				].filter(Boolean) as Step[],
 				options.logLevel
 			);
+
+			// Drain the provision step's ref-cell into the local `complete`
+			// the wait phase still uses inline. (Wait phase will be
+			// extracted into deploy/wait.ts in a follow-up edit.)
+			const complete = completeRef.current;
 
 			if (!deployment) {
 				return {
@@ -1145,244 +571,37 @@ export const deploySubcommand = createSubcommand({
 
 			// TODO: send the deployment failure to the backend otherwise we staying in a deploying state
 
-			const streamId = complete?.streamId;
+			// Compute the dashboard URL once — it's referenced both by the
+			// wait phase (failure banner) and by the success URL rendering
+			// below, plus included in the deploy result and JSON output.
 			const appUrl = getAppBaseURL(
 				process.env.AGENTUITY_REGION ?? config?.name,
 				config?.overrides
 			);
 			const dashboard = `${appUrl}/r/${deployment.id}`;
 
-			// Poll for deployment status with optional log streaming
-			const endDeploymentWaitDiagnostic = collector.startDiagnostic('deployment-wait');
-			const pollInterval = 500;
-			const maxAttempts = 600;
-			let attempts = 0;
-
-			// Reuse the deploy abort controller for polling (already aborted on Ctrl+C)
-
+			// Wait for the deployment to finish warming up. The phase handles
+			// log streaming, status polling, Ctrl+C cancellation, and the
+			// failure banner; on success it just returns and we render the
+			// success URLs below.
 			try {
-				if (streamId) {
-					// Use progress logger to stream logs while polling
-					const streamsUrl = getStreamURL(project.region, config);
-
-					await tui
-						.progress({
-							message: 'Deploying project...',
-							type: 'logger',
-							maxLines: 2,
-							clearOnSuccess: true,
-							callback: async (log) => {
-								// Start log streaming
-								const logStreamController = new AbortController();
-								const logStreamPromise = (async () => {
-									try {
-										logger.debug('fetching stream: %s/%s', streamsUrl, streamId);
-										const resp = await fetch(`${streamsUrl}/${streamId}`, {
-											signal: logStreamController.signal,
-											headers: {
-												Authorization: `Bearer ${sdkKey}`,
-												'User-Agent': getUserAgent(),
-											},
-										});
-										if (!resp.ok || !resp.body) {
-											ctx.logger.trace(
-												`Failed to connect to warmup log stream: ${resp.status}`
-											);
-											return;
-										}
-										const reader = resp.body.getReader();
-										const decoder = new TextDecoder();
-										let buffer = '';
-										while (true) {
-											const { done, value } = await reader.read();
-											if (done) break;
-											buffer += decoder.decode(value, { stream: true });
-											const lines = buffer.split('\n');
-											buffer = lines.pop() || ''; // Keep incomplete line in buffer
-											for (const line of lines) {
-												// Strip ISO 8601 timestamp prefix if present
-												const message = line.replace(
-													/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s?/,
-													''
-												);
-												if (message) {
-													logs.push(message);
-													log(message);
-												}
-											}
-										}
-									} catch (err) {
-										if (err instanceof Error && err.name === 'AbortError') {
-											return;
-										}
-										ctx.logger.trace(`Warmup log stream error: ${err}`);
-									}
-								})();
-
-								// Poll for deployment status
-								while (attempts < maxAttempts) {
-									// Check if user pressed Ctrl+C
-									if (deployAbortController.signal.aborted) {
-										logStreamController.abort();
-										throw new DeploymentCancelledError();
-									}
-
-									attempts++;
-									try {
-										statusResult = await projectDeploymentStatus(
-											apiClient,
-											deployment?.id ?? '',
-											deployAbortController.signal
-										);
-
-										logger.trace('status result: %s', statusResult);
-
-										if (statusResult.state === 'completed') {
-											logStreamController.abort();
-											break;
-										}
-
-										if (statusResult.state === 'failed') {
-											throw new Error('Deployment failed');
-										}
-
-										await sleep(pollInterval);
-									} catch (err) {
-										logStreamController.abort();
-										throw err;
-									}
-								}
-
-								// Wait for log stream to finish
-								await logStreamPromise;
-
-								if (attempts >= maxAttempts) {
-									throw new Error('Deployment timed out');
-								}
-							},
-						})
-						.then(() => {
-							endDeploymentWaitDiagnostic();
-							tui.success('Your project was deployed!');
-						})
-						.catch(async (ex) => {
-							endDeploymentWaitDiagnostic();
-							// Handle cancellation
-							if (ex instanceof DeploymentCancelledError) {
-								if (opts.reportFile) {
-									await collector.forceWrite();
-								}
-								tui.warning('Deployment cancelled');
-								process.exit(130); // Standard exit code for SIGINT
-							}
-							const exwithmessage = ex as { message: string };
-							const msg =
-								exwithmessage.message === 'Deployment failed'
-									? ''
-									: exwithmessage.toString();
-
-							// Add error to collector
-							const isTimeout = exwithmessage.message === 'Deployment timed out';
-							collector.addGeneralError(
-								'deploy',
-								msg || 'Deployment failed',
-								isTimeout ? 'DEPLOY003' : 'DEPLOY004'
-							);
-							if (opts.reportFile) {
-								await collector.forceWrite();
-							}
-
-							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
-							if (logs.length) {
-								const logsDir = join(getDefaultConfigDir(), 'logs');
-								if (!existsSync(logsDir)) {
-									mkdirSync(logsDir, { recursive: true });
-								}
-								const errorFile = join(logsDir, `${deployment?.id ?? Date.now()}.txt`);
-								writeFileSync(errorFile, logs.join('\n'));
-								const count = Math.min(logs.length, 10);
-								const last = logs.length - count;
-								tui.newline();
-								tui.warning(`The last ${count} lines of the log:`);
-								let offset = last + 1; // we want to show the offset from inside the log starting at 1
-								const max = String(logs.length).length;
-								for (const _log of logs.slice(last)) {
-									console.log(tui.muted(`${offset.toFixed().padEnd(max)} | ${_log}`));
-									offset++;
-								}
-								tui.newline();
-								tui.fatal(`The logs were written to ${errorFile}`, ErrorCode.BUILD_FAILED);
-							}
-							tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
-						});
-				} else {
-					// No stream ID - poll without log streaming
-					await tui.spinner({
-						message: 'Deploying project...',
-						type: 'simple',
-						clearOnSuccess: true,
-						callback: async () => {
-							while (attempts < maxAttempts) {
-								// Check if user pressed Ctrl+C
-								if (deployAbortController.signal.aborted) {
-									throw new DeploymentCancelledError();
-								}
-
-								attempts++;
-								statusResult = await projectDeploymentStatus(
-									apiClient,
-									deployment?.id ?? '',
-									deployAbortController.signal
-								);
-
-								if (statusResult.state === 'completed') {
-									break;
-								}
-
-								if (statusResult.state === 'failed') {
-									throw new Error('Deployment failed');
-								}
-
-								await sleep(pollInterval);
-							}
-
-							if (attempts >= maxAttempts) {
-								throw new Error('Deployment timed out');
-							}
-						},
-					});
-
-					endDeploymentWaitDiagnostic();
-					tui.success('Your project was deployed!');
-				}
-			} catch (ex) {
-				endDeploymentWaitDiagnostic();
-				const exwithmessage = ex as { message: string };
-				const isTimeout = exwithmessage?.message === 'Deployment timed out';
-				collector.addGeneralError(
-					'deploy',
-					exwithmessage?.message || String(ex),
-					isTimeout ? 'DEPLOY003' : 'DEPLOY004'
-				);
-				if (opts.reportFile) {
-					await collector.forceWrite();
-				}
-
-				const lines = [`${ex}`, ''];
-				lines.push(
-					`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)}`
-				);
-				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
-					centerTitle: false,
-					topSpacer: false,
-					bottomSpacer: false,
+				await runWaitForDeployment({
+					apiClient,
+					deployment,
+					complete,
+					collector,
+					hasReportFile: Boolean(opts.reportFile),
+					logger,
+					config,
+					region: project.region,
+					sdkKey: sdkKey!,
+					abortSignal: deployAbortController.signal,
+					logs,
 				});
-				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
 				process.off('SIGINT', deployAbortHandler);
 			}
-
 			// Show deployment URLs
 			if (complete?.publicUrls && !options.json) {
 				const lines: string[] = [];
