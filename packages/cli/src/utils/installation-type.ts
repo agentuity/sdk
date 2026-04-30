@@ -84,7 +84,8 @@ export function getInstallationType(): InstallationType {
 	}
 
 	// SOURCE DETECTION: Running from source code (development)
-	// This is when running directly from the monorepo: packages/cli/bin/cli.ts
+	// This is when running directly from the monorepo:
+	// packages/cli/src/main.ts
 	return 'source';
 }
 

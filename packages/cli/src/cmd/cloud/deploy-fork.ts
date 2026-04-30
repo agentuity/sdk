@@ -215,8 +215,9 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		// Re-exec the same entry point that the parent is running so that
 		// local/dev builds test the current code instead of a stale global
 		// install. `process.execPath` is the runtime binary (bun or node);
-		// `entryScriptPath()` is the script entry (bin/cli.ts under Bun, or
-		// dist/cli.js under Node).
+		// `entryScriptPath()` is the script entry (src/main.ts under Bun in
+		// dev, bin/cli.js when running the published binary, or dist/main.js
+		// when running the compiled output directly under Node).
 		const cmd = [process.execPath, entryScriptPath(), ...childArgs];
 		logger.debug('Spawning child deploy process: %s', cmd.join(' '));
 

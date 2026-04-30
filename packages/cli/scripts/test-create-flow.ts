@@ -79,7 +79,7 @@ async function createProject(): Promise<boolean> {
 		[
 			'bun',
 			'run',
-			join(MONOREPO_ROOT, 'packages/cli/bin/cli.ts'),
+			join(MONOREPO_ROOT, 'packages/cli/src/main.ts'),
 			'create',
 			'--name',
 			TEST_PROJECT_NAME,

@@ -1,17 +1,59 @@
 /**
- * Centralized version and package information
- * Loads package.json once and caches it
+ * Centralized version and package information.
+ *
+ * Reads `package.json` from disk at module load (once) so it works
+ * under all our run configurations:
+ *
+ *   - `bun packages/cli/src/main.ts` (dev): reads
+ *     `packages/cli/package.json` from the source tree.
+ *   - `node packages/cli/dist/src/main.js` or installed
+ *     `agentuity` (production): reads
+ *     `<install-root>/package.json` from the published tarball.
+ *
+ * Both layouts have `package.json` two directories above this file
+ * (`src/version.ts` -> `..` is the package root; from `dist/src/`
+ * `..` is `dist/` which doesn't have `package.json`, so we walk one
+ * more up from compiled output via the `dist/` parent).
+ *
+ * The simplest way to reach it from either location is to walk up
+ * until we find a file named `package.json`. We bound the walk at 5
+ * levels to fail fast if something is wrong.
  */
 
-import pkg from '../package.json' with { type: 'json' };
+import { readFileSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { gitSha } from './node-compat/runtime-info.ts';
 
-// Cache the package data
-let cachedPackage: typeof pkg | null = null;
+interface PackageJson {
+	name?: string;
+	version?: string;
+}
 
-export function getPackage(): typeof pkg {
+function findPackageJson(): PackageJson {
+	let dir = dirname(fileURLToPath(import.meta.url));
+	for (let i = 0; i < 5; i++) {
+		const candidate = join(dir, 'package.json');
+		try {
+			const stat = statSync(candidate);
+			if (stat.isFile()) {
+				return JSON.parse(readFileSync(candidate, 'utf-8')) as PackageJson;
+			}
+		} catch {
+			// try parent
+		}
+		const parent = dirname(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+	return {};
+}
+
+let cachedPackage: PackageJson | null = null;
+
+export function getPackage(): PackageJson {
 	if (!cachedPackage) {
-		cachedPackage = pkg;
+		cachedPackage = findPackageJson();
 	}
 	return cachedPackage;
 }

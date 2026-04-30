@@ -10,7 +10,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="bun $SDK_ROOT/packages/cli/bin/cli.ts"
+CLI="bun $SDK_ROOT/packages/cli/src/main.ts"
 
 # Parse arguments
 ORG_ID=""

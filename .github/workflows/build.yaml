@@ -52,7 +52,7 @@ jobs:
               set -eou pipefail
               bun run build
               bun run whoami
-              ./packages/cli/bin/cli.ts profile show --json
+              bun packages/cli/src/main.ts profile show --json
               # Run all checks except integration-suite (handled by package-smoke-test.yaml)
               bun format
               bun lint

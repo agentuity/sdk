@@ -41,8 +41,8 @@
 		"lint": "bunx biome lint .",
 		"check": "bunx biome check --write .",
 		"all": "bun clean && bun format && bun lint && bun run build && bun typecheck:packages && bun run test && bun run test:standalone",
-		"whoami": "./packages/cli/bin/cli.ts auth whoami",
-		"cli": "./packages/cli/bin/cli.ts"
+		"whoami": "bun packages/cli/src/main.ts auth whoami",
+		"cli": "bun packages/cli/src/main.ts"
 	},
 	"overrides": {
 		"commander": "^14.0.2",

@@ -1,40 +1,32 @@
-#!/usr/bin/env node
-
-// Fast-path for version command - check before loading heavy modules
-const versionArgs = process.argv.slice(2);
-if (
-	versionArgs.length === 1 &&
-	versionArgs[0] !== undefined &&
-	['version', '-v', '--version', '-V'].includes(versionArgs[0])
-) {
-	const { getVersion } = await import('../src/version.ts');
-	console.log(getVersion());
-	process.exit(0);
-}
+// Main CLI entry point. Side-effect import — just running this module
+// boots the CLI and parses argv. The published binary lives at
+// `bin/cli.js` (a hand-written shim) and re-imports this file from
+// `dist/`. See bin/cli.js and packages/cli/AGENTS.md for the
+// surrounding architecture.
 
 import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
-import { createCLI, registerCommands } from '../src/cli.ts';
-import { validateRuntime } from '../src/runtime.ts';
-import { loadConfig } from '../src/config.ts';
-import { discoverCommands } from '../src/cmd/index.ts';
-import { detectColorScheme } from '../src/terminal.ts';
-import { setColorScheme } from '../src/tui.ts';
-import { getVersion, getPackageName } from '../src/version.ts';
+import { createCLI, registerCommands } from './cli.ts';
+import { validateRuntime } from './runtime.ts';
+import { loadConfig } from './config.ts';
+import { discoverCommands } from './cmd/index.ts';
+import { detectColorScheme } from './terminal.ts';
+import { setColorScheme } from './tui.ts';
+import { getVersion, getPackageName } from './version.ts';
 
-import type { CommandContext, LogLevel } from '../src/types.ts';
-import { generateCLISchema } from '../src/schema-generator.ts';
-import { generateAIHelp } from '../src/ai-help.ts';
-import { setOutputOptions } from '../src/output.ts';
-import type { Config, GlobalOptions } from '../src/types.ts';
-import { ensureBunOnPath } from '../src/bun-path.ts';
-import { checkForUpdates } from '../src/version-check.ts';
-import { closeDatabase } from '../src/cache/index.ts';
-import { ErrorCode, createError, formatErrorJSON } from '../src/errors.ts';
-import { createInternalLogger } from '../src/internal-logger.ts';
-import { createCompositeLogger } from '../src/composite-logger.ts';
-import { getAuth } from '../src/config.ts';
-import { getExecutingAgent } from '../src/agent-detection.ts';
+import type { CommandContext, LogLevel } from './types.ts';
+import { generateCLISchema } from './schema-generator.ts';
+import { generateAIHelp } from './ai-help.ts';
+import { setOutputOptions } from './output.ts';
+import type { Config, GlobalOptions } from './types.ts';
+import { ensureBunOnPath } from './bun-path.ts';
+import { checkForUpdates } from './version-check.ts';
+import { closeDatabase } from './cache/index.ts';
+import { ErrorCode, createError, formatErrorJSON } from './errors.ts';
+import { createInternalLogger } from './internal-logger.ts';
+import { createCompositeLogger } from './composite-logger.ts';
+import { getAuth } from './config.ts';
+import { getExecutingAgent } from './agent-detection.ts';
 
 /**
  * Extract --dir flag from process.argv before command parsing

@@ -134,7 +134,7 @@ cd "$TEST_PROJECT_DIR"
 
 # Use the CLI to create a project
 log_info "Running agentuity new..."
-AGENTUITY_SKIP_VERSION_CHECK=1 bun "$SDK_ROOT/packages/cli/bin/cli.ts" new \
+AGENTUITY_SKIP_VERSION_CHECK=1 bun "$SDK_ROOT/packages/cli/src/main.ts" new \
     --name smoke-test-project \
     --framework vite-react \
     --no-register \

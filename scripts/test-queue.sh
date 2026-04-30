@@ -8,7 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="bun $SDK_ROOT/packages/cli/bin/cli.ts"
+CLI="bun $SDK_ROOT/packages/cli/src/main.ts"
 
 # Get commit SHA for queue descriptions
 COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")

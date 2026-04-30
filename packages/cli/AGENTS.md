@@ -8,11 +8,11 @@ command options.
 
 ## Commands
 
-- **Build**: `bun run build` (compiles TS, copies non-TS assets, sets bin chmod)
+- **Build**: `bun run build` (compiles TS, copies non-TS assets)
 - **Typecheck**: `bun run typecheck`
 - **Clean**: `bun run clean`
-- **Test CLI under Bun**: `bun bin/cli.ts [command]`
-- **Test CLI under Node**: `node dist/bin/cli.js [command]` (after build)
+- **Test CLI under Bun (no build needed)**: `bun src/main.ts [command]`
+- **Test CLI under Node (after build)**: `node bin/cli.js [command]`
 
 ## Runtime
 
@@ -23,8 +23,40 @@ The CLI source is **runtime-agnostic**:
 - Builds and runs under **Node.js 24+** (the published binary uses
   `#!/usr/bin/env node`).
 
-The published entrypoint is `dist/bin/cli.js`, compiled from
-`bin/cli.ts`. The `bin` field in `package.json` points there.
+The CLI source is **runtime-agnostic**:
+
+- Builds and runs under **Bun 1.3+** (preferred for development; tests
+  and build scripts assume Bun).
+- Builds and runs under **Node.js 24+** (the published binary uses
+  `#!/usr/bin/env node`).
+
+### Entry point structure
+
+The published binary is `bin/cli.js` — a small, hand-written JavaScript
+shim that lives in source. It carries a `#!/usr/bin/env node` shebang
+and its only job is to delegate to the compiled `dist/main.js`:
+
+```js
+// bin/cli.js (excerpt)
+#!/usr/bin/env node
+await import('../dist/main.js');
+```
+
+This is the standard pattern for npm-distributed CLIs. The shim ships
+as-is from the repo to the published tarball; it is never compiled or
+rewritten by a build step.
+
+  - Source code: `src/main.ts` and the rest of `src/**`. Compiled to
+    `dist/main.js` (and friends) by `tsc --build`.
+  - Bin entry: `bin/cli.js`. Plain JS, hand-written, has the shebang.
+  - `package.json` `bin` field points at `./bin/cli.js`.
+
+For in-repo dev, run `bun src/main.ts ...` directly — Bun executes
+TypeScript natively, no build needed.
+
+For smoke-testing the published shape after `bun run build`, run
+`node bin/cli.js ...` (or just `./bin/cli.js ...` if the executable
+bit is set, which it is in the repo and after npm install).
 
 ### How dual-runtime support is structured
 
@@ -166,9 +198,9 @@ See `src/index.ts` for complete exports.
 ## Publishing
 
 1. Run `bun run build` (compiles TS to `dist/`, copies `.md` and
-   `templates/` assets, sets `chmod 0755` on `dist/bin/cli.js`).
-2. Smoke-test with `node dist/bin/cli.js --version` (and
-   `bun dist/bin/cli.js --version`) before publishing.
+   `templates/` assets).
+2. Smoke-test with `node bin/cli.js --version` (and
+   `bun bin/cli.js --version`) before publishing.
 3. Depends on `@agentuity/core`, `@agentuity/server`,
    `@agentuity/storage`, plus npm deps: `commander`, `string-width`,
    `yaml`, `semver`, `tinyglobby`, `enquirer`, `archiver`, `tar`,

@@ -7,7 +7,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"agentuity": "./dist/bin/cli.js"
+		"agentuity": "./bin/cli.js"
 	},
 	"exports": {
 		".": {
@@ -22,6 +22,7 @@
 	"files": [
 		"AGENTS.md",
 		"README.md",
+		"bin",
 		"dist"
 	],
 	"scripts": {

@@ -36,7 +36,7 @@ These logs are automatically stored and cleaned up, keeping only the most recent
 
 ### Integration
 
-The CLI entry point (`bin/cli.ts`) creates a composite logger that combines:
+The CLI entry point (`src/main.ts`) creates a composite logger that combines:
 
 - Console logger (respects user's log level)
 - Internal logger (always at trace level)

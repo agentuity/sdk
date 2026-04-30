@@ -93,7 +93,7 @@ done
 # Update package.json scripts to use local CLI for development
 echo ""
 echo "🔧 Updating package.json scripts to use local CLI..."
-CLI_PATH="$SDK_ROOT/packages/cli/bin/cli.ts"
+CLI_PATH="$SDK_ROOT/packages/cli/src/main.ts"
 bun -e "
 	const fs = require('fs');
 	const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));

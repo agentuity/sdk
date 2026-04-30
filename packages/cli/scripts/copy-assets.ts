@@ -5,23 +5,22 @@
  * `tsc --build` only emits the JS / DTS output; it does not copy
  * non-TypeScript siblings. The CLI imports two markdown files at
  * runtime via `readFileSync` (the AI prompt fixtures, see
- * `src/cmd/ai/prompt/{api,web}.md`), so we mirror them into the
- * dist tree at the same relative paths the source resolved them
- * from.
+ * `src/cmd/ai/prompt/{api,web}.md`), and uses the framework
+ * scaffolding templates under `src/cmd/project/templates/`. Both
+ * trees need to be mirrored into the dist output.
+ *
+ * Note: this script does NOT touch `bin/cli.js`. That file is a
+ * hand-written JavaScript shim with its own shebang; it ships
+ * directly from the repo to the published tarball, no compilation
+ * required.
  */
 
-import { chmod, cp, copyFile, mkdir } from 'node:fs/promises';
+import { cp, copyFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(here, '..');
-
-/**
- * Bin entries that need the executable bit set so npm wires them
- * up correctly when the package is installed.
- */
-const BIN_ENTRIES = ['dist/bin/cli.js'];
 
 /**
  * Single files we need to mirror to dist/ at the same relative path.
@@ -38,22 +37,18 @@ const DIR_ASSETS = ['src/cmd/project/templates'];
 
 for (const rel of FILE_ASSETS) {
 	const src = join(pkgRoot, rel);
-	const dst = join(pkgRoot, 'dist', rel);
+	// rootDir is now ./src, so dist mirrors src/* directly under dist/.
+	// rel starts with 'src/', strip that prefix when targeting dist.
+	const dst = join(pkgRoot, 'dist', rel.replace(/^src\//, ''));
 	await mkdir(dirname(dst), { recursive: true });
 	await copyFile(src, dst);
-	console.log(`✓ copied ${rel} -> dist/${rel}`);
+	console.log(`✓ copied ${rel} -> dist/${rel.replace(/^src\//, '')}`);
 }
 
 for (const rel of DIR_ASSETS) {
 	const src = join(pkgRoot, rel);
-	const dst = join(pkgRoot, 'dist', rel);
+	const dst = join(pkgRoot, 'dist', rel.replace(/^src\//, ''));
 	await mkdir(dirname(dst), { recursive: true });
 	await cp(src, dst, { recursive: true });
-	console.log(`✓ copied ${rel}/ -> dist/${rel}/`);
-}
-
-for (const rel of BIN_ENTRIES) {
-	const path = join(pkgRoot, rel);
-	await chmod(path, 0o755);
-	console.log(`✓ chmod 0755 ${rel}`);
+	console.log(`✓ copied ${rel}/ -> dist/${rel.replace(/^src\//, '')}/`);
 }

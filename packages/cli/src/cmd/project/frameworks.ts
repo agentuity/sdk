@@ -10,47 +10,27 @@
  * inline code snippets and produces complete, working files.
  */
 
-import { cpSync, existsSync } from 'node:fs';
+import { cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { currentDir } from '../../node-compat/runtime-info.ts';
 
 // Resolve the templates directory relative to this file.
 //
-// Three layouts to handle:
+// Layouts to handle:
 //
-//   - Running from source (bun packages/cli/bin/cli.ts):
+//   - Running from source (bun packages/cli/src/main.ts):
 //       thisDir = packages/cli/src/cmd/project/
 //       templates at thisDir/templates/
 //
-//   - Running from compiled dist with rootDir: "." (Phase 4):
-//       thisDir = packages/cli/dist/src/cmd/project/
-//       templates ship under packages/cli/dist/src/cmd/project/templates/
-//       (copied by scripts/copy-assets.ts at build time)
-//
-//   - Older layout (rootDir: "./src") for backwards-compat with
-//     in-flight installations:
+//   - Running from compiled dist (e.g. installed npm package):
 //       thisDir = packages/cli/dist/cmd/project/
-//       templates at thisDir/../../src/cmd/project/templates/
+//       templates copied by scripts/copy-assets.ts to
+//       packages/cli/dist/cmd/project/templates/
 //
-// We check candidate paths in order and pick the first one with a
-// recognizable child (the 'nextjs' template, present in all valid
-// layouts).
-const templatesDir = (() => {
-	const thisDir = currentDir(import.meta);
-	const candidates = [
-		join(thisDir, 'templates'),
-		// dist/src/cmd/project/ -> ../../../src/cmd/project/templates/
-		join(thisDir, '..', '..', '..', 'src', 'cmd', 'project', 'templates'),
-		// dist/cmd/project/ -> ../../src/cmd/project/templates/
-		join(thisDir, '..', '..', 'src', 'cmd', 'project', 'templates'),
-	];
-	for (const dir of candidates) {
-		if (existsSync(join(dir, 'nextjs'))) return dir;
-	}
-	// will fail with a clear error if none exist; use the first candidate
-	// (sibling 'templates/' dir) as a representative default for the error.
-	return candidates[0]!;
-})();
+// The same `thisDir/templates` path resolves correctly under both
+// layouts because the dist tree mirrors the source tree (rootDir is
+// `./src` so dist/cmd/... = src/cmd/...).
+const templatesDir = join(currentDir(import.meta), 'templates');
 
 export interface FrameworkScaffold {
 	/** Unique slug (matches detect/frameworks.ts where applicable) */

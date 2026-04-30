@@ -155,7 +155,7 @@ This app uses workspace dependencies:
 - `@agentuity/workbench`: `workspace:*`
 - `@agentuity/cli`: `workspace:*`
 
-Scripts use the local CLI directly: `bun ../../packages/cli/bin/cli.ts`
+Scripts use the local CLI directly: `bun ../../packages/cli/src/main.ts`
 
 ## Learn More
 
