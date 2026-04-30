@@ -90,20 +90,25 @@ for pkg in node_modules/@agentuity/*/node_modules; do
 	fi
 done
 
-# Update package.json scripts to use local CLI for development
+# Update package.json scripts to use the locally-linked CLI binary.
+# After `bun install`, the @agentuity/cli tarball lands in the
+# target's node_modules and its `bin` field exposes `agentuity` at
+# node_modules/.bin/agentuity, which Bun automatically puts on PATH
+# when running scripts. So `agentuity build` resolves to the same
+# binary an end user gets after `npm install -g`.
 echo ""
-echo "🔧 Updating package.json scripts to use local CLI..."
-CLI_PATH="$SDK_ROOT/packages/cli/src/main.ts"
+echo "🔧 Updating package.json scripts to use linked agentuity binary..."
 bun -e "
 	const fs = require('fs');
 	const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 	if (!pkg.scripts) pkg.scripts = {};
-	pkg.scripts.build = 'bun $CLI_PATH build';
-	pkg.scripts.dev = 'bun $CLI_PATH dev';
-	pkg.scripts.deploy = 'bun $CLI_PATH deploy';
+	pkg.scripts.build = 'agentuity build';
+	pkg.scripts.dev = 'agentuity dev';
+	pkg.scripts.deploy = 'agentuity deploy';
 	fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
-	console.log('  ✓ Updated build and dev scripts to use $CLI_PATH');
+	console.log('  ✓ Updated build/dev/deploy scripts to use \\'agentuity\\'');
 "
+
 
 echo ""
 echo "✅ Local SDK packages linked successfully!"

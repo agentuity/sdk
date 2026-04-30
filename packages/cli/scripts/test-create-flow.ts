@@ -75,11 +75,13 @@ async function createProject(): Promise<boolean> {
 
 	mkdirSync(TEST_DIR, { recursive: true });
 
+	// Exercise the built CLI artifact, not the source TypeScript.
+	// CLI_RUNTIME picks bun vs node so the same script can be matrixed.
+	const cliRuntime = process.env.CLI_RUNTIME ?? 'node';
 	const result = Bun.spawn(
 		[
-			'bun',
-			'run',
-			join(MONOREPO_ROOT, 'packages/cli/src/main.ts'),
+			cliRuntime,
+			join(MONOREPO_ROOT, 'packages/cli/bin/cli.js'),
 			'create',
 			'--name',
 			TEST_PROJECT_NAME,

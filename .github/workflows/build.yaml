@@ -34,6 +34,12 @@ jobs:
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
       steps:
          - uses: actions/checkout@v5
+         - name: Setup Node.js
+           # The CLI is dual-runtime; we smoke-test the built artifact
+           # under both bun and node, so both must be on PATH.
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
          - name: Install dependencies
@@ -51,8 +57,13 @@ jobs:
            run: |
               set -eou pipefail
               bun run build
+              # Smoke-test the BUILT CLI under both runtimes. The CLI is
+              # runtime-agnostic; CI proves both invocations produce the
+              # same result.
               bun run whoami
-              bun packages/cli/src/main.ts profile show --json
+              bun run whoami:bun
+              node packages/cli/bin/cli.js profile show --json
+              bun packages/cli/bin/cli.js profile show --json
               # Run all checks except integration-suite (handled by package-smoke-test.yaml)
               bun format
               bun lint

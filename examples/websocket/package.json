@@ -5,8 +5,8 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "bun ../../../packages/cli/src/main.ts build --dir .",
-		"dev": "bun ../../../packages/cli/src/main.ts dev --dir ."
+		"build": "agentuity build --dir .",
+		"dev": "agentuity dev --dir ."
 	},
 	"dependencies": {
 		"@agentuity/cli": "workspace:*",

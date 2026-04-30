@@ -10,7 +10,8 @@
 	],
 	"scripts": {
 		"prepare": "husky",
-		"build": "bunx tsc --build",
+		"build": "bunx tsc --build && bun run build:assets",
+		"build:assets": "bun run --filter='./packages/*' build:assets",
 		"build:packages": "bun run --filter='./packages/*' build",
 		"build:apps": "bun run --filter='./tests/**' build",
 		"build:all": "bun run build && bun run build:apps",
@@ -41,8 +42,10 @@
 		"lint": "bunx biome lint .",
 		"check": "bunx biome check --write .",
 		"all": "bun clean && bun format && bun lint && bun run build && bun typecheck:packages && bun run test && bun run test:standalone",
-		"whoami": "bun packages/cli/src/main.ts auth whoami",
-		"cli": "bun packages/cli/src/main.ts"
+		"whoami": "node packages/cli/bin/cli.js auth whoami",
+		"whoami:bun": "bun packages/cli/bin/cli.js auth whoami",
+		"cli": "bun packages/cli/src/main.ts",
+		"cli:built": "node packages/cli/bin/cli.js"
 	},
 	"overrides": {
 		"commander": "^14.0.2",

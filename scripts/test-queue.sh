@@ -8,7 +8,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="bun $SDK_ROOT/packages/cli/src/main.ts"
+
+# Exercise the BUILT CLI, not the source TypeScript. This catches
+# build-only regressions (missing assets, Node-only errors, etc.)
+# that `bun src/main.ts` would mask. CLI_RUNTIME chooses bun vs
+# node so the same script can be matrixed in CI.
+source "$SDK_ROOT/scripts/lib/ensure-cli-built.sh"
+CLI_RUNTIME="${CLI_RUNTIME:-node}"
+CLI="$CLI_RUNTIME $SDK_ROOT/packages/cli/bin/cli.js"
+echo "→ Using CLI runtime: $CLI_RUNTIME (CLI=\"$CLI\")"
 
 # Get commit SHA for queue descriptions
 COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")

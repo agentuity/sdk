@@ -155,7 +155,10 @@ This app uses workspace dependencies:
 - `@agentuity/workbench`: `workspace:*`
 - `@agentuity/cli`: `workspace:*`
 
-Scripts use the local CLI directly: `bun ../../packages/cli/src/main.ts`
+Scripts use the locally-linked CLI binary: `agentuity ...` (resolved
+via node_modules/.bin/agentuity, which Bun puts on PATH for npm
+scripts). The binary is the published `bin/cli.js` shim, exercising
+the shipped artifact rather than source TypeScript.
 
 ## Learn More
 

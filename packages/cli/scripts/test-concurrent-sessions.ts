@@ -19,7 +19,10 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 const LOGS_DIR = join(homedir(), '.config', 'agentuity', 'logs');
-const CLI_PATH = join(import.meta.dir, '..', 'src', 'main.ts');
+// Exercise the built CLI artifact, not the source TypeScript.
+// CLI_RUNTIME picks bun vs node (default: node).
+const CLI_RUNTIME = process.env.CLI_RUNTIME ?? 'node';
+const CLI_PATH = join(import.meta.dir, '..', 'bin', 'cli.js');
 const NUM_CONCURRENT = 5;
 
 interface SessionJson {
@@ -40,7 +43,7 @@ async function runCLI(
 
 	// Use 'build' command which initializes the internal logger
 	// It will fail (no app.ts) but that's fine - we just need it to create logs
-	const proc = spawn(['bun', CLI_PATH, 'build'], {
+	const proc = spawn([CLI_RUNTIME, CLI_PATH, 'build'], {
 		stdout: 'ignore',
 		stderr: 'pipe',
 	});

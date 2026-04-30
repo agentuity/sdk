@@ -132,9 +132,11 @@ log_info "Step 4: Creating test project..."
 mkdir -p "$TEST_PROJECT_DIR"
 cd "$TEST_PROJECT_DIR"
 
-# Use the CLI to create a project
-log_info "Running agentuity new..."
-AGENTUITY_SKIP_VERSION_CHECK=1 bun "$SDK_ROOT/packages/cli/src/main.ts" new \
+# Use the BUILT CLI to create a project. CLI_RUNTIME picks bun vs
+# node so the matrix exercises both. Default is node (matches what
+# end users get).
+log_info "Running agentuity new (runtime: ${CLI_RUNTIME:-node})..."
+AGENTUITY_SKIP_VERSION_CHECK=1 "${CLI_RUNTIME:-node}" "$SDK_ROOT/packages/cli/bin/cli.js" new \
     --name smoke-test-project \
     --framework vite-react \
     --no-register \

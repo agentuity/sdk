@@ -33,6 +33,13 @@ jobs:
       steps:
          - uses: actions/checkout@v5
 
+         - name: Setup Node.js
+           # The published agentuity binary uses a #!/usr/bin/env node
+           # shebang and requires Node >= 24.
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
+
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
 
