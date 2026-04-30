@@ -1,11 +1,18 @@
 import enquirer from 'enquirer';
-import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config.ts';
+import { listOrganizations } from '@agentuity/server';
 import { getResourceInfo, type ResourceType } from './cache/index.ts';
 import { getCommand } from './command-prefix.ts';
-import type { CommandContext, AuthData, Config } from './types.ts';
+import {
+	defaultProfileName,
+	getAuth,
+	getDefaultConfigPath,
+	loadConfig,
+	saveConfig,
+	saveOrgId,
+} from './config.ts';
+import { pathExists } from './node-compat/fs.ts';
 import * as tui from './tui.ts';
-import { defaultProfileName } from './config.ts';
-import { listOrganizations } from '@agentuity/server';
+import type { AuthData, CommandContext, Config } from './types.ts';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api.ts';
 
 export function isTTY(): boolean {
@@ -144,7 +151,7 @@ export async function resolveOrgIdWithoutPrompt(ctx: {
 
 export async function hasLoggedInBefore(): Promise<boolean> {
 	const configPath = getDefaultConfigPath();
-	return await Bun.file(configPath).exists();
+	return pathExists(configPath);
 }
 
 export async function isAuthenticated(): Promise<boolean> {

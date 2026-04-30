@@ -637,7 +637,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	playSound();
+	await playSound();
 
 	if (isInteractive && _domains?.length && projectId) {
 		tui.newline();

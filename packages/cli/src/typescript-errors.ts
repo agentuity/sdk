@@ -5,7 +5,9 @@
  * with source code context, error highlighting, and helpful formatting.
  */
 
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathExists } from './node-compat/fs.ts';
 import type { GrammarItem } from './tsc-output-parser.ts';
 import {
 	colorError,
@@ -88,7 +90,7 @@ const TAB_WIDTH = 4;
 /**
  * Convert tabs to spaces for consistent width calculation and display.
  * Terminals render tabs with variable width (typically 8 spaces), but
- * Bun.stringWidth() returns 0 for tabs, causing alignment issues.
+ * stringWidth() returns 0 for tabs, causing alignment issues.
  */
 function expandTabs(str: string, tabWidth = TAB_WIDTH): string {
 	return str.replace(/\t/g, ' '.repeat(tabWidth));
@@ -118,11 +120,10 @@ async function getSourceContext(
 	lineNumber: number
 ): Promise<SourceContext | null> {
 	try {
-		const file = Bun.file(filePath);
-		if (!(await file.exists())) {
+		if (!(await pathExists(filePath))) {
 			return null;
 		}
-		const content = await file.text();
+		const content = await readFile(filePath, 'utf-8');
 		const lines = content.split('\n');
 		if (lineNumber <= 0 || lineNumber > lines.length) {
 			return null;

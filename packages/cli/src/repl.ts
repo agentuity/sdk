@@ -2,12 +2,13 @@
  * Reusable REPL (Read-Eval-Print Loop) component for building interactive CLI tools
  */
 
-import * as tui from './tui.ts';
-import { getDefaultConfigDir } from './config.ts';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { mkdir } from 'node:fs/promises';
-import { z } from 'zod';
 import { colorize } from 'json-colorizer';
+import { z } from 'zod';
+import { getDefaultConfigDir } from './config.ts';
+import { pathExists } from './node-compat/fs.ts';
+import * as tui from './tui.ts';
 
 /**
  * Result of parsing a REPL command
@@ -233,11 +234,11 @@ async function loadHistory(name: string): Promise<string[]> {
 		const historyDir = join(getDefaultConfigDir(), 'history');
 		const historyFile = join(historyDir, `${name}.txt`);
 
-		if (!(await Bun.file(historyFile).exists())) {
+		if (!(await pathExists(historyFile))) {
 			return [];
 		}
 
-		const content = await Bun.file(historyFile).text();
+		const content = await readFile(historyFile, 'utf-8');
 		return content.split('\n').filter((line) => line.trim());
 	} catch {
 		return [];
@@ -255,7 +256,7 @@ async function saveHistory(name: string, history: string[]): Promise<void> {
 		await mkdir(historyDir, { recursive: true });
 
 		const historyFile = join(historyDir, `${name}.txt`);
-		await Bun.write(historyFile, history.join('\n'));
+		await writeFile(historyFile, history.join('\n'));
 	} catch {
 		// Silently fail - history is not critical
 	}

@@ -1,11 +1,12 @@
-import type { Config, Logger, CommandDefinition, SubcommandDefinition } from './types.ts';
-import { getInstallationType } from './utils/installation-type.ts';
-import { fetchLatestVersion } from './cmd/upgrade/index.ts';
-import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version.ts';
-import * as tui from './tui.ts';
-import { saveConfig } from './config.ts';
 import { tmpdir } from 'node:os';
 import { getExecutingAgent } from './agent-detection.ts';
+import { fetchLatestVersion } from './cmd/upgrade/index.ts';
+import { saveConfig } from './config.ts';
+import { spawnInherit } from './node-compat/proc.ts';
+import * as tui from './tui.ts';
+import type { CommandDefinition, Config, Logger, SubcommandDefinition } from './types.ts';
+import { getInstallationType } from './utils/installation-type.ts';
+import { getCompareUrl, getReleaseUrl, getVersion, toTag } from './version.ts';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -205,17 +206,10 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 
 		// Spawn new process using the global agentuity command
 		// This will use the newly installed version
-		const proc = Bun.spawn(['agentuity', ...args], {
-			stdin: 'inherit',
-			stdout: 'inherit',
-			stderr: 'inherit',
-		});
-
-		// Wait for the new process to complete
-		await proc.exited;
+		const { exitCode } = await spawnInherit({ cmd: ['agentuity', ...args] });
 
 		// Exit with the same exit code as the new process
-		process.exit(proc.exitCode ?? 0);
+		process.exit(exitCode ?? 0);
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		logger.error('Upgrade failed: %s', errorMessage);

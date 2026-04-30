@@ -4,6 +4,7 @@
  */
 
 import pkg from '../package.json' with { type: 'json' };
+import { gitSha } from './node-compat/runtime-info.ts';
 
 // Cache the package data
 let cachedPackage: typeof pkg | null = null;
@@ -24,8 +25,7 @@ export function getPackageName(): string {
 }
 
 export function getRevision(): string {
-	// Bun provides git SHA via Bun.revision
-	return typeof Bun !== 'undefined' && Bun.revision ? Bun.revision.substring(0, 8) : 'unknown';
+	return gitSha();
 }
 
 const GITHUB_REPO_URL = 'https://github.com/agentuity/sdk';

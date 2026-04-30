@@ -18,10 +18,12 @@ import {
 	writeFileSync,
 	readFileSync,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { homedir, platform, arch, cpus, totalmem } from 'node:os';
-import type { Logger, LogLevel } from '@agentuity/core';
 import { randomUUID } from 'node:crypto';
+import { arch, cpus, homedir, platform, totalmem } from 'node:os';
+import { join, resolve } from 'node:path';
+import type { Logger, LogLevel } from '@agentuity/core';
+import { stripAnsi } from './node-compat/ansi.ts';
+import { runtimeKind, runtimeVersion } from './node-compat/runtime-info.ts';
 
 // Sensitive environment variable patterns to mask
 const SENSITIVE_ENV_PATTERNS = [
@@ -366,7 +368,9 @@ export class InternalLogger implements Logger {
 					cpus: cpus().length,
 					memory: totalmem(),
 					bunPath: process.execPath || '',
-					bunVersion: Bun.version || process.version,
+					// Reports the host runtime in the existing `bunVersion` field
+					// for backwards compatibility with the session-metadata schema.
+					bunVersion: runtimeKind() === 'bun' ? runtimeVersion() : `node-${runtimeVersion()}`,
 				},
 				environment: maskEnvironment(),
 				cwd,
@@ -413,9 +417,7 @@ export class InternalLogger implements Logger {
 			}
 
 			// Strip ANSI color codes since this is going to JSON
-			if (typeof Bun !== 'undefined' && typeof Bun.stripANSI === 'function') {
-				formattedMessage = Bun.stripANSI(formattedMessage);
-			}
+			formattedMessage = stripAnsi(formattedMessage);
 
 			// Extract context from args (look for objects)
 			const context: Record<string, unknown> = {};

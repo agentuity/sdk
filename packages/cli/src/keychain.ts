@@ -5,6 +5,9 @@
  * No user prompts required - fully automatic and secure.
  */
 
+import { Buffer } from 'node:buffer';
+import { run } from './node-compat/proc.ts';
+
 const SERVICE_PREFIX = 'com.agentuity.cli';
 const KEY_ACCOUNT = 'aes-encryption-key';
 const AUTH_ACCOUNT = 'auth-token';
@@ -22,15 +25,12 @@ export function isMacOS(): boolean {
  */
 async function ensureEncryptionKey(service: string): Promise<Uint8Array> {
 	// Try to read existing key
-	const find = Bun.spawn(
-		['security', 'find-generic-password', '-s', service, '-a', KEY_ACCOUNT, '-w'],
-		{ stderr: 'ignore' }
-	);
+	const find = await run({
+		cmd: ['security', 'find-generic-password', '-s', service, '-a', KEY_ACCOUNT, '-w'],
+	});
 
-	const stdout = await new Response(find.stdout).text();
-
-	if (stdout.length > 0) {
-		const b64 = stdout.trim();
+	if (find.stdout.length > 0) {
+		const b64 = find.stdout.trim();
 		return Uint8Array.from(Buffer.from(b64, 'base64'));
 	}
 
@@ -39,18 +39,19 @@ async function ensureEncryptionKey(service: string): Promise<Uint8Array> {
 	const b64 = Buffer.from(key).toString('base64');
 
 	// Store in macOS Keychain (no user prompts with -U flag)
-	const add = Bun.spawn([
-		'security',
-		'add-generic-password',
-		'-s',
-		service,
-		'-a',
-		KEY_ACCOUNT,
-		'-w',
-		b64,
-		'-U', // Update without user confirmation
-	]);
-	await add.exited;
+	await run({
+		cmd: [
+			'security',
+			'add-generic-password',
+			'-s',
+			service,
+			'-a',
+			KEY_ACCOUNT,
+			'-w',
+			b64,
+			'-U', // Update without user confirmation
+		],
+	});
 
 	return key;
 }
@@ -99,49 +100,39 @@ async function saveEncryptedValueToKeychain(
 	const encrypted = await encrypt(value, key);
 	const b64 = Buffer.from(encrypted).toString('base64');
 
-	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
-		stderr: 'ignore',
+	// Delete the existing entry (if any) before adding the new one. We
+	// don't care whether the delete succeeded — we're about to write
+	// the new value anyway.
+	await run({
+		cmd: ['security', 'delete-generic-password', '-s', service, '-a', account],
 	});
-	await del.exited;
 
-	const add = Bun.spawn([
-		'security',
-		'add-generic-password',
-		'-s',
-		service,
-		'-a',
-		account,
-		'-w',
-		b64,
-		'-U',
-	]);
-	await add.exited;
+	await run({
+		cmd: ['security', 'add-generic-password', '-s', service, '-a', account, '-w', b64, '-U'],
+	});
 }
 
 async function getEncryptedValueFromKeychain(
 	service: string,
 	account: string
 ): Promise<string | null> {
-	const find = Bun.spawn(
-		['security', 'find-generic-password', '-s', service, '-a', account, '-w'],
-		{ stderr: 'ignore' }
-	);
+	const find = await run({
+		cmd: ['security', 'find-generic-password', '-s', service, '-a', account, '-w'],
+	});
 
-	const stdout = await new Response(find.stdout).text();
-	if (stdout.length === 0) {
+	if (find.stdout.length === 0) {
 		return null;
 	}
 
-	const encrypted = Uint8Array.from(Buffer.from(stdout.trim(), 'base64'));
+	const encrypted = Uint8Array.from(Buffer.from(find.stdout.trim(), 'base64'));
 	const key = await ensureEncryptionKey(service);
 	return decrypt(encrypted, key);
 }
 
 async function deleteValueFromKeychain(service: string, account: string): Promise<void> {
-	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
-		stderr: 'ignore',
+	await run({
+		cmd: ['security', 'delete-generic-password', '-s', service, '-a', account],
 	});
-	await del.exited;
 }
 
 /**

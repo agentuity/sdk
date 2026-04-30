@@ -1,11 +1,12 @@
-import { StructuredError, type Logger } from '@agentuity/core';
-import type { Config } from '../types.ts';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { type Logger, StructuredError } from '@agentuity/core';
 import { getAPIBaseURL } from '@agentuity/server';
+import { z } from 'zod';
 import { getUserAgent } from '../api.ts';
 import { getDefaultConfigDir } from '../config.ts';
-import { join, dirname } from 'node:path';
-import { mkdir } from 'node:fs/promises';
-import { z } from 'zod';
+import { pathExists } from '../node-compat/fs.ts';
+import type { Config } from '../types.ts';
 
 const AptValidationError = StructuredError('AptValidationError');
 const AptValidationAPIError = StructuredError('AptValidationAPIError')<{
@@ -71,9 +72,8 @@ function getCachePath(): string {
 async function loadCache(logger: Logger): Promise<ValidationCache> {
 	const cachePath = getCachePath();
 	try {
-		const file = Bun.file(cachePath);
-		if (await file.exists()) {
-			const content = await file.json();
+		if (await pathExists(cachePath)) {
+			const content = JSON.parse(await readFile(cachePath, 'utf-8'));
 			const parsed = ValidationCacheSchema.safeParse(content);
 			if (parsed.success && parsed.data.version === CACHE_VERSION) {
 				return parsed.data;
@@ -90,7 +90,7 @@ async function saveCache(cache: ValidationCache, logger: Logger): Promise<void> 
 	const cachePath = getCachePath();
 	try {
 		await mkdir(dirname(cachePath), { recursive: true });
-		await Bun.write(cachePath, JSON.stringify(cache, null, 2));
+		await writeFile(cachePath, JSON.stringify(cache, null, 2));
 	} catch (err) {
 		logger.debug('Failed to save validation cache: %s', err);
 	}

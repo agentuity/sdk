@@ -4,6 +4,7 @@
 
 import fs from 'node:fs';
 import os from 'node:os';
+import { entryScriptPath } from '../node-compat/runtime-info.ts';
 
 export type InstallationType = 'global' | 'local' | 'source';
 
@@ -30,8 +31,11 @@ function resolveRealPath(path: string): string {
  * @returns 'source' - Running from source code (development)
  */
 export function getInstallationType(): InstallationType {
-	// Bun.main already returns the resolved real path, just normalize separators
-	const mainPath = Bun.main.replace(/\\/g, '/');
+	// Resolve the entry script path to its real path (following symlinks)
+	// and normalize separators. Bun's `Bun.main` already returns the
+	// resolved real path; under Node we use `process.argv[1]` and call
+	// `realpathSync` ourselves to match.
+	const mainPath = resolveRealPath(entryScriptPath());
 
 	// Get home directory reliably and resolve symlinks
 	// On macOS, os.homedir() returns /Users/xxx which is already real

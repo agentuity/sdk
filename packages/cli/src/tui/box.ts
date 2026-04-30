@@ -1,9 +1,10 @@
 /**
  * Box and note rendering utilities for TUI
  */
-import { symbols } from './symbols.ts';
-import { colors } from './colors.ts';
+import { stringWidth as nodeCompatStringWidth } from '../node-compat/ansi.ts';
 import { getTerminalWidth } from '../tui.ts';
+import { colors } from './colors.ts';
+import { symbols } from './symbols.ts';
 
 /**
  * Get string width (accounting for ANSI codes and OSC 8 hyperlinks)
@@ -15,8 +16,7 @@ function stringWidth(str: string): number {
 	// Remove OSC 8 hyperlink sequences
 	// eslint-disable-next-line no-control-regex
 	cleaned = cleaned.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
-	// Use Bun.stringWidth for proper Unicode width calculation
-	return Bun.stringWidth(cleaned);
+	return nodeCompatStringWidth(cleaned);
 }
 
 /**

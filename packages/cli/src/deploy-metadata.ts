@@ -9,16 +9,17 @@
  * with empty routes/agents and assets enumerated from the static dir.
  */
 
-import { join, relative } from 'node:path';
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { type BuildMetadata, getContentType } from '@agentuity/server';
+import { readFile } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server';
 import type { z } from 'zod';
-import { DeploymentConfig } from '@agentuity/server';
 import type { BuildResult } from './cmd/build/adapters/types.ts';
 import type { PackageResult } from './cmd/build/package/index.ts';
+import { runtimeKind, runtimeVersion } from './node-compat/runtime-info.ts';
 import type { DeployOptions, Logger } from './types.ts';
+import { buildGitTags, getGitInfo } from './utils/git.ts';
 import { getVersion } from './version.ts';
-import { getGitInfo, buildGitTags } from './utils/git.ts';
 
 /**
  * Asset info matching the BuildMetadata schema.
@@ -185,7 +186,7 @@ export async function generateDeployMetadata(
 	const pkgPath = join(projectDir, 'package.json');
 	if (existsSync(pkgPath)) {
 		try {
-			pkgContents = JSON.parse(await Bun.file(pkgPath).text());
+			pkgContents = JSON.parse(await readFile(pkgPath, 'utf-8'));
 		} catch (error) {
 			logger.warn(`Failed to read package.json: ${error}`);
 		}
@@ -220,7 +221,11 @@ export async function generateDeployMetadata(
 			id: deploymentId,
 			date: new Date().toISOString(),
 			build: {
-				bun: Bun.version,
+				// Reports the host runtime in the same `bun: <ver>` field for
+				// backwards compatibility with the existing metadata schema.
+				// Under Bun this is `Bun.version`; under Node it's the Node
+				// version with a 'node-' prefix so consumers can disambiguate.
+				bun: runtimeKind() === 'bun' ? runtimeVersion() : `node-${runtimeVersion()}`,
 				agentuity: getVersion(),
 				arch: process.arch,
 				platform: process.platform,

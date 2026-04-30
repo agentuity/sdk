@@ -1,12 +1,13 @@
 /**
  * Region caching utilities for avoiding repeated API calls
  */
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { mkdir, unlink } from 'node:fs/promises';
 import type { Logger } from '@agentuity/core';
 import { listRegions, type RegionList } from '@agentuity/server';
-import { getDefaultConfigDir } from './config.ts';
 import type { APIClient } from './api.ts';
+import { getDefaultConfigDir } from './config.ts';
+import { pathExists } from './node-compat/fs.ts';
 
 const REGIONS_CACHE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 const LEGACY_REGIONS_CACHE_FILE = 'regions.json';
@@ -18,8 +19,7 @@ function getRegionsCacheFile(profileName: string): string {
 async function removeLegacyRegionsCache(logger: Logger): Promise<void> {
 	try {
 		const legacyPath = join(getDefaultConfigDir(), LEGACY_REGIONS_CACHE_FILE);
-		const file = Bun.file(legacyPath);
-		if (await file.exists()) {
+		if (await pathExists(legacyPath)) {
 			await unlink(legacyPath);
 			logger.trace('removed legacy regions cache file');
 		}
@@ -39,11 +39,10 @@ async function getCachedRegions(profileName: string, logger: Logger): Promise<Re
 		await removeLegacyRegionsCache(logger);
 
 		const cachePath = join(getDefaultConfigDir(), getRegionsCacheFile(profileName));
-		const file = Bun.file(cachePath);
-		if (!(await file.exists())) {
+		if (!(await pathExists(cachePath))) {
 			return null;
 		}
-		const data: RegionsCacheData = await file.json();
+		const data: RegionsCacheData = JSON.parse(await readFile(cachePath, 'utf-8'));
 		const age = Date.now() - data.timestamp;
 		if (age > REGIONS_CACHE_MAX_AGE_MS) {
 			logger.trace('regions cache expired for profile %s (age: %dms)', profileName, age);
@@ -70,7 +69,7 @@ async function saveRegionsCache(
 			timestamp: Date.now(),
 			regions,
 		};
-		await Bun.write(cachePath, JSON.stringify(data));
+		await writeFile(cachePath, JSON.stringify(data));
 		logger.trace('saved regions cache for profile %s', profileName);
 	} catch (error) {
 		logger.trace('failed to save regions cache for profile %s: %s', profileName, error);

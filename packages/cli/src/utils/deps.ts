@@ -1,5 +1,7 @@
-import { $ } from 'bun';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathExists } from '../node-compat/fs.ts';
+import { run } from '../node-compat/proc.ts';
 import type { Logger } from '../types.ts';
 
 export interface PackageRef {
@@ -21,7 +23,10 @@ export async function extractDependencies(
 	try {
 		logger.debug('Extracting dependencies using bun pm ls --all');
 
-		const result = await $`bun pm ls --all`.cwd(projectDir).quiet().nothrow();
+		const result = await run({
+			cmd: ['bun', 'pm', 'ls', '--all'],
+			cwd: projectDir,
+		});
 
 		if (result.exitCode !== 0) {
 			logger.warn(
@@ -31,7 +36,7 @@ export async function extractDependencies(
 			return [];
 		}
 
-		const output = result.stdout.toString();
+		const output = result.stdout;
 		let packages = parseBunPmLsOutput(output);
 
 		// Load alias map from bun.lock to resolve npm aliases to actual package names
@@ -88,14 +93,13 @@ export async function loadAliasMap(projectDir: string, logger: Logger): Promise<
 
 	try {
 		const lockfilePath = join(projectDir, 'bun.lock');
-		const lockfile = Bun.file(lockfilePath);
 
-		if (!(await lockfile.exists())) {
+		if (!(await pathExists(lockfilePath))) {
 			logger.debug('No bun.lock file found, skipping alias resolution');
 			return aliasMap;
 		}
 
-		const content = await lockfile.text();
+		const content = await readFile(lockfilePath, 'utf-8');
 		const parsed = parseBunLockFile(content);
 
 		if (!parsed || !parsed.packages) {
