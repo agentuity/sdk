@@ -3,17 +3,35 @@ title: State and Memory
 description: Store app state explicitly with KV, databases, cookies, and service clients
 ---
 
-In v3, state belongs to your app. Use cookies or request headers for the current browser/session identity, then store durable state in KV or a database with keys you control.
+State belongs to your app. Use cookies, auth sessions, or request headers to identify the current browser or user, then store durable state in KV or a database with keys you control. Nothing is stored automatically.
 
 ```bash
-bun add hono @agentuity/keyvalue@alpha @agentuity/schema@alpha
+bun add hono @agentuity/keyvalue@alpha @agentuity/schema@alpha @agentuity/telemetry@alpha
 ```
+
+## Choose the State Boundary
+
+Pick the right store before writing any code. The wrong boundary is the most common source of memory bugs.
+
+| What you need | Where it lives |
+|---------------|---------------|
+| browser session identity | signed cookie or your auth session |
+| compact user or conversation memory | [Key-Value Storage](/services/storage/key-value) |
+| relational user or entity data | [Database](/services/database) |
+| generated files, transcripts, or exports | [Durable Streams](/services/storage/durable-streams) |
+| async job status | KV status record plus [Queues](/services/queues) |
+
+The examples on this page use KV because that data is compact and fetched by exact key.
+
+## Store Session Memory
+
+This route creates a signed browser session cookie when one does not exist, then reads and writes typed memory under that session ID.
 
 ```typescript title="src/index.ts"
 import { KeyValueClient } from '@agentuity/keyvalue';
 import { s } from '@agentuity/schema';
-import type { Context } from 'hono';
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 
 const memorySchema = s.object({
@@ -26,7 +44,8 @@ type UserMemory = s.infer<typeof memorySchema>;
 const kv = new KeyValueClient();
 const app = new Hono();
 
-function getSessionId(c: Context): string {
+// Returns an existing session ID from the cookie, or creates and sets a new one
+function getOrCreateSessionId(c: Context): string {
   const existing = getCookie(c, 'app_session');
 
   if (existing) {
@@ -36,30 +55,30 @@ function getSessionId(c: Context): string {
   const sessionId = crypto.randomUUID();
 
   setCookie(c, 'app_session', sessionId, {
-    httpOnly: true,
-    sameSite: 'Lax',
+    httpOnly: true,       // not readable from JS
+    sameSite: 'Lax',      // safe for most single-domain apps
     secure: new URL(c.req.url).protocol === 'https:',
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 30, // 30 days
   });
 
   return sessionId;
 }
 
 app.post('/api/memory', async (c) => {
-  const sessionId = getSessionId(c);
+  const sessionId = getOrCreateSessionId(c); // [!code highlight]
   const body: unknown = await c.req.json();
   const memory = memorySchema.parse(body);
 
-  await kv.set<UserMemory>('app-memory', sessionId, memory, {
-    ttl: 60 * 60 * 24 * 30,
+  await kv.set<UserMemory>('app-memory', sessionId, memory, { // [!code highlight]
+    ttl: 60 * 60 * 24 * 30, // match cookie lifetime
   });
 
   return c.json({ ok: true });
 });
 
 app.get('/api/memory', async (c) => {
-  const sessionId = getSessionId(c);
-  const result = await kv.get<UserMemory>('app-memory', sessionId);
+  const sessionId = getOrCreateSessionId(c);
+  const result = await kv.get<UserMemory>('app-memory', sessionId); // [!code highlight]
 
   return c.json({
     memory: result.exists ? result.data : null,
@@ -69,39 +88,129 @@ app.get('/api/memory', async (c) => {
 export default app;
 ```
 
-For legacy runtime apps, this is the replacement for thread or session state. The key is now part of your app contract.
+`KeyValueClient` auto-reads `AGENTUITY_SDK_KEY` from the environment. Run `agentuity dev` locally and the key is injected automatically.
 
-## Choose the Store
+<Callout type="info" title="Using the Agentuity middleware">
+If you have already added `@agentuity/hono`, `kv` is available on `c.var` after the `agentuity()` middleware. Replace `new KeyValueClient()` with `c.var.kv` inside each handler. See [Hono](/frameworks/hono) for setup details.
+</Callout>
 
-| State | Store |
-|-------|-------|
-| app session ID | signed cookie or your auth session |
-| compact user or conversation memory | [Key-Value Storage](/services/storage/key-value) |
-| relational user data | [Database](/services/database) |
-| generated files, transcripts, or exports | [Durable Streams](/services/storage/durable-streams) |
-| async job status | KV status record plus [Queues](/services/queues) |
+<Callout type="info" title="Other frameworks">
+Cookie helpers are framework-specific. Nuxt and h3 expose `getCookie`/`setCookie` from `h3`. Next.js App Router exposes `cookies()` from `next/headers`. SvelteKit exposes `cookies` on the request event. The KV calls are identical across all of them.
+</Callout>
+
+## Choose the Key
+
+Use the most stable identifier available. Authenticated apps should key memory by user ID. Anonymous apps can fall back to a signed cookie, device token, or conversation ID.
+
+```typescript
+// Prefer authenticated user ID; fall back to anonymous session ID
+function memoryKey(userId: string | null, sessionId: string): string {
+  return userId ? `user:${userId}` : `session:${sessionId}`;
+}
+
+const key = memoryKey(userId, sessionId); // [!code highlight]
+
+await kv.set('app-memory', key, memory, { // [!code highlight]
+  ttl: 60 * 60 * 24 * 30,
+});
+```
+
+Do not key durable user memory by request ID. Request IDs are useful for logs and tracing but do not identify the next request from the same user.
+
+## Validate on Read
+
+KV stores raw JSON. Treat every read as a boundary: the value may have been written by older code, a migration script, or a manual test.
+
+```typescript
+import { logger } from '@agentuity/telemetry';
+
+const result = await kv.get<unknown>('app-memory', sessionId); // [!code highlight]
+
+if (!result.exists) {
+  return null;
+}
+
+// safeParse returns { success: true, data } | { success: false, error: ValidationError }
+const parsed = memorySchema.safeParse(result.data); // [!code highlight]
+
+if (!parsed.success) {
+  // Log and discard stale or malformed records rather than crashing
+  logger.warn('Dropping unrecognised memory record', {
+    sessionId,
+    issues: parsed.error.issues,
+  });
+  return null;
+}
+
+return parsed.data;
+```
+
+Inside `@agentuity/hono` route handlers, replace `logger` with `c.var.logger` so logs are scoped to the request span.
+
+`kv.get<T>()` with a concrete type is fine when your app owns every write path. `safeParse` is the safer choice when the data shape can drift between deploys.
+
+<Callout type="info" title="result.exists discriminates the union">
+`result.data` is only accessible when `result.exists` is `true`. TypeScript enforces this: accessing `result.data` without the check is a type error.
+</Callout>
 
 ## Keep Memory Small
 
-Store summaries, preferences, IDs, and pointers. Put large transcripts in a database or durable stream, then store the stream ID or row ID in KV.
+Store summaries, preferences, IDs, and pointers. Put large transcripts in a database or durable stream, then store only the reference in KV.
 
 ```typescript
 interface ConversationPointer {
   readonly summary: string;
-  readonly streamId: string;
+  readonly streamId: string;  // points to the full transcript
   readonly updatedAt: string;
 }
 
 await kv.set<ConversationPointer>('conversation-memory', sessionId, {
   summary: 'User prefers concise answers about billing issues',
-  streamId: 'stream_123',
+  streamId: 'stream_01j...', // [!code highlight]
   updatedAt: new Date().toISOString(),
 });
 ```
+
+A KV value holding a summary and a reference ID stays small and fast to read. The full transcript stays in the stream where it belongs.
+
+## Retention
+
+Match TTL to the way state is used. Keys with no TTL override inherit the namespace default (7 days for auto-created namespaces). Pass `ttl: null` or `ttl: 0` to store a key that never expires.
+
+| State type | Suggested TTL |
+|------------|--------------|
+| anonymous browser session | 7 to 30 days |
+| signed-in user preference | `null` (no expiry) or database-backed |
+| API cache entry | minutes or hours |
+| async job status | long enough for the UI to poll and for support to review failures |
+| generated output pointer | no longer than the stream or file it points to |
+
+```typescript
+// Never expires
+await kv.set('user-prefs', userId, prefs, { ttl: null }); // [!code highlight]
+
+// Expires after 30 days
+await kv.set('app-memory', sessionId, memory, { ttl: 60 * 60 * 24 * 30 }); // [!code highlight]
+
+// Inherits namespace default (7 days if the namespace was auto-created)
+await kv.set('cache', cacheKey, value);
+```
+
+See [Key-Value Storage](/services/storage/key-value) for namespace-level TTL defaults and key inspection.
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| memory never appears on the next request | the cookie domain, `sameSite`, and `secure` flags match the deployed host |
+| one user sees another user's state | the key includes the authenticated user ID or anonymous session ID |
+| old values fail `safeParse` | read with `unknown`, run `safeParse`, then migrate or drop stale records |
+| chat history grows without bound | store a summary plus recent turns, not the full transcript |
+| keys disappear unexpectedly | the per-key or namespace TTL is shorter than expected; check `result.expiresAt` on a read |
 
 ## Next Steps
 
 - [Build Agents](/build/agents): read memory before model calls
 - [Chat and Streaming](/build/chat-and-streaming): persist chat history after streamed responses
-- [Key-Value Storage](/services/storage/key-value): configure TTL and inspect namespaces
-- [Moving from Runtime Apps to Framework Apps](/migration/runtime-to-frameworks): map legacy runtime state to framework app state
+- [Key-Value Storage](/services/storage/key-value): configure TTL, inspect namespaces, and understand sliding expiration
+- [Migrating from Runtime Apps](/migration/runtime-to-frameworks): map older runtime state surfaces to framework app state

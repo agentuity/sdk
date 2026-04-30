@@ -26,8 +26,7 @@ const service: Service = {
 				description: 'Webhook creation payload.',
 				fields: { schema: CreateWebhookRequestSchema },
 			},
-			responseDescription:
-				'Returns the created webhook. The ingest URL is only returned at creation.',
+			responseDescription: 'Returns the created webhook with its ingest URL when available.',
 			responseFields: { schema: WebhookSchema },
 			statuses: [
 				{ code: 201, description: 'Webhook created' },

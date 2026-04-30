@@ -3,10 +3,10 @@ title: Sessions & Debugging
 description: Inspect session records, logs, and timelines
 ---
 
-Use sessions when you need to move from "something failed" to the exact request, log lines, and trace timeline. In v3 framework apps, sessions are platform observability records you inspect through the CLI, Console, or core API helpers rather than a runtime-only `ctx.session` object in every example.
+Use sessions when you need to move from "something failed" to the exact request, log lines, and trace timeline. In latest framework apps, sessions are platform observability records you inspect through the CLI, Console, or core API helpers rather than a runtime-only `ctx.session` object in every example.
 
-<Callout type="info" title="Existing v2 session APIs still exist">
-Existing v2 apps can keep using runtime `ctx.session` and `ctx.thread` patterns. The v3 docs default to framework routes, telemetry packages, and platform inspection APIs.
+<Callout type="info" title="Legacy session APIs still exist">
+Legacy runtime apps can keep using `ctx.session` and `ctx.thread` patterns. For new framework apps, use telemetry packages and platform inspection APIs.
 </Callout>
 
 ## Start with the CLI
@@ -64,8 +64,12 @@ if (!projectId) {
   throw new Error('AGENTUITY_CLOUD_PROJECT_ID is required');
 }
 
-const catalystUrl =
-  process.env.AGENTUITY_CATALYST_URL ?? 'https://catalyst-usc.agentuity.cloud';
+const catalystUrl = process.env.AGENTUITY_CATALYST_URL;
+
+if (!catalystUrl) {
+  throw new Error('AGENTUITY_CATALYST_URL is required');
+}
+
 const client = new APIClient(catalystUrl, logger);
 
 const failedSessions = await sessionList(client, {

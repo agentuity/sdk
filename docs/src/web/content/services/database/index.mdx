@@ -1,9 +1,13 @@
 ---
 title: Database
-description: Use Agentuity-managed Postgres with direct database clients
+description: Use Agentuity-managed Postgres when your app needs relational data
 ---
 
-Use database storage when your app needs SQL, joins, constraints, or transactions. Agentuity database resources are Postgres databases, and v3 apps access them with direct clients.
+Use database resources when your app needs SQL, joins, constraints, or transactions. Agentuity database resources are Postgres databases; this section covers relational access, not the other Agentuity service clients.
+
+<Callout type="info" title="Use service clients for service work">
+Use database helpers for relational Postgres. For KV, vector, queues, tasks, schedules, email, webhooks, streams, and sandboxes, start from that service's dedicated package instead.
+</Callout>
 
 ## Create or Link a Database
 
@@ -18,15 +22,15 @@ Creating a database from a project, or linking an existing database to a project
 
 | Need | Use |
 |------|-----|
-| tagged SQL from Bun server code | [`@agentuity/postgres`](/services/database/postgres) |
-| type-safe schema-first queries from Bun app code | [`@agentuity/drizzle`](/services/database/drizzle) |
-| query an Agentuity database by resource name and org ID | `@agentuity/db` |
+| tagged SQL from Bun server code | [`@agentuity/postgres`](/services/database/postgres), or your existing Postgres client with `DATABASE_URL` |
+| type-safe schema-first queries from Bun app code | [`@agentuity/drizzle`](/services/database/drizzle), or Drizzle's standard drivers with `DATABASE_URL` |
+| trusted admin scripts that query by resource name and org ID | `@agentuity/db` |
 
-Use `@agentuity/postgres` or `@agentuity/drizzle` inside Bun app code that has `DATABASE_URL`. Use `DBClient` for scripts and admin tools that should call the Agentuity database service API instead of opening a direct Postgres connection.
+Use the helper packages when they fit your app. If your framework already uses `pg`, Prisma, Kysely, Drizzle, or Bun SQL directly, keep that path and point it at `DATABASE_URL`. Use `DBClient` only for scripts and admin tools that should call the Agentuity database service API instead of opening a direct Postgres connection.
 
 ## Use Postgres from App Code
 
-`@agentuity/postgres` wraps Bun's SQL driver with reconnection behavior. It reads `DATABASE_URL` by default.
+`@agentuity/postgres` wraps Bun's SQL driver with reconnection behavior. Use it when you explicitly want that helper around `DATABASE_URL`.
 
 ```bash
 bun add @agentuity/postgres@alpha
@@ -52,7 +56,7 @@ Pass dynamic values through `${value}` in the tagged template. Do not concatenat
 
 ## Use Drizzle
 
-Use `@agentuity/drizzle` when you want Drizzle ORM queries on the same Postgres resource. The default driver uses `pg` through Agentuity's resilient pool. Set `driver: 'bun-sql'` only when you specifically want Bun SQL.
+Use `@agentuity/drizzle` when you explicitly want Agentuity's Drizzle helper on the same Postgres resource. The default driver uses `pg` through Agentuity's resilient pool. Set `driver: 'bun-sql'` only when you specifically want Bun SQL.
 
 ```bash
 bun add @agentuity/drizzle@alpha drizzle-orm
@@ -92,7 +96,7 @@ export const users = pgTable('users', {
 
 ## Query Through the Database Service API
 
-`DBClient` calls the Agentuity database service API by database name and org ID. Use it for scripts that inspect tables, run administrative queries, or read query logs without opening a direct Postgres connection from the script.
+`DBClient` calls the Agentuity database service API by database name and org ID. Use it for trusted scripts that inspect tables, run administrative queries, or read query logs without opening a direct Postgres connection from the script.
 
 ```bash
 bun add @agentuity/db@alpha
@@ -102,10 +106,10 @@ bun add @agentuity/db@alpha
 import { DBClient } from '@agentuity/db';
 
 const database = process.env.AGENTUITY_DB_DATABASE;
-const orgId = process.env.AGENTUITY_ORG_ID;
+const orgId = process.env.AGENTUITY_CLOUD_ORG_ID;
 
 if (!database || !orgId) {
-  throw new Error('AGENTUITY_DB_DATABASE and AGENTUITY_ORG_ID are required');
+  throw new Error('AGENTUITY_DB_DATABASE and AGENTUITY_CLOUD_ORG_ID are required');
 }
 
 const db = new DBClient({ database, orgId });
@@ -116,6 +120,10 @@ const logs = await db.logs({ limit: 50 });
 ```
 
 `DBClient` does not read `DATABASE_URL`. Pass the Agentuity database resource name and organization ID explicitly.
+
+<Callout type="warning" title="No parameter binding">
+`DBClient.query(sql)` accepts a raw SQL string and does not bind parameters. Use it only for trusted SQL such as schema introspection or admin scripts. For application queries with dynamic values, use [`@agentuity/postgres`](/services/database/postgres) or [`@agentuity/drizzle`](/services/database/drizzle) so values pass through parameterized queries.
+</Callout>
 
 ## Framework Routes
 

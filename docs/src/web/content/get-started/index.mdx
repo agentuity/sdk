@@ -5,37 +5,41 @@ description: Start with your framework, add Agentuity services, and deploy with 
 
 import { Rocket, Download, Zap, FolderTree, Settings } from 'lucide-react';
 
-New Agentuity apps start with the framework you already use. Use the CLI to create the project, run it locally, and add Agentuity services when your app needs them.
+Agentuity adds service clients, local development, and deploy packaging to a framework you already use. The CLI scaffolds a starter or wires services into an existing project.
+
+```bash
+bun create agentuity@alpha
+```
 
 <Cards>
   <CardLink
     href="/get-started/what-is-agentuity"
     title="What is Agentuity?"
-    description="See where Agentuity fits in a TypeScript app"
+    description="See where Agentuity fits in a TypeScript framework app"
     icon={<Rocket />}
   />
   <CardLink
     href="/get-started/installation"
     title="Installation"
-    description="Install the CLI and create a framework project"
+    description="Install the CLI, sign in, and create a framework starter"
     icon={<Download />}
   />
   <CardLink
     href="/get-started/quickstart"
     title="Quickstart"
-    description="Create a Next.js app, run it locally, and deploy it"
+    description="Scaffold a Next.js starter, run it locally, and deploy"
     icon={<Zap />}
   />
   <CardLink
     href="/get-started/project-structure"
     title="Project Structure"
-    description="Understand what Agentuity adds to each framework"
+    description="See exactly what the scaffold adds to a framework app"
     icon={<FolderTree />}
   />
   <CardLink
     href="/get-started/app-configuration"
     title="App Configuration"
-    description="Configure project metadata, scripts, services, and env vars"
+    description="Configure scripts, agentuity.json, env vars, and service clients"
     icon={<Settings />}
   />
 </Cards>

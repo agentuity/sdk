@@ -103,7 +103,11 @@ agentuity cloud sandbox snapshot build . --tag staging
 agentuity cloud sandbox snapshot build . --env API_KEY=secret
 agentuity cloud sandbox snapshot build . --metadata VERSION=1.0.0
 agentuity cloud sandbox snapshot build . --force
+# validate the build file without uploading
+agentuity cloud sandbox snapshot build . --dry-run
 ```
+
+Use `--dry-run` to validate that the build file is well-formed and all referenced local files can be resolved, without creating a snapshot or uploading anything.
 
 Use `--public --confirm` only when you intentionally want a public snapshot.
 

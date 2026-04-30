@@ -1,0 +1,126 @@
+---
+title: Mastra
+description: Run a Mastra Agent inside a framework route with key-value memory
+---
+
+[Mastra](https://mastra.ai/docs) gives you a typed `Agent` class with `.generate()`, `.stream()`, and tool composition. Drop a Mastra agent into a Hono route, store conversation history in [key-value storage](/services/storage/key-value), and deploy with the rest of your app.
+
+```bash
+bun add hono @mastra/core @agentuity/keyvalue@alpha @agentuity/schema@alpha
+```
+
+## Define the Agent
+
+`Agent` accepts a model spec, instructions, and an optional tool map. Mastra resolves provider strings (`openai/...`, `anthropic/...`) through its built-in registry. Run locally with `agentuity dev` when you want those provider calls to use [AI Gateway](/services/ai-gateway) env wiring.
+
+```typescript title="src/lib/chat-agent.ts"
+import { Agent } from '@mastra/core/agent';
+
+export const chatAgent = new Agent({
+  id: 'chat',
+  name: 'Chat Agent',
+  instructions: 'You are a concise product support assistant.',
+  model: 'openai/gpt-5.4-mini',
+});
+```
+
+## Wire the Route
+
+Validate the request, load the conversation, call `agent.generate()`, store the new turn. The route is thin; the Mastra agent owns the model call.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+import { chatAgent } from './lib/chat-agent';
+
+const HISTORY_NAMESPACE = 'mastra-chat';
+const HISTORY_LIMIT = 20;
+
+const messageSchema = s.object({
+  role: s.enum(['user', 'assistant']),
+  content: s.string(),
+});
+
+const requestSchema = s.object({
+  conversationId: s.string(),
+  message: s.string(),
+});
+
+const historySchema = s.array(messageSchema);
+
+type ChatMessage = s.infer<typeof messageSchema>;
+
+const kv = new KeyValueClient();
+const app = new Hono();
+
+app.post('/api/chat', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = requestSchema.parse(body);
+
+  const stored = await kv.get<unknown>(HISTORY_NAMESPACE, input.conversationId);
+  const history: readonly ChatMessage[] = stored.exists
+    ? historySchema.parse(stored.data)
+    : [];
+
+  const userMessage: ChatMessage = { role: 'user', content: input.message };
+  const result = await chatAgent.generate([...history, userMessage]);
+
+  const assistantMessage: ChatMessage = {
+    role: 'assistant',
+    content: result.text,
+  };
+
+  const next = [...history, userMessage, assistantMessage].slice(-HISTORY_LIMIT);
+  await kv.set(HISTORY_NAMESPACE, input.conversationId, next, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return c.json({
+    conversationId: input.conversationId,
+    message: assistantMessage,
+    messageCount: next.length,
+  });
+});
+
+export default app;
+```
+
+## Tools
+
+Mastra tools are typed with the same `createTool()` pattern Mastra users already know. Pass them through the `tools` field on `new Agent({ ... })`.
+
+```typescript
+import { createTool } from '@mastra/core/tools';
+import { z } from 'zod';
+
+const lookupOrder = createTool({
+  id: 'lookup-order',
+  description: 'Look up an order by ID',
+  inputSchema: z.object({ orderId: z.string() }),
+  execute: async (input) => {
+    // call your database, API, etc.
+    return { status: 'shipped', orderId: input.orderId };
+  },
+});
+
+export const supportAgent = new Agent({
+  id: 'support',
+  name: 'Order Support',
+  instructions: 'Help customers with order questions. Use lookup-order when asked about a specific order.',
+  model: 'openai/gpt-5.4',
+  tools: { lookupOrder },
+});
+```
+
+The Mastra tool loop runs entirely inside `agent.generate()`. The route still owns HTTP and storage.
+
+## When to Reach for Mastra
+
+Pick Mastra when you want its agent abstractions (workflows, multi-agent handoffs, structured output via Mastra primitives) and you do not want to build them on AI SDK directly. Pick raw [AI SDK](/build/agents) when you want fewer layers.
+
+## Next Steps
+
+- [Build Agents](/build/agents): the plain-function pattern this page wraps
+- [Chat with History](/cookbook/patterns/chat-with-history): the same KV layout, without Mastra
+- [AI Gateway](/services/ai-gateway): local dev routing and deployed provider env choices

@@ -1,9 +1,9 @@
 ---
 title: Quickstart
-description: Create a framework app, add an AI route, and deploy it to Agentuity
+description: Scaffold a Next.js starter, run it locally, and deploy it
 ---
 
-Use Next.js here as the concrete path. You will create a framework app, add a server route, run it through `agentuity dev`, and deploy it.
+This page walks through the framework-first happy path with Next.js. The same flow works for any [supported framework](/get-started/installation#framework-slugs).
 
 ## 1. Create the Project
 
@@ -12,21 +12,25 @@ bun create agentuity@alpha --name my-app --framework nextjs
 cd my-app
 ```
 
-The starter creates a Next.js app, adds the Agentuity CLI, and includes a small AI example route.
+The scaffold runs `create-next-app`, then layers on:
 
-<Callout type="info" title="Frameworks are the starting point">
-You can use `nuxt`, `remix`, `sveltekit`, `astro`, `hono`, or `vite-react` instead. See [Installation](/get-started/installation): supported framework slugs and create options.
-</Callout>
+- `@agentuity/cli@alpha` as a devDependency
+- `openai`, `@agentuity/keyvalue@alpha`, and `swr` as dependencies
+- A working translation page at `src/app/page.tsx`
+- An API route at `src/app/api/translate/route.ts` that uses the OpenAI SDK and stores history in key-value storage
+- `deploy: agentuity deploy` in `package.json`
+- `agentuity.json` with the registered project's metadata
+- `.env` with the project's `AGENTUITY_SDK_KEY`
 
-## 2. Run the App
+## 2. Run It Locally
 
 ```bash
-agentuity dev
+bunx agentuity dev
 ```
 
-Open the URL printed by Next.js. For a default Next.js app, that is usually `http://localhost:3000`.
+`bunx` runs the alpha CLI from `devDependencies`. The CLI runs `next dev` as a child process and patches `AGENTUITY_SDK_KEY` plus AI Gateway base URLs into its env, so the OpenAI SDK call routes through Agentuity. Open the URL Next.js prints (typically `http://localhost:3000`) and try a translation.
 
-Test the generated translation route:
+You can also call the API route directly:
 
 ```bash
 curl -X POST http://localhost:3000/api/translate \
@@ -34,108 +38,51 @@ curl -X POST http://localhost:3000/api/translate \
   -d '{"text":"Hello from Agentuity","toLanguage":"French"}'
 ```
 
-## 3. Add a Chat Route
+The response includes the translation, the session id, the running translation count, and the most recent history (stored in KV under `translation-history`).
 
-Add validation for the request body:
+## 3. Make an Edit
 
-```bash
-bun add zod
-mkdir -p src/app/api/chat
+Open `src/app/page.tsx` and add a language to the picker:
+
+```tsx title="src/app/page.tsx"
+const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese', 'Japanese'] as const;
 ```
 
-Create `src/app/api/chat/route.ts`:
+Save the file. Next.js hot-reloads, the new option appears in the dropdown, and the route accepts it without any other change.
 
-```typescript title="src/app/api/chat/route.ts"
-import OpenAI from 'openai';
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
+## 4. Add Another Service
 
-const ChatRequest = z.object({
-  message: z.string().min(1),
-});
+Service clients work in any framework route or script. Add a second namespace next to the translation history without touching the runtime:
 
-const openai = new OpenAI();
-
-export async function POST(request: Request): Promise<NextResponse> {
-  const body: unknown = await request.json();
-  const parsed = ChatRequest.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid chat request' }, { status: 400 });
-  }
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-5.4-mini',
-    messages: [{ role: 'user', content: parsed.data.message }],
-  });
-
-  return NextResponse.json({
-    response: completion.choices[0]?.message?.content ?? '',
-  });
-}
-```
-
-With `AGENTUITY_SDK_KEY` set, `agentuity dev` can route OpenAI SDK calls through Agentuity during local development. If your app already uses `OPENAI_API_KEY`, it can keep using it.
-
-## 4. Call the Route
-
-Keep `agentuity dev` running, then call the new route:
-
-```bash
-curl -X POST http://localhost:3000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Give me one sentence about Agentuity."}'
-```
-
-Response:
-
-```json
-{
-  "response": "Agentuity helps you run AI apps and services from your TypeScript framework."
-}
-```
-
-## 5. Add Services When You Need Them
-
-Framework routes can use Agentuity services through standalone clients. For example, add key-value storage to any server route or script:
-
-```bash
-bun add @agentuity/keyvalue@alpha
-```
-
-```typescript
+```typescript title="src/app/api/translate/route.ts"
 import { KeyValueClient } from '@agentuity/keyvalue';
 
 const kv = new KeyValueClient();
 
-await kv.set('chat', 'latest-message', {
-  message: 'Give me one sentence about Agentuity.',
-});
+await kv.set('analytics', 'last-translation-at', { at: new Date().toISOString() });
 ```
 
-<Callout type="info" title="Service clients use AGENTUITY_SDK_KEY">
-Service clients read `AGENTUITY_SDK_KEY` from the environment by default. `agentuity project create` writes it for registered projects, and `agentuity project import` can link an existing local app.
-</Callout>
+The client reads `AGENTUITY_SDK_KEY` from process env. `agentuity dev` supplies that key for local runs, and registered deployed apps receive it as a project secret.
 
-## 6. Deploy
+See [Services](/services) for queues, vector storage, email, schedules, sandbox execution, and the rest.
 
-```bash
-agentuity deploy
-```
-
-or use the generated package script:
+## 5. Deploy
 
 ```bash
 bun run deploy
 ```
 
-During deploy, Agentuity detects the framework adapter and packages the app around the framework conventions you already use.
+The `deploy` script runs `agentuity deploy`, which:
 
-View deployments, logs, and project settings in the [Web App](https://app.agentuity.com).
+- Detects the framework from `package.json` and config files
+- Runs the framework's build, then packages the output into `.agentuity/`
+- Encrypts the bundle, uploads it, and starts the deployment
+
+The CLI prints both the deployment-specific URL and the latest deployment URL. Visit either in a browser, or check [app.agentuity.com](https://app.agentuity.com) for logs and resource settings.
 
 ## Next Steps
 
-- [Project Structure](/get-started/project-structure): See what changes across frameworks
-- [App Configuration](/get-started/app-configuration): Configure `agentuity.json`, scripts, env vars, and services
-- [Using Standalone Packages](/reference/standalone-packages): Add Agentuity services to framework routes and scripts
-- [Local Development](/deploy-operate/local-development#ai-gateway-environment): use provider SDKs through Agentuity in local development
+- [Project Structure](/get-started/project-structure): the file map for each framework
+- [App Configuration](/get-started/app-configuration): scripts, `agentuity.json`, env vars, and service clients
+- [Frameworks](/frameworks): per-framework setup, route patterns, and deploy notes
+- [Local Development](/deploy-operate/local-development): how `agentuity dev` resolves the SDK key, env files, and gateway routing

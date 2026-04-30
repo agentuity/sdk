@@ -5,7 +5,7 @@ description: Track page views, user engagement, and custom events in your fronte
 
 Use `@agentuity/analytics` in browser code when you have a collection endpoint for page views, Web Vitals, scroll depth, client errors, and custom events. The package works with framework client entries, server-injected config, or direct event calls.
 
-The v3 package is a browser collector. It queues events in the page and sends them to the configured endpoint. If your app or platform environment does not provide that endpoint yet, set `isDevmode: true`, set a custom `endpoint`, or use your framework analytics tool instead.
+The v3 package is a browser collector: it queues events in the page and sends them to the configured endpoint. The platform does not currently expose a built-in collection endpoint, so you must configure `endpoint` to point at a route you control. If you do not have a collector yet, set `isDevmode: true` to log payloads to the browser console instead of sending them, or use your framework analytics tool.
 
 ```bash
 bun add @agentuity/analytics@alpha
@@ -13,7 +13,7 @@ bun add @agentuity/analytics@alpha
 
 ## Initialize Analytics
 
-Call `init()` from a client-side entry point. `orgId` and `projectId` are identifiers, not secrets, so they can come from your framework's public runtime config.
+Call `init()` from a client-side entry point. `orgId` and `projectId` are identifiers, not secrets, so they can come from your framework's public runtime config. Always pass an explicit `endpoint` pointing at a server route you control.
 
 ```typescript
 import { init } from '@agentuity/analytics';
@@ -31,7 +31,7 @@ export function startAnalytics(config: AnalyticsRuntimeConfig): void {
     orgId: config.orgId,
     projectId: config.projectId,
     isDevmode: config.isDevmode,
-    endpoint: config.endpoint,
+    endpoint: config.endpoint,  // e.g. '/api/analytics/collect'
     trackClicks: true,
     trackScroll: true,
     trackWebVitals: true,
@@ -43,7 +43,117 @@ export function startAnalytics(config: AnalyticsRuntimeConfig): void {
 
 `init()` stores config on `window.__AGENTUITY_ANALYTICS__` and loads the beacon. The beacon initializes page-view tracking, sets up event listeners, and exposes `window.agentuityAnalytics`.
 
-The default endpoint is `/_agentuity/webanalytics/collect`. Use an explicit endpoint when that route is not available in your app.
+## Framework Setup
+
+Framework apps usually need two files: one browser entry that calls `init()`, and one server route that receives the payload. Keep the Agentuity service clients in the server route only.
+
+| Framework | Browser init | Public config | Collector route |
+|-----------|--------------|---------------|-----------------|
+| Next.js | `instrumentation-client.ts`, or a no-UI client component rendered from `src/app/layout.tsx` | `NEXT_PUBLIC_*` | `src/app/api/analytics/collect/route.ts` |
+| Nuxt | `plugins/analytics.client.ts` | `runtimeConfig.public` or `NUXT_PUBLIC_*` | `server/api/analytics/collect.post.ts` |
+| SvelteKit | `onMount()` in `src/routes/+layout.svelte` | `PUBLIC_*` from `$env/static/public` | `src/routes/api/analytics/collect/+server.ts` |
+| Astro | bundled `<script>` in a shared layout or a client island | `PUBLIC_*` from `import.meta.env` | `src/pages/api/analytics/collect.ts` |
+| React Router | root route component or `app/root.tsx` | `VITE_*` | resource route registered in `app/routes.ts` |
+| Hono | server-injected config in rendered HTML | server-rendered values | `app.post('/api/analytics/collect', handler)` |
+| Vite + React | `src/main.tsx` or a root React component | `VITE_*` | `server.ts` route branch before static fallback |
+| TanStack Start | no-UI component rendered from `src/routes/__root.tsx` | `VITE_*` or Start runtime env | `src/routes/api/analytics/collect.ts` |
+
+For Next.js, client instrumentation runs before React hydrates. Put this file at the app root, or at `src/instrumentation-client.ts` when the project uses a `src/` directory:
+
+```typescript title="instrumentation-client.ts"
+import { init } from '@agentuity/analytics';
+
+const ORG_ID = process.env.NEXT_PUBLIC_AGENTUITY_ANALYTICS_ORG_ID;
+const PROJECT_ID = process.env.NEXT_PUBLIC_AGENTUITY_ANALYTICS_PROJECT_ID;
+
+if (ORG_ID && PROJECT_ID) {
+	init({
+		enabled: true,
+		orgId: ORG_ID,
+		projectId: PROJECT_ID,
+		isDevmode: process.env.NODE_ENV !== 'production',
+		endpoint: '/api/analytics/collect',
+	});
+}
+```
+
+For TanStack Start, React Router, and Vite + React, use the same no-UI component shape and render it from the root route or app entry:
+
+```tsx title="src/components/agentuity-analytics.tsx"
+import { useEffect } from 'react';
+import { init } from '@agentuity/analytics';
+
+const ORG_ID = import.meta.env.VITE_AGENTUITY_ANALYTICS_ORG_ID;
+const PROJECT_ID = import.meta.env.VITE_AGENTUITY_ANALYTICS_PROJECT_ID;
+
+export function AgentuityAnalytics(): null {
+	useEffect(() => {
+		if (!ORG_ID || !PROJECT_ID) return;
+
+		init({
+			enabled: true,
+			orgId: ORG_ID,
+			projectId: PROJECT_ID,
+			isDevmode: import.meta.env.DEV,
+			endpoint: '/api/analytics/collect',
+		});
+	}, []);
+
+	return null;
+}
+```
+
+For SvelteKit, use the root layout so the client initializes once:
+
+```svelte title="src/routes/+layout.svelte"
+<script lang="ts">
+	import { dev } from '$app/environment';
+	import {
+		PUBLIC_AGENTUITY_ANALYTICS_ORG_ID,
+		PUBLIC_AGENTUITY_ANALYTICS_PROJECT_ID,
+	} from '$env/static/public';
+	import { onMount } from 'svelte';
+	import { init } from '@agentuity/analytics';
+
+	let { children } = $props();
+
+	onMount(() => {
+		if (!PUBLIC_AGENTUITY_ANALYTICS_ORG_ID || !PUBLIC_AGENTUITY_ANALYTICS_PROJECT_ID) return;
+
+		init({
+			enabled: true,
+			orgId: PUBLIC_AGENTUITY_ANALYTICS_ORG_ID,
+			projectId: PUBLIC_AGENTUITY_ANALYTICS_PROJECT_ID,
+			isDevmode: dev,
+			endpoint: '/api/analytics/collect',
+		});
+	});
+</script>
+
+{@render children()}
+```
+
+For Nuxt, use a client-only plugin:
+
+```typescript title="plugins/analytics.client.ts"
+import { init } from '@agentuity/analytics';
+
+export default defineNuxtPlugin(() => {
+	const config = useRuntimeConfig();
+	const orgId = config.public.agentuityAnalyticsOrgId;
+	const projectId = config.public.agentuityAnalyticsProjectId;
+
+	if (typeof orgId !== 'string' || typeof projectId !== 'string') return;
+
+	init({
+		enabled: true,
+		orgId,
+		projectId,
+		isDevmode: import.meta.dev,
+		endpoint: '/api/analytics/collect',
+	});
+});
+```
 
 ## Server-Injected Config
 
@@ -56,7 +166,7 @@ If your framework injects script tags, set `window.__AGENTUITY_ANALYTICS__` befo
     orgId: 'org_abc123',
     projectId: 'proj_abc123',
     isDevmode: false,
-    endpoint: '/_agentuity/webanalytics/collect',
+    endpoint: '/api/analytics/collect',
     trackClicks: true,
     trackScroll: true,
     trackWebVitals: true,
@@ -131,7 +241,6 @@ window.agentuityAnalytics?.track('cta_clicked', { location: 'hero' });
 |----------|------|
 | page context | URL, path, referrer, title, with query strings stripped |
 | device | screen size, viewport size, pixel ratio, user agent, language |
-| geolocation | country, region, city, timezone, and coarse coordinates from the location service |
 | performance | load time, DOM ready, TTFB |
 | Web Vitals | FCP, LCP, CLS, INP |
 | engagement | scroll depth, time on page, visibility sessions |
@@ -155,13 +264,183 @@ Events are sent when the page becomes hidden, unloads, or changes SPA routes. Th
 | `trackErrors` | `boolean` | `true` | Track JavaScript errors and unhandled rejections |
 | `trackSPANavigation` | `boolean` | `true` | Track client-side route changes |
 | `sampleRate` | `number` | `1` | Sample rate from 0 to 1 |
-| `endpoint` | `string` | `/_agentuity/webanalytics/collect` | Collection endpoint that receives browser payloads |
+| `endpoint` | `string` | `/_agentuity/webanalytics/collect` | Collection endpoint that receives browser payloads. No built-in collector exists at this path; set this to a route you control. |
 
 ## Collection Endpoint
 
 The analytics client sends JSON payloads to `endpoint` with `navigator.sendBeacon()` when available and `fetch()` as a fallback. In dev mode, it logs the payload to the browser console instead of sending it.
 
-If you provide your own endpoint, accept the `AnalyticsPayload` shape exported by `@agentuity/analytics`, validate it, and store or forward it from server-side code. Do not send browser analytics payloads directly to Agentuity service APIs from the client.
+The platform does not currently provide a built-in handler at `/_agentuity/webanalytics/collect`. Create a server route at the path you configure as `endpoint`, accept the `AnalyticsPayload` shape exported by `@agentuity/analytics`, validate it, and store or forward the data from server-side code. Do not send browser analytics payloads directly to Agentuity service APIs from the client.
+
+<Callout type="tip" title="Keep the endpoint on the same origin">
+A same-origin endpoint, such as `/api/analytics/collect`, avoids CORS preflight behavior and keeps the browser config simple. Use a cross-origin endpoint only when you control the CORS policy and want one collector shared by several apps.
+</Callout>
+
+Install the server-side packages your collector needs:
+
+```bash
+bun add @agentuity/queue@alpha @agentuity/schema@alpha @agentuity/telemetry@alpha
+```
+
+This Next.js route accepts the beacon payload, validates the fields it uses, publishes the event to a queue, and returns `202`. The queue consumer can batch, enrich, or forward the event without slowing down the page unload path.
+
+```typescript title="src/app/api/analytics/collect/route.ts"
+import { QueueClient } from '@agentuity/queue';
+import { s } from '@agentuity/schema';
+import { logger } from '@agentuity/telemetry';
+
+const MAX_BODY_CHARS = 64 * 1024;
+const ANALYTICS_QUEUE = 'web-analytics';
+
+const customEventSchema = s.object({
+	timestamp: s.number(),
+	name: s.string(),
+	data: s.string(),
+});
+
+const payloadSchema = s.object({
+	org_id: s.string(),
+	project_id: s.string(),
+	visitor_id: s.string(),
+	user_id: s.string(),
+	user_traits: s.record(s.string(), s.string()),
+	is_devmode: s.boolean(),
+	pageview: s.object({
+		id: s.string(),
+		timestamp: s.number(),
+		url: s.string(),
+		path: s.string(),
+		referrer: s.string(),
+		title: s.string(),
+		language: s.string(),
+		user_agent: s.string(),
+		scroll_depth: s.number(),
+		time_on_page: s.number(),
+		custom_events: s.array(customEventSchema),
+	}),
+});
+
+const queue = new QueueClient();
+
+function parseBody(raw: string): unknown {
+	if (!raw) return null;
+	return JSON.parse(raw);
+}
+
+export async function POST(request: Request): Promise<Response> {
+	const raw = await request.text();
+
+	if (raw.length > MAX_BODY_CHARS) {
+		return Response.json({ error: 'payload too large' }, { status: 413 });
+	}
+
+	let body: unknown;
+	try {
+		body = parseBody(raw);
+	} catch {
+		return Response.json({ error: 'invalid JSON payload' }, { status: 400 });
+	}
+
+	const parsed = payloadSchema.safeParse(body);
+	if (!parsed.success) {
+		return Response.json({ error: 'invalid analytics payload' }, { status: 400 });
+	}
+
+	const payload = parsed.data;
+
+	try {
+		await queue.publish(ANALYTICS_QUEUE, payload, {
+			idempotencyKey: payload.pageview.id,
+			partitionKey: payload.visitor_id,
+			metadata: {
+				path: payload.pageview.path,
+				projectId: payload.project_id,
+			},
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger.warn('analytics collect publish failed: %s', message);
+	}
+
+	return new Response(null, { status: 202 });
+}
+```
+
+Create the queue once during setup, then keep request handlers publish-only:
+
+```typescript title="scripts/create-analytics-queue.ts"
+import { QueueClient } from '@agentuity/queue';
+
+const queue = new QueueClient();
+
+await queue.createQueue('web-analytics', {
+	description: 'Browser analytics events collected by the app',
+	settings: {
+		defaultTtlSeconds: 60 * 60 * 24 * 30,
+		defaultMaxRetries: 3,
+	},
+});
+```
+
+The route intentionally validates and stores the fields it needs. If your collector needs the full page-view payload, extend the schema with the fields from `AnalyticsPayload` instead of accepting arbitrary JSON.
+
+## Endpoint Checklist
+
+| Rule | Reason |
+|------|--------|
+| accept `POST` only | the beacon sends browser events as POST requests |
+| read the body with `request.text()` | `sendBeacon()` can send a string body without a JSON content-type header |
+| validate before storing | browser payloads are still untrusted input |
+| return `202` or `204` quickly | analytics should not block navigation, unload, or route changes |
+| enqueue or stream from the server route | keep Agentuity service keys out of browser code |
+| sample or cap payload size | page views, click events, and errors can add up quickly |
+
+Smoke-test the route with a minimal beacon-shaped payload:
+
+```bash
+curl -i http://127.0.0.1:3000/api/analytics/collect \
+  -H "content-type: text/plain;charset=UTF-8" \
+  --data '{
+    "org_id": "org_abc123",
+    "project_id": "proj_abc123",
+    "visitor_id": "visitor_123",
+    "user_id": "",
+    "user_traits": {},
+    "is_devmode": false,
+    "pageview": {
+      "id": "pv_123",
+      "timestamp": 1777500000000,
+      "url": "https://example.com/pricing",
+      "path": "/pricing",
+      "referrer": "",
+      "title": "Pricing",
+      "language": "en-US",
+      "user_agent": "curl",
+      "scroll_depth": 0,
+      "time_on_page": 0,
+      "custom_events": []
+    }
+  }'
+```
+
+## Framework Route Shapes
+
+The collector is just a server route. Keep the same handler behavior and place it in the framework-native location:
+
+| Framework | Route shape |
+|-----------|-------------|
+| Next.js | `src/app/api/analytics/collect/route.ts` with `export async function POST(request: Request)` |
+| Nuxt | `server/api/analytics/collect.post.ts` with `export default defineEventHandler(...)` |
+| SvelteKit | `src/routes/api/analytics/collect/+server.ts` with `export const POST: RequestHandler` |
+| Astro | `src/pages/api/analytics/collect.ts` with `export const POST: APIRoute` |
+| React Router | `app/routes/api.analytics.collect.ts` exporting `action`, registered with `route('api/analytics/collect', 'routes/api.analytics.collect.ts')` |
+| Hono | `app.post('/api/analytics/collect', handler)` |
+| Vite + React | branch on `/api/analytics/collect` inside `server.ts` before the static asset fallback |
+| TanStack Start | `src/routes/api/analytics/collect.ts` with `createFileRoute('/api/analytics/collect')({ server: { handlers: { POST } } })` |
+
+If you want one collector across frameworks, move the body of `POST(request)` into `collectAnalytics(request: Request): Promise<Response>`, then keep only the route wrapper framework-specific. SvelteKit and Astro pass `request` directly, Hono can pass `c.req.raw`, and a Vite/Bun server already receives a standard `Request`.
+
+Framework references for route files: [Next.js Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers), [Nuxt server directory](https://nuxt.com/docs/3.x/guide/directory-structure/server), [SvelteKit routing](https://svelte.dev/docs/kit/routing), [Astro endpoints](https://docs.astro.build/en/guides/endpoints/), [React Router Resource Routes](https://reactrouter.com/how-to/resource-routes), [Hono routing](https://hono.dev/docs/api/routing), [Vite backend integration](https://vite.dev/guide/backend-integration), and [TanStack Start Server Routes](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes).
 
 ## Privacy
 
@@ -169,7 +448,7 @@ The analytics package is browser-scoped and keeps the payload focused on page-vi
 
 - Query strings are stripped before URLs are sent.
 - Visitor IDs use `localStorage` under `agentuity_visitor_id`.
-- Geo data is cached in `sessionStorage` under `agentuity_geo`.
+- Geo fields are supported by the payload type, but the browser beacon does not add them to the page-view payload by default.
 - `sampleRate` can reduce collection on high-traffic pages.
 - `isDevmode: true` logs payloads to the browser console instead of sending them.
 

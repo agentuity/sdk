@@ -65,6 +65,33 @@ await kv.set('config', 'feature-flags', { betaSearch: true }, { ttl: null });
 Managed KV clamps per-key TTL values below 60 seconds to 60 seconds and values above 365 days to 365 days. Namespace defaults must be `0` or between 60 seconds and 365 days.
 </Callout>
 
+<Callout type="tip" title="Active keys are extended on read">
+Managed KV uses sliding expiration: a read on a key with less than 50% of its TTL remaining renews it back to the original TTL. Frequently accessed cache entries stay alive without manual renewal.
+</Callout>
+
+## Type Safety
+
+Pass a generic to `get()`, `set()`, and `search()` to keep stored values typed end to end. The `exists` discriminator lets TypeScript narrow the result.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface CachedResponse {
+  readonly status: number;
+  readonly body: string;
+  readonly etag: string;
+}
+
+const kv = new KeyValueClient();
+
+async function loadCachedResponse(
+  request: Request
+): Promise<CachedResponse | undefined> {
+  const result = await kv.get<CachedResponse>('cache', new URL(request.url).pathname);
+  return result.exists ? result.data : undefined;
+}
+```
+
 ## Search and Inspect Keys
 
 Use `search()` when you need matching keys with stored value metadata. Use `getKeys()` when you only need the keys in a namespace.
@@ -76,10 +103,22 @@ interface CachedResponse {
 }
 
 const matches = await kv.search<CachedResponse>('cache', 'api:users');
+for (const [key, item] of Object.entries(matches)) {
+  // item.value is typed as CachedResponse
+  // item.size, item.expiresAt, item.lastUsed are also available
+  void key;
+  void item;
+}
+
 const keys = await kv.getKeys('cache');
 const namespaces = await kv.getNamespaces();
 const stats = await kv.getStats('cache');
+const allStats = await kv.getAllStats({ limit: 100, sort: 'size' });
 ```
+
+`search()` returns a plain `Record<string, KeyValueItemWithMetadata<T>>`, not a `Map`. Iterate with `Object.entries`. Each entry includes the typed value plus `size`, `expiresAt`, and access timestamps.
+
+`getStats()` returns size in bytes (`sum`), record `count`, and optional `createdAt` and `lastUsedAt` timestamps. `getAllStats()` paginates across every namespace and supports filters by name, project, agent, and sort field.
 
 <Callout type="info" title="Use local KV for basic storage checks">
 `@agentuity/local` is useful when you want local reads and writes without managed credentials. For search, key listing, stats, or namespace operations, test against the managed KV service.
@@ -100,6 +139,57 @@ await kv.deleteNamespace('old-cache');
 <Callout type="warning" title="Deleting a namespace removes every key">
 `deleteNamespace()` permanently removes the namespace and all keys inside it.
 </Callout>
+
+## Common Patterns
+
+### Cache around a slow read
+
+Cache an expensive call with a short TTL and a cheap key.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+interface PriceQuote {
+  readonly amountCents: number;
+  readonly currency: string;
+}
+
+export async function getQuote(symbol: string): Promise<PriceQuote> {
+  const cached = await kv.get<PriceQuote>('quotes', symbol);
+  if (cached.exists) return cached.data;
+
+  const quote = await fetchQuoteFromUpstream(symbol);
+  await kv.set('quotes', symbol, quote, { ttl: 60 });
+  return quote;
+}
+```
+
+### Session record with sliding renewal
+
+Store session state with a 24-hour TTL. Reads renew the TTL automatically while the user is active.
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+interface Session {
+  readonly userId: string;
+  readonly email: string;
+  readonly issuedAt: string;
+}
+
+export async function loadSession(token: string): Promise<Session | undefined> {
+  const result = await kv.get<Session>('sessions', token);
+  return result.exists ? result.data : undefined;
+}
+
+export async function startSession(token: string, session: Session): Promise<void> {
+  await kv.set('sessions', token, session, { ttl: 60 * 60 * 24 });
+}
+```
 
 ## Hono
 

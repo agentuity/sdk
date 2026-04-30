@@ -5,7 +5,7 @@ description: Persistent storage clients for framework apps and deployed services
 
 import { Key, Search, HardDrive, Activity } from 'lucide-react';
 
-Choose storage by access pattern first: key lookup, semantic search, files, streams, or SQL. Start with the direct storage client or API, and use Hono `c.var.*` when you want the same managed clients injected into routes.
+Choose storage by access pattern first: key lookup, semantic search, files, streams, or relational SQL. Start with the direct storage client or API, and use Hono `c.var.*` when you want the same managed clients injected into routes.
 
 ## Storage Types
 
@@ -44,7 +44,7 @@ Choose storage by access pattern first: key lookup, semantic search, files, stre
 | [Vector](/services/storage/vector) | Semantic search, embeddings, RAG | `@agentuity/vector` |
 | [Object](/services/storage/object) | Files, images, large blobs | Bun S3 APIs with Agentuity-provided credentials |
 | [Durable Streams](/services/storage/durable-streams) | Logs, exports, event streams | `@agentuity/stream` |
-| [Database](/services/database) | Relational data, complex queries | `@agentuity/postgres`, `@agentuity/drizzle`, or `@agentuity/db` |
+| [Database](/services/database) | Relational data, complex queries | `DATABASE_URL` with your app's database client, or a database helper when you choose one |
 
 Use storage services when data must outlive the current request, be shared across workers or routes, or be inspected and managed as an Agentuity resource.
 
@@ -52,13 +52,15 @@ Use storage services when data must outlive the current request, be shared acros
 
 | App Shape | KV | Vector | Database |
 |-----------|----|--------|----------|
-| Any server framework or script | `new KeyValueClient()` | `new VectorClient()` | `postgres()`, `createPostgresDrizzle()`, or `new DBClient(...)` |
-| Hono with `@agentuity/hono` | `c.var.kv` | `c.var.vector` | use a direct database client |
+| Any server framework or script | `new KeyValueClient()` | `new VectorClient()` | use your app's database client with `DATABASE_URL` |
+| Hono with `@agentuity/hono` | `c.var.kv` | `c.var.vector` | use your app's database client |
 | Browser code | Call your backend route | Call your backend route | Call your backend route |
 
 <Callout type="info" title="Hono injects service clients">
 `@agentuity/hono` creates the same dedicated clients used in standalone examples and stores them on `c.var.*`. Database clients are not injected by the Hono middleware; create them directly where your app initializes database access.
 </Callout>
+
+Database is listed here for relational SQL. For KV, vector, streams, queues, tasks, schedules, email, webhooks, or sandboxes, use that service's dedicated client instead.
 
 ## Custom Storage
 

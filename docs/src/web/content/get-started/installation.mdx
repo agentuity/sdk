@@ -1,101 +1,138 @@
 ---
 title: Installation
-description: Install the Agentuity CLI and create a framework project
+description: Install the Agentuity CLI, sign in, and create a framework starter
 ---
 
-Install the CLI, sign in, then create a project from a supported framework starter.
+The current Agentuity CLI is published under the `alpha` dist tag. The fastest path is to scaffold a project with `bun create agentuity@alpha`, which uses the alpha release without needing a global install.
 
-## Install the CLI
+## Prerequisites
 
-```bash
-curl -fsSL https://agentuity.sh | sh
-```
-
-Verify the install:
+Install [Bun](https://bun.sh) `1.3.3` or newer. The CLI runs on Bun and the create flow uses `bun install` for dependencies.
 
 ```bash
-agentuity --help
+bun --version
 ```
-
-<Callout type="info" title="Bun is used for v3 project creation">
-The v3 create flow depends on Bun for scaffolding and dependency installation. Install [Bun](https://bun.sh) first if it is not already available on your machine.
-</Callout>
-
-<Callout type="info" title="Use the alpha create command for v3">
-While v3 is in alpha, start new projects with `bun create agentuity@alpha`. A global `agentuity` command uses whatever version your package manager installed on PATH, so it can be older than the project you are testing.
-</Callout>
-
-<Callout type="tip" title="Package manager install">
-If you prefer installing the CLI through Bun, run `bun install -g @agentuity/cli`.
-</Callout>
-
-## Sign In
-
-```bash
-agentuity auth login
-```
-
-If you register a project during setup, the CLI can write `agentuity.json` and add `AGENTUITY_SDK_KEY` to `.env`.
 
 ## Create a Project
+
+Scaffold a starter and pick a framework:
 
 ```bash
 bun create agentuity@alpha --name my-app
 ```
 
-In an interactive terminal, the CLI asks which framework starter to use, then sets up the project and adds Agentuity integration.
-
-If your CLI version supports `--framework`, you can skip the framework prompt:
+In an interactive terminal, the CLI prompts for a framework, signs you in (if you're not already), and registers the project with Agentuity Cloud. Skip the prompt with `--framework`:
 
 ```bash
 bun create agentuity@alpha --name my-app --framework nextjs
 ```
 
-Supported framework slugs:
+The create flow runs the framework's official create CLI, applies an Agentuity overlay (an AI translation example, scripts, deps), then registers the project unless you pass `--no-register`.
 
-| Slug | Framework |
-|------|-----------|
-| `nextjs` | Next.js |
-| `nuxt` | Nuxt |
-| `remix` | React Router |
-| `sveltekit` | SvelteKit |
-| `astro` | Astro |
-| `hono` | Hono |
-| `vite-react` | Vite + React |
+### Framework Slugs
+
+| Slug | Framework | Created with |
+|------|-----------|--------------|
+| `nextjs` | Next.js | `create-next-app` (App Router, src dir, Tailwind) |
+| `nuxt` | Nuxt | `nuxi init` (minimal) |
+| `remix` | React Router | `create-react-router` |
+| `sveltekit` | SvelteKit | `sv create` |
+| `astro` | Astro | `create astro` (minimal) |
+| `hono` | Hono | `create-hono` |
+| `vite-react` | Vite + React | `create-vite` (with a Bun server) |
+
+TanStack Start is not yet available as a `--framework` slug. Start from [TanStack's CLI](https://tanstack.com/start/latest/docs/framework/react/quick-start), then run `agentuity project import` to add Agentuity wiring.
+
+### Useful Flags
+
+| Flag | What it does |
+|------|--------------|
+| `--name <name>` | Project name (also used for the directory) |
+| `--framework <slug>` | Pick a framework non-interactively |
+| `--no-register` | Skip cloud registration; create a local-only project |
+| `--no-install` | Skip `bun install` |
+| `--no-build` | Skip the post-install build step |
+| `--dir <path>` | Place the project under a different directory |
+
+Run `bun create agentuity@alpha --help` for the full list.
 
 ## Run Locally
 
+`@agentuity/cli@alpha` is added as a devDependency during the create flow, so `bunx` resolves the right CLI inside the project:
+
 ```bash
 cd my-app
-agentuity dev
+bunx agentuity dev
 ```
 
-`agentuity dev` runs your project's own `dev` script and adds Agentuity development behavior. When `AGENTUITY_SDK_KEY` is available, your app can also use Agentuity AI Gateway in local development. The framework prints the local URL.
+`agentuity dev` runs your framework's `dev` script and patches `AGENTUITY_SDK_KEY` and AI Gateway base URLs into the dev process. OpenAI, Anthropic, and Groq SDK calls route through Agentuity when no provider key is set.
 
-Use a different port when the framework honors `PORT`:
+Override the port (passed as `PORT` to the framework):
 
 ```bash
-agentuity dev --port 8080
+bunx agentuity dev --port 8080
+```
+
+Use a non-default script name:
+
+```bash
+bunx agentuity dev --script dev:web
 ```
 
 ## Deploy
 
-```bash
-agentuity deploy
-```
-
-New projects also get a package script:
+The create flow adds `deploy: agentuity deploy` to `package.json`, so this works without a global install:
 
 ```bash
 bun run deploy
 ```
 
-<Callout type="info" title="Existing v2 apps are supported">
-Existing v2 apps can keep using the v2 runtime model. For new v3 apps, start with a framework project and add Agentuity services, CLI dev support, and deploy.
+See [Deploy & Operate](/deploy-operate) for the full lifecycle.
+
+## Optional: Install the CLI Globally
+
+Install the alpha CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
+
+```bash
+bun add -g @agentuity/cli@alpha
+```
+
+The shell installer also accepts a version:
+
+```bash
+curl -fsSL https://agentuity.sh | sh -s -- --version alpha
+```
+
+After install, sign in once:
+
+```bash
+agentuity auth login
+```
+
+<Callout type="warning" title="The default global CLI is the stable channel">
+`curl -fsSL https://agentuity.sh | sh` (no `--version`) installs the stable CLI, which targets the legacy runtime model. Pass `--version alpha` (or `bun add -g @agentuity/cli@alpha`) to get the framework-first CLI used by these docs.
+
+Inside a scaffolded project, `bunx agentuity` uses the local `@agentuity/cli@alpha` devDependency. Outside a project, use `bunx @agentuity/cli@alpha` when you want the alpha CLI without installing it globally.
 </Callout>
+
+## Verify the Install
+
+In a scaffolded project:
+
+```bash
+bunx agentuity --version
+# 3.0.0-alpha.x
+```
+
+After the global alpha install:
+
+```bash
+agentuity --version
+# 3.0.0-alpha.x
+```
 
 ## Next Steps
 
-- [Quickstart](/get-started/quickstart): Create, edit, run, and deploy a small app
-- [Project Structure](/get-started/project-structure): See where framework files and Agentuity files live
-- [App Configuration](/get-started/app-configuration): Configure scripts, `agentuity.json`, services, and env vars
+- [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it locally, and deploy
+- [Project Structure](/get-started/project-structure): see exactly what the scaffold adds to a framework app
+- [App Configuration](/get-started/app-configuration): configure scripts, `agentuity.json`, env vars, and service clients

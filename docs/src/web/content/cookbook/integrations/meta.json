@@ -1,0 +1,4 @@
+{
+	"title": "Integrations",
+	"pages": ["mastra", "openai-agents", "claude-agent", "langchain"]
+}

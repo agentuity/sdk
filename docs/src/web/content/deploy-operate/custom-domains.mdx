@@ -1,0 +1,117 @@
+---
+title: Attaching Custom Domains
+short_title: Custom Domains
+description: Attach your own domain to an Agentuity project, validate DNS, and let TLS provision automatically.
+---
+
+Attach a custom domain to a project so the deployed app serves traffic at your hostname instead of the default `*.agentuity.run` URL. The domain lives in `agentuity.json`. The CLI validates DNS at deploy time, and the platform issues a TLS certificate on the first request.
+
+```bash
+agentuity project add domain example.com
+agentuity project domain check
+agentuity deploy
+```
+
+## Add a Domain
+
+`agentuity project add domain` writes the domain into `deployment.domains` and validates DNS before saving:
+
+```bash
+agentuity project add domain example.com
+agentuity project add domain example.com --skip-validation
+agentuity project add domain example.com --dry-run
+```
+
+`--skip-validation` writes the domain without checking DNS first. Use it when you intend to add the records after committing the change. `--dry-run` previews the file edit without writing.
+
+After a successful add, `agentuity.json` contains:
+
+```json title="agentuity.json"
+{
+  "deployment": {
+    "domains": ["example.com"]
+  }
+}
+```
+
+You can also add domains by editing `agentuity.json` directly. Validation runs on the next deploy.
+
+## DNS Records
+
+For each domain, point either a CNAME or an A record at the per-project ION host. The CLI prints the exact target after `project add domain` and again during deploy.
+
+| Record type | Target | Use when |
+|-------------|--------|----------|
+| CNAME | `p<hash>.agentuity.run` (per-project) | The provider supports CNAMEs at the level you're configuring |
+| A | First IP resolved from `ion-<region>.agentuity.cloud` | Apex domains (`example.com`, not `app.example.com`) where CNAME flattening isn't available |
+
+Use a CNAME when you can. The A-record path exists for apex domains where most DNS providers don't allow CNAMEs.
+
+<Callout type="info" title="Region matters for A records">
+The ION host is per-region. If your project is in `use`, the A record resolves through `ion-use.agentuity.cloud`; in `usc`, through `ion-usc.agentuity.cloud`. Check `agentuity.json` for the project region before resolving the A target.
+</Callout>
+
+## Validate DNS
+
+```bash
+agentuity project domain check
+agentuity project domain check --domain example.com
+```
+
+`project domain check` requires a local `agentuity.json` and verifies each configured domain resolves to the right target. With no `--domain` flag it checks all of them.
+
+DNS validation also runs as a deploy step before any environment sync or build:
+
+- During `project add domain`, non-interactive runs fail when DNS is missing unless you pass `--skip-validation`.
+- During deploy, the CLI shows the missing records and retries every 5 seconds until DNS resolves or the command is cancelled.
+
+Run `agentuity project domain check` before CI deploys when DNS changes are part of the release. There is no deploy flag that skips domain validation.
+
+## TLS Certificates
+
+After a successful deploy, the CLI fires a HEAD request at each configured domain to nudge the platform's cert issuance. This is non-blocking: the deploy banner prints regardless, and certs also issue on the first real request from any client.
+
+The first request after a fresh domain attach can take a few seconds while the cert provisions. Subsequent requests use the cached cert.
+
+## Custom Domains in the Deploy Banner
+
+When a deployment has at least one custom domain configured, the deploy banner prints the custom URL and dashboard URL:
+
+```text
+[OK] Your project was deployed!
+
+Deployment: deploy_abc...
+-> Deployment: https://example.com
+-> Dashboard:  https://app.agentuity.com/r/deploy_abc...
+```
+
+The Agentuity-hosted URLs still exist, but the custom-domain banner focuses on the configured domain. `agentuity project show --json` returns `urls.custom`, and `agentuity cloud deployment show` surfaces configured domains in the `Domains` and `DNS Records` fields.
+
+## Removing a Domain
+
+The CLI does not have a `domain remove` subcommand today. Edit `agentuity.json` and delete the entry from `deployment.domains`, then redeploy:
+
+```bash
+# After editing agentuity.json
+agentuity deploy
+```
+
+Removing a domain from `agentuity.json` does not delete DNS records you set. Clean those up at your DNS provider once the deploy with the new config is live.
+
+## Multiple Domains
+
+`deployment.domains` accepts any number of domains. Each one is validated independently at deploy time and gets its own TLS cert. Use this for staging vs production hostnames on the same project, or for serving the same app at multiple brands.
+
+```json title="agentuity.json"
+{
+  "deployment": {
+    "domains": ["example.com", "www.example.com", "app.example.com"]
+  }
+}
+```
+
+## Next Steps
+
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): the deploy flow that validates and serves your domain.
+- [Custom Domains in the CLI Reference](/reference/cli/deployment#custom-domains): full DNS troubleshooting surface.
+- [Regions](/reference/cli/deployment#regions): the project region determines the ION host used in A-record DNS.

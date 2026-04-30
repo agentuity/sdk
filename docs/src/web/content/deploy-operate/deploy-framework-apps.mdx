@@ -1,10 +1,10 @@
 ---
 title: Deploying Framework Apps
 short_title: Deploy Framework Apps
-description: Build and deploy framework projects with the v3 Agentuity CLI.
+description: Register, configure, package, and ship a framework project with the Agentuity CLI.
 ---
 
-Deploy a `package.json`-backed framework app after it is registered with Agentuity, has `AGENTUITY_SDK_KEY` available locally, and passes `agentuity build`.
+A framework deploy registers the project once, packages a bundle every time, and uploads an encrypted archive plus static assets to Agentuity. `agentuity deploy` runs the build itself, so you do not need to invoke `agentuity build` first. Run it ahead of time when you want to inspect the output.
 
 ```bash
 agentuity project import --validate-only
@@ -15,102 +15,305 @@ agentuity deploy
 
 ## Register the Project
 
-Check the local project shape before registration:
+Validate the directory before doing anything that talks to the cloud:
 
 ```bash
 agentuity project import --validate-only
 ```
 
-This verifies that the directory looks like a JavaScript or TypeScript project without creating cloud resources or writing files. When you run `agentuity project import` without `--validate-only`, the CLI can register the project and write `agentuity.json` plus the project SDK key.
+The check requires a `package.json` with at least one of `name`, `dependencies`, or `devDependencies`, or an `agentuity/` subdirectory with its own `package.json`. Nothing is written, nothing is created.
 
-Run `agentuity project import` before the first non-interactive deploy for any existing app that does not already have `agentuity.json`. In an interactive terminal, `agentuity deploy` can also offer to register the app before the upload flow continues.
-
-## Build Locally
-
-Run your framework's native build first, then run the Agentuity packaging check:
+When the shape is right, register the project:
 
 ```bash
-bun run build
-agentuity build
+agentuity project import
+agentuity project import --name "my-app"
+agentuity project import --org-id <org-id>
+agentuity project import --confirm
 ```
 
-The CLI detects supported JavaScript frameworks from `package.json` and framework config files. Some frameworks have dedicated handling; other app shapes use the generic web-process adapter.
+The first run creates a project record in your org, writes `agentuity.json` with `projectId`, `orgId`, `region`, and the project SDK key, and adds `AGENTUITY_SDK_KEY=...` to `.env`. It also pushes any non-reserved values from `.env` into the cloud project so the deploy step has them available.
 
-`agentuity build`:
+`--confirm` makes the command non-interactive: it accepts the default org, default region, and a name derived from the directory unless you pass `--name`. Use it in CI. Without `--confirm` and without a TTY, the import refuses to run.
 
-- detects the framework from `package.json` and framework config files
-- runs the framework build command through the detected adapter
-- writes deployable output to `.agentuity` unless you pass `--outdir`
-- packages launch metadata so Agentuity knows how to start the app
-- runs TypeScript type checking unless you pass `--dev` or `--skip-type-check`
+<Callout type="warning" title="Existing apps need import before non-interactive deploy">
+In an interactive terminal, `agentuity deploy` offers to register an unregistered project before it builds. In CI or any non-TTY context, deploy fails fast with `PROJECT_NOT_FOUND` if there is no `agentuity.json`. Run `agentuity project import --confirm` once before the first deploy.
+</Callout>
 
-Useful checks:
+## Configure agentuity.json
+
+`agentuity project import` writes the project link file with sensible defaults. Open it before your first deploy when you want to set the region, custom domains, or runtime limits.
+
+```json title="agentuity.json"
+{
+  "$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
+  "projectId": "proj_...",
+  "orgId": "org_...",
+  "region": "use",
+  "deployment": {
+    "resources": { "memory": "500Mi", "cpu": "500m", "disk": "500Mi" },
+    "domains": []
+  },
+  "build": {
+    "timeout": "10m",
+    "resources": { "memory": "4Gi", "cpu": "1000m", "disk": "20Gi" }
+  }
+}
+```
+
+### Region
+
+`region` is required. The CLI fetches the live region list from the API and caches it under `~/.config/agentuity/regions-<profile>.json`, so a static region table is not part of these docs. List and select regions from the CLI:
 
 ```bash
-agentuity build --dev
-agentuity build --outdir .agentuity-check
+agentuity cloud region list
+agentuity cloud region select use
+agentuity cloud region current
+```
+
+Deploy compares the local region with the server's record. If they diverge, an interactive deploy prompts before changing the project. In CI, pass `--confirm` to accept the change; without it, deploy refuses to update the region.
+
+### Runtime Resources
+
+`deployment.resources` controls the running app's CPU, memory, and disk. Defaults apply when the field is omitted.
+
+| Field | Format | Default |
+|-------|--------|---------|
+| `memory` | `Mi`, `Gi`, `M`, `G`, raw bytes | `500Mi` |
+| `cpu` | `m` (millicores) or fractional cores (`1`, `0.5`) | `500m` |
+| `disk` | same as memory | `500Mi` |
+
+`1000m`, `0.5`, and `1` mean one core, half a core, and one core respectively. There is no CLI flag to override these at deploy time. Edit `agentuity.json` and redeploy.
+
+### Build Resources
+
+`build.resources` and `build.timeout` apply to the build environment when the GitHub App or another CI path runs your deploy. They are platform-defaulted when omitted. Bump them when builds time out or run out of memory under heavy framework dependencies.
+
+### Custom Domains
+
+Domains live on `deployment.domains` as an array of strings. See [Custom Domains](/deploy-operate/custom-domains) for DNS records, validation behavior, and TLS provisioning.
+
+## Build and Inspect
+
+`agentuity deploy` runs the build internally. Run it explicitly when you want to see the detector output, the bundled launch metadata, or the static assets that will be uploaded:
+
+```bash
+agentuity build
 agentuity build --skip-type-check
+agentuity build --outdir .agentuity-check
 agentuity build --report-file build-report.json
 ```
 
-`--dev` and `--skip-type-check` are useful for fast packaging checks because they skip the final typecheck step. Use the normal `agentuity build` path before deploy when you want the same verification deploy uses.
+The CLI walks a framework database (Next.js, Nuxt, Remix, React Router, SvelteKit, Astro, SolidStart, TanStack Start, Vite, Parcel, RedwoodJS), then falls back to a generic adapter that requires `scripts.build`, `scripts.start`, or `main` in `package.json`. Hono apps with no `build` script currently fail detection with `BUILD010`. See [Hono Apps](/frameworks/hono) for the build-script setup.
 
-See [Building Deployment Bundles](/reference/cli/build-configuration): read the detected framework, adapter name, and packaging output before you deploy.
+After the build, `.agentuity/` contains:
 
-<Callout type="tip" title="Use local package binaries for build commands">
-If `agentuity build` starts from a shell where package binaries are not on `PATH`, prefix the command with your project's local bin directory:
+| File or directory | What it is |
+|-------------------|------------|
+| Framework build output | Mirrored from the framework's build directory, minus `node_modules`, `.git`, `.env`, and `.agentuity` itself |
+| `node_modules/` | Copied from the project root |
+| `package.json` | Copied from the project root |
+| `launch.json` | Process command, framework slug and version, runtime name and port, build timestamp |
+| `Procfile` | `web: <command>`, the same start command as `launch.json` for portable runners |
+| `.agentuity-build` | JSON marker with framework, runtime, and build date |
+| `_serve.js` (static-only frameworks) | Generated Node HTTP server that serves the build output and falls back to `index.html` |
 
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+`launch.json` is the deploy gate's source of truth for what the platform will actually run. Read it before deploy if anything looks off:
+
+```json title=".agentuity/launch.json"
+{
+  "processes": [
+    { "type": "web", "command": "node node_modules/.bin/next start", "default": true }
+  ],
+  "framework": { "name": "nextjs", "version": "15.0.3" },
+  "runtime": { "name": "node", "port": 3000 },
+  "build": { "date": "2026-04-29T19:23:01.412Z", "duration": 8421 }
+}
 ```
 
-Run this from the app directory after dependencies are installed.
-</Callout>
+The typecheck step runs `bunx tsc --noEmit --skipLibCheck`. `--skip-type-check` and `--dev` skip it; both are useful for fast packaging checks. Use a normal `agentuity build` before deploy when you want the same verification deploy uses.
 
-<Callout type="info" title="Treat agentuity build as the deploy gate">
-Generated starters can be useful local starting points, but only deploy app shapes that pass `agentuity build` in your project. If your framework's own build passes and `agentuity build` does not, keep working locally until the Agentuity packaging step passes.
+<Callout type="tip" title="Inspect the bundle before shipping">
+Run `agentuity build --outdir .agentuity-check` to package into a sibling directory. You can `ls`, `cat launch.json`, or `unzip` files without disturbing the `.agentuity/` directory deploy will use.
 </Callout>
 
 ## Deploy
 
-Deploy from the project directory:
-
 ```bash
 agentuity deploy
+agentuity deploy --org-id <org-id>
+agentuity deploy --message "ship refresh-token endpoint"
 ```
 
-The deploy command requires an authenticated CLI session, project metadata, and a local project SDK key. For an existing app, run `agentuity project import` before CI or other non-interactive deploys so the CLI can resolve the project and local SDK key without prompting.
+`agentuity deploy` requires:
 
-During deploy, the CLI:
+- An authenticated CLI session (`agentuity auth login` if not).
+- A registered project (`agentuity.json` present).
+- `AGENTUITY_SDK_KEY` available in `.env` (or in `.env.<profile>` when not on the local profile). If missing, deploy exits before building and points you to `agentuity cloud env pull`.
 
-1. checks that `AGENTUITY_SDK_KEY` exists in the local project environment
-2. validates deployment resource settings and configured domains
-3. attempts to sync non-reserved values from local `.env`
-4. typechecks, builds, and packages the framework output
-5. uploads the encrypted deployment bundle and static assets
+What runs, in order:
 
-<Callout type="warning" title="Deploy reads the project SDK key from local env files">
-If deploy cannot find `AGENTUITY_SDK_KEY`, it exits before building. Run `agentuity cloud env pull` from a registered project when you need to restore the local `.env` file.
+1. **Reconcile the project.** Confirms `agentuity.json` matches a real cloud project. In a TTY with no `agentuity.json`, the CLI offers to import; otherwise it fails with `PROJECT_NOT_FOUND`.
+2. **Region check.** Compares the local `agentuity.json` region with the server. Prompts if they diverge or accepts `--confirm` in non-TTY mode.
+3. **SDK key check.** Reads `AGENTUITY_SDK_KEY` from the profile-aware env files.
+4. **Create the deployment record.** The server returns a deployment ID, an encryption public key, and a stream URL for warmup logs.
+5. **Validate custom domains** (only when `agentuity.json` lists them; see [Custom Domains](/deploy-operate/custom-domains#validate-dns)).
+6. **Sync env and secrets.** Reads `.env`, drops `AGENTUITY_*` reserved keys, splits into env vars and secrets, and pushes to the cloud project. This step is best effort: a failure is reported as skipped, not fatal.
+7. **Build, verify, and package.** Runs typecheck, framework detection, the framework adapter's build, then writes `launch.json`, `Procfile`, and `.agentuity-build`. Uploads the build metadata to receive signed upload URLs.
+8. **Security scan.** Compares the project's `node_modules` against a malware blocklist that started running in parallel with the build. A `block` verdict halts the deploy.
+9. **Encrypt and upload.** Zips `.agentuity/` (excluding `.env*`, `.git/`, `.ssh/`, `.vite/`, `.DS_Store`), encrypts the archive with FIPS KEM-DEM using the deployment public key, uploads to the signed URL, then uploads any client assets (CDN-bound) with up to four concurrent requests.
+10. **Provision.** Calls `projectDeploymentComplete` to start server-side provisioning.
+11. **Poll status.** Up to 300 seconds, optionally streaming warmup logs from the deployment's stream URL.
+
+When provisioning completes, the CLI prints a banner with the deployment URL, the project's "latest" URL, the dashboard URL, and any custom domain URLs you configured.
+
+<Callout type="warning" title="Add node_modules/.bin to PATH if your build calls a framework binary">
+The deploy build step shells out framework binaries (`vite`, `next`, `astro`, etc.) without resolving them through your package manager. If `agentuity deploy` fails with `sh: <name>: command not found`, prepend the local bin directory to `PATH`:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity deploy
+```
+
+Or wrap deploy in a package script and call it through your package manager, which adds the bin directory automatically:
+
+```json title="package.json"
+{ "scripts": { "deploy": "agentuity deploy" } }
+```
+
+```bash
+bun run deploy
+```
+
+The package-script wrapper also lets you use `predeploy`/`postdeploy` lifecycle hooks.
 </Callout>
 
-The env sync step is best effort. If syncing fails, deploy continues and reports that step as skipped.
+<Callout type="info" title="Deploy always typechecks. There is no skip flag.">
+`agentuity deploy` runs `bunx tsc --noEmit --skipLibCheck` before packaging. There is no `--skip-type-check` on `deploy` (only on `agentuity build`). When your build fails on a type error, fix the type error or widen `tsconfig.json` (`"target": "es2022"`, `"lib": ["es2022", "dom"]` covers most modern stdlib usage) and re-run.
+</Callout>
 
-## What Gets Uploaded
+## Read the Output
 
-The deploy flow zips `.agentuity`, excludes local `.env` files from the bundle, encrypts the archive, and uploads client assets separately when the build produced them.
+The banner is the canonical source for the deployed URL. The output shape looks like this:
 
-That upload is based on the `.agentuity` output and the generated metadata file. Keep framework-specific assumptions conservative unless you have verified them in the exact project shape you are deploying.
+```text
+[OK] Your project was deployed!
 
-## Package Scripts
+Deployment: deploy_abc123...
+-> Deployment: https://<deployment-host>.agentuity.run
+-> Project:    https://<project-host>.agentuity.run
+-> Dashboard:  https://app.agentuity.com/r/deploy_abc123...
+```
 
-Calling `agentuity deploy` directly runs the deploy command only. If you rely on package manager lifecycle scripts, call your package script instead:
+The same values are reachable later through `project show`:
+
+```bash
+agentuity project show <project-id>
+```
+
+The output includes `urls.app` (public URL of the latest deployment), `urls.dashboard`, and `urls.custom` (when a custom domain is attached).
+
+<Callout type="info" title="Deployment URL vs project URL">
+Each deploy gets a unique vanity URL tied to that build. The project also has a stable "latest" URL that points to whatever deployment is currently active. Use the deployment URL to verify a specific build, the project URL when you want a stable address.
+</Callout>
+
+## Validate Before and After Deploy
+
+```bash
+agentuity project import --validate-only        # confirm directory shape
+agentuity build --report-file report.json       # confirm framework detection and bundle output
+agentuity deploy --message "smoke check"        # ship
+curl https://<vanity-url>/                       # exercise the running deploy
+```
+
+Use the build report when something fails non-obviously: it captures TypeScript errors with file paths and line numbers, build phase timings, and warnings. The deploy banner gives you the URL; a quick `curl` or browser load confirms the platform actually started the process.
+
+## Operate a Deployment
+
+These commands work against deployments after they ship.
+
+### List, Show, and Read Logs
+
+```bash
+agentuity cloud deployment list                       # 10 most recent, latest first
+agentuity cloud deployment list --count 50            # up to 100
+agentuity cloud deployment show <deployment-id>       # full metadata
+agentuity cloud deployment logs <deployment-id>       # most recent 100 lines
+agentuity cloud deployment logs <deployment-id> --limit 500 --no-timestamps
+```
+
+`cloud deployment show` surfaces:
+
+- Deployment ID, project ID, state (`completed`, `failed`, `pending`), active flag, tags
+- Region, custom domains, attached database/storage resource names
+- `Deployment Logs` and `Build Logs` URLs (open in dashboard for live tailing)
+- Git metadata (branch, commit, message, provider)
+- Build metadata (Agentuity CLI version, Bun version, platform, arch)
+
+<Callout type="info" title="No --follow on cloud deployment logs">
+`deployment logs` is a one-shot fetch with `--limit` capped at 100 by default. For live tailing, open the `Deployment Logs` URL from `cloud deployment show` in your browser. The deploy command itself streams warmup logs in-place during provisioning.
+</Callout>
+
+### Roll Back
+
+```bash
+agentuity cloud deployment rollback
+agentuity cloud deployment rollback --project-id proj_...
+```
+
+Activates the most recent completed deployment behind the current one. The CLI confirms before switching. The previous active deployment stays at its per-deployment URL but is no longer the project's "latest".
+
+### Undeploy
+
+```bash
+agentuity cloud deployment undeploy
+agentuity cloud deployment undeploy --force
+```
+
+Stops the active deployment. The project URL returns 404 until a new deploy ships. Per-deployment URLs continue to resolve; only the active one is paused.
+
+### Delete a Deployment
+
+```bash
+agentuity cloud deployment delete <deployment-id>
+agentuity cloud deployment delete <deployment-id> --force
+```
+
+Permanently removes a single deployment from the project's history. The deployment URL stops resolving.
+
+### Delete a Project
+
+```bash
+agentuity project delete                              # interactive multi-select
+agentuity project delete <project-id>
+agentuity project delete --confirm                    # CI-safe, no prompt
+```
+
+Deletes the project record, all its deployments, and breaks the local `agentuity.json` link. There is no recovery.
+
+## Machines
+
+`agentuity cloud machine` (alias `machines`) lists and manages the underlying compute that runs your deployments. Most users never touch these. They exist for capacity inspection and emergency teardown.
+
+```bash
+agentuity cloud machine list
+agentuity cloud machine list --org-id org_...
+agentuity cloud machine show <machine-id>
+agentuity cloud machine deployments <machine-id>
+agentuity cloud machine delete <machine-id> --force
+```
+
+`machine show` surfaces the instance type, availability zone, private IPv4, and the deployments currently scheduled on it.
+
+## Lifecycle Scripts
+
+`agentuity deploy` runs the deploy command directly. Wrap it in a package script when you want lifecycle hooks:
 
 ```json title="package.json"
 {
   "scripts": {
     "predeploy": "bun run typecheck",
     "deploy": "agentuity deploy",
-    "postdeploy": "bun run notify"
+    "postdeploy": "bun run notify-team"
   }
 }
 ```
@@ -119,14 +322,35 @@ Calling `agentuity deploy` directly runs the deploy command only. If you rely on
 bun run deploy
 ```
 
-See [Automating Deployments with the GitHub App](/reference/github-app): linked repositories run the deploy flow from Agentuity's build environment after dependency installation.
+When the GitHub App runs the deploy in its build environment, it honors the same `predeploy` and `postdeploy` script slots. See [Pre-Deploy Scripts](/reference/github-app#pre-deploy-scripts) for the CI-side behavior.
 
-## Existing v2 Projects
+## Automating with the GitHub App
 
-For v2 projects, inspect the migration CLI before changing the deploy flow:
+For repository-driven deploys, link the repo with the Agentuity GitHub App:
+
+```bash
+agentuity git link --branch main --deploy --preview
+```
+
+Pushes to the linked branch trigger a deploy. Pull requests get isolated preview environments that auto-cleanup on close or merge. The build runs from a clean checkout in Agentuity's environment, not from your laptop, and the App passes git metadata (commit, branch, repo, PR number) to deploy as flags.
+
+See [Automating Deployments with the GitHub App](/reference/github-app) for the full lifecycle, [Push Deploys](/reference/github-app#push-deploys) for branch deploys, and [Preview Environments](/reference/github-app#preview-environments) for PR builds.
+
+## Coming from a Legacy Project
+
+For projects on the older deploy path, inspect the migration CLI before changing anything:
 
 ```bash
 npx @agentuity/migrate@alpha --help
 ```
 
-The alpha tag includes the v2 to v3 migration command. Keep v2 projects on their existing deploy path until you have migrated and validated the v3 build.
+The alpha tag includes the migration command for moving an existing project onto the latest CLI. Keep legacy projects on their existing deploy path until you have run the migration and validated the new build.
+
+## Next Steps
+
+- [Custom Domains](/deploy-operate/custom-domains): attach your own domain, set DNS, verify TLS.
+- [Environment Variables](/deploy-operate/environment-variables): how `.env` values become cloud project vars and secrets.
+- [Local Development](/deploy-operate/local-development): iterate against the same project before shipping.
+- [Deployment Bundle Contents](/reference/cli/build-configuration#deployment-bundle-contents): full file inventory of `.agentuity/`.
+- [Deploy Options](/reference/cli/deployment#deploy-options): every flag accepted by `agentuity deploy`.
+- [Runtime and Build Resources](/reference/cli/deployment#runtime-and-build-resources): adjust CPU, memory, and disk in `agentuity.json`.

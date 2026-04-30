@@ -51,9 +51,9 @@ export async function getPreference(userId: string): Promise<Preference | undefi
 | [`@agentuity/sandbox`](#sandbox) | `bun add @agentuity/sandbox@alpha` | isolated command execution and long-lived sandboxes |
 | [`@agentuity/webhook`](#webhooks) | `bun add @agentuity/webhook@alpha` | managed webhook ingest URLs, destinations, receipts |
 | [`@agentuity/coder`](#coder) | `bun add @agentuity/coder@alpha` | Coder sessions, workspaces, custom agents, replay data |
-| [`@agentuity/db`](#database) | `bun add @agentuity/db@alpha` | query a named Agentuity database through the service API |
-| [`@agentuity/postgres`](#database) | `bun add @agentuity/postgres@alpha` | direct Postgres access from Bun apps with reconnect handling |
-| [`@agentuity/drizzle`](#database) | `bun add @agentuity/drizzle@alpha drizzle-orm` | Drizzle ORM on Agentuity-managed Postgres |
+| [`@agentuity/db`](#database) | `bun add @agentuity/db@alpha` | trusted admin scripts against the database service API |
+| [`@agentuity/postgres`](#database) | `bun add @agentuity/postgres@alpha` | Agentuity helper for direct Postgres access from Bun apps |
+| [`@agentuity/drizzle`](#database) | `bun add @agentuity/drizzle@alpha drizzle-orm` | Agentuity helper for Drizzle ORM on managed Postgres |
 | [`@agentuity/hono`](#hono) | `bun add @agentuity/hono@alpha hono` | Hono middleware that injects common clients on `c.var.*` |
 | [`@agentuity/telemetry`](#telemetry) | `bun add @agentuity/telemetry@alpha` | logger, tracer, and meter setup outside Hono |
 
@@ -63,7 +63,7 @@ export async function getPreference(userId: string): Promise<Preference | undefi
 |---------------------|-----|
 | Next.js, TanStack Start, Astro, SvelteKit, Remix, Nuxt, Express, scripts, workers | direct clients, for example `new QueueClient()` |
 | Hono route handlers that should share initialized clients through context | `@agentuity/hono` and `c.var.*` |
-| App code with a linked Postgres database and `DATABASE_URL` | `@agentuity/postgres` or `@agentuity/drizzle` |
+| App code with a linked Postgres database and `DATABASE_URL` | your framework or ORM database client, or the database helpers when you choose them |
 | Admin scripts that target a named Agentuity database by org | `DBClient` from `@agentuity/db` |
 | Non-TypeScript code or external systems | [REST API](/reference/api) |
 | Existing v2 runtime apps | `ctx.*` and runtime route context can stay in place until you migrate |
@@ -253,7 +253,9 @@ See [Sandboxes](/services/sandbox) for interactive sandboxes, files, jobs, check
 
 ## Database
 
-Use `@agentuity/postgres` or `@agentuity/drizzle` from app code with `DATABASE_URL`. Use `DBClient` from scripts that need to query a named Agentuity database through the service API.
+Database packages are for relational Postgres and trusted database admin tooling. For KV, vector, streams, queues, tasks, schedules, email, webhooks, sandboxes, or Coder, use the dedicated service packages above.
+
+Use `@agentuity/postgres` or `@agentuity/drizzle` from Bun app code with `DATABASE_URL` when you choose those helpers. Use `DBClient` from trusted scripts that need to query a named Agentuity database through the service API.
 
 ```bash
 bun add @agentuity/postgres@alpha
@@ -272,9 +274,14 @@ const users = await sql`
   LIMIT ${10}
 `;
 
+const orgId = process.env.AGENTUITY_CLOUD_ORG_ID;
+if (!orgId) {
+  throw new Error('AGENTUITY_CLOUD_ORG_ID is required');
+}
+
 const db = new DBClient({
   database: 'app-data',
-  orgId: 'org_abc123',
+  orgId,
 });
 
 const tables = await db.tables();

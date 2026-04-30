@@ -4,7 +4,7 @@ short_title: Drizzle
 description: Type-safe database access with Drizzle ORM
 ---
 
-Use `@agentuity/drizzle` when Bun app code needs Drizzle ORM queries against Agentuity-managed Postgres. The runtime client reads `DATABASE_URL` by default.
+Use `@agentuity/drizzle` when Bun app code explicitly wants Agentuity's Drizzle helper against Agentuity-managed Postgres. The runtime client reads `DATABASE_URL` by default.
 
 ```bash
 bun add @agentuity/drizzle@alpha drizzle-orm
@@ -97,7 +97,7 @@ const { db, client, close } = createPostgresDrizzle({
 | `onReconnected` | none | Callback when reconnection succeeds |
 
 <Callout type="info" title="Runtime imports and schema imports are different">
-Use `@agentuity/drizzle` from Bun app code that runs the database client. The runtime entry point currently imports Bun APIs even when `driver` is `'pg'`. Use `@agentuity/drizzle/schema` from schema files and migration tooling.
+Use `@agentuity/drizzle` from Bun app code that chooses this helper. The runtime entry point currently imports Bun APIs even when `driver` is `'pg'`. Use `@agentuity/drizzle/schema` from schema files and migration tooling.
 </Callout>
 
 ## Re-exported Utilities
@@ -155,27 +155,38 @@ bunx drizzle-kit migrate
 
 See the [Drizzle migrations documentation](https://orm.drizzle.team/docs/migrations) for migration modes and configuration options.
 
-## Auth and User Tables
+## Framework Route
 
-In v3 apps, keep authentication in your framework or identity provider, then use Drizzle for the user, account, or session tables your app owns.
+Initialize the Drizzle instance once at module scope and reuse it across requests. Most framework adapters keep the module alive between invocations, which lets the resilient pool stay warm.
 
-```typescript
+```typescript title="src/db/client.ts"
 import { createPostgresDrizzle } from '@agentuity/drizzle';
 import * as schema from './schema';
 
-const { db, close } = createPostgresDrizzle({ schema });
+export const { db, close } = createPostgresDrizzle({ schema });
+```
 
-try {
-  await db.insert(schema.users).values({
-    id: 'user_123',
-    email: 'ada@example.com',
-  });
-} finally {
-  await close();
+```typescript title="app/api/users/route.ts"
+import { eq } from '@agentuity/drizzle';
+import { db } from '@/src/db/client';
+import { users } from '@/src/db/schema';
+
+export async function GET(): Promise<Response> {
+  const activeUsers = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(eq(users.active, true))
+    .limit(20);
+
+  return Response.json({ users: activeUsers });
 }
 ```
 
-See [Authentication](/services/authentication): choose between framework-owned sessions and Agentuity OIDC.
+Call `close()` only during graceful shutdown of long-lived processes (workers, scripts). Framework request handlers should not close the pool per request.
+
+## Auth and User Tables
+
+In v3 apps, keep authentication in your framework or identity provider, then use Drizzle for the user, account, or session tables your app owns. See [Authentication](/services/authentication) for choosing between framework-owned sessions and Agentuity OIDC.
 
 ## Next Steps
 

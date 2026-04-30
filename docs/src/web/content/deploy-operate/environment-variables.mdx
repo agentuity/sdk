@@ -1,117 +1,162 @@
 ---
 title: Managing Environment Variables
 short_title: Environment Variables
-description: Manage local .env files, cloud environment variables, public variables, and secrets.
+description: Manage local .env files, cloud project variables, public values, and secrets.
 ---
 
-Use this page when you want to know which env values the current CLI reads from local files and which values it syncs to Agentuity Cloud.
+Environment variables in an Agentuity project live in three places: local `.env` files for development, the cloud project (and optionally the org) for deployed apps, and the bundle itself for values the build patches in.
 
 ```bash
 agentuity cloud env list
 agentuity cloud env set OPENAI_API_KEY "sk_..." --secret
 agentuity cloud env pull
+agentuity cloud env push
 ```
 
-## Local Development
+## Local Env Files
 
-`agentuity dev` looks up `AGENTUITY_SDK_KEY` for the local dev process. It does not try to fully load every local env value itself.
+The CLI looks up `AGENTUITY_SDK_KEY` in your `.env` files using the active profile. Default profile is `production`. The local profile (`local`) loads a different file order so dev overrides do not bleed into other profiles.
 
-```bash
-agentuity dev
-```
+| Profile | File order (highest priority first) |
+|---------|--------------------------------------|
+| `local` (and `NODE_ENV` is not `production`) | `.env.local` → `.env.development` → `.env` |
+| any other profile, or `NODE_ENV=production` | `.env.<profile>` → `.env` → `.env.production` |
 
-The CLI searches project env files for that key using the active profile. For the local profile, it prefers `.env.<profile>`, then `.env.development`, then `.env`. For non-local profiles, it prefers `.env.<profile>`, then `.env`, then `.env.production`.
+Switch profiles with `--profile <name>` or `AGENTUITY_PROFILE=...`. Your framework's runtime reads its own variables. The CLI parses these files only for the SDK key it needs to wire the gateway during `agentuity dev`.
 
-When the key is available, the CLI can patch OpenAI, Anthropic, and Groq env vars for the dev process. It only does that when the provider key is missing or already matches the SDK key.
-
-<Callout type="info" title="The CLI does not load every local variable for every framework">
-The CLI looks up `AGENTUITY_SDK_KEY` itself. Other local variables are usually loaded by the runtime, your shell, or your own app tooling.
+<Callout type="info" title="The CLI does not load every local var for your framework">
+`agentuity dev` patches `AGENTUITY_SDK_KEY` and three provider env pairs (see below). Your app reads everything else through your framework's own loader, your shell, or a process manager. Keep `.env` for shared values and `.env.local` for personal overrides.
 </Callout>
 
-## Deploy Sync
+## AI Gateway in Local Dev
 
-During `agentuity deploy`, the CLI reads local `.env`, removes reserved Agentuity system keys, splits the remaining values into environment variables and secrets, and attempts to sync them before the build step.
+Agentuity's AI Gateway supports nine public provider families: OpenAI, Anthropic, Groq, Google, xAI, DeepSeek, Mistral, Cohere, and Perplexity. Local `agentuity dev` has one automatic env-injection path today.
+
+For OpenAI, Anthropic, and Groq SDKs, `agentuity dev` patches the API key and base URL env vars directly into the dev process:
+
+| Provider | API key env var | Base URL env var |
+|----------|------------------|------------------|
+| OpenAI | `OPENAI_API_KEY` | `OPENAI_BASE_URL` |
+| Anthropic | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` |
+| Groq | `GROQ_API_KEY` | `GROQ_BASE_URL` |
+
+The patch fires only when the API key var is missing or already equals `AGENTUITY_SDK_KEY`. If you set `OPENAI_API_KEY` to a real OpenAI key in `.env`, the CLI leaves it alone and your call goes straight to the provider.
+
+See [AI Gateway > Local Development](/services/ai-gateway#local-development) for the canonical provider list and BYOK options.
+
+## Project SDK Key
+
+`AGENTUITY_SDK_KEY` is the only Agentuity value the local CLI reads from `.env`. It is written by `agentuity project import` when you register the project, refreshed by `agentuity cloud env pull`, and required by `agentuity deploy`.
+
+If deploy cannot find the key, it exits before building with a message pointing at `agentuity cloud env pull`. The platform injects `AGENTUITY_SDK_KEY` into the deployed runtime automatically. You should not set or override it for a deployed app.
+
+## Cloud Project Variables
+
+`agentuity cloud env` manages variables stored on the cloud project (the default scope) or the organization (`--org`). The deployed app sees the merged view: project values override org values for the same key.
 
 ```bash
-agentuity deploy
+agentuity cloud env list                       # merged project + org view
+agentuity cloud env list --org                 # org-scoped only
+agentuity cloud env get OPENAI_API_KEY         # one key
+agentuity cloud env set API_TIMEOUT "30"
+agentuity cloud env set DATABASE_URL "..." --secret
+agentuity cloud env delete LEGACY_FLAG
 ```
 
-The sync step is non-fatal. If it cannot sync variables, deploy continues and reports that step as skipped.
+The `set` command auto-detects whether a value should be stored as a secret. Pass `--secret` to force secret storage. Setting `--secret` on a public-prefixed key (`VITE_*`, `PUBLIC_*`, `AGENTUITY_PUBLIC_*`) is rejected.
+
+## Pull and Push
+
+Move values between local `.env` and the cloud project. By default both directions are conservative: `pull` keeps existing local values, `push` skips existing cloud values that would change.
+
+```bash
+agentuity cloud env pull
+agentuity cloud env pull --force
+agentuity cloud env push
+agentuity cloud env push --force
+```
+
+`pull` writes cloud values into `.env`. Without `--force`, local values win when a key already exists locally. With `--force`, cloud values overwrite local after a confirmation.
+
+`push` reads `.env`, drops reserved Agentuity keys (see below), classifies the rest, and writes to the cloud project. Without `--force`, the CLI prompts before overwriting an existing cloud value.
+
+A project pull also writes `AGENTUITY_SDK_KEY` when the cloud project returns one. Use it to recover the key on a fresh checkout.
+
+## Reserved Agentuity Keys
+
+`agentuity cloud env push` and the env sync inside `agentuity deploy` filter out variables that the platform owns. Filtered keys never make it to the cloud project.
+
+| Key pattern | Filtered? |
+|-------------|-----------|
+| `AGENTUITY_PUBLIC_*` | No, treated as a public env var |
+| `AGENTUITY_AUTH_SECRET` | No, allowed through |
+| `AGENTUITY_CLOUD_BASE_URL` | No, allowed through |
+| Any other `AGENTUITY_*` (including `AGENTUITY_SDK_KEY`, transport URLs, region) | Yes, dropped |
+
+That keeps platform-managed values from being pinned by a stale local `.env`.
 
 ## Public Variables and Secrets
 
-Public prefixes are always treated as environment variables, never secrets:
+The CLI auto-classifies env values when pushing to the cloud project so secrets stay encrypted and public values stay readable.
+
+Always treated as public env vars (never secrets):
 
 | Prefix | Use for |
 |--------|---------|
 | `VITE_` | Vite browser-exposed values |
-| `PUBLIC_` | Frameworks that expose public values with `PUBLIC_` |
+| `PUBLIC_` | Frameworks that expose public values with this prefix (SvelteKit, Astro) |
 | `AGENTUITY_PUBLIC_` | Agentuity public values |
 
-Values are treated as secrets when the key is `DATABASE_URL` or ends with one of these suffixes:
+Always treated as secrets:
 
-```text
-_SECRET
-_KEY
-_TOKEN
-_PASSWORD
-_PRIVATE
-```
+- Keys ending in `_SECRET`, `_KEY`, `_TOKEN`, `_PASSWORD`, or `_PRIVATE`
+- The exact key `DATABASE_URL`
 
-Use `--secret` when setting a value that should be encrypted and masked:
+Public-prefix classification beats the suffix rule. `VITE_PUBLIC_KEY` is public, not a secret, even though it ends in `_KEY`. Pass `--secret` on `cloud env set` only when you want to override auto-detection on a non-public key.
+
+<Callout type="warning" title="Never put secrets in public-prefixed variables">
+`VITE_*`, `PUBLIC_*`, and `AGENTUITY_PUBLIC_*` values ship to the browser. Anything visible to a logged-out user belongs in this column. API keys, database URLs, signing secrets, and tokens belong in the secret column.
+</Callout>
+
+## Deployed Apps
+
+Deployed apps see three sources of environment values:
+
+1. **Platform-injected.** `AGENTUITY_SDK_KEY` and the regional transport URLs (`AGENTUITY_TRANSPORT_URL`, `AGENTUITY_KEYVALUE_URL`, `AGENTUITY_VECTOR_URL`, `AGENTUITY_STREAM_URL`, `AGENTUITY_OTLP_URL`, etc.) are set by the platform. You do not set these in cloud project vars.
+2. **Cloud project vars and secrets.** Everything you set with `agentuity cloud env set` or sync via `agentuity deploy`. Project values override org values on the same key.
+3. **Provider SDK configuration.** The deployed runtime has `AGENTUITY_SDK_KEY` and `AGENTUITY_TRANSPORT_URL`, but provider SDKs still need to be configured for the gateway path you are using. OpenAI, Anthropic, and Groq can use env-driven SDK defaults. AI SDK factory providers, such as Google or xAI, should receive `apiKey` and `baseURL` explicitly. Set the provider's own key when you want to bring your own quota and bypass the gateway. For non-LLM service keys (Stripe, Postmark, Datadog, etc.), set them with `agentuity cloud env set`:
 
 ```bash
-agentuity cloud env set API_KEY "sk_..." --secret
+# Provider key the gateway already covers (usually unnecessary)
+agentuity cloud env set OPENAI_API_KEY "sk-..." --secret
+
+# Service key only your code reads (required)
+agentuity cloud env set STRIPE_SECRET_KEY "sk_live_..." --secret
+
+# Public value your framework reads at build or render time
+agentuity cloud env set PUBLIC_FEATURE_FLAGS '{"newCheckout":true}'
 ```
 
-## List Current Cloud Values
+## Org-Scoped Variables
 
-List current variables from the cloud when you want to inspect what a deploy will see:
+Use `--org` for values shared across every project in an org. Project values still override org values on the same key, so `--org` is best for defaults.
 
 ```bash
-agentuity cloud env list
+agentuity cloud env set DATADOG_API_KEY "..." --secret --org
 agentuity cloud env list --org
-```
-
-Project-scoped `list` shows a merged project and organization view. When the same key exists in both places, the project value takes precedence.
-
-## Pull Cloud Values
-
-Pull cloud values into local `.env`:
-
-```bash
-agentuity cloud env pull
-```
-
-Without `--force`, local values win when a key already exists. With `--force`, cloud values overwrite local values after confirmation:
-
-```bash
-agentuity cloud env pull --force
-```
-
-Project pulls also write the project `AGENTUITY_SDK_KEY` when the cloud project returns one.
-
-## Push Local Values
-
-Push local `.env` values to the project or organization:
-
-```bash
-agentuity cloud env push
-agentuity cloud env push --org
-```
-
-The CLI reads `.env`, filters reserved `AGENTUITY_*` keys, shows a diff, and asks for confirmation before overwriting existing cloud values unless you pass `--force`:
-
-```bash
-agentuity cloud env push --force
-```
-
-## Organization Scope
-
-Use `--org` for variables shared across projects in the same organization:
-
-```bash
-agentuity cloud env set OPENAI_API_KEY "sk_..." --secret --org
 agentuity cloud env pull --org
 agentuity cloud env push --org
 ```
+
+## Best Practices
+
+- **Use `.env.local` for personal overrides.** It is loaded ahead of `.env.development` and `.env` on the local profile and stays out of the synced bundle.
+- **Push before deploy if `.env` drifts.** `agentuity deploy` runs the sync best-effort. A failure during sync does not block the deploy, so verify with `agentuity cloud env list` after.
+- **Keep gateway and provider-owned paths explicit.** Use the gateway setup documented in [AI Gateway](/services/ai-gateway) when you want Agentuity-routed model calls. Set provider API keys on the cloud project when you want direct provider traffic or when you're calling a non-LLM service.
+- **Never check `.env` into git.** Keep a committed `.env.example` for shape and a private `.env` for values.
+
+## Next Steps
+
+- [Local Development](/deploy-operate/local-development): the gateway wiring and profile resolution that uses these values.
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): how `agentuity deploy` reads `.env` and ships it to the cloud project.
+- [Environment Variables on Deploy](/reference/cli/deployment#environment-variables): the deploy step's exact env-sync semantics.

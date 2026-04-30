@@ -3,7 +3,7 @@ title: Webhooks
 description: Create webhook endpoints to receive HTTP callbacks with delivery tracking and retry
 ---
 
-Use webhooks when an external service needs a stable Agentuity ingest URL and you want receipts, destination delivery history, and retry. Start with `WebhookClient` from any server runtime, route handler, script, or worker.
+Use webhooks when an external service needs a stable Agentuity ingest URL. Each request becomes a stored receipt, fans out to one or more URL destinations, and produces delivery records you can replay. Start with `WebhookClient` directly; it is not injected by the Hono middleware.
 
 ```bash
 bun add @agentuity/webhook@alpha
@@ -24,9 +24,7 @@ export async function createStripeWebhook(destinationUrl: string): Promise<strin
     type: 'url',
     config: {
       url: destinationUrl,
-      headers: {
-        'X-Webhook-Source': 'stripe-events',
-      },
+      headers: { 'X-Webhook-Source': 'stripe-events' },
     },
   });
 
@@ -38,16 +36,16 @@ export async function createStripeWebhook(destinationUrl: string): Promise<strin
 }
 ```
 
-`WebhookClient` reads `AGENTUITY_SDK_KEY` by default. In Agentuity projects, keep the key in `.env` for local `agentuity dev` and configure the same environment variable for deployed apps.
+`WebhookClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Keep that key in `.env` for local development and configure the same variable for deployed apps.
 
 ## When to Use Webhooks
 
 | Need | Use |
 |------|-----|
-| managed ingest URL with receipts and delivery tracking | [Webhooks](/services/webhooks) |
-| process callbacks directly in your app route | validate the signature in a framework route, then call your service code |
-| hand received events to background processing | [Queues](/services/queues) |
-| send inbound email to an HTTP endpoint | [Email](/services/email) |
+| stable ingest URL with receipts and delivery tracking | [Webhooks](/services/webhooks) |
+| validate signatures and process callbacks in your route | handle the request in your framework, then publish to a queue |
+| hand received events to background workers | [Queues](/services/queues) |
+| forward inbound email to an HTTP endpoint | [Email](/services/email) |
 
 ## Client Setup
 
@@ -57,30 +55,34 @@ Construct the client once at module scope and reuse it from handlers, routes, or
 import { WebhookClient } from '@agentuity/webhook';
 
 const webhooks = new WebhookClient({
-  orgId: process.env.AGENTUITY_ORG_ID,
+  orgId: process.env.AGENTUITY_CLOUD_ORG_ID,
 });
 ```
 
 | Option | Description |
 |--------|-------------|
 | `apiKey` | Optional API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. |
-| `orgId` | Optional organization ID for org-scoped requests. |
+| `orgId` | Optional organization ID. Used when the API key is org-scoped or when calling from a CLI context. |
 | `url` | Optional Webhook API URL. Defaults to `AGENTUITY_WEBHOOK_URL`, then the regional Agentuity service URL. |
 | `logger` | Optional logger instance. |
 
-<Callout type="info" title="Webhook clients are direct clients">
-`@agentuity/hono` injects KV, vector, stream, queue, email, schedule, task, and sandbox clients. It does not inject `c.var.webhook`, so create a `WebhookClient` directly in Hono, Next.js, scripts, or any other server runtime.
+<Callout type="info" title="Webhooks are not in the Hono middleware">
+`@agentuity/hono` injects KV, vector, stream, queue, email, schedule, task, and sandbox clients. Webhooks are not in that set, so build a `WebhookClient` directly when you need it.
 </Callout>
 
-## Create Webhooks
+## Create a Webhook
 
-`create()` returns the webhook record. The ingest URL is only included in the create response, so store it when you create the webhook.
+`create()` returns the new webhook record with its ingest URL. Keep a copy anywhere you configure the upstream sender.
 
 ```typescript
 const { webhook } = await webhooks.create({
   name: 'github-events',
   description: 'GitHub push and pull request events',
 });
+
+if (!webhook.url) {
+  throw new Error('Webhook create response did not include an ingest URL');
+}
 
 const ingestUrl = webhook.url;
 ```
@@ -90,8 +92,8 @@ const ingestUrl = webhook.url;
 | `name` | Yes | Human-readable webhook name. |
 | `description` | No | Optional purpose or source note. |
 
-<Callout type="warning" title="Store the ingest URL on create">
-The `url` field is only present on the create response. Later `get()` calls return the webhook metadata and destinations, but not the ingest URL.
+<Callout type="info" title="Keep the ingest URL">
+`webhook.url` is optional in the client type, even though user-created webhooks include it in current create and get responses. Save the value where the upstream sender, such as Stripe or GitHub, is configured.
 </Callout>
 
 ## Add Destinations
@@ -115,27 +117,10 @@ const { destinations } = await webhooks.listDestinations(webhook.id);
 | Field | Description |
 |-------|-------------|
 | `type` | Destination type. Use `url`. |
-| `config.url` | Public HTTP or HTTPS endpoint to receive forwarded payloads. |
+| `config.url` | Public `http` or `https` endpoint that will receive forwarded payloads. |
 | `config.headers` | Optional headers sent with each forwarded request. |
 
-A webhook can have multiple destinations. Each receipt creates one delivery attempt per destination.
-
-## List, Get, and Update
-
-Use `list()` for admin views, `get()` for one webhook plus its destinations, and `update()` to change the name or description.
-
-```typescript
-const { webhooks: page, total } = await webhooks.list({ limit: 20, offset: 0 });
-
-const details = await webhooks.get(webhook.id);
-
-const { webhook: updated } = await webhooks.update(webhook.id, {
-  name: 'github-events-primary',
-  description: 'Primary GitHub webhook',
-});
-```
-
-`update()` requires a `name`; `description` is optional.
+A webhook can have multiple destinations. Each receipt produces one delivery record per destination.
 
 ## Receipts
 
@@ -146,18 +131,16 @@ const { receipts } = await webhooks.listReceipts(webhook.id, {
   limit: 50,
   offset: 0,
 });
-const firstReceipt = receipts.at(0);
 
-const receipt = firstReceipt
-  ? await webhooks.getReceipt(webhook.id, firstReceipt.id)
-  : null;
+const first = receipts.at(0);
+const receipt = first ? await webhooks.getReceipt(webhook.id, first.id) : null;
 ```
 
-Receipts are useful for audit trails and replaying a payload through your own handler code.
+Receipts are useful for audit trails and for replaying a payload through your own handler code while you debug.
 
 ## Delivery Tracking and Retry
 
-Every receipt produces delivery records for the webhook destinations. Use `listDeliveries()` to inspect delivery status and `retryDelivery()` for failed attempts.
+Every receipt produces delivery records for the webhook destinations. `listDeliveries()` returns the recent attempts, and `retryDelivery()` re-attempts a failed delivery.
 
 ```typescript
 const { deliveries } = await webhooks.listDeliveries(webhook.id, {
@@ -175,45 +158,33 @@ for (const delivery of deliveries) {
 | Status | Meaning |
 |--------|---------|
 | `pending` | Delivery is queued. |
-| `success` | Destination received the forwarded payload. |
-| `failed` | Delivery failed. The `error` field contains the reason when available. |
+| `success` | Destination accepted the forwarded payload. |
+| `failed` | Delivery failed. The `error` field carries the reason when available. |
 
-Delivery records include the destination ID and receipt ID, so you can trace a failed delivery back to the incoming request.
+Delivery records carry `webhook_destination_id` and `webhook_receipt_id`, so you can trace any failed delivery back to the incoming request that triggered it.
 
-## Analytics
+## List, Get, and Update
 
-Use org-level analytics for received, delivered, and failed counts across webhooks.
+Use `list()` for admin views, `get()` for one webhook plus its destinations, and `update()` to change the name or description.
 
 ```typescript
-const analytics = await webhooks.getOrgAnalytics({
-  granularity: 'day',
-});
+const { webhooks: page, total } = await webhooks.list({ limit: 20, offset: 0 });
 
-const series = await webhooks.getOrgTimeSeries({
-  granularity: 'day',
+const details = await webhooks.get(webhook.id);
+
+const { webhook: updated } = await webhooks.update(webhook.id, {
+  name: 'github-events-primary',
+  description: 'Primary GitHub webhook',
 });
 ```
 
-Optional `start` and `end` values accept ISO 8601 timestamps.
+`update()` requires `name`. `description` is optional.
 
-## Delete
+## Use Receipts From a Server Route
 
-Delete destinations when you want the webhook to keep receiving requests but stop forwarding to one target. Delete the webhook when the ingest endpoint is no longer needed.
+A common pattern is to expose a small admin route that lists recent receipts for one webhook so on-call engineers can debug an integration without leaving the app.
 
-```typescript
-await webhooks.deleteDestination(webhook.id, destination.id);
-await webhooks.delete(webhook.id);
-```
-
-<Callout type="warning" title="Deleting a webhook removes its records">
-`delete()` permanently removes the webhook, destinations, receipts, and delivery records.
-</Callout>
-
-## Use From Framework Routes
-
-Use the same direct client inside Hono, Next.js route handlers, or server functions.
-
-```typescript
+```typescript title="src/routes/webhooks-admin.ts"
 import { Hono } from 'hono';
 import { WebhookClient } from '@agentuity/webhook';
 
@@ -222,15 +193,51 @@ const app = new Hono();
 
 app.get('/admin/webhooks', async (c) => {
   const { webhooks: items, total } = await webhooks.list({ limit: 20 });
-
   return c.json({ webhooks: items, total });
+});
+
+app.get('/admin/webhooks/:id/receipts', async (c) => {
+  const { receipts } = await webhooks.listReceipts(c.req.param('id'), { limit: 50 });
+  return c.json({ receipts });
+});
+
+app.post('/admin/webhooks/:id/deliveries/:deliveryId/retry', async (c) => {
+  await webhooks.retryDelivery(c.req.param('id'), c.req.param('deliveryId'));
+  return c.json({ retried: true });
 });
 
 export default app;
 ```
 
+The webhook client is independent of `agentuity()` middleware, so you can use it side-by-side with `c.var.queue`, `c.var.task`, and the rest.
+
+## Analytics
+
+`getOrgAnalytics()` returns received, delivered, and failed counts across all webhooks in the org. `getOrgTimeSeries()` breaks the same metrics down by bucket.
+
+```typescript
+const analytics = await webhooks.getOrgAnalytics({ granularity: 'day' });
+const series = await webhooks.getOrgTimeSeries({ granularity: 'day' });
+```
+
+Optional `start` and `end` accept ISO 8601 timestamps. `granularity` accepts `minute`, `hour`, or `day`.
+
+## Delete
+
+Delete a destination when the webhook should keep receiving but stop forwarding to one target. Delete the webhook when the ingest URL is no longer needed.
+
+```typescript
+await webhooks.deleteDestination(webhook.id, destination.id);
+await webhooks.delete(webhook.id);
+```
+
+<Callout type="warning" title="Deleting a webhook removes its history">
+`delete()` permanently removes the webhook, its destinations, receipts, and delivery records. There is no undo.
+</Callout>
+
 ## Next Steps
 
-- [Frameworks](/frameworks): choose the route shape for your app
-- [Queues](/services/queues): move webhook processing out of request paths
+- [Queues](/services/queues): move webhook processing out of the request path
 - [Email](/services/email): receive inbound email through managed addresses and destinations
+- [Tasks](/services/tasks): turn webhook events into tracked work items
+- [Using Standalone Packages](/reference/standalone-packages): configure service clients outside Agentuity projects

@@ -1,33 +1,43 @@
 ---
 title: Using Next.js with Agentuity
 short_title: Next.js
-description: Add Agentuity service clients, local development, and deployment metadata to a Next.js app
+description: Connect Agentuity service clients, local development, and deploy packaging to an App Router project
 ---
 
-Start with a normal [Next.js](https://nextjs.org/docs) App Router project. Agentuity adds service clients, local development support, and deploy validation around the framework's own routes and build output.
+Call Agentuity services (key-value, AI Gateway, queues) from Next.js App Router route handlers, then package and deploy through `agentuity build`.
 
 ## Create a Starter
+
+The quickest way to start is with the Agentuity CLI:
 
 ```bash
 bun create agentuity@alpha --name my-next-app --framework nextjs
 cd my-next-app
 ```
 
-The starter creates a Next.js app, adds `@agentuity/cli`, a `deploy` script, and an optional AI route example under `src/app/api`.
+The starter includes a working translation demo: a React page that calls an API route, which uses `KeyValueClient` for session history and the OpenAI SDK routed through the AI Gateway. The key files:
 
-For an existing Next.js app, add the CLI and import the project instead:
+| File | Purpose |
+|------|---------|
+| `src/app/page.tsx` | Client UI that calls the API route |
+| `src/app/api/translate/route.ts` | Route handler: AI Gateway + KV history |
+| `package.json` | `dev`, `build`, and `deploy` scripts pre-wired |
+
+## Add to an Existing App
+
+Install the CLI as a dev dependency, then import the project:
 
 ```bash
 bun add -d @agentuity/cli@alpha
-agentuity project import --validate-only
-agentuity project import
+agentuity project import --validate-only   # dry run: checks config only
+agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-`agentuity project import` registers the app and writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy for existing apps.
+`agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
 
-## Add a Service Client
+## Service Client Example
 
-Use standalone service clients from route handlers. This keeps the code portable and does not require an Agentuity-specific router.
+Route handlers use standalone service clients. They do not need an Agentuity-owned router or `createApp()`.
 
 ```bash
 bun add @agentuity/keyvalue@alpha
@@ -43,64 +53,168 @@ interface Note {
 	readonly createdAt: string;
 }
 
-const kv = new KeyValueClient();
-
-function readText(value: unknown): string | undefined {
-	if (typeof value !== 'object' || value === null || !('text' in value)) {
-		return undefined;
-	}
-
-	const { text } = value;
-	return typeof text === 'string' && text.trim() ? text.trim() : undefined;
-}
+// Instantiated once at module load; reads AGENTUITY_SDK_KEY from the environment
+const kv = new KeyValueClient(); // [!code highlight]
 
 export async function POST(request: Request): Promise<NextResponse> {
 	const body: unknown = await request.json();
-	const text = readText(body);
 
-	if (!text) {
+	if (typeof body !== 'object' || body === null || !('text' in body)) {
 		return NextResponse.json({ error: 'text is required' }, { status: 400 });
+	}
+
+	const { text } = body;
+	if (typeof text !== 'string' || !text.trim()) {
+		return NextResponse.json({ error: 'text must be a non-empty string' }, { status: 400 });
 	}
 
 	const note: Note = {
 		id: crypto.randomUUID(),
-		text,
+		text: text.trim(),
 		createdAt: new Date().toISOString(),
 	};
 
-	await kv.set('notes', note.id, note, { ttl: 60 * 60 * 24 * 7 });
+	await kv.set('notes', note.id, note, { ttl: 60 * 60 * 24 * 7 }); // 7-day TTL // [!code highlight]
 
 	return NextResponse.json({ note });
 }
+
+export async function GET(request: Request): Promise<NextResponse> {
+	const { searchParams } = new URL(request.url);
+	const id = searchParams.get('id');
+
+	if (!id) {
+		return NextResponse.json({ error: 'id query param is required' }, { status: 400 });
+	}
+
+	const result = await kv.get<Note>('notes', id); // [!code highlight]
+
+	if (!result.exists) {
+		return NextResponse.json({ error: 'not found' }, { status: 404 });
+	}
+
+	// result.data is typed as Note because of the generic
+	return NextResponse.json({ note: result.data });
+}
 ```
 
-`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Link the app before local service calls or deploys that need it.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app with `agentuity dev` to have the key injected automatically.
+
+## AI Gateway Example
+
+`agentuity dev` injects `OPENAI_API_KEY` and `OPENAI_BASE_URL` so the OpenAI SDK routes calls through the AI Gateway. Use `@agentuity/schema` to validate input at the boundary.
+
+```bash
+bun add openai @agentuity/schema@alpha
+```
+
+```typescript title="src/app/api/chat/route.ts"
+import { s } from '@agentuity/schema';
+import OpenAI from 'openai';
+import { NextResponse } from 'next/server';
+
+const requestSchema = s.object({
+	message: s.string(),
+	model: s.optional(s.string()),
+});
+
+// Reads OPENAI_API_KEY and OPENAI_BASE_URL from the environment
+// agentuity dev injects both so calls go through the AI Gateway
+const openai = new OpenAI(); // [!code highlight]
+
+export async function POST(request: Request): Promise<NextResponse> {
+	const body: unknown = await request.json();
+	const parsed = requestSchema.safeParse(body); // [!code highlight]
+
+	if (!parsed.success) {
+		return NextResponse.json({ error: 'message is required' }, { status: 400 });
+	}
+
+	const { message, model = 'gpt-5.4-nano' } = parsed.data;
+
+	const completion = await openai.chat.completions.create({ // [!code highlight]
+		model,
+		messages: [{ role: 'user', content: message }],
+	});
+
+	return NextResponse.json({
+		reply: completion.choices[0]?.message?.content ?? '',
+		tokens: completion.usage?.total_tokens ?? 0,
+		model,
+	});
+}
+```
+
+<Callout type="tip" title="Keep handlers in app/api/**/route.ts">
+Agentuity does not require `createApp()` or an Agentuity-owned router for Next.js projects. Standard App Router route handlers work as-is.
+</Callout>
+
+## Run Locally
+
+Start the app with `agentuity dev`, which injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` into the Next.js process:
+
+```bash
+agentuity dev
+```
+
+Smoke-test the route:
+
+```bash
+curl http://127.0.0.1:3000/api/chat \
+  -H "content-type: application/json" \
+  -d '{"message":"Hello"}'
+```
 
 ## Validate Before Deploy
 
-Build the app with Next.js first, then run the Agentuity build before deploying.
-
-Validate in this order:
+Run the Next.js build first, then the Agentuity build. The Agentuity build produces `.agentuity/launch.json` with the start command for the deployed container.
 
 ```bash
 bun run build
 agentuity build
+cat .agentuity/launch.json   # verify processes[0].command is "node server.js"
 ```
 
-If the Agentuity build cannot find the local `next` binary, run it with the app's package binaries on `PATH`:
+The `agentuity build` adapter sets `NEXT_PRIVATE_STANDALONE=true` at build time so Next.js produces `.next/standalone/`. Adding explicit `output: 'standalone'` to `next.config.ts` is safer: it works regardless of the adapter's env injection and makes the intent visible in your config file.
+
+```typescript title="next.config.ts"
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+	output: 'standalone', // produces .next/standalone/ with a minimal server.js
+};
+
+export default nextConfig;
+```
+
+With standalone output, `agentuity build` copies the standalone server, `.next/static/`, and `public/` into the output directory, and sets the launch command to `node server.js`.
+
+If `agentuity build` cannot find the local `next` binary, add `node_modules/.bin` to `PATH`:
 
 ```bash
 PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
 ```
 
-Deploy only after `agentuity build` succeeds and `.agentuity/launch.json` points at the process you expect. If your app uses Next.js standalone output, inspect the packaged server entry before deploying.
+## Common Gotchas
 
-<Callout type="tip" title="Use the framework route shape">
-Keep API handlers in `app/api/**/route.ts`. Agentuity does not require `createApp()` or an Agentuity-owned router for v3 Next.js apps.
-</Callout>
+| Symptom | Check |
+|---------|-------|
+| Service client returns 401 or auth errors | Run with `agentuity dev`, or set `AGENTUITY_SDK_KEY` manually |
+| OpenAI calls hit the real provider instead of the AI Gateway | `OPENAI_BASE_URL` is only injected by `agentuity dev`; see [AI Gateway](/services/ai-gateway) for how env injection works |
+| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| `agentuity build` fails with "next: command not found" | Prefix with `PATH="$(pwd)/node_modules/.bin:$PATH"` |
+| Deploy starts `next start` instead of `node server.js` | Add [`output: 'standalone'`](https://nextjs.org/docs/app/api-reference/config/next-config-js/output) to `next.config.ts`, rebuild, then inspect `.agentuity/launch.json` |
+| `.next/standalone` is empty after build | Confirm Next.js version is 12+; older versions do not support standalone output |
+| Files outside the app root are missing in the standalone bundle | Set `outputFileTracingRoot` in `next.config.ts` to include monorepo paths |
+
+## Framework Docs
+
+- [Next.js Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers): current App Router route handler shape and HTTP method exports
+- [Next.js Standalone Output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output): how `output: 'standalone'` works and what it produces
 
 ## Next Steps
 
-- [Key-Value Storage](/services/storage/key-value): store short-lived state from route handlers
-- [Deployment](/reference/cli/deployment): see CLI deploy flags and lifecycle script behavior
-- [App Configuration](/get-started/app-configuration): configure project IDs, domains, and environment files
+- [Key-Value Storage](/services/storage/key-value): TTL semantics, namespaces, and type-safe reads
+- [AI Gateway](/services/ai-gateway): supported providers and how environment injection works
+- [Deployment](/reference/cli/deployment): CLI deploy flags and lifecycle hooks
+- [App Configuration](/get-started/app-configuration): project IDs, domains, and environment files

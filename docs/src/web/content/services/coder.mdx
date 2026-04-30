@@ -190,6 +190,15 @@ const workspace = await client.createWorkspace({
   enabledAgents: ['builder', 'reviewer'],
 });
 
+// Get a workspace by ID
+const ws = await client.getWorkspace('ws_abc123');
+
+// List all workspaces
+const { workspaces } = await client.listWorkspaces();
+
+// Delete a workspace
+await client.deleteWorkspace('ws_abc123');
+
 // Save a reusable skill
 const skill = await client.saveSkill({
   repo: 'my-org/my-skills',
@@ -201,7 +210,118 @@ const skill = await client.saveSkill({
 
 // List saved skills
 const { skills } = await client.listSavedSkills();
+
+// Delete a saved skill
+await client.deleteSavedSkill('sk_abc123');
 ```
+
+Skill buckets group saved skills into named collections you can attach to sessions or workspaces as a unit.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const client = new CoderClient();
+
+// Create a skill bucket
+const bucket = await client.createSkillBucket({ name: 'Security Reviews' });
+
+// List all skill buckets
+const { buckets } = await client.listSkillBuckets();
+
+// Delete a skill bucket
+await client.deleteSkillBucket('bucket_abc123');
+```
+
+### Custom Agents
+
+Custom agents package reusable domain knowledge, tools, and service access that can be attached to sessions. Use `createAgentBuilderSession()` to let Agent Builder help author or update one interactively.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const client = new CoderClient();
+
+// Create a new custom-agent draft
+const agent = await client.createCustomAgent({
+  slug: 'security-reviewer',
+  displayName: 'Security Reviewer',
+  instructions: 'Review diffs for OWASP top-10 vulnerabilities.',
+  description: 'Reviews diffs for OWASP top-10 vulnerabilities',
+});
+
+// Publish the draft as an immutable version
+const published = await client.publishCustomAgent(agent.id);
+
+// List all published versions
+const { versions } = await client.listCustomAgentVersions(agent.id);
+
+// Other CRUD operations
+const fetched = await client.getCustomAgent('security-reviewer'); // by ID or slug
+await client.updateCustomAgent(agent.id, { description: 'Updated description' });
+const { agents } = await client.listCustomAgents();
+await client.archiveCustomAgent(agent.id);
+```
+
+### Agent Builder Sessions
+
+`createAgentBuilderSession()` opens a session that uses Agent Builder to create or edit a custom agent. It supports three modes: `new` (default), `edit` (update an existing agent), and `from_session` (derive a new agent from a past session's history).
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+
+const client = new CoderClient();
+
+// Start Agent Builder to edit an existing custom agent
+const session = await client.createAgentBuilderSession({
+  mode: 'edit',
+  targetAgentSlug: 'security-reviewer',
+  prompt: 'Add a check for dependency confusion attacks',
+});
+```
+
+`mode` is inferred from other fields when omitted: if `targetAgentId` or `targetAgentSlug` is set it defaults to `edit`; if `sourceSessionId` is set it defaults to `from_session`.
+
+### Streaming
+
+Use `subscribeToCoderHub()` to receive live session events over a WebSocket as an async generator. Use `streamCoderSessionSSE()` for a lighter SSE-based stream when you only need to observe (not control) a session.
+
+```typescript
+import { subscribeToCoderHub } from '@agentuity/coder';
+
+for await (const message of subscribeToCoderHub({
+  sessionId: 'codesess_abc123',
+  role: 'observer',
+  apiKey: process.env.AGENTUITY_SDK_KEY,
+})) {
+  // store, forward, or render the typed ServerMessage in your app
+  process.stdout.write(`${message.type}\n`);
+}
+```
+
+`streamCoderSessionSSE()` accepts a `subscribe` filter array to limit which event types are delivered, and reconnects automatically by default. Both functions are standalone exports from `@agentuity/coder` and do not require a `CoderClient` instance.
+
+### Users and GitHub
+
+`listUsers()` returns known users in the Coder Hub for your org. The CLI exposes this as `agentuity coder users`.
+
+```typescript
+const { users } = await client.listUsers();
+```
+
+`listGitHubAccounts()` returns GitHub App installations available to the caller. `listGitHubRepos(accountId)` returns repositories accessible under a specific account.
+
+```typescript
+const { accounts } = await client.listGitHubAccounts();
+const firstAccount = accounts[0];
+
+if (firstAccount) {
+  const { repositories } = await client.listGitHubRepos(firstAccount.accountId);
+}
+```
+
+### Models
+
+`createSession()` and the custom agent methods accept an optional `model` string that overrides the default for that session or agent. The Hub maps model strings to provider profiles. Valid values are managed by the platform; check the web app for the current list.
 
 ### Client Configuration
 
@@ -242,7 +362,7 @@ Most apps only need the API key. Set `AGENTUITY_SDK_KEY` and let the client disc
 ## CLI Usage
 
 ```bash
-# Open the interactive terminal session
+# Open the interactive terminal session (aliases: start, run)
 agentuity coder tui
 
 # Create a managed session without attaching
@@ -251,27 +371,49 @@ agentuity coder create "Build an auth system"
 # Create a managed session and attach immediately
 agentuity coder create "Build an auth system" --connect
 
-# Open the interactive terminal session against an existing remote session
+# Attach to an existing remote sandbox session
 agentuity coder tui --remote codesess_abc123
+
+# Open session picker then attach
+agentuity coder tui --remote
+
+# Create a cloud sandbox session and attach
+agentuity coder tui --sandbox "Build an auth system"
 
 # List active sessions
 agentuity coder list
 
 # Inspect a session
 agentuity coder get codesess_abc123
+
+# List known Coder users
+agentuity coder users
 ```
 
-See [Coder CLI Commands](/reference/cli/coder) for the full command reference.
+**Workspace subcommands** (`agentuity coder workspace`):
+
+- `list` — list all workspaces
+- `create <name>` — create a workspace
+- `get <workspace-id>` — show workspace details
+- `delete <workspace-id>` — delete a workspace
+
+**Skill subcommands** (`agentuity coder skill`):
+
+- `list` — list saved skills
+- `save` — save a skill to your library
+- `delete <skill-id>` — delete a saved skill
+- `buckets` — list skill buckets
+
+See [Coder CLI Commands](/reference/cli/coder) for the full command reference including all flags.
 
 ### Session Modes
 
-Running `agentuity coder tui` with no extra flags launches the interactive terminal session. Using `agentuity coder tui --sandbox <task>` creates a cloud sandbox session and attaches to it. Using `agentuity coder tui --remote <session_id>` attaches to an existing connectable session, and bare `--remote` opens the session picker.
+`CoderSessionMode` is `'sandbox' | 'tui'`. Running `agentuity coder tui` with no extra flags launches the interactive local terminal session (`tui` mode). The `--sandbox` flag creates a cloud sandbox session and attaches to it. The `--remote` flag is not a mode: it attaches to an existing connectable sandbox session.
 
 | Mode | Description |
 |------|-------------|
 | `tui` | Interactive agent in your local terminal |
 | `sandbox` | Agent runs in a cloud sandbox; observe via CLI or web |
-| `remote` | Attach to an existing connectable cloud session |
 
 ## Session Lifecycle
 

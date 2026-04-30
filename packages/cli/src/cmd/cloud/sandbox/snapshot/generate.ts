@@ -15,7 +15,7 @@ const TEMPLATE_YAML = `# yaml-language-server: $schema=https://agentuity.dev/sch
 version: 1
 
 # Required: Runtime environment
-# Format: name:tag (e.g., bun:1, node:20, python:3.12)
+# Format: name:tag (e.g., bun:1, node:lts, python:3.14)
 # Run 'agentuity cloud sandbox runtime list' to see available runtimes
 runtime: bun:1
 

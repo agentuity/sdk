@@ -4,64 +4,130 @@ short_title: Local Development
 description: Run your framework dev script with Agentuity environment wiring.
 ---
 
-`agentuity dev` runs your project's package-manager `dev` script and passes Agentuity environment values into that process. Use it when you want your normal framework dev server with Agentuity local wiring.
+`agentuity dev` runs your framework's dev script as a child process and patches Agentuity values into that process's environment. The framework keeps owning the dev server, hot reload, and the route table. Agentuity's job is to wire `AGENTUITY_SDK_KEY` and the AI Gateway base URLs in front of your provider SDKs.
 
 ```bash
 agentuity dev
 ```
 
-## What Runs
+## What It Runs
 
-The CLI reads `package.json`, detects the package manager, and runs the selected script:
+The CLI reads `package.json`, picks the package manager from the lockfile in the project root, and runs the chosen script:
+
+| Lockfile present | Runner used |
+|------------------|-------------|
+| `bun.lock` or `bun.lockb` | `bun run <script>` |
+| `pnpm-lock.yaml` | `pnpm run <script>` |
+| `yarn.lock` | `yarn <script>` |
+| `package-lock.json` | `npm run <script>` |
+| None | `bun run <script>` |
+
+The default script name is `dev`. Use `--script` when your `dev` script does something other than starting your framework, or when you want a non-standard script:
 
 ```json title="package.json"
 {
   "scripts": {
-    "dev": "next dev",
-    "dev:web": "vite --host 0.0.0.0"
+    "dev": "agentuity dev --script dev:start",
+    "dev:start": "next dev --port 3000"
   }
 }
 ```
 
-```bash
-agentuity dev
-agentuity dev --script dev:web
+This is the recommended pattern for existing apps. Keep your real dev command in `dev:start` and let `dev` wrap it through Agentuity. `agentuity dev` and `bun run dev` then do the same thing.
+
+If the named script is missing, the CLI prints the available scripts and exits.
+
+## Local Environment Loading
+
+The CLI looks up `AGENTUITY_SDK_KEY` in your `.env` files using the active profile. The default profile is `production`. The local profile (`local`) loads a different file order so dev overrides do not bleed into other profiles.
+
+| Profile | File order (highest priority first) |
+|---------|--------------------------------------|
+| `local` (and `NODE_ENV` is not `production`) | `.env.local` → `.env.development` → `.env` |
+| any other profile, or `NODE_ENV=production` | `.env.<profile>` → `.env` → `.env.production` |
+
+Switch profiles with `--profile <name>` or the `AGENTUITY_PROFILE` env var. The framework dev server reads its own variables. The CLI does not parse `.env` for your app, only for the SDK key it needs to wire the gateway.
+
+If no project SDK key is found, the CLI falls back to your CLI auth key for gateway routing and reminds you to run `agentuity project import` so the project gets its own key.
+
+## AI Gateway in Local Dev
+
+The Agentuity AI Gateway supports nine public provider families. `agentuity dev` automatically injects env vars for the SDKs that read provider API key and base URL values from process env. Other AI SDK providers should be configured with an explicit provider factory.
+
+| Provider | Raw SDK | AI SDK module | Local dev wiring |
+|----------|---------|----------------|-------------------|
+| OpenAI | `openai` | `@ai-sdk/openai` | env vars patched into the dev child |
+| Anthropic | `@anthropic-ai/sdk` | `@ai-sdk/anthropic` | env vars patched into the dev child |
+| Groq | `groq-sdk` | `@ai-sdk/groq` | env vars patched into the dev child |
+| Google (Gemini) | - | `@ai-sdk/google` | explicit provider factory |
+| xAI (Grok) | - | `@ai-sdk/xai` | explicit provider factory |
+| DeepSeek | - | `@ai-sdk/deepseek` | explicit provider factory |
+| Mistral | - | `@ai-sdk/mistral` | explicit provider factory |
+| Cohere | - | `@ai-sdk/cohere` | explicit provider factory |
+| Perplexity | - | `@ai-sdk/perplexity` | explicit provider factory |
+
+For OpenAI, Anthropic, and Groq, the automatic patch only runs when the provider API key is missing or already equals `AGENTUITY_SDK_KEY`. If you set a real provider key in `.env`, the CLI leaves it alone and your call goes straight to that provider.
+
+For the AI SDK provider-factory path, pass the project SDK key and gateway base URL yourself:
+
+```typescript
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+
+const apiKey = process.env.AGENTUITY_SDK_KEY;
+const gatewayBaseUrl = (
+  process.env.AGENTUITY_TRANSPORT_URL || process.env.AGENTUITY_CATALYST_URL
+)?.replace(/\/+$/u, '');
+
+if (!apiKey || !gatewayBaseUrl) {
+  throw new Error('Agentuity AI Gateway env vars are required');
+}
+
+export const google = createGoogleGenerativeAI({
+  apiKey,
+  baseURL: `${gatewayBaseUrl}/gateway/google-ai-studio`,
+});
 ```
 
-If the script is missing, the command exits and prints the available scripts.
+Use the provider slug for the gateway path, such as `google-ai-studio`, `grok`, `deepseek`, `mistral`, `cohere`, or `perplexity-ai`.
 
 ## Port
 
-`agentuity dev` sets `PORT` for the child process. The default is `3000`; pass `--port` when your framework should listen elsewhere:
+`agentuity dev` sets `PORT` for the child process. The default is `3000`. Pass `--port` when your framework should listen elsewhere:
 
 ```bash
 agentuity dev --port 4321
 ```
 
-Frameworks differ in how they read `PORT`. If your framework ignores it, configure the port in the framework's own dev script.
+Some frameworks ignore `PORT` and require a CLI flag in the dev script itself. The Next.js, SvelteKit, and TanStack templates use `--port 3000` directly in `dev:start` to keep the framework happy.
 
-## AI Gateway Environment
-
-When `AGENTUITY_SDK_KEY` is available, `agentuity dev` injects provider-compatible environment variables for OpenAI, Anthropic, and Groq unless you already set your own provider key.
-
-```bash
-agentuity dev
-```
-
-This lets provider SDK calls route through Agentuity during local development. If no project SDK key is found, the CLI can fall back to your CLI auth key for gateway routing and prints a reminder to run `agentuity project import`.
-
-Service clients should still use a project SDK key. Link the app when local routes need key-value storage, vector search, object storage, or other Agentuity services.
-
-<Callout type="info" title="Local development uses your framework server">
-`agentuity dev` does not replace Next.js, Vite, Hono, or another framework dev server. It starts the script you already defined and passes Agentuity environment values into that process.
+<Callout type="info" title="No public tunnel in local dev">
+Local dev runs your framework dev server on `localhost`. There is no public URL, ngrok handoff, or DevMode tunnel. For provider callbacks, mobile testing, or webhook receivers, deploy a build or run your own tunnel (`ngrok`, `cloudflared`).
 </Callout>
 
 ## Validate Project Shape
 
-Use import validation when you want to check project shape without creating or deploying anything:
+When you want to confirm a directory looks right without registering it or writing files, run import in validate-only mode:
 
 ```bash
 agentuity project import --validate-only
 ```
 
-For local environment behavior, see [Environment Variables](/deploy-operate/environment-variables): it explains which values are read from `.env` and which values are synced to Agentuity Cloud.
+The check accepts a `package.json` with at least one of `name`, `dependencies`, or `devDependencies`, or an `agentuity/` subdirectory containing a `package.json`. Nothing is written and nothing is created in the cloud.
+
+## Local vs Deployed
+
+| Aspect | Local (`agentuity dev`) | Deployed |
+|--------|-------------------------|----------|
+| Process | Your framework dev script as a child | The command from `.agentuity/launch.json` |
+| `AGENTUITY_SDK_KEY` | Read from `.env` (profile-aware) or CLI auth | Injected by the platform |
+| Gateway base URLs | OpenAI, Anthropic, and Groq env pairs patched into the child process when no provider key is set; other AI SDK providers use explicit factories | Platform transport URLs are injected; provider SDKs still need the setup documented in [AI Gateway](/services/ai-gateway) or provider-owned keys |
+| Cloud transport URLs | Defaulted to `local` profile values | Injected by the platform per region |
+| Public URL | None. Use a tunnel or deploy. | Vanity URL, deployment URL, optional custom domain |
+| Hot reload | Yours, via the framework's dev server | None. Each deploy is a new build. |
+
+## Next Steps
+
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): register the project, package the bundle, ship it.
+- [Environment Variables](/deploy-operate/environment-variables): which values go in `.env`, which go in cloud project vars, what becomes a secret.
+- [Dev Options](/reference/cli/development#dev-options): every CLI flag for `agentuity dev`.
+- [Framework Scripts](/reference/cli/development#framework-scripts): more on `--script` and the `dev:start` wrapper pattern.

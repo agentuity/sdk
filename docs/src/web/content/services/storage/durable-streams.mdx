@@ -124,12 +124,13 @@ const recentExports = await streams.list({
   limit: 25,
 });
 
-console.log(recentExports.total);
+const totalExports = recentExports.total;
+void totalExports;
 
 await streams.delete(info.id);
 ```
 
-`list()` returns `{ success, message, streams, total }`. Each listed stream includes `id`, `namespace`, `metadata`, `url`, `sizeBytes`, and `expiresAt`.
+`list()` returns `{ success, message, streams, total }`. Each listed stream includes `id`, `namespace`, `metadata`, `url`, `sizeBytes`, and `expiresAt`. Stream `metadata` values must be strings; encode richer payloads with `JSON.stringify` before storing.
 
 ## Background Work
 

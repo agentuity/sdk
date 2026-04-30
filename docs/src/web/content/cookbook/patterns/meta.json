@@ -14,5 +14,17 @@
 			]
 		}
 	],
-	"pages": ["chat-with-history", "hono-rpc-tanstack-query", "server-utilities", "tailwind-setup"]
+	"pages": [
+		"chat-with-history",
+		"product-search",
+		"webhook-handler",
+		"cron-with-storage",
+		"background-tasks",
+		"autonomous-research",
+		"llm-as-a-judge",
+		"web-exploration",
+		"hono-rpc-tanstack-query",
+		"server-utilities",
+		"tailwind-setup"
+	]
 }

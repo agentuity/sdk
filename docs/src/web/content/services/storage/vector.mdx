@@ -13,11 +13,6 @@ bun add @agentuity/vector@alpha
 ```typescript
 import { VectorClient } from '@agentuity/vector';
 
-interface DocumentMetadata {
-  readonly category: 'guide' | 'api';
-  readonly source: string;
-}
-
 const vector = new VectorClient();
 
 await vector.upsert(
@@ -25,16 +20,16 @@ await vector.upsert(
   {
     key: 'deploy-guide',
     document: 'Deploy framework apps to Agentuity with agentuity deploy.',
-    metadata: { category: 'guide', source: 'docs' } satisfies DocumentMetadata,
+    metadata: { category: 'guide', source: 'docs' },
   },
   {
     key: 'service-clients',
     document: 'Agentuity services can be used through dedicated client packages.',
-    metadata: { category: 'api', source: 'docs' } satisfies DocumentMetadata,
+    metadata: { category: 'api', source: 'docs' },
   }
 );
 
-const results = await vector.search<DocumentMetadata>('docs', {
+const results = await vector.search('docs', {
   query: 'How do I use Agentuity services from my app?',
   limit: 3,
   similarity: 0.7,
@@ -106,6 +101,29 @@ const rankedKeys = furniture.map((result) => result.key);
 
 Search results include `id`, `key`, `similarity`, optional `metadata`, and optional `expiresAt`.
 
+## Type-Safe Metadata
+
+`get()`, `getMany()`, and `search()` accept a metadata generic. The constraint is `Record<string, unknown>`, so define metadata types as a `type` intersection or as an interface that extends the record.
+
+```typescript
+type ProductMetadata = {
+  readonly category: 'furniture' | 'electronics';
+  readonly source: string;
+} & Record<string, unknown>;
+
+const typed = await vector.search<ProductMetadata>('products', {
+  query: 'comfortable seating for a desk',
+  metadata: { category: 'furniture', source: 'catalog' },
+});
+
+const document = await vector.get<ProductMetadata>('products', 'chair-001');
+
+if (document.exists) {
+  const category = document.data.metadata?.category;
+  void category;
+}
+```
+
 ## Retrieve and Delete
 
 Use `get()` when you already know the key, `getMany()` for batches, and `delete()` when you want to remove one or more vectors.
@@ -128,10 +146,13 @@ Vector namespaces are created on first upsert. Use stats and namespace methods t
 ```typescript
 const hasProducts = await vector.exists('products');
 const stats = await vector.getStats('products');
+const allStats = await vector.getAllStats({ limit: 25, sort: 'size' });
 const namespaces = await vector.getNamespaces();
 
 await vector.deleteNamespace('old-products');
 ```
+
+`getStats()` returns `sum` (bytes), `count`, optional `createdAt`/`lastUsed`, and `sampledResults` with up to 20 vectors and their embeddings. Use the samples for quick inspection without running a search.
 
 <Callout type="warning" title="Deleting a namespace removes every vector">
 `deleteNamespace()` permanently removes the namespace and all vectors inside it.

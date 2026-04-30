@@ -1,11 +1,11 @@
 ---
 title: Deploy & Operate
-description: Run local development, builds, deploys, and environment management with the v3 CLI.
+description: Run a framework app locally, package it, deploy it, and manage the env values it needs.
 ---
 
-import { KeyRound, Play, Rocket } from 'lucide-react';
+import { Globe, KeyRound, Play, Rocket } from 'lucide-react';
 
-Use these pages when you want to run a framework app locally, package it for Agentuity, deploy it, and manage the environment values it needs.
+Use these pages when you want to run a framework app locally with Agentuity wiring, register and deploy it, attach a domain, and manage the environment values it reads at each stage.
 
 <Cards>
   <CardLink
@@ -17,24 +17,43 @@ Use these pages when you want to run a framework app locally, package it for Age
   <CardLink
     href="/deploy-operate/deploy-framework-apps"
     title="Deploy Framework Apps"
-    description="Register a project, build `.agentuity`, and deploy the bundle"
+    description="Register a project, package the build, and ship the bundle"
     icon={<Rocket />}
+  />
+  <CardLink
+    href="/deploy-operate/custom-domains"
+    title="Custom Domains"
+    description="Attach your own domain, validate DNS, and let TLS provision"
+    icon={<Globe />}
   />
   <CardLink
     href="/deploy-operate/environment-variables"
     title="Environment Variables"
-    description="Manage local `.env`, cloud variables, public values, and secrets"
+    description="Manage local .env, cloud project values, public values, and secrets"
     icon={<KeyRound />}
   />
 </Cards>
 
-## Common Flow
+## Canonical Flow
 
 ```bash
-agentuity dev
-agentuity project import
-agentuity build
-agentuity deploy
+agentuity dev                            # iterate locally with gateway wiring
+agentuity project import --validate-only # confirm the directory looks right
+agentuity project import                 # register the project, write agentuity.json
+agentuity build                          # package .agentuity for deploy
+agentuity deploy                         # encrypt, upload, provision
 ```
 
-Use [Local Development](/deploy-operate/local-development) when you want to run your framework server with Agentuity values injected. Use [Deploy Framework Apps](/deploy-operate/deploy-framework-apps) when the app is ready to register, build, and upload.
+The full deploy command runs `build` itself and uploads the result. Run `agentuity build` ahead of time when you want to inspect the bundle, the detected framework, or `launch.json` before shipping.
+
+## Where to Start
+
+| Goal | Page |
+|------|------|
+| Run a framework dev server with `AGENTUITY_SDK_KEY` and gateway base URLs already wired | [Local Development](/deploy-operate/local-development) |
+| Register a directory as a cloud project, then ship it | [Deploy Framework Apps](/deploy-operate/deploy-framework-apps) |
+| Attach your own domain, set DNS, verify TLS | [Custom Domains](/deploy-operate/custom-domains) |
+| Decide what goes in `.env`, what goes in cloud project vars, and what becomes a secret | [Environment Variables](/deploy-operate/environment-variables) |
+| Operate after deploy: list, show, rollback, undeploy, delete | [Operate a Deployment](/deploy-operate/deploy-framework-apps#operate-a-deployment) |
+| Inspect detector output, `launch.json`, or the bundle directory before deploy | [Building Deployment Bundles](/reference/cli/build-configuration) |
+| See every flag for `agentuity deploy` | [Deploying with the CLI](/reference/cli/deployment) |

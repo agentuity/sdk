@@ -4,7 +4,7 @@ short_title: Postgres
 description: Use Bun-native tagged SQL with Agentuity-managed Postgres
 ---
 
-Use `@agentuity/postgres` when Bun server code needs direct SQL access through `DATABASE_URL`. The client wraps Bun's native SQL driver and adds reconnect behavior around connection loss.
+Use `@agentuity/postgres` when Bun server code explicitly wants the Agentuity helper around direct SQL access through `DATABASE_URL`. The client wraps Bun's native SQL driver and adds reconnect behavior around connection loss.
 
 ```bash
 bun add @agentuity/postgres@alpha
@@ -23,7 +23,7 @@ const users = await sql`
 ```
 
 <Callout type="info" title="This client is Bun-native">
-`@agentuity/postgres` imports Bun's SQL driver. Use it in Bun-based Agentuity apps and scripts. In other Node.js processes, use a Node Postgres client or the `@agentuity/db` service client.
+`@agentuity/postgres` imports Bun's SQL driver. Use it in Bun-based Agentuity apps and scripts that choose this helper. In other Node.js processes, use your framework's Postgres client, ORM, or the `@agentuity/db` service client for trusted admin scripts.
 </Callout>
 
 ## Connection Setup
@@ -50,14 +50,14 @@ Leave `prepare: false` when your database connection may pass through a connecti
 
 ## Transactions
 
-Transactions group related queries so they succeed or roll back together.
+Transactions group related queries so they succeed or roll back together. The transaction object is not callable: use `tx.query` for tagged-template queries inside the transaction.
 
 ```typescript
 const tx = await sql.begin();
 
 try {
-  await tx`UPDATE accounts SET balance = balance - ${100} WHERE name = ${'Alice'}`;
-  await tx`UPDATE accounts SET balance = balance + ${100} WHERE name = ${'Bob'}`;
+  await tx.query`UPDATE accounts SET balance = balance - ${100} WHERE name = ${'Alice'}`;
+  await tx.query`UPDATE accounts SET balance = balance + ${100} WHERE name = ${'Bob'}`;
   await tx.commit();
 } catch (error) {
   await tx.rollback();
@@ -81,12 +81,12 @@ Use savepoints when only part of the transaction should roll back.
 const tx = await sql.begin();
 
 try {
-  await tx`INSERT INTO users (name) VALUES (${'Alice'})`;
+  await tx.query`INSERT INTO users (name) VALUES (${'Alice'})`;
 
   const savepoint = await tx.savepoint();
 
   try {
-    await tx`INSERT INTO users (name) VALUES (${'Bob'})`;
+    await tx.query`INSERT INTO users (name) VALUES (${'Bob'})`;
     throw new Error('Rollback Bob only');
   } catch {
     await savepoint.rollback();
@@ -119,13 +119,13 @@ The client also supports callbacks such as `onclose`, `onreconnect`, `onreconnec
 
 ## Connection Stats
 
-Use `sql.stats` when you need to inspect connection state.
+Use `sql.stats` when you need to inspect connection state, for example from a health route.
 
 ```typescript
 const stats = sql.stats;
 
 if (stats.reconnecting) {
-  console.warn('Database is reconnecting');
+  // surface this to your health endpoint or logger
 }
 ```
 
@@ -155,13 +155,20 @@ sql.shutdown();
 await sql.close();
 ```
 
-Run a trusted raw SQL string with retry behavior:
+Run a raw SQL string with retry behavior. `unsafeQuery` retries transient errors and wraps mutations (`INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CALL`, `DO`, `COPY`, `TRUNCATE`) in a transaction so retries do not double-apply.
 
 ```typescript
-const rows = await sql.unsafeQuery('SELECT version()');
+const version = await sql.unsafeQuery('SELECT version()');
+
+const inserted = await sql.unsafeQuery(
+  'INSERT INTO items (name) VALUES ($1) RETURNING *',
+  ['demo-item']
+);
+
+const arrays = await sql.unsafeQuery('SELECT id, name FROM items').values();
 ```
 
-Use `unsafeQuery()` only for trusted SQL. For dynamic values, prefer tagged templates or pass parameters to `unsafeQuery(query, params)`.
+Each `unsafeQuery` result can be consumed once, either as row objects (`await result`) or as raw arrays (`await result.values()`), not both. For dynamic values prefer tagged templates; reach for `unsafeQuery` when the SQL itself is built from a trusted source.
 
 ## Next Steps
 

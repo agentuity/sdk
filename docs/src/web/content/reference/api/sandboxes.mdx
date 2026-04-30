@@ -342,7 +342,7 @@ Returns the sandbox ID, status, and optional stream URLs for stdout/stderr.
 
 <ApiExample method="POST" path="/sandbox" body={{
   "name": "dev-sandbox",
-  "runtime": "node-20",
+  "runtime": "node:lts",
   "resources": {
     "memory": 512
   },
@@ -2759,7 +2759,7 @@ Returns snapshot ID and presigned upload URL. If unchanged is true, content matc
 #### Example
 
 <ApiExample method="POST" path="/sandbox/snapshots/build" body={{
-  "runtime": "node-20",
+  "runtime": "node:lts",
   "name": "my-app",
   "tag": "latest"
 }} />

@@ -3,7 +3,7 @@ title: Queues
 description: Publish messages for async processing, webhooks, and event-driven workflows
 ---
 
-Use queues when a request should hand work to another process and return quickly. Start with `QueueClient` from any server runtime, route handler, script, or worker.
+Use queues when a request should hand work off and return quickly. The handler accepts the request, the publish is durable, and a separate consumer or destination handles the slow part. Start with `QueueClient`; Hono apps can use `c.var.queue` after installing the Agentuity middleware.
 
 ```bash
 bun add @agentuity/queue@alpha
@@ -20,7 +20,7 @@ interface ReportRequest {
 const queue = new QueueClient();
 
 await queue.createQueue('email-reports', {
-  description: 'Report emails generated outside the request path',
+  description: 'Reports generated outside the request path',
   settings: {
     defaultTtlSeconds: 60 * 60 * 24,
     defaultMaxRetries: 3,
@@ -41,17 +41,17 @@ export async function queueReport(userId: string): Promise<string> {
 }
 ```
 
-`QueueClient` reads `AGENTUITY_SDK_KEY` by default. In Agentuity projects, keep the key in `.env` for local `agentuity dev` and configure the same environment variable for deployed apps.
+`QueueClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Keep that key in `.env` for local development and configure the same variable for deployed apps.
 
 ## When to Use Queues
 
 | Need | Use |
 |------|-----|
 | background jobs or async handoff | [Queues](/services/queues) |
-| exact key lookup or counters | [Key-Value Storage](/services/storage/key-value) |
-| append-only ordered data | [Durable Streams](/services/storage/durable-streams) |
-| managed ingest from external services | [Webhooks](/services/webhooks) |
 | recurring delivery on a timer | [Schedules](/services/schedules) |
+| managed ingest from external services | [Webhooks](/services/webhooks) |
+| append-only ordered data with replay | [Durable Streams](/services/storage/durable-streams) |
+| exact key lookup or counters | [Key-Value Storage](/services/storage/key-value) |
 
 ## Client Setup
 
@@ -61,20 +61,20 @@ Construct the client once at module scope and reuse it from handlers, routes, or
 import { QueueClient } from '@agentuity/queue';
 
 const queue = new QueueClient({
-  orgId: process.env.AGENTUITY_ORG_ID,
+  orgId: process.env.AGENTUITY_CLOUD_ORG_ID,
 });
 ```
 
 | Option | Description |
 |--------|-------------|
 | `apiKey` | Optional API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. |
-| `orgId` | Optional organization ID for org-scoped requests. |
+| `orgId` | Optional organization ID. Used when the API key is org-scoped or when calling from a CLI context. |
 | `url` | Optional Queue API URL. Defaults to `AGENTUITY_QUEUE_URL`, then the regional Agentuity service URL. |
 | `logger` | Optional logger instance. |
 
 ## Create a Queue
 
-`createQueue()` is idempotent. If the queue already exists, the call returns successfully.
+`createQueue()` is idempotent and caches the queue name in memory. Calling it again with the same name from the same client is a no-op.
 
 ```typescript
 await queue.createQueue('order-events', {
@@ -82,6 +82,7 @@ await queue.createQueue('order-events', {
   description: 'Orders waiting for fulfillment',
   settings: {
     defaultVisibilityTimeoutSeconds: 60,
+    defaultMaxRetries: 5,
     maxInFlightPerClient: 10,
     retentionSeconds: 60 * 60 * 24 * 30,
   },
@@ -90,17 +91,19 @@ await queue.createQueue('order-events', {
 
 | Field | Description |
 |-------|-------------|
-| `queueType` | Optional. `worker` sends each message to one consumer. `pubsub` broadcasts to subscribers. Defaults to `worker`. |
-| `description` | Optional human-readable purpose for the queue. |
-| `settings.defaultTtlSeconds` | Optional message expiration in seconds. `null` means no expiration. |
-| `settings.defaultVisibilityTimeoutSeconds` | Optional invisibility window after a worker receives a message. |
+| `queueType` | Optional. `worker` delivers each message to one consumer. `pubsub` broadcasts to all subscribers. Defaults to `worker`. |
+| `description` | Optional human-readable purpose. |
+| `settings.defaultTtlSeconds` | Optional message expiration in seconds. Pass `null` for no expiration. |
+| `settings.defaultVisibilityTimeoutSeconds` | Optional invisibility window after a worker receives a message, before redelivery. |
 | `settings.defaultMaxRetries` | Optional retry limit before a failed message moves to the dead letter queue. |
 | `settings.maxInFlightPerClient` | Optional concurrent message limit per consumer. |
 | `settings.retentionSeconds` | Optional retention period for acknowledged messages. |
 
+Queue names must match `^[a-z_][a-z0-9_-]*$` and be 256 characters or fewer. The client validates this before sending the request.
+
 ## Publish Messages
 
-Payloads can be strings or JSON-serializable objects.
+Payloads can be strings or any JSON-serializable object. Objects are stringified before sending.
 
 ```typescript
 const result = await queue.publish(
@@ -121,14 +124,14 @@ const result = await queue.publish(
 | Option | Description |
 |--------|-------------|
 | `metadata` | Optional JSON metadata for routing or inspection. |
-| `partitionKey` | Optional key for ordering related messages. |
-| `idempotencyKey` | Optional deduplication key for retrying publishers. |
+| `partitionKey` | Optional key for ordering related messages. Max 256 characters. |
+| `idempotencyKey` | Optional dedup key for retrying publishers. Max 256 characters. |
 | `ttl` | Optional time-to-live in seconds. |
 | `projectId` | Optional project ID for cross-project publishing. |
 | `agentId` | Optional agent ID for attribution. |
-| `sync` | Optional. When `true`, waits until the message is persisted before returning. |
+| `sync` | Optional. When `true`, the call waits until the message is persisted before returning. |
 
-`publish()` returns the message ID, queue offset, and publish timestamp:
+`publish()` returns the assigned message ID, queue offset, and publish timestamp:
 
 ```typescript
 interface QueuePublishResult {
@@ -138,60 +141,19 @@ interface QueuePublishResult {
 }
 ```
 
-Use `sync: true` only when the caller must know the message was persisted before continuing.
+Use `sync: true` when the caller must know the message is durable before continuing, for example before responding to a webhook that will be retried on non-2xx.
 
 ```typescript
 await queue.publish('billing-events', { invoiceId: 'inv_123' }, { sync: true });
 ```
 
-## Delete a Queue
+Payloads are limited to 1 MB. Publishing an empty payload throws `QueueValidationError`.
 
-Deleting a queue also deletes its messages.
+## Receive a Webhook and Hand It Off
 
-```typescript
-await queue.deleteQueue('old-order-events');
-```
+Most apps publish from inside a framework route. The route validates the payload, hands it to a queue, and returns 2xx so the upstream sender does not retry.
 
-<Callout type="warning" title="Deleting a queue removes its messages">
-`deleteQueue()` permanently removes the queue and any pending, delivered, or failed messages associated with it.
-</Callout>
-
-## Handle Errors
-
-The queue package exports typed errors for common client-side failures.
-
-```typescript
-import { QueueClient, QueueNotFoundError, QueueValidationError } from '@agentuity/queue';
-
-const queue = new QueueClient();
-
-export async function publishNotification(userId: string): Promise<boolean> {
-  try {
-    await queue.publish('notifications', { userId });
-    return true;
-  } catch (error) {
-    if (error instanceof QueueNotFoundError) {
-      return false;
-    }
-
-    if (error instanceof QueueValidationError) {
-      return false;
-    }
-
-    throw error;
-  }
-}
-```
-
-## Hono Convenience
-
-If your app already uses Hono, `@agentuity/hono` can initialize `QueueClient` once and expose it on `c.var.queue`.
-
-```bash
-bun add @agentuity/hono@alpha hono
-```
-
-```typescript
+```typescript title="src/routes/stripe.ts"
 import { Hono } from 'hono';
 import { agentuity } from '@agentuity/hono';
 import type { Services } from '@agentuity/hono';
@@ -204,7 +166,6 @@ app.use('*', agentuity());
 
 app.post('/stripe/events', async (c) => {
   const eventId = c.req.header('stripe-event-id');
-
   if (!eventId) {
     return c.json({ error: 'Missing stripe-event-id header' }, 400);
   }
@@ -221,8 +182,96 @@ app.post('/stripe/events', async (c) => {
 export default app;
 ```
 
+The same shape works in Next.js route handlers, TanStack Start server functions, or plain scripts: build the client at module scope, validate, publish, return.
+
+## Delete a Queue
+
+```typescript
+await queue.deleteQueue('old-order-events');
+```
+
+`deleteQueue()` throws `QueueNotFoundError` if the queue is already gone, which lets a manual cleanup script tell "deleted" from "missing".
+
+<Callout type="warning" title="Deleting a queue removes its messages">
+`deleteQueue()` permanently removes the queue and any pending, in-flight, or dead-lettered messages. It cannot be undone.
+</Callout>
+
+## Handle Errors
+
+The package exports typed errors for the common failure cases.
+
+```typescript
+import {
+  QueueClient,
+  QueueNotFoundError,
+  QueueValidationError,
+  QueuePublishError,
+} from '@agentuity/queue';
+
+const queue = new QueueClient();
+
+export async function publishNotification(userId: string): Promise<boolean> {
+  try {
+    await queue.publish('notifications', { userId });
+    return true;
+  } catch (error) {
+    if (error instanceof QueueNotFoundError) {
+      return false;
+    }
+
+    if (error instanceof QueueValidationError) {
+      // bad name, oversized payload, partition/idempotency key too long
+      throw error;
+    }
+
+    if (error instanceof QueuePublishError) {
+      // unexpected response shape from the queue API
+      throw error;
+    }
+
+    throw error;
+  }
+}
+```
+
+`QueueValidationError` carries `field` and optional `value` so the caller can surface a useful message without parsing the error string.
+
+## Hono Middleware Variant
+
+`@agentuity/hono` constructs `QueueClient` once and exposes it on `c.var.queue`. Use it when several routes share the same client and you do not want to manage instances by hand.
+
+```bash
+bun add @agentuity/hono@alpha hono
+```
+
+```typescript
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
+
+type Variables = Pick<Services, 'queue'>;
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.post('/jobs', async (c) => {
+  const body = await c.req.json<{ userId: string }>();
+
+  const result = await c.var.queue.publish('email-reports', {
+    userId: body.userId,
+    report: 'daily',
+  });
+
+  return c.json({ messageId: result.id }, 202);
+});
+
+export default app;
+```
+
 ## Next Steps
 
 - [Webhooks](/services/webhooks): create managed ingest URLs that forward payloads to your app
 - [Schedules](/services/schedules): run recurring work on a cron expression
+- [Tasks](/services/tasks): track work items with status, comments, and audit history
 - [Using Standalone Packages](/reference/standalone-packages): configure service clients outside Agentuity projects

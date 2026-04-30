@@ -1,0 +1,101 @@
+---
+title: Fire-and-Forget Background Work
+short_title: Background Tasks
+description: Return a fast response while side effects continue in the background, plus when to upgrade to a durable queue
+---
+
+Some side effects do not need to complete before the response goes out: analytics, audit log writes, notification fan-out. Two paths cover the common cases.
+
+| Need | Use |
+|---|---|
+| ephemeral side effect, OK if dropped on restart | in-process promise |
+| durable handoff with retries, status, and observability | [Queues](/services/queues) and the [Background Work](/build/background-work) pattern |
+
+## In-Process Promise
+
+For best-effort work, kick off the promise and return. Wrap it in `try/catch` so an uncaught rejection cannot crash the process.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { logger } from '@agentuity/telemetry';
+
+const app = new Hono();
+
+app.post('/api/orders', async (c) => {
+  const body = await c.req.json<{ orderId: string; userId: string }>();
+
+  // do the durable work first
+  await confirmOrder(body.orderId);
+
+  // ephemeral side effects: best-effort, do not block the response
+  void runInBackground(() => trackPurchase(body.userId, body.orderId));
+  void runInBackground(() => notifyWarehouse(body.orderId));
+
+  return c.json({ status: 'confirmed', orderId: body.orderId });
+});
+
+async function runInBackground(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (error) {
+    logger.warn('background task failed', { error });
+  }
+}
+
+declare function confirmOrder(orderId: string): Promise<void>;
+declare function trackPurchase(userId: string, orderId: string): Promise<void>;
+declare function notifyWarehouse(orderId: string): Promise<void>;
+
+export default app;
+```
+
+`logger` from `@agentuity/telemetry` writes through the Agentuity logger pipeline. Use `c.var.logger` inside Hono handlers when [`@agentuity/hono`](/build/agents) middleware is mounted.
+
+<Callout type="warning" title="In-process promises do not survive restart">
+A redeploy, container shutdown, or crash drops in-flight promises. Use this pattern only for work the app can lose without consequence. Move durable work to a queue.
+</Callout>
+
+## Durable Queue Handoff
+
+When the work must survive restarts, has retry semantics, or needs status reporting, hand it off to a queue. The request route publishes; a worker route runs the slow part.
+
+```typescript
+import { Hono } from 'hono';
+import { QueueClient } from '@agentuity/queue';
+
+const queue = new QueueClient();
+const app = new Hono();
+
+app.post('/api/orders', async (c) => {
+  const body = await c.req.json<{ orderId: string; userId: string }>();
+
+  await confirmOrder(body.orderId);
+
+  await queue.publish(
+    'order-side-effects',
+    { orderId: body.orderId, userId: body.userId },
+    { idempotencyKey: body.orderId }
+  );
+
+  return c.json({ status: 'confirmed', orderId: body.orderId });
+});
+
+declare function confirmOrder(orderId: string): Promise<void>;
+
+export default app;
+```
+
+The full request, status, worker, and stream wiring lives in [Background Work](/build/background-work).
+
+## Notes
+
+- run only ephemeral side effects in process, not durable work
+- always wrap the promise so a rejection does not crash the runtime
+- prefer the queue path for anything that must reach a definite state
+- record an idempotency key in the queue payload when retries should converge
+
+## Next Steps
+
+- [Background Work](/build/background-work): the durable request/status/worker/stream pattern
+- [Queues](/services/queues): publish API, partitioning, idempotency, and HTTP destinations
+- [Webhook Handler](/cookbook/patterns/webhook-handler): another queue handoff pattern, scoped to incoming webhooks

@@ -23,6 +23,8 @@ Before writing a new page, read these as reference implementations:
 - **Reference**: `services/ai-gateway.mdx` -- provider tables, how-it-works flow
 - **SDK Reference**: `reference/sdk-reference/coder.mdx` -- hybrid narrative + structured method docs
 
+Framework and Build pages still need the same depth as feature and service docs: when-to-use guidance, a complete example, validation steps, gotchas, and source links. Do not ship pages that are only setup commands plus a trivial route snippet.
+
 ## Page Types
 
 | Type                 | Structure                                        | Example                          |
@@ -104,6 +106,21 @@ Brief context: what is this for, when do you use it? (1-2 sentences)
 
 The sidebar is auto-generated at build time by `scripts/generate-nav-data.ts`. Page ordering within each section is controlled by the `meta.json` file in the same directory. When adding a new page, add its slug to the `pages` array in the relevant `meta.json`.
 
+## Generated Reference Pages
+
+REST API reference pages in `src/web/content/reference/api/*.mdx` are generated
+from service metadata and Zod schemas. Do not hand-edit those MDX files as the
+source of truth.
+
+To update REST API docs:
+
+1. Edit the owning schema, type, or `packages/core/src/services/*/api-reference.ts` file.
+2. Run `bun run scripts/generate-api-reference.ts` from `docs/`.
+3. Commit the generated `reference/api/*.mdx` output if it changes.
+
+Generated diffs are expected when the source metadata changes. If the generated
+output does not match what you want, fix the source metadata and regenerate.
+
 ## Adding a New Page
 
 Every new page requires **three things**:
@@ -137,6 +154,25 @@ Agentuity supports raw provider SDKs and AI SDK providers. When writing docs:
 - When listing providers or models in tables, link to each provider's model page
 - See [AI Gateway](/services/ai-gateway) for the canonical list of supported providers
 
+## Service Client Guidance
+
+When writing service docs, verify the package that owns the feature being documented.
+Do not use a neighboring helper package as proof that another service works.
+
+Relational database helpers belong in database-specific, migration, or reference pages.
+They should not be the default state example for unrelated services, and they should not
+stand in for testing storage, messaging, execution, observability, identity, or other
+dedicated service clients.
+
+Examples:
+
+- for key-value docs, test `KeyValueClient` directly instead of proving state storage
+  with a SQL helper
+- for queues, tasks, schedules, email, webhooks, sandboxes, and Coder, verify the
+  dedicated client or CLI surface that owns that behavior
+- for relational data, use the database docs and frame the example as app-owned
+  Postgres or trusted database administration
+
 ## Code Examples
 
 Code blocks fall into two categories:
@@ -151,6 +187,9 @@ General rules:
 - No `// @ts-ignore`, `// eslint-disable`, or other suppression comments
 - Error handling: include in substantial examples, optional in short ones
 - Strip boilerplate: show only the feature being demonstrated
+- Use `// [!code highlight]` on the smallest set of lines that teach the point
+  the surrounding paragraph makes. Prefer 1-3 highlighted lines per block, and
+  avoid highlighting imports unless the import itself is the point.
 - Use a balance of raw SDK providers and AI SDK providers (`openai()`, `anthropic()`) in examples
 - Prefer `s` from `@agentuity/schema` for schemas. Other StandardSchema libraries (Zod, ArkType, Valibot) are equally valid and should appear across examples to show the SDK is schema-agnostic
 

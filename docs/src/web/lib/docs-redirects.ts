@@ -192,38 +192,6 @@ export const docRedirectRules = [
 		target: docsRedirects.communityInboundEmail,
 	},
 	{
-		paths: ['/cookbook/patterns/background-tasks', '/cookbook/patterns/background-tasks/'],
-		target: docsRedirects.cookbookBackgroundTasks,
-	},
-	{
-		paths: ['/cookbook/patterns/cron-with-storage', '/cookbook/patterns/cron-with-storage/'],
-		target: docsRedirects.cookbookCronStorage,
-	},
-	{
-		paths: ['/cookbook/patterns/llm-as-a-judge', '/cookbook/patterns/llm-as-a-judge/'],
-		target: docsRedirects.cookbookLlmJudge,
-	},
-	{
-		paths: ['/cookbook/patterns/product-search', '/cookbook/patterns/product-search/'],
-		target: docsRedirects.cookbookProductSearch,
-	},
-	{
-		paths: ['/cookbook/patterns/web-exploration', '/cookbook/patterns/web-exploration/'],
-		target: docsRedirects.cookbookWebExploration,
-	},
-	{
-		paths: ['/cookbook/patterns/webhook-handler', '/cookbook/patterns/webhook-handler/'],
-		target: docsRedirects.cookbookWebhookHandler,
-	},
-	{
-		paths: ['/cookbook/patterns/autonomous-research', '/cookbook/patterns/autonomous-research/'],
-		target: docsRedirects.cookbookResearch,
-	},
-	{
-		paths: ['/cookbook/tutorials/rag-agent', '/cookbook/tutorials/rag-agent/'],
-		target: docsRedirects.cookbookRag,
-	},
-	{
 		paths: [
 			'/cookbook/tutorials/understanding-agents',
 			'/cookbook/tutorials/understanding-agents/',
@@ -237,19 +205,6 @@ export const docRedirectRules = [
 	{
 		paths: ['/cookbook/integrations', '/cookbook/integrations/'],
 		target: docsRedirects.cookbookIntegrations,
-	},
-	{
-		paths: [
-			'/cookbook/integrations/claude-agent',
-			'/cookbook/integrations/claude-agent/',
-			'/cookbook/integrations/langchain',
-			'/cookbook/integrations/langchain/',
-			'/cookbook/integrations/mastra',
-			'/cookbook/integrations/mastra/',
-			'/cookbook/integrations/openai-agents',
-			'/cookbook/integrations/openai-agents/',
-		],
-		target: docsRedirects.cookbookProviderAgents,
 	},
 	{
 		paths: ['/cookbook/integrations/turborepo', '/cookbook/integrations/turborepo/'],

@@ -1,0 +1,161 @@
+---
+title: Cron with Cached Storage
+short_title: Cron with Storage
+description: Refresh data on a schedule, cache it in key-value storage, and serve fast reads from a normal route
+---
+
+Read-heavy routes can serve a cached payload while a scheduled task refreshes it in the background. The schedule fires a worker route, the worker writes to key-value storage, and a regular GET route returns whatever is current.
+
+```bash
+bun add hono @agentuity/schedule@alpha @agentuity/keyvalue@alpha @agentuity/schema@alpha
+```
+
+## Define the Worker and Reader Routes
+
+The worker route is what the schedule calls. It fetches external data, validates it, and writes a single key. The reader route serves whatever is in key-value storage.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+
+const TopStoryIdsSchema = s.array(s.number());
+
+const StorySchema = s.object({
+  id: s.number(),
+  title: s.string(),
+  score: s.number(),
+  by: s.string(),
+  url: s.optional(s.string()),
+});
+
+const CachedStoriesSchema = s.object({
+  stories: s.array(StorySchema),
+  fetchedAt: s.string(),
+});
+
+type CachedStories = s.infer<typeof CachedStoriesSchema>;
+
+const CACHE_NAMESPACE = 'cache';
+const CACHE_KEY = 'hn-stories';
+const CACHE_TTL_SECONDS = 60 * 60 * 24;
+
+const kv = new KeyValueClient();
+const app = new Hono();
+
+app.post('/api/workers/refresh-hn', async (c) => {
+  const idsRes = await fetch('https://hacker-news.firebaseio.com/v0/topstories.json');
+  const ids = TopStoryIdsSchema.parse(await idsRes.json());
+
+  const stories = await Promise.all(
+    ids.slice(0, 5).map(async (id) => {
+      const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+      const story = StorySchema.parse(await res.json());
+      return {
+        id: story.id,
+        title: story.title,
+        score: story.score,
+        by: story.by,
+        url: story.url ?? `https://news.ycombinator.com/item?id=${story.id}`,
+      };
+    })
+  );
+
+  const cached: CachedStories = {
+    stories,
+    fetchedAt: new Date().toISOString(),
+  };
+
+  await kv.set(CACHE_NAMESPACE, CACHE_KEY, cached, { ttl: CACHE_TTL_SECONDS });
+
+  return c.json({ ok: true, count: stories.length });
+});
+
+app.get('/api/stories', async (c) => {
+  const result = await kv.get<CachedStories>(CACHE_NAMESPACE, CACHE_KEY);
+
+  if (!result.exists) {
+    return c.json({ stories: [], fetchedAt: null });
+  }
+
+  return c.json(result.data);
+});
+
+export default app;
+```
+
+The worker accepts any payload from the schedule and ignores it. Verifying signatures or restricting the route to scheduled callers belongs in middleware if the worker should not be publicly reachable.
+
+## Create the Schedule
+
+The schedule is created once with the SDK. The CLI subcommand `agentuity cloud schedule create` does not accept destinations, so do this from a one-time script rather than an interactive flow.
+
+```typescript title="scripts/create-schedule.ts"
+import { ScheduleClient } from '@agentuity/schedule';
+import { logger } from '@agentuity/telemetry';
+
+const schedules = new ScheduleClient();
+
+const { schedule } = await schedules.create({
+  name: 'Refresh Hacker News cache',
+  description: 'Calls the refresh worker every hour',
+  expression: '0 * * * *',
+  destinations: [
+    {
+      type: 'url',
+      config: {
+        url: 'https://<your-app-host>/api/workers/refresh-hn',
+        method: 'POST',
+      },
+    },
+  ],
+});
+
+logger.info('schedule created', { id: schedule.id });
+```
+
+`schedules.create()` is atomic: a bad destination URL rolls back the whole call. Run the script once from a deployed environment, or against a public tunnel for local testing.
+
+<Callout type="warning" title="Schedule destinations need a public URL">
+The platform calls the destination URL. `localhost` is unreachable. For local iteration, expose the dev server with a tunnel like ngrok and point the destination at the tunnel URL.
+</Callout>
+
+## Inspect Recent Deliveries
+
+Each schedule firing produces a delivery record. Use it for audit and debugging.
+
+```typescript
+const recent = await schedules.listDeliveries(schedule.id, { limit: 20 });
+
+for (const delivery of recent.deliveries) {
+  logger.info('delivery', {
+    id: delivery.id,
+    status: delivery.status,
+    date: delivery.date,
+  });
+}
+```
+
+`delivery.date` is the ISO 8601 timestamp when the platform attempted to deliver. `delivery.error` and `delivery.response` carry the destination's reply (or the failure reason).
+
+## Update or Delete
+
+Change the cron expression or description with `update()`. Removing the schedule also cancels future deliveries.
+
+```typescript
+await schedules.update(schedule.id, { expression: '0 */2 * * *' });
+await schedules.delete(schedule.id);
+```
+
+## Notes
+
+- the schedule owns the timer, key-value storage owns the cache, and the GET route owns the public read
+- set `ttl` longer than the schedule interval so a missed run does not produce an empty cache
+- write the entire payload as one key when reads should be atomic; split into multiple keys when callers want to read parts independently
+- `update()` recomputes the next run time the moment the new expression is saved
+
+## Next Steps
+
+- [Schedules](/services/schedules): destinations, deliveries, and platform behavior
+- [Key-Value Storage](/services/storage/key-value): TTL, namespaces, and search
+- [Background Work](/build/background-work): wire request, status, worker, and stream routes around a queue

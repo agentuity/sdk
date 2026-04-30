@@ -1,12 +1,42 @@
 ---
 title: Chat and Streaming
-description: Stream model output from framework routes and persist chat state with Agentuity clients
+description: Stream model output from framework routes and persist chat history with KV storage
 ---
 
-Use streaming when the user should see model output as it is generated. Keep the HTTP response ephemeral, then store the transcript in a service client when the stream finishes.
+Use streaming when the user should see tokens as they arrive rather than waiting for the full response. Persist chat state separately in KV, writing it only after the stream finishes.
+
+## Minimal Route
+
+The smallest-complete shape: stream a response, then store the assistant turn after the stream closes.
+
+```typescript
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const result = streamText({ // [!code highlight]
+  model: openai('gpt-5.5'),
+  messages,
+  async onFinish({ text }) { // [!code highlight]
+    // Write assistant turn only after the stream completes
+    // If the stream fails, history stays consistent
+    await kv.set('chat-history', conversationId, [
+      ...messages,
+      { role: 'assistant', content: text },
+    ]);
+  },
+});
+
+return result.toTextStreamResponse(); // [!code highlight]
+```
+
+`onFinish` fires after the last token. Store the assistant message there, not before returning the response.
+
+## Complete Hono Route with KV History
+
+This route reads stored history, streams the next answer, then appends the assistant turn.
 
 ```bash
-bun add hono ai @ai-sdk/openai @agentuity/keyvalue@alpha @agentuity/schema@alpha
+bun add hono ai @ai-sdk/openai @agentuity/keyvalue@alpha @agentuity/schema@alpha @agentuity/telemetry@alpha
 ```
 
 ```typescript title="src/index.ts"
@@ -15,6 +45,7 @@ import { streamText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { KeyValueClient } from '@agentuity/keyvalue';
 import { s } from '@agentuity/schema';
+import { logger } from '@agentuity/telemetry';
 
 const inputSchema = s.object({
   conversationId: s.string(),
@@ -38,43 +69,49 @@ app.post('/api/chat', async (c) => {
   const input = inputSchema.parse(body);
 
   const stored = await kv.get<unknown>('chat-history', input.conversationId);
-  const history = stored.exists ? historySchema.parse(stored.data) : [];
+  const history: ChatMessage[] = stored.exists
+    ? historySchema.parse(stored.data)
+    : [];
 
-  const userMessage: ChatMessage = {
-    role: 'user',
-    content: input.message,
-  };
+  const userMessage: ChatMessage = { role: 'user', content: input.message };
   const nextHistory = [...history, userMessage];
 
   const result = streamText({
     model: openai('gpt-5.5'),
     system: 'You are a concise product support assistant.',
-    prompt: nextHistory
-      .map((message) => `${message.role}: ${message.content}`)
-      .join('\n'),
-    async onFinish({ text }) {
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: text,
-      };
+    messages: nextHistory,
+    async onFinish({ text }) { // [!code highlight]
+      const assistantMessage: ChatMessage = { role: 'assistant', content: text };
 
-      await kv.set('chat-history', input.conversationId, [...nextHistory, assistantMessage], {
-        ttl: 60 * 60 * 24 * 30,
+      await kv.set( // [!code highlight]
+        'chat-history',
+        input.conversationId,
+        [...nextHistory, assistantMessage],
+        { ttl: 60 * 60 * 24 * 30 }, // 30-day TTL
+      );
+
+      logger.info('conversation saved', {
+        conversationId: input.conversationId,
+        turns: nextHistory.length + 1,
       });
     },
   });
 
-  return result.toTextStreamResponse();
+  return result.toTextStreamResponse(); // [!code highlight]
 });
 
 export default app;
 ```
 
-`streamText()` returns a standard `Response`, so the same shape works in Hono and other frameworks that return Web `Response` objects. Agentuity deploys the framework app; the service client reads its API key from the project environment.
+`streamText()` returns a standard Web `Response`, so this works in Hono and any framework that accepts Web `Response` objects. The service client reads `AGENTUITY_SDK_KEY` from the project environment.
+
+<Callout type="info" title="Logging in Hono routes">
+In `@agentuity/hono` routes use `c.var.logger`. In standalone framework apps like this one, import `logger` from `@agentuity/telemetry` instead.
+</Callout>
 
 ## Read the Stream in the Browser
 
-For a custom UI, read the response body and append chunks as they arrive.
+For a custom UI, read the response body and append chunks as they arrive. This is the lowest-level browser shape.
 
 ```typescript
 async function sendMessage(conversationId: string, message: string): Promise<string> {
@@ -92,34 +129,79 @@ async function sendMessage(conversationId: string, message: string): Promise<str
     throw new Error('Chat response did not include a body');
   }
 
-  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); // [!code highlight]
   let assistantMessage = '';
 
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
-    assistantMessage += value;
+    assistantMessage += value; // [!code highlight]
   }
 
   return assistantMessage;
 }
 ```
 
-## Choose the Stream Shape
+If you use AI SDK UI helpers on the frontend, switch to `toUIMessageStreamResponse()` on the server instead of `toTextStreamResponse()`. That format includes tool call results, finish reason, and usage metadata in the stream.
+
+## Smoke Test with curl
+
+```bash
+curl -N http://127.0.0.1:3500/api/chat \
+  -H "content-type: application/json" \
+  -d '{"conversationId":"demo","message":"Summarize Agentuity in one sentence"}'
+```
+
+`-N` disables output buffering so you see chunks as they arrive.
+
+## Choose the Right Stream Shape
 
 | Stream shape | Use it when |
-|--------------|-------------|
-| `toTextStreamResponse()` | your client only needs assistant text chunks |
-| `toUIMessageStreamResponse()` | your frontend uses AI SDK UI message streams |
-| [Durable Streams](/services/storage/durable-streams) | the generated output must be downloadable or replayed later |
+|---|---|
+| `toTextStreamResponse()` | client only needs plain text chunks |
+| `toUIMessageStreamResponse()` | frontend uses AI SDK UI and needs tool calls, usage, finish reason |
+| [Durable Streams](/services/storage/durable-streams) | output must survive a page refresh or be replayed later |
 | Server-sent events | you need named events such as `status`, `chunk`, and `done` |
 
-<Callout type="tip" title="Store summaries instead of unlimited history">
-For long conversations, store a rolling summary and the latest turns instead of sending the full transcript on every request.
+Durable streams persist to storage and return a URL. Use them when the generated content is large, long-running, or must remain available after the HTTP connection closes.
+
+## Keep History Bounded
+
+Sending an unlimited transcript to the model on every request increases cost and latency. Keep a rolling summary and the most recent turns instead of the full history.
+
+```typescript
+interface ChatMemory {
+  readonly summary: string;
+  readonly recent: readonly ChatMessage[];
+}
+
+// In onFinish, replace the flat history with a bounded memory object
+const memory: ChatMemory = {
+  summary: existingSummary, // update periodically with a summarization call
+  recent: allMessages.slice(-8), // keep last 8 turns
+};
+
+await kv.set('chat-memory', input.conversationId, memory, {
+  ttl: 60 * 60 * 24 * 30,
+});
+```
+
+<Callout type="tip" title="Rolling summary pattern">
+Store a plain-text summary of older turns plus the last N messages. Pass both to the model as context: the summary as a system prompt addendum, the recent turns as the messages array. Update the summary every N turns with a separate `generateText` call.
 </Callout>
+
+## Common Gotchas
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| History written even when stream fails | Saving to KV before returning the response | Move writes into `onFinish` |
+| Context window errors after long conversations | Sending full history every request | Use bounded memory (summary + recent turns) |
+| Client sees no chunks | Response buffered by middleware or proxy | Verify `Content-Type: text/plain; charset=utf-8` and no buffering layer |
+| Tool calls missing from client | Using `toTextStreamResponse()` with AI SDK UI | Switch to `toUIMessageStreamResponse()` |
+| KV TTL errors | TTL below minimum (60 s) or above maximum (365 days) | Use `ttl: null` or `ttl: 0` for never-expire; otherwise pass a value in `[60, 31_536_000]` seconds |
 
 ## Next Steps
 
-- [Build Agents](/build/agents): wrap model calls in reusable app functions
-- [Durable Streams](/services/storage/durable-streams): store large generated output outside the response
-- [Key-Value Storage](/services/storage/key-value): keep compact conversation state by ID
+- [Durable Streams](/services/storage/durable-streams): persist large or long-running output outside the HTTP response
+- [Key-Value Storage](/services/storage/key-value): compact conversation state keyed by conversation ID
+- [Build Agents](/build/agents): wrap model calls in typed, reusable app functions

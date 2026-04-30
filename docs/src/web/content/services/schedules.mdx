@@ -3,7 +3,7 @@ title: Schedules
 description: Create platform-managed cron jobs with HTTP and sandbox destinations
 ---
 
-Use schedules when timing should live in Agentuity instead of inside your app process. Start with `ScheduleClient` from any server runtime, route handler, script, or worker.
+Use schedules when timing should live in Agentuity instead of inside your app process. The platform validates the cron expression, computes the next run, fires the schedule on time, and records each delivery attempt. Start with `ScheduleClient`; Hono apps can use `c.var.schedule` after installing the Agentuity middleware.
 
 ```bash
 bun add @agentuity/schedule@alpha
@@ -14,16 +14,16 @@ import { ScheduleClient } from '@agentuity/schedule';
 
 const schedules = new ScheduleClient();
 
-export async function createDailySync(url: string): Promise<string> {
+export async function createDailySync(targetUrl: string): Promise<string> {
   const { schedule } = await schedules.create({
     name: 'Daily customer sync',
-    description: 'Calls the sync endpoint every weekday morning',
+    description: 'Calls the sync endpoint every weekday at 9am',
     expression: '0 9 * * 1-5',
     destinations: [
       {
         type: 'url',
         config: {
-          url,
+          url: targetUrl,
           method: 'POST',
         },
       },
@@ -34,7 +34,7 @@ export async function createDailySync(url: string): Promise<string> {
 }
 ```
 
-`ScheduleClient` reads `AGENTUITY_SDK_KEY` by default. In Agentuity projects, keep the key in `.env` for local `agentuity dev` and configure the same environment variable for deployed apps.
+`ScheduleClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Keep that key in `.env` for local development and configure the same variable for deployed apps.
 
 ## When to Use Schedules
 
@@ -42,7 +42,7 @@ export async function createDailySync(url: string): Promise<string> {
 |------|-----|
 | recurring delivery with history and retries | [Schedules](/services/schedules) |
 | event-driven async work | [Queues](/services/queues) |
-| managed callback ingest | [Webhooks](/services/webhooks) |
+| inbound HTTP events with receipts | [Webhooks](/services/webhooks) |
 | isolated command execution | [Sandbox](/services/sandbox) |
 
 ## Client Setup
@@ -53,20 +53,20 @@ Construct the client once at module scope and reuse it from handlers, routes, or
 import { ScheduleClient } from '@agentuity/schedule';
 
 const schedules = new ScheduleClient({
-  orgId: process.env.AGENTUITY_ORG_ID,
+  orgId: process.env.AGENTUITY_CLOUD_ORG_ID,
 });
 ```
 
 | Option | Description |
 |--------|-------------|
 | `apiKey` | Optional API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. |
-| `orgId` | Optional organization ID for org-scoped requests. |
+| `orgId` | Optional organization ID. Used when the API key is org-scoped or when calling from a CLI context. |
 | `url` | Optional Schedule API URL. Defaults to `AGENTUITY_SCHEDULE_URL`, then the regional Agentuity service URL. |
 | `logger` | Optional logger instance. |
 
-## Create Schedules
+## Create a Schedule
 
-`create()` requires a `name` and a five-field cron `expression`. Destinations are optional, but most schedules create at least one destination with the schedule.
+`create()` requires a `name` and a five-field cron `expression`. Destinations are optional but most schedules pass at least one. Destinations are created atomically with the schedule, so a bad URL fails the whole call.
 
 ```typescript
 const result = await schedules.create({
@@ -94,9 +94,7 @@ const nextRun = result.schedule.due_date;
 | `name` | Yes | Human-readable schedule name. |
 | `expression` | Yes | Standard five-field cron expression. |
 | `description` | No | Optional purpose or owner note. |
-| `destinations` | No | Optional destinations created with the schedule. |
-
-Destinations are created atomically with the schedule. If a destination fails validation, the schedule is not created.
+| `destinations` | No | Array of destinations to create with the schedule. |
 
 ## Cron Expressions
 
@@ -104,22 +102,22 @@ Destinations are created atomically with the schedule. If a destination fails va
 |------------|-------|
 | `* * * * *` | Every minute. |
 | `*/5 * * * *` | Every 5 minutes. |
-| `0 * * * *` | Every hour. |
+| `0 * * * *` | Every hour, on the hour. |
 | `0 0 * * *` | Daily at midnight. |
 | `0 9 * * 1-5` | Weekdays at 9am. |
-| `0 0 * * 1` | Weekly on Monday at midnight. |
-| `0 0 1 * *` | Monthly on the 1st at midnight. |
+| `0 0 * * 1` | Mondays at midnight. |
+| `0 0 1 * *` | The 1st of each month at midnight. |
 
-The service validates cron expressions on create and update, then computes `due_date` for the next run.
+The service validates cron expressions on create and update, then computes `due_date` for the next run. Times are evaluated in UTC.
 
 ## Destination Types
 
 Each schedule can have multiple destinations. When the schedule fires, Agentuity creates one delivery record per destination.
 
-| Type | Use |
-|------|-----|
-| `url` | Send an HTTP request to a public endpoint. Config is `{ url, headers?, method? }`. |
-| `sandbox` | Run work in an Agentuity sandbox. Pass the sandbox config required by your target sandbox workflow. |
+| Type | Config | Use |
+|------|--------|-----|
+| `url` | `{ url, method?, headers?, timeout? }` | Send an HTTP request to a public endpoint. |
+| `sandbox` | `{ sandbox_id }` | Trigger an Agentuity sandbox. The sandbox ID must start with `sbx_`. |
 
 Add a destination after the schedule exists:
 
@@ -147,7 +145,7 @@ const { schedule: updated } = await schedules.update(schedule.id, {
 });
 ```
 
-Changing `expression` recomputes `due_date`.
+Changing `expression` recomputes `due_date` immediately. The new value applies from the next firing onward.
 
 ## Delivery Tracking
 
@@ -159,39 +157,22 @@ const { deliveries } = await schedules.listDeliveries(result.schedule.id, {
   offset: 0,
 });
 
-const failed = deliveries.filter((delivery) => delivery.status === 'failed');
+const failures = deliveries.filter((d) => d.status === 'failed');
 ```
 
 | Status | Meaning |
 |--------|---------|
-| `pending` | Delivery has been queued. |
-| `success` | The destination received the scheduled request. |
-| `failed` | Delivery failed. The `error` field contains the reason when available. |
+| `pending` | Delivery is queued for the destination. |
+| `success` | The destination accepted the scheduled request. |
+| `failed` | Delivery failed. The `error` field carries the reason when available. |
 
-Each delivery includes the schedule ID, destination ID, status, retry count, optional error, and optional response data.
+Each delivery record includes the schedule ID, destination ID, retry count, optional error message, and optional response payload. Failed deliveries are retried automatically inside Agentuity.
 
-## Delete
+## Manage Schedules From a Server Route
 
-Delete destinations when a schedule should keep running but stop calling one target. Delete the schedule when the job is no longer needed.
+The same client works inside a framework route, so an admin UI can create or list schedules without standing up a separate service.
 
-```typescript
-await schedules.deleteDestination(destination.id);
-await schedules.delete(result.schedule.id);
-```
-
-<Callout type="warning" title="Deleting a schedule removes its history">
-`delete()` permanently removes the schedule, its destinations, and its delivery records.
-</Callout>
-
-## Hono Convenience
-
-If your app already uses Hono, `@agentuity/hono` can initialize `ScheduleClient` once and expose it on `c.var.schedule`.
-
-```bash
-bun add @agentuity/hono@alpha hono
-```
-
-```typescript
+```typescript title="src/routes/schedules.ts"
 import { Hono } from 'hono';
 import { agentuity } from '@agentuity/hono';
 import type { Services } from '@agentuity/hono';
@@ -203,32 +184,41 @@ const app = new Hono<{ Variables: Variables }>();
 app.use('*', agentuity());
 
 app.post('/schedules/daily-sync', async (c) => {
-  const url = c.req.query('url');
-
-  if (!url) {
-    return c.json({ error: 'url is required' }, 400);
-  }
+  const body = await c.req.json<{ url: string }>();
 
   const { schedule } = await c.var.schedule.create({
     name: 'Daily sync',
     expression: '0 9 * * *',
-    destinations: [{ type: 'url', config: { url, method: 'POST' } }],
+    destinations: [{ type: 'url', config: { url: body.url, method: 'POST' } }],
   });
 
   return c.json({ scheduleId: schedule.id, nextRun: schedule.due_date }, 201);
 });
 
 app.get('/schedules/:id/deliveries', async (c) => {
-  const { deliveries } = await c.var.schedule.listDeliveries(c.req.param('id'));
-
+  const { deliveries } = await c.var.schedule.listDeliveries(c.req.param('id'), { limit: 50 });
   return c.json({ deliveries });
 });
 
 export default app;
 ```
 
+## Delete
+
+Delete a destination when the schedule should keep running but stop calling one target. Delete the schedule when the job is no longer needed.
+
+```typescript
+await schedules.deleteDestination(destination.id);
+await schedules.delete(result.schedule.id);
+```
+
+<Callout type="warning" title="Deleting a schedule removes its history">
+`delete()` permanently removes the schedule, its destinations, and its delivery records. There is no undo.
+</Callout>
+
 ## Next Steps
 
-- [Queues](/services/queues): hand scheduled work to a background queue
+- [Queues](/services/queues): pass scheduled work into a queue for fan-out or retries
 - [Webhooks](/services/webhooks): receive external callbacks with receipts and delivery tracking
 - [Sandbox](/services/sandbox): run scheduled commands in isolated environments
+- [Using Standalone Packages](/reference/standalone-packages): configure service clients outside Agentuity projects

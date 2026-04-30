@@ -72,8 +72,9 @@ await avatar.write(await fetch('https://example.com/avatar.png'), {
 if (await avatar.exists()) {
   const bytes = await avatar.bytes();
   const contentType = avatar.type;
-
-  console.log({ byteLength: bytes.byteLength, contentType });
+  // bytes is Uint8Array; contentType is the stored MIME type
+  void bytes;
+  void contentType;
 }
 
 await avatar.delete();

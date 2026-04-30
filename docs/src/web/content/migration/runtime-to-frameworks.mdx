@@ -116,7 +116,7 @@ Simple v2 agents usually become plain functions:
 export async function summarize(input: {
   readonly text: string;
 }): Promise<{ readonly summary: string }> {
-  // Call your model provider or AI SDK here.
+  // Call your model provider or AI SDK here
   return { summary: input.text.slice(0, 120) };
 }
 ```

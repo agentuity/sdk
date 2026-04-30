@@ -38,7 +38,7 @@ export const WebhookSchema = z
 			.string()
 			.optional()
 			.describe(
-				'Fully-qualified ingest URL for sending events to this webhook. Only present on create'
+				'Fully-qualified ingest URL for sending events to this webhook when returned by the service'
 			),
 		internal: z
 			.boolean()

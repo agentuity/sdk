@@ -1,0 +1,271 @@
+---
+title: Build a RAG Agent
+short_title: RAG Agent
+description: Index documents into vector storage, retrieve the closest matches, and answer with citations
+---
+
+This tutorial builds a question-answering route on top of a vector index. The route searches a namespace for relevant documents, fetches the original text, asks a model to answer using that text, and returns the answer with source citations.
+
+The agent itself is a plain typed function. The route owns HTTP. The vector index lives in Agentuity vector storage.
+
+## What You Build
+
+- a `POST /api/knowledge/index` route that adds documents to a vector namespace
+- a `POST /api/knowledge` route that answers a question with retrieved context and source IDs
+- one shared agent function that both routes can reuse
+
+## Install
+
+```bash
+bun add hono ai @ai-sdk/openai @agentuity/vector@alpha @agentuity/schema@alpha zod
+```
+
+`@agentuity/vector` reads `AGENTUITY_SDK_KEY` from the environment, so run the route with `agentuity dev` or a linked Agentuity project.
+
+## Index Documents
+
+Indexing accepts a list of documents, calls `vector.upsert()` once per document, and returns the count. Upserts are idempotent: the same `id` overwrites the existing vector.
+
+```typescript title="src/lib/index-documents.ts"
+import { VectorClient } from '@agentuity/vector';
+import { s } from '@agentuity/schema';
+
+const documentSchema = s.object({
+  id: s.string(),
+  title: s.string(),
+  content: s.string(),
+  category: s.optional(s.string()),
+});
+
+const indexInputSchema = s.object({
+  documents: s.array(documentSchema),
+});
+
+type IndexInput = s.infer<typeof indexInputSchema>;
+
+const VECTOR_NAMESPACE = 'knowledge-base';
+const vector = new VectorClient();
+
+export async function indexDocuments(body: unknown): Promise<{ indexed: number }> {
+  const input = indexInputSchema.parse(body);
+
+  for (const doc of input.documents) {
+    await vector.upsert(VECTOR_NAMESPACE, {
+      key: doc.id,
+      document: `${doc.title}\n\n${doc.content}`,
+      metadata: {
+        title: doc.title,
+        category: doc.category ?? 'general',
+        indexedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  return { indexed: input.documents.length };
+}
+
+export type { IndexInput };
+```
+
+`document` is the searchable text. Vector storage generates the embeddings server-side. Pass `embeddings` directly only when you already have vectors from another model.
+
+## Answer Questions
+
+The answer function searches the namespace, fetches the original text for the matches with `getMany()`, and asks the model to write an answer that cites which source it used. The model output is validated by the schema, so the route can return a typed object straight to the client.
+
+```typescript title="src/lib/answer-question.ts"
+import { VectorClient } from '@agentuity/vector';
+import { openai } from '@ai-sdk/openai';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+
+type KnowledgeMetadata = {
+  readonly title: string;
+  readonly category: string;
+  readonly indexedAt: string;
+} & Record<string, unknown>;
+
+const answerSchema = z.object({
+  answer: z.string().describe('Answer in plain prose, citing sources with [1], [2], etc.'),
+  citedIndexes: z
+    .array(z.number().int().min(1))
+    .describe('1-based indexes of the sources the answer used'),
+});
+
+type AnswerOutput = z.infer<typeof answerSchema>;
+
+const VECTOR_NAMESPACE = 'knowledge-base';
+const SEARCH_LIMIT = 5;
+const MIN_SIMILARITY = 0.7;
+
+const vector = new VectorClient();
+
+interface AnswerResult {
+  readonly answer: string;
+  readonly sources: ReadonlyArray<{
+    readonly id: string;
+    readonly title: string;
+    readonly relevance: number;
+  }>;
+  readonly confidence: number;
+}
+
+export async function answerQuestion(question: string): Promise<AnswerResult> {
+  const matches = await vector.search<KnowledgeMetadata>(VECTOR_NAMESPACE, {
+    query: question,
+    limit: SEARCH_LIMIT,
+    similarity: MIN_SIMILARITY,
+  });
+
+  if (matches.length === 0) {
+    return {
+      answer: "I couldn't find relevant information to answer that question.",
+      sources: [],
+      confidence: 0,
+    };
+  }
+
+  // search() returns ids and metadata, but not the original document text
+  // getMany() returns a Map keyed by the same `key`, with `document` populated
+  const documents = await vector.getMany<KnowledgeMetadata>(
+    VECTOR_NAMESPACE,
+    ...matches.map((match) => match.key)
+  );
+
+  const context = matches
+    .map((match, i) => {
+      const stored = documents.get(match.key);
+      const document = stored?.document ?? '';
+      return `[${i + 1}] ${document}`;
+    })
+    .join('\n\n');
+
+  const { output } = await generateText({
+    model: openai('gpt-5.5'),
+    output: Output.object({ schema: answerSchema }),
+    system:
+      'Answer using only the provided context. If the context is insufficient, say so. Cite sources with [1], [2], etc.',
+    prompt: `Context:\n${context}\n\nQuestion: ${question}`,
+  });
+
+  return {
+    answer: output.answer,
+    sources: matches.map((match, i) => ({
+      id: match.key,
+      title: match.metadata?.title ?? `Document ${i + 1}`,
+      relevance: match.similarity,
+    })),
+    confidence:
+      matches.reduce((sum, match) => sum + match.similarity, 0) / matches.length,
+  };
+}
+
+export type { AnswerOutput };
+```
+
+A few details worth calling out:
+
+- `vector.search()` returns `id`, `key`, `similarity`, optional `metadata`, and optional `expiresAt`. It does not return the original document text.
+- `vector.getMany()` returns a `Map`, with each entry shaped like a search result plus `document` and `embeddings`.
+- The metadata generic must satisfy `Record<string, unknown>`. Use a `type` intersection (`& Record<string, unknown>`) so the generic accepts an interface that has known fields.
+- The structured output schema's `.describe()` strings are passed to the model and reduce drift on enum or numeric fields.
+
+## Wire the Routes
+
+The Hono app pulls both functions together. Validation happens at the route boundary; the agent functions take typed input.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { s } from '@agentuity/schema';
+import { indexDocuments } from './lib/index-documents';
+import { answerQuestion } from './lib/answer-question';
+
+const askSchema = s.object({
+  question: s.string(),
+});
+
+const app = new Hono();
+
+app.post('/api/knowledge/index', async (c) => {
+  const body: unknown = await c.req.json();
+  const result = await indexDocuments(body);
+  return c.json(result);
+});
+
+app.post('/api/knowledge', async (c) => {
+  const body: unknown = await c.req.json();
+  const { question } = askSchema.parse(body);
+  const result = await answerQuestion(question);
+  return c.json(result);
+});
+
+export default app;
+```
+
+## Try It
+
+Run the app locally:
+
+```bash
+agentuity dev
+```
+
+Index a few documents:
+
+```bash
+curl -X POST http://localhost:3500/api/knowledge/index \
+  -H 'content-type: application/json' \
+  -d '{
+    "documents": [
+      {
+        "id": "doc-1",
+        "title": "Getting Started",
+        "content": "Agentuity ships service clients you can call from any framework. Start with `agentuity create`."
+      },
+      {
+        "id": "doc-2",
+        "title": "Storage Options",
+        "content": "Agentuity exposes key-value, vector, object, and durable stream storage as direct clients."
+      }
+    ]
+  }'
+```
+
+Ask a question:
+
+```bash
+curl -X POST http://localhost:3500/api/knowledge \
+  -H 'content-type: application/json' \
+  -d '{ "question": "What kinds of storage does Agentuity offer?" }'
+```
+
+The response includes the model answer, the source IDs the model cited, and an aggregate confidence score derived from match similarity.
+
+## Variations
+
+- **Filter results before retrieval.** Search broadly, then narrow the result set before calling `getMany()`.
+
+  ```typescript
+  const matches = await vector.search<KnowledgeMetadata>('knowledge-base', {
+    query: question,
+  });
+
+  const pricingMatches = matches.filter(
+    (match) => match.metadata?.category === 'pricing'
+  );
+
+  const documents = await vector.getMany<KnowledgeMetadata>(
+    'knowledge-base',
+    ...pricingMatches.map((match) => match.key)
+  );
+  ```
+
+- **Stream the answer.** Swap `generateText` for `streamText` and return a `Response` whose body is the stream. See [Chat and Streaming](/build/chat-and-streaming).
+- **Run indexing in the background.** Move `indexDocuments` behind a queue when documents arrive faster than the route should handle them. See [Background Work](/build/background-work).
+- **Track answer quality.** Feed the answer and retrieved context to a judge model to grade whether the answer was grounded. See [Build Agents](/build/agents) for the agent-as-function pattern.
+
+## Next Steps
+
+- [Vector Storage](/services/storage/vector): metadata generics, TTL behavior, and search options
+- [Build Agents](/build/agents): the plain-function pattern for model-backed work
+- [Product Search](/cookbook/patterns/product-search): another vector pattern, with metadata filters and recommendations

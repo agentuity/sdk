@@ -234,6 +234,33 @@ async function readOutputUrl(url: string): Promise<string> {
 }
 ```
 
+## Streaming Execution Output
+
+Use `pipe` in `execute()` to stream stdout or stderr directly to Node writable streams instead of buffering them for later fetch.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+const sandbox = await client.create({ runtime: 'bun:1' });
+
+try {
+  const execution = await sandbox.execute({
+    command: ['bun', '-e', 'console.log("line 1"); console.error("err 1")'],
+    pipe: {
+      stdout: process.stdout,
+      stderr: process.stderr,
+    },
+  });
+
+  console.log('exit code:', execution.exitCode);
+} finally {
+  await sandbox.destroy();
+}
+```
+
+`pipe` and `stream` are separate concerns: `pipe` writes to a local writable stream; `stream` configures server-side stream IDs for routing output elsewhere.
+
 ## Environment Variables
 
 Pass environment variables when creating or running a sandbox.
@@ -404,6 +431,34 @@ const execution = await sandbox.execute({
 console.log(execution.autoResumed);
 ```
 
+Set `timeout.paused` when creating a sandbox to limit how long it can remain paused before the platform terminates it. `pause()` returns a `SandboxPauseResult` that includes `terminatesAt` (an ISO 8601 timestamp) when a paused timeout is configured.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+
+const client = new SandboxClient();
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  timeout: {
+    idle: '10m',
+    // terminate the sandbox if it stays paused for more than 24 hours
+    paused: '24h',
+  },
+});
+
+try {
+  const pauseResult = await sandbox.pause();
+  // terminatesAt is set when a paused timeout is configured
+  if (pauseResult.terminatesAt !== undefined) {
+    console.log('paused sandbox terminates at', pauseResult.terminatesAt);
+  }
+} finally {
+  await sandbox.destroy();
+}
+```
+
+Pass `'0'` for `timeout.paused` to allow the sandbox to remain paused indefinitely. The CLI flag is `--paused-timeout` on `agentuity cloud sandbox create`.
+
 Disk checkpoints are named restore points for one sandbox.
 
 ```typescript
@@ -462,6 +517,16 @@ await client.tagSnapshot(snapshot.snapshotId, null);
 await client.deleteSnapshot(snapshot.snapshotId);
 
 console.log(snapshots.length);
+```
+
+Use `getSnapshotLineage()` to inspect the parent chain of a snapshot, which is useful when tracing which base environment a snapshot was built from.
+
+```typescript
+const lineage = await client.getSnapshotLineage({ snapshot: 'snp_xyz789' });
+
+for (const entry of lineage.lineage) {
+  console.log(entry.snapshotId, entry.name, entry.createdAt);
+}
 ```
 
 When `snapshot` is set, do not also set `runtime` or `runtimeId`. The snapshot already includes its base runtime.
@@ -535,6 +600,7 @@ export default app;
 | `projectId` | `string` | Project ID to associate with the sandbox |
 | `timeout.idle` | `string` | Idle timeout before cleanup, such as `'10m'` |
 | `timeout.execution` | `string` | Max command duration, such as `'30s'` |
+| `timeout.paused` | `string` | Max duration a sandbox can remain paused before termination, such as `'24h'`; `'0'` for infinite |
 | `dependencies` | `string[]` | Apt packages to install |
 | `packages` | `string[]` | npm or Bun packages to install globally |
 | `env` | `Record<string, string>` | Environment variables |
@@ -542,6 +608,15 @@ export default app;
 | `snapshot` | `string` | Snapshot ID or tag |
 | `metadata` | `Record<string, unknown>` | User-defined metadata |
 | `scopes` | `string[]` | Permission scopes for automatic service access |
+
+Pass `scopes` when the sandbox needs automatic credentials for platform services.
+
+```typescript
+const sandbox = await client.create({
+  runtime: 'bun:1',
+  scopes: ['services:read', 'services:write'],
+});
+```
 
 ### ExecuteOptions
 
@@ -551,6 +626,7 @@ export default app;
 | `files` | `FileToWrite[]` | Files to write before execution |
 | `timeout` | `string` | Execution timeout override |
 | `stream` | `object` | Optional stdout, stderr, and timestamp stream configuration |
+| `pipe` | `{ stdout?: Writable; stderr?: Writable }` | Pipe command output directly to Node writable streams |
 | `signal` | `AbortSignal` | Cancels the execution |
 
 ### SandboxInstance

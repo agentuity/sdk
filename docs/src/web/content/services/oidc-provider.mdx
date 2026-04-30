@@ -206,6 +206,27 @@ OAUTH_SCOPES=openid profile email
 | `OAUTH_CLIENT_SECRET` | Client secret for confidential clients. `exchangeToken()` requires it. |
 | `OAUTH_SCOPES` | Space-separated scopes requested during sign-in. Defaults to `openid profile email`. |
 
+The `OAuthFlowConfig` object also accepts a `prompt` field that is sent as the OIDC `prompt` parameter:
+
+| Value | Behavior |
+|-------|----------|
+| `login` | Forces the provider to show a fresh sign-in screen, even if the user has an active session. |
+| `consent` | Forces the provider to show the consent screen, even if the user has already granted the requested scopes. |
+| `none` | Requires a silent authentication. Returns an error if the user is not already signed in. |
+| `select_account` | Prompts the user to choose an account, useful when users may have multiple accounts. |
+
+Omit `prompt` for normal sign-in flow. Pass it only when your app needs to force re-authentication or re-consent:
+
+```typescript
+const oauthConfig: OAuthFlowConfig = {
+  issuer: requireEnv('OAUTH_ISSUER'),
+  clientId: requireEnv('OAUTH_CLIENT_ID'),
+  clientSecret: requireEnv('OAUTH_CLIENT_SECRET'),
+  // force consent screen every time, e.g. during re-authorization
+  prompt: 'consent',
+};
+```
+
 Pass explicit endpoint URLs only when you need to override issuer-derived URLs:
 
 | Variable | Default from `OAUTH_ISSUER` |
@@ -291,6 +312,44 @@ OAUTH_SCOPES=openid profile email offline_access
 ```
 
 When a user disconnects the app, call `tokenStore.invalidate(userId)` to remove the stored token and revoke it with the provider when possible.
+
+## Token Lifecycle Helpers
+
+`tokenStore.invalidate()` handles revocation as part of the storage layer. When you need to call the token endpoints directly, the same primitives `KeyValueTokenStorage` uses internally are also exported.
+
+**`refreshToken(refreshTokenValue, config?)`** exchanges a refresh token for a new access token:
+
+```typescript
+import { refreshToken } from '@agentuity/core/oauth';
+import type { OAuthFlowConfig, OAuthTokenResponse } from '@agentuity/core/oauth';
+
+// Uses OAUTH_* env vars when config is omitted
+export async function manualRefresh(
+  currentRefreshToken: string,
+  config: OAuthFlowConfig
+): Promise<OAuthTokenResponse> {
+  return refreshToken(currentRefreshToken, config);
+}
+```
+
+`refreshToken()` does not require `clientSecret` — confidential client secrets are included if present in config, but the call succeeds without them (the server decides whether to require the secret).
+
+**`logout(token, config?)`** revokes an access or refresh token per RFC 7009:
+
+```typescript
+import { logout } from '@agentuity/core/oauth';
+import type { OAuthFlowConfig } from '@agentuity/core/oauth';
+
+export async function revokeAccess(
+  token: string,
+  config: OAuthFlowConfig
+): Promise<void> {
+  // prefer revoking the refresh_token to invalidate all sessions
+  await logout(token, config);
+}
+```
+
+Per RFC 7009, the revocation endpoint returns success even if the token was already invalid. Prefer revoking the refresh token over the access token — revoking the refresh token invalidates the entire grant.
 
 ## Scopes and Consent
 

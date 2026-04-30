@@ -59,7 +59,7 @@ const service: Service = {
 			examplePath: '/sandbox',
 			exampleBody: {
 				name: 'dev-sandbox',
-				runtime: 'node-20',
+				runtime: 'node:lts',
 				resources: { memory: 512 },
 				env: { NODE_ENV: 'development' },
 			},
@@ -829,7 +829,7 @@ const service: Service = {
 				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
 			],
 			examplePath: '/sandbox/snapshots/build',
-			exampleBody: { runtime: 'node-20', name: 'my-app', tag: 'latest' },
+			exampleBody: { runtime: 'node:lts', name: 'my-app', tag: 'latest' },
 		},
 		{
 			id: 'finalize-snapshot-build',

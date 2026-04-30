@@ -1,0 +1,243 @@
+---
+title: Autonomous Research with Anthropic Tool Use
+short_title: Autonomous Research
+description: Build a recursive research loop using the Anthropic SDK Messages API and native tool_use blocks
+---
+
+The AI SDK is the right default for tool calling. Reach for the raw Anthropic SDK when you want full control over the message loop, native `tool_use` blocks, or Anthropic-specific features. This pattern uses Wikipedia as a free, no-auth research source.
+
+```bash
+bun add hono @anthropic-ai/sdk @agentuity/schema@alpha
+```
+
+## Define Tools and Schemas
+
+Anthropic tools use JSON Schema for `input_schema`. Validate the model's tool input with [`@agentuity/schema`](/reference/sdk-reference/schema) before calling the implementation.
+
+```typescript title="src/lib/research-agent.ts"
+import Anthropic from '@anthropic-ai/sdk';
+import { s } from '@agentuity/schema';
+
+const SearchInput = s.object({ query: s.string() });
+const GetArticleInput = s.object({ title: s.string() });
+const FinishResearchInput = s.object({
+  summary: s.string(),
+  sourcesUsed: s.number(),
+});
+
+const WikipediaSearchResponse = s.object({
+  query: s.optional(
+    s.object({
+      search: s.optional(
+        s.array(s.object({ title: s.string(), snippet: s.string() }))
+      ),
+    })
+  ),
+});
+
+const WikipediaExtractResponse = s.object({
+  query: s.optional(
+    s.object({
+      pages: s.optional(
+        s.record(s.string(), s.object({ extract: s.optional(s.string()) }))
+      ),
+    })
+  ),
+});
+
+const tools: Anthropic.Tool[] = [
+  {
+    name: 'search_wikipedia',
+    description: 'Search Wikipedia for articles matching a query. Returns titles and snippets.',
+    input_schema: {
+      type: 'object',
+      properties: { query: { type: 'string', description: 'The search query' } },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'get_article',
+    description: 'Get the introductory text of a Wikipedia article by title.',
+    input_schema: {
+      type: 'object',
+      properties: { title: { type: 'string', description: 'Exact article title' } },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'finish_research',
+    description: 'Call when you have enough information to write a 2-3 paragraph summary.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string' },
+        sourcesUsed: { type: 'number' },
+      },
+      required: ['summary', 'sourcesUsed'],
+    },
+  },
+];
+```
+
+`finish_research` doubles as the structured output mechanism. The loop ends when the model calls it, and the call's input becomes the final result.
+
+## Implement the Tools
+
+Wikipedia exposes search and extract endpoints over plain `fetch`.
+
+```typescript title="src/lib/research-agent.ts"
+async function searchWikipedia(query: string): Promise<string> {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=3`;
+  const res = await fetch(url);
+  if (!res.ok) return `Search failed: HTTP ${res.status}`;
+
+  const parsed = WikipediaSearchResponse.safeParse(await res.json());
+  if (!parsed.success) return 'No results found.';
+
+  const results = parsed.data.query?.search ?? [];
+  if (results.length === 0) return 'No results found.';
+
+  return JSON.stringify(
+    results.map((r) => ({ title: r.title, snippet: r.snippet.replace(/<[^>]*>/g, '') }))
+  );
+}
+
+async function getArticle(title: string): Promise<string> {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts&exintro=true&explaintext=true&format=json&origin=*`;
+  const res = await fetch(url);
+  if (!res.ok) return `Failed to fetch article: HTTP ${res.status}`;
+
+  const parsed = WikipediaExtractResponse.safeParse(await res.json());
+  if (!parsed.success) return 'No content found.';
+
+  const pages = parsed.data.query?.pages;
+  if (!pages) return 'No content found.';
+  const [page] = Object.values(pages);
+  return page?.extract ?? 'No content found.';
+}
+
+async function executeTool(name: string, input: unknown): Promise<string> {
+  switch (name) {
+    case 'search_wikipedia': {
+      const { query } = SearchInput.parse(input);
+      return searchWikipedia(query);
+    }
+    case 'get_article': {
+      const { title } = GetArticleInput.parse(input);
+      return getArticle(title);
+    }
+    default:
+      return `Unknown tool: ${name}`;
+  }
+}
+```
+
+## Run the Loop
+
+The loop sends messages, checks `stop_reason`, executes any `tool_use` blocks, and feeds the results back. It exits when the model calls `finish_research` or hits the step cap.
+
+```typescript title="src/lib/research-agent.ts"
+const SYSTEM_PROMPT = `You are a research assistant that investigates topics using Wikipedia.
+
+Follow this loop:
+1. Plan: decide what to search for next
+2. Search: call search_wikipedia
+3. Read: call get_article on the most relevant result
+4. Finish: when you have enough (usually 2-4 sources), call finish_research`;
+
+const MAX_STEPS = 8;
+const client = new Anthropic();
+
+interface ResearchResult {
+  readonly summary: string;
+  readonly sourcesUsed: number;
+}
+
+export async function research(topic: string): Promise<ResearchResult> {
+  const messages: Anthropic.MessageParam[] = [
+    { role: 'user', content: `Research this topic thoroughly: ${topic}` },
+  ];
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      tools,
+      messages,
+    });
+
+    if (response.stop_reason !== 'tool_use') break;
+
+    messages.push({ role: 'assistant', content: response.content });
+
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    let finalResult: ResearchResult | undefined;
+
+    for (const block of response.content) {
+      if (block.type !== 'tool_use') continue;
+
+      if (block.name === 'finish_research') {
+        finalResult = FinishResearchInput.parse(block.input);
+        continue;
+      }
+
+      const result = await executeTool(block.name, block.input);
+      toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+    }
+
+    if (finalResult) {
+      return finalResult;
+    }
+
+    messages.push({ role: 'user', content: toolResults });
+  }
+
+  return { summary: 'Research could not be completed. Try a more specific topic.', sourcesUsed: 0 };
+}
+```
+
+A few details that matter:
+
+- assistant turns carry `tool_use` blocks; the next user turn carries matching `tool_result` blocks. Anthropic enforces that pairing.
+- `finish_research` has a JSON Schema, so `block.input` is the validated final summary. No second `generateObject` call needed.
+- the loop breaks when the model returns `stop_reason !== 'tool_use'`, which means it stopped on `end_turn` or hit `max_tokens`.
+
+## Wire the Route
+
+The route validates the input topic and calls the agent function. The function is plain async code, so it works the same way from a queue consumer or a script.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { s } from '@agentuity/schema';
+import { research } from './lib/research-agent';
+
+const requestSchema = s.object({ topic: s.string() });
+
+const app = new Hono();
+
+app.post('/api/research', async (c) => {
+  const body: unknown = await c.req.json();
+  const { topic } = requestSchema.parse(body);
+  const result = await research(topic);
+  return c.json(result);
+});
+
+export default app;
+```
+
+## When to Reach for the Anthropic SDK
+
+| Pick this when | Otherwise prefer |
+|---|---|
+| You want native `tool_use` and `tool_result` block visibility | [AI SDK 6](https://ai-sdk.dev/docs/foundations/tools) |
+| You need Anthropic-specific features like extended thinking, caching, or batch | AI SDK |
+| You want full control over the message conversation shape | AI SDK with `Output.object` |
+
+Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for the Anthropic SDK. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs.
+
+## Next Steps
+
+- [Build Agents](/build/agents): the plain-function pattern this page uses
+- [Tool Calling](/build/tool-calling): the AI SDK 6 path with provider-agnostic tool calls
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): score the research output before returning it

@@ -1,76 +1,81 @@
 ---
 title: Frameworks
-description: Start with your framework and add Agentuity services
+description: Add Agentuity to a framework you already use, without replacing the router
 ---
 
-Start with the framework's own app shape, then add Agentuity services, local development, and deploy metadata where they fit.
+Pick the framework you already chose. Agentuity adds service clients, local development, and deploy packaging on top of its native conventions.
 
 <Cards>
   <CardLink
     href="/frameworks/nextjs"
     title="Next.js"
-    description="Use App Router route handlers with Agentuity service clients"
+    description="App Router route handlers with Agentuity service clients"
     icon={<picture><img src="/images/integrations/nextjs.svg" alt="Next.js" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/nuxt"
     title="Nuxt"
-    description="Add Agentuity CLI wiring and deployment validation to a Nuxt app"
+    description="Nitro server routes with Agentuity CLI wiring and deploy validation"
     icon={<picture><img src="/images/integrations/nuxt.svg" alt="Nuxt" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/react-router"
     title="React Router"
-    description="Add Agentuity CLI wiring and deployment validation to a React Router app"
+    description="Route modules with Agentuity CLI wiring and deploy validation"
     icon={<picture><img src="/images/integrations/react-router.svg" alt="React Router" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/sveltekit"
     title="SvelteKit"
-    description="Add Agentuity CLI wiring and deployment validation to a SvelteKit app"
+    description="+server.ts routes with Agentuity CLI wiring and deploy validation"
     icon={<picture><img src="/images/integrations/svelte.svg" alt="Svelte" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/astro"
     title="Astro"
-    description="Add Agentuity CLI wiring and deployment validation to an Astro app"
+    description="API endpoints with Agentuity CLI wiring and deploy validation"
     icon={<picture><img src="/images/integrations/astro.svg" alt="Astro" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/hono"
     title="Hono"
-    description="Use standard Hono handlers with Agentuity service clients"
+    description="Standard Hono handlers with standalone or @agentuity/hono service clients"
     icon={<picture><img src="/images/integrations/hono.svg" alt="Hono" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/vite-react"
     title="Vite + React"
-    description="Add Agentuity CLI wiring and deployment validation to a Vite React app"
+    description="React SPA with a Bun server boundary for service clients and secrets"
     icon={<picture><img src="/images/integrations/vite.svg" alt="Vite" width={28} height={28} /></picture>}
   />
   <CardLink
     href="/frameworks/tanstack-start"
     title="TanStack Start"
-    description="Add service clients to server routes and check the build output before deploy"
+    description="Server routes and server functions with standalone service clients"
     icon={<picture><img src="/images/integrations/tanstack.svg" alt="TanStack" width={28} height={28} /></picture>}
   />
 </Cards>
 
-## How the v3 Shape Works
+## How the Framework Shape Works
 
-Agentuity does not ask every app to become an Agentuity runtime app. Keep the framework's normal file conventions:
+Keep the framework's normal file conventions. Agentuity overlays service clients, dev environment wiring, and deploy metadata — it does not replace the router.
 
-| Framework | Use the framework's route shape | Add Agentuity through |
+| Framework | Route shape | Add Agentuity through |
 | --- | --- | --- |
 | Next.js | `app/api/**/route.ts` | standalone service clients |
-| Hono | `new Hono()` routes | standalone service clients |
+| Nuxt | `server/api/*.ts` Nitro handlers | standalone service clients |
+| React Router | `app/routes.ts` plus route modules | standalone service clients |
+| SvelteKit | `+server.ts` routes and server actions | standalone service clients |
+| Astro | `src/pages/api/*.ts` endpoints | standalone service clients |
+| Hono | `new Hono()` routes | standalone clients or `@agentuity/hono` |
+| Vite + React | browser UI with a Bun server boundary | standalone service clients |
 | TanStack Start | server routes and server functions | standalone service clients |
 
-`agentuity dev` runs your package manager's `dev` script with the environment your app needs. `agentuity build` packages the app and writes `.agentuity/launch.json` and related deployment files when packaging succeeds.
+`agentuity dev` runs your package manager's `dev` script with injected service credentials. `agentuity build` packages the app and writes `.agentuity/launch.json` when packaging succeeds.
 
 ## Framework Starters
 
-`bun create agentuity@alpha --framework <name>` currently scaffolds these starters:
+`bun create agentuity@alpha --framework <slug>` scaffolds these starters:
 
 | Slug | Framework |
 | --- | --- |
@@ -82,15 +87,26 @@ Agentuity does not ask every app to become an Agentuity runtime app. Keep the fr
 | `hono` | Hono |
 | `vite-react` | Vite + React |
 
-Some framework app shapes work through the build path even when they do not have a `project create` starter yet. TanStack Start falls into that group, so start with TanStack's own CLI and validate the build output before you deploy.
+TanStack Start is not yet a `--framework` slug. Start with [TanStack's own CLI](https://tanstack.com/start/latest/docs/framework/react/quick-start), then run `agentuity build` to validate the output before you deploy.
 
 <Callout type="tip" title="Validate packaging before deploy">
-Run `bun run build`, then `agentuity build`, and inspect `.agentuity/launch.json` before your first deploy. Use `--skip-type-check` only for a faster packaging check while iterating.
+Run `bun run build`, then `agentuity build`, and inspect `.agentuity/launch.json` before your first deploy. Use `--skip-type-check` only when iterating on packaging, not before a real deploy.
 </Callout>
+
+## What We Validate
+
+| Check | What it proves |
+| --- | --- |
+| upstream framework docs | route files, server handlers, adapters, and build output are idiomatic |
+| local starter or test app | the generated files actually run with the current CLI |
+| `agentuity build` | the app packages into a launchable `.agentuity` bundle |
+| `.agentuity/launch.json` | the cloud runtime will start the process you expect |
+
+If a framework page calls out a detector fallback or packaging caveat, it describes current CLI behavior, not a framework limitation.
 
 ## Add Services
 
-Use standalone service clients as the default path:
+Use standalone service clients across all supported frameworks:
 
 ```bash
 bun add @agentuity/keyvalue@alpha
@@ -100,14 +116,13 @@ bun add @agentuity/keyvalue@alpha
 import { KeyValueClient } from '@agentuity/keyvalue';
 
 const kv = new KeyValueClient();
-
-await kv.set('sessions', 'latest', { updatedAt: new Date().toISOString() });
+await kv.set('sessions', 'current', { updatedAt: new Date().toISOString() });
 ```
 
-Use direct clients when you want the same code to run across frameworks, scripts, and server routes.
+Hono apps can also install `@agentuity/hono` and read clients from `c.var.*` instead.
 
 ## Next Steps
 
 - [Services](/services): choose storage, messaging, identity, observability, and execution clients
-- [Deployment](/reference/cli/deployment): review deploy flags and lifecycle behavior
-- [Build Configuration](/reference/cli/build-configuration): inspect framework detection and launch metadata
+- [Build](/build): model calls, streaming routes, and background work patterns
+- [Deploying Apps](/deploy-operate): run your framework project with `agentuity dev` and `agentuity deploy`

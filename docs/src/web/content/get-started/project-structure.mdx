@@ -1,42 +1,49 @@
 ---
 title: Project Structure
-description: Understand how Agentuity fits into framework projects
+description: See exactly what the create flow adds to a framework app
 ---
 
-Agentuity v3 keeps your framework's file layout. The CLI adds project metadata, a deploy script, and optional example files without moving your app into an Agentuity-owned runtime structure.
+The create flow runs the framework's official scaffolding tool, then layers on Agentuity dependencies, scripts, and a working AI translation example. Your framework's file layout is unchanged. Nothing is moved into an Agentuity-owned runtime structure.
 
-## What the CLI Adds
+## What the Scaffold Adds
 
-After `bun create agentuity@alpha`, expect the framework's normal files plus a few Agentuity pieces:
+After `bun create agentuity@alpha`, expect the framework's normal files plus:
 
-| File or field | Added when | Purpose |
-|---------------|------------|---------|
-| `@agentuity/cli` | Every v3 create flow | Runs `agentuity dev`, `agentuity build`, and `agentuity deploy` from the project |
-| `scripts.deploy` | Every v3 create flow | Lets `bun run deploy` call `agentuity deploy` |
-| AI example files | When you include the AI example | Adds a route and UI that call the OpenAI SDK through Agentuity's gateway |
-| `agentuity.json` | Registered or imported projects | Stores project id, org id, region, domains, and resource settings |
-| `.env` | Registered or imported projects | Stores `AGENTUITY_SDK_KEY` and linked resource credentials |
-| Local ignore entries | Every v3 create flow | Ignores common local files such as `.agentuity/` and `.env` |
+| Addition | Where | When |
+|----------|-------|------|
+| `@agentuity/cli@alpha` | `package.json` devDependencies | Always |
+| `openai`, `@agentuity/keyvalue@alpha` | `package.json` dependencies | When the AI example is included |
+| `swr` (or `@tanstack/react-query` for vite-react) | `package.json` dependencies | When the AI example is included |
+| `deploy: agentuity deploy` | `package.json` scripts | Always |
+| Translation page and API route | Framework-specific paths (see below) | When the AI example is included |
+| `agentuity.json` | Project root | When you register (default) |
+| `.env` with `AGENTUITY_SDK_KEY` | Project root | When you register (default) |
+| `.gitignore` entries: `.agentuity/`, `.env.local`, `agentuity.json` | Project root | Always |
+| `AGENTS.md`, `CLAUDE.md` | Project root | Always |
 
-If you create a project with `--no-register`, add cloud metadata later with `agentuity project import`.
+The framework's own create command owns `dev`, `build`, and `start` scripts; Agentuity adds `deploy` on top.
+
+If you scaffolded with `--no-register`, run `agentuity project import` later to register the directory and write `agentuity.json` plus the `AGENTUITY_SDK_KEY`.
 
 ## Framework File Layouts
 
-The exact files come from the framework's own create command. Agentuity's generated AI example follows each framework's conventions:
+The scaffold places the AI translation example where each framework expects routes and pages:
 
-| Framework | API route location | App UI location |
-|-----------|--------------------|-----------------|
-| Next.js | `src/app/api/translate/route.ts` | `src/app/page.tsx` |
-| Nuxt | `server/api/translate.ts` | `app.vue` |
-| React Router | `app/routes/api.translate.ts` | `app/routes/home.tsx` |
-| SvelteKit | `src/routes/+page.server.ts` | `src/routes/+page.svelte` |
-| Astro | `src/pages/api/translate.ts` | `src/pages/index.astro` |
-| Hono | `src/index.ts` | `src/index.ts` |
-| Vite + React | `server.ts` | `src/App.tsx` |
+| Framework | API route | App UI | Dev script |
+|-----------|-----------|--------|------------|
+| Next.js | `src/app/api/translate/route.ts` | `src/app/page.tsx` | `next dev` |
+| Nuxt | `server/api/translate.ts` | `app.vue` | `nuxt dev` |
+| React Router | `app/routes/api.translate.ts` | `app/routes/home.tsx` | `react-router dev` |
+| SvelteKit | `src/routes/+page.server.ts` | `src/routes/+page.svelte` | `vite dev` |
+| Astro | `src/pages/api/translate.ts` | `src/pages/index.astro` | `astro dev` |
+| Hono | `src/index.ts` (route + rendered page) | `src/index.ts` | `bun run --hot src/index.ts` |
+| Vite + React | `server.ts` (Bun server) | `src/App.tsx` | `vite` |
+
+`agentuity dev` calls the framework's own `dev` script through your package manager.
 
 ## Routes and Services
 
-In v3, route handlers usually live where the framework expects them. Add Agentuity services with standalone clients when the route needs platform storage, queues, email, schedules, sandbox execution, or other services.
+Routes live where the framework expects them. To add Agentuity services, import a standalone client inside the route or function that owns the work:
 
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -48,34 +55,37 @@ await kv.set('sessions', 'user-123', {
 });
 ```
 
-This pattern works in framework server code, background scripts, and local tools as long as `AGENTUITY_SDK_KEY` is available.
+The client reads `AGENTUITY_SDK_KEY` (with `AGENTUITY_CLI_KEY` as a fallback) from process env. `agentuity dev` supplies the key for local runs, and registered deployed apps receive it as a project secret.
 
-<Callout type="info" title="Hono can also use route context">
-In Hono projects, Agentuity integrations can expose services on `c.var.*`. Use standalone clients as the portable default, and use Hono context when you want Hono-specific route ergonomics.
+This pattern is portable across framework server code, scripts, and workers. See [Using Standalone Packages](/reference/standalone-packages) for the full client list.
+
+<Callout type="info" title="Hono can also use middleware">
+In Hono projects, `@agentuity/hono` exposes service clients on `c.var.*` for routes that prefer Hono context. Use standalone clients as the default; reach for the middleware when you want Hono-specific ergonomics.
 </Callout>
 
 ## App Entrypoints
 
-There is no required v3 `app.ts` entrypoint for framework projects. Your framework owns startup and routing:
+There is no Agentuity entrypoint. Each framework owns startup and routing as usual:
 
-| Framework | Typical entrypoint |
-|-----------|--------------------|
+| Framework | Entrypoints |
+|-----------|-------------|
 | Next.js | `src/app/` and `next.config.*` |
 | Nuxt | `app.vue`, `server/`, and `nuxt.config.*` |
 | React Router | `app/` and `react-router.config.*` |
 | SvelteKit | `src/routes/` and `svelte.config.*` |
 | Astro | `src/pages/` and `astro.config.*` |
 | Hono | `src/index.ts` |
-| Vite + React | `src/` for the client, `server.ts` for the example API |
+| Vite + React | `src/main.tsx` (browser), `server.ts` (Bun server) |
 
-During build, Agentuity packages the framework output for deployment.
+`agentuity build` packages the framework's build output for deploy. `agentuity deploy` does both, then encrypts and uploads the bundle.
 
-## Existing v2 Apps
-
-Existing v2 apps can continue using `src/agent`, `src/api`, `createApp()`, `createAgent()`, and runtime-managed routes. For new v3 apps, keep the framework layout and add Agentuity services where the framework code needs them.
+<Callout type="info" title="Coming from a legacy runtime app?">
+Apps using `@agentuity/runtime`, `createApp()`, or `createAgent()` keep working on the legacy runtime model. See the [legacy docs](https://v2.agentuity.dev) for that flow, or [Migration](/migration) to move to the framework-first shape.
+</Callout>
 
 ## Next Steps
 
-- [App Configuration](/get-started/app-configuration): Configure `agentuity.json`, scripts, env vars, and service clients
-- [Using Standalone Packages](/reference/standalone-packages): Use Agentuity services from framework routes and scripts
-- [Deployment](/reference/cli/deployment): Configure deploy behavior and resources
+- [App Configuration](/get-started/app-configuration): scripts, `agentuity.json`, env vars, and service clients
+- [Frameworks](/frameworks): per-framework setup, route patterns, and deploy notes
+- [Using Standalone Packages](/reference/standalone-packages): every Agentuity service client and constructor option
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): register, package, and ship a project

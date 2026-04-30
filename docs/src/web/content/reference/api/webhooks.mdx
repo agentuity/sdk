@@ -58,7 +58,7 @@ Webhook creation payload.
 
 #### Response
 
-Returns the created webhook. The ingest URL is only returned at creation.
+Returns the created webhook with its ingest URL when available.
 
 | Status | Description |
 |--------|-------------|
@@ -107,7 +107,7 @@ Returns the created webhook. The ingest URL is only returned at creation.
   {
     "name": "url",
     "type": "string",
-    "description": "Fully-qualified ingest URL for sending events to this webhook. Only present on create",
+    "description": "Fully-qualified ingest URL for sending events to this webhook when returned by the service",
     "required": false
   },
   {

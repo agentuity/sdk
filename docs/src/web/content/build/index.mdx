@@ -1,11 +1,11 @@
 ---
 title: Build
-description: Build model calls, streaming routes, and background work in v3 framework apps
+description: Build model calls, streaming routes, and background work in framework apps
 ---
 
 import { Bot, Database, MessageSquareText, Rows3, Wrench } from 'lucide-react';
 
-Build v3 apps inside your framework's routes, server functions, workers, and scripts. Call models with the provider SDK or AI SDK you already use, then add Agentuity service clients when the workflow needs durable state, queues, streams, telemetry, or deploy support.
+Add model calls, conversation state, tool use, and background work to a framework app that's already set up.
 
 <Cards>
   <CardLink
@@ -40,14 +40,22 @@ Build v3 apps inside your framework's routes, server functions, workers, and scr
   />
 </Cards>
 
-## How to Use These
+## Pick a Starting Point
 
-Use these pages when you know the behavior you want but need the v3 shape. The examples use direct service clients first because that path works across supported server frameworks and scripts. Hono apps can also install `@agentuity/hono` and read the same clients from `c.var.*`.
+- Build a reusable model-backed workflow: [Build Agents](/build/agents)
+- Return tokens as they arrive: [Chat and Streaming](/build/chat-and-streaming)
+- Let a model call app functions: [Tool Calling](/build/tool-calling)
+- Store memory outside the response: [State and Memory](/build/state-and-memory)
+- Move slow work out of the request: [Background Work](/build/background-work)
 
-Legacy runtime apps can stay on the [v2 docs](https://v2.agentuity.dev). These pages use "agent" as an application design pattern, not as `createAgent()`.
+The examples use direct service clients because that path works across all supported frameworks and scripts. Hono apps can also install `@agentuity/hono` and read the same clients from `c.var.*`.
+
+<Callout type="info" title="Using a legacy runtime app?">
+These pages treat "agent" as an application design pattern, not as `createAgent()`. If you're on the legacy runtime, use the [legacy docs](https://v2.agentuity.dev) instead.
+</Callout>
 
 ## Related Docs
 
 - [Frameworks](/frameworks): start from Next.js, Hono, TanStack Start, or another supported framework
 - [Services](/services): choose the Agentuity client for storage, queues, tasks, schedules, sandbox, and observability
-- [Deploying Apps](/deploy-operate): run the same framework project with `agentuity dev` and `agentuity deploy`
+- [Deploy and Operate](/deploy-operate): run the same framework project with `agentuity dev` and `agentuity deploy`

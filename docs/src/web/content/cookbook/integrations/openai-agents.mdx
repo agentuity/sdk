@@ -1,0 +1,108 @@
+---
+title: OpenAI Agents SDK
+description: Run an OpenAI Agents SDK agent loop inside a framework route
+---
+
+The [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) provides a small typed `Agent` class plus a `run()` function that drives the tool-calling loop. Drop it into a Hono route when you want an OpenAI-flavored agent without writing the loop yourself.
+
+```bash
+bun add hono @openai/agents @agentuity/schema@alpha zod
+```
+
+## Define the Agent and Tools
+
+Tools use Zod schemas for parameters. Each tool has a `name`, `description`, parameters schema, and an `execute` function.
+
+```typescript title="src/lib/research-agent.ts"
+import { Agent, tool, setTracingDisabled } from '@openai/agents';
+import { z } from 'zod';
+
+setTracingDisabled(true);
+
+const search = tool({
+  name: 'search',
+  description: 'Search for information on any topic',
+  parameters: z.object({
+    query: z.string().describe('The search query'),
+  }),
+  execute: async ({ query }) => `Results for: ${query}`,
+});
+
+export const researchAgent = new Agent({
+  name: 'Research Assistant',
+  instructions: 'You are a helpful assistant. Be concise.',
+  model: 'gpt-5.4',
+  tools: [search],
+});
+```
+
+`setTracingDisabled(true)` skips the SDK's local tracing exporter. Remove that line if you want the SDK's traces.
+
+## Wire the Route
+
+`run(agent, message)` runs the full ReAct loop. The route validates, runs, returns.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { run } from '@openai/agents';
+import { s } from '@agentuity/schema';
+import { researchAgent } from './lib/research-agent';
+
+const requestSchema = s.object({
+  message: s.string(),
+});
+
+const app = new Hono();
+
+app.post('/api/research', async (c) => {
+  const body: unknown = await c.req.json();
+  const { message } = requestSchema.parse(body);
+
+  const result = await run(researchAgent, message);
+
+  return c.json({
+    response: typeof result.finalOutput === 'string'
+      ? result.finalOutput
+      : JSON.stringify(result.finalOutput),
+  });
+});
+
+export default app;
+```
+
+## Handoffs
+
+Multiple agents compose with the SDK's handoff pattern. Each child agent has its own instructions and tools; the parent decides when to delegate.
+
+```typescript
+import { Agent, run } from '@openai/agents';
+
+const refundAgent = new Agent({
+  name: 'Refund Agent',
+  instructions: 'Process refund requests. Confirm the order ID first.',
+  model: 'gpt-5.4-mini',
+});
+
+const triageAgent = new Agent({
+  name: 'Triage',
+  instructions: 'Route the user to the right specialist.',
+  model: 'gpt-5.4-mini',
+  handoffs: [refundAgent],
+});
+
+const result = await run(triageAgent, 'I want a refund on order ord_123.');
+```
+
+The SDK manages the handoff turn for you. The route still sees one round trip.
+
+## When to Reach for the OpenAI Agents SDK
+
+Pick this SDK when you want OpenAI's first-party agent loop, especially for handoffs and hosted tools. Pick the [Anthropic SDK loop](/cookbook/patterns/autonomous-research) when Anthropic's `tool_use` blocks are central. Pick raw [AI SDK](/build/agents) when you want one provider-agnostic surface.
+
+Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for the OpenAI SDK. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs.
+
+## Next Steps
+
+- [Build Agents](/build/agents): the plain-function pattern this page wraps
+- [Tool Calling](/build/tool-calling): the AI SDK 6 path with provider-agnostic tool calls
+- [Autonomous Research](/cookbook/patterns/autonomous-research): a hand-rolled tool loop using the Anthropic SDK

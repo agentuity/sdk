@@ -21,7 +21,7 @@ export const SnapshotBuildFileBaseSchema = z
 		version: z.literal(1).describe('Schema version, must be 1'),
 		runtime: z
 			.string()
-			.describe('Runtime identifier (name:tag format, e.g., bun:1, node:20, python:3.12)'),
+			.describe('Runtime identifier (name:tag format, e.g., bun:1, node:lts, python:3.14)'),
 		name: z
 			.string()
 			.regex(/^[a-zA-Z0-9_-]+$/)

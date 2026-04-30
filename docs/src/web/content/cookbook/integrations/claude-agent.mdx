@@ -1,0 +1,137 @@
+---
+title: Claude Agent SDK
+description: Run multi-turn Claude Agent sessions from a framework route with key-value session storage
+---
+
+The [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/typescript) wraps Claude with file tools, sub-agents, and durable session IDs. Drop it into a framework route when you want Claude to read files, write code, or run multi-turn analysis with conversation history.
+
+```bash
+bun add hono @anthropic-ai/claude-agent-sdk @agentuity/keyvalue@alpha @agentuity/schema@alpha
+```
+
+## Run a Single Turn
+
+`query()` returns an async iterator of SDK messages. Drain the iterator to get the final result message; it carries the assistant text plus the session ID.
+
+```typescript title="src/lib/code-assist.ts"
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
+
+interface AssistResult {
+  readonly response: string;
+  readonly sessionId: string;
+  readonly costUsd?: number;
+}
+
+export async function runCodeAssist(prompt: string, sessionId?: string): Promise<AssistResult> {
+  const messages: SDKMessage[] = [];
+  for await (const message of query({
+    prompt,
+    options: sessionId ? { resume: sessionId } : undefined,
+  })) {
+    messages.push(message);
+  }
+
+  const result = messages.find(
+    (message): message is SDKResultMessage => message.type === 'result'
+  );
+
+  if (!result) {
+    throw new Error('No result message returned from query()');
+  }
+
+  if (result.subtype !== 'success') {
+    throw new Error(result.errors.join('\n') || 'Claude Agent SDK returned an error result');
+  }
+
+  return {
+    response: result.result,
+    sessionId: result.session_id,
+    costUsd: result.total_cost_usd,
+  };
+}
+```
+
+The `resume` option carries on a previous session by ID. The first call creates a session; subsequent calls reuse it for cheap multi-turn conversations.
+
+## Track Sessions Per Conversation
+
+Map your app's conversation IDs to Claude session IDs in [key-value storage](/services/storage/key-value). The route looks up the session before calling `query()` and stores the latest one after each response.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+import { runCodeAssist } from './lib/code-assist';
+
+const SESSION_NAMESPACE = 'claude-sessions';
+
+const requestSchema = s.object({
+  conversationId: s.string(),
+  prompt: s.string(),
+});
+
+const kv = new KeyValueClient();
+const app = new Hono();
+
+app.post('/api/code-assist', async (c) => {
+  const body: unknown = await c.req.json();
+  const input = requestSchema.parse(body);
+
+  const stored = await kv.get<string>(SESSION_NAMESPACE, input.conversationId);
+  const previousSessionId = stored.exists ? stored.data : undefined;
+
+  const result = await runCodeAssist(input.prompt, previousSessionId);
+
+  await kv.set(SESSION_NAMESPACE, input.conversationId, result.sessionId, {
+    ttl: 60 * 60 * 24 * 30,
+  });
+
+  return c.json({
+    response: result.response,
+    conversationId: input.conversationId,
+    costUsd: result.costUsd,
+  });
+});
+
+export default app;
+```
+
+The Claude session lives on Anthropic's side; only the session ID lives in your KV. That keeps storage cheap and lets the SDK reuse cached state automatically.
+
+## Workspaces
+
+For agents that read or write files, give each conversation its own working directory. The SDK reads `cwd` from `query()` options.
+
+```typescript
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+async function getWorkspace(conversationId: string): Promise<string> {
+  const dir = join(tmpdir(), 'claude-workspaces', conversationId);
+  await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+const cwd = await getWorkspace(input.conversationId);
+
+for await (const message of query({
+  prompt: input.prompt,
+  options: { cwd, resume: previousSessionId },
+})) {
+  // ...
+}
+```
+
+For deployed apps that need workspaces to outlive a process, write files to [object storage](/services/storage/object) instead of `tmpdir()` and stage them into the workspace each request.
+
+## When to Reach for the Claude Agent SDK
+
+Pick this SDK when you want Claude's full agent loop with file tools, planning, and multi-turn caching. Pick the [Anthropic SDK Messages API](/cookbook/patterns/autonomous-research) when you want full control over `tool_use` blocks. Pick [AI SDK](/build/agents) for one provider-agnostic surface.
+
+## Next Steps
+
+- [Build Agents](/build/agents): the plain-function pattern this page wraps
+- [Chat with History](/cookbook/patterns/chat-with-history): a similar conversation pattern, without an external SDK
+- [Sandbox SDK Usage](/services/sandbox/sdk-usage): isolate file-writing agents from the host

@@ -1,13 +1,119 @@
 ---
 title: Cookbook
-description: Tutorials and patterns for building with Agentuity
+description: Tutorials, reusable patterns, and external integrations for Agentuity apps
 ---
 
-import { Bot, Globe, Link, MessageSquare, Server } from 'lucide-react';
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Calendar,
+  Compass,
+  Globe,
+  Link,
+  MessageSquare,
+  Network,
+  Plug,
+  Scale,
+  Search,
+  Server,
+  Sparkles,
+  Webhook,
+  Workflow,
+  Zap,
+} from 'lucide-react';
 
-Use these cookbook pages when you want an applied example after reading the core docs. Current examples use framework routes, direct service clients, or Coder APIs.
+Use the cookbook when you want an applied example after reading the core docs. Pages here use framework routes, direct service clients, and external libraries.
 
-## Coder
+## Tutorials
+
+End-to-end builds. Start here when you want a complete feature, not a snippet.
+
+<Cards>
+  <CardLink
+    href="/cookbook/tutorials/rag-agent"
+    title="Build a RAG Agent"
+    description="Index documents into vector storage, retrieve the closest matches, and answer with citations"
+    icon={<Sparkles />}
+  />
+</Cards>
+
+## Patterns
+
+Reusable shapes for common app problems. Each pattern is one focused job.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/chat-with-history"
+    title="Chat with History"
+    description="Store chat turns in key-value storage from a framework route"
+    icon={<MessageSquare />}
+  />
+  <CardLink
+    href="/cookbook/patterns/product-search"
+    title="Product Search"
+    description="Semantic search with metadata filters and an optional model recommendation"
+    icon={<Search />}
+  />
+  <CardLink
+    href="/cookbook/patterns/webhook-handler"
+    title="Webhook Handler"
+    description="Verify a signed webhook in a framework route and hand the payload to a queue"
+    icon={<Webhook />}
+  />
+  <CardLink
+    href="/cookbook/patterns/cron-with-storage"
+    title="Cron with Storage"
+    description="Refresh data on a schedule, cache it in key-value, and serve fast reads"
+    icon={<Calendar />}
+  />
+  <CardLink
+    href="/cookbook/patterns/background-tasks"
+    title="Background Tasks"
+    description="Return a fast response while side effects continue in the background"
+    icon={<Zap />}
+  />
+  <CardLink
+    href="/cookbook/patterns/autonomous-research"
+    title="Autonomous Research"
+    description="Drive an Anthropic Messages API tool loop with native tool_use blocks"
+    icon={<Brain />}
+  />
+  <CardLink
+    href="/cookbook/patterns/llm-as-a-judge"
+    title="LLM as a Judge"
+    description="Score quality, check grounding, or pick a winner with a fast judge model"
+    icon={<Scale />}
+  />
+  <CardLink
+    href="/cookbook/patterns/web-exploration"
+    title="Web Exploration"
+    description="Run a headless browser inside a sandbox with an AI SDK tool loop"
+    icon={<Compass />}
+  />
+  <CardLink
+    href="/cookbook/patterns/hono-rpc-tanstack-query"
+    title="Hono RPC + TanStack"
+    description="Share Hono route types with a React client using TanStack Query"
+    icon={<Link />}
+  />
+  <CardLink
+    href="/cookbook/patterns/server-utilities"
+    title="Server Utilities"
+    description="Use Agentuity services from external apps, scripts, and backends"
+    icon={<Server />}
+  />
+  <CardLink
+    href="/cookbook/patterns/tailwind-setup"
+    title="Tailwind Setup"
+    description="Use your framework's Tailwind setup with Agentuity service routes"
+    icon={<Globe />}
+  />
+</Cards>
+
+### Coder
+
+Manage [Coder](/services/coder) sessions, skills, and workspaces from the SDK.
 
 <Cards>
   <CardLink
@@ -54,48 +160,37 @@ Use these cookbook pages when you want an applied example after reading the core
   />
 </Cards>
 
-## Framework Patterns
+## Integrations
+
+External libraries that run on or alongside Agentuity. Framework setup lives under [Frameworks](/frameworks).
 
 <Cards>
   <CardLink
-    href="/cookbook/patterns/chat-with-history"
-    title="Chat with History"
-    description="Store chat history with key-value storage from a framework route"
-    icon={<MessageSquare />}
+    href="/cookbook/integrations/mastra"
+    title="Mastra"
+    description="Run a Mastra Agent inside a framework route with key-value memory"
+    icon={<Workflow />}
   />
   <CardLink
-    href="/cookbook/patterns/hono-rpc-tanstack-query"
-    title="Hono RPC + TanStack"
-    description="Share Hono route types with a React client using TanStack Query"
-    icon={<Link />}
+    href="/cookbook/integrations/openai-agents"
+    title="OpenAI Agents SDK"
+    description="Drive @openai/agents tool calls and handoffs from a Hono route"
+    icon={<Plug />}
   />
   <CardLink
-    href="/cookbook/patterns/server-utilities"
-    title="Server Utilities"
-    description="Use Agentuity services from external apps, scripts, and backends"
-    icon={<Server />}
+    href="/cookbook/integrations/claude-agent"
+    title="Claude Agent SDK"
+    description="Run multi-turn Claude Agent sessions and store the session ID per conversation"
+    icon={<BookOpen />}
   />
   <CardLink
-    href="/cookbook/patterns/tailwind-setup"
-    title="Tailwind Setup"
-    description="Use your framework's Tailwind setup with Agentuity service routes"
-    icon={<Globe />}
+    href="/cookbook/integrations/langchain"
+    title="LangChain"
+    description="Wrap a LangChain createAgent loop in a framework route with middleware"
+    icon={<Network />}
   />
 </Cards>
 
-## Framework Integrations
-
-<Cards>
-  <CardLink
-    href="/frameworks/nextjs"
-    title="Next.js"
-    description="Add Agentuity service clients, local development, and deploy checks to a Next.js app"
-    icon={<Globe />}
-  />
-  <CardLink
-    href="/frameworks/tanstack-start"
-    title="TanStack Start"
-    description="Use Agentuity clients from TanStack Start server routes"
-    icon={<Globe />}
-  />
-</Cards>
+<Callout type="info" title="Looking for Next.js, TanStack Start, Hono, SvelteKit, Nuxt, Astro, React Router, or Vite + React?">
+Framework integration pages live under [Frameworks](/frameworks). The cookbook is for external libraries, not framework setup.
+</Callout>

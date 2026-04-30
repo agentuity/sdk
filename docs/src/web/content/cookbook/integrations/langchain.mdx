@@ -1,0 +1,131 @@
+---
+title: LangChain
+description: Run a LangChain ReAct agent inside a framework route with tools and middleware
+---
+
+[LangChain.js](https://js.langchain.com) ships an agent runtime, tool definitions, and middleware. Drop a LangChain agent into a Hono route when you already have LangChain code, or when its middleware model fits the way you want to structure tool errors and retries.
+
+```bash
+bun add hono langchain @langchain/openai @langchain/core @agentuity/schema@alpha zod
+```
+
+## Define the Agent
+
+The current LangChain entrypoint is `createAgent` from `langchain`. Tools come from `@langchain/core/tools`; the chat model comes from a provider package.
+
+```typescript title="src/lib/research-agent.ts"
+import {
+  createAgent,
+  createMiddleware,
+  ToolMessage,
+} from 'langchain';
+import { tool } from '@langchain/core/tools';
+import { ChatOpenAI } from '@langchain/openai';
+import { z } from 'zod';
+
+const search = tool(
+  async ({ query }) => `Results for: ${query}`,
+  {
+    name: 'search',
+    description: 'Search for information',
+    schema: z.object({ query: z.string().describe('The search query') }),
+  }
+);
+
+const handleToolErrors = createMiddleware({
+  name: 'HandleToolErrors',
+  wrapToolCall: async (request, handler) => {
+    try {
+      return await handler(request);
+    } catch (error) {
+      const toolCallId = request.toolCall.id;
+      if (!toolCallId) throw error;
+
+      return new ToolMessage({
+        content: `Tool error: ${String(error)}`,
+        tool_call_id: toolCallId,
+      });
+    }
+  },
+});
+
+export const researchAgent = createAgent({
+  model: new ChatOpenAI({ model: 'gpt-5.4', temperature: 0.1 }),
+  tools: [search],
+  middleware: [handleToolErrors],
+  systemPrompt: 'You are a helpful assistant. Be concise.',
+});
+```
+
+The middleware is optional but useful: a thrown tool error becomes a `ToolMessage` the agent can recover from instead of crashing the loop.
+
+## Wire the Route
+
+LangChain agents implement the LangGraph runnable interface. `invoke()` returns the final state; the last message is the assistant response.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { HumanMessage } from '@langchain/core/messages';
+import { s } from '@agentuity/schema';
+import { researchAgent } from './lib/research-agent';
+
+const requestSchema = s.object({
+  message: s.string(),
+});
+
+const app = new Hono();
+
+app.post('/api/research', async (c) => {
+  const body: unknown = await c.req.json();
+  const { message } = requestSchema.parse(body);
+
+  const result = await researchAgent.invoke({
+    messages: [new HumanMessage(message)],
+  });
+
+  const last = result.messages.at(-1);
+  return c.json({
+    response: typeof last?.content === 'string'
+      ? last.content
+      : JSON.stringify(last?.content ?? ''),
+  });
+});
+
+export default app;
+```
+
+## Streaming
+
+`stream()` returns an iterator of state updates. Forward chunks to the client over Server-Sent Events when the route is meant to render incrementally.
+
+```typescript
+app.post('/api/research-stream', async (c) => {
+  const { message } = requestSchema.parse(await c.req.json());
+
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        for await (const chunk of await researchAgent.stream({
+          messages: [new HumanMessage(message)],
+        })) {
+          controller.enqueue(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+        controller.close();
+      },
+    }),
+    { headers: { 'content-type': 'text/event-stream' } }
+  );
+});
+```
+
+## When to Reach for LangChain
+
+Pick LangChain when you already have LangChain or LangGraph code, or when the middleware and graph model give you something AI SDK does not. Pick raw [AI SDK](/build/agents) when you want fewer layers and provider-agnostic tool calling.
+
+Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for `ChatOpenAI`. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs. Setting `OPENAI_API_KEY` keeps `ChatOpenAI` on the direct provider.
+
+## Next Steps
+
+- [Build Agents](/build/agents): the plain-function pattern this page wraps
+- [Tool Calling](/build/tool-calling): the AI SDK 6 path with provider-agnostic tool calls
+- [Autonomous Research](/cookbook/patterns/autonomous-research): a hand-rolled tool loop using the Anthropic SDK

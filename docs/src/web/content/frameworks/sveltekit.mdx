@@ -1,10 +1,10 @@
 ---
 title: Using SvelteKit with Agentuity
 short_title: SvelteKit
-description: Add Agentuity CLI wiring and deployment validation to a SvelteKit app
+description: Add Agentuity service clients, local development, and deploy validation to a SvelteKit app
 ---
 
-Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. Agentuity keeps the SvelteKit file layout and adds project linking, local development, and deploy validation around it.
+Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. Agentuity adds service clients, local development support, and deploy validation around the file-based routing and build output you already use.
 
 ## Create a Starter
 
@@ -13,9 +13,20 @@ bun create agentuity@alpha --name my-sveltekit-app --framework sveltekit
 cd my-sveltekit-app
 ```
 
-The starter runs `sv create`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an AI example at `src/routes/+page.server.ts` plus `src/routes/+page.svelte`.
+The starter calls [`sv create`](https://svelte.dev/docs/cli/overview) under the hood, then adds `@agentuity/cli`, installs `@sveltejs/adapter-node`, adds a `deploy` script, and overlays an AI example using `+page.server.ts` form actions.
 
-For an existing SvelteKit app, add the CLI and link the project:
+Key files in the AI example:
+
+| File | Purpose |
+|------|---------|
+| `src/routes/+page.svelte` | Page UI with Svelte 5 runes |
+| `src/routes/+page.server.ts` | Server actions that call a model and store history |
+| `svelte.config.js` | Adapter and preprocessor config |
+| `package.json` | `dev`, `build`, and `deploy` scripts |
+
+## Import an Existing App
+
+For an existing SvelteKit app, add the CLI and register the project:
 
 ```bash
 bun add -d @agentuity/cli@alpha
@@ -23,20 +34,199 @@ agentuity project import --validate-only
 agentuity project import
 ```
 
-`agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
+`agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
+
+## Add an API Route
+
+SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define pure JSON endpoints. Put Agentuity service clients here; never import them in client-side `<script>` blocks.
+
+```bash
+bun add @agentuity/keyvalue@alpha @agentuity/schema@alpha openai
+```
+
+```typescript title="src/routes/api/translate/+server.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+import OpenAI from 'openai';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+const HISTORY_NAMESPACE = 'translation-history';
+const SESSION_COOKIE = 'agentuity_session';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+
+interface HistoryState {
+  readonly history: readonly string[];
+}
+
+const requestSchema = s.object({
+  model: s.optional(s.string()),
+  text: s.string(),
+  toLanguage: s.string(),
+});
+
+// Instantiated once at module level; reads AGENTUITY_SDK_KEY from env
+const kv = new KeyValueClient(); // [!code highlight]
+const openai = new OpenAI(); // [!code highlight]
+
+export const POST: RequestHandler = async ({ cookies, request }) => {
+  const body: unknown = await request.json();
+  const parsed = requestSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return json({ error: 'text and toLanguage are required' }, { status: 400 });
+  }
+
+  const input = parsed.data;
+  const model = input.model ?? 'gpt-5.4-nano';
+
+  // Read or create a session cookie to scope history per browser session
+  const sessionId = cookies.get(SESSION_COOKIE) ?? crypto.randomUUID();
+  cookies.set(SESSION_COOKIE, sessionId, {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax',
+    maxAge: SESSION_TTL_SECONDS,
+  });
+
+  const completion = await openai.chat.completions.create({ // [!code highlight]
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: `Translate to ${input.toLanguage}:\n\n${input.text}`,
+      },
+    ],
+  });
+
+  const translation = completion.choices[0]?.message?.content ?? '';
+
+  // Append to the last 5 translations stored for this session
+  const previous = await kv.get<HistoryState>(HISTORY_NAMESPACE, sessionId);
+  const history = [...(previous.exists ? previous.data.history : []), translation].slice(-5);
+  await kv.set(HISTORY_NAMESPACE, sessionId, { history }, { ttl: SESSION_TTL_SECONDS }); // [!code highlight]
+
+  return json({ translation, history });
+};
+```
+
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app via `agentuity dev` to have those values injected automatically.
+
+## Call the Route from a Component
+
+Svelte 5 uses rune-based reactivity (`$state`, `$props`). The component calls the server route directly:
+
+```svelte title="src/routes/+page.svelte"
+<script lang="ts">
+  let text = $state('Welcome to Agentuity');
+  let toLanguage = $state('Spanish');
+  let translation = $state('');
+  let history: string[] = $state([]);
+  let loading = $state(false);
+
+  async function translate() {
+    loading = true;
+    try {
+      const response = await fetch('/api/translate', { // [!code highlight]
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text, toLanguage }),
+      });
+      const result = await response.json();
+      translation = result.translation;
+      history = result.history;
+    } finally {
+      loading = false;
+    }
+  }
+</script>
+
+<textarea bind:value={text} rows="4" placeholder="Text to translate"></textarea>
+<button onclick={translate} disabled={loading}>
+  {loading ? 'Translating…' : 'Translate'}
+</button>
+
+{#if translation}
+  <p>{translation}</p>
+{/if}
+```
+
+<Callout type="info" title="Form actions vs. +server.ts">
+The starter uses `+page.server.ts` form actions for the page UI because they integrate with SvelteKit's progressive enhancement via `use:enhance`. Use `+server.ts` routes for pure JSON endpoints called by `fetch` or external clients.
+</Callout>
+
+## Run Locally
+
+`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000` into the dev process. The starter wires this up by delegating to a `dev:start` script:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "agentuity dev --script dev:start",
+    "dev:start": "vite dev --port 3000",
+    "build": "vite build",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+Then run:
+
+```bash
+bun run dev
+```
+
+Smoke-test the JSON route on port 3000:
+
+```bash
+curl http://127.0.0.1:3000/api/translate \
+  -H "content-type: application/json" \
+  -d '{"text":"Hello","toLanguage":"Spanish"}'
+```
+
+The `--port 3000` flag is required because Vite ignores the `PORT` env var. Frameworks like Next.js and Nuxt read `PORT` directly and do not need this flag.
 
 ## Validate Before Deploy
+
+Build with SvelteKit first, then run the Agentuity build step:
 
 ```bash
 bun run build
 agentuity build
+```
+
+After both succeed, inspect the launch metadata:
+
+```bash
 cat .agentuity/launch.json
 ```
 
-SvelteKit is detected as its own framework, but the current build path still uses the generic adapter. In practice, validate the packaged server entry and static assets before deploy, especially if your app depends on a specific SvelteKit adapter.
+SvelteKit requires a server adapter for SSR routes. The starter uses `@sveltejs/adapter-node` (one of the [five official adapters](https://svelte.dev/docs/kit/adapters)), which produces a `build/` directory with a `index.js` server entry. The `launch.json` should point at that entry. If you switch adapters, rebuild and re-inspect.
+
+<Callout type="warning" title="Adapter required for SSR">
+`@sveltejs/adapter-static` produces no server entry. If your app has SSR routes or API endpoints, use `adapter-node` or another server-capable adapter before deploying.
+</Callout>
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| Service client code appears in the browser bundle | Keep `KeyValueClient` and `OpenAI` in `+server.ts` or `+page.server.ts`, not in `<script>` blocks |
+| Route works in dev but fails after `agentuity build` | Inspect `.agentuity/launch.json` for the correct server entry path |
+| OpenAI calls bypass Agentuity AI Gateway | Run with `agentuity dev` so `OPENAI_BASE_URL` is set; verify it is not overridden by a local `.env` — see [AI Gateway](/services/ai-gateway) |
+| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both — see [AI Gateway](/services/ai-gateway) |
+| Cookies do not persist across requests | Set `path: '/'` when writing cookies from API routes |
+| Route returns HTML instead of JSON | API handlers go in `+server.ts`, not in `+page.server.ts` actions |
+| Missing adapter error at build | Confirm `svelte.config.js` imports a server-capable adapter; `@sveltejs/adapter-static` has no server entry — see [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters) |
+
+## Framework Docs
+
+- [SvelteKit Routing](https://svelte.dev/docs/kit/routing): `+server.ts` shape, `RequestHandler` type, and `json()` helper
+- [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters): choose a server adapter for apps with runtime routes
 
 ## Next Steps
 
+- [Key-Value Storage](/services/storage/key-value): store compact state from server routes with TTL
+- [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity for all supported models
 - [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
-- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
-- [Standalone Packages](/reference/standalone-packages): add Agentuity services from SvelteKit server code
+- [Deployment](/reference/cli/deployment): CLI deploy flags and lifecycle script behavior

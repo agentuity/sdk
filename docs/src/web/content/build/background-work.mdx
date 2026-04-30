@@ -3,11 +3,39 @@ title: Background Work
 description: Use queues, status records, and durable streams for work that should outlive a request
 ---
 
-Use background work when a request starts something slow: report generation, webhook fan-out, email preparation, model evaluation, or file processing. The route should enqueue the job and return a handle the client can poll.
+Use background work when a request starts something slow: report generation, webhook fan-out, email preparation, model evaluation, or file processing. The pattern is: the route enqueues the job and returns a handle; the worker route does the work and writes output to a durable stream; KV holds a status record the client can poll at any time.
 
 ```bash
 bun add hono @agentuity/queue@alpha @agentuity/keyvalue@alpha @agentuity/stream@alpha @agentuity/schema@alpha
 ```
+
+## Set Up the Queue
+
+Create the worker queue once, outside the request path. The `--visibility-timeout` controls how long a message stays invisible after delivery before it is retried if your worker never responds.
+
+```bash
+agentuity cloud queue create worker \
+  --name report-jobs \
+  --max-retries 3 \
+  --visibility-timeout 120
+```
+
+After your app has a public URL, add an HTTP destination so the platform calls your worker route automatically on every new message. Use a tunnel like [ngrok](https://ngrok.com) or [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/local-management/) to expose your local dev server, or use the deployed app URL.
+
+```bash
+agentuity cloud queue destinations create report-jobs \
+  --type http \
+  --name report-worker \
+  --url https://<your-app-host>/api/workers/report-jobs
+```
+
+<Callout type="warning" title="No destination, no worker calls">
+`queue.publish()` stores the message. The platform only calls your worker route when a queue destination is configured and points at a reachable public URL. `127.0.0.1` and `localhost` are not reachable from the queue; use a tunnel for local testing or the deployed URL.
+</Callout>
+
+## Status Type
+
+Define the discriminated union for the status record first. Both the request route and the worker route will write it; the status route and the client will read it.
 
 ```typescript title="src/index.ts"
 import { Hono } from 'hono';
@@ -15,6 +43,12 @@ import { QueueClient } from '@agentuity/queue';
 import { KeyValueClient } from '@agentuity/keyvalue';
 import { StreamClient } from '@agentuity/stream';
 import { s } from '@agentuity/schema';
+
+type ReportStatus =
+  | { readonly kind: 'queued'; readonly messageId: string }
+  | { readonly kind: 'processing' }
+  | { readonly kind: 'done'; readonly streamUrl: string }
+  | { readonly kind: 'failed'; readonly message: string };
 
 const requestSchema = s.object({
   accountId: s.string(),
@@ -29,23 +63,17 @@ const jobSchema = s.object({
 
 type ReportJob = s.infer<typeof jobSchema>;
 
-type ReportStatus =
-  | { readonly kind: 'queued'; readonly messageId: string }
-  | { readonly kind: 'processing' }
-  | { readonly kind: 'done'; readonly streamUrl: string }
-  | { readonly kind: 'failed'; readonly message: string };
-
 const queue = new QueueClient();
 const kv = new KeyValueClient();
 const streams = new StreamClient();
 const app = new Hono();
+```
 
-// Create this once from setup code, a script, or the Console.
-await queue.createQueue('report-jobs', {
-  queueType: 'worker',
-  description: 'Monthly report generation jobs',
-});
+## Request Route
 
+The request route validates input, publishes the job, writes an initial status record, and returns `202 Accepted` with a status URL the client can poll.
+
+```typescript title="src/index.ts"
 app.post('/api/reports', async (c) => {
   const body: unknown = await c.req.json();
   const input = requestSchema.parse(body);
@@ -57,18 +85,27 @@ app.post('/api/reports', async (c) => {
     reportMonth: input.reportMonth,
   };
 
+  // idempotencyKey ties the message to this jobId so retries don't duplicate // [!code highlight]
   const message = await queue.publish('report-jobs', job, {
-    idempotencyKey: jobId,
+    idempotencyKey: jobId, // [!code highlight]
   });
 
-  await kv.set<ReportStatus>('report-status', jobId, {
+  await kv.set<ReportStatus>('report-status', jobId, { // [!code highlight]
     kind: 'queued',
     messageId: message.id,
   });
 
   return c.json({ jobId, statusUrl: `/api/reports/${jobId}` }, 202);
 });
+```
 
+`queue.publish()` returns `{ id, offset, publishedAt }`. The `id` is the message ID stored in the status record for tracing.
+
+## Status Route
+
+The status route reads the KV record written by the request route and later updated by the worker. Keep it thin.
+
+```typescript title="src/index.ts"
 app.get('/api/reports/:jobId', async (c) => {
   const result = await kv.get<ReportStatus>('report-status', c.req.param('jobId'));
 
@@ -78,15 +115,11 @@ app.get('/api/reports/:jobId', async (c) => {
 
   return c.json(result.data);
 });
-
-export default app;
 ```
 
-The request route stays short. It validates the payload, publishes a queue message, records status in KV, and returns `202 Accepted`.
+## Worker Route
 
-## Process the Job
-
-Use the same job function from a queue destination, schedule destination, webhook route, or local script. The route below assumes the request body is the job payload.
+The worker route receives the queue message payload from the HTTP destination, updates the status record, writes output to a durable stream, and marks the job done.
 
 ```typescript title="src/index.ts"
 async function writeReport(job: ReportJob): Promise<string> {
@@ -96,14 +129,14 @@ async function writeReport(job: ReportJob): Promise<string> {
       accountId: job.accountId,
       reportMonth: job.reportMonth,
     },
-    ttl: 60 * 60 * 24 * 90,
+    ttl: 60 * 60 * 24 * 90, // keep for 90 days
   });
 
   try {
     await stream.write('account_id,report_month,total\n');
     await stream.write(`${job.accountId},${job.reportMonth},42817\n`);
   } finally {
-    await stream.close();
+    await stream.close(); // must always close to finalize // [!code highlight]
   }
 
   return stream.url;
@@ -134,24 +167,73 @@ app.post('/api/workers/report-jobs', async (c) => {
     return c.json({ ok: false }, 500);
   }
 });
+
+export default app;
 ```
 
-<Callout type="info" title="Queues decouple the request from the worker">
-The queue message is the handoff. KV stores the user-visible status, and durable streams store output that is too large or too useful to keep in the response body.
+<Callout type="info" title="Queue message is the handoff">
+The queue decouples the request from the worker. KV holds user-visible status so any route or client can check it without coupling to the worker. Durable streams hold output that is too large or too useful to fit in a response body.
 </Callout>
+
+## Poll from the Client
+
+Poll the status URL until the worker writes `done` or `failed`. Validate the response at the boundary so TypeScript knows which fields are present.
+
+```typescript
+import { s } from '@agentuity/schema';
+
+const reportStatusSchema = s.union(
+  s.object({ kind: s.literal('queued'), messageId: s.string() }),
+  s.object({ kind: s.literal('processing') }),
+  s.object({ kind: s.literal('done'), streamUrl: s.string() }),
+  s.object({ kind: s.literal('failed'), message: s.string() })
+);
+
+type ReportStatus = s.infer<typeof reportStatusSchema>;
+
+async function waitForReport(statusUrl: string): Promise<ReportStatus> {
+  for (;;) {
+    const response = await fetch(statusUrl);
+
+    if (!response.ok) {
+      throw new Error(`Status check failed: ${response.status}`);
+    }
+
+    const body: unknown = await response.json();
+  const status = reportStatusSchema.parse(body); // [!code highlight]
+
+    if (status.kind === 'done' || status.kind === 'failed') {
+      return status;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+```
 
 ## Pick the Right Service
 
-| Need | Use |
-|------|-----|
-| async handoff between routes or workers | [Queues](/services/queues) |
-| user-visible job status | [Key-Value Storage](/services/storage/key-value) |
-| large generated output | [Durable Streams](/services/storage/durable-streams) |
-| cron-based starts | [Schedules](/services/schedules) |
-| external event intake | [Webhooks](/services/webhooks) |
+| Need | Service |
+|------|---------|
+| Async handoff between routes or workers | [Queues](/services/queues) |
+| User-visible job status, fast reads | [Key-Value Storage](/services/storage/key-value) |
+| Large generated output, shareable URL | [Durable Streams](/services/storage/durable-streams) |
+| Recurring work on a timer | [Schedules](/services/schedules) |
+| External event intake from Stripe, GitHub, etc. | [Webhooks](/services/webhooks) |
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| Route returns `202` but the worker never runs | The queue has no enabled HTTP destination; run `agentuity cloud queue destinations list report-jobs` to verify |
+| Local worker never receives messages | The destination URL points at a public address, not `127.0.0.1`; use a tunnel for local testing |
+| Duplicate button clicks enqueue duplicate jobs | Pass an `idempotencyKey` derived from a stable job ID |
+| Status record disappears before the user checks it | Set a KV TTL that outlives the queue retry window |
+| Stream URL returns empty content | The worker threw before calling `stream.close()`; always close in a `finally` block |
 
 ## Next Steps
 
-- [Queues](/services/queues): publish work with idempotency and metadata
-- [Durable Streams](/services/storage/durable-streams): write generated files and logs
+- [Queues](/services/queues): full publish API with partitioning, metadata, DLQ, and WebSocket subscriptions
+- [Key-Value Storage](/services/storage/key-value): TTL, namespaces, and key search
+- [Durable Streams](/services/storage/durable-streams): compression, background writes, and shareable URLs
 - [Schedules](/services/schedules): start recurring work without an incoming user request

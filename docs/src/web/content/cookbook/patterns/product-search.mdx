@@ -1,0 +1,316 @@
+---
+title: Product Search with Vector
+short_title: Product Search
+description: Semantic product search with metadata filters and an optional model recommendation
+---
+
+A product search built on vector storage understands natural language ("comfortable office chair under $300") instead of matching exact tokens. This pattern indexes products, searches by query, applies metadata filters in the route, and optionally asks a model to pick the best match.
+
+```bash
+bun add hono ai @ai-sdk/openai @agentuity/vector@alpha @agentuity/schema@alpha zod
+```
+
+## Index Products
+
+Indexing is idempotent. Run it again on the same `id` to update the stored vector and metadata.
+
+```typescript title="src/lib/index-products.ts"
+import { VectorClient } from '@agentuity/vector';
+import { s } from '@agentuity/schema';
+
+const productSchema = s.object({
+  id: s.string(),
+  name: s.string(),
+  description: s.string(),
+  price: s.number(),
+  category: s.string(),
+  rating: s.optional(s.number()),
+  inStock: s.optional(s.boolean()),
+});
+
+const indexInputSchema = s.object({
+  products: s.array(productSchema),
+});
+
+const VECTOR_NAMESPACE = 'products';
+const vector = new VectorClient();
+
+export async function indexProducts(body: unknown): Promise<{ indexed: number }> {
+  const { products } = indexInputSchema.parse(body);
+
+  for (const product of products) {
+    await vector.upsert(VECTOR_NAMESPACE, {
+      key: product.id,
+      // Concatenate name and description for better recall
+      document: `${product.name}. ${product.description}`,
+      metadata: {
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        category: product.category,
+        rating: product.rating ?? 0,
+        inStock: product.inStock ?? true,
+      },
+    });
+  }
+
+  return { indexed: products.length };
+}
+```
+
+## Search With Filters
+
+`vector.search()` returns `id`, `key`, `similarity`, and optional `metadata`. Filter the result list by category, price, and availability after the search.
+
+Vector storage also accepts a `metadata: { ... }` filter passed to `search()` for exact-match scoping at the storage layer, but the filter must satisfy the full metadata type. Post-filtering in the route is simpler when the user-facing filters are optional or numeric.
+
+```typescript title="src/lib/search-products.ts"
+import { VectorClient } from '@agentuity/vector';
+import { s } from '@agentuity/schema';
+
+type ProductMetadata = {
+  readonly name: string;
+  readonly description: string;
+  readonly price: number;
+  readonly category: string;
+  readonly rating: number;
+  readonly inStock: boolean;
+} & Record<string, unknown>;
+
+const searchInputSchema = s.object({
+  query: s.string(),
+  category: s.optional(s.string()),
+  maxPrice: s.optional(s.number()),
+  limit: s.optional(s.number()),
+});
+
+type SearchInput = s.infer<typeof searchInputSchema>;
+
+interface ProductHit {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly price: number;
+  readonly category: string;
+  readonly rating: number;
+  readonly relevance: number;
+}
+
+const VECTOR_NAMESPACE = 'products';
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 50;
+const MIN_SIMILARITY = 0.6;
+
+const vector = new VectorClient();
+
+export async function searchProducts(body: unknown): Promise<{
+  products: readonly ProductHit[];
+  total: number;
+}> {
+  const input = searchInputSchema.parse(body);
+  const limit = clampLimit(input.limit);
+
+  // Pull extra so post-filter still has results
+  const matches = await vector.search<ProductMetadata>(VECTOR_NAMESPACE, {
+    query: input.query,
+    limit: limit * 2,
+    similarity: MIN_SIMILARITY,
+  });
+
+  const filtered = matches
+    .filter((match) => match.metadata?.inStock !== false)
+    .filter((match) =>
+      input.category === undefined
+        ? true
+        : match.metadata?.category?.toLowerCase() === input.category.toLowerCase()
+    )
+    .filter((match) =>
+      input.maxPrice === undefined ? true : (match.metadata?.price ?? Infinity) <= input.maxPrice
+    )
+    .slice(0, limit);
+
+  const products = filtered.map((match): ProductHit => {
+    const metadata = match.metadata;
+    return {
+      id: match.key,
+      name: metadata?.name ?? 'Unknown',
+      description: metadata?.description ?? '',
+      price: metadata?.price ?? 0,
+      category: metadata?.category ?? 'uncategorized',
+      rating: metadata?.rating ?? 0,
+      relevance: match.similarity,
+    };
+  });
+
+  return { products, total: products.length };
+}
+
+function clampLimit(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return DEFAULT_LIMIT;
+  return Math.min(Math.max(Math.floor(value), 1), MAX_LIMIT);
+}
+
+export type { SearchInput, ProductHit };
+```
+
+A note on metadata generics:
+
+`vector.search<T>()` requires `T extends Record<string, unknown>`. Use a `type` intersection (`& Record<string, unknown>`) so a normal interface with known fields satisfies the constraint. An interface declared without that intersection will fail typecheck.
+
+## Optional: Recommend the Best Match
+
+When customers benefit from guidance ("which chair fits a tall desk?"), feed the top matches into a model and ask for one structured pick. `Output.object` validates the model output before it leaves the route.
+
+```typescript title="src/lib/recommend-product.ts"
+import { openai } from '@ai-sdk/openai';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+import { searchProducts, type ProductHit } from './search-products';
+
+const recommendationSchema = z.object({
+  recommendedId: z.string().describe('id field of the recommended product'),
+  rationale: z.string().describe('Two short sentences explaining why this product fits'),
+});
+
+interface Recommendation {
+  readonly matches: readonly ProductHit[];
+  readonly recommendedId: string;
+  readonly rationale: string;
+}
+
+export async function recommendProduct(body: unknown): Promise<Recommendation> {
+  const { products } = await searchProducts(body);
+
+  if (products.length === 0) {
+    return {
+      matches: [],
+      recommendedId: '',
+      rationale: 'No matching products found. Try a broader search.',
+    };
+  }
+
+  const catalog = products
+    .map(
+      (p) =>
+        `- id=${p.id} | ${p.name} | $${p.price} | rating=${p.rating} | ${p.description}`
+    )
+    .join('\n');
+
+  const { output } = await generateText({
+    model: openai('gpt-5.5'),
+    output: Output.object({ schema: recommendationSchema }),
+    system: 'You help customers compare products. Pick exactly one option from the list.',
+    prompt: `Candidates:\n${catalog}\n\nPick the option that fits a typical customer searching this catalog.`,
+  });
+
+  return {
+    matches: products,
+    recommendedId: output.recommendedId,
+    rationale: output.rationale,
+  };
+}
+```
+
+## Wire the Routes
+
+The same product search powers two routes: a plain GET for query-string consumers and a POST that returns a recommendation alongside matches.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { indexProducts } from './lib/index-products';
+import { searchProducts } from './lib/search-products';
+import { recommendProduct } from './lib/recommend-product';
+
+const app = new Hono();
+
+app.post('/api/products/index', async (c) => {
+  const body: unknown = await c.req.json();
+  const result = await indexProducts(body);
+  return c.json(result);
+});
+
+app.get('/api/products/search', async (c) => {
+  const result = await searchProducts({
+    query: c.req.query('q') ?? '',
+    category: c.req.query('category'),
+    maxPrice: parseOptionalNumber(c.req.query('maxPrice')),
+    limit: parseOptionalNumber(c.req.query('limit')),
+  });
+  return c.json(result);
+});
+
+app.post('/api/products/recommend', async (c) => {
+  const body: unknown = await c.req.json();
+  const result = await recommendProduct(body);
+  return c.json(result);
+});
+
+function parseOptionalNumber(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export default app;
+```
+
+## Try It
+
+```bash
+agentuity dev
+```
+
+Index a small catalog:
+
+```bash
+curl -X POST http://localhost:3500/api/products/index \
+  -H 'content-type: application/json' \
+  -d '{
+    "products": [
+      {
+        "id": "chair-ergo-001",
+        "name": "ErgoMax Pro",
+        "description": "Office chair with adjustable lumbar support and 4D armrests.",
+        "price": 549,
+        "category": "furniture",
+        "rating": 4.8
+      },
+      {
+        "id": "chair-basic-002",
+        "name": "ComfortBasic",
+        "description": "Affordable mesh task chair with fixed armrests.",
+        "price": 129,
+        "category": "furniture",
+        "rating": 4.2
+      }
+    ]
+  }'
+```
+
+Search by query string:
+
+```bash
+curl 'http://localhost:3500/api/products/search?q=comfortable%20office%20chair&maxPrice=300'
+```
+
+Get a model recommendation:
+
+```bash
+curl -X POST http://localhost:3500/api/products/recommend \
+  -H 'content-type: application/json' \
+  -d '{ "query": "supportive chair for a long workday" }'
+```
+
+## Notes
+
+- store searchable text in `document`, structured fields in `metadata`
+- post-filter for booleans and numeric ranges; pass `metadata` to `search()` only when the filter satisfies the full metadata type
+- pull `limit * 2` matches when post-filtering reduces the result set
+- treat `vector.upsert()` as idempotent; reindex the same `id` to replace it
+- AI SDK's `Output.object` validates the model response before the route returns
+
+## Next Steps
+
+- [Vector Storage](/services/storage/vector): metadata generics, TTL behavior, and search options
+- [Build a RAG Agent](/cookbook/tutorials/rag-agent): retrieval plus a generated answer with citations
+- [Build Agents](/build/agents): the plain-function pattern this page uses

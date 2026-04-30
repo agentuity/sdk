@@ -124,22 +124,22 @@ export const navData: NavSection[] = [
 			{
 				title: 'Quickstart',
 				url: '/get-started/quickstart',
-				description: 'Create a framework app, add an AI route, and deploy it to Agentuity',
+				description: 'Scaffold a Next.js starter, run it locally, and deploy it',
 			},
 			{
 				title: 'Installation',
 				url: '/get-started/installation',
-				description: 'Install the Agentuity CLI and create a framework project',
+				description: 'Install the Agentuity CLI, sign in, and create a framework starter',
 			},
 			{
 				title: 'Project Structure',
 				url: '/get-started/project-structure',
-				description: 'Understand how Agentuity fits into framework projects',
+				description: 'See exactly what the create flow adds to a framework app',
 			},
 			{
 				title: 'App Configuration',
 				url: '/get-started/app-configuration',
-				description: 'Configure a v3 Agentuity framework project',
+				description: 'Configure scripts, agentuity.json, env vars, and service clients',
 			},
 			{
 				title: 'What is Agentuity?',
@@ -157,43 +157,48 @@ export const navData: NavSection[] = [
 				title: 'Next.js',
 				url: '/frameworks/nextjs',
 				description:
-					'Add Agentuity service clients, local development, and deployment metadata to a Next.js app',
+					'Connect Agentuity service clients, local development, and deploy packaging to an App Router project',
 			},
 			{
 				title: 'Nuxt',
 				url: '/frameworks/nuxt',
-				description: 'Add Agentuity CLI wiring and deployment validation to a Nuxt app',
+				description:
+					'Add Agentuity service clients, local development, and deployment metadata to a Nuxt app',
 			},
 			{
 				title: 'React Router',
 				url: '/frameworks/react-router',
-				description: 'Add Agentuity CLI wiring and deployment validation to a React Router app',
+				description:
+					'Connect a React Router framework-mode app to Agentuity services and deploy it from the CLI',
 			},
 			{
 				title: 'SvelteKit',
 				url: '/frameworks/sveltekit',
-				description: 'Add Agentuity CLI wiring and deployment validation to a SvelteKit app',
+				description:
+					'Add Agentuity service clients, local development, and deploy validation to a SvelteKit app',
 			},
 			{
 				title: 'Astro',
 				url: '/frameworks/astro',
-				description: 'Add Agentuity CLI wiring and deployment validation to an Astro app',
+				description:
+					'Add Agentuity service clients, local development, and deploy validation to an Astro app',
 			},
 			{
 				title: 'Hono',
 				url: '/frameworks/hono',
-				description: 'Add Agentuity services and deployment context to a Hono app',
+				description: 'Add Agentuity service clients and AI Gateway routing to a Hono app',
 			},
 			{
 				title: 'Vite + React',
 				url: '/frameworks/vite-react',
-				description: 'Add Agentuity CLI wiring and deployment validation to a Vite React app',
+				description:
+					'Build a Vite React SPA with a Bun server boundary for secrets and Agentuity service clients',
 			},
 			{
 				title: 'TanStack Start',
 				url: '/frameworks/tanstack-start',
 				description:
-					'Add Agentuity service clients to a TanStack Start app and validate the detected build path',
+					'Add Agentuity service clients to a TanStack Start app and validate the detected build path before deploying',
 			},
 		],
 	},
@@ -205,13 +210,13 @@ export const navData: NavSection[] = [
 				title: 'Build Agents',
 				url: '/build/agents',
 				description:
-					'Build model-backed workflows with framework routes and Agentuity service clients',
+					'Structure model-backed workflows as plain server functions called from framework routes',
 			},
 			{
 				title: 'Chat and Streaming',
 				url: '/build/chat-and-streaming',
 				description:
-					'Stream model output from framework routes and persist chat state with Agentuity clients',
+					'Stream model output from framework routes and persist chat history with KV storage',
 			},
 			{
 				title: 'Tool Calling',
@@ -394,13 +399,20 @@ export const navData: NavSection[] = [
 			{
 				title: 'Deploy Framework Apps',
 				url: '/deploy-operate/deploy-framework-apps',
-				description: 'Build and deploy framework projects with the v3 Agentuity CLI.',
+				description:
+					'Register, configure, package, and ship a framework project with the Agentuity CLI.',
+			},
+			{
+				title: 'Custom Domains',
+				url: '/deploy-operate/custom-domains',
+				description:
+					'Attach your own domain to an Agentuity project, validate DNS, and let TLS provision automatically.',
 			},
 			{
 				title: 'Environment Variables',
 				url: '/deploy-operate/environment-variables',
 				description:
-					'Manage local .env files, cloud environment variables, public variables, and secrets.',
+					'Manage local .env files, cloud project variables, public values, and secrets.',
 			},
 		],
 	},
@@ -408,6 +420,17 @@ export const navData: NavSection[] = [
 		title: 'Cookbook',
 		url: '/cookbook',
 		items: [
+			{
+				title: 'Tutorials',
+				items: [
+					{
+						title: 'RAG Agent',
+						url: '/cookbook/tutorials/rag-agent',
+						description:
+							'Index documents into vector storage, retrieve the closest matches, and answer with citations',
+					},
+				],
+			},
 			{
 				title: 'Patterns',
 				items: [
@@ -464,6 +487,48 @@ export const navData: NavSection[] = [
 						description: 'Store chat history with key-value storage from a framework route',
 					},
 					{
+						title: 'Product Search',
+						url: '/cookbook/patterns/product-search',
+						description:
+							'Semantic product search with metadata filters and an optional model recommendation',
+					},
+					{
+						title: 'Webhook Handler',
+						url: '/cookbook/patterns/webhook-handler',
+						description:
+							'Verify a signed external webhook in a framework route and hand the payload to a queue',
+					},
+					{
+						title: 'Cron with Storage',
+						url: '/cookbook/patterns/cron-with-storage',
+						description:
+							'Refresh data on a schedule, cache it in key-value storage, and serve fast reads from a normal route',
+					},
+					{
+						title: 'Background Tasks',
+						url: '/cookbook/patterns/background-tasks',
+						description:
+							'Return a fast response while side effects continue in the background, plus when to upgrade to a durable queue',
+					},
+					{
+						title: 'Autonomous Research',
+						url: '/cookbook/patterns/autonomous-research',
+						description:
+							'Build a recursive research loop using the Anthropic SDK Messages API and native tool_use blocks',
+					},
+					{
+						title: 'LLM as a Judge',
+						url: '/cookbook/patterns/llm-as-a-judge',
+						description:
+							"Use a model to evaluate another model's output for quality, grounding, or comparison",
+					},
+					{
+						title: 'Web Exploration',
+						url: '/cookbook/patterns/web-exploration',
+						description:
+							'Run a headless browser inside a sandbox so an agent can navigate, screenshot, and extract content under isolation',
+					},
+					{
 						title: 'Hono RPC + TanStack',
 						url: '/cookbook/patterns/hono-rpc-tanstack-query',
 						description:
@@ -479,6 +544,33 @@ export const navData: NavSection[] = [
 						title: 'Tailwind Setup',
 						url: '/cookbook/patterns/tailwind-setup',
 						description: 'Add Tailwind CSS to the framework app you deploy with Agentuity',
+					},
+				],
+			},
+			{
+				title: 'Integrations',
+				items: [
+					{
+						title: 'Mastra',
+						url: '/cookbook/integrations/mastra',
+						description: 'Run a Mastra Agent inside a framework route with key-value memory',
+					},
+					{
+						title: 'OpenAI Agents SDK',
+						url: '/cookbook/integrations/openai-agents',
+						description: 'Run an OpenAI Agents SDK agent loop inside a framework route',
+					},
+					{
+						title: 'Claude Agent SDK',
+						url: '/cookbook/integrations/claude-agent',
+						description:
+							'Run multi-turn Claude Agent sessions from a framework route with key-value session storage',
+					},
+					{
+						title: 'LangChain',
+						url: '/cookbook/integrations/langchain',
+						description:
+							'Run a LangChain ReAct agent inside a framework route with tools and middleware',
 					},
 				],
 			},

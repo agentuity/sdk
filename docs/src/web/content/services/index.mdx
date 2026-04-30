@@ -38,7 +38,7 @@ const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage
 
 For method signatures and return types, see the [SDK Reference](/reference/sdk-reference). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
 
-Hono apps can also install `@agentuity/hono` when they want middleware to create the common clients once and expose them on `c.var.*`.
+Hono apps can also install `@agentuity/hono` when they want middleware to create the common clients once and expose them on `c.var.*`. Relational Postgres has its own database section; for other services, use the package that owns that service.
 
 ## Identity
 
@@ -81,7 +81,7 @@ Hono apps can also install `@agentuity/hono` when they want middleware to create
   <CardLink
     href="/services/database"
     title="Database"
-    description="PostgreSQL and Drizzle ORM"
+    description="Relational Postgres for app-owned data"
     icon={<Server />}
   />
   <CardLink

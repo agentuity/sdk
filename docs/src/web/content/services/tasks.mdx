@@ -3,7 +3,7 @@ title: Tasks
 description: Track work items, issues, and agent activity with lifecycle management
 ---
 
-Use tasks when work needs a durable lifecycle: status, priority, assignee, comments, tags, attachments, and history. Start with `TaskClient` from any server runtime, route handler, script, or worker.
+Use tasks when work needs a durable lifecycle, not just a one-shot message: a status that changes over time, a priority, an assignee, comments, tags, attachments, and an audit trail. Start with `TaskClient`; Hono apps can use `c.var.task` after installing the Agentuity middleware.
 
 ```bash
 bun add @agentuity/task@alpha
@@ -36,7 +36,7 @@ export async function fileBug(errorMessage: string, traceId: string): Promise<st
 }
 ```
 
-`TaskClient` reads `AGENTUITY_SDK_KEY` by default. In Agentuity projects, keep the key in `.env` for local `agentuity dev` and configure the same environment variable for deployed apps.
+`TaskClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Keep that key in `.env` for local development and configure the same variable for deployed apps.
 
 ## When to Use Tasks
 
@@ -45,6 +45,7 @@ export async function fileBug(errorMessage: string, traceId: string): Promise<st
 | work items with status, priority, comments, and audit history | [Tasks](/services/tasks) |
 | fire-and-forget async handoff | [Queues](/services/queues) |
 | recurring timed delivery | [Schedules](/services/schedules) |
+| inbound HTTP events with receipts | [Webhooks](/services/webhooks) |
 | exact key lookup or counters | [Key-Value Storage](/services/storage/key-value) |
 
 ## Client Setup
@@ -55,20 +56,20 @@ Construct the client once at module scope and reuse it from handlers, routes, or
 import { TaskClient } from '@agentuity/task';
 
 const tasks = new TaskClient({
-  orgId: process.env.AGENTUITY_ORG_ID,
+  orgId: process.env.AGENTUITY_CLOUD_ORG_ID,
 });
 ```
 
 | Option | Description |
 |--------|-------------|
 | `apiKey` | Optional API key. Defaults to `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. |
-| `orgId` | Optional organization ID for org-scoped requests. |
+| `orgId` | Optional organization ID. Used when the API key is org-scoped or when calling from a CLI context. |
 | `url` | Optional Task API URL. Defaults to `AGENTUITY_TASK_URL`, then the regional Agentuity service URL. |
 | `logger` | Optional logger instance. |
 
 ## Create Tasks
 
-`create()` requires `title`, `type`, and `created_id`. Pass `creator` when you want dashboards and history to preserve a display name and whether the actor is human or an agent.
+`create()` requires `title`, `type`, and `created_id`. Pass `creator` so dashboards and history can show a display name and whether the actor is a human or an agent.
 
 ```typescript
 const reviewer = {
@@ -93,22 +94,22 @@ const task = await tasks.create({
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `title` | Yes | Task title. |
-| `type` | Yes | `epic`, `feature`, `enhancement`, `bug`, or `task`. |
+| `title` | Yes | Up to 1024 characters. |
+| `type` | Yes | One of `epic`, `feature`, `enhancement`, `bug`, `task`. |
 | `created_id` | Yes | ID of the creating user, service, or agent. |
-| `creator` | No | `{ id, name, type }` reference for readable attribution. |
-| `description` | No | Detailed task body. |
+| `creator` | No | `{ id, name, type? }` reference for readable attribution. |
+| `description` | No | Up to 65,536 characters. |
 | `priority` | No | `high`, `medium`, `low`, or `none`. Defaults to `none`. |
 | `status` | No | Initial status. Defaults to `open`. |
-| `assignee` | No | `{ id, name, type }` reference for the assigned actor. |
-| `parent_id` | No | Parent task ID for epics, features, and subtasks. |
+| `assignee` | No | `{ id, name, type? }` reference for the assigned actor. |
+| `parent_id` | No | Parent task ID for epics, features, or subtasks. |
 | `tag_ids` | No | Existing tag IDs to attach at creation. |
-| `metadata` | No | JSON metadata for integration IDs, traces, or custom fields. |
+| `metadata` | No | JSON metadata for trace IDs, integration IDs, or custom fields. |
 | `project` | No | `{ id, name }` project reference. |
 
 ## Update Lifecycle
 
-Tasks use four canonical statuses. The client also accepts `started`, `completed`, and `closed`, then normalizes them to canonical values.
+Tasks use four canonical statuses. The client also accepts `started`, `completed`, and `closed`, and normalizes them server-side.
 
 | Status | Meaning |
 |--------|---------|
@@ -130,7 +131,7 @@ Use `close(id)` for completed work. Use `update(id, { status: 'cancelled' })` wh
 
 ## Comments and Tags
 
-Comments need the task ID, comment body, and author ID. Pass `author` for display name and type.
+Comments take the task ID, body, and author user ID. Pass `author` so the comment lists carry a display name and type.
 
 ```typescript
 await tasks.createComment(
@@ -144,13 +145,14 @@ const { comments } = await tasks.listComments(task.id, { limit: 20, offset: 0 })
 
 const tag = await tasks.createTag('payments', '#00FFFF');
 await tasks.addTagToTask(task.id, tag.id);
-
-const tags = await tasks.listTagsForTask(task.id);
+const tagsForTask = await tasks.listTagsForTask(task.id);
 ```
+
+`listTags()` returns the bare array. `listTagsForTask()` returns the tags currently attached to one task.
 
 ## Attachments
 
-Attachments use a two-step upload. First ask the task service for a presigned upload URL, then PUT the bytes to that URL and confirm the attachment.
+Attachments use a two-step upload. Ask the task service for a presigned upload URL, PUT the bytes to that URL, then confirm the attachment so it shows up in `listAttachments()`.
 
 ```typescript
 const { attachment, presigned_url } = await tasks.uploadAttachment(task.id, {
@@ -164,16 +166,58 @@ const upload = await fetch(presigned_url, {
   body: JSON.stringify({ refundId: 'rf_123' }),
   headers: { 'Content-Type': 'application/json' },
 });
-
 if (!upload.ok) {
-  throw new Error(`Upload failed with status ${upload.status}`);
+  throw new Error(`Attachment upload failed (${upload.status})`);
 }
 
 const confirmed = await tasks.confirmAttachment(attachment.id);
-const { presigned_url: downloadUrl } = await tasks.downloadAttachment(confirmed.id);
+const { presigned_url: downloadUrl, expiry_seconds } = await tasks.downloadAttachment(confirmed.id);
 ```
 
-Presigned upload and download URLs expire. Request a fresh URL when a user needs to upload or read the file again.
+Presigned URLs expire after `expiry_seconds`. Request a fresh URL when a user needs to upload or read the file again.
+
+## File a Task From a Server Route
+
+Filing a task is a typical pattern when an agent or background worker spots something that needs human follow-up. The route validates the payload, calls `tasks.create()`, and returns the new task ID.
+
+```typescript title="src/routes/tasks.ts"
+import { Hono } from 'hono';
+import { agentuity } from '@agentuity/hono';
+import type { Services } from '@agentuity/hono';
+
+type Variables = Pick<Services, 'task'>;
+
+const app = new Hono<{ Variables: Variables }>();
+
+app.use('*', agentuity());
+
+app.post('/tasks/refund-review', async (c) => {
+  const body = await c.req.json<{
+    refundId: string;
+    note: string;
+    reporter: { id: string; name: string };
+  }>();
+
+  const task = await c.var.task.create({
+    title: `Review refund ${body.refundId}`,
+    type: 'task',
+    priority: 'medium',
+    description: body.note,
+    created_id: body.reporter.id,
+    creator: { id: body.reporter.id, name: body.reporter.name, type: 'human' },
+    metadata: { refundId: body.refundId },
+  });
+
+  return c.json({ taskId: task.id }, 201);
+});
+
+app.get('/tasks/:id', async (c) => {
+  const task = await c.var.task.get(c.req.param('id'));
+  return task ? c.json({ task }) : c.json({ error: 'not found' }, 404);
+});
+
+export default app;
+```
 
 ## List and Inspect
 
@@ -195,33 +239,48 @@ const { changelog } = await tasks.changelog(task.id, { limit: 50, offset: 0 });
 
 | Filter | Description |
 |--------|-------------|
-| `status` | Filter by lifecycle status. |
-| `type` | Filter by task type. |
-| `priority` | Filter by priority. |
+| `status`, `type`, `priority` | Filter by canonical lifecycle, classification, or priority. |
 | `assigned_id` | Filter by assigned actor ID. |
 | `created_id` | Filter by creator ID. |
 | `parent_id` | Return subtasks for a parent task. |
 | `project_id` | Filter by project ID. |
 | `tag_id` | Filter by tag ID. |
-| `include` | Include fields such as `description`, `metadata`, `tags`, `subtask_count`, `created_id`, or `deleted`. |
+| `include` | Add fields to the summary response: `description`, `metadata`, `tags`, `subtask_count`, `created_id`, `deleted`. |
 | `sort` | Sort by `created_at`, `updated_at`, or `priority`. Prefix with `-` for descending. |
 | `order` | Optional sort direction, `asc` or `desc`. |
 | `limit` / `offset` | Pagination controls. |
 | `deleted` | Include soft-deleted tasks. |
 
-## Activity
+`list()` returns a reduced summary by default. Use `include` when a dashboard needs description, tags, or subtask counts in the same call.
 
-Use `getActivity()` for daily task activity counts.
+## Soft Delete Tasks
+
+`softDelete()` removes a task from normal work views without erasing its history.
+
+```typescript
+const deleted = await tasks.softDelete(task.id);
+
+const { tasks: deletedTasks } = await tasks.list({
+  deleted: true,
+  include: ['deleted'],
+});
+```
+
+Use `close()` or `update(id, { status: 'cancelled' })` for lifecycle changes. Use `softDelete()` for cleanup or admin flows where the task should no longer appear in default lists.
+
+## Activity Counts
+
+`getActivity()` returns daily counts grouped by canonical status.
 
 ```typescript
 const activity = await tasks.getActivity({ days: 30 });
 ```
 
-The `days` option is optional and defaults to 7.
+`days` is optional and accepts values between 7 and 365. The service applies its own default when `days` is omitted, so pass an explicit value if dashboards depend on a specific range.
 
-## Hono Convenience
+## Hono Middleware Variant
 
-If your app already uses Hono, `@agentuity/hono` can initialize `TaskClient` once and expose it on `c.var.task`.
+`@agentuity/hono` builds `TaskClient` once and exposes it on `c.var.task`.
 
 ```bash
 bun add @agentuity/hono@alpha hono
@@ -239,18 +298,13 @@ const app = new Hono<{ Variables: Variables }>();
 app.use('*', agentuity());
 
 app.post('/tasks', async (c) => {
-  const title = c.req.query('title');
-  const userId = c.req.query('userId');
-
-  if (!title || !userId) {
-    return c.json({ error: 'title and userId are required' }, 400);
-  }
+  const body = await c.req.json<{ title: string; userId: string; userName: string }>();
 
   const task = await c.var.task.create({
-    title,
+    title: body.title,
     type: 'task',
-    created_id: userId,
-    creator: { id: userId, name: userId, type: 'human' },
+    created_id: body.userId,
+    creator: { id: body.userId, name: body.userName, type: 'human' },
   });
 
   return c.json({ taskId: task.id }, 201);
@@ -258,12 +312,7 @@ app.post('/tasks', async (c) => {
 
 app.get('/tasks/:id', async (c) => {
   const task = await c.var.task.get(c.req.param('id'));
-
-  if (!task) {
-    return c.json({ error: 'Task not found' }, 404);
-  }
-
-  return c.json({ task });
+  return task ? c.json({ task }) : c.json({ error: 'Task not found' }, 404);
 });
 
 export default app;
@@ -271,6 +320,7 @@ export default app;
 
 ## Next Steps
 
-- [Queues](/services/queues): hand off task-related work to background processors
+- [Queues](/services/queues): hand task-related work to background processors
 - [Schedules](/services/schedules): create recurring checks that file or update tasks
+- [Webhooks](/services/webhooks): turn external events into tasks
 - [Using Standalone Packages](/reference/standalone-packages): configure service clients outside Agentuity projects

@@ -1,0 +1,330 @@
+---
+title: LLM as a Judge
+description: Use a model to evaluate another model's output for quality, grounding, or comparison
+---
+
+LLM-as-judge is the right tool when the rubric needs context, nuance, or subjective comparison. It is the wrong tool when the check is structural (JSON shape, length, presence of a field). For those, validate with a schema and skip the model call.
+
+| Use case | LLM-as-judge | Code or schema |
+|---|---|---|
+| Factual grounding against retrieved sources | Yes | |
+| Tone, helpfulness, politeness | Yes | |
+| Picking a winner between two outputs | Yes | |
+| Hallucination detection in RAG | Yes | |
+| Validating JSON structure | | Yes |
+| Word count, regex match | | Yes |
+
+```bash
+bun add ai @ai-sdk/openai @ai-sdk/anthropic @ai-sdk/groq @agentuity/queue@alpha @agentuity/vector@alpha @agentuity/schema@alpha zod
+```
+
+## Inline Quality Check
+
+Run the judge in the same request when the score is part of the response. Fast judge models keep the added latency manageable.
+
+```typescript title="src/lib/quality-check.ts"
+import { openai } from '@ai-sdk/openai';
+import { groq } from '@ai-sdk/groq';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+
+const judgmentSchema = z.object({
+  score: z.number().min(0).max(1).describe('Quality score from 0 to 1'),
+  passed: z.boolean().describe('Whether the response meets the threshold'),
+  reason: z.string().describe('Brief explanation'),
+});
+
+interface QualityResult {
+  readonly answer: string;
+  readonly judgment: z.infer<typeof judgmentSchema>;
+}
+
+export async function answerWithQualityCheck(question: string): Promise<QualityResult> {
+  const { text: answer } = await generateText({
+    model: openai('gpt-5.4-mini'),
+    prompt: question,
+  });
+
+  const { output: judgment } = await generateText({
+    model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+    output: Output.object({ schema: judgmentSchema }),
+    prompt: `Evaluate this response on a 0-1 scale.
+
+Question: ${question}
+Response: ${answer}
+
+Consider:
+- Does it directly answer the question?
+- Is the information accurate?
+- Is it clear and easy to read?
+
+Score 0.7+ to pass.`,
+  });
+
+  return { answer, judgment };
+}
+```
+
+The judge model is intentionally smaller and faster than the answer model. Inline judging is for cases where the user sees the score; otherwise move it off the request path.
+
+## Model Arena
+
+Compare two providers side-by-side and let a third model pick the winner. Run the candidates in parallel, then judge.
+
+```typescript title="src/lib/model-arena.ts"
+import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
+import { groq } from '@ai-sdk/groq';
+import { generateText, Output, type LanguageModel } from 'ai';
+import { z } from 'zod';
+
+const arenaJudgment = z.object({
+  winner: z.enum(['openai', 'anthropic']),
+  reasoning: z.string(),
+  scores: z.object({
+    openai: z.number().min(0).max(1),
+    anthropic: z.number().min(0).max(1),
+  }),
+});
+
+interface ArenaResult {
+  readonly results: ReadonlyArray<{
+    readonly provider: 'openai' | 'anthropic';
+    readonly story: string;
+    readonly generationMs: number;
+  }>;
+  readonly judgment: z.infer<typeof arenaJudgment>;
+}
+
+export async function runArena(
+  prompt: string,
+  tone: 'whimsical' | 'suspenseful' | 'comedic'
+): Promise<ArenaResult> {
+  const [openaiResult, anthropicResult] = await Promise.all([
+    generateWithTiming(openai('gpt-5.4-nano'), prompt, tone),
+    generateWithTiming(anthropic('claude-haiku-4-5'), prompt, tone),
+  ]);
+
+  const { output: judgment } = await generateText({
+    model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+    output: Output.object({ schema: arenaJudgment }),
+    prompt: `Compare these ${tone} stories and pick a winner.
+
+PROMPT: "${prompt}"
+
+--- OpenAI ---
+${openaiResult.story}
+
+--- Anthropic ---
+${anthropicResult.story}
+
+Score each on creativity, engagement, and tone match (0-1).`,
+  });
+
+  return {
+    results: [
+      { provider: 'openai', ...openaiResult },
+      { provider: 'anthropic', ...anthropicResult },
+    ],
+    judgment,
+  };
+}
+
+async function generateWithTiming(
+  model: LanguageModel,
+  prompt: string,
+  tone: string
+): Promise<{ story: string; generationMs: number }> {
+  const start = Date.now();
+  const { text } = await generateText({
+    model,
+    system: `Write a short ${tone} story (max 200 words) with a beginning, middle, and end.`,
+    prompt,
+  });
+  return { story: text, generationMs: Date.now() - start };
+}
+```
+
+## Grounding Check for RAG
+
+Score whether an answer is supported by the retrieved sources. Returning the unsupported claims back to the caller turns the judge into a hallucination filter.
+
+```typescript title="src/lib/rag-grounding.ts"
+import { VectorClient } from '@agentuity/vector';
+import { openai } from '@ai-sdk/openai';
+import { groq } from '@ai-sdk/groq';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+
+type DocumentMetadata = {
+  readonly content: string;
+  readonly title: string;
+} & Record<string, unknown>;
+
+const groundingJudgment = z.object({
+  isGrounded: z.boolean(),
+  score: z.number().min(0).max(1).describe('Fraction of claims supported by sources'),
+  unsupportedClaims: z.array(z.string()),
+  reason: z.string(),
+});
+
+interface GroundedAnswer {
+  readonly answer: string;
+  readonly grounding: z.infer<typeof groundingJudgment>;
+  readonly sources: readonly string[];
+}
+
+const vector = new VectorClient();
+
+export async function answerWithGrounding(question: string): Promise<GroundedAnswer> {
+  const matches = await vector.search<DocumentMetadata>('knowledge-base', {
+    query: question,
+    limit: 3,
+  });
+
+  const sources = matches
+    .map((match) => match.metadata?.content ?? '')
+    .filter((text) => text.length > 0);
+
+  const { text: answer } = await generateText({
+    model: openai('gpt-5.4-mini'),
+    prompt: `Answer using these sources:\n\n${sources.join('\n\n')}\n\nQuestion: ${question}`,
+  });
+
+  const { output: grounding } = await generateText({
+    model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+    output: Output.object({ schema: groundingJudgment }),
+    prompt: `Check whether this answer is supported by the sources.
+
+Answer: ${answer}
+
+Sources:
+${sources.map((source, i) => `[${i + 1}] ${source}`).join('\n\n')}
+
+Return any factual claim in the answer that is not supported by the sources.`,
+  });
+
+  return {
+    answer,
+    grounding,
+    sources: matches.map((match) => match.key),
+  };
+}
+```
+
+Pair this with [Build a RAG Agent](/cookbook/tutorials/rag-agent) when answers should be filtered or flagged before they reach the user.
+
+## Background Judging
+
+For monitoring and review flows, the judge does not need to block the response. Publish to a queue and let a worker route do the scoring.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { QueueClient } from '@agentuity/queue';
+import { logger } from '@agentuity/telemetry';
+import { openai } from '@ai-sdk/openai';
+import { groq } from '@ai-sdk/groq';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+
+const helpfulnessJudgment = z.object({
+  score: z.number().min(0).max(1),
+  answersQuestion: z.boolean(),
+  actionable: z.boolean(),
+  reason: z.string(),
+});
+
+const judgePayload = z.object({
+  question: z.string(),
+  answer: z.string(),
+});
+
+const queue = new QueueClient();
+const app = new Hono();
+
+app.post('/api/answer', async (c) => {
+  const { question } = await c.req.json<{ question: string }>();
+
+  const { text: answer } = await generateText({
+    model: openai('gpt-5.4-mini'),
+    prompt: question,
+  });
+
+  // hand the (question, answer) pair to the worker for background scoring
+  await queue.publish('answer-quality', { question, answer });
+
+  return c.json({ answer });
+});
+
+app.post('/api/workers/answer-quality', async (c) => {
+  const body = judgePayload.parse(await c.req.json());
+
+  const { output } = await generateText({
+    model: groq('meta-llama/llama-4-scout-17b-16e-instruct'),
+    output: Output.object({ schema: helpfulnessJudgment }),
+    prompt: `Score this answer.
+
+Question: ${body.question}
+Answer: ${body.answer}
+
+- score: 0 = useless, 1 = extremely helpful
+- answersQuestion: directly addresses the question?
+- actionable: can the user act on this?`,
+  });
+
+  logger.info('judge complete', {
+    score: output.score,
+    answersQuestion: output.answersQuestion,
+  });
+
+  return c.json({ ok: true });
+});
+
+export default app;
+```
+
+The worker route is fired by an HTTP destination on the `answer-quality` queue. See [Background Work](/build/background-work) for the full request/status/worker shape.
+
+## Prompt Structure
+
+Judge prompts work better when the rubric is explicit and the scale is fixed.
+
+```text
+You are evaluating a {taskType} response.
+
+CONTEXT:
+{context}
+
+RESPONSE TO EVALUATE:
+{response}
+
+SCORING (0.0-1.0):
+- criterion1: what to look for
+- criterion2: what to look for
+
+CHECKS (pass/fail):
+- check1: yes/no question with clear answer
+- check2: yes/no question with clear answer
+
+Return scores and a one-sentence reason.
+```
+
+- pin a single scale ("0.0 to 1.0") rather than letting the model pick its own
+- separate score-able criteria from binary checks
+- include the original question or source in the prompt; the judge has no other context
+- prefer faster judge models (Groq, smaller OpenAI, Haiku) for lower added latency
+
+## Cost Notes
+
+LLM-as-judge doubles the model calls per request. Manage the cost by:
+
+- using smaller, faster judge models (Groq scout, `gpt-5.4-nano`, `claude-haiku-4-5`)
+- moving the judge off the request path with [Queues](/services/queues) when the score does not affect the response
+- sampling a percentage of requests in high-volume traffic
+- batching judgments when the rubric is the same across many items
+
+## Next Steps
+
+- [Build a RAG Agent](/cookbook/tutorials/rag-agent): the answer pipeline this judge plugs into
+- [Background Work](/build/background-work): wire the judge worker route to a queue with retries and status
+- [AI Gateway](/services/ai-gateway): local dev routing and deployed provider env choices

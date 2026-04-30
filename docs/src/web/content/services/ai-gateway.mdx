@@ -4,7 +4,7 @@ short_title: AI Gateway
 description: Route supported LLM SDK calls through Agentuity during local development
 ---
 
-Use AI Gateway when framework server code should call supported model providers through Agentuity instead of requiring separate provider keys for local work. In v3, the documented path is `agentuity dev` environment wiring.
+Use AI Gateway when framework server code should call supported model providers through Agentuity instead of requiring separate provider keys for local work. On the latest framework path, the documented local setup is `agentuity dev` environment wiring.
 
 ```bash
 bun add openai
@@ -27,9 +27,27 @@ export async function summarize(message: string): Promise<string> {
 
 Run the app with `agentuity dev`. If `AGENTUITY_SDK_KEY` is available and you have not set your own OpenAI key, the CLI injects `OPENAI_API_KEY` and `OPENAI_BASE_URL` into the framework process before your app starts.
 
-<Callout type="info" title="This page covers local v3 gateway wiring">
+<Callout type="info" title="Scope: local development">
 The examples here use `agentuity dev` and provider SDK env vars. Set your own provider key when you want direct provider traffic or when you have not verified gateway behavior in a deployed app yet.
 </Callout>
+
+## Supported Providers
+
+The gateway service supports these public provider families:
+
+| Provider |
+|----------|
+| OpenAI |
+| Anthropic |
+| Groq |
+| Google Gemini |
+| xAI |
+| DeepSeek |
+| Mistral |
+| Cohere |
+| Perplexity |
+
+`agentuity dev` automatically injects env vars for OpenAI, Anthropic, and Groq today. For other supported AI SDK providers, configure the provider factory explicitly for the gateway path you are using, or set provider-owned credentials when you want direct provider traffic.
 
 ## AI SDK
 
@@ -100,7 +118,7 @@ export async function classify(message: string): Promise<string> {
 | Anthropic | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` |
 | Groq | `GROQ_API_KEY` | `GROQ_BASE_URL` |
 
-Start your app the same way you already do for v3 framework work:
+Start your app the same way you already do for framework work:
 
 ```bash
 agentuity dev
@@ -108,7 +126,7 @@ agentuity dev
 
 If the project SDK key is missing locally, the CLI tries to load it from project config and `.env`. When the project is not linked yet, the CLI can fall back to your authenticated CLI key for gateway routing and prints `agentuity project import`.
 
-See [Running Local Development](/deploy-operate/local-development#ai-gateway-environment): how `agentuity dev` starts the framework server and loads Agentuity env values.
+See [Running Local Development](/deploy-operate/local-development#ai-gateway-in-local-dev): how `agentuity dev` starts the framework server and loads Agentuity env values.
 
 ## Bring Your Own Provider Key
 
@@ -160,4 +178,4 @@ See [Managing Environment Variables](/deploy-operate/environment-variables): how
 
 - [Running Local Development](/deploy-operate/local-development): run your framework server through `agentuity dev`
 - [Managing Environment Variables](/deploy-operate/environment-variables): keep `AGENTUITY_SDK_KEY` and provider keys in the right place
-- [App Configuration](/get-started/app-configuration#environment-variables): review the v3 env var layout for framework projects
+- [App Configuration](/get-started/app-configuration#environment-variables): review the env var layout for framework projects

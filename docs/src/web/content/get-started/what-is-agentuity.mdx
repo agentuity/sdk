@@ -3,17 +3,17 @@ title: What is Agentuity?
 description: Build, deploy, and operate TypeScript framework apps with Agentuity services
 ---
 
-Agentuity v3 starts from your framework. Keep your framework's routes and server code, add Agentuity services where your app needs them, then deploy the app with the CLI.
+Agentuity starts from a framework you already use. Keep the framework's routes and server code, add Agentuity services where the app needs them, and use the CLI to run, package, and deploy.
 
 ```bash
 bun create agentuity@alpha --name my-app --framework nextjs
 cd my-app
-agentuity dev
+bunx agentuity dev
 ```
 
 ## The Default Shape
 
-Your app stays a framework app. With `zod` installed, a Next.js route can validate input and call a model:
+Your app stays a framework app. A Next.js route reads input, validates it, and calls a model:
 
 ```typescript title="src/app/api/chat/route.ts"
 import { generateText } from 'ai';
@@ -42,21 +42,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 ```
 
-`agentuity dev` runs your framework's dev script and can route provider SDK calls through Agentuity's AI Gateway when `AGENTUITY_SDK_KEY` is available. If your app already uses provider keys, it can keep using them.
+`agentuity dev` runs your framework's `dev` script and routes OpenAI, Anthropic, and Groq SDK calls through Agentuity's AI Gateway when `AGENTUITY_SDK_KEY` is set. If you already have a provider key in `.env`, the CLI leaves it alone and the call goes straight to the provider.
 
-When you build or deploy, Agentuity detects the framework and uses the right adapter for that app shape. You keep the framework conventions; the CLI handles the packaging details.
+`agentuity build` and `agentuity deploy` detect the framework and package the app around its native conventions.
 
 ## What Agentuity Adds
 
 | Area | What you use |
 |------|--------------|
-| Local development | `agentuity dev` around your framework dev server |
-| Deployment | framework-aware `agentuity build` and `agentuity deploy` |
-| Project metadata | `agentuity.json` for project id, org id, region, domains, and resources |
+| Local development | `agentuity dev` wraps your framework's dev script and wires `AGENTUITY_SDK_KEY` and gateway base URLs |
+| Build and deploy | `agentuity build` and `agentuity deploy` detect the framework and package its output |
+| Project metadata | `agentuity.json` stores the project id, org id, region, domains, and resource settings |
 | Services | standalone clients such as `@agentuity/keyvalue`, `@agentuity/queue`, `@agentuity/sandbox`, and `@agentuity/email` |
-| Operations | deployments, logs, resource settings, and project management in the [web app](https://app.agentuity.com) |
+| Operations | deployments, logs, env values, and project settings in the [Agentuity Console](https://app.agentuity.com) |
 
-Use service clients inside the route, worker, script, or server function that owns the work:
+Use service clients in the route, server function, queue handler, or script that owns the work:
 
 ```typescript
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -68,22 +68,22 @@ await kv.set('sessions', 'user-123', {
 });
 ```
 
+The client reads `AGENTUITY_SDK_KEY` from the environment, so it works in framework routes, server functions, scripts, and workers without extra wiring.
+
 ## Where Agents Fit
 
-You can still call a model-backed workflow an agent when it classifies, summarizes, routes, drafts, or makes a bounded decision. In v3, that agent is usually an application pattern: a plain function called from a framework route, queue consumer, schedule, or script.
+Agents are application patterns: model-backed functions that classify, summarize, route, draft, or make a bounded decision. Call them from a framework route, queue consumer, schedule, or script. There is no `src/agent/` folder or `createAgent()` wrapper.
 
-It is not the default runtime layer for new apps. New v3 projects do not need a required `src/agent` folder or `createAgent()` wrapper.
+See [Build Agents](/build/agents) for typed inputs, tool calling, and streaming.
 
-See [Build Agents](/build/agents): structure model-backed workflows without returning to the old runtime layer.
-
-<Callout type="info" title="Existing v2 apps can stay on the v2 runtime model">
-If an app already uses `@agentuity/runtime`, `createApp()`, or `createAgent()`, you can keep that app working while you plan a migration. See [Migration](/migration): move an existing runtime app toward the v3 framework-first model when you are ready.
+<Callout type="info" title="Using a legacy runtime app?">
+Apps on `@agentuity/runtime`, `createApp()`, or `createAgent()` keep working. See the [legacy docs](https://v2.agentuity.dev) for that model, or [Migration](/migration) when you're ready to move to the framework-first shape.
 </Callout>
 
 ## Next Steps
 
-- [Installation](/get-started/installation): install the CLI and choose a framework starter
-- [Quickstart](/get-started/quickstart): create a Next.js app, run it locally, and deploy it
-- [Project Structure](/get-started/project-structure): see what Agentuity adds to each framework
-- [Frameworks](/frameworks): use framework-specific setup guidance
-- [Services](/services): choose storage, messaging, identity, observability, and execution clients
+- [Installation](/get-started/installation): install the CLI and sign in
+- [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it, and deploy
+- [Project Structure](/get-started/project-structure): see exactly what the scaffold adds
+- [Frameworks](/frameworks): per-framework setup and route patterns
+- [Services](/services): pick storage, messaging, identity, observability, and execution clients

@@ -1,10 +1,10 @@
 ---
 title: Using Nuxt with Agentuity
 short_title: Nuxt
-description: Add Agentuity CLI wiring and deployment validation to a Nuxt app
+description: Add Agentuity service clients, local development, and deployment metadata to a Nuxt app
 ---
 
-Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity keeps Nuxt's route and Nitro layout, then adds local development, project linking, and deploy validation around that shape.
+Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity adds service clients, local development support, and deploy validation around Nitro server routes and build output.
 
 ## Create a Starter
 
@@ -13,9 +13,19 @@ bun create agentuity@alpha --name my-nuxt-app --framework nuxt
 cd my-nuxt-app
 ```
 
-The starter runs `nuxi init`, adds `@agentuity/cli`, adds a `deploy` script, and can overlay an AI example at `server/api/translate.ts` plus `app.vue`.
+The starter runs `nuxi init`, adds `@agentuity/cli`, a `deploy` script, and an optional AI example. It uses Nuxt's `server/api/` convention for server routes, the same shape documented by Nuxt's own server directory guide.
 
-For an existing Nuxt app, add the CLI and link the project:
+If you choose the AI example, the key files are:
+
+| File | Purpose |
+|------|---------|
+| `server/api/translate.ts` | Nitro route that calls a model and stores history |
+| `app.vue` | UI that calls the API route with `$fetch` |
+| `nuxt.config.ts` | Nuxt configuration in the normal Nuxt shape |
+
+## Existing App Import
+
+For an existing Nuxt app, add the CLI and import the project:
 
 ```bash
 bun add -d @agentuity/cli@alpha
@@ -23,20 +33,206 @@ agentuity project import --validate-only
 agentuity project import
 ```
 
-`agentuity dev` runs the Nuxt `dev` script and passes Agentuity environment values into that process.
+`agentuity project import` registers the app and writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy for existing apps.
+
+## Add a Service Client and AI Gateway Call
+
+Use standalone service clients directly from Nitro routes. Files under `server/api/` are automatically prefixed with `/api`.
+
+```bash
+bun add @agentuity/keyvalue@alpha openai @agentuity/schema@alpha
+```
+
+```typescript title="server/api/translate.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { s } from '@agentuity/schema';
+import OpenAI from 'openai';
+import { defineEventHandler, getCookie, readBody, setCookie, setResponseStatus } from 'h3';
+
+const HISTORY_NAMESPACE = 'translation-history';
+const SESSION_COOKIE = 'agentuity_session';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+
+interface HistoryEntry {
+  readonly text: string;
+  readonly translation: string;
+  readonly toLanguage: string;
+  readonly timestamp: string;
+}
+
+interface HistoryState {
+  readonly history: readonly HistoryEntry[];
+}
+
+// Validate the request body at the boundary before using any values
+const requestSchema = s.object({
+  text: s.string(),
+  toLanguage: s.string(),
+  model: s.optional(s.string()),
+});
+
+const kv = new KeyValueClient(); // [!code highlight]
+const openai = new OpenAI(); // [!code highlight]
+
+export default defineEventHandler(async (event) => {
+  const rawBody: unknown = await readBody(event);
+  const parsed = requestSchema.safeParse(rawBody);
+
+  if (!parsed.success) {
+    setResponseStatus(event, 400);
+    return { error: 'text and toLanguage are required' };
+  }
+
+  const input = parsed.data;
+  const model = input.model ?? 'gpt-5.4-nano';
+
+  // Read or create a session cookie so history is scoped per browser session
+  const sessionId = getCookie(event, SESSION_COOKIE) ?? crypto.randomUUID();
+  setCookie(event, SESSION_COOKIE, sessionId, {
+    httpOnly: true,
+    maxAge: SESSION_TTL_SECONDS,
+    path: '/',
+    sameSite: 'lax',
+    // set secure when running in production
+    secure: process.env.NODE_ENV === 'production',
+  });
+
+  const completion = await openai.chat.completions.create({ // [!code highlight]
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: `Translate to ${input.toLanguage}:\n\n${input.text}`,
+      },
+    ],
+  });
+
+  const translation = completion.choices[0]?.message?.content ?? '';
+
+  // Append to the per-session history stored in KV, keeping the last 5 entries
+  const previous = await kv.get<HistoryState>(HISTORY_NAMESPACE, sessionId);
+  const history = [
+    ...(previous.exists ? previous.data.history : []),
+    {
+      text: input.text,
+      translation,
+      toLanguage: input.toLanguage,
+      timestamp: new Date().toISOString(),
+    },
+  ].slice(-5);
+
+  await kv.set(HISTORY_NAMESPACE, sessionId, { history }, { ttl: SESSION_TTL_SECONDS }); // [!code highlight]
+
+  return {
+    translation,
+    history,
+    tokens: completion.usage?.total_tokens ?? 0,
+    model,
+  };
+});
+```
+
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run with `agentuity dev` for local development to inject the service key automatically.
+
+## Call from the Frontend
+
+Call the Nitro route from `app.vue` using Nuxt's built-in `$fetch`:
+
+```vue title="app.vue"
+<script setup lang="ts">
+const text = ref('Welcome to Agentuity');
+const toLanguage = ref('Spanish');
+const translation = ref('');
+const history = ref<Array<{ text: string; translation: string; toLanguage: string }>>([]);
+
+async function translate(): Promise<void> {
+  const result = await $fetch<{
+    translation: string;
+    history: typeof history.value;
+  }>('/api/translate', {
+    method: 'POST',
+    body: { text: text.value, toLanguage: toLanguage.value },
+  });
+
+  translation.value = result.translation;
+  history.value = result.history;
+}
+</script>
+
+<template>
+  <div>
+    <textarea v-model="text" />
+    <select v-model="toLanguage">
+      <option>Spanish</option>
+      <option>French</option>
+      <option>German</option>
+    </select>
+    <button @click="translate()">Translate</button>
+    <p v-if="translation">{{ translation }}</p>
+  </div>
+</template>
+```
+
+## Run Locally
+
+Run through Agentuity to inject the service key and AI Gateway environment variables:
+
+```bash
+agentuity dev
+```
+
+Smoke-test the Nitro route directly:
+
+```bash
+curl http://127.0.0.1:3000/api/translate \
+  -H "content-type: application/json" \
+  -d '{"text":"Hello","toLanguage":"Spanish"}'
+```
 
 ## Validate Before Deploy
+
+Build in this order:
 
 ```bash
 bun run build
 agentuity build
+```
+
+Nuxt is detected as its own framework (`nuxt`, `nuxt3`, `nuxt-edge`, or `nuxt-nightly` in dependencies). The build adapter packages the Nitro output. Verify the metadata points at the right paths:
+
+```bash
 cat .agentuity/launch.json
 ```
 
-Nuxt is detected as its own framework, and the current build path packages it through the generic adapter. Check that launch metadata points at the Nitro server you expect and that static assets are coming from `.output/public`.
+The Nitro build produces two output directories:
+
+| Path | Contents |
+|------|----------|
+| `.output/server` | Nitro server bundle, entry is `server/index.mjs` |
+| `.output/public` | Static assets for CDN or edge delivery |
+
+`launch.json` should reference the `server/index.mjs` entry inside `.output/server`. If it does not, inspect the build output and open a support ticket.
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| Route exists locally but returns 404 after deploy | Confirm the file is under [`server/api/`](https://nuxt.com/docs/guide/directory-structure/server), not `server/routes/`; only `server/api/` gets the `/api` prefix |
+| `$fetch('/api/...')` works locally but 404s after deploy | Inspect `.agentuity/launch.json`: `processes[0].command` must run `.output/server/index.mjs` |
+| Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` in the environment |
+| OpenAI calls bypass Agentuity AI Gateway | Check that `OPENAI_BASE_URL` is set; `agentuity dev` sets this automatically — see [AI Gateway](/services/ai-gateway) |
+| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both — see [AI Gateway](/services/ai-gateway) |
+| Server credentials leak to the browser | Keep `KeyValueClient` and `OpenAI` instantiation in `server/api/` or other server-only files; Nitro does not bundle server files into the client |
+| Cookie flags rejected by browser | `secure: true` requires HTTPS; for local testing use `secure: process.env.NODE_ENV !== 'development'` |
+
+## Framework Docs
+
+- [Nuxt `server/` directory](https://nuxt.com/docs/guide/directory-structure/server): confirm `server/api` routing, HTTP method suffixes, and h3 helpers
+- [Nuxt deployment](https://nuxt.com/docs/getting-started/deployment): Nitro output targets and how to match build output to your runtime
 
 ## Next Steps
 
+- [Key-Value Storage](/services/storage/key-value): store short-lived state from Nitro routes
+- [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity
 - [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
 - [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
-- [Standalone Packages](/reference/standalone-packages): add Agentuity services from server routes and server utilities
