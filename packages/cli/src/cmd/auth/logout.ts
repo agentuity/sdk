@@ -18,7 +18,7 @@ export const logoutCommand = createSubcommand({
 	async handler(ctx) {
 		const { options } = ctx;
 		await clearAuth();
-		clearCachedUserInfo(ctx.config?.name ?? defaultProfileName);
+		await clearCachedUserInfo(ctx.config?.name ?? defaultProfileName);
 		if (!options.json) {
 			tui.success('You have been logged out');
 		}

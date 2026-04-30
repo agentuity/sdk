@@ -131,7 +131,7 @@ export const createSubcommand = createCommand({
 		} else {
 			// Using auth userId — check cache first, then fall back to whoami API call
 			const profileName = ctx.config?.name ?? defaultProfileName;
-			const cached = getCachedUserInfo(profileName);
+			const cached = await getCachedUserInfo(profileName);
 			if (cached) {
 				const name = [cached.firstName, cached.lastName].filter(Boolean).join(' ');
 				if (name) {
@@ -145,7 +145,7 @@ export const createSubcommand = createCommand({
 					if (name) {
 						creator = { id: createdId, name, type: createdType };
 					}
-					setCachedUserInfo(profileName, createdId, user.firstName, user.lastName);
+					await setCachedUserInfo(profileName, createdId, user.firstName, user.lastName);
 				} catch {
 					// Fall back to no creator EntityRef — task DB will use id as name
 				}

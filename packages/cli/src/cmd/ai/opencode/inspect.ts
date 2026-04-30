@@ -1,4 +1,4 @@
-import { Database } from 'bun:sqlite';
+import { type Database, openDatabase } from '../../../node-compat/sqlite.ts';
 import { createSubcommand, type CommandContext } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCommand } from '../../../command-prefix.ts';
@@ -172,11 +172,11 @@ export const inspectSubcommand = createSubcommand({
 		let db: Database | null = null;
 
 		try {
-			db = new Database(resolvedDbPath, isMemory ? undefined : { readonly: true });
+			db = await openDatabase(resolvedDbPath, isMemory ? undefined : { readonly: true });
 
 			// Validate schema
 			const tableRows = db
-				.query("SELECT name FROM sqlite_master WHERE type = 'table'")
+				.prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
 				.all() as Array<{ name: string }>;
 			const foundTables = new Set(tableRows.map((row) => row.name));
 			for (const table of REQUIRED_TABLES) {
@@ -193,7 +193,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query session
 			const session = db
-				.query(
+				.prepare(
 					`SELECT id, project_id, parent_id, title, time_created, time_updated, time_compacting, time_archived
 					 FROM session WHERE id = ?`
 				)
@@ -211,7 +211,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query messages
 			const messages = db
-				.query(
+				.prepare(
 					`SELECT m.id as id,
 							m.session_id as session_id,
 							CASE WHEN json_valid(m.data) THEN json_extract(m.data, '$.role') END as role,
@@ -232,7 +232,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query active tools
 			const activeToolRows = db
-				.query(
+				.prepare(
 					`SELECT json_extract(p.data, '$.tool') as tool,
 							json_extract(p.data, '$.state.status') as status,
 							COALESCE(json_extract(p.data, '$.callID'), json_extract(p.data, '$.callId')) as call_id
@@ -252,7 +252,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query recent tool history (last 20 completed tools)
 			const recentToolRows = db
-				.query(
+				.prepare(
 					`SELECT json_extract(p.data, '$.tool') as tool,
 							json_extract(p.data, '$.state.status') as status,
 							COALESCE(json_extract(p.data, '$.callID'), json_extract(p.data, '$.callId')) as call_id
@@ -274,7 +274,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query todos
 			const todoRows = db
-				.query(
+				.prepare(
 					'SELECT content, status, priority FROM todo WHERE session_id = ? ORDER BY position'
 				)
 				.all(sessionId) as TodoRow[];
@@ -287,7 +287,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query cost
 			const costRow = db
-				.query(
+				.prepare(
 					`SELECT SUM(json_extract(m.data, '$.cost')) as total_cost,
 							SUM(
 								COALESCE(json_extract(m.data, '$.tokens.input'), 0) +
@@ -311,7 +311,7 @@ export const inspectSubcommand = createSubcommand({
 
 			// Query child sessions
 			const childRows = db
-				.query(
+				.prepare(
 					`SELECT id, title, parent_id, time_created, time_updated, time_compacting, time_archived
 					 FROM session
 					 WHERE parent_id = ?

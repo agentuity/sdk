@@ -1,22 +1,22 @@
-import { Database } from 'bun:sqlite';
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { mkdirSync } from 'node:fs';
 import { getDefaultConfigDir } from '../config.ts';
+import { type Database, openDatabase } from '../node-compat/sqlite.ts';
 
 let db: Database | null = null;
 
 /**
- * Get or create the database connection synchronously.
- * Reuses the existing resource.db file for consistency.
+ * Get or create the database connection. Reuses the existing
+ * `resource.db` file for consistency with the other cache tables.
  */
-function getDatabase(): Database {
+async function getDatabase(): Promise<Database> {
 	if (db) return db;
 
 	const configDir = getDefaultConfigDir();
-	mkdirSync(configDir, { recursive: true });
+	await mkdir(configDir, { recursive: true });
 
-	db = new Database(join(configDir, 'resource.db'));
-	db.run(`
+	db = await openDatabase(join(configDir, 'resource.db'));
+	db.exec(`
 		CREATE TABLE IF NOT EXISTS user_info_cache (
 			profile TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
@@ -28,19 +28,23 @@ function getDatabase(): Database {
 	return db;
 }
 
+interface UserInfoRow {
+	user_id: string;
+	first_name: string;
+	last_name: string;
+}
+
 /**
  * Get cached user info for a profile.
  * Returns null if not found in cache.
  */
-export function getCachedUserInfo(
+export async function getCachedUserInfo(
 	profile: string
-): { userId: string; firstName: string; lastName: string } | null {
+): Promise<{ userId: string; firstName: string; lastName: string } | null> {
 	try {
-		const row = getDatabase()
-			.query<{ user_id: string; first_name: string; last_name: string }, [string]>(
-				'SELECT user_id, first_name, last_name FROM user_info_cache WHERE profile = ?'
-			)
-			.get(profile);
+		const row = (await getDatabase())
+			.prepare('SELECT user_id, first_name, last_name FROM user_info_cache WHERE profile = ?')
+			.get<UserInfoRow>(profile);
 		if (!row) return null;
 		return {
 			userId: row.user_id,
@@ -57,23 +61,24 @@ export function getCachedUserInfo(
  * Cache user info for a profile.
  * Upserts the entry so repeated calls are safe.
  */
-export function setCachedUserInfo(
+export async function setCachedUserInfo(
 	profile: string,
 	userId: string,
 	firstName: string,
 	lastName: string
-): void {
+): Promise<void> {
 	try {
-		getDatabase().run(
-			`INSERT INTO user_info_cache (profile, user_id, first_name, last_name, cached_at)
+		(await getDatabase())
+			.prepare(
+				`INSERT INTO user_info_cache (profile, user_id, first_name, last_name, cached_at)
 			 VALUES (?, ?, ?, ?, ?)
 			 ON CONFLICT(profile) DO UPDATE SET
 				user_id = excluded.user_id,
 				first_name = excluded.first_name,
 				last_name = excluded.last_name,
-				cached_at = excluded.cached_at`,
-			[profile, userId, firstName, lastName, Date.now()]
-		);
+				cached_at = excluded.cached_at`
+			)
+			.run(profile, userId, firstName, lastName, Date.now());
 	} catch {
 		// Non-critical — caching failure shouldn't block CLI
 	}
@@ -83,9 +88,9 @@ export function setCachedUserInfo(
  * Clear cached user info for a profile.
  * Called on logout to ensure stale data is removed.
  */
-export function clearCachedUserInfo(profile: string): void {
+export async function clearCachedUserInfo(profile: string): Promise<void> {
 	try {
-		getDatabase().run('DELETE FROM user_info_cache WHERE profile = ?', [profile]);
+		(await getDatabase()).prepare('DELETE FROM user_info_cache WHERE profile = ?').run(profile);
 	} catch {
 		// Non-critical — cache cleanup failure shouldn't block logout
 	}

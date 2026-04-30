@@ -48,6 +48,15 @@ export interface Statement<TParams extends unknown[] = unknown[]> {
 	finalize?(): void;
 }
 
+/** Options accepted by `openDatabase`. */
+export interface OpenDatabaseOptions {
+	/**
+	 * Open the database in read-only mode. Bun calls this `readonly`,
+	 * Node 24+ calls it `readOnly`; the shim translates.
+	 */
+	readonly?: boolean;
+}
+
 /**
  * Open a SQLite database at the given path, or `:memory:` for an
  * in-memory database. Returns a unified `Database` handle backed by
@@ -57,13 +66,18 @@ export interface Statement<TParams extends unknown[] = unknown[]> {
  * file does not pin the consumer to either runtime — the choice is
  * made at the first call.
  */
-export async function openDatabase(filename: string): Promise<Database> {
+export async function openDatabase(
+	filename: string,
+	opts?: OpenDatabaseOptions
+): Promise<Database> {
 	if (runtimeKind() === 'bun') {
 		const mod = await import('bun:sqlite');
+		const bunOpts = opts?.readonly ? { readonly: true } : undefined;
 		// The structural shapes match the Database interface; TS can't see
 		// that across the dynamic boundary, so we cast.
-		return new mod.Database(filename) as unknown as Database;
+		return new mod.Database(filename, bunOpts) as unknown as Database;
 	}
 	const mod = await import('node:sqlite');
-	return new mod.DatabaseSync(filename) as unknown as Database;
+	const nodeOpts = opts?.readonly ? { readOnly: true } : undefined;
+	return new mod.DatabaseSync(filename, nodeOpts) as unknown as Database;
 }
