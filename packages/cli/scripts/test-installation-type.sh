@@ -116,7 +116,7 @@ echo "----------------------------------------"
 rm -rf /tmp/test-default-global
 mkdir -p /tmp/test-default-global/.bun/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-default-global" "" "/tmp/test-default-global/.bun/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-default-global" "" "/tmp/test-default-global/.bun/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Default global install (~/.bun/node_modules)" "global" "$result"
 
 echo ""
@@ -127,7 +127,7 @@ echo "----------------------------------------"
 rm -rf /tmp/test-custom-bun
 mkdir -p /tmp/test-custom-bun/custom-bun/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-custom-bun" "/tmp/test-custom-bun/custom-bun" "/tmp/test-custom-bun/custom-bun/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-custom-bun" "/tmp/test-custom-bun/custom-bun" "/tmp/test-custom-bun/custom-bun/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Custom BUN_INSTALL location" "global" "$result"
 
 echo ""
@@ -138,7 +138,7 @@ echo "----------------------------------------"
 rm -rf /tmp/test-legacy
 mkdir -p /tmp/test-legacy/.agentuity/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-legacy" "" "/tmp/test-legacy/.agentuity/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-legacy" "" "/tmp/test-legacy/.agentuity/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Legacy ~/.agentuity installation" "global" "$result"
 
 echo ""
@@ -149,7 +149,7 @@ echo "----------------------------------------"
 rm -rf /tmp/test-bun-install-global
 mkdir -p /tmp/test-bun-install-global/.bun/install/global/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-bun-install-global" "" "/tmp/test-bun-install-global/.bun/install/global/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-bun-install-global" "" "/tmp/test-bun-install-global/.bun/install/global/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "~/.bun/install/global layout" "global" "$result"
 
 echo ""
@@ -161,7 +161,7 @@ rm -rf /tmp/test-local
 mkdir -p /tmp/test-local/my-project/node_modules/@agentuity/cli/bin
 mkdir -p /tmp/test-local/.bun  # Empty .bun to ensure it doesn't match
 
-result=$(run_scenario_from_path "/tmp/test-local" "" "/tmp/test-local/my-project/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-local" "" "/tmp/test-local/my-project/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Local project installation" "local" "$result"
 
 echo ""
@@ -186,11 +186,11 @@ mkdir -p /tmp/test-nested/.bun/node_modules/@agentuity/cli/bin  # Global install
 mkdir -p /tmp/test-nested/projects/my-app/node_modules/@agentuity/cli/bin  # Local install
 
 # Running from local should detect as local
-result=$(run_scenario_from_path "/tmp/test-nested" "" "/tmp/test-nested/projects/my-app/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-nested" "" "/tmp/test-nested/projects/my-app/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Local install when global exists (run local)" "local" "$result"
 
 # Running from global should detect as global
-result=$(run_scenario_from_path "/tmp/test-nested" "" "/tmp/test-nested/.bun/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-nested" "" "/tmp/test-nested/.bun/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Local install when global exists (run global)" "global" "$result"
 
 echo ""
@@ -202,7 +202,7 @@ rm -rf /tmp/test-different-paths
 mkdir -p /tmp/test-different-paths/home-dir/.bun  # Empty, not used
 mkdir -p /tmp/test-different-paths/bun-install/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-different-paths/home-dir" "/tmp/test-different-paths/bun-install" "/tmp/test-different-paths/bun-install/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-different-paths/home-dir" "/tmp/test-different-paths/bun-install" "/tmp/test-different-paths/bun-install/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "BUN_INSTALL different from HOME" "global" "$result"
 
 echo ""
@@ -215,10 +215,10 @@ mkdir -p /tmp/test-symlink/.bun/node_modules/@agentuity/cli/bin
 mkdir -p /tmp/test-symlink/.bun/bin
 
 # Create the actual script
-run_scenario_from_path "/tmp/test-symlink" "" "/tmp/test-symlink/.bun/node_modules/@agentuity/cli/bin/cli.js" > /dev/null 2>&1 || true
+run_scenario_from_path "/tmp/test-symlink" "" "/tmp/test-symlink/.bun/node_modules/@agentuity/cli/bin/cli.ts" > /dev/null 2>&1 || true
 
 # Create symlink
-ln -sf ../node_modules/@agentuity/cli/bin/cli.js /tmp/test-symlink/.bun/bin/agentuity
+ln -sf ../node_modules/@agentuity/cli/bin/cli.ts /tmp/test-symlink/.bun/bin/agentuity
 
 # Run via symlink - Bun.main should resolve to the actual file
 result=$(env -u BUN_INSTALL HOME=/tmp/test-symlink bun /tmp/test-symlink/.bun/bin/agentuity 2>/dev/null)
@@ -234,7 +234,7 @@ mkdir -p /tmp/test-bunx/.bun  # Empty global
 mkdir -p /tmp/test-bunx/project
 mkdir -p /tmp/test-bunx/project/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-bunx" "" "/tmp/test-bunx/project/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-bunx" "" "/tmp/test-bunx/project/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "bunx-style execution (project node_modules)" "local" "$result"
 
 echo ""
@@ -245,7 +245,7 @@ echo "----------------------------------------"
 rm -rf /tmp/test-xdg
 mkdir -p /tmp/test-xdg/.local/share/bun/node_modules/@agentuity/cli/bin
 
-result=$(run_scenario_from_path "/tmp/test-xdg" "/tmp/test-xdg/.local/share/bun" "/tmp/test-xdg/.local/share/bun/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-xdg" "/tmp/test-xdg/.local/share/bun" "/tmp/test-xdg/.local/share/bun/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "XDG-style bun location with BUN_INSTALL" "global" "$result"
 
 echo ""
@@ -256,7 +256,7 @@ echo "----------------------------------------"
 rm -rf "/tmp/test with spaces"
 mkdir -p "/tmp/test with spaces/.bun/node_modules/@agentuity/cli/bin"
 
-result=$(run_scenario_from_path "/tmp/test with spaces" "" "/tmp/test with spaces/.bun/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test with spaces" "" "/tmp/test with spaces/.bun/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Path with spaces" "global" "$result"
 
 echo ""
@@ -269,7 +269,7 @@ rm -rf /tmp/test-fallback
 mkdir -p /tmp/test-fallback/some/random/path/.bun/stuff/node_modules/@agentuity/cli/bin
 mkdir -p /tmp/test-fallback/home  # Different home
 
-result=$(run_scenario_from_path "/tmp/test-fallback/home" "/tmp/test-fallback/nonexistent" "/tmp/test-fallback/some/random/path/.bun/stuff/node_modules/@agentuity/cli/bin/cli.js")
+result=$(run_scenario_from_path "/tmp/test-fallback/home" "/tmp/test-fallback/nonexistent" "/tmp/test-fallback/some/random/path/.bun/stuff/node_modules/@agentuity/cli/bin/cli.ts")
 run_test "Fallback /.bun/ detection" "global" "$result"
 
 echo ""

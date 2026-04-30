@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 const LOGS_DIR = join(homedir(), '.config', 'agentuity', 'logs');
-const CLI_PATH = join(import.meta.dir, '..', 'bin', 'cli.ts');
+const CLI_PATH = join(import.meta.dir, '..', 'src', 'main.ts');
 const NUM_CONCURRENT = 5;
 
 interface SessionJson {
