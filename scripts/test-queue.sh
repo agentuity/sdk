@@ -95,8 +95,10 @@ fi
 section "CREATE Command Tests"
 # ============================================
 
-# Generate unique queue name
-QUEUE_NAME="test_queue_$(date +%s)"
+# Generate unique queue name. Include CLI_RUNTIME and a random
+# component so parallel matrix jobs (bun + node) and concurrent CI
+# runs don't collide on the same name.
+QUEUE_NAME="test_queue_${CLI_RUNTIME:-node}_$(date +%s)_${RANDOM}"
 
 # Test: Create worker queue
 info "Test: queue create worker"
