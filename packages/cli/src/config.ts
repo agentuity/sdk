@@ -9,8 +9,7 @@ import {
 	getServiceUrls,
 	APIClient as ServerAPIClient,
 } from '@agentuity/server';
-import { YAML } from 'bun';
-import { parseJSONC } from './utils/jsonc.ts';
+import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { clearProfileCache } from './cache/index.ts';
 import { getCatalystUrl } from './catalyst.ts';
@@ -21,7 +20,9 @@ import {
 	isMacOS,
 	saveAuthToKeychain,
 } from './keychain.ts';
+import { pathExists } from './node-compat/fs.ts';
 import * as tui from './tui.ts';
+import { parseJSONC } from './utils/jsonc.ts';
 import type { AuthData, Config, Profile } from './types.ts';
 import { ConfigSchema, ProjectSchema } from './types.ts';
 
@@ -65,8 +66,7 @@ export async function getProfile(profileFromFlag?: string): Promise<string> {
 	// Check --profile flag first (highest priority)
 	if (profileFromFlag) {
 		const flagProfilePath = join(getDefaultConfigDir(), `${profileFromFlag}.yaml`);
-		const flagFile = Bun.file(flagProfilePath);
-		if (await flagFile.exists()) {
+		if (await pathExists(flagProfilePath)) {
 			return flagProfilePath;
 		}
 		// If --profile flag was explicitly provided but file doesn't exist, throw an error
@@ -79,8 +79,7 @@ export async function getProfile(profileFromFlag?: string): Promise<string> {
 	if (process.env.AGENTUITY_PROFILE) {
 		const profileName = process.env.AGENTUITY_PROFILE;
 		const envProfilePath = join(getDefaultConfigDir(), `${profileName}.yaml`);
-		const envFile = Bun.file(envProfilePath);
-		if (await envFile.exists()) {
+		if (await pathExists(envProfilePath)) {
 			return envProfilePath;
 		}
 	}
@@ -89,12 +88,10 @@ export async function getProfile(profileFromFlag?: string): Promise<string> {
 	const defaultConfigPath = getDefaultConfigPath();
 
 	try {
-		const file = Bun.file(profilePath);
-		if (await file.exists()) {
-			const content = await file.text();
+		if (await pathExists(profilePath)) {
+			const content = await readFile(profilePath, 'utf-8');
 			const savedPath = content.trim();
-			const savedFile = Bun.file(savedPath);
-			if (await savedFile.exists()) {
+			if (await pathExists(savedPath)) {
 				return savedPath;
 			}
 		}
@@ -170,13 +167,12 @@ export async function loadConfig(
 	}
 
 	try {
-		const file = Bun.file(configPath);
-		const exists = await file.exists();
+		const exists = await pathExists(configPath);
 		let result: ReturnType<typeof ConfigSchema.safeParse>;
 
 		if (exists) {
-			const content = await file.text();
-			const config = YAML.parse(content);
+			const content = await readFile(configPath, 'utf-8');
+			const config = parseYaml(content);
 
 			// check to see if this is a legacy config file that might not have the required name
 			// and in this case we can just use the filename
@@ -613,20 +609,19 @@ export async function loadProjectConfig(
 	// Check for profile-specific override if config is provided
 	if (config?.name) {
 		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
-		if (await Bun.file(profileConfigPath).exists()) {
+		if (await pathExists(profileConfigPath)) {
 			configPath = profileConfigPath;
 		}
 	}
 
-	const file = Bun.file(configPath);
-	if (!(await file.exists())) {
+	if (!(await pathExists(configPath))) {
 		// TODO: check to see if a valid project that was created unauthenticated
 		// and then if so:
 		// 1. if authentication, offer to import the project
 		// 2. tell them that they need to login to use the command and import the project
 		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
 	}
-	const text = await file.text();
+	const text = await readFile(configPath, 'utf-8');
 	const parsedConfig = parseJSONC(text);
 	const result = ProjectSchema.safeParse(parsedConfig);
 	if (!result.success) {
@@ -669,12 +664,11 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 			domains: sanitizedConfig.deployment?.domains ?? [],
 		},
 	};
-	await Bun.write(configPath, JSON.stringify(configData, null, 2) + '\n');
+	await writeFile(configPath, JSON.stringify(configData, null, 2) + '\n');
 
 	// generate or update the .env file with SDK key
 	const envPath = join(dir, '.env');
-	const envFile = Bun.file(envPath);
-	if (await envFile.exists()) {
+	if (await pathExists(envPath)) {
 		// Preserve existing .env content, just update SDK key
 		const existing = await readEnvFile(envPath);
 		existing.AGENTUITY_SDK_KEY = sdkKey;
@@ -683,14 +677,14 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 		const comment =
 			'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
 		const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
-		await Bun.write(envPath, content);
+		await writeFile(envPath, content);
 	}
 	await chmod(envPath, 0o600);
 
 	// generate the vscode settings (only if they don't already exist)
 	const vscodeDir = join(dir, '.vscode');
 	const settingsPath = join(vscodeDir, 'settings.json');
-	if (!(await Bun.file(settingsPath).exists())) {
+	if (!(await pathExists(settingsPath))) {
 		mkdirSync(vscodeDir, { recursive: true });
 
 		const settings = {
@@ -708,7 +702,7 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 			],
 		};
 
-		await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
+		await writeFile(settingsPath, JSON.stringify(settings, null, 2));
 	}
 }
 
@@ -721,17 +715,16 @@ export async function updateProjectConfig(
 
 	if (config?.name) {
 		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
-		if (await Bun.file(profileConfigPath).exists()) {
+		if (await pathExists(profileConfigPath)) {
 			configPath = profileConfigPath;
 		}
 	}
 
-	const file = Bun.file(configPath);
-	if (!(await file.exists())) {
+	if (!(await pathExists(configPath))) {
 		throw new Error(`Project config not found at ${configPath}`);
 	}
 
-	const text = await file.text();
+	const text = await readFile(configPath, 'utf-8');
 	const existing = parseJSONC(text) as Record<string, unknown>;
 	const updated = { ...existing, ...updates };
 
@@ -743,18 +736,17 @@ export async function updateProjectConfig(
 		throw new Error(`Invalid project config after update: ${issues}`);
 	}
 
-	await Bun.write(configPath, JSON.stringify(updated, null, 2) + '\n');
+	await writeFile(configPath, JSON.stringify(updated, null, 2) + '\n');
 }
 
 const BuildMetadataNotFoundError = StructuredError('BuildMetadataNotFoundError');
 
 export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
 	const filename = join(dir, 'agentuity.metadata.json');
-	const file = Bun.file(filename);
-	if (!(await file.exists())) {
+	if (!(await pathExists(filename))) {
 		throw new BuildMetadataNotFoundError({ message: `couldn't find ${filename}` });
 	}
-	const buffer = await file.text();
+	const buffer = await readFile(filename, 'utf-8');
 	const config = JSON.parse(buffer);
 	const result = BuildMetadataSchema.safeParse(config);
 	if (!result.success) {
@@ -788,7 +780,7 @@ export async function loadProjectSDKKey(
 		logger.trace(`[SDK_KEY] Checking file: ${fn}`);
 		if (existsSync(fn)) {
 			logger.trace(`[SDK_KEY] File exists: ${fn}`);
-			const buf = await Bun.file(fn).text();
+			const buf = await readFile(fn, 'utf-8');
 			const tok = buf.split(/\n/);
 			for (const t of tok) {
 				if (t.charAt(0) !== '#' && t.startsWith('AGENTUITY_SDK_KEY=')) {
@@ -860,9 +852,8 @@ export async function getDefaultRegion(
 	// 4. Check cached regions file (sorted by distance)
 	try {
 		const cachePath = join(getDefaultConfigDir(), `regions-${profileName}.json`);
-		const file = Bun.file(cachePath);
-		if (await file.exists()) {
-			const data: RegionsCacheData = await file.json();
+		if (await pathExists(cachePath)) {
+			const data: RegionsCacheData = JSON.parse(await readFile(cachePath, 'utf-8'));
 			const firstRegion = data.regions?.[0];
 			if (firstRegion) {
 				return firstRegion.region;
