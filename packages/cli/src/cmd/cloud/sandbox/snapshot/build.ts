@@ -1,18 +1,22 @@
 import { createHash, createPublicKey, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
-import { rm } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, isAbsolute, join, resolve } from 'node:path';
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import type { SnapshotBuildGitInfo, SnapshotFileInfo } from '@agentuity/server';
 import {
+	getContentType,
 	NPM_PACKAGE_NAME_PATTERN,
 	SnapshotBuildFileSchema,
 	snapshotBuildFinalize,
 	snapshotBuildInit,
 	snapshotUpload,
 } from '@agentuity/server';
-import { YAML } from 'bun';
 import * as tar from 'tar';
+import { glob } from 'tinyglobby';
+import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix.ts';
 import { getCatalystAPIClient } from '../../../../config.ts';
@@ -194,8 +198,8 @@ export async function resolveFileGlobs(
 	}
 
 	for (const pattern of inclusions) {
-		const glob = new Bun.Glob(pattern);
-		for await (const file of glob.scan({ cwd: directory, dot: true })) {
+		const matches = await glob([pattern], { cwd: directory, dot: true });
+		for (const file of matches) {
 			const absolutePath = join(directory, file);
 			try {
 				const stat = statSync(absolutePath);
@@ -241,8 +245,8 @@ export async function resolveFileGlobs(
 	}
 
 	for (const pattern of expandedExclusions) {
-		const glob = new Bun.Glob(pattern);
-		for await (const file of glob.scan({ cwd: directory, dot: true })) {
+		const matches = await glob([pattern], { cwd: directory, dot: true });
+		for (const file of matches) {
 			files.delete(file);
 		}
 	}
@@ -268,12 +272,15 @@ async function createTarGzArchive(
 }
 
 function createProgressStream(
-	file: ReturnType<typeof Bun.file>,
+	path: string,
 	totalSize: number,
 	onProgress: (percent: number) => void
 ): ReadableStream<Uint8Array> {
 	let bytesRead = 0;
-	const reader = file.stream().getReader();
+	const webStream = Readable.toWeb(
+		createReadStream(path)
+	) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
+	const reader = webStream.getReader();
 
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
@@ -447,13 +454,13 @@ export const buildSubcommand = createCommand({
 			}
 		}
 
-		const buildFileContent = await Bun.file(buildFilePath!).text();
+		const buildFileContent = await readFile(buildFilePath!, 'utf-8');
 		const ext = extname(buildFilePath!).toLowerCase();
 		let parsedBuildFile: unknown;
 
 		try {
 			if (ext === '.yaml' || ext === '.yml') {
-				parsedBuildFile = YAML.parse(buildFileContent);
+				parsedBuildFile = parseYaml(buildFileContent);
 			} else if (ext === '.json') {
 				parsedBuildFile = JSON.parse(buildFileContent);
 			} else {
@@ -629,10 +636,9 @@ export const buildSubcommand = createCommand({
 		const fileMetadata = new Map<string, { sha256: string; contentType: string; mode: number }>();
 		for (const file of files.values()) {
 			const fullPath = join(directory, file.path);
-			const bunFile = Bun.file(fullPath);
-			const content = await bunFile.arrayBuffer();
-			const hash = createHash('sha256').update(Buffer.from(content)).digest('hex');
-			const contentType = bunFile.type || 'application/octet-stream';
+			const content = await readFile(fullPath);
+			const hash = createHash('sha256').update(content).digest('hex');
+			const contentType = getContentType(file.path) || 'application/octet-stream';
 			const stat = statSync(fullPath);
 			const mode = stat.mode & 0o7777; // Extract permission bits only
 			fileMetadata.set(file.path, { sha256: hash, contentType, mode });
@@ -733,7 +739,7 @@ export const buildSubcommand = createCommand({
 		const archivePath = join(tempDir, 'snapshot.tar.gz');
 
 		try {
-			await Bun.write(join(tempDir, '.placeholder'), '');
+			await writeFile(join(tempDir, '.placeholder'), '');
 
 			if (files.size > 0) {
 				await tui.spinner({
@@ -754,8 +760,7 @@ export const buildSubcommand = createCommand({
 				);
 			}
 
-			const archiveFile = Bun.file(archivePath);
-			const archiveSize = archiveFile.size;
+			const archiveSize = statSync(archivePath).size;
 
 			const client = getCatalystAPIClient(logger, auth, region, undefined, config);
 
@@ -868,24 +873,29 @@ export const buildSubcommand = createCommand({
 				});
 
 				uploadPath = encryptedPath;
-				uploadSize = Bun.file(encryptedPath).size;
+				uploadSize = statSync(encryptedPath).size;
 			}
 
 			if (initResult.uploadUrl) {
-				// Private snapshot: upload directly to S3
-				// Use Bun.file() directly as body - Bun sets Content-Length automatically from file size
+				// Private snapshot: upload directly to S3.
+				// Stream the file with explicit Content-Length so S3 doesn't
+				// reject chunked transfer encoding.
 				await tui.spinner({
 					message: 'Uploading snapshot...',
 					clearOnSuccess: true,
 					callback: async () => {
-						const uploadFile = Bun.file(uploadPath);
+						const body = Readable.toWeb(
+							createReadStream(uploadPath)
+						) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 						const response = await fetch(initResult.uploadUrl!, {
 							method: 'PUT',
 							headers: {
 								'Content-Type': 'application/gzip',
+								'Content-Length': String(uploadSize),
 							},
-							body: uploadFile,
-						});
+							body,
+							duplex: 'half',
+						} as unknown as RequestInit & { duplex: 'half' });
 
 						if (!response.ok) {
 							throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
@@ -901,9 +911,8 @@ export const buildSubcommand = createCommand({
 						clearOnSuccess: true,
 						clearOnError: true,
 						callback: async (updateProgress) => {
-							const uploadFile = Bun.file(uploadPath);
 							const progressStream = createProgressStream(
-								uploadFile,
+								uploadPath,
 								uploadSize,
 								updateProgress
 							);

@@ -1,8 +1,9 @@
 import { createWriteStream, lstatSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
-import { Glob } from 'bun';
+import { setTimeout as sleep } from 'node:timers/promises';
 import archiver from 'archiver';
+import { glob } from 'tinyglobby';
 import { toForwardSlash } from './normalize-path.ts';
 
 interface Options {
@@ -25,9 +26,12 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 
 	zip.pipe(output);
 
-	const files = await Array.fromAsync(
-		new Glob('**/*').scan({ cwd: dir, absolute: true, dot: true, followSymlinks: false })
-	);
+	const files = await glob(['**/*'], {
+		cwd: dir,
+		absolute: true,
+		dot: true,
+		followSymbolicLinks: false,
+	});
 	const total = files.length;
 	let count = 0;
 	for (const file of files) {
@@ -56,13 +60,13 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 		if (options?.progress) {
 			const progress = Math.floor((count / total) * 100);
 			options.progress(progress);
-			await Bun.sleep(10); // give some time for the progress bar to render
+			await sleep(10); // give some time for the progress bar to render
 		}
 	}
 	await zip.finalize();
 	await writeDone;
 	if (options?.progress) {
 		options.progress(100);
-		await Bun.sleep(100); // give some time for the progress bar to render
+		await sleep(100); // give some time for the progress bar to render
 	}
 }

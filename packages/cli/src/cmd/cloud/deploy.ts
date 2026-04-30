@@ -4,13 +4,19 @@ import {
 	createWriteStream,
 	existsSync,
 	mkdirSync,
+	statSync,
 	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { createGzip } from 'node:zlib';
+import { pathExists } from '../../node-compat/fs.ts';
 import { StructuredError } from '@agentuity/core';
 import {
 	type BuildMetadata,
@@ -892,18 +898,21 @@ export const deploySubcommand = createSubcommand({
 								// Start code upload diagnostic
 								const endCodeUploadDiagnostic = collector.startDiagnostic('code-upload');
 								ctx.logger.trace(`Uploading deployment to ${instructions.deployment}`);
-								const zipfile = Bun.file(encryptedZip);
-								const fileSize = await zipfile.size;
+								const fileSize = statSync(encryptedZip).size;
 								ctx.logger.trace(`Upload file size: ${fileSize} bytes`);
+								const zipBody = Readable.toWeb(
+									createReadStream(encryptedZip)
+								) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 								const resp = await fetch(instructions.deployment, {
 									method: 'PUT',
 									headers: {
 										'Content-Type': 'application/zip',
 										'Content-Length': String(fileSize),
 									},
-									body: zipfile,
+									body: zipBody,
 									signal: stepCtx.signal,
-								});
+									duplex: 'half',
+								} as RequestInit & { duplex: 'half' });
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
 									endCodeUploadDiagnostic();
@@ -922,14 +931,14 @@ export const deploySubcommand = createSubcommand({
 								// Cancel to release resources without buffering into memory.
 								await resp.body?.cancel();
 								ctx.logger.trace('Deleting encrypted zip');
-								await zipfile.delete();
+								await rm(encryptedZip, { force: true });
 							} finally {
 								ctx.logger.trace('Cleanup');
 								// Cleanup in case of error
-								if (await Bun.file(encryptedZip).exists()) {
-									await Bun.file(encryptedZip).delete();
+								if (await pathExists(encryptedZip)) {
+									await rm(encryptedZip, { force: true });
 								}
-								await Bun.file(deploymentZip).delete();
+								await rm(deploymentZip, { force: true });
 							}
 
 							progress(80);
@@ -1009,12 +1018,12 @@ export const deploySubcommand = createSubcommand({
 											'Content-Type': asset.contentType,
 										};
 
-										let body: Blob;
+										let bodyPath: string;
 										let gzTempPath: string | undefined;
 										let onWireSize = asset.size;
 
 										if (asset.contentEncoding === 'gzip') {
-											// Gzip to a temp file so Bun.file() can provide
+											// Gzip to a temp file so we can provide a known
 											// Content-Length to S3 (streaming bodies use chunked
 											// transfer encoding which S3 rejects).
 											gzTempPath = join(
@@ -1028,21 +1037,28 @@ export const deploySubcommand = createSubcommand({
 												createWriteStream(gzTempPath)
 											);
 											headers['Content-Encoding'] = 'gzip';
-											body = Bun.file(gzTempPath);
-											onWireSize = body.size;
+											bodyPath = gzTempPath;
+											onWireSize = statSync(gzTempPath).size;
 											ctx.logger.trace(
 												`Gzip compressed ${asset.filename} (${asset.size} -> ${onWireSize} bytes)`
 											);
 										} else {
-											body = Bun.file(filePath);
+											bodyPath = filePath;
+											onWireSize = statSync(filePath).size;
 										}
+
+										headers['Content-Length'] = String(onWireSize);
+										const body = Readable.toWeb(
+											createReadStream(bodyPath)
+										) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 
 										const response = await fetch(assetUrl, {
 											method: 'PUT',
 											headers,
 											body,
 											signal: stepCtx.signal,
-										});
+											duplex: 'half',
+										} as unknown as RequestInit & { duplex: 'half' });
 
 										if (gzTempPath) {
 											try {
@@ -1230,7 +1246,7 @@ export const deploySubcommand = createSubcommand({
 											throw new Error('Deployment failed');
 										}
 
-										await Bun.sleep(pollInterval);
+										await sleep(pollInterval);
 									} catch (err) {
 										logStreamController.abort();
 										throw err;
@@ -1327,7 +1343,7 @@ export const deploySubcommand = createSubcommand({
 									throw new Error('Deployment failed');
 								}
 
-								await Bun.sleep(pollInterval);
+								await sleep(pollInterval);
 							}
 
 							if (attempts >= maxAttempts) {
