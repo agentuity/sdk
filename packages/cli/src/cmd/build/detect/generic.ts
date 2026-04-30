@@ -10,7 +10,8 @@
  */
 
 import { join } from 'node:path';
-import type { FrameworkDetector, DetectedFramework } from './types.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import type { DetectedFramework, FrameworkDetector } from './types.ts';
 import { detectPackageManager } from './util.ts';
 
 export const genericDetector: FrameworkDetector = {
@@ -40,8 +41,7 @@ export const genericDetector: FrameworkDetector = {
 			startCommand = pkg.scripts.start;
 		} else if (pkg.main) {
 			// Check if main entry exists
-			const mainFile = Bun.file(join(projectDir, pkg.main));
-			if (await mainFile.exists()) {
+			if (await pathExists(join(projectDir, pkg.main))) {
 				const runtime = pm === 'bun' ? 'bun' : 'node';
 				startCommand = `${runtime} ${pkg.main}`;
 				serverEntry = pkg.main;

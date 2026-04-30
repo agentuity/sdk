@@ -1,13 +1,17 @@
-import { createSubcommand } from '../../types.ts';
-import { z } from 'zod';
-import { createWriteStream, readFileSync } from 'node:fs';
-import { join, basename } from 'node:path';
-import { tmpdir } from 'node:os';
-import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
-import * as tui from '../../tui.ts';
 import { randomBytes } from 'node:crypto';
-import archiver from 'archiver';
+import { createReadStream, createWriteStream, readFileSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { APIResponseSchema } from '@agentuity/server';
+import archiver from 'archiver';
+import { z } from 'zod';
+import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import { spawnInherit } from '../../node-compat/proc.ts';
+import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types.ts';
 import { StructuredError } from '@agentuity/core';
 
 // Structured errors for this module
@@ -83,10 +87,10 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 		const sessionId = basename(sessionDir) || 'unknown';
 
 		// Add files with session ID prefix to avoid conflicts
-		if (await Bun.file(sessionFile).exists()) {
+		if (await pathExists(sessionFile)) {
 			zip.file(sessionFile, { name: `${sessionId}/session.json` });
 		}
-		if (await Bun.file(logsFile).exists()) {
+		if (await pathExists(logsFile)) {
 			zip.file(logsFile, { name: `${sessionId}/logs.jsonl` });
 		}
 	}
@@ -105,17 +109,23 @@ async function uploadReport(
 	zipPath: string,
 	logger: import('../../types.ts').Logger
 ): Promise<void> {
-	// Use Bun.file() to stream the zip to S3 without loading it into memory.
-	// Bun automatically sets Content-Length from the file size.
-	const file = Bun.file(zipPath);
+	// Stream the zip to S3 without loading it into memory. Node's
+	// fetch needs an explicit `Content-Length` plus duplex: 'half' for
+	// streamed bodies; we pre-stat the file to provide both.
+	const stat = statSync(zipPath);
+	const body = Readable.toWeb(
+		createReadStream(zipPath)
+	) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 
 	const response = await fetch(presignedUrl, {
 		method: 'PUT',
-		body: file,
+		body,
 		headers: {
 			'Content-Type': 'application/zip',
+			'Content-Length': String(stat.size),
 		},
-	});
+		duplex: 'half',
+	} as RequestInit & { duplex: 'half' });
 
 	if (!response.ok) {
 		const errorText = await response.text();
@@ -201,15 +211,10 @@ async function openBrowser(url: string, logger: import('../../types.ts').Logger)
 			args = [url];
 		}
 
-		const proc = Bun.spawn([command, ...args], {
-			stdout: 'ignore',
-			stderr: 'ignore',
-		});
+		const { exitCode } = await spawnInherit({ cmd: [command, ...args] });
 
-		await proc.exited;
-
-		if (proc.exitCode !== 0) {
-			throw new BrowserOpenError({ exitCode: proc.exitCode });
+		if (exitCode !== 0) {
+			throw new BrowserOpenError({ exitCode: exitCode });
 		}
 	} catch (error) {
 		logger.error('Failed to open browser', { error });
@@ -252,7 +257,7 @@ export default createSubcommand({
 		let sessionData: SessionData = {};
 		let cliVersion = 'unknown';
 		try {
-			if (await Bun.file(sessionFile).exists()) {
+			if (await pathExists(sessionFile)) {
 				sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
 				cliVersion = sessionData.cli?.version || 'unknown';
 			}

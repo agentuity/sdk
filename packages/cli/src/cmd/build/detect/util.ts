@@ -2,7 +2,9 @@
  * Detection utilities shared across framework detectors.
  */
 
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathExists } from '../../../node-compat/fs.ts';
 import type { PackageJsonData, PackageManager } from './types.ts';
 
 /**
@@ -11,8 +13,7 @@ import type { PackageJsonData, PackageManager } from './types.ts';
  */
 export async function findFile(dir: string, names: string[]): Promise<string | null> {
 	for (const name of names) {
-		const file = Bun.file(join(dir, name));
-		if (await file.exists()) {
+		if (await pathExists(join(dir, name))) {
 			return name;
 		}
 	}
@@ -46,11 +47,11 @@ export function hasDependencyMatching(pkg: PackageJsonData, pattern: RegExp): bo
  * Detect which package manager the project uses by checking lockfiles.
  */
 export async function detectPackageManager(projectDir: string): Promise<PackageManager> {
-	if (await Bun.file(join(projectDir, 'bun.lockb')).exists()) return 'bun';
-	if (await Bun.file(join(projectDir, 'bun.lock')).exists()) return 'bun';
-	if (await Bun.file(join(projectDir, 'pnpm-lock.yaml')).exists()) return 'pnpm';
-	if (await Bun.file(join(projectDir, 'yarn.lock')).exists()) return 'yarn';
-	if (await Bun.file(join(projectDir, 'package-lock.json')).exists()) return 'npm';
+	if (await pathExists(join(projectDir, 'bun.lockb'))) return 'bun';
+	if (await pathExists(join(projectDir, 'bun.lock'))) return 'bun';
+	if (await pathExists(join(projectDir, 'pnpm-lock.yaml'))) return 'pnpm';
+	if (await pathExists(join(projectDir, 'yarn.lock'))) return 'yarn';
+	if (await pathExists(join(projectDir, 'package-lock.json'))) return 'npm';
 
 	// Default to bun (our preferred runtime)
 	return 'bun';
@@ -94,10 +95,10 @@ export function getExecCommand(pm: PackageManager): string {
  * Returns null if not found or unparseable.
  */
 export async function readPackageJson(dir: string): Promise<PackageJsonData | null> {
-	const file = Bun.file(join(dir, 'package.json'));
-	if (!(await file.exists())) return null;
+	const path = join(dir, 'package.json');
+	if (!(await pathExists(path))) return null;
 	try {
-		return (await file.json()) as PackageJsonData;
+		return JSON.parse(await readFile(path, 'utf-8')) as PackageJsonData;
 	} catch {
 		return null;
 	}

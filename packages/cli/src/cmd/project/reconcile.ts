@@ -1,6 +1,8 @@
-import { join, basename } from 'node:path';
 import { existsSync, statSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import type { Logger } from '@agentuity/core';
+import { pathExists } from '../../node-compat/fs.ts';
 import {
 	projectGet,
 	projectCreate,
@@ -99,9 +101,9 @@ export async function tryLoadProjectConfig(
  */
 export async function getDefaultProjectName(dir: string): Promise<string> {
 	const pkgPath = join(dir, 'package.json');
-	if (await Bun.file(pkgPath).exists()) {
+	if (await pathExists(pkgPath)) {
 		try {
-			const pkg = await Bun.file(pkgPath).json();
+			const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 			if (pkg.name && typeof pkg.name === 'string' && pkg.name.trim()) {
 				// Strip org scope if present (e.g., @myorg/project-name -> project-name)
 				return pkg.name.replace(/^@[^/]+\//, '').trim();
@@ -121,9 +123,9 @@ export async function isValidProjectStructure(dir: string): Promise<boolean> {
 	// Check 1: package.json exists (any JS/TS project is valid)
 	const pkgPath = join(dir, 'package.json');
 
-	if (await Bun.file(pkgPath).exists()) {
+	if (await pathExists(pkgPath)) {
 		try {
-			const pkg = await Bun.file(pkgPath).json();
+			const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 			// Valid if it has a name and at least some structure
 			if (pkg.name || pkg.dependencies || pkg.devDependencies) {
 				return true;
@@ -138,7 +140,7 @@ export async function isValidProjectStructure(dir: string): Promise<boolean> {
 	if (existsSync(agentuityDir) && statSync(agentuityDir).isDirectory()) {
 		const childPkgPath = join(agentuityDir, 'package.json');
 
-		if (await Bun.file(childPkgPath).exists()) {
+		if (await pathExists(childPkgPath)) {
 			return true;
 		}
 	}
@@ -151,9 +153,8 @@ export async function isValidProjectStructure(dir: string): Promise<boolean> {
  */
 async function updateSdkKeyInEnv(dir: string, sdkKey: string): Promise<void> {
 	const envPath = join(dir, '.env');
-	const envFile = Bun.file(envPath);
 
-	if (await envFile.exists()) {
+	if (await pathExists(envPath)) {
 		// Update existing .env - read, modify, write
 		const existing = await readEnvFile(envPath);
 		existing.AGENTUITY_SDK_KEY = sdkKey;
@@ -163,7 +164,7 @@ async function updateSdkKeyInEnv(dir: string, sdkKey: string): Promise<void> {
 		const comment =
 			'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
 		const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
-		await Bun.write(envPath, content);
+		await writeFile(envPath, content);
 	}
 }
 

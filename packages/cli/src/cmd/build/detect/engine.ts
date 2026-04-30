@@ -12,7 +12,9 @@
  * If both are present, both conditions must be satisfied.
  */
 
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectorRule, FrameworkDefinition } from './frameworks.ts';
 import type { PackageJsonData } from './types.ts';
 
@@ -33,13 +35,12 @@ async function matchRule(
 	// File path match (with optional content matching)
 	if (rule.path) {
 		const filePath = join(projectDir, rule.path);
-		const file = Bun.file(filePath);
-		if (!(await file.exists())) return false;
+		if (!(await pathExists(filePath))) return false;
 
 		// If matchContent is specified, check file content against regex
 		if (rule.matchContent) {
 			try {
-				const content = await file.text();
+				const content = await readFile(filePath, 'utf-8');
 				return new RegExp(rule.matchContent).test(content);
 			} catch {
 				return false;
