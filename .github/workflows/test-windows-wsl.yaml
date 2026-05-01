@@ -137,24 +137,21 @@ jobs:
               # and GITHUB_BASE_REF are NOT available inside WSL, but
               # expressions are resolved at workflow parse time.
               PROJECT_NAME="test-wsl-${{ github.run_id }}-${{ github.run_attempt }}"
-              TEMPLATE_DIR="$HOME/sdk/templates"
-
-              echo "Using local templates from: $TEMPLATE_DIR"
 
               # Verify authentication
               $CLI auth whoami
 
-              # Create test project in usw region. Use the hono framework
-              # as a minimal smoke template (the exact framework doesn't
-              # matter for this test — we're verifying scaffolding +
-              # deploy work end-to-end under WSL). We DO want install +
-              # build to run because the next step deploys the project,
-              # and the deploy pipeline runs `bun typecheck` which needs
-              # the deps in node_modules.
+              # Create test project in usw region. Use vite-react as a
+              # minimal real-build framework: it's in the framework
+              # registry, scaffolds quickly, and produces a real `build`
+              # script (which the deploy pipeline requires for framework
+              # detection). The exact framework doesn't matter for this
+              # test — we're verifying scaffolding + deploy + cleanup
+              # work end-to-end under WSL.
               echo "Creating project: $PROJECT_NAME"
               $CLI project create \
                 --name "$PROJECT_NAME" \
-                --framework hono \
+                --framework vite-react \
                 --database skip \
                 --storage skip \
                 --confirm
