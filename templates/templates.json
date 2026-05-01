@@ -5,6 +5,12 @@
 			"name": "Default Template",
 			"description": "Showcases core Agentuity features using OpenAI SDK",
 			"directory": "default"
+		},
+		{
+			"id": "auth",
+			"name": "Auth Template",
+			"description": "Sets up Better Auth, Drizzle, a sign-in UI, and a protected API route",
+			"directory": "auth"
 		}
 	]
 }
