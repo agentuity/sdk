@@ -1,6 +1,6 @@
 import { useAnalytics } from '@agentuity/react';
 import { hc } from 'hono/client';
-import type { ApiRouter, HistoryEntry } from '../api/index';
+import type { ApiRouter } from '../api/index';
 import { type ChangeEvent, Fragment, useCallback, useEffect, useState } from 'react';
 import './App.css';
 
@@ -10,6 +10,16 @@ const DEFAULT_TEXT =
 	'Welcome to Agentuity! This starter app translates text, remembers your recent requests, and shows how a typed API route can call models through Agentuity’s AI Gateway. Try a few languages or switch models, then check the terminal logs to see the request, session, and token details.';
 
 const client = hc<ApiRouter>('/api');
+
+interface HistoryEntry {
+	readonly model: string;
+	readonly sessionId: string;
+	readonly text: string;
+	readonly timestamp: string;
+	readonly tokens: number;
+	readonly toLanguage: string;
+	readonly translation: string;
+}
 
 interface HistoryData {
 	readonly history: readonly HistoryEntry[];
@@ -37,7 +47,7 @@ export function App() {
 	// Fetch history on mount
 	const fetchHistory = useCallback(async () => {
 		const res = await client.translate.history.$get();
-		setHistoryData(await res.json());
+		setHistoryData((await res.json()) as HistoryData);
 	}, []);
 
 	useEffect(() => {
@@ -53,7 +63,7 @@ export function App() {
 		setIsLoading(true);
 		try {
 			const res = await client.translate.$post({ json: { text, toLanguage, model } });
-			setTranslateResult(await res.json());
+			setTranslateResult((await res.json()) as TranslateResult);
 		} finally {
 			setIsLoading(false);
 		}
