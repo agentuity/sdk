@@ -147,15 +147,16 @@ jobs:
               # Create test project in usw region. Use the hono framework
               # as a minimal smoke template (the exact framework doesn't
               # matter for this test — we're verifying scaffolding +
-              # deploy work end-to-end under WSL).
+              # deploy work end-to-end under WSL). We DO want install +
+              # build to run because the next step deploys the project,
+              # and the deploy pipeline runs `bun typecheck` which needs
+              # the deps in node_modules.
               echo "Creating project: $PROJECT_NAME"
               $CLI project create \
                 --name "$PROJECT_NAME" \
                 --framework hono \
                 --database skip \
                 --storage skip \
-                --no-install \
-                --no-build \
                 --confirm
 
               # Extract project ID from agentuity.json
