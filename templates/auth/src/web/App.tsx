@@ -1,14 +1,13 @@
 import type { ReactNode } from 'react';
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	AuthUIProvider,
 	AuthView,
-	SignedIn,
-	SignedOut,
 	UserView,
 	useAuthenticate,
 } from '@daveyplate/better-auth-ui';
 import { hc } from 'hono/client';
+import { AnimatePresence, motion } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import type { ApiRouter } from '../api/index';
 import { authClient } from './auth-client';
@@ -174,7 +173,67 @@ function AgentuityLogo() {
 
 function getPathFromHref(href: string): string {
 	const url = new URL(href, window.location.origin);
-	return `${url.pathname}${url.search}`;
+	return url.pathname;
+}
+
+interface AuthLinkProps {
+	readonly href: string;
+	readonly className?: string;
+	readonly children: ReactNode;
+}
+
+function makeAuthLink(navigate: (href: string) => void) {
+	return function AuthLink({ href, className, children }: AuthLinkProps) {
+		const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+			if (
+				event.defaultPrevented ||
+				event.button !== 0 ||
+				event.metaKey ||
+				event.ctrlKey ||
+				event.shiftKey ||
+				event.altKey
+			) {
+				return;
+			}
+			event.preventDefault();
+			navigate(href);
+		};
+		return (
+			<a className={className} href={href} onClick={handleClick}>
+				{children}
+			</a>
+		);
+	};
+}
+
+interface AuthSwitchProps {
+	readonly signedOut: ReactNode;
+	readonly signedIn: ReactNode;
+}
+
+// Hold the previous auth state during pending transitions so the layout
+// doesn't collapse between Better Auth's session refetches
+function AuthSwitch({ signedOut, signedIn }: AuthSwitchProps) {
+	const { user, isPending } = useAuthenticate();
+	const [isSignedIn, setIsSignedIn] = useState(!!user);
+
+	useEffect(() => {
+		if (!isPending) setIsSignedIn(!!user);
+	}, [user, isPending]);
+
+	return (
+		<AnimatePresence initial={false} mode="wait">
+			<motion.div
+				key={isSignedIn ? 'in' : 'out'}
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+				transition={{ duration: 0.18, ease: 'easeOut' }}
+			>
+				{isSignedIn ? signedIn : signedOut}
+			</motion.div>
+		</AnimatePresence>
+	);
 }
 
 export function App() {
@@ -191,15 +250,13 @@ export function App() {
 	}, []);
 
 	const navigate = useCallback((href: string) => {
-		const nextPath = getPathFromHref(href);
-		window.history.pushState(null, '', nextPath);
-		setPathname(nextPath);
+		window.history.pushState(null, '', href);
+		setPathname(getPathFromHref(href));
 	}, []);
 
 	const replace = useCallback((href: string) => {
-		const nextPath = getPathFromHref(href);
-		window.history.replaceState(null, '', nextPath);
-		setPathname(nextPath);
+		window.history.replaceState(null, '', href);
+		setPathname(getPathFromHref(href));
 	}, []);
 
 	const checkProtectedRoute = useCallback(async () => {
@@ -234,12 +291,14 @@ export function App() {
 	}, [replace]);
 
 	const authPathname = pathname.startsWith('/auth/') ? pathname : '/auth/sign-in';
+	const AuthLink = useMemo(() => makeAuthLink(navigate), [navigate]);
 
 	return (
 		<AuthUIProvider
 			authClient={authClient}
 			basePath="/auth"
 			credentials={{ forgotPassword: false }}
+			Link={AuthLink}
 			navigate={navigate}
 			redirectTo="/"
 			replace={replace}
@@ -258,24 +317,37 @@ export function App() {
 						</p>
 					</div>
 
-					<SignedOut>
-						<div className="flex justify-center">
-							<AuthView
-								className="w-full max-w-sm [&_button]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
-								classNames={{
-									footerLink:
-										'transition-colors hover:text-cyan-300 focus-visible:text-cyan-300',
-								}}
-								pathname={authPathname}
-								redirectTo="/"
-							/>
-						</div>
-					</SignedOut>
+					<AuthSwitch
+						signedOut={
+							<div className="flex justify-center">
+								<div className="relative w-full max-w-sm">
+									<AnimatePresence initial={false} mode="popLayout">
+										<motion.div
+											key={authPathname}
+											initial={{ opacity: 0, y: 4 }}
+											animate={{ opacity: 1, y: 0 }}
+											exit={{ opacity: 0, y: -4 }}
+											transition={{ duration: 0.18, ease: 'easeOut' }}
+										>
+											<AuthView
+												className="[&_button]:cursor-pointer [&_button:disabled]:cursor-not-allowed"
+												classNames={{
+													footerLink:
+														'transition-colors hover:text-cyan-300 focus-visible:text-cyan-300',
+												}}
+												pathname={authPathname}
+												redirectTo="/"
+											/>
+										</motion.div>
+									</AnimatePresence>
+								</div>
+							</div>
+						}
+						signedIn={
+							<div className="flex flex-col gap-8">
+								<SignedInPanel isSigningOut={isSigningOut} onSignOut={handleSignOut} />
 
-					<SignedIn>
-						<SignedInPanel isSigningOut={isSigningOut} onSignOut={handleSignOut} />
-
-						<div className="bg-black border border-gray-900 rounded-lg p-8 shadow-2xl flex flex-col gap-6">
+								<div className="bg-black border border-gray-900 rounded-lg p-8 shadow-2xl flex flex-col gap-6">
 							<div>
 								<h2 className="text-white text-xl font-normal leading-none m-0 mb-3">
 									Protected API
@@ -354,7 +426,9 @@ export function App() {
 								</div>
 							)}
 						</div>
-					</SignedIn>
+								</div>
+							}
+						/>
 
 					<div className="bg-black border border-gray-900 rounded-lg p-8">
 						<h2 className="text-white text-xl font-normal leading-none m-0 mb-6">

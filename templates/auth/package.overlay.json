@@ -10,6 +10,7 @@
 		"clsx": "^2.1.1",
 		"input-otp": "^1.4.2",
 		"lucide-react": "^1.14.0",
+		"motion": "^12.38.0",
 		"react-hook-form": "^7.74.0",
 		"sonner": "^2.0.7",
 		"tailwind-merge": "^3.5.0",
