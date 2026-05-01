@@ -769,12 +769,11 @@ async function testTemplate(
 			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
 		} else if (template.id === 'auth') {
-			// Auth template needs Postgres + auth secret to actually serve protected routes
+			// Auth template needs Postgres + auth secret to serve protected routes
 			// db.ts is lazy, so the server boots without these, but setting them anyway
 			// lets future test extensions exercise the auth flow
 			envVars.DATABASE_URL = 'postgres://user:pass@localhost:5432/testdb';
-			envVars.AGENTUITY_AUTH_SECRET =
-				'8f88a98d2c9f7f0da2b0a52f0d71a84767f5d7207fdfdecbf39d5b8b8c2a7d6b';
+			envVars.AGENTUITY_AUTH_SECRET = 'test-secret-for-auth-template-tests';
 			envVars.BETTER_AUTH_URL = `http://127.0.0.1:${basePort}`;
 		}
 
