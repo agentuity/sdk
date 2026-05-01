@@ -167,7 +167,7 @@ fi
 
 # Test: Publish with idempotency key
 info "Test: queue publish with idempotency key"
-IDEM_KEY="test-idem-$(date +%s)"
+IDEM_KEY="test-idem-${CLI_RUNTIME:-node}-$(date +%s)-${RANDOM}"
 PUBLISH_IDEM_OUTPUT=$($CLI cloud queue publish "$QUEUE_NAME" '{"task":"test3"}' --idempotency-key "$IDEM_KEY" --json 2>&1) || true
 if echo "$PUBLISH_IDEM_OUTPUT" | grep -q '"id".*"qmsg_'; then
 	pass "queue publish with idempotency key succeeds"
@@ -492,7 +492,7 @@ section "PUBSUB Queue Type Tests"
 # ============================================
 
 # Test: Create pubsub queue
-PUBSUB_QUEUE_NAME="test_pubsub_$(date +%s)"
+PUBSUB_QUEUE_NAME="test_pubsub_${CLI_RUNTIME:-node}_$(date +%s)_${RANDOM}"
 info "Test: queue create pubsub"
 PUBSUB_CREATE_OUTPUT=$($CLI cloud queue create pubsub --name "$PUBSUB_QUEUE_NAME" --description "$QUEUE_DESC" --json 2>&1) || true
 if echo "$PUBSUB_CREATE_OUTPUT" | grep -q '"queue_type".*"pubsub"'; then
