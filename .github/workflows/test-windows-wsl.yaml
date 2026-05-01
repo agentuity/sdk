@@ -144,14 +144,18 @@ jobs:
               # Verify authentication
               $CLI auth whoami
 
-              # Create test project in usw region
+              # Create test project in usw region. Use the hono framework
+              # as a minimal smoke template (the exact framework doesn't
+              # matter for this test — we're verifying scaffolding +
+              # deploy work end-to-end under WSL).
               echo "Creating project: $PROJECT_NAME"
               $CLI project create \
                 --name "$PROJECT_NAME" \
-                --template default \
-                --template-dir "$TEMPLATE_DIR" \
+                --framework hono \
                 --database skip \
                 --storage skip \
+                --no-install \
+                --no-build \
                 --confirm
 
               # Extract project ID from agentuity.json
