@@ -90,7 +90,19 @@ export async function runBuildCommand(
 
 	logger?.debug(`Running build command: ${cmd.join(' ')}`);
 
-	const result = await runCommand(cmd, projectDir, buildEnv);
+	// Mirror what `npm run`/`bun run` do automatically: prepend the
+	// project's node_modules/.bin to PATH so locally-installed binaries
+	// (vite, tsc, esbuild, etc.) resolve when shelling out to commands
+	// like `vite build` or `tsc -b && vite build` via `sh -c`. Without
+	// this, framework-defined buildCommands that aren't bare script
+	// names fail with `command not found`.
+	const localBin = join(projectDir, 'node_modules', '.bin');
+	const envWithLocalBin: Record<string, string> = {
+		...(buildEnv ?? {}),
+		PATH: `${localBin}:${buildEnv?.PATH ?? process.env.PATH ?? ''}`,
+	};
+
+	const result = await runCommand(cmd, projectDir, envWithLocalBin);
 	if (result.exitCode !== 0) {
 		throw new Error(`Build failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`);
 	}
