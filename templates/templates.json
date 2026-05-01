@@ -9,7 +9,7 @@
 		{
 			"id": "auth",
 			"name": "Auth Template",
-			"description": "Sets up Better Auth, Drizzle, and a protected API route",
+			"description": "Sets up Better Auth, Drizzle, a sign-in UI, and a protected API route",
 			"directory": "auth"
 		}
 	]

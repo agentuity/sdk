@@ -9,7 +9,7 @@ An Agentuity project with [Better Auth](https://better-auth.com) wired up: auth 
 - ✅ **`/api/auth/*`** - sign-up, sign-in, sign-out, sessions
 - ✅ **`/api/me`** - protected route that returns the signed-in user
 - ✅ **Better Auth UI** - drop-in sign-in and sign-up screens themed to Agentuity cyan
-- ✅ **React frontend** - `<SignedIn>` / `<SignedOut>` gating, sign-out, session detail card
+- ✅ **React frontend** - signed-in / signed-out panels, sign-out, session detail card
 
 ## Project structure
 
@@ -110,7 +110,7 @@ Returns `{ id, name, email, authMethod, memberSince }`.
 - **Edit auth options**: `src/auth.ts`. `createAuth({ database, ... })` accepts the full Better Auth config.
 - **Add your tables**: `src/schema.ts`. Declare them next to the auth schema re-export and reference `user.id` for per-user rows. Run `bunx drizzle-kit push` after schema changes. See AGENTS.md for an example.
 - **Add API routes**: `src/api/index.ts`. Apply `createSessionMiddleware(auth)` to any route that should require a signed-in user.
-- **Edit the UI**: `src/web/App.tsx`. `<AuthView>`, `<SignedIn>`, and `<SignedOut>` come from [`@daveyplate/better-auth-ui`](https://better-auth-ui.com).
+- **Edit the UI**: `src/web/App.tsx`. The sign-in form (`<AuthView>`) is from [`@daveyplate/better-auth-ui`](https://better-auth-ui.com); the rest is React and Tailwind.
 
 ## Deploy
 

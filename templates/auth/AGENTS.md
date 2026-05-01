@@ -77,7 +77,7 @@ The `src/web/` folder contains your React frontend, which is automatically bundl
 - `index.html` - Main HTML file with `<script type="module" src="./frontend.tsx">`
 - `frontend.tsx` - Entry point that wires `AgentuityProvider` and `AuthProvider`
 - `auth-client.ts` - `createAuthClient()` from `@agentuity/auth/react`
-- `App.tsx` - Main React component. Uses `<SignedIn>` and `<SignedOut>` from `@daveyplate/better-auth-ui`
+- `App.tsx` - Main React component. Renders `<AuthView>` (Better Auth UI's sign-in form) when signed out, and a profile + protected-route demo when signed in
 - `App.css` - Tailwind theme tokens for Agentuity cyan and Better Auth UI
 
 **Key Points:**
@@ -85,7 +85,7 @@ The `src/web/` folder contains your React frontend, which is automatically bundl
 - `<AuthUIProvider>` from `@daveyplate/better-auth-ui` accepts the `authClient`. Wrap any auth UI in it.
 - `<AuthView pathname={...}>` renders the right form (sign-in / sign-up / forgot-password / etc.) based on the current pathname.
 - `useAuthenticate()` returns `{ user, isPending }` for the signed-in user.
-- `<SignedIn>` / `<SignedOut>` gate children based on session state.
+- An `<AuthSwitch>` wrapper (App.tsx) keeps the previous auth state visible during `isPending` refetches, so the layout doesn't collapse on sign-in or sign-out.
 
 ## Environment variables
 

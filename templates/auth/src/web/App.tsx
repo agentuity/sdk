@@ -217,9 +217,9 @@ function AuthSwitch({ signedOut, signedIn }: AuthSwitchProps) {
 	const { user, isPending } = useAuthenticate();
 	const [isSignedIn, setIsSignedIn] = useState(!!user);
 
-	useEffect(() => {
-		if (!isPending) setIsSignedIn(!!user);
-	}, [user, isPending]);
+	if (!isPending && isSignedIn !== !!user) {
+		setIsSignedIn(!!user);
+	}
 
 	return (
 		<AnimatePresence initial={false} mode="wait">
