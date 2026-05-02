@@ -1,0 +1,19 @@
+# Build output
+.agentuity/
+dist/
+
+# Dependencies
+node_modules/
+
+# Environment files (contain secrets)
+.env
+.env.*
+
+# Local project config (use agentuity.json for CI)
+agentuity.local.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store

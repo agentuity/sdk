@@ -1,0 +1,13 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"composite": false,
+		"outDir": "./.agentuity",
+		"rootDir": ".",
+		"types": ["bun-types", "vite/client"]
+	},
+	"include": ["src/**/*", "app.ts"],
+	"exclude": ["node_modules", ".agentuity"]
+}

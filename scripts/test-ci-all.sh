@@ -27,6 +27,11 @@ echo "────────────────────────�
 bash "$SCRIPT_DIR/run-integration-tests.sh"
 
 echo ""
+echo "▶ Cloud Deployment Tests"
+echo "────────────────────────────────────────────────"
+bash "$SCRIPT_DIR/run-cloud-tests.sh"
+
+echo ""
 echo "▶ E2E Web Tests"
 echo "────────────────────────────────────────────────"
 bash "$SCRIPT_DIR/run-e2e-tests.sh"
