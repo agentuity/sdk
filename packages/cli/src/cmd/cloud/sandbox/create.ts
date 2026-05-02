@@ -16,6 +16,7 @@ const InvalidMetadataError = StructuredError(
 const CREATE_WAIT_POLL_MS = 1000;
 const CREATE_WAIT_STATUSES = ['idle', 'running', 'failed', 'terminated', 'deleted'];
 const CREATE_READY_STATUSES = new Set(['idle', 'running']);
+const CREATE_TERMINAL_STATUSES = new Set(['failed', 'terminated', 'deleted']);
 
 const SandboxCreateResponseSchema = z.object({
 	sandboxId: z.string().describe('Unique sandbox identifier'),
@@ -235,8 +236,14 @@ export const createSubcommand = createCommand({
 			const waitMs = opts.waitMs ?? 60000;
 			const deadline = Date.now() + waitMs;
 
-			while (!CREATE_READY_STATUSES.has(result.status)) {
+			while (
+				!CREATE_READY_STATUSES.has(result.status) &&
+				!CREATE_TERMINAL_STATUSES.has(result.status)
+			) {
 				const remainingMs = Math.max(0, deadline - Date.now());
+				if (remainingMs === 0) {
+					break;
+				}
 				const pollWaitMs = Math.min(remainingMs, CREATE_WAIT_POLL_MS);
 				const current = await sandboxGet(client, {
 					sandboxId: result.sandboxId,
@@ -253,10 +260,7 @@ export const createSubcommand = createCommand({
 
 				if (
 					CREATE_READY_STATUSES.has(current.status) ||
-					current.status === 'failed' ||
-					current.status === 'terminated' ||
-					current.status === 'deleted' ||
-					remainingMs <= 0
+					CREATE_TERMINAL_STATUSES.has(current.status)
 				) {
 					break;
 				}
