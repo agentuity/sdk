@@ -28,6 +28,13 @@ const session = await client.createSession({
 });
 console.log(`Created session: ${session.sessionId}`);
 
+// Create a session from a saved workspace
+const workspaceSession = await client.createSession({
+  task: 'Test workspace startup',
+  workspaceId: 'ws_...',
+});
+console.log(`Created workspace session: ${workspaceSession.sessionId}`);
+
 // Get session details
 const details = await client.getSession(session.sessionId);
 console.log(`Task: ${details.task}`);

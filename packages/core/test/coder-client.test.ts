@@ -492,6 +492,43 @@ describe('CoderClient enabled agent roster contract', () => {
 		});
 	});
 
+	test('createSession sends workspaceId in the request body', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session');
+			expect(init?.method).toBe('POST');
+			expect(JSON.parse(String(init?.body))).toMatchObject({
+				task: 'Start from workspace',
+				workspaceId: 'hworkspace_test123',
+			});
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_workspace_create',
+					status: 'creating',
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createSession({
+				task: 'Start from workspace',
+				workspaceId: 'hworkspace_test123',
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_workspace_create',
+			status: 'creating',
+		});
+	});
+
 	test('updateSession sends enabledAgents in the request body', async () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/session/codesess_enabled_update');
