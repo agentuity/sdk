@@ -10,6 +10,7 @@ export const EMPTY_WORKSPACE_ERROR =
 	'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent';
 export const SetupScriptValidationError = StructuredError('SetupScriptValidationError')<{
 	message: string;
+	path?: string;
 }>();
 
 export function parseCommaList(value?: string): string[] {
@@ -32,7 +33,17 @@ export async function readSetupScript(input: {
 	}
 	if (input.setupScript !== undefined) return input.setupScript;
 	if (!input.setupScriptFile) return undefined;
-	return Bun.file(input.setupScriptFile).text();
+	try {
+		return await Bun.file(input.setupScriptFile).text();
+	} catch (error) {
+		throw new SetupScriptValidationError({
+			message: `Failed to read setup script file "${input.setupScriptFile}": ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+			path: input.setupScriptFile,
+			cause: error,
+		});
+	}
 }
 
 export function hasWorkspaceSelections(input: CoderCreateWorkspaceRequest): boolean {

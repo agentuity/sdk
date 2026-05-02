@@ -279,6 +279,31 @@ describe('coder workspace commands', () => {
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});
 
+	test('create handler reports setup script file read failures as validation errors', async () => {
+		const requestedUrls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			requestedUrls.push(String(url));
+			throw new Error('unexpected fetch');
+		}) as typeof globalThis.fetch;
+		const fatal = interceptFatal();
+
+		await expect(
+			createWorkspaceSubcommand.handler(
+				makeContext({
+					opts: {
+						setupScriptFile: join(tmpdir(), `missing-setup-${crypto.randomUUID()}.sh`),
+					},
+				})
+			)
+		).rejects.toThrow('__EXIT__');
+
+		expect(requestedUrls).toEqual([]);
+		expect(fatal.stderr).toContain(
+			'Failed to read setup script: Failed to read setup script file'
+		);
+		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
+	});
+
 	test('update handler fails locally before fetch when no fields are provided', async () => {
 		const requestedUrls: string[] = [];
 		globalThis.fetch = (async (url: string) => {
