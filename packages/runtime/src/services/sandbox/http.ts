@@ -147,7 +147,7 @@ function createStreamReaderFromUrl(streamUrl: string | undefined): StreamReader 
 /**
  * Creates the method implementations shared by all Sandbox instances.
  */
-function createSandboxMethods(client: APIClient, sandboxId: string) {
+function createSandboxMethods(client: APIClient, sandboxId: string, orgId?: string) {
 	return {
 		async execute(options: ExecuteOptions): Promise<Execution> {
 			return withSpan(
@@ -160,6 +160,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					const initial = await sandboxExecute(client, {
 						sandboxId,
 						options,
+						orgId,
 						signal: options.signal,
 					});
 					// Wait for execution to reach a terminal state via long-polling.
@@ -174,6 +175,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 						}
 						final = await executionGet(client, {
 							executionId: initial.executionId,
+							orgId,
 							wait: '60s',
 							signal: options.signal,
 						});
@@ -197,7 +199,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.id': sandboxId,
 					'sandbox.files.count': files.length,
 				},
-				() => sandboxWriteFiles(client, { sandboxId, files })
+				() => sandboxWriteFiles(client, { sandboxId, files, orgId })
 			);
 		},
 
@@ -208,7 +210,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.id': sandboxId,
 					'sandbox.file.path': path,
 				},
-				() => sandboxReadFile(client, { sandboxId, path })
+				() => sandboxReadFile(client, { sandboxId, path, orgId })
 			);
 		},
 
@@ -220,7 +222,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.dir.path': path ?? '',
 				},
 				async () => {
-					const result = await sandboxListFiles(client, { sandboxId, path });
+					const result = await sandboxListFiles(client, { sandboxId, path, orgId });
 					return result.files;
 				}
 			);
@@ -233,7 +235,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.id': sandboxId,
 					'sandbox.dir.path': path,
 				},
-				() => sandboxMkDir(client, { sandboxId, path, recursive })
+				() => sandboxMkDir(client, { sandboxId, path, recursive, orgId })
 			);
 		},
 
@@ -244,7 +246,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.id': sandboxId,
 					'sandbox.file.path': path,
 				},
-				() => sandboxRmFile(client, { sandboxId, path })
+				() => sandboxRmFile(client, { sandboxId, path, orgId })
 			);
 		},
 
@@ -255,32 +257,32 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 					'sandbox.id': sandboxId,
 					'sandbox.dir.path': path,
 				},
-				() => sandboxRmDir(client, { sandboxId, path, recursive })
+				() => sandboxRmDir(client, { sandboxId, path, recursive, orgId })
 			);
 		},
 
 		async setEnv(env: Record<string, string | null>): Promise<Record<string, string>> {
 			return withSpan('agentuity.sandbox.setEnv', { 'sandbox.id': sandboxId }, async () => {
-				const result = await sandboxSetEnv(client, { sandboxId, env });
+				const result = await sandboxSetEnv(client, { sandboxId, env, orgId });
 				return result.env;
 			});
 		},
 
 		async pause(): Promise<SandboxPauseResult> {
 			return withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
-				sandboxPause(client, { sandboxId })
+				sandboxPause(client, { sandboxId, orgId })
 			);
 		},
 
 		async resume(): Promise<void> {
 			await withSpan('agentuity.sandbox.resume', { 'sandbox.id': sandboxId }, () =>
-				sandboxResume(client, { sandboxId })
+				sandboxResume(client, { sandboxId, orgId })
 			);
 		},
 
 		async destroy(): Promise<void> {
 			await withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
-				sandboxDestroy(client, { sandboxId })
+				sandboxDestroy(client, { sandboxId, orgId })
 			);
 		},
 
@@ -288,7 +290,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			return withSpan(
 				'agentuity.sandbox.createJob',
 				{ 'sandbox.id': sandboxId, 'sandbox.command': options.command?.join(' ') ?? '' },
-				() => jobCreate(client, { sandboxId, options })
+				() => jobCreate(client, { sandboxId, options, orgId })
 			);
 		},
 
@@ -296,13 +298,13 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			return withSpan(
 				'agentuity.sandbox.getJob',
 				{ 'sandbox.id': sandboxId, 'job.id': jobId },
-				() => jobGet(client, { sandboxId, jobId })
+				() => jobGet(client, { sandboxId, jobId, orgId })
 			);
 		},
 
 		async listJobs(limit?: number): Promise<JobListResponse> {
 			return withSpan('agentuity.sandbox.listJobs', { 'sandbox.id': sandboxId }, () =>
-				jobList(client, { sandboxId, limit })
+				jobList(client, { sandboxId, limit, orgId })
 			);
 		},
 
@@ -310,7 +312,7 @@ function createSandboxMethods(client: APIClient, sandboxId: string) {
 			return withSpan(
 				'agentuity.sandbox.stopJob',
 				{ 'sandbox.id': sandboxId, 'job.id': jobId },
-				() => jobStop(client, { sandboxId, jobId, force })
+				() => jobStop(client, { sandboxId, jobId, force, orgId })
 			);
 		},
 	};
@@ -323,7 +325,8 @@ function createSandboxInstance(
 	streamBaseUrl: string,
 	stdoutStreamId?: string,
 	stderrStreamId?: string,
-	auditStreamId?: string
+	auditStreamId?: string,
+	orgId?: string
 ): Sandbox {
 	const interleaved = !!(stdoutStreamId && stderrStreamId && stdoutStreamId === stderrStreamId);
 	return {
@@ -333,11 +336,15 @@ function createSandboxInstance(
 		stderr: createStreamReader(stderrStreamId, streamBaseUrl),
 		interleaved,
 		auditStreamId,
-		...createSandboxMethods(client, sandboxId),
+		...createSandboxMethods(client, sandboxId, orgId),
 	};
 }
 
-function createSandboxInstanceFromInfo(client: APIClient, info: SandboxInfo): Sandbox {
+function createSandboxInstanceFromInfo(
+	client: APIClient,
+	info: SandboxInfo,
+	orgId?: string
+): Sandbox {
 	const stdoutReader = createStreamReaderFromUrl(info.stdoutStreamUrl);
 	const stderrReader = createStreamReaderFromUrl(info.stderrStreamUrl);
 	const interleaved = !!(
@@ -355,7 +362,7 @@ function createSandboxInstanceFromInfo(client: APIClient, info: SandboxInfo): Sa
 		stderr: stderrReader,
 		interleaved,
 		auditStreamId: info.auditStreamId,
-		...createSandboxMethods(client, info.sandboxId),
+		...createSandboxMethods(client, info.sandboxId, orgId),
 	};
 }
 
@@ -364,9 +371,11 @@ function createSandboxInstanceFromInfo(client: APIClient, info: SandboxInfo): Sa
  */
 class HTTPSnapshotService implements SnapshotService {
 	private client: APIClient;
+	private orgId?: string;
 
-	constructor(client: APIClient) {
+	constructor(client: APIClient, orgId?: string) {
 		this.client = client;
+		this.orgId = orgId;
 	}
 
 	async create(sandboxId: string, options?: SnapshotCreateOptions): Promise<SnapshotInfo> {
@@ -376,7 +385,7 @@ class HTTPSnapshotService implements SnapshotService {
 				'sandbox.id': sandboxId,
 				'snapshot.name': options?.name ?? '',
 				'snapshot.tag': options?.tag ?? '',
-				'sandbox.orgId': options?.orgId ?? '',
+				'sandbox.orgId': options?.orgId ?? this.orgId ?? '',
 			},
 			() =>
 				snapshotCreate(this.client, {
@@ -385,14 +394,14 @@ class HTTPSnapshotService implements SnapshotService {
 					description: options?.description,
 					tag: options?.tag,
 					public: options?.public,
-					orgId: options?.orgId,
+					orgId: options?.orgId ?? this.orgId,
 				})
 		);
 	}
 
 	async get(snapshotId: string): Promise<SnapshotInfo> {
 		return withSpan('agentuity.sandbox.snapshot.get', { 'snapshot.id': snapshotId }, () =>
-			snapshotGet(this.client, { snapshotId })
+			snapshotGet(this.client, { snapshotId, orgId: this.orgId })
 		);
 	}
 
@@ -408,13 +417,14 @@ class HTTPSnapshotService implements SnapshotService {
 					sandboxId: params?.sandboxId,
 					limit: params?.limit,
 					offset: params?.offset,
+					orgId: this.orgId,
 				})
 		);
 	}
 
 	async delete(snapshotId: string): Promise<void> {
 		return withSpan('agentuity.sandbox.snapshot.delete', { 'snapshot.id': snapshotId }, () =>
-			snapshotDelete(this.client, { snapshotId })
+			snapshotDelete(this.client, { snapshotId, orgId: this.orgId })
 		);
 	}
 
@@ -425,7 +435,7 @@ class HTTPSnapshotService implements SnapshotService {
 				'snapshot.id': snapshotId,
 				'snapshot.tag': tag ?? '',
 			},
-			() => snapshotTag(this.client, { snapshotId, tag })
+			() => snapshotTag(this.client, { snapshotId, tag, orgId: this.orgId })
 		);
 	}
 }
@@ -436,16 +446,18 @@ class HTTPSnapshotService implements SnapshotService {
 export class HTTPSandboxService implements SandboxService {
 	private client: APIClient;
 	private streamBaseUrl: string;
+	private orgId?: string;
 
 	/**
 	 * Snapshot management operations
 	 */
 	public readonly snapshot: SnapshotService;
 
-	constructor(client: APIClient, streamBaseUrl: string) {
+	constructor(client: APIClient, streamBaseUrl: string, orgId?: string) {
 		this.client = client;
 		this.streamBaseUrl = streamBaseUrl;
-		this.snapshot = new HTTPSnapshotService(client);
+		this.orgId = orgId;
+		this.snapshot = new HTTPSnapshotService(client, orgId);
 	}
 
 	async run(options: SandboxRunOptions): Promise<SandboxRunResult> {
@@ -454,8 +466,9 @@ export class HTTPSandboxService implements SandboxService {
 			{
 				'sandbox.command': options.command?.exec?.join(' ') ?? '',
 				'sandbox.mode': 'oneshot',
+				'sandbox.orgId': this.orgId ?? '',
 			},
-			() => sandboxRun(this.client, { options })
+			() => sandboxRun(this.client, { options, orgId: this.orgId })
 		);
 	}
 
@@ -465,9 +478,10 @@ export class HTTPSandboxService implements SandboxService {
 			{
 				'sandbox.network': options?.network?.enabled ?? false,
 				'sandbox.snapshot': options?.snapshot ?? '',
+				'sandbox.orgId': this.orgId ?? '',
 			},
 			async () => {
-				const response = await sandboxCreate(this.client, { options });
+				const response = await sandboxCreate(this.client, { options, orgId: this.orgId });
 				return createSandboxInstance(
 					this.client,
 					response.sandboxId,
@@ -475,7 +489,8 @@ export class HTTPSandboxService implements SandboxService {
 					this.streamBaseUrl,
 					response.stdoutStreamId,
 					response.stderrStreamId,
-					response.auditStreamId
+					response.auditStreamId,
+					this.orgId
 				);
 			}
 		);
@@ -483,7 +498,7 @@ export class HTTPSandboxService implements SandboxService {
 
 	async get(sandboxId: string): Promise<SandboxInfo> {
 		return withSpan('agentuity.sandbox.get', { 'sandbox.id': sandboxId }, () =>
-			sandboxGet(this.client, { sandboxId })
+			sandboxGet(this.client, { sandboxId, orgId: this.orgId })
 		);
 	}
 
@@ -493,33 +508,34 @@ export class HTTPSandboxService implements SandboxService {
 			{
 				'sandbox.status': params?.status ?? '',
 				'sandbox.limit': params?.limit ?? 50,
+				'sandbox.orgId': this.orgId ?? '',
 			},
-			() => sandboxList(this.client, params)
+			() => sandboxList(this.client, { ...params, orgId: this.orgId })
 		);
 	}
 
 	async connect(sandboxId: string): Promise<Sandbox> {
 		return withSpan('agentuity.sandbox.connect', { 'sandbox.id': sandboxId }, async () => {
-			const info = await sandboxGet(this.client, { sandboxId });
-			return createSandboxInstanceFromInfo(this.client, info);
+			const info = await sandboxGet(this.client, { sandboxId, orgId: this.orgId });
+			return createSandboxInstanceFromInfo(this.client, info, this.orgId);
 		});
 	}
 
 	async destroy(sandboxId: string): Promise<void> {
 		return withSpan('agentuity.sandbox.destroy', { 'sandbox.id': sandboxId }, () =>
-			sandboxDestroy(this.client, { sandboxId })
+			sandboxDestroy(this.client, { sandboxId, orgId: this.orgId })
 		);
 	}
 
 	async pause(sandboxId: string): Promise<SandboxPauseResult> {
 		return withSpan('agentuity.sandbox.pause', { 'sandbox.id': sandboxId }, () =>
-			sandboxPause(this.client, { sandboxId })
+			sandboxPause(this.client, { sandboxId, orgId: this.orgId })
 		);
 	}
 
 	async resume(sandboxId: string): Promise<void> {
 		return withSpan('agentuity.sandbox.resume', { 'sandbox.id': sandboxId }, () =>
-			sandboxResume(this.client, { sandboxId })
+			sandboxResume(this.client, { sandboxId, orgId: this.orgId })
 		);
 	}
 }
