@@ -5,6 +5,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { printWorkspaceSummary } from './common';
 
 function formatRelativeTime(isoDate: string): string {
 	const parsed = new Date(isoDate).getTime();
@@ -63,11 +64,7 @@ export const getWorkspaceSubcommand = createSubcommand({
 			tui.header(`Workspace: ${workspace.name}`);
 			tui.newline();
 			tui.output(`  ID:          ${workspace.id}`);
-			tui.output(`  Name:        ${tui.bold(workspace.name)}`);
-			if (workspace.description) {
-				tui.output(`  Description: ${workspace.description}`);
-			}
-			tui.output(`  Scope:       ${workspace.scope}`);
+			printWorkspaceSummary(workspace);
 			tui.output(`  Owner:       ${workspace.ownerUserId}`);
 			tui.output(`  Created:     ${formatRelativeTime(workspace.createdAt)}`);
 			tui.output(`  Updated:     ${formatRelativeTime(workspace.updatedAt)}`);

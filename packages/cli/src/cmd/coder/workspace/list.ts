@@ -83,6 +83,8 @@ export const listSubcommand = createSubcommand({
 				Name: w.name,
 				Scope: w.scope,
 				Repos: String(w.repoCount),
+				Deps: String(w.dependencies?.length ?? 0),
+				Snapshot: w.snapshot?.status ?? '',
 				Selections: String(w.selectionCount),
 				Created: formatRelativeTime(w.createdAt),
 			})),
@@ -91,6 +93,8 @@ export const listSubcommand = createSubcommand({
 				{ name: 'Name', alignment: 'left' },
 				{ name: 'Scope', alignment: 'center' },
 				{ name: 'Repos', alignment: 'right' },
+				{ name: 'Deps', alignment: 'right' },
+				{ name: 'Snapshot', alignment: 'left' },
 				{ name: 'Selections', alignment: 'right' },
 				{ name: 'Created', alignment: 'right' },
 			]

@@ -113,6 +113,33 @@ export const CoderWorkspaceDetailSchema = z
 		ownerUserId: z.string().describe('Owner user ID'),
 		repos: z.array(CoderSessionRepositoryRefSchema).describe('Repositories in workspace'),
 		repoCount: z.number().describe('Number of repositories'),
+		dependencies: z
+			.array(z.string())
+			.optional()
+			.default([])
+			.describe('APT package dependencies installed into workspace snapshots'),
+		setupScript: z
+			.string()
+			.optional()
+			.default('')
+			.describe('Shell script run while preparing workspace snapshots'),
+		snapshot: z
+			.object({
+				status: z.string().describe('Workspace snapshot build status'),
+				snapshotId: z.string().optional().describe('Created sandbox snapshot ID'),
+				snapshotRef: z.string().optional().describe('Snapshot reference used for sessions'),
+				baseSnapshotRef: z.string().optional().describe('Base session snapshot reference'),
+				baseDriverVersion: z.string().optional().describe('Base driver version stamp'),
+				configHash: z.string().optional().describe('Workspace snapshot input hash'),
+				buildId: z.string().optional().describe('Workspace snapshot build identifier'),
+				requestedAt: z.string().optional().describe('Snapshot build request timestamp'),
+				updatedAt: z.string().optional().describe('Snapshot build update timestamp'),
+				createdAt: z.string().optional().describe('Snapshot creation timestamp'),
+				error: z.string().optional().describe('Snapshot build error message'),
+			})
+			.passthrough()
+			.optional()
+			.describe('Workspace snapshot metadata'),
 		savedSkillIds: z.array(z.string()).describe('Saved skill IDs in workspace'),
 		skillBucketIds: z.array(z.string()).describe('Skill bucket IDs in workspace'),
 		enabledAgents: z
@@ -324,12 +351,16 @@ export type CoderWorkspaceListResponse = z.infer<typeof CoderWorkspaceListRespon
 
 function hasWorkspaceSelections(input: {
 	repos?: unknown[];
+	dependencies?: unknown[];
+	setupScript?: string;
 	savedSkillIds?: unknown[];
 	skillBucketIds?: unknown[];
 	enabledAgents?: unknown[];
 }): boolean {
 	return (
 		(input.repos?.length ?? 0) > 0 ||
+		(input.dependencies?.length ?? 0) > 0 ||
+		Boolean(input.setupScript?.trim()) ||
 		(input.savedSkillIds?.length ?? 0) > 0 ||
 		(input.skillBucketIds?.length ?? 0) > 0 ||
 		(input.enabledAgents?.length ?? 0) > 0
@@ -342,6 +373,14 @@ export const CoderCreateWorkspaceRequestSchema = z
 		description: z.string().optional().describe('Workspace description'),
 		scope: z.enum(['user', 'org']).optional().describe('Workspace scope'),
 		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
+		dependencies: z
+			.array(z.string())
+			.optional()
+			.describe('APT package dependencies installed into workspace snapshots'),
+		setupScript: z
+			.string()
+			.optional()
+			.describe('Shell script run while preparing workspace snapshots'),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
 		enabledAgents: z
@@ -350,10 +389,64 @@ export const CoderCreateWorkspaceRequestSchema = z
 			.describe('Effective agent roster to store on the workspace'),
 	})
 	.refine(hasWorkspaceSelections, {
-		message: 'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+		message:
+			'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent',
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
+
+export const CoderUpdateWorkspaceRequestSchema = z
+	.object({
+		name: z.string().optional().describe('Workspace name'),
+		description: z.string().optional().describe('Workspace description'),
+		scope: z.enum(['user', 'org']).optional().describe('Workspace scope'),
+		repos: z.array(CoderSessionRepositoryRefSchema).optional().describe('Repositories'),
+		dependencies: z
+			.array(z.string())
+			.optional()
+			.describe('APT package dependencies installed into workspace snapshots'),
+		setupScript: z
+			.string()
+			.optional()
+			.describe('Shell script run while preparing workspace snapshots'),
+		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
+		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
+		enabledAgents: z
+			.array(z.string())
+			.optional()
+			.describe('Effective agent roster to store on the workspace'),
+	})
+	.refine((input) => Object.keys(input).length > 0, {
+		message: 'At least one workspace field must be provided',
+	})
+	.describe('Request body for updating a workspace');
+export type CoderUpdateWorkspaceRequest = z.infer<typeof CoderUpdateWorkspaceRequestSchema>;
+
+export const CoderWorkspaceDependencyValidationResponseSchema = z
+	.object({
+		valid: z.array(z.string()).describe('Valid dependency package specs'),
+		invalid: z
+			.array(
+				z
+					.object({
+						package: z.string().describe('Invalid dependency package spec'),
+						error: z.string().describe('Validation error'),
+						requestedVersion: z.string().optional().describe('Requested package version'),
+						availableVersions: z
+							.array(z.string())
+							.optional()
+							.describe('Available package versions returned by validation'),
+						searchUrl: z.string().describe('Package search URL'),
+					})
+					.passthrough()
+			)
+			.describe('Invalid dependency package specs'),
+	})
+	.passthrough()
+	.describe('Workspace dependency validation result');
+export type CoderWorkspaceDependencyValidationResponse = z.infer<
+	typeof CoderWorkspaceDependencyValidationResponseSchema
+>;
 
 export const CoderCreateCustomAgentRequestSchema = z
 	.object({
