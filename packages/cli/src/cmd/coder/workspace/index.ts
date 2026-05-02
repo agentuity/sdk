@@ -2,6 +2,9 @@ import { createCommand } from '../../../types';
 import { listSubcommand } from './list';
 import { createWorkspaceSubcommand } from './create';
 import { getWorkspaceSubcommand } from './get';
+import { refreshWorkspaceSnapshotSubcommand } from './refresh';
+import { updateWorkspaceSubcommand } from './update';
+import { validateWorkspaceDependenciesSubcommand } from './validate-dependencies';
 import { deleteWorkspaceSubcommand } from './delete';
 import { getCommand } from '../../../command-prefix';
 
@@ -30,11 +33,18 @@ export const workspaceCommand = createCommand({
 			command: getCommand('coder workspace delete ws_abc123'),
 			description: 'Delete a workspace',
 		},
+		{
+			command: getCommand('coder workspace validate-dependencies git,nodejs'),
+			description: 'Validate workspace dependencies',
+		},
 	],
 	subcommands: [
 		listSubcommand,
 		createWorkspaceSubcommand,
 		getWorkspaceSubcommand,
+		updateWorkspaceSubcommand,
+		refreshWorkspaceSnapshotSubcommand,
+		validateWorkspaceDependenciesSubcommand,
 		deleteWorkspaceSubcommand,
 	],
 });

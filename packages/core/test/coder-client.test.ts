@@ -5,6 +5,7 @@ import { APIError, ValidationInputError } from '../src/services/api.ts';
 import {
 	CoderCreateAgentBuilderSessionRequestSchema,
 	CoderCreateWorkspaceRequestSchema,
+	CoderUpdateWorkspaceRequestSchema,
 } from '../src/services/coder/types.ts';
 
 const ORIGINAL_FETCH = globalThis.fetch;
@@ -403,10 +404,15 @@ describe('CoderClient enabled agent roster contract', () => {
 			name: 'My Workspace',
 			enabledAgents: ['code-review'],
 		};
+		const updateWorkspaceBody: Parameters<CoderClient['updateWorkspace']>[1] = {
+			dependencies: ['git'],
+			setupScript: 'echo ready',
+		};
 
 		expect(createSessionBody.enabledAgents).toEqual(['code-review']);
 		expect(updateSessionBody.enabledAgents).toEqual(['code-review']);
 		expect(createWorkspaceBody.enabledAgents).toEqual(['code-review']);
+		expect(updateWorkspaceBody.dependencies).toEqual(['git']);
 	});
 
 	test('workspace create schema rejects a name-only request', () => {
@@ -420,7 +426,37 @@ describe('CoderClient enabled agent roster contract', () => {
 				expect.arrayContaining([
 					expect.objectContaining({
 						message:
-							'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+							'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent',
+					}),
+				])
+			);
+		}
+	});
+
+	test('workspace create schema accepts dependencies and setup scripts as selections', () => {
+		expect(
+			CoderCreateWorkspaceRequestSchema.safeParse({
+				name: 'Dependency Workspace',
+				dependencies: ['git'],
+			}).success
+		).toBe(true);
+		expect(
+			CoderCreateWorkspaceRequestSchema.safeParse({
+				name: 'Setup Workspace',
+				setupScript: 'echo ready',
+			}).success
+		).toBe(true);
+	});
+
+	test('workspace update schema rejects an empty body', () => {
+		const result = CoderUpdateWorkspaceRequestSchema.safeParse({});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						message: 'At least one workspace field must be provided',
 					}),
 				])
 			);
@@ -451,7 +487,8 @@ describe('CoderClient enabled agent roster contract', () => {
 		expect(error).toMatchObject({
 			issues: expect.arrayContaining([
 				expect.objectContaining({
-					message: 'A workspace needs at least one repo, saved skill, skill bucket, or agent',
+					message:
+						'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent',
 				}),
 			]),
 		});
@@ -594,6 +631,170 @@ describe('CoderClient enabled agent roster contract', () => {
 		).resolves.toMatchObject({
 			id: 'hworkspace_enabled_create',
 			enabledAgents: ['code-review', 'qa-team'],
+		});
+	});
+
+	test('createWorkspace sends dependencies and setupScript in the request body', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces');
+			expect(init?.method).toBe('POST');
+			expect(JSON.parse(String(init?.body))).toMatchObject({
+				name: 'Workspace deps',
+				dependencies: ['git', 'nodejs'],
+				setupScript: 'echo ready',
+			});
+			return new Response(
+				JSON.stringify({
+					workspace: makeWorkspace({
+						id: 'hworkspace_deps_create',
+						dependencies: ['git', 'nodejs'],
+						setupScript: 'echo ready',
+						selectionCount: 2,
+						snapshot: { status: 'building', buildId: 'wsbuild_test' },
+					}),
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createWorkspace({
+				name: 'Workspace deps',
+				dependencies: ['git', 'nodejs'],
+				setupScript: 'echo ready',
+			})
+		).resolves.toMatchObject({
+			id: 'hworkspace_deps_create',
+			dependencies: ['git', 'nodejs'],
+			setupScript: 'echo ready',
+			snapshot: { status: 'building' },
+		});
+	});
+
+	test('updateWorkspace patches dependencies and setupScript', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces/hworkspace_update');
+			expect(init?.method).toBe('PATCH');
+			expect(JSON.parse(String(init?.body))).toMatchObject({
+				dependencies: ['git'],
+				setupScript: 'echo updated',
+			});
+			return new Response(
+				JSON.stringify({
+					workspace: makeWorkspace({
+						id: 'hworkspace_update',
+						dependencies: ['git'],
+						setupScript: 'echo updated',
+						snapshot: { status: 'building' },
+					}),
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.updateWorkspace('hworkspace_update', {
+				dependencies: ['git'],
+				setupScript: 'echo updated',
+			})
+		).resolves.toMatchObject({
+			id: 'hworkspace_update',
+			dependencies: ['git'],
+			setupScript: 'echo updated',
+		});
+	});
+
+	test('refreshWorkspaceSnapshot posts to the refresh endpoint', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe(
+				'https://coder.example/api/hub/workspaces/hworkspace_refresh/snapshot/refresh'
+			);
+			expect(init?.method).toBe('POST');
+			return new Response(
+				JSON.stringify({
+					workspace: makeWorkspace({
+						id: 'hworkspace_refresh',
+						snapshot: { status: 'building', buildId: 'wsbuild_refresh' },
+					}),
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(client.refreshWorkspaceSnapshot('hworkspace_refresh')).resolves.toMatchObject({
+			id: 'hworkspace_refresh',
+			snapshot: { status: 'building' },
+		});
+	});
+
+	test('validateWorkspaceDependencies returns valid and invalid dependency results', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/workspaces/dependencies/validate');
+			expect(init?.method).toBe('POST');
+			expect(JSON.parse(String(init?.body))).toEqual({ dependencies: ['git', 'nope'] });
+			return new Response(
+				JSON.stringify({
+					success: true,
+					data: {
+						valid: ['git'],
+						invalid: [
+							{
+								package: 'nope',
+								error: 'Package "nope" does not exist',
+								searchUrl: 'https://packages.debian.org/search?keywords=nope',
+							},
+						],
+					},
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(client.validateWorkspaceDependencies(['git', 'nope'])).resolves.toEqual({
+			valid: ['git'],
+			invalid: [
+				{
+					package: 'nope',
+					error: 'Package "nope" does not exist',
+					searchUrl: 'https://packages.debian.org/search?keywords=nope',
+				},
+			],
 		});
 	});
 

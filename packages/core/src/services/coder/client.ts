@@ -44,6 +44,9 @@ import {
 	coderDeleteWorkspace,
 	coderGetWorkspace,
 	coderListWorkspaces,
+	coderRefreshWorkspaceSnapshot,
+	coderUpdateWorkspace,
+	coderValidateWorkspaceDependencies,
 } from './workspaces.ts';
 import { coderListGitHubAccounts, coderListGitHubRepos } from './github.ts';
 import { coderGetLoopState, type CoderGetLoopStateParams } from './loop-state.ts';
@@ -78,6 +81,8 @@ import type {
 	CoderCreateSkillBucketRequest,
 	CoderUpdateCustomAgentRequest,
 	CoderCreateWorkspaceRequest,
+	CoderUpdateWorkspaceRequest,
+	CoderWorkspaceDependencyValidationResponse,
 	CoderWorkspaceDetail,
 	CoderWorkspaceListResponse,
 	CoderSaveSkillRequest,
@@ -326,6 +331,35 @@ export class CoderClient {
 	async createWorkspace(body: CoderCreateWorkspaceRequest): Promise<CoderWorkspaceDetail> {
 		const client = await this.#getClient();
 		return coderCreateWorkspace(client, { body });
+	}
+
+	/**
+	 * Updates an existing workspace.
+	 */
+	async updateWorkspace(
+		workspaceId: string,
+		body: CoderUpdateWorkspaceRequest
+	): Promise<CoderWorkspaceDetail> {
+		const client = await this.#getClient();
+		return coderUpdateWorkspace(client, { workspaceId, body });
+	}
+
+	/**
+	 * Queues a snapshot refresh for an existing workspace.
+	 */
+	async refreshWorkspaceSnapshot(workspaceId: string): Promise<CoderWorkspaceDetail> {
+		const client = await this.#getClient();
+		return coderRefreshWorkspaceSnapshot(client, { workspaceId });
+	}
+
+	/**
+	 * Validates APT package dependencies for workspace snapshot preparation.
+	 */
+	async validateWorkspaceDependencies(
+		dependencies: string[]
+	): Promise<CoderWorkspaceDependencyValidationResponse> {
+		const client = await this.#getClient();
+		return coderValidateWorkspaceDependencies(client, { dependencies });
 	}
 
 	/**
