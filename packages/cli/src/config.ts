@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { clearProfileCache } from './cache';
 import { getCatalystUrl } from './catalyst';
 import { readEnvFile, writeEnvFile } from './env-util';
+import { ErrorCode } from './errors';
 import {
 	deleteAuthFromKeychain,
 	getAuthFromKeychain,
@@ -603,6 +604,7 @@ export function generateYAMLTemplate(name: string): string {
 }
 
 export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException')<{
+	code?: ErrorCode;
 	configPath?: string;
 	explicit?: boolean;
 }>();
@@ -771,7 +773,12 @@ export async function updateProjectConfig(
 
 	const file = Bun.file(configPath);
 	if (!(await file.exists())) {
-		throw new Error(`Project config not found at ${configPath}`);
+		throw new ProjectConfigNotFoundException({
+			code: ErrorCode.PROJECT_NOT_FOUND,
+			message: `Project config not found at ${configPath}`,
+			configPath: resolved.configPath,
+			explicit: resolved.explicitConfigFile,
+		});
 	}
 
 	const text = await file.text();

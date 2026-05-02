@@ -8,6 +8,7 @@ import {
 	resolveProjectConfigPaths,
 	updateProjectConfig,
 } from '../../src/config';
+import { ErrorCode } from '../../src/errors';
 import type { Config } from '../../src/types';
 
 let testDir: string;
@@ -119,5 +120,23 @@ describe('project config path resolution', () => {
 
 		expect(defaultConfig.skipGitSetup).toBeUndefined();
 		expect(explicitConfig.skipGitSetup).toBe(true);
+	});
+
+	test('throws structured metadata when updating a missing explicit JSON file', async () => {
+		const missingPath = join(testDir, 'missing.json');
+		let thrown: unknown;
+
+		try {
+			await updateProjectConfig(missingPath, { skipGitSetup: true });
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(thrown).toBeInstanceOf(ProjectConfigNotFoundException);
+		expect(thrown).toMatchObject({
+			code: ErrorCode.PROJECT_NOT_FOUND,
+			configPath: missingPath,
+			explicit: true,
+		});
 	});
 });
