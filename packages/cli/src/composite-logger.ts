@@ -56,7 +56,11 @@ export class CompositeLogger implements Logger {
 			const formatArgs = args.slice(0, -1);
 			const formattedMessage = format(message, ...formatArgs);
 			for (const logger of this.loggers) {
-				logger.error(formattedMessage);
+				try {
+					logger.error(formattedMessage);
+				} catch {
+					// Keep fatal exits reliable even if one delegate cannot write.
+				}
 			}
 			process.exit(getExitCode(maybeErrorCode));
 		}
