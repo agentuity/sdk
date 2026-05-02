@@ -385,7 +385,7 @@ export const buildSubcommand = createCommand({
 				.array(z.string())
 				.optional()
 				.describe('Environment variable substitution (KEY=VALUE)'),
-			name: z.string().optional().describe('Snapshot name (overrides build file)'),
+			name: z.string().optional().describe('Snapshot name (required if build file omits name)'),
 			tag: z.string().optional().describe('Snapshot tag (defaults to "latest")'),
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
 			message: z.string().optional().describe('Build message for this snapshot'),
@@ -560,6 +560,9 @@ export const buildSubcommand = createCommand({
 
 		// Name and Description: CLI options override build file
 		const finalName = opts.name ?? buildConfig.name;
+		if (!finalName) {
+			logger.fatal('Snapshot name is required. Add --name or set name in the build file.');
+		}
 		const finalDescription = opts.description ?? buildConfig.description;
 
 		try {

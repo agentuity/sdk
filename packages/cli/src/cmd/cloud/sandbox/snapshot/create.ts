@@ -27,11 +27,13 @@ export const createSubcommand = createCommand({
 	requires: { auth: true, org: true },
 	examples: [
 		{
-			command: getCommand('cloud sandbox snapshot create sbx_abc123'),
+			command: getCommand('cloud sandbox snapshot create sbx_abc123 --name my-snapshot'),
 			description: 'Create a snapshot from a sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox snapshot create sbx_abc123 --tag latest'),
+			command: getCommand(
+				'cloud sandbox snapshot create sbx_abc123 --name my-snapshot --tag latest'
+			),
 			description: 'Create a tagged snapshot',
 		},
 		{
@@ -41,7 +43,9 @@ export const createSubcommand = createCommand({
 			description: 'Create a named snapshot with description',
 		},
 		{
-			command: getCommand('cloud sandbox snapshot create sbx_abc123 --public'),
+			command: getCommand(
+				'cloud sandbox snapshot create sbx_abc123 --name my-snapshot --public'
+			),
 			description: 'Create a public snapshot',
 		},
 	],
@@ -52,7 +56,6 @@ export const createSubcommand = createCommand({
 		options: z.object({
 			name: z
 				.string()
-				.optional()
 				.describe('Display name for the snapshot (letters, numbers, underscores, dashes only)'),
 			description: z.string().optional().describe('Description of the snapshot'),
 			tag: z.string().optional().describe('Tag for the snapshot (defaults to "latest")'),
@@ -68,7 +71,7 @@ export const createSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, logger, orgId, config } = ctx;
 
-		if (opts.name && !SNAPSHOT_NAME_REGEX.test(opts.name)) {
+		if (!SNAPSHOT_NAME_REGEX.test(opts.name)) {
 			logger.fatal(
 				'Invalid snapshot name: must only contain letters, numbers, underscores, and dashes'
 			);

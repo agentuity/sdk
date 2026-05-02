@@ -19,9 +19,8 @@ version: 1
 # Run 'agentuity cloud sandbox runtime list' to see available runtimes
 runtime: bun:1
 
-# Optional: Snapshot name (alphanumeric, underscores, dashes only)
-# If not provided, a unique name will be auto-generated
-# name: my-snapshot
+# Required unless provided with --name: Snapshot name (alphanumeric, underscores, dashes only)
+name: my-snapshot
 
 # Optional: Human-readable description
 # Can be overridden with --description flag
