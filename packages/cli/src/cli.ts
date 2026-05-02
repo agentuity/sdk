@@ -1,5 +1,3 @@
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
 import { Command } from 'commander';
 import type {
 	CommandDefinition,
@@ -28,7 +26,13 @@ import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
 import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser';
-import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config';
+import {
+	defaultProfileName,
+	loadProjectConfig,
+	resolveProjectConfigPaths,
+	saveProjectId,
+	saveRegion,
+} from './config';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 import { ErrorCode, ExitCode, createError, exitWithError, formatErrorJSON } from './errors';
 import { getCommand } from './command-prefix';
@@ -1464,11 +1468,7 @@ async function registerSubcommand(
 			} else {
 				// Priority 2: Try to load from agentuity.json in directory
 				const dir = (options.dir as string | undefined) ?? process.cwd();
-				projectDir = dir;
-				if (projectDir.startsWith('~/')) {
-					projectDir = projectDir.replace('~/', homedir());
-				}
-				projectDir = resolve(projectDir);
+				projectDir = (await resolveProjectConfigPaths(dir, baseCtx.config)).projectDir;
 				try {
 					project = await loadProjectConfig(dir, baseCtx.config);
 				} catch (error) {
@@ -1479,6 +1479,21 @@ async function registerSubcommand(
 						error.name === 'ProjectConfigNotFoundException';
 
 					if (isConfigNotFound) {
+						if ('explicit' in error && error.explicit === true) {
+							const configPath =
+								'configPath' in error && typeof error.configPath === 'string'
+									? error.configPath
+									: dir;
+							exitWithError(
+								createError(
+									ErrorCode.PROJECT_NOT_FOUND,
+									`Project config not found: ${configPath}`
+								),
+								baseCtx.logger,
+								baseCtx.options.errorFormat
+							);
+						}
+
 						// Priority 3: Try global preference (only when no agentuity.json found)
 						const projectIdFromPreference = baseCtx.config?.preferences?.projectId as
 							| string
