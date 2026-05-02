@@ -110,7 +110,7 @@ export const createWorkspaceSubcommand = createSubcommand({
 				setupScript: opts?.setupScript,
 				setupScriptFile: opts?.setupScriptFile,
 			});
-			if (setupScript) body.setupScript = setupScript;
+			if (setupScript !== undefined) body.setupScript = setupScript;
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to read setup script: ${msg}`, ErrorCode.VALIDATION_FAILED);

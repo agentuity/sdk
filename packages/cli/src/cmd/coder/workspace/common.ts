@@ -3,10 +3,14 @@ import {
 	type CoderUpdateWorkspaceRequest,
 	type CoderWorkspaceDetail,
 } from '@agentuity/core/coder';
+import { StructuredError } from '@agentuity/core';
 import * as tui from '../../../tui';
 
 export const EMPTY_WORKSPACE_ERROR =
 	'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent';
+export const SetupScriptValidationError = StructuredError('SetupScriptValidationError')<{
+	message: string;
+}>();
 
 export function parseCommaList(value?: string): string[] {
 	return value
@@ -21,10 +25,12 @@ export async function readSetupScript(input: {
 	setupScript?: string;
 	setupScriptFile?: string;
 }): Promise<string | undefined> {
-	if (input.setupScript && input.setupScriptFile) {
-		throw new Error('Use either --setup-script or --setup-script-file, not both.');
+	if (input.setupScript !== undefined && input.setupScriptFile) {
+		throw new SetupScriptValidationError({
+			message: 'Use either --setup-script or --setup-script-file, not both.',
+		});
 	}
-	if (input.setupScript) return input.setupScript;
+	if (input.setupScript !== undefined) return input.setupScript;
 	if (!input.setupScriptFile) return undefined;
 	return Bun.file(input.setupScriptFile).text();
 }

@@ -189,6 +189,36 @@ describe('coder workspace commands', () => {
 		});
 	});
 
+	test('create handler preserves explicit empty inline setup script values', async () => {
+		let requestBody: unknown;
+		globalThis.fetch = (async (url: string, init?: RequestInit) => {
+			expect(String(url)).toBe('https://coder.example/api/hub/workspaces');
+			expect(init?.method).toBe('POST');
+			requestBody = JSON.parse(String(init?.body));
+			return jsonResponse({
+				workspace: makeWorkspace({
+					dependencies: ['git'],
+					setupScript: '',
+					selectionCount: 1,
+				}),
+			});
+		}) as typeof globalThis.fetch;
+
+		const result = await createWorkspaceSubcommand.handler(
+			makeContext({ opts: { dependency: 'git', setupScript: '' }, json: true })
+		);
+
+		expect(requestBody).toMatchObject({
+			name: 'My Workspace',
+			dependencies: ['git'],
+			setupScript: '',
+		});
+		expect(result).toMatchObject({
+			dependencies: ['git'],
+			setupScript: '',
+		});
+	});
+
 	test('create handler reads setup script from file', async () => {
 		const dir = mkdtempSync(join(tmpdir(), 'agentuity-workspace-test-'));
 		const setupScriptFile = join(dir, 'setup.sh');
