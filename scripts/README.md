@@ -10,12 +10,8 @@ Run the full CI test suite locally:
 # Run all CI tests (integration + e2e, optimized - builds once)
 bun run test:ci
 
-# Run all tests including cloud (needs credentials)
-bun run test:ci:all
-
 # Or run individual test suites (each builds+packs separately)
 bun run test:ci:integration  # Integration suite only
-bun run test:ci:cloud        # Cloud deployment only
 bun run test:ci:e2e          # E2E web tests only
 ```
 
@@ -27,7 +23,6 @@ bun run test:ci:prepare
 
 # 2. Run tests (reuses prepared SDK)
 bash scripts/run-integration-tests.sh
-bash scripts/run-cloud-tests.sh
 bash scripts/run-e2e-tests.sh
 ```
 
@@ -109,16 +104,6 @@ bash scripts/run-integration-tests.sh
 - Installs in integration-suite
 - Runs tests
 
-**`run-cloud-tests.sh`** - Run cloud tests only
-
-```bash
-bash scripts/run-cloud-tests.sh
-```
-
-- Validates tarballs exist
-- Installs in cloud-deployment
-- Runs tests
-
 **`run-e2e-tests.sh`** - Run E2E tests only
 
 ```bash
@@ -146,18 +131,6 @@ bash scripts/test-integration-suite.sh
 2. Pack as tarballs
 3. Install in integration-suite
 4. Run integration tests
-
-**`test-cloud-deployment.sh`** - Cloud deployment full CI flow
-
-```bash
-bash scripts/test-cloud-deployment.sh
-# Or: bun run test:ci:cloud
-```
-
-1. Build SDK packages
-2. Pack as tarballs
-3. Install in cloud-deployment
-4. Run cloud deployment tests
 
 **`test-e2e.sh`** - E2E web tests full CI flow
 
@@ -199,7 +172,6 @@ bun run test:ci
 
 # Or run individual test suites
 bun run test:ci:integration  # Integration suite
-bun run test:ci:cloud        # Cloud deployment
 bun run test:ci:e2e          # E2E web tests
 ```
 

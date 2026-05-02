@@ -2,7 +2,7 @@
 
 ## Problem
 
-When running SDK test applications locally (integration-suite, cloud-deployment), they weren't respecting:
+When running the SDK integration-suite locally, it wasn't respecting:
 
 - Profile-specific `.env` files (`.env.local`, `.env.production`)
 - Profile-specific config files (`agentuity.local.json`, `agentuity.production.json`)
@@ -116,7 +116,6 @@ For config files:
 This utility is used by:
 
 - `sdk/apps/testing/integration-suite/app.ts`
-- `sdk/apps/testing/cloud-deployment/app.ts`
 
 It reuses existing infrastructure from the CLI:
 
