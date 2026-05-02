@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
-import { chmod, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { basename, extname, join, normalize, resolve } from 'node:path';
+import { basename, dirname, extname, join, normalize, resolve } from 'node:path';
 import { type Logger, StructuredError } from '@agentuity/core';
 import {
 	type BuildMetadata,
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { clearProfileCache } from './cache';
 import { getCatalystUrl } from './catalyst';
 import { readEnvFile, writeEnvFile } from './env-util';
+import { ErrorCode } from './errors';
 import {
 	deleteAuthFromKeychain,
 	getAuthFromKeychain,
@@ -151,10 +152,12 @@ function expandTilde(path: string): string {
 let cachedConfig: Config | null | undefined;
 // Track the resolved config path so saveConfig writes back to the same file
 let cachedConfigPath: string | undefined;
+const loadedProjectConfigPaths = new Map<string, string>();
 
 export function resetConfigCache(): void {
 	cachedConfig = undefined;
 	cachedConfigPath = undefined;
+	loadedProjectConfigPaths.clear();
 }
 
 export async function loadConfig(
@@ -600,23 +603,62 @@ export function generateYAMLTemplate(name: string): string {
 	return lines.join('\n');
 }
 
-export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException');
+export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException')<{
+	code?: ErrorCode;
+	configPath?: string;
+	explicit?: boolean;
+}>();
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
+
+export type ResolvedProjectConfigPaths = {
+	projectDir: string;
+	configPath: string;
+	explicitConfigFile: boolean;
+};
+
+export async function resolveProjectConfigPaths(
+	path: string,
+	config?: Config | null
+): Promise<ResolvedProjectConfigPaths> {
+	const resolvedPath = resolve(expandTilde(path));
+	const pathStats = await stat(resolvedPath).catch(() => null);
+	const isExplicitJsonFile =
+		(pathStats?.isFile() || pathStats === null) && extname(resolvedPath) === '.json';
+
+	if (isExplicitJsonFile) {
+		return {
+			projectDir: dirname(resolvedPath),
+			configPath: resolvedPath,
+			explicitConfigFile: true,
+		};
+	}
+
+	const projectDir = resolvedPath;
+	let configPath = join(projectDir, 'agentuity.json');
+
+	if (config?.name) {
+		const profileConfigPath = join(projectDir, `agentuity.${config.name}.json`);
+		if (await Bun.file(profileConfigPath).exists()) {
+			configPath = profileConfigPath;
+		}
+	}
+
+	return {
+		projectDir,
+		configPath,
+		explicitConfigFile: false,
+	};
+}
 
 export async function loadProjectConfig(
 	dir: string,
 	config?: Config | null
 ): Promise<ProjectConfig> {
-	let configPath = join(dir, 'agentuity.json');
-
-	// Check for profile-specific override if config is provided
-	if (config?.name) {
-		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
-		if (await Bun.file(profileConfigPath).exists()) {
-			configPath = profileConfigPath;
-		}
-	}
+	const { projectDir, configPath, explicitConfigFile } = await resolveProjectConfigPaths(
+		dir,
+		config
+	);
 
 	const file = Bun.file(configPath);
 	if (!(await file.exists())) {
@@ -624,7 +666,13 @@ export async function loadProjectConfig(
 		// and then if so:
 		// 1. if authentication, offer to import the project
 		// 2. tell them that they need to login to use the command and import the project
-		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
+		throw new ProjectConfigNotFoundException({
+			message: explicitConfigFile
+				? `Project config not found at ${configPath}`
+				: 'project config not found',
+			configPath,
+			explicit: explicitConfigFile,
+		});
 	}
 	const text = await file.text();
 	const parsedConfig = parseJSONC(text);
@@ -637,6 +685,7 @@ export async function loadProjectConfig(
 		}
 		process.exit(1);
 	}
+	loadedProjectConfigPaths.set(projectDir, configPath);
 	return result.data;
 }
 
@@ -717,18 +766,19 @@ export async function updateProjectConfig(
 	updates: Partial<z.infer<typeof ProjectSchema>>,
 	config?: Config | null
 ): Promise<void> {
-	let configPath = join(dir, 'agentuity.json');
-
-	if (config?.name) {
-		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
-		if (await Bun.file(profileConfigPath).exists()) {
-			configPath = profileConfigPath;
-		}
-	}
+	const resolved = await resolveProjectConfigPaths(dir, config);
+	const configPath = resolved.explicitConfigFile
+		? resolved.configPath
+		: (loadedProjectConfigPaths.get(resolved.projectDir) ?? resolved.configPath);
 
 	const file = Bun.file(configPath);
 	if (!(await file.exists())) {
-		throw new Error(`Project config not found at ${configPath}`);
+		throw new ProjectConfigNotFoundException({
+			code: ErrorCode.PROJECT_NOT_FOUND,
+			message: `Project config not found at ${configPath}`,
+			configPath: resolved.configPath,
+			explicit: resolved.explicitConfigFile,
+		});
 	}
 
 	const text = await file.text();

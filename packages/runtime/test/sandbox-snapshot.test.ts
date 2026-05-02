@@ -15,9 +15,9 @@ describe('HTTPSandboxService.snapshot', () => {
 		process.env = { ...originalEnv };
 	});
 
-	function createService(): HTTPSandboxService {
+	function createService(orgId?: string): HTTPSandboxService {
 		const client = new APIClient('https://api.example.com', createMockLogger(), 'test-api-key');
-		return new HTTPSandboxService(client, 'https://stream.example.com');
+		return new HTTPSandboxService(client, 'https://stream.example.com', orgId);
 	}
 
 	describe('snapshot.create', () => {
@@ -95,6 +95,66 @@ describe('HTTPSandboxService.snapshot', () => {
 			expect(snapshot.tag).toBe('v1.0');
 			expect(snapshot.public).toBe(true);
 		});
+
+		test('should forward orgId when creating a snapshot', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/snapshot')) {
+					expect(url).toContain('/sandbox/sbx_abc123/snapshot?orgId=org_123');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								snapshotId: 'snp_789',
+								name: 'org-snapshot',
+								tag: 'latest',
+								sizeBytes: 4096,
+								fileCount: 30,
+								createdAt: '2025-01-26T12:00:00Z',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const service = createService();
+			const snapshot = await service.snapshot.create('sbx_abc123', {
+				orgId: 'org_123',
+			});
+
+			expect(snapshot.snapshotId).toBe('snp_789');
+		});
+
+		test('should forward service orgId when creating a snapshot', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/snapshot')) {
+					expect(url).toContain('/sandbox/sbx_abc123/snapshot?orgId=org_service');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								snapshotId: 'snp_890',
+								name: 'service-org-snapshot',
+								tag: 'latest',
+								sizeBytes: 4096,
+								fileCount: 30,
+								createdAt: '2025-01-26T12:00:00Z',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const service = createService('org_service');
+			const snapshot = await service.snapshot.create('sbx_abc123');
+
+			expect(snapshot.snapshotId).toBe('snp_890');
+		});
 	});
 
 	describe('snapshot.get', () => {
@@ -135,6 +195,35 @@ describe('HTTPSandboxService.snapshot', () => {
 			expect(snapshot.name).toBe('test-snapshot');
 			expect(snapshot.files).toHaveLength(1);
 			expect(snapshot.files?.[0].path).toBe('index.ts');
+		});
+
+		test('should forward service orgId when getting snapshot details', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'GET' && url.includes('/snapshots/snp_123')) {
+					expect(url).toContain('/sandbox/snapshots/snp_123?orgId=org_service');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								snapshotId: 'snp_123',
+								name: 'test-snapshot',
+								tag: 'latest',
+								sizeBytes: 1024,
+								fileCount: 10,
+								createdAt: '2025-01-26T12:00:00Z',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const service = createService('org_service');
+			const snapshot = await service.snapshot.get('snp_123');
+
+			expect(snapshot.snapshotId).toBe('snp_123');
 		});
 	});
 
@@ -346,6 +435,75 @@ describe('HTTPSandboxService.snapshot', () => {
 			expect(typeof service.snapshot.list).toBe('function');
 			expect(typeof service.snapshot.delete).toBe('function');
 			expect(typeof service.snapshot.tag).toBe('function');
+		});
+	});
+
+	describe('sandbox orgId forwarding', () => {
+		test('should forward service orgId when getting a sandbox', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'GET' && url.includes('/sandbox/sbx_abc123')) {
+					expect(url).toContain('/sandbox/sbx_abc123?orgId=org_service');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sbx_abc123',
+								status: 'idle',
+								createdAt: '2025-01-26T12:00:00Z',
+								executions: 0,
+								org: { id: 'org_service', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const service = createService('org_service');
+			const sandbox = await service.get('sbx_abc123');
+
+			expect(sandbox.sandboxId).toBe('sbx_abc123');
+		});
+
+		test('should forward service orgId from created sandbox instance methods', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox')) {
+					expect(url).toContain('/sandbox?orgId=org_service');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sbx_abc123',
+								status: 'idle',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'POST' && url.includes('/fs/sbx_abc123')) {
+					expect(url).toContain('/fs/sbx_abc123?orgId=org_service');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: { filesWritten: 1 },
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const service = createService('org_service');
+			const sandbox = await service.create();
+			await sandbox.writeFiles([{ path: 'index.ts', content: Buffer.from('console.log(1);') }]);
+
+			expect(sandbox.id).toBe('sbx_abc123');
 		});
 	});
 });
