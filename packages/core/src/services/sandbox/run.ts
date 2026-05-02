@@ -14,6 +14,7 @@ import { getServiceUrls } from '../config.ts';
 
 const timingLogsEnabled = false;
 const EXECUTION_WAIT_DURATION = '5m';
+const EXIT_CODE_FAST_WAIT_DURATION = '250ms';
 const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'timeout', 'cancelled']);
 
 /**
@@ -244,7 +245,42 @@ export async function sandboxRun(
 		// drain + lifecycle propagation delay.
 		let exitCode = finalExecution?.exitCode ?? 0;
 		const statusPollStart = Date.now();
+		let shouldWaitForSandboxStatus = finalExecution?.exitCode == null;
 		if (finalExecution?.exitCode == null) {
+			if (createResponse.executionId && finalExecution?.status === 'completed') {
+				try {
+					const execution = await executionGet(client, {
+						executionId: createResponse.executionId,
+						orgId,
+						wait: EXIT_CODE_FAST_WAIT_DURATION,
+						signal,
+					});
+					if (execution.exitCode != null) {
+						exitCode = execution.exitCode;
+						finalExecution.exitCode = execution.exitCode;
+						shouldWaitForSandboxStatus = false;
+						logger?.debug(
+							'[run] exit code %d found from fast execution retry (+%dms)',
+							exitCode,
+							Date.now() - statusPollStart
+						);
+					}
+				} catch (err) {
+					if (!(err instanceof DOMException && err.name === 'AbortError')) {
+						logger?.debug(
+							'[run] fast execution exit code retry failed (+%dms): %s',
+							Date.now() - statusPollStart,
+							err
+						);
+					}
+				}
+			} else if (finalExecution && finalExecution.status !== 'completed') {
+				exitCode = 1;
+				shouldWaitForSandboxStatus = false;
+				logger?.debug('[run] using exit code 1 for terminal status=%s', finalExecution.status);
+			}
+		}
+		if (shouldWaitForSandboxStatus) {
 			try {
 				const sandboxStatus = await sandboxGetStatus(client, {
 					sandboxId,
