@@ -7,6 +7,12 @@
  */
 
 import type { Logger } from '@agentuity/core';
+import { format } from 'node:util';
+import { ErrorCode, getExitCode } from './errors';
+
+function isErrorCode(value: unknown): value is ErrorCode {
+	return typeof value === 'string' && Object.values(ErrorCode).includes(value as ErrorCode);
+}
 
 /**
  * A logger that delegates to multiple child loggers
@@ -45,6 +51,16 @@ export class CompositeLogger implements Logger {
 	}
 
 	fatal(message: unknown, ...args: unknown[]): never {
+		const maybeErrorCode = args[args.length - 1];
+		if (isErrorCode(maybeErrorCode)) {
+			const formatArgs = args.slice(0, -1);
+			const formattedMessage = format(message, ...formatArgs);
+			for (const logger of this.loggers) {
+				logger.error(formattedMessage);
+			}
+			process.exit(getExitCode(maybeErrorCode));
+		}
+
 		// Call fatal on all loggers, but only the first one will exit
 		for (const logger of this.loggers) {
 			try {
