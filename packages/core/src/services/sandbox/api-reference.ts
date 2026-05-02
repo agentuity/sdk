@@ -613,7 +613,7 @@ const service: Service = {
 			],
 			requestBody: {
 				description: 'Snapshot creation payload.',
-				fields: { schema: SnapshotCreateOptionsSchema },
+				fields: { schema: SnapshotCreateOptionsSchema.omit({ orgId: true }) },
 			},
 			responseDescription: 'Returns the created snapshot.',
 			statuses: [

@@ -376,6 +376,7 @@ class HTTPSnapshotService implements SnapshotService {
 				'sandbox.id': sandboxId,
 				'snapshot.name': options?.name ?? '',
 				'snapshot.tag': options?.tag ?? '',
+				'sandbox.orgId': options?.orgId ?? '',
 			},
 			() =>
 				snapshotCreate(this.client, {
@@ -384,6 +385,7 @@ class HTTPSnapshotService implements SnapshotService {
 					description: options?.description,
 					tag: options?.tag,
 					public: options?.public,
+					orgId: options?.orgId,
 				})
 		);
 	}

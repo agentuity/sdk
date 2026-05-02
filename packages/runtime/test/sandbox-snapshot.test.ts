@@ -95,6 +95,37 @@ describe('HTTPSandboxService.snapshot', () => {
 			expect(snapshot.tag).toBe('v1.0');
 			expect(snapshot.public).toBe(true);
 		});
+
+		test('should forward orgId when creating a snapshot', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/snapshot')) {
+					expect(url).toContain('/sandbox/sbx_abc123/snapshot?orgId=org_123');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								snapshotId: 'snp_789',
+								name: 'org-snapshot',
+								tag: 'latest',
+								sizeBytes: 4096,
+								fileCount: 30,
+								createdAt: '2025-01-26T12:00:00Z',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const service = createService();
+			const snapshot = await service.snapshot.create('sbx_abc123', {
+				orgId: 'org_123',
+			});
+
+			expect(snapshot.snapshotId).toBe('snp_789');
+		});
 	});
 
 	describe('snapshot.get', () => {
