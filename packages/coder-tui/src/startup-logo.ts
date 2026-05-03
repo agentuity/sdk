@@ -252,19 +252,4 @@ export function setupStartupLogo(pi: ExtensionAPI): void {
 	pi.on('session_start', async (_event, ctx) => {
 		installStartupLogo(ctx);
 	});
-
-	pi.registerCommand('startup-logo', {
-		description: 'Replay the Agentuity Coder startup logo animation, or reset the header.',
-		handler: async (args, ctx) => {
-			if (!ctx.hasUI) return;
-
-			if (args.trim().toLowerCase() === 'reset') {
-				ctx.ui.setHeader(undefined);
-				ctx.ui.notify('Built-in header restored', 'info');
-				return;
-			}
-
-			installStartupLogo(ctx);
-		},
-	});
 }
