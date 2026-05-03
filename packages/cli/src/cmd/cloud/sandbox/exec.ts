@@ -101,6 +101,7 @@ export const execSubcommand = createCommand({
 		// Detect if stdout/stderr are redirected to /dev/null
 		const stdoutIsNull = detectNullStream(1);
 		const stderrIsNull = detectNullStream(2);
+		const quiet = opts.quiet || options.quiet;
 
 		// Build stream configuration
 		const streamConfig: {
@@ -112,7 +113,7 @@ export const execSubcommand = createCommand({
 		};
 
 		// --quiet: suppress all output streams (no server streams, no local capture)
-		if (opts.quiet) {
+		if (quiet) {
 			streamConfig.stdout = 'ignore';
 			streamConfig.stderr = 'ignore';
 		} else if (!options.json) {
@@ -177,14 +178,14 @@ export const execSubcommand = createCommand({
 			const stderrChunks: string[] = [];
 
 			const stdoutWritable: NodeJS.WritableStream =
-				options.json || stdoutIsNull
+				options.json || quiet || stdoutIsNull
 					? createCaptureStream((chunk) => {
 							stdoutChunks.push(chunk);
 							outputChunks.push(chunk);
 						})
 					: process.stdout;
 			const stderrWritable: NodeJS.WritableStream =
-				options.json || stderrIsNull
+				options.json || quiet || stderrIsNull
 					? createCaptureStream((chunk) => {
 							stderrChunks.push(chunk);
 							outputChunks.push(chunk);
