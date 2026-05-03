@@ -287,6 +287,7 @@ export async function sandboxRun(
 				});
 				if (sandboxStatus.exitCode != null) {
 					exitCode = sandboxStatus.exitCode;
+					sandboxStatusReconciled = true;
 					logger?.debug(
 						'[run] exit code %d found after server-side wait (+%dms)',
 						exitCode,
@@ -294,11 +295,13 @@ export async function sandboxRun(
 					);
 				} else if (sandboxStatus.status === 'failed') {
 					exitCode = 1;
+					sandboxStatusReconciled = true;
 					logger?.debug(
 						'[run] sandbox failed after server-side wait (+%dms)',
 						Date.now() - statusPollStart
 					);
 				} else if (sandboxStatus.status === 'terminated') {
+					sandboxStatusReconciled = true;
 					logger?.debug(
 						'[run] sandbox terminated without exit code after server-side wait (+%dms)',
 						Date.now() - statusPollStart
@@ -310,7 +313,6 @@ export async function sandboxRun(
 						Date.now() - statusPollStart
 					);
 				}
-				sandboxStatusReconciled = true;
 			} catch (err) {
 				if (!(err instanceof DOMException && err.name === 'AbortError')) {
 					logger?.debug(
