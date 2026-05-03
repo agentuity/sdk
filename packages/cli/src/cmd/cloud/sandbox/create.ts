@@ -229,9 +229,6 @@ export const createSubcommand = createCommand({
 			orgId,
 		});
 
-		// Cache routing context for future sandbox commands.
-		await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
-
 		if (opts.wait) {
 			const waitMs = opts.waitMs ?? 60000;
 			const deadline = Date.now() + waitMs;
@@ -265,6 +262,14 @@ export const createSubcommand = createCommand({
 					break;
 				}
 			}
+		}
+
+		if (
+			CREATE_READY_STATUSES.has(result.status) &&
+			!CREATE_TERMINAL_STATUSES.has(result.status)
+		) {
+			// Cache routing context for future sandbox commands.
+			await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
 		}
 
 		if (!options.json) {

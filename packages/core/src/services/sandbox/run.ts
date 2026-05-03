@@ -246,6 +246,7 @@ export async function sandboxRun(
 		let exitCode = finalExecution?.exitCode ?? 0;
 		const statusPollStart = Date.now();
 		let shouldWaitForSandboxStatus = finalExecution?.exitCode == null;
+		let sandboxStatusReconciled = false;
 		if (finalExecution?.exitCode == null) {
 			if (createResponse.executionId && finalExecution?.status === 'completed') {
 				try {
@@ -274,10 +275,6 @@ export async function sandboxRun(
 						);
 					}
 				}
-			} else if (finalExecution && finalExecution.status !== 'completed') {
-				exitCode = 1;
-				shouldWaitForSandboxStatus = false;
-				logger?.debug('[run] using exit code 1 for terminal status=%s', finalExecution.status);
 			}
 		}
 		if (shouldWaitForSandboxStatus) {
@@ -313,6 +310,7 @@ export async function sandboxRun(
 						Date.now() - statusPollStart
 					);
 				}
+				sandboxStatusReconciled = true;
 			} catch (err) {
 				if (!(err instanceof DOMException && err.name === 'AbortError')) {
 					logger?.debug(
@@ -322,6 +320,18 @@ export async function sandboxRun(
 					);
 				}
 			}
+		}
+		if (
+			finalExecution &&
+			finalExecution?.exitCode == null &&
+			finalExecution?.status !== 'completed' &&
+			!sandboxStatusReconciled
+		) {
+			exitCode = 1;
+			logger?.debug(
+				'[run] using fallback exit code 1 for terminal status=%s after sandbox status reconciliation failed',
+				finalExecution?.status
+			);
 		}
 		if (exitCode === 0) {
 			if (finalExecution?.exitCode != null) {
