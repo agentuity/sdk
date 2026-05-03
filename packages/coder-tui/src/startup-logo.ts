@@ -42,6 +42,7 @@ const PULSE_FRAMES = 40;
 const FRAME_INTERVAL_MS = 35;
 const CHARS = '░▒▓█#@%&*+=-:.';
 const TITLE = 'Agentuity Coder';
+const SANDBOX_ID_ENV = 'AGENTUITY_SANDBOX_ID';
 
 const LOGO_ROWS = LOGO.length;
 const LOGO_COLS = LOGO[0]?.length ?? 0;
@@ -245,6 +246,8 @@ function installStartupLogo(ctx: ExtensionContext): void {
 }
 
 export function setupStartupLogo(pi: ExtensionAPI): void {
+	if (process.env[SANDBOX_ID_ENV]) return;
+
 	pi.on('session_start', async (_event, ctx) => {
 		installStartupLogo(ctx);
 	});
