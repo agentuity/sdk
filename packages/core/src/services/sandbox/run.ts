@@ -208,8 +208,9 @@ export async function sandboxRun(
 				createResponse.executionId,
 				streamPromises.length
 			);
-			const executionPromise = waitForExecutionCompletion(
+			const completionPromise = waitForRunCompletion(
 				client,
+				sandboxId,
 				createResponse.executionId,
 				orgId,
 				signal,
@@ -218,8 +219,8 @@ export async function sandboxRun(
 			);
 
 			finalExecution = signal
-				? await raceWithAbort(executionPromise, signal, abortController, sandboxId)
-				: await executionPromise;
+				? await raceWithAbort(completionPromise, signal, abortController, sandboxId)
+				: await completionPromise;
 			await waitForStreamsToDrain(streamPromises, signal, abortController, sandboxId);
 		} else {
 			logger?.debug(
@@ -375,6 +376,60 @@ export async function sandboxRun(
 	}
 }
 
+async function waitForRunCompletion(
+	client: APIClient,
+	sandboxId: string,
+	executionId: string,
+	orgId: string | undefined,
+	signal: AbortSignal | undefined,
+	logger: Logger | undefined,
+	started: number
+): Promise<{ exitCode?: number; status: string }> {
+	const completionAbortController = new AbortController();
+	let onAbort: (() => void) | undefined;
+	if (signal) {
+		onAbort = () => completionAbortController.abort(signal.reason);
+		if (signal.aborted) {
+			onAbort();
+		} else {
+			signal.addEventListener('abort', onAbort, { once: true });
+		}
+	}
+
+	try {
+		const completionSignal = completionAbortController.signal;
+		const executionPromise = waitForExecutionCompletion(
+			client,
+			executionId,
+			orgId,
+			completionSignal,
+			logger,
+			started
+		);
+		const statusPromise = waitForSandboxStatusCompletion(
+			client,
+			sandboxId,
+			orgId,
+			completionSignal,
+			logger,
+			started
+		).catch((err) => {
+			if (completionSignal.aborted) {
+				throw err;
+			}
+			logger?.debug('[run] sandbox status completion wait failed: %s', err);
+			return new Promise<never>(() => {});
+		});
+
+		const result = await Promise.race([executionPromise, statusPromise]);
+		return result;
+	} finally {
+		if (onAbort && signal) {
+			signal.removeEventListener('abort', onAbort);
+		}
+	}
+}
+
 async function waitForExecutionCompletion(
 	client: APIClient,
 	executionId: string,
@@ -408,6 +463,56 @@ async function waitForExecutionCompletion(
 				status: result.status,
 			};
 		}
+	}
+}
+
+async function waitForSandboxStatusCompletion(
+	client: APIClient,
+	sandboxId: string,
+	orgId: string | undefined,
+	signal: AbortSignal | undefined,
+	logger: Logger | undefined,
+	started: number
+): Promise<{ exitCode?: number; status: string }> {
+	while (true) {
+		if (signal?.aborted) {
+			throw new DOMException('Aborted', 'AbortError');
+		}
+
+		const result = await sandboxGetStatus(client, {
+			sandboxId,
+			orgId,
+			waitForStatus: ['idle', 'terminated', 'failed'],
+			waitMs: 300000,
+			signal,
+		});
+		logger?.debug(
+			'[run] sandbox status wait: sandbox=%s status=%s exit=%s +%dms',
+			sandboxId,
+			result.status,
+			result.exitCode ?? 'undefined',
+			Date.now() - started
+		);
+
+		if (result.exitCode != null) {
+			return {
+				exitCode: result.exitCode,
+				status: 'completed',
+			};
+		}
+		if (result.status === 'failed') {
+			return {
+				exitCode: 1,
+				status: 'failed',
+			};
+		}
+		if (result.status === 'terminated') {
+			return {
+				status: 'completed',
+			};
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 25));
 	}
 }
 
