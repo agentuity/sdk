@@ -1,7 +1,12 @@
 /**
- * @agentuity/drizzle - Drizzle ORM integration with resilient PostgreSQL connections
+ * @agentuity/drizzle - DEPRECATED
  *
- * This package provides a seamless integration between Drizzle ORM and
+ * Use drizzle-orm and @neondatabase/serverless directly with your DATABASE_URL.
+ * This package is no longer recommended for new projects.
+ *
+ * ~~Drizzle ORM integration with resilient PostgreSQL connections~~
+ *
+ * This package provided a seamless integration between Drizzle ORM and
  * @agentuity/postgres, combining type-safe database queries with automatic
  * reconnection capabilities.
  *

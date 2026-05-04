@@ -1,5 +1,9 @@
 # @agentuity/postgres
 
+> **⚠️ DEPRECATED** — Use `drizzle-orm` and `@neondatabase/serverless` directly with your `DATABASE_URL`.
+>
+> This package is no longer recommended for new projects.
+
 Resilient PostgreSQL client with automatic reconnection for Agentuity projects.
 
 ## Features
