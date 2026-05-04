@@ -228,32 +228,89 @@ jobs:
            run: |
               echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
 
+         # Each smoke step runs independently with continue-on-error so a
+         # single service regression doesn't mask the others. The summary
+         # step at the bottom inspects every outcome and fails the job if
+         # any step failed, so this is reporting-only, not severity
+         # downgrading.
+
          - name: Run keyvalue client smoke
+           id: keyvalue
+           continue-on-error: true
            run: cd tests/services/keyvalue && bun run start
 
          - name: Run vector client smoke
+           id: vector
+           continue-on-error: true
            run: cd tests/services/vector && bun run start
 
          - name: Run queue client smoke
+           id: queue
+           continue-on-error: true
            run: cd tests/services/queue && bun run start
 
          - name: Run email client smoke
+           id: email
+           continue-on-error: true
            run: cd tests/services/email && bun run start
 
          - name: Run db client smoke
+           id: db
+           continue-on-error: true
            run: cd tests/services/db && bun run start
 
          - name: Run schedule client smoke
+           id: schedule
+           continue-on-error: true
            run: cd tests/services/schedule && bun run start
 
          - name: Run task client smoke
+           id: task
+           continue-on-error: true
            run: cd tests/services/task && bun run start
 
          - name: Run webhook client smoke
+           id: webhook
+           continue-on-error: true
            run: cd tests/services/webhook && bun run start
 
          - name: Run sandbox client smoke
+           id: sandbox
+           continue-on-error: true
            run: cd tests/services/sandbox && bun run start
+
+         - name: Service smoke results
+           env:
+              KEYVALUE: ${{ steps.keyvalue.outcome }}
+              VECTOR: ${{ steps.vector.outcome }}
+              QUEUE: ${{ steps.queue.outcome }}
+              EMAIL: ${{ steps.email.outcome }}
+              DB: ${{ steps.db.outcome }}
+              SCHEDULE: ${{ steps.schedule.outcome }}
+              TASK: ${{ steps.task.outcome }}
+              WEBHOOK: ${{ steps.webhook.outcome }}
+              SANDBOX: ${{ steps.sandbox.outcome }}
+           run: |
+              set -eo pipefail
+              # Print a single aggregated table so a CI viewer sees every
+              # service's status without scrubbing through nine logs.
+              echo "┌─────────────┬─────────┐"
+              printf "│ %-11s │ %-7s │\n" "Service" "Outcome"
+              echo "├─────────────┼─────────┤"
+              failed=0
+              for svc in KEYVALUE VECTOR QUEUE EMAIL DB SCHEDULE TASK WEBHOOK SANDBOX; do
+                outcome=$(eval echo \$$svc)
+                printf "│ %-11s │ %-7s │\n" "$svc" "$outcome"
+                if [ "$outcome" = "failure" ]; then
+                  failed=1
+                fi
+              done
+              echo "└─────────────┴─────────┘"
+              if [ $failed -ne 0 ]; then
+                echo "::error::One or more service smoke tests failed (see steps above for details)."
+                exit 1
+              fi
+              echo "All service smoke tests passed."
 
    framework-demo-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
