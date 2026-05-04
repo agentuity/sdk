@@ -1,0 +1,23 @@
+{
+	"id": "db",
+	"label": "Database",
+	"hint": "PostgreSQL via Drizzle ORM",
+	"description": "Cache translations in PostgreSQL. Adds a translations table and a history panel below the form.",
+	"order": 20,
+	"packages": ["drizzle-orm", "@neondatabase/serverless"],
+	"devPackages": ["drizzle-kit"],
+	"scripts": {
+		"db:generate": "drizzle-kit generate",
+		"db:migrate":  "drizzle-kit migrate",
+		"db:push":     "drizzle-kit push",
+		"db:studio":   "drizzle-kit studio"
+	},
+	"envVars": [
+		{
+			"name": "DATABASE_URL",
+			"placeholder": "postgres://user:pass@host/db",
+			"comment": "Set automatically when an Agentuity DB is provisioned"
+		}
+	],
+	"frameworks": ["nextjs", "remix", "vite-react", "nuxt", "sveltekit", "astro", "hono"]
+}
