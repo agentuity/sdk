@@ -1,9 +1,9 @@
 import { oauthClientActivity } from '@agentuity/core';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { createOAuthClient } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { createOAuthClient } from './util.ts';
 
 const OAuthClientActivityResponseSchema = z.array(
 	z.object({

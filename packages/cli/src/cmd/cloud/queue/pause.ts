@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createQueueAPIClient, getQueueApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createQueueAPIClient, getQueueApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { pauseQueue, QueueSchema } from '@agentuity/server';
 
 export const pauseSubcommand = createCommand({

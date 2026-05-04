@@ -1,9 +1,9 @@
 import { dbQuery } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { getCatalystAPIClient } from '../../../config';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
+import { getCommand } from '../../../command-prefix.ts';
+import { getCatalystAPIClient } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 const DBSQLResponseSchema = z.object({
 	rows: z.array(z.record(z.string(), z.unknown())).describe('Query results'),

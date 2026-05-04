@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { Writable } from 'node:stream';
-import { ErrorCode } from '../../../errors';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createSandboxClient, detectNullStream, resolveSandboxTarget } from './util';
-import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors.ts';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createSandboxClient, detectNullStream, resolveSandboxTarget } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { sandboxExecute, executionGet } from '@agentuity/server';
-import { streamUrlToWritable } from '../../../utils/stream-url';
+import { streamUrlToWritable } from '../../../utils/stream-url.ts';
 
 const EXECUTION_WAIT_DURATION = '5m';
 const EMPTY_STREAM_FAST_POLL_MS = 100;

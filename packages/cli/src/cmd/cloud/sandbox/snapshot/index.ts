@@ -1,12 +1,12 @@
-import { createCommand } from '../../../../types';
-import { createSubcommand } from './create';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
-import { deleteSubcommand } from './delete';
-import { tagSubcommand } from './tag';
-import { buildSubcommand } from './build';
-import { generateSubcommand } from './generate';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import { createSubcommand } from './create.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
+import { deleteSubcommand } from './delete.ts';
+import { tagSubcommand } from './tag.ts';
+import { buildSubcommand } from './build.ts';
+import { generateSubcommand } from './generate.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 
 export const snapshotCommand = createCommand({
 	name: 'snapshot',

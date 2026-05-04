@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types';
-import { deleteSubcommand } from './delete';
-import { deleteNamespaceSubcommand } from './delete-namespace';
-import { getSubcommand } from './get';
-import { listNamespacesSubcommand } from './list-namespaces';
-import { searchSubcommand } from './search';
-import { statsSubcommand } from './stats';
-import { upsertSubcommand } from './upsert';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { deleteSubcommand } from './delete.ts';
+import { deleteNamespaceSubcommand } from './delete-namespace.ts';
+import { getSubcommand } from './get.ts';
+import { listNamespacesSubcommand } from './list-namespaces.ts';
+import { searchSubcommand } from './search.ts';
+import { statsSubcommand } from './stats.ts';
+import { upsertSubcommand } from './upsert.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const vectorCommand = createCommand({
 	name: 'vector',

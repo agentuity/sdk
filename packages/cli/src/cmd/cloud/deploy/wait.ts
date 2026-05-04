@@ -26,6 +26,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { type Logger, StructuredError } from '@agentuity/core';
 import {
 	type Deployment,
@@ -33,13 +34,13 @@ import {
 	getAppBaseURL,
 	projectDeploymentStatus,
 } from '@agentuity/server';
-import type { APIClient } from '../../../api';
-import { getUserAgent } from '../../../api';
-import type { BuildReportCollector } from '../../../build-report';
-import { getDefaultConfigDir, getStreamURL } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import type { Config } from '../../../types';
+import type { APIClient } from '../../../api.ts';
+import { getUserAgent } from '../../../api.ts';
+import type { BuildReportCollector } from '../../../build-report.ts';
+import { getDefaultConfigDir, getStreamURL } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import type { Config } from '../../../types.ts';
 
 /**
  * Internal cancellation marker thrown by the wait loop when the user
@@ -190,7 +191,7 @@ export async function runWaitForDeployment(params: WaitParams): Promise<void> {
 									throw new Error('Deployment failed');
 								}
 
-								await Bun.sleep(pollInterval);
+								await sleep(pollInterval);
 							} catch (err) {
 								logStreamController.abort();
 								throw err;
@@ -281,7 +282,7 @@ export async function runWaitForDeployment(params: WaitParams): Promise<void> {
 							throw new Error('Deployment failed');
 						}
 
-						await Bun.sleep(pollInterval);
+						await sleep(pollInterval);
 					}
 
 					if (attempts >= maxAttempts) {

@@ -1,5 +1,5 @@
-export { createCLI, registerCommands } from './cli';
-export { generateAIHelp, type DashdashConfig } from './ai-help';
+export { createCLI, registerCommands } from './cli.ts';
+export { generateAIHelp, type DashdashConfig } from './ai-help.ts';
 export {
 	getExecutingAgent,
 	getAgentEnv,
@@ -7,16 +7,16 @@ export {
 	KNOWN_AGENTS,
 	AGENT_DISPLAY_NAMES,
 	type KnownAgent,
-} from './agent-detection';
-export { validateRuntime, isBun } from './runtime';
-export { ensureBunOnPath } from './bun-path';
-export { isGitAvailable, getDefaultBranch } from './git-helper';
+} from './agent-detection.ts';
+export { validateRuntime, isBun } from './runtime.ts';
+export { ensureBunOnPath } from './bun-path.ts';
+export { isGitAvailable, getDefaultBranch } from './git-helper.ts';
 export {
 	generateCLISchema,
 	type CLISchema,
 	type SchemaCommand,
 	type SchemaExample,
-} from './schema-generator';
+} from './schema-generator.ts';
 export {
 	ErrorCode,
 	createError,
@@ -24,15 +24,15 @@ export {
 	formatErrorJSON,
 	formatErrorHuman,
 	type StructuredError,
-} from './errors';
-export { wrapLogger, CLILogger } from './cli-logger';
+} from './errors.ts';
+export { wrapLogger, CLILogger } from './cli-logger.ts';
 export {
 	InternalLogger,
 	createInternalLogger,
 	getLatestLogSession,
 	getLogsDirPath,
-} from './internal-logger';
-export { CompositeLogger, createCompositeLogger } from './composite-logger';
+} from './internal-logger.ts';
+export { CompositeLogger, createCompositeLogger } from './composite-logger.ts';
 export {
 	isJSONMode,
 	isQuietMode,
@@ -54,7 +54,7 @@ export {
 	type ResponseMetadata,
 	type BatchItemResult,
 	type BatchOperationResult,
-} from './output';
+} from './output.ts';
 export {
 	isExplainMode,
 	isDryRunMode,
@@ -64,9 +64,9 @@ export {
 	outputDryRun,
 	type ExplainPlan,
 	type ExplainStep,
-} from './explain';
-export { getVersion, getRevision, getPackageName, getPackage } from './version';
-export { requireAuth, optionalAuth } from './auth';
+} from './explain.ts';
+export { getVersion, getRevision, getPackageName, getPackage } from './version.ts';
+export { requireAuth, optionalAuth } from './auth.ts';
 export {
 	loadConfig,
 	saveConfig,
@@ -80,19 +80,19 @@ export {
 	saveAuth,
 	clearAuth,
 	getAuth,
-} from './config';
-export { APIClient, getAPIBaseURL, getAppBaseURL } from './api';
-export { getCatalystUrl } from './catalyst';
+} from './config.ts';
+export { APIClient, getAPIBaseURL, getAppBaseURL } from './api.ts';
+export { getCatalystUrl } from './catalyst.ts';
 export {
 	ConsoleLogger,
 	createLogger,
 	type ColorScheme as LoggerColorScheme,
 } from '@agentuity/server';
-export { showBanner } from './banner';
-export { discoverCommands } from './cmd';
-export { detectColorScheme } from './terminal';
-export { getCommandPrefix, getCommand } from './command-prefix';
-export * as tui from './tui';
+export { showBanner } from './banner.ts';
+export { discoverCommands } from './cmd/index.ts';
+export { detectColorScheme } from './terminal.ts';
+export { getCommandPrefix, getCommand } from './command-prefix.ts';
+export * as tui from './tui.ts';
 export {
 	createRepl,
 	type ReplConfig,
@@ -101,16 +101,16 @@ export {
 	type ParsedCommand,
 	type CommandHandler,
 	type TableColumn,
-} from './repl';
-export { runSteps, stepSuccess, stepSkipped, stepError, StepInterruptError } from './steps';
-export { playSound } from './sound';
+} from './repl.ts';
+export { runSteps, stepSuccess, stepSkipped, stepError, StepInterruptError } from './steps.ts';
+export { playSound } from './sound.ts';
 export {
 	downloadWithProgress,
 	downloadWithSpinner,
 	downloadGitHubTarball,
 	type DownloadOptions as DownloadOptionsType,
 	type DownloadGitHubOptions,
-} from './download';
+} from './download.ts';
 export type {
 	Config,
 	LogLevel,
@@ -122,7 +122,7 @@ export type {
 	AuthData,
 	CommandSchemas,
 	ResourceSelectionRule,
-} from './types';
-export { createSubcommand, createCommand } from './types';
-export type { ColorScheme } from './terminal';
-export type { Step, StepOutcome, StepContext } from './steps';
+} from './types.ts';
+export { createSubcommand, createCommand } from './types.ts';
+export type { ColorScheme } from './terminal.ts';
+export type { Step, StepOutcome, StepContext } from './steps.ts';

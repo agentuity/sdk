@@ -6,6 +6,7 @@
  */
 
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, resolve } from 'node:path';
 import { cwd } from 'node:process';
@@ -21,9 +22,9 @@ import {
 	validateBucketName,
 	validateDatabaseName,
 } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import { createProjectConfig } from '../../config';
-import { promptForDNS } from '../../domain';
+import type { APIClient } from '../../api.ts';
+import { createProjectConfig } from '../../config.ts';
+import { promptForDNS } from '../../domain.ts';
 import {
 	addResourceEnvVars,
 	type EnvVars,
@@ -31,15 +32,15 @@ import {
 	findExistingEnvFile,
 	readEnvFile,
 	splitEnvAndSecrets,
-} from '../../env-util';
-import { ErrorCode } from '../../errors';
-import { playSound } from '../../sound';
-import * as tui from '../../tui';
-import { createPrompt, note } from '../../tui';
-import type { AuthData, Config } from '../../types';
-import { getGithubBotIdentity } from '../git/api';
-import { scaffoldFramework, setupProject, initGitRepo } from './scaffold';
-import { frameworkCatalog, type FrameworkScaffold } from './frameworks';
+} from '../../env-util.ts';
+import { ErrorCode } from '../../errors.ts';
+import { playSound } from '../../sound.ts';
+import * as tui from '../../tui.ts';
+import { createPrompt, note } from '../../tui.ts';
+import type { AuthData, Config } from '../../types.ts';
+import { getGithubBotIdentity } from '../git/api.ts';
+import { scaffoldFramework, setupProject, initGitRepo } from './scaffold.ts';
+import { frameworkCatalog, type FrameworkScaffold } from './frameworks.ts';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -520,7 +521,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		const pkgJsonPath = resolve(dest, 'package.json');
 		let pkgJson: { description?: string; keywords?: string[] } = {};
 		if (existsSync(pkgJsonPath)) {
-			pkgJson = await Bun.file(pkgJsonPath).json();
+			pkgJson = JSON.parse(await readFile(pkgJsonPath, 'utf-8'));
 		}
 
 		const keywords = Array.isArray(pkgJson.keywords) ? pkgJson.keywords : [];
@@ -637,7 +638,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	playSound();
+	await playSound();
 
 	if (isInteractive && _domains?.length && projectId) {
 		tui.newline();

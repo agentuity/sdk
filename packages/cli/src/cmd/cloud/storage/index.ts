@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types';
-import { configSubcommand } from './config';
-import { createSubcommand } from './create';
-import { listSubcommand } from './list';
-import { deleteSubcommand } from './delete';
-import { getSubcommand } from './get';
-import { uploadSubcommand } from './upload';
-import { downloadSubcommand } from './download';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { configSubcommand } from './config.ts';
+import { createSubcommand } from './create.ts';
+import { listSubcommand } from './list.ts';
+import { deleteSubcommand } from './delete.ts';
+import { getSubcommand } from './get.ts';
+import { uploadSubcommand } from './upload.ts';
+import { downloadSubcommand } from './download.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const storageCommand = createCommand({
 	name: 'storage',

@@ -6,7 +6,8 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import type { GrammarItem } from './tsc-output-parser';
+import { writeFile } from 'node:fs/promises';
+import type { GrammarItem } from './tsc-output-parser.ts';
 
 /**
  * Error codes for non-TypeScript errors.
@@ -395,8 +396,7 @@ export class BuildReportCollector {
 
 		this.written = true;
 		const report = this.toReport();
-		const file = Bun.file(this.outputPath);
-		await file.write(JSON.stringify(report, null, '\t'));
+		await writeFile(this.outputPath, JSON.stringify(report, null, '\t'));
 	}
 
 	/**
@@ -418,8 +418,7 @@ export class BuildReportCollector {
 		if (!this.outputPath) return;
 
 		const report = this.toReport();
-		const file = Bun.file(this.outputPath);
-		await file.write(JSON.stringify(report, null, '\t'));
+		await writeFile(this.outputPath, JSON.stringify(report, null, '\t'));
 		this.written = true;
 	}
 }

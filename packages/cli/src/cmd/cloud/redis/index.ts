@@ -1,6 +1,6 @@
-import { createCommand } from '../../../types';
-import { showSubcommand } from './get';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { showSubcommand } from './get.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const redisCommand = createCommand({
 	name: 'redis',

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createSubcommand, type CommandContext } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { ProjectSchema } from '../../../types';
+import { createSubcommand, type CommandContext } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ProjectSchema } from '../../../types.ts';
 
 interface MergedSchema {
 	type?: string;

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import { cliSandboxList } from '@agentuity/server';
 
 const SandboxInfoSchema = z.object({

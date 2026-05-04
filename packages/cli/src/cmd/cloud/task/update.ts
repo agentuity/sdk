@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import type { TaskPriority, TaskStatus, TaskType } from '@agentuity/core';
 
 const TaskUpdateResponseSchema = z.object({

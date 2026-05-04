@@ -10,22 +10,27 @@
  * inline code snippets and produces complete, working files.
  */
 
+import { cpSync } from 'node:fs';
 import { join } from 'node:path';
-import { cpSync, existsSync } from 'node:fs';
+import { currentDir } from '../../node-compat/runtime-info.ts';
 
 // Resolve the templates directory relative to this file.
-// When running from src/ (via bun), import.meta.dir is src/cmd/project/.
-// When running from dist/ (via compiled JS), import.meta.dir is dist/cmd/project/.
-// Templates live under src/cmd/project/templates/ but are also shipped
-// in the npm package at that path. We check both locations.
-const templatesDir = (() => {
-	const srcDir = join(import.meta.dir, 'templates');
-	if (existsSync(join(srcDir, 'nextjs'))) return srcDir;
-	// Fallback: from dist/cmd/project/ → src/cmd/project/templates/
-	const fallbackDir = join(import.meta.dir, '..', '..', 'src', 'cmd', 'project', 'templates');
-	if (existsSync(join(fallbackDir, 'nextjs'))) return fallbackDir;
-	return srcDir; // will fail with a clear error if neither exists
-})();
+//
+// Layouts to handle:
+//
+//   - Running from source (bun packages/cli/src/main.ts):
+//       thisDir = packages/cli/src/cmd/project/
+//       templates at thisDir/templates/
+//
+//   - Running from compiled dist (e.g. installed npm package):
+//       thisDir = packages/cli/dist/cmd/project/
+//       templates copied by scripts/copy-assets.ts to
+//       packages/cli/dist/cmd/project/templates/
+//
+// The same `thisDir/templates` path resolves correctly under both
+// layouts because the dist tree mirrors the source tree (rootDir is
+// `./src` so dist/cmd/... = src/cmd/...).
+const templatesDir = join(currentDir(import.meta), 'templates');
 
 export interface FrameworkScaffold {
 	/** Unique slug (matches detect/frameworks.ts where applicable) */

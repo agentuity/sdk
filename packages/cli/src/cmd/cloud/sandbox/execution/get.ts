@@ -1,9 +1,9 @@
 import { executionGet } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../../config';
-import * as tui from '../../../../tui';
-import { createCommand } from '../../../../types';
+import { getCommand } from '../../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../../config.ts';
+import * as tui from '../../../../tui.ts';
+import { createCommand } from '../../../../types.ts';
 
 const ExecutionGetResponseSchema = z.object({
 	executionId: z.string().describe('Execution ID'),

@@ -8,15 +8,8 @@ export {
 	closeDatabase,
 	type ResourceType,
 	type ResourceInfo,
-} from './resource-region';
+} from './resource-region.ts';
 
-export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache';
+export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache.ts';
 
-export {
-	hasAgentSeenIntro,
-	markAgentIntroSeen,
-	hasAgentSeenInputHint,
-	markAgentInputHintSeen,
-} from './agent-intro';
-
-export { getCachedUserInfo, setCachedUserInfo, clearCachedUserInfo } from './user-cache';
+export { getCachedUserInfo, setCachedUserInfo, clearCachedUserInfo } from './user-cache.ts';

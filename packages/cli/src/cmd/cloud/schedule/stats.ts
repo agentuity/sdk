@@ -1,9 +1,9 @@
 import { getServiceStats, type ServiceStatsData } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import * as tui from '../../../tui';
-import { createCommand } from '../../../types';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
 
 function formatNumber(n: number): string {
 	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

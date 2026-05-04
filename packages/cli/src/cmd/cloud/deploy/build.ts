@@ -35,25 +35,25 @@
 import { resolve, join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import { type BuildMetadata, type Deployment, projectDeploymentUpdate } from '@agentuity/server';
-import type { APIClient } from '../../../api';
-import type { BuildReportCollector } from '../../../build-report';
-import { loadBuildMetadata } from '../../../config';
-import { generateDeployMetadata } from '../../../deploy-metadata';
+import type { APIClient } from '../../../api.ts';
+import type { BuildReportCollector } from '../../../build-report.ts';
+import { loadBuildMetadata } from '../../../config.ts';
+import { generateDeployMetadata } from '../../../deploy-metadata.ts';
 import {
 	type Step,
 	type StepContext,
 	type StepOutcome,
 	stepError,
 	stepSuccess,
-} from '../../../steps';
-import * as tui from '../../../tui';
-import type { DeployOptions, Project } from '../../../types';
-import { getAdapter } from '../../build/adapters';
-import type { BuildResult } from '../../build/adapters/types';
-import { detectFrameworkWithPackageJson } from '../../build/detect';
-import { packageBuildOutput, type PackageResult } from '../../build/package';
-import { typecheck } from '../../build/typecheck';
-import type { DeployPipelineState } from './types';
+} from '../../../steps.ts';
+import * as tui from '../../../tui.ts';
+import type { DeployOptions, Project } from '../../../types.ts';
+import { getAdapter } from '../../build/adapters/index.ts';
+import type { BuildResult } from '../../build/adapters/types.ts';
+import { detectFrameworkWithPackageJson } from '../../build/detect/index.ts';
+import { packageBuildOutput, type PackageResult } from '../../build/package/index.ts';
+import { typecheck } from '../../build/typecheck.ts';
+import type { DeployPipelineState } from './types.ts';
 
 export interface BuildStepParams {
 	project: Project;

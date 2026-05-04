@@ -1,13 +1,13 @@
-import { createCommand } from '../../../types';
-import { createSubcommand } from './create';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
-import { deleteSubcommand } from './delete';
-import { destinationCommand } from './destination';
-import { sendSubcommand } from './send';
-import { inboundCommand } from './inbound';
-import { outboundCommand } from './outbound';
-import { statsSubcommand } from './stats';
+import { createCommand } from '../../../types.ts';
+import { createSubcommand } from './create.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
+import { deleteSubcommand } from './delete.ts';
+import { destinationCommand } from './destination/index.ts';
+import { sendSubcommand } from './send.ts';
+import { inboundCommand } from './inbound/index.ts';
+import { outboundCommand } from './outbound/index.ts';
+import { statsSubcommand } from './stats.ts';
 
 export const emailCommand = createCommand({
 	name: 'email',

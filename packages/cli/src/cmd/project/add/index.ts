@@ -1,8 +1,8 @@
-import { createCommand } from '../../../types';
-import { databaseSubcommand } from './database';
-import { domainSubcommand } from './domain';
-import { storageSubcommand } from './storage';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { databaseSubcommand } from './database.ts';
+import { domainSubcommand } from './domain.ts';
+import { storageSubcommand } from './storage.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const addCommand = createCommand({
 	name: 'add',

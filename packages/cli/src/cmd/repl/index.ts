@@ -1,7 +1,7 @@
-import { createCommand } from '../../types';
-import { createRepl, type ReplCommand } from '../../repl';
+import { createCommand } from '../../types.ts';
+import { createRepl, type ReplCommand } from '../../repl.ts';
 import { z } from 'zod';
-import { getCommand } from '../../command-prefix';
+import { getCommand } from '../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'repl',

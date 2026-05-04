@@ -5,9 +5,9 @@
  * They receive a DetectedFramework and produce a BuildResult.
  */
 
-import type { DetectedFramework, PackageJsonData } from '../detect/types';
-import type { Logger, DeployOptions } from '../../../types';
-import type { BuildReportCollector } from '../../../build-report';
+import type { DetectedFramework, PackageJsonData } from '../detect/types.ts';
+import type { Logger, DeployOptions } from '../../../types.ts';
+import type { BuildReportCollector } from '../../../build-report.ts';
 
 /**
  * Result of a successful build.

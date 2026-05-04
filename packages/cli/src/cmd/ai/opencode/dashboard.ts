@@ -1,10 +1,16 @@
-import { Database } from 'bun:sqlite';
-import { createSubcommand, type CommandContext } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { isJSONMode, outputJSON } from '../../../output';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { z } from 'zod';
-import { REQUIRED_TABLES, isMemoryPath, getDefaultDBCandidates, resolveOpenCodeDBPath } from './db';
+import { getCommand } from '../../../command-prefix.ts';
+import { type Database, openDatabase } from '../../../node-compat/sqlite.ts';
+import { isJSONMode, outputJSON } from '../../../output.ts';
+import * as tui from '../../../tui.ts';
+import { type CommandContext, createSubcommand } from '../../../types.ts';
+import {
+	REQUIRED_TABLES,
+	isMemoryPath,
+	getDefaultDBCandidates,
+	resolveOpenCodeDBPath,
+} from './db.ts';
 
 const DashboardOptionsSchema = z.object({
 	json: z.boolean().optional().describe('Output JSON format'),
@@ -285,10 +291,10 @@ async function loadDashboardData(
 	let db: Database | null = null;
 
 	try {
-		db = new Database(dbPath, isMemory ? undefined : { readonly: true });
+		db = await openDatabase(dbPath, isMemory ? undefined : { readonly: true });
 
 		const tableRows = db
-			.query("SELECT name FROM sqlite_master WHERE type = 'table'")
+			.prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
 			.all() as Array<{ name: string }>;
 		const foundTables = new Set(tableRows.map((row) => row.name));
 		for (const table of REQUIRED_TABLES) {
@@ -301,7 +307,7 @@ async function loadDashboardData(
 		}
 
 		const sessions = db
-			.query(
+			.prepare(
 				`SELECT id, project_id, parent_id, title, time_created, time_updated, time_compacting, time_archived
 				 FROM session
 				 ORDER BY time_updated DESC`
@@ -310,7 +316,7 @@ async function loadDashboardData(
 
 		const messageCounts = new Map<string, number>();
 		const messageCountRows = db
-			.query('SELECT session_id, COUNT(*) as count FROM message GROUP BY session_id')
+			.prepare('SELECT session_id, COUNT(*) as count FROM message GROUP BY session_id')
 			.all() as MessageCountRow[];
 		for (const row of messageCountRows) {
 			messageCounts.set(row.session_id, row.count);
@@ -318,7 +324,7 @@ async function loadDashboardData(
 
 		const activeTools = new Map<string, ActiveTool[]>();
 		const activeToolRows = db
-			.query(
+			.prepare(
 				`SELECT p.session_id as session_id,
 						json_extract(p.data, '$.tool') as tool,
 						json_extract(p.data, '$.state.status') as status,
@@ -342,7 +348,7 @@ async function loadDashboardData(
 
 		const todos = new Map<string, TodoItem[]>();
 		const todoRows = db
-			.query(
+			.prepare(
 				'SELECT session_id, content, status, priority FROM todo ORDER BY session_id, position'
 			)
 			.all() as TodoRow[];
@@ -358,7 +364,7 @@ async function loadDashboardData(
 
 		const costs = new Map<string, CostSummary>();
 		const costRows = db
-			.query(
+			.prepare(
 				`SELECT session_id,
 						SUM(json_extract(m.data, '$.cost')) as total_cost,
 						SUM(
@@ -379,7 +385,7 @@ async function loadDashboardData(
 
 		const latestMessages = new Map<string, LatestMessageRow>();
 		const latestRows = db
-			.query(
+			.prepare(
 				`SELECT m.session_id as session_id,
 						CASE WHEN json_valid(m.data) THEN json_extract(m.data, '$.error') END as error,
 						m.time_updated as time_updated
@@ -749,7 +755,7 @@ export const dashboardSubcommand = createSubcommand({
 			const sleepChunk = 100;
 			let elapsed = 0;
 			while (elapsed < intervalMs && !shouldExit && !shouldRefresh) {
-				await Bun.sleep(sleepChunk);
+				await sleep(sleepChunk);
 				elapsed += sleepChunk;
 			}
 

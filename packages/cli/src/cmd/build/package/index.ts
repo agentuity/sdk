@@ -12,9 +12,9 @@
 
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
-import type { DetectedFramework } from '../detect/types';
-import type { BuildResult } from '../adapters/types';
-import { generateLaunchMetadata, writeLaunchMetadata, type LaunchMetadata } from './launch';
+import type { DetectedFramework } from '../detect/types.ts';
+import type { BuildResult } from '../adapters/types.ts';
+import { generateLaunchMetadata, writeLaunchMetadata, type LaunchMetadata } from './launch.ts';
 
 export interface PackageResult {
 	/** Absolute path to the packaged output */
@@ -63,4 +63,4 @@ export function packageBuildOutput(
 }
 
 // Re-export
-export type { LaunchMetadata, ProcessDefinition } from './launch';
+export type { LaunchMetadata, ProcessDefinition } from './launch.ts';

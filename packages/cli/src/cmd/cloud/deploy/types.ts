@@ -10,7 +10,7 @@
  */
 
 import type { BuildMetadata, DeploymentInstructions } from '@agentuity/server';
-import type { DetectedFramework, PackageJsonData } from '../../build/detect/types';
+import type { DetectedFramework, PackageJsonData } from '../../build/detect/types.ts';
 
 /**
  * Output of the discover phase.

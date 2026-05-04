@@ -1,4 +1,5 @@
-import { getVersion, getReleaseUrl } from './version';
+import { color } from './node-compat/ansi.ts';
+import { getVersion, getReleaseUrl } from './version.ts';
 import {
 	shouldUseColors,
 	isDarkMode,
@@ -6,23 +7,15 @@ import {
 	supportsHyperlinks,
 	getDisplayWidth,
 	stripAnsi,
-} from './tui';
-import { getExecutingAgent } from './agent-detection';
+} from './tui.ts';
+import { getExecutingAgent } from './agent-detection.ts';
 
 export function generateBanner(version?: string, compact?: true): string {
 	const _version = version ?? getVersion();
 	const USE_COLORS = shouldUseColors();
 	const dark = isDarkMode();
-	const CYAN = USE_COLORS
-		? dark
-			? Bun.color('cyan', 'ansi-16m')
-			: Bun.color('#008B8B', 'ansi-16m')
-		: '';
-	const WHITE = USE_COLORS
-		? dark
-			? Bun.color('white', 'ansi-16m')
-			: Bun.color('black', 'ansi-16m')
-		: '';
+	const CYAN = USE_COLORS ? (dark ? color('cyan', 'ansi-16m') : color('#008B8B', 'ansi-16m')) : '';
+	const WHITE = USE_COLORS ? (dark ? color('white', 'ansi-16m') : color('black', 'ansi-16m')) : '';
 	const RESET = USE_COLORS ? '\x1b[0m' : '';
 	const LINKS = supportsHyperlinks();
 

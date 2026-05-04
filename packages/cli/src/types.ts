@@ -6,7 +6,7 @@ import {
 } from '@agentuity/server';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
-import type { APIClient } from './api';
+import type { APIClient } from './api.ts';
 
 export { DeploymentConfig, ProjectBuildConfig };
 

@@ -8,15 +8,16 @@
  * has an AGENTUITY_SDK_KEY configured.
  */
 
+import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { createCommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import { loadProjectSDKKey, getAuth, loadConfig } from '../../config';
-import { detectFrameworkWithPackageJson } from '../build/detect';
-import { detectPackageManager, getRunCommand } from '../build/detect/util';
+import { getCommand } from '../../command-prefix.ts';
+import { getAuth, loadConfig, loadProjectSDKKey } from '../../config.ts';
+import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui.ts';
+import { createCommand } from '../../types.ts';
+import { detectFrameworkWithPackageJson } from '../build/detect/index.ts';
+import { detectPackageManager, getRunCommand } from '../build/detect/util.ts';
 
 const DEFAULT_PORT = 3000;
 
@@ -127,13 +128,14 @@ export const command = createCommand({
 			);
 		}
 
-		// Run the dev command, inheriting stdio for full interactivity
-		const proc = Bun.spawn(cmd, {
+		// Run the dev command, inheriting stdio for full interactivity.
+		// We use child_process.spawn directly here (rather than the
+		// spawnInherit shim) so we can forward signals to the child.
+		const [command, ...args] = cmd;
+		const proc = spawn(command!, args, {
 			cwd: rootDir,
-			env,
-			stdin: 'inherit',
-			stdout: 'inherit',
-			stderr: 'inherit',
+			env: { ...process.env, ...env },
+			stdio: 'inherit',
 		});
 
 		// Forward signals
@@ -143,7 +145,9 @@ export const command = createCommand({
 		process.on('SIGINT', signalHandler);
 		process.on('SIGTERM', signalHandler);
 
-		const exitCode = await proc.exited;
+		const exitCode = await new Promise<number | null>((resolve) => {
+			proc.once('close', (code) => resolve(code));
+		});
 
 		process.off('SIGINT', signalHandler);
 		process.off('SIGTERM', signalHandler);

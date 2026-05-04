@@ -75,6 +75,21 @@ jobs:
           NODE_ENV: test
         run: bun run test:unit
 
+      # The CLI's compiled dist/bin/cli.js ships with a #!/usr/bin/env
+      # node shebang and must run under Node 24+. Smoke this
+      # end-to-end so a regression that re-introduces a Bun-only API
+      # gets caught before publish.
+      - name: Setup Node.js for CLI smoke test
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: CLI smoke test under Node
+        run: |
+          set -euo pipefail
+          cd packages/cli
+          node ./dist/bin/cli.js --version
+          node ./dist/bin/cli.js --help > /dev/null
+
   release:
     name: Release to npm
     runs-on: ubuntu-24.04
@@ -124,6 +139,7 @@ jobs:
             "packages/webhook"
             "packages/keyvalue"
             "packages/email"
+            "packages/storage"
             "packages/cli"
             "packages/db"
           )

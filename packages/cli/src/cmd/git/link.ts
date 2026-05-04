@@ -1,11 +1,12 @@
 import type { Logger } from '@agentuity/core';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import type { APIClient } from '../../api';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import * as tui from '../../tui';
-import { type Config, createSubcommand } from '../../types';
+import type { APIClient } from '../../api.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui.ts';
+import { type Config, createSubcommand } from '../../types.ts';
+import { runGit } from '../../git-helper.ts';
 import {
 	type GithubInstallation,
 	type GithubRepo,
@@ -13,46 +14,36 @@ import {
 	getProjectGithubStatus,
 	linkProjectToRepo,
 	listGithubRepos,
-} from './api';
-import { runGitIdentityConnect } from './identity/connect';
+} from './api.ts';
+import { runGitIdentityConnect } from './identity/connect.ts';
 
 export interface DetectedGitInfo {
 	repo: string | null;
 	branch: string | null;
 }
 
-export function detectGitInfo(): DetectedGitInfo {
+export async function detectGitInfo(): Promise<DetectedGitInfo> {
 	let repo: string | null = null;
 	let branch: string | null = null;
 
-	try {
-		// Detect repo from origin remote
-		const remoteResult = Bun.spawnSync(['git', 'remote', 'get-url', 'origin'], {
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		if (remoteResult.exitCode === 0) {
-			const url = remoteResult.stdout.toString().trim();
-			// Parse GitHub URL formats:
-			// https://github.com/owner/repo.git
-			// git@github.com:owner/repo.git
-			const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+?)(?:\.git)?$/);
-			if (httpsMatch?.[1]) repo = httpsMatch[1];
+	// Detect repo from origin remote
+	const remoteResult = await runGit(['remote', 'get-url', 'origin']);
+	if (remoteResult.ok) {
+		const url = remoteResult.stdout;
+		// Parse GitHub URL formats:
+		// https://github.com/owner/repo.git
+		// git@github.com:owner/repo.git
+		const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+?)(?:\.git)?$/);
+		if (httpsMatch?.[1]) repo = httpsMatch[1];
 
-			const sshMatch = url.match(/github\.com:([^/]+\/[^/]+?)(?:\.git)?$/);
-			if (sshMatch?.[1]) repo = sshMatch[1];
-		}
+		const sshMatch = url.match(/github\.com:([^/]+\/[^/]+?)(?:\.git)?$/);
+		if (sshMatch?.[1]) repo = sshMatch[1];
+	}
 
-		// Detect current branch
-		const branchResult = Bun.spawnSync(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], {
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		if (branchResult.exitCode === 0) {
-			branch = branchResult.stdout.toString().trim();
-		}
-	} catch {
-		// Ignore errors
+	// Detect current branch
+	const branchResult = await runGit(['rev-parse', '--abbrev-ref', 'HEAD']);
+	if (branchResult.ok) {
+		branch = branchResult.stdout;
 	}
 
 	return { repo, branch };
@@ -158,7 +149,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 			tui.newline();
 		}
 
-		const gitInfo = detectGitInfo();
+		const gitInfo = await detectGitInfo();
 
 		const allRepos = await tui.spinner({
 			message: 'Fetching available repositories...',

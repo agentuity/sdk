@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 const OPENCODE_CONFIG_FILE = join(OPENCODE_CONFIG_DIR, 'opencode.json');

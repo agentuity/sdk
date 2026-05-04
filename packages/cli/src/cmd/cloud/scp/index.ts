@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types';
-import { downloadCommand } from './download';
-import { uploadCommand } from './upload';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { downloadCommand } from './download.ts';
+import { uploadCommand } from './upload.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const scpSubcommand = createCommand({
 	name: 'scp',

@@ -20,9 +20,15 @@
  */
 
 import type { Logger } from '@agentuity/core';
-import { detectFrameworkWithPackageJson } from '../../build/detect';
-import { type Step, type StepOutcome, stepError, stepSkipped, stepSuccess } from '../../../steps';
-import type { DiscoverResult } from './types';
+import { detectFrameworkWithPackageJson } from '../../build/detect/index.ts';
+import {
+	type Step,
+	type StepOutcome,
+	stepError,
+	stepSkipped,
+	stepSuccess,
+} from '../../../steps.ts';
+import type { DiscoverResult } from './types.ts';
 
 /**
  * Builds the "Detect Project" step.

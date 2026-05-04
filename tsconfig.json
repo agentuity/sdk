@@ -25,6 +25,7 @@
 		{ "path": "./packages/schedule" },
 		{ "path": "./packages/schema" },
 		{ "path": "./packages/server" },
+		{ "path": "./packages/storage" },
 		{ "path": "./packages/stream" },
 		{ "path": "./packages/task" },
 		{ "path": "./packages/vector" },

@@ -19,28 +19,32 @@
  */
 
 import { createPublicKey } from 'node:crypto';
-import { createReadStream, createWriteStream, unlinkSync } from 'node:fs';
+import { createReadStream, createWriteStream, statSync, unlinkSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { createGzip } from 'node:zlib';
+import { pathExists } from '../../../node-compat/fs.ts';
 import {
 	type Deployment,
 	type DeploymentComplete,
 	projectDeploymentComplete,
 } from '@agentuity/server';
-import type { APIClient } from '../../../api';
-import type { BuildReportCollector } from '../../../build-report';
-import { encryptFIPSKEMDEMStream } from '../../../crypto/box';
+import type { APIClient } from '../../../api.ts';
+import type { BuildReportCollector } from '../../../build-report.ts';
+import { encryptFIPSKEMDEMStream } from '../../../crypto/box.ts';
 import {
 	type Step,
 	type StepContext,
 	type StepOutcome,
 	stepError,
 	stepSuccess,
-} from '../../../steps';
-import * as tui from '../../../tui';
-import type { DeployPipelineState } from './types';
+} from '../../../steps.ts';
+import * as tui from '../../../tui.ts';
+import type { DeployPipelineState } from './types.ts';
 
 export interface UploadStepParams {
 	projectDir: string;
@@ -110,7 +114,7 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 
 			// Lazy-load `zipDir` to avoid hauling archiver into the deploy
 			// command's import graph for non-deploy paths.
-			const { zipDir } = await import('../../../utils/zip');
+			const { zipDir } = await import('../../../utils/zip.ts');
 			await zipDir(zipSourceDir, deploymentZip, {
 				filter: (_filename: string, relative: string) => {
 					if (relative.startsWith('.vite/')) {
@@ -165,18 +169,21 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 				progress(50);
 				const endCodeUploadDiagnostic = collector.startDiagnostic('code-upload');
 				logger.trace(`Uploading deployment to ${instructions.deployment}`);
-				const zipfile = Bun.file(encryptedZip);
-				const fileSize = zipfile.size;
+				const fileSize = statSync(encryptedZip).size;
 				logger.trace(`Upload file size: ${fileSize} bytes`);
+				const zipBody = Readable.toWeb(
+					createReadStream(encryptedZip)
+				) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 				const resp = await fetch(instructions.deployment, {
 					method: 'PUT',
 					headers: {
 						'Content-Type': 'application/zip',
 						'Content-Length': String(fileSize),
 					},
-					body: zipfile,
+					body: zipBody,
 					signal: stepCtx.signal,
-				});
+					duplex: 'half',
+				} as RequestInit & { duplex: 'half' });
 				logger.trace(`Upload response: ${resp.status}`);
 				if (!resp.ok) {
 					endCodeUploadDiagnostic();
@@ -195,13 +202,13 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 				// Cancel to release resources without buffering into memory.
 				await resp.body?.cancel();
 				logger.trace('Deleting encrypted zip');
-				await zipfile.delete();
+				await rm(encryptedZip, { force: true });
 			} finally {
 				logger.trace('Cleanup');
-				if (await Bun.file(encryptedZip).exists()) {
-					await Bun.file(encryptedZip).delete();
+				if (await pathExists(encryptedZip)) {
+					await rm(encryptedZip, { force: true });
 				}
-				await Bun.file(deploymentZip).delete();
+				await rm(deploymentZip, { force: true });
 			}
 
 			// Phase D — upload static assets in parallel. We track the raw
@@ -273,12 +280,12 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 							'Content-Type': asset.contentType,
 						};
 
-						let body: Blob;
+						let bodyPath: string;
 						let gzTempPath: string | undefined;
 						let onWireSize = asset.size;
 
 						if (asset.contentEncoding === 'gzip') {
-							// Gzip to a temp file so Bun.file() can provide
+							// Gzip to a temp file so we can provide a known
 							// Content-Length to S3 (streaming bodies use
 							// chunked transfer encoding which S3 rejects).
 							gzTempPath = join(
@@ -292,21 +299,28 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 								createWriteStream(gzTempPath)
 							);
 							headers['Content-Encoding'] = 'gzip';
-							body = Bun.file(gzTempPath);
-							onWireSize = body.size;
+							bodyPath = gzTempPath;
+							onWireSize = statSync(gzTempPath).size;
 							logger.trace(
 								`Gzip compressed ${asset.filename} (${asset.size} -> ${onWireSize} bytes)`
 							);
 						} else {
-							body = Bun.file(filePath);
+							bodyPath = filePath;
+							onWireSize = statSync(filePath).size;
 						}
+
+						headers['Content-Length'] = String(onWireSize);
+						const body = Readable.toWeb(
+							createReadStream(bodyPath)
+						) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 
 						const response = await fetch(assetUrl, {
 							method: 'PUT',
 							headers,
 							body,
 							signal: stepCtx.signal,
-						});
+							duplex: 'half',
+						} as unknown as RequestInit & { duplex: 'half' });
 
 						if (gzTempPath) {
 							try {

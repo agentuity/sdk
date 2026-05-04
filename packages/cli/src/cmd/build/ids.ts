@@ -5,10 +5,12 @@
  * No AST parsing — just SHA1 hashing.
  */
 
+import { createHash } from 'node:crypto';
+
 function hashSHA1(...val: string[]): string {
-	const hasher = new Bun.CryptoHasher('sha1');
-	val.map((val) => hasher.update(val));
-	return hasher.digest().toHex();
+	const hasher = createHash('sha1');
+	for (const v of val) hasher.update(v);
+	return hasher.digest('hex');
 }
 
 /**

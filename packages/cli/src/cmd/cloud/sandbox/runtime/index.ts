@@ -1,6 +1,6 @@
-import { createCommand } from '../../../../types';
-import { listSubcommand } from './list';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 
 export const runtimeCommand = createCommand({
 	name: 'runtime',

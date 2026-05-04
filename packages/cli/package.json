@@ -7,7 +7,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"agentuity": "./bin/cli.ts"
+		"agentuity": "./bin/cli.js"
 	},
 	"exports": {
 		".": {
@@ -22,13 +22,13 @@
 	"files": [
 		"AGENTS.md",
 		"README.md",
-		"src",
-		"dist",
-		"bin"
+		"bin",
+		"dist"
 	],
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build --force",
+		"build": "bunx tsc --build --force && bun run build:assets",
+		"build:assets": "bun ./scripts/copy-assets.ts",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts && bun scripts/test-concurrent-sessions.ts",
 		"test:create": "bun scripts/test-create-flow.ts",
@@ -44,19 +44,26 @@
 		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
+		"@agentuity/storage": "workspace:*",
 		"archiver": "^7.0.1",
 		"cli-table3": "^0.6.5",
 		"commander": "^14.0.2",
 		"enquirer": "^2.4.1",
 		"json-colorizer": "^3.0.1",
+		"semver": "^7.7.0",
+		"string-width": "^7.2.0",
+		"tinyglobby": "^0.2.10",
 		"tar": "^7.5.2",
 		"typescript": "^5.9.0",
+		"yaml": "^2.6.0",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
 		"@types/archiver": "^7.0.0",
 		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
+		"@types/semver": "^7.5.8",
 		"bun-types": "latest",
 		"hono": "^4.7.13"
 	},

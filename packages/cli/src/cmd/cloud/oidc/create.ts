@@ -1,10 +1,10 @@
 import { oauthClientCreate, oauthScopes, type OAuthClientCreateRequest } from '@agentuity/core';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import * as tui from '../../../tui';
-import { createSubcommand as createSubcommandHelper } from '../../../types';
-import { createOAuthClient } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand as createSubcommandHelper } from '../../../types.ts';
+import { createOAuthClient } from './util.ts';
 
 const OAuthClientCreateResponseSchema = z.object({
 	client: z.object({

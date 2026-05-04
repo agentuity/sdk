@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types';
-import { listSubcommand } from './list';
-import { createSubcommand } from './create';
-import { getSubcommand } from './get';
-import { deleteSubcommand } from './delete';
-import { destinationsSubcommand } from './destinations';
-import { receiptsSubcommand } from './receipts';
-import { deliveriesSubcommand } from './deliveries';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { createSubcommand } from './create.ts';
+import { getSubcommand } from './get.ts';
+import { deleteSubcommand } from './delete.ts';
+import { destinationsSubcommand } from './destinations.ts';
+import { receiptsSubcommand } from './receipts.ts';
+import { deliveriesSubcommand } from './deliveries.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'webhook',

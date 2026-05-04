@@ -1,10 +1,10 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand } from '../../types.ts';
 import { getAppBaseURL, UpgradeRequiredError } from '@agentuity/server';
-import { saveAuth } from '../../config';
-import { generateSignupOTP, pollForSignupCompletion } from './api';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
+import { saveAuth } from '../../config.ts';
+import { generateSignupOTP, pollForSignupCompletion } from './api.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
 
 export const signupCommand = createSubcommand({
 	name: 'signup',

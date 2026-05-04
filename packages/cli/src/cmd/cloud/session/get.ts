@@ -1,10 +1,10 @@
 import { type AgentInfo, APIError, type SpanNode, sessionGet } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 	z.object({

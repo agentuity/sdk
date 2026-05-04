@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getIONHost } from '../../../config';
-import { getCommand } from '../../../command-prefix';
-import { getIdentifierRegion } from '../region-lookup';
+import { getCommand } from '../../../command-prefix.ts';
+import { getIONHost } from '../../../config.ts';
+import { spawnInherit } from '../../../node-compat/proc.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { getIdentifierRegion } from '../region-lookup.ts';
 const args = z.object({
 	source: z.string().describe('the source file'),
 	destination: z.string().optional().describe('the destination file'),
@@ -80,21 +81,16 @@ export const downloadCommand = createSubcommand({
 		const destination = args.destination ?? projectDir;
 
 		try {
-			const spawn = Bun.spawn({
+			const { exitCode } = await spawnInherit({
 				cmd: ['scp', `${identifier}@${hostname}:${args.source}`, destination],
 				cwd: projectDir,
-				stdout: 'inherit',
-				stderr: 'inherit',
-				stdin: 'inherit',
 			});
 
-			await spawn.exited;
-
-			if (spawn.exitCode !== 0) {
+			if (exitCode !== 0) {
 				tui.error(
-					`SCP download failed: ${identifier}@${hostname}:${args.source} -> ${destination} (exit code: ${spawn.exitCode})`
+					`SCP download failed: ${identifier}@${hostname}:${args.source} -> ${destination} (exit code: ${exitCode})`
 				);
-				process.exit(spawn.exitCode ?? 1);
+				process.exit(exitCode ?? 1);
 			}
 
 			return {

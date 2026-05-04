@@ -1,5 +1,5 @@
-import { getPackageName } from './version';
-import { getInstallationType } from './utils/installation-type';
+import { getPackageName } from './version.ts';
+import { getInstallationType } from './utils/installation-type.ts';
 
 let cachedPrefix: string | null = null;
 

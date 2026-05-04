@@ -1,7 +1,7 @@
 import type { Logger } from '@agentuity/core';
 import type { APIClient, QueueApiOptions } from '@agentuity/server';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import type { AuthData, Config, GlobalOptions } from '../../../types.ts';
 
 /**
  * Context required for queue API operations.

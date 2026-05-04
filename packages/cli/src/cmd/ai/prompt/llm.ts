@@ -1,6 +1,6 @@
-import { createSubcommand } from '../../../types';
-import type { CommandContext } from '../../../types';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand } from '../../../types.ts';
+import type { CommandContext } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const llmSubcommand = createSubcommand({
 	name: 'llm',

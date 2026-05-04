@@ -15,13 +15,27 @@ env:
    CI: true
    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# All jobs install BOTH Bun and Node 24 because the CLI is intentionally
+# runtime-agnostic. Smoke tests that exercise the built `bin/cli.js`
+# artifact are matrixed across `[bun, node]` so a regression in either
+# runtime trips CI.
+
 jobs:
    smoke-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 15
-      name: Package Installation & Usage Test
+      strategy:
+         fail-fast: false
+         matrix:
+            runtime: [bun, node]
+      name: Package Installation & Usage Test (${{ matrix.runtime }})
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -30,6 +44,8 @@ jobs:
            run: bun install
 
          - name: Run package smoke test
+           env:
+              CLI_RUNTIME: ${{ matrix.runtime }}
            run: bash scripts/test-package-install.sh
 
    postgres-ssl-test:
@@ -38,6 +54,11 @@ jobs:
       name: Postgres SSL Integration Test
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -61,6 +82,11 @@ jobs:
       steps:
          - uses: actions/checkout@v5
 
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
+
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
 
@@ -73,6 +99,11 @@ jobs:
       name: Migrate Chain (v1 → v2 → v3)
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -94,6 +125,11 @@ jobs:
       name: Testing Apps (local tests)
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -123,8 +159,12 @@ jobs:
 
    sandbox-cli-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 10
-      name: Sandbox CLI Tests
+      timeout-minutes: 15
+      strategy:
+         fail-fast: false
+         matrix:
+            runtime: [bun, node]
+      name: Sandbox CLI Tests (${{ matrix.runtime }})
       env:
          AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
@@ -132,6 +172,11 @@ jobs:
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -150,13 +195,21 @@ jobs:
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
          - name: Run sandbox CLI tests
+           env:
+              CLI_RUNTIME: ${{ matrix.runtime }}
+              # The build step already produced dist/; don't re-run it.
+              AGENTUITY_SKIP_BUILD: '1'
            run: bash scripts/test-sandbox.sh
 
 
    queue-cli-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 10
-      name: Queue CLI Tests
+      timeout-minutes: 15
+      strategy:
+         fail-fast: false
+         matrix:
+            runtime: [bun, node]
+      name: Queue CLI Tests (${{ matrix.runtime }})
       env:
          AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
@@ -164,6 +217,11 @@ jobs:
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -182,6 +240,9 @@ jobs:
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
          - name: Run queue CLI tests
+           env:
+              CLI_RUNTIME: ${{ matrix.runtime }}
+              AGENTUITY_SKIP_BUILD: '1'
            run: bash scripts/test-queue.sh
 
    service-client-test:
@@ -193,6 +254,11 @@ jobs:
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
@@ -244,6 +310,16 @@ jobs:
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v5
+
+         - name: Setup Node.js
+           # The agentuity CLI shim (bin/cli.js) has #!/usr/bin/env node
+           # and refuses to run on Node <24. The runner image ships with
+           # Node 20, so we have to bump it explicitly. The framework
+           # demos call the binary via node_modules/.bin/agentuity which
+           # the workspace install lays down for the test apps.
+           uses: actions/setup-node@v5
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2

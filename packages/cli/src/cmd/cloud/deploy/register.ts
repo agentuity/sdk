@@ -26,11 +26,11 @@
 
 import type { Logger } from '@agentuity/core';
 import { projectGet, projectUpdateRegion } from '@agentuity/server';
-import type { APIClient } from '../../../api';
-import { getCachedProject, setCachedProject } from '../../../cache';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import type { AuthData, Config, Project } from '../../../types';
+import type { APIClient } from '../../../api.ts';
+import { getCachedProject, setCachedProject } from '../../../cache/index.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import type { AuthData, Config, Project } from '../../../types.ts';
 
 export interface RegisterParams {
 	/** Project as resolved by cli.ts (may be undefined if no agentuity.json). */
@@ -71,7 +71,7 @@ export async function runRegister(params: RegisterParams): Promise<RegisterResul
 
 	// Lazy-load reconcile to keep the deploy command's startup cost low
 	// (this matches what deploy.ts used to do inline).
-	const { reconcileProject } = await import('../../project/reconcile');
+	const { reconcileProject } = await import('../../project/reconcile.ts');
 
 	const reconcileResult = await reconcileProject({
 		dir: projectDir,

@@ -8,15 +8,15 @@
  * This allows detecting if the source template has changed.
  */
 
+import { createHash } from 'node:crypto';
+
 const HASH_REGEX = /\n?<!-- prompt_hash: ([a-f0-9]+) -->\n?$/;
 
 /**
- * Compute SHA256 hash of content using Bun's built-in hasher.
+ * Compute SHA256 hash of content.
  */
 export function computeHash(content: string): string {
-	const hasher = new Bun.CryptoHasher('sha256');
-	hasher.update(content);
-	return hasher.digest().toHex();
+	return createHash('sha256').update(content).digest('hex');
 }
 
 /**

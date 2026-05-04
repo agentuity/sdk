@@ -1,10 +1,10 @@
-import { createCommand } from '../../../../types';
-import { getSubcommand } from './get';
-import { listSubcommand } from './list';
-import { createSubcommand } from './create';
-import { destroySubcommand } from './destroy';
-import { logsSubcommand } from './logs';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import { getSubcommand } from './get.ts';
+import { listSubcommand } from './list.ts';
+import { createSubcommand } from './create.ts';
+import { destroySubcommand } from './destroy.ts';
+import { logsSubcommand } from './logs.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'job',

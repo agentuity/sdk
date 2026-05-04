@@ -64,9 +64,9 @@ Single Bun server + Vite asset server architecture:
 ### Manual Testing
 
 ```bash
-bun bin/cli.ts [command]
-bun bin/cli.ts --log-level=debug [command]
-bun bin/cli.ts --config=/path/to/production.yaml [command]
+bun src/main.ts [command]
+bun src/main.ts --log-level=debug [command]
+bun src/main.ts --config=/path/to/production.yaml [command]
 ```
 
 ### Test Suite

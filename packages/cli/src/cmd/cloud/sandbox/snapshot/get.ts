@@ -2,10 +2,10 @@ import type { SandboxInfo } from '@agentuity/core';
 import type { SnapshotFileInfo } from '@agentuity/server';
 import { sandboxList, snapshotGet } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../../config';
-import * as tui from '../../../../tui';
-import { createCommand } from '../../../../types';
+import { getCommand } from '../../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../../config.ts';
+import * as tui from '../../../../tui.ts';
+import { createCommand } from '../../../../types.ts';
 
 const SnapshotFileSchema = z.object({
 	path: z.string(),

@@ -1,6 +1,6 @@
-import { createCommand } from '../../../../types';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
+import { createCommand } from '../../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
 
 export const outboundCommand = createCommand({
 	name: 'outbound',

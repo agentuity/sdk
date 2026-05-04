@@ -1,7 +1,11 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Logger, parseEnvExample, StructuredError } from '@agentuity/core';
+import { parse as parseYaml } from 'yaml';
+import { pathExists } from '../../node-compat/fs.ts';
+import { run, spawnInherit } from '../../node-compat/proc.ts';
 import {
 	createQueue,
 	createResources,
@@ -11,27 +15,27 @@ import {
 	projectCreate,
 	validateDatabaseName,
 } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import { isTTY } from '../../auth';
+import type { APIClient } from '../../api.ts';
+import { isTTY } from '../../auth.ts';
 import {
 	createProjectConfig,
 	getCatalystAPIClient,
 	getGlobalCatalystAPIClient,
-} from '../../config';
-import { addResourceEnvVars } from '../../env-util';
-import { getDefaultBranch, isGitAvailable } from '../../git-helper';
-import { fetchRegionsWithCache } from '../../regions';
-import * as tui from '../../tui';
-import { createPrompt } from '../../tui';
-import type { AuthData, Config } from '../../types';
+} from '../../config.ts';
+import { addResourceEnvVars } from '../../env-util.ts';
+import { getDefaultBranch, isGitAvailable, runGit } from '../../git-helper.ts';
+import { fetchRegionsWithCache } from '../../regions.ts';
+import * as tui from '../../tui.ts';
+import { createPrompt } from '../../tui.ts';
+import type { AuthData, Config } from '../../types.ts';
 import {
 	checkGithubRepo,
 	createGithubRepo,
 	getGithubBotIdentity,
 	getGithubToken,
 	linkProjectToRepo,
-} from '../git/api';
-import { initGitRepo } from './scaffold';
+} from '../git/api.ts';
+import { initGitRepo } from './scaffold.ts';
 
 // ─── Structured Errors ───
 
@@ -221,7 +225,7 @@ async function downloadAndExtract(
 				}
 
 				const buffer = Buffer.from(await resp.arrayBuffer());
-				await Bun.write(zipPath, buffer);
+				await writeFile(zipPath, buffer);
 				logger.debug('[remote-import] Downloaded %d bytes to %s', buffer.length, zipPath);
 
 				return resp;
@@ -236,16 +240,15 @@ async function downloadAndExtract(
 			message: 'Extracting template...',
 			clearOnSuccess: true,
 			callback: async () => {
-				// Use Bun's built-in unzip via subprocess
-				const proc = Bun.spawnSync(['unzip', '-q', '-o', zipPath, '-d', extractDir], {
-					stdout: 'pipe',
-					stderr: 'pipe',
+				// Use the system unzip via subprocess (avoids bundling a JS
+				// zip library; unzip is available on macOS/Linux by default).
+				const proc = await run({
+					cmd: ['unzip', '-q', '-o', zipPath, '-d', extractDir],
 				});
 
 				if (proc.exitCode !== 0) {
-					const stderr = proc.stderr.toString();
 					throw new RemoteImportExtractError({
-						message: `Failed to extract zip: ${stderr}`,
+						message: `Failed to extract zip: ${proc.stderr}`,
 					});
 				}
 
@@ -282,17 +285,15 @@ async function findAgentuityYaml(
 	logger: Logger
 ): Promise<Record<string, unknown> | null> {
 	const yamlPath = join(dir, 'agentuity.yaml');
-	const file = Bun.file(yamlPath);
 
-	if (!(await file.exists())) {
+	if (!(await pathExists(yamlPath))) {
 		logger.debug('[remote-import] No agentuity.yaml found at %s', yamlPath);
 		return null;
 	}
 
 	try {
-		const { YAML } = await import('bun');
-		const content = await file.text();
-		const parsed = YAML.parse(content) as Record<string, unknown>;
+		const content = await readFile(yamlPath, 'utf-8');
+		const parsed = parseYaml(content) as Record<string, unknown>;
 		logger.debug('[remote-import] Parsed agentuity.yaml: %o', parsed);
 		return parsed;
 	} catch (err) {
@@ -538,36 +539,24 @@ async function pushToRepo(
 		clearOnSuccess: true,
 		callback: async () => {
 			// Add remote origin
-			const addRemote = Bun.spawnSync(['git', 'remote', 'add', 'origin', remoteUrl], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			const addRemote = await runGit(['remote', 'add', 'origin', remoteUrl], { cwd: dest });
 
-			if (addRemote.exitCode !== 0) {
+			if (!addRemote.ok) {
 				// Remote might already exist, try set-url instead
-				const setUrl = Bun.spawnSync(['git', 'remote', 'set-url', 'origin', remoteUrl], {
-					cwd: dest,
-					stdout: 'pipe',
-					stderr: 'pipe',
-				});
-				if (setUrl.exitCode !== 0) {
+				const setUrl = await runGit(['remote', 'set-url', 'origin', remoteUrl], { cwd: dest });
+				if (!setUrl.ok) {
 					throw new RemoteImportGitError({
-						message: `Failed to set git remote: ${sanitizeTokens(setUrl.stderr.toString())}`,
+						message: `Failed to set git remote: ${sanitizeTokens(setUrl.stderr)}`,
 					});
 				}
 			}
 
 			// Push to remote
-			const push = Bun.spawnSync(['git', 'push', '-u', 'origin', defaultBranch], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			const push = await runGit(['push', '-u', 'origin', defaultBranch], { cwd: dest });
 
-			if (push.exitCode !== 0) {
+			if (!push.ok) {
 				throw new RemoteImportGitError({
-					message: `Failed to push to remote: ${sanitizeTokens(push.stderr.toString())}`,
+					message: `Failed to push to remote: ${sanitizeTokens(push.stderr)}`,
 				});
 			}
 
@@ -592,16 +581,7 @@ async function runDeploy(dest: string, logger: Logger): Promise<void> {
 
 	logger.debug('[remote-import] Running deploy: %s', args.join(' '));
 
-	const proc = Bun.spawn(args, {
-		cwd: dest,
-		stdout: 'inherit',
-		stderr: 'inherit',
-		env: {
-			...process.env,
-		},
-	});
-
-	const exitCode = await proc.exited;
+	const { exitCode } = await spawnInherit({ cmd: args, cwd: dest });
 	if (exitCode !== 0) {
 		throw new RemoteImportDeployError({
 			message: `Deploy failed with exit code ${exitCode}`,
@@ -629,20 +609,16 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 	} = options;
 
 	// Safety check: refuse to run inside an existing git repo
-	try {
-		const result = Bun.spawnSync(['git', 'rev-parse', '--is-inside-work-tree'], {
-			cwd: process.cwd(),
-			stdout: 'pipe',
-			stderr: 'pipe',
-		});
-		if (result.exitCode === 0 && result.stdout.toString().trim() === 'true') {
-			tui.fatal(
-				'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
-			);
-		}
-	} catch {
-		// git not found or command failed — not inside a repo, which is fine
+	const insideTree = await runGit(['rev-parse', '--is-inside-work-tree'], {
+		cwd: process.cwd(),
+	});
+	if (insideTree.ok && insideTree.stdout === 'true') {
+		tui.fatal(
+			'Cannot run remote import inside an existing git repository. Please run from an empty directory.'
+		);
 	}
+	// If git wasn't found or the command failed for any other reason, we're not inside
+	// a repo (or can't tell), which is the same outcome — fall through.
 
 	// 1. Parse GitHub URL (async — may query GitHub API for default branch)
 	const parsed = await parseGitHubUrl(url, apiClient);
@@ -787,9 +763,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 		let template: TemplateConfig | undefined;
 		const envExamplePath = join(sourceDir, '.env.example');
-		if (await Bun.file(envExamplePath).exists()) {
+		if (await pathExists(envExamplePath)) {
 			try {
-				const envContent = await Bun.file(envExamplePath).text();
+				const envContent = await readFile(envExamplePath, 'utf-8');
 				const envFields = parseEnvExample(envContent).filter(
 					(f) => !platformManagedVars.has(f.key)
 				);
@@ -813,9 +789,9 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 				// Merge curated metadata from the source template's existing agentuity.json
 				const existingConfigPath = join(sourceDir, 'agentuity.json');
-				if (await Bun.file(existingConfigPath).exists()) {
+				if (await pathExists(existingConfigPath)) {
 					try {
-						const existingConfig = JSON.parse(await Bun.file(existingConfigPath).text());
+						const existingConfig = JSON.parse(await readFile(existingConfigPath, 'utf-8'));
 						const existingResources = existingConfig?.template?.requirements?.resources;
 						if (Array.isArray(existingResources)) {
 							// Merge extra fields (like defaultName) from curated config
@@ -1231,25 +1207,24 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 		// Ensure .env is gitignored before any git operations (prevents secret leak)
 		const gitignorePath = join(sourceDir, '.gitignore');
-		const gitignoreFile = Bun.file(gitignorePath);
-		if (await gitignoreFile.exists()) {
-			const gitignoreContent = await gitignoreFile.text();
+		if (await pathExists(gitignorePath)) {
+			const gitignoreContent = await readFile(gitignorePath, 'utf-8');
 			const lines = gitignoreContent.split('\n').map((l) => l.trim());
 			if (!lines.includes('.env')) {
-				await Bun.write(gitignorePath, `${gitignoreContent.trimEnd()}\n.env\n`);
+				await writeFile(gitignorePath, `${gitignoreContent.trimEnd()}\n.env\n`);
 			}
 		} else {
-			await Bun.write(gitignorePath, '.env\n.env.*\n');
+			await writeFile(gitignorePath, '.env\n.env.*\n');
 		}
 
 		// Update package.json name to match the project name
 		const pkgJsonPath = join(sourceDir, 'package.json');
-		if (await Bun.file(pkgJsonPath).exists()) {
+		if (await pathExists(pkgJsonPath)) {
 			try {
-				const pkgRaw = await Bun.file(pkgJsonPath).text();
+				const pkgRaw = await readFile(pkgJsonPath, 'utf-8');
 				const pkg = JSON.parse(pkgRaw);
 				pkg.name = projectDirName;
-				await Bun.write(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
+				await writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2) + '\n');
 				logger.debug('[remote-import] Updated package.json name to %s', projectDirName);
 			} catch (err) {
 				logger.debug('[remote-import] Could not update package.json name: %o', err);
@@ -1320,11 +1295,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 		if (repo) {
 			const { owner, name: repoName } = parseRepoTarget(repo);
 			const cleanUrl = `https://github.com/${owner}/${repoName}.git`;
-			Bun.spawnSync(['git', 'remote', 'set-url', 'origin', cleanUrl], {
-				cwd: dest,
-				stdout: 'pipe',
-				stderr: 'pipe',
-			});
+			await runGit(['remote', 'set-url', 'origin', cleanUrl], { cwd: dest });
 		}
 
 		tui.success(`Project created in ./${projectDirName}`);

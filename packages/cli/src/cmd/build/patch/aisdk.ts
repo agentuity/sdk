@@ -3,7 +3,7 @@ import {
 	generateEnvWarning,
 	generateEnvGuard,
 	generateJSArgsPatch,
-} from './_util';
+} from './_util.ts';
 
 function generateAISDKPatch(patches: Map<string, PatchModule>) {
 	const vercelTelemetryPatch = generateJSArgsPatch(0, ` ` + '');

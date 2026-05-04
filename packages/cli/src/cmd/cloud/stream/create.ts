@@ -1,10 +1,12 @@
+import { basename } from 'node:path';
 import { z } from 'zod';
-import { basename } from 'path';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter } from './util';
-import { getCommand } from '../../../command-prefix';
-import { getDefaultRegion } from '../../../config';
+import { openReadStream, pathExists } from '../../../node-compat/fs.ts';
+import { stdinWebStream } from '../../../node-compat/stdin.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { createStorageAdapter } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getDefaultRegion } from '../../../config.ts';
 
 const StreamCreateResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -167,14 +169,13 @@ export const createSubcommand = createCommand({
 
 		if (args.filename === '-') {
 			// Stream from STDIN
-			inputStream = Bun.stdin.stream();
+			inputStream = stdinWebStream();
 		} else {
 			// Stream from file
-			const file = Bun.file(args.filename);
-			if (!(await file.exists())) {
+			if (!(await pathExists(args.filename))) {
 				tui.fatal(`File not found: ${args.filename}`);
 			}
-			inputStream = file.stream();
+			inputStream = openReadStream(args.filename);
 		}
 
 		// Write content to stream in chunks

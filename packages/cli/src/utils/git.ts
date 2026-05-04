@@ -1,6 +1,8 @@
-import type { Logger } from '@agentuity/core';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import type { Logger } from '@agentuity/core';
+import { runGit } from '../git-helper.ts';
+import { which } from '../node-compat/which.ts';
 
 /**
  * Git information detected from the repository
@@ -49,7 +51,7 @@ export interface GitInfoExtended extends GitInfo {
  * @returns Git information or undefined if not in a git repository
  */
 export async function getGitInfo(rootDir: string, logger: Logger): Promise<GitInfo | undefined> {
-	if (!Bun.which('git')) {
+	if (!(await which('git'))) {
 		logger.trace('git not found in PATH');
 		return undefined;
 	}
@@ -68,80 +70,65 @@ export async function getGitInfo(rootDir: string, logger: Logger): Promise<GitIn
 			return undefined;
 		}
 
-		const $ = Bun.$;
 		const gitInfo: GitInfo = {
 			provider: 'git',
 		};
 
 		// Get git tags pointing to HEAD
-		const tagResult = $`git tag -l --points-at HEAD`.nothrow().quiet();
-		if (tagResult) {
-			const tagText = await tagResult.text();
-			if (tagText) {
-				gitInfo.tags = tagText
-					.trim()
-					.split(/\n/)
-					.map((s) => s.trim())
-					.filter(Boolean);
-			}
+		const tagResult = await runGit(['tag', '-l', '--points-at', 'HEAD'], { cwd: rootDir });
+		if (tagResult.stdout) {
+			gitInfo.tags = tagResult.stdout
+				.split(/\n/)
+				.map((s) => s.trim())
+				.filter(Boolean);
 		}
 
 		// Get current branch
-		const branchResult = $`git branch --show-current`.nothrow().quiet();
-		if (branchResult) {
-			const branchText = await branchResult.text();
-			if (branchText) {
-				gitInfo.branch = branchText.trim();
-			}
+		const branchResult = await runGit(['branch', '--show-current'], { cwd: rootDir });
+		if (branchResult.stdout) {
+			gitInfo.branch = branchResult.stdout;
 		}
 
 		// Get commit SHA
-		const commitResult = $`git rev-parse HEAD`.nothrow().quiet();
-		if (commitResult) {
-			const commitText = await commitResult.text();
-			if (commitText) {
-				gitInfo.commit = commitText.trim();
+		const commitResult = await runGit(['rev-parse', 'HEAD'], { cwd: rootDir });
+		if (commitResult.stdout) {
+			gitInfo.commit = commitResult.stdout;
 
-				// Get commit message
-				const msgResult = $`git log --pretty=format:%s -n1 ${gitInfo.commit}`.nothrow().quiet();
-				if (msgResult) {
-					const msgText = await msgResult.text();
-					if (msgText) {
-						gitInfo.message = msgText.trim();
-					}
-				}
+			// Get commit message
+			const msgResult = await runGit(['log', '--pretty=format:%s', '-n1', gitInfo.commit], {
+				cwd: rootDir,
+			});
+			if (msgResult.stdout) {
+				gitInfo.message = msgResult.stdout;
 			}
 		}
 
 		// Get remote origin URL and parse
-		const originResult = $`git config --get remote.origin.url`.nothrow().quiet();
-		if (originResult) {
-			const originText = await originResult.text();
-			if (originText) {
-				const remoteUrl = originText.trim();
+		const originResult = await runGit(['config', '--get', 'remote.origin.url'], { cwd: rootDir });
+		if (originResult.stdout) {
+			const remoteUrl = originResult.stdout;
 
-				// Parse provider and repo from URL
-				if (remoteUrl.includes('github.com')) {
-					gitInfo.provider = 'github';
-					const match = remoteUrl.match(/github\.com[:/](.+?)(?:\.git)?$/);
-					if (match) {
-						gitInfo.repo = `https://github.com/${match[1]}`;
-					}
-				} else if (remoteUrl.includes('gitlab.com')) {
-					gitInfo.provider = 'gitlab';
-					const match = remoteUrl.match(/gitlab\.com[:/](.+?)(?:\.git)?$/);
-					if (match) {
-						gitInfo.repo = `https://gitlab.com/${match[1]}`;
-					}
-				} else if (remoteUrl.includes('bitbucket.org')) {
-					gitInfo.provider = 'bitbucket';
-					const match = remoteUrl.match(/bitbucket\.org[:/](.+?)(?:\.git)?$/);
-					if (match) {
-						gitInfo.repo = `https://bitbucket.org/${match[1]}`;
-					}
-				} else {
-					gitInfo.repo = remoteUrl;
+			// Parse provider and repo from URL
+			if (remoteUrl.includes('github.com')) {
+				gitInfo.provider = 'github';
+				const match = remoteUrl.match(/github\.com[:/](.+?)(?:\.git)?$/);
+				if (match) {
+					gitInfo.repo = `https://github.com/${match[1]}`;
 				}
+			} else if (remoteUrl.includes('gitlab.com')) {
+				gitInfo.provider = 'gitlab';
+				const match = remoteUrl.match(/gitlab\.com[:/](.+?)(?:\.git)?$/);
+				if (match) {
+					gitInfo.repo = `https://gitlab.com/${match[1]}`;
+				}
+			} else if (remoteUrl.includes('bitbucket.org')) {
+				gitInfo.provider = 'bitbucket';
+				const match = remoteUrl.match(/bitbucket\.org[:/](.+?)(?:\.git)?$/);
+				if (match) {
+					gitInfo.repo = `https://bitbucket.org/${match[1]}`;
+				}
+			} else {
+				gitInfo.repo = remoteUrl;
 			}
 		}
 

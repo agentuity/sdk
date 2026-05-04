@@ -9,44 +9,27 @@ const PACKAGE_SPEC = '@agentuity/cli';
 const INSTALL_TIMEOUT_MS = 30_000;
 
 /**
- * Run a command via Bun.spawn with a timeout that kills the process.
- * Returns { exitCode, stdout, stderr } similar to Bun's $ shell result.
+ * Run a command with a timeout that kills the process.
+ * Returns { exitCode, stdout, stderr } as Buffers.
  */
+import { Buffer } from 'node:buffer';
+import { run } from '../../node-compat/proc.ts';
+
 export async function spawnWithTimeout(
 	cmd: string[],
 	options: { cwd?: string; timeout: number }
 ): Promise<{ exitCode: number; stdout: Buffer; stderr: Buffer }> {
-	const proc = Bun.spawn(cmd, {
-		cwd: options.cwd,
-		stdout: 'pipe',
-		stderr: 'pipe',
-	});
+	const result = await run({ cmd, cwd: options.cwd, timeoutMs: options.timeout });
 
-	let timedOut = false;
-	const timer = setTimeout(() => {
-		timedOut = true;
-		proc.kill();
-	}, options.timeout);
-
-	try {
-		const [exitCode, stdoutBytes, stderrBytes] = await Promise.all([
-			proc.exited,
-			new Response(proc.stdout).arrayBuffer(),
-			new Response(proc.stderr).arrayBuffer(),
-		]);
-
-		if (timedOut) {
-			throw new Error(`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`);
-		}
-
-		return {
-			exitCode,
-			stdout: Buffer.from(stdoutBytes),
-			stderr: Buffer.from(stderrBytes),
-		};
-	} finally {
-		clearTimeout(timer);
+	if (result.timedOut) {
+		throw new Error(`Command timed out after ${options.timeout}ms: ${cmd.join(' ')}`);
 	}
+
+	return {
+		exitCode: result.exitCode ?? 1,
+		stdout: Buffer.from(result.stdout, 'utf-8'),
+		stderr: Buffer.from(result.stderr, 'utf-8'),
+	};
 }
 
 /**

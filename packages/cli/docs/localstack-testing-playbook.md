@@ -180,8 +180,8 @@ No need to go through the login flow - the credentials are already loaded from t
 
 ```bash
 cd /home/ubuntu/repos/sdk
-./packages/cli/bin/cli.ts auth whoami
-./packages/cli/bin/cli.ts project list
+bun packages/cli/src/main.ts auth whoami
+bun packages/cli/src/main.ts project list
 ```
 
 ## CLI Testing Workflow
@@ -190,7 +190,7 @@ cd /home/ubuntu/repos/sdk
 
 ```bash
 cd /home/ubuntu/repos/sdk
-./packages/cli/bin/cli.ts project create \
+bun packages/cli/src/main.ts project create \
   --name test-project \
   --dir /tmp/test-project \
   --template-dir ./templates
@@ -206,7 +206,7 @@ cd /home/ubuntu/repos/sdk
 
 ```bash
 # Note: The project is created in a subdirectory with the project name
-./packages/cli/bin/cli.ts deploy --dir /tmp/test-project/test-project
+bun packages/cli/src/main.ts deploy --dir /tmp/test-project/test-project
 ```
 
 The deployment will go through these steps:

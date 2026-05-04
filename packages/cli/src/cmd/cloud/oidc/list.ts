@@ -1,8 +1,8 @@
 import { oauthClientList } from '@agentuity/core';
-import { getCommand } from '../../../command-prefix';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { createOAuthClient } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { createOAuthClient } from './util.ts';
 
 export const listSubcommand = createSubcommand({
 	name: 'list',

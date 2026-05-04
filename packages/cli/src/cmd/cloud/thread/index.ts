@@ -1,8 +1,8 @@
-import { createCommand } from '../../../types';
-import { getSubcommand } from './get';
-import { listSubcommand } from './list';
-import { deleteSubcommand } from './delete';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { getSubcommand } from './get.ts';
+import { listSubcommand } from './list.ts';
+import { deleteSubcommand } from './delete.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const threadCommand = createCommand({
 	name: 'thread',

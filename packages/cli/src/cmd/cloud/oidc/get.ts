@@ -1,10 +1,10 @@
 import { oauthClientGet } from '@agentuity/core';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { createOAuthClient } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { createOAuthClient } from './util.ts';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',

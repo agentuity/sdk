@@ -1,9 +1,9 @@
 import { executionList } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../../command-prefix';
-import * as tui from '../../../../tui';
-import { createCommand } from '../../../../types';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
+import { getCommand } from '../../../../command-prefix.ts';
+import * as tui from '../../../../tui.ts';
+import { createCommand } from '../../../../types.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
 
 const ExecutionInfoSchema = z.object({
 	executionId: z.string().describe('Execution ID'),

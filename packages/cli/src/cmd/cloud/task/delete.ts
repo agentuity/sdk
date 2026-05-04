@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter, resolveMeId, parseDuration, truncate } from './util';
-import { getCommand } from '../../../command-prefix';
-import { isDryRunMode, outputDryRun } from '../../../explain';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createStorageAdapter, resolveMeId, parseDuration, truncate } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { isDryRunMode, outputDryRun } from '../../../explain.ts';
 import type { TaskPriority, TaskStatus, TaskType, BatchDeletedTask } from '@agentuity/core';
 
 // Re-export for testing
-export { parseDuration } from './util';
+export { parseDuration } from './util.ts';
 
 const TaskDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),

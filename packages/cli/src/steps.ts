@@ -5,12 +5,12 @@
  * Track total lines rendered to calculate cursor movement.
  */
 
-import type { ColorScheme } from './terminal';
-import type { LogLevel } from './types';
+import type { ColorScheme } from './terminal.ts';
+import type { LogLevel } from './types.ts';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
-import { clearLastLines, isTTYLike } from './tui';
-import { appendLog, isLogCollectionEnabled } from './log-collector';
-import { getOutputOptions, isJSONMode } from './output';
+import { clearLastLines, isTTYLike } from './tui.ts';
+import { appendLog, isLogCollectionEnabled } from './log-collector.ts';
+import { getOutputOptions, isJSONMode } from './output.ts';
 
 /**
  * Error thrown when step execution is interrupted by a signal (e.g., Ctrl+C).

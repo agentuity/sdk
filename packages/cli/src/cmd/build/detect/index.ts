@@ -9,11 +9,11 @@
  * 2. Fall back to generic detection (package.json scripts)
  */
 
-import type { DetectedFramework, PackageJsonData } from './types';
-import { readPackageJson, detectPackageManager } from './util';
-import { frameworkDefinitions } from './frameworks';
-import { detectFromDatabase } from './engine';
-import { genericDetector } from './generic';
+import type { DetectedFramework, PackageJsonData } from './types.ts';
+import { readPackageJson, detectPackageManager } from './util.ts';
+import { frameworkDefinitions } from './frameworks.ts';
+import { detectFromDatabase } from './engine.ts';
+import { genericDetector } from './generic.ts';
 
 /**
  * Convert a matched framework definition + project context into a DetectedFramework.
@@ -119,4 +119,4 @@ export type {
 	PackageJsonData,
 	PackageManager,
 	RuntimeName,
-} from './types';
+} from './types.ts';

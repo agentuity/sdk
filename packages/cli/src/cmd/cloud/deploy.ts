@@ -9,22 +9,26 @@ import {
 	projectEnvUpdate,
 } from '@agentuity/server';
 import { z } from 'zod';
-import { BuildReportCollector, clearGlobalCollector, setGlobalCollector } from '../../build-report';
-import { getCommand } from '../../command-prefix';
+import {
+	BuildReportCollector,
+	clearGlobalCollector,
+	setGlobalCollector,
+} from '../../build-report.ts';
+import { getCommand } from '../../command-prefix.ts';
 import {
 	getGlobalCatalystAPIClient,
 	loadProjectSDKKey,
 	saveProjectDir,
 	updateProjectConfig,
-} from '../../config';
-import * as domain from '../../domain';
+} from '../../config.ts';
+import * as domain from '../../domain.ts';
 import {
 	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
 	splitEnvAndSecrets,
-} from '../../env-util';
-import { ErrorCode, getExitCode } from '../../errors';
+} from '../../env-util.ts';
+import { ErrorCode, getExitCode } from '../../errors.ts';
 import {
 	pauseStepUI,
 	runSteps,
@@ -33,20 +37,20 @@ import {
 	stepError,
 	stepSkipped,
 	stepSuccess,
-} from '../../steps';
-import * as tui from '../../tui';
-import { createSubcommand, DeployOptionsSchema } from '../../types';
-import { extractDependencies } from '../../utils/deps';
-import { buildBuildStep } from './deploy/build';
-import { buildDiscoverStep } from './deploy/discover';
-import { PreflightAptValidationError, runPreflight } from './deploy/preflight';
-import { runRegister } from './deploy/register';
-import type { DeployPipelineState } from './deploy/types';
-import { buildEncryptUploadStep, buildProvisionStep } from './deploy/upload';
-import { runWaitForDeployment } from './deploy/wait';
-import { getProjectGithubStatus } from '../git/api';
-import { runGitLink } from '../git/link';
-import { runForkedDeploy } from './deploy-fork';
+} from '../../steps.ts';
+import * as tui from '../../tui.ts';
+import { createSubcommand, DeployOptionsSchema } from '../../types.ts';
+import { extractDependencies } from '../../utils/deps.ts';
+import { buildBuildStep } from './deploy/build.ts';
+import { buildDiscoverStep } from './deploy/discover.ts';
+import { PreflightAptValidationError, runPreflight } from './deploy/preflight.ts';
+import { runRegister } from './deploy/register.ts';
+import type { DeployPipelineState } from './deploy/types.ts';
+import { buildEncryptUploadStep, buildProvisionStep } from './deploy/upload.ts';
+import { runWaitForDeployment } from './deploy/wait.ts';
+import { getProjectGithubStatus } from '../git/api.ts';
+import { runGitLink } from '../git/link.ts';
+import { runForkedDeploy } from './deploy-fork.ts';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -144,7 +148,7 @@ export const deploySubcommand = createSubcommand({
 		// the cli.ts gate may hand us `ctx.project=undefined` (no agentuity.json);
 		// the Register phase guarantees a real project is in hand before any
 		// deploy work happens, registering/importing one if necessary.
-		const { isTTY } = await import('../../auth');
+		const { isTTY } = await import('../../auth.ts');
 		const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
 
 		const registerResult = await runRegister({

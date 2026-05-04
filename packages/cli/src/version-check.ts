@@ -1,11 +1,12 @@
-import type { Config, Logger, CommandDefinition, SubcommandDefinition } from './types';
-import { getInstallationType } from './utils/installation-type';
-import { fetchLatestVersion } from './cmd/upgrade';
-import { getVersion, getCompareUrl, getReleaseUrl, toTag } from './version';
-import * as tui from './tui';
-import { saveConfig } from './config';
 import { tmpdir } from 'node:os';
-import { getExecutingAgent } from './agent-detection';
+import { getExecutingAgent } from './agent-detection.ts';
+import { fetchLatestVersion } from './cmd/upgrade/index.ts';
+import { saveConfig } from './config.ts';
+import { spawnInherit } from './node-compat/proc.ts';
+import * as tui from './tui.ts';
+import type { CommandDefinition, Config, Logger, SubcommandDefinition } from './types.ts';
+import { getInstallationType } from './utils/installation-type.ts';
+import { getCompareUrl, getReleaseUrl, getVersion, toTag } from './version.ts';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -173,7 +174,9 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 
 		// Use bun to install the specific version globally with retry for CDN propagation delays
 		// Run from tmpdir to avoid interference from any local package.json/node_modules
-		const { installWithRetry, spawnWithTimeout } = await import('./cmd/upgrade/npm-availability');
+		const { installWithRetry, spawnWithTimeout } = await import(
+			'./cmd/upgrade/npm-availability.ts'
+		);
 		await installWithRetry(
 			async () => {
 				// spawnWithTimeout kills the process if it exceeds 30s
@@ -203,17 +206,10 @@ async function performUpgrade(logger: Logger, targetVersion: string): Promise<vo
 
 		// Spawn new process using the global agentuity command
 		// This will use the newly installed version
-		const proc = Bun.spawn(['agentuity', ...args], {
-			stdin: 'inherit',
-			stdout: 'inherit',
-			stderr: 'inherit',
-		});
-
-		// Wait for the new process to complete
-		await proc.exited;
+		const { exitCode } = await spawnInherit({ cmd: ['agentuity', ...args] });
 
 		// Exit with the same exit code as the new process
-		process.exit(proc.exitCode ?? 0);
+		process.exit(exitCode ?? 0);
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		logger.error('Upgrade failed: %s', errorMessage);
@@ -291,7 +287,7 @@ export async function checkForUpdates(
 
 		// Quick npm availability check before prompting (short timeout, no retries)
 		// This avoids blocking the user's command if npm is slow or version not yet available
-		const { isVersionAvailableOnNpmQuick } = await import('./cmd/upgrade/npm-availability');
+		const { isVersionAvailableOnNpmQuick } = await import('./cmd/upgrade/npm-availability.ts');
 		const isAvailable = await isVersionAvailableOnNpmQuick(latestVersion);
 
 		if (!isAvailable) {

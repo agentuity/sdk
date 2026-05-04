@@ -10,10 +10,11 @@
  * and is also the base logic that specific adapters build on.
  */
 
-import { basename, join, resolve, relative } from 'node:path';
 import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types';
-import { getRunCommand } from '../detect/util';
+import { basename, join, relative, resolve } from 'node:path';
+import { run } from '../../../node-compat/proc.ts';
+import { getRunCommand } from '../detect/util.ts';
+import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 
 /**
  * Run a shell command and return exit code.
@@ -23,24 +24,11 @@ async function runCommand(
 	cwd: string,
 	env?: Record<string, string>
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	const proc = Bun.spawn(cmd, {
-		cwd,
-		env: { ...process.env, ...env },
-		stdout: 'pipe',
-		stderr: 'pipe',
-	});
-
-	const [stdout, stderr] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-	]);
-
-	await proc.exited;
-
+	const result = await run({ cmd, cwd, env });
 	return {
-		exitCode: proc.exitCode ?? 1,
-		stdout,
-		stderr,
+		exitCode: result.exitCode ?? 1,
+		stdout: result.stdout,
+		stderr: result.stderr,
 	};
 }
 
@@ -102,7 +90,19 @@ export async function runBuildCommand(
 
 	logger?.debug(`Running build command: ${cmd.join(' ')}`);
 
-	const result = await runCommand(cmd, projectDir, buildEnv);
+	// Mirror what `npm run`/`bun run` do automatically: prepend the
+	// project's node_modules/.bin to PATH so locally-installed binaries
+	// (vite, tsc, esbuild, etc.) resolve when shelling out to commands
+	// like `vite build` or `tsc -b && vite build` via `sh -c`. Without
+	// this, framework-defined buildCommands that aren't bare script
+	// names fail with `command not found`.
+	const localBin = join(projectDir, 'node_modules', '.bin');
+	const envWithLocalBin: Record<string, string> = {
+		...(buildEnv ?? {}),
+		PATH: `${localBin}:${buildEnv?.PATH ?? process.env.PATH ?? ''}`,
+	};
+
+	const result = await runCommand(cmd, projectDir, envWithLocalBin);
 	if (result.exitCode !== 0) {
 		throw new Error(`Build failed (exit ${result.exitCode}):\n${result.stderr || result.stdout}`);
 	}
@@ -176,7 +176,7 @@ export const genericAdapter: BuildAdapter = {
 
 		if (!startCommand) {
 			// No start command (static-only build) — inject a minimal file server
-			const { injectStaticServer } = await import('./static-server');
+			const { injectStaticServer } = await import('./static-server.ts');
 			const injected = injectStaticServer(outputDir);
 			startCommand = injected.startCommand;
 			serverEntry = injected.serverEntry;

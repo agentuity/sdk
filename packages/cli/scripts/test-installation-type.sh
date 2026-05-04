@@ -170,10 +170,10 @@ echo "TEST 6: Source/development mode"
 echo "----------------------------------------"
 
 rm -rf /tmp/test-source
-mkdir -p /tmp/test-source/sdk/packages/cli/bin
+mkdir -p /tmp/test-source/sdk/packages/cli/src
 mkdir -p /tmp/test-source/.bun  # Empty .bun to ensure it doesn't match
 
-result=$(run_scenario_from_path "/tmp/test-source" "" "/tmp/test-source/sdk/packages/cli/bin/cli.ts")
+result=$(run_scenario_from_path "/tmp/test-source" "" "/tmp/test-source/sdk/packages/cli/src/main.ts")
 run_test "Source/development mode" "source" "$result"
 
 echo ""

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
 import { jobList } from '@agentuity/server';
 
 export const listSubcommand = createCommand({

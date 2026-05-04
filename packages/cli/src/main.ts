@@ -1,36 +1,32 @@
-#!/usr/bin/env bun
-
-// Fast-path for version command - check before loading heavy modules
-const versionArgs = process.argv.slice(2);
-if (versionArgs.length === 1 && ['version', '-v', '--version', '-V'].includes(versionArgs[0])) {
-	const { getVersion } = await import('../src/version');
-	console.log(getVersion());
-	process.exit(0);
-}
+// Main CLI entry point. Side-effect import — just running this module
+// boots the CLI and parses argv. The published binary lives at
+// `bin/cli.js` (a hand-written shim) and re-imports this file from
+// `dist/`. See bin/cli.js and packages/cli/AGENTS.md for the
+// surrounding architecture.
 
 import { ConsoleLogger, getAppBaseURL } from '@agentuity/server';
 import { isStructuredError } from '@agentuity/core';
-import { createCLI, registerCommands } from '../src/cli';
-import { validateRuntime } from '../src/runtime';
-import { loadConfig } from '../src/config';
-import { discoverCommands } from '../src/cmd';
-import { detectColorScheme } from '../src/terminal';
-import { setColorScheme } from '../src/tui';
-import { getVersion, getPackageName } from '../src/version';
+import { createCLI, registerCommands } from './cli.ts';
+import { validateRuntime } from './runtime.ts';
+import { loadConfig } from './config.ts';
+import { discoverCommands } from './cmd/index.ts';
+import { detectColorScheme } from './terminal.ts';
+import { setColorScheme } from './tui.ts';
+import { getVersion, getPackageName } from './version.ts';
 
-import type { CommandContext, LogLevel } from '../src/types';
-import { generateCLISchema } from '../src/schema-generator';
-import { generateAIHelp } from '../src/ai-help';
-import { setOutputOptions } from '../src/output';
-import type { Config, GlobalOptions } from '../src/types';
-import { ensureBunOnPath } from '../src/bun-path';
-import { checkForUpdates } from '../src/version-check';
-import { closeDatabase } from '../src/cache';
-import { ErrorCode, createError, formatErrorJSON } from '../src/errors';
-import { createInternalLogger } from '../src/internal-logger';
-import { createCompositeLogger } from '../src/composite-logger';
-import { getAuth } from '../src/config';
-import { getExecutingAgent } from '../src/agent-detection';
+import type { CommandContext, LogLevel } from './types.ts';
+import { generateCLISchema } from './schema-generator.ts';
+import { generateAIHelp } from './ai-help.ts';
+import { setOutputOptions } from './output.ts';
+import type { Config, GlobalOptions } from './types.ts';
+import { ensureBunOnPath } from './bun-path.ts';
+import { checkForUpdates } from './version-check.ts';
+import { closeDatabase } from './cache/index.ts';
+import { ErrorCode, createError, formatErrorJSON } from './errors.ts';
+import { createInternalLogger } from './internal-logger.ts';
+import { createCompositeLogger } from './composite-logger.ts';
+import { getAuth } from './config.ts';
+import { getExecutingAgent } from './agent-detection.ts';
 
 /**
  * Extract --dir flag from process.argv before command parsing
@@ -41,6 +37,7 @@ function getProjectDirFromArgs(): string | undefined {
 	const args = process.argv;
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
+		if (arg === undefined) continue;
 
 		// Handle --dir=<path>
 		if (arg.startsWith('--dir=')) {
@@ -51,7 +48,7 @@ function getProjectDirFromArgs(): string | undefined {
 		if (arg === '--dir' && i + 1 < args.length) {
 			const nextArg = args[i + 1];
 			// Make sure next arg isn't another flag
-			if (!nextArg.startsWith('-')) {
+			if (nextArg !== undefined && !nextArg.startsWith('-')) {
 				return nextArg;
 			}
 		}
@@ -101,8 +98,10 @@ const preprocessedArgs = process.argv.slice(2).flatMap((arg) => {
 	return arg;
 });
 // Preserve the original process.argv[0] (runtime) and process.argv[1] (script path)
-// This is important for Bun, Node, and bundled executables
-process.argv = [process.argv[0], process.argv[1], ...preprocessedArgs];
+// This is important for Bun, Node, and bundled executables.
+// argv[0] and argv[1] are guaranteed-present in any Node/Bun process,
+// so the non-null assertions are safe.
+process.argv = [process.argv[0]!, process.argv[1]!, ...preprocessedArgs];
 
 const helpFlags = ['--help', '-h', 'help'];
 const hasHelp = helpFlags.some((flag) => preprocessedArgs.includes(flag));
@@ -378,7 +377,7 @@ try {
 				)
 			);
 		} else {
-			const { errorBox, link, newline } = await import('../src/tui');
+			const { errorBox, link, newline } = await import('../src/tui.ts');
 			const overrides = config?.overrides as { app_url?: string } | undefined;
 			const appBaseUrl = getAppBaseURL(undefined, overrides);
 			const billingUrl = `${appBaseUrl}/billing`;

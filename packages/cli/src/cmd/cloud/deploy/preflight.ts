@@ -26,11 +26,11 @@
 
 import type { Logger } from '@agentuity/core';
 import { type Deployment, projectDeploymentCreate, validateResources } from '@agentuity/server';
-import type { APIClient } from '../../../api';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import type { Config, Project } from '../../../types';
-import { validateAptDependencies } from '../../../utils/apt-validator';
+import type { APIClient } from '../../../api.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import type { Config, Project } from '../../../types.ts';
+import { validateAptDependencies } from '../../../utils/apt-validator.ts';
 
 // `Project['deployment']` is the parsed agentuity.json deploy section.
 // We re-export it under a friendlier name for callers — it carries
