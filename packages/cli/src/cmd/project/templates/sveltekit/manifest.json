@@ -1,0 +1,27 @@
+{
+	"framework": "sveltekit",
+	"displayName": "SvelteKit",
+	"composableFiles": {
+		"translate": {
+			"path": "src/lib/server/translate.ts",
+			"markers": {
+				"imports":        { "syntax": "//" },
+				"module":         { "syntax": "//" },
+				"translate-pre":  { "syntax": "//" },
+				"translate-post": { "syntax": "//" }
+			}
+		},
+		"page": {
+			"path": "src/routes/+page.svelte",
+			"markers": {
+				"imports":             { "syntax": "//" },
+				"state":               { "syntax": "//" },
+				"on-mount":            { "syntax": "//" },
+				"on-result":           { "syntax": "//" },
+				"inside-form-buttons": { "syntax": "<!-- -->" },
+				"after-result":        { "syntax": "<!-- -->" },
+				"after-form":          { "syntax": "<!-- -->" }
+			}
+		}
+	}
+}
