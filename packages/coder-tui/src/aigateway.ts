@@ -136,15 +136,8 @@ async function fetchModels(): Promise<AIGatewayModels> {
 		process.env.AGENTUITY_AIGATEWAY_ORGID = orgId;
 	}
 
-	const headers: Record<string, string> = {
-		'x-agentuity-api-key': apiKey,
-	};
-	if (orgId) {
-		headers['x-agentuity-orgid'] = orgId;
-	}
-
 	try {
-		const response = await fetch(`${baseUrl}/models`, { headers });
+		const response = await fetch(`${baseUrl}/models`);
 
 		if (!response.ok) {
 			console.warn(
