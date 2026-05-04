@@ -11,6 +11,13 @@
 				"translate-post": { "syntax": "//" }
 			}
 		},
+		"server": {
+			"path": "src/index.ts",
+			"markers": {
+				"imports": { "syntax": "//" },
+				"routes":  { "syntax": "//" }
+			}
+		},
 		"page": {
 			"path": "src/landing.html",
 			"markers": {

@@ -1,3 +1,4 @@
+// @agentuity:imports
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,8 @@ app.post('/api/translate', async (c) => {
 	const result = await translate({ text, toLanguage, model });
 	return c.json(result);
 });
+
+// @agentuity:routes
 
 // Landing page
 app.get('/', (c) => {
