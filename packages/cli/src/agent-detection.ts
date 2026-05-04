@@ -57,6 +57,7 @@ export const AGENT_DISPLAY_NAMES: Record<string, string> = {
 	amp: 'Amp',
 	warp: 'Warp',
 	pi: 'Pi',
+	coder: 'Agentuity Coder',
 };
 
 /**

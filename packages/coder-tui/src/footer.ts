@@ -11,7 +11,11 @@
  *   [3] SwiftRaven — 3 observers watching, session label "SwiftRaven"
  */
 
-import type { ExtensionContext, ReadonlyFooterDataProvider } from '@mariozechner/pi-coding-agent';
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+	ReadonlyFooterDataProvider,
+} from '@mariozechner/pi-coding-agent';
 
 const RESET = '\x1b[0m';
 const SEP = '>';
@@ -185,33 +189,57 @@ function formatCost(n: number): string {
  *
  * Includes a braille spinner animation when an agent is actively working.
  *
+ * @param pi Extension API
  * @param ctx  Extension context with UI access
  * @param getHubStatus  Callback that returns current Hub connection status
  * @param getObserverState  Optional callback that returns observer count + session label
  */
 export function setupCoderFooter(
+	pi: ExtensionAPI,
 	ctx: ExtensionContext,
 	getHubStatus: () => HubStatus,
 	getObserverState?: () => ObserverState
 ): void {
 	if (!ctx.hasUI) return;
 
+	ctx.ui.setWorkingVisible(false);
+	ctx.ui.setWorkingIndicator({ frames: [] }); // turn off the working indicator since we use our own spinner
+
+	let providerRunning = false;
+	let spinnerTimer: ReturnType<typeof setInterval> | null = null;
+
+	pi.on('before_provider_request', () => {
+		providerRunning = true;
+	});
+
+	pi.on('after_provider_response', () => {
+		providerRunning = false;
+	});
+
+	pi.on('session_shutdown', () => {
+		if (spinnerTimer) {
+			clearInterval(spinnerTimer);
+			spinnerTimer = null;
+		}
+	});
+
 	ctx.ui.setFooter((tui, _theme, footerData) => {
 		// Spinner state
-		let spinnerTimer: ReturnType<typeof setInterval> | null = null;
 		let spinnerFrame = 0;
 
 		const getText = (width: number): string => {
 			// Detect active agent
 			const activeAgent = footerData.getExtensionStatuses().get('active_agent');
 
+			const showSpinner = providerRunning || !!activeAgent;
+
 			// Start/stop spinner based on agent activity
-			if (activeAgent && !spinnerTimer) {
+			if (showSpinner && !spinnerTimer) {
 				spinnerTimer = setInterval(() => {
 					spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
 					tui.requestRender();
 				}, 80);
-			} else if (!activeAgent && spinnerTimer) {
+			} else if (!showSpinner && spinnerTimer) {
 				clearInterval(spinnerTimer);
 				spinnerTimer = null;
 				spinnerFrame = 0;
@@ -221,6 +249,9 @@ export function setupCoderFooter(
 			let inputTokens = 0;
 			let outputTokens = 0;
 			let totalCost = 0;
+
+			// TODO (jhaynie): we need to think about how to handle our AI Gateway costs vs whats coming from pi
+
 			for (const entry of ctx.sessionManager.getBranch()) {
 				if (entry.type === 'message') {
 					const msg = entry.message as {

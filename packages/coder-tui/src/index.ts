@@ -25,6 +25,7 @@ import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
 import { formatToolDisplay } from './agentuity-cli.ts';
+import { setupAIGateway } from './aigateway.ts';
 import { adaptInitMessageForLocalTui } from './local-init-filter.ts';
 import { selectSubAgentToolNames } from './subagent-tool-selection.ts';
 import type {
@@ -280,9 +281,14 @@ async function fetchInitMessage(hubUrl: string, agentRole?: string): Promise<Ini
 }
 
 export function agentuityCoderHub(pi: ExtensionAPI) {
+	process.env.AGENTUITY_AGENT_MODE = 'coder'; // let the agentuity cli know we're inside coder
+
 	// Register the startup header before Hub bootstrap so `pi -e .` works for
 	// local visual testing without Agentuity Coder environment variables.
 	setupStartupLogo(pi);
+
+	// Register the AI Gateway
+	setupAIGateway(pi);
 
 	const hubUrl = process.env[HUB_URL_ENV];
 	if (!hubUrl) return;
@@ -1474,7 +1480,7 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 		}
 
 		// Set up Coder footer (powerline: model or active agent > branch > status + observer count)
-		setupCoderFooter(ctx, getHubUiStatus, getObserverState);
+		setupCoderFooter(pi, ctx, getHubUiStatus, getObserverState);
 
 		// Fire-and-forget: fetch session snapshot for label + initial observer count.
 		// Uses the Hub REST endpoint — non-blocking, best-effort.

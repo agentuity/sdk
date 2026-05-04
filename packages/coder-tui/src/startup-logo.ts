@@ -223,7 +223,7 @@ class StartupLogoHeader {
 	}
 
 	#cyan(text: string): string {
-		return this.theme.fg('accent', text);
+		return `\x1b[36m${text}\x1b[0m`;
 	}
 
 	#brightCyan(text: string): string {
