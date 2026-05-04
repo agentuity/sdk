@@ -69,7 +69,7 @@ function getBaseUrl(): string {
 	return `https://aigateway-${region}.agentuity.cloud`;
 }
 
-async function fetchModels(pi: ExtensionAPI): Promise<AIGatewayModels> {
+async function fetchModels(): Promise<AIGatewayModels> {
 	const baseUrl = getBaseUrl();
 	let apiKey = getEnv(
 		'AGENTUITY_CODER_API_KEY',
@@ -103,7 +103,7 @@ async function fetchModels(pi: ExtensionAPI): Promise<AIGatewayModels> {
 						}
 					}
 					break;
-				} catch (ex) {
+				} catch (_ex) {
 					//
 				}
 			}
@@ -163,7 +163,7 @@ function toPiModel(m: AIGatewayModel): ProviderModelConfig {
 }
 
 export async function setupAIGateway(pi: ExtensionAPI) {
-	const models = await fetchModels(pi);
+	const models = await fetchModels();
 	const baseUrl = getBaseUrl();
 
 	const allModels: AIGatewayModel[] = [];
