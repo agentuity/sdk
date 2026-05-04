@@ -9,7 +9,7 @@ import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { generateEndpoint, type DevmodeResponse } from './api';
 import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '../../api';
-import { download } from './download';
+import { download, sweepOldGravityVersions } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ids';
 import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config';
@@ -411,6 +411,7 @@ export const command = createCommand({
 			let devmode: DevmodeResponse | undefined;
 			let gravityBin: string | undefined;
 			let gravityURL: string | undefined;
+			let gravitySweepTarget: { gravityDir: string; version: string } | null = null;
 			let appURL: string | undefined;
 			let savedPrivateKey: string | undefined = config?.devmode?.privateKey
 				? Buffer.from(config.devmode.privateKey, 'base64').toString('utf-8')
@@ -465,8 +466,12 @@ export const command = createCommand({
 				}
 
 				if (mustCheck) {
+					const previousGravityVersion = config?.gravity?.version;
 					const res = await download(gravityDir);
 					gravityBin = res.filename;
+					if (previousGravityVersion !== res.version) {
+						gravitySweepTarget = { gravityDir, version: res.version };
+					}
 					const _config = { ...config } as Config;
 					_config.gravity = {
 						checked: Date.now(),
@@ -1132,6 +1137,24 @@ export const command = createCommand({
 											};
 											sendHeartbeat();
 											gravityHeartbeatInterval = setInterval(sendHeartbeat, 5000);
+										}
+
+										if (gravitySweepTarget) {
+											try {
+												const removed = sweepOldGravityVersions(
+													gravitySweepTarget.gravityDir,
+													gravitySweepTarget.version
+												);
+												logger.debug(
+													'Swept %d old gravity version director%s after successful startup',
+													removed.length,
+													removed.length === 1 ? 'y' : 'ies'
+												);
+											} catch (error) {
+												logger.warn('Failed to sweep old gravity versions: %s', error);
+											} finally {
+												gravitySweepTarget = null;
+											}
 										}
 									} else if (trimmed) {
 										logger.debug('[gravity] %s', trimmed);

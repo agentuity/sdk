@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import * as tar from 'tar';
@@ -9,6 +9,37 @@ import { spinner } from '../../tui';
 interface GravityClient {
 	filename: string;
 	version: string;
+}
+
+/**
+ * Remove previously downloaded gravity version directories after a newer
+ * version has started successfully.
+ *
+ * Safety guard: only removes sibling directories that contain a gravity
+ * binary, leaving any unrelated files/folders untouched.
+ */
+export function sweepOldGravityVersions(gravityDir: string, currentVersion: string): string[] {
+	if (!existsSync(gravityDir)) {
+		return [];
+	}
+
+	const removed: string[] = [];
+	for (const entry of readdirSync(gravityDir, { withFileTypes: true })) {
+		if (!entry.isDirectory() || entry.name === currentVersion) {
+			continue;
+		}
+
+		const candidateDir = join(gravityDir, entry.name);
+		const candidateBinary = join(candidateDir, 'gravity');
+		if (!existsSync(candidateBinary)) {
+			continue;
+		}
+
+		rmSync(candidateDir, { recursive: true, force: true });
+		removed.push(candidateDir);
+	}
+
+	return removed;
 }
 
 const GravityVersionError = StructuredError('GravityVersionError')<{
