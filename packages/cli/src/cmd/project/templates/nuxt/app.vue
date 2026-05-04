@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @agentuity:imports
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
@@ -20,6 +21,12 @@ const {
 });
 
 const isLoading = computed(() => status.value === 'pending');
+
+// @agentuity:state
+
+// @agentuity:on-mount
+
+// @agentuity:on-result
 </script>
 
 <template>
@@ -76,6 +83,7 @@ const isLoading = computed(() => status.value === 'pending');
 					>
 						<option v-for="m in MODELS" :key="m" :value="m">{{ m }}</option>
 					</select>
+					<!-- @agentuity:inside-form-buttons -->
 					<div class="group relative z-0 ml-auto">
 						<div
 							class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
@@ -140,7 +148,11 @@ const isLoading = computed(() => status.value === 'pending');
 						</div>
 					</div>
 				</template>
+
+				<!-- @agentuity:after-result -->
 			</div>
+
+			<!-- @agentuity:after-form -->
 
 			<!-- How it works -->
 			<div class="rounded-lg border border-gray-900 bg-black p-8">
