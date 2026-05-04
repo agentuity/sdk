@@ -391,6 +391,7 @@ export const startSubcommand = createSubcommand({
 		};
 		env.AGENTUITY_CODER_API_KEY = ctx.auth.apiKey;
 		env.AGENTUITY_ORGID = ctx.orgId;
+		env.PI_SKIP_VERSION_CHECK = '1';
 
 		if (opts?.agent) {
 			env.AGENTUITY_CODER_AGENT = opts.agent;
