@@ -1,0 +1,9 @@
+{
+	"id": "vector",
+	"label": "Vector Search",
+	"hint": "Semantic search over past translations",
+	"description": "Upsert each translation into a vector namespace and surface similar past translations under each result.",
+	"order": 30,
+	"packages": ["@agentuity/vector"],
+	"frameworks": ["nextjs", "remix", "vite-react", "nuxt", "sveltekit", "astro", "hono"]
+}
