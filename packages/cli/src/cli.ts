@@ -1371,6 +1371,7 @@ async function registerSubcommand(
 		) {
 			options.projectId = (baseCtx.options as unknown as Record<string, unknown>).projectId;
 		}
+		const ctxOptions = { ...baseCtx.options, ...options } as GlobalOptions;
 
 		if (subcommand.banner) {
 			showBanner();
@@ -1464,6 +1465,21 @@ async function registerSubcommand(
 						error.name === 'ProjectConfigNotFoundException';
 
 					if (isConfigNotFound) {
+						if ('explicit' in error && error.explicit === true) {
+							const configPath =
+								'configPath' in error && typeof error.configPath === 'string'
+									? error.configPath
+									: dir;
+							exitWithError(
+								createError(
+									ErrorCode.PROJECT_NOT_FOUND,
+									`Project config not found: ${configPath}`
+								),
+								baseCtx.logger,
+								baseCtx.options.errorFormat
+							);
+						}
+
 						// Priority 3: Try global preference (only when no agentuity.json found)
 						const projectIdFromPreference = baseCtx.config?.preferences?.projectId as
 							| string
@@ -1554,6 +1570,7 @@ async function registerSubcommand(
 					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
+						options: ctxOptions,
 						config: {
 							...(baseCtx.config ?? {}),
 							auth: {
@@ -1683,6 +1700,7 @@ async function registerSubcommand(
 			} else {
 				const ctx: Record<string, unknown> = {
 					...baseCtx,
+					options: ctxOptions,
 					config: baseCtx.config
 						? {
 								...baseCtx.config,
@@ -1850,6 +1868,7 @@ async function registerSubcommand(
 					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
+						options: ctxOptions,
 						config: auth
 							? {
 									...(baseCtx.config ?? {}),
@@ -1982,6 +2001,7 @@ async function registerSubcommand(
 			} else {
 				const ctx: Record<string, unknown> = {
 					...baseCtx,
+					options: ctxOptions,
 					config: auth
 						? {
 								...(baseCtx.config ?? {}),
@@ -2120,6 +2140,7 @@ async function registerSubcommand(
 					);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
+						options: ctxOptions,
 					};
 					if (project || projectDir) {
 						if (project) {
@@ -2171,6 +2192,7 @@ async function registerSubcommand(
 			} else {
 				const ctx: Record<string, unknown> = {
 					...baseCtx,
+					options: ctxOptions,
 				};
 				if (project || projectDir) {
 					if (project) {

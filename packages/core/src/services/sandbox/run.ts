@@ -14,6 +14,7 @@ import { getServiceUrls } from '../config.ts';
 
 const timingLogsEnabled = false;
 const EXECUTION_WAIT_DURATION = '5m';
+const EXIT_CODE_FAST_WAIT_DURATION = '250ms';
 const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'timeout', 'cancelled']);
 
 /**
@@ -207,8 +208,9 @@ export async function sandboxRun(
 				createResponse.executionId,
 				streamPromises.length
 			);
-			const executionPromise = waitForExecutionCompletion(
+			const completionPromise = waitForRunCompletion(
 				client,
+				sandboxId,
 				createResponse.executionId,
 				orgId,
 				signal,
@@ -217,8 +219,8 @@ export async function sandboxRun(
 			);
 
 			finalExecution = signal
-				? await raceWithAbort(executionPromise, signal, abortController, sandboxId)
-				: await executionPromise;
+				? await raceWithAbort(completionPromise, signal, abortController, sandboxId)
+				: await completionPromise;
 			await waitForStreamsToDrain(streamPromises, signal, abortController, sandboxId);
 		} else {
 			logger?.debug(
@@ -244,7 +246,39 @@ export async function sandboxRun(
 		// drain + lifecycle propagation delay.
 		let exitCode = finalExecution?.exitCode ?? 0;
 		const statusPollStart = Date.now();
+		let shouldWaitForSandboxStatus = finalExecution?.exitCode == null;
+		let sandboxStatusReconciled = false;
 		if (finalExecution?.exitCode == null) {
+			if (createResponse.executionId && finalExecution?.status === 'completed') {
+				try {
+					const execution = await executionGet(client, {
+						executionId: createResponse.executionId,
+						orgId,
+						wait: EXIT_CODE_FAST_WAIT_DURATION,
+						signal,
+					});
+					if (execution.exitCode != null) {
+						exitCode = execution.exitCode;
+						finalExecution.exitCode = execution.exitCode;
+						shouldWaitForSandboxStatus = false;
+						logger?.debug(
+							'[run] exit code %d found from fast execution retry (+%dms)',
+							exitCode,
+							Date.now() - statusPollStart
+						);
+					}
+				} catch (err) {
+					if (!(err instanceof DOMException && err.name === 'AbortError')) {
+						logger?.debug(
+							'[run] fast execution exit code retry failed (+%dms): %s',
+							Date.now() - statusPollStart,
+							err
+						);
+					}
+				}
+			}
+		}
+		if (shouldWaitForSandboxStatus) {
 			try {
 				const sandboxStatus = await sandboxGetStatus(client, {
 					sandboxId,
@@ -254,6 +288,7 @@ export async function sandboxRun(
 				});
 				if (sandboxStatus.exitCode != null) {
 					exitCode = sandboxStatus.exitCode;
+					sandboxStatusReconciled = true;
 					logger?.debug(
 						'[run] exit code %d found after server-side wait (+%dms)',
 						exitCode,
@@ -261,11 +296,13 @@ export async function sandboxRun(
 					);
 				} else if (sandboxStatus.status === 'failed') {
 					exitCode = 1;
+					sandboxStatusReconciled = true;
 					logger?.debug(
 						'[run] sandbox failed after server-side wait (+%dms)',
 						Date.now() - statusPollStart
 					);
 				} else if (sandboxStatus.status === 'terminated') {
+					sandboxStatusReconciled = true;
 					logger?.debug(
 						'[run] sandbox terminated without exit code after server-side wait (+%dms)',
 						Date.now() - statusPollStart
@@ -286,6 +323,18 @@ export async function sandboxRun(
 					);
 				}
 			}
+		}
+		if (
+			finalExecution &&
+			finalExecution?.exitCode == null &&
+			finalExecution?.status !== 'completed' &&
+			!sandboxStatusReconciled
+		) {
+			exitCode = 1;
+			logger?.debug(
+				'[run] using fallback exit code 1 for terminal status=%s after sandbox status reconciliation failed',
+				finalExecution?.status
+			);
 		}
 		if (exitCode === 0) {
 			if (finalExecution?.exitCode != null) {
@@ -327,6 +376,60 @@ export async function sandboxRun(
 	}
 }
 
+async function waitForRunCompletion(
+	client: APIClient,
+	sandboxId: string,
+	executionId: string,
+	orgId: string | undefined,
+	signal: AbortSignal | undefined,
+	logger: Logger | undefined,
+	started: number
+): Promise<{ exitCode?: number; status: string }> {
+	const completionAbortController = new AbortController();
+	let onAbort: (() => void) | undefined;
+	if (signal) {
+		onAbort = () => completionAbortController.abort(signal.reason);
+		if (signal.aborted) {
+			onAbort();
+		} else {
+			signal.addEventListener('abort', onAbort, { once: true });
+		}
+	}
+
+	try {
+		const completionSignal = completionAbortController.signal;
+		const executionPromise = waitForExecutionCompletion(
+			client,
+			executionId,
+			orgId,
+			completionSignal,
+			logger,
+			started
+		);
+		const statusPromise = waitForSandboxStatusCompletion(
+			client,
+			sandboxId,
+			orgId,
+			completionSignal,
+			logger,
+			started
+		).catch((err) => {
+			if (completionSignal.aborted) {
+				throw err;
+			}
+			logger?.debug('[run] sandbox status completion wait failed: %s', err);
+			return new Promise<never>(() => {});
+		});
+
+		const result = await Promise.race([executionPromise, statusPromise]);
+		return result;
+	} finally {
+		if (onAbort && signal) {
+			signal.removeEventListener('abort', onAbort);
+		}
+	}
+}
+
 async function waitForExecutionCompletion(
 	client: APIClient,
 	executionId: string,
@@ -360,6 +463,56 @@ async function waitForExecutionCompletion(
 				status: result.status,
 			};
 		}
+	}
+}
+
+async function waitForSandboxStatusCompletion(
+	client: APIClient,
+	sandboxId: string,
+	orgId: string | undefined,
+	signal: AbortSignal | undefined,
+	logger: Logger | undefined,
+	started: number
+): Promise<{ exitCode?: number; status: string }> {
+	while (true) {
+		if (signal?.aborted) {
+			throw new DOMException('Aborted', 'AbortError');
+		}
+
+		const result = await sandboxGetStatus(client, {
+			sandboxId,
+			orgId,
+			waitForStatus: ['idle', 'terminated', 'failed'],
+			waitMs: 300000,
+			signal,
+		});
+		logger?.debug(
+			'[run] sandbox status wait: sandbox=%s status=%s exit=%s +%dms',
+			sandboxId,
+			result.status,
+			result.exitCode ?? 'undefined',
+			Date.now() - started
+		);
+
+		if (result.exitCode != null) {
+			return {
+				exitCode: result.exitCode,
+				status: 'completed',
+			};
+		}
+		if (result.status === 'failed') {
+			return {
+				exitCode: 1,
+				status: 'failed',
+			};
+		}
+		if (result.status === 'terminated') {
+			return {
+				status: 'completed',
+			};
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 25));
 	}
 }
 

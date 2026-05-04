@@ -14,6 +14,7 @@ import { processActions } from './handlers.ts';
 import { getToolRenderers } from './renderers.ts';
 import { setupCoderFooter, type ObserverState } from './footer.ts';
 import { setupTitlebar } from './titlebar.ts';
+import { setupStartupLogo } from './startup-logo.ts';
 import { registerAgentCommands } from './commands.ts';
 import { AgentManagerOverlay } from './overlay.ts';
 import { ChainEditorOverlay, type ChainResult } from './chain-preview.ts';
@@ -279,6 +280,10 @@ async function fetchInitMessage(hubUrl: string, agentRole?: string): Promise<Ini
 }
 
 export function agentuityCoderHub(pi: ExtensionAPI) {
+	// Register the startup header before Hub bootstrap so `pi -e .` works for
+	// local visual testing without Agentuity Coder environment variables.
+	setupStartupLogo(pi);
+
 	const hubUrl = process.env[HUB_URL_ENV];
 	if (!hubUrl) return;
 

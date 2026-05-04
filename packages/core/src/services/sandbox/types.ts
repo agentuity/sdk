@@ -843,6 +843,8 @@ export const SnapshotCreateOptionsSchema = z.object({
 	tag: z.string().optional().describe('Tag for the snapshot (defaults to "latest")'),
 	/** Make the snapshot publicly accessible */
 	public: z.boolean().optional().describe('Make the snapshot publicly accessible'),
+	/** Organization ID to use for CLI-authenticated requests */
+	orgId: z.string().optional().describe('Organization ID for CLI-authenticated requests'),
 });
 export type SnapshotCreateOptions = z.infer<typeof SnapshotCreateOptionsSchema>;
 

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getCommand } from '../../../../command-prefix.ts';
 import * as tui from '../../../../tui.ts';
 import { createCommand } from '../../../../types.ts';
-import { createSandboxClient, getSandboxRegion } from '../util.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
 
 const SNAPSHOT_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
@@ -88,15 +88,15 @@ export const createSubcommand = createCommand({
 		}
 
 		const profileName = config?.name;
-		const region = await getSandboxRegion(
+		const sandboxInfo = await resolveSandboxTarget(
 			logger,
 			auth,
-			profileName,
+			null,
 			args.sandboxId,
-			orgId,
+			profileName,
 			config
 		);
-		const client = createSandboxClient(logger, auth, region);
+		const client = createSandboxClient(logger, auth, sandboxInfo.region);
 
 		const snapshot = await snapshotCreate(client, {
 			sandboxId: args.sandboxId,
@@ -104,7 +104,7 @@ export const createSubcommand = createCommand({
 			description: opts.description,
 			tag: opts.tag,
 			public: opts.public,
-			orgId,
+			orgId: sandboxInfo.orgId ?? orgId,
 		});
 
 		if (!options.json) {

@@ -153,6 +153,12 @@ General rules:
 - Use a balance of raw SDK providers and AI SDK providers (`openai()`, `anthropic()`) in examples
 - Prefer `s` from `@agentuity/schema` for schemas. Other StandardSchema libraries (Zod, ArkType, Valibot) are equally valid and should appear across examples to show the SDK is schema-agnostic
 
+### Environment and Migration Examples
+
+- For local-only browser callback values, use `.env.local`. Verify env file precedence before naming an override file.
+- For Drizzle Kit setup, show `drizzle.config.ts` with `defineConfig`, then run `bunx drizzle-kit push` or the normal `generate` / `migrate` flow from that config. Avoid inline `--dialect`, `--schema`, and `--url` commands unless the page is documenting those flags.
+- For deployed origins, say "app URL" and point to `urls.app`. Do not call the dashboard URL or project ID the app URL.
+
 ## Static Assets
 
 Images and other static files live in `src/web/public/`. Vite copies these to the build root, so reference them **without** the `/public/` prefix:

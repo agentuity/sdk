@@ -19,6 +19,7 @@
  * via `agentuity project create`.
  */
 
+import { existsSync } from 'node:fs';
 import {
 	detectFrameworkWithPackageJson,
 	type DetectedFramework,
@@ -108,7 +109,7 @@ export async function detectExistingProject(dir: string): Promise<ExistingProjec
 		return null;
 	}
 
-	const hasAgentuityJson = await Bun.file(`${dir}/agentuity.json`).exists();
+	const hasAgentuityJson = existsSync(`${dir}/agentuity.json`);
 
 	// Prefer the framework database hit when it lands on something we
 	// have a scaffold for. `vite` deliberately falls through here

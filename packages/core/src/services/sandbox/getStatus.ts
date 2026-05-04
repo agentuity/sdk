@@ -23,6 +23,7 @@ export const SandboxGetStatusParamsSchema = z.object({
 		.nonnegative()
 		.optional()
 		.describe('Maximum time in milliseconds to wait for the desired status'),
+	signal: z.custom<AbortSignal>().optional().describe('abort signal for cancellation'),
 });
 
 export type SandboxGetStatusParams = z.infer<typeof SandboxGetStatusParamsSchema>;
@@ -36,7 +37,7 @@ export async function sandboxGetStatus(
 	client: APIClient,
 	params: SandboxGetStatusParams
 ): Promise<SandboxStatusResult> {
-	const { sandboxId, orgId, waitForStatus, waitMs } = params;
+	const { sandboxId, orgId, waitForStatus, waitMs, signal } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
@@ -55,7 +56,8 @@ export async function sandboxGetStatus(
 
 	const resp = await client.get<z.infer<typeof SandboxStatusResponseSchema>>(
 		url,
-		SandboxStatusResponseSchema
+		SandboxStatusResponseSchema,
+		signal
 	);
 
 	if (resp.success) {

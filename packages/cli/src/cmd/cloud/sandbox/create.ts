@@ -3,7 +3,7 @@ import { createCommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { createSandboxClient, parseFileArgs, cacheSandboxTarget } from './util.ts';
 import { getCommand } from '../../../command-prefix.ts';
-import { sandboxCreate } from '@agentuity/server';
+import { sandboxCreate, sandboxGet } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
 import { validateAptDependencies } from '../../../utils/apt-validator.ts';
 import { ErrorCode } from '../../../errors.ts';
@@ -12,6 +12,11 @@ const InvalidMetadataError = StructuredError(
 	'InvalidMetadataError',
 	'Metadata must be a valid JSON object'
 );
+
+const CREATE_WAIT_POLL_MS = 1000;
+const CREATE_WAIT_STATUSES = ['idle', 'running', 'failed', 'terminated', 'deleted'];
+const CREATE_READY_STATUSES = new Set(['idle', 'running']);
+const CREATE_TERMINAL_STATUSES = new Set(['failed', 'terminated', 'deleted']);
 
 const SandboxCreateResponseSchema = z.object({
 	sandboxId: z.string().describe('Unique sandbox identifier'),
@@ -101,6 +106,14 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Port to expose from the sandbox to the outside Internet (1024-65535)'),
 			projectId: z.string().optional().describe('Project ID to associate this sandbox with'),
+			wait: z.boolean().optional().describe('Wait until the sandbox is ready before returning'),
+			waitMs: z
+				.number()
+				.int()
+				.nonnegative()
+				.max(60000)
+				.optional()
+				.describe('Maximum time in milliseconds to wait when --wait is used'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -180,7 +193,7 @@ export const createSubcommand = createCommand({
 			metadata = parsed as Record<string, unknown>;
 		}
 
-		const result = await sandboxCreate(client, {
+		let result = await sandboxCreate(client, {
 			options: {
 				projectId,
 				runtime: opts.runtime,
@@ -216,8 +229,48 @@ export const createSubcommand = createCommand({
 			orgId,
 		});
 
-		// Cache routing context for future sandbox commands.
-		await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
+		if (opts.wait) {
+			const waitMs = opts.waitMs ?? 60000;
+			const deadline = Date.now() + waitMs;
+
+			while (
+				!CREATE_READY_STATUSES.has(result.status) &&
+				!CREATE_TERMINAL_STATUSES.has(result.status)
+			) {
+				const remainingMs = Math.max(0, deadline - Date.now());
+				if (remainingMs === 0) {
+					break;
+				}
+				const pollWaitMs = Math.min(remainingMs, CREATE_WAIT_POLL_MS);
+				const current = await sandboxGet(client, {
+					sandboxId: result.sandboxId,
+					orgId,
+					includeDeleted: true,
+					waitForStatus: CREATE_WAIT_STATUSES,
+					waitMs: pollWaitMs,
+				});
+
+				result = {
+					...result,
+					status: current.status === 'deleted' ? 'terminated' : current.status,
+				};
+
+				if (
+					CREATE_READY_STATUSES.has(current.status) ||
+					CREATE_TERMINAL_STATUSES.has(current.status)
+				) {
+					break;
+				}
+			}
+		}
+
+		if (
+			CREATE_READY_STATUSES.has(result.status) &&
+			!CREATE_TERMINAL_STATUSES.has(result.status)
+		) {
+			// Cache routing context for future sandbox commands.
+			await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
+		}
 
 		if (!options.json) {
 			const duration = Date.now() - started;

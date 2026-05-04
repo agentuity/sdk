@@ -162,6 +162,7 @@ export const runSubcommand = createCommand({
 		// Detect if stdout/stderr are redirected to /dev/null
 		const stdoutIsNull = detectNullStream(1);
 		const stderrIsNull = detectNullStream(2);
+		const quiet = opts.quiet || options.quiet;
 
 		// Detect stream configuration based on TTY status and flags
 		const streamConfig: {
@@ -176,7 +177,7 @@ export const runSubcommand = createCommand({
 		};
 
 		// --quiet: suppress all output streams (no server streams, no local capture)
-		if (opts.quiet) {
+		if (quiet) {
 			streamConfig.stdout = 'ignore';
 			streamConfig.stderr = 'ignore';
 		} else if (!options.json) {
@@ -192,11 +193,11 @@ export const runSubcommand = createCommand({
 
 		// For JSON output or quiet mode, we need to capture output instead of streaming to process
 		const stdout =
-			options.json || opts.quiet || stdoutIsNull
+			options.json || quiet || stdoutIsNull
 				? createCaptureStream((chunk) => outputChunks.push(chunk))
 				: process.stdout;
 		const stderr =
-			options.json || opts.quiet || stderrIsNull
+			options.json || quiet || stderrIsNull
 				? createCaptureStream((chunk) => outputChunks.push(chunk))
 				: process.stderr;
 
@@ -238,8 +239,11 @@ export const runSubcommand = createCommand({
 				logger,
 			});
 
-			// Cache routing context for follow-up lookup/debug flows during execution.
-			await cacheSandboxTarget(config?.name, result.sandboxId, region, orgId);
+			// Best-effort bookkeeping only. One-shot sandboxes are already done by
+			// this point, so don't keep the user waiting on local cache I/O.
+			void cacheSandboxTarget(config?.name, result.sandboxId, region, orgId).catch((err) => {
+				logger.debug('[run] failed to cache sandbox target: %s', err);
+			});
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
