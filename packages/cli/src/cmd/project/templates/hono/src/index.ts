@@ -8,6 +8,8 @@ import { translate } from './translate';
 const here = dirname(fileURLToPath(import.meta.url));
 const landing = readFileSync(join(here, 'landing.html'), 'utf8');
 
+// @agentuity:module
+
 const app = new Hono();
 
 // API route

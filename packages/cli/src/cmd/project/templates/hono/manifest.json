@@ -15,6 +15,7 @@
 			"path": "src/index.ts",
 			"markers": {
 				"imports": { "syntax": "//" },
+				"module":  { "syntax": "//" },
 				"routes":  { "syntax": "//" }
 			}
 		},

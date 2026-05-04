@@ -15,6 +15,7 @@
 			"path": "server.ts",
 			"markers": {
 				"imports": { "syntax": "//" },
+				"module":  { "syntax": "//" },
 				"routes":  { "syntax": "//" }
 			}
 		},
