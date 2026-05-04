@@ -1,6 +1,7 @@
 // @agentuity:imports
 import { useState, type ChangeEvent } from 'react';
 import type { Route } from './+types/home';
+import type { TranslateResult } from '~/lib/translate';
 
 export function meta({}: Route.MetaArgs) {
 	return [
@@ -18,12 +19,7 @@ export default function Home() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
 	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-4o-mini');
-	const [result, setResult] = useState<{
-		translation: string;
-		tokens: number;
-		model: string;
-		toLanguage: string;
-	} | null>(null);
+	const [result, setResult] = useState<TranslateResult | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 

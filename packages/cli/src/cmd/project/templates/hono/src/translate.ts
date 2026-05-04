@@ -15,6 +15,8 @@ export interface TranslateResult {
 	tokens: number;
 	model: string;
 	toLanguage: string;
+	/** Set by services that may serve cached results (e.g. database). */
+	cached?: boolean;
 }
 
 export async function translate(input: TranslateInput): Promise<TranslateResult> {
