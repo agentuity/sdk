@@ -40,6 +40,7 @@ import { createPrompt, note } from '../../tui.ts';
 import type { AuthData, Config } from '../../types.ts';
 import { getGithubBotIdentity } from '../git/api.ts';
 import { scaffoldFramework, setupProject, initGitRepo } from './scaffold.ts';
+import { composeServices } from './services-composer.ts';
 import { frameworkCatalog, type FrameworkScaffold } from './frameworks.ts';
 
 interface CreateFlowOptions {
@@ -249,6 +250,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		dirName,
 		framework: selectedFramework,
 		includeAiExample,
+		logger,
+	});
+
+	// Step 4.5: Compose service augments. For frameworks that support it,
+	// this step also strips the marker comments seeded by the AI overlay
+	// even when no services are selected, so the user-visible files stay
+	// clean. Frameworks without a manifest are skipped silently.
+	await composeServices({
+		dest,
+		framework: selectedFramework.slug,
+		selectedServices: [],
 		logger,
 	});
 
