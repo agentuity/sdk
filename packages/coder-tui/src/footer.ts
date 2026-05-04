@@ -202,48 +202,64 @@ export function setupCoderFooter(
 ): void {
 	if (!ctx.hasUI) return;
 
-	ctx.ui.setWorkingVisible(false);
 	ctx.ui.setWorkingIndicator({ frames: [] }); // turn off the working indicator since we use our own spinner
 
-	let providerRunning = false;
+	let pendingRequests = 0;
 	let spinnerTimer: ReturnType<typeof setInterval> | null = null;
+	let spinnerFrame = 0;
+	let activeAgentRunning = false;
+	let requestFooterRender: (() => void) | undefined;
+
+	const startSpinner = () => {
+		if (spinnerTimer) return;
+		spinnerTimer = setInterval(() => {
+			spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
+			requestFooterRender?.();
+		}, 80);
+	};
+
+	const stopSpinner = () => {
+		if (!spinnerTimer) return;
+		clearInterval(spinnerTimer);
+		spinnerTimer = null;
+		spinnerFrame = 0;
+	};
+
+	const syncSpinner = () => {
+		if (pendingRequests > 0 || activeAgentRunning) {
+			startSpinner();
+		} else {
+			stopSpinner();
+		}
+	};
 
 	pi.on('before_provider_request', () => {
-		providerRunning = true;
-	});
-
-	pi.on('after_provider_response', () => {
-		providerRunning = false;
-	});
-
-	pi.on('session_shutdown', () => {
-		if (spinnerTimer) {
-			clearInterval(spinnerTimer);
-			spinnerTimer = null;
+		pendingRequests += 1;
+		if (pendingRequests === 1) {
+			startSpinner();
 		}
 	});
 
+	pi.on('after_provider_response', () => {
+		pendingRequests = Math.max(0, pendingRequests - 1);
+		syncSpinner();
+	});
+
+	pi.on('session_shutdown', () => {
+		pendingRequests = 0;
+		activeAgentRunning = false;
+		stopSpinner();
+	});
+
 	ctx.ui.setFooter((tui, _theme, footerData) => {
-		// Spinner state
-		let spinnerFrame = 0;
+		requestFooterRender = () => tui.requestRender();
 
 		const getText = (width: number): string => {
 			// Detect active agent
 			const activeAgent = footerData.getExtensionStatuses().get('active_agent');
 
-			const showSpinner = providerRunning || !!activeAgent;
-
-			// Start/stop spinner based on agent activity
-			if (showSpinner && !spinnerTimer) {
-				spinnerTimer = setInterval(() => {
-					spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES.length;
-					tui.requestRender();
-				}, 80);
-			} else if (!showSpinner && spinnerTimer) {
-				clearInterval(spinnerTimer);
-				spinnerTimer = null;
-				spinnerFrame = 0;
-			}
+			activeAgentRunning = !!activeAgent;
+			syncSpinner();
 
 			// Token stats from session messages
 			let inputTokens = 0;

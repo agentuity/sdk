@@ -9,7 +9,7 @@
  */
 import { delimiter, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import type { ExtensionAPI, ProviderModelConfig } from '@mariozechner/pi-coding-agent';
 
 export type KnownApi =
@@ -60,6 +60,14 @@ function getEnv(...keys: string[]): string | undefined {
 	}
 }
 
+function normalizeCredential(value: unknown): string | undefined {
+	if (value === undefined || value === null) {
+		return undefined;
+	}
+	const normalized = String(value).trim();
+	return normalized.length > 0 ? normalized : undefined;
+}
+
 function getRegion(): string {
 	return getEnv('AGENTUITY_REGION') ?? 'usc';
 }
@@ -71,13 +79,17 @@ function getBaseUrl(): string {
 
 async function fetchModels(): Promise<AIGatewayModels> {
 	const baseUrl = getBaseUrl();
-	let apiKey = getEnv(
-		'AGENTUITY_CODER_API_KEY',
-		'AGENTUITY_SDK_KEY',
-		'AGENTUITY_CLI_API_KEY',
-		'AGENTUITY_CLI_KEY'
+	let apiKey = normalizeCredential(
+		getEnv(
+			'AGENTUITY_CODER_API_KEY',
+			'AGENTUITY_SDK_KEY',
+			'AGENTUITY_CLI_API_KEY',
+			'AGENTUITY_CLI_KEY'
+		)
 	);
-	let orgId = getEnv('AGENTUITY_ORGID', 'AGENTUITY_CLOUD_ORG_ID', 'AGENTUITY_ORG_ID');
+	let orgId = normalizeCredential(
+		getEnv('AGENTUITY_ORGID', 'AGENTUITY_CLOUD_ORG_ID', 'AGENTUITY_ORG_ID')
+	);
 
 	if (!apiKey) {
 		let found = false;
@@ -86,15 +98,13 @@ async function fetchModels(): Promise<AIGatewayModels> {
 			const fn = join(dir, 'agentuity');
 			if (existsSync(fn)) {
 				try {
-					const res = execSync(`${fn} auth apikey --json`);
+					const res = execFileSync(fn, ['auth', 'apikey', '--json']);
 					const apiKeyResult = JSON.parse(res.toString()) as { apiKey: string };
-					apiKey = apiKeyResult.apiKey;
+					apiKey = normalizeCredential(apiKeyResult.apiKey);
 					found = true;
 					if (!orgId) {
-						const ores = execSync(`${fn} auth org current`);
-						if (ores.length) {
-							orgId = ores.toString();
-						}
+						const ores = execFileSync(fn, ['auth', 'org', 'current']);
+						orgId = normalizeCredential(ores);
 						if (!orgId) {
 							console.warn(
 								'Cannot determine the org id. Use `agentuity auth org select` to select a default organization'
@@ -116,11 +126,25 @@ async function fetchModels(): Promise<AIGatewayModels> {
 		}
 	}
 
+	if (!apiKey) {
+		console.warn('Cannot determine the API key, cannot fetch models from AI Gateway');
+		return {};
+	}
+
 	process.env.AGENTUITY_AIGATEWAY_KEY = apiKey;
-	process.env.AGENTUITY_AIGATEWAY_ORGID = orgId;
+	if (orgId) {
+		process.env.AGENTUITY_AIGATEWAY_ORGID = orgId;
+	}
+
+	const headers: Record<string, string> = {
+		'x-agentuity-api-key': apiKey,
+	};
+	if (orgId) {
+		headers['x-agentuity-orgid'] = orgId;
+	}
 
 	try {
-		const response = await fetch(`${baseUrl}/models`);
+		const response = await fetch(`${baseUrl}/models`, { headers });
 
 		if (!response.ok) {
 			console.warn(
@@ -195,7 +219,7 @@ export async function setupAIGateway(pi: ExtensionAPI) {
 
 	for (const [apiType, providerModels] of modelsByApi) {
 		const apitok = apiType.split('-');
-		const name = apitok.length > 2 ? apitok.slice(0, 2).join('-') : apitok[0];
+		const name = apitok.length >= 2 ? apitok.slice(0, 2).join('-') : apitok[0];
 		const providerName = `agentuity/${name}`;
 		pi.registerProvider(providerName, {
 			baseUrl,
