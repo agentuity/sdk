@@ -24,6 +24,21 @@ export type KnownApi =
 	| 'google-gemini-cli'
 	| 'google-vertex';
 
+const MODEL_CATALOG_TIMEOUT_MS = 5_000;
+
+const KNOWN_APIS = new Set<string>([
+	'openai-completions',
+	'mistral-conversations',
+	'openai-responses',
+	'azure-openai-responses',
+	'openai-codex-responses',
+	'anthropic-messages',
+	'bedrock-converse-stream',
+	'google-generative-ai',
+	'google-gemini-cli',
+	'google-vertex',
+] satisfies KnownApi[]);
+
 interface AIGatewayModels {
 	[key: string]: AIGatewayModel[];
 }
@@ -66,6 +81,10 @@ function normalizeCredential(value: unknown): string | undefined {
 	}
 	const normalized = String(value).trim();
 	return normalized.length > 0 ? normalized : undefined;
+}
+
+function isKnownApi(api: unknown): api is KnownApi {
+	return typeof api === 'string' && KNOWN_APIS.has(api);
 }
 
 function getRegion(): string {
@@ -136,8 +155,11 @@ async function fetchModels(): Promise<AIGatewayModels> {
 		process.env.AGENTUITY_AIGATEWAY_ORGID = orgId;
 	}
 
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), MODEL_CATALOG_TIMEOUT_MS);
+
 	try {
-		const response = await fetch(`${baseUrl}/models`);
+		const response = await fetch(`${baseUrl}/models`, { signal: controller.signal });
 
 		if (!response.ok) {
 			console.warn(
@@ -154,8 +176,16 @@ async function fetchModels(): Promise<AIGatewayModels> {
 
 		return payload.data;
 	} catch (error) {
+		if (error instanceof Error && error.name === 'AbortError') {
+			console.warn(
+				`Timed out fetching models from AI Gateway after ${MODEL_CATALOG_TIMEOUT_MS}ms`
+			);
+			return {};
+		}
 		console.warn('Failed to fetch models from AI Gateway:', error);
 		return {};
+	} finally {
+		clearTimeout(timeout);
 	}
 }
 
@@ -197,7 +227,7 @@ export async function setupAIGateway(pi: ExtensionAPI) {
 
 	for (const m of allModels) {
 		const apiType = m.api;
-		if (!apiType) {
+		if (!isKnownApi(apiType)) {
 			continue; // THIS SHOULD NEVER HAPPEN BUT JUST IN CASE
 		}
 		const existing = modelsByApi.get(apiType) ?? [];
