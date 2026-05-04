@@ -41,6 +41,7 @@ import type { AuthData, Config } from '../../types.ts';
 import { getGithubBotIdentity } from '../git/api.ts';
 import { scaffoldFramework, setupProject, initGitRepo } from './scaffold.ts';
 import { composeServices } from './services-composer.ts';
+import { getServiceCatalog, resolveSelection } from './services-catalog.ts';
 import { frameworkCatalog, type FrameworkScaffold } from './frameworks.ts';
 
 interface CreateFlowOptions {
@@ -59,6 +60,13 @@ interface CreateFlowOptions {
 	apiClient?: APIClient;
 	database?: string;
 	storage?: string;
+	/**
+	 * Service augment ids to add ("db", "keyvalue", "queue", "vector",
+	 * "storage"). When omitted in interactive mode, the user is asked via
+	 * a multi-select. When omitted in non-interactive mode, no services
+	 * are added.
+	 */
+	services?: string[];
 }
 
 export interface CreateFlowResult {
@@ -89,6 +97,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		domains,
 		database: databaseOption,
 		storage: storageOption,
+		services: servicesOption,
 	} = options;
 
 	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
@@ -253,14 +262,23 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger,
 	});
 
-	// Step 4.5: Compose service augments. For frameworks that support it,
-	// this step also strips the marker comments seeded by the AI overlay
-	// even when no services are selected, so the user-visible files stay
-	// clean. Frameworks without a manifest are skipped silently.
+	// Step 4.5: Resolve which service augments to apply.
+	const selectedServices = await resolveServiceSelection({
+		servicesOption,
+		framework: selectedFramework.slug,
+		isInteractive,
+		prompt,
+		logger,
+	});
+
+	// Step 4.6: Compose service augments. With no services selected this
+	// still runs to strip marker comments seeded by the AI overlay so
+	// user-visible files stay clean. Frameworks without a manifest are
+	// skipped silently.
 	await composeServices({
 		dest,
 		framework: selectedFramework.slug,
-		selectedServices: [],
+		selectedServices,
 		logger,
 	});
 
@@ -674,6 +692,71 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		success: setupResult.success,
 		error: setupResult.success ? undefined : 'Project setup completed with errors',
 	};
+}
+
+/**
+ * Resolve the user's chosen service augments.
+ *
+ * Three input shapes feed this:
+ *   - `--services <list>` (or programmatic `services` option). Wins
+ *     unconditionally; we validate ids and apply transitive `requires`.
+ *   - Interactive scaffold with no flag: show a multi-select prompt.
+ *   - Headless scaffold with no flag: empty selection (no services).
+ *
+ * Returns the resolved id list to pass to `composeServices`. Service
+ * order is normalized to catalog order so downstream composition is
+ * deterministic.
+ */
+async function resolveServiceSelection(opts: {
+	servicesOption?: string[];
+	framework: string;
+	isInteractive: boolean;
+	prompt: ReturnType<typeof createPrompt>;
+	logger: Logger;
+}): Promise<string[]> {
+	const { servicesOption, framework, isInteractive, prompt, logger } = opts;
+
+	const catalog = getServiceCatalog().filter((s) => s.frameworks.includes(framework as never));
+
+	// CLI-flag path: validate ids loudly and let the composer apply
+	// `requires` resolution deterministically.
+	if (servicesOption !== undefined) {
+		const known = new Set(catalog.map((s) => s.id));
+		const unknown = servicesOption.filter((id) => !known.has(id));
+		if (unknown.length > 0) {
+			logger.fatal(
+				`Unknown service id(s): ${unknown.join(', ')}. Available for ${framework}: ${catalog
+					.map((s) => s.id)
+					.join(', ')}`,
+				ErrorCode.VALIDATION_FAILED
+			);
+			return [];
+		}
+		return resolveSelection(servicesOption, catalog).map((s) => s.id);
+	}
+
+	// Headless without a flag: no services.
+	if (!isInteractive) return [];
+
+	// No services available for this framework. Don't prompt.
+	if (catalog.length === 0) return [];
+
+	const picked = await prompt.multiselect<string>({
+		message: 'Add service augments? (optional)',
+		options: catalog.map((s) => ({
+			value: s.id,
+			label: s.label,
+			hint: s.hint,
+		})),
+		initial: [],
+	});
+
+	const resolved = resolveSelection(picked, catalog);
+	const auto = resolved.filter((s) => !picked.includes(s.id));
+	if (auto.length > 0) {
+		tui.info(`Adding required dependency: ${auto.map((s) => s.label).join(', ')}`);
+	}
+	return resolved.map((s) => s.id);
 }
 
 /**
