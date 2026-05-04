@@ -745,6 +745,78 @@ describe('composeServices', () => {
 		expect(env).toContain('DATABASE_URL=postgres://...');
 	});
 
+	test('merges adjacent imports from the same module', async () => {
+		const f = await makeFixture();
+
+		await writeFile_(
+			join(f.templatesRoot, 'nextjs', 'manifest.json'),
+			JSON.stringify({
+				framework: 'nextjs',
+				displayName: 'Next.js',
+				composableFiles: {
+					page: {
+						path: 'src/page.tsx',
+						markers: { imports: { syntax: '//' } },
+					},
+				},
+			})
+		);
+		await writeFile_(
+			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
+			JSON.stringify({
+				id: 'db',
+				label: 'DB',
+				hint: '',
+				description: '',
+				order: 20,
+				packages: [],
+				frameworks: ['nextjs'],
+			})
+		);
+		await writeFile_(
+			join(f.templatesRoot, 'services', 'db', 'snippets', 'nextjs', 'page.imports.tsx'),
+			["import { useEffect } from 'react';", "import type { Translation } from '@/db';"].join(
+				'\n'
+			)
+		);
+
+		// Base file already imports useState from react. After composition,
+		// useState and useEffect should end up in a single react import.
+		await writeFile_(
+			join(f.dest, 'src/page.tsx'),
+			[
+				"'use client';",
+				'',
+				'// @agentuity:imports',
+				"import { useState } from 'react';",
+				"import useSWRMutation from 'swr/mutation';",
+				'',
+				'export default function Home() { return null; }',
+				'',
+			].join('\n')
+		);
+		await writeFile_(join(f.dest, 'package.json'), '{}');
+
+		await composeServices({
+			dest: f.dest,
+			framework: 'nextjs',
+			selectedServices: ['db'],
+			templatesRoot: f.templatesRoot,
+			logger: createMockLogger(),
+		});
+
+		const out = await readFile(join(f.dest, 'src/page.tsx'), 'utf8');
+		// Single react import, both bindings present.
+		const reactImports = out.match(/^import .* from 'react';$/gm) ?? [];
+		expect(reactImports.length).toBe(1);
+		expect(reactImports[0]).toContain('useState');
+		expect(reactImports[0]).toContain('useEffect');
+		// Default and namespace imports are untouched.
+		expect(out).toContain("import useSWRMutation from 'swr/mutation';");
+		// Type-only imports stay as-is.
+		expect(out).toContain("import type { Translation } from '@/db';");
+	});
+
 	test('copies whole files declared by a service', async () => {
 		const f = await makeFixture();
 

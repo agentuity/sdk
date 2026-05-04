@@ -195,6 +195,7 @@ async function spliceComposableFile(
 		source = spliceMarker(source, markerName, spec.syntax, snippets, file.path);
 	}
 
+	source = mergeAdjacentImports(source);
 	source = collapseExtraBlankLines(source);
 
 	await writeFile(fullPath, source);
@@ -211,6 +212,101 @@ async function spliceComposableFile(
  */
 function collapseExtraBlankLines(source: string): string {
 	return source.replace(/\n{3,}/g, '\n\n');
+}
+
+/**
+ * Merge `import` statements at the top of a file that pull from the
+ * same source.
+ *
+ * When a service contributes an `imports` snippet that uses a binding
+ * the base file already imports from the same module (commonly
+ * `react`), the composer naively concatenates both `import` statements.
+ * The resulting code is valid but reads as duplicate-import noise.
+ *
+ * This pass scans the leading import block (everything up to the first
+ * non-import, non-blank, non-directive line) and merges named-import
+ * statements for the same module. Type-only and value imports are kept
+ * distinct so we never silently change the import semantics. Default,
+ * namespace, and side-effect imports are left untouched; merging them
+ * is too easy to get wrong.
+ *
+ * The first occurrence of each (module, kind) pair stays in place; any
+ * later duplicates are removed and their bindings folded into the
+ * first statement, preserving import order.
+ */
+function mergeAdjacentImports(source: string): string {
+	const lines = source.split('\n');
+	const importLine =
+		/^(\s*)(import(\s+type)?)\s+\{\s*([^}]*?)\s*\}\s+from\s+(['"])([^'"]+)\5;?\s*$/;
+
+	// Identify the leading import block. Anything up to the first line
+	// that is not blank, not an import (named or otherwise), and not a
+	// directive ('use client', etc.) ends the block.
+	let blockEnd = 0;
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]!;
+		const trimmed = line.trim();
+		if (
+			trimmed === '' ||
+			trimmed.startsWith('//') ||
+			trimmed.startsWith('/*') ||
+			trimmed.startsWith('*') ||
+			trimmed.startsWith('import ') ||
+			/^['"]use [a-z]+['"];?$/.test(trimmed)
+		) {
+			blockEnd = i + 1;
+			continue;
+		}
+		break;
+	}
+
+	interface MergedImport {
+		index: number;
+		leading: string;
+		kind: string;
+		quote: string;
+		names: string[];
+	}
+	const byKey = new Map<string, MergedImport>();
+	const removeIndices = new Set<number>();
+
+	for (let i = 0; i < blockEnd; i++) {
+		const m = lines[i]!.match(importLine);
+		if (!m) continue;
+		const kind = m[2] ?? 'import';
+		const module_ = m[6] ?? '';
+		const key = `${kind}::${module_}`;
+		const names = (m[4] ?? '')
+			.split(',')
+			.map((s) => s.trim())
+			.filter(Boolean);
+
+		const existing = byKey.get(key);
+		if (!existing) {
+			byKey.set(key, {
+				index: i,
+				leading: m[1] ?? '',
+				kind,
+				quote: m[5] ?? "'",
+				names,
+			});
+			continue;
+		}
+		for (const name of names) {
+			if (!existing.names.includes(name)) existing.names.push(name);
+		}
+		removeIndices.add(i);
+	}
+
+	if (removeIndices.size === 0) return source;
+
+	// Rewrite the merged statements at their original indices, then drop
+	// the duplicate lines.
+	for (const merged of byKey.values()) {
+		lines[merged.index] =
+			`${merged.leading}${merged.kind} { ${merged.names.join(', ')} } from ${merged.quote}${lines[merged.index]!.match(importLine)![6]}${merged.quote};`;
+	}
+	return lines.filter((_, i) => !removeIndices.has(i)).join('\n');
 }
 
 async function collectSnippetsForMarker(
