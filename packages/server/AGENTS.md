@@ -24,7 +24,6 @@ src/
 ├── config.ts             # getServiceUrls, resolveRegion, getAPIBaseURL/etc.
 ├── logger.ts             # ConsoleLogger, createLogger
 ├── schema.ts             # toJSONSchema
-├── runtime-bootstrap.ts  # bootstrapRuntimeEnv (legacy helper, no callers in v3)
 ├── util/resources.ts     # validateResources, validateCPUSpec, validateMemorySpec
 └── api/                  # API clients for Agentuity cloud services
     ├── org/              # Organization management

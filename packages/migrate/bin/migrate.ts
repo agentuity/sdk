@@ -92,12 +92,11 @@ async function detectMigrationMode(dir: string): Promise<'v1-to-v2' | 'v2-to-v3'
 			return 'v1-to-v2';
 		}
 
-		// ^2.x or 2.x or latest or * or workspace:* → v2 to v3
+		// ^2.x or 2.x or latest or * → v2 to v3
 		if (
 			/^[~^]?2\./.test(runtimeVersion) ||
 			runtimeVersion === 'latest' ||
-			runtimeVersion === '*' ||
-			runtimeVersion.startsWith('workspace:')
+			runtimeVersion === '*'
 		) {
 			return 'v2-to-v3';
 		}

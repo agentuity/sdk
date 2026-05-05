@@ -24,5 +24,4 @@ export {
 	type ResourcesConfig,
 	type ValidatedResources,
 } from './util/resources.ts';
-export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from './runtime-bootstrap.ts';
 export { z } from 'zod';

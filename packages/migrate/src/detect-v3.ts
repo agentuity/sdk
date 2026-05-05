@@ -514,7 +514,6 @@ export async function detectV3(projectDir: string): Promise<V3DetectionResult> {
 						const needsUpdate =
 							versionStr === 'latest' ||
 							versionStr === '*' ||
-							versionStr.startsWith('workspace:') ||
 							/^[~^]?[12]\./.test(versionStr);
 
 						if (needsUpdate) {
