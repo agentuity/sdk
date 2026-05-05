@@ -210,7 +210,8 @@ jobs:
          # The DB smoke test reads these to talk to a real provisioned
          # database on the integration-suite org. AGENTUITY_ORG_ID is
          # the integration-suite org id; the database is a fixed test
-         # db pre-created on that org.
+         # db pre-created on that org. The db lives in region `use`, so
+         # the db step overrides AGENTUITY_REGION below.
          AGENTUITY_ORG_ID: ${{ secrets.AGENTUITY_ORG_ID }}
          AGENTUITY_DB_DATABASE: testdb
       steps:
@@ -263,6 +264,9 @@ jobs:
          - name: Run db client smoke
            id: db
            continue-on-error: true
+           env:
+              # Override: testdb is provisioned in `use`, not `usc`.
+              AGENTUITY_REGION: use
            run: cd tests/services/db && bun run start
 
          - name: Run schedule client smoke
