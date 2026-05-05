@@ -1,8 +1,6 @@
 export {
 	getResourceInfo,
-	getResourceRegion,
 	setResourceInfo,
-	setResourceRegion,
 	deleteResourceRegion,
 	clearProfileCache,
 	closeDatabase,
@@ -10,6 +8,6 @@ export {
 	type ResourceInfo,
 } from './resource-region.ts';
 
-export { getCachedProject, setCachedProject, clearProjectCache } from './project-cache.ts';
+export { getCachedProject, setCachedProject } from './project-cache.ts';
 
 export { getCachedUserInfo, setCachedUserInfo, clearCachedUserInfo } from './user-cache.ts';

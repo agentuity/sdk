@@ -438,13 +438,6 @@ export function setGlobalCollector(collector: BuildReportCollector): void {
 }
 
 /**
- * Get the global collector instance (may be null)
- */
-export function getGlobalCollector(): BuildReportCollector | null {
-	return globalCollector;
-}
-
-/**
  * Clear the global collector instance and clean up its signal handlers
  */
 export function clearGlobalCollector(): void {

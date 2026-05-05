@@ -131,20 +131,6 @@ export async function getResourceInfo(
 }
 
 /**
- * Get the cached region for a resource.
- * Returns null if not found or expired.
- * @deprecated Use getResourceInfo() to get both region and orgId
- */
-export async function getResourceRegion(
-	type: ResourceType,
-	profile: string,
-	id: string
-): Promise<string | null> {
-	const info = await getResourceInfo(type, profile, id);
-	return info?.region ?? null;
-}
-
-/**
  * Set the cached info for a resource.
  * Uses INSERT OR REPLACE to upsert.
  */
@@ -171,20 +157,6 @@ export async function setResourceInfo(
 	} catch {
 		// Non-critical cache failure should never block the CLI.
 	}
-}
-
-/**
- * Set the cached region for a resource.
- * Uses INSERT OR REPLACE to upsert.
- * @deprecated Use setResourceInfo() to set both region and orgId
- */
-export async function setResourceRegion(
-	type: ResourceType,
-	profile: string,
-	id: string,
-	region: string
-): Promise<void> {
-	await setResourceInfo(type, profile, id, region);
 }
 
 /**

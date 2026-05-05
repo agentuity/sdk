@@ -87,7 +87,7 @@ export function getVisitorId(): string {
 /**
  * Get cached geo location
  */
-export function getCachedGeo(): GeoLocation | null {
+function getCachedGeo(): GeoLocation | null {
 	try {
 		const cached = sessionStorage.getItem('agentuity_geo');
 		if (cached) return JSON.parse(cached);
@@ -100,7 +100,7 @@ export function getCachedGeo(): GeoLocation | null {
 /**
  * Cache geo location
  */
-export function setCachedGeo(geo: GeoLocation): void {
+function setCachedGeo(geo: GeoLocation): void {
 	try {
 		sessionStorage.setItem('agentuity_geo', JSON.stringify(geo));
 	} catch {

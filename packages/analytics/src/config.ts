@@ -15,9 +15,6 @@ declare global {
 /** Default collect endpoint */
 export const DEFAULT_ENDPOINT = '/_agentuity/webanalytics/collect';
 
-/** Maximum custom events per page view */
-export const MAX_CUSTOM_EVENTS = 1000;
-
 /**
  * Get analytics config from window global
  */

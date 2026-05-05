@@ -154,14 +154,6 @@ export async function hasLoggedInBefore(): Promise<boolean> {
 	return pathExists(configPath);
 }
 
-export async function isAuthenticated(): Promise<boolean> {
-	const auth = await getAuth();
-	if (!auth) {
-		return false;
-	}
-	return auth.expires > new Date();
-}
-
 export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthData> {
 	const { logger } = ctx;
 	const auth = await getAuth();
