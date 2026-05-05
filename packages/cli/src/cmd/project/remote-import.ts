@@ -3,7 +3,6 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Logger, parseEnvExample, StructuredError } from '@agentuity/core';
-import { parse as parseYaml } from 'yaml';
 import { pathExists } from '../../node-compat/fs.ts';
 import { run, spawnInherit } from '../../node-compat/proc.ts';
 import {
@@ -273,32 +272,6 @@ async function downloadAndExtract(
 			// Ignore cleanup errors
 		}
 		throw err;
-	}
-}
-
-/**
- * Look for agentuity.yaml in the extracted content and parse it.
- * Returns the parsed content or null if not found.
- */
-async function findAgentuityYaml(
-	dir: string,
-	logger: Logger
-): Promise<Record<string, unknown> | null> {
-	const yamlPath = join(dir, 'agentuity.yaml');
-
-	if (!(await pathExists(yamlPath))) {
-		logger.debug('[remote-import] No agentuity.yaml found at %s', yamlPath);
-		return null;
-	}
-
-	try {
-		const content = await readFile(yamlPath, 'utf-8');
-		const parsed = parseYaml(content) as Record<string, unknown>;
-		logger.debug('[remote-import] Parsed agentuity.yaml: %o', parsed);
-		return parsed;
-	} catch (err) {
-		logger.debug('[remote-import] Failed to parse agentuity.yaml: %o', err);
-		return null;
 	}
 }
 
@@ -678,13 +651,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			sourceDir = subDir;
 		}
 
-		// 3. Find and parse agentuity.yaml (informational, for future use)
-		const yamlConfig = await findAgentuityYaml(sourceDir, logger);
-		if (yamlConfig) {
-			tui.info('Found agentuity.yaml in template.');
-		}
-
-		// 4. Project setup
+		// 3. Project setup
 		let projectInfo: {
 			id: string;
 			sdkKey: string;
@@ -1239,7 +1206,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			logger.debug('[remote-import] Could not fetch bot identity, using fallback');
 		}
 
-		// 5. Git init + push (if --repo flag provided) — in sourceDir, not CWD
+		// 4. Git init + push (if --repo flag provided) — in sourceDir, not CWD
 		if (repo) {
 			// Create the repo (we already verified it doesn't exist in preflight)
 			const repoUrl = await createGithubRepoForImport(apiClient, repo, logger);
@@ -1276,7 +1243,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 			}
 		}
 
-		// 6. Copy extracted content into project folder (already validated in preflight)
+		// 5. Copy extracted content into project folder (already validated in preflight)
 		await tui.spinner({
 			message: 'Copying project files...',
 			clearOnSuccess: true,
@@ -1300,7 +1267,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 
 		tui.success(`Project created in ./${projectDirName}`);
 
-		// 7. Deploy (if --deploy flag)
+		// 6. Deploy (if --deploy flag)
 		if (deploy) {
 			await runDeploy(dest, logger);
 		}

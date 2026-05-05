@@ -23,13 +23,6 @@ The CLI source is **runtime-agnostic**:
 - Builds and runs under **Node.js 24+** (the published binary uses
   `#!/usr/bin/env node`).
 
-The CLI source is **runtime-agnostic**:
-
-- Builds and runs under **Bun 1.3+** (preferred for development; tests
-  and build scripts assume Bun).
-- Builds and runs under **Node.js 24+** (the published binary uses
-  `#!/usr/bin/env node`).
-
 ### Entry point structure
 
 The published binary is `bin/cli.js` — a small, hand-written JavaScript

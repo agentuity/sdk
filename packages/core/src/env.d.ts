@@ -129,12 +129,6 @@ declare global {
 			/** Enable SDK development mode with additional debugging */
 			AGENTUITY_SDK_DEV_MODE?: string;
 
-			/**
-			 * Flag indicating code is running inside the Agentuity agent runtime.
-			 * Set automatically by the runtime.
-			 */
-			AGENTUITY_RUNTIME?: string;
-
 			/** Environment shorthand (dev, staging, prod) */
 			AGENTUITY_ENV?: string;
 
