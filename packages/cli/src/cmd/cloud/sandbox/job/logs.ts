@@ -142,5 +142,3 @@ export const logsSubcommand = createSubcommand({
 		}
 	},
 });
-
-export default logsSubcommand;

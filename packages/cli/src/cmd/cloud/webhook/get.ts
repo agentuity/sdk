@@ -56,5 +56,3 @@ export const getSubcommand = createCommand({
 		return webhook;
 	},
 });
-
-export default getSubcommand;

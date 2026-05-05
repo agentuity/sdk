@@ -205,5 +205,3 @@ export const dlqSubcommand = createCommand({
 	],
 	subcommands: [listDlqSubcommand, replayDlqSubcommand, purgeDlqSubcommand],
 });
-
-export default dlqSubcommand;

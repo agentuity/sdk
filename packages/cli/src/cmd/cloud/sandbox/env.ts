@@ -109,5 +109,3 @@ export const envSubcommand = createCommand({
 		return { success: true, env: result.env };
 	},
 });
-
-export default envSubcommand;

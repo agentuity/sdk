@@ -71,5 +71,3 @@ export const createSubcommand = createCommand({
 		return address;
 	},
 });
-
-export default createSubcommand;

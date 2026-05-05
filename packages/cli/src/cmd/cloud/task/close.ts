@@ -316,5 +316,3 @@ export const closeSubcommand = createCommand({
 		};
 	},
 });
-
-export default closeSubcommand;

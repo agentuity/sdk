@@ -46,5 +46,3 @@ export const nackSubcommand = createCommand({
 		};
 	},
 });
-
-export default nackSubcommand;

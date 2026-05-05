@@ -116,5 +116,3 @@ export const getSubcommand = createCommand({
 		};
 	},
 });
-
-export default getSubcommand;

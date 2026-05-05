@@ -80,5 +80,3 @@ export const getSubcommand = createCommand({
 		return job;
 	},
 });
-
-export default getSubcommand;

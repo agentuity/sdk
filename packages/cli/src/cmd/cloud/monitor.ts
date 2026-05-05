@@ -371,5 +371,3 @@ function usecToISO(us?: number): string | undefined {
 	}
 	return new Date(Math.floor(us / 1000)).toISOString();
 }
-
-export default monitorSubcommand;

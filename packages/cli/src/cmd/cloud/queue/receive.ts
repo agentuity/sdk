@@ -80,5 +80,3 @@ export const receiveSubcommand = createCommand({
 		return { message };
 	},
 });
-
-export default receiveSubcommand;

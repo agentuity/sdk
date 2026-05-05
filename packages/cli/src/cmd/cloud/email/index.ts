@@ -27,5 +27,3 @@ export const emailCommand = createCommand({
 	],
 	requires: { auth: true },
 });
-
-export default emailCommand;

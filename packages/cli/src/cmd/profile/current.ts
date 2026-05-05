@@ -27,5 +27,3 @@ export const currentCommand = createSubcommand({
 		return profileName;
 	},
 });
-
-export default currentCommand;

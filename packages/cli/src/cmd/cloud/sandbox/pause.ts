@@ -82,5 +82,3 @@ export const pauseSubcommand = createCommand({
 		};
 	},
 });
-
-export default pauseSubcommand;

@@ -348,5 +348,3 @@ export const sourcesSubcommand = createCommand({
 		deleteSourceSubcommand,
 	],
 });
-
-export default sourcesSubcommand;

@@ -119,5 +119,3 @@ export const uninstallSubcommand = createSubcommand({
 		return { success: true, removedPlugin, removedPermissions };
 	},
 });
-
-export default uninstallSubcommand;

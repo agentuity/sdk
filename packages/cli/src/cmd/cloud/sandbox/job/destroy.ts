@@ -69,5 +69,3 @@ export const destroySubcommand = createCommand({
 		return job;
 	},
 });
-
-export default destroySubcommand;

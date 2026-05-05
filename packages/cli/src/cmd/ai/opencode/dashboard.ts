@@ -774,5 +774,3 @@ export const dashboardSubcommand = createSubcommand({
 		return { success: true };
 	},
 });
-
-export default dashboardSubcommand;

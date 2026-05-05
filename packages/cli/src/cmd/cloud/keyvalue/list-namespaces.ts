@@ -45,5 +45,3 @@ export const listNamespacesSubcommand = createCommand({
 		return namespaces;
 	},
 });
-
-export default listNamespacesSubcommand;

@@ -156,5 +156,3 @@ export const messagesSubcommand = createCommand({
 		};
 	},
 });
-
-export default messagesSubcommand;

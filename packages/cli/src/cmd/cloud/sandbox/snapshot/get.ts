@@ -255,5 +255,3 @@ function printSandboxTree(sandboxes: SandboxInfo[]): void {
 		console.log(`  ${connector}${sandbox.sandboxId} ${statusColor(`(${sandbox.status})`)}`);
 	}
 }
-
-export default getSubcommand;

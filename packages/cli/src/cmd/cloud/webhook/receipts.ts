@@ -166,5 +166,3 @@ export const receiptsSubcommand = createCommand({
 	],
 	subcommands: [listReceiptsSubcommand, getReceiptSubcommand],
 });
-
-export default receiptsSubcommand;

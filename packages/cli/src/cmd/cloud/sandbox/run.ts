@@ -287,5 +287,3 @@ function createCaptureStream(onChunk: (chunk: string) => void): Writable {
 		},
 	});
 }
-
-export default runSubcommand;

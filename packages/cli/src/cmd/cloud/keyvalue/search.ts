@@ -77,5 +77,3 @@ export const searchSubcommand = createCommand({
 		};
 	},
 });
-
-export default searchSubcommand;

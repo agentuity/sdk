@@ -21,5 +21,3 @@ export const command = createCommand({
 	subcommands: [getSubcommand, listSubcommand],
 	requires: { auth: true, org: true },
 });
-
-export default command;

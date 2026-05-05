@@ -74,5 +74,3 @@ export const statsSubcommand = createCommand({
 		return data;
 	},
 });
-
-export default statsSubcommand;

@@ -157,5 +157,3 @@ export const deliveriesSubcommand = createCommand({
 	],
 	subcommands: [listDeliveriesSubcommand, retryDeliverySubcommand],
 });
-
-export default deliveriesSubcommand;

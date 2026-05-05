@@ -429,5 +429,3 @@ async function waitForTerminalExecutionFast(
 	);
 	return executionGet(client, { executionId, orgId, wait: EXECUTION_WAIT_DURATION });
 }
-
-export default execSubcommand;

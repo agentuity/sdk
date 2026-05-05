@@ -97,5 +97,3 @@ function detectFormat(filename: string): 'zip' | 'tar.gz' {
 	if (lower.endsWith('.zip')) return 'zip';
 	return 'tar.gz';
 }
-
-export default uploadSubcommand;

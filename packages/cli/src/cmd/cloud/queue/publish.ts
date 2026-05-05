@@ -90,5 +90,3 @@ export const publishSubcommand = createCommand({
 		return message;
 	},
 });
-
-export default publishSubcommand;

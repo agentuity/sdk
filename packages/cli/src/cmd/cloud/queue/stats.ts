@@ -293,5 +293,3 @@ export const statsSubcommand = createCommand({
 		return { type: 'org' as const, analytics };
 	},
 });
-
-export default statsSubcommand;

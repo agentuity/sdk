@@ -512,5 +512,3 @@ export const inspectSubcommand = createSubcommand({
 		}
 	},
 });
-
-export default inspectSubcommand;

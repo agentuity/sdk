@@ -70,5 +70,3 @@ export const updateSubcommand = createCommand({
 		return result;
 	},
 });
-
-export default updateSubcommand;

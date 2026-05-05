@@ -88,5 +88,3 @@ export const tagSubcommand = createCommand({
 		};
 	},
 });
-
-export default tagSubcommand;

@@ -93,5 +93,3 @@ export const consumersSubcommand = createCommand({
 	],
 	subcommands: [listConsumersSubcommand],
 });
-
-export default consumersSubcommand;

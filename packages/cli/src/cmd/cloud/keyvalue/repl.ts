@@ -290,5 +290,3 @@ export const replSubcommand = createCommand({
 		});
 	},
 });
-
-export default replSubcommand;

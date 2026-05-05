@@ -46,5 +46,3 @@ export const ackSubcommand = createCommand({
 		};
 	},
 });
-
-export default ackSubcommand;

@@ -36,5 +36,3 @@ export const resumeSubcommand = createCommand({
 		return queue;
 	},
 });
-
-export default resumeSubcommand;

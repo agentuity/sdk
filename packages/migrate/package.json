@@ -33,9 +33,7 @@
 		"typescript": "^5.9.0"
 	},
 	"devDependencies": {
-		"@agentuity/test-utils": "workspace:*",
-		"@types/bun": "latest",
-		"bun-types": "latest"
+		"@types/bun": "latest"
 	},
 	"publishConfig": {
 		"access": "public"

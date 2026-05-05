@@ -73,5 +73,7 @@
 		"**/generated/**",
 		"**/*.gen.ts",
 		"examples/**"
-	]
+	],
+	"ignoreBinaries": ["gh", "opencode", "amp", "npm"],
+	"ignoreDependencies": ["@mariozechner/pi-coding-agent"]
 }

@@ -72,5 +72,3 @@ export const urlSubcommand = createCommand({
 		return destination;
 	},
 });
-
-export default urlSubcommand;

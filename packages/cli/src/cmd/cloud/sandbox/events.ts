@@ -104,5 +104,3 @@ export const eventsSubcommand = createCommand({
 		};
 	},
 });
-
-export default eventsSubcommand;

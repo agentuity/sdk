@@ -60,5 +60,3 @@ export const generateSubcommand = createSubcommand({
 		console.log(JSON.stringify(schema, null, 2));
 	},
 });
-
-export default generateSubcommand;

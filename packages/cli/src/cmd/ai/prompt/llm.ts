@@ -364,5 +364,3 @@ The Agentuity CLI is designed for agent-friendly usage with:
 Always start with discovery (\`capabilities\`, \`schema\`), use safety features (\`--explain\`, \`--dry-run\`), and rely on structured output (\`--json\`) for reliable automation.
 `;
 }
-
-export default llmSubcommand;

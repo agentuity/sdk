@@ -71,5 +71,3 @@ export const mkdirSubcommand = createCommand({
 		return { success: true, path: args.path };
 	},
 });
-
-export default mkdirSubcommand;

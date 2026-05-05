@@ -86,5 +86,3 @@ export const listSubcommand = createCommand({
 		return result;
 	},
 });
-
-export default listSubcommand;

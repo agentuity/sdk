@@ -63,5 +63,3 @@ export const rmSubcommand = createCommand({
 		return { success: true, path: args.path, found: result.found };
 	},
 });
-
-export default rmSubcommand;

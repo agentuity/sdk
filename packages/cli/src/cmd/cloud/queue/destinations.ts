@@ -398,5 +398,3 @@ export const destinationsSubcommand = createCommand({
 		deleteDestinationSubcommand,
 	],
 });
-
-export default destinationsSubcommand;

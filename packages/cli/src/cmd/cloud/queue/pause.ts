@@ -37,5 +37,3 @@ export const pauseSubcommand = createCommand({
 		return queue;
 	},
 });
-
-export default pauseSubcommand;

@@ -174,5 +174,3 @@ export const installSubcommand = createSubcommand({
 		return { success: true, orgId, pluginPath };
 	},
 });
-
-export default installSubcommand;

@@ -86,5 +86,3 @@ export const deleteNamespaceSubcommand = createCommand({
 		};
 	},
 });
-
-export default deleteNamespaceSubcommand;

@@ -83,5 +83,3 @@ export const sendSubcommand = createCommand({
 		return outbound;
 	},
 });
-
-export default sendSubcommand;

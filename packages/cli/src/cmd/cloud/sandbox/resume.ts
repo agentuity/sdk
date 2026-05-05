@@ -62,5 +62,3 @@ export const resumeSubcommand = createCommand({
 		};
 	},
 });
-
-export default resumeSubcommand;

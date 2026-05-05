@@ -132,5 +132,3 @@ function formatModTime(isoString: string): string {
 		return isoString.slice(0, 16);
 	}
 }
-
-export default lsSubcommand;

@@ -49,5 +49,3 @@ export const createNamespaceSubcommand = createCommand({
 		};
 	},
 });
-
-export default createNamespaceSubcommand;

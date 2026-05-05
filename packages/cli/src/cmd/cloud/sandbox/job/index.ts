@@ -38,5 +38,3 @@ export const command = createCommand({
 	],
 	requires: { auth: true, org: true },
 });
-
-export default command;

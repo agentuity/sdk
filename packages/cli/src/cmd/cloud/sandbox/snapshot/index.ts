@@ -42,5 +42,3 @@ export const snapshotCommand = createCommand({
 	],
 	requires: { auth: true, org: true },
 });
-
-export default snapshotCommand;

@@ -1064,5 +1064,3 @@ export const buildSubcommand = createCommand({
 		}
 	},
 });
-
-export default buildSubcommand;

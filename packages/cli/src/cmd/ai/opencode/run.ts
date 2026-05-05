@@ -106,5 +106,3 @@ export const runSubcommand = createSubcommand({
 		return { success: exitCode === 0, task, exitCode: exitCode ?? 1, sandbox: !!sandbox };
 	},
 });
-
-export default runSubcommand;

@@ -155,5 +155,3 @@ export const getSubcommand = createCommand({
 		return { type: 'queue' as const, queue };
 	},
 });
-
-export default getSubcommand;

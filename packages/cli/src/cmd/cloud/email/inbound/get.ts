@@ -49,5 +49,3 @@ export const getSubcommand = createCommand({
 		return inbound;
 	},
 });
-
-export default getSubcommand;

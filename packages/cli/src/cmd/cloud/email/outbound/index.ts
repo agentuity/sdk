@@ -9,5 +9,3 @@ export const outboundCommand = createCommand({
 	requires: { auth: true },
 	subcommands: [listSubcommand, getSubcommand],
 });
-
-export default outboundCommand;

@@ -41,5 +41,3 @@ export const deleteSubcommand = createCommand({
 		return { success: true, schedule_id: args.schedule_id };
 	},
 });
-
-export default deleteSubcommand;

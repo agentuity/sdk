@@ -310,5 +310,3 @@ export const deleteSubcommand = createCommand({
 		};
 	},
 });
-
-export default deleteSubcommand;

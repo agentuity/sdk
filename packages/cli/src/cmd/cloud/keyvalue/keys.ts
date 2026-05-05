@@ -58,5 +58,3 @@ export const keysSubcommand = createCommand({
 		};
 	},
 });
-
-export default keysSubcommand;

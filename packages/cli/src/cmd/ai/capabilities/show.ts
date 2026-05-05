@@ -254,5 +254,3 @@ export const showSubcommand = createSubcommand({
 		return capabilities;
 	},
 });
-
-export default showSubcommand;

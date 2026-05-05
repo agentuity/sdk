@@ -11,5 +11,3 @@ export const destinationCommand = createCommand({
 	requires: { auth: true },
 	subcommands: [urlSubcommand, listSubcommand, deleteSubcommand],
 });
-
-export default destinationCommand;

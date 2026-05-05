@@ -86,5 +86,3 @@ export const uninstallSubcommand = createSubcommand({
 		return { success: true, removedFromOpenCode };
 	},
 });
-
-export default uninstallSubcommand;

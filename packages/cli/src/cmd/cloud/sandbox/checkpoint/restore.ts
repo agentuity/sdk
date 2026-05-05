@@ -74,5 +74,3 @@ export const restoreSubcommand = createCommand({
 		};
 	},
 });
-
-export default restoreSubcommand;
