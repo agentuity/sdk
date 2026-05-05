@@ -4,6 +4,7 @@ async function main() {
 	console.log('=== Sandbox Test App ===\n');
 
 	const client = new SandboxClient();
+	let createdSandboxId: string | null = null;
 
 	try {
 		// List available runtimes
@@ -24,6 +25,7 @@ async function main() {
 		// Create a sandbox
 		console.log('Creating sandbox...');
 		const sandbox = await client.create();
+		createdSandboxId = sandbox.id;
 		console.log(`  Created sandbox: ${sandbox.id}`);
 		console.log(`  Status: ${sandbox.status}\n`);
 
@@ -99,16 +101,31 @@ async function main() {
 		}
 		console.log();
 
-		// Clean up
+		// Clean up explicitly so the finally block doesn't double-destroy.
 		console.log('Destroying sandbox...');
 		await sandbox.destroy();
+		createdSandboxId = null;
 		console.log('  Sandbox destroyed\n');
 
 		console.log('=== Test Complete ===');
-	} catch (error) {
-		console.error('Error:', error);
-		process.exit(1);
+	} finally {
+		// Sandboxes are real billable resources — make absolutely sure
+		// we destroy any sandbox we created, even if a step before the
+		// inline destroy threw.
+		if (createdSandboxId !== null) {
+			console.log('\n🗑️  Cleanup: destroying sandbox left over from a failed run...');
+			try {
+				await client.destroy(createdSandboxId);
+				console.log(`  ✅ Destroyed sandbox ${createdSandboxId}`);
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				console.error(`  ⚠️  Failed to destroy sandbox ${createdSandboxId}: ${msg}`);
+			}
+		}
 	}
 }
 
-main();
+main().catch((error) => {
+	console.error('Error:', error);
+	process.exit(1);
+});

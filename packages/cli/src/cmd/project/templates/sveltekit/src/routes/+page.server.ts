@@ -1,6 +1,5 @@
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import type { Actions } from './$types';
+import { translate } from '$lib/server/translate';
 
 export const actions: Actions = {
 	default: async ({ request }) => {
@@ -9,16 +8,6 @@ export const actions: Actions = {
 		const toLanguage = formData.get('toLanguage') as string;
 		const model = (formData.get('model') as string) || 'gpt-4o-mini';
 
-		const { text: translation, usage } = await generateText({
-			model: openai(model),
-			prompt: `Translate the following text to ${toLanguage}. Return only the translation, nothing else.\n\n${text}`,
-		});
-
-		return {
-			translation,
-			tokens: usage?.totalTokens ?? 0,
-			model,
-			toLanguage,
-		};
+		return translate({ text, toLanguage, model });
 	},
 };

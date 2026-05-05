@@ -1,0 +1,19 @@
+{
+	"id": "storage",
+	"label": "Storage",
+	"hint": "Export history as files in object storage",
+	"description": "Add an 'Export history' button that bundles the translation history into a JSON file, uploads it to S3-compatible storage, and returns a download URL.",
+	"order": 50,
+	"requires": ["db"],
+	"packages": ["@agentuity/storage"],
+	"envVars": [
+		{
+			"name": "AGENTUITY_BUCKET_ENDPOINT",
+			"placeholder": "your-bucket.agentuity.run",
+			"comment": "Set automatically when an Agentuity bucket is provisioned"
+		},
+		{ "name": "AGENTUITY_BUCKET_ACCESS_KEY", "placeholder": "" },
+		{ "name": "AGENTUITY_BUCKET_SECRET_KEY", "placeholder": "" }
+	],
+	"frameworks": ["nextjs", "remix", "vite-react", "nuxt", "sveltekit", "astro", "hono"]
+}

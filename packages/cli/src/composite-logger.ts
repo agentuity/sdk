@@ -8,7 +8,7 @@
 
 import type { Logger } from '@agentuity/core';
 import { format } from 'node:util';
-import { ErrorCode, getExitCode } from './errors';
+import { ErrorCode, getExitCode } from './errors.ts';
 
 function isErrorCode(value: unknown): value is ErrorCode {
 	return typeof value === 'string' && Object.values(ErrorCode).includes(value as ErrorCode);

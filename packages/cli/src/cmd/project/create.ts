@@ -86,6 +86,12 @@ export const createProjectSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Storage action: "skip", "new", or existing bucket name'),
+			services: z
+				.array(z.string())
+				.optional()
+				.describe(
+					'Service augments to add (comma-separated). Available: db, keyvalue, queue, vector, storage. Pass --no-services or omit for none.'
+				),
 		}),
 		response: ProjectCreateResponseSchema,
 	},
@@ -147,6 +153,7 @@ export const createProjectSubcommand = createSubcommand({
 			region,
 			database: opts.database,
 			storage: opts.storage,
+			services: opts.services,
 		});
 
 		// Exit with error code if setup failed and not in JSON mode

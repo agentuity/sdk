@@ -1,4 +1,5 @@
 <script lang="ts">
+// @agentuity:imports
 import { enhance } from '$app/forms';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
@@ -12,6 +13,12 @@ let model: (typeof MODELS)[number] = $state('gpt-4o-mini');
 let isLoading = $state(false);
 
 let { form } = $props();
+
+// @agentuity:state
+
+// @agentuity:on-mount
+
+// @agentuity:on-result
 </script>
 
 <svelte:head>
@@ -85,6 +92,7 @@ let { form } = $props();
 						<option value={m}>{m}</option>
 					{/each}
 				</select>
+				<!-- @agentuity:inside-form-buttons -->
 				<div class="group relative z-0 ml-auto">
 					<div
 						class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
@@ -152,7 +160,11 @@ let { form } = $props();
 					</div>
 				</div>
 			{/if}
+
+			<!-- @agentuity:after-result -->
 		</form>
+
+		<!-- @agentuity:after-form -->
 
 		<!-- How it works -->
 		<div class="rounded-lg border border-gray-900 bg-black p-8">

@@ -1,3 +1,4 @@
+// @agentuity:imports
 import { useState, type ChangeEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
@@ -35,6 +36,8 @@ function App() {
 		mutationFn: translateText,
 	});
 
+	// @agentuity:state
+
 	const handleTranslate = () => {
 		mutation.mutate({ text, toLanguage, model });
 	};
@@ -42,6 +45,10 @@ function App() {
 	const isLoading = mutation.isPending;
 	const error = mutation.error;
 	const result = mutation.data;
+
+	// @agentuity:on-mount
+
+	// @agentuity:on-result
 
 	return (
 		<div className="flex min-h-screen justify-center font-sans text-white">
@@ -109,6 +116,7 @@ function App() {
 								</option>
 							))}
 						</select>
+						{/* @agentuity:inside-form-buttons */}
 						<div className="group relative z-0 ml-auto">
 							<div className="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
 							<div className="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
@@ -167,7 +175,11 @@ function App() {
 							</div>
 						</div>
 					)}
+
+					{/* @agentuity:after-result */}
 				</div>
+
+				{/* @agentuity:after-form */}
 
 				{/* How it works */}
 				<div className="rounded-lg border border-gray-900 bg-black p-8">

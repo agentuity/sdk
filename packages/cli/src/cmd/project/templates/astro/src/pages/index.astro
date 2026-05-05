@@ -1,4 +1,5 @@
 ---
+// @agentuity:imports
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
@@ -59,6 +60,7 @@ const DEFAULT_TEXT =
 						<select id="model" class="-mb-0.5 cursor-pointer appearance-none border-0 border-b border-dashed border-gray-700 bg-transparent font-normal text-white outline-none hover:border-b-cyan-400 focus:border-b-cyan-400">
 							{MODELS.map((m) => <option value={m}>{m}</option>)}
 						</select>
+						<!-- @agentuity:inside-form-buttons -->
 						<div class="group relative z-0 ml-auto">
 							<div class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
 							<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
@@ -82,7 +84,11 @@ const DEFAULT_TEXT =
 					<div id="result" class="output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600">
 						Translation will appear here
 					</div>
+
+					<!-- @agentuity:after-result -->
 				</div>
+
+				<!-- @agentuity:after-form -->
 
 				<!-- How it works -->
 				<div class="rounded-lg border border-gray-900 bg-black p-8">
@@ -127,6 +133,10 @@ const DEFAULT_TEXT =
 			const modelSelect = document.getElementById('model')! as HTMLSelectElement;
 			const resultDiv = document.getElementById('result')!;
 
+			// @agentuity:state
+
+			// @agentuity:on-mount
+
 			btn.addEventListener('click', async () => {
 				const text = textInput.value;
 				const toLanguage = toLangSelect.value;
@@ -145,6 +155,9 @@ const DEFAULT_TEXT =
 					});
 					if (!res.ok) throw new Error(`API error ${res.status}`);
 					const data = await res.json();
+
+					// @agentuity:on-result
+
 					resultDiv.className = 'output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-cyan-500';
 					resultDiv.innerHTML = `${data.translation}<div class="flex gap-4 text-xs text-gray-500 mt-3">${data.tokens > 0 ? `<span>Tokens <strong class="text-gray-400">${data.tokens}</strong></span>` : ''}<span>Model <strong class="text-gray-400">${data.model}</strong></span><span>Language <strong class="text-gray-400">${data.toLanguage}</strong></span></div>`;
 				} catch (err) {

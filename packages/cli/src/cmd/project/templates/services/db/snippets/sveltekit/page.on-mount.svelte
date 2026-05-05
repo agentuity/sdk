@@ -1,0 +1,1 @@
+onMount(loadHistory);

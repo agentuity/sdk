@@ -1,5 +1,7 @@
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+// @agentuity:imports
+import { translate } from './server/translate';
+
+// @agentuity:module
 
 Bun.serve({
 	port: process.env.PORT ?? 3000,
@@ -8,19 +10,11 @@ Bun.serve({
 
 		if (url.pathname === '/api/translate' && request.method === 'POST') {
 			const { text, toLanguage, model = 'gpt-4o-mini' } = await request.json();
-
-			const { text: translation, usage } = await generateText({
-				model: openai(model),
-				prompt: `Translate the following text to ${toLanguage}. Return only the translation, nothing else.\n\n${text}`,
-			});
-
-			return Response.json({
-				translation,
-				tokens: usage?.totalTokens ?? 0,
-				model,
-				toLanguage,
-			});
+			const result = await translate({ text, toLanguage, model });
+			return Response.json(result);
 		}
+
+		// @agentuity:routes
 
 		// Proxy all other requests to Vite dev server
 		const viteUrl = 'http://localhost:5173' + url.pathname + url.search;

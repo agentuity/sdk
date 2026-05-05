@@ -12,7 +12,7 @@ async function main() {
 	console.log('🚀 Starting Database Test...\n');
 
 	const client = new DBClient({
-		database: process.env.AGENTUITY_DB_DATABASE || 'test-db',
+		database: process.env.AGENTUITY_DB_DATABASE || 'testdb',
 		orgId: process.env.AGENTUITY_ORG_ID || 'test-org',
 	});
 

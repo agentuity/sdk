@@ -1,0 +1,35 @@
+{
+	"framework": "vite-react",
+	"displayName": "Vite + React",
+	"composableFiles": {
+		"translate": {
+			"path": "server/translate.ts",
+			"markers": {
+				"imports":        { "syntax": "//" },
+				"module":         { "syntax": "//" },
+				"translate-pre":  { "syntax": "//" },
+				"translate-post": { "syntax": "//" }
+			}
+		},
+		"server": {
+			"path": "server.ts",
+			"markers": {
+				"imports": { "syntax": "//" },
+				"module":  { "syntax": "//" },
+				"routes":  { "syntax": "//" }
+			}
+		},
+		"page": {
+			"path": "src/App.tsx",
+			"markers": {
+				"imports":             { "syntax": "//" },
+				"state":               { "syntax": "//" },
+				"on-mount":            { "syntax": "//" },
+				"on-result":           { "syntax": "//" },
+				"inside-form-buttons": { "syntax": "{/* */}" },
+				"after-result":        { "syntax": "{/* */}" },
+				"after-form":          { "syntax": "{/* */}" }
+			}
+		}
+	}
+}

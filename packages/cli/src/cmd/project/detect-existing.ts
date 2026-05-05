@@ -24,7 +24,7 @@ import {
 	detectFrameworkWithPackageJson,
 	type DetectedFramework,
 	type PackageJsonData,
-} from '../build/detect';
+} from '../build/detect/index.ts';
 
 /**
  * A successful detection. The `scaffoldSlug` is what `frameworkCatalog`
