@@ -92,14 +92,3 @@ export function getAppBaseURL(config?: Config | null): string {
 	const overrides = config?.overrides as { app_url?: string } | undefined;
 	return baseGetAppBaseURL(config?.name, overrides);
 }
-
-export function getGravityDevModeURL(_region: string, config?: Config | null): string {
-	const overrides = config?.overrides as { gravity_url?: string } | undefined;
-	if (overrides?.gravity_url) {
-		return overrides.gravity_url;
-	}
-	if (config?.name === 'local') {
-		return 'grpc://gravity.agentuity.io:443';
-	}
-	return 'grpc://devmode-us.agentuity.com';
-}
