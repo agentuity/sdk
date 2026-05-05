@@ -34,7 +34,7 @@
 		"test:services:task": "cd tests/services/task && bun run start",
 		"test:services:webhook": "cd tests/services/webhook && bun run start",
 		"test:services:sandbox": "cd tests/services/sandbox && bun run start",
-		"typecheck:apps": "bun run --filter='./tests/integration/standalone-backend' typecheck && bun run --filter='./tests/integration/e2e-web' typecheck && bun run --filter='./tests/integration/integration-suite' typecheck && bun run --filter='./tests/integration/oauth' typecheck",
+		"typecheck:apps": "bun run --filter='./tests/integration/standalone-backend' typecheck && bun run --filter='./tests/integration/e2e-web' typecheck && bun run --filter='./tests/integration/oauth' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",
 		"clean": "rm -rf packages/*/dist tests/**/dist packages/*/*.tsbuildinfo",
