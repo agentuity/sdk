@@ -581,11 +581,19 @@ async function createOrUpdateGitHubRelease(
 		// Release doesn't exist, continue
 	}
 
+	// Pin the release (and the tag gh creates server-side) to the current
+	// HEAD. Without --target, gh defaults to the repository's default branch,
+	// which means a release cut from any non-default branch (e.g. v3) lands
+	// on the wrong commit and has to be retargeted by hand afterwards.
+	const headSha = (await $`git rev-parse HEAD`.cwd(rootDir).text()).trim();
+
 	// Create the release
 	const args = [
 		'release',
 		'create',
 		tag,
+		'--target',
+		headSha,
 		'--title',
 		`Release ${version}`,
 		'--notes',
@@ -824,6 +832,8 @@ async function main() {
 
 			console.log('\n📥 Running bun install to pick up new versions...');
 			await $`bun install`.cwd(rootDir);
+
+			await commitReleaseChanges(newVersion);
 		}
 	} catch (err) {
 		console.error('\n❌ Publish failed:', err);
@@ -838,6 +848,53 @@ async function main() {
 			console.log('✓ Changes reverted\n');
 		}
 		rl.close();
+	}
+}
+
+/**
+ * Stage and commit the release artifacts (bumped package.json files,
+ * marketplace.json/plugin.json version bumps, refreshed bun.lock) so
+ * the working tree isn't left dirty after a successful publish.
+ *
+ * Pushing is intentionally left to the operator: the npm publish has
+ * already happened, but the operator may still want to review the
+ * generated commit, retarget the tag, or pull in additional changes
+ * before pushing.
+ */
+async function commitReleaseChanges(version: string) {
+	console.log('\n📝 Committing release changes...');
+
+	// Only stage the files we know we touched. We intentionally avoid
+	// `git add -A` here so unrelated working-tree changes (e.g. local
+	// experiments) don't get rolled into the release commit.
+	//
+	// Globs are written into separate template strings so Bun's `$`
+	// passes them through to git for pathspec expansion (interpolating
+	// the glob via `${var}` would single-quote it and disable matching).
+	try {
+		await $`git add package.json bun.lock .claude-plugin/marketplace.json`.cwd(rootDir);
+		await $`git add packages/*/package.json`.cwd(rootDir);
+		await $`git add packages/*/.claude-plugin/plugin.json`.cwd(rootDir).nothrow();
+	} catch (err) {
+		console.warn('   ⚠ Failed to stage release files:', err);
+		return;
+	}
+
+	// Bail out if there's actually nothing to commit (e.g. only the cli
+	// or create-agentuity packages were bumped on a previous release and
+	// those files happen to be unchanged this run).
+	const diff = await $`git diff --cached --name-only`.cwd(rootDir).text();
+	if (!diff.trim()) {
+		console.log('   ⊘ No release changes to commit.');
+		return;
+	}
+
+	const message = `Release ${version}`;
+	try {
+		await $`git commit -m ${message}`.cwd(rootDir);
+		console.log(`✓ Committed release ${version} (push manually when ready)`);
+	} catch (err) {
+		console.warn('   ⚠ Failed to commit release changes:', err);
 	}
 }
 
