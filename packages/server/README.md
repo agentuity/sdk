@@ -6,7 +6,7 @@ Server-side utilities for Node.js and Bun applications. This package is runtime-
 
 - **Runtime Agnostic**: Works with both Node.js and Bun
 - **Server-side focused**: Not browser compatible
-- **Shared utilities**: Common APIs used by @agentuity/runtime and standalone apps
+- **Shared utilities**: API clients, config, logging, and validation helpers used by `@agentuity/cli` and other server-side tooling
 
 ## Installation
 

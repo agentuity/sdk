@@ -1,8 +1,7 @@
-# {{PROJECT_NAME}}
-
 # create-agentuity
 
-Create a new Agentuity project with one command.
+Scaffold a new Agentuity project with one command. This package is a thin
+launcher that delegates to `@agentuity/cli`'s `project create` flow.
 
 ## Usage
 
@@ -12,141 +11,53 @@ cd my-project
 bun run dev
 ```
 
-Templates are automatically downloaded from the latest version in the GitHub repository.
-
-## What You Get
-
-A fully configured Agentuity project with:
-
-- ✅ **TypeScript** - Full type safety out of the box
-- ✅ **Bun runtime** - Fast JavaScript runtime and package manager
-- ✅ **Hot reload** - Development server with auto-rebuild
-- ✅ **Example agent** - Sample "hello" agent to get started
-- ✅ **React frontend** - Pre-configured web interface
-- ✅ **API routes** - Example API endpoints
-- ✅ **Type checking** - TypeScript configuration ready to go
-
-## Project Structure
-
-```
-my-app/
-├── src/
-│   ├── agent/           # Agent definitions
-│   │   └── hello/
-│   │       └── agent.ts # Example agent
-│   ├── api/             # Custom API routes
-│   │   └── route.ts     # Example route
-│   └── web/             # React web application
-│       └── app.tsx      # Main React component
-├── app.ts               # Application entry point
-├── tsconfig.json        # TypeScript configuration
-├── package.json         # Dependencies and scripts
-└── README.md            # Project documentation
-```
-
-## Available Commands
-
-After creating your project, you can run:
-
-### Development
+Or with npm:
 
 ```bash
-bun run dev
+npm create agentuity@latest my-project
 ```
 
-Starts the development server at http://localhost:3500
+## What you get
 
-### Build
+`agentuity project create` scaffolds a project using the official CLI for the
+framework you pick (Next.js, Nuxt, Remix, SvelteKit, Astro, Hono, or
+Vite + React) and overlays:
+
+- **AI translation demo** — a working `/translate` endpoint plus landing page
+  using the [AI SDK](https://sdk.vercel.ai) and `@ai-sdk/openai`.
+- **Agentuity wiring** — `@agentuity/cli` as a devDependency, a `deploy`
+  script, the Agentuity badge on the landing page, and `.gitignore` entries.
+- **Optional service augments** — a multi-select prompts you to add any of
+  DB (Postgres + Drizzle), KeyValue, Queue, Vector, or Storage. Each
+  augment composes into the translate demo so you see the service working
+  in context (e.g. cached translations, history panel, similar-translation
+  search) instead of a separate playground page.
+
+The output project is plain framework code — no Agentuity runtime imports,
+no `createApp()`, no agent registry. You bring the framework, Agentuity
+provides the deploy pipeline and service clients.
+
+## Available scripts in the generated project
+
+The exact scripts depend on the framework you pick (the official CLI's own
+defaults are preserved). Every project gets at least:
 
 ```bash
-bun run build
+bun run dev          # Run the framework's dev server with AI Gateway env
+bun run build        # Framework build
+agentuity deploy     # Deploy to Agentuity Cloud
 ```
-
-Compiles your application into the `.agentuity/` directory
-
-### Type Check
-
-```bash
-bun run typecheck
-```
-
-Runs TypeScript type checking
-
-## Next Steps
-
-After creating your project:
-
-1. **Customize the example agent** - Edit `src/agent/hello/agent.ts`
-2. **Add new agents** - Create new folders in `src/agent/`
-3. **Add API routes** - Create new routes in `src/web/`
-4. **Customize the UI** - Edit `src/web/app.tsx`
-5. **Configure your app** - Modify `app.ts` to add middleware, configure services, etc.
-
-## Creating Custom Agents
-
-Create a new agent by adding a folder in `src/agent/`:
-
-```typescript
-// src/agent/my-agent/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-
-const agent = createAgent({
-	metadata: {
-		description: 'My amazing agent',
-	},
-	schema: {
-		input: s.object({
-			message: s.string(),
-		}),
-		output: s.object({
-			response: s.string(),
-		}),
-	},
-	handler: async (ctx, input) => {
-		return { response: `Processed: ${input.message}` };
-	},
-});
-
-export default agent;
-```
-
-## Adding API Routes
-
-Create custom routes in `src/api/`:
-
-```typescript
-// src/api/my-route/route.ts
-import { createRouter } from '@agentuity/runtime';
-import myAgent from '../../agent/my-agent/agent';
-
-const router = createRouter();
-
-router.get('/', async (c) => {
-	const result = await myAgent.run({ message: 'Hello!' });
-	return c.json(result);
-});
-
-router.post('/', myAgent.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const result = await myAgent.run(data);
-	return c.json(result);
-});
-
-export default router;
-```
-
-## Learn More
-
-- [Agentuity Documentation](https://agentuity.dev)
-- [Bun Documentation](https://bun.sh/docs)
-- [Hono Documentation](https://hono.dev/)
-- [Zod Documentation](https://zod.dev/)
 
 ## Requirements
 
-- [Bun](https://bun.sh/) v1.0 or higher
-- TypeScript 5+
+- [Bun](https://bun.sh/) 1.3+ or Node.js 24+
+- An [Agentuity](https://agentuity.com) account (sign in via `agentuity login`
+  before running `agentuity deploy`)
+
+## See also
+
+- [`@agentuity/cli`](https://www.npmjs.com/package/@agentuity/cli) — the underlying CLI
+- [Agentuity docs](https://agentuity.dev)
 
 ## License
 

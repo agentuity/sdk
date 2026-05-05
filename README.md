@@ -1,7 +1,7 @@
 <div align="center">
     <img src=".github/GitHub.png" alt="Agentuity" width="1420"/> <br/>
 <br />
-<a href="https://npm.im/@agentuity/runtime"><img alt="NPM version" src="https://img.shields.io/npm/v/%40agentuity%2Fruntime.svg"></a>
+<a href="https://npm.im/@agentuity/cli"><img alt="NPM version" src="https://img.shields.io/npm/v/%40agentuity%2Fcli.svg"></a>
 <a href="https://github.com/agentuity/sdk/blob/main/README.md"><img alt="License" src="https://badgen.now.sh/badge/license/Apache-2.0"></a>
 <a href="https://discord.gg/vtn3hgUfuc"><img alt="Join the community on Discord" src="https://img.shields.io/discord/1332974865371758646.svg?style=flat"></a>
 </div>
@@ -39,10 +39,7 @@ Available skills:
 
 | Skill | Description |
 |-------|-------------|
-| **agentuity-agents** | Building agents with `createAgent`, schemas, context APIs, state management |
-| **agentuity-routing** | API routes, middleware, WebSocket/SSE/WebRTC handlers |
 | **agentuity-cli** | Project scaffolding, dev server, deployment, cloud services |
-| **agentuity-workbench** | Interactive dev UI for testing agents |
 
 See [`skills/README.md`](./skills/README.md) for details.
 
@@ -62,31 +59,49 @@ To chat with other community members you can join the [Agentuity Discord server]
 
 The structure of this mono repository:
 
-- `packages/auth` - Agentuity unified Authentication package
-- `packages/claude-code` - Claude Code plugin with multi-agent coding team
-- `packages/cli` - the Agentuity command line tool
-- `packages/core` - Shared utilities used by most packages
-- `packages/db` - Database service client for querying and managing databases
-- `packages/drizzle` - Drizzle ORM integration with resilient PostgreSQL connections
-- `packages/email` - Email service client for managing email addresses and sending emails
-- `packages/evals` - Reusable Evaluation Presets
-- `packages/frontend` - Reusable code for web frontends including WebRTC peer connections
-- `packages/keyvalue` - Key-value storage service client
-- `packages/opencode` - Opencode agent plugins for Agentuity
-- `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
-- `packages/queue` - Queue service client for publishing messages to queues
-- `packages/react` - React package for the Browser including WebRTC hooks
-- `packages/runtime` - Server-side package for the Agent runtime with WebRTC signaling
-- `packages/sandbox` - Sandbox service client for managing code execution environments
-- `packages/schedule` - Schedule service client for managing cron-based scheduled tasks
-- `packages/schema` - Schema validation library similar to zod and arktype
-- `packages/server` - Runtime-agnostic server-side SDK (Node.js & Bun)
-- `packages/task` - Task management service client for tasks, comments, and attachments
-- `packages/test-utils` - Internal test utilities that can be used by packages
-- `packages/vector` - Vector search service client for semantic search
-- `packages/vscode` - VS Code extension for Agentuity
-- `packages/webhook` - Webhook service client for managing webhooks and destinations
-- `packages/workbench` - Workbench UI component
+### Tooling
+
+- `packages/cli` — the Agentuity command line tool
+- `packages/create-agentuity` — `bun create agentuity` shim that delegates to the CLI
+- `packages/coder`, `packages/coder-tui` — Agentuity Coder Hub (sandbox-as-a-service IDE)
+- `packages/vscode` — VS Code extension for Agentuity
+- `packages/claude-code` — Claude Code plugin with multi-agent coding team
+- `packages/opencode` — Opencode agent plugins for Agentuity
+
+### Service clients (use these directly in your apps)
+
+- `packages/db` — Database service client (Postgres via the Catalyst API)
+- `packages/email` — Email service client
+- `packages/keyvalue` — Key-value storage
+- `packages/queue` — Message queues
+- `packages/sandbox` — Code execution sandboxes
+- `packages/schedule` — Cron-based scheduled tasks
+- `packages/storage` — S3-compatible object storage
+- `packages/task` — Task management (tasks, comments, attachments)
+- `packages/vector` — Vector search
+- `packages/webhook` — Webhook destinations
+
+### Framework integration
+
+- `packages/hono` — Hono middleware for Agentuity service injection
+- `packages/local` — Local development services (Bun SQLite, fallback when no SDK key)
+- `packages/migrate` — v1→v2 and v2→v3 migration tooling
+
+### Internal
+
+- `packages/core` — Shared utilities, types, and the underlying API client
+- `packages/server` — Server-side helpers (config, logging, validators) used by `@agentuity/cli`
+- `packages/telemetry` — OpenTelemetry initialization and JSONL exporters
+- `packages/analytics` — Analytics primitives
+- `packages/stream` — Streaming primitives
+- `packages/adapter` — Fetch adapter helpers
+- `packages/test-utils` — Internal test utilities (private, never published)
+
+### Deprecated
+
+- `packages/runtime` — v2 runtime, gutted to a deprecation stub for npm
+- `packages/postgres`, `packages/drizzle` — superseded by using `drizzle-orm` + `@neondatabase/serverless` directly
+- `packages/schema` — superseded by Zod / Valibot
 
 Each package is its own published npm package but all packages are versioned and published together.
 

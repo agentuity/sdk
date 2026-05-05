@@ -64,22 +64,6 @@ const raw = await client`SELECT NOW()`;
 await close();
 ```
 
-## Integration with @agentuity/auth
-
-```typescript
-import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
-import { createAuth } from '@agentuity/auth';
-import * as schema from './schema';
-
-const { db, close } = createPostgresDrizzle({ schema });
-
-const auth = createAuth({
-	database: drizzleAdapter(db, {
-		provider: 'pg',
-	}),
-});
-```
-
 ## Re-exports
 
 This package re-exports commonly used items for convenience:
@@ -100,10 +84,6 @@ This package re-exports commonly used items for convenience:
 - Schema definitions: `pgTable`, `pgSchema`, `pgEnum`
 - Column types: `text`, `integer`, `serial`, `boolean`, `timestamp`, `uuid`, `json`, `jsonb`, etc.
 - Constraints: `primaryKey`, `foreignKey`, `unique`, `uniqueIndex`, `index`, `check`
-
-### From better-auth
-
-- `drizzleAdapter` - For use with @agentuity/auth
 
 ## Testing
 

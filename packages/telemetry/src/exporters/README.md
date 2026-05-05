@@ -36,32 +36,27 @@ This decouples the application from the OTLP endpoint and provides resilience.
 
 ## Configuration
 
-### Enabling JSONL Exporters
+`@agentuity/telemetry` auto-initializes from environment variables when imported. The JSONL exporters kick in whenever `AGENTUITY_CLOUD_EXPORT_DIR` (or the `jsonlBasePath` config option) is set; otherwise telemetry goes straight to the OTLP endpoint.
 
-By default, JSONL exporters are enabled. You can configure them via the `OtelConfig`:
+### Auto-initialized (recommended)
 
 ```typescript
-import { registerOtel } from '@agentuity/runtime/otel';
-
-registerOtel({
-	name: 'my-app',
-	version: '1.0.0',
-	url: 'https://otel.example.com',
-	useJsonlExporter: true, // Enable JSONL exporters (default: true)
-	jsonlBasePath: './.agentuity/otel-data', // Directory for JSONL files
-});
+// Setting AGENTUITY_CLOUD_EXPORT_DIR enables the JSONL exporters automatically.
+// AGENTUITY_APP_NAME, AGENTUITY_APP_VERSION, AGENTUITY_REGION, etc. are picked
+// up from the environment at import time.
+import '@agentuity/telemetry';
 ```
 
-### Disabling JSONL Exporters
-
-To use the original OTLP exporters (direct network calls):
+### Manual configuration
 
 ```typescript
-registerOtel({
+import { registerTelemetry } from '@agentuity/telemetry';
+
+registerTelemetry({
 	name: 'my-app',
 	version: '1.0.0',
 	url: 'https://otel.example.com',
-	useJsonlExporter: false, // Disable JSONL, use OTLP directly
+	jsonlBasePath: './.agentuity/otel-data', // omit to send via OTLP directly
 });
 ```
 
