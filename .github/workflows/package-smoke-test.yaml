@@ -207,6 +207,12 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_REGION: usc
+         # The DB smoke test reads these to talk to a real provisioned
+         # database on the integration-suite org. AGENTUITY_ORG_ID is
+         # the integration-suite org id; the database is a fixed test
+         # db pre-created on that org.
+         AGENTUITY_ORG_ID: ${{ secrets.AGENTUITY_ORG_ID }}
+         AGENTUITY_DB_DATABASE: testdb
       steps:
          - uses: actions/checkout@v5
 
