@@ -26,7 +26,6 @@
 		"packages/telemetry": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
 		"packages/stream": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
 		"packages/hono": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
-		"packages/local": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
 
 		"packages/db": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
 		"packages/email": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
@@ -60,6 +59,7 @@
 		"packages/postgres",
 		"packages/drizzle",
 		"packages/schema",
+		"packages/local",
 		"packages/vscode",
 		"packages/claude-code",
 		"packages/opencode"
