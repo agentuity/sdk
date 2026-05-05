@@ -20,7 +20,8 @@
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build",
 		"typecheck": "bunx tsc --noEmit",
-		"prepublishOnly": "bun run clean && bun run build"
+		"prepublishOnly": "bun run clean && bun run build",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@agentuity/telemetry": "workspace:*",

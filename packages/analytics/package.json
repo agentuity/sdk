@@ -26,11 +26,13 @@
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build",
 		"typecheck": "bunx tsc --noEmit",
-		"prepublishOnly": "bun run clean && bun run build"
+		"prepublishOnly": "bun run clean && bun run build",
+		"test": "bun test"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"typescript": "^5.9.0"
+		"typescript": "^5.9.0",
+		"bun-types": "latest"
 	},
 	"publishConfig": {
 		"access": "public"
