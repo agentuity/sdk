@@ -123,6 +123,13 @@ export const CoderWorkspaceDetailSchema = z
 			.optional()
 			.default('')
 			.describe('Shell script run while preparing workspace snapshots'),
+		systemPrompt: z
+			.string()
+			.optional()
+			.default('')
+			.describe(
+				'Additional Lead agent system prompt applied to sessions created from this workspace'
+			),
 		snapshot: z
 			.object({
 				status: z.string().describe('Workspace snapshot build status'),
@@ -353,6 +360,7 @@ function hasWorkspaceSelections(input: {
 	repos?: unknown[];
 	dependencies?: unknown[];
 	setupScript?: string;
+	systemPrompt?: string;
 	savedSkillIds?: unknown[];
 	skillBucketIds?: unknown[];
 	enabledAgents?: unknown[];
@@ -361,6 +369,7 @@ function hasWorkspaceSelections(input: {
 		(input.repos?.length ?? 0) > 0 ||
 		(input.dependencies?.length ?? 0) > 0 ||
 		Boolean(input.setupScript?.trim()) ||
+		Boolean(input.systemPrompt?.trim()) ||
 		(input.savedSkillIds?.length ?? 0) > 0 ||
 		(input.skillBucketIds?.length ?? 0) > 0 ||
 		(input.enabledAgents?.length ?? 0) > 0
@@ -381,6 +390,12 @@ export const CoderCreateWorkspaceRequestSchema = z
 			.string()
 			.optional()
 			.describe('Shell script run while preparing workspace snapshots'),
+		systemPrompt: z
+			.string()
+			.optional()
+			.describe(
+				'Additional Lead agent system prompt applied to sessions created from this workspace'
+			),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
 		enabledAgents: z
@@ -390,7 +405,7 @@ export const CoderCreateWorkspaceRequestSchema = z
 	})
 	.refine(hasWorkspaceSelections, {
 		message:
-			'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent',
+			'A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent',
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
@@ -409,6 +424,12 @@ export const CoderUpdateWorkspaceRequestSchema = z
 			.string()
 			.optional()
 			.describe('Shell script run while preparing workspace snapshots'),
+		systemPrompt: z
+			.string()
+			.optional()
+			.describe(
+				'Additional Lead agent system prompt applied to sessions created from this workspace'
+			),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
 		enabledAgents: z
