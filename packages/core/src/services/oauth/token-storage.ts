@@ -112,9 +112,12 @@ function toStoredToken(token: OAuthTokenResponse): StoredToken {
  * @example
  * ```typescript
  * import { KeyValueTokenStorage } from '@agentuity/core/oauth';
+ * import { KeyValueClient } from '@agentuity/keyvalue';
+ *
+ * const kv = new KeyValueClient();
  *
  * // Create storage with auto-refresh enabled
- * const storage = new KeyValueTokenStorage(ctx.kv, {
+ * const storage = new KeyValueTokenStorage(kv, {
  *   config: { issuer: 'https://auth.example.com' },
  * });
  *

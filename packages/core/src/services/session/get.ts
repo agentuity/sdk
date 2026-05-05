@@ -72,8 +72,6 @@ type SessionGetResponse = z.infer<typeof SessionGetResponseSchema>;
  * @returns
  */
 export type SessionEvalRun = z.infer<typeof SessionEvalRunSchema>;
-/** @deprecated Use SessionEvalRun instead */
-export type EvalRun = SessionEvalRun;
 export type RouteInfo = z.infer<typeof RouteInfoSchema>;
 export type AgentInfo = z.infer<typeof AgentInfoSchema>;
 export type EnrichedSession = {

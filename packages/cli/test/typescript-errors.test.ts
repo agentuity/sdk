@@ -46,14 +46,14 @@ describe('TypeScript Error Formatting', () => {
 			await Bun.write(
 				sourceFile,
 				`const config = {
-    // enable workbench
-    workbench,
+    // enable telemetry
+    telemetry,
 };
 `
 			);
 
 			const items: GrammarItem[] = [
-				createMockError('spaces.ts', 3, 5, 'TS2353', "Property 'workbench' does not exist."),
+				createMockError('spaces.ts', 3, 5, 'TS2353', "Property 'telemetry' does not exist."),
 			];
 
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });
@@ -71,10 +71,10 @@ describe('TypeScript Error Formatting', () => {
 	describe('Box alignment with tabs', () => {
 		test('renders aligned box for code with tab indentation', async () => {
 			const sourceFile = join(tempDir, 'tabs.ts');
-			await Bun.write(sourceFile, `const config = {\n\t// enable workbench\n\tworkbench,\n};\n`);
+			await Bun.write(sourceFile, `const config = {\n\t// enable telemetry\n\ttelemetry,\n};\n`);
 
 			const items: GrammarItem[] = [
-				createMockError('tabs.ts', 3, 2, 'TS2353', "Property 'workbench' does not exist."),
+				createMockError('tabs.ts', 3, 2, 'TS2353', "Property 'telemetry' does not exist."),
 			];
 
 			const output = await formatTypeScriptErrors(items, { projectDir: tempDir });

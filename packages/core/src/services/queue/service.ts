@@ -3,14 +3,15 @@
  *
  * Queue service for publishing messages to Agentuity queues.
  *
- * This module provides a simplified interface for agents to publish messages
- * to queues. For full queue management (CRUD, consume, acknowledge), use
- * the `@agentuity/server` package.
+ * Used internally by `@agentuity/queue`'s `QueueClient`. App code should
+ * use `QueueClient` directly rather than reaching for these primitives.
  *
- * @example Publishing from an agent
+ * @example
  * ```typescript
- * // Inside an agent handler
- * const result = await ctx.queue.publish('order-queue', {
+ * import { QueueClient } from '@agentuity/queue';
+ *
+ * const queue = new QueueClient();
+ * const result = await queue.publish('order-queue', {
  *   orderId: 123,
  *   action: 'process',
  * });
@@ -121,7 +122,7 @@ export type QueuePublishResult = z.infer<typeof QueuePublishResultSchema>;
  *
  * @example
  * ```typescript
- * const result = await ctx.queue.createQueue('my-queue', {
+ * const result = await queue.createQueue('my-queue', {
  *   queueType: 'pubsub',
  *   settings: { defaultTtlSeconds: 86400 },
  * });
@@ -195,25 +196,23 @@ export type QueueCreateResult = z.infer<typeof QueueCreateResultSchema>;
 /**
  * Queue service interface for publishing messages.
  *
- * This is the interface available to agents via `ctx.queue`. It provides
- * a simple publish-only interface suitable for agent workflows.
+ * Provides a simple publish-only surface suitable for app handlers.
+ * Implemented by `QueueStorageService` (cloud) and `LocalQueueStorage`
+ * (local dev).
  *
- * For full queue management (create queues, consume messages, manage destinations),
- * use the `@agentuity/server` package.
+ * For full queue management (create queues, consume messages, manage
+ * destinations), use the `@agentuity/queue` package directly.
  *
  * @example
  * ```typescript
- * // In an agent handler
- * export default createAgent('my-agent', {
- *   handler: async (ctx, input) => {
- *     // Publish a message to a queue
- *     await ctx.queue.publish('notifications', {
- *       type: 'email',
- *       to: input.email,
- *       subject: 'Welcome!',
- *     });
- *     return { success: true };
- *   },
+ * import { QueueClient } from '@agentuity/queue';
+ *
+ * const queue = new QueueClient();
+ *
+ * await queue.publish('notifications', {
+ *   type: 'email',
+ *   to: 'user@example.com',
+ *   subject: 'Welcome!',
  * });
  * ```
  */
@@ -234,12 +233,12 @@ export interface QueueService {
 	 *
 	 * @example Publishing a simple message
 	 * ```typescript
-	 * const result = await ctx.queue.publish('my-queue', 'Hello, World!');
+	 * const result = await queue.publish('my-queue', 'Hello, World!');
 	 * ```
 	 *
 	 * @example Publishing with options
 	 * ```typescript
-	 * const result = await ctx.queue.publish('my-queue', { task: 'process' }, {
+	 * const result = await queue.publish('my-queue', { task: 'process' }, {
 	 *   metadata: { priority: 'high' },
 	 *   idempotencyKey: 'task-123',
 	 *   ttl: 3600,
@@ -265,12 +264,12 @@ export interface QueueService {
 	 *
 	 * @example Creating a worker queue
 	 * ```typescript
-	 * const result = await ctx.queue.createQueue('task-queue');
+	 * const result = await queue.createQueue('task-queue');
 	 * ```
 	 *
 	 * @example Creating a pubsub queue with settings
 	 * ```typescript
-	 * const result = await ctx.queue.createQueue('events', {
+	 * const result = await queue.createQueue('events', {
 	 *   queueType: 'pubsub',
 	 *   settings: { defaultTtlSeconds: 86400 },
 	 * });
@@ -290,7 +289,7 @@ export interface QueueService {
 	 *
 	 * @example Deleting a queue
 	 * ```typescript
-	 * await ctx.queue.deleteQueue('old-queue');
+	 * await queue.deleteQueue('old-queue');
 	 * ```
 	 */
 	deleteQueue(queueName: string): Promise<void>;
@@ -322,7 +321,7 @@ export const QueueCreateError = StructuredError('QueueCreateError');
  * @example
  * ```typescript
  * try {
- *   await ctx.queue.publish('non-existent', 'payload');
+ *   await queue.publish('non-existent', 'payload');
  * } catch (error) {
  *   if (error instanceof QueueNotFoundError) {
  *     console.error('Queue does not exist');
@@ -429,12 +428,11 @@ function unwrapApiResponse<T>(data: unknown, key: string): T {
 // ============================================================================
 
 /**
- * HTTP-based implementation of the QueueService interface.
+ * HTTP-based implementation of the {@link QueueService} interface.
  *
- * This service communicates with the Agentuity Queue API to publish messages.
- * It is automatically configured and available via `ctx.queue` in agent handlers.
- *
- * @internal This class is instantiated by the runtime; use `ctx.queue` instead.
+ * This service communicates with the Agentuity Queue API to publish
+ * messages. App code should use `QueueClient` from `@agentuity/queue`
+ * rather than instantiating this class directly.
  */
 export class QueueStorageService implements QueueService {
 	#adapter: FetchAdapter;
