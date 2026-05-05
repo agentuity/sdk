@@ -45,7 +45,8 @@
 		"whoami": "node packages/cli/bin/cli.js auth whoami",
 		"whoami:bun": "bun packages/cli/bin/cli.js auth whoami",
 		"cli": "bun packages/cli/src/main.ts",
-		"cli:built": "node packages/cli/bin/cli.js"
+		"cli:built": "node packages/cli/bin/cli.js",
+		"knip": "bunx knip --no-progress"
 	},
 	"overrides": {
 		"commander": "^14.0.2",
@@ -58,31 +59,13 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.5",
-		"@happy-dom/global-registrator": "^20.0.11",
 		"@playwright/test": "^1.57.0",
-		"@testing-library/dom": "^10.4.1",
-		"@testing-library/jest-dom": "^6.9.1",
-		"@testing-library/react": "^16.3.0",
-		"@testing-library/react-hooks": "^8.0.1",
 		"@types/bun": "latest",
-		"@types/react": "^19.2.7",
-		"@types/react-dom": "^19.2.3",
 		"@typescript/native-preview": "^7.0.0-dev.20260413.1",
-		"archiver": "^7.0.1",
 		"bun-types": "latest",
-		"concurrently": "^9.2.1",
 		"husky": "^9.1.7",
-		"jiti": "^2.6.1",
+		"knip": "^6.11.0",
 		"playwright": "^1.57.0",
-		"react": "^19.2.3",
-		"react-dom": "^19.2.3",
-		"rehype-pretty-code": "^0.14.1",
 		"typescript": "^6.0.2"
-	},
-	"dependencies": {
-		"@radix-ui/react-tabs": "^1.1.13",
-		"ai": "^6.0.0",
-		"remark-frontmatter": "^5.0.0",
-		"remark-mdx-frontmatter": "^5.2.0"
 	}
 }
