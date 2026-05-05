@@ -22,9 +22,13 @@ async function main() {
 		console.log(`  Found ${sandboxes.total} sandbox(es)`);
 		console.log();
 
-		// Create a sandbox
+		// Create a sandbox on the node:lts runtime so the `node -e ...`
+		// commands below have something to exec. The default runtime
+		// (`base:latest`) ships only POSIX shell utilities; spawning `node`
+		// there exits 127, and the platform currently surfaces the
+		// follow-up createJob failure as an opaque 500 (agentuity/infra#121).
 		console.log('Creating sandbox...');
-		const sandbox = await client.create();
+		const sandbox = await client.create({ runtime: 'node:lts' });
 		createdSandboxId = sandbox.id;
 		console.log(`  Created sandbox: ${sandbox.id}`);
 		console.log(`  Status: ${sandbox.status}\n`);
