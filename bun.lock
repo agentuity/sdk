@@ -393,7 +393,6 @@
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
         "@agentuity/core": "workspace:*",
-        "@agentuity/schema": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {
@@ -525,7 +524,7 @@
     },
     "tests": {
       "name": "testing",
-      "version": "3.0.0-alpha.6",
+      "version": "3.0.0-beta.0",
     },
     "tests/frameworks/nextjs-app": {
       "name": "nextjs-app",
@@ -607,24 +606,6 @@
       "name": "e2e-web",
       "version": "0.0.1",
       "dependencies": {
-        "hono": "^4.7.13",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "typescript": "^5",
-      },
-    },
-    "tests/integration/integration-suite": {
-      "name": "integration-suite",
-      "version": "0.0.1",
-      "dependencies": {
-        "@agentuity/core": "workspace:*",
-        "@agentuity/email": "workspace:*",
-        "@agentuity/keyvalue": "workspace:*",
-        "@agentuity/queue": "workspace:*",
-        "@agentuity/schedule": "workspace:*",
-        "@agentuity/task": "workspace:*",
-        "@agentuity/vector": "workspace:*",
         "hono": "^4.7.13",
       },
       "devDependencies": {
@@ -2922,8 +2903,6 @@
 
     "inline-style-parser": ["inline-style-parser@0.2.7", "", {}, "sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA=="],
 
-    "integration-suite": ["integration-suite@workspace:tests/integration/integration-suite"],
-
     "internmap": ["internmap@2.0.3", "", {}, "sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg=="],
 
     "ip-address": ["ip-address@10.2.0", "", {}, "sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA=="],
@@ -4333,8 +4312,6 @@
     "hosted-git-info/lru-cache": ["lru-cache@11.3.6", "", {}, "sha512-Gf/KoL3C/MlI7Bt0PGI9I+TeTC/I6r/csU58N4BSNc4lppLBeKsOdFYkK+dX0ABDUMJNfCHTyPpzwwO21Awd3A=="],
 
     "htmlparser2/entities": ["entities@7.0.1", "", {}, "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="],
-
-    "integration-suite/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "js-yaml/argparse": ["argparse@1.0.10", "", { "dependencies": { "sprintf-js": "~1.0.2" } }, "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg=="],
 

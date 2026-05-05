@@ -41,5 +41,6 @@
 		"type": "git",
 		"url": "git+https://github.com/agentuity/sdk.git",
 		"directory": "packages/schema"
-	}
+	},
+	"deprecated": "Use a standard schema library like Zod or Valibot directly. @agentuity/schema will be removed in a future release."
 }

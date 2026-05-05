@@ -64,9 +64,9 @@ jobs:
               bun run whoami:bun
               node packages/cli/bin/cli.js profile show --json
               bun packages/cli/bin/cli.js profile show --json
-              # Run all checks except integration-suite (handled by package-smoke-test.yaml)
+              # Run all checks. Integration apps under tests/integration/
+              # are exercised by package-smoke-test.yaml in their own job.
               bun format
               bun lint
               bun typecheck
-              # Run only package unit tests, skip integration-suite
               bun run test:unit

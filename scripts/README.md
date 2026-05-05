@@ -18,7 +18,6 @@ tests/
       sandbox/ schedule/ task/ webhook/
    integration/             # app-level integration targets
       e2e-web/
-      integration-suite/
       oauth/
       standalone-backend/
 ```

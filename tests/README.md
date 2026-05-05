@@ -20,7 +20,6 @@ tests/
 │   └── webhook/
 └── integration/    # app-level integration targets
     ├── e2e-web/
-    ├── integration-suite/
     ├── oauth/
     └── standalone-backend/
 ```
@@ -63,9 +62,7 @@ testing. These get `bun test` unit coverage via CI (`testing-apps-test`
 job):
 
 - **`e2e-web`** — minimal Hono server used as a target for future browser
-  e2e tests (see memory #108 for the planned rebuild).
-- **`integration-suite`** — stub Hono app that will eventually wrap every
-  service client behind HTTP routes (see TODO: placeholders inside).
+  e2e tests.
 - **`oauth`** — OAuth 2.0 flow integration test.
 - **`standalone-backend`** — standalone Bun backend, exercises core
   server patterns.
@@ -76,7 +73,7 @@ job):
 
 ```bash
 cd tests
-bun run typecheck:all    # all framework apps + integration-suite
+bun run typecheck:all    # all framework apps + integration apps
 bun run build:tanstack   # one app
 bun run test:frameworks  # delegates to scripts/test-framework-demos.sh
 ```

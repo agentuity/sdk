@@ -149,9 +149,6 @@ jobs:
          - name: Run e2e-web tests
            run: cd tests/integration/e2e-web && bun test
 
-         - name: Run integration-suite tests
-           run: cd tests/integration/integration-suite && bun test
-
          - name: Run framework structure tests
            run: |
               cd tests/frameworks/nextjs-app && bun test
