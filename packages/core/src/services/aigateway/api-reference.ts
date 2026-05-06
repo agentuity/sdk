@@ -53,7 +53,7 @@ const service: Service = {
 			queryParams: [],
 			requestBody: null,
 			responseDescription:
-				'JSON response containing provider keys mapped to arrays of supported model metadata.',
+				'JSON response with provider keys mapped to arrays of supported model metadata under the `data` envelope.',
 			responseFields: { schema: AIGatewayModelsResponseSchema },
 			statuses: [
 				{ code: 200, description: 'Model catalog returned. Public — no auth required.' },
