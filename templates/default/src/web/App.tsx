@@ -1,7 +1,9 @@
 import { useAnalytics } from '@agentuity/react';
 import { hc } from 'hono/client';
+import type { InferResponseType } from 'hono/client';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import type { ApiRouter } from '../api/index';
-import { type ChangeEvent, Fragment, useCallback, useEffect, useState } from 'react';
 import './App.css';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
@@ -11,27 +13,9 @@ const DEFAULT_TEXT =
 
 const client = hc<ApiRouter>('/api');
 
-interface HistoryEntry {
-	readonly model: string;
-	readonly sessionId: string;
-	readonly text: string;
-	readonly timestamp: string;
-	readonly tokens: number;
-	readonly toLanguage: string;
-	readonly translation: string;
-}
-
-interface HistoryData {
-	readonly history: readonly HistoryEntry[];
-	readonly threadId?: string;
-	readonly translationCount: number;
-}
-
-interface TranslateResult extends HistoryData {
-	readonly sessionId: string;
-	readonly tokens: number;
-	readonly translation: string;
-}
+type HistoryData = InferResponseType<typeof client.translate.history.$get>;
+type TranslateResult = InferResponseType<typeof client.translate.$post>;
+type HistoryEntry = HistoryData['history'][number];
 
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
@@ -47,7 +31,7 @@ export function App() {
 	// Fetch history on mount
 	const fetchHistory = useCallback(async () => {
 		const res = await client.translate.history.$get();
-		setHistoryData((await res.json()) as HistoryData);
+		setHistoryData(await res.json());
 	}, []);
 
 	useEffect(() => {
@@ -55,7 +39,7 @@ export function App() {
 	}, [fetchHistory]);
 
 	// Prefer fresh data from translation, fall back to initial fetch
-	const history = translateResult?.history ?? historyData?.history ?? [];
+	const history: readonly HistoryEntry[] = translateResult?.history ?? historyData?.history ?? [];
 	const threadId = translateResult?.threadId ?? historyData?.threadId;
 
 	const handleTranslate = useCallback(async () => {
@@ -63,7 +47,7 @@ export function App() {
 		setIsLoading(true);
 		try {
 			const res = await client.translate.$post({ json: { text, toLanguage, model } });
-			setTranslateResult((await res.json()) as TranslateResult);
+			setTranslateResult(await res.json());
 		} finally {
 			setIsLoading(false);
 		}
@@ -71,10 +55,10 @@ export function App() {
 
 	const handleClearHistory = useCallback(async () => {
 		track('clear_history');
-		await client.translate.history.$delete();
+		const res = await client.translate.history.$delete();
 		setTranslateResult(null);
-		await fetchHistory();
-	}, [fetchHistory, track]);
+		setHistoryData(await res.json());
+	}, [track]);
 
 	return (
 		<div className="text-white flex font-sans justify-center min-h-screen">

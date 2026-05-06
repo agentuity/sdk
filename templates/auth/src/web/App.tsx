@@ -7,6 +7,7 @@ import {
 	useAuthenticate,
 } from '@daveyplate/better-auth-ui';
 import { hc } from 'hono/client';
+import type { InferResponseType } from 'hono/client';
 import { AnimatePresence, motion } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import type { ApiRouter } from '../api/index';
@@ -14,6 +15,8 @@ import { authClient } from './auth-client';
 import './App.css';
 
 const client = hc<ApiRouter>('/api');
+
+type ProtectedRouteResult = InferResponseType<typeof client.me.$get>;
 
 const NEXT_STEPS: ReadonlyArray<{
 	readonly key: string;
@@ -60,14 +63,6 @@ const NEXT_STEPS: ReadonlyArray<{
 		),
 	},
 ];
-
-interface ProtectedRouteResult {
-	readonly authMethod: string;
-	readonly email: string;
-	readonly id: string;
-	readonly memberSince: string | null;
-	readonly name: string | null;
-}
 
 function formatDate(value: string | null | undefined): string {
 	if (!value) return 'Not set';
