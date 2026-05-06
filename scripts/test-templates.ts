@@ -19,7 +19,7 @@
 
 import { spawn, type Subprocess } from 'bun';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 // Path to local CLI bin (use development version, not npm)
@@ -534,6 +534,122 @@ async function typecheckProject(projectDir: string): Promise<{ success: boolean;
 	return { success: true };
 }
 
+interface TemplateHonoRpcResponseTypeProbe {
+	readonly relativePath: string;
+	readonly source: string;
+}
+
+const DEFAULT_HONO_RPC_RESPONSE_TYPE_PROBE_PATH = join(
+	'src',
+	'web',
+	'hono-rpc-response-type-probe.ts'
+);
+
+function buildHonoRpcResponseTypeProbe(
+	body: string,
+	relativePath: string = DEFAULT_HONO_RPC_RESPONSE_TYPE_PROBE_PATH
+): TemplateHonoRpcResponseTypeProbe {
+	return {
+		relativePath,
+		source: `import { hc } from 'hono/client';
+import type { InferResponseType } from 'hono/client';
+import type { ApiRouter } from '../api/index';
+
+const client = hc<ApiRouter>('/api');
+
+declare function expectType<T>(value: T): void;
+
+${body}
+`,
+	};
+}
+
+function getTemplateHonoRpcResponseTypeProbe(
+	templateId: string
+): TemplateHonoRpcResponseTypeProbe | undefined {
+	switch (templateId) {
+		case 'default':
+			return buildHonoRpcResponseTypeProbe(`interface ExpectedHistoryEntry {
+\treadonly model: string;
+\treadonly sessionId: string;
+\treadonly text: string;
+\treadonly timestamp: string;
+\treadonly tokens: number;
+\treadonly toLanguage: string;
+\treadonly translation: string;
+}
+
+interface ExpectedHistoryData {
+\treadonly history: readonly ExpectedHistoryEntry[];
+\treadonly threadId?: string;
+\treadonly translationCount: number;
+}
+
+interface ExpectedTranslateResult extends ExpectedHistoryData {
+\treadonly sessionId: string;
+\treadonly tokens: number;
+\treadonly translation: string;
+}
+
+type HistoryData = InferResponseType<typeof client.translate.history.$get>;
+type TranslateResult = InferResponseType<typeof client.translate.$post>;
+type ClearHistoryResult = InferResponseType<typeof client.translate.history.$delete>;
+
+declare const historyData: HistoryData;
+declare const translateResult: TranslateResult;
+declare const clearHistoryResult: ClearHistoryResult;
+
+expectType<ExpectedHistoryData>(historyData);
+expectType<ExpectedTranslateResult>(translateResult);
+expectType<ExpectedHistoryData>(clearHistoryResult);
+`);
+
+		case 'auth':
+			return buildHonoRpcResponseTypeProbe(`interface ExpectedHealthData {
+\treadonly status: string;
+\treadonly timestamp: string;
+}
+
+interface ExpectedProtectedRouteResult {
+\treadonly authMethod: string;
+\treadonly email: string;
+\treadonly id: string;
+\treadonly memberSince: string | null;
+\treadonly name: string | null;
+}
+
+type HealthData = InferResponseType<typeof client.health.$get>;
+
+declare const healthData: HealthData;
+
+expectType<ExpectedHealthData>(healthData);
+
+async function verifyProtectedRouteResult(): Promise<void> {
+\tconst res = await client.me.$get();
+\tif (!res.ok) {
+\t\treturn;
+\t}
+
+\texpectType<ExpectedProtectedRouteResult>(await res.json());
+}
+`);
+
+		default:
+			return undefined;
+	}
+}
+
+async function verifyHonoRpcResponseTypes(
+	projectDir: string,
+	probe: TemplateHonoRpcResponseTypeProbe
+): Promise<{ success: boolean; error?: string }> {
+	const probePath = join(projectDir, probe.relativePath);
+	mkdirSync(dirname(probePath), { recursive: true });
+	writeFileSync(probePath, probe.source);
+
+	return typecheckProject(projectDir);
+}
+
 async function startServer(
 	projectDir: string,
 	port: number,
@@ -793,6 +909,31 @@ async function testTemplate(
 			return result;
 		}
 		logSuccess('Typecheck passed');
+
+		// Step 4.5: Verify template Hono RPC response inference
+		const honoRpcResponseTypeProbe = getTemplateHonoRpcResponseTypeProbe(template.id);
+		if (honoRpcResponseTypeProbe) {
+			logStep(`Verifying ${template.name} Hono RPC response types...`);
+			stepStart = Date.now();
+			const rpcTypeResult = await verifyHonoRpcResponseTypes(
+				projectDir,
+				honoRpcResponseTypeProbe
+			);
+			result.steps.push({
+				name: 'Verify Hono RPC response types',
+				passed: rpcTypeResult.success,
+				error: rpcTypeResult.error,
+				duration: Date.now() - stepStart,
+			});
+			if (!rpcTypeResult.success) {
+				result.passed = false;
+				logError(
+					`${template.name} Hono RPC response type check failed: ${rpcTypeResult.error}`
+				);
+				return result;
+			}
+			logSuccess(`${template.name} Hono RPC response types verified`);
+		}
 
 		// Step 5: Start server and test endpoints
 		logStep('Starting server...');

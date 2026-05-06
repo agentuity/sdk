@@ -60,7 +60,11 @@ const TranslateOutput = s.object({
 	translationCount: s.number().describe('Total translations in this thread'),
 });
 
+type TranslateResult = s.infer<typeof TranslateOutput>;
+
 const HistoryOutput = TranslateOutput.pick(['history', 'threadId', 'translationCount']);
+
+type HistoryData = s.infer<typeof HistoryOutput>;
 
 const api = new Hono<Env>()
 	// Translate text
@@ -132,14 +136,16 @@ const api = new Hono<Env>()
 				translationCount,
 			});
 
-			return c.json({
+			const result: TranslateResult = {
 				history,
 				sessionId: c.var.sessionId,
 				threadId: c.var.thread.id,
 				tokens,
 				translation,
 				translationCount,
-			});
+			};
+
+			return c.json(result);
 		}
 	)
 	// Retrieve translation history
@@ -148,22 +154,26 @@ const api = new Hono<Env>()
 		const translationCount =
 			(await c.var.thread.state.get<number>(TRANSLATION_COUNT_KEY)) ?? history.length;
 
-		return c.json({
+		const result: HistoryData = {
 			history,
 			threadId: c.var.thread.id,
 			translationCount,
-		});
+		};
+
+		return c.json(result);
 	})
 	// Clear translation history
 	.delete('/translate/history', validator({ output: HistoryOutput }), async (c) => {
 		await c.var.thread.state.delete(HISTORY_KEY);
 		await c.var.thread.state.delete(TRANSLATION_COUNT_KEY);
 
-		return c.json({
+		const result: HistoryData = {
 			history: [],
 			threadId: c.var.thread.id,
 			translationCount: 0,
-		});
+		};
+
+		return c.json(result);
 	});
 
 export type ApiRouter = typeof api;
