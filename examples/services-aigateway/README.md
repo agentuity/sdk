@@ -17,24 +17,20 @@ bun install
 bun run dev
 ```
 
-## Testing
+## Testing the AI Gateway API Directly
 
 ```bash
 # List all models
-curl http://localhost:3500/agent/aigateway \
-  --json '{"operation":"models"}'
+curl https://aigateway-usc.agentuity.cloud/models
 
 # List OpenAI models
-curl http://localhost:3500/agent/aigateway \
-  --json '{"operation":"models","provider":"openai"}'
-
-# List models that accept image input
-curl http://localhost:3500/agent/aigateway \
-  --json '{"operation":"models","input":"image"}'
+curl https://aigateway-usc.agentuity.cloud/models/openai
 
 # Run a completion
-curl http://localhost:3500/agent/aigateway \
-  --json '{"operation":"complete","model":"openai/gpt-4.1-mini","prompt":"Say hello in one sentence."}'
+curl https://aigateway-usc.agentuity.cloud/ \
+  -H "Authorization: Bearer $AGENTUITY_AIGATEWAY_KEY" \
+  -H "x-agentuity-orgid: $AGENTUITY_CLOUD_ORG_ID" \
+  --json '{"model":"openai/gpt-4.1-mini","messages":[{"role":"user","content":"Say hello in one sentence."}]}'
 ```
 
 ## Key Concepts
