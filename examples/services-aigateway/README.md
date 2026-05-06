@@ -6,7 +6,7 @@ This example demonstrates how to use the standalone `@agentuity/aigateway` TypeS
 
 - **Model discovery** - List AI Gateway models grouped by provider
 - **Filtering** - Filter models by provider, input modality, and reasoning support
-- **Completions** - Run OpenAI-compatible chat completions through AI Gateway
+- **Completions** - Run routed LLM completions through AI Gateway
 - **Standalone client** - Use `AIGatewayClient` inside an Agentuity runtime app
 
 ## Running the Example
@@ -63,7 +63,7 @@ for (const [provider, models] of Object.entries(catalog)) {
 }
 ```
 
-### Chat Completion
+### Completion
 
 ```typescript
 const completion = await client.complete({

@@ -270,7 +270,7 @@ async function consumeCompletionStream(
 export const completeSubcommand = createCommand({
 	name: 'complete',
 	aliases: ['completion', 'chat'],
-	description: 'Run an AI Gateway chat completion',
+	description: 'Run an AI Gateway completion',
 	tags: ['write', 'slow', 'requires-auth', 'uses-stdin'],
 	requires: { auth: true },
 	optional: { project: true, region: true },

@@ -24,7 +24,7 @@ AI Gateway service usage with the standalone TypeScript API.
 
 - Model discovery
 - Model metadata filtering
-- OpenAI-compatible chat completions
+- Routed LLM completions
 
 #### [streaming](./streaming/)
 

@@ -12,7 +12,7 @@ export const aigatewayCommand = createCommand({
 		{ command: getCommand('cloud aigateway models'), description: 'List supported models' },
 		{
 			command: getCommand('cloud aigateway complete --model openai/gpt-4.1-mini "Hello"'),
-			description: 'Run a chat completion',
+			description: 'Run a completion',
 		},
 	],
 	subcommands: [modelsSubcommand, completeSubcommand],

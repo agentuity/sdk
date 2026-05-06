@@ -38,7 +38,7 @@ const AIGatewayStreamCompletionSchema = z
 const service: Service = {
 	name: 'AI Gateway',
 	slug: 'ai-gateway',
-	description: 'List supported LLM models and run OpenAI-compatible chat completions',
+	description: 'List supported LLM models and run routed AI Gateway completions',
 	host: 'aigateway',
 	endpoints: [
 		{
@@ -119,7 +119,7 @@ const service: Service = {
 				fields: { schema: AIGatewayChatCompletionParamsSchema },
 			},
 			responseDescription:
-				'Server-Sent Events stream. Each `data:` frame contains an OpenAI-compatible delta payload. The stream ends with `data: [DONE]`.',
+				'Server-Sent Events stream. Each `data:` frame contains a provider-compatible delta payload. The stream ends with `data: [DONE]`.',
 			responseHeaders: [
 				{
 					name: 'Trailer',
