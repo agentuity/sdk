@@ -1,7 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { AIGatewayModels } from '@agentuity/core';
+import { AIGatewayModelsSchema, type AIGatewayModels } from '@agentuity/core';
 import { getDefaultConfigDir } from '../../../config';
 
 const TTL_MS = 6 * 60 * 60 * 1000;
@@ -59,7 +59,8 @@ export async function getCachedAIGatewayModels(
 			]);
 			return null;
 		}
-		return JSON.parse(row.models_json) as AIGatewayModels;
+		const parsed = AIGatewayModelsSchema.safeParse(JSON.parse(row.models_json));
+		return parsed.success ? parsed.data : null;
 	} catch {
 		return null;
 	}

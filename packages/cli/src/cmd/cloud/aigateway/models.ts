@@ -34,13 +34,19 @@ function isAgentOutputMode(): boolean {
 }
 
 function getRecommendations(rows: z.infer<typeof ModelRowSchema>[]) {
-	const byId = new Map(rows.map((row) => [row.id, row]));
+	const byId = new Map(rows.map((row) => [normalizeModelId(row.id), row]));
 	return recommendedModels
 		.map((rec) => {
-			const model = rec.candidates.map((id) => byId.get(id)).find(Boolean);
+			const model = rec.candidates.map((id) => byId.get(normalizeModelId(id))).find(Boolean);
 			return model ? { use: rec.use, model: model.id, name: model.name } : undefined;
 		})
 		.filter((row): row is { use: string; model: string; name: string } => Boolean(row));
+}
+
+function normalizeModelId(id: string): string {
+	const normalized = id.toLowerCase();
+	const parts = normalized.split('/');
+	return parts.length > 1 ? (parts.at(-1) ?? normalized) : normalized;
 }
 
 function matchesProviderFilter(

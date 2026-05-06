@@ -11,7 +11,7 @@ description: List supported LLM models and run routed AI Gateway completions
 
 ## Authentication
 
-All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.
+Most requests require a Bearer token. Pass your API or SDK key in the `Authorization` header. Public endpoints are noted below and do not require authentication.
 
 | Header | Value |
 |--------|-------|
@@ -27,6 +27,8 @@ List model metadata for LLM providers available through AI Gateway, grouped by p
 
 <ApiEndpoint method="GET" path="/models" host="aigateway" />
 
+**Authentication:** Public. No auth required.
+
 
 
 ### Response
@@ -35,9 +37,7 @@ JSON response containing provider keys mapped to arrays of supported model metad
 
 | Status | Description |
 |--------|-------------|
-| 200 | Model catalog returned |
-| 401 | Unauthorized — invalid or missing API key |
-| 402 | Payment required — upgrade to a paid plan |
+| 200 | Model catalog returned. Public — no auth required. |
 
 ### Response Fields
 
@@ -52,7 +52,7 @@ JSON response containing provider keys mapped to arrays of supported model metad
     "name": "data",
     "type": "object",
     "description": "",
-    "required": true
+    "required": false
   },
   {
     "name": "message",

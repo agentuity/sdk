@@ -1,1 +1,22 @@
-export * from './service.ts';
+export {
+	AIGatewayChatCompletionParamsSchema,
+	AIGatewayChatCompletionSchema,
+	AIGatewayChatMessageSchema,
+	AIGatewayModelProviderSchema,
+	AIGatewayModelSchema,
+	AIGatewayModelsResponseSchema,
+	AIGatewayModelsSchema,
+	AIGatewayPricingSchema,
+	AIGatewayResponseMetadataSchema,
+	AIGatewayService,
+	type AIGatewayChatCompletion,
+	type AIGatewayChatCompletionParams,
+	type AIGatewayChatMessage,
+	type AIGatewayModel,
+	type AIGatewayModelProvider,
+	type AIGatewayModels,
+	type AIGatewayModelsResponse,
+	type AIGatewayPricing,
+	type AIGatewayResponseMetadata,
+	type AIGatewayStreamingCompletion,
+} from './service.ts';

@@ -107,6 +107,16 @@ function renderResponseHeaders(headers: ResponseHeader[], subHeading: string): s
 	].join('\n');
 }
 
+function renderAuthentication(service: Service): string {
+	if (service.hasPublicEndpoints) {
+		if (service.slug !== 'ai-gateway') {
+			return 'Most requests require a Bearer token. Pass your API or SDK key in the `Authorization` header. Public endpoints (such as listing and fetching public snapshots) are noted below and do not require authentication.';
+		}
+		return 'Most requests require a Bearer token. Pass your API or SDK key in the `Authorization` header. Public endpoints are noted below and do not require authentication.';
+	}
+	return 'All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.';
+}
+
 function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: string): string {
 	const subHeading = '#'.repeat(headingLevel + 1);
 	const pathParams = toParamTableInput(endpoint.pathParams, 'path');
@@ -182,6 +192,7 @@ function renderEndpointSection(endpoint: Endpoint, headingLevel = 2, host?: stri
 		'',
 		`<ApiEndpoint method="${endpoint.method}" path="${endpoint.path}"${hostProp} />`,
 		'',
+		...(endpoint.public ? ['**Authentication:** Public. No auth required.', ''] : []),
 		paramSection,
 		requestBodyParts.join('\n'),
 		responseParts.join('\n'),
@@ -224,7 +235,7 @@ description: ${service.description}
 
 ## Authentication
 
-${service.hasPublicEndpoints ? 'Most requests require a Bearer token. Pass your API or SDK key in the `Authorization` header. Public endpoints (such as listing and fetching public snapshots) are noted below and do not require authentication.' : 'All requests require a Bearer token. Pass your API or SDK key in the `Authorization` header.'}
+${renderAuthentication(service)}
 
 | Header | Value |
 |--------|-------|

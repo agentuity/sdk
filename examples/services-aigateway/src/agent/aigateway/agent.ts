@@ -28,11 +28,12 @@ const inputSchema = s.union([
 
 function getCompletionText(response: unknown): string {
 	const choices = (response as { choices?: unknown }).choices;
-	if (!Array.isArray(choices) || choices.length === 0) {
-		return '';
-	}
-	const first = choices[0] as { message?: { content?: unknown }; text?: unknown };
-	const content = first.message?.content ?? first.text;
+	const first =
+		Array.isArray(choices) && choices.length > 0
+			? (choices[0] as { message?: { content?: unknown }; text?: unknown })
+			: undefined;
+	const content =
+		first?.message?.content ?? first?.text ?? (response as { content?: unknown }).content;
 	if (typeof content === 'string') {
 		return content;
 	}

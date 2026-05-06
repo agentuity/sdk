@@ -550,7 +550,7 @@ describe('cloud aigateway command', () => {
 			stream: true,
 		});
 		expect(result.text).toBe('hello');
-		expect(result.response).toEqual({ stream: true });
+		expect(result.response).toEqual({ stream: true, model: 'gpt-4.1-mini' });
 		expect(result.cost).toEqual({
 			total: 0.000789,
 			promptTokens: 20,

@@ -1,6 +1,12 @@
 import { z } from 'zod';
+import { StructuredError } from '../../error.ts';
 import { FetchAdapter } from '../adapter.ts';
 import { buildUrl, toServiceException, toPayload } from '../_util.ts';
+
+const AIGatewayModelsResponseError = StructuredError('AIGatewayModelsResponseError')<{
+	error?: string;
+	message?: string;
+}>();
 
 export const AIGatewayPricingSchema = z.object({
 	input: z.number().describe('Input token price.'),
@@ -48,7 +54,7 @@ export type AIGatewayModels = z.infer<typeof AIGatewayModelsSchema>;
 
 export const AIGatewayModelsResponseSchema = z.object({
 	success: z.boolean(),
-	data: AIGatewayModelsSchema,
+	data: AIGatewayModelsSchema.optional(),
 	message: z.string().optional(),
 	error: z.string().optional(),
 });
@@ -190,9 +196,13 @@ async function extractGatewayMetadata(response: Response): Promise<AIGatewayResp
 	if (trailers) {
 		try {
 			const trailerMetadata = extractGatewayMetadataFromHeaders(await trailers);
+			const cost =
+				metadata.cost || trailerMetadata.cost
+					? { ...(metadata.cost ?? {}), ...(trailerMetadata.cost ?? {}) }
+					: undefined;
 			return {
 				headers: { ...metadata.headers, ...trailerMetadata.headers },
-				cost: trailerMetadata.cost ?? metadata.cost,
+				...(cost ? { cost } : {}),
 			};
 		} catch {
 			// Some runtimes expose a trailers promise but reject when trailers are unavailable.
@@ -236,6 +246,17 @@ export class AIGatewayService {
 			throw await toServiceException(method, url, response.response);
 		}
 		const payload = AIGatewayModelsResponseSchema.parse(response.data);
+		if (!payload.success) {
+			throw new AIGatewayModelsResponseError({
+				message: payload.error || payload.message || 'AI Gateway failed to list models',
+				error: payload.error,
+			});
+		}
+		if (!payload.data) {
+			throw new AIGatewayModelsResponseError({
+				message: 'AI Gateway model response did not include data',
+			});
+		}
 		return payload.data;
 	}
 

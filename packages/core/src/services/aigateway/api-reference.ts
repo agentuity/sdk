@@ -40,6 +40,7 @@ const service: Service = {
 	slug: 'ai-gateway',
 	description: 'List supported LLM models and run routed AI Gateway completions',
 	host: 'aigateway',
+	hasPublicEndpoints: true,
 	endpoints: [
 		{
 			id: 'list-models',
@@ -55,11 +56,10 @@ const service: Service = {
 				'JSON response containing provider keys mapped to arrays of supported model metadata.',
 			responseFields: { schema: AIGatewayModelsResponseSchema },
 			statuses: [
-				{ code: 200, description: 'Model catalog returned' },
-				{ code: 401, description: 'Unauthorized — invalid or missing API key' },
-				{ code: 402, description: 'Payment required — upgrade to a paid plan' },
+				{ code: 200, description: 'Model catalog returned. Public — no auth required.' },
 			],
 			examplePath: '/models',
+			public: true,
 		},
 		{
 			id: 'create-chat-completion',

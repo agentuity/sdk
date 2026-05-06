@@ -60,6 +60,7 @@ interface Endpoint {
 	exampleBody?: string | object;
 	exampleHeaders?: Record<string, string>;
 	ttlNote?: string;
+	public?: boolean;
 }
 
 interface Service {

@@ -10,7 +10,7 @@
 import { delimiter, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { createMinimalLogger } from '@agentuity/core';
+import { createMinimalLogger, StructuredError } from '@agentuity/core';
 import {
 	AIGatewayService,
 	type AIGatewayModel,
@@ -43,6 +43,10 @@ const KNOWN_APIS = new Set<string>([
 	'google-gemini-cli',
 	'google-vertex',
 ] satisfies KnownApi[]);
+
+const AIGatewayModelFetchError = StructuredError('AIGatewayModelFetchError')<{
+	cause?: unknown;
+}>();
 
 function getEnv(...keys: string[]): string | undefined {
 	for (const key of keys) {
@@ -109,8 +113,11 @@ async function fetchModels(): Promise<AIGatewayModels> {
 						}
 					}
 					break;
-				} catch (_ex) {
-					//
+				} catch (error) {
+					throw new AIGatewayModelFetchError({
+						message: 'Failed to fetch models from AI Gateway',
+						cause: error,
+					});
 				}
 			}
 		}
@@ -139,9 +146,18 @@ async function fetchModels(): Promise<AIGatewayModels> {
 		);
 		return await service.listModels();
 	} catch (error) {
-		console.warn('Failed to fetch models from AI Gateway:', error);
-		return {};
+		throw new AIGatewayModelFetchError({
+			message: 'Failed to fetch models from AI Gateway',
+			cause: error,
+		});
 	}
+}
+
+function sanitizeModalities(modalities: string[] | undefined): ('text' | 'image')[] {
+	const sanitized = (modalities ?? []).filter(
+		(modality): modality is 'text' | 'image' => modality === 'text' || modality === 'image'
+	);
+	return sanitized.length > 0 ? sanitized : ['text'];
 }
 
 function toPiModel(m: AIGatewayModel): ProviderModelConfig {
@@ -149,7 +165,7 @@ function toPiModel(m: AIGatewayModel): ProviderModelConfig {
 		id: m.id,
 		name: m.name,
 		reasoning: m.reasoning ?? false,
-		input: (m.input_modalities as ('text' | 'image')[] | undefined) ?? ['text'],
+		input: sanitizeModalities(m.input_modalities),
 		contextWindow: m.context_window ?? 40000,
 		maxTokens: m.max_output_tokens ?? 64000,
 		cost: {

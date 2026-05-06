@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import type { AIGatewayModels, AIGatewayService } from '@agentuity/core';
+import { StructuredError, type AIGatewayModels, type AIGatewayService } from '@agentuity/core';
 import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { getExecutingAgent } from '../../../agent-detection';
 import { createAIGatewayService, getAIGatewayUrl, getCompletionText } from './util';
@@ -14,6 +13,13 @@ const CompletionResponseSchema = z.object({
 });
 
 const defaultModel = 'openai/gpt-4o-mini';
+const PromptRequiredError = StructuredError(
+	'AIGatewayPromptRequired',
+	'Prompt is required. Pass it as an argument, use --prompt, use --file, or pipe it through stdin.'
+);
+const PromptFileNotFoundError = StructuredError('AIGatewayPromptFileNotFound')<{
+	filename: string;
+}>();
 
 function isAgentOutputMode(): boolean {
 	return Boolean(getExecutingAgent()) && process.env.AGENTUITY_AIGATEWAY_AGENT_OUTPUT !== 'false';
@@ -32,7 +38,14 @@ async function readPromptFromFile(filename?: string): Promise<string | undefined
 	if (!filename) {
 		return undefined;
 	}
-	const text = await Bun.file(filename).text();
+	const file = Bun.file(filename);
+	if (!(await file.exists())) {
+		throw new PromptFileNotFoundError({
+			message: `Prompt file not found: ${filename}`,
+			filename,
+		});
+	}
+	const text = await file.text();
 	const trimmed = text.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
 }
@@ -148,7 +161,6 @@ function buildCompletionRequest(opts: {
 	model: string;
 	prompt: string;
 	system?: string;
-	api?: string;
 	temperature?: number;
 	maxTokens?: number;
 	stream?: boolean;
@@ -221,6 +233,14 @@ async function consumeCompletionStream(
 			if (!data || data === '[DONE]') {
 				continue;
 			}
+			try {
+				const delta = getStreamDeltaText(JSON.parse(data));
+				if (delta) {
+					text += delta;
+				}
+			} catch {
+				// Ignore malformed stream frames and continue consuming the stream.
+			}
 			if (options.raw) {
 				if (!options.json) {
 					console.log(data);
@@ -230,7 +250,6 @@ async function consumeCompletionStream(
 			try {
 				const delta = getStreamDeltaText(JSON.parse(data));
 				if (delta) {
-					text += delta;
 					if (!options.json) {
 						process.stdout.write(delta);
 					}
@@ -336,9 +355,7 @@ export const completeSubcommand = createCommand({
 			stdinMode: ctx.opts.stdinMode,
 		});
 		if (!prompt) {
-			tui.fatal(
-				'Prompt is required. Pass it as an argument, use --prompt, use --file, or pipe it through stdin.'
-			);
+			throw new PromptRequiredError();
 		}
 
 		const service = createAIGatewayService(ctx);
@@ -357,11 +374,11 @@ export const completeSubcommand = createCommand({
 			models = await loadModelsForCompletion({ service, profile, cacheKey, refresh: true });
 			modelInfo = await getCompletionModelInfo(model, models);
 		}
+		const requestModel = modelInfo?.id ?? model;
 		const request = buildCompletionRequest({
-			model,
+			model: requestModel,
 			prompt,
 			system,
-			api: modelInfo?.api,
 			temperature: ctx.opts.temperature,
 			maxTokens: ctx.opts.maxTokens,
 		});
@@ -381,7 +398,13 @@ export const completeSubcommand = createCommand({
 				await Bun.write(ctx.opts.save, text);
 			}
 			if (!ctx.options.json && format === 'json') {
-				console.log(JSON.stringify({ text, cost, response: { stream: true, model } }, null, 2));
+				console.log(
+					JSON.stringify(
+						{ text, cost, response: { stream: true, model: requestModel } },
+						null,
+						2
+					)
+				);
 			}
 			if (!ctx.options.json && ctx.opts.cost) {
 				const costText = getCostText({ agentuity: metadata });
@@ -389,7 +412,7 @@ export const completeSubcommand = createCommand({
 					console.error(costText);
 				}
 			}
-			return { text, response: { stream: true }, cost };
+			return { text, response: { stream: true, model: requestModel }, cost };
 		}
 
 		const response = await service.complete(request);
@@ -405,7 +428,13 @@ export const completeSubcommand = createCommand({
 			} else if (format === 'json') {
 				console.log(
 					JSON.stringify(
-						{ text, model, usage: (response as { usage?: unknown }).usage, cost, response },
+						{
+							text,
+							model: requestModel,
+							usage: (response as { usage?: unknown }).usage,
+							cost,
+							response,
+						},
 						null,
 						2
 					)
