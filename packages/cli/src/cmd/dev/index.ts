@@ -499,10 +499,6 @@ export const command = createCommand({
 
 			// Calculate URLs for banner
 			const padding = 12;
-			const workbenchUrl =
-				auth && project?.projectId
-					? `${getAppBaseURL(config)}/w/${project.projectId}`
-					: `http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`;
 
 			const devmodebody =
 				tui.muted(tui.padRight('Local:', padding)) +
@@ -510,9 +506,6 @@ export const command = createCommand({
 				'\n' +
 				tui.muted(tui.padRight('Public:', padding)) +
 				(devmode?.hostname ? tui.link(`https://${devmode.hostname}`) : tui.warn('Disabled')) +
-				'\n' +
-				tui.muted(tui.padRight('Workbench:', padding)) +
-				(workbench.hasWorkbench ? tui.link(workbenchUrl) : tui.warn('Disabled')) +
 				'\n' +
 				tui.muted(tui.padRight('Dashboard:', padding)) +
 				(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
