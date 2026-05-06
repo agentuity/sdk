@@ -19,7 +19,7 @@
 
 import { spawn, type Subprocess } from 'bun';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 // Path to local CLI bin (use development version, not npm)
@@ -534,16 +534,42 @@ async function typecheckProject(projectDir: string): Promise<{ success: boolean;
 	return { success: true };
 }
 
-function getTemplateHonoRpcResponseTypeProbe(templateId: string): string | undefined {
-	switch (templateId) {
-		case 'default':
-			return `import { hc } from 'hono/client';
+interface TemplateHonoRpcResponseTypeProbe {
+	readonly relativePath: string;
+	readonly source: string;
+}
+
+const DEFAULT_HONO_RPC_RESPONSE_TYPE_PROBE_PATH = join(
+	'src',
+	'web',
+	'hono-rpc-response-type-probe.ts'
+);
+
+function buildHonoRpcResponseTypeProbe(
+	body: string,
+	relativePath: string = DEFAULT_HONO_RPC_RESPONSE_TYPE_PROBE_PATH
+): TemplateHonoRpcResponseTypeProbe {
+	return {
+		relativePath,
+		source: `import { hc } from 'hono/client';
 import type { InferResponseType } from 'hono/client';
 import type { ApiRouter } from '../api/index';
 
 const client = hc<ApiRouter>('/api');
 
-interface ExpectedHistoryEntry {
+declare function expectType<T>(value: T): void;
+
+${body}
+`,
+	};
+}
+
+function getTemplateHonoRpcResponseTypeProbe(
+	templateId: string
+): TemplateHonoRpcResponseTypeProbe | undefined {
+	switch (templateId) {
+		case 'default':
+			return buildHonoRpcResponseTypeProbe(`interface ExpectedHistoryEntry {
 \treadonly model: string;
 \treadonly sessionId: string;
 \treadonly text: string;
@@ -573,21 +599,13 @@ declare const historyData: HistoryData;
 declare const translateResult: TranslateResult;
 declare const clearHistoryResult: ClearHistoryResult;
 
-declare function expectType<T>(value: T): void;
-
 expectType<ExpectedHistoryData>(historyData);
 expectType<ExpectedTranslateResult>(translateResult);
 expectType<ExpectedHistoryData>(clearHistoryResult);
-`;
+`);
 
 		case 'auth':
-			return `import { hc } from 'hono/client';
-import type { InferResponseType } from 'hono/client';
-import type { ApiRouter } from '../api/index';
-
-const client = hc<ApiRouter>('/api');
-
-interface ExpectedHealthData {
+			return buildHonoRpcResponseTypeProbe(`interface ExpectedHealthData {
 \treadonly status: string;
 \treadonly timestamp: string;
 }
@@ -604,8 +622,6 @@ type HealthData = InferResponseType<typeof client.health.$get>;
 
 declare const healthData: HealthData;
 
-declare function expectType<T>(value: T): void;
-
 expectType<ExpectedHealthData>(healthData);
 
 async function verifyProtectedRouteResult(): Promise<void> {
@@ -616,7 +632,7 @@ async function verifyProtectedRouteResult(): Promise<void> {
 
 \texpectType<ExpectedProtectedRouteResult>(await res.json());
 }
-`;
+`);
 
 		default:
 			return undefined;
@@ -625,10 +641,11 @@ async function verifyProtectedRouteResult(): Promise<void> {
 
 async function verifyHonoRpcResponseTypes(
 	projectDir: string,
-	probeSource: string
+	probe: TemplateHonoRpcResponseTypeProbe
 ): Promise<{ success: boolean; error?: string }> {
-	const probePath = join(projectDir, 'src', 'web', 'hono-rpc-response-type-probe.ts');
-	writeFileSync(probePath, probeSource);
+	const probePath = join(projectDir, probe.relativePath);
+	mkdirSync(dirname(probePath), { recursive: true });
+	writeFileSync(probePath, probe.source);
 
 	return typecheckProject(projectDir);
 }
