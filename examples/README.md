@@ -16,6 +16,16 @@ AI SDK integration with streaming LLM responses using Vercel AI SDK.
 - Streaming AI responses
 - Type-safe LLM interactions
 
+#### [services-aigateway](./services-aigateway/)
+
+AI Gateway service usage with the standalone TypeScript API.
+
+**Demonstrates:**
+
+- Model discovery
+- Model metadata filtering
+- Routed LLM completions
+
 #### [streaming](./streaming/)
 
 Streaming responses using ReadableStream for chunked data delivery.
@@ -147,7 +157,7 @@ When adding a new example:
 
 | Category           | Examples                 | Description                                 |
 | ------------------ | ------------------------ | ------------------------------------------- |
-| **AI & Streaming** | ai-sdk, streaming        | AI integration and data streaming           |
+| **AI & Streaming** | ai-sdk, services-aigateway, streaming | AI integration and data streaming           |
 | **Real-Time**      | websocket, sse           | Bidirectional and server-push communication |
 | **Agent Patterns** | events, evals, lifecycle | Agent features and lifecycle                |
 | **Storage**        | services-keyvalue        | Data persistence patterns                   |
@@ -163,8 +173,9 @@ When adding a new example:
 **Advanced patterns?** Check out:
 
 1. [ai-sdk](./ai-sdk/) - AI integration
-2. [websocket](./websocket/) - Real-time communication
-3. [evals](./evals/) - Quality testing
+2. [services-aigateway](./services-aigateway/) - AI Gateway model discovery and completions
+3. [websocket](./websocket/) - Real-time communication
+4. [evals](./evals/) - Quality testing
 
 ## Resources
 

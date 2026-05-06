@@ -169,6 +169,7 @@ import { Route as DocsReferenceApiEmailRouteImport } from './routes/_docs/refere
 import { Route as DocsReferenceApiDatabaseRouteImport } from './routes/_docs/reference/api/database';
 import { Route as DocsReferenceApiCoderRouteImport } from './routes/_docs/reference/api/coder';
 import { Route as DocsReferenceApiApiKeysRouteImport } from './routes/_docs/reference/api/api-keys';
+import { Route as DocsReferenceApiAiGatewayRouteImport } from './routes/_docs/reference/api/ai-gateway';
 import { Route as DocsCookbookTutorialsUnderstandingAgentsRouteImport } from './routes/_docs/cookbook/tutorials/understanding-agents';
 import { Route as DocsCookbookTutorialsRagAgentRouteImport } from './routes/_docs/cookbook/tutorials/rag-agent';
 import { Route as DocsCookbookPatternsWebhookHandlerRouteImport } from './routes/_docs/cookbook/patterns/webhook-handler';
@@ -1010,6 +1011,11 @@ const DocsReferenceApiApiKeysRoute = DocsReferenceApiApiKeysRouteImport.update({
 	path: '/api-keys',
 	getParentRoute: () => DocsReferenceApiRouteRoute,
 } as any);
+const DocsReferenceApiAiGatewayRoute = DocsReferenceApiAiGatewayRouteImport.update({
+	id: '/ai-gateway',
+	path: '/ai-gateway',
+	getParentRoute: () => DocsReferenceApiRouteRoute,
+} as any);
 const DocsCookbookTutorialsUnderstandingAgentsRoute =
 	DocsCookbookTutorialsUnderstandingAgentsRouteImport.update({
 		id: '/cookbook/tutorials/understanding-agents',
@@ -1281,6 +1287,7 @@ export interface FileRoutesByFullPath {
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
+	'/reference/api/ai-gateway': typeof DocsReferenceApiAiGatewayRoute;
 	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
 	'/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
@@ -1468,6 +1475,7 @@ export interface FileRoutesByTo {
 	'/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
+	'/reference/api/ai-gateway': typeof DocsReferenceApiAiGatewayRoute;
 	'/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
 	'/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
@@ -1659,6 +1667,7 @@ export interface FileRoutesById {
 	'/_docs/cookbook/patterns/webhook-handler': typeof DocsCookbookPatternsWebhookHandlerRoute;
 	'/_docs/cookbook/tutorials/rag-agent': typeof DocsCookbookTutorialsRagAgentRoute;
 	'/_docs/cookbook/tutorials/understanding-agents': typeof DocsCookbookTutorialsUnderstandingAgentsRoute;
+	'/_docs/reference/api/ai-gateway': typeof DocsReferenceApiAiGatewayRoute;
 	'/_docs/reference/api/api-keys': typeof DocsReferenceApiApiKeysRoute;
 	'/_docs/reference/api/coder': typeof DocsReferenceApiCoderRoute;
 	'/_docs/reference/api/database': typeof DocsReferenceApiDatabaseRoute;
@@ -1850,6 +1859,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
+		| '/reference/api/ai-gateway'
 		| '/reference/api/api-keys'
 		| '/reference/api/coder'
 		| '/reference/api/database'
@@ -2037,6 +2047,7 @@ export interface FileRouteTypes {
 		| '/cookbook/patterns/webhook-handler'
 		| '/cookbook/tutorials/rag-agent'
 		| '/cookbook/tutorials/understanding-agents'
+		| '/reference/api/ai-gateway'
 		| '/reference/api/api-keys'
 		| '/reference/api/coder'
 		| '/reference/api/database'
@@ -2227,6 +2238,7 @@ export interface FileRouteTypes {
 		| '/_docs/cookbook/patterns/webhook-handler'
 		| '/_docs/cookbook/tutorials/rag-agent'
 		| '/_docs/cookbook/tutorials/understanding-agents'
+		| '/_docs/reference/api/ai-gateway'
 		| '/_docs/reference/api/api-keys'
 		| '/_docs/reference/api/coder'
 		| '/_docs/reference/api/database'
@@ -3455,6 +3467,13 @@ declare module '@tanstack/react-router' {
 			preLoaderRoute: typeof DocsReferenceApiApiKeysRouteImport;
 			parentRoute: typeof DocsReferenceApiRouteRoute;
 		};
+		'/_docs/reference/api/ai-gateway': {
+			id: '/_docs/reference/api/ai-gateway';
+			path: '/ai-gateway';
+			fullPath: '/reference/api/ai-gateway';
+			preLoaderRoute: typeof DocsReferenceApiAiGatewayRouteImport;
+			parentRoute: typeof DocsReferenceApiRouteRoute;
+		};
 		'/_docs/cookbook/tutorials/understanding-agents': {
 			id: '/_docs/cookbook/tutorials/understanding-agents';
 			path: '/cookbook/tutorials/understanding-agents';
@@ -3655,6 +3674,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface DocsReferenceApiRouteRouteChildren {
+	DocsReferenceApiAiGatewayRoute: typeof DocsReferenceApiAiGatewayRoute;
 	DocsReferenceApiApiKeysRoute: typeof DocsReferenceApiApiKeysRoute;
 	DocsReferenceApiCoderRoute: typeof DocsReferenceApiCoderRoute;
 	DocsReferenceApiDatabaseRoute: typeof DocsReferenceApiDatabaseRoute;
@@ -3681,6 +3701,7 @@ interface DocsReferenceApiRouteRouteChildren {
 }
 
 const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
+	DocsReferenceApiAiGatewayRoute: DocsReferenceApiAiGatewayRoute,
 	DocsReferenceApiApiKeysRoute: DocsReferenceApiApiKeysRoute,
 	DocsReferenceApiCoderRoute: DocsReferenceApiCoderRoute,
 	DocsReferenceApiDatabaseRoute: DocsReferenceApiDatabaseRoute,

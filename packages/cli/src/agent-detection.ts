@@ -33,6 +33,7 @@ export const KNOWN_AGENTS: [string, string][] = [
 	['amp', 'amp'],
 	['warp', 'warp'],
 	['pi', 'pi'],
+	['coder', 'coder'],
 	// TODO: VSCode Agent Mode detection - need to find a reliable way to detect
 	// when VSCode's built-in agent (Copilot Chat) is running commands vs just
 	// running in VSCode's integrated terminal. May need env var detection.
@@ -342,14 +343,10 @@ let cachedResult: string | undefined | null = null;
 
 /**
  * Check if a basename matches a known agent process name.
- * Short tokens (≤2 chars) require an exact match to avoid false positives
- * (e.g., 'pi' matching 'pip', 'spin'). Longer tokens use substring matching.
+ * Match exact executable names or names split on non-alphanumeric boundaries.
  */
 function matchesProcessName(basename: string, processName: string): boolean {
-	if (processName.length <= 2) {
-		return basename === processName;
-	}
-	return basename.includes(processName);
+	return basename === processName || basename.split(/[^a-z0-9]+/i).includes(processName);
 }
 
 /**

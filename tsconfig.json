@@ -2,6 +2,7 @@
 	"files": [],
 	"references": [
 		{ "path": "./packages/auth" },
+		{ "path": "./packages/aigateway" },
 		{ "path": "./packages/claude-code" },
 		{ "path": "./packages/cli" },
 		{ "path": "./packages/coder" },

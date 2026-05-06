@@ -659,6 +659,12 @@ export const navData: NavSection[] = [
 				url: '/reference/api',
 				items: [
 					{
+						title: 'AI Gateway',
+						url: '/reference/api/ai-gateway',
+						description:
+							'List supported LLM models and run OpenAI-compatible chat completions',
+					},
+					{
 						title: 'API Keys',
 						url: '/reference/api/api-keys',
 						description: 'Create and manage API keys for authentication',
