@@ -1,9 +1,30 @@
 import { describe, expect, test } from 'bun:test';
 import { createMockAdapter } from '@agentuity/test-utils';
-import { AIGatewayService } from '../src/services/aigateway/index.ts';
+import {
+	AIGatewayChatCompletionParamsSchema,
+	AIGatewayService,
+} from '../src/services/aigateway/index.ts';
 
 describe('AIGatewayService', () => {
 	const baseUrl = 'https://aigateway.example.com';
+
+	test('requires prompt or messages for completion params', () => {
+		expect(AIGatewayChatCompletionParamsSchema.safeParse({ model: 'gpt-4.1-mini' }).success).toBe(
+			false
+		);
+		expect(
+			AIGatewayChatCompletionParamsSchema.safeParse({
+				model: 'gpt-4.1-mini',
+				prompt: '   ',
+			}).success
+		).toBe(false);
+		expect(
+			AIGatewayChatCompletionParamsSchema.safeParse({
+				model: 'gpt-4.1-mini',
+				prompt: ['Say hello'],
+			}).success
+		).toBe(true);
+	});
 
 	test('lists models from the gateway catalog', async () => {
 		const { adapter, calls } = createMockAdapter([

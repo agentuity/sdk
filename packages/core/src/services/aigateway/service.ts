@@ -83,6 +83,21 @@ export const AIGatewayChatMessageSchema = z.object({
 
 export type AIGatewayChatMessage = z.infer<typeof AIGatewayChatMessageSchema>;
 
+const missingCompletionInputMessage = 'either prompt or messages must be provided';
+
+function hasCompletionInput(params: { prompt?: string | string[]; messages?: unknown[] }): boolean {
+	if (params.messages && params.messages.length > 0) {
+		return true;
+	}
+	if (typeof params.prompt === 'string') {
+		return params.prompt.trim().length > 0;
+	}
+	if (Array.isArray(params.prompt)) {
+		return params.prompt.length > 0 && params.prompt.every((item) => item.trim().length > 0);
+	}
+	return false;
+}
+
 export const AIGatewayChatCompletionParamsSchema = z
 	.object({
 		model: z.string().describe('Model to use for the completion.'),
@@ -97,15 +112,23 @@ export const AIGatewayChatCompletionParamsSchema = z
 		stream: z.boolean().optional(),
 		stop: z.union([z.string(), z.array(z.string())]).optional(),
 	})
-	.catchall(z.unknown());
+	.catchall(z.unknown())
+	.superRefine((params, ctx) => {
+		if (!hasCompletionInput(params)) {
+			ctx.addIssue({
+				code: 'custom',
+				message: missingCompletionInputMessage,
+				path: ['messages'],
+			});
+		}
+	});
 
 export type AIGatewayChatCompletionParams = z.infer<typeof AIGatewayChatCompletionParamsSchema>;
 
-export const AIGatewayChatCompletionStreamParamsSchema = AIGatewayChatCompletionParamsSchema.extend(
-	{
+export const AIGatewayChatCompletionStreamParamsSchema =
+	AIGatewayChatCompletionParamsSchema.safeExtend({
 		stream: z.literal(true).describe('Enable Server-Sent Events streaming.'),
-	}
-);
+	});
 
 export type AIGatewayChatCompletionStreamParams = z.infer<
 	typeof AIGatewayChatCompletionStreamParamsSchema
