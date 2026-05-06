@@ -32,6 +32,7 @@ import {
 	coderUpdateCustomAgent,
 } from './agents.ts';
 import {
+	coderCreateCustomSkill,
 	coderCreateSkillBucket,
 	coderDeleteSavedSkill,
 	coderDeleteSkillBucket,
@@ -79,6 +80,7 @@ import type {
 	CoderSkillBucket,
 	CoderSkillBucketListResponse,
 	CoderCreateSkillBucketRequest,
+	CoderCreateCustomSkillRequest,
 	CoderUpdateCustomAgentRequest,
 	CoderCreateWorkspaceRequest,
 	CoderUpdateWorkspaceRequest,
@@ -447,6 +449,14 @@ export class CoderClient {
 	async saveSkill(body: CoderSaveSkillRequest): Promise<CoderSavedSkill> {
 		const client = await this.#getClient();
 		return coderSaveSkill(client, { body });
+	}
+
+	/**
+	 * Creates a custom SKILL.md-backed skill in the caller's library.
+	 */
+	async createCustomSkill(body: CoderCreateCustomSkillRequest): Promise<CoderSavedSkill> {
+		const client = await this.#getClient();
+		return coderCreateCustomSkill(client, { body });
 	}
 
 	/**

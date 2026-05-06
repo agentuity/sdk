@@ -13,8 +13,10 @@ import { resolveGitHubRepo } from '../resolve-repo';
 import {
 	formatWorkspaceValidationMessage,
 	hasWorkspaceUpdate,
+	normalizeSystemPromptMode,
 	parseCommaList,
 	printWorkspaceSummary,
+	readSystemPrompt,
 	readSetupScript,
 } from './common';
 
@@ -32,6 +34,12 @@ export const updateWorkspaceSubcommand = createSubcommand({
 		{
 			command: getCommand('coder workspace update ws_abc123 --setup-script-file ./setup.sh'),
 			description: 'Update the workspace setup script',
+		},
+		{
+			command: getCommand(
+				'coder workspace update ws_abc123 --system-prompt-file ./WORKSPACE_PROMPT.md --system-prompt-mode append'
+			),
+			description: 'Update the workspace Lead system prompt',
 		},
 	],
 	schema: {
@@ -57,6 +65,18 @@ export const updateWorkspaceSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Path to a shell script to run while preparing workspace snapshots'),
+			systemPrompt: z
+				.string()
+				.optional()
+				.describe('Inline Lead system prompt to apply to sessions created from this workspace'),
+			systemPromptFile: z
+				.string()
+				.optional()
+				.describe('Path to a file containing the workspace Lead system prompt'),
+			systemPromptMode: z
+				.string()
+				.optional()
+				.describe('How to apply the system prompt: append or overwrite'),
 			enabledAgents: z
 				.string()
 				.optional()
@@ -100,6 +120,19 @@ export const updateWorkspaceSubcommand = createSubcommand({
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to read setup script: ${msg}`, ErrorCode.VALIDATION_FAILED);
+			return;
+		}
+		try {
+			const systemPrompt = await readSystemPrompt({
+				systemPrompt: opts?.systemPrompt,
+				systemPromptFile: opts?.systemPromptFile,
+			});
+			if (systemPrompt !== undefined) body.systemPrompt = systemPrompt;
+			const systemPromptMode = normalizeSystemPromptMode(opts?.systemPromptMode);
+			if (systemPromptMode !== undefined) body.systemPromptMode = systemPromptMode;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			tui.fatal(`Failed to read system prompt: ${msg}`, ErrorCode.VALIDATION_FAILED);
 			return;
 		}
 		if (opts?.enabledAgents) {

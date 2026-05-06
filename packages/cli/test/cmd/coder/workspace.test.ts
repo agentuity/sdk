@@ -67,6 +67,8 @@ function makeWorkspace(overrides: Record<string, unknown> = {}) {
 		repoCount: 0,
 		dependencies: [],
 		setupScript: '',
+		systemPrompt: '',
+		systemPromptMode: 'append',
 		savedSkillIds: [],
 		skillBucketIds: [],
 		enabledAgents: [],
@@ -109,6 +111,8 @@ describe('coder workspace commands', () => {
 				example.command.includes('--dependency') ||
 				example.command.includes('--setup-script') ||
 				example.command.includes('--setup-script-file') ||
+				example.command.includes('--system-prompt') ||
+				example.command.includes('--system-prompt-file') ||
 				example.command.includes('--enabled-agents');
 			expect(hasValidSelection).toBe(true);
 		}
@@ -130,7 +134,7 @@ describe('coder workspace commands', () => {
 
 		expect(requestedUrls).toEqual([]);
 		expect(fatal.stderr).toContain(
-			'Failed to create workspace: A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent. Use --repo, --dependency, --setup-script, or --enabled-agents.'
+			'Failed to create workspace: A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent. Use --repo, --dependency, --setup-script, --system-prompt, or --enabled-agents.'
 		);
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});
@@ -219,6 +223,76 @@ describe('coder workspace commands', () => {
 		});
 	});
 
+	test('create handler sends inline system prompt', async () => {
+		let requestBody: unknown;
+		globalThis.fetch = (async (url: string, init?: RequestInit) => {
+			expect(String(url)).toBe('https://coder.example/api/hub/workspaces');
+			expect(init?.method).toBe('POST');
+			requestBody = JSON.parse(String(init?.body));
+			return jsonResponse({
+				workspace: makeWorkspace({
+					systemPrompt: 'Follow the release checklist.',
+					systemPromptMode: 'overwrite',
+					selectionCount: 1,
+				}),
+			});
+		}) as typeof globalThis.fetch;
+
+		const result = await createWorkspaceSubcommand.handler(
+			makeContext({
+				opts: {
+					systemPrompt: 'Follow the release checklist.',
+					systemPromptMode: 'overwrite',
+				},
+				json: true,
+			})
+		);
+
+		expect(requestBody).toMatchObject({
+			name: 'My Workspace',
+			systemPrompt: 'Follow the release checklist.',
+			systemPromptMode: 'overwrite',
+		});
+		expect(result).toMatchObject({
+			systemPrompt: 'Follow the release checklist.',
+			systemPromptMode: 'overwrite',
+		});
+	});
+
+	test('create handler reads system prompt from file', async () => {
+		const dir = mkdtempSync(join(tmpdir(), 'agentuity-workspace-prompt-test-'));
+		const systemPromptFile = join(dir, 'WORKSPACE_PROMPT.md');
+		writeFileSync(systemPromptFile, 'Prefer small changes.\n');
+		let requestBody: unknown;
+		try {
+			globalThis.fetch = (async (url: string, init?: RequestInit) => {
+				expect(String(url)).toBe('https://coder.example/api/hub/workspaces');
+				expect(init?.method).toBe('POST');
+				requestBody = JSON.parse(String(init?.body));
+				return jsonResponse({
+					workspace: makeWorkspace({
+						systemPrompt: 'Prefer small changes.\n',
+						selectionCount: 1,
+					}),
+				});
+			}) as typeof globalThis.fetch;
+
+			const result = await createWorkspaceSubcommand.handler(
+				makeContext({ opts: { systemPromptFile }, json: true })
+			);
+
+			expect(requestBody).toMatchObject({
+				name: 'My Workspace',
+				systemPrompt: 'Prefer small changes.\n',
+			});
+			expect(result).toMatchObject({
+				systemPrompt: 'Prefer small changes.\n',
+			});
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	test('create handler reads setup script from file', async () => {
 		const dir = mkdtempSync(join(tmpdir(), 'agentuity-workspace-test-'));
 		const setupScriptFile = join(dir, 'setup.sh');
@@ -279,6 +353,58 @@ describe('coder workspace commands', () => {
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});
 
+	test('create handler fails locally when both system prompt options are provided', async () => {
+		const requestedUrls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			requestedUrls.push(String(url));
+			throw new Error('unexpected fetch');
+		}) as typeof globalThis.fetch;
+		const fatal = interceptFatal();
+
+		await expect(
+			createWorkspaceSubcommand.handler(
+				makeContext({
+					opts: {
+						systemPrompt: 'inline prompt',
+						systemPromptFile: './WORKSPACE_PROMPT.md',
+					},
+				})
+			)
+		).rejects.toThrow('__EXIT__');
+
+		expect(requestedUrls).toEqual([]);
+		expect(fatal.stderr).toContain(
+			'Failed to read system prompt: Use either --system-prompt or --system-prompt-file, not both.'
+		);
+		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
+	});
+
+	test('create handler fails locally when system prompt mode is invalid', async () => {
+		const requestedUrls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			requestedUrls.push(String(url));
+			throw new Error('unexpected fetch');
+		}) as typeof globalThis.fetch;
+		const fatal = interceptFatal();
+
+		await expect(
+			createWorkspaceSubcommand.handler(
+				makeContext({
+					opts: {
+						systemPrompt: 'inline prompt',
+						systemPromptMode: 'replace',
+					},
+				})
+			)
+		).rejects.toThrow('__EXIT__');
+
+		expect(requestedUrls).toEqual([]);
+		expect(fatal.stderr).toContain(
+			'Failed to read system prompt: Use --system-prompt-mode append or --system-prompt-mode overwrite.'
+		);
+		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
+	});
+
 	test('create handler reports setup script file read failures as validation errors', async () => {
 		const requestedUrls: string[] = [];
 		globalThis.fetch = (async (url: string) => {
@@ -304,6 +430,31 @@ describe('coder workspace commands', () => {
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});
 
+	test('create handler reports system prompt file read failures as validation errors', async () => {
+		const requestedUrls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			requestedUrls.push(String(url));
+			throw new Error('unexpected fetch');
+		}) as typeof globalThis.fetch;
+		const fatal = interceptFatal();
+
+		await expect(
+			createWorkspaceSubcommand.handler(
+				makeContext({
+					opts: {
+						systemPromptFile: join(tmpdir(), `missing-prompt-${crypto.randomUUID()}.md`),
+					},
+				})
+			)
+		).rejects.toThrow('__EXIT__');
+
+		expect(requestedUrls).toEqual([]);
+		expect(fatal.stderr).toContain(
+			'Failed to read system prompt: Failed to read system prompt file'
+		);
+		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
+	});
+
 	test('update handler fails locally before fetch when no fields are provided', async () => {
 		const requestedUrls: string[] = [];
 		globalThis.fetch = (async (url: string) => {
@@ -323,7 +474,7 @@ describe('coder workspace commands', () => {
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});
 
-	test('update handler patches dependencies and setup script', async () => {
+	test('update handler patches dependencies, setup script, and system prompt', async () => {
 		let requestBody: unknown;
 		globalThis.fetch = (async (url: string, init?: RequestInit) => {
 			expect(String(url)).toBe('https://coder.example/api/hub/workspaces/ws_test');
@@ -334,8 +485,10 @@ describe('coder workspace commands', () => {
 					id: 'ws_test',
 					dependencies: ['git'],
 					setupScript: 'echo updated',
+					systemPrompt: 'Use the workspace prompt.',
+					systemPromptMode: 'overwrite',
 					snapshot: { status: 'building' },
-					selectionCount: 2,
+					selectionCount: 3,
 				}),
 			});
 		}) as typeof globalThis.fetch;
@@ -343,7 +496,12 @@ describe('coder workspace commands', () => {
 		const result = await updateWorkspaceSubcommand.handler(
 			makeContext({
 				args: { workspaceId: 'ws_test' },
-				opts: { dependency: 'git', setupScript: 'echo updated' },
+				opts: {
+					dependency: 'git',
+					setupScript: 'echo updated',
+					systemPrompt: 'Use the workspace prompt.',
+					systemPromptMode: 'overwrite',
+				},
 				json: true,
 			})
 		);
@@ -351,11 +509,15 @@ describe('coder workspace commands', () => {
 		expect(requestBody).toEqual({
 			dependencies: ['git'],
 			setupScript: 'echo updated',
+			systemPrompt: 'Use the workspace prompt.',
+			systemPromptMode: 'overwrite',
 		});
 		expect(result).toMatchObject({
 			id: 'ws_test',
 			dependencies: ['git'],
 			setupScript: 'echo updated',
+			systemPrompt: 'Use the workspace prompt.',
+			systemPromptMode: 'overwrite',
 			snapshot: { status: 'building' },
 		});
 	});

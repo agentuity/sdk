@@ -2,16 +2,32 @@ import {
 	type CoderCreateWorkspaceRequest,
 	type CoderUpdateWorkspaceRequest,
 	type CoderWorkspaceDetail,
+	type CoderWorkspaceSystemPromptMode,
 } from '@agentuity/core/coder';
 import { StructuredError } from '@agentuity/core';
 import * as tui from '../../../tui';
 
 export const EMPTY_WORKSPACE_ERROR =
-	'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent';
+	'A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent';
 export const SetupScriptValidationError = StructuredError('SetupScriptValidationError')<{
 	message: string;
 	path?: string;
 }>();
+export const SystemPromptValidationError = StructuredError('SystemPromptValidationError')<{
+	message: string;
+	path?: string;
+}>();
+
+export function normalizeSystemPromptMode(
+	value?: string
+): CoderWorkspaceSystemPromptMode | undefined {
+	if (value === undefined) return undefined;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === 'append' || normalized === 'overwrite') return normalized;
+	throw new SystemPromptValidationError({
+		message: 'Use --system-prompt-mode append or --system-prompt-mode overwrite.',
+	});
+}
 
 export function parseCommaList(value?: string): string[] {
 	return value
@@ -46,11 +62,36 @@ export async function readSetupScript(input: {
 	}
 }
 
+export async function readSystemPrompt(input: {
+	systemPrompt?: string;
+	systemPromptFile?: string;
+}): Promise<string | undefined> {
+	if (input.systemPrompt !== undefined && input.systemPromptFile) {
+		throw new SystemPromptValidationError({
+			message: 'Use either --system-prompt or --system-prompt-file, not both.',
+		});
+	}
+	if (input.systemPrompt !== undefined) return input.systemPrompt;
+	if (!input.systemPromptFile) return undefined;
+	try {
+		return await Bun.file(input.systemPromptFile).text();
+	} catch (error) {
+		throw new SystemPromptValidationError({
+			message: `Failed to read system prompt file "${input.systemPromptFile}": ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+			path: input.systemPromptFile,
+			cause: error,
+		});
+	}
+}
+
 export function hasWorkspaceSelections(input: CoderCreateWorkspaceRequest): boolean {
 	return (
 		(input.repos?.length ?? 0) > 0 ||
 		(input.dependencies?.length ?? 0) > 0 ||
 		Boolean(input.setupScript?.trim()) ||
+		Boolean(input.systemPrompt?.trim()) ||
 		(input.savedSkillIds?.length ?? 0) > 0 ||
 		(input.skillBucketIds?.length ?? 0) > 0 ||
 		(input.enabledAgents?.length ?? 0) > 0
@@ -67,7 +108,7 @@ export function formatWorkspaceValidationMessage(issues: Array<{ message: string
 		return 'Invalid workspace configuration';
 	}
 	if (messages.includes(EMPTY_WORKSPACE_ERROR)) {
-		return `${EMPTY_WORKSPACE_ERROR}. Use --repo, --dependency, --setup-script, or --enabled-agents.`;
+		return `${EMPTY_WORKSPACE_ERROR}. Use --repo, --dependency, --setup-script, --system-prompt, or --enabled-agents.`;
 	}
 	return messages.join('; ');
 }
@@ -93,6 +134,9 @@ export function printWorkspaceSummary(workspace: CoderWorkspaceDetail): void {
 	}
 	if (workspace.setupScript) {
 		tui.output('  Setup:       configured');
+	}
+	if (workspace.systemPrompt) {
+		tui.output(`  Prompt:      configured (${workspace.systemPromptMode})`);
 	}
 	if (workspace.snapshot?.status) {
 		tui.output(`  Snapshot:    ${workspace.snapshot.status}`);

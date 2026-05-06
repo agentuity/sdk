@@ -42,12 +42,18 @@ export const CoderSessionBucketSchema = z
 	.describe('Derived bucket used for session listing and UI grouping');
 export type CoderSessionBucket = z.infer<typeof CoderSessionBucketSchema>;
 
+export const CoderWorkspaceSystemPromptModeSchema = z
+	.enum(['append', 'overwrite'])
+	.describe('How a workspace system prompt is applied to the Lead agent prompt');
+export type CoderWorkspaceSystemPromptMode = z.infer<typeof CoderWorkspaceSystemPromptModeSchema>;
+
 export const CoderSkillRefSchema = z
 	.object({
 		skillId: z.string().describe('Unique skill identifier'),
 		repo: z.string().describe('Repository slug for the skill source'),
 		name: z.string().optional().describe('Human-readable skill name'),
 		url: z.string().optional().describe('Canonical URL for the skill repository or page'),
+		content: z.string().optional().describe('Inline SKILL.md content for custom skills'),
 	})
 	.describe('Skill reference attached to a coder session');
 export type CoderSkillRef = z.infer<typeof CoderSkillRefSchema>;
@@ -83,6 +89,7 @@ export const CoderSavedSkillSchema = z
 		description: z.string().optional().describe('Skill description'),
 		url: z.string().optional().describe('Skill URL'),
 		installs: z.number().optional().describe('Number of installs'),
+		content: z.string().optional().describe('Inline SKILL.md content for custom skills'),
 		createdAt: z.string().describe('Creation timestamp (ISO-8601)'),
 		updatedAt: z.string().describe('Last update timestamp (ISO-8601)'),
 	})
@@ -123,6 +130,16 @@ export const CoderWorkspaceDetailSchema = z
 			.optional()
 			.default('')
 			.describe('Shell script run while preparing workspace snapshots'),
+		systemPrompt: z
+			.string()
+			.optional()
+			.default('')
+			.describe(
+				'Additional Lead agent system prompt applied to sessions created from this workspace'
+			),
+		systemPromptMode: CoderWorkspaceSystemPromptModeSchema.optional()
+			.default('append')
+			.describe('Whether the workspace system prompt appends to or overwrites the Lead prompt'),
 		snapshot: z
 			.object({
 				status: z.string().describe('Workspace snapshot build status'),
@@ -353,6 +370,7 @@ function hasWorkspaceSelections(input: {
 	repos?: unknown[];
 	dependencies?: unknown[];
 	setupScript?: string;
+	systemPrompt?: string;
 	savedSkillIds?: unknown[];
 	skillBucketIds?: unknown[];
 	enabledAgents?: unknown[];
@@ -361,6 +379,7 @@ function hasWorkspaceSelections(input: {
 		(input.repos?.length ?? 0) > 0 ||
 		(input.dependencies?.length ?? 0) > 0 ||
 		Boolean(input.setupScript?.trim()) ||
+		Boolean(input.systemPrompt?.trim()) ||
 		(input.savedSkillIds?.length ?? 0) > 0 ||
 		(input.skillBucketIds?.length ?? 0) > 0 ||
 		(input.enabledAgents?.length ?? 0) > 0
@@ -381,6 +400,15 @@ export const CoderCreateWorkspaceRequestSchema = z
 			.string()
 			.optional()
 			.describe('Shell script run while preparing workspace snapshots'),
+		systemPrompt: z
+			.string()
+			.optional()
+			.describe(
+				'Additional Lead agent system prompt applied to sessions created from this workspace'
+			),
+		systemPromptMode: CoderWorkspaceSystemPromptModeSchema.optional().describe(
+			'Whether the workspace system prompt appends to or overwrites the Lead prompt'
+		),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
 		enabledAgents: z
@@ -390,7 +418,7 @@ export const CoderCreateWorkspaceRequestSchema = z
 	})
 	.refine(hasWorkspaceSelections, {
 		message:
-			'A workspace needs at least one repo, dependency, setup script, saved skill, skill bucket, or agent',
+			'A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent',
 	})
 	.describe('Request body for creating a workspace');
 export type CoderCreateWorkspaceRequest = z.infer<typeof CoderCreateWorkspaceRequestSchema>;
@@ -409,6 +437,15 @@ export const CoderUpdateWorkspaceRequestSchema = z
 			.string()
 			.optional()
 			.describe('Shell script run while preparing workspace snapshots'),
+		systemPrompt: z
+			.string()
+			.optional()
+			.describe(
+				'Additional Lead agent system prompt applied to sessions created from this workspace'
+			),
+		systemPromptMode: CoderWorkspaceSystemPromptModeSchema.optional().describe(
+			'Whether the workspace system prompt appends to or overwrites the Lead prompt'
+		),
 		savedSkillIds: z.array(z.string()).optional().describe('Saved skill IDs'),
 		skillBucketIds: z.array(z.string()).optional().describe('Skill bucket IDs'),
 		enabledAgents: z
@@ -528,6 +565,19 @@ export const CoderSaveSkillRequestSchema = z
 	})
 	.describe('Request body for saving a skill to the library');
 export type CoderSaveSkillRequest = z.infer<typeof CoderSaveSkillRequestSchema>;
+
+export const CoderCreateCustomSkillRequestSchema = z
+	.object({
+		skillId: z.string().describe('Skill identifier'),
+		name: z.string().describe('Skill name'),
+		description: z.string().optional().describe('Skill description'),
+		content: z
+			.string()
+			.refine((value) => value.trim().length > 0, 'SKILL.md content is required')
+			.describe('SKILL.md content'),
+	})
+	.describe('Request body for creating a custom skill');
+export type CoderCreateCustomSkillRequest = z.infer<typeof CoderCreateCustomSkillRequestSchema>;
 
 export const CoderCreateSkillBucketRequestSchema = z
 	.object({

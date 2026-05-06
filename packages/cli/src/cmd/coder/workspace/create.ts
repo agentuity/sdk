@@ -14,8 +14,10 @@ import {
 	EMPTY_WORKSPACE_ERROR,
 	formatWorkspaceValidationMessage,
 	hasWorkspaceSelections,
+	normalizeSystemPromptMode,
 	parseCommaList,
 	printWorkspaceSummary,
+	readSystemPrompt,
 	readSetupScript,
 } from './common';
 
@@ -37,6 +39,12 @@ export const createWorkspaceSubcommand = createSubcommand({
 				'coder workspace create "My Workspace" --dependency git --setup-script-file ./setup.sh --scope org'
 			),
 			description: 'Create an org-scoped workspace with dependencies and a setup script',
+		},
+		{
+			command: getCommand(
+				'coder workspace create "My Workspace" --system-prompt-file ./WORKSPACE_PROMPT.md --system-prompt-mode overwrite'
+			),
+			description: 'Create a workspace with Lead system prompt instructions',
 		},
 		{
 			command: getCommand('coder workspace create "My Workspace" --enabled-agents code-review'),
@@ -71,6 +79,18 @@ export const createWorkspaceSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Path to a shell script to run while preparing workspace snapshots'),
+			systemPrompt: z
+				.string()
+				.optional()
+				.describe('Inline Lead system prompt to apply to sessions created from this workspace'),
+			systemPromptFile: z
+				.string()
+				.optional()
+				.describe('Path to a file containing the workspace Lead system prompt'),
+			systemPromptMode: z
+				.string()
+				.optional()
+				.describe('How to apply the system prompt: append or overwrite'),
 			enabledAgents: z
 				.string()
 				.optional()
@@ -116,12 +136,25 @@ export const createWorkspaceSubcommand = createSubcommand({
 			tui.fatal(`Failed to read setup script: ${msg}`, ErrorCode.VALIDATION_FAILED);
 			return;
 		}
+		try {
+			const systemPrompt = await readSystemPrompt({
+				systemPrompt: opts?.systemPrompt,
+				systemPromptFile: opts?.systemPromptFile,
+			});
+			if (systemPrompt !== undefined) body.systemPrompt = systemPrompt;
+			const systemPromptMode = normalizeSystemPromptMode(opts?.systemPromptMode);
+			if (systemPromptMode !== undefined) body.systemPromptMode = systemPromptMode;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			tui.fatal(`Failed to read system prompt: ${msg}`, ErrorCode.VALIDATION_FAILED);
+			return;
+		}
 		if (opts?.enabledAgents) {
 			body.enabledAgents = parseCommaList(opts.enabledAgents);
 		}
 		if (!hasWorkspaceSelections(body)) {
 			tui.fatal(
-				`Failed to create workspace: ${EMPTY_WORKSPACE_ERROR}. Use --repo, --dependency, --setup-script, or --enabled-agents.`,
+				`Failed to create workspace: ${EMPTY_WORKSPACE_ERROR}. Use --repo, --dependency, --setup-script, --system-prompt, or --enabled-agents.`,
 				ErrorCode.VALIDATION_FAILED
 			);
 		}
