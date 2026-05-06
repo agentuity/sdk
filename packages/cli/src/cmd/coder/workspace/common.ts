@@ -2,6 +2,7 @@ import {
 	type CoderCreateWorkspaceRequest,
 	type CoderUpdateWorkspaceRequest,
 	type CoderWorkspaceDetail,
+	type CoderWorkspaceSystemPromptMode,
 } from '@agentuity/core/coder';
 import { StructuredError } from '@agentuity/core';
 import * as tui from '../../../tui';
@@ -16,6 +17,17 @@ export const SystemPromptValidationError = StructuredError('SystemPromptValidati
 	message: string;
 	path?: string;
 }>();
+
+export function normalizeSystemPromptMode(
+	value?: string
+): CoderWorkspaceSystemPromptMode | undefined {
+	if (value === undefined) return undefined;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === 'append' || normalized === 'overwrite') return normalized;
+	throw new SystemPromptValidationError({
+		message: 'Use --system-prompt-mode append or --system-prompt-mode overwrite.',
+	});
+}
 
 export function parseCommaList(value?: string): string[] {
 	return value
@@ -124,7 +136,7 @@ export function printWorkspaceSummary(workspace: CoderWorkspaceDetail): void {
 		tui.output('  Setup:       configured');
 	}
 	if (workspace.systemPrompt) {
-		tui.output('  Prompt:      configured');
+		tui.output(`  Prompt:      configured (${workspace.systemPromptMode})`);
 	}
 	if (workspace.snapshot?.status) {
 		tui.output(`  Snapshot:    ${workspace.snapshot.status}`);

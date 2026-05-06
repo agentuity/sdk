@@ -4,6 +4,7 @@ import { CoderClient } from '../src/services/coder/client.ts';
 import { APIError, ValidationInputError } from '../src/services/api.ts';
 import {
 	CoderCreateAgentBuilderSessionRequestSchema,
+	CoderCreateCustomSkillRequestSchema,
 	CoderCreateWorkspaceRequestSchema,
 	CoderUpdateWorkspaceRequestSchema,
 } from '../src/services/coder/types.ts';
@@ -74,6 +75,22 @@ function makeWorkspace(overrides: Record<string, unknown> = {}) {
 		enabledAgents: [],
 		selectionCount: 0,
 		systemPrompt: '',
+		systemPromptMode: 'append',
+		createdAt: '2026-04-08T00:00:00.000Z',
+		updatedAt: '2026-04-08T00:00:00.000Z',
+		...overrides,
+	};
+}
+
+function makeSavedSkill(overrides: Record<string, unknown> = {}) {
+	return {
+		id: 'hskill_test123',
+		source: 'registry',
+		repo: 'agentuity/coder',
+		skillId: 'release-checklist',
+		name: 'Release checklist',
+		description: 'Release workflow guardrails',
+		url: 'https://skills.sh/agentuity/coder/release-checklist',
 		createdAt: '2026-04-08T00:00:00.000Z',
 		updatedAt: '2026-04-08T00:00:00.000Z',
 		...overrides,
@@ -409,6 +426,7 @@ describe('CoderClient enabled agent roster contract', () => {
 			dependencies: ['git'],
 			setupScript: 'echo ready',
 			systemPrompt: 'Use the workspace checklist.',
+			systemPromptMode: 'overwrite',
 		};
 
 		expect(createSessionBody.enabledAgents).toEqual(['code-review']);
@@ -416,6 +434,7 @@ describe('CoderClient enabled agent roster contract', () => {
 		expect(createWorkspaceBody.enabledAgents).toEqual(['code-review']);
 		expect(updateWorkspaceBody.dependencies).toEqual(['git']);
 		expect(updateWorkspaceBody.systemPrompt).toBe('Use the workspace checklist.');
+		expect(updateWorkspaceBody.systemPromptMode).toBe('overwrite');
 	});
 
 	test('workspace create schema rejects a name-only request', () => {
@@ -453,8 +472,15 @@ describe('CoderClient enabled agent roster contract', () => {
 			CoderCreateWorkspaceRequestSchema.safeParse({
 				name: 'Prompt Workspace',
 				systemPrompt: 'Use the workspace checklist.',
+				systemPromptMode: 'overwrite',
 			}).success
 		).toBe(true);
+		expect(
+			CoderCreateWorkspaceRequestSchema.safeParse({
+				name: 'Mode Only Workspace',
+				systemPromptMode: 'overwrite',
+			}).success
+		).toBe(false);
 	});
 
 	test('workspace update schema rejects an empty body', () => {
@@ -652,6 +678,7 @@ describe('CoderClient enabled agent roster contract', () => {
 				dependencies: ['git', 'nodejs'],
 				setupScript: 'echo ready',
 				systemPrompt: 'Use the workspace checklist.',
+				systemPromptMode: 'overwrite',
 			});
 			return new Response(
 				JSON.stringify({
@@ -660,6 +687,7 @@ describe('CoderClient enabled agent roster contract', () => {
 						dependencies: ['git', 'nodejs'],
 						setupScript: 'echo ready',
 						systemPrompt: 'Use the workspace checklist.',
+						systemPromptMode: 'overwrite',
 						selectionCount: 3,
 						snapshot: { status: 'building', buildId: 'wsbuild_test' },
 					}),
@@ -683,12 +711,14 @@ describe('CoderClient enabled agent roster contract', () => {
 				dependencies: ['git', 'nodejs'],
 				setupScript: 'echo ready',
 				systemPrompt: 'Use the workspace checklist.',
+				systemPromptMode: 'overwrite',
 			})
 		).resolves.toMatchObject({
 			id: 'hworkspace_deps_create',
 			dependencies: ['git', 'nodejs'],
 			setupScript: 'echo ready',
 			systemPrompt: 'Use the workspace checklist.',
+			systemPromptMode: 'overwrite',
 			snapshot: { status: 'building' },
 		});
 	});
@@ -701,6 +731,7 @@ describe('CoderClient enabled agent roster contract', () => {
 				dependencies: ['git'],
 				setupScript: 'echo updated',
 				systemPrompt: 'Use the updated checklist.',
+				systemPromptMode: 'append',
 			});
 			return new Response(
 				JSON.stringify({
@@ -709,6 +740,7 @@ describe('CoderClient enabled agent roster contract', () => {
 						dependencies: ['git'],
 						setupScript: 'echo updated',
 						systemPrompt: 'Use the updated checklist.',
+						systemPromptMode: 'append',
 						snapshot: { status: 'building' },
 					}),
 				}),
@@ -730,12 +762,14 @@ describe('CoderClient enabled agent roster contract', () => {
 				dependencies: ['git'],
 				setupScript: 'echo updated',
 				systemPrompt: 'Use the updated checklist.',
+				systemPromptMode: 'append',
 			})
 		).resolves.toMatchObject({
 			id: 'hworkspace_update',
 			dependencies: ['git'],
 			setupScript: 'echo updated',
 			systemPrompt: 'Use the updated checklist.',
+			systemPromptMode: 'append',
 		});
 	});
 
@@ -912,6 +946,80 @@ describe('CoderClient enabled agent roster contract', () => {
 		expect(workspace.enabledAgents).toEqual(['code-review', 'qa-team']);
 		expect(workspace.selectedEnabledAgents).toEqual(['code-review']);
 		expect('agentSlugs' in workspace).toBe(false);
+	});
+
+	test('createCustomSkill saves SKILL.md content as a custom library skill', async () => {
+		let requestBody: unknown;
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/skills/library');
+			expect(init?.method).toBe('POST');
+			requestBody = JSON.parse(String(init?.body));
+			return new Response(
+				JSON.stringify({
+					skill: makeSavedSkill({
+						id: 'hskill_custom',
+						source: 'custom',
+						repo: 'custom',
+						skillId: 'release-checklist',
+						name: 'Release checklist',
+						content: '# Release checklist',
+						url: undefined,
+					}),
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createCustomSkill({
+				skillId: 'release-checklist',
+				name: 'Release checklist',
+				description: 'Release workflow guardrails',
+				content: '# Release checklist',
+			})
+		).resolves.toMatchObject({
+			id: 'hskill_custom',
+			source: 'custom',
+			repo: 'custom',
+			skillId: 'release-checklist',
+			content: '# Release checklist',
+		});
+		expect(requestBody).toEqual({
+			source: 'custom',
+			repo: 'custom',
+			skillId: 'release-checklist',
+			name: 'Release checklist',
+			description: 'Release workflow guardrails',
+			content: '# Release checklist',
+		});
+	});
+
+	test('custom skill schema rejects blank SKILL.md content', () => {
+		const result = CoderCreateCustomSkillRequestSchema.safeParse({
+			skillId: 'empty-skill',
+			name: 'Empty skill',
+			content: '   ',
+		});
+
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						message: 'SKILL.md content is required',
+					}),
+				])
+			);
+		}
 	});
 });
 

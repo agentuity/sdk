@@ -2,12 +2,14 @@ import { z } from 'zod/v4';
 import { type APIClient } from '../api.ts';
 import {
 	CoderCreateSkillBucketRequestSchema,
+	CoderCreateCustomSkillRequestSchema,
 	CoderSavedSkillListResponseSchema,
 	CoderSavedSkillSchema,
 	CoderSaveSkillRequestSchema,
 	CoderSkillBucketListResponseSchema,
 	CoderSkillBucketSchema,
 	type CoderCreateSkillBucketRequest,
+	type CoderCreateCustomSkillRequest,
 	type CoderSavedSkill,
 	type CoderSavedSkillListResponse,
 	type CoderSaveSkillRequest,
@@ -57,6 +59,23 @@ export async function coderSaveSkill(
 	);
 
 	return resp.skill;
+}
+
+export async function coderCreateCustomSkill(
+	client: APIClient,
+	params: { body: CoderCreateCustomSkillRequest }
+): Promise<CoderSavedSkill> {
+	const body = CoderCreateCustomSkillRequestSchema.parse(params.body);
+	return coderSaveSkill(client, {
+		body: {
+			source: 'custom',
+			repo: 'custom',
+			skillId: body.skillId,
+			name: body.name,
+			...(body.description !== undefined ? { description: body.description } : {}),
+			content: body.content,
+		},
+	});
 }
 
 export async function coderDeleteSavedSkill(

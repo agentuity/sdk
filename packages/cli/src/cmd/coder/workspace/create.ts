@@ -14,6 +14,7 @@ import {
 	EMPTY_WORKSPACE_ERROR,
 	formatWorkspaceValidationMessage,
 	hasWorkspaceSelections,
+	normalizeSystemPromptMode,
 	parseCommaList,
 	printWorkspaceSummary,
 	readSystemPrompt,
@@ -41,7 +42,7 @@ export const createWorkspaceSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand(
-				'coder workspace create "My Workspace" --system-prompt-file ./WORKSPACE_PROMPT.md'
+				'coder workspace create "My Workspace" --system-prompt-file ./WORKSPACE_PROMPT.md --system-prompt-mode overwrite'
 			),
 			description: 'Create a workspace with Lead system prompt instructions',
 		},
@@ -86,6 +87,10 @@ export const createWorkspaceSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Path to a file containing the workspace Lead system prompt'),
+			systemPromptMode: z
+				.string()
+				.optional()
+				.describe('How to apply the system prompt: append or overwrite'),
 			enabledAgents: z
 				.string()
 				.optional()
@@ -137,6 +142,8 @@ export const createWorkspaceSubcommand = createSubcommand({
 				systemPromptFile: opts?.systemPromptFile,
 			});
 			if (systemPrompt !== undefined) body.systemPrompt = systemPrompt;
+			const systemPromptMode = normalizeSystemPromptMode(opts?.systemPromptMode);
+			if (systemPromptMode !== undefined) body.systemPromptMode = systemPromptMode;
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to read system prompt: ${msg}`, ErrorCode.VALIDATION_FAILED);

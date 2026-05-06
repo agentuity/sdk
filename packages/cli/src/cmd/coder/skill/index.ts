@@ -1,5 +1,6 @@
 import { createCommand } from '../../../types';
 import { listSubcommand } from './list';
+import { createCustomSkillSubcommand } from './create';
 import { saveSkillSubcommand } from './save';
 import { deleteSkillSubcommand } from './delete';
 import { bucketsSubcommand } from './buckets';
@@ -18,6 +19,12 @@ export const skillCommand = createCommand({
 		},
 		{
 			command: getCommand(
+				'coder skill create --skill-id release-checklist --name "Release checklist" --content-file ./SKILL.md'
+			),
+			description: 'Create a custom skill',
+		},
+		{
+			command: getCommand(
 				'coder skill save --repo org/repo --skill-id sk_abc --name "My Skill"'
 			),
 			description: 'Save a skill to your library',
@@ -31,5 +38,11 @@ export const skillCommand = createCommand({
 			description: 'List skill buckets',
 		},
 	],
-	subcommands: [listSubcommand, saveSkillSubcommand, deleteSkillSubcommand, bucketsSubcommand],
+	subcommands: [
+		listSubcommand,
+		createCustomSkillSubcommand,
+		saveSkillSubcommand,
+		deleteSkillSubcommand,
+		bucketsSubcommand,
+	],
 });

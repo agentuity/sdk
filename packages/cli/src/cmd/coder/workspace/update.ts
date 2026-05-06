@@ -13,6 +13,7 @@ import { resolveGitHubRepo } from '../resolve-repo';
 import {
 	formatWorkspaceValidationMessage,
 	hasWorkspaceUpdate,
+	normalizeSystemPromptMode,
 	parseCommaList,
 	printWorkspaceSummary,
 	readSystemPrompt,
@@ -36,7 +37,7 @@ export const updateWorkspaceSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand(
-				'coder workspace update ws_abc123 --system-prompt-file ./WORKSPACE_PROMPT.md'
+				'coder workspace update ws_abc123 --system-prompt-file ./WORKSPACE_PROMPT.md --system-prompt-mode append'
 			),
 			description: 'Update the workspace Lead system prompt',
 		},
@@ -72,6 +73,10 @@ export const updateWorkspaceSubcommand = createSubcommand({
 				.string()
 				.optional()
 				.describe('Path to a file containing the workspace Lead system prompt'),
+			systemPromptMode: z
+				.string()
+				.optional()
+				.describe('How to apply the system prompt: append or overwrite'),
 			enabledAgents: z
 				.string()
 				.optional()
@@ -123,6 +128,8 @@ export const updateWorkspaceSubcommand = createSubcommand({
 				systemPromptFile: opts?.systemPromptFile,
 			});
 			if (systemPrompt !== undefined) body.systemPrompt = systemPrompt;
+			const systemPromptMode = normalizeSystemPromptMode(opts?.systemPromptMode);
+			if (systemPromptMode !== undefined) body.systemPromptMode = systemPromptMode;
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			tui.fatal(`Failed to read system prompt: ${msg}`, ErrorCode.VALIDATION_FAILED);

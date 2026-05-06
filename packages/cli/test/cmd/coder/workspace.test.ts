@@ -68,6 +68,7 @@ function makeWorkspace(overrides: Record<string, unknown> = {}) {
 		dependencies: [],
 		setupScript: '',
 		systemPrompt: '',
+		systemPromptMode: 'append',
 		savedSkillIds: [],
 		skillBucketIds: [],
 		enabledAgents: [],
@@ -231,21 +232,30 @@ describe('coder workspace commands', () => {
 			return jsonResponse({
 				workspace: makeWorkspace({
 					systemPrompt: 'Follow the release checklist.',
+					systemPromptMode: 'overwrite',
 					selectionCount: 1,
 				}),
 			});
 		}) as typeof globalThis.fetch;
 
 		const result = await createWorkspaceSubcommand.handler(
-			makeContext({ opts: { systemPrompt: 'Follow the release checklist.' }, json: true })
+			makeContext({
+				opts: {
+					systemPrompt: 'Follow the release checklist.',
+					systemPromptMode: 'overwrite',
+				},
+				json: true,
+			})
 		);
 
 		expect(requestBody).toMatchObject({
 			name: 'My Workspace',
 			systemPrompt: 'Follow the release checklist.',
+			systemPromptMode: 'overwrite',
 		});
 		expect(result).toMatchObject({
 			systemPrompt: 'Follow the release checklist.',
+			systemPromptMode: 'overwrite',
 		});
 	});
 
@@ -369,6 +379,32 @@ describe('coder workspace commands', () => {
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});
 
+	test('create handler fails locally when system prompt mode is invalid', async () => {
+		const requestedUrls: string[] = [];
+		globalThis.fetch = (async (url: string) => {
+			requestedUrls.push(String(url));
+			throw new Error('unexpected fetch');
+		}) as typeof globalThis.fetch;
+		const fatal = interceptFatal();
+
+		await expect(
+			createWorkspaceSubcommand.handler(
+				makeContext({
+					opts: {
+						systemPrompt: 'inline prompt',
+						systemPromptMode: 'replace',
+					},
+				})
+			)
+		).rejects.toThrow('__EXIT__');
+
+		expect(requestedUrls).toEqual([]);
+		expect(fatal.stderr).toContain(
+			'Failed to read system prompt: Use --system-prompt-mode append or --system-prompt-mode overwrite.'
+		);
+		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
+	});
+
 	test('create handler reports setup script file read failures as validation errors', async () => {
 		const requestedUrls: string[] = [];
 		globalThis.fetch = (async (url: string) => {
@@ -450,6 +486,7 @@ describe('coder workspace commands', () => {
 					dependencies: ['git'],
 					setupScript: 'echo updated',
 					systemPrompt: 'Use the workspace prompt.',
+					systemPromptMode: 'overwrite',
 					snapshot: { status: 'building' },
 					selectionCount: 3,
 				}),
@@ -463,6 +500,7 @@ describe('coder workspace commands', () => {
 					dependency: 'git',
 					setupScript: 'echo updated',
 					systemPrompt: 'Use the workspace prompt.',
+					systemPromptMode: 'overwrite',
 				},
 				json: true,
 			})
@@ -472,12 +510,14 @@ describe('coder workspace commands', () => {
 			dependencies: ['git'],
 			setupScript: 'echo updated',
 			systemPrompt: 'Use the workspace prompt.',
+			systemPromptMode: 'overwrite',
 		});
 		expect(result).toMatchObject({
 			id: 'ws_test',
 			dependencies: ['git'],
 			setupScript: 'echo updated',
 			systemPrompt: 'Use the workspace prompt.',
+			systemPromptMode: 'overwrite',
 			snapshot: { status: 'building' },
 		});
 	});
