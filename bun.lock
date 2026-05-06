@@ -535,6 +535,8 @@
       "name": "@agentuity/coder-tui",
       "version": "2.0.14",
       "dependencies": {
+        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "@mariozechner/pi-coding-agent": "^0.72.1",
         "@mariozechner/pi-tui": "^0.72.1",
         "@sinclair/typebox": "^0.34.49",

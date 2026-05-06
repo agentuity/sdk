@@ -4,9 +4,14 @@
 		"composite": true,
 		"outDir": "./dist",
 		"rootDir": "./src",
-		"rewriteRelativeImportExtensions": true
+		"rewriteRelativeImportExtensions": true,
+		"paths": {
+			"@agentuity/core": ["../core/src"],
+			"@agentuity/core/*": ["../core/src/services/*"],
+			"@agentuity/server": ["../server/src"]
+		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": []
+	"references": [{ "path": "../core" }, { "path": "../server" }]
 }

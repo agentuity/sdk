@@ -10,6 +10,13 @@
 import { delimiter, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createMinimalLogger } from '@agentuity/core';
+import {
+	AIGatewayService,
+	type AIGatewayModel,
+	type AIGatewayModels,
+} from '@agentuity/core/aigateway';
+import { createServerFetchAdapter } from '@agentuity/server';
 import type { ExtensionAPI, ProviderModelConfig } from '@mariozechner/pi-coding-agent';
 
 export type KnownApi =
@@ -24,8 +31,6 @@ export type KnownApi =
 	| 'google-gemini-cli'
 	| 'google-vertex';
 
-const MODEL_CATALOG_TIMEOUT_MS = 5_000;
-
 const KNOWN_APIS = new Set<string>([
 	'openai-completions',
 	'mistral-conversations',
@@ -38,34 +43,6 @@ const KNOWN_APIS = new Set<string>([
 	'google-gemini-cli',
 	'google-vertex',
 ] satisfies KnownApi[]);
-
-interface AIGatewayModels {
-	[key: string]: AIGatewayModel[];
-}
-
-interface AIGatewayModelResponse {
-	success: boolean;
-	data: AIGatewayModels;
-	message?: string;
-	error?: string;
-}
-
-interface AIGatewayModel {
-	id: string;
-	name: string;
-	api: KnownApi;
-	reasoning: boolean;
-	input_modalities?: ('text' | 'image')[];
-	context_window?: number;
-	max_output_tokens?: number;
-	pricing?: {
-		input: number;
-		output: number;
-		cached_input: number;
-		unit: 'per_million_tokens';
-		currency: 'USD';
-	};
-}
 
 function getEnv(...keys: string[]): string | undefined {
 	for (const key of keys) {
@@ -155,37 +132,15 @@ async function fetchModels(): Promise<AIGatewayModels> {
 		process.env.AGENTUITY_AIGATEWAY_ORGID = orgId;
 	}
 
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), MODEL_CATALOG_TIMEOUT_MS);
-
 	try {
-		const response = await fetch(`${baseUrl}/models`, { signal: controller.signal });
-
-		if (!response.ok) {
-			console.warn(
-				`Failed to fetch models from AI Gateway: ${response.status} ${response.statusText}`
-			);
-			return {};
-		}
-
-		const payload = (await response.json()) as AIGatewayModelResponse;
-
-		if (!payload.success) {
-			console.warn(`Failed to load models. ${payload.message} ${payload}`);
-		}
-
-		return payload.data;
+		const service = new AIGatewayService(
+			baseUrl,
+			createServerFetchAdapter({ headers: {} }, createMinimalLogger())
+		);
+		return await service.listModels();
 	} catch (error) {
-		if (error instanceof Error && error.name === 'AbortError') {
-			console.warn(
-				`Timed out fetching models from AI Gateway after ${MODEL_CATALOG_TIMEOUT_MS}ms`
-			);
-			return {};
-		}
 		console.warn('Failed to fetch models from AI Gateway:', error);
 		return {};
-	} finally {
-		clearTimeout(timeout);
 	}
 }
 
@@ -193,8 +148,8 @@ function toPiModel(m: AIGatewayModel): ProviderModelConfig {
 	return {
 		id: m.id,
 		name: m.name,
-		reasoning: m.reasoning,
-		input: m.input_modalities as ('text' | 'image')[],
+		reasoning: m.reasoning ?? false,
+		input: (m.input_modalities as ('text' | 'image')[] | undefined) ?? ['text'],
 		contextWindow: m.context_window ?? 40000,
 		maxTokens: m.max_output_tokens ?? 64000,
 		cost: {
