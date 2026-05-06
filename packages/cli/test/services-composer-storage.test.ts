@@ -110,14 +110,14 @@ describe('framework + storage composition (auto-pulls db)', () => {
 
 			if (check.exportFile) {
 				const c = await readFile(join(dest, check.exportFile), 'utf8');
-				expect(c).toContain('s3.file');
+				expect(c).toContain('getS3().write(');
 				expect(c).toContain('translations');
 				expect(c).not.toContain('@agentuity:');
 			}
 			if (check.serverFile) {
 				const c = await readFile(join(dest, check.serverFile), 'utf8');
 				expect(c).toContain('/api/export');
-				expect(c).toContain('s3.file');
+				expect(c).toContain('getS3().write(');
 				expect(c).not.toContain('@agentuity:');
 			}
 

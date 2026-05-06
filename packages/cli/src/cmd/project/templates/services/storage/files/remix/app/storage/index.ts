@@ -1,15 +1,10 @@
-import { createS3Client, type BucketConfig } from '@agentuity/storage';
+import { bucketConfigFromEnv, createS3Client, type S3ClientLike } from '@agentuity/storage';
 
-function bucketConfig(): BucketConfig {
-	const endpoint = process.env.AGENTUITY_BUCKET_ENDPOINT;
-	const access_key = process.env.AGENTUITY_BUCKET_ACCESS_KEY;
-	const secret_key = process.env.AGENTUITY_BUCKET_SECRET_KEY;
-	if (!endpoint || !access_key || !secret_key) {
-		throw new Error(
-			'AGENTUITY_BUCKET_* env vars are not set. Provision an Agentuity bucket or set them manually.'
-		);
-	}
-	return { endpoint, access_key, secret_key };
+// Lazy singleton — defer createS3Client() until the first request so
+// that build-time module evaluation (e.g. Next.js' static analysis
+// pass) does not fail when env vars are absent.
+let cached: S3ClientLike | undefined;
+export function getS3(): S3ClientLike {
+	if (!cached) cached = createS3Client(bucketConfigFromEnv());
+	return cached;
 }
-
-export const s3 = createS3Client(bucketConfig());

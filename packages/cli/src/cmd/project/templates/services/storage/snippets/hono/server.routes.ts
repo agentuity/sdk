@@ -6,6 +6,6 @@ app.post('/api/export', async (c) => {
 		.orderBy(desc(translations.createdAt));
 	const body = JSON.stringify(rows, null, 2);
 	const filename = `translations-${Date.now()}.json`;
-	await s3.write(filename, body, { type: 'application/json' });
+	await getS3().write(filename, body, { type: 'application/json' });
 	return c.json({ filename, size: body.length });
 });

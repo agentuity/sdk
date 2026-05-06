@@ -10,7 +10,7 @@
 		{
 			"name": "AGENTUITY_BUCKET_ENDPOINT",
 			"placeholder": "your-bucket.agentuity.run",
-			"comment": "Set automatically when an Agentuity bucket is provisioned"
+			"comment": "Set automatically when an Agentuity bucket is provisioned (or use AWS_ENDPOINT + AWS_BUCKET as a fallback)"
 		},
 		{ "name": "AGENTUITY_BUCKET_ACCESS_KEY", "placeholder": "" },
 		{ "name": "AGENTUITY_BUCKET_SECRET_KEY", "placeholder": "" }

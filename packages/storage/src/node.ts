@@ -32,6 +32,7 @@
 import { Buffer } from 'node:buffer';
 import { Readable, Transform } from 'node:stream';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
+import { resolveEndpoint } from './types.ts';
 import type {
 	BucketConfig,
 	S3Body,
@@ -44,6 +45,7 @@ import type {
 } from './types.ts';
 
 export type { BucketConfig, S3ClientLike } from './types.ts';
+export { bucketConfigFromEnv } from './types.ts';
 
 // Lazy-loaded handle to `@aws-sdk/client-s3`. Populated on first call to
 // `loadSdk()`; subsequent calls reuse the cached module.
@@ -72,15 +74,14 @@ interface InternalState {
 }
 
 export function createS3Client(bucket: BucketConfig): S3ClientLike {
-	const endpoint = bucket.endpoint.startsWith('http')
-		? bucket.endpoint
-		: `https://${bucket.endpoint}`;
+	const endpoint = resolveEndpoint(bucket);
 
-	// Extract the leading hostname label as the bucket name. The endpoint
-	// is virtual-hosted-style (`<bucket>.<host>`), so the SDK's `Bucket`
-	// parameter is essentially a placeholder — what actually routes the
-	// request is the `endpoint` URL.
-	const bucketLabel = extractBucketLabel(endpoint);
+	// The SDK's `Bucket` parameter is essentially a placeholder for our
+	// purposes — we always send virtual-hosted-style requests, so the
+	// `endpoint` URL is what actually routes. Prefer the explicit
+	// `bucket` field when supplied; otherwise fall back to parsing the
+	// leading hostname label out of the composed endpoint.
+	const bucketLabel = bucket.bucket ?? extractBucketLabel(endpoint);
 
 	const state: InternalState = {
 		endpoint,

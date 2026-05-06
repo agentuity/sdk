@@ -7,20 +7,140 @@
  * letting the package conditionally pick one) is transparent.
  */
 
-/** Bucket connection configuration. */
+/**
+ * Bucket connection configuration.
+ *
+ * Two addressing forms are supported:
+ *
+ * 1. **Pre-composed virtual-hosted endpoint**: pass `endpoint` as
+ *    `<bucket>.<host>` (e.g. `my-bucket.agentuity.run`). Use this when
+ *    the platform already gives you a bucket-scoped endpoint.
+ *
+ * 2. **Separate `bucket` + `host`**: pass them as distinct fields and
+ *    `createS3Client` will compose the virtual-hosted endpoint for
+ *    you. This is what Agentuity-provisioned buckets need today —
+ *    the platform injects `AWS_ENDPOINT` (shared host) and
+ *    `AWS_BUCKET` (per-bucket name) separately.
+ *
+ * Exactly one of these forms must be provided.
+ */
 export interface BucketConfig {
 	/**
 	 * Bucket-specific endpoint, e.g. `my-bucket.agentuity.run`. May be
 	 * provided with or without a scheme; missing schemes default to
-	 * `https://`.
+	 * `https://`. Mutually exclusive with `host`/`bucket`.
 	 */
-	endpoint: string;
+	endpoint?: string;
+	/**
+	 * Shared S3 host, e.g. `t3.storage.dev` or
+	 * `https://t3.storage.dev`. When set, `bucket` is required and the
+	 * virtual-hosted endpoint is composed as `<bucket>.<host>`.
+	 */
+	host?: string;
+	/**
+	 * Bucket name. Required when `host` is set; ignored when `endpoint`
+	 * is set (the bucket is parsed out of the endpoint hostname).
+	 */
+	bucket?: string;
 	/** S3 access key ID. */
 	access_key: string;
 	/** S3 secret access key. */
 	secret_key: string;
 	/** Optional region. Defaults to `'auto'` when omitted or null. */
 	region?: string | null;
+}
+
+/**
+ * Resolve the canonical virtual-hosted endpoint URL from a
+ * `BucketConfig`, applying the `endpoint` vs `host`+`bucket` rules.
+ *
+ * Always returns a fully-qualified URL with a scheme (defaults to
+ * `https://` when missing). Throws on invalid configurations rather
+ * than silently picking a default — misconfigured storage usually
+ * means the user forgot to provision/inject env vars.
+ */
+export function resolveEndpoint(bucket: BucketConfig): string {
+	if (bucket.endpoint && (bucket.host || bucket.bucket)) {
+		throw new Error('BucketConfig accepts either `endpoint` or `host`+`bucket`, not both.');
+	}
+	if (bucket.endpoint) {
+		return bucket.endpoint.startsWith('http') ? bucket.endpoint : `https://${bucket.endpoint}`;
+	}
+	if (!bucket.host || !bucket.bucket) {
+		throw new Error('BucketConfig requires either `endpoint` or both `host` and `bucket`.');
+	}
+	// Strip scheme + trailing slashes from `host` so callers can pass
+	// either `t3.storage.dev` or `https://t3.storage.dev/`.
+	const hostOnly = bucket.host.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+	return `https://${bucket.bucket}.${hostOnly}`;
+}
+
+/**
+ * Build a `BucketConfig` from environment variables.
+ *
+ * Two naming schemes are recognised, in this priority order:
+ *
+ * 1. **Agentuity-canonical** —
+ *    `AGENTUITY_BUCKET_ENDPOINT`,
+ *    `AGENTUITY_BUCKET_ACCESS_KEY`,
+ *    `AGENTUITY_BUCKET_SECRET_KEY`,
+ *    optional `AGENTUITY_BUCKET_REGION`.
+ *    The endpoint is treated as bucket-scoped
+ *    (virtual-hosted-style, `<bucket>.<host>`) and used as-is.
+ *
+ * 2. **AWS-style fallback** —
+ *    `AWS_ENDPOINT` (shared host) + `AWS_BUCKET` (bucket name) +
+ *    `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`,
+ *    optional `AWS_REGION`.
+ *    This matches what the Agentuity platform currently injects
+ *    when a bucket is provisioned (host and bucket are kept
+ *    separate). Falls through to it only if no
+ *    `AGENTUITY_BUCKET_ENDPOINT` is set.
+ *
+ * Throws a single, descriptive error when neither scheme yields a
+ * complete configuration so callers can surface a useful message at
+ * startup or first request.
+ *
+ * Pass an explicit `env` (defaults to `process.env`) to make this
+ * unit-testable without mutating global state.
+ */
+export function bucketConfigFromEnv(
+	env: Record<string, string | undefined> = process.env
+): BucketConfig {
+	// 1. Agentuity-canonical naming.
+	const agentuityEndpoint = env.AGENTUITY_BUCKET_ENDPOINT;
+	const agentuityAccess = env.AGENTUITY_BUCKET_ACCESS_KEY;
+	const agentuitySecret = env.AGENTUITY_BUCKET_SECRET_KEY;
+	if (agentuityEndpoint && agentuityAccess && agentuitySecret) {
+		return {
+			endpoint: agentuityEndpoint,
+			access_key: agentuityAccess,
+			secret_key: agentuitySecret,
+			region: env.AGENTUITY_BUCKET_REGION,
+		};
+	}
+
+	// 2. AWS-style fallback (matches the platform's current injection).
+	const awsHost = env.AWS_ENDPOINT;
+	const awsBucket = env.AWS_BUCKET;
+	const awsAccess = env.AWS_ACCESS_KEY_ID;
+	const awsSecret = env.AWS_SECRET_ACCESS_KEY;
+	if (awsHost && awsBucket && awsAccess && awsSecret) {
+		return {
+			host: awsHost,
+			bucket: awsBucket,
+			access_key: awsAccess,
+			secret_key: awsSecret,
+			region: env.AWS_REGION,
+		};
+	}
+
+	throw new Error(
+		'Storage env vars are not set. Expected AGENTUITY_BUCKET_ENDPOINT + ' +
+			'AGENTUITY_BUCKET_ACCESS_KEY + AGENTUITY_BUCKET_SECRET_KEY, or the ' +
+			'AWS-equivalents (AWS_ENDPOINT + AWS_BUCKET + AWS_ACCESS_KEY_ID + ' +
+			'AWS_SECRET_ACCESS_KEY). Provision an Agentuity bucket or set them manually.'
+	);
 }
 
 /** Options for `list()`. */

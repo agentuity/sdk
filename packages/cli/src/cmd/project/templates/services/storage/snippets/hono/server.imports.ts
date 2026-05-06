@@ -1,1 +1,1 @@
-import { s3 } from './storage';
+import { getS3 } from './storage';

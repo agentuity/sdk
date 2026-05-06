@@ -13,6 +13,7 @@
  */
 
 import { S3Client } from 'bun';
+import { resolveEndpoint } from './types.ts';
 import type {
 	BucketConfig,
 	S3Body,
@@ -25,6 +26,7 @@ import type {
 } from './types.ts';
 
 export type { BucketConfig, S3ClientLike } from './types.ts';
+export { bucketConfigFromEnv } from './types.ts';
 
 /**
  * Create an S3 client backed by `Bun.S3Client`.
@@ -34,9 +36,7 @@ export type { BucketConfig, S3ClientLike } from './types.ts';
  * correct bucket.
  */
 export function createS3Client(bucket: BucketConfig): S3ClientLike {
-	const endpoint = bucket.endpoint.startsWith('http')
-		? bucket.endpoint
-		: `https://${bucket.endpoint}`;
+	const endpoint = resolveEndpoint(bucket);
 
 	const client = new S3Client({
 		endpoint,
