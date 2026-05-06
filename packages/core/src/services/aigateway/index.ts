@@ -1,5 +1,6 @@
 export {
 	AIGatewayChatCompletionParamsSchema,
+	AIGatewayChatCompletionStreamParamsSchema,
 	AIGatewayChatCompletionSchema,
 	AIGatewayChatMessageSchema,
 	AIGatewayModelProviderSchema,
@@ -11,6 +12,7 @@ export {
 	AIGatewayService,
 	type AIGatewayChatCompletion,
 	type AIGatewayChatCompletionParams,
+	type AIGatewayChatCompletionStreamParams,
 	type AIGatewayChatMessage,
 	type AIGatewayModel,
 	type AIGatewayModelProvider,

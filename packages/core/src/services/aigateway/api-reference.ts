@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
 	AIGatewayChatCompletionParamsSchema,
+	AIGatewayChatCompletionStreamParamsSchema,
 	AIGatewayChatCompletionSchema,
 	AIGatewayModelsResponseSchema,
 } from './service.ts';
@@ -116,7 +117,10 @@ const service: Service = {
 			queryParams: [],
 			requestBody: {
 				description: 'Completion request with `stream` set to `true`.',
-				fields: { schema: AIGatewayChatCompletionParamsSchema },
+				fields: {
+					schema: AIGatewayChatCompletionStreamParamsSchema,
+					overrides: { stream: { type: 'true' } },
+				},
 			},
 			responseDescription:
 				'Server-Sent Events stream. Each `data:` frame contains a provider-compatible delta payload. The stream ends with `data: [DONE]`.',

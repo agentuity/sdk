@@ -101,6 +101,16 @@ export const AIGatewayChatCompletionParamsSchema = z
 
 export type AIGatewayChatCompletionParams = z.infer<typeof AIGatewayChatCompletionParamsSchema>;
 
+export const AIGatewayChatCompletionStreamParamsSchema = AIGatewayChatCompletionParamsSchema.extend(
+	{
+		stream: z.literal(true).describe('Enable Server-Sent Events streaming.'),
+	}
+);
+
+export type AIGatewayChatCompletionStreamParams = z.infer<
+	typeof AIGatewayChatCompletionStreamParamsSchema
+>;
+
 export const AIGatewayChatCompletionSchema = z
 	.object({
 		id: z.string().optional(),
