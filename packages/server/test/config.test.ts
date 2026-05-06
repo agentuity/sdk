@@ -36,6 +36,7 @@ describe('getServiceUrls', () => {
 		delete process.env.AGENTUITY_OBJECTSTORE_URL;
 		delete process.env.AGENTUITY_STREAM_URL;
 		delete process.env.AGENTUITY_VECTOR_URL;
+		delete process.env.AGENTUITY_AIGATEWAY_URL;
 		delete process.env.AGENTUITY_CATALYST_URL;
 		delete process.env.AGENTUITY_OTLP_URL;
 	});
@@ -51,6 +52,7 @@ describe('getServiceUrls', () => {
 		const urls = getServiceUrls();
 		expect(urls.catalyst).toBe('https://catalyst-us-west.agentuity.cloud');
 		expect(urls.stream).toBe('https://streams-us-west.agentuity.cloud');
+		expect(urls.aigateway).toBe('https://aigateway-us-west.agentuity.cloud');
 	});
 
 	test('should build URLs for us-east region', () => {
@@ -58,12 +60,14 @@ describe('getServiceUrls', () => {
 		expect(urls.catalyst).toBe('https://catalyst-us-east.agentuity.cloud');
 		expect(urls.keyvalue).toBe('https://catalyst-us-east.agentuity.cloud');
 		expect(urls.stream).toBe('https://streams-us-east.agentuity.cloud');
+		expect(urls.aigateway).toBe('https://aigateway-us-east.agentuity.cloud');
 	});
 
 	test('should use agentuity.io for local region', () => {
 		const urls = getServiceUrls('local');
 		expect(urls.catalyst).toBe('https://catalyst.agentuity.io');
 		expect(urls.stream).toBe('https://streams.agentuity.io');
+		expect(urls.aigateway).toBe('https://aigateway.agentuity.io');
 	});
 
 	test('should override with AGENTUITY_TRANSPORT_URL', () => {
@@ -77,9 +81,11 @@ describe('getServiceUrls', () => {
 	test('should override individual service URLs', () => {
 		process.env.AGENTUITY_SANDBOX_URL = 'https://custom-sandbox.example.com';
 		process.env.AGENTUITY_KEYVALUE_URL = 'https://custom-kv.example.com';
+		process.env.AGENTUITY_AIGATEWAY_URL = 'https://custom-ai.example.com';
 		const urls = getServiceUrls('us-east');
 
 		expect(urls.keyvalue).toBe('https://custom-kv.example.com');
+		expect(urls.aigateway).toBe('https://custom-ai.example.com');
 		expect(urls.catalyst).toBe('https://catalyst-us-east.agentuity.cloud');
 		expect(urls.sandbox).toBe('https://custom-sandbox.example.com');
 	});

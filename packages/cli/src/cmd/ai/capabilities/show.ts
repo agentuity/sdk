@@ -129,6 +129,14 @@ export const showSubcommand = createSubcommand({
 					requiresProject: true,
 				},
 				{
+					id: 'aigateway',
+					name: 'AI Gateway',
+					description: 'List supported AI models and run LLM completions',
+					commands: ['cloud aigateway models', 'cloud aigateway complete'],
+					requiresAuth: true,
+					requiresProject: true,
+				},
+				{
 					id: 'databases',
 					name: 'Cloud Databases',
 					description: 'Manage database resources',

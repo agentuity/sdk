@@ -25,6 +25,7 @@ const urls: ServiceUrls = getServiceUrls(region);
 console.log(urls.keyvalue); // https://agentuity.ai (or AGENTUITY_KEYVALUE_URL)
 console.log(urls.stream); // https://streams.agentuity.cloud (or AGENTUITY_STREAM_URL)
 console.log(urls.vector); // https://agentuity.ai (or AGENTUITY_VECTOR_URL)
+console.log(urls.aigateway); // https://aigateway-usc.agentuity.cloud (or AGENTUITY_AIGATEWAY_URL)
 ```
 
 ### Server Fetch Adapter

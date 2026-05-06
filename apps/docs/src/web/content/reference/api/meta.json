@@ -2,6 +2,7 @@
 	"title": "API Reference",
 	"sort": "title",
 	"pages": [
+		"ai-gateway",
 		"api-keys",
 		"coder",
 		"database",

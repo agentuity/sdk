@@ -41,6 +41,7 @@ export const ConfigSchema = zod.object({
 			kv_url: zod.url().optional().describe('Override keyvalue URL'),
 			sandbox_url: zod.url().optional().describe('Override sandbox URL'),
 			vector_url: zod.url().optional().describe('Override vector store URL'),
+			aigateway_url: zod.url().optional().describe('Override AI Gateway URL'),
 			catalyst_url: zod.url().optional().describe('Override catalyst URL'),
 			ion_url: zod.url().optional().describe('Override ion URL'),
 			gravity_url: zod.url().optional().describe('Override gravity URL'),

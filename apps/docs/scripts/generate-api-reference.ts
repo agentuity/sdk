@@ -9,6 +9,7 @@ import type {
 	Service,
 } from '../../../packages/core/src/services/api-reference.ts';
 import { resolveFields } from '../../../packages/core/src/services/api-reference.ts';
+import aiGatewayService from '../../../packages/core/src/services/aigateway/api-reference.ts';
 import apiKeysService from '../../../packages/core/src/services/apikey/api-reference.ts';
 import coderService from '../../../packages/core/src/services/coder/api-reference.ts';
 import databaseService from '../../../packages/core/src/services/db/api-reference.ts';
@@ -32,6 +33,7 @@ import vectorService from '../../../packages/core/src/services/vector/api-refere
 import webhooksService from '../../../packages/core/src/services/webhook/api-reference.ts';
 
 const services: Service[] = [
+	aiGatewayService,
 	apiKeysService,
 	coderService,
 	databaseService,
@@ -243,11 +245,17 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, BrainCircuit, Building, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, Clock, Cpu, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
 <Cards>
+  <CardLink
+    href="/reference/api/ai-gateway"
+    title="AI Gateway"
+    description="List supported LLM models and run OpenAI-compatible chat completions"
+    icon={<Cpu className="size-5" />}
+  />
   <CardLink
     href="/reference/api/api-keys"
     title="API Keys"

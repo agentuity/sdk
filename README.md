@@ -62,6 +62,7 @@ To chat with other community members you can join the [Agentuity Discord server]
 
 The structure of this mono repository:
 
+- `packages/aigateway` - AI Gateway service client for model discovery and LLM completions
 - `packages/auth` - Agentuity unified Authentication package
 - `packages/claude-code` - Claude Code plugin with multi-agent coding team
 - `packages/cli` - the Agentuity command line tool
