@@ -156,6 +156,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'ts',
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
+		devDependencies: ['@agentuity/vite'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -177,6 +178,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'strict',
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
+		devDependencies: ['@agentuity/vite'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -208,7 +210,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		description: 'React SPA with Vite bundler',
 		createCommand: (dir) => ['bunx', 'create-vite@latest', dir, '--template', 'react-ts'],
 		dependencies: ['ai', '@ai-sdk/openai', '@tanstack/react-query'],
-		devDependencies: ['tailwindcss', '@tailwindcss/vite'],
+		devDependencies: ['tailwindcss', '@tailwindcss/vite', '@agentuity/vite'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},

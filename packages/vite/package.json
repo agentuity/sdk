@@ -1,0 +1,47 @@
+{
+	"name": "@agentuity/vite",
+	"version": "3.0.0-beta.2",
+	"description": "Vite plugin for the Agentuity dev public-URL tunnel",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "tsgo --build --force",
+		"typecheck": "tsgo --noEmit",
+		"prepublishOnly": "bun run clean && bun run build",
+		"test": "bun test"
+	},
+	"peerDependencies": {
+		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
+		"typescript": "^6.0.2",
+		"vite": "^7.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/vite"
+	}
+}

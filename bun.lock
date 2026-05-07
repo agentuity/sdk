@@ -528,6 +528,19 @@
         "typescript": "^6.0.2",
       },
     },
+    "packages/vite": {
+      "name": "@agentuity/vite",
+      "version": "3.0.0-beta.2",
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "^22.0.0",
+        "typescript": "^6.0.2",
+        "vite": "^7.0.0",
+      },
+      "peerDependencies": {
+        "vite": "^5.0.0 || ^6.0.0 || ^7.0.0",
+      },
+    },
     "packages/vscode": {
       "name": "agentuity-vscode",
       "version": "3.0.0-beta.2",
@@ -848,6 +861,8 @@
     "@agentuity/test-utils": ["@agentuity/test-utils@workspace:packages/test-utils"],
 
     "@agentuity/vector": ["@agentuity/vector@workspace:packages/vector"],
+
+    "@agentuity/vite": ["@agentuity/vite@workspace:packages/vite"],
 
     "@agentuity/webhook": ["@agentuity/webhook@workspace:packages/webhook"],
 

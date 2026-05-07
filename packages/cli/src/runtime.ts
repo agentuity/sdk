@@ -3,9 +3,19 @@ import { runtimeKind, runtimeVersion } from './node-compat/runtime-info.ts';
 
 const MIN_BUN_VERSION = '>=1.3.3';
 const MIN_NODE_VERSION = '>=24.0.0';
+const MIN_GRAVITY_VERSION = '>=1.0.6';
 
 export function isBun(): boolean {
 	return runtimeKind() === 'bun';
+}
+
+/**
+ * Returns true when the locally cached gravity binary is older than
+ * the minimum version this CLI knows how to drive. Callers use this
+ * to force-redownload before spawning the tunnel.
+ */
+export function validateGravityRequiresUpgrade(version: string): boolean {
+	return satisfies(version, MIN_GRAVITY_VERSION) === false;
 }
 
 /**

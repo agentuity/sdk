@@ -1,25 +1,51 @@
 /**
- * Dev command — runs the project's own dev script.
+ * Dev command — runs the project's own dev script and (optionally)
+ * exposes it through an Agentuity gravity tunnel as a public HTTPS
+ * URL.
  *
  * Detects the package manager (bun/npm/pnpm/yarn) from the project,
  * then runs `<pm> run dev`. Before spawning, injects Agentuity AI
  * Gateway environment variables so LLM SDK calls (OpenAI, Anthropic,
  * Groq) are automatically routed through the gateway when the user
  * has an AGENTUITY_SDK_KEY configured.
+ *
+ * When `--public` is enabled (saved per-project, prompted on first
+ * run), the CLI also reserves a devmode endpoint, downloads the
+ * gravity tunnel binary if needed, spawns it pointing at the user's
+ * dev port, and exports `AGENTUITY_DEVMODE_HOSTNAME` /
+ * `AGENTUITY_DEVMODE_URL` so framework plugins (e.g.
+ * `@agentuity/vite`) can configure themselves for the tunnel.
  */
 
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { z } from 'zod';
+import { APIClient, getAPIBaseURL, getGravityDevModeURL } from '../../api.ts';
+import { isTTY } from '../../auth.ts';
 import { getCommand } from '../../command-prefix.ts';
-import { getAuth, loadConfig, loadProjectSDKKey } from '../../config.ts';
+import {
+	getAuth,
+	getDefaultConfigDir,
+	loadConfig,
+	loadProjectConfig,
+	loadProjectSDKKey,
+	saveConfig,
+	updateProjectConfig,
+} from '../../config.ts';
 import { ErrorCode } from '../../errors.ts';
+import { validateGravityRequiresUpgrade } from '../../runtime.ts';
 import * as tui from '../../tui.ts';
 import { createCommand } from '../../types.ts';
+import type { Config, Logger, ProjectConfig } from '../../types.ts';
 import { detectFrameworkWithPackageJson } from '../build/detect/index.ts';
 import { detectPackageManager, getRunCommand } from '../build/detect/util.ts';
+import { generateEndpoint, type DevmodeResponse } from './api.ts';
+import { download, sweepOldGravityVersions } from './download.ts';
+import { startGravity, type GravityHandle } from './gravity.ts';
 
 const DEFAULT_PORT = 3000;
+const GRAVITY_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1h
 
 export const command = createCommand({
 	name: 'dev',
@@ -30,6 +56,14 @@ export const command = createCommand({
 	examples: [
 		{ command: getCommand('dev'), description: 'Start development server' },
 		{ command: getCommand('dev --port 8080'), description: 'Specify custom port' },
+		{
+			command: getCommand('dev --public'),
+			description: 'Expose dev server through a public URL (gravity tunnel)',
+		},
+		{
+			command: getCommand('dev --no-public'),
+			description: 'Run without a public URL even if one was previously enabled',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -43,6 +77,7 @@ export const command = createCommand({
 				.string()
 				.optional()
 				.describe('Custom script name to run instead of "dev" (e.g., "dev:web")'),
+			public: z.boolean().optional().describe('Expose dev server via gravity public-URL tunnel'),
 		}),
 	},
 
@@ -108,7 +143,7 @@ export const command = createCommand({
 		}
 
 		// Load profile config to get transport URL for gateway routing
-		const config = await loadConfig();
+		let config = await loadConfig();
 		if (config?.overrides?.transport_url && !env.AGENTUITY_TRANSPORT_URL) {
 			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
 		}
@@ -128,11 +163,43 @@ export const command = createCommand({
 			);
 		}
 
-		// Run the dev command, inheriting stdio for full interactivity.
-		// We use child_process.spawn directly here (rather than the
-		// spawnInherit shim) so we can forward signals to the child.
-		const [command, ...args] = cmd;
-		const proc = spawn(command!, args, {
+		// ────────────────────────────────────────────────────────────
+		// Public URL (gravity tunnel) setup
+		// ────────────────────────────────────────────────────────────
+
+		const project = await tryLoadProjectConfig(rootDir, config);
+		const publicEnabled = await resolvePublicMode(opts.public, project, rootDir, config, logger);
+
+		let gravity: GravityHandle | null = null;
+		let publicUrl: string | undefined;
+
+		if (publicEnabled) {
+			const result = await setupPublicTunnel({
+				rootDir,
+				port,
+				project,
+				config,
+				logger,
+				env,
+				packageJson,
+			});
+			gravity = result.gravity;
+			publicUrl = result.publicUrl;
+			config = result.config;
+		}
+
+		// ────────────────────────────────────────────────────────────
+		// Banner — show local + public URLs
+		// ────────────────────────────────────────────────────────────
+
+		printDevBanner(port, publicUrl);
+
+		// ────────────────────────────────────────────────────────────
+		// Spawn user's dev server (inherits stdio for full interactivity)
+		// ────────────────────────────────────────────────────────────
+
+		const [bin, ...args] = cmd;
+		const proc = spawn(bin!, args, {
 			cwd: rootDir,
 			env: { ...process.env, ...env },
 			stdio: 'inherit',
@@ -152,6 +219,10 @@ export const command = createCommand({
 		process.off('SIGINT', signalHandler);
 		process.off('SIGTERM', signalHandler);
 
+		if (gravity) {
+			await gravity.stop();
+		}
+
 		if (exitCode !== 0 && exitCode !== 130) {
 			// 130 = SIGINT (Ctrl+C), which is normal
 			logger.debug('Dev server exited with code %d', exitCode);
@@ -160,6 +231,283 @@ export const command = createCommand({
 		process.exit(exitCode ?? 0);
 	},
 });
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function tryLoadProjectConfig(
+	rootDir: string,
+	config: Config | null
+): Promise<ProjectConfig | undefined> {
+	try {
+		return await loadProjectConfig(rootDir, config);
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Decide whether the public URL should be enabled for this run.
+ *
+ * Precedence:
+ *   1. Explicit `--public` / `--no-public` flag.
+ *   2. Saved per-project preference (`agentuity.json` `devmode.public`).
+ *   3. Interactive prompt (only when stdin is a TTY); default no.
+ *   4. Non-TTY default: off.
+ *
+ * Saves the chosen value back to `agentuity.json` when the user is
+ * prompted, so subsequent runs honor the choice silently.
+ */
+async function resolvePublicMode(
+	explicit: boolean | undefined,
+	project: ProjectConfig | undefined,
+	rootDir: string,
+	config: Config | null,
+	logger: Logger
+): Promise<boolean> {
+	if (explicit !== undefined) {
+		// Persist if the user opted in/out from the CLI and we have a
+		// project config to save it to.
+		if (project && project.devmode?.public !== explicit) {
+			try {
+				await updateProjectConfig(
+					rootDir,
+					{ devmode: { ...project.devmode, public: explicit } },
+					config
+				);
+			} catch (err) {
+				logger.debug('Could not persist devmode.public preference: %s', err);
+			}
+		}
+		return explicit;
+	}
+
+	if (project?.devmode?.public !== undefined) {
+		return project.devmode.public;
+	}
+
+	if (!project || !isTTY()) {
+		return false;
+	}
+
+	tui.newline();
+	const enabled = await tui.confirm(
+		'Expose this dev server through a public URL (gravity tunnel)?',
+		false
+	);
+	tui.newline();
+
+	try {
+		await updateProjectConfig(
+			rootDir,
+			{ devmode: { ...project.devmode, public: enabled } },
+			config
+		);
+	} catch (err) {
+		logger.debug('Could not persist devmode.public preference: %s', err);
+	}
+
+	return enabled;
+}
+
+interface SetupTunnelArgs {
+	rootDir: string;
+	port: number;
+	project: ProjectConfig | undefined;
+	config: Config | null;
+	logger: Logger;
+	env: Record<string, string>;
+	packageJson: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+}
+
+interface SetupTunnelResult {
+	gravity: GravityHandle | null;
+	publicUrl?: string;
+	config: Config | null;
+}
+
+async function setupPublicTunnel(args: SetupTunnelArgs): Promise<SetupTunnelResult> {
+	const { rootDir, port, project, logger, env, packageJson } = args;
+	let config = args.config;
+
+	// Public URL needs both a registered project and a valid auth.
+	if (!project) {
+		tui.fatal(
+			`Public URL requires a registered project.\n` +
+				`Run ${tui.bold(getCommand('project import'))} to link this directory to an Agentuity project, ` +
+				`or re-run with ${tui.bold('--no-public')}.`,
+			ErrorCode.PROJECT_NOT_FOUND
+		);
+	}
+
+	const auth = await getAuth();
+	if (!auth || auth.expires <= new Date()) {
+		tui.fatal(
+			`Public URL requires authentication.\n` +
+				`Run ${tui.bold(getCommand('auth login'))} to log in, or re-run with ${tui.bold('--no-public')}.`,
+			ErrorCode.AUTH_REQUIRED
+		);
+	}
+
+	// Friendly heads-up when the project uses Vite but hasn't installed
+	// the @agentuity/vite plugin (Vite blocks unknown hosts in dev).
+	checkVitePluginInstalled(rootDir, packageJson, logger);
+
+	// Reserve (or refresh) the devmode endpoint with the platform.
+	const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
+
+	const savedPrivateKey = config?.devmode?.privateKey
+		? Buffer.from(config.devmode.privateKey, 'base64').toString('utf-8')
+		: undefined;
+
+	let endpoint: DevmodeResponse;
+	try {
+		endpoint = await tui.spinner({
+			message: 'Connecting to Gravity',
+			callback: () =>
+				generateEndpoint(
+					apiClient,
+					project.projectId,
+					config?.devmode?.hostname,
+					savedPrivateKey
+				),
+			clearOnSuccess: true,
+		});
+	} catch (err) {
+		tui.fatal(
+			`Failed to reserve devmode endpoint: ${err instanceof Error ? err.message : String(err)}`,
+			ErrorCode.NETWORK_ERROR
+		);
+	}
+
+	// Stash the hostname/private key so the same URL persists across
+	// dev sessions on this machine.
+	const updatedPrivateKey = endpoint.privateKey ?? savedPrivateKey;
+	const updatedConfig: Config = {
+		...(config ?? ({ name: 'default' } as Config)),
+		devmode: {
+			hostname: endpoint.hostname,
+			privateKey: updatedPrivateKey
+				? Buffer.from(updatedPrivateKey).toString('base64')
+				: undefined,
+		},
+	};
+	await saveConfig(updatedConfig);
+	config = updatedConfig;
+
+	// Resolve gravity binary — re-use cached copy if recent enough,
+	// otherwise download.
+	const gravityDir = join(getDefaultConfigDir(), 'gravity');
+	let gravityBin: string | undefined;
+	let sweepTarget: { gravityDir: string; version: string } | null = null;
+
+	const cached = config.gravity;
+	if (
+		cached?.version &&
+		existsSync(join(gravityDir, cached.version, 'gravity')) &&
+		cached.checked &&
+		Date.now() - cached.checked < GRAVITY_CHECK_INTERVAL_MS &&
+		!validateGravityRequiresUpgrade(cached.version)
+	) {
+		gravityBin = join(gravityDir, cached.version, 'gravity');
+	} else {
+		const previousVersion = cached?.version;
+		const res = await download(gravityDir);
+		gravityBin = res.filename;
+		if (previousVersion && previousVersion !== res.version) {
+			sweepTarget = { gravityDir, version: res.version };
+		}
+		const refreshed: Config = {
+			...config,
+			gravity: { checked: Date.now(), version: res.version },
+		};
+		await saveConfig(refreshed);
+		config = refreshed;
+	}
+
+	// Spawn gravity, pointing at the user's dev port.
+	const privateKeyPEM = endpoint.privateKey ?? savedPrivateKey;
+	if (!privateKeyPEM) {
+		tui.fatal(
+			'No private key returned for devmode endpoint. Re-run to generate a fresh key.',
+			ErrorCode.INTERNAL_ERROR
+		);
+	}
+
+	const gravityURL = getGravityDevModeURL(project.region, config);
+	const handle = startGravity({
+		binary: gravityBin,
+		endpointId: endpoint.id,
+		targetPort: port,
+		gravityURL,
+		orgId: project.orgId,
+		projectId: project.projectId,
+		privateKeyB64: Buffer.from(privateKeyPEM).toString('base64'),
+		cwd: rootDir,
+		logger,
+	});
+
+	if (sweepTarget) {
+		// Best-effort cleanup of older gravity versions, deferred until
+		// after the new one is up. Failure is non-fatal.
+		setTimeout(() => {
+			try {
+				const removed = sweepOldGravityVersions(sweepTarget!.gravityDir, sweepTarget!.version);
+				if (removed.length > 0) {
+					logger.debug('Swept %d old gravity version dir(s)', removed.length);
+				}
+			} catch (err) {
+				logger.debug('sweep of old gravity versions failed: %s', err);
+			}
+		}, 5_000).unref?.();
+	}
+
+	const publicUrl = `https://${endpoint.hostname}`;
+	env.AGENTUITY_DEVMODE_URL = publicUrl;
+	env.AGENTUITY_DEVMODE_HOSTNAME = endpoint.hostname;
+
+	return { gravity: handle, publicUrl, config };
+}
+
+function checkVitePluginInstalled(
+	_rootDir: string,
+	packageJson: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> },
+	logger: Logger
+): void {
+	const allDeps = {
+		...(packageJson.dependencies ?? {}),
+		...(packageJson.devDependencies ?? {}),
+	};
+	const usesVite = 'vite' in allDeps;
+	const hasPlugin = '@agentuity/vite' in allDeps;
+	if (usesVite && !hasPlugin) {
+		logger.debug('Vite project detected without @agentuity/vite plugin');
+		tui.warning(
+			'This project uses Vite but does not have @agentuity/vite installed. ' +
+				'Vite will reject requests from the public URL with "Blocked request". ' +
+				'Install with: ' +
+				tui.bold('bun add -d @agentuity/vite') +
+				' and add ' +
+				tui.bold('agentuity()') +
+				' to vite.config plugins.'
+		);
+	}
+}
+
+function printDevBanner(port: number, publicUrl?: string): void {
+	const padding = 12;
+	const lines = [
+		tui.muted(tui.padRight('Local:', padding)) + tui.link(`http://127.0.0.1:${port}`),
+	];
+	if (publicUrl) {
+		lines.push(tui.muted(tui.padRight('Public:', padding)) + tui.link(publicUrl));
+	}
+	tui.banner('⨺ Agentuity DevMode', lines.join('\n'), {
+		padding: 2,
+		topSpacer: false,
+		bottomSpacer: false,
+		centerTitle: false,
+	});
+}
 
 // ─── AI Gateway Env Injection ─────────────────────────────────────────────────
 

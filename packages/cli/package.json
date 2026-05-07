@@ -13,10 +13,6 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
-		},
-		"./vite-plugin": {
-			"import": "./dist/cmd/build/vite/index.js",
-			"types": "./dist/cmd/build/vite/index.d.ts"
 		}
 	},
 	"files": [
