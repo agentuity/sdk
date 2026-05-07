@@ -7,9 +7,9 @@
  * Usage:
  *   Use /model to switch to aigateway models
  */
-import { delimiter, join } from 'node:path';
-import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { delimiter, join } from 'node:path';
 import { createMinimalLogger, StructuredError } from '@agentuity/core';
 import {
 	AIGatewayService,
@@ -199,7 +199,7 @@ export async function setupAIGateway(pi: ExtensionAPI) {
 	for (const m of allModels) {
 		const apiType = m.api;
 		if (!isKnownApi(apiType)) {
-			continue; // THIS SHOULD NEVER HAPPEN BUT JUST IN CASE
+			continue;
 		}
 		const existing = modelsByApi.get(apiType) ?? [];
 		existing.push(toPiModel(m));
