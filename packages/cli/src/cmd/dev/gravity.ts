@@ -21,8 +21,39 @@
  * shutdown. No `Bun.spawn`.
  */
 
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import type { Logger } from '../../types.ts';
+
+/**
+ * Kill any lingering `gravity` processes left over from a previous
+ * dev session for this project. Scoped by `--project-id` so other
+ * concurrent sessions in different repos aren't affected.
+ *
+ * No-op on Windows; `pkill` not being available is treated as
+ * success (we just don't have an old session to clean up).
+ */
+export function killLingeringGravityProcesses(
+	logger: { debug: (msg: string, ...args: unknown[]) => void },
+	projectId?: string
+): void {
+	if (process.platform === 'win32') return;
+	try {
+		const pattern = projectId ? `gravity.*--project-id.*${projectId}` : 'gravity.*--endpoint-id';
+		const result = spawnSync('pkill', ['-f', pattern], {
+			stdio: 'ignore',
+		});
+		if (result.status === 0) {
+			logger.debug(
+				'Killed lingering gravity processes%s from previous session',
+				projectId ? ` (project ${projectId})` : ''
+			);
+		} else if (result.status === 1) {
+			logger.debug('no lingering gravity processes found');
+		}
+	} catch {
+		// pkill not present — nothing to clean up, continue.
+	}
+}
 
 export interface GravityStartOptions {
 	/** Path to the gravity binary on disk. */
@@ -53,10 +84,22 @@ export interface GravityHandle {
 	/** Resolves when the gravity child exits. */
 	readonly exited: Promise<{ exitCode: number | null }>;
 	/**
+	 * Resolves the first time gravity reports a heartbeat port ("the
+	 * tunnel is actually up"). Useful for sweeping old binaries only
+	 * after the new one has confirmed it works.
+	 */
+	readonly ready: Promise<void>;
+	/**
 	 * Stop the tunnel: clears the heartbeat interval and SIGTERMs the
 	 * gravity process group. Safe to call multiple times.
 	 */
 	stop(): Promise<void>;
+	/**
+	 * Synchronous best-effort SIGKILL of the gravity process group.
+	 * Intended for `process.on('exit', ...)` handlers where async
+	 * operations cannot run — use `stop()` for normal shutdown.
+	 */
+	forceKillSync(): void;
 }
 
 const HEARTBEAT_INTERVAL_MS = 5_000;
@@ -107,6 +150,10 @@ export function startGravity(opts: GravityStartOptions): GravityHandle {
 	let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 	let heartbeatPort: number | null = null;
 	let stopped = false;
+	let readyResolve: () => void = () => {};
+	const ready = new Promise<void>((resolve) => {
+		readyResolve = resolve;
+	});
 
 	const sendHeartbeat = async (port: number) => {
 		try {
@@ -142,6 +189,7 @@ export function startGravity(opts: GravityStartOptions): GravityHandle {
 					if (match?.[1]) {
 						heartbeatPort = parseInt(match[1], 10);
 						logger.debug('Gravity heartbeat port: %d', heartbeatPort);
+						readyResolve();
 						if (!heartbeatInterval && !stopped) {
 							void sendHeartbeat(heartbeatPort);
 							heartbeatInterval = setInterval(
@@ -228,5 +276,23 @@ export function startGravity(opts: GravityStartOptions): GravityHandle {
 		}
 	};
 
-	return { process: child, exited, stop };
+	const forceKillSync = (): void => {
+		if (heartbeatInterval) {
+			clearInterval(heartbeatInterval);
+			heartbeatInterval = null;
+		}
+		const pid = child.pid;
+		if (!pid || pid <= 1 || child.exitCode !== null) return;
+		try {
+			process.kill(-pid, 'SIGKILL');
+		} catch {
+			try {
+				child.kill('SIGKILL');
+			} catch {
+				// Already gone.
+			}
+		}
+	};
+
+	return { process: child, exited, ready, stop, forceKillSync };
 }

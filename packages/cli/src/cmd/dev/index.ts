@@ -42,7 +42,7 @@ import { detectFrameworkWithPackageJson } from '../build/detect/index.ts';
 import { detectPackageManager, getRunCommand } from '../build/detect/util.ts';
 import { generateEndpoint, type DevmodeResponse } from './api.ts';
 import { download, sweepOldGravityVersions } from './download.ts';
-import { startGravity, type GravityHandle } from './gravity.ts';
+import { killLingeringGravityProcesses, startGravity, type GravityHandle } from './gravity.ts';
 
 const DEFAULT_PORT = 3000;
 const GRAVITY_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1h
@@ -205,12 +205,41 @@ export const command = createCommand({
 			stdio: 'inherit',
 		});
 
-		// Forward signals
+		// Forward signals to BOTH the framework and the gravity tunnel.
+		// Killing them in parallel matches the v2 procManager behavior —
+		// without it the tunnel would keep running until the framework
+		// finished its (potentially slow) graceful shutdown.
+		let shuttingDown = false;
 		const signalHandler = (signal: NodeJS.Signals) => {
-			proc.kill(signal === 'SIGINT' ? 'SIGINT' : 'SIGTERM');
+			if (shuttingDown) return;
+			shuttingDown = true;
+			const forwarded = signal === 'SIGINT' ? 'SIGINT' : 'SIGTERM';
+			try {
+				proc.kill(forwarded);
+			} catch {
+				// already exited
+			}
+			if (gravity) {
+				void gravity.stop();
+			}
 		};
 		process.on('SIGINT', signalHandler);
 		process.on('SIGTERM', signalHandler);
+
+		// Last-resort synchronous SIGKILL: if Node tears down before our
+		// async cleanup finishes (uncaught exception, parent abandoned us)
+		// the process.on('exit') handler is the final chance to avoid
+		// orphaning gravity. async work is not allowed here.
+		const exitHandler = () => {
+			if (gravity) {
+				try {
+					gravity.forceKillSync();
+				} catch {
+					// best effort
+				}
+			}
+		};
+		process.on('exit', exitHandler);
 
 		const exitCode = await new Promise<number | null>((resolve) => {
 			proc.once('close', (code) => resolve(code));
@@ -222,6 +251,8 @@ export const command = createCommand({
 		if (gravity) {
 			await gravity.stop();
 		}
+
+		process.off('exit', exitHandler);
 
 		if (exitCode !== 0 && exitCode !== 130) {
 			// 130 = SIGINT (Ctrl+C), which is normal
@@ -328,6 +359,12 @@ interface SetupTunnelResult {
 async function setupPublicTunnel(args: SetupTunnelArgs): Promise<SetupTunnelResult> {
 	const { rootDir, port, project, logger, env, packageJson } = args;
 	let config = args.config;
+
+	// Best-effort: clear any orphaned gravity tunnels left over from a
+	// previous dev session for this project. Without this, the platform
+	// can briefly refuse the new tunnel because the old endpoint hasn't
+	// timed out yet.
+	killLingeringGravityProcesses(logger, project?.projectId);
 
 	// Public URL needs both a registered project and a valid auth.
 	if (!project) {
@@ -447,9 +484,10 @@ async function setupPublicTunnel(args: SetupTunnelArgs): Promise<SetupTunnelResu
 	});
 
 	if (sweepTarget) {
-		// Best-effort cleanup of older gravity versions, deferred until
-		// after the new one is up. Failure is non-fatal.
-		setTimeout(() => {
+		// Wait for the first heartbeat (= tunnel up) before sweeping the
+		// previous gravity binary; if the new version doesn't connect we
+		// don't want to lose the working fallback. Failure is non-fatal.
+		void handle.ready.then(() => {
 			try {
 				const removed = sweepOldGravityVersions(sweepTarget!.gravityDir, sweepTarget!.version);
 				if (removed.length > 0) {
@@ -458,7 +496,7 @@ async function setupPublicTunnel(args: SetupTunnelArgs): Promise<SetupTunnelResu
 			} catch (err) {
 				logger.debug('sweep of old gravity versions failed: %s', err);
 			}
-		}, 5_000).unref?.();
+		});
 	}
 
 	const publicUrl = `https://${endpoint.hostname}`;

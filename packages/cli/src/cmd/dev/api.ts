@@ -34,11 +34,16 @@ const DevmodeEndpointError = StructuredError('DevmodeEndpointError');
 
 /**
  * Reserve (or re-use) an Agentuity devmode endpoint for the current
- * project. The platform returns a hostname like
- * `<project>-<random>.devmode.agentuity.com` plus a private key the
+ * project. The platform returns a hostname plus a private key the
  * gravity binary uses to authenticate when it dials the public-URL
  * tunnel. Re-passing a previously-issued private key keeps the same
  * hostname stable across dev sessions on the same machine.
+ *
+ * KNOWN PLATFORM BUG: as of 2026-05-07 this endpoint routes hostnames
+ * by the caller's `User-Agent` and v3-shaped UAs (`Agentuity CLI/3.x`)
+ * receive hostnames under `*.agentuity.live`, which has no wildcard
+ * DNS configured — so the URL never resolves. v2 UAs and curl get
+ * `*.agentuity-us.live`, which works. Tracking in agentuity/infra#210.
  */
 export async function generateEndpoint(
 	apiClient: APIClient,
