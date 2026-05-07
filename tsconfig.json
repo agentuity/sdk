@@ -17,7 +17,7 @@
 		{ "path": "./packages/migrate" },
 		{ "path": "./packages/opencode" },
 		{ "path": "./packages/postgres" },
-		{ "path": "./packages/pi-aigateway" },
+		{ "path": "./packages/pi" },
 		{ "path": "./packages/queue" },
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },

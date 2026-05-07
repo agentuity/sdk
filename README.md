@@ -74,7 +74,7 @@ The structure of this mono repository:
 - `packages/frontend` - Reusable code for web frontends including WebRTC peer connections
 - `packages/keyvalue` - Key-value storage service client
 - `packages/opencode` - Opencode agent plugins for Agentuity
-- `packages/pi-aigateway` - Pi coding agent provider plugin for Agentuity AI Gateway models
+- `packages/pi` - Pi coding agent provider plugin for Agentuity AI Gateway models
 - `packages/postgres` - Resilient PostgreSQL client with automatic reconnection
 - `packages/queue` - Queue service client for publishing messages to queues
 - `packages/react` - React package for the Browser including WebRTC hooks

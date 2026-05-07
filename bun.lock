@@ -535,7 +535,7 @@
       "name": "@agentuity/coder-tui",
       "version": "2.0.15",
       "dependencies": {
-        "@agentuity/pi-aigateway": "workspace:*",
+        "@agentuity/pi": "workspace:*",
         "@mariozechner/pi-coding-agent": "^0.72.1",
         "@mariozechner/pi-tui": "^0.72.1",
         "@sinclair/typebox": "^0.34.49",
@@ -684,8 +684,8 @@
         "typescript": "^5.9.0",
       },
     },
-    "packages/pi-aigateway": {
-      "name": "@agentuity/pi-aigateway",
+    "packages/pi": {
+      "name": "@agentuity/pi",
       "version": "2.0.15",
       "dependencies": {
         "@agentuity/core": "workspace:*",
@@ -1030,7 +1030,7 @@
 
     "@agentuity/opencode": ["@agentuity/opencode@workspace:packages/opencode"],
 
-    "@agentuity/pi-aigateway": ["@agentuity/pi-aigateway@workspace:packages/pi-aigateway"],
+    "@agentuity/pi": ["@agentuity/pi@workspace:packages/pi"],
 
     "@agentuity/postgres": ["@agentuity/postgres@workspace:packages/postgres"],
 

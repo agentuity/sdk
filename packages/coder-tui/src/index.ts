@@ -25,7 +25,7 @@ import { handleRemoteUiRequest } from './remote-ui-handler.ts';
 import { buildInboundRpcPromptText, getInboundRpcDeliverAs } from './inbound-rpc.ts';
 import { applyCoderAuthHeaders, getCoderAuthCurlArgs } from './auth.ts';
 import { formatToolDisplay } from './agentuity-cli.ts';
-import { setupAIGateway } from '@agentuity/pi-aigateway';
+import { setupAIGateway } from '@agentuity/pi';
 import { adaptInitMessageForLocalTui } from './local-init-filter.ts';
 import { selectSubAgentToolNames } from './subagent-tool-selection.ts';
 import type {

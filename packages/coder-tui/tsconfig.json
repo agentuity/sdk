@@ -6,10 +6,10 @@
 		"rootDir": "./src",
 		"rewriteRelativeImportExtensions": true,
 		"paths": {
-			"@agentuity/pi-aigateway": ["../pi-aigateway/src"]
+			"@agentuity/pi": ["../pi/src"]
 		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../pi-aigateway" }]
+	"references": [{ "path": "../pi" }]
 }
