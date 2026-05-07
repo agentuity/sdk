@@ -1,0 +1,16 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"paths": {
+			"@agentuity/core": ["../core/src"],
+			"@agentuity/core/*": ["../core/src/services/*"],
+			"@agentuity/server": ["../server/src"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"],
+	"references": [{ "path": "../core" }, { "path": "../server" }]
+}

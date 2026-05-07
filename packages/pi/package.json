@@ -1,7 +1,7 @@
 {
-	"name": "@agentuity/coder-tui",
+	"name": "@agentuity/pi",
 	"version": "2.0.15",
-	"description": "Agentuity Coder Hub extension for Pi coding agent",
+	"description": "Agentuity AI Gateway provider plugin for Pi coding agent",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -25,13 +25,14 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/pi": "workspace:*",
-		"@mariozechner/pi-coding-agent": "^0.72.1",
-		"@mariozechner/pi-tui": "^0.72.1",
-		"@sinclair/typebox": "^0.34.49"
+		"@agentuity/core": "workspace:*",
+		"@agentuity/server": "workspace:*"
+	},
+	"peerDependencies": {
+		"@mariozechner/pi-coding-agent": "^0.72.1"
 	},
 	"devDependencies": {
-		"@mariozechner/pi-ai": "^0.70.2",
+		"@mariozechner/pi-coding-agent": "^0.72.1",
 		"@types/bun": "^1.3.9",
 		"bun-types": "^1.3.9",
 		"typescript": "^5.9.0"
