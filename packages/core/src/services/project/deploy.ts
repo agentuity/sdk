@@ -13,7 +13,7 @@ export const Mode = z.object({
 		.enum(['on-demand', 'provisioned'])
 		.default('on-demand')
 		.describe('on-demand or provisioned'),
-	idle: z.string().optional().describe('duration in seconds if on-demand'),
+	idle: z.string().optional().describe('Idle timeout duration when on-demand (e.g., "10m", "1h")'),
 });
 
 export const ProjectBuildConfig = z.object({
