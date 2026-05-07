@@ -28,6 +28,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # local config files
 agentuity.*.json
+!apps/docs/src/web/public/schemas/agentuity.json.schema.json
 
 # caches
 .eslintcache
