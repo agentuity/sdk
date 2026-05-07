@@ -62,7 +62,7 @@ async function runCommand(
 
 async function generateSchema(): Promise<string> {
 	const stdout = await runCommand(
-		['bun', CLI_PATH, 'ai', 'schema', 'generate'],
+		['bun', CLI_PATH, '--quiet', 'ai', 'schema', 'generate'],
 		ROOT_DIR,
 		undefined
 	);
