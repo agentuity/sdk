@@ -26,10 +26,13 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@agentuity/server": "workspace:*",
+		"@agentuity/server": "workspace:*"
+	},
+	"peerDependencies": {
 		"@mariozechner/pi-coding-agent": "^0.72.1"
 	},
 	"devDependencies": {
+		"@mariozechner/pi-coding-agent": "^0.72.1",
 		"@types/bun": "^1.3.9",
 		"bun-types": "^1.3.9",
 		"typescript": "^5.9.0"
