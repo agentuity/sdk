@@ -2,6 +2,7 @@
 	"files": [],
 	"references": [
 		{ "path": "./packages/adapter" },
+		{ "path": "./packages/aigateway" },
 		{ "path": "./packages/analytics" },
 		{ "path": "./packages/telemetry" },
 		{ "path": "./packages/claude-code" },
@@ -18,6 +19,7 @@
 		{ "path": "./packages/local" },
 		{ "path": "./packages/migrate" },
 		{ "path": "./packages/opencode" },
+		{ "path": "./packages/pi" },
 		{ "path": "./packages/postgres" },
 		{ "path": "./packages/queue" },
 		{ "path": "./packages/runtime" },

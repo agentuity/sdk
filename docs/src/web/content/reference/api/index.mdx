@@ -5,11 +5,17 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, BrainCircuit, Building, Clock, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, Clock, Cpu, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
 <Cards>
+  <CardLink
+    href="/reference/api/ai-gateway"
+    title="AI Gateway"
+    description="List supported LLM models and run OpenAI-compatible chat completions"
+    icon={<Cpu className="size-5" />}
+  />
   <CardLink
     href="/reference/api/api-keys"
     title="API Keys"

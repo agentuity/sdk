@@ -219,6 +219,9 @@ export async function loadConfig(
 			if (process.env.AGENTUITY_VECTOR_URL) {
 				overrides.vector_url = process.env.AGENTUITY_VECTOR_URL;
 			}
+			if (process.env.AGENTUITY_AIGATEWAY_URL) {
+				overrides.aigateway_url = process.env.AGENTUITY_AIGATEWAY_URL;
+			}
 			if (process.env.AGENTUITY_STREAM_URL) {
 				overrides.stream_url = process.env.AGENTUITY_STREAM_URL;
 			}

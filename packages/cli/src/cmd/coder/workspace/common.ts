@@ -1,0 +1,148 @@
+import { readFile } from 'node:fs/promises';
+import {
+	type CoderCreateWorkspaceRequest,
+	type CoderUpdateWorkspaceRequest,
+	type CoderWorkspaceDetail,
+	type CoderWorkspaceSystemPromptMode,
+} from '@agentuity/core/coder';
+import { StructuredError } from '@agentuity/core';
+import * as tui from '../../../tui.ts';
+
+export const EMPTY_WORKSPACE_ERROR =
+	'A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent';
+export const SetupScriptValidationError = StructuredError('SetupScriptValidationError')<{
+	message: string;
+	path?: string;
+}>();
+export const SystemPromptValidationError = StructuredError('SystemPromptValidationError')<{
+	message: string;
+	path?: string;
+}>();
+
+export function normalizeSystemPromptMode(
+	value?: string
+): CoderWorkspaceSystemPromptMode | undefined {
+	if (value === undefined) return undefined;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === 'append' || normalized === 'overwrite') return normalized;
+	throw new SystemPromptValidationError({
+		message: 'Use --system-prompt-mode append or --system-prompt-mode overwrite.',
+	});
+}
+
+export function parseCommaList(value?: string): string[] {
+	return value
+		? value
+				.split(',')
+				.map((item) => item.trim())
+				.filter(Boolean)
+		: [];
+}
+
+export async function readSetupScript(input: {
+	setupScript?: string;
+	setupScriptFile?: string;
+}): Promise<string | undefined> {
+	if (input.setupScript !== undefined && input.setupScriptFile) {
+		throw new SetupScriptValidationError({
+			message: 'Use either --setup-script or --setup-script-file, not both.',
+		});
+	}
+	if (input.setupScript !== undefined) return input.setupScript;
+	if (!input.setupScriptFile) return undefined;
+	try {
+		return await readFile(input.setupScriptFile, 'utf-8');
+	} catch (error) {
+		throw new SetupScriptValidationError({
+			message: `Failed to read setup script file "${input.setupScriptFile}": ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+			path: input.setupScriptFile,
+			cause: error,
+		});
+	}
+}
+
+export async function readSystemPrompt(input: {
+	systemPrompt?: string;
+	systemPromptFile?: string;
+}): Promise<string | undefined> {
+	if (input.systemPrompt !== undefined && input.systemPromptFile) {
+		throw new SystemPromptValidationError({
+			message: 'Use either --system-prompt or --system-prompt-file, not both.',
+		});
+	}
+	if (input.systemPrompt !== undefined) return input.systemPrompt;
+	if (!input.systemPromptFile) return undefined;
+	try {
+		return await readFile(input.systemPromptFile, 'utf-8');
+	} catch (error) {
+		throw new SystemPromptValidationError({
+			message: `Failed to read system prompt file "${input.systemPromptFile}": ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+			path: input.systemPromptFile,
+			cause: error,
+		});
+	}
+}
+
+export function hasWorkspaceSelections(input: CoderCreateWorkspaceRequest): boolean {
+	return (
+		(input.repos?.length ?? 0) > 0 ||
+		(input.dependencies?.length ?? 0) > 0 ||
+		Boolean(input.setupScript?.trim()) ||
+		Boolean(input.systemPrompt?.trim()) ||
+		(input.savedSkillIds?.length ?? 0) > 0 ||
+		(input.skillBucketIds?.length ?? 0) > 0 ||
+		(input.enabledAgents?.length ?? 0) > 0
+	);
+}
+
+export function hasWorkspaceUpdate(input: CoderUpdateWorkspaceRequest): boolean {
+	return Object.keys(input).length > 0;
+}
+
+export function formatWorkspaceValidationMessage(issues: Array<{ message: string }>): string {
+	const messages = [...new Set(issues.map((issue) => issue.message).filter(Boolean))];
+	if (messages.length === 0) {
+		return 'Invalid workspace configuration';
+	}
+	if (messages.includes(EMPTY_WORKSPACE_ERROR)) {
+		return `${EMPTY_WORKSPACE_ERROR}. Use --repo, --dependency, --setup-script, --system-prompt, or --enabled-agents.`;
+	}
+	return messages.join('; ');
+}
+
+export function printWorkspaceSummary(workspace: CoderWorkspaceDetail): void {
+	const enabledAgents = Array.isArray(workspace.enabledAgents)
+		? workspace.enabledAgents.filter((name): name is string => typeof name === 'string')
+		: [];
+	const dependencies = Array.isArray(workspace.dependencies) ? workspace.dependencies : [];
+
+	tui.output(`  Name:        ${tui.bold(workspace.name)}`);
+	if (workspace.description) {
+		tui.output(`  Description: ${workspace.description}`);
+	}
+	tui.output(`  Scope:       ${workspace.scope}`);
+	tui.output(`  Repos:       ${workspace.repoCount}`);
+	tui.output(`  Selections:  ${workspace.selectionCount}`);
+	if (dependencies.length > 0) {
+		tui.output(`  Dependencies:${dependencies.length === 1 ? ` ${dependencies[0]}` : ''}`);
+		for (const dependency of dependencies.length === 1 ? [] : dependencies) {
+			tui.output(`    - ${dependency}`);
+		}
+	}
+	if (workspace.setupScript) {
+		tui.output('  Setup:       configured');
+	}
+	if (workspace.systemPrompt) {
+		tui.output(`  Prompt:      configured (${workspace.systemPromptMode})`);
+	}
+	if (workspace.snapshot?.status) {
+		tui.output(`  Snapshot:    ${workspace.snapshot.status}`);
+	}
+	if (enabledAgents.length > 0) {
+		tui.output(`  Agents:      ${enabledAgents.join(', ')}`);
+	}
+}

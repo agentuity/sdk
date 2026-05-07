@@ -67,10 +67,15 @@ describe('coder workspace commands', () => {
 		const createExamples = createWorkspaceSubcommand.examples ?? [];
 
 		expect(rootCreateExamples).toHaveLength(1);
+		const selectionFlags = [
+			'--repo',
+			'--enabled-agents',
+			'--dependency',
+			'--setup-script',
+			'--system-prompt',
+		];
 		for (const example of [...rootCreateExamples, ...createExamples]) {
-			expect(
-				example.command.includes('--repo') || example.command.includes('--enabled-agents')
-			).toBe(true);
+			expect(selectionFlags.some((flag) => example.command.includes(flag))).toBe(true);
 		}
 		expect(createExamples.some((example) => example.command.includes('--enabled-agents'))).toBe(
 			true
@@ -89,7 +94,7 @@ describe('coder workspace commands', () => {
 
 		expect(requestedUrls).toEqual([]);
 		expect(fatal.stderr).toContain(
-			'Failed to create workspace: A workspace needs at least one repo, saved skill, skill bucket, or agent. Use --repo or --enabled-agents.'
+			'Failed to create workspace: A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent. Use --repo, --dependency, --setup-script, --system-prompt, or --enabled-agents.'
 		);
 		expect(fatal.exitCode).toBe(getExitCode(ErrorCode.VALIDATION_FAILED));
 	});

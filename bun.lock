@@ -92,6 +92,20 @@
         "typescript": "^6.0.2",
       },
     },
+    "packages/aigateway": {
+      "name": "@agentuity/aigateway",
+      "version": "3.0.0-beta.2",
+      "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "^22.0.0",
+        "typescript": "^6.0.2",
+      },
+    },
     "packages/analytics": {
       "name": "@agentuity/analytics",
       "version": "3.0.0-beta.2",
@@ -160,6 +174,7 @@
       "name": "@agentuity/coder-tui",
       "version": "3.0.0-beta.2",
       "dependencies": {
+        "@agentuity/pi": "workspace:*",
         "@mariozechner/pi-coding-agent": "^0.72.1",
         "@mariozechner/pi-tui": "^0.72.1",
         "@sinclair/typebox": "^0.34.49",
@@ -313,6 +328,24 @@
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
+      },
+    },
+    "packages/pi": {
+      "name": "@agentuity/pi",
+      "version": "3.0.0-beta.2",
+      "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/aigateway": "workspace:*",
+        "@agentuity/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@mariozechner/pi-coding-agent": "^0.72.1",
+        "@types/bun": "latest",
+        "@types/node": "^22.0.0",
+        "typescript": "^6.0.2",
+      },
+      "peerDependencies": {
+        "@mariozechner/pi-coding-agent": "^0.72.1",
       },
     },
     "packages/postgres": {
@@ -758,6 +791,8 @@
 
     "@agentuity/adapter": ["@agentuity/adapter@workspace:packages/adapter"],
 
+    "@agentuity/aigateway": ["@agentuity/aigateway@workspace:packages/aigateway"],
+
     "@agentuity/analytics": ["@agentuity/analytics@workspace:packages/analytics"],
 
     "@agentuity/claude-code": ["@agentuity/claude-code@workspace:packages/claude-code"],
@@ -785,6 +820,8 @@
     "@agentuity/migrate": ["@agentuity/migrate@workspace:packages/migrate"],
 
     "@agentuity/opencode": ["@agentuity/opencode@workspace:packages/opencode"],
+
+    "@agentuity/pi": ["@agentuity/pi@workspace:packages/pi"],
 
     "@agentuity/postgres": ["@agentuity/postgres@workspace:packages/postgres"],
 

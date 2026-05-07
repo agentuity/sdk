@@ -14,6 +14,7 @@ import webhookCommand from './webhook/index.ts';
 import { agentCommand } from './agent/index.ts';
 import envCommand from './env/index.ts';
 import apikeyCommand from './apikey/index.ts';
+import { aigatewayCommand } from './aigateway/index.ts';
 import oidcCommand from './oidc/index.ts';
 import streamCommand from './stream/index.ts';
 import vectorCommand from './vector/index.ts';
@@ -38,6 +39,7 @@ export const command = createCommand({
 		{ command: getCommand('cloud region select'), description: 'Set default region' },
 	],
 	subcommands: [
+		aigatewayCommand,
 		apikeyCommand,
 		oidcCommand,
 		keyvalueCommand,

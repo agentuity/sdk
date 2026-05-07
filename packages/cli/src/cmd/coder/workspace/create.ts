@@ -10,29 +10,16 @@ import * as tui from '../../../tui.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { ErrorCode } from '../../../errors.ts';
 import { resolveGitHubRepo } from '../resolve-repo.ts';
-
-const EMPTY_WORKSPACE_ERROR =
-	'A workspace needs at least one repo, saved skill, skill bucket, or agent';
-
-function hasWorkspaceSelections(input: CoderCreateWorkspaceRequest): boolean {
-	return (
-		(input.repos?.length ?? 0) > 0 ||
-		(input.savedSkillIds?.length ?? 0) > 0 ||
-		(input.skillBucketIds?.length ?? 0) > 0 ||
-		(input.enabledAgents?.length ?? 0) > 0
-	);
-}
-
-function formatWorkspaceValidationMessage(issues: Array<{ message: string }>): string {
-	const messages = [...new Set(issues.map((issue) => issue.message).filter(Boolean))];
-	if (messages.length === 0) {
-		return 'Invalid workspace configuration';
-	}
-	if (messages.includes(EMPTY_WORKSPACE_ERROR)) {
-		return `${EMPTY_WORKSPACE_ERROR}. Use --repo or --enabled-agents.`;
-	}
-	return messages.join('; ');
-}
+import {
+	EMPTY_WORKSPACE_ERROR,
+	formatWorkspaceValidationMessage,
+	hasWorkspaceSelections,
+	normalizeSystemPromptMode,
+	parseCommaList,
+	printWorkspaceSummary,
+	readSystemPrompt,
+	readSetupScript,
+} from './common.ts';
 
 export const createWorkspaceSubcommand = createSubcommand({
 	name: 'create',
@@ -49,9 +36,15 @@ export const createWorkspaceSubcommand = createSubcommand({
 		},
 		{
 			command: getCommand(
-				'coder workspace create "My Workspace" --enabled-agents code-review --description "For frontend work" --scope org'
+				'coder workspace create "My Workspace" --dependency git --setup-script-file ./setup.sh --scope org'
 			),
-			description: 'Create an org-scoped workspace with description and agents',
+			description: 'Create an org-scoped workspace with dependencies and a setup script',
+		},
+		{
+			command: getCommand(
+				'coder workspace create "My Workspace" --system-prompt-file ./WORKSPACE_PROMPT.md --system-prompt-mode overwrite'
+			),
+			description: 'Create a workspace with Lead system prompt instructions',
 		},
 		{
 			command: getCommand('coder workspace create "My Workspace" --enabled-agents code-review'),
@@ -74,6 +67,30 @@ export const createWorkspaceSubcommand = createSubcommand({
 			scope: z.string().optional().describe('Workspace scope: user or org'),
 			repo: z.string().optional().describe('Repository URL to add'),
 			repoBranch: z.string().optional().describe('Branch for the repository'),
+			dependency: z
+				.string()
+				.optional()
+				.describe('Comma-separated APT dependencies to install into workspace snapshots'),
+			setupScript: z
+				.string()
+				.optional()
+				.describe('Inline shell script to run while preparing workspace snapshots'),
+			setupScriptFile: z
+				.string()
+				.optional()
+				.describe('Path to a shell script to run while preparing workspace snapshots'),
+			systemPrompt: z
+				.string()
+				.optional()
+				.describe('Inline Lead system prompt to apply to sessions created from this workspace'),
+			systemPromptFile: z
+				.string()
+				.optional()
+				.describe('Path to a file containing the workspace Lead system prompt'),
+			systemPromptMode: z
+				.string()
+				.optional()
+				.describe('How to apply the system prompt: append or overwrite'),
 			enabledAgents: z
 				.string()
 				.optional()
@@ -105,15 +122,39 @@ export const createWorkspaceSubcommand = createSubcommand({
 				return;
 			}
 		}
+		if (opts?.dependency) {
+			body.dependencies = parseCommaList(opts.dependency);
+		}
+		try {
+			const setupScript = await readSetupScript({
+				setupScript: opts?.setupScript,
+				setupScriptFile: opts?.setupScriptFile,
+			});
+			if (setupScript !== undefined) body.setupScript = setupScript;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			tui.fatal(`Failed to read setup script: ${msg}`, ErrorCode.VALIDATION_FAILED);
+			return;
+		}
+		try {
+			const systemPrompt = await readSystemPrompt({
+				systemPrompt: opts?.systemPrompt,
+				systemPromptFile: opts?.systemPromptFile,
+			});
+			if (systemPrompt !== undefined) body.systemPrompt = systemPrompt;
+			const systemPromptMode = normalizeSystemPromptMode(opts?.systemPromptMode);
+			if (systemPromptMode !== undefined) body.systemPromptMode = systemPromptMode;
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			tui.fatal(`Failed to read system prompt: ${msg}`, ErrorCode.VALIDATION_FAILED);
+			return;
+		}
 		if (opts?.enabledAgents) {
-			body.enabledAgents = opts.enabledAgents
-				.split(',')
-				.map((name) => name.trim())
-				.filter(Boolean);
+			body.enabledAgents = parseCommaList(opts.enabledAgents);
 		}
 		if (!hasWorkspaceSelections(body)) {
 			tui.fatal(
-				`Failed to create workspace: ${EMPTY_WORKSPACE_ERROR}. Use --repo or --enabled-agents.`,
+				`Failed to create workspace: ${EMPTY_WORKSPACE_ERROR}. Use --repo, --dependency, --setup-script, --system-prompt, or --enabled-agents.`,
 				ErrorCode.VALIDATION_FAILED
 			);
 		}
@@ -132,9 +173,6 @@ export const createWorkspaceSubcommand = createSubcommand({
 
 		try {
 			const created = await client.createWorkspace(validationResult.data);
-			const createdEnabledAgents = Array.isArray(created.enabledAgents)
-				? created.enabledAgents.filter((name): name is string => typeof name === 'string')
-				: [];
 
 			if (options.json) {
 				return created;
@@ -142,16 +180,7 @@ export const createWorkspaceSubcommand = createSubcommand({
 
 			tui.success(`Workspace ${created.id} created.`);
 			tui.newline();
-			tui.output(`  Name:        ${tui.bold(created.name)}`);
-			if (created.description) {
-				tui.output(`  Description: ${created.description}`);
-			}
-			tui.output(`  Scope:       ${created.scope}`);
-			tui.output(`  Repos:       ${created.repoCount}`);
-			tui.output(`  Selections:  ${created.selectionCount}`);
-			if (createdEnabledAgents.length > 0) {
-				tui.output(`  Agents:      ${createdEnabledAgents.join(', ')}`);
-			}
+			printWorkspaceSummary(created);
 
 			return created;
 		} catch (err) {

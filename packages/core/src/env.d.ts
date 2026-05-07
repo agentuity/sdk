@@ -55,6 +55,12 @@ declare global {
 			/** AI Gateway URL for model routing */
 			AGENTUITY_AIGATEWAY_URL?: string;
 
+			/** AI Gateway API key override */
+			AGENTUITY_AIGATEWAY_KEY?: string;
+
+			/** Default AI Gateway model for simple completions */
+			AGENTUITY_AIGATEWAY_MODEL?: string;
+
 			/** Main API URL for Agentuity services */
 			AGENTUITY_API_URL?: string;
 

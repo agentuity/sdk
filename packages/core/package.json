@@ -30,6 +30,10 @@
 			"types": "./dist/services/adapter.d.ts",
 			"default": "./dist/services/adapter.js"
 		},
+		"./aigateway": {
+			"types": "./dist/services/aigateway/index.d.ts",
+			"default": "./dist/services/aigateway/index.js"
+		},
 		"./exception": {
 			"types": "./dist/services/exception.d.ts",
 			"default": "./dist/services/exception.js"
@@ -57,10 +61,6 @@
 		"./email": {
 			"types": "./dist/services/email/index.d.ts",
 			"default": "./dist/services/email/index.js"
-		},
-		"./eval": {
-			"types": "./dist/services/eval/index.d.ts",
-			"default": "./dist/services/eval/index.js"
 		},
 		"./keyvalue": {
 			"types": "./dist/services/keyvalue/index.d.ts",
@@ -154,6 +154,9 @@
 			"adapter": [
 				"./dist/services/adapter.d.ts"
 			],
+			"aigateway": [
+				"./dist/services/aigateway/index.d.ts"
+			],
 			"exception": [
 				"./dist/services/exception.d.ts"
 			],
@@ -174,9 +177,6 @@
 			],
 			"email": [
 				"./dist/services/email/index.d.ts"
-			],
-			"eval": [
-				"./dist/services/eval/index.d.ts"
 			],
 			"keyvalue": [
 				"./dist/services/keyvalue/index.d.ts"

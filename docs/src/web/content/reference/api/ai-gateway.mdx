@@ -1,0 +1,425 @@
+---
+title: AI Gateway API
+short_title: AI Gateway
+description: List supported LLM models and run routed AI Gateway completions
+---
+
+{/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
+
+
+<RegionPicker host="aigateway" />
+
+## Authentication
+
+Most requests require a Bearer token. Pass your API or SDK key in the `Authorization` header. Public endpoints are noted below and do not require authentication.
+
+| Header | Value |
+|--------|-------|
+| `Authorization` | `Bearer YOUR_SDK_KEY` |
+
+You can find your SDK key in the [Agentuity Console](https://app.agentuity.com) under your project settings.
+
+---
+
+## List Models
+
+List model metadata for LLM providers available through AI Gateway, grouped by provider.
+
+<ApiEndpoint method="GET" path="/models" host="aigateway" />
+
+**Authentication:** Public. No auth required.
+
+
+
+### Response
+
+JSON response with provider keys mapped to arrays of supported model metadata under the `data` envelope.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Model catalog returned. Public — no auth required. |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "success",
+    "type": "boolean",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "data",
+    "type": "object",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "message",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "error",
+    "type": "string",
+    "description": "",
+    "required": false
+  }
+]} />
+
+### Example
+
+<ApiExample method="GET" path="/models" host="aigateway" />
+
+---
+
+## Create Completion
+
+Create a completion through the AI Gateway auto-router. The gateway routes by model and request shape, so chat `messages` and legacy `prompt` payloads are both supported.
+
+<ApiEndpoint method="POST" path="/" host="aigateway" />
+
+
+
+### Request Body
+
+Completion request. Use `messages` for chat-compatible models and `prompt` for legacy OpenAI completions-compatible models. Additional provider-specific fields are passed through.
+
+<ResponseFields fields={[
+  {
+    "name": "model",
+    "type": "string",
+    "description": "Model to use for the completion.",
+    "required": true
+  },
+  {
+    "name": "messages",
+    "type": "object[]",
+    "description": "Messages to complete.",
+    "required": false
+  },
+  {
+    "name": "messages[].role",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "messages[].content",
+    "type": "string | object[] | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "messages[].name",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "messages[].tool_call_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "messages[].tool_calls",
+    "type": "array",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "prompt",
+    "type": "string | string[]",
+    "description": "Prompt to complete.",
+    "required": false
+  },
+  {
+    "name": "temperature",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "top_p",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "max_tokens",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "stream",
+    "type": "boolean",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "stop",
+    "type": "string | string[]",
+    "description": "",
+    "required": false
+  }
+]} />
+
+### Response
+
+Provider-compatible completion response.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Completion created |
+| 400 | Invalid completion request |
+| 401 | Unauthorized — invalid or missing API key |
+| 402 | Payment required — upgrade to a paid plan |
+
+### Response Headers
+
+| Header | Description |
+|--------|-------------|
+| `X-Gateway-Cost` | Estimated total gateway cost in USD, when billing metadata is available. |
+| `X-Gateway-Prompt-Tokens` | Prompt token count used for gateway billing. |
+| `X-Gateway-Completion-Tokens` | Completion token count used for gateway billing. |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "id",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "object",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "created",
+    "type": "number",
+    "description": ""
+  },
+  {
+    "name": "model",
+    "type": "string",
+    "description": ""
+  },
+  {
+    "name": "choices",
+    "type": "array",
+    "description": ""
+  },
+  {
+    "name": "usage",
+    "type": "any",
+    "description": ""
+  },
+  {
+    "name": "agentuity",
+    "type": "object",
+    "description": "Agentuity AI Gateway metadata."
+  },
+  {
+    "name": "agentuity.headers",
+    "type": "object",
+    "description": "AI Gateway response headers captured from the HTTP response."
+  },
+  {
+    "name": "agentuity.cost",
+    "type": "object",
+    "description": "Parsed AI Gateway cost information when available."
+  },
+  {
+    "name": "agentuity.cost.total",
+    "type": "number",
+    "description": "Total estimated gateway cost in USD."
+  },
+  {
+    "name": "agentuity.cost.promptTokens",
+    "type": "number",
+    "description": "Prompt token count used for gateway billing."
+  },
+  {
+    "name": "agentuity.cost.completionTokens",
+    "type": "number",
+    "description": "Completion token count used for gateway billing."
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/" body={{
+  "model": "openai/gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello in one sentence."
+    }
+  ],
+  "max_tokens": 64
+}} host="aigateway" />
+
+---
+
+## Stream Completion
+
+Create a streaming completion through the AI Gateway auto-router. Set `stream: true` to receive Server-Sent Events token deltas.
+
+<ApiEndpoint method="POST" path="/" host="aigateway" />
+
+
+
+### Request Body
+
+Completion request with `stream` set to `true`.
+
+<ResponseFields fields={[
+  {
+    "name": "model",
+    "type": "string",
+    "description": "Model to use for the completion.",
+    "required": true
+  },
+  {
+    "name": "messages",
+    "type": "object[]",
+    "description": "Messages to complete.",
+    "required": false
+  },
+  {
+    "name": "messages[].role",
+    "type": "string",
+    "description": "",
+    "required": true
+  },
+  {
+    "name": "messages[].content",
+    "type": "string | object[] | null",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "messages[].name",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "messages[].tool_call_id",
+    "type": "string",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "messages[].tool_calls",
+    "type": "array",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "prompt",
+    "type": "string | string[]",
+    "description": "Prompt to complete.",
+    "required": false
+  },
+  {
+    "name": "temperature",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "top_p",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "max_tokens",
+    "type": "number",
+    "description": "",
+    "required": false
+  },
+  {
+    "name": "stream",
+    "type": "true",
+    "description": "Enable Server-Sent Events streaming.",
+    "required": true
+  },
+  {
+    "name": "stop",
+    "type": "string | string[]",
+    "description": "",
+    "required": false
+  }
+]} />
+
+### Response
+
+Server-Sent Events stream. Each `data:` frame contains a provider-compatible delta payload. The stream ends with `data: [DONE]`.
+
+| Status | Description |
+|--------|-------------|
+| 200 | Streaming completion started |
+| 400 | Invalid completion request |
+| 401 | Unauthorized — invalid or missing API key |
+| 402 | Payment required — upgrade to a paid plan |
+
+### Response Headers
+
+| Header | Description |
+|--------|-------------|
+| `Trailer` | Declares billing trailers such as `X-Gateway-Cost`, `X-Gateway-Prompt-Tokens`, and `X-Gateway-Completion-Tokens` for streamed responses. |
+| `X-Gateway-Cost` | Estimated total gateway cost in USD. For streaming responses this may be delivered as an HTTP trailer after the body completes. |
+| `X-Gateway-Prompt-Tokens` | Prompt token count used for gateway billing. For streaming responses this may be delivered as an HTTP trailer. |
+| `X-Gateway-Completion-Tokens` | Completion token count used for gateway billing. For streaming responses this may be delivered as an HTTP trailer. |
+
+### Response Fields
+
+<ResponseFields fields={[
+  {
+    "name": "choices",
+    "type": "object[]",
+    "description": "Streamed completion choices."
+  },
+  {
+    "name": "choices[].delta",
+    "type": "object",
+    "description": "Incremental assistant message content."
+  },
+  {
+    "name": "choices[].delta.role",
+    "type": "string",
+    "description": "Role for the streamed message delta."
+  },
+  {
+    "name": "choices[].delta.content",
+    "type": "string",
+    "description": "Token or text delta."
+  },
+  {
+    "name": "choices[].finish_reason",
+    "type": "string | null",
+    "description": "Reason the model stopped generating, when available."
+  }
+]} />
+
+### Example
+
+<ApiExample method="POST" path="/" body={{
+  "model": "openai/gpt-4o-mini",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Count to three."
+    }
+  ],
+  "stream": true
+}} headers={{"Accept":"text/event-stream"}} host="aigateway" />
+
+---

@@ -4,9 +4,12 @@
 		"composite": true,
 		"outDir": "./dist",
 		"rootDir": "./src",
-		"rewriteRelativeImportExtensions": true
+		"rewriteRelativeImportExtensions": true,
+		"paths": {
+			"@agentuity/pi": ["../pi/src"]
+		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": []
+	"references": [{ "path": "../pi" }]
 }

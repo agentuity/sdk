@@ -55,6 +55,7 @@ ${getCommand('cloud deployment logs')}    # View deployment logs
 \`\`\`bash
 ${getCommand('cloud kv')}                 # Key-value storage operations
 ${getCommand('cloud vector')}             # Vector database operations
+${getCommand('cloud aigateway')}          # AI Gateway model and completion operations
 ${getCommand('cloud storage')}            # Object storage operations
 ${getCommand('env set KEY value')}        # Set environment variables
 ${getCommand('env set KEY value --secret')} # Set secrets (encrypted)

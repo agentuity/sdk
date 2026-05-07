@@ -2,6 +2,7 @@ export interface ServiceUrls {
 	keyvalue: string;
 	stream: string;
 	vector: string;
+	aigateway: string;
 	catalyst: string;
 	otel: string;
 	sandbox: string;
@@ -35,6 +36,8 @@ export function getServiceUrls(region?: string): ServiceUrls {
 		keyvalue: process.env.AGENTUITY_KEYVALUE_URL || transportUrl,
 		stream: process.env.AGENTUITY_STREAM_URL || buildRegionalURL(resolvedRegion, 'streams'),
 		vector: process.env.AGENTUITY_VECTOR_URL || transportUrl,
+		aigateway:
+			process.env.AGENTUITY_AIGATEWAY_URL || buildRegionalURL(resolvedRegion, 'aigateway'),
 		catalyst: process.env.AGENTUITY_CATALYST_URL || transportUrl,
 		otel: process.env.AGENTUITY_OTLP_URL || buildRegionalURL(resolvedRegion, 'otel'),
 		sandbox: process.env.AGENTUITY_SANDBOX_URL || transportUrl,

@@ -115,7 +115,7 @@ function buildWhenToUse(): string {
 Use this CLI when the user asks to:
 - Create, build, or deploy AI agents
 - Manage Agentuity projects and organizations
-- Access cloud services (KV, Vector, Postgres, Storage, Sandboxes)
+- Access cloud services (KV, Vector, AI Gateway, Postgres, Storage, Sandboxes)
 - Debug or troubleshoot agent deployments
 - Run agents locally in development mode
 - Manage environment variables and secrets
@@ -228,15 +228,15 @@ function collectQuickReferenceCommands(schema: CLISchema): QuickCommand[] {
 		{ path: 'cloud kv get', label: 'KV get', priority: 9 },
 		{ path: 'cloud kv set', label: 'KV set', priority: 10 },
 		{ path: 'cloud vector search', label: 'Vector search', priority: 11 },
-		{ path: 'cloud db list', label: 'List databases', priority: 12 },
-		{ path: 'cloud db exec', label: 'Execute SQL', priority: 13 },
-		{ path: 'env list', label: 'List env vars', priority: 14 },
-		{ path: 'env set', label: 'Set env var', priority: 15 },
-		{ path: 'cloud deployment list', label: 'List deployments', priority: 16 },
-		{ path: 'cloud deployment rollback', label: 'Rollback deployment', priority: 17 },
-		{ path: 'project list', label: 'List projects', priority: 18 },
-		{ path: 'auth whoami', label: 'Show current user', priority: 19 },
-		{ path: 'version', label: 'Show version', priority: 20 },
+		{ path: 'cloud aigateway models', label: 'List AI models', priority: 12 },
+		{ path: 'cloud aigateway complete', label: 'AI completion', priority: 13 },
+		{ path: 'cloud db list', label: 'List databases', priority: 14 },
+		{ path: 'cloud db exec', label: 'Execute SQL', priority: 15 },
+		{ path: 'env list', label: 'List env vars', priority: 16 },
+		{ path: 'env set', label: 'Set env var', priority: 17 },
+		{ path: 'cloud deployment list', label: 'List deployments', priority: 18 },
+		{ path: 'cloud deployment rollback', label: 'Rollback deployment', priority: 19 },
+		{ path: 'project list', label: 'List projects', priority: 20 },
 	];
 
 	// Build command signatures from schema

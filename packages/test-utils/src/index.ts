@@ -6,7 +6,7 @@
  */
 
 export { createMockLogger, createMockLoggerWithCapture } from './mock-logger';
-export { mockFetch, type MockFetchFn } from './mock-fetch';
+export { mockFetch, restoreFetch, type MockFetchFn } from './mock-fetch';
 export {
 	createMockAdapter,
 	type MockAdapterCall,
