@@ -236,16 +236,17 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'hono',
 		name: 'Hono',
 		description: 'Lightweight, fast web framework for the edge',
-		// create-hono's `--template` doubles as a runtime selector
-		// (e.g. `--template bun` is Bun.serve, `--template nodejs` is
-		// node:http with `@hono/node-server`). For non-Bun managers,
-		// fall through to the nodejs template.
+		// Use create-hono's Node template regardless of package manager.
+		// The Bun template intentionally has no build script and runs
+		// TypeScript directly; our package smoke tests and deploy pipeline
+		// expect a real build artifact. Package-manager selection still
+		// controls install/lockfile behavior via `--pm`.
 		createCommand: (dir, pm) => [
 			...dlxCommand(pm),
 			'create-hono@latest',
 			dir,
 			'--template',
-			pm === 'bun' ? 'bun' : 'nodejs',
+			'nodejs',
 			'--install',
 			'--pm',
 			pm,
