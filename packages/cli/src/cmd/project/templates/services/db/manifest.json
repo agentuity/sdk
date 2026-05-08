@@ -6,10 +6,11 @@
   "order": 20,
   "packages": [
     "drizzle-orm",
-    "@neondatabase/serverless"
+    "pg"
   ],
   "devPackages": [
-    "drizzle-kit"
+    "drizzle-kit",
+    "@types/pg"
   ],
   "scripts": {
     "db:generate": "drizzle-kit generate",

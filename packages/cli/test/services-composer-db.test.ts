@@ -8,8 +8,8 @@
  *      route) land at the expected per-framework paths.
  *   2. The translate helper picked up the cache-lookup snippet.
  *   3. The page picked up the history-panel snippet.
- *   4. package.json gained drizzle-orm + @neondatabase/serverless deps,
- *      drizzle-kit dev dep, and the four db:* scripts.
+ *   4. package.json gained drizzle-orm + pg deps, drizzle-kit + @types/pg
+ *      dev deps, and the four db:* scripts.
  *   5. .env.example carries DATABASE_URL.
  *   6. No marker comments leaked into any of these files.
  */
@@ -145,8 +145,9 @@ describe('framework + db composition', () => {
 			// 4. package.json picked up deps + scripts.
 			const pkg = JSON.parse(await readFile(join(dest, 'package.json'), 'utf8'));
 			expect(pkg.dependencies['drizzle-orm']).toBeDefined();
-			expect(pkg.dependencies['@neondatabase/serverless']).toBeDefined();
+			expect(pkg.dependencies.pg).toBeDefined();
 			expect(pkg.devDependencies['drizzle-kit']).toBeDefined();
+			expect(pkg.devDependencies['@types/pg']).toBeDefined();
 			expect(pkg.scripts['db:push']).toBe('drizzle-kit push');
 			expect(pkg.scripts['db:generate']).toBe('drizzle-kit generate');
 

@@ -1,6 +1,6 @@
 # @agentuity/postgres
 
-> **⚠️ DEPRECATED** — Use `drizzle-orm` and `@neondatabase/serverless` directly with your `DATABASE_URL`.
+> **⚠️ DEPRECATED** — Use `pg` or `drizzle-orm/node-postgres` directly against your `DATABASE_URL`.
 >
 > This package is no longer recommended for new projects.
 

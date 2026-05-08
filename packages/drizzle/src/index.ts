@@ -1,7 +1,7 @@
 /**
  * @agentuity/drizzle - DEPRECATED
  *
- * Use drizzle-orm and @neondatabase/serverless directly with your DATABASE_URL.
+ * Use drizzle-orm/node-postgres with pg directly against your DATABASE_URL.
  * This package is no longer recommended for new projects.
  *
  * ~~Drizzle ORM integration with resilient PostgreSQL connections~~

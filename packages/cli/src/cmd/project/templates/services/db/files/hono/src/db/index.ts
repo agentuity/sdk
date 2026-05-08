@@ -1,16 +1,16 @@
-import { drizzle, type NeonHttpDatabase } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from './schema.js';
 
-let db: NeonHttpDatabase<typeof schema> | undefined;
+let db: NodePgDatabase<typeof schema> | undefined;
 
-export function getDb(): NeonHttpDatabase<typeof schema> {
+export function getDb(): NodePgDatabase<typeof schema> {
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
 		throw new Error('DATABASE_URL is not set. Run `bun run db:push` after configuring it.');
 	}
 
-	db ??= drizzle(neon(databaseUrl), { schema });
+	db ??= drizzle(new Pool({ connectionString: databaseUrl }), { schema });
 	return db;
 }
 
