@@ -66,6 +66,21 @@ export function generateLaunchMetadata(
 		});
 	}
 
+	// Reconcile runtime against the actual launch command.
+	// `framework.runtime` reflects what the detector inferred from the
+	// project (lockfile, engines, the start script before adapters had
+	// a chance to rewrite it). But adapters can override the start
+	// command — e.g. the Next.js adapter writes `node server.js`
+	// because Next.js standalone is Node-only, even if the user's
+	// project uses Bun for everything else. The runtime in launch.json
+	// must match what gets executed; pilot's memory tuning depends on
+	// it.
+	const runtimeName = (() => {
+		if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
+		if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
+		return framework.runtime;
+	})();
+
 	return {
 		processes,
 		framework: {
@@ -73,7 +88,7 @@ export function generateLaunchMetadata(
 			version: framework.version,
 		},
 		runtime: {
-			name: framework.runtime,
+			name: runtimeName,
 			port: buildResult.port ?? framework.port,
 		},
 		build: {
