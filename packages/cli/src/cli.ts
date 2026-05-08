@@ -1240,7 +1240,17 @@ async function registerSubcommand(
 				cmd.option(
 					`${flagSpec} <${opt.name}>`,
 					arrayDesc,
-					(value: string, previous: string[]) => (previous ?? []).concat([value])
+					(value: string, previous: string[]) => {
+						// Accept either repeated flags (--services kv --services db)
+						// or one comma-separated value (--services kv,db). The latter is
+						// what most option descriptions document and what users
+						// reach for first.
+						const parts = value
+							.split(',')
+							.map((v) => v.trim())
+							.filter((v) => v.length > 0);
+						return (previous ?? []).concat(parts);
+					}
 				);
 			} else if (opt.type === 'optionalString') {
 				// Optional string: --flag uses true, --flag=value uses the string value

@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
 import { getVersion } from '../../version.ts';
+import type { PackageManager } from '../build/detect/types.ts';
 import type { FrameworkScaffold } from './frameworks.ts';
 import { applyOverlay } from './frameworks.ts';
 
@@ -24,6 +25,8 @@ interface ScaffoldOptions {
 	framework: FrameworkScaffold;
 	/** Whether to include AI example */
 	includeAiExample: boolean;
+	/** Package manager to drive the framework's create command. */
+	packageManager: PackageManager;
 	/** Logger */
 	logger: Logger;
 }
@@ -33,8 +36,10 @@ interface SetupOptions {
 	dest: string;
 	/** Human-readable project name */
 	projectName: string;
-	/** Whether to skip `bun install` */
+	/** Whether to skip the post-scaffold install step. */
 	noInstall: boolean;
+	/** Package manager to use when re-running install after augments. */
+	packageManager: PackageManager;
 	/** Logger */
 	logger: Logger;
 }
@@ -43,10 +48,10 @@ interface SetupOptions {
  * Run the framework's official create CLI to scaffold the project.
  */
 export async function scaffoldFramework(options: ScaffoldOptions): Promise<void> {
-	const { dest, dirName, framework, includeAiExample, logger } = options;
+	const { dest, dirName, framework, includeAiExample, packageManager, logger } = options;
 
 	// Step 1: Run the framework's create command
-	const cmd = framework.createCommand(dirName);
+	const cmd = framework.createCommand(dirName, packageManager);
 	logger.debug('Scaffolding with: %s', cmd.join(' '));
 
 	const parentDir = join(dest, '..');
@@ -202,18 +207,20 @@ async function appendGitignore(dest: string): Promise<void> {
  * Set up the project after scaffolding: install deps, generate docs.
  */
 export async function setupProject(options: SetupOptions): Promise<{ success: boolean }> {
-	const { dest, projectName, noInstall, logger } = options;
+	const { dest, projectName, noInstall, packageManager, logger } = options;
 	let hasError = false;
 
 	tui.info(`🔧 Setting up ${projectName}...`);
 
 	// Install dependencies (the framework CLI may have already done this,
-	// but we need to install our added deps)
+	// but we need to install our added deps).
 	if (!noInstall) {
+		const installCmd: string[] =
+			packageManager === 'yarn' ? ['yarn', 'install'] : [packageManager, 'install'];
 		const exitCode = await tui.runCommand({
-			command: 'bun install',
+			command: installCmd.join(' '),
 			cwd: dest,
-			cmd: ['bun', 'install'],
+			cmd: installCmd,
 			clearOnSuccess: true,
 		});
 		if (exitCode !== 0) {

@@ -48,6 +48,8 @@ import {
 	resolveFlagAction,
 	shouldPromptForResource,
 } from './provisioning-decisions.ts';
+import { runtimeKind } from '../../node-compat/runtime-info.ts';
+import type { PackageManager } from '../build/detect/types.ts';
 import { frameworkCatalog, type FrameworkScaffold } from './frameworks.ts';
 
 /**
@@ -81,6 +83,12 @@ interface CreateFlowOptions {
 	 * are added.
 	 */
 	services?: string[];
+	/**
+	 * Package manager to drive the new project. When omitted, the
+	 * interactive flow asks for it; non-interactive runs default to
+	 * the host runtime (bun under Bun, npm under Node).
+	 */
+	packageManager?: PackageManager;
 }
 
 export interface CreateFlowResult {
@@ -112,6 +120,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		database: databaseOption,
 		storage: storageOption,
 		services: servicesOption,
+		packageManager: initialPackageManager,
 	} = options;
 
 	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
@@ -205,7 +214,47 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Step 2: Select framework
+	// Step 2: Select package manager
+	//
+	// We ask before framework so the framework's `createCommand`
+	// can render the right `--use-bun` / `--use-npm` / etc. flag.
+	// Default in non-interactive contexts is the host runtime
+	// (bun under Bun, npm under Node) — keeps the new project
+	// consistent with how the user invoked the CLI unless they
+	// override it explicitly.
+	const defaultPackageManager: PackageManager = runtimeKind() === 'bun' ? 'bun' : 'npm';
+	let packageManager: PackageManager;
+	if (initialPackageManager) {
+		packageManager = initialPackageManager;
+	} else if (!isInteractive) {
+		packageManager = defaultPackageManager;
+	} else {
+		const pmChoice = await prompt.select<PackageManager>({
+			message: 'Which package manager should the new project use?',
+			initial: defaultPackageManager,
+			options: [
+				{
+					value: 'bun',
+					label: 'bun',
+					hint: 'fast install + native TS runtime; the host CLI default under Bun',
+				},
+				{
+					value: 'npm',
+					label: 'npm',
+					hint: 'ships with Node; safest cross-platform default',
+				},
+				{ value: 'pnpm', label: 'pnpm', hint: 'content-addressed store; popular in monorepos' },
+				{ value: 'yarn', label: 'yarn', hint: 'classic alternative to npm' },
+			],
+		});
+		if (!pmChoice) {
+			logger.fatal('Package manager selection failed', ErrorCode.USER_CANCELLED);
+			return undefined as never;
+		}
+		packageManager = pmChoice;
+	}
+
+	// Step 3: Select framework
 	let selectedFramework: FrameworkScaffold;
 	if (initialFramework) {
 		const found = frameworkCatalog.find((f) => f.slug === initialFramework);
@@ -256,7 +305,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		selectedFramework = found;
 	}
 
-	// Step 3: Ask about AI example
+	// Step 4: Ask about AI example
 	let includeAiExample = true;
 	if (isInteractive && selectedFramework.overlayDir) {
 		includeAiExample = await prompt.confirm({
@@ -267,16 +316,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		includeAiExample = false;
 	}
 
-	// Step 4: Scaffold the framework
+	// Step 5: Scaffold the framework
 	await scaffoldFramework({
 		dest,
 		dirName,
 		framework: selectedFramework,
 		includeAiExample,
+		packageManager,
 		logger,
 	});
 
-	// Step 4.5: Resolve which service augments to apply.
+	// Step 5.5: Resolve which service augments to apply.
 	const selectedServices = await resolveServiceSelection({
 		servicesOption,
 		framework: selectedFramework.slug,
@@ -285,7 +335,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger,
 	});
 
-	// Step 4.6: Compose service augments. With no services selected this
+	// Step 5.6: Compose service augments. With no services selected this
 	// still runs to strip marker comments seeded by the AI overlay so
 	// user-visible files stay clean. Frameworks without a manifest are
 	// skipped silently.
@@ -296,11 +346,12 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger,
 	});
 
-	// Step 5: Setup project (install deps)
+	// Step 6: Setup project (install deps)
 	const setupResult = await setupProject({
 		dest,
 		projectName: projectName === '.' ? basename(dest) : projectName,
 		noInstall: options.noInstall,
+		packageManager,
 		logger,
 	});
 

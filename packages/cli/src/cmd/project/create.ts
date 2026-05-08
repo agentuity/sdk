@@ -64,12 +64,20 @@ export const createProjectSubcommand = createSubcommand({
 				.boolean()
 				.optional()
 				.default(true)
-				.describe('Run bun install after creating the project (use --no-install to skip)'),
+				.describe(
+					'Run install (using the chosen package manager) after creating the project (use --no-install to skip)'
+				),
 			build: z
 				.boolean()
 				.optional()
 				.default(true)
-				.describe('Run bun run build after installing (use --no-build to skip)'),
+				.describe('Run the project build script after installing (use --no-build to skip)'),
+			packageManager: z
+				.enum(['bun', 'npm', 'pnpm', 'yarn'])
+				.optional()
+				.describe(
+					'Package manager for the new project. Defaults to the host runtime: `bun` when running under Bun, `npm` when running under Node. Interactive runs prompt before scaffolding.'
+				),
 			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
 			register: z
 				.boolean()
@@ -143,6 +151,7 @@ export const createProjectSubcommand = createSubcommand({
 			noInstall: opts.install === false,
 			noBuild: opts.build === false,
 			skipPrompts: opts.confirm === true,
+			packageManager: opts.packageManager,
 			logger,
 			auth: opts.register === true ? auth : undefined,
 			config: config!,

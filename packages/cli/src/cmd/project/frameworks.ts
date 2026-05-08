@@ -12,6 +12,7 @@
 
 import { cpSync } from 'node:fs';
 import { join } from 'node:path';
+import type { PackageManager } from '../build/detect/types.ts';
 import { currentDir } from '../../node-compat/runtime-info.ts';
 
 // Resolve the templates directory relative to this file.
@@ -46,9 +47,14 @@ export interface FrameworkScaffold {
 	 * Build the create command.
 	 *
 	 * @param projectDir - The target directory name (relative, e.g. "my-app")
+	 * @param pm - The package manager the user chose. Frameworks should
+	 *   honor it where they have a flag for it (each tool spells the
+	 *   flag differently); if a framework has no `--package-manager`
+	 *   equivalent, render the bare command and let it pick the pm via
+	 *   lockfile-detection.
 	 * @returns The full command as an argv array (e.g. ["bunx", "create-next-app", "my-app", ...])
 	 */
-	createCommand: (projectDir: string) => string[];
+	createCommand: (projectDir: string, pm: PackageManager) => string[];
 
 	/**
 	 * Agentuity packages to add as dependencies after scaffolding.
@@ -85,15 +91,36 @@ export function applyOverlay(dest: string, overlayDir: string): void {
 	cpSync(overlayPath, dest, { recursive: true, dereference: true, force: true });
 }
 
-// ─── Framework Catalog ───────────────────────────────────────────────────────
+// ─── Per-package-manager helpers ────────────────────────────────────────────────
+
+/**
+ * The command to invoke a remote npm package without installing it
+ * (the modern equivalent of `npx`). Each package manager spells
+ * this slightly differently. We hardcode the canonical pair for
+ * the four supported managers.
+ */
+function dlxCommand(pm: PackageManager): string[] {
+	switch (pm) {
+		case 'bun':
+			return ['bunx'];
+		case 'pnpm':
+			return ['pnpm', 'dlx'];
+		case 'yarn':
+			return ['yarn', 'dlx'];
+		default:
+			return ['npx'];
+	}
+}
+
+// ─── Framework Catalog ───────────────────────────────────────────────────────────
 
 export const frameworkCatalog: FrameworkScaffold[] = [
 	{
 		slug: 'nextjs',
 		name: 'Next.js',
 		description: 'Full-stack React framework with App Router',
-		createCommand: (dir) => [
-			'bunx',
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-next-app@latest',
 			dir,
 			'--ts',
@@ -103,7 +130,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--src-dir',
 			'--import-alias',
 			'@/*',
-			'--use-bun',
+			`--use-${pm}`,
 		],
 		dependencies: ['ai', '@ai-sdk/openai', 'swr'],
 		scripts: {
@@ -115,7 +142,23 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'nuxt',
 		name: 'Nuxt',
 		description: 'Full-stack Vue framework with server routes',
-		createCommand: (dir) => ['bunx', 'nuxi@latest', 'init', dir, '--packageManager', 'bun'],
+		// `nuxi init` has multiple interactive prompts:
+		//   1. template selection — `--template minimal` skips it.
+		//   2. git initialization — `--gitInit=false` skips it.
+		//   3. "would you like to browse and install modules?" — there’s no
+		//      flag for this one. We rely on the runner to deny stdin
+		//      so nuxi accepts the (No) default.
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
+			'nuxi@latest',
+			'init',
+			dir,
+			'--template',
+			'minimal',
+			'--gitInit=false',
+			'--packageManager',
+			pm,
+		],
 		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
@@ -126,14 +169,14 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'remix',
 		name: 'React Router',
 		description: 'Full-stack React framework with nested routing',
-		createCommand: (dir) => [
-			'bunx',
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-react-router@latest',
 			dir,
 			'--yes',
 			'--install',
 			'--package-manager',
-			'bun',
+			pm,
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
@@ -145,8 +188,10 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'sveltekit',
 		name: 'SvelteKit',
 		description: 'Full-stack Svelte framework',
-		createCommand: (dir) => [
-			'bunx',
+		// `sv create`'s `--install` flag takes the package-manager name
+		// directly (e.g. `--install bun`). Without it, sv prompts.
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'sv@latest',
 			'create',
 			dir,
@@ -154,6 +199,8 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'minimal',
 			'--types',
 			'ts',
+			'--install',
+			pm,
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
@@ -165,13 +212,15 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'astro',
 		name: 'Astro',
 		description: 'Content-focused framework with island architecture',
-		createCommand: (dir) => [
-			'bunx',
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-astro@latest',
 			dir,
 			'--template',
 			'basics',
 			'--install',
+			'--package-manager',
+			pm,
 			'--yes',
 			'--typescript',
 			'strict',
@@ -186,15 +235,19 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'hono',
 		name: 'Hono',
 		description: 'Lightweight, fast web framework for the edge',
-		createCommand: (dir) => [
-			'bunx',
+		// create-hono's `--template` doubles as a runtime selector
+		// (e.g. `--template bun` is Bun.serve, `--template nodejs` is
+		// node:http with `@hono/node-server`). For non-Bun managers,
+		// fall through to the nodejs template.
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-hono@latest',
 			dir,
 			'--template',
-			'bun',
+			pm === 'bun' ? 'bun' : 'nodejs',
 			'--install',
 			'--pm',
-			'bun',
+			pm,
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
