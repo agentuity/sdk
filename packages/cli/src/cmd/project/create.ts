@@ -59,7 +59,7 @@ export const createProjectSubcommand = createSubcommand({
 			framework: z
 				.string()
 				.optional()
-				.describe('Framework to use (e.g., nextjs, astro, sveltekit, remix, nuxt, hono)'),
+				.describe('Framework to use (e.g., nextjs, astro, sveltekit, nuxt, hono)'),
 			install: z
 				.boolean()
 				.optional()
@@ -125,7 +125,7 @@ export const createProjectSubcommand = createSubcommand({
 		//   - registration is requested (`--register`, the default), AND
 		//   - no `--name` was given (a name signals "new subdir scaffold"),
 		//   - and the resolved target dir matches a framework in our scaffold
-		//     catalog (next, nuxt, remix, sveltekit, astro, hono)
+		//     catalog (next, nuxt, sveltekit, astro, hono)
 		//     OR already has agentuity.json.
 		//
 		// In TTY: ask once. In non-TTY: refuse with a helpful message

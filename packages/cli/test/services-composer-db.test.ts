@@ -55,17 +55,6 @@ const dbChecks: DbCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		wholeFiles: [
-			'app/db/schema.ts',
-			'app/db/index.ts',
-			'drizzle.config.ts',
-			'app/routes/api.history.ts',
-		],
-		translateFile: 'app/lib/translate.ts',
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
 		framework: 'nuxt',
 		wholeFiles: [
 			'server/db/schema.ts',

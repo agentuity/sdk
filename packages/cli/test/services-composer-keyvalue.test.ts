@@ -44,11 +44,6 @@ const kvChecks: KvCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		preferencesFiles: ['app/routes/api.preferences.ts'],
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
 		framework: 'nuxt',
 		preferencesFiles: ['server/api/preferences.get.ts', 'server/api/preferences.post.ts'],
 		pageFile: 'app/app.vue',

@@ -172,25 +172,6 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		overlayDir: 'nuxt',
 	},
 	{
-		slug: 'remix',
-		name: 'React Router',
-		description: 'Full-stack React framework with nested routing',
-		createCommand: (dir, pm) => [
-			...dlxCommand(pm),
-			'create-react-router@latest',
-			dir,
-			'--yes',
-			'--install',
-			'--package-manager',
-			pm,
-		],
-		dependencies: ['ai', '@ai-sdk/openai'],
-		scripts: {
-			deploy: 'agentuity deploy',
-		},
-		overlayDir: 'remix',
-	},
-	{
 		slug: 'sveltekit',
 		name: 'SvelteKit',
 		description: 'Full-stack Svelte framework',

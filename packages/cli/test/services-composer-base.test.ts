@@ -65,16 +65,6 @@ const checks: FrameworkCheck[] = [
 		],
 	},
 	{
-		framework: 'remix',
-		files: [
-			{ path: 'app/lib/translate.ts', mustContain: ['export async function translate'] },
-			{
-				path: 'app/routes/home.tsx',
-				mustContain: ['export default function Home()', 'Translation will appear here'],
-			},
-		],
-	},
-	{
 		framework: 'nuxt',
 		files: [
 			{ path: 'server/utils/translate.ts', mustContain: ['export async function translate'] },

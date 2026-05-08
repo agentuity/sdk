@@ -34,11 +34,6 @@ const queueChecks: QueueCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		jobsFile: 'app/routes/api.jobs.ts',
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
 		framework: 'nuxt',
 		jobsFile: 'server/api/jobs.post.ts',
 		pageFile: 'app/app.vue',

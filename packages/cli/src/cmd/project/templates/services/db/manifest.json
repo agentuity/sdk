@@ -26,7 +26,6 @@
   ],
   "frameworks": [
     "nextjs",
-    "remix",
     "nuxt",
     "sveltekit",
     "astro",

@@ -8,8 +8,8 @@
  * THIS project", not "scaffold a brand new one alongside it".
  *
  * This module looks at a directory and returns a hit when it matches a
- * framework that's also in our scaffold catalog (next, nuxt, remix /
- * react-router, sveltekit, astro, hono). The create command
+ * framework that's also in our scaffold catalog (next, nuxt,
+ * sveltekit, astro, hono). The create command
  * uses the hit to prompt the user "import this project instead?" and
  * hand off to the existing project-import flow on yes.
  *
@@ -32,7 +32,7 @@ import {
  * human-readable label used in the user-facing prompt.
  */
 export interface ExistingProjectHit {
-	/** Slug from `frameworkCatalog` (next, nuxt, remix, sveltekit, astro, hono). */
+	/** Slug from `frameworkCatalog` (next, nuxt, sveltekit, astro, hono). */
 	scaffoldSlug: string;
 	/** Human-readable framework name for display ("Next.js", "Hono", ...). */
 	detectedName: string;
@@ -45,18 +45,12 @@ export interface ExistingProjectHit {
 /**
  * Mapping table from build-detect slugs to scaffold catalog slugs.
  *
- * Two interesting cases:
- *   - `remix` and `react-router` both map to the scaffold's `remix`
- *     entry, because our scaffold uses `create-react-router@latest`
- *     under the slug `remix`.
- *   - `vite` requires an extra package check (does it have `react`?)
- *     so it isn't in this table; it's handled below.
+ * `vite` requires an extra package check (does it have `react`?)
+ * so it isn't in this table; it's handled below.
  */
 const DETECT_TO_SCAFFOLD: Record<string, { slug: string; name: string }> = {
 	nextjs: { slug: 'nextjs', name: 'Next.js' },
 	nuxt: { slug: 'nuxt', name: 'Nuxt' },
-	remix: { slug: 'remix', name: 'React Router' },
-	'react-router': { slug: 'remix', name: 'React Router' },
 	sveltekit: { slug: 'sveltekit', name: 'SvelteKit' },
 	astro: { slug: 'astro', name: 'Astro' },
 };

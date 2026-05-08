@@ -40,12 +40,6 @@ const storageChecks: StorageCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		storageClient: 'app/storage/index.ts',
-		exportFile: 'app/routes/api.export.ts',
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
 		framework: 'nuxt',
 		storageClient: 'server/storage/index.ts',
 		exportFile: 'server/api/export.post.ts',

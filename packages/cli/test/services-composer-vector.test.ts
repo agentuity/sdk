@@ -36,12 +36,6 @@ const vecChecks: VecCheck[] = [
 		translateFile: 'src/lib/translate.ts',
 	},
 	{
-		framework: 'remix',
-		similarFile: 'app/routes/api.similar.ts',
-		pageFile: 'app/routes/home.tsx',
-		translateFile: 'app/lib/translate.ts',
-	},
-	{
 		framework: 'nuxt',
 		similarFile: 'server/api/similar.get.ts',
 		pageFile: 'app/app.vue',
