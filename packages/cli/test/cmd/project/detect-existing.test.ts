@@ -103,29 +103,17 @@ describe('detectExistingProject', () => {
 		expect(hit?.detectedName).toBe('Hono');
 	});
 
-	test('detects Vite + React via the package.json fallback', async () => {
+	test('does not match a vanilla Vite project (no React-on-Bun scaffold anymore)', async () => {
+		// We removed the `vite-react` scaffold (Bun.serve proxy to Vite
+		// dev only worked in dev). Plain Vite projects fall through to
+		// the framework database's generic Vite detector, which doesn't
+		// map to a scaffold.
 		writeFileSync(
 			join(testDir, 'package.json'),
 			JSON.stringify({
 				name: 'vite-react-app',
 				scripts: { build: 'vite build' },
 				dependencies: { react: '^19.0.0', vite: '^6.0.0' },
-			})
-		);
-
-		const hit = await detectExistingProject(testDir);
-		expect(hit?.scaffoldSlug).toBe('vite-react');
-		expect(hit?.detectedName).toBe('Vite + React');
-	});
-
-	test('does not match a vanilla Vite project without React', async () => {
-		writeFileSync(
-			join(testDir, 'package.json'),
-			JSON.stringify({
-				name: 'vite-vanilla',
-				scripts: { build: 'vite build' },
-				// vite without react/vue → not in our scaffold catalog.
-				dependencies: { vite: '^6.0.0' },
 			})
 		);
 

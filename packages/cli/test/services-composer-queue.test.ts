@@ -39,11 +39,6 @@ const queueChecks: QueueCheck[] = [
 		pageFile: 'app/routes/home.tsx',
 	},
 	{
-		framework: 'vite-react',
-		serverFile: 'server.ts',
-		pageFile: 'src/App.tsx',
-	},
-	{
 		framework: 'nuxt',
 		jobsFile: 'server/api/jobs.post.ts',
 		pageFile: 'app.vue',

@@ -42,12 +42,6 @@ const vecChecks: VecCheck[] = [
 		translateFile: 'app/lib/translate.ts',
 	},
 	{
-		framework: 'vite-react',
-		serverFile: 'server.ts',
-		pageFile: 'src/App.tsx',
-		translateFile: 'server/translate.ts',
-	},
-	{
 		framework: 'nuxt',
 		similarFile: 'server/api/similar.get.ts',
 		pageFile: 'app.vue',

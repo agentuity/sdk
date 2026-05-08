@@ -141,7 +141,7 @@ jobs:
               # Verify authentication
               $CLI auth whoami
 
-              # Create test project in usw region. Use vite-react as a
+              # Create test project in usw region. Use hono as a
               # minimal real-build framework: it's in the framework
               # registry, scaffolds quickly, and produces a real `build`
               # script (which the deploy pipeline requires for framework
@@ -151,7 +151,7 @@ jobs:
               echo "Creating project: $PROJECT_NAME"
               $CLI project create \
                 --name "$PROJECT_NAME" \
-                --framework vite-react \
+                --framework hono \
                 --database skip \
                 --storage skip \
                 --confirm

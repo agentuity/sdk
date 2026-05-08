@@ -44,7 +44,7 @@ async function listFilesRecursive(dir: string, prefix = ''): Promise<string[]> {
 	return out;
 }
 
-const frameworks = ['nextjs', 'remix', 'vite-react', 'nuxt', 'sveltekit', 'astro', 'hono'];
+const frameworks = ['nextjs', 'remix', 'nuxt', 'sveltekit', 'astro', 'hono'];
 
 describe('framework + all services composition', () => {
 	for (const framework of frameworks) {

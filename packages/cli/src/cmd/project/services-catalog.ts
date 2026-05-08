@@ -18,14 +18,7 @@ import { join } from 'node:path';
 import { currentDir } from '../../node-compat/runtime-info.ts';
 
 /** Frameworks a service may target. */
-export type FrameworkId =
-	| 'nextjs'
-	| 'remix'
-	| 'vite-react'
-	| 'nuxt'
-	| 'sveltekit'
-	| 'astro'
-	| 'hono';
+export type FrameworkId = 'nextjs' | 'remix' | 'nuxt' | 'sveltekit' | 'astro' | 'hono';
 
 /** Single env var contribution. */
 export interface ServiceEnvVar {

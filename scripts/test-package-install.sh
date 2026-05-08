@@ -138,7 +138,7 @@ cd "$TEST_PROJECT_DIR"
 log_info "Running agentuity new (runtime: ${CLI_RUNTIME:-node})..."
 AGENTUITY_SKIP_VERSION_CHECK=1 "${CLI_RUNTIME:-node}" "$SDK_ROOT/packages/cli/bin/cli.js" new \
     --name smoke-test-project \
-    --framework vite-react \
+    --framework hono \
     --no-register \
     -y \
     2>&1 || {

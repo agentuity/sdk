@@ -202,18 +202,6 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		},
 		overlayDir: 'hono',
 	},
-	{
-		slug: 'vite-react',
-		name: 'Vite + React',
-		description: 'React SPA with Vite bundler',
-		createCommand: (dir) => ['bunx', 'create-vite@latest', dir, '--template', 'react-ts'],
-		dependencies: ['ai', '@ai-sdk/openai', '@tanstack/react-query'],
-		devDependencies: ['tailwindcss', '@tailwindcss/vite'],
-		scripts: {
-			deploy: 'agentuity deploy',
-		},
-		overlayDir: 'vite-react',
-	},
 ];
 
 /**

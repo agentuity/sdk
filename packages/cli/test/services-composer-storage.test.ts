@@ -46,12 +46,6 @@ const storageChecks: StorageCheck[] = [
 		pageFile: 'app/routes/home.tsx',
 	},
 	{
-		framework: 'vite-react',
-		storageClient: 'server/storage/index.ts',
-		serverFile: 'server.ts',
-		pageFile: 'src/App.tsx',
-	},
-	{
 		framework: 'nuxt',
 		storageClient: 'server/storage/index.ts',
 		exportFile: 'server/api/export.post.ts',

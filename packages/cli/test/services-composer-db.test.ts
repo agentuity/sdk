@@ -66,12 +66,6 @@ const dbChecks: DbCheck[] = [
 		pageFile: 'app/routes/home.tsx',
 	},
 	{
-		framework: 'vite-react',
-		wholeFiles: ['server/db/schema.ts', 'server/db/index.ts', 'drizzle.config.ts'],
-		translateFile: 'server/translate.ts',
-		pageFile: 'src/App.tsx',
-	},
-	{
 		framework: 'nuxt',
 		wholeFiles: [
 			'server/db/schema.ts',

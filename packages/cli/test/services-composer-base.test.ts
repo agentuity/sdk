@@ -75,16 +75,6 @@ const checks: FrameworkCheck[] = [
 		],
 	},
 	{
-		framework: 'vite-react',
-		files: [
-			{ path: 'server/translate.ts', mustContain: ['export async function translate'] },
-			{
-				path: 'src/App.tsx',
-				mustContain: ['function App()', 'Translation will appear here'],
-			},
-		],
-	},
-	{
 		framework: 'nuxt',
 		files: [
 			{ path: 'server/utils/translate.ts', mustContain: ['export async function translate'] },
