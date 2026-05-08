@@ -44,6 +44,14 @@ async function frameworkDefToDetected(
 			? resolvedOutputDir // null means entire output IS the static dir
 			: (staticDirectory ?? undefined);
 
+	// If the project ships a `start` script, prefer it over
+	// framework-default behaviour. Most production setups
+	// (e.g. TanStack Start with the Nitro plugin, Hono with
+	// `@hono/node-server`, custom Express wrappers) document
+	// the launch command via `pkg.json` — honoring it lets the
+	// generic adapter skip injecting its static-file fallback.
+	const resolvedStartCommand = pkg.scripts?.start;
+
 	return {
 		name: slug,
 		runtime: 'node',
@@ -51,6 +59,7 @@ async function frameworkDefToDetected(
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
+		startCommand: resolvedStartCommand,
 		confidence: 'high',
 	};
 }

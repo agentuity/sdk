@@ -223,15 +223,27 @@ describe('Framework Detection', () => {
 	// ── TanStack Start ──
 
 	describe('TanStack Start', () => {
-		test('detects @tanstack/router-plugin + nitro', async () => {
+		test('detects @tanstack/react-start', async () => {
+			// TanStack Start removed Nitro from its default setup; we now
+			// match on the @tanstack/react-start package alone. Users add
+			// `nitro()` to vite.config.ts for Node hosting per their
+			// hosting docs, and we honor whatever `start` script they wrote.
 			writePackageJson(testDir, {
 				name: 'my-tanstack-app',
-				dependencies: { '@tanstack/router-plugin': '^1.0.0', nitro: '^2.0.0' },
-				scripts: { build: 'vite build' },
+				dependencies: {
+					'@tanstack/react-start': '^1.0.0',
+					'@tanstack/router-plugin': '^1.0.0',
+				},
+				scripts: {
+					build: 'vite build',
+					start: 'node .output/server/index.mjs',
+				},
 			});
 
 			const result = await detectFramework(testDir);
 			expect(result!.name).toBe('tanstack-start');
+			expect(result!.startCommand).toBe('node .output/server/index.mjs');
+			expect(result!.buildOutput).toBe('.output');
 		});
 	});
 

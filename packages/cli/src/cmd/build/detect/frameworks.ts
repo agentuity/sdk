@@ -132,8 +132,12 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'SvelteKit',
 		slug: 'sveltekit',
 		buildCommand: 'vite build',
-		outputDirectory: 'public',
-		staticDir: 'build/client', // adapter-node client assets
+		// SvelteKit's `adapter-node` (the self-hosting default) writes a
+		// self-listening Node server to `build/index.js` plus client
+		// assets at `build/client/`. The user's `start` script is what
+		// we run.
+		outputDirectory: 'build',
+		staticDir: 'build/client',
 		detectors: {
 			every: [
 				{
@@ -169,10 +173,16 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'TanStack Start',
 		slug: 'tanstack-start',
 		buildCommand: 'vite build',
-		outputDirectory: 'dist',
-		staticDir: '.output/public', // Nitro-based; similar to Nuxt/SolidStart
+		// With the `nitro()` Vite plugin (see hosting docs), TanStack
+		// Start emits a self-listening Node server at
+		// `.output/server/index.mjs` plus static assets under
+		// `.output/public/`. The user's package.json `start` script
+		// (`node .output/server/index.mjs`) is what we run; the generic
+		// adapter handles the rest.
+		outputDirectory: '.output',
+		staticDir: '.output/public',
 		detectors: {
-			every: [{ matchPackage: '@tanstack/router-plugin' }, { matchPackage: 'nitro' }],
+			every: [{ matchPackage: '@tanstack/react-start' }],
 		},
 	},
 	{
