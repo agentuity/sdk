@@ -4,13 +4,59 @@
  * Handles Next.js-specific build concerns:
  * 1. Ensures standalone output mode is configured
  * 2. Copies the standalone directory + static assets to output
- * 3. Sets up the correct start command
+ * 3. Sets up the correct start command, accounting for the
+ *    monorepo layout Next.js uses when `outputFileTracingRoot`
+ *    points at a parent of the project (the standalone bundle
+ *    nests `server.js` under the project's relative path).
  */
 
-import { join } from 'node:path';
-import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 import { installDependencies, runBuildCommand } from './generic.ts';
+
+/**
+ * Walk the standalone output looking for the project's `server.js`.
+ *
+ * In a non-monorepo project the server lives at the root of
+ * `.next/standalone/server.js`. In a monorepo (or when the user has
+ * set `outputFileTracingRoot`), Next.js preserves the project's
+ * relative path under the standalone root, so the server may be
+ * several levels deep — e.g.
+ * `.next/standalone/apps/web/server.js`.
+ *
+ * Returns the absolute path to `server.js` if found, or `null`.
+ * Skips `node_modules/` and any `tests/` test fixtures so we don't
+ * pick up a vendored Next.js stub.
+ */
+function findStandaloneServer(standaloneRoot: string): string | null {
+	const skipDirs = new Set(['node_modules', '.git']);
+	const stack: string[] = [standaloneRoot];
+	while (stack.length > 0) {
+		const dir = stack.pop()!;
+		let entries: string[];
+		try {
+			entries = readdirSync(dir);
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (skipDirs.has(entry)) continue;
+			const full = join(dir, entry);
+			let isDir: boolean;
+			try {
+				isDir = statSync(full).isDirectory();
+			} catch {
+				continue;
+			}
+			if (entry === 'server.js' && !isDir) {
+				return full;
+			}
+			if (isDir) stack.push(full);
+		}
+	}
+	return null;
+}
 
 /**
  * Ensure next.config has output: 'standalone'.
@@ -80,50 +126,84 @@ export const nextjsAdapter: BuildAdapter = {
 		const publicPath = join(projectDir, 'public');
 
 		if (existsSync(standalonePath)) {
-			// Copy standalone server
+			// Copy the entire standalone tree verbatim. Next.js writes
+			// paths relative to its `outputFileTracingRoot`, so for a
+			// monorepo project the layout already reflects the project's
+			// position in the workspace. Preserving that exactly is what
+			// makes server.js's hard-coded `process.chdir(__dirname)`
+			// resolve `.next/server`, `.next/static`, `public/`, etc.
 			logger.debug('Copying standalone server...');
 			cpSync(standalonePath, outputDir, { recursive: true });
 
-			// Copy static assets into .next/static within the output
+			// Find the actual `server.js` inside the standalone tree
+			// (root for single-package projects, nested under the
+			// project's relative path for monorepos). Everything else
+			// hangs off this location.
+			const serverJs = findStandaloneServer(outputDir);
+			if (!serverJs) {
+				throw new Error(
+					'Next.js standalone build did not produce a server.js. ' +
+						'Check that next.config sets `output: "standalone"` and the build ' +
+						'completed successfully.'
+				);
+			}
+			const serverDir = dirname(serverJs);
+			const serverEntryRel = relative(outputDir, serverJs);
+
+			// Copy static assets into <serverDir>/.next/static so Next.js
+			// finds them at the path it bakes into the bundle. Standalone
+			// mode intentionally omits `static/` (it's content-hashed and
+			// usually CDN-served), so we always re-add it from the
+			// project's `.next/static`.
+			let packagedStaticDir: string | undefined;
 			if (existsSync(staticPath)) {
-				const staticDst = join(outputDir, '.next', 'static');
+				const staticDst = join(serverDir, '.next', 'static');
 				mkdirSync(staticDst, { recursive: true });
 				cpSync(staticPath, staticDst, { recursive: true });
+				packagedStaticDir = staticDst;
 			}
 
-			// Copy public assets
+			// Copy `public/` next to server.js for the same reason.
 			if (existsSync(publicPath)) {
-				const publicDst = join(outputDir, 'public');
+				const publicDst = join(serverDir, 'public');
 				mkdirSync(publicDst, { recursive: true });
 				cpSync(publicPath, publicDst, { recursive: true });
 			}
 
-			logs.push('✓ Standalone output packaged');
-		} else {
-			// Fallback: copy the whole .next directory
-			logger.debug('No standalone output found — copying full .next directory');
-			const nextDst = join(outputDir, '.next');
-			cpSync(join(projectDir, '.next'), nextDst, { recursive: true });
+			logs.push(`✓ Standalone output packaged (server entry: ${serverEntryRel || 'server.js'})`);
 
-			// Copy package.json and node_modules
-			cpSync(join(projectDir, 'package.json'), join(outputDir, 'package.json'));
-			if (existsSync(join(projectDir, 'node_modules'))) {
-				cpSync(join(projectDir, 'node_modules'), join(outputDir, 'node_modules'), {
-					recursive: true,
-				});
-			}
-
-			logs.push('⚠ No standalone output — using full build (consider enabling standalone mode)');
+			return {
+				outputDir,
+				startCommand: `node ${serverEntryRel}`,
+				serverEntry: serverEntryRel,
+				staticDir: packagedStaticDir,
+				port: framework.port ?? 3000,
+				duration: Date.now() - started,
+				logs,
+			};
 		}
 
-		// Determine start command based on what we have
-		const hasStandalone = existsSync(join(outputDir, 'server.js'));
-		const startCommand = hasStandalone ? 'node server.js' : 'node node_modules/.bin/next start';
+		// Fallback: no standalone output. Copy the whole .next directory
+		// plus the project's node_modules and rely on `next start` to
+		// serve from there. This path is brittle (next start needs the
+		// full Next.js install in node_modules) so we warn the user.
+		logger.debug('No standalone output found — copying full .next directory');
+		const nextDst = join(outputDir, '.next');
+		cpSync(join(projectDir, '.next'), nextDst, { recursive: true });
+
+		cpSync(join(projectDir, 'package.json'), join(outputDir, 'package.json'));
+		if (existsSync(join(projectDir, 'node_modules'))) {
+			cpSync(join(projectDir, 'node_modules'), join(outputDir, 'node_modules'), {
+				recursive: true,
+			});
+		}
+
+		logs.push('⚠ No standalone output — using full build (consider enabling standalone mode)');
 
 		return {
 			outputDir,
-			startCommand,
-			serverEntry: hasStandalone ? 'server.js' : undefined,
+			startCommand: 'node node_modules/.bin/next start',
+			serverEntry: undefined,
 			staticDir: existsSync(join(outputDir, '.next', 'static'))
 				? join(outputDir, '.next', 'static')
 				: undefined,
