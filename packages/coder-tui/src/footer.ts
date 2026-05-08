@@ -15,7 +15,7 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 	ReadonlyFooterDataProvider,
-} from '@mariozechner/pi-coding-agent';
+} from '@earendil-works/pi-coding-agent';
 
 const RESET = '\x1b[0m';
 const SEP = '>';

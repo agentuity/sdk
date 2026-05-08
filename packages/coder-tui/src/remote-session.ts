@@ -12,7 +12,7 @@
  * for the extension to send commands and receive events.
  */
 
-import type { ExtensionAPI, ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import {
 	applyRemoteLifecycleEvent,
 	clearRemoteLifecycleWorkingMessage,
