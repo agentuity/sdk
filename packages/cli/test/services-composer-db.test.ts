@@ -74,7 +74,7 @@ const dbChecks: DbCheck[] = [
 			'server/api/history.get.ts',
 		],
 		translateFile: 'server/utils/translate.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',

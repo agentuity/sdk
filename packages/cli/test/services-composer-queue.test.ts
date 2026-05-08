@@ -41,7 +41,7 @@ const queueChecks: QueueCheck[] = [
 	{
 		framework: 'nuxt',
 		jobsFile: 'server/api/jobs.post.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',

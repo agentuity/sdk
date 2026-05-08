@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { desc } from 'drizzle-orm';
-import { db, translations } from '$lib/server/db';
+import { getDb, translations } from '$lib/server/db';
 import { getS3 } from '$lib/server/storage';
 
 export const POST = async () => {
+	const db = getDb();
 	const rows = await db
 		.select()
 		.from(translations)

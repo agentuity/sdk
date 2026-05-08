@@ -79,7 +79,7 @@ const checks: FrameworkCheck[] = [
 		files: [
 			{ path: 'server/utils/translate.ts', mustContain: ['export async function translate'] },
 			{
-				path: 'app.vue',
+				path: 'app/app.vue',
 				mustStartWith: '<script setup lang="ts">',
 				mustContain: ['<template>', 'Translation will appear here'],
 			},

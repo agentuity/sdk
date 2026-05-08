@@ -44,7 +44,7 @@ const vecChecks: VecCheck[] = [
 	{
 		framework: 'nuxt',
 		similarFile: 'server/api/similar.get.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 		translateFile: 'server/utils/translate.ts',
 	},
 	{

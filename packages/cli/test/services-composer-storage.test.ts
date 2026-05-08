@@ -49,7 +49,7 @@ const storageChecks: StorageCheck[] = [
 		framework: 'nuxt',
 		storageClient: 'server/storage/index.ts',
 		exportFile: 'server/api/export.post.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',

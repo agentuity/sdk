@@ -162,6 +162,12 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
+			// Nitro's default `node-server` preset emits a self-listening
+			// Node entry at `.output/server/index.mjs`. Nuxi doesn't ship
+			// a `start` script by default, so the deploy pipeline falls
+			// back to a static-file server — wrong for SSR. Set it here
+			// so the user gets a working production process out of the box.
+			start: 'node .output/server/index.mjs',
 		},
 		overlayDir: 'nuxt',
 	},
@@ -188,8 +194,9 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'sveltekit',
 		name: 'SvelteKit',
 		description: 'Full-stack Svelte framework',
-		// `sv create`'s `--install` flag takes the package-manager name
-		// directly (e.g. `--install bun`). Without it, sv prompts.
+		// `sv create` would otherwise hang on its add-ons prompt;
+		// `--no-add-ons` skips it. `--install <pm>` passes the chosen
+		// pm directly.
 		createCommand: (dir, pm) => [
 			...dlxCommand(pm),
 			'sv@latest',
@@ -199,12 +206,19 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'minimal',
 			'--types',
 			'ts',
+			'--no-add-ons',
 			'--install',
 			pm,
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
+		// Swap sv's default `@sveltejs/adapter-auto` (which can't detect
+		// our runtime) for `@sveltejs/adapter-node`, which emits a
+		// self-listening Node server at `build/index.js`. The overlay
+		// drops a matching svelte.config.js.
+		devDependencies: ['@sveltejs/adapter-node'],
 		scripts: {
 			deploy: 'agentuity deploy',
+			start: 'node build/index.js',
 		},
 		overlayDir: 'sveltekit',
 	},
@@ -226,8 +240,14 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'strict',
 		],
 		dependencies: ['ai', '@ai-sdk/openai'],
+		// Astro defaults to a static SPA build. We swap to SSR via
+		// `@astrojs/node` (standalone mode) so the deploy can host
+		// server-rendered pages and API routes. The overlay drops a
+		// matching `astro.config.mjs`.
+		devDependencies: ['@astrojs/node'],
 		scripts: {
 			deploy: 'agentuity deploy',
+			start: 'node ./dist/server/entry.mjs',
 		},
 		overlayDir: 'astro',
 	},

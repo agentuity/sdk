@@ -87,8 +87,13 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'Nuxt',
 		slug: 'nuxt',
 		buildCommand: 'nuxt build',
-		outputDirectory: 'dist',
-		staticDir: '.output/public', // Nitro output; static assets served from here
+		// Nitro's default `node-server` preset emits a self-listening
+		// Node entry at `.output/server/index.mjs` plus static assets
+		// at `.output/public/`. The user's `start` script
+		// (`node .output/server/index.mjs`) runs from the deploy root,
+		// so we preserve the .output/ tree intact.
+		outputDirectory: '.output',
+		staticDir: '.output/public',
 		envPrefix: 'NUXT_ENV_',
 		detectors: {
 			some: [

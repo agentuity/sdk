@@ -51,7 +51,7 @@ const kvChecks: KvCheck[] = [
 	{
 		framework: 'nuxt',
 		preferencesFiles: ['server/api/preferences.get.ts', 'server/api/preferences.post.ts'],
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',
