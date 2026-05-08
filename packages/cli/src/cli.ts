@@ -1261,6 +1261,18 @@ async function registerSubcommand(
 				}
 				cmd.option(`${flagSpec} <${opt.name}>`, strDesc);
 			}
+
+			// Hide internal/forked-process flags from `--help`. The boolean
+			// branch above may have registered both positive and `--no-*`
+			// forms, so hide every option commander created for this iteration.
+			if (opt.hidden) {
+				const registeredFlag = `--${flag}`;
+				for (const o of cmd.options) {
+					if (o.long === registeredFlag || o.long === `--no-${flag}`) {
+						o.hideHelp();
+					}
+				}
+			}
 		}
 	}
 
