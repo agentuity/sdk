@@ -1,5 +1,5 @@
-import { type Theme, getMarkdownTheme } from '@mariozechner/pi-coding-agent';
-import { matchesKey, Markdown as MdComponent } from '@mariozechner/pi-tui';
+import { type Theme, getMarkdownTheme } from '@earendil-works/pi-coding-agent';
+import { matchesKey, Markdown as MdComponent } from '@earendil-works/pi-tui';
 import { truncateToWidth } from './renderers.ts';
 
 export interface StoredResult {

@@ -10,7 +10,7 @@
  * Gathers diff/instructions, parses stats, and sends
  * a formatted review prompt to the @reviewer agent.
  */
-import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import { execFileSync } from 'node:child_process';
 
 // ── Noise Filters ──

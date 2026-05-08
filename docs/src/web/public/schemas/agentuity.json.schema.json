@@ -1,0 +1,203 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://agentuity.dev/schema/cli/v1/agentuity.json",
+	"$comment": "The agentuity.json configuration schema",
+	"type": "object",
+	"properties": {
+		"projectId": {
+			"type": "string",
+			"description": "the project id"
+		},
+		"orgId": {
+			"type": "string",
+			"description": "the organization id"
+		},
+		"region": {
+			"type": "string",
+			"description": "the region identifier that the project is deployed into"
+		},
+		"deployment": {
+			"description": "the deployment configuration",
+			"type": "object",
+			"properties": {
+				"resources": {
+					"description": "the resource requirements for your deployed project",
+					"type": "object",
+					"properties": {
+						"memory": {
+							"default": "500Mi",
+							"description": "The memory requirements",
+							"type": "string"
+						},
+						"cpu": {
+							"default": "500m",
+							"description": "The CPU requirements",
+							"type": "string"
+						},
+						"disk": {
+							"default": "500Mi",
+							"description": "The disk requirements",
+							"type": "string"
+						}
+					},
+					"required": ["memory", "cpu", "disk"],
+					"additionalProperties": false
+				},
+				"mode": {
+					"description": "the provisioning mode for the project",
+					"type": "object",
+					"properties": {
+						"type": {
+							"default": "on-demand",
+							"description": "on-demand or provisioned",
+							"type": "string",
+							"enum": ["on-demand", "provisioned"]
+						},
+						"idle": {
+							"description": "Idle timeout duration when on-demand (e.g., \"10m\", \"1h\")",
+							"type": "string"
+						}
+					},
+					"required": ["type"],
+					"additionalProperties": false
+				},
+				"dependencies": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"description": "APT dependencies to install prior to launching your project"
+					}
+				},
+				"domains": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"description": "the custom domain"
+					}
+				}
+			},
+			"additionalProperties": false
+		},
+		"build": {
+			"description": "the CI/CD build configuration",
+			"type": "object",
+			"properties": {
+				"timeout": {
+					"description": "Build execution timeout (e.g. \"30m\")",
+					"type": "string"
+				},
+				"resources": {
+					"description": "Build sandbox resource limits",
+					"type": "object",
+					"properties": {
+						"memory": {
+							"description": "Build sandbox memory (e.g. \"4Gi\")",
+							"type": "string"
+						},
+						"cpu": {
+							"description": "Build sandbox CPU (e.g. \"2\")",
+							"type": "string"
+						},
+						"disk": {
+							"description": "Build sandbox disk (e.g. \"4Gi\")",
+							"type": "string"
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		},
+		"skipGitSetup": {
+			"description": "whether to skip the git integration setup prompt during deploy",
+			"type": "boolean"
+		},
+		"template": {
+			"description": "template metadata and requirements",
+			"type": "object",
+			"properties": {
+				"source": {
+					"description": "where the template came from (e.g. github.com/owner/repo)",
+					"type": "string"
+				},
+				"requirements": {
+					"description": "what the template requires to run",
+					"type": "object",
+					"properties": {
+						"resources": {
+							"description": "platform resources the project needs",
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"type": {
+										"type": "string",
+										"enum": ["database", "queue"],
+										"description": "the type of resource required"
+									},
+									"envVar": {
+										"type": "string",
+										"description": "the environment variable that holds the resource connection info"
+									},
+									"description": {
+										"description": "human-readable description of the resource",
+										"type": "string"
+									},
+									"defaultName": {
+										"description": "suggested default name when provisioning this resource",
+										"type": "string"
+									},
+									"queueType": {
+										"description": "queue type — required when type is \"queue\"",
+										"type": "string",
+										"enum": ["worker", "pubsub"]
+									}
+								},
+								"required": ["type", "envVar"],
+								"additionalProperties": false
+							}
+						},
+						"env": {
+							"description": "environment variables the project needs",
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"key": {
+										"type": "string",
+										"description": "the environment variable name"
+									},
+									"required": {
+										"type": "boolean",
+										"description": "whether this env var is required"
+									},
+									"description": {
+										"description": "human-readable description",
+										"type": "string"
+									},
+									"secret": {
+										"description": "whether this env var is a secret",
+										"type": "boolean"
+									},
+									"defaultValue": {
+										"description": "default or example value",
+										"type": "string"
+									}
+								},
+								"required": ["key", "required"],
+								"additionalProperties": false
+							}
+						}
+					},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		},
+		"$schema": {
+			"type": "string"
+		}
+	},
+	"required": ["projectId", "orgId", "region"],
+	"additionalProperties": false
+}

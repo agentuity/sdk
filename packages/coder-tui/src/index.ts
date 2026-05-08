@@ -5,7 +5,7 @@ import {
 	ExtensionContext,
 	ExtensionCommandContext,
 	ToolDefinition,
-} from '@mariozechner/pi-coding-agent';
+} from '@earendil-works/pi-coding-agent';
 import { Type, type TSchema } from '@sinclair/typebox';
 import { createRequire } from 'node:module';
 import { HubClient } from './client.ts';
@@ -1679,7 +1679,7 @@ let _piSdkCache: { piSdk: unknown; piAi: unknown } | null = null;
 
 /**
  * Load Pi SDK packages at runtime.
- * The extension runs inside Pi's process, but @mariozechner/pi-ai isn't in
+ * The extension runs inside Pi's process, but @earendil-works/pi-ai isn't in
  * our node_modules — resolve it from Pi's install directory via process.argv[1].
  */
 async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
@@ -1687,8 +1687,8 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 
 	// Try direct import first (works if packages are in module resolution path)
 	try {
-		const piSdk = await import('@mariozechner/pi-coding-agent');
-		const piAi = await import('@mariozechner/pi-ai');
+		const piSdk = await import('@earendil-works/pi-coding-agent');
+		const piAi = await import('@earendil-works/pi-ai');
 		_piSdkCache = { piSdk, piAi };
 		return _piSdkCache;
 	} catch {
@@ -1704,7 +1704,7 @@ async function loadPiSdk(): Promise<{ piSdk: unknown; piAi: unknown }> {
 	const piPkgDir = dirname(dirname(piRealPath));
 	const piSdkEntry = pathToFileURL(join(piPkgDir, 'dist', 'index.js')).href;
 	const piAiEntry = pathToFileURL(
-		join(piPkgDir, 'node_modules', '@mariozechner', 'pi-ai', 'dist', 'index.js')
+		join(piPkgDir, 'node_modules', '@earendil-works', 'pi-ai', 'dist', 'index.js')
 	).href;
 
 	const piSdk = await import(piSdkEntry);
