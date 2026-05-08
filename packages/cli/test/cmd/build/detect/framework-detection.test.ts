@@ -262,6 +262,7 @@ describe('Framework Detection', () => {
 			const result = await detectFramework(testDir);
 			expect(result).not.toBeNull();
 			expect(result!.confidence).toBe('low');
+			expect(result!.buildCommand).toBe('build');
 		});
 
 		test('detects static project with build but no start', async () => {

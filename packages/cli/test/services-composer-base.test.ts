@@ -102,9 +102,9 @@ const checks: FrameworkCheck[] = [
 		files: [
 			{ path: 'src/translate.ts', mustContain: ['export async function translate'] },
 			{
-				path: 'src/landing.html',
-				mustStartWith: '<!DOCTYPE html>',
-				mustContain: ['Translation will appear here', '<script>'],
+				path: 'src/landing.tsx',
+				mustStartWith: 'const clientScript',
+				mustContain: ['Translation will appear here', '<script'],
 			},
 		],
 	},

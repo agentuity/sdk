@@ -26,8 +26,11 @@ export const genericDetector: FrameworkDetector = {
 
 		const pm = await detectPackageManager(projectDir);
 
-		// Determine build command
-		const buildCommand = pkg.scripts?.build ?? null;
+		// For the fallback detector, run the package.json script by name
+		// instead of re-interpreting its contents. A script like
+		// `"build": "tsc"` must execute as `npm run build`, not
+		// `npm run tsc`.
+		const buildCommand = pkg.scripts?.build ? 'build' : null;
 		if (!buildCommand) {
 			// No build script — might be a runtime-only project
 			// We'll still try if there's a start command

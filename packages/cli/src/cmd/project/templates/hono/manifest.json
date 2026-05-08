@@ -20,15 +20,14 @@
 			}
 		},
 		"page": {
-			"path": "src/landing.html",
+			"path": "src/landing.tsx",
 			"markers": {
-				"imports":             { "syntax": "//" },
 				"state":               { "syntax": "//" },
 				"on-mount":            { "syntax": "//" },
 				"on-result":           { "syntax": "//" },
-				"inside-form-buttons": { "syntax": "<!-- -->" },
-				"after-result":        { "syntax": "<!-- -->" },
-				"after-form":          { "syntax": "<!-- -->" }
+				"inside-form-buttons": { "syntax": "{/* */}" },
+				"after-result":        { "syntax": "{/* */}" },
+				"after-form":          { "syntax": "{/* */}" }
 			}
 		}
 	}

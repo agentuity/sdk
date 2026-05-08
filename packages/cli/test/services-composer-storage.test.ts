@@ -61,7 +61,7 @@ const storageChecks: StorageCheck[] = [
 		framework: 'hono',
 		storageClient: 'src/storage/index.ts',
 		serverFile: 'src/index.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 	},
 ];
 

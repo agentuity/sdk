@@ -253,6 +253,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		dependencies: ['ai', '@ai-sdk/openai'],
 		scripts: {
 			deploy: 'agentuity deploy',
+			start: 'node dist/src/index.js',
 		},
 		overlayDir: 'hono',
 	},

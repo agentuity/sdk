@@ -91,7 +91,7 @@ const dbChecks: DbCheck[] = [
 		framework: 'hono',
 		wholeFiles: ['src/db/schema.ts', 'src/db/index.ts', 'drizzle.config.ts'],
 		translateFile: 'src/translate.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 	},
 ];
 

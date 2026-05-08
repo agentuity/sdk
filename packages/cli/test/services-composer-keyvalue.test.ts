@@ -61,7 +61,7 @@ const kvChecks: KvCheck[] = [
 	{
 		framework: 'hono',
 		serverFile: 'src/index.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 	},
 ];
 

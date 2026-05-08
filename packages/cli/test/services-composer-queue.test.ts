@@ -48,7 +48,7 @@ const queueChecks: QueueCheck[] = [
 		jobsFile: 'src/pages/api/jobs.ts',
 		pageFile: 'src/pages/index.astro',
 	},
-	{ framework: 'hono', serverFile: 'src/index.ts', pageFile: 'src/landing.html' },
+	{ framework: 'hono', serverFile: 'src/index.ts', pageFile: 'src/landing.tsx' },
 ];
 
 describe('framework + queue composition', () => {

@@ -56,7 +56,7 @@ const vecChecks: VecCheck[] = [
 	{
 		framework: 'hono',
 		serverFile: 'src/index.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 		translateFile: 'src/translate.ts',
 	},
 ];
