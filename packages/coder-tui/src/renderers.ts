@@ -10,8 +10,8 @@ import type {
 	Theme,
 	ToolRenderResultOptions,
 	AgentToolResult,
-} from '@mariozechner/pi-coding-agent';
-import { Box, Text, Container, type Component } from '@mariozechner/pi-tui';
+} from '@earendil-works/pi-coding-agent';
+import { Box, Text, Container, type Component } from '@earendil-works/pi-tui';
 import { formatToolDisplay } from './agentuity-cli.ts';
 
 // ──────────────────────────────────────────────

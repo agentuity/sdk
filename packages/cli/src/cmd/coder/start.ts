@@ -30,7 +30,7 @@ async function resolvePiBinary(flagPath?: string, extensionDir?: string): Promis
 	if (extensionDir) {
 		// Prefer require.resolve via package.json — handles hoisted deps, Bun's .bun cache, etc.
 		try {
-			const pkgJson = require.resolve('@mariozechner/pi-coding-agent/package.json', {
+			const pkgJson = require.resolve('@earendil-works/pi-coding-agent/package.json', {
 				paths: [extensionDir],
 			});
 			const piCli = resolve(dirname(pkgJson), 'dist', 'cli.js');

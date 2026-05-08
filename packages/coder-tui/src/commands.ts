@@ -9,7 +9,7 @@
  * handler sends a user message with a routing prefix that the lead agent
  * recognizes and delegates accordingly.
  */
-import type { ExtensionAPI, ExtensionCommandContext } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import type { AgentDefinition } from './protocol.ts';
 import { handleReview } from './review.ts';
 
