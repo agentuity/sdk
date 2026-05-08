@@ -9,6 +9,8 @@
  * 2. Fall back to generic detection (package.json scripts)
  */
 
+import { join } from 'node:path';
+import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
 import { readPackageJson, detectPackageManager } from './util.ts';
 import { frameworkDefinitions } from './frameworks.ts';
@@ -52,9 +54,38 @@ async function frameworkDefToDetected(
 	// generic adapter skip injecting its static-file fallback.
 	const resolvedStartCommand = pkg.scripts?.start;
 
+	// Pick the runtime based on, in order:
+	//  1. The actual `start` script: `bun ...` / `bun run ...` =
+	//     bun. Anything else (`next start`, `node ...`, etc.) = node.
+	//     This is the most reliable signal — it's literally what the
+	//     user wrote.
+	//  2. `engines.bun` in package.json (declarative preference).
+	//  3. A `bun.lock` / `bun.lockb` lockfile in the project root.
+	//     We don't fall back to the package-manager DEFAULT here:
+	//     `detectPackageManager` returns `'bun'` when no lockfile is
+	//     present, which would mis-classify a freshly-scaffolded
+	//     Next.js project as bun. We only count the lockfile as a
+	//     bun signal when it actually exists.
+	//  4. Default to node.
+	//
+	// The runtime name flows into `launch.json.runtime.name`, which
+	// pilot uses for memory tuning (BUN_JSC_forceRAMSize vs
+	// NODE_OPTIONS=--max-old-space-size).
+	const hasBunLockfile =
+		(await pathExists(join(projectDir, 'bun.lockb'))) ||
+		(await pathExists(join(projectDir, 'bun.lock')));
+	const runtime: 'bun' | 'node' = (() => {
+		if (resolvedStartCommand && /^\s*bun(\s+run)?\s+/.test(resolvedStartCommand)) {
+			return 'bun';
+		}
+		if (pkg.engines?.bun) return 'bun';
+		if (hasBunLockfile) return 'bun';
+		return 'node';
+	})();
+
 	return {
 		name: slug,
-		runtime: 'node',
+		runtime,
 		packageManager: pm,
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
