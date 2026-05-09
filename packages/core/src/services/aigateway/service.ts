@@ -83,9 +83,24 @@ export const AIGatewayChatMessageSchema = z.object({
 
 export type AIGatewayChatMessage = z.infer<typeof AIGatewayChatMessageSchema>;
 
-const missingCompletionInputMessage = 'either prompt or messages must be provided';
+export type AIGatewayReasoning = 'off' | 'low' | 'medium' | 'high' | '1024' | '4096' | '8192';
 
-function hasCompletionInput(params: { prompt?: string | string[]; messages?: unknown[] }): boolean {
+export interface AIGatewayCompletionAdapterRequest {
+	api?: string;
+	maxTokens?: number;
+	messages: AIGatewayChatMessage[];
+	model: string;
+	reasoning?: AIGatewayReasoning;
+	systemPrompt?: string;
+}
+
+const missingCompletionInputMessage = 'input, prompt, or messages must be provided';
+
+function hasCompletionInput(params: {
+	input?: unknown;
+	prompt?: string | string[];
+	messages?: unknown[];
+}): boolean {
 	if (params.messages && params.messages.length > 0) {
 		return true;
 	}
@@ -95,12 +110,25 @@ function hasCompletionInput(params: { prompt?: string | string[]; messages?: unk
 	if (Array.isArray(params.prompt)) {
 		return params.prompt.length > 0 && params.prompt.every((item) => item.trim().length > 0);
 	}
+	if (typeof params.input === 'string') {
+		return params.input.trim().length > 0;
+	}
+	if (Array.isArray(params.input)) {
+		return params.input.length > 0;
+	}
+	if (params.input && typeof params.input === 'object') {
+		return true;
+	}
 	return false;
 }
 
 export const AIGatewayChatCompletionParamsSchema = z
 	.object({
 		model: z.string().describe('Model to use for the completion.'),
+		input: z
+			.unknown()
+			.optional()
+			.describe('Responses-compatible input payload for models using the Responses API.'),
 		messages: z.array(AIGatewayChatMessageSchema).optional().describe('Messages to complete.'),
 		prompt: z
 			.union([z.string(), z.array(z.string())])
@@ -118,12 +146,131 @@ export const AIGatewayChatCompletionParamsSchema = z
 			ctx.addIssue({
 				code: 'custom',
 				message: missingCompletionInputMessage,
-				path: ['messages'],
+				path: [],
 			});
 		}
 	});
 
 export type AIGatewayChatCompletionParams = z.infer<typeof AIGatewayChatCompletionParamsSchema>;
+
+function withSystemMessage(
+	messages: AIGatewayChatMessage[],
+	systemPrompt?: string
+): AIGatewayChatMessage[] {
+	if (!systemPrompt) return messages;
+
+	return [{ role: 'system', content: systemPrompt }, ...messages];
+}
+
+function toResponsesInput(messages: AIGatewayChatMessage[], systemPrompt?: string) {
+	return withSystemMessage(messages, systemPrompt).map((message) => ({
+		...message,
+		role: message.role === 'system' ? 'developer' : message.role,
+	}));
+}
+
+function getMaxTokensParam(model: string, maxTokens?: number): Record<string, number> {
+	if (!maxTokens) return {};
+
+	if (/^openai\/gpt-5(?:[.-]|$)/.test(model)) {
+		return { max_completion_tokens: maxTokens };
+	}
+
+	return { max_tokens: maxTokens };
+}
+
+function getMaxOutputTokensParam(maxTokens?: number): Record<string, number> {
+	return maxTokens ? { max_output_tokens: maxTokens } : {};
+}
+
+function getOpenAIReasoningEffort(
+	reasoning?: AIGatewayReasoning
+): 'high' | 'low' | 'medium' | undefined {
+	if (reasoning === 'low' || reasoning === 'medium' || reasoning === 'high') {
+		return reasoning;
+	}
+
+	return undefined;
+}
+
+function getReasoningBudget(reasoning?: AIGatewayReasoning): number | undefined {
+	const reasoningBudget = Number(reasoning);
+
+	return Number.isFinite(reasoningBudget) && reasoningBudget > 0 ? reasoningBudget : undefined;
+}
+
+function isDeepSeekModel(model: string): boolean {
+	return model === 'deepseek' || model.startsWith('deepseek/');
+}
+
+function getDeepSeekThinkingParams(
+	model: string,
+	reasoning: AIGatewayReasoning
+): Record<string, unknown> {
+	if (!isDeepSeekModel(model)) return {};
+
+	const reasoningEffort = getOpenAIReasoningEffort(reasoning);
+	if (!reasoningEffort) {
+		return { thinking: { type: 'disabled' } };
+	}
+
+	return {
+		reasoning_effort: reasoningEffort,
+		thinking: { type: 'enabled' },
+	};
+}
+
+export function buildAIGatewayCompletionParams({
+	api,
+	maxTokens,
+	messages,
+	model,
+	reasoning = 'off',
+	systemPrompt,
+}: AIGatewayCompletionAdapterRequest): AIGatewayChatCompletionParams {
+	const reasoningEffort = getOpenAIReasoningEffort(reasoning);
+	const reasoningBudget = getReasoningBudget(reasoning);
+
+	switch (api) {
+		case 'openai-responses':
+		case 'openai-codex-responses':
+			return {
+				model,
+				input: toResponsesInput(messages, systemPrompt),
+				...(reasoningEffort
+					? { reasoning: { effort: reasoningEffort, summary: 'detailed' } }
+					: {}),
+				...getMaxOutputTokensParam(maxTokens),
+			};
+		case 'anthropic-messages':
+			return {
+				model,
+				messages,
+				...(systemPrompt ? { system: systemPrompt } : {}),
+				...(reasoningBudget
+					? { thinking: { budget_tokens: reasoningBudget, type: 'enabled' } }
+					: {}),
+				...getMaxTokensParam(model, maxTokens),
+			};
+		case 'google-generative-ai':
+			return {
+				model,
+				messages,
+				...(systemPrompt ? { system_instruction: systemPrompt } : {}),
+				...(reasoningBudget
+					? { generationConfig: { thinkingConfig: { thinkingBudget: reasoningBudget } } }
+					: {}),
+				...getMaxTokensParam(model, maxTokens),
+			};
+		default:
+			return {
+				model,
+				messages: withSystemMessage(messages, systemPrompt),
+				...getDeepSeekThinkingParams(model, reasoning),
+				...getMaxTokensParam(model, maxTokens),
+			};
+	}
+}
 
 export const AIGatewayChatCompletionStreamParamsSchema =
 	AIGatewayChatCompletionParamsSchema.safeExtend({
@@ -159,6 +306,12 @@ export const AIGatewayChatCompletionSchema = z
 							.number()
 							.optional()
 							.describe('Completion token count used for gateway billing.'),
+						reasoningTokens: z
+							.number()
+							.optional()
+							.describe(
+								'Reasoning token count reported by the model provider when available.'
+							),
 					})
 					.optional()
 					.describe('Parsed AI Gateway cost information when available.'),
@@ -177,6 +330,7 @@ export const AIGatewayResponseMetadataSchema = z.object({
 			total: z.number().optional(),
 			promptTokens: z.number().optional(),
 			completionTokens: z.number().optional(),
+			reasoningTokens: z.number().optional(),
 		})
 		.optional(),
 });
@@ -196,6 +350,33 @@ function parseNumber(value: string | undefined): number | undefined {
 	return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function positiveNumber(value: unknown): number | undefined {
+	return typeof value === 'number' && value > 0 ? value : undefined;
+}
+
+function getNestedNumber(value: unknown, path: string[]): number | undefined {
+	let current = value;
+	for (const key of path) {
+		if (!current || typeof current !== 'object') {
+			return undefined;
+		}
+		current = (current as Record<string, unknown>)[key];
+	}
+
+	return typeof current === 'number' ? current : undefined;
+}
+
+function getReasoningTokensFromPayload(payload: unknown): number | undefined {
+	return (
+		positiveNumber(
+			getNestedNumber(payload, ['usage', 'output_tokens_details', 'reasoning_tokens'])
+		) ??
+		positiveNumber(
+			getNestedNumber(payload, ['usage', 'completion_tokens_details', 'reasoning_tokens'])
+		)
+	);
+}
+
 function extractGatewayMetadataFromHeaders(headers: Headers): AIGatewayResponseMetadata {
 	const captured: Record<string, string> = {};
 	for (const [key, value] of headers.entries()) {
@@ -212,9 +393,17 @@ function extractGatewayMetadataFromHeaders(headers: Headers): AIGatewayResponseM
 	const total = parseNumber(captured['x-gateway-cost']);
 	const promptTokens = parseNumber(captured['x-gateway-prompt-tokens']);
 	const completionTokens = parseNumber(captured['x-gateway-completion-tokens']);
+	const reasoningTokens =
+		positiveNumber(parseNumber(captured['x-gateway-reasoning-tokens'])) ??
+		positiveNumber(parseNumber(captured['x-gateway-reasoning-token-count'])) ??
+		positiveNumber(parseNumber(captured['x-agentuity-reasoning-tokens'])) ??
+		positiveNumber(parseNumber(captured['x-agentuity-reasoning-token-count']));
 	const cost =
-		total !== undefined || promptTokens !== undefined || completionTokens !== undefined
-			? { total, promptTokens, completionTokens }
+		total !== undefined ||
+		promptTokens !== undefined ||
+		completionTokens !== undefined ||
+		reasoningTokens !== undefined
+			? { total, promptTokens, completionTokens, reasoningTokens }
 			: undefined;
 
 	return {
@@ -244,11 +433,171 @@ async function extractGatewayMetadata(response: Response): Promise<AIGatewayResp
 	return metadata;
 }
 
+function mergeGatewayMetadata(
+	first: AIGatewayResponseMetadata,
+	second: AIGatewayResponseMetadata
+): AIGatewayResponseMetadata {
+	const headers =
+		first.headers || second.headers
+			? { ...(first.headers ?? {}), ...(second.headers ?? {}) }
+			: undefined;
+	const cost =
+		first.cost || second.cost ? { ...(first.cost ?? {}), ...(second.cost ?? {}) } : undefined;
+
+	return {
+		...(headers ? { headers } : {}),
+		...(cost ? { cost } : {}),
+	};
+}
+
+function extractCostFromPayload(payload: unknown): AIGatewayResponseMetadata {
+	if (!payload || typeof payload !== 'object') return {};
+
+	const response =
+		(payload as { response?: unknown }).response &&
+		(payload as { type?: unknown }).type === 'response.completed'
+			? (payload as { response?: unknown }).response
+			: payload;
+	if (!response || typeof response !== 'object') return {};
+
+	const agentuity = (response as { agentuity?: unknown }).agentuity;
+	if (agentuity && typeof agentuity === 'object') {
+		const headers = (agentuity as { headers?: unknown }).headers;
+		const cost = (agentuity as { cost?: unknown }).cost;
+		const reasoningTokens = getReasoningTokensFromPayload(response);
+		const normalizedCost =
+			cost && typeof cost === 'object'
+				? {
+						...(cost as AIGatewayResponseMetadata['cost']),
+						...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
+					}
+				: reasoningTokens !== undefined
+					? { reasoningTokens }
+					: undefined;
+
+		return {
+			...(headers && typeof headers === 'object'
+				? { headers: headers as Record<string, string> }
+				: {}),
+			...(normalizedCost ? { cost: normalizedCost } : {}),
+		};
+	}
+
+	const reasoningTokens = getReasoningTokensFromPayload(response);
+
+	return reasoningTokens !== undefined ? { cost: { reasoningTokens } } : {};
+}
+
+function streamWithGatewayMetadata(stream: ReadableStream<Uint8Array>): {
+	metadata: Promise<AIGatewayResponseMetadata>;
+	stream: ReadableStream<Uint8Array>;
+} {
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	let buffer = '';
+	let readerReleased = false;
+	let metadata: AIGatewayResponseMetadata = {};
+	let resolveMetadata!: (metadata: AIGatewayResponseMetadata) => void;
+	let rejectMetadata!: (error: unknown) => void;
+	const metadataPromise = new Promise<AIGatewayResponseMetadata>((resolve, reject) => {
+		resolveMetadata = resolve;
+		rejectMetadata = reject;
+	});
+
+	const consumeData = (data: string) => {
+		if (!data || data === '[DONE]') return;
+
+		try {
+			const next = extractCostFromPayload(JSON.parse(data));
+			metadata = mergeGatewayMetadata(metadata, next);
+		} catch {
+			// Ignore malformed SSE frames while continuing to drain the stream.
+		}
+	};
+	const normalizeSseText = (value: string) => {
+		try {
+			const parsed = JSON.parse(value);
+
+			return typeof parsed === 'string' ? parsed : value;
+		} catch {
+			return value;
+		}
+	};
+	const releaseReader = () => {
+		if (readerReleased) return;
+
+		readerReleased = true;
+		reader.releaseLock();
+	};
+
+	const readable = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			if (typeof controller.desiredSize === 'number' && controller.desiredSize <= 0) {
+				return;
+			}
+
+			let shouldReleaseReader = false;
+			try {
+				while (typeof controller.desiredSize !== 'number' || controller.desiredSize > 0) {
+					const { done, value } = await reader.read();
+					if (done) {
+						buffer += decoder.decode();
+						for (const line of normalizeSseText(buffer).split(/\r?\n/)) {
+							if (line.startsWith('data:')) {
+								consumeData(line.slice(5).trimStart());
+							}
+						}
+						resolveMetadata(metadata);
+						controller.close();
+						shouldReleaseReader = true;
+						return;
+					}
+
+					controller.enqueue(value);
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split(/\r?\n/);
+					buffer = lines.pop() ?? '';
+
+					for (const line of lines) {
+						if (line.startsWith('data:')) {
+							consumeData(line.slice(5).trimStart());
+						}
+					}
+				}
+			} catch (error) {
+				rejectMetadata(error);
+				controller.error(error);
+				shouldReleaseReader = true;
+			} finally {
+				if (shouldReleaseReader) {
+					releaseReader();
+				}
+			}
+		},
+		cancel(reason) {
+			rejectMetadata(reason);
+			return reader.cancel(reason).finally(releaseReader);
+		},
+	});
+
+	return { stream: readable, metadata: metadataPromise };
+}
+
 function attachGatewayMetadata<T extends Record<string, unknown>>(
 	payload: T,
 	metadata: AIGatewayResponseMetadata
 ): T {
-	if (!metadata.headers && !metadata.cost) {
+	const reasoningTokens =
+		positiveNumber(metadata.cost?.reasoningTokens) ?? getReasoningTokensFromPayload(payload);
+	const cost =
+		metadata.cost || reasoningTokens !== undefined
+			? {
+					...(metadata.cost ?? {}),
+					...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
+				}
+			: undefined;
+
+	if (!metadata.headers && !cost) {
 		return payload;
 	}
 	return {
@@ -257,7 +606,8 @@ function attachGatewayMetadata<T extends Record<string, unknown>>(
 			...(typeof payload.agentuity === 'object' && payload.agentuity !== null
 				? payload.agentuity
 				: {}),
-			...metadata,
+			...(metadata.headers ? { headers: metadata.headers } : {}),
+			...(cost ? { cost } : {}),
 		},
 	};
 }
@@ -347,9 +697,13 @@ export class AIGatewayService {
 				new Response('Streaming response did not include a body', { status: 502 })
 			);
 		}
+		const streamed = streamWithGatewayMetadata(response.response.body);
 		return {
-			stream: response.response.body,
-			metadata: extractGatewayMetadata(response.response),
+			stream: streamed.stream,
+			metadata: Promise.all([extractGatewayMetadata(response.response), streamed.metadata]).then(
+				([responseMetadata, streamMetadata]) =>
+					mergeGatewayMetadata(responseMetadata, streamMetadata)
+			),
 		};
 	}
 }
