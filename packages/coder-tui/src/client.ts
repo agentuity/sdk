@@ -25,6 +25,32 @@ function log(message: string): void {
 	if (DEBUG) console.error(`[agentuity-coder] ${message}`);
 }
 
+/**
+ * Return `url` with `sessionId=<sessionId>` set as a query param.
+ *
+ * Used to update the cached reconnect URL once the Hub assigns a sessionId
+ * via the init message. Without this, a local-lead TUI reconnects with the
+ * original URL (no sessionId), and the Hub treats each reconnect as a brand
+ * new lead — spawning a fresh session every time the WebSocket drops.
+ *
+ * @internal exported for tests
+ */
+export function applySessionIdToConnectUrl(url: string, sessionId: string): string {
+	if (!sessionId) return url;
+	try {
+		const u = new URL(url);
+		if (u.searchParams.get('sessionId') === sessionId) return url;
+		u.searchParams.set('sessionId', sessionId);
+		return u.toString();
+	} catch {
+		// Fall back to manual append if URL parsing fails (e.g. relative URL).
+		// Avoid stacking duplicate sessionId params on subsequent calls.
+		if (/[?&]sessionId=/.test(url)) return url;
+		const separator = url.includes('?') ? '&' : '?';
+		return `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
+	}
+}
+
 export type ConnectionState = 'connected' | 'disconnected' | 'reconnecting' | 'closed';
 
 type FireAndForgetMessage = HubClientMessage | Record<string, unknown>;
@@ -406,6 +432,23 @@ export class HubClient {
 		this.clearReconnectTimer();
 
 		return this.connectInternal(connectUrl, false);
+	}
+
+	/**
+	 * Update the cached reconnect URL so future reconnect attempts include
+	 * `sessionId=<sessionId>`.
+	 *
+	 * Call this once the Hub assigns a sessionId via the init message. Without
+	 * it, a local-lead TUI that connected with `?origin=tui` (no sessionId)
+	 * will reconnect with the same URL, and the Hub treats every reconnect as
+	 * a brand new lead — creating a fresh session on each WebSocket drop.
+	 *
+	 * No-op if no sessionId is provided, the client has not connected yet, or
+	 * the URL already targets the same sessionId.
+	 */
+	setReconnectSessionId(sessionId: string): void {
+		if (!this.lastConnectUrl || !sessionId) return;
+		this.lastConnectUrl = applySessionIdToConnectUrl(this.lastConnectUrl, sessionId);
 	}
 
 	private waitForConnection(timeoutMs: number): Promise<void> {

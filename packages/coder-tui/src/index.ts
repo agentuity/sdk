@@ -486,7 +486,15 @@ export function agentuityCoderHub(pi: ExtensionAPI) {
 	function applyInitMessage(nextInit: InitMessage): void {
 		const effectiveInit = adaptInitMessageForLocalTui(nextInit, { isRemoteSession });
 		cachedInitMessage = effectiveInit;
-		if (effectiveInit.sessionId) currentSessionId = effectiveInit.sessionId;
+		if (effectiveInit.sessionId) {
+			currentSessionId = effectiveInit.sessionId;
+			// Make sure the next reconnect resumes this session instead of
+			// creating a fresh one on the Hub. Local-lead TUI connects with
+			// `?origin=tui` (no sessionId), so without this the cached
+			// reconnect URL would never include the assigned sessionId and
+			// every WS drop would spawn a brand new Hub session.
+			client.setReconnectSessionId(effectiveInit.sessionId);
+		}
 		if (effectiveInit.config) hubConfig = effectiveInit.config;
 	}
 
