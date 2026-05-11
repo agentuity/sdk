@@ -110,8 +110,14 @@ export const modelsSubcommand = createCommand({
 				.optional()
 				.describe('show one model by id or display name with --provider'),
 			reasoning: z.boolean().optional().describe('only show reasoning models'),
-			input: z.string().optional().describe('filter by input modality, such as text or image'),
-			output: z.string().optional().describe('filter by output modality, such as text or image'),
+			inputModality: z
+				.string()
+				.optional()
+				.describe('filter by input modality, such as text or image'),
+			outputModality: z
+				.string()
+				.optional()
+				.describe('filter by output modality, such as text or image'),
 			ids: z.boolean().optional().describe('only print model ids'),
 			simple: z.boolean().optional().describe('print a compact model list'),
 			recommended: z.boolean().optional().describe('show recommended models for common uses'),
@@ -139,9 +145,15 @@ export const modelsSubcommand = createCommand({
 				.filter((model) => matchesModelFilter(provider, model.id, ctx.opts.model))
 				.filter((model) => matchesNameFilter(model.id, model.name, ctx.opts.name))
 				.filter((model) => !ctx.opts.reasoning || model.reasoning)
-				.filter((model) => !ctx.opts.input || model.input_modalities?.includes(ctx.opts.input))
 				.filter(
-					(model) => !ctx.opts.output || model.output_modalities?.includes(ctx.opts.output)
+					(model) =>
+						!ctx.opts.inputModality ||
+						model.input_modalities?.includes(ctx.opts.inputModality)
+				)
+				.filter(
+					(model) =>
+						!ctx.opts.outputModality ||
+						model.output_modalities?.includes(ctx.opts.outputModality)
 				)
 				.map((model) => ({
 					provider,
