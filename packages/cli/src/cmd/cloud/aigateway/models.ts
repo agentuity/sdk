@@ -63,7 +63,14 @@ function getRecommendations(rows: z.infer<typeof ModelRowSchema>[]) {
 	return Array.from(recommendations.entries())
 		.sort(([a], [b]) => a.localeCompare(b))
 		.map(([use, model]) => {
-			return { use, model: model.id, name: model.name, rank: model.rank };
+			return {
+				use,
+				model: model.id.startsWith(`${model.provider}/`)
+					? model.id
+					: `${model.provider}/${model.id}`,
+				name: model.name,
+				rank: model.rank,
+			};
 		});
 }
 
@@ -131,6 +138,8 @@ export const modelsSubcommand = createCommand({
 				.string()
 				.optional()
 				.describe('filter by output modality, such as text or image'),
+			input: z.string().optional().describe('deprecated alias for --input-modality'),
+			output: z.string().optional().describe('deprecated alias for --output-modality'),
 			ids: z.boolean().optional().describe('only print model ids'),
 			simple: z.boolean().optional().describe('print a compact model list'),
 			recommended: z.boolean().optional().describe('show recommended models for common uses'),
@@ -152,22 +161,16 @@ export const modelsSubcommand = createCommand({
 		if (!cached) {
 			await setCachedAIGatewayModels(profile, cacheKey, catalog);
 		}
+		const inputModality = ctx.opts.inputModality ?? ctx.opts.input;
+		const outputModality = ctx.opts.outputModality ?? ctx.opts.output;
 		const rows = Object.entries(catalog).flatMap(([provider, models]) =>
 			models
 				.filter((model) => matchesProviderFilter(provider, model.id, ctx.opts.provider))
 				.filter((model) => matchesModelFilter(provider, model.id, ctx.opts.model))
 				.filter((model) => matchesNameFilter(model.id, model.name, ctx.opts.name))
 				.filter((model) => !ctx.opts.reasoning || model.reasoning)
-				.filter(
-					(model) =>
-						!ctx.opts.inputModality ||
-						model.input_modalities?.includes(ctx.opts.inputModality)
-				)
-				.filter(
-					(model) =>
-						!ctx.opts.outputModality ||
-						model.output_modalities?.includes(ctx.opts.outputModality)
-				)
+				.filter((model) => !inputModality || model.input_modalities?.includes(inputModality))
+				.filter((model) => !outputModality || model.output_modalities?.includes(outputModality))
 				.map((model) => ({
 					provider,
 					id: model.id,

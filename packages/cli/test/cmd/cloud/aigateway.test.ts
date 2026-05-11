@@ -46,6 +46,11 @@ describe('cloud aigateway command', () => {
 		expect(aigatewayCommand.subcommands?.map((cmd) => cmd.name)).toEqual([
 			'models',
 			'complete',
+			'embeddings',
+			'image',
+			'speech',
+			'transcription',
+			'video',
 			'request',
 		]);
 		expect(aigatewayCommand.requires?.auth).toBeUndefined();
@@ -249,6 +254,38 @@ describe('cloud aigateway command', () => {
 		expect(result.models[0]?.id).toBe('anthropic/claude-sonnet-4-5-20250929');
 	});
 
+	test('models handler returns fully-qualified recommendations', async () => {
+		server = Bun.serve({
+			port: 0,
+			fetch() {
+				return Response.json({
+					success: true,
+					data: {
+						openai: [
+							{
+								id: 'gpt-4.1-mini',
+								name: 'GPT 4.1 Mini',
+								recommended: true,
+								default_for: ['text'],
+								rank: 1,
+							},
+						],
+					},
+				});
+			},
+		});
+
+		const result = await modelsSubcommand.handler({
+			...baseCtx(`http://127.0.0.1:${server.port}`),
+			opts: { recommended: true },
+			args: {},
+		} as never);
+
+		expect(result.recommendations).toEqual([
+			{ use: 'text', model: 'openai/gpt-4.1-mini', name: 'GPT 4.1 Mini', rank: 1 },
+		]);
+	});
+
 	test('models handler returns a single model by full model id', async () => {
 		server = Bun.serve({
 			port: 0,
@@ -312,6 +349,10 @@ describe('cloud aigateway command', () => {
 		const shape = modelsSubcommand.schema?.options?.def.shape;
 		expect(shape?.model).toBeDefined();
 		expect(shape?.name).toBeDefined();
+		expect(shape?.input).toBeDefined();
+		expect(shape?.output).toBeDefined();
+		expect(shape?.inputModality).toBeDefined();
+		expect(shape?.outputModality).toBeDefined();
 		expect(shape?.ids).toBeDefined();
 		expect(shape?.simple).toBeDefined();
 		expect(shape?.recommended).toBeDefined();

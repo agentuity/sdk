@@ -1,10 +1,18 @@
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { AIGatewayService } from '@agentuity/core';
+import { StructuredError, type AIGatewayService } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
+import { isJSONMode } from '../../../output';
+import * as tui from '../../../tui';
 import { createCommand } from '../../../types';
 import { createAIGatewayService } from './util';
+
+const AIGatewayModalityInputError = StructuredError('AIGatewayModalityInputError')<{
+	code: string;
+	context?: string;
+	value?: unknown;
+}>();
 
 const GenericResponseSchema = z.object({
 	model: z.string(),
@@ -38,16 +46,34 @@ async function resolveDefaultModel(
 		});
 	const selected = candidates[0];
 	if (!selected) {
-		throw new Error(`No default AI Gateway model found for ${use}. Pass --model explicitly.`);
+		throw new AIGatewayModalityInputError({
+			code: 'default_model_not_found',
+			context: use,
+			message: `No default AI Gateway model found for ${use}. Pass --model explicitly.`,
+		});
 	}
 	return selected.id;
 }
 
 function parseJsonObject(value: string | undefined): Record<string, unknown> | undefined {
 	if (!value) return undefined;
-	const parsed = JSON.parse(value);
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch (cause) {
+		throw new AIGatewayModalityInputError({
+			code: 'invalid_json',
+			value,
+			cause,
+			message: 'Expected valid JSON',
+		});
+	}
 	if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-		throw new Error('Expected a JSON object');
+		throw new AIGatewayModalityInputError({
+			code: 'invalid_json_object',
+			value,
+			message: 'Expected a JSON object',
+		});
 	}
 	return parsed as Record<string, unknown>;
 }
@@ -67,7 +93,10 @@ async function readTextInput(opts: {
 		const text = await Bun.stdin.text();
 		if (text.trim().length > 0) return text;
 	}
-	throw new Error('Input is required. Pass text, use --file, or pipe stdin.');
+	throw new AIGatewayModalityInputError({
+		code: 'input_required',
+		message: 'Input is required. Pass text, use --file, or pipe stdin.',
+	});
 }
 
 function firstImageBase64(payload: unknown): string | undefined {
@@ -107,8 +136,9 @@ async function saveBinary(path: string, data: unknown): Promise<number> {
 		await Bun.write(path, data);
 		return Buffer.byteLength(data);
 	}
-	await Bun.write(path, JSON.stringify(data, null, 2));
-	return Buffer.byteLength(JSON.stringify(data));
+	const json = JSON.stringify(data, null, 2);
+	await Bun.write(path, json);
+	return Buffer.byteLength(json);
 }
 
 export const embeddingsSubcommand = createCommand({
@@ -164,11 +194,11 @@ export const embeddingsSubcommand = createCommand({
 			data: response.data,
 			metadata: response.metadata,
 		};
-		if (!ctx.options.json) {
+		if (!isJSONMode(ctx.options)) {
 			if (ctx.opts.format === 'raw') {
-				console.log(JSON.stringify(response.data));
+				tui.json(JSON.stringify(response.data));
 			} else {
-				console.log(JSON.stringify(response.data, null, 2));
+				tui.json(response.data);
 			}
 		}
 		return result;
@@ -228,7 +258,11 @@ export const imageSubcommand = createCommand({
 		if (ctx.opts.save) {
 			const b64 = firstImageBase64(response.data);
 			if (!b64) {
-				throw new Error('Response did not include a base64 image to save.');
+				throw new AIGatewayModalityInputError({
+					code: 'base64_image_missing',
+					context: 'image.save',
+					message: 'Response did not include a base64 image to save.',
+				});
 			}
 			bytes = await saveBase64(ctx.opts.save, b64);
 		}
@@ -239,8 +273,8 @@ export const imageSubcommand = createCommand({
 			...(ctx.opts.save ? { saved: ctx.opts.save } : {}),
 			...(bytes !== undefined ? { bytes } : {}),
 		};
-		if (!ctx.options.json) {
-			console.log(JSON.stringify(result, null, 2));
+		if (!isJSONMode(ctx.options)) {
+			tui.json(result);
 		}
 		return result;
 	},
@@ -302,8 +336,8 @@ export const speechSubcommand = createCommand({
 			...(ctx.opts.save ? { saved: ctx.opts.save } : {}),
 			...(bytes !== undefined ? { bytes } : {}),
 		};
-		if (!ctx.options.json) {
-			console.log(JSON.stringify(result, null, 2));
+		if (!isJSONMode(ctx.options)) {
+			tui.json(result);
 		}
 		return result;
 	},
@@ -363,8 +397,8 @@ export const transcriptionSubcommand = createCommand({
 			data: response.data,
 			metadata: response.metadata,
 		};
-		if (!ctx.options.json) {
-			console.log(
+		if (!isJSONMode(ctx.options)) {
+			tui.json(
 				typeof response.data === 'string'
 					? response.data
 					: JSON.stringify(response.data, null, 2)
@@ -460,8 +494,8 @@ export const videoSubcommand = createCommand({
 			data,
 			metadata,
 		};
-		if (!ctx.options.json) {
-			console.log(JSON.stringify(result, null, 2));
+		if (!isJSONMode(ctx.options)) {
+			tui.json(result);
 		}
 		return result;
 	},
