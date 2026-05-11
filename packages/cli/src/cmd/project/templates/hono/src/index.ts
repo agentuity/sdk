@@ -10,7 +10,7 @@ const app = new Hono();
 
 // API route
 app.post('/api/translate', async (c) => {
-	const { text, toLanguage, model = 'gpt-4o-mini' } = await c.req.json();
+	const { text, toLanguage, model = 'openai/gpt-4o-mini' } = await c.req.json();
 	const result = await translate({ text, toLanguage, model });
 	return c.json(result);
 });

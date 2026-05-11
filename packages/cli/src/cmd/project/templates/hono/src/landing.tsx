@@ -142,9 +142,9 @@ export function LandingPage() {
 									id="model"
 									class="-mb-0.5 cursor-pointer appearance-none border-0 border-b border-dashed border-gray-700 bg-transparent font-normal text-white outline-none hover:border-b-cyan-400 focus:border-b-cyan-400"
 								>
-									<option value="gpt-4o-mini">gpt-4o-mini</option>
-									<option value="gpt-4o">gpt-4o</option>
-									<option value="gpt-4.1-nano">gpt-4.1-nano</option>
+									<option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
+									<option value="openai/gpt-4o">openai/gpt-4o</option>
+									<option value="openai/gpt-4.1-nano">openai/gpt-4.1-nano</option>
 								</select>
 								{/* @agentuity:inside-form-buttons */}
 								<div class="group relative z-0 ml-auto">
@@ -183,7 +183,7 @@ export function LandingPage() {
 							<h3 class="m-0 mb-6 text-xl font-normal leading-none text-white">How it works</h3>
 							<div class="flex flex-col gap-6">
 								<HowItWorksItem title="AI Gateway routing">
-									agentuity dev automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the Agentuity gateway.
+									@agentuity/aigateway uses your project's AGENTUITY_SDK_KEY and sends requests through the Agentuity AI Gateway.
 								</HowItWorksItem>
 								<HowItWorksItem title="API routes">
 									Edit src/index.ts to change the AI model, prompt, or add new routes.

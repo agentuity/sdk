@@ -132,7 +132,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'@/*',
 			`--use-${pm}`,
 		],
-		dependencies: ['ai', '@ai-sdk/openai', 'swr'],
+		dependencies: ['@agentuity/aigateway', 'swr'],
 		scripts: {
 			deploy: 'agentuity deploy',
 		},
@@ -159,7 +159,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--packageManager',
 			pm,
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['@agentuity/aigateway'],
 		scripts: {
 			deploy: 'agentuity deploy',
 			// Nitro's default `node-server` preset emits a self-listening
@@ -191,7 +191,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--install',
 			pm,
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['@agentuity/aigateway'],
 		// Swap sv's default `@sveltejs/adapter-auto` (which can't detect
 		// our runtime) for `@sveltejs/adapter-node`, which emits a
 		// self-listening Node server at `build/index.js`. The overlay
@@ -220,7 +220,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--typescript',
 			'strict',
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['@agentuity/aigateway'],
 		// Astro defaults to a static SPA build. We swap to SSR via
 		// `@astrojs/node` (standalone mode) so the deploy can host
 		// server-rendered pages and API routes. The overlay drops a
@@ -251,7 +251,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--pm',
 			pm,
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['@agentuity/aigateway'],
 		scripts: {
 			deploy: 'agentuity deploy',
 			start: 'node dist/src/index.js',

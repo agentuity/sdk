@@ -3,13 +3,13 @@
 import { enhance } from '$app/forms';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
 
 let text = $state(DEFAULT_TEXT);
 let toLanguage: (typeof LANGUAGES)[number] = $state('Spanish');
-let model: (typeof MODELS)[number] = $state('gpt-4o-mini');
+let model: (typeof MODELS)[number] = $state('openai/gpt-4o-mini');
 let isLoading = $state(false);
 
 let { form } = $props();
@@ -173,7 +173,7 @@ let { form } = $props();
 				{#each [
 					{
 						title: 'AI Gateway routing',
-						text: '`agentuity dev` automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the Agentuity gateway.',
+						text: '`@agentuity/aigateway` uses your project\'s AGENTUITY_SDK_KEY and sends requests through the Agentuity AI Gateway.',
 					},
 					{
 						title: 'Form actions',

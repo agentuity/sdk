@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // @agentuity:imports
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
 
 const text = ref(DEFAULT_TEXT);
 const toLanguage = ref<(typeof LANGUAGES)[number]>('Spanish');
-const model = ref<(typeof MODELS)[number]>('gpt-4o-mini');
+const model = ref<(typeof MODELS)[number]>('openai/gpt-4o-mini');
 
 const {
 	data: result,
@@ -161,7 +161,7 @@ const isLoading = computed(() => status.value === 'pending');
 					<div v-for="step in [
 						{
 							title: 'AI Gateway routing',
-							text: '`agentuity dev` automatically sets OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the Agentuity gateway.',
+							text: '`@agentuity/aigateway` uses your project\'s AGENTUITY_SDK_KEY and sends requests through the Agentuity AI Gateway.',
 						},
 						{
 							title: 'Server routes',
