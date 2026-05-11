@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import type { AIGatewayService } from '@agentuity/core';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix';
 import { createCommand } from '../../../types';
@@ -16,6 +17,30 @@ const GenericResponseSchema = z.object({
 
 async function ensureParent(path: string): Promise<void> {
 	await mkdir(dirname(path), { recursive: true });
+}
+
+async function resolveDefaultModel(
+	service: AIGatewayService,
+	use: string,
+	model?: string
+): Promise<string> {
+	if (model) {
+		return model;
+	}
+	const candidates = Object.values(await service.listModels())
+		.flat()
+		.filter((candidate) => {
+			return candidate.recommended && candidate.default_for?.includes(use);
+		})
+		.sort((a, b) => {
+			const byRank = (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER);
+			return byRank || a.id.localeCompare(b.id);
+		});
+	const selected = candidates[0];
+	if (!selected) {
+		throw new Error(`No default AI Gateway model found for ${use}. Pass --model explicitly.`);
+	}
+	return selected.id;
 }
 
 function parseJsonObject(value: string | undefined): Record<string, unknown> | undefined {
@@ -106,7 +131,10 @@ export const embeddingsSubcommand = createCommand({
 			input: z.string().optional().describe('text to embed'),
 		}),
 		options: z.object({
-			model: z.string().describe('embedding model id'),
+			model: z
+				.string()
+				.optional()
+				.describe('embedding model id; defaults to the recommended catalog model'),
 			file: z.string().optional().describe('read input text from a file'),
 			dimensions: z.number().optional().describe('embedding dimensions'),
 			extra: z
@@ -119,10 +147,11 @@ export const embeddingsSubcommand = createCommand({
 	},
 	async handler(ctx) {
 		const service = createAIGatewayService(ctx);
+		const model = await resolveDefaultModel(service, 'embedding', ctx.opts.model);
 		const input = await readTextInput({ input: ctx.args.input, file: ctx.opts.file });
 		const body = {
 			...parseJsonObject(ctx.opts.extra),
-			model: ctx.opts.model,
+			model,
 			input,
 			...(ctx.opts.dimensions ? { dimensions: ctx.opts.dimensions } : {}),
 		};
@@ -131,7 +160,7 @@ export const embeddingsSubcommand = createCommand({
 			body,
 		});
 		const result = {
-			model: ctx.opts.model,
+			model,
 			data: response.data,
 			metadata: response.metadata,
 		};
@@ -165,7 +194,10 @@ export const imageSubcommand = createCommand({
 			prompt: z.string().optional().describe('image prompt'),
 		}),
 		options: z.object({
-			model: z.string().describe('image model id'),
+			model: z
+				.string()
+				.optional()
+				.describe('image model id; defaults to the recommended catalog model'),
 			file: z.string().optional().describe('read prompt from a file'),
 			save: z.string().optional().describe('write first base64 image to this file'),
 			size: z.string().optional().describe('provider image size, such as 1024x1024'),
@@ -179,10 +211,11 @@ export const imageSubcommand = createCommand({
 	},
 	async handler(ctx) {
 		const service = createAIGatewayService(ctx);
+		const model = await resolveDefaultModel(service, 'image', ctx.opts.model);
 		const prompt = await readTextInput({ input: ctx.args.prompt, file: ctx.opts.file });
 		const body = {
 			...parseJsonObject(ctx.opts.extra),
-			model: ctx.opts.model,
+			model,
 			prompt,
 			...(ctx.opts.size ? { size: ctx.opts.size } : {}),
 			...(ctx.opts.quality ? { quality: ctx.opts.quality } : {}),
@@ -200,7 +233,7 @@ export const imageSubcommand = createCommand({
 			bytes = await saveBase64(ctx.opts.save, b64);
 		}
 		const result = {
-			model: ctx.opts.model,
+			model,
 			data: response.data,
 			metadata: response.metadata,
 			...(ctx.opts.save ? { saved: ctx.opts.save } : {}),
@@ -233,7 +266,10 @@ export const speechSubcommand = createCommand({
 			input: z.string().optional().describe('text to synthesize'),
 		}),
 		options: z.object({
-			model: z.string().describe('speech model id'),
+			model: z
+				.string()
+				.optional()
+				.describe('speech model id; defaults to the recommended catalog model'),
 			voice: z.string().default('alloy').describe('provider voice id'),
 			file: z.string().optional().describe('read input text from a file'),
 			save: z.string().optional().describe('write audio output to this file'),
@@ -247,12 +283,13 @@ export const speechSubcommand = createCommand({
 	},
 	async handler(ctx) {
 		const service = createAIGatewayService(ctx);
+		const model = await resolveDefaultModel(service, 'speech', ctx.opts.model);
 		const input = await readTextInput({ input: ctx.args.input, file: ctx.opts.file });
 		const response = await service.request({
 			path: '/v1/audio/speech',
 			body: {
 				...parseJsonObject(ctx.opts.extra),
-				model: ctx.opts.model,
+				model,
 				voice: ctx.opts.voice,
 				input,
 				...(ctx.opts.format ? { response_format: ctx.opts.format } : {}),
@@ -260,7 +297,7 @@ export const speechSubcommand = createCommand({
 		});
 		const bytes = ctx.opts.save ? await saveBinary(ctx.opts.save, response.data) : undefined;
 		const result = {
-			model: ctx.opts.model,
+			model,
 			metadata: response.metadata,
 			...(ctx.opts.save ? { saved: ctx.opts.save } : {}),
 			...(bytes !== undefined ? { bytes } : {}),
@@ -290,7 +327,10 @@ export const transcriptionSubcommand = createCommand({
 	schema: {
 		args: z.object({}),
 		options: z.object({
-			model: z.string().describe('transcription model id'),
+			model: z
+				.string()
+				.optional()
+				.describe('transcription model id; defaults to the recommended catalog model'),
 			file: z.string().describe('audio file to upload'),
 			language: z.string().optional().describe('input language'),
 			prompt: z.string().optional().describe('optional transcription prompt'),
@@ -304,8 +344,9 @@ export const transcriptionSubcommand = createCommand({
 	},
 	async handler(ctx) {
 		const service = createAIGatewayService(ctx);
+		const model = await resolveDefaultModel(service, 'transcription', ctx.opts.model);
 		const form = new FormData();
-		form.set('model', ctx.opts.model);
+		form.set('model', model);
 		form.set('file', Bun.file(ctx.opts.file));
 		if (ctx.opts.language) form.set('language', ctx.opts.language);
 		if (ctx.opts.prompt) form.set('prompt', ctx.opts.prompt);
@@ -318,7 +359,7 @@ export const transcriptionSubcommand = createCommand({
 			body: form,
 		});
 		const result = {
-			model: ctx.opts.model,
+			model,
 			data: response.data,
 			metadata: response.metadata,
 		};
@@ -352,7 +393,10 @@ export const videoSubcommand = createCommand({
 			prompt: z.string().optional().describe('video prompt'),
 		}),
 		options: z.object({
-			model: z.string().describe('video model id'),
+			model: z
+				.string()
+				.optional()
+				.describe('video model id; defaults to the recommended catalog model'),
 			file: z.string().optional().describe('read prompt from a file'),
 			operation: z.string().optional().describe('poll an existing operation name instead'),
 			poll: z.boolean().optional().describe('poll until the operation is done'),
@@ -370,6 +414,7 @@ export const videoSubcommand = createCommand({
 	},
 	async handler(ctx) {
 		const service = createAIGatewayService(ctx);
+		const model = await resolveDefaultModel(service, 'video', ctx.opts.model);
 		let operation = ctx.opts.operation;
 		let data: unknown;
 		let metadata: unknown;
@@ -377,7 +422,7 @@ export const videoSubcommand = createCommand({
 		if (!operation) {
 			const prompt = await readTextInput({ input: ctx.args.prompt, file: ctx.opts.file });
 			const response = await service.request<{ name?: string }>({
-				path: `/v1beta/models/${encodeURIComponent(providerlessModel(ctx.opts.model))}:predictLongRunning`,
+				path: `/v1beta/models/${encodeURIComponent(providerlessModel(model))}:predictLongRunning`,
 				body: {
 					...parseJsonObject(ctx.opts.extra),
 					instances: [{ prompt }],
@@ -410,7 +455,7 @@ export const videoSubcommand = createCommand({
 		}
 
 		const result = {
-			model: ctx.opts.model,
+			model,
 			...(operation ? { operation } : {}),
 			data,
 			metadata,

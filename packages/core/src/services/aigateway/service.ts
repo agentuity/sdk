@@ -43,6 +43,9 @@ export const AIGatewayModelSchema = z.object({
 	temperature: z.boolean().optional().describe('Whether the model supports temperature.'),
 	knowledge: z.string().optional().describe('Knowledge cutoff or label.'),
 	open_weights: z.boolean().optional().describe('Whether the model has open weights.'),
+	recommended: z.boolean().optional().describe('Whether this model is recommended.'),
+	default_for: z.array(z.string()).optional().describe('Default use cases for this model.'),
+	rank: z.number().optional().describe('Recommendation rank; lower values are preferred.'),
 	provider: AIGatewayModelProviderSchema.optional().describe('Provider metadata.'),
 	pricing: AIGatewayPricingSchema.optional().describe('Model pricing.'),
 });

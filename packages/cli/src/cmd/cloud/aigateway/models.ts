@@ -17,6 +17,9 @@ const ModelRowSchema = z.object({
 	pricingInput: z.number().optional(),
 	pricingOutput: z.number().optional(),
 	reasoning: z.boolean().optional(),
+	recommended: z.boolean().optional(),
+	defaultFor: z.array(z.string()).optional(),
+	rank: z.number().optional(),
 	contextWindow: z.number().optional(),
 	maxOutputTokens: z.number().optional(),
 });
@@ -25,33 +28,43 @@ const ModelsResponseSchema = z.object({
 	models: z.array(ModelRowSchema),
 	count: z.number(),
 	model: ModelRowSchema.nullable().optional(),
+	recommendations: z
+		.array(
+			z.object({
+				use: z.string(),
+				model: z.string(),
+				name: z.string(),
+				rank: z.number().optional(),
+			})
+		)
+		.optional(),
 });
-
-const recommendedModels = [
-	{ use: 'fast', candidates: ['openai/gpt-4o-mini', 'openai/gpt-4.1-mini'] },
-	{ use: 'reasoning', candidates: ['openai/gpt-5-mini', 'openai/o4-mini'] },
-	{ use: 'coding', candidates: ['anthropic/claude-opus-4-7', 'openai/gpt-5-codex'] },
-	{ use: 'cheap', candidates: ['openai/gpt-4.1-nano', 'openai/gpt-5-nano'] },
-];
 
 function isAgentOutputMode(): boolean {
 	return Boolean(getExecutingAgent()) && process.env.AGENTUITY_AIGATEWAY_AGENT_OUTPUT !== 'false';
 }
 
 function getRecommendations(rows: z.infer<typeof ModelRowSchema>[]) {
-	const byId = new Map(rows.map((row) => [normalizeModelId(row.id), row]));
-	return recommendedModels
-		.map((rec) => {
-			const model = rec.candidates.map((id) => byId.get(normalizeModelId(id))).find(Boolean);
-			return model ? { use: rec.use, model: model.id, name: model.name } : undefined;
-		})
-		.filter((row): row is { use: string; model: string; name: string } => Boolean(row));
-}
-
-function normalizeModelId(id: string): string {
-	const normalized = id.toLowerCase();
-	const parts = normalized.split('/');
-	return parts.length > 1 ? (parts.at(-1) ?? normalized) : normalized;
+	const recommendations = new Map<string, z.infer<typeof ModelRowSchema>>();
+	for (const row of rows) {
+		if (!row.recommended || !row.defaultFor || row.defaultFor.length === 0) {
+			continue;
+		}
+		for (const use of row.defaultFor) {
+			const existing = recommendations.get(use);
+			if (
+				!existing ||
+				(row.rank ?? Number.MAX_SAFE_INTEGER) < (existing.rank ?? Number.MAX_SAFE_INTEGER)
+			) {
+				recommendations.set(use, row);
+			}
+		}
+	}
+	return Array.from(recommendations.entries())
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([use, model]) => {
+			return { use, model: model.id, name: model.name, rank: model.rank };
+		});
 }
 
 function matchesProviderFilter(
@@ -166,6 +179,9 @@ export const modelsSubcommand = createCommand({
 					pricingInput: model.pricing?.input,
 					pricingOutput: model.pricing?.output,
 					reasoning: model.reasoning,
+					recommended: model.recommended,
+					defaultFor: model.default_for,
+					rank: model.rank,
 					contextWindow: model.context_window,
 					maxOutputTokens: model.max_output_tokens,
 				}))
@@ -206,11 +222,12 @@ export const modelsSubcommand = createCommand({
 					Use: row.use,
 					Model: row.model,
 					Name: row.name,
+					Rank: row.rank ?? '-',
 				}));
 				if (recommendations.length === 0) {
 					tui.info('No recommended AI Gateway models found');
 				} else {
-					tui.table(recommendations, ['Use', 'Model', 'Name']);
+					tui.table(recommendations, ['Use', 'Model', 'Name', 'Rank']);
 				}
 			} else if (ctx.opts.simple) {
 				tui.table(
@@ -232,6 +249,7 @@ export const modelsSubcommand = createCommand({
 						Output: row.outputModalities?.join(',') ?? '-',
 						Unit: row.pricingUnit ?? '-',
 						Reasoning: row.reasoning ? 'yes' : 'no',
+						Default: row.defaultFor?.join(',') ?? '-',
 						Context: row.contextWindow ?? '-',
 					})),
 					[
@@ -243,12 +261,18 @@ export const modelsSubcommand = createCommand({
 						'Output',
 						'Unit',
 						'Reasoning',
+						'Default',
 						'Context',
 					]
 				);
 			}
 		}
 
-		return { models: rows, count: rows.length, model: selectedModel };
+		return {
+			models: rows,
+			count: rows.length,
+			model: selectedModel,
+			...(ctx.opts.recommended ? { recommendations: getRecommendations(rows) } : {}),
+		};
 	},
 });
