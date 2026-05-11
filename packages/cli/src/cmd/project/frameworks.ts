@@ -169,7 +169,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			// a `start` script by default, so the deploy pipeline falls
 			// back to a static-file server — wrong for SSR. Set it here
 			// so the user gets a working production process out of the box.
-			start: 'node .output/server/index.mjs',
+			start: 'HOST=0.0.0.0 node .output/server/index.mjs',
 		},
 		overlayDir: 'nuxt',
 	},
