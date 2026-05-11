@@ -1,6 +1,13 @@
 import { createCommand } from '../../../types';
 import { getCommand } from '../../../command-prefix';
 import { completeSubcommand } from './complete';
+import {
+	embeddingsSubcommand,
+	imageSubcommand,
+	speechSubcommand,
+	transcriptionSubcommand,
+	videoSubcommand,
+} from './modalities';
 import { modelsSubcommand } from './models';
 import { requestSubcommand } from './request';
 
@@ -22,7 +29,16 @@ export const aigatewayCommand = createCommand({
 			description: 'Send an upstream-shaped request',
 		},
 	],
-	subcommands: [modelsSubcommand, completeSubcommand, requestSubcommand],
+	subcommands: [
+		modelsSubcommand,
+		completeSubcommand,
+		embeddingsSubcommand,
+		imageSubcommand,
+		speechSubcommand,
+		transcriptionSubcommand,
+		videoSubcommand,
+		requestSubcommand,
+	],
 });
 
 export default aigatewayCommand;
