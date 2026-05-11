@@ -97,8 +97,8 @@ let { form } = $props();
 					<div class="group relative z-0">
 						<div
 							class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
-						/>
-						<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
+						></div>
+						<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl"></div>
 						<button
 							class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
 							disabled={isLoading || !text.trim()}
@@ -120,7 +120,7 @@ let { form } = $props();
 				rows="4"
 				name="textDisplay"
 				oninput={() => { text = (event?.target as HTMLTextAreaElement)?.value ?? text; }}
-			/>
+			></textarea>
 
 			<!-- Translation Result -->
 			{#if form?.error}
@@ -133,7 +133,7 @@ let { form } = $props();
 				<div
 					class="rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600"
 					data-loading="true"
-				/>
+				></div>
 			{:else if !form?.translation}
 				<div
 					class="output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-gray-600"
