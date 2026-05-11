@@ -1,8 +1,8 @@
 {
   "id": "queue",
   "label": "Queue",
-  "hint": "Run translations as background jobs",
-  "description": "Add a 'Translate later' button that enqueues the translation as a queue message. A pending-jobs panel shows what's been enqueued in the current session.",
+  "hint": "Publish translation requests to a queue",
+  "description": "Add a 'Queue translation' button that creates a translate-jobs queue if needed, publishes the current translation request, and shows the queued messages for the current session.",
   "order": 40,
   "packages": [
     "@agentuity/queue"

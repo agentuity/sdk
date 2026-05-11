@@ -3,7 +3,8 @@ interface QueuedJob {
 	text: string;
 	toLanguage: string;
 	model: string;
-	at: number;
+	offset: number;
+	publishedAt: string;
 }
 const [jobs, setJobs] = useState<QueuedJob[]>([]);
 
@@ -14,6 +15,6 @@ const handleQueue = async () => {
 		body: JSON.stringify({ text, toLanguage, model }),
 	});
 	if (!res.ok) return;
-	const { id } = (await res.json()) as { id: string };
-	setJobs((prev) => [{ id, text, toLanguage, model, at: Date.now() }, ...prev]);
+	const job = (await res.json()) as Pick<QueuedJob, 'id' | 'offset' | 'publishedAt'>;
+	setJobs((prev) => [{ ...job, text, toLanguage, model }, ...prev]);
 };

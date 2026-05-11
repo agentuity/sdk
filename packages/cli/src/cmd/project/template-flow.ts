@@ -594,6 +594,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
+	if (selectedFramework.slug === 'sveltekit') {
+		resourceEnvVars.HOST_HEADER ??= 'x-forwarded-host';
+		resourceEnvVars.PROTOCOL_HEADER ??= 'x-forwarded-proto';
+	}
+
 	// === Custom domain ===
 	//
 	// Domain isn't a service augment — it's a deployment concern. Ask

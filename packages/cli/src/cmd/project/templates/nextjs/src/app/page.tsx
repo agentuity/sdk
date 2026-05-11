@@ -110,19 +110,21 @@ export default function Home() {
 								</option>
 							))}
 						</select>
-						{/* @agentuity:inside-form-buttons */}
-						<div className="group relative z-0 ml-auto">
-							<div className="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
-							<div className="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
-							<button
-								className="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
-								disabled={isMutating || !text.trim()}
-								onClick={handleTranslate}
-								type="button"
-								data-loading={isMutating}
-							>
-								{isMutating ? 'Translating' : 'Translate'}
-							</button>
+						<div className="ml-auto flex items-center gap-2">
+							{/* @agentuity:inside-form-buttons */}
+							<div className="group relative z-0">
+								<div className="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
+								<div className="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
+								<button
+									className="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
+									disabled={isMutating || !text.trim()}
+									onClick={handleTranslate}
+									type="button"
+									data-loading={isMutating}
+								>
+									{isMutating ? 'Translating' : 'Translate'}
+								</button>
+							</div>
 						</div>
 					</div>
 
@@ -171,6 +173,10 @@ export default function Home() {
 					)}
 
 					{/* @agentuity:after-result */}
+
+					<p className="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
+						Translation powered by <code className="text-gray-500">@agentuity/aigateway</code>
+					</p>
 				</div>
 
 				{/* @agentuity:after-form */}

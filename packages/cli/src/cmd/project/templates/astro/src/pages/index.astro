@@ -1,5 +1,7 @@
 ---
 // @agentuity:imports
+import '../styles/global.css';
+
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
@@ -11,12 +13,8 @@ const DEFAULT_TEXT =
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Agentuity + Astro</title>
-		<link
-			href="https://cdn.jsdelivr.net/npm/tailwindcss@4/@tailwindcss/postcss@4/index.min.css"
-			rel="stylesheet"
-		/>
 	</head>
-	<body style="background-color: oklch(0.141 0.005 285.823); margin: 0; font-family: system-ui, -apple-system, sans-serif;">
+	<body>
 		<div class="flex min-h-screen justify-center font-sans text-white">
 			<div class="flex w-full max-w-3xl flex-col gap-4 p-16">
 				<!-- Header -->
@@ -60,17 +58,19 @@ const DEFAULT_TEXT =
 						<select id="model" class="-mb-0.5 cursor-pointer appearance-none border-0 border-b border-dashed border-gray-700 bg-transparent font-normal text-white outline-none hover:border-b-cyan-400 focus:border-b-cyan-400">
 							{MODELS.map((m) => <option value={m}>{m}</option>)}
 						</select>
-						<!-- @agentuity:inside-form-buttons -->
-						<div class="group relative z-0 ml-auto">
-							<div class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
-							<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
-							<button
-								id="translate-btn"
-								class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
-								type="button"
-							>
-								Translate
-							</button>
+						<div class="ml-auto flex items-center gap-2">
+							<!-- @agentuity:inside-form-buttons -->
+							<div class="group relative z-0">
+								<div class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
+								<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
+								<button
+									id="translate-btn"
+									class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
+									type="button"
+								>
+									Translate
+								</button>
+							</div>
 						</div>
 					</div>
 
@@ -86,6 +86,10 @@ const DEFAULT_TEXT =
 					</div>
 
 					<!-- @agentuity:after-result -->
+
+					<p class="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
+						Translation powered by <code class="text-gray-500">@agentuity/aigateway</code>
+					</p>
 				</div>
 
 				<!-- @agentuity:after-form -->

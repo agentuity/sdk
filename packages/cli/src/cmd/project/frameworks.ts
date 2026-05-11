@@ -134,6 +134,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		],
 		dependencies: ['@agentuity/aigateway', 'swr'],
 		scripts: {
+			build: 'next build --webpack',
 			deploy: 'agentuity deploy',
 		},
 		overlayDir: 'nextjs',
@@ -160,6 +161,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			pm,
 		],
 		dependencies: ['@agentuity/aigateway'],
+		devDependencies: ['@tailwindcss/vite', 'tailwindcss'],
 		scripts: {
 			deploy: 'agentuity deploy',
 			// Nitro's default `node-server` preset emits a self-listening
@@ -196,7 +198,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		// our runtime) for `@sveltejs/adapter-node`, which emits a
 		// self-listening Node server at `build/index.js`. The overlay
 		// drops a matching svelte.config.js.
-		devDependencies: ['@sveltejs/adapter-node'],
+		devDependencies: ['@sveltejs/adapter-node', '@tailwindcss/vite', 'tailwindcss'],
 		scripts: {
 			deploy: 'agentuity deploy',
 			start: 'node build/index.js',
@@ -225,7 +227,7 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		// `@astrojs/node` (standalone mode) so the deploy can host
 		// server-rendered pages and API routes. The overlay drops a
 		// matching `astro.config.mjs`.
-		devDependencies: ['@astrojs/node'],
+		devDependencies: ['@astrojs/node', '@tailwindcss/vite', 'tailwindcss'],
 		scripts: {
 			deploy: 'agentuity deploy',
 			start: 'node ./dist/server/entry.mjs',
@@ -252,9 +254,11 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			pm,
 		],
 		dependencies: ['@agentuity/aigateway'],
+		devDependencies: ['esbuild'],
 		scripts: {
+			build: 'esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/src/index.cjs',
 			deploy: 'agentuity deploy',
-			start: 'node dist/src/index.js',
+			start: 'node dist/src/index.cjs',
 		},
 		overlayDir: 'hono',
 	},

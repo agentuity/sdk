@@ -21,5 +21,7 @@ function renderSimilar(hits) {
 				);
 			})
 			.join('') +
-		'</ul></div>';
+		'</ul>' +
+		'<p class="mt-3 border-t border-gray-900 pt-3 text-[11px] text-gray-600">Search powered by <code class="text-gray-500">@agentuity/vector</code></p>' +
+		'</div>';
 }

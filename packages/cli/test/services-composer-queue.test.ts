@@ -1,5 +1,5 @@
 /**
- * End-to-end checks for the Queue service across all 7 frameworks.
+ * End-to-end checks for the Queue service across all supported frameworks.
  */
 
 import { createMockLogger } from '@agentuity/test-utils';
@@ -79,6 +79,7 @@ describe('framework + queue composition', () => {
 			if (check.jobsFile) {
 				const c = await readFile(join(dest, check.jobsFile), 'utf8');
 				expect(c).toContain('@agentuity/queue');
+				expect(c).toContain('createQueue');
 				expect(c).toContain('publish');
 				expect(c).not.toContain('@agentuity:');
 			}
@@ -86,12 +87,14 @@ describe('framework + queue composition', () => {
 				const c = await readFile(join(dest, check.serverFile), 'utf8');
 				expect(c).toContain('@agentuity/queue');
 				expect(c).toContain('/api/jobs');
+				expect(c).toContain('createQueue');
+				expect(c).toContain('publish');
 				expect(c).not.toContain('@agentuity:');
 			}
 
 			const pageOut = await readFile(join(dest, check.pageFile), 'utf8');
-			expect(pageOut).toContain('Translate later');
-			expect(pageOut).toContain('Pending jobs');
+			expect(pageOut).toContain('Queue translation');
+			expect(pageOut).toContain('Queued translations');
 			expect(pageOut).not.toContain('@agentuity:');
 
 			const pkg = JSON.parse(await readFile(join(dest, 'package.json'), 'utf8'));

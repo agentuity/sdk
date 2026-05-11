@@ -92,20 +92,22 @@ let { form } = $props();
 						<option value={m}>{m}</option>
 					{/each}
 				</select>
-				<!-- @agentuity:inside-form-buttons -->
-				<div class="group relative z-0 ml-auto">
-					<div
-						class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
-					/>
-					<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
-					<button
-						class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
-						disabled={isLoading || !text.trim()}
-						type="submit"
-						data-loading={isLoading}
-					>
-						{isLoading ? 'Translating' : 'Translate'}
-					</button>
+				<div class="ml-auto flex items-center gap-2">
+					<!-- @agentuity:inside-form-buttons -->
+					<div class="group relative z-0">
+						<div
+							class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
+						/>
+						<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
+						<button
+							class="relative cursor-pointer rounded-lg bg-gray-950 px-4 py-2 font-semibold text-white shadow-2xl disabled:cursor-not-allowed disabled:opacity-50"
+							disabled={isLoading || !text.trim()}
+							type="submit"
+							data-loading={isLoading}
+						>
+							{isLoading ? 'Translating' : 'Translate'}
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -162,6 +164,10 @@ let { form } = $props();
 			{/if}
 
 			<!-- @agentuity:after-result -->
+
+			<p class="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
+				Translation powered by <code class="text-gray-500">@agentuity/aigateway</code>
+			</p>
 		</form>
 
 		<!-- @agentuity:after-form -->
