@@ -11,6 +11,11 @@ const ModelRowSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	api: z.string().optional(),
+	inputModalities: z.array(z.string()).optional(),
+	outputModalities: z.array(z.string()).optional(),
+	pricingUnit: z.string().optional(),
+	pricingInput: z.number().optional(),
+	pricingOutput: z.number().optional(),
 	reasoning: z.boolean().optional(),
 	contextWindow: z.number().optional(),
 	maxOutputTokens: z.number().optional(),
@@ -143,6 +148,11 @@ export const modelsSubcommand = createCommand({
 					id: model.id,
 					name: model.name,
 					api: model.api,
+					inputModalities: model.input_modalities,
+					outputModalities: model.output_modalities,
+					pricingUnit: model.pricing?.unit,
+					pricingInput: model.pricing?.input,
+					pricingOutput: model.pricing?.output,
 					reasoning: model.reasoning,
 					contextWindow: model.context_window,
 					maxOutputTokens: model.max_output_tokens,
@@ -206,10 +216,23 @@ export const modelsSubcommand = createCommand({
 						Model: row.id,
 						Name: row.name,
 						API: row.api ?? '-',
+						Input: row.inputModalities?.join(',') ?? '-',
+						Output: row.outputModalities?.join(',') ?? '-',
+						Unit: row.pricingUnit ?? '-',
 						Reasoning: row.reasoning ? 'yes' : 'no',
 						Context: row.contextWindow ?? '-',
 					})),
-					['Provider', 'Model', 'Name', 'API', 'Reasoning', 'Context']
+					[
+						'Provider',
+						'Model',
+						'Name',
+						'API',
+						'Input',
+						'Output',
+						'Unit',
+						'Reasoning',
+						'Context',
+					]
 				);
 			}
 		}

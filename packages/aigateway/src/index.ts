@@ -10,7 +10,11 @@ export {
 	type AIGatewayModels,
 	type AIGatewayModelsResponse,
 	type AIGatewayPricing,
+	type AIGatewayRequestOptions,
+	type AIGatewayRequestResponse,
 	type AIGatewayReasoning,
+	type AIGatewayResponseMetadata,
+	type AIGatewayStreamingCompletion,
 	AIGatewayChatCompletionParamsSchema,
 	AIGatewayChatCompletionSchema,
 	AIGatewayChatMessageSchema,
@@ -26,6 +30,9 @@ import {
 	type AIGatewayChatCompletion,
 	type AIGatewayChatCompletionParams,
 	type AIGatewayModels,
+	type AIGatewayRequestOptions,
+	type AIGatewayRequestResponse,
+	type AIGatewayStreamingCompletion,
 } from '@agentuity/core/aigateway';
 import { createMinimalLogger, getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
@@ -78,5 +85,15 @@ export class AIGatewayClient {
 
 	async complete(params: AIGatewayChatCompletionParams): Promise<AIGatewayChatCompletion> {
 		return this.#service.complete(params);
+	}
+
+	async request<T = unknown>(
+		options: AIGatewayRequestOptions
+	): Promise<AIGatewayRequestResponse<T>> {
+		return this.#service.request<T>(options);
+	}
+
+	async streamRequest(options: AIGatewayRequestOptions): Promise<AIGatewayStreamingCompletion> {
+		return this.#service.streamRequest(options);
 	}
 }
