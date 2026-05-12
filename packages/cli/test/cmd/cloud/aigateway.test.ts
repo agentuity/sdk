@@ -6,6 +6,7 @@ import { createMinimalLogger } from '@agentuity/core';
 import { aigatewayCommand } from '../../../src/cmd/cloud/aigateway';
 import { combinePromptInput, completeSubcommand } from '../../../src/cmd/cloud/aigateway/complete';
 import { modelsSubcommand } from '../../../src/cmd/cloud/aigateway/models';
+import { requestSubcommand } from '../../../src/cmd/cloud/aigateway/request';
 import { getCompletionText } from '../../../src/cmd/cloud/aigateway/util';
 
 let server: ReturnType<typeof Bun.serve> | undefined;
@@ -42,7 +43,16 @@ describe('cloud aigateway command', () => {
 	test('registers expected subcommands', () => {
 		expect(aigatewayCommand.name).toBe('aigateway');
 		expect(aigatewayCommand.aliases).toContain('ai-gateway');
-		expect(aigatewayCommand.subcommands?.map((cmd) => cmd.name)).toEqual(['models', 'complete']);
+		expect(aigatewayCommand.subcommands?.map((cmd) => cmd.name)).toEqual([
+			'models',
+			'complete',
+			'embeddings',
+			'image',
+			'speech',
+			'transcription',
+			'video',
+			'request',
+		]);
 		expect(aigatewayCommand.requires?.auth).toBeUndefined();
 	});
 
@@ -69,6 +79,19 @@ describe('cloud aigateway command', () => {
 		expect(shape?.format).toBeDefined();
 		expect(shape?.stdinMode).toBeDefined();
 		expect(shape?.cost).toBeDefined();
+	});
+
+	test('request subcommand exposes upstream path, body, and stream schemas', () => {
+		const shape = requestSubcommand.schema?.options?.def.shape;
+		expect(requestSubcommand.requires?.auth).toBe(true);
+		expect(requestSubcommand.optional?.region).toBe(true);
+		expect(requestSubcommand.tags).toContain('uses-stdin');
+		expect(requestSubcommand.schema?.args?.def.shape.path).toBeDefined();
+		expect(shape?.method).toBeDefined();
+		expect(shape?.body).toBeDefined();
+		expect(shape?.file).toBeDefined();
+		expect(shape?.header).toBeDefined();
+		expect(shape?.stream).toBeDefined();
 	});
 
 	test('extracts assistant text from OpenAI-compatible completion responses', () => {
@@ -118,6 +141,12 @@ describe('cloud aigateway command', () => {
 								reasoning: false,
 								input_modalities: ['text'],
 								output_modalities: ['text'],
+								pricing: {
+									input: 0.4,
+									output: 1.6,
+									unit: 'per_million_tokens',
+									currency: 'USD',
+								},
 							},
 							{
 								id: 'gpt-4.1-vision',
@@ -126,6 +155,12 @@ describe('cloud aigateway command', () => {
 								reasoning: false,
 								input_modalities: ['text', 'image'],
 								output_modalities: ['text'],
+								pricing: {
+									input: 2,
+									output: 8,
+									unit: 'per_million_tokens',
+									currency: 'USD',
+								},
 							},
 						],
 					},
@@ -145,6 +180,9 @@ describe('cloud aigateway command', () => {
 		expect(requests[0]!.headers.get('x-agentuity-orgid')).toBeNull();
 		expect(result.count).toBe(1);
 		expect(result.models[0]?.id).toBe('gpt-4.1-vision');
+		expect(result.models[0]?.inputModalities).toEqual(['text', 'image']);
+		expect(result.models[0]?.outputModalities).toEqual(['text']);
+		expect(result.models[0]?.pricingUnit).toBe('per_million_tokens');
 	});
 
 	test('models handler does not require auth, org, project, or region', async () => {
@@ -216,6 +254,38 @@ describe('cloud aigateway command', () => {
 		expect(result.models[0]?.id).toBe('anthropic/claude-sonnet-4-5-20250929');
 	});
 
+	test('models handler returns fully-qualified recommendations', async () => {
+		server = Bun.serve({
+			port: 0,
+			fetch() {
+				return Response.json({
+					success: true,
+					data: {
+						openai: [
+							{
+								id: 'gpt-4.1-mini',
+								name: 'GPT 4.1 Mini',
+								recommended: true,
+								default_for: ['text'],
+								rank: 1,
+							},
+						],
+					},
+				});
+			},
+		});
+
+		const result = await modelsSubcommand.handler({
+			...baseCtx(`http://127.0.0.1:${server.port}`),
+			opts: { recommended: true },
+			args: {},
+		} as never);
+
+		expect(result.recommendations).toEqual([
+			{ use: 'text', model: 'openai/gpt-4.1-mini', name: 'GPT 4.1 Mini', rank: 1 },
+		]);
+	});
+
 	test('models handler returns a single model by full model id', async () => {
 		server = Bun.serve({
 			port: 0,
@@ -279,9 +349,66 @@ describe('cloud aigateway command', () => {
 		const shape = modelsSubcommand.schema?.options?.def.shape;
 		expect(shape?.model).toBeDefined();
 		expect(shape?.name).toBeDefined();
+		expect(shape?.input).toBeDefined();
+		expect(shape?.output).toBeDefined();
+		expect(shape?.inputModality).toBeDefined();
+		expect(shape?.outputModality).toBeDefined();
 		expect(shape?.ids).toBeDefined();
 		expect(shape?.simple).toBeDefined();
 		expect(shape?.recommended).toBeDefined();
+	});
+
+	test('request handler posts upstream-shaped JSON to a custom path', async () => {
+		let body: unknown;
+		let path: string | undefined;
+		server = Bun.serve({
+			port: 0,
+			async fetch(request) {
+				path = new URL(request.url).pathname;
+				body = await request.json();
+				return Response.json(
+					{ data: [{ embedding: [0.1, 0.2] }] },
+					{
+						headers: {
+							'x-gateway-cost': '0.000012',
+							'x-gateway-billing-unit': 'per_million_tokens',
+							'x-gateway-input-quantity': '3.000000',
+						},
+					}
+				);
+			},
+		});
+
+		const result = await requestSubcommand.handler({
+			...baseCtx(`http://127.0.0.1:${server.port}`),
+			opts: {
+				body: '{"model":"openai/text-embedding-3-small","input":"hello"}',
+			},
+			args: { path: '/v1/embeddings' },
+		} as never);
+
+		expect(path).toBe('/v1/embeddings');
+		expect(body).toEqual({
+			model: 'openai/text-embedding-3-small',
+			input: 'hello',
+		});
+		expect(result.data).toEqual({ data: [{ embedding: [0.1, 0.2] }] });
+		expect(result.metadata).toEqual({
+			headers: {
+				'x-gateway-cost': '0.000012',
+				'x-gateway-billing-unit': 'per_million_tokens',
+				'x-gateway-input-quantity': '3.000000',
+			},
+			cost: {
+				total: 0.000012,
+				unit: 'per_million_tokens',
+				inputQuantity: 3,
+				outputQuantity: undefined,
+				promptTokens: undefined,
+				completionTokens: undefined,
+				reasoningTokens: undefined,
+			},
+		});
 	});
 
 	test('complete handler posts an OpenAI-compatible chat completion request', async () => {

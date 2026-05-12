@@ -43,6 +43,9 @@ export const AIGatewayModelSchema = z.object({
 	temperature: z.boolean().optional().describe('Whether the model supports temperature.'),
 	knowledge: z.string().optional().describe('Knowledge cutoff or label.'),
 	open_weights: z.boolean().optional().describe('Whether the model has open weights.'),
+	recommended: z.boolean().optional().describe('Whether this model is recommended.'),
+	default_for: z.array(z.string()).optional().describe('Default use cases for this model.'),
+	rank: z.number().optional().describe('Recommendation rank; lower values are preferred.'),
 	provider: AIGatewayModelProviderSchema.optional().describe('Provider metadata.'),
 	pricing: AIGatewayPricingSchema.optional().describe('Model pricing.'),
 });
@@ -94,13 +97,17 @@ export interface AIGatewayCompletionAdapterRequest {
 	systemPrompt?: string;
 }
 
-const missingCompletionInputMessage = 'input, prompt, or messages must be provided';
+const missingCompletionInputMessage = 'contents, input, prompt, or messages must be provided';
 
 function hasCompletionInput(params: {
+	contents?: unknown[];
 	input?: unknown;
 	prompt?: string | string[];
 	messages?: unknown[];
 }): boolean {
+	if (params.contents && params.contents.length > 0) {
+		return true;
+	}
 	if (params.messages && params.messages.length > 0) {
 		return true;
 	}
@@ -129,6 +136,7 @@ export const AIGatewayChatCompletionParamsSchema = z
 			.unknown()
 			.optional()
 			.describe('Responses-compatible input payload for models using the Responses API.'),
+		contents: z.array(z.unknown()).optional().describe('Google Generative AI contents payload.'),
 		messages: z.array(AIGatewayChatMessageSchema).optional().describe('Messages to complete.'),
 		prompt: z
 			.union([z.string(), z.array(z.string())])
@@ -169,6 +177,21 @@ function toResponsesInput(messages: AIGatewayChatMessage[], systemPrompt?: strin
 	}));
 }
 
+function toGoogleRole(role: AIGatewayChatMessage['role']): 'model' | 'user' {
+	return role === 'assistant' ? 'model' : 'user';
+}
+
+function toGoogleContents(messages: AIGatewayChatMessage[]) {
+	return messages.map((message) => ({
+		role: toGoogleRole(message.role),
+		parts: [{ text: typeof message.content === 'string' ? message.content : '' }],
+	}));
+}
+
+function toGoogleSystemInstruction(systemPrompt?: string) {
+	return systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined;
+}
+
 function getMaxTokensParam(model: string, maxTokens?: number): Record<string, number> {
 	if (!maxTokens) return {};
 
@@ -197,6 +220,31 @@ function getReasoningBudget(reasoning?: AIGatewayReasoning): number | undefined 
 	const reasoningBudget = Number(reasoning);
 
 	return Number.isFinite(reasoningBudget) && reasoningBudget > 0 ? reasoningBudget : undefined;
+}
+
+function getGoogleThinkingLevel(
+	reasoning?: AIGatewayReasoning
+): 'HIGH' | 'MEDIUM' | 'MINIMAL' | undefined {
+	switch (reasoning) {
+		case 'low':
+			return 'MINIMAL';
+		case 'medium':
+			return 'MEDIUM';
+		case 'high':
+			return 'HIGH';
+		default:
+			return undefined;
+	}
+}
+
+function getGoogleThinkingConfig(reasoning?: AIGatewayReasoning) {
+	const reasoningBudget = getReasoningBudget(reasoning);
+	if (reasoningBudget) {
+		return { thinkingBudget: reasoningBudget };
+	}
+
+	const thinkingLevel = getGoogleThinkingLevel(reasoning);
+	return thinkingLevel ? { thinkingLevel } : undefined;
 }
 
 function isDeepSeekModel(model: string): boolean {
@@ -230,6 +278,7 @@ export function buildAIGatewayCompletionParams({
 }: AIGatewayCompletionAdapterRequest): AIGatewayChatCompletionParams {
 	const reasoningEffort = getOpenAIReasoningEffort(reasoning);
 	const reasoningBudget = getReasoningBudget(reasoning);
+	const googleThinkingConfig = getGoogleThinkingConfig(reasoning);
 
 	switch (api) {
 		case 'openai-responses':
@@ -255,12 +304,12 @@ export function buildAIGatewayCompletionParams({
 		case 'google-generative-ai':
 			return {
 				model,
-				messages,
-				...(systemPrompt ? { system_instruction: systemPrompt } : {}),
-				...(reasoningBudget
-					? { generationConfig: { thinkingConfig: { thinkingBudget: reasoningBudget } } }
-					: {}),
-				...getMaxTokensParam(model, maxTokens),
+				contents: toGoogleContents(messages),
+				...(systemPrompt ? { systemInstruction: toGoogleSystemInstruction(systemPrompt) } : {}),
+				generationConfig: {
+					...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+					...(googleThinkingConfig ? { thinkingConfig: googleThinkingConfig } : {}),
+				},
 			};
 		default:
 			return {
@@ -298,6 +347,15 @@ export const AIGatewayChatCompletionSchema = z
 				cost: z
 					.object({
 						total: z.number().optional().describe('Total estimated gateway cost in USD.'),
+						unit: z.string().optional().describe('Gateway billing unit.'),
+						inputQuantity: z
+							.number()
+							.optional()
+							.describe('Input quantity used for non-token gateway billing.'),
+						outputQuantity: z
+							.number()
+							.optional()
+							.describe('Output quantity used for non-token gateway billing.'),
 						promptTokens: z
 							.number()
 							.optional()
@@ -328,6 +386,9 @@ export const AIGatewayResponseMetadataSchema = z.object({
 	cost: z
 		.object({
 			total: z.number().optional(),
+			unit: z.string().optional(),
+			inputQuantity: z.number().optional(),
+			outputQuantity: z.number().optional(),
 			promptTokens: z.number().optional(),
 			completionTokens: z.number().optional(),
 			reasoningTokens: z.number().optional(),
@@ -341,6 +402,20 @@ export type AIGatewayStreamingCompletion = {
 	stream: ReadableStream<Uint8Array>;
 	metadata: Promise<AIGatewayResponseMetadata>;
 };
+
+export interface AIGatewayRequestOptions {
+	path: string;
+	method?: 'GET' | 'PUT' | 'POST' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'PATCH';
+	body?: unknown;
+	headers?: Record<string, string>;
+	stream?: boolean;
+}
+
+export interface AIGatewayRequestResponse<T = unknown> {
+	data: T;
+	response: Response;
+	metadata: AIGatewayResponseMetadata;
+}
 
 function parseNumber(value: string | undefined): number | undefined {
 	if (value === undefined || value.trim() === '') {
@@ -391,6 +466,9 @@ function extractGatewayMetadataFromHeaders(headers: Headers): AIGatewayResponseM
 	}
 
 	const total = parseNumber(captured['x-gateway-cost']);
+	const unit = captured['x-gateway-billing-unit'];
+	const inputQuantity = parseNumber(captured['x-gateway-input-quantity']);
+	const outputQuantity = parseNumber(captured['x-gateway-output-quantity']);
 	const promptTokens = parseNumber(captured['x-gateway-prompt-tokens']);
 	const completionTokens = parseNumber(captured['x-gateway-completion-tokens']);
 	const reasoningTokens =
@@ -400,10 +478,21 @@ function extractGatewayMetadataFromHeaders(headers: Headers): AIGatewayResponseM
 		positiveNumber(parseNumber(captured['x-agentuity-reasoning-token-count']));
 	const cost =
 		total !== undefined ||
+		unit !== undefined ||
+		inputQuantity !== undefined ||
+		outputQuantity !== undefined ||
 		promptTokens !== undefined ||
 		completionTokens !== undefined ||
 		reasoningTokens !== undefined
-			? { total, promptTokens, completionTokens, reasoningTokens }
+			? {
+					total,
+					unit,
+					inputQuantity,
+					outputQuantity,
+					promptTokens,
+					completionTokens,
+					reasoningTokens,
+				}
 			: undefined;
 
 	return {
@@ -665,6 +754,31 @@ export class AIGatewayService {
 		return AIGatewayChatCompletionSchema.parse(payload);
 	}
 
+	async request<T = unknown>(
+		options: AIGatewayRequestOptions
+	): Promise<AIGatewayRequestResponse<T>> {
+		const method = options.method ?? 'POST';
+		const url = buildUrl(this.baseUrl, options.path);
+		const payload =
+			options.body === undefined && (method === 'GET' || method === 'HEAD')
+				? undefined
+				: await toPayload(options.body);
+		const response = await this.adapter.invoke<T>(url, {
+			method,
+			...(payload ? { body: payload[0], contentType: payload[1] } : {}),
+			...(options.headers ? { headers: options.headers } : {}),
+			telemetry: { name: 'aigateway.request' },
+		});
+		if (!response.ok) {
+			throw await toServiceException(method, url, response.response);
+		}
+		return {
+			data: response.data,
+			response: response.response,
+			metadata: await extractGatewayMetadata(response.response),
+		};
+	}
+
 	async streamComplete(
 		params: AIGatewayChatCompletionParams
 	): Promise<ReadableStream<Uint8Array>> {
@@ -686,6 +800,38 @@ export class AIGatewayService {
 			headers: { Accept: 'text/event-stream' },
 			binary: true,
 			telemetry: { name: 'aigateway.completions.stream' },
+		});
+		if (!response.ok) {
+			throw await toServiceException(method, url, response.response);
+		}
+		if (!response.response.body) {
+			throw await toServiceException(
+				method,
+				url,
+				new Response('Streaming response did not include a body', { status: 502 })
+			);
+		}
+		const streamed = streamWithGatewayMetadata(response.response.body);
+		return {
+			stream: streamed.stream,
+			metadata: Promise.all([extractGatewayMetadata(response.response), streamed.metadata]).then(
+				([responseMetadata, streamMetadata]) =>
+					mergeGatewayMetadata(responseMetadata, streamMetadata)
+			),
+		};
+	}
+
+	async streamRequest(options: AIGatewayRequestOptions): Promise<AIGatewayStreamingCompletion> {
+		const method = options.method ?? 'POST';
+		const url = buildUrl(this.baseUrl, options.path);
+		const [body, contentType] = await toPayload(options.body);
+		const response = await this.adapter.invoke<never>(url, {
+			method,
+			body,
+			contentType,
+			headers: { Accept: 'text/event-stream', ...(options.headers ?? {}) },
+			binary: true,
+			telemetry: { name: 'aigateway.request.stream' },
 		});
 		if (!response.ok) {
 			throw await toServiceException(method, url, response.response);

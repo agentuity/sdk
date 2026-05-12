@@ -21,6 +21,8 @@ export {
 	type AIGatewayModels,
 	type AIGatewayModelsResponse,
 	type AIGatewayPricing,
+	type AIGatewayRequestOptions,
+	type AIGatewayRequestResponse,
 	type AIGatewayReasoning,
 	type AIGatewayResponseMetadata,
 	type AIGatewayStreamingCompletion,
