@@ -39,7 +39,12 @@ import * as tui from '../../tui.ts';
 import { createPrompt, note } from '../../tui.ts';
 import type { AuthData, Config } from '../../types.ts';
 import { getGithubBotIdentity } from '../git/api.ts';
-import { scaffoldFramework, setupProject, initGitRepo } from './scaffold.ts';
+import {
+	commitAgentuityAugmentation,
+	initGitRepo,
+	scaffoldFramework,
+	setupProject,
+} from './scaffold.ts';
 import { composeServices } from './services-composer.ts';
 import { getServiceCatalog, resolveSelection } from './services-catalog.ts';
 import { suggestBucketName, suggestDatabaseName } from './random-name.ts';
@@ -353,6 +358,20 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		noInstall: options.noInstall,
 		packageManager,
 		logger,
+	});
+
+	let botAuthor: { name: string; email: string } | undefined;
+	if (apiClient) {
+		try {
+			botAuthor = await getGithubBotIdentity(apiClient);
+		} catch {
+			// Non-fatal: fall back to generic Agentuity author
+		}
+	}
+
+	await commitAgentuityAugmentation(dest, {
+		services: selectedServices,
+		author: botAuthor,
 	});
 
 	// If setup failed, skip resource prompts and registration
@@ -697,15 +716,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	}
 
 	// ─── Git initialization ─────────────────────────────────────────────────
-
-	let botAuthor: { name: string; email: string } | undefined;
-	if (apiClient) {
-		try {
-			botAuthor = await getGithubBotIdentity(apiClient);
-		} catch {
-			// Non-fatal: fall back to generic Agentuity author
-		}
-	}
 
 	await initGitRepo(dest, {
 		projectName,

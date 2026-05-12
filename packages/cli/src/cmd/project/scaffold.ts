@@ -15,6 +15,7 @@ import { getVersion } from '../../version.ts';
 import type { PackageManager } from '../build/detect/types.ts';
 import type { FrameworkScaffold } from './frameworks.ts';
 import { applyOverlay } from './frameworks.ts';
+import { getService } from './services-catalog.ts';
 
 interface ScaffoldOptions {
 	/** Absolute path to the target directory */
@@ -241,6 +242,74 @@ interface InitGitRepoOptions {
 	source?: string;
 	/** Git commit author */
 	author?: { name: string; email: string };
+}
+
+interface CommitAgentuityAugmentationOptions {
+	/** Selected service ids included in the Agentuity example augmentation. */
+	services: string[];
+	/** Git commit author */
+	author?: { name: string; email: string };
+}
+
+/**
+ * Commit Agentuity augmentation changes when the framework scaffold already
+ * created a git repository. Many official framework CLIs create an initial
+ * commit before our overlays and service examples are applied; without this
+ * follow-up commit those generated changes are left in the user's worktree.
+ */
+export async function commitAgentuityAugmentation(
+	dest: string,
+	options: CommitAgentuityAugmentationOptions
+): Promise<void> {
+	const { isGitAvailable, runGit } = await import('../../git-helper.ts');
+	if (!(await isGitAvailable())) return;
+
+	const insideWorkTree = await runGit(['rev-parse', '--is-inside-work-tree'], { cwd: dest });
+	if (!insideWorkTree.ok || insideWorkTree.stdout !== 'true') return;
+
+	const status = await runGit(['status', '--porcelain', '--', '.'], { cwd: dest });
+	if (!status.ok || status.stdout.trim() === '') return;
+
+	const add = await runGit(['add', '.'], { cwd: dest });
+	if (!add.ok) return;
+
+	const staged = await runGit(['diff', '--cached', '--quiet', '--', '.'], { cwd: dest });
+	if (staged.exitCode !== 1) return;
+
+	const authorName = options.author?.name ?? 'Agentuity';
+	const authorEmail = options.author?.email ?? 'bot@agentuity.com';
+	const authorStr = `${authorName} <${authorEmail}>`;
+	const message = augmentationCommitMessage(options.services);
+
+	await tui.runCommand({
+		command: 'git commit',
+		cwd: dest,
+		cmd: [
+			'git',
+			'-c',
+			'commit.gpgsign=false',
+			'commit',
+			`--author=${authorStr}`,
+			'-m',
+			message,
+			'--',
+			'.',
+		],
+		env: {
+			GIT_COMMITTER_NAME: authorName,
+			GIT_COMMITTER_EMAIL: authorEmail,
+		},
+		clearOnSuccess: true,
+	});
+}
+
+function augmentationCommitMessage(services: string[]): string {
+	if (services.length === 0) {
+		return 'Augmented with Agentuity examples';
+	}
+
+	const serviceNames = services.map((service) => getService(service)?.label ?? service);
+	return `Augmented with Agentuity examples for services: ${serviceNames.join(', ')}`;
 }
 
 /**
