@@ -314,6 +314,12 @@ describe('AIGatewayService', () => {
 		).toBe('Hi');
 		expect(
 			getAIGatewayStreamDeltaText({
+				type: 'response.output_text.done',
+				text: 'Hi',
+			})
+		).toBe('');
+		expect(
+			getAIGatewayStreamDeltaText({
 				type: 'content_block_delta',
 				delta: { type: 'text_delta', text: 'Claude' },
 			})
@@ -338,6 +344,18 @@ describe('AIGatewayService', () => {
 				delta: 'Thinking',
 			})
 		).toBe('Thinking');
+		expect(
+			getAIGatewayStreamReasoningText({
+				type: 'response.reasoning_text.delta',
+				delta: 'More thinking',
+			})
+		).toBe('More thinking');
+		expect(
+			getAIGatewayStreamReasoningText({
+				type: 'response.reasoning_summary_text.done',
+				text: 'Thinking',
+			})
+		).toBe('');
 		expect(
 			getAIGatewayStreamReasoningText({
 				type: 'content_block_delta',

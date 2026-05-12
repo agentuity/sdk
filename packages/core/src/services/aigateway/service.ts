@@ -441,9 +441,7 @@ export function getAIGatewayStreamDeltaText(payload: unknown): string {
 		return typeof delta === 'string' ? delta : '';
 	}
 	if (type === 'response.output_text.done') {
-		const text = (payload as { text?: unknown }).text;
-
-		return typeof text === 'string' ? text : '';
+		return '';
 	}
 
 	const delta = (payload as { delta?: unknown }).delta;
@@ -521,10 +519,13 @@ export function getAIGatewayStreamReasoningText(payload: unknown): string {
 
 		return typeof delta === 'string' ? delta : '';
 	}
-	if (type === 'response.reasoning_summary_text.done') {
-		const text = (payload as { text?: unknown }).text;
+	if (type === 'response.reasoning_text.delta') {
+		const delta = (payload as { delta?: unknown }).delta;
 
-		return typeof text === 'string' ? text : '';
+		return typeof delta === 'string' ? delta : '';
+	}
+	if (type === 'response.reasoning_summary_text.done') {
+		return '';
 	}
 
 	const direct =
