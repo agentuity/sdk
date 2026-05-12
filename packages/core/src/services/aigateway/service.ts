@@ -403,6 +403,155 @@ export type AIGatewayStreamingCompletion = {
 	metadata: Promise<AIGatewayResponseMetadata>;
 };
 
+export function getAIGatewayTextFromParts(parts: unknown): string {
+	if (typeof parts === 'string') return parts;
+	if (!Array.isArray(parts)) return '';
+
+	return parts
+		.map((part) => {
+			if (typeof part === 'string') return part;
+			if (!part || typeof part !== 'object') return '';
+
+			const text =
+				(part as { text?: unknown; content?: unknown }).text ??
+				(part as { text?: unknown; content?: unknown }).content;
+
+			return typeof text === 'string' ? text : '';
+		})
+		.join('');
+}
+
+export function getAIGatewayStreamDeltaText(payload: unknown): string {
+	if (!payload || typeof payload !== 'object') return '';
+
+	const type = (payload as { type?: unknown }).type;
+	if (typeof type === 'string' && type.startsWith('response.reasoning_')) return '';
+	if (type === 'content_block_delta') {
+		const delta = (payload as { delta?: unknown }).delta;
+		if (!delta || typeof delta !== 'object') return '';
+		if ((delta as { type?: unknown }).type !== 'text_delta') return '';
+
+		const text = (delta as { text?: unknown }).text;
+
+		return typeof text === 'string' ? text : '';
+	}
+	if (type === 'response.output_text.delta') {
+		const delta = (payload as { delta?: unknown }).delta;
+
+		return typeof delta === 'string' ? delta : '';
+	}
+	if (type === 'response.output_text.done') {
+		return '';
+	}
+
+	const delta = (payload as { delta?: unknown }).delta;
+	if (typeof delta === 'string') return delta;
+	if (delta && typeof delta === 'object') {
+		const text = (delta as { text?: unknown; content?: unknown }).text;
+		const content = (delta as { text?: unknown; content?: unknown }).content;
+
+		if (typeof text === 'string') return text;
+		if (typeof content === 'string') return content;
+	}
+
+	const content = (payload as { content?: unknown }).content;
+	if (typeof content === 'string') return content;
+	const directContent = getAIGatewayTextFromParts(content);
+	if (directContent) return directContent;
+
+	const choices = (payload as { choices?: unknown }).choices;
+	if (Array.isArray(choices)) {
+		return choices
+			.map((choice) => {
+				if (!choice || typeof choice !== 'object') return '';
+
+				const choiceDelta = (choice as { delta?: { content?: unknown } }).delta;
+				if (typeof choiceDelta?.content === 'string') return choiceDelta.content;
+
+				const text = (choice as { text?: unknown }).text;
+				return typeof text === 'string' ? text : '';
+			})
+			.join('');
+	}
+
+	const candidates = (payload as { candidates?: unknown }).candidates;
+	if (!Array.isArray(candidates)) return '';
+
+	return candidates
+		.map((candidate) => {
+			if (!candidate || typeof candidate !== 'object') return '';
+
+			const candidateContent = (candidate as { content?: unknown }).content;
+			const parts =
+				candidateContent && typeof candidateContent === 'object'
+					? (candidateContent as { parts?: unknown }).parts
+					: undefined;
+
+			return getAIGatewayTextFromParts(parts);
+		})
+		.join('');
+}
+
+export function getAIGatewayStreamReasoningText(payload: unknown): string {
+	if (!payload || typeof payload !== 'object') return '';
+
+	const type = (payload as { type?: unknown }).type;
+	if (type === 'content_block_start') {
+		const contentBlock = (payload as { content_block?: unknown }).content_block;
+		if (!contentBlock || typeof contentBlock !== 'object') return '';
+		if ((contentBlock as { type?: unknown }).type !== 'thinking') return '';
+
+		const thinking = (contentBlock as { thinking?: unknown }).thinking;
+
+		return typeof thinking === 'string' ? thinking : '';
+	}
+	if (type === 'content_block_delta') {
+		const delta = (payload as { delta?: unknown }).delta;
+		if (!delta || typeof delta !== 'object') return '';
+		if ((delta as { type?: unknown }).type !== 'thinking_delta') return '';
+
+		const thinking = (delta as { thinking?: unknown }).thinking;
+
+		return typeof thinking === 'string' ? thinking : '';
+	}
+	if (type === 'response.reasoning_summary_text.delta') {
+		const delta = (payload as { delta?: unknown }).delta;
+
+		return typeof delta === 'string' ? delta : '';
+	}
+	if (type === 'response.reasoning_text.delta') {
+		const delta = (payload as { delta?: unknown }).delta;
+
+		return typeof delta === 'string' ? delta : '';
+	}
+	if (type === 'response.reasoning_summary_text.done') {
+		return '';
+	}
+
+	const direct =
+		(payload as { reasoning?: unknown }).reasoning ??
+		(payload as { reasoning_content?: unknown }).reasoning_content;
+	if (typeof direct === 'string') return direct;
+
+	const choices = (payload as { choices?: unknown }).choices;
+	if (!Array.isArray(choices)) return '';
+
+	return choices
+		.map((choice) => {
+			if (!choice || typeof choice !== 'object') return '';
+
+			const delta = (choice as { delta?: unknown }).delta;
+			if (!delta || typeof delta !== 'object') return '';
+
+			const reasoning =
+				(delta as { reasoning?: unknown }).reasoning ??
+				(delta as { reasoning_content?: unknown }).reasoning_content;
+
+			return typeof reasoning === 'string' ? reasoning : '';
+		})
+		.join('');
+}
+
 export interface AIGatewayRequestOptions {
 	path: string;
 	method?: 'GET' | 'PUT' | 'POST' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'PATCH';

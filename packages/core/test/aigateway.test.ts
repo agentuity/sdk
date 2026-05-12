@@ -4,6 +4,8 @@ import {
 	AIGatewayChatCompletionParamsSchema,
 	AIGatewayService,
 	buildAIGatewayCompletionParams,
+	getAIGatewayStreamDeltaText,
+	getAIGatewayStreamReasoningText,
 } from '../src/services/aigateway/index.ts';
 
 describe('AIGatewayService', () => {
@@ -296,6 +298,75 @@ describe('AIGatewayService', () => {
 				thinkingConfig: { thinkingLevel: 'MINIMAL' },
 			},
 		});
+	});
+
+	test('extracts provider stream text through AI Gateway adapters', () => {
+		expect(
+			getAIGatewayStreamDeltaText({
+				choices: [{ delta: { content: 'Hello' } }],
+			})
+		).toBe('Hello');
+		expect(
+			getAIGatewayStreamDeltaText({
+				type: 'response.output_text.delta',
+				delta: 'Hi',
+			})
+		).toBe('Hi');
+		expect(
+			getAIGatewayStreamDeltaText({
+				type: 'response.output_text.done',
+				text: 'Hi',
+			})
+		).toBe('');
+		expect(
+			getAIGatewayStreamDeltaText({
+				type: 'content_block_delta',
+				delta: { type: 'text_delta', text: 'Claude' },
+			})
+		).toBe('Claude');
+		expect(
+			getAIGatewayStreamDeltaText({
+				candidates: [
+					{
+						content: {
+							parts: [{ text: 'Gemini' }],
+						},
+					},
+				],
+			})
+		).toBe('Gemini');
+	});
+
+	test('extracts provider stream reasoning through AI Gateway adapters', () => {
+		expect(
+			getAIGatewayStreamReasoningText({
+				type: 'response.reasoning_summary_text.delta',
+				delta: 'Thinking',
+			})
+		).toBe('Thinking');
+		expect(
+			getAIGatewayStreamReasoningText({
+				type: 'response.reasoning_text.delta',
+				delta: 'More thinking',
+			})
+		).toBe('More thinking');
+		expect(
+			getAIGatewayStreamReasoningText({
+				type: 'response.reasoning_summary_text.done',
+				text: 'Thinking',
+			})
+		).toBe('');
+		expect(
+			getAIGatewayStreamReasoningText({
+				type: 'content_block_delta',
+				delta: { type: 'thinking_delta', thinking: 'Claude thinking' },
+			})
+		).toBe('Claude thinking');
+		expect(
+			getAIGatewayStreamReasoningText({
+				choices: [{ delta: { reasoning_content: 'DeepSeek thinking' } }],
+			})
+		).toBe('DeepSeek thinking');
 	});
 
 	test('builds DeepSeek OpenAI-compatible params with explicit thinking disabled', () => {
