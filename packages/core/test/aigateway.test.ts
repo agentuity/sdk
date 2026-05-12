@@ -335,6 +335,28 @@ describe('AIGatewayService', () => {
 				],
 			})
 		).toBe('Gemini');
+		expect(
+			getAIGatewayStreamDeltaText([
+				{
+					candidates: [
+						{
+							content: {
+								parts: [{ text: 'Gemini' }],
+							},
+						},
+					],
+				},
+				{
+					candidates: [
+						{
+							content: {
+								parts: [{ text: ' array' }],
+							},
+						},
+					],
+				},
+			])
+		).toBe('Gemini array');
 	});
 
 	test('extracts provider stream reasoning through AI Gateway adapters', () => {
@@ -367,6 +389,12 @@ describe('AIGatewayService', () => {
 				choices: [{ delta: { reasoning_content: 'DeepSeek thinking' } }],
 			})
 		).toBe('DeepSeek thinking');
+		expect(
+			getAIGatewayStreamReasoningText([
+				{ type: 'response.reasoning_text.delta', delta: 'Array' },
+				{ type: 'response.reasoning_text.delta', delta: ' reasoning' },
+			])
+		).toBe('Array reasoning');
 	});
 
 	test('builds DeepSeek OpenAI-compatible params with explicit thinking disabled', () => {
