@@ -9,14 +9,14 @@
  * 3. Verifies Agentuity augmentation (deploy script, .gitignore entries)
  *
  * Usage:
- *   bun scripts/test-create-flow.ts
+ *   bun tests/create/basic-flow.ts
  */
 
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const MONOREPO_ROOT = resolve(import.meta.dir, '../../..');
+const MONOREPO_ROOT = resolve(import.meta.dir, '../..');
 const TEST_DIR = join(tmpdir(), `agentuity-test-${Date.now()}`);
 const TEST_PROJECT_NAME = 'integration-test-project';
 const TEST_PROJECT_PATH = join(TEST_DIR, TEST_PROJECT_NAME);
@@ -41,33 +41,10 @@ function logSuccess(message: string) {
 function logError(message: string) {
 	log(`✗ ${message}`, colors.red);
 }
-function _logInfo(message: string) {
-	log(`ℹ ${message}`, colors.blue);
-}
-
 async function cleanup() {
 	if (existsSync(TEST_DIR)) {
 		rmSync(TEST_DIR, { recursive: true, force: true });
 	}
-}
-
-async function buildCLI(): Promise<boolean> {
-	logStep('Step 0: Build All Packages');
-
-	const result = Bun.spawn(['bunx', 'tsc', '--build'], {
-		cwd: MONOREPO_ROOT,
-		stdout: 'inherit',
-		stderr: 'inherit',
-	});
-
-	const exitCode = await result.exited;
-	if (exitCode !== 0) {
-		logError('Failed to build packages');
-		return false;
-	}
-
-	logSuccess('All packages built successfully');
-	return true;
 }
 
 async function createProject(): Promise<boolean> {
@@ -75,13 +52,12 @@ async function createProject(): Promise<boolean> {
 
 	mkdirSync(TEST_DIR, { recursive: true });
 
-	// Exercise the built CLI artifact, not the source TypeScript.
-	// CLI_RUNTIME picks bun vs node so the same script can be matrixed.
-	const cliRuntime = process.env.CLI_RUNTIME ?? 'node';
+	// Exercise the source CLI from a temp working directory so this test
+	// does not write build artifacts into the SDK checkout.
 	const result = Bun.spawn(
 		[
-			cliRuntime,
-			join(MONOREPO_ROOT, 'packages/cli/bin/cli.js'),
+			'bun',
+			join(MONOREPO_ROOT, 'packages/cli/src/main.ts'),
 			'create',
 			'--name',
 			TEST_PROJECT_NAME,
@@ -175,9 +151,6 @@ async function main() {
 
 	try {
 		await cleanup();
-
-		const cliBuilt = await buildCLI();
-		if (!cliBuilt) process.exit(1);
 
 		const steps = [
 			{ name: 'Create Project', fn: createProject },

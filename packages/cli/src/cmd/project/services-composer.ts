@@ -24,6 +24,7 @@ import { cp, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import { currentDir } from '../../node-compat/runtime-info.ts';
+import { getVersion } from '../../version.ts';
 import {
 	type FrameworkId,
 	type ServiceAugment,
@@ -235,6 +236,16 @@ function collapseExtraBlankLines(source: string): string {
  * first statement, preserving import order.
  */
 function mergeAdjacentImports(source: string): string {
+	const svelteScript = source.match(/^(<script[^>]*>\n)([\s\S]*?)(\n<\/script>)([\s\S]*)$/);
+	if (svelteScript) {
+		const [, open, body, close, rest] = svelteScript;
+		return `${open}${mergeLeadingImports(body ?? '')}${close}${rest}`;
+	}
+
+	return mergeLeadingImports(source);
+}
+
+function mergeLeadingImports(source: string): string {
 	const lines = source.split('\n');
 	const importLine =
 		/^(\s*)(import(\s+type)?)\s+\{\s*([^}]*?)\s*\}\s+from\s+(['"])([^'"]+)\5;?\s*$/;
@@ -440,12 +451,14 @@ async function mergePackageJson(dest: string, services: ServiceAugment[]): Promi
 	const devDeps = pkg.devDependencies as Record<string, string>;
 	const scripts = pkg.scripts as Record<string, string>;
 
+	const agentuityVersion = getVersion();
+
 	for (const service of services) {
 		for (const p of service.packages) {
-			deps[p] ??= 'latest';
+			deps[p] ??= packageVersionFor(p, agentuityVersion);
 		}
 		for (const p of service.devPackages ?? []) {
-			devDeps[p] ??= 'latest';
+			devDeps[p] ??= packageVersionFor(p, agentuityVersion);
 		}
 		for (const [name, cmd] of Object.entries(service.scripts ?? {})) {
 			scripts[name] = cmd; // services may overwrite, by intent
@@ -453,6 +466,10 @@ async function mergePackageJson(dest: string, services: ServiceAugment[]): Promi
 	}
 
 	await writeFile(path, JSON.stringify(pkg, null, '\t') + '\n');
+}
+
+function packageVersionFor(packageName: string, agentuityVersion: string): string {
+	return packageName.startsWith('@agentuity/') ? agentuityVersion : 'latest';
 }
 
 async function mergeEnvExample(dest: string, services: ServiceAugment[]): Promise<void> {

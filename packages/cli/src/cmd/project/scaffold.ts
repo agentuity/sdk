@@ -132,11 +132,9 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 	pkg.devDependencies = pkg.devDependencies ?? {};
 	pkg.scripts = pkg.scripts ?? {};
 
-	// Derive the version specifier for @agentuity packages from the CLI's own version.
-	// If the CLI is a prerelease (e.g. 3.0.0-alpha.2), use the dist-tag (alpha)
-	// so that `bun install` can resolve it from the correct npm tag.
-	// For stable releases, use the major version range (e.g. ^3.0.0).
-	const agentuityVersion = getAgentuityVersionSpecifier(getVersion());
+	// Pin Agentuity packages to the exact CLI version so generated apps do
+	// not mix stable packages with beta/alpha CLI templates.
+	const agentuityVersion = getVersion();
 
 	// Add @agentuity/cli as devDependency
 	pkg.devDependencies['@agentuity/cli'] = agentuityVersion;
@@ -167,22 +165,6 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 	}
 
 	await writeFile(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
-}
-
-/**
- * Derive the version specifier for @agentuity packages from the CLI's own version.
- *
- * If the CLI is a prerelease (e.g. 3.0.0-alpha.2), use the dist-tag (alpha)
- * so that `bun install` can resolve it from the correct npm tag.
- * For stable releases, use the major version range (e.g. ^3.0.0).
- */
-function getAgentuityVersionSpecifier(cliVersion: string): string {
-	const match = cliVersion.match(/-([a-zA-Z]+)/);
-	if (match) {
-		return match[1]!.toLowerCase();
-	}
-	const major = cliVersion.split('.')[0] ?? '3';
-	return `^${major}.0.0`;
 }
 
 /**
