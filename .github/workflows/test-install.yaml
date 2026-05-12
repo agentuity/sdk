@@ -112,7 +112,7 @@ jobs:
               set -euo pipefail
 
               cat > test-container.sh << 'EOF'
-              set -euo pipefail
+              set -eu
 
               if [ -n "${SETUP:-}" ]; then
                 echo "Running setup commands..."
