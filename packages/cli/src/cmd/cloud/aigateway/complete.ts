@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { StructuredError, type AIGatewayModels, type AIGatewayService } from '@agentuity/core';
+import { StructuredError } from '@agentuity/core';
+import { type AIGatewayModels, type AIGatewayService } from '@agentuity/core/aigateway';
 import { createCommand } from '../../../types.ts';
 import { getCommand } from '../../../command-prefix.ts';
 import { getExecutingAgent } from '../../../agent-detection.ts';

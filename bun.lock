@@ -203,7 +203,7 @@
       "name": "create-agentuity",
       "version": "3.0.0-beta.4",
       "bin": {
-        "create-agentuity": "./dist/bin.js",
+        "create-agentuity": "dist/bin.js",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -2656,7 +2656,7 @@
 
     "effect": ["effect@4.0.0-beta.59", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-check": "^4.6.0", "find-my-way-ts": "^0.1.6", "ini": "^6.0.0", "kubernetes-types": "^1.30.0", "msgpackr": "^1.11.9", "multipasta": "^0.2.7", "toml": "^4.1.1", "uuid": "^13.0.0", "yaml": "^2.8.3" } }, "sha512-xyUDLeHSe8d6lWGOvR6Fgn2HL6gYeTZ/S4Jzk9uc4ZUxMPPsNZlNXrvk0C7/utQFzeX7uAWcVnG2BjbA0SRoAA=="],
 
-    "electron-to-chromium": ["electron-to-chromium@1.5.353", "", {}, "sha512-kOrWphBi8TOZyiJZqsgqIle0lw+tzmnQK83pV9dZUd01Nm2POECSyFQMAuarzZdYqQW7FH9RaYOuaRo3h+bQ3w=="],
+    "electron-to-chromium": ["electron-to-chromium@1.5.354", "", {}, "sha512-JaBHwWcfIdmSAfWM5l3uwjGd431j8YEMikZ+K/2nXVuBqJKyZ0f+2h4n4JY5AyNiZmnY9qQr2RU3v9DxDmHMNg=="],
 
     "email-test": ["email-test@workspace:tests/services/email"],
 

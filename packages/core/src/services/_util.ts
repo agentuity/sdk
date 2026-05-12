@@ -140,7 +140,7 @@ const binaryContentType = 'application/octet-stream';
 const textContentType = 'text/plain';
 const jsonContentType = 'application/json';
 
-export async function toPayload(data: unknown): Promise<[Body, string]> {
+export async function toPayload(data: unknown): Promise<[Body, string | undefined]> {
 	if (data === undefined || data === null) {
 		return ['', textContentType];
 	}
@@ -168,6 +168,12 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 			}
 			if (data instanceof Uint8Array) {
 				return [data.buffer as ArrayBuffer, binaryContentType];
+			}
+			if (data instanceof Blob) {
+				return [data, data.type || binaryContentType];
+			}
+			if (data instanceof FormData) {
+				return [data, undefined];
 			}
 			if (data instanceof ReadableStream) {
 				return [data, binaryContentType];
