@@ -422,6 +422,9 @@ export function getAIGatewayTextFromParts(parts: unknown): string {
 }
 
 export function getAIGatewayStreamDeltaText(payload: unknown): string {
+	if (Array.isArray(payload)) {
+		return payload.map(getAIGatewayStreamDeltaText).join('');
+	}
 	if (!payload || typeof payload !== 'object') return '';
 
 	const type = (payload as { type?: unknown }).type;
@@ -493,6 +496,9 @@ export function getAIGatewayStreamDeltaText(payload: unknown): string {
 }
 
 export function getAIGatewayStreamReasoningText(payload: unknown): string {
+	if (Array.isArray(payload)) {
+		return payload.map(getAIGatewayStreamReasoningText).join('');
+	}
 	if (!payload || typeof payload !== 'object') return '';
 
 	const type = (payload as { type?: unknown }).type;
