@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { APIClient } from '../api.ts';
 import { SandboxResponseError, throwSandboxError } from './util.ts';
 import type { FileToWrite } from './types.ts';
+import { base64Encode } from './base64.ts';
 
 export const FileToWriteSchema = z.object({
 	path: z.string().describe('Path to the file relative to the sandbox workspace'),
@@ -59,7 +60,7 @@ export async function sandboxWriteFiles(
 	const body: z.infer<typeof WriteFilesRequestSchema> = {
 		files: files.map((f) => ({
 			path: f.path,
-			content: f.content.toString('base64'),
+			content: base64Encode(f.content),
 		})),
 	};
 

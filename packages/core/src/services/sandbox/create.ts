@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api.ts';
 import { NPM_PACKAGE_NAME_PATTERN } from './snapshot-build.ts';
 import { throwSandboxError } from './util.ts';
+import { base64Encode } from './base64.ts';
 
 export const SandboxCreateRequestSchema = z
 	.object({
@@ -224,14 +225,14 @@ export async function sandboxCreate(
 			mode: options.command.mode,
 			files: options.command.files?.map((f) => ({
 				path: f.path,
-				content: f.content.toString('base64'),
+				content: base64Encode(f.content),
 			})),
 		};
 	}
 	if (options.files && options.files.length > 0) {
 		body.files = options.files.map((f) => ({
 			path: f.path,
-			content: f.content.toString('base64'),
+			content: base64Encode(f.content),
 		}));
 	}
 	if (options.snapshot) {
