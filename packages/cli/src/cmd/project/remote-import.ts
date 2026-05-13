@@ -537,9 +537,15 @@ async function pushToRepo(
 		message: 'Pushing to remote repository...',
 		clearOnSuccess: true,
 		callback: async () => {
+			const gitEnv = {
+				...process.env,
+				GIT_TERMINAL_PROMPT: '0',
+			};
+
 			// Add remote origin
 			const addRemote = Bun.spawnSync(['git', 'remote', 'add', 'origin', remoteUrl], {
 				cwd: dest,
+				env: gitEnv,
 				stdout: 'pipe',
 				stderr: 'pipe',
 			});
@@ -548,6 +554,7 @@ async function pushToRepo(
 				// Remote might already exist, try set-url instead
 				const setUrl = Bun.spawnSync(['git', 'remote', 'set-url', 'origin', remoteUrl], {
 					cwd: dest,
+					env: gitEnv,
 					stdout: 'pipe',
 					stderr: 'pipe',
 				});
@@ -561,6 +568,7 @@ async function pushToRepo(
 			// Push to remote
 			const push = Bun.spawnSync(['git', 'push', '-u', 'origin', defaultBranch], {
 				cwd: dest,
+				env: gitEnv,
 				stdout: 'pipe',
 				stderr: 'pipe',
 			});
