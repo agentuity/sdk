@@ -1,0 +1,43 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:best-practices",
+		":dependencyDashboard",
+		":semanticCommits",
+		":pinGitHubActionDigests",
+		"npm:unpublishSafe"
+	],
+	"enabledManagers": ["bun", "github-actions", "dockerfile", "docker-compose"],
+	"labels": ["dependencies"],
+	"minimumReleaseAge": "3 days",
+	"rangeStrategy": "bump",
+	"separateMajorMinor": true,
+	"separateMultipleMajor": true,
+	"vulnerabilityAlerts": {
+		"enabled": true,
+		"labels": ["security"]
+	},
+	"osvVulnerabilityAlerts": true,
+	"lockFileMaintenance": {
+		"enabled": true,
+		"schedule": ["before 5am on monday"],
+		"commitMessageAction": "Lock file maintenance"
+	},
+	"packageRules": [
+		{
+			"description": "Require human approval before Renovate raises major version updates.",
+			"matchUpdateTypes": ["major"],
+			"dependencyDashboardApproval": true
+		},
+		{
+			"description": "Keep Bun ecosystem updates behind the same age gate configured in bunfig.toml.",
+			"matchDatasources": ["npm"],
+			"minimumReleaseAge": "3 days"
+		},
+		{
+			"description": "Pin executable CI dependencies to immutable digests.",
+			"matchManagers": ["github-actions", "dockerfile", "docker-compose"],
+			"pinDigests": true
+		}
+	]
+}
