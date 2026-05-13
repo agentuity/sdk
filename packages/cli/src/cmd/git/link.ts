@@ -298,6 +298,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 				linkProjectToRepo(apiClient, {
 					projectId,
 					repoFullName: selectedRepo.fullName,
+					integrationId: selectedRepo.integrationId,
 					branch,
 					autoDeploy: finalAutoDeploy,
 					previewDeploy: finalPreviewDeploy,
@@ -409,6 +410,16 @@ export const linkSubcommand = createSubcommand({
 			if (opts.repo && opts.confirm) {
 				const branch = opts.branch ?? 'main';
 				const directory = opts.root === '.' ? undefined : opts.root;
+				let integrationId: string | undefined;
+
+				try {
+					const repos = await listGithubRepos(apiClient);
+					integrationId = repos.find(
+						(repo) => repo.fullName.toLowerCase() === opts.repo!.toLowerCase()
+					)?.integrationId;
+				} catch (error) {
+					logger.trace('Unable to resolve GitHub integration for repository: %s', error);
+				}
 
 				await tui.spinner({
 					message: 'Linking repository...',
@@ -417,6 +428,7 @@ export const linkSubcommand = createSubcommand({
 						linkProjectToRepo(apiClient, {
 							projectId: project.projectId,
 							repoFullName: opts.repo!,
+							integrationId,
 							branch,
 							autoDeploy: opts.deploy !== false,
 							previewDeploy: opts.preview !== false,

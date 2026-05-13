@@ -228,6 +228,7 @@ const ProjectLinkDataSchema = z.object({
 export interface LinkProjectOptions {
 	projectId: string;
 	repoFullName: string;
+	integrationId?: string;
 	branch: string;
 	autoDeploy: boolean;
 	previewDeploy: boolean;
