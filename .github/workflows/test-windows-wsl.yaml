@@ -22,12 +22,16 @@ on:
          - '.github/workflows/test-windows-wsl.yaml'
    workflow_dispatch:
 
+permissions:
+   contents: read
+
 concurrency:
    group: ${{ github.workflow }}-${{ github.ref }}
    cancel-in-progress: true
 
 env:
    CI: true
+   GITHUB_TOKEN: ''
 
 jobs:
    windows-wsl-cli-test:
@@ -35,10 +39,12 @@ jobs:
       timeout-minutes: 30
       name: Windows WSL CLI Smoke Test
       steps:
-         - uses: actions/checkout@v5
+         - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+           with:
+              persist-credentials: false
 
          - name: Setup WSL
-           uses: Vampire/setup-wsl@v5
+           uses: Vampire/setup-wsl@3b46b44374d5d0ae94654c45d114a3ed7a0e07a8
            with:
               distribution: Ubuntu-24.04
               additional-packages: curl unzip jq
@@ -64,7 +70,7 @@ jobs:
               set -e
 
               # Install Bun
-              curl -fsSL https://bun.sh/install | bash
+              curl -fsSL https://bun.sh/install | bash -s -- "bun-v1.3.11"
               export PATH="$HOME/.bun/bin:$PATH"
               echo "Bun version: $(bun --version)"
 
@@ -93,7 +99,7 @@ jobs:
               cd ~/sdk
 
               # Install dependencies and build
-              bun install
+              bun install --frozen-lockfile
               bun run build
 
               # Smoke-test the BUILT artifact under both runtimes.
