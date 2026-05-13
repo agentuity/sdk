@@ -212,6 +212,8 @@ jobs:
            shell: bash
            run: |
               set -euo pipefail
+              # The single-quoted scenario bodies are intentionally expanded inside the container.
+              # shellcheck disable=SC2016
 
               run_ubuntu() {
                 local name="$1"
@@ -229,6 +231,7 @@ jobs:
                 echo "::endgroup::"
               }
 
+              # shellcheck disable=SC2016
               run_ubuntu 'Force reinstall' '
                 ./install.sh -y > /dev/null 2>&1
                 first_version=$($HOME/.bun/bin/agentuity --version)
@@ -238,6 +241,7 @@ jobs:
                 echo "Second version: $second_version"
               '
 
+              # shellcheck disable=SC2016
               run_ubuntu 'Non-interactive with CI env' '
                 ./install.sh > /tmp/install.log 2>&1
                 if [ ! -f "$HOME/.bun/bin/agentuity" ]; then
@@ -248,6 +252,7 @@ jobs:
                 $HOME/.bun/bin/agentuity --version
               '
 
+              # shellcheck disable=SC2016
               run_ubuntu 'Upgrade command available' '
                 ./install.sh -y > /dev/null 2>&1
                 $HOME/.bun/bin/agentuity --help > /tmp/help.log 2>&1 || true
@@ -263,6 +268,7 @@ jobs:
                 fi
               '
 
+              # shellcheck disable=SC2016
               run_ubuntu 'Legacy shim creation' '
                 mkdir -p "$HOME/.agentuity/bin"
                 touch "$HOME/.agentuity/bin/agentuity"
@@ -278,6 +284,7 @@ jobs:
                 fi
               '
 
+              # shellcheck disable=SC2016
               run_ubuntu 'Legacy shim cleanup when not on PATH' '
                 mkdir -p "$HOME/.agentuity/bin"
                 touch "$HOME/.agentuity/bin/agentuity"

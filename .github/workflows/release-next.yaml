@@ -61,7 +61,7 @@ jobs:
             --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" \
             | jq -er '.data.apiKey')
           echo "::add-mask::${APIKEY}"
-          echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+          echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> "$GITHUB_ENV"
 
       - name: Build
         run: bun run build
@@ -171,13 +171,15 @@ jobs:
       - name: Summary
         run: |
           VERSION=$(jq -r .version package.json)
-          echo "## 📦 Released to npm" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Tag:** \`next\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Install with:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "npm install @agentuity/core@next" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 📦 Released to npm"
+            echo ""
+            echo "**Version:** \`$VERSION\`"
+            echo "**Tag:** \`next\`"
+            echo ""
+            echo "Install with:"
+            echo "\`\`\`bash"
+            echo "npm install @agentuity/core@next"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
