@@ -16,6 +16,7 @@ import {
 	type CoderSessionListResponse,
 	type CoderUpdateSessionRequest,
 } from './types.ts';
+import { base64Encode } from '../sandbox/base64.ts';
 
 type EncodedFileToWrite = {
 	path: string;
@@ -183,14 +184,14 @@ export async function coderCreateSession(
 		...params.body,
 		files: params.body.files?.map((f) => ({
 			path: f.path,
-			content: f.content.toString('base64'),
+			content: base64Encode(f.content),
 		})),
 		command: params.body.command
 			? {
 					...params.body.command,
 					files: params.body.command.files?.map((f) => ({
 						path: f.path,
-						content: f.content.toString('base64'),
+						content: base64Encode(f.content),
 					})),
 				}
 			: undefined,

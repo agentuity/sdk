@@ -2,6 +2,7 @@ import type { ExecuteOptions, Execution, ExecutionStatus } from './types.ts';
 import { z } from 'zod';
 import type { APIClient } from '../api.ts';
 import { SandboxBusyError, SandboxNotFoundError, throwSandboxError } from './util.ts';
+import { base64Encode } from './base64.ts';
 
 export const ExecuteRequestSchema = z
 	.object({
@@ -87,7 +88,7 @@ export async function sandboxExecute(
 	if (options.files && options.files.length > 0) {
 		body.files = options.files.map((f) => ({
 			path: f.path,
-			content: f.content.toString('base64'),
+			content: base64Encode(f.content),
 		}));
 	}
 	if (options.timeout) {
