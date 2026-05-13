@@ -47,6 +47,18 @@ function shouldCompress(contentType: string): boolean {
 	return compressible.some((prefix) => contentType.startsWith(prefix));
 }
 
+const BUILD_INFRA_FILES = new Set([
+	'launch.json',
+	'package.json',
+	'package-lock.json',
+	'npm-shrinkwrap.json',
+	'pnpm-lock.yaml',
+	'yarn.lock',
+	'bun.lock',
+	'bun.lockb',
+	'_serve.js',
+]);
+
 /**
  * Recursively enumerate static assets from a directory.
  */
@@ -63,8 +75,8 @@ function enumerateAssets(dir: string, baseDir: string): AssetInfo[] {
 			if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
 			assets.push(...enumerateAssets(fullPath, baseDir));
 		} else {
-			// Skip dot-files
-			if (entry.name.startsWith('.')) continue;
+			// Skip dot-files and build/runtime metadata files.
+			if (entry.name.startsWith('.') || BUILD_INFRA_FILES.has(entry.name)) continue;
 
 			const stats = statSync(fullPath);
 			if (stats.size === 0) continue;

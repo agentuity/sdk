@@ -6,11 +6,9 @@
  * output directory meets the buildpack contract:
  *
  * 1. launch.json exists and has valid process definitions
- * 2. Procfile exists and is parseable
- * 3. .agentuity-build marker exists with correct metadata
- * 4. For server apps: start command references a real file in the output
- * 5. For static apps: static directory exists with content
- * 6. Build artifacts are actually present in the output
+ * 2. For server apps: start command references a real file in the output
+ * 3. For static apps: static directory exists with content
+ * 4. Build artifacts are actually present in the output
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
@@ -45,23 +43,6 @@ const logger = {
 	}) as never,
 	child: () => logger,
 };
-
-/**
- * Parse a Procfile and return { processType: command } map.
- */
-function parseProcfile(content: string): Record<string, string> {
-	const result: Record<string, string> = {};
-	for (const line of content.split('\n')) {
-		const trimmed = line.trim();
-		if (!trimmed || trimmed.startsWith('#')) continue;
-		const colonIdx = trimmed.indexOf(':');
-		if (colonIdx === -1) continue;
-		const type = trimmed.slice(0, colonIdx).trim();
-		const command = trimmed.slice(colonIdx + 1).trim();
-		result[type] = command;
-	}
-	return result;
-}
 
 /**
  * Validate the buildpack output contract for a given directory.
@@ -107,71 +88,6 @@ function validateBuildpackContract(outputDir: string): string[] {
 			}
 		} catch {
 			violations.push('launch.json: invalid JSON');
-		}
-	}
-
-	// 2. Procfile must exist and be parseable
-	const procfilePath = join(outputDir, 'Procfile');
-	if (!existsSync(procfilePath)) {
-		violations.push('Procfile is missing');
-	} else {
-		const content = readFileSync(procfilePath, 'utf-8');
-		const processes = parseProcfile(content);
-		if (!processes.web) {
-			violations.push('Procfile: must have a "web" process type');
-		}
-		// Validate that Procfile commands are non-empty
-		for (const [type, cmd] of Object.entries(processes)) {
-			if (!cmd || cmd.length === 0) {
-				violations.push(`Procfile: process "${type}" has empty command`);
-			}
-		}
-	}
-
-	// 3. .agentuity-build marker must exist
-	const markerPath = join(outputDir, '.agentuity-build');
-	if (!existsSync(markerPath)) {
-		violations.push('.agentuity-build marker is missing');
-	} else {
-		try {
-			const marker = JSON.parse(readFileSync(markerPath, 'utf-8'));
-			if (marker.version !== 1) {
-				violations.push('.agentuity-build: version must be 1');
-			}
-			if (typeof marker.framework !== 'string') {
-				violations.push('.agentuity-build: framework must be a string');
-			}
-			if (typeof marker.runtime !== 'string') {
-				violations.push('.agentuity-build: runtime must be a string');
-			}
-		} catch {
-			violations.push('.agentuity-build: invalid JSON');
-		}
-	}
-
-	return violations;
-}
-
-/**
- * Check that Procfile and launch.json agree on the start command.
- */
-function validateConsistency(outputDir: string): string[] {
-	const violations: string[] = [];
-
-	const launchPath = join(outputDir, 'launch.json');
-	const procfilePath = join(outputDir, 'Procfile');
-
-	if (!existsSync(launchPath) || !existsSync(procfilePath)) return violations;
-
-	const launch: LaunchMetadata = JSON.parse(readFileSync(launchPath, 'utf-8'));
-	const procfile = parseProcfile(readFileSync(procfilePath, 'utf-8'));
-
-	const webProcess = launch.processes.find((p) => p.type === 'web');
-	if (webProcess && procfile.web) {
-		if (webProcess.command !== procfile.web) {
-			violations.push(
-				`Procfile and launch.json disagree on web command: "${procfile.web}" vs "${webProcess.command}"`
-			);
 		}
 	}
 
@@ -227,10 +143,6 @@ describe('Buildpack Contract — End-to-End', () => {
 		// Validate contract
 		const violations = validateBuildpackContract(buildResult.outputDir);
 		expect(violations).toEqual([]);
-
-		// Validate consistency
-		const inconsistencies = validateConsistency(buildResult.outputDir);
-		expect(inconsistencies).toEqual([]);
 	}, 30_000);
 
 	// ── Generic static project ──
@@ -269,6 +181,41 @@ describe('Buildpack Contract — End-to-End', () => {
 		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
 
 		// Validate contract — should still produce a valid buildpack output
+		const violations = validateBuildpackContract(buildResult.outputDir);
+		expect(violations).toEqual([]);
+	}, 30_000);
+
+	// ── Bare static HTML project ──
+
+	test('bare index.html project without package.json produces valid buildpack output', async () => {
+		writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
+		expect(framework).not.toBeNull();
+		expect(framework!.name).toBe('static-html');
+		expect(framework!.startCommand).toBe('npm serve');
+		expect(packageJson).toBeNull();
+
+		const adapter = getAdapter(framework!.name);
+		const buildResult = await adapter.build({
+			projectDir: testDir,
+			framework: framework!,
+			packageJson: packageJson ?? {},
+			outputDir,
+			logger,
+		});
+
+		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
+
+		expect(existsSync(join(buildResult.outputDir, 'index.html'))).toBe(true);
+		expect(existsSync(join(buildResult.outputDir, 'node_modules'))).toBe(false);
+
+		const launch: LaunchMetadata = JSON.parse(
+			readFileSync(join(buildResult.outputDir, 'launch.json'), 'utf-8')
+		);
+		expect(launch.processes[0].command).toBe('npm serve');
+		expect(launch.framework.name).toBe('static-html');
+
 		const violations = validateBuildpackContract(buildResult.outputDir);
 		expect(violations).toEqual([]);
 	}, 30_000);
@@ -344,42 +291,6 @@ describe('Buildpack Contract — End-to-End', () => {
 		expect(existsSync(join(testDir, 'dist', 'assets', 'style.css'))).toBe(true);
 	}, 30_000);
 
-	// ── Procfile format ──
-
-	test('Procfile follows standard format (type: command)', async () => {
-		writePackageJson(testDir, {
-			name: 'test-procfile',
-			version: '1.0.0',
-			scripts: {
-				build: 'echo "built"',
-				start: 'node server.js',
-			},
-		});
-
-		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
-		const adapter = getAdapter(framework!.name);
-		const buildResult = await adapter.build({
-			projectDir: testDir,
-			framework: framework!,
-			packageJson: packageJson!,
-			outputDir,
-			logger,
-		});
-
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
-
-		const procfileContent = readFileSync(join(buildResult.outputDir, 'Procfile'), 'utf-8');
-
-		// Standard Procfile format: each line is "type: command\n"
-		const lines = procfileContent.split('\n').filter((l) => l.trim().length > 0);
-		for (const line of lines) {
-			expect(line).toMatch(/^[a-z]+:\s+.+$/);
-		}
-
-		// Must end with newline
-		expect(procfileContent.endsWith('\n')).toBe(true);
-	}, 30_000);
-
 	// ── launch.json schema completeness ──
 
 	test('launch.json contains all required fields', async () => {
@@ -433,44 +344,9 @@ describe('Buildpack Contract — End-to-End', () => {
 		expect(() => new Date(launch.build.date).toISOString()).not.toThrow();
 	}, 30_000);
 
-	// ── .agentuity-build marker schema ──
+	// ── Consistency across output metadata ──
 
-	test('.agentuity-build marker has correct schema', async () => {
-		writePackageJson(testDir, {
-			name: 'test-marker',
-			version: '1.0.0',
-			scripts: {
-				build: 'echo "ok"',
-				start: 'node index.js',
-			},
-		});
-
-		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
-		const adapter = getAdapter(framework!.name);
-		const buildResult = await adapter.build({
-			projectDir: testDir,
-			framework: framework!,
-			packageJson: packageJson!,
-			outputDir,
-			logger,
-		});
-
-		packageBuildOutput(framework!, buildResult, buildResult.outputDir);
-
-		const marker = JSON.parse(
-			readFileSync(join(buildResult.outputDir, '.agentuity-build'), 'utf-8')
-		);
-
-		expect(marker.version).toBe(1);
-		expect(typeof marker.framework).toBe('string');
-		expect(typeof marker.runtime).toBe('string');
-		expect(typeof marker.buildDate).toBe('string');
-		expect(() => new Date(marker.buildDate).toISOString()).not.toThrow();
-	}, 30_000);
-
-	// ── Consistency across all output files ──
-
-	test('framework name is consistent across all output files', async () => {
+	test('framework name is consistent in launch metadata', async () => {
 		writePackageJson(testDir, {
 			name: 'test-consistency',
 			version: '1.0.0',
@@ -495,17 +371,10 @@ describe('Buildpack Contract — End-to-End', () => {
 		const launch: LaunchMetadata = JSON.parse(
 			readFileSync(join(buildResult.outputDir, 'launch.json'), 'utf-8')
 		);
-		const marker = JSON.parse(
-			readFileSync(join(buildResult.outputDir, '.agentuity-build'), 'utf-8')
-		);
 
-		// Framework name must match across files
-		expect(launch.framework.name).toBe(marker.framework);
 		expect(launch.framework.name).toBe(framework!.name);
-
-		// Runtime must match
-		expect(launch.runtime.name).toBe(marker.runtime);
 		expect(launch.runtime.name).toBe(framework!.runtime);
+		expect(existsSync(join(buildResult.outputDir, '.agentuity-build'))).toBe(false);
 	}, 30_000);
 
 	// ── Build failure propagation ──

@@ -7,6 +7,7 @@
  * Detection strategy:
  * 1. Run the framework database engine (rules derived from @vercel/frameworks)
  * 2. Fall back to generic detection (package.json scripts)
+ * 3. As a last resort, deploy bare static HTML projects that only have index.html
  */
 
 import { join } from 'node:path';
@@ -101,9 +102,28 @@ async function frameworkDefToDetected(
  * @param projectDir - Absolute path to the project root
  * @returns DetectedFramework or null if nothing could be detected
  */
+function bareStaticHtmlDetected(): DetectedFramework {
+	return {
+		name: 'static-html',
+		runtime: 'node',
+		packageManager: 'npm',
+		buildCommand: '__agentuity_internal__',
+		buildOutput: '.',
+		staticDir: '.',
+		startCommand: 'npm serve',
+		port: 3000,
+		confidence: 'low',
+	};
+}
+
+async function detectBareStaticHtml(projectDir: string): Promise<DetectedFramework | null> {
+	if (!(await pathExists(join(projectDir, 'index.html')))) return null;
+	return bareStaticHtmlDetected();
+}
+
 export async function detectFramework(projectDir: string): Promise<DetectedFramework | null> {
 	const pkg = await readPackageJson(projectDir);
-	if (!pkg) return null;
+	if (!pkg) return detectBareStaticHtml(projectDir);
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
@@ -130,7 +150,9 @@ export async function detectFrameworkWithPackageJson(
 	projectDir: string
 ): Promise<{ framework: DetectedFramework | null; packageJson: PackageJsonData | null }> {
 	const pkg = await readPackageJson(projectDir);
-	if (!pkg) return { framework: null, packageJson: null };
+	if (!pkg) {
+		return { framework: await detectBareStaticHtml(projectDir), packageJson: null };
+	}
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);

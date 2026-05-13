@@ -49,12 +49,6 @@ export function buildDiscoverStep(
 			try {
 				const { framework, packageJson } = await detectFrameworkWithPackageJson(projectDir);
 
-				if (!packageJson) {
-					return stepError(
-						'No package.json found. `agentuity deploy` works on any JS/TS project — ensure you are running it from the project root.'
-					);
-				}
-
 				if (!framework) {
 					// detectFrameworkWithPackageJson already falls through to a
 					// generic detector; if even that returns null it means the
@@ -104,11 +98,6 @@ export function buildDiscoverStep(
 export async function runDiscover(projectDir: string, logger: Logger): Promise<DiscoverResult> {
 	const { framework, packageJson } = await detectFrameworkWithPackageJson(projectDir);
 
-	if (!packageJson) {
-		throw new Error(
-			'No package.json found. `agentuity deploy` works on any JS/TS project — ensure you are running it from the project root.'
-		);
-	}
 	if (!framework) {
 		throw new Error(
 			'Could not determine how to build this project. Add a `build` script to package.json (e.g. "build": "next build") and try again.'

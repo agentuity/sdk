@@ -149,7 +149,7 @@ export const command = createCommand({
 			const buildResult = await adapter.build({
 				projectDir: absoluteProjectDir,
 				framework,
-				packageJson: packageJson!,
+				packageJson: packageJson ?? {},
 				outputDir: outDir,
 				logger: ctx.logger,
 				collector,

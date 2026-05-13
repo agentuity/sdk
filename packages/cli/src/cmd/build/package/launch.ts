@@ -2,7 +2,7 @@
  * Launch metadata generation for buildpack-compatible output.
  *
  * Generates the metadata that tells the runtime how to start the application.
- * This is analogous to CNB's launch.toml / Procfile / Docker CMD.
+ * This is analogous to CNB's launch.toml / Docker CMD.
  */
 
 import { join } from 'node:path';
@@ -101,19 +101,11 @@ export function generateLaunchMetadata(
 /**
  * Write launch metadata to the output directory.
  *
- * Writes both:
- * - launch.json — machine-readable launch metadata
- * - Procfile — simple process definition for compatibility
+ * Writes launch.json — machine-readable launch metadata.
  */
 export function writeLaunchMetadata(outputDir: string, metadata: LaunchMetadata): void {
 	mkdirSync(outputDir, { recursive: true });
 
-	// Write JSON metadata
 	const jsonPath = join(outputDir, 'launch.json');
 	writeFileSync(jsonPath, JSON.stringify(metadata, null, 2), 'utf-8');
-
-	// Write Procfile for broad compatibility (Heroku, Railway, Render, etc.)
-	const procfilePath = join(outputDir, 'Procfile');
-	const procfileLines = metadata.processes.map((p) => `${p.type}: ${p.command}`);
-	writeFileSync(procfilePath, procfileLines.join('\n') + '\n', 'utf-8');
 }

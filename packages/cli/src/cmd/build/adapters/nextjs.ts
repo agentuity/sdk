@@ -13,7 +13,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
-import { installDependencies, runBuildCommand } from './generic.ts';
+import { copyRuntimeManifests, installDependencies, runBuildCommand } from './generic.ts';
 
 /**
  * Walk the standalone output looking for the project's `server.js`.
@@ -184,19 +184,13 @@ export const nextjsAdapter: BuildAdapter = {
 		}
 
 		// Fallback: no standalone output. Copy the whole .next directory
-		// plus the project's node_modules and rely on `next start` to
-		// serve from there. This path is brittle (next start needs the
-		// full Next.js install in node_modules) so we warn the user.
+		// and the package manifests Hadron needs to install production
+		// dependencies before launch. This path is brittle (`next start`
+		// needs the full Next.js install) so we warn the user.
 		logger.debug('No standalone output found — copying full .next directory');
 		const nextDst = join(outputDir, '.next');
 		cpSync(join(projectDir, '.next'), nextDst, { recursive: true });
-
-		cpSync(join(projectDir, 'package.json'), join(outputDir, 'package.json'));
-		if (existsSync(join(projectDir, 'node_modules'))) {
-			cpSync(join(projectDir, 'node_modules'), join(outputDir, 'node_modules'), {
-				recursive: true,
-			});
-		}
+		copyRuntimeManifests(projectDir, outputDir);
 
 		logs.push('⚠ No standalone output — using full build (consider enabling standalone mode)');
 

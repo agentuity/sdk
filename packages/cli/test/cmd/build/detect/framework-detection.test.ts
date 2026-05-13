@@ -27,9 +27,23 @@ describe('Framework Detection', () => {
 
 	// ── No project ──
 
-	test('returns null when no package.json exists', async () => {
+	test('returns null when no package.json or index.html exists', async () => {
 		const result = await detectFramework(testDir);
 		expect(result).toBeNull();
+	});
+
+	test('detects bare index.html project without package.json', async () => {
+		writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+		const result = await detectFramework(testDir);
+		expect(result).not.toBeNull();
+		expect(result!.name).toBe('static-html');
+		expect(result!.runtime).toBe('node');
+		expect(result!.packageManager).toBe('npm');
+		expect(result!.buildCommand).toBe('__agentuity_internal__');
+		expect(result!.buildOutput).toBe('.');
+		expect(result!.staticDir).toBe('.');
+		expect(result!.startCommand).toBe('npm serve');
 	});
 
 	test('returns null when package.json has no scripts or main', async () => {
@@ -331,6 +345,16 @@ describe('Framework Detection', () => {
 		test('returns null packageJson when file missing', async () => {
 			const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
 			expect(framework).toBeNull();
+			expect(packageJson).toBeNull();
+		});
+
+		test('returns static-html framework and null packageJson for bare index.html', async () => {
+			writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+			const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
+			expect(framework).not.toBeNull();
+			expect(framework!.name).toBe('static-html');
+			expect(framework!.startCommand).toBe('npm serve');
 			expect(packageJson).toBeNull();
 		});
 	});

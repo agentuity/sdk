@@ -51,8 +51,17 @@ describe('deploy discover phase', () => {
 	});
 
 	describe('runDiscover', () => {
-		test('throws a clear error when there is no package.json', async () => {
-			await expect(runDiscover(testDir, makeLogger())).rejects.toThrow(/No package\.json/);
+		test('throws a clear error when there is no package.json or index.html', async () => {
+			await expect(runDiscover(testDir, makeLogger())).rejects.toThrow();
+		});
+
+		test('returns DiscoverResult for bare index.html without package.json', async () => {
+			writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+			const result = await runDiscover(testDir, makeLogger());
+			expect(result.framework.name).toBe('static-html');
+			expect(result.framework.startCommand).toBe('npm serve');
+			expect(result.packageJson).toBeNull();
 		});
 
 		test('throws a clear error when no framework can be detected and no build script', async () => {
@@ -107,7 +116,7 @@ describe('deploy discover phase', () => {
 	});
 
 	describe('buildDiscoverStep', () => {
-		test('returns an error outcome when no package.json is present', async () => {
+		test('returns an error outcome when no package.json or index.html is present', async () => {
 			const state: { discover?: DiscoverResult } = {};
 			const step = buildDiscoverStep(testDir, makeLogger(), state);
 			expect(step.label).toBe('Detect Project');
@@ -119,6 +128,23 @@ describe('deploy discover phase', () => {
 
 			expect(outcome.status).toBe('error');
 			expect(state.discover).toBeUndefined();
+		});
+
+		test('populates state.discover for bare index.html without package.json', async () => {
+			writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+			const state: { discover?: DiscoverResult } = {};
+			const step = buildDiscoverStep(testDir, makeLogger(), state);
+			const outcome = await step.run({
+				progress: () => {},
+				signal: new AbortController().signal,
+			});
+
+			expect(outcome.status).toBe('success');
+			expect(state.discover).toBeDefined();
+			expect(state.discover?.framework.name).toBe('static-html');
+			expect(state.discover?.framework.startCommand).toBe('npm serve');
+			expect(state.discover?.packageJson).toBeNull();
 		});
 
 		test('populates state.discover and returns success for a Next.js project', async () => {
@@ -141,7 +167,7 @@ describe('deploy discover phase', () => {
 			expect(outcome.status).toBe('success');
 			expect(state.discover).toBeDefined();
 			expect(state.discover?.framework.name).toBe('nextjs');
-			expect(state.discover?.packageJson.name).toBe('test-next-app');
+			expect(state.discover?.packageJson?.name).toBe('test-next-app');
 
 			// Success outputs include a small project summary that's surfaced
 			// to the user; it should at least mention the framework.

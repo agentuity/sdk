@@ -207,34 +207,6 @@ describe('Launch Metadata', () => {
 			expect(parsed.framework.name).toBe('nextjs');
 		});
 
-		test('writes Procfile', () => {
-			const metadata = generateLaunchMetadata(
-				{
-					name: 'nuxt',
-					runtime: 'node',
-					packageManager: 'npm',
-					buildCommand: 'nuxt build',
-					buildOutput: '.output',
-					startCommand: 'node .output/server/index.mjs',
-					confidence: 'high',
-				},
-				{
-					outputDir: testDir,
-					startCommand: 'node .output/server/index.mjs',
-					duration: 2000,
-					logs: [],
-				}
-			);
-
-			writeLaunchMetadata(testDir, metadata);
-
-			const procfilePath = join(testDir, 'Procfile');
-			expect(existsSync(procfilePath)).toBe(true);
-
-			const content = readFileSync(procfilePath, 'utf-8');
-			expect(content).toBe('web: node .output/server/index.mjs\n');
-		});
-
 		test('creates output directory if missing', () => {
 			const subDir = join(testDir, 'nested', 'dir');
 			const metadata = generateLaunchMetadata(
@@ -258,59 +230,11 @@ describe('Launch Metadata', () => {
 			writeLaunchMetadata(subDir, metadata);
 			expect(existsSync(join(subDir, 'launch.json'))).toBe(true);
 		});
-
-		test('handles multiple processes in Procfile', () => {
-			const metadata = {
-				processes: [
-					{ type: 'web', command: 'node server.js', default: true },
-					{ type: 'worker', command: 'node worker.js', default: false },
-				],
-				framework: { name: 'generic' },
-				runtime: { name: 'node', port: 3000 },
-				build: { date: new Date().toISOString(), duration: 1000 },
-			};
-
-			writeLaunchMetadata(testDir, metadata);
-
-			const content = readFileSync(join(testDir, 'Procfile'), 'utf-8');
-			expect(content).toContain('web: node server.js');
-			expect(content).toContain('worker: node worker.js');
-		});
 	});
 
 	// ── packageBuildOutput ──
 
 	describe('packageBuildOutput', () => {
-		test('writes .agentuity-build marker file', () => {
-			const framework: DetectedFramework = {
-				name: 'nextjs',
-				version: '15.3.0',
-				runtime: 'node',
-				packageManager: 'npm',
-				buildCommand: 'next build',
-				buildOutput: '.next',
-				startCommand: 'node server.js',
-				confidence: 'high',
-			};
-
-			const buildResult: BuildResult = {
-				outputDir: testDir,
-				startCommand: 'node server.js',
-				duration: 5000,
-				logs: [],
-			};
-
-			packageBuildOutput(framework, buildResult, testDir);
-
-			const markerPath = join(testDir, '.agentuity-build');
-			expect(existsSync(markerPath)).toBe(true);
-
-			const marker = JSON.parse(readFileSync(markerPath, 'utf-8'));
-			expect(marker.version).toBe(1);
-			expect(marker.framework).toBe('nextjs');
-			expect(marker.runtime).toBe('node');
-		});
-
 		test('returns hasStaticAssets when staticDir exists', () => {
 			const staticDir = join(testDir, 'static');
 			mkdirSync(staticDir, { recursive: true });
@@ -360,7 +284,7 @@ describe('Launch Metadata', () => {
 			expect(result.hasStaticAssets).toBe(false);
 		});
 
-		test('writes all three output files', () => {
+		test('writes launch metadata output files', () => {
 			const framework: DetectedFramework = {
 				name: 'sveltekit',
 				runtime: 'node',
@@ -381,8 +305,6 @@ describe('Launch Metadata', () => {
 			packageBuildOutput(framework, buildResult, testDir);
 
 			expect(existsSync(join(testDir, 'launch.json'))).toBe(true);
-			expect(existsSync(join(testDir, 'Procfile'))).toBe(true);
-			expect(existsSync(join(testDir, '.agentuity-build'))).toBe(true);
 		});
 	});
 });

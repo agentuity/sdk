@@ -69,6 +69,24 @@ export async function installDependencies(
 /**
  * Run the framework's build command.
  */
+export function copyRuntimeManifests(projectDir: string, outputDir: string): void {
+	for (const name of [
+		'package.json',
+		'package-lock.json',
+		'npm-shrinkwrap.json',
+		'pnpm-lock.yaml',
+		'yarn.lock',
+		'bun.lock',
+		'bun.lockb',
+	]) {
+		const src = join(projectDir, name);
+		const dst = join(outputDir, name);
+		if (existsSync(src) && !existsSync(dst)) {
+			cpSync(src, dst);
+		}
+	}
+}
+
 export async function runBuildCommand(
 	projectDir: string,
 	buildCommand: string,
@@ -118,11 +136,17 @@ export const genericAdapter: BuildAdapter = {
 		const started = Date.now();
 		const logs: string[] = [];
 
-		// Step 1: Install dependencies
-		logger.debug('Installing dependencies...');
-		const installStart = Date.now();
-		await installDependencies(projectDir, framework.packageManager, logger);
-		logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
+		// Step 1: Install dependencies when the project has a package.json.
+		// Bare static HTML projects intentionally have no package setup; they
+		// are copied as-is and launched by the platform static server command.
+		if (existsSync(join(projectDir, 'package.json'))) {
+			logger.debug('Installing dependencies...');
+			const installStart = Date.now();
+			await installDependencies(projectDir, framework.packageManager, logger);
+			logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
+		} else {
+			logs.push('✓ No package.json found; skipped dependency installation');
+		}
 
 		// Step 2: Run the build command
 		if (framework.buildCommand && framework.buildCommand !== '__agentuity_internal__') {
@@ -218,19 +242,9 @@ export const genericAdapter: BuildAdapter = {
 			logs.push('✓ Injected static file server (no start script found)');
 		}
 
-		// Step 5: Copy package.json and node_modules for runtime
-		const pkgJsonSrc = join(projectDir, 'package.json');
-		const pkgJsonDst = join(outputDir, 'package.json');
-		if (existsSync(pkgJsonSrc) && !existsSync(pkgJsonDst)) {
-			cpSync(pkgJsonSrc, pkgJsonDst);
-		}
-
-		const nodeModulesSrc = join(projectDir, 'node_modules');
-		const nodeModulesDst = join(outputDir, 'node_modules');
-		if (existsSync(nodeModulesSrc) && !existsSync(nodeModulesDst)) {
-			logger.debug('Copying node_modules for runtime dependencies...');
-			cpSync(nodeModulesSrc, nodeModulesDst, { recursive: true });
-		}
+		// Step 5: Copy package manifests for Hadron's runtime dependency install.
+		// Do not copy node_modules: Hadron installs production dependencies before launch.
+		copyRuntimeManifests(projectDir, outputDir);
 
 		// Step 6: Resolve static asset directory for CDN upload
 		// staticDir is relative to the project root (set by framework detection).
