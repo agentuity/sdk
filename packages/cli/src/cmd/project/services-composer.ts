@@ -177,6 +177,9 @@ async function spliceComposableFile(
 ): Promise<void> {
 	const fullPath = join(dest, file.path);
 	if (!existsSync(fullPath)) {
+		if (services.length === 0) {
+			return;
+		}
 		throw new Error(
 			`Composable file '${handle}' (${file.path}) declared in framework manifest is missing in ${dest}`
 		);
@@ -193,7 +196,14 @@ async function spliceComposableFile(
 			markerName,
 			file.path
 		);
-		source = spliceMarker(source, markerName, spec.syntax, snippets, file.path);
+		source = spliceMarker(
+			source,
+			markerName,
+			spec.syntax,
+			snippets,
+			file.path,
+			services.length === 0
+		);
 	}
 
 	source = mergeAdjacentImports(source);
@@ -352,8 +362,8 @@ async function collectSnippetsForMarker(
  * with the concatenated `snippets` (re-indented to match the marker's
  * own leading whitespace), and return the new source.
  *
- * If the marker is not found, throws — a marker named in the framework
- * manifest must exist in the file.
+ * If the marker is not found, throws when services are selected — a marker
+ * named in the framework manifest must exist in files receiving snippets.
  *
  * If `snippets` is empty, the marker line is simply removed (its
  * surrounding blank lines, if any, are preserved as-is).
@@ -363,11 +373,15 @@ function spliceMarker(
 	markerName: string,
 	syntax: MarkerSyntax,
 	snippets: string[],
-	debugPath: string
+	debugPath: string,
+	allowMissing: boolean
 ): string {
 	const pattern = markerLinePattern(markerName, syntax);
 	const match = source.match(pattern);
 	if (!match) {
+		if (allowMissing) {
+			return source;
+		}
 		throw new Error(
 			`Marker '@agentuity:${markerName}' (syntax ${syntax}) not found in ${debugPath}`
 		);

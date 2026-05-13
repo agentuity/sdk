@@ -6,7 +6,7 @@
  * then augment the result with Agentuity integration.
  */
 
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
@@ -104,6 +104,7 @@ async function augmentProject(
 			if (framework.overlayDir) {
 				if (includeAiExample) {
 					applyOverlay(dest, framework.overlayDir);
+					removeTemplateManifest(dest);
 					logger.debug('Applied template overlay: %s', framework.overlayDir);
 				} else {
 					// When AI example is not requested, we still want the landing page
@@ -123,6 +124,13 @@ async function augmentProject(
 /**
  * Merge Agentuity dependencies and scripts into the project's package.json.
  */
+function removeTemplateManifest(dest: string): void {
+	const manifestPath = join(dest, 'manifest.json');
+	if (existsSync(manifestPath)) {
+		rmSync(manifestPath);
+	}
+}
+
 async function mergePackageJson(dest: string, framework: FrameworkScaffold): Promise<void> {
 	const pkgPath = join(dest, 'package.json');
 	const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));

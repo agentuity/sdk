@@ -13,7 +13,7 @@
 
 import { createMockLogger } from '@agentuity/test-utils';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { composeServices } from '../src/cmd/project/services-composer';
@@ -142,4 +142,23 @@ describe('framework base composition (no services)', () => {
 			}
 		});
 	}
+
+	test('skips missing composable files when no services were selected', async () => {
+		const dest = await mkdtemp(join(tmpdir(), 'nextjs-empty-base-'));
+		cleanup.push(dest);
+
+		await mkdir(join(dest, 'src', 'app'), { recursive: true });
+		await writeFile(join(dest, 'package.json'), JSON.stringify({ scripts: {} }, null, '\t'));
+		await writeFile(join(dest, 'src', 'app', 'page.tsx'), 'export default function Home() {}\n');
+
+		await expect(
+			composeServices({
+				dest,
+				framework: 'nextjs',
+				selectedServices: [],
+				templatesRoot,
+				logger: createMockLogger(),
+			})
+		).resolves.toBeUndefined();
+	});
 });

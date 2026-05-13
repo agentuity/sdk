@@ -25,7 +25,6 @@ import {
 } from './auth.ts';
 import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions.ts';
-import enquirer from 'enquirer';
 import * as tui from './tui.ts';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser.ts';
 import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config.ts';
@@ -790,20 +789,16 @@ async function getRegion(regions: RegionList, preferredRegion?: string): Promise
 	if (regions.length === 1 && firstRegion) {
 		return firstRegion.region;
 	} else {
-		const preferredIndex = preferredRegion
-			? regions.findIndex((region) => region.region === preferredRegion)
-			: -1;
-		const response = await enquirer.prompt<{ region: string }>({
-			type: 'select',
-			name: 'region',
+		const prompt = tui.createPrompt();
+		return prompt.select<string>({
 			message: 'Select a cloud region:',
-			...(preferredIndex >= 0 && { initial: preferredIndex }),
-			choices: regions.map((r) => ({
-				name: r.region,
-				message: `${r.description.padEnd(15, ' ')} ${tui.muted(r.region)}`,
+			initial: preferredRegion,
+			options: regions.map((r) => ({
+				value: r.region,
+				label: r.description.padEnd(15, ' '),
+				hint: r.region,
 			})),
 		});
-		return response.region;
 	}
 }
 
