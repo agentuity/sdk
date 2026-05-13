@@ -7,14 +7,17 @@
 	"workspaces": [
 		"packages/*",
 		"docs",
-		"tests/**"
+		"tests",
+		"tests/frameworks/*",
+		"tests/integration/*",
+		"tests/services/*"
 	],
 	"scripts": {
 		"prepare": "husky",
 		"build": "bunx tsc --build && bun run build:assets",
 		"build:assets": "cd packages/cli && bun run build:assets",
 		"build:packages": "bun run --filter='./packages/*' build",
-		"build:apps": "bun run --filter='./tests/**' build",
+		"build:apps": "bun run --filter='./tests/frameworks/*' build && bun run --filter='./tests/integration/*' build && bun run --filter='./tests/services/*' build",
 		"build:all": "bun run build && bun run build:apps",
 		"test": "bun test:packages && cd packages/cli && bun run test && cd ../.. && bun test:templates && bun test:pkginstall && bun test:create",
 		"test:packages": "cd packages/core && bun test && cd ../schema && bun test && cd ../server && bun test && cd ../postgres && bun test && cd ../drizzle && bun test && cd ../opencode && bun test && cd ../hono && bun test && cd ../analytics && bun test",
@@ -39,7 +42,7 @@
 		"typecheck:apps": "bun run --filter='./tests/integration/standalone-backend' typecheck && bun run --filter='./tests/integration/e2e-web' typecheck && bun run --filter='./tests/integration/oauth' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",
-		"clean": "rm -rf packages/*/dist tests/**/dist packages/*/*.tsbuildinfo",
+		"clean": "rm -rf packages/*/dist tests/frameworks/*/dist tests/integration/*/dist tests/services/*/dist packages/*/*.tsbuildinfo",
 		"format": "bunx biome format --write .",
 		"lint": "bunx biome lint .",
 		"check": "bunx biome check --write .",
