@@ -17,6 +17,7 @@ concurrency:
 
 env:
    CI: true
+   GITHUB_TOKEN: ''
    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
    AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 }}
@@ -29,15 +30,18 @@ jobs:
       timeout-minutes: 15
       name: Pack & Upload
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
            with:
+              persist-credentials: false
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
          - name: Setup Bun
-           uses: oven-sh/setup-bun@v2
+           uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+           with:
+              bun-version: "1.3.11"
 
          - name: Install dependencies
-           run: bun install
+           run: bun install --frozen-lockfile
 
          - name: Pack and Upload
            id: pack
@@ -45,7 +49,7 @@ jobs:
 
          - name: Comment on PR
            if: github.event_name == 'pull_request'
-           uses: actions/github-script@v7
+           uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
            with:
               script: |
                  const version = '${{ steps.pack.outputs.prerelease_version }}';
