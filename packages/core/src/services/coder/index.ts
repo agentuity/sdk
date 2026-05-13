@@ -1,5 +1,15 @@
 export * from './types.ts';
 
+export type {
+	FileToWrite,
+	SandboxCommand,
+	SandboxCreateOptions,
+	SandboxNetworkConfig,
+	SandboxResources,
+	SandboxStreamConfig,
+	SandboxTimeoutConfig,
+} from '../sandbox/types.ts';
+
 export { discoverUrl, DiscoverCoderUrlDataSchema } from './discover.ts';
 
 export type {

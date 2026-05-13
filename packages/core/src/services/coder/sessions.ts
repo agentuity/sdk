@@ -17,6 +17,37 @@ import {
 	type CoderUpdateSessionRequest,
 } from './types.ts';
 
+type EncodedFileToWrite = {
+	path: string;
+	content: string;
+};
+
+type CoderCreateSessionWireRequest = Omit<CoderCreateSessionRequest, 'files' | 'command'> & {
+	files?: EncodedFileToWrite[];
+	command?: Omit<NonNullable<CoderCreateSessionRequest['command']>, 'files'> & {
+		files?: EncodedFileToWrite[];
+	};
+};
+
+const EncodedFileToWriteSchema = z.object({
+	path: z.string(),
+	content: z.string(),
+});
+
+const CoderCreateSessionWireRequestSchema = CoderCreateSessionRequestSchema.omit({
+	files: true,
+	command: true,
+}).extend({
+	files: z.array(EncodedFileToWriteSchema).optional(),
+	command: z
+		.object({
+			exec: z.array(z.string()),
+			files: z.array(EncodedFileToWriteSchema).optional(),
+			mode: z.enum(['oneshot', 'interactive']).optional(),
+		})
+		.optional(),
+});
+
 const CoderHubSessionListResponseSchema = z.object({
 	sessions: z.object({
 		websocket: z.array(CoderSessionListItemSchema),
@@ -148,11 +179,28 @@ export async function coderCreateSession(
 	client: APIClient,
 	params: CoderCreateSessionParams
 ): Promise<CoderCreateSessionResponse> {
-	return client.post<CoderCreateSessionResponse, CoderCreateSessionRequest>(
+	const body: CoderCreateSessionWireRequest = {
+		...params.body,
+		files: params.body.files?.map((f) => ({
+			path: f.path,
+			content: f.content.toString('base64'),
+		})),
+		command: params.body.command
+			? {
+					...params.body.command,
+					files: params.body.command.files?.map((f) => ({
+						path: f.path,
+						content: f.content.toString('base64'),
+					})),
+				}
+			: undefined,
+	};
+
+	return client.post<CoderCreateSessionResponse, CoderCreateSessionWireRequest>(
 		'/hub/session',
-		params.body,
+		body,
 		CoderCreateSessionResponseSchema,
-		CoderCreateSessionRequestSchema
+		CoderCreateSessionWireRequestSchema
 	);
 }
 
