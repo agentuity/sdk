@@ -26,6 +26,7 @@ import {
 } from '../../env-util.ts';
 import { fetchRegionsWithCache } from '../../regions.ts';
 import { getCachedProject, setCachedProject } from '../../cache/index.ts';
+import { detectProjectRegistrationMetadata } from './registration-metadata.ts';
 
 export interface ReconcileResult {
 	status: 'valid' | 'imported' | 'skipped' | 'error';
@@ -394,6 +395,8 @@ async function importExistingProject(
 		});
 	}
 
+	const registrationMetadata = await detectProjectRegistrationMetadata(dir);
+
 	// Create the project
 	const newProject = await tui.spinner({
 		message: 'Registering project',
@@ -403,6 +406,7 @@ async function importExistingProject(
 				name: projectName,
 				orgId,
 				cloudRegion: region,
+				...registrationMetadata,
 			});
 		},
 	});
@@ -526,6 +530,8 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 		});
 	}
 
+	const registrationMetadata = await detectProjectRegistrationMetadata(dir);
+
 	// Create the project
 	const newProject = await tui.spinner({
 		message: 'Registering project',
@@ -535,6 +541,7 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 				name: projectName,
 				orgId,
 				cloudRegion: region,
+				...registrationMetadata,
 			});
 		},
 	});

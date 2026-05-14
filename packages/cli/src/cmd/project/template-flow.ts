@@ -56,6 +56,7 @@ import {
 import { runtimeKind } from '../../node-compat/runtime-info.ts';
 import type { PackageManager } from '../build/detect/types.ts';
 import { frameworkCatalog, type FrameworkScaffold } from './frameworks.ts';
+import { PROJECT_GENERATION, providerForPackageManager } from './registration-metadata.ts';
 
 /**
  * Permissive RFC 1035 / RFC 1123 hostname check, allowing UTF-8 labels.
@@ -666,6 +667,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					orgId,
 					cloudRegion,
 					domains: _domains,
+					generation: PROJECT_GENERATION,
+					provider: providerForPackageManager(packageManager),
+					framework: selectedFramework.slug,
 				});
 				projectId = project.id;
 				return createProjectConfig(dest, {

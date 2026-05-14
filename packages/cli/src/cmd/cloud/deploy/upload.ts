@@ -124,6 +124,7 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 					if (relative.startsWith('.env')) return false;
 					if (relative.startsWith('.git/')) return false;
 					if (relative.startsWith('.ssh/')) return false;
+					if (relative.startsWith('node_modules/')) return false;
 					if (relative === '.DS_Store') return false;
 					return true;
 				},

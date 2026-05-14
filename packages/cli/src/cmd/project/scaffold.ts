@@ -74,7 +74,7 @@ export async function scaffoldFramework(options: ScaffoldOptions): Promise<void>
 	}
 
 	// Step 2: Augment with Agentuity integration
-	await augmentProject(dest, framework, includeAiExample, logger);
+	await augmentProject(dest, framework, includeAiExample, packageManager, logger);
 }
 
 /**
@@ -89,6 +89,7 @@ async function augmentProject(
 	dest: string,
 	framework: FrameworkScaffold,
 	includeAiExample: boolean,
+	packageManager: PackageManager,
 	logger: Logger
 ): Promise<void> {
 	await tui.spinner({
@@ -97,7 +98,7 @@ async function augmentProject(
 		clearOnSuccess: true,
 		callback: async (progress) => {
 			// Step 1: Merge package.json
-			await mergePackageJson(dest, framework);
+			await mergePackageJson(dest, framework, packageManager);
 			progress(25);
 
 			// Step 2: Apply template overlay if configured
@@ -111,6 +112,9 @@ async function augmentProject(
 					// but without the API route. For now, skip the entire overlay.
 					logger.debug('Skipped template overlay (AI example not requested)');
 				}
+			}
+			if (framework.slug === 'hono' && packageManager === 'bun') {
+				await addHonoBunTypes(dest);
 			}
 			progress(75);
 
@@ -131,7 +135,26 @@ function removeTemplateManifest(dest: string): void {
 	}
 }
 
-async function mergePackageJson(dest: string, framework: FrameworkScaffold): Promise<void> {
+async function addHonoBunTypes(dest: string): Promise<void> {
+	const tsconfigPath = join(dest, 'tsconfig.json');
+	if (!existsSync(tsconfigPath)) return;
+
+	const tsconfig = JSON.parse(await readFile(tsconfigPath, 'utf-8'));
+	const compilerOptions = tsconfig.compilerOptions ?? {};
+	const types = Array.isArray(compilerOptions.types) ? compilerOptions.types : [];
+	if (!types.includes('bun')) {
+		compilerOptions.types = [...types, 'bun'];
+	}
+	tsconfig.compilerOptions = compilerOptions;
+
+	await writeFile(tsconfigPath, JSON.stringify(tsconfig, null, '\t') + '\n');
+}
+
+async function mergePackageJson(
+	dest: string,
+	framework: FrameworkScaffold,
+	packageManager: PackageManager
+): Promise<void> {
 	const pkgPath = join(dest, 'package.json');
 	const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 
@@ -163,6 +186,14 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 				pkg.devDependencies[dep] = dep.startsWith('@agentuity/') ? agentuityVersion : 'latest';
 			}
 		}
+	}
+
+	if (
+		framework.slug === 'hono' &&
+		packageManager === 'bun' &&
+		!pkg.devDependencies['@types/bun']
+	) {
+		pkg.devDependencies['@types/bun'] = '^1.3.14';
 	}
 
 	// Merge scripts (framework-specific scripts win)
