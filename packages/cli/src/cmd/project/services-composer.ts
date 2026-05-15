@@ -196,14 +196,7 @@ async function spliceComposableFile(
 			markerName,
 			file.path
 		);
-		source = spliceMarker(
-			source,
-			markerName,
-			spec.syntax,
-			snippets,
-			file.path,
-			services.length === 0
-		);
+		source = spliceMarker(source, markerName, spec.syntax, snippets, file.path);
 	}
 
 	source = mergeAdjacentImports(source);
@@ -362,8 +355,10 @@ async function collectSnippetsForMarker(
  * with the concatenated `snippets` (re-indented to match the marker's
  * own leading whitespace), and return the new source.
  *
- * If the marker is not found, throws when services are selected — a marker
- * named in the framework manifest must exist in files receiving snippets.
+ * Throws if the marker is not found — a marker named in the framework
+ * manifest must exist in the declared file, even when no services are
+ * selected. Drift between manifest and templates is an authoring bug
+ * we surface at compose time rather than letting it ship.
  *
  * If `snippets` is empty, the marker line is simply removed (its
  * surrounding blank lines, if any, are preserved as-is).
@@ -373,15 +368,11 @@ function spliceMarker(
 	markerName: string,
 	syntax: MarkerSyntax,
 	snippets: string[],
-	debugPath: string,
-	allowMissing: boolean
+	debugPath: string
 ): string {
 	const pattern = markerLinePattern(markerName, syntax);
 	const match = source.match(pattern);
 	if (!match) {
-		if (allowMissing) {
-			return source;
-		}
 		throw new Error(
 			`Marker '@agentuity:${markerName}' (syntax ${syntax}) not found in ${debugPath}`
 		);

@@ -144,7 +144,33 @@ describe('framework base composition (no services)', () => {
 	}
 
 	test('skips missing composable files when no services were selected', async () => {
+		// Setup: a project where the composable files declared in the
+		// nextjs manifest (src/app/page.tsx, src/lib/translate.ts) are
+		// genuinely absent. With no services selected the composer should
+		// no-op rather than complaining about manifest entries that have
+		// nothing to splice into.
 		const dest = await mkdtemp(join(tmpdir(), 'nextjs-empty-base-'));
+		cleanup.push(dest);
+
+		await writeFile(join(dest, 'package.json'), JSON.stringify({ scripts: {} }, null, '\t'));
+
+		await expect(
+			composeServices({
+				dest,
+				framework: 'nextjs',
+				selectedServices: [],
+				templatesRoot,
+				logger: createMockLogger(),
+			})
+		).resolves.toBeUndefined();
+	});
+
+	test('rejects when a manifest-declared marker is absent from an existing composable file', async () => {
+		// A composable file that exists but has been stripped of its
+		// `@agentuity:` markers indicates drift between the manifest and
+		// the template. Surface it at compose time — even with no
+		// services selected — rather than letting it ship silently.
+		const dest = await mkdtemp(join(tmpdir(), 'nextjs-drift-base-'));
 		cleanup.push(dest);
 
 		await mkdir(join(dest, 'src', 'app'), { recursive: true });
@@ -159,6 +185,6 @@ describe('framework base composition (no services)', () => {
 				templatesRoot,
 				logger: createMockLogger(),
 			})
-		).resolves.toBeUndefined();
+		).rejects.toThrow(/@agentuity:/);
 	});
 });
