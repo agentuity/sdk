@@ -14,38 +14,48 @@ import { join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
 import { readPackageJson, detectPackageManager } from './util.ts';
-import { frameworkDefinitions } from './frameworks.ts';
+import { frameworkDefinitions, type FrameworkDefinition } from './frameworks.ts';
 import { detectFromDatabase } from './engine.ts';
 import { genericDetector } from './generic.ts';
 
 /**
  * Convert a matched framework definition + project context into a DetectedFramework.
  */
+function hasPackage(pkg: PackageJsonData, name: string): boolean {
+	return !!pkg.dependencies?.[name] || !!pkg.devDependencies?.[name];
+}
+
+function resolveDefaultStartCommand(
+	definition: FrameworkDefinition,
+	pkg: PackageJsonData
+): string | undefined {
+	const defaultStart = definition.defaultStartCommand;
+	if (!defaultStart) return undefined;
+	if (defaultStart.whenPackage && !hasPackage(pkg, defaultStart.whenPackage)) return undefined;
+	return defaultStart.command;
+}
+
 async function frameworkDefToDetected(
-	slug: string,
-	_name: string,
-	buildCommand: string | null,
-	outputDirectory: string | null,
-	staticDirectory: string | null | undefined,
+	definition: FrameworkDefinition,
 	projectDir: string,
 	pkg: PackageJsonData
 ): Promise<DetectedFramework> {
 	const pm = await detectPackageManager(projectDir);
 
 	// Use the project's build script if available, otherwise the framework default
-	const resolvedBuildCommand = pkg.scripts?.build ?? buildCommand ?? 'npm run build';
+	const resolvedBuildCommand = pkg.scripts?.build ?? definition.buildCommand ?? 'npm run build';
 
 	// Resolve output directory — use framework default or '.'
-	const resolvedOutputDir = outputDirectory ?? '.';
+	const resolvedOutputDir = definition.outputDirectory ?? '.';
 
 	// Resolve static asset directory (relative to project root):
 	// - explicit string: path relative to project root (e.g., '.next/static', '.output/public')
 	// - null: the entire output directory is static (SSGs, SPAs) — use outputDirectory
 	// - undefined: no static assets known for this framework
 	const resolvedStaticDir =
-		staticDirectory === null
+		definition.staticDir === null
 			? resolvedOutputDir // null means entire output IS the static dir
-			: (staticDirectory ?? undefined);
+			: (definition.staticDir ?? undefined);
 
 	// If the project ships a `start` script, prefer it over
 	// framework-default behaviour. Most production setups
@@ -53,7 +63,7 @@ async function frameworkDefToDetected(
 	// `@hono/node-server`, custom Express wrappers) document
 	// the launch command via `pkg.json` — honoring it lets the
 	// generic adapter skip injecting its static-file fallback.
-	const resolvedStartCommand = pkg.scripts?.start;
+	const resolvedStartCommand = pkg.scripts?.start ?? resolveDefaultStartCommand(definition, pkg);
 
 	// Pick the runtime based on, in order:
 	//  1. The actual `start` script: `bun ...` / `bun run ...` =
@@ -85,12 +95,16 @@ async function frameworkDefToDetected(
 	})();
 
 	return {
-		name: slug,
+		name: definition.slug,
 		runtime,
 		packageManager: pm,
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
+		typegenCommand: definition.typegenCommand,
+		runtimeDependencies: definition.runtimeDependencies,
+		buildPreinstallDevDependencies: definition.buildPreinstallDevDependencies,
+		buildFileReplacements: definition.buildFileReplacements,
 		startCommand: resolvedStartCommand,
 		confidence: 'high',
 	};
@@ -139,15 +153,7 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
 	if (match) {
-		return frameworkDefToDetected(
-			match.slug,
-			match.name,
-			match.buildCommand,
-			match.outputDirectory,
-			match.staticDir,
-			projectDir,
-			pkg
-		);
+		return frameworkDefToDetected(match, projectDir, pkg);
 	}
 
 	// 2. Generic fallback
@@ -168,15 +174,7 @@ export async function detectFrameworkWithPackageJson(
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
 	if (match) {
-		const framework = await frameworkDefToDetected(
-			match.slug,
-			match.name,
-			match.buildCommand,
-			match.outputDirectory,
-			match.staticDir,
-			projectDir,
-			pkg
-		);
+		const framework = await frameworkDefToDetected(match, projectDir, pkg);
 		return { framework, packageJson: pkg };
 	}
 

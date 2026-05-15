@@ -10,7 +10,7 @@
  * and is also the base logic that specific adapters build on.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { run } from '../../../node-compat/proc.ts';
 import { getRunCommand } from '../detect/util.ts';
@@ -69,7 +69,41 @@ export async function installDependencies(
 /**
  * Run the framework's build command.
  */
-export function copyRuntimeManifests(projectDir: string, outputDir: string): void {
+const ROOT_LIFECYCLE_SCRIPTS = new Set(['preinstall', 'install', 'postinstall', 'prepare']);
+
+function promoteDependency(pkg: Record<string, unknown>, name: string): void {
+	const dependencies = (pkg.dependencies ?? {}) as Record<string, string>;
+	const devDependencies = (pkg.devDependencies ?? {}) as Record<string, string>;
+	const version = dependencies[name] ?? devDependencies[name];
+	if (!version) return;
+
+	dependencies[name] = version;
+	delete devDependencies[name];
+	pkg.dependencies = dependencies;
+	pkg.devDependencies = devDependencies;
+}
+
+function rewriteRuntimePackageJson(packageJsonPath: string, runtimeDependencies: string[]): void {
+	const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as Record<string, unknown>;
+	const scripts = (pkg.scripts ?? {}) as Record<string, string>;
+
+	for (const name of ROOT_LIFECYCLE_SCRIPTS) {
+		delete scripts[name];
+	}
+	pkg.scripts = scripts;
+
+	for (const dependency of runtimeDependencies) {
+		promoteDependency(pkg, dependency);
+	}
+
+	writeFileSync(packageJsonPath, JSON.stringify(pkg, null, '\t') + '\n');
+}
+
+export function copyRuntimeManifests(
+	projectDir: string,
+	outputDir: string,
+	runtimeDependencies: string[] = []
+): void {
 	for (const name of [
 		'package.json',
 		'package-lock.json',
@@ -84,6 +118,11 @@ export function copyRuntimeManifests(projectDir: string, outputDir: string): voi
 		if (existsSync(src) && !existsSync(dst)) {
 			cpSync(src, dst);
 		}
+	}
+
+	const packageJsonPath = join(outputDir, 'package.json');
+	if (existsSync(packageJsonPath)) {
+		rewriteRuntimePackageJson(packageJsonPath, runtimeDependencies);
 	}
 }
 
@@ -128,6 +167,72 @@ export async function runBuildCommand(
 	return { stdout: result.stdout, stderr: result.stderr };
 }
 
+interface BuildPreparation {
+	cleanup: () => void;
+}
+
+async function installTransientDevDependencies(
+	projectDir: string,
+	packageManager: string,
+	dependencies: string[],
+	logger: { debug: (...args: unknown[]) => void }
+): Promise<void> {
+	if (dependencies.length === 0) return;
+
+	const cmd = (() => {
+		switch (packageManager) {
+			case 'bun':
+				return ['bun', 'add', '--dev', '--no-save', ...dependencies];
+			case 'pnpm':
+				return ['pnpm', 'add', '--save-dev', '--config.save=false', ...dependencies];
+			case 'yarn':
+				return ['yarn', 'add', '--dev', '--no-lockfile', ...dependencies];
+			default:
+				return ['npm', 'install', '--save-dev', '--no-save', ...dependencies];
+		}
+	})();
+
+	logger.debug(`Installing transient build dependencies with: ${cmd.join(' ')}`);
+	const result = await runCommand(cmd, projectDir);
+	if (result.exitCode !== 0) {
+		throw new Error(
+			`Failed to install transient build dependencies (exit ${result.exitCode}):\n${result.stderr || result.stdout}`
+		);
+	}
+}
+
+async function prepareFrameworkBuild(
+	projectDir: string,
+	framework: BuildAdapterOptions['framework'],
+	logger: { debug: (...args: unknown[]) => void }
+): Promise<BuildPreparation | undefined> {
+	await installTransientDevDependencies(
+		projectDir,
+		framework.packageManager,
+		framework.buildPreinstallDevDependencies ?? [],
+		logger
+	);
+
+	const cleanups: Array<() => void> = [];
+	for (const replacement of framework.buildFileReplacements ?? []) {
+		const filePath = join(projectDir, replacement.path);
+		if (!existsSync(filePath)) continue;
+
+		const original = readFileSync(filePath, 'utf-8');
+		if (!original.includes(replacement.search)) continue;
+
+		writeFileSync(filePath, original.replace(replacement.search, replacement.replacement));
+		cleanups.push(() => writeFileSync(filePath, original));
+	}
+
+	if (cleanups.length === 0) return undefined;
+	return {
+		cleanup: () => {
+			for (const cleanup of cleanups.reverse()) cleanup();
+		},
+	};
+}
+
 export const genericAdapter: BuildAdapter = {
 	name: 'generic',
 
@@ -135,31 +240,38 @@ export const genericAdapter: BuildAdapter = {
 		const { projectDir, framework, outputDir, logger } = options;
 		const started = Date.now();
 		const logs: string[] = [];
+		let preparation: BuildPreparation | undefined;
 
-		// Step 1: Install dependencies when the project has a package.json.
-		// Bare static HTML projects intentionally have no package setup; they
-		// are copied as-is and launched by the platform static server command.
-		if (existsSync(join(projectDir, 'package.json'))) {
-			logger.debug('Installing dependencies...');
-			const installStart = Date.now();
-			await installDependencies(projectDir, framework.packageManager, logger);
-			logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
-		} else {
-			logs.push('✓ No package.json found; skipped dependency installation');
-		}
+		try {
+			// Step 1: Install dependencies when the project has a package.json.
+			// Bare static HTML projects intentionally have no package setup; they
+			// are copied as-is and launched by the platform static server command.
+			if (existsSync(join(projectDir, 'package.json'))) {
+				logger.debug('Installing dependencies...');
+				const installStart = Date.now();
+				await installDependencies(projectDir, framework.packageManager, logger);
+				logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
+			} else {
+				logs.push('✓ No package.json found; skipped dependency installation');
+			}
 
-		// Step 2: Run the build command
-		if (framework.buildCommand && framework.buildCommand !== '__agentuity_internal__') {
-			logger.debug(`Running build: ${framework.buildCommand}`);
-			const buildStart = Date.now();
-			await runBuildCommand(
-				projectDir,
-				framework.buildCommand,
-				framework.packageManager,
-				framework.buildEnv,
-				logger
-			);
-			logs.push(`✓ Build completed in ${Date.now() - buildStart}ms`);
+			preparation = await prepareFrameworkBuild(projectDir, framework, logger);
+
+			// Step 2: Run the build command
+			if (framework.buildCommand && framework.buildCommand !== '__agentuity_internal__') {
+				logger.debug(`Running build: ${framework.buildCommand}`);
+				const buildStart = Date.now();
+				await runBuildCommand(
+					projectDir,
+					framework.buildCommand,
+					framework.packageManager,
+					framework.buildEnv,
+					logger
+				);
+				logs.push(`✓ Build completed in ${Date.now() - buildStart}ms`);
+			}
+		} finally {
+			preparation?.cleanup();
 		}
 
 		// Step 3: Copy build output to output directory.
@@ -244,7 +356,7 @@ export const genericAdapter: BuildAdapter = {
 
 		// Step 5: Copy package manifests for Hadron's runtime dependency install.
 		// Do not copy node_modules: Hadron installs production dependencies before launch.
-		copyRuntimeManifests(projectDir, outputDir);
+		copyRuntimeManifests(projectDir, outputDir, framework.runtimeDependencies ?? []);
 
 		// Step 6: Resolve static asset directory for CDN upload
 		// staticDir is relative to the project root (set by framework detection).

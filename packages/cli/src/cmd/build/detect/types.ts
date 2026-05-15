@@ -53,6 +53,22 @@ export interface DetectedFramework {
 	/** Command to start the production server (only for mode='server') */
 	startCommand?: string;
 
+	/** Commands that generate framework virtual TypeScript files before tsc runs. */
+	typegenCommand?: string | string[];
+
+	/** Packages required by the built runtime even if installed locally as devDependencies. */
+	runtimeDependencies?: string[];
+
+	/** Dev dependencies to install transiently before build without persisting to package.json. */
+	buildPreinstallDevDependencies?: string[];
+
+	/** Temporary source-file replacements applied before build and reverted after build. */
+	buildFileReplacements?: Array<{
+		path: string;
+		search: string;
+		replacement: string;
+	}>;
+
 	/** Server entrypoint file (relative to buildOutput) */
 	serverEntry?: string;
 

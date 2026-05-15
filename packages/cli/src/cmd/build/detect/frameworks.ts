@@ -32,6 +32,24 @@ export interface FrameworkDefinition {
 	slug: string;
 	/** Default build command (null = no build step) */
 	buildCommand: string | null;
+	/** Default start command when package.json has no start script. */
+	defaultStartCommand?: {
+		command: string;
+		/** Only use this default when the package is present in dependencies or devDependencies. */
+		whenPackage?: string;
+	};
+	/** Commands that generate framework virtual TypeScript files before tsc runs. */
+	typegenCommand?: string | string[];
+	/** Packages required by the built runtime even if templates install them as devDependencies. */
+	runtimeDependencies?: string[];
+	/** Dev dependencies to install transiently before build without persisting to package.json. */
+	buildPreinstallDevDependencies?: string[];
+	/** Temporary source-file replacements applied before build and reverted after build. */
+	buildFileReplacements?: Array<{
+		path: string;
+		search: string;
+		replacement: string;
+	}>;
 	/** Default output directory for static assets */
 	outputDirectory: string | null;
 	/**
@@ -87,6 +105,7 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'Nuxt',
 		slug: 'nuxt',
 		buildCommand: 'nuxt build',
+		defaultStartCommand: { command: 'HOST=0.0.0.0 node .output/server/index.mjs' },
 		// Nitro's default `node-server` preset emits a self-listening
 		// Node entry at `.output/server/index.mjs` plus static assets
 		// at `.output/public/`. The user's `start` script
@@ -137,6 +156,16 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'SvelteKit',
 		slug: 'sveltekit',
 		buildCommand: 'vite build',
+		defaultStartCommand: { command: 'node build/index.js' },
+		typegenCommand: 'svelte-kit sync',
+		buildPreinstallDevDependencies: ['@sveltejs/adapter-node'],
+		buildFileReplacements: [
+			{
+				path: 'svelte.config.js',
+				search: '@sveltejs/adapter-auto',
+				replacement: '@sveltejs/adapter-node',
+			},
+		],
 		// SvelteKit's `adapter-node` (the self-hosting default) writes a
 		// self-listening Node server to `build/index.js` plus client
 		// assets at `build/client/`. The user's `start` script is what
@@ -156,6 +185,12 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'Astro',
 		slug: 'astro',
 		buildCommand: 'astro build',
+		defaultStartCommand: {
+			command: 'node ./dist/server/entry.mjs',
+			whenPackage: '@astrojs/node',
+		},
+		typegenCommand: 'astro sync',
+		runtimeDependencies: ['@astrojs/node'],
 		outputDirectory: 'dist',
 		staticDir: null, // Entire dist/ is static (SSG default); dist/client/ for SSR
 		envPrefix: 'PUBLIC_',

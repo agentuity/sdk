@@ -180,7 +180,10 @@ export const command = createCommand({
 				try {
 					tui.info('Running type check...');
 					const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-					const typeResult = await typecheck(absoluteProjectDir, { collector });
+					const typeResult = await typecheck(absoluteProjectDir, {
+						collector,
+						typegenCommand: framework.typegenCommand,
+					});
 					endTypecheckDiagnostic();
 
 					if (typeResult.success) {

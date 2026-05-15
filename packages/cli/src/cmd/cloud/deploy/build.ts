@@ -106,25 +106,8 @@ export function buildBuildStep(params: BuildStepParams): Step {
 			const capturedOutput: string[] = [];
 			const rootDir = resolve(projectDir);
 
-			// 1. Typecheck. Failures are surfaced via the collector and the
-			//    Step's error output; the build report is written before
-			//    we return so CI always has the diagnostics on disk.
-			const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-			const started = Date.now();
-			const typeResult = await typecheck(rootDir, { collector });
-			endTypecheckDiagnostic();
-
-			if (typeResult.success) {
-				capturedOutput.push(tui.muted(`✓ Typechecked in ${Date.now() - started}ms`));
-			} else {
-				if (hasReportFile) {
-					await collector.forceWrite();
-				}
-				return stepError('Typecheck failed\n\n' + typeResult.output);
-			}
-
 			try {
-				// 2. Resolve framework + package.json. The Discover phase ran
+				// 1. Resolve framework + package.json. The Discover phase ran
 				//    first in normal flow and stashed the result on `state`;
 				//    in child mode we skip Discover and re-detect here.
 				const discovered =
@@ -138,6 +121,26 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				}
 
 				const { framework, packageJson } = discovered;
+
+				// 2. Typecheck. Failures are surfaced via the collector and the
+				//    Step's error output; the build report is written before
+				//    we return so CI always has the diagnostics on disk.
+				const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
+				const started = Date.now();
+				const typeResult = await typecheck(rootDir, {
+					collector,
+					typegenCommand: framework.typegenCommand,
+				});
+				endTypecheckDiagnostic();
+
+				if (typeResult.success) {
+					capturedOutput.push(tui.muted(`✓ Typechecked in ${Date.now() - started}ms`));
+				} else {
+					if (hasReportFile) {
+						await collector.forceWrite();
+					}
+					return stepError('Typecheck failed\n\n' + typeResult.output);
+				}
 
 				// In child mode we didn't run Discover, so emit a one-line
 				// detection summary inline. In normal mode Discover already

@@ -25,6 +25,8 @@ type TypeResult = TypeError | TypeSuccess | TypeUnknownError;
 export interface TypecheckOptions {
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
+	/** Framework commands that generate virtual TypeScript files before tsc runs. */
+	typegenCommand?: string | string[];
 }
 
 /**
@@ -39,6 +41,20 @@ export interface TypecheckOptions {
  * We also strip continuation lines (indented with 2+ leading spaces) that
  * follow a node_modules error line, as they are part of the same diagnostic.
  */
+async function runTypeGeneration(
+	dir: string,
+	typegenCommand: string | string[] | undefined
+): Promise<void> {
+	const commands = typeof typegenCommand === 'string' ? [typegenCommand] : (typegenCommand ?? []);
+	if (commands.length === 0) return;
+
+	const localBin = join(dir, 'node_modules', '.bin');
+	const env = { PATH: `${localBin}:${process.env.PATH ?? ''}` };
+	for (const command of commands) {
+		await run({ cmd: ['sh', '-c', command], cwd: dir, env });
+	}
+}
+
 function filterNodeModulesErrors(output: string): string {
 	const lines = output.split('\n');
 	const filtered: string[] = [];
@@ -82,7 +98,9 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 		return { success: true };
 	}
 
-	const { collector } = options ?? {};
+	const { collector, typegenCommand } = options ?? {};
+	await runTypeGeneration(dir, typegenCommand);
+
 	const result = await run({
 		cmd: ['bunx', 'tsc', '--noEmit', '--skipLibCheck', '--pretty', 'false'],
 		cwd: dir,
