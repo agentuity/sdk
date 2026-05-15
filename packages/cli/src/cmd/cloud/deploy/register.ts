@@ -45,10 +45,16 @@ export interface RegisterParams {
 	config: Config;
 	/** Logger to thread through. */
 	logger: Logger;
-	/** Whether the user passed `--confirm` (used in non-TTY region change). */
+	/** Whether the user passed `--confirm` (used in non-TTY registration and region change). */
 	confirm: boolean;
 	/** Resolved by `isTTY()` at the call site so we don't import auth here. */
 	interactive: boolean;
+	/** Pre-selected organization ID for auto-registration. */
+	orgId?: string;
+	/** Pre-selected cloud region for auto-registration. */
+	region?: string;
+	/** Project name to use when deploy auto-registers this directory. */
+	name?: string;
 }
 
 export interface RegisterResult {
@@ -67,7 +73,18 @@ export interface RegisterResult {
  * therefore don't need to handle a `null`/error return.
  */
 export async function runRegister(params: RegisterParams): Promise<RegisterResult> {
-	const { projectDir, apiClient, auth, config, logger, confirm, interactive } = params;
+	const {
+		projectDir,
+		apiClient,
+		auth,
+		config,
+		logger,
+		confirm,
+		interactive,
+		orgId,
+		region,
+		name,
+	} = params;
 
 	// Lazy-load reconcile to keep the deploy command's startup cost low
 	// (this matches what deploy.ts used to do inline).
@@ -80,6 +97,10 @@ export async function runRegister(params: RegisterParams): Promise<RegisterResul
 		config,
 		logger,
 		interactive,
+		confirm,
+		orgId,
+		region,
+		name,
 	});
 
 	if (reconcileResult.status === 'error') {

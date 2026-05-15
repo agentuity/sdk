@@ -83,6 +83,10 @@ export const deploySubcommand = createSubcommand({
 			command: getCommand('cloud deploy --log-level=debug'),
 			description: 'Deploy with verbose output',
 		},
+		{
+			command: getCommand('cloud deploy --name "My Project"'),
+			description: 'Deploy and use a display name if the project must be registered',
+		},
 	],
 	toplevel: true,
 	idempotent: false,
@@ -115,6 +119,12 @@ export const deploySubcommand = createSubcommand({
 		options: z.intersection(
 			DeployOptionsSchema,
 			z.object({
+				name: z
+					.string()
+					.optional()
+					.describe(
+						'project name to use when deploy auto-registers an unregistered directory'
+					),
 				reportFile: z
 					.string()
 					.optional()
@@ -137,7 +147,7 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
+		const { apiClient, projectDir, config, options, logger, opts, auth, orgId, region } = ctx;
 
 		// Mutable, shared accumulator threaded through the deploy steps.
 		// Each phase writes its own outputs onto this object so later steps
@@ -160,6 +170,9 @@ export const deploySubcommand = createSubcommand({
 			logger,
 			confirm: opts.confirm,
 			interactive: isTTY(),
+			orgId,
+			region,
+			name: opts.name,
 		});
 		const project = registerResult.project;
 

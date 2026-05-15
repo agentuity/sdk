@@ -2,7 +2,11 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { isValidProjectStructure, getDefaultProjectName } from '../../../src/cmd/project/reconcile';
+import {
+	isValidProjectStructure,
+	getDefaultProjectName,
+	resolveProjectRegistrationName,
+} from '../../../src/cmd/project/reconcile';
 
 describe('project reconcile', () => {
 	let testDir: string;
@@ -208,6 +212,45 @@ describe('project reconcile', () => {
 
 			const result = await getDefaultProjectName(testDir);
 			expect(result).toBe('my-agent');
+		});
+	});
+
+	describe('resolveProjectRegistrationName', () => {
+		test('uses explicit name before package.json name', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'package-json-name',
+				})
+			);
+
+			const result = await resolveProjectRegistrationName({
+				dir: testDir,
+				name: 'User Provided Name',
+				confirm: true,
+			});
+
+			expect(result).toBe('User Provided Name');
+		});
+
+		test('trims explicit names', async () => {
+			const result = await resolveProjectRegistrationName({
+				dir: testDir,
+				name: '  User Provided Name  ',
+				confirm: true,
+			});
+
+			expect(result).toBe('User Provided Name');
+		});
+
+		test('rejects blank explicit names', async () => {
+			await expect(
+				resolveProjectRegistrationName({
+					dir: testDir,
+					name: '   ',
+					confirm: true,
+				})
+			).rejects.toThrow('Project name is required.');
 		});
 	});
 

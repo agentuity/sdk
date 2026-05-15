@@ -322,6 +322,39 @@ async function textPrompt(options: {
 }
 
 /**
+ * Resolve the cloud project display name for registration/import.
+ * Explicit CLI names are always authoritative over package.json defaults.
+ * @internal Exported for testing.
+ */
+export async function resolveProjectRegistrationName(
+	opts: Pick<ReconcileOptions, 'dir' | 'name' | 'confirm'>
+): Promise<string> {
+	if (opts.name !== undefined) {
+		const trimmed = opts.name.trim();
+		if (trimmed.length === 0) {
+			throw new Error('Project name is required.');
+		}
+		return trimmed;
+	}
+
+	const defaultName = await getDefaultProjectName(opts.dir);
+	if (opts.confirm) {
+		return defaultName;
+	}
+
+	return textPrompt({
+		message: 'Project name:',
+		initial: defaultName,
+		validate: (value: string) => {
+			if (!value || value.trim().length === 0) {
+				return 'Project name is required';
+			}
+			return true;
+		},
+	});
+}
+
+/**
  * Import an existing project (with invalid/inaccessible agentuity.json) to user's org
  */
 async function importExistingProject(
@@ -388,28 +421,14 @@ async function importExistingProject(
 		}
 	}
 
-	// Get project name
-	const defaultName = await getDefaultProjectName(dir);
 	let projectName: string;
-	if (opts.name) {
-		const trimmed = opts.name.trim();
-		if (trimmed.length === 0) {
-			return { status: 'error', message: 'Project name is required.' };
-		}
-		projectName = trimmed;
-	} else if (opts.confirm) {
-		projectName = defaultName;
-	} else {
-		projectName = await textPrompt({
-			message: 'Project name:',
-			initial: defaultName,
-			validate: (value: string) => {
-				if (!value || value.trim().length === 0) {
-					return 'Project name is required';
-				}
-				return true;
-			},
-		});
+	try {
+		projectName = await resolveProjectRegistrationName(opts);
+	} catch (err) {
+		return {
+			status: 'error',
+			message: err instanceof Error ? err.message : 'Project name is required.',
+		};
 	}
 
 	const registrationMetadata = await detectProjectRegistrationMetadata(dir);
@@ -527,28 +546,14 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 		}
 	}
 
-	// Get project name from package.json or prompt
-	const defaultName = await getDefaultProjectName(dir);
 	let projectName: string;
-	if (opts.name) {
-		const trimmed = opts.name.trim();
-		if (trimmed.length === 0) {
-			return { status: 'error', message: 'Project name is required.' };
-		}
-		projectName = trimmed;
-	} else if (opts.confirm) {
-		projectName = defaultName;
-	} else {
-		projectName = await textPrompt({
-			message: 'Project name:',
-			initial: defaultName,
-			validate: (value: string) => {
-				if (!value || value.trim().length === 0) {
-					return 'Project name is required';
-				}
-				return true;
-			},
-		});
+	try {
+		projectName = await resolveProjectRegistrationName(opts);
+	} catch (err) {
+		return {
+			status: 'error',
+			message: err instanceof Error ? err.message : 'Project name is required.',
+		};
 	}
 
 	const registrationMetadata = await detectProjectRegistrationMetadata(dir);
@@ -634,7 +639,7 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 			}
 
 			// User doesn't have access - offer to import
-			if (!interactive || validateOnly) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message:
@@ -647,7 +652,7 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 			// Project not found or access denied
 			logger.debug('Failed to get project:', err);
 
-			if (!interactive || validateOnly) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message:
@@ -670,7 +675,7 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 		};
 	}
 
-	if (!interactive || validateOnly) {
+	if ((!interactive && !opts.confirm) || validateOnly) {
 		return {
 			status: 'error',
 			message:
