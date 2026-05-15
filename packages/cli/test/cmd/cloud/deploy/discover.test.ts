@@ -60,7 +60,7 @@ describe('deploy discover phase', () => {
 
 			const result = await runDiscover(testDir, makeLogger());
 			expect(result.framework.name).toBe('static-html');
-			expect(result.framework.startCommand).toBe('npm serve');
+			expect(result.framework.startCommand).toBe('npx serve');
 			expect(result.packageJson).toBeNull();
 		});
 
@@ -143,7 +143,7 @@ describe('deploy discover phase', () => {
 			expect(outcome.status).toBe('success');
 			expect(state.discover).toBeDefined();
 			expect(state.discover?.framework.name).toBe('static-html');
-			expect(state.discover?.framework.startCommand).toBe('npm serve');
+			expect(state.discover?.framework.startCommand).toBe('npx serve');
 			expect(state.discover?.packageJson).toBeNull();
 		});
 

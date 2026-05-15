@@ -43,7 +43,7 @@ describe('Framework Detection', () => {
 		expect(result!.buildCommand).toBe('__agentuity_internal__');
 		expect(result!.buildOutput).toBe('.');
 		expect(result!.staticDir).toBe('.');
-		expect(result!.startCommand).toBe('npm serve');
+		expect(result!.startCommand).toBe('npx serve');
 	});
 
 	test('returns null when package.json has no scripts or main', async () => {
@@ -354,7 +354,7 @@ describe('Framework Detection', () => {
 			const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
 			expect(framework).not.toBeNull();
 			expect(framework!.name).toBe('static-html');
-			expect(framework!.startCommand).toBe('npm serve');
+			expect(framework!.startCommand).toBe('npx serve');
 			expect(packageJson).toBeNull();
 		});
 	});

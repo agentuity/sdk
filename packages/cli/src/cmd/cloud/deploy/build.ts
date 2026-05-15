@@ -49,7 +49,10 @@ import * as tui from '../../../tui.ts';
 import type { DeployOptions, Project } from '../../../types.ts';
 import { getAdapter } from '../../build/adapters/index.ts';
 import type { BuildResult } from '../../build/adapters/types.ts';
-import { detectFrameworkWithPackageJson } from '../../build/detect/index.ts';
+import {
+	detectFrameworkWithPackageJson,
+	NO_DEPLOYABLE_PROJECT_MESSAGE,
+} from '../../build/detect/index.ts';
 import { packageBuildOutput, type PackageResult } from '../../build/package/index.ts';
 import { typecheck } from '../../build/typecheck.ts';
 import type { DeployPipelineState } from './types.ts';
@@ -131,9 +134,7 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					));
 
 				if (!discovered) {
-					return stepError(
-						'Could not detect a JS framework. Ensure package.json exists with a build script.'
-					);
+					return stepError(NO_DEPLOYABLE_PROJECT_MESSAGE);
 				}
 
 				const { framework, packageJson } = discovered;

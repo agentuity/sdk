@@ -9,9 +9,10 @@
  * with empty routes/agents and assets enumerated from the static dir.
  */
 
+import { randomBytes } from 'node:crypto';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import { type BuildMetadata, DeploymentConfig, getContentType } from '@agentuity/server';
 import type { z } from 'zod';
 import type { BuildResult } from './cmd/build/adapters/types.ts';
@@ -100,6 +101,22 @@ function enumerateAssets(dir: string, baseDir: string): AssetInfo[] {
 	}
 
 	return assets;
+}
+
+/**
+ * Lowercase + kebab-case a string for use as a fallback project name.
+ * Collapses runs of non-alphanumeric characters into a single `-` and
+ * trims leading/trailing dashes. If the input has no usable characters
+ * (e.g. deploying from `/`), falls back to `project-<shortsha>` so the
+ * deployment still gets a unique, readable slug.
+ */
+function kebabize(input: string): string {
+	const out = input
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+	if (out) return out;
+	return `project-${randomBytes(4).toString('hex')}`;
 }
 
 /**
@@ -222,7 +239,7 @@ export async function generateDeployMetadata(
 		assets,
 		project: {
 			id: projectId,
-			name: pkgContents.name || 'unknown',
+			name: pkgContents.name || kebabize(basename(projectDir)),
 			version: pkgContents.version,
 			description: pkgContents.description,
 			keywords: pkgContents.keywords,

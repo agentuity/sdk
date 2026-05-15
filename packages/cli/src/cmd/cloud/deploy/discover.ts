@@ -20,7 +20,10 @@
  */
 
 import type { Logger } from '@agentuity/core';
-import { detectFrameworkWithPackageJson } from '../../build/detect/index.ts';
+import {
+	detectFrameworkWithPackageJson,
+	NO_DEPLOYABLE_PROJECT_MESSAGE,
+} from '../../build/detect/index.ts';
 import {
 	type Step,
 	type StepOutcome,
@@ -51,11 +54,9 @@ export function buildDiscoverStep(
 
 				if (!framework) {
 					// detectFrameworkWithPackageJson already falls through to a
-					// generic detector; if even that returns null it means the
-					// package.json has no usable build script.
-					return stepError(
-						'Could not determine how to build this project. Add a `build` script to package.json (e.g. "build": "next build") and try again.'
-					);
+					// generic detector and to bare-static-html; if even that
+					// returns null it means the directory is unsupportable.
+					return stepError(NO_DEPLOYABLE_PROJECT_MESSAGE);
 				}
 
 				logger.debug(
@@ -99,9 +100,7 @@ export async function runDiscover(projectDir: string, logger: Logger): Promise<D
 	const { framework, packageJson } = await detectFrameworkWithPackageJson(projectDir);
 
 	if (!framework) {
-		throw new Error(
-			'Could not determine how to build this project. Add a `build` script to package.json (e.g. "build": "next build") and try again.'
-		);
+		throw new Error(NO_DEPLOYABLE_PROJECT_MESSAGE);
 	}
 
 	logger.debug(

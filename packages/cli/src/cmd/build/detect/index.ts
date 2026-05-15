@@ -110,7 +110,7 @@ function bareStaticHtmlDetected(): DetectedFramework {
 		buildCommand: '__agentuity_internal__',
 		buildOutput: '.',
 		staticDir: '.',
-		startCommand: 'npm serve',
+		startCommand: 'npx serve',
 		port: 3000,
 		confidence: 'low',
 	};
@@ -120,6 +120,17 @@ async function detectBareStaticHtml(projectDir: string): Promise<DetectedFramewo
 	if (!(await pathExists(join(projectDir, 'index.html')))) return null;
 	return bareStaticHtmlDetected();
 }
+
+/**
+ * Canonical error message for "no deployable project here." Centralised
+ * so adding a new supported entrypoint (e.g. a Python project) only
+ * requires updating one string instead of hunting down every caller's
+ * copy. Used by build, deploy, discover, and project-reconcile error
+ * paths. If you add a new entrypoint, update this string and the
+ * `detectBareStaticHtml`-style checks in lockstep.
+ */
+export const NO_DEPLOYABLE_PROJECT_MESSAGE =
+	'Could not detect a deployable project. Expected a package.json with a build script (e.g. "build": "next build"), or a bare index.html for static HTML deploys.';
 
 export async function detectFramework(projectDir: string): Promise<DetectedFramework | null> {
 	const pkg = await readPackageJson(projectDir);

@@ -24,6 +24,7 @@ import {
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../env-util.ts';
+import { NO_DEPLOYABLE_PROJECT_MESSAGE } from '../build/detect/index.ts';
 import { fetchRegionsWithCache } from '../../regions.ts';
 import { getCachedProject, setCachedProject } from '../../cache/index.ts';
 import { detectProjectRegistrationMetadata } from './registration-metadata.ts';
@@ -51,6 +52,14 @@ export interface ReconcileOptions {
 	region?: string;
 	/** Project name from --name flag */
 	name?: string;
+	/**
+	 * When true, suppress the "Would you like to register it now?"
+	 * confirmation in `createNewProject`. Use this when the caller has
+	 * already obtained explicit consent to register — e.g. the user
+	 * typed `agentuity project import`, or answered "yes" to the
+	 * existing-project detour in `agentuity project create`.
+	 */
+	skipRegisterPrompt?: boolean;
 }
 
 /**
@@ -144,6 +153,14 @@ export async function isValidProjectStructure(dir: string): Promise<boolean> {
 		if (await pathExists(childPkgPath)) {
 			return true;
 		}
+	}
+
+	// Check 3: bare static HTML deploy (index.html with no package.json).
+	// Must stay in sync with `detectBareStaticHtml` in build/detect/index.ts:
+	// anything detection accepts as a non-package.json entrypoint must also
+	// pass here, or import will reject projects that deploy would build.
+	if (await pathExists(join(dir, 'index.html'))) {
+		return true;
 	}
 
 	return false;
@@ -448,7 +465,11 @@ async function importExistingProject(
 async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult> {
 	const { dir, apiClient, config, logger } = opts;
 
-	if (opts.interactive !== false) {
+	// Skip the "register now?" prompt when the caller already has
+	// explicit consent (`runProjectImport`, or the create-detour after
+	// the user accepted "import this project instead"). Asking again is
+	// a noisy double-confirm that made the flow feel split.
+	if (opts.interactive !== false && !opts.skipRegisterPrompt) {
 		tui.warning('This project is not registered with Agentuity Cloud.');
 		tui.newline();
 
@@ -645,9 +666,7 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 	if (!isValid) {
 		return {
 			status: 'error',
-			message:
-				'This directory does not appear to be a valid project. ' +
-				'Expected a package.json with project dependencies.',
+			message: NO_DEPLOYABLE_PROJECT_MESSAGE,
 		};
 	}
 
@@ -739,9 +758,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 	if (!isValid && !opts.confirm) {
 		return {
 			status: 'error',
-			message:
-				'This directory does not appear to be a valid project. ' +
-				'Expected a package.json with project dependencies.',
+			message: NO_DEPLOYABLE_PROJECT_MESSAGE,
 		};
 	}
 
@@ -759,5 +776,8 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 		};
 	}
 
-	return await createNewProject(opts);
+	// User explicitly invoked `project import` (or accepted the create
+	// detour); skip the redundant "register it now?" confirm inside
+	// createNewProject.
+	return await createNewProject({ ...opts, skipRegisterPrompt: true });
 }

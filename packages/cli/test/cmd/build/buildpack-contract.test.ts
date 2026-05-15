@@ -193,7 +193,7 @@ describe('Buildpack Contract — End-to-End', () => {
 		const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
 		expect(framework).not.toBeNull();
 		expect(framework!.name).toBe('static-html');
-		expect(framework!.startCommand).toBe('npm serve');
+		expect(framework!.startCommand).toBe('npx serve');
 		expect(packageJson).toBeNull();
 
 		const adapter = getAdapter(framework!.name);
@@ -213,7 +213,7 @@ describe('Buildpack Contract — End-to-End', () => {
 		const launch: LaunchMetadata = JSON.parse(
 			readFileSync(join(buildResult.outputDir, 'launch.json'), 'utf-8')
 		);
-		expect(launch.processes[0].command).toBe('npm serve');
+		expect(launch.processes[0].command).toBe('npx serve');
 		expect(launch.framework.name).toBe('static-html');
 
 		const violations = validateBuildpackContract(buildResult.outputDir);

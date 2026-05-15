@@ -12,7 +12,7 @@ import {
 	setGlobalCollector,
 	clearGlobalCollector,
 } from '../../build-report.ts';
-import { detectFrameworkWithPackageJson } from './detect/index.ts';
+import { detectFrameworkWithPackageJson, NO_DEPLOYABLE_PROJECT_MESSAGE } from './detect/index.ts';
 import { getAdapter } from './adapters/index.ts';
 import { packageBuildOutput } from './package/index.ts';
 
@@ -120,19 +120,12 @@ export const command = createCommand({
 				await detectFrameworkWithPackageJson(absoluteProjectDir);
 
 			if (!framework) {
-				collector.addGeneralError(
-					'build',
-					'Could not detect a JS framework. Ensure package.json exists with a build script.',
-					'BUILD010'
-				);
+				collector.addGeneralError('build', NO_DEPLOYABLE_PROJECT_MESSAGE, 'BUILD010');
 				if (opts.reportFile) {
 					await collector.forceWrite();
 				}
 				clearGlobalCollector();
-				tui.fatal(
-					'Could not detect a JS framework. Ensure package.json exists with a build script.',
-					ErrorCode.BUILD_FAILED
-				);
+				tui.fatal(NO_DEPLOYABLE_PROJECT_MESSAGE, ErrorCode.BUILD_FAILED);
 			}
 
 			const frameworkLabel = framework.version
