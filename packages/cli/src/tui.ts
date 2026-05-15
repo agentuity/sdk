@@ -8,6 +8,7 @@
  */
 import { resolve } from 'node:path';
 import * as readline from 'node:readline';
+import CliTable3 from 'cli-table3';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
@@ -2179,24 +2180,9 @@ export function table<T extends Record<string, unknown>>(
 	if (useVertical) {
 		output = renderVerticalTable(data, columnNames, options?.padStart);
 	} else {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const Table = require('cli-table3') as new (options?: {
-			head?: string[];
-			colAligns?: Array<'left' | 'right' | 'center'>;
-			wordWrap?: boolean;
-			style?: {
-				head?: string[];
-				border?: string[];
-			};
-			colors?: boolean;
-		}) => {
-			push(row: unknown[]): void;
-			toString(): string;
-		};
-
 		const headings = columnNames.map((name) => heading(name));
 
-		const t = new Table({
+		const t = new CliTable3({
 			head: headings,
 			colAligns,
 			wordWrap: true,
@@ -2204,12 +2190,11 @@ export function table<T extends Record<string, unknown>>(
 				head: [], // Disable cli-table3's default red styling - we apply our own via heading()
 				border: [], // Disable default border styling too
 			},
-			colors: false, // Completely disable cli-table3's color system to preserve our ANSI codes
 		});
 
 		// Add rows to table
 		for (const row of data) {
-			const rowData: unknown[] = [];
+			const rowData: string[] = [];
 			for (const colName of columnNames) {
 				const value = row[colName];
 				rowData.push(value !== undefined && value !== null ? String(value) : '');
