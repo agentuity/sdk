@@ -28,6 +28,13 @@ export interface ParsedOption {
 	hasDefault?: boolean;
 	defaultValue?: unknown;
 	enumValues?: string[];
+	/**
+	 * Whether this option should be hidden from `--help` output.
+	 * Auto-derived from descriptions starting with `Internal:` so
+	 * subcommand authors can mark forked-process-only flags without
+	 * importing additional types.
+	 */
+	hidden?: boolean;
 }
 
 interface ZodTypeDef {
@@ -287,6 +294,10 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			hasDefault: defaultInfo.hasDefault,
 			defaultValue,
 			enumValues,
+			// Descriptions prefixed with `Internal:` mark options that
+			// exist for inter-process plumbing (e.g. forked child mode)
+			// and should not appear in `--help`.
+			hidden: typeof description === 'string' && /^internal:/i.test(description.trim()),
 		});
 	}
 

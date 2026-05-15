@@ -13,19 +13,12 @@
  * user picks services in the multi-select.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { type Stats, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { currentDir } from '../../node-compat/runtime-info.ts';
 
 /** Frameworks a service may target. */
-export type FrameworkId =
-	| 'nextjs'
-	| 'remix'
-	| 'vite-react'
-	| 'nuxt'
-	| 'sveltekit'
-	| 'astro'
-	| 'hono';
+export type FrameworkId = 'nextjs' | 'nuxt' | 'sveltekit' | 'astro' | 'hono';
 
 /** Single env var contribution. */
 export interface ServiceEnvVar {
@@ -97,7 +90,7 @@ export function loadCatalog(servicesDir: string): ServiceAugment[] {
 
 	for (const id of dirEntries) {
 		const manifestPath = join(servicesDir, id, 'manifest.json');
-		let stat;
+		let stat: Stats;
 		try {
 			stat = statSync(manifestPath);
 		} catch {

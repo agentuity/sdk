@@ -3,15 +3,12 @@
  *
  * After a framework adapter builds the project, the packager:
  * 1. Generates launch metadata (how to start the app)
- * 2. Writes a Procfile for compatibility
- * 3. Optionally generates additional metadata
+ * 2. Writes launch.json
  *
  * The output is a self-contained directory ready for deployment
  * as a buildpack image layer or traditional zip upload.
  */
 
-import { join } from 'node:path';
-import { writeFileSync } from 'node:fs';
 import type { DetectedFramework } from '../detect/types.ts';
 import type { BuildResult } from '../adapters/types.ts';
 import { generateLaunchMetadata, writeLaunchMetadata, type LaunchMetadata } from './launch.ts';
@@ -43,16 +40,6 @@ export function packageBuildOutput(
 
 	// Write launch metadata to the output directory
 	writeLaunchMetadata(outputDir, launch);
-
-	// Write a .buildpack-ready marker file
-	const markerPath = join(outputDir, '.agentuity-build');
-	const markerContent = {
-		version: 1,
-		framework: framework.name,
-		runtime: framework.runtime,
-		buildDate: new Date().toISOString(),
-	};
-	writeFileSync(markerPath, JSON.stringify(markerContent, null, 2), 'utf-8');
 
 	return {
 		outputDir,

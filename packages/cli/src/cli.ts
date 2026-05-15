@@ -25,7 +25,6 @@ import {
 } from './auth.ts';
 import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions.ts';
-import enquirer from 'enquirer';
 import * as tui from './tui.ts';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInputAsync } from './schema-parser.ts';
 import { defaultProfileName, loadProjectConfig, saveProjectId, saveRegion } from './config.ts';
@@ -790,20 +789,16 @@ async function getRegion(regions: RegionList, preferredRegion?: string): Promise
 	if (regions.length === 1 && firstRegion) {
 		return firstRegion.region;
 	} else {
-		const preferredIndex = preferredRegion
-			? regions.findIndex((region) => region.region === preferredRegion)
-			: -1;
-		const response = await enquirer.prompt<{ region: string }>({
-			type: 'select',
-			name: 'region',
+		const prompt = tui.createPrompt();
+		return prompt.select<string>({
 			message: 'Select a cloud region:',
-			...(preferredIndex >= 0 && { initial: preferredIndex }),
-			choices: regions.map((r) => ({
-				name: r.region,
-				message: `${r.description.padEnd(15, ' ')} ${tui.muted(r.region)}`,
+			initial: preferredRegion,
+			options: regions.map((r) => ({
+				value: r.region,
+				label: r.description.padEnd(15, ' '),
+				hint: r.region,
 			})),
 		});
-		return response.region;
 	}
 }
 
@@ -1240,7 +1235,17 @@ async function registerSubcommand(
 				cmd.option(
 					`${flagSpec} <${opt.name}>`,
 					arrayDesc,
-					(value: string, previous: string[]) => (previous ?? []).concat([value])
+					(value: string, previous: string[]) => {
+						// Accept either repeated flags (--services kv --services db)
+						// or one comma-separated value (--services kv,db). The latter is
+						// what most option descriptions document and what users
+						// reach for first.
+						const parts = value
+							.split(',')
+							.map((v) => v.trim())
+							.filter((v) => v.length > 0);
+						return (previous ?? []).concat(parts);
+					}
 				);
 			} else if (opt.type === 'optionalString') {
 				// Optional string: --flag uses true, --flag=value uses the string value
@@ -1260,6 +1265,18 @@ async function registerSubcommand(
 					strDesc += ` (default: ${JSON.stringify(strDefault)})`;
 				}
 				cmd.option(`${flagSpec} <${opt.name}>`, strDesc);
+			}
+
+			// Hide internal/forked-process flags from `--help`. The boolean
+			// branch above may have registered both positive and `--no-*`
+			// forms, so hide every option commander created for this iteration.
+			if (opt.hidden) {
+				const registeredFlag = `--${flag}`;
+				for (const o of cmd.options) {
+					if (o.long === registeredFlag || o.long === `--no-${flag}`) {
+						o.hideHelp();
+					}
+				}
 			}
 		}
 	}

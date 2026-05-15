@@ -17,12 +17,19 @@ on:
             required: false
             type: string
 
+permissions:
+   contents: read
+
+env:
+   GITHUB_TOKEN: ''
+
 jobs:
    sync:
       runs-on: ubuntu-latest
       steps:
-         - uses: actions/checkout@v5
+         - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
            with:
+              persist-credentials: false
               fetch-depth: 0
 
          - name: Set commit variables
@@ -39,12 +46,12 @@ jobs:
                   AFTER_COMMIT="$(git rev-parse HEAD)"
                 fi
 
-                echo "before_commit=$BEFORE_COMMIT" >> $GITHUB_OUTPUT
-                echo "after_commit=$AFTER_COMMIT" >> $GITHUB_OUTPUT
+                echo "before_commit=$BEFORE_COMMIT" >> "$GITHUB_OUTPUT"
+                echo "after_commit=$AFTER_COMMIT" >> "$GITHUB_OUTPUT"
                 echo "Manual run: $BEFORE_COMMIT -> $AFTER_COMMIT"
               else
-                echo "before_commit=${{ github.event.before }}" >> $GITHUB_OUTPUT
-                echo "after_commit=${{ github.sha }}" >> $GITHUB_OUTPUT
+                echo "before_commit=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+                echo "after_commit=${{ github.sha }}" >> "$GITHUB_OUTPUT"
                 echo "Push run: ${{ github.event.before }} -> ${{ github.sha }}"
               fi
 

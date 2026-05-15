@@ -22,8 +22,8 @@ import type { DetectedFramework, PackageJsonData } from '../../build/detect/type
 export interface DiscoverResult {
 	/** The detected framework (with runtime, build command, output dir, etc.). */
 	framework: DetectedFramework;
-	/** The parsed package.json that produced the detection. */
-	packageJson: PackageJsonData;
+	/** The parsed package.json that produced the detection, if the project has one. */
+	packageJson: PackageJsonData | null;
 }
 
 /**

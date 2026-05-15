@@ -8,8 +8,8 @@
  * THIS project", not "scaffold a brand new one alongside it".
  *
  * This module looks at a directory and returns a hit when it matches a
- * framework that's also in our scaffold catalog (next, nuxt, remix /
- * react-router, sveltekit, astro, hono, vite-react). The create command
+ * framework that's also in our scaffold catalog (next, nuxt,
+ * sveltekit, astro, hono). The create command
  * uses the hit to prompt the user "import this project instead?" and
  * hand off to the existing project-import flow on yes.
  *
@@ -32,7 +32,7 @@ import {
  * human-readable label used in the user-facing prompt.
  */
 export interface ExistingProjectHit {
-	/** Slug from `frameworkCatalog` (next, nuxt, remix, sveltekit, astro, hono, vite-react). */
+	/** Slug from `frameworkCatalog` (next, nuxt, sveltekit, astro, hono). */
 	scaffoldSlug: string;
 	/** Human-readable framework name for display ("Next.js", "Hono", ...). */
 	detectedName: string;
@@ -45,18 +45,12 @@ export interface ExistingProjectHit {
 /**
  * Mapping table from build-detect slugs to scaffold catalog slugs.
  *
- * Two interesting cases:
- *   - `remix` and `react-router` both map to the scaffold's `remix`
- *     entry, because our scaffold uses `create-react-router@latest`
- *     under the slug `remix`.
- *   - `vite` requires an extra package check (does it have `react`?)
- *     so it isn't in this table; it's handled below.
+ * `vite` requires an extra package check (does it have `react`?)
+ * so it isn't in this table; it's handled below.
  */
 const DETECT_TO_SCAFFOLD: Record<string, { slug: string; name: string }> = {
 	nextjs: { slug: 'nextjs', name: 'Next.js' },
 	nuxt: { slug: 'nuxt', name: 'Nuxt' },
-	remix: { slug: 'remix', name: 'React Router' },
-	'react-router': { slug: 'remix', name: 'React Router' },
 	sveltekit: { slug: 'sveltekit', name: 'SvelteKit' },
 	astro: { slug: 'astro', name: 'Astro' },
 };
@@ -76,12 +70,6 @@ function fromPackageJson(pkg: PackageJsonData): { slug: string; name: string } |
 	// the generic detector. Match it explicitly.
 	if (hasDep(pkg, 'hono')) {
 		return { slug: 'hono', name: 'Hono' };
-	}
-	// vite-react: detected as "vite" by the framework DB but we only
-	// want to suggest the React-flavored scaffold when react is also
-	// present.
-	if (hasDep(pkg, 'vite') && hasDep(pkg, 'react')) {
-		return { slug: 'vite-react', name: 'Vite + React' };
 	}
 	return null;
 }
@@ -112,9 +100,8 @@ export async function detectExistingProject(dir: string): Promise<ExistingProjec
 	const hasAgentuityJson = existsSync(`${dir}/agentuity.json`);
 
 	// Prefer the framework database hit when it lands on something we
-	// have a scaffold for. `vite` deliberately falls through here
-	// because vite-react needs the extra react-package check below.
-	if (framework && framework.name !== 'vite') {
+	// have a scaffold for.
+	if (framework) {
 		const mapped = DETECT_TO_SCAFFOLD[framework.name];
 		if (mapped) {
 			return {
@@ -126,7 +113,7 @@ export async function detectExistingProject(dir: string): Promise<ExistingProjec
 		}
 	}
 
-	// Fallback: hono / vite-react via direct package.json signals.
+	// Fallback: hono via direct package.json signals.
 	const direct = fromPackageJson(packageJson);
 	if (direct) {
 		return {

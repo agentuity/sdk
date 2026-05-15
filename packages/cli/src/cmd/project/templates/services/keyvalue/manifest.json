@@ -1,9 +1,17 @@
 {
-	"id": "keyvalue",
-	"label": "Key-Value Store",
-	"hint": "Remember user preferences across sessions",
-	"description": "Persist the user's last language and model in a KV store. Loaded on page mount, saved after each translation.",
-	"order": 10,
-	"packages": ["@agentuity/keyvalue"],
-	"frameworks": ["nextjs", "remix", "vite-react", "nuxt", "sveltekit", "astro", "hono"]
+  "id": "keyvalue",
+  "label": "Key-Value Store",
+  "hint": "Remember user preferences across sessions",
+  "description": "Persist the user's last language and model in a KV store. Loaded on page mount, saved after each translation.",
+  "order": 10,
+  "packages": [
+    "@agentuity/keyvalue"
+  ],
+  "frameworks": [
+    "nextjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "hono"
+  ]
 }

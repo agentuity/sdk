@@ -1,5 +1,6 @@
 // Cache lookup. If we've already translated this exact (text, language)
 // pair, return the cached row instead of calling the AI again.
+const db = getDb();
 const cached = await db
 	.select()
 	.from(translations)

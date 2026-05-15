@@ -1,5 +1,6 @@
 // History route
 app.get('/api/history', async (c) => {
+	const db = getDb();
 	const rows = await db
 		.select()
 		.from(translations)

@@ -25,7 +25,7 @@ interface KvCheck {
 	/**
 	 * Either a whole-file path the KV service drops in (most frameworks)
 	 * or null if the service contributes only to a composable file
-	 * (vite-react and hono add the route via their `server` composable).
+	 * (hono adds the route via its `server` composable).
 	 */
 	preferencesFiles?: string[];
 	pageFile: string;
@@ -44,19 +44,9 @@ const kvChecks: KvCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		preferencesFiles: ['app/routes/api.preferences.ts'],
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
-		framework: 'vite-react',
-		serverFile: 'server.ts',
-		pageFile: 'src/App.tsx',
-	},
-	{
 		framework: 'nuxt',
 		preferencesFiles: ['server/api/preferences.get.ts', 'server/api/preferences.post.ts'],
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',
@@ -71,7 +61,7 @@ const kvChecks: KvCheck[] = [
 	{
 		framework: 'hono',
 		serverFile: 'src/index.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 	},
 ];
 

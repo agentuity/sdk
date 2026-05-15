@@ -12,7 +12,7 @@
 			}
 		},
 		"page": {
-			"path": "app.vue",
+			"path": "app/app.vue",
 			"markers": {
 				"imports":             { "syntax": "//" },
 				"state":               { "syntax": "//" },

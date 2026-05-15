@@ -1,4 +1,4 @@
-import type { ExtensionContext } from '@mariozechner/pi-coding-agent';
+import type { ExtensionContext } from '@earendil-works/pi-coding-agent';
 import type { RpcUiRequest } from './remote-session.ts';
 
 export const REMOTE_FIRE_AND_FORGET_UI_METHODS = new Set([

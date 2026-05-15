@@ -124,6 +124,7 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 					if (relative.startsWith('.env')) return false;
 					if (relative.startsWith('.git/')) return false;
 					if (relative.startsWith('.ssh/')) return false;
+					if (relative.startsWith('node_modules/')) return false;
 					if (relative === '.DS_Store') return false;
 					return true;
 				},
@@ -408,12 +409,35 @@ export function buildProvisionStep(params: ProvisionStepParams): Step {
 			if (!deployment) {
 				return stepError('deployment was null');
 			}
-			completeRef.current = await projectDeploymentComplete(
-				apiClient,
-				deployment.id,
-				stepCtx.signal
-			);
-			return stepSuccess();
+
+			stepCtx.progress(5);
+			stepCtx.output([
+				tui.muted(`Deployment: ${deployment.id}`),
+				tui.muted('Waiting for Agentuity Cloud to provision the deployment...'),
+				tui.muted('Warmup logs will stream as soon as they are available.'),
+			]);
+
+			let heartbeat = 0;
+			const interval = setInterval(() => {
+				heartbeat = Math.min(95, heartbeat + 5);
+				stepCtx.progress(heartbeat);
+			}, 1500);
+
+			try {
+				completeRef.current = await projectDeploymentComplete(
+					apiClient,
+					deployment.id,
+					stepCtx.signal
+				);
+			} finally {
+				clearInterval(interval);
+			}
+
+			stepCtx.progress(100);
+			return stepSuccess([
+				tui.muted(`Deployment: ${deployment.id}`),
+				tui.muted('Provisioning accepted; waiting for warmup to finish.'),
+			]);
 		},
 	};
 }

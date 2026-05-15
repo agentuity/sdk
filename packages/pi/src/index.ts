@@ -21,7 +21,7 @@ import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
 	ProviderModelConfig,
-} from '@mariozechner/pi-coding-agent';
+} from '@earendil-works/pi-coding-agent';
 
 export type KnownApi =
 	| 'openai-completions'
@@ -274,6 +274,14 @@ function sanitizeModalities(modalities: string[] | undefined): ('text' | 'image'
 	return sanitized.length > 0 ? sanitized : ['text'];
 }
 
+function supportsPiTextChat(m: AIGatewayModel): boolean {
+	const inputModalities =
+		m.input_modalities && m.input_modalities.length > 0 ? m.input_modalities : ['text'];
+	const outputModalities =
+		m.output_modalities && m.output_modalities.length > 0 ? m.output_modalities : ['text'];
+	return inputModalities.includes('text') && outputModalities.includes('text');
+}
+
 function toPiModel(m: AIGatewayModel): ProviderModelConfig {
 	return {
 		id: m.id,
@@ -313,6 +321,9 @@ async function registerAIGatewayProviders(pi: ExtensionAPI) {
 	for (const m of allModels) {
 		const apiType = m.api;
 		if (!isKnownApi(apiType)) {
+			continue;
+		}
+		if (!supportsPiTextChat(m)) {
 			continue;
 		}
 		const existing = modelsByApi.get(apiType) ?? [];

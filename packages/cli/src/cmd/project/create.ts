@@ -1,5 +1,6 @@
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { resolve } from 'node:path';
 import { z } from 'zod';
 import { isTTY } from '../../auth.ts';
 import { getCommand } from '../../command-prefix.ts';
@@ -10,6 +11,40 @@ import type { APIClient as APIClientType } from '../../api.ts';
 import { detectExistingProject, type ExistingProjectHit } from './detect-existing.ts';
 import { runProjectImport } from './reconcile.ts';
 import { runCreateFlow } from './template-flow.ts';
+
+/**
+ * Names ignored when deciding whether a directory "has files" for the
+ * purposes of the existing-project gate. A freshly `git init`'d folder
+ * or one with editor metadata should still be considered empty enough
+ * to scaffold into.
+ */
+const SCAFFOLD_EMPTY_IGNORED = new Set([
+	'.git',
+	'.gitignore',
+	'.gitattributes',
+	'.gitkeep',
+	'.DS_Store',
+	'Thumbs.db',
+	'.idea',
+	'.vscode',
+	'node_modules',
+]);
+
+/**
+ * True when `dir` contains no user-visible content. Dotfiles in
+ * `SCAFFOLD_EMPTY_IGNORED` (e.g. `.git`) do not count; anything else
+ * does. Missing directory counts as empty.
+ */
+export function isDirEmptyForScaffold(dir: string): boolean {
+	if (!existsSync(dir)) return true;
+	try {
+		if (!statSync(dir).isDirectory()) return false;
+		const entries = readdirSync(dir);
+		return entries.every((name) => SCAFFOLD_EMPTY_IGNORED.has(name));
+	} catch {
+		return false;
+	}
+}
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -59,19 +94,25 @@ export const createProjectSubcommand = createSubcommand({
 			framework: z
 				.string()
 				.optional()
-				.describe(
-					'Framework to use (e.g., nextjs, astro, sveltekit, remix, nuxt, hono, vite-react)'
-				),
+				.describe('Framework to use (e.g., nextjs, astro, sveltekit, nuxt, hono)'),
 			install: z
 				.boolean()
 				.optional()
 				.default(true)
-				.describe('Run bun install after creating the project (use --no-install to skip)'),
+				.describe(
+					'Run install (using the chosen package manager) after creating the project (use --no-install to skip)'
+				),
 			build: z
 				.boolean()
 				.optional()
 				.default(true)
-				.describe('Run bun run build after installing (use --no-build to skip)'),
+				.describe('Run the project build script after installing (use --no-build to skip)'),
+			packageManager: z
+				.enum(['bun', 'npm', 'pnpm', 'yarn'])
+				.optional()
+				.describe(
+					'Package manager for the new project. Defaults to the host runtime: `bun` when running under Bun, `npm` when running under Node. Interactive runs prompt before scaffolding.'
+				),
 			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
 			register: z
 				.boolean()
@@ -119,7 +160,7 @@ export const createProjectSubcommand = createSubcommand({
 		//   - registration is requested (`--register`, the default), AND
 		//   - no `--name` was given (a name signals "new subdir scaffold"),
 		//   - and the resolved target dir matches a framework in our scaffold
-		//     catalog (next, nuxt, remix, sveltekit, astro, hono, vite-react)
+		//     catalog (next, nuxt, sveltekit, astro, hono)
 		//     OR already has agentuity.json.
 		//
 		// In TTY: ask once. In non-TTY: refuse with a helpful message
@@ -145,6 +186,7 @@ export const createProjectSubcommand = createSubcommand({
 			noInstall: opts.install === false,
 			noBuild: opts.build === false,
 			skipPrompts: opts.confirm === true,
+			packageManager: opts.packageManager,
 			logger,
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
@@ -177,16 +219,21 @@ export const createProjectSubcommand = createSubcommand({
 });
 
 /**
- * Detect-and-import detour for `agentuity project create`.
+ * Existing-project gate for `agentuity project create`.
  *
- * Returns the response object the create handler should return when we
- * successfully diverted to the import flow; returns `null` when the
- * caller should continue with the normal create flow.
+ * Rules (the `--name <subdir>` flag bypasses this entirely — a name
+ * means "scaffold a brand new subdirectory", which is always allowed):
  *
- * Skipped when registration is disabled (`--no-register`), when a
- * project name was passed (signals "new subdir scaffold"), when no
- * supported framework / agentuity.json is present, or when the user
- * declines the prompt.
+ *   1. Target dir is effectively empty       → return null, scaffold.
+ *   2. Has files + matches a supported FW    → prompt "import?";
+ *                                              yes → import,
+ *                                              no  → fatal (don't
+ *                                              silently overwrite).
+ *   3. Has files + no supported FW           → fatal.
+ *
+ * Returns the response object the create handler should return when
+ * we successfully diverted to the import flow; returns `null` when
+ * the caller should continue with the normal create flow.
  */
 async function maybeImportExistingProject(
 	ctx: CommandContext,
@@ -199,13 +246,10 @@ async function maybeImportExistingProject(
 		region?: string;
 	}
 ): Promise<ProjectCreateResponse | null> {
-	if (!opts.register) {
-		// `--no-register` is an explicit "just scaffold" signal.
-		return null;
-	}
 	if (opts.name) {
 		// `--name foo` means "create a new subdir named foo here". The
-		// user already told us they want a brand-new project; don't ask.
+		// scaffold target is a new dir, so the existing-files gate doesn't
+		// apply to the cwd.
 		return null;
 	}
 
@@ -217,9 +261,39 @@ async function maybeImportExistingProject(
 	}
 	const dir = targetDir ? resolve(targetDir) : process.cwd();
 
-	const hit = await detectExistingProject(dir);
-	if (!hit) {
+	// Empty (or only-dotfiles) target: scaffold as normal.
+	if (isDirEmptyForScaffold(dir)) {
 		return null;
+	}
+
+	const hit = await detectExistingProject(dir);
+
+	// Has files but nothing we know how to deploy. Refuse to scaffold on
+	// top of unknown content.
+	if (!hit) {
+		tui.fatal(
+			`${dir} is not empty and does not match a supported framework.\n` +
+				`Run \`${getCommand('project create')}\` from an empty directory, or pass --name <subdir> to scaffold into a new subdirectory.`,
+			ErrorCode.RESOURCE_ALREADY_EXISTS
+		);
+	}
+
+	// Matched a supported framework. We can only import — we can't
+	// scaffold a fresh project on top of the existing files.
+	if (!opts.register) {
+		tui.fatal(
+			`Detected an existing ${hit.detectedName} project in ${dir}, but --no-register was passed.\n` +
+				`Drop --no-register to import it, or pass --name <subdir> to scaffold into a new subdirectory.`,
+			ErrorCode.RESOURCE_ALREADY_EXISTS
+		);
+	}
+
+	if (!ctx.auth || !ctx.apiClient) {
+		tui.fatal(
+			`Detected an existing ${hit.detectedName} project in ${dir}, but you're not signed in.\n` +
+				`Run \`${getCommand('auth login')}\` and try again, or pass --name <subdir> to scaffold into a new subdirectory.`,
+			ErrorCode.AUTH_REQUIRED
+		);
 	}
 
 	const interactive = isTTY();
@@ -227,25 +301,23 @@ async function maybeImportExistingProject(
 		if (!opts.confirm) {
 			tui.fatal(
 				`Detected an existing ${hit.detectedName} project in ${dir}.\n` +
-					`Run \`${getCommand('project import')}\` to register it, or pass --confirm to scaffold a new project here anyway.`,
+					`Run \`${getCommand('project import')}\` to register it, or re-run with --confirm to import non-interactively.`,
 				ErrorCode.RESOURCE_ALREADY_EXISTS
 			);
 		}
-		// User explicitly opted out via --confirm; fall through to scaffold.
-		return null;
+		// `--confirm` in non-TTY = "yes, import."
+	} else {
+		const wantImport = await promptImportInsteadOfCreate(hit);
+		if (!wantImport) {
+			tui.fatal(
+				`Aborted. Pass --name <subdir> to scaffold a new project in a subdirectory instead.`,
+				ErrorCode.USER_CANCELLED
+			);
+		}
 	}
 
-	// Auth is required to run the import flow. If the user isn't signed
-	// in we can't divert; leave them to the create flow which can run
-	// without auth (with `--no-register` semantics implicit at runtime).
-	if (!ctx.auth || !ctx.apiClient) {
-		return null;
-	}
-
-	const wantImport = await promptImportInsteadOfCreate(hit);
-	if (!wantImport) {
-		return null;
-	}
+	tui.info(`Importing existing ${hit.detectedName} project from ${dir}...`);
+	tui.newline();
 
 	const result = await runProjectImport({
 		dir,
@@ -253,9 +325,9 @@ async function maybeImportExistingProject(
 		apiClient: ctx.apiClient,
 		config: ctx.config!,
 		logger: ctx.logger,
-		interactive: true,
+		interactive,
 		validateOnly: false,
-		confirm: false,
+		confirm: opts.confirm,
 		orgId: opts.orgId,
 		region: opts.region,
 	});
@@ -266,8 +338,6 @@ async function maybeImportExistingProject(
 
 	if (result.status === 'skipped') {
 		tui.info(result.message || 'Import cancelled.');
-		// The user declined registration mid-flow; don't fall through to
-		// scaffold (they already said no by leaving the import prompt).
 		return {
 			success: false,
 			error: result.message ?? 'Import cancelled',

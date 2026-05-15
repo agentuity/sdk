@@ -17,8 +17,7 @@
  *      detection in child mode where Discover is skipped.
  *   3. Run the framework adapter's `build()` to produce a buildable output
  *      directory (e.g. `.agentuity/`).
- *   4. Package the build output (writes launch.json / Procfile /
- *      .agentuity-build).
+ *   4. Package the build output (writes launch.json).
  *   5. Generate the deploy metadata blob the server uses to mint upload
  *      URLs. Agentuity-native projects already emit this from their Vite
  *      pipeline; everything else gets metadata derived from the build
@@ -50,7 +49,10 @@ import * as tui from '../../../tui.ts';
 import type { DeployOptions, Project } from '../../../types.ts';
 import { getAdapter } from '../../build/adapters/index.ts';
 import type { BuildResult } from '../../build/adapters/types.ts';
-import { detectFrameworkWithPackageJson } from '../../build/detect/index.ts';
+import {
+	detectFrameworkWithPackageJson,
+	NO_DEPLOYABLE_PROJECT_MESSAGE,
+} from '../../build/detect/index.ts';
 import { packageBuildOutput, type PackageResult } from '../../build/package/index.ts';
 import { typecheck } from '../../build/typecheck.ts';
 import type { DeployPipelineState } from './types.ts';
@@ -128,15 +130,11 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				const discovered =
 					state.discover ??
 					(await detectFrameworkWithPackageJson(rootDir).then((res) =>
-						res.framework && res.packageJson
-							? { framework: res.framework, packageJson: res.packageJson }
-							: null
+						res.framework ? { framework: res.framework, packageJson: res.packageJson } : null
 					));
 
 				if (!discovered) {
-					return stepError(
-						'Could not detect a JS framework. Ensure package.json exists with a build script.'
-					);
+					return stepError(NO_DEPLOYABLE_PROJECT_MESSAGE);
 				}
 
 				const { framework, packageJson } = discovered;
@@ -163,7 +161,7 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				const buildResult: BuildResult = await adapter.build({
 					projectDir: rootDir,
 					framework,
-					packageJson,
+					packageJson: packageJson ?? {},
 					outputDir: outDir,
 					logger,
 					collector,
@@ -180,8 +178,7 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				capturedOutput.push(...buildResult.logs);
 				state.buildOutputDir = buildResult.outputDir;
 
-				// 4. Package output: writes launch.json / Procfile /
-				//    .agentuity-build into the build output directory.
+				// 4. Package output: writes launch.json into the build output directory.
 				const packageResult: PackageResult = packageBuildOutput(
 					framework,
 					buildResult,

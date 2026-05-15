@@ -69,6 +69,24 @@ export async function installDependencies(
 /**
  * Run the framework's build command.
  */
+export function copyRuntimeManifests(projectDir: string, outputDir: string): void {
+	for (const name of [
+		'package.json',
+		'package-lock.json',
+		'npm-shrinkwrap.json',
+		'pnpm-lock.yaml',
+		'yarn.lock',
+		'bun.lock',
+		'bun.lockb',
+	]) {
+		const src = join(projectDir, name);
+		const dst = join(outputDir, name);
+		if (existsSync(src) && !existsSync(dst)) {
+			cpSync(src, dst);
+		}
+	}
+}
+
 export async function runBuildCommand(
 	projectDir: string,
 	buildCommand: string,
@@ -118,11 +136,17 @@ export const genericAdapter: BuildAdapter = {
 		const started = Date.now();
 		const logs: string[] = [];
 
-		// Step 1: Install dependencies
-		logger.debug('Installing dependencies...');
-		const installStart = Date.now();
-		await installDependencies(projectDir, framework.packageManager, logger);
-		logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
+		// Step 1: Install dependencies when the project has a package.json.
+		// Bare static HTML projects intentionally have no package setup; they
+		// are copied as-is and launched by the platform static server command.
+		if (existsSync(join(projectDir, 'package.json'))) {
+			logger.debug('Installing dependencies...');
+			const installStart = Date.now();
+			await installDependencies(projectDir, framework.packageManager, logger);
+			logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
+		} else {
+			logs.push('✓ No package.json found; skipped dependency installation');
+		}
 
 		// Step 2: Run the build command
 		if (framework.buildCommand && framework.buildCommand !== '__agentuity_internal__') {
@@ -138,9 +162,32 @@ export const genericAdapter: BuildAdapter = {
 			logs.push(`✓ Build completed in ${Date.now() - buildStart}ms`);
 		}
 
-		// Step 3: Copy build output to output directory
+		// Step 3: Copy build output to output directory.
+		//
+		// We have two valid layouts:
+		//
+		// (a) FLATTEN: copy the *contents* of buildOutput to the output
+		//     dir. This is what static SPAs need so the injected
+		//     `_serve.js` finds `index.html` at the root, and what
+		//     SSR-with-no-start-script frameworks expect.
+		//
+		// (b) PRESERVE: keep the framework's output directory name
+		//     (e.g. `.output/`, `dist/`) inside the deployed tree. Use
+		//     this when the user's `start` script references that path
+		//     (e.g. TanStack Start: `node .output/server/index.mjs`,
+		//     Nuxt: same). Without preserve, the path in the start
+		//     command wouldn't resolve at runtime.
+		//
+		// The presence of a user-defined start command (from
+		// `framework.startCommand`, sourced from `pkg.scripts.start`
+		// in detection) is the signal: a user-defined start script
+		// implies user-known paths, so preserve.
 		const buildOutputPath = resolve(projectDir, framework.buildOutput);
 		const resolvedOutputDir = resolve(outputDir);
+		const preserveBuildOutputDir =
+			!!framework.startCommand &&
+			framework.buildOutput !== '.' &&
+			framework.buildOutput !== resolvedOutputDir;
 
 		// Copy build output to the output directory when they differ.
 		// When buildOutput is '.' (project root), the output dir is a subdirectory
@@ -148,23 +195,35 @@ export const genericAdapter: BuildAdapter = {
 		const shouldCopy = existsSync(buildOutputPath) && buildOutputPath !== resolvedOutputDir;
 
 		if (shouldCopy) {
-			logger.debug(`Copying build output from ${buildOutputPath} to ${resolvedOutputDir}`);
 			mkdirSync(resolvedOutputDir, { recursive: true });
 
-			// Skip directories that shouldn't be deployed
-			const skipEntries = new Set([
-				'node_modules',
-				'.git',
-				'.env',
-				basename(resolvedOutputDir), // e.g., '.agentuity'
-			]);
+			if (preserveBuildOutputDir) {
+				// Mirror the framework's output directory name inside the
+				// deployed tree, so user-supplied paths in the start command
+				// resolve unchanged.
+				const preservedDst = join(resolvedOutputDir, framework.buildOutput);
+				logger.debug(
+					`Copying build output from ${buildOutputPath} to ${preservedDst} (preserved)`
+				);
+				mkdirSync(preservedDst, { recursive: true });
+				cpSync(buildOutputPath, preservedDst, { recursive: true });
+			} else {
+				logger.debug(`Copying build output from ${buildOutputPath} to ${resolvedOutputDir}`);
+				// Skip directories that shouldn't be deployed
+				const skipEntries = new Set([
+					'node_modules',
+					'.git',
+					'.env',
+					basename(resolvedOutputDir), // e.g., '.agentuity'
+				]);
 
-			const entries = readdirSync(buildOutputPath);
-			for (const entry of entries) {
-				if (skipEntries.has(entry)) continue;
-				const srcPath = join(buildOutputPath, entry);
-				const dstPath = join(resolvedOutputDir, entry);
-				cpSync(srcPath, dstPath, { recursive: true });
+				const entries = readdirSync(buildOutputPath);
+				for (const entry of entries) {
+					if (skipEntries.has(entry)) continue;
+					const srcPath = join(buildOutputPath, entry);
+					const dstPath = join(resolvedOutputDir, entry);
+					cpSync(srcPath, dstPath, { recursive: true });
+				}
 			}
 		} else {
 			// Ensure output dir exists even when we skip the copy
@@ -183,19 +242,9 @@ export const genericAdapter: BuildAdapter = {
 			logs.push('✓ Injected static file server (no start script found)');
 		}
 
-		// Step 5: Copy package.json and node_modules for runtime
-		const pkgJsonSrc = join(projectDir, 'package.json');
-		const pkgJsonDst = join(outputDir, 'package.json');
-		if (existsSync(pkgJsonSrc) && !existsSync(pkgJsonDst)) {
-			cpSync(pkgJsonSrc, pkgJsonDst);
-		}
-
-		const nodeModulesSrc = join(projectDir, 'node_modules');
-		const nodeModulesDst = join(outputDir, 'node_modules');
-		if (existsSync(nodeModulesSrc) && !existsSync(nodeModulesDst)) {
-			logger.debug('Copying node_modules for runtime dependencies...');
-			cpSync(nodeModulesSrc, nodeModulesDst, { recursive: true });
-		}
+		// Step 5: Copy package manifests for Hadron's runtime dependency install.
+		// Do not copy node_modules: Hadron installs production dependencies before launch.
+		copyRuntimeManifests(projectDir, outputDir);
 
 		// Step 6: Resolve static asset directory for CDN upload
 		// staticDir is relative to the project root (set by framework detection).
@@ -209,11 +258,13 @@ export const genericAdapter: BuildAdapter = {
 
 			// Check if the static dir is inside the build output (already copied)
 			if (staticSrcPath.startsWith(buildOutputPath + '/') || staticSrcPath === buildOutputPath) {
-				// Static assets are within the copied build output
-				const relativeToOutput = relative(buildOutputPath, staticSrcPath);
-				resolvedStaticDir = relativeToOutput
-					? join(resolvedOutputDir, relativeToOutput)
+				// Static assets are within the copied build output. The destination
+				// path depends on whether we preserved the build output dir name.
+				const copyRoot = preserveBuildOutputDir
+					? join(resolvedOutputDir, framework.buildOutput)
 					: resolvedOutputDir;
+				const relativeToOutput = relative(buildOutputPath, staticSrcPath);
+				resolvedStaticDir = relativeToOutput ? join(copyRoot, relativeToOutput) : copyRoot;
 			} else if (existsSync(staticSrcPath)) {
 				// Static assets are outside the build output — copy them into the output
 				const staticDstPath = join(resolvedOutputDir, framework.staticDir);

@@ -18,5 +18,8 @@
 				</li>
 			))}
 		</ul>
+		<p className="mt-4 border-t border-gray-900 pt-4 text-[11px] text-gray-600">
+			Postgres in Agentuity
+		</p>
 	</div>
 )}

@@ -33,9 +33,13 @@ export const BodySchema = z
 		z.string(),
 		z.custom<Uint8Array>((value) => value instanceof Uint8Array),
 		z.instanceof(ArrayBuffer),
+		z.instanceof(Blob),
+		z.instanceof(FormData),
 		z.custom<ReadableStream>((value) => value instanceof ReadableStream),
 	])
-	.describe('Request body content (string, Uint8Array, ArrayBuffer, or ReadableStream).');
+	.describe(
+		'Request body content (string, Uint8Array, ArrayBuffer, Blob, FormData, or ReadableStream).'
+	);
 
 export type Body = z.infer<typeof BodySchema>;
 

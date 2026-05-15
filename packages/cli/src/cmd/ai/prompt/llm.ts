@@ -1,126 +1,275 @@
-import { createSubcommand } from '../../../types.ts';
-import type { CommandContext } from '../../../types.ts';
 import { getCommand } from '../../../command-prefix.ts';
+import type { CommandContext } from '../../../types.ts';
+import { createSubcommand } from '../../../types.ts';
 
 export const llmSubcommand = createSubcommand({
 	name: 'llm',
-	description: 'Generate a comprehensive prompt for LLM agents',
+	description: 'Generate a comprehensive reference prompt for LLM agents',
 	tags: ['read-only', 'fast'],
 	idempotent: true,
-	examples: [{ command: getCommand('prompt llm'), description: 'Run llm command' }],
+	examples: [
+		{
+			command: getCommand('ai prompt llm'),
+			description: 'Print the LLM reference prompt to stdout',
+		},
+	],
 	async handler(_ctx: CommandContext) {
 		const prompt = generateLLMPrompt();
 		console.log(prompt);
 	},
 });
 
+/**
+ * Long-form reference prompt for LLM agents driving the Agentuity CLI.
+ *
+ * Counterpart to `ai intro`, which is a shorter primer. This one is the
+ * comprehensive workflow + safety reference. Keep it accurate against
+ * the v3 CLI surface; outdated examples are worse than missing ones.
+ */
 export function generateLLMPrompt(): string {
-	return `# Agentuity CLI - Agent Usage Guide
+	return `# Agentuity CLI — Reference Prompt for LLM Agents
 
-## Overview
+This document is the comprehensive operating reference for an LLM
+driving the Agentuity CLI. For a shorter first-contact primer run
+\`${getCommand('ai intro')}\` instead.
 
-The Agentuity CLI is an agent-friendly command-line interface for managing cloud deployments, projects, secrets, and infrastructure. It provides machine-readable output, introspection capabilities, and safety features designed for automated agent usage.
+## Mental Model
 
-## Key Principles for Agent Usage
+The Agentuity CLI is the deploy + ops surface for the Agentuity Cloud
+Platform. It is **agent-first**: every command exposes a JSON schema
+via \`--describe\`, structured input via \`--input\`, machine-readable
+output via \`--json\`, and dry/preview modes via \`--dry-run\` /
+\`--explain\` / \`--validate\`.
 
-1. **Always use \`--json\` for machine-readable output**
-   - All commands support \`--json\` for structured output
-   - Errors are also output as JSON when using \`--error-format=json\` (automatically set with \`--json\`)
+You should treat the CLI like an API. Discover commands via the schema,
+construct calls programmatically, parse JSON output, and act on
+structured errors. Avoid scraping human-readable text.
 
-2. **Use \`--explain\` before executing destructive operations**
-   - Preview what a command will do without executing it
-   - Provides structured explanation with steps, prerequisites, and warnings
+## The Core Flags
 
-3. **Use \`--dry-run\` for safe exploration**
-   - Execute validation and planning without making changes
-   - Test commands safely before actual execution
+These flags work on every command and are how an agent should drive
+the CLI:
 
-4. **Discover capabilities programmatically**
-   - Use \`${getCommand('--help=json')}\` to get the complete CLI schema
-   - Use \`${getCommand('capabilities show --json')}\` to discover available tasks
-   - Use \`${getCommand('schema show')}\` for detailed command metadata
+- \`--json\` — emit machine-readable JSON. Implies
+  \`--error-format=json\`.
+- \`--describe\` — print the command's JSON schema (args, options,
+  response shape, requirements, examples) and exit. **No
+  authentication required.** Use this before calling any command you
+  haven't called before.
+- \`--input '<json>'\` — pass arguments + options as a single JSON
+  object. Keys are the **camelCase schema keys** from \`--describe\`,
+  not the kebab-case CLI flag names (e.g. the flag \`--dry-run\`
+  becomes the key \`dryRun\`). CLI flags take precedence over
+  \`--input\` values when both are present.
+- \`--fields <comma,list>\` — when used with \`--json\`, restrict the
+  output to the named fields. Supports dot notation for nested
+  fields (e.g. \`--fields "id,name,deployment.region"\`). Useful for
+  protecting your context window.
+- \`--validate\` — parse and validate inputs against the schema, then
+  exit without executing.
+- \`--dry-run\` — execute the command's planning phase without making
+  changes.
+- \`--explain\` — describe in human-readable form what the command
+  would do, without executing.
+- \`--quiet\` — suppress non-essential output.
+- \`--no-progress\` — disable progress indicators / spinners. Useful
+  in non-TTY environments where progress output is noise.
+- \`--color never\` — disable ANSI color escapes.
 
-## Machine-Readable Modes
+### Recommended Combinations
 
-### Global Flags
-
-- \`--json\`: Output in JSON format (machine-readable)
-- \`--quiet\`: Suppress non-essential output (only errors shown)
-- \`--no-progress\`: Disable progress indicators and spinners
-- \`--error-format json\`: Structured error output with error codes
-- \`--explain\`: Show what command would do without executing
-- \`--dry-run\`: Execute without making changes
-- \`--color never\`: Disable color output
-
-### Recommended Flag Combinations
-
-For agent usage:
+Run a command machine-readably:
 \`\`\`bash
-${getCommand('--json --quiet command')}
+${getCommand('--json --no-progress <command>')}
 \`\`\`
 
-For safe exploration:
+Inspect a command before calling it:
 \`\`\`bash
-${getCommand('--explain command args')}
-${getCommand('--dry-run command args')}
+${getCommand('<command> --describe')}
 \`\`\`
 
-## Introspection Capabilities
+Validate without executing:
+\`\`\`bash
+${getCommand("--validate <command> --input '{...}'")}
+\`\`\`
 
-### 1. Schema Discovery
+Preview a destructive operation:
+\`\`\`bash
+${getCommand('--explain <command> <args>')}
+${getCommand('--dry-run <command> <args>')}
+\`\`\`
 
-Get the complete CLI schema with all commands, arguments, options, and requirements:
+## Discovery
+
+Three layers, ordered cheapest-first:
+
+### 1. Whole-CLI Schema
 
 \`\`\`bash
 ${getCommand('--help=json')}
-${getCommand('schema show')}
 \`\`\`
 
-The schema includes:
-- Command names and descriptions
-- Arguments (type, required/optional, variadic)
-- Options (type, defaults, enums)
-- Authentication requirements
-- Project requirements
-- Examples
+Returns every command, its options, requirements, examples. This is
+the entry point when you don't know what command to run.
 
-### 2. Capabilities Discovery
-
-Get high-level tasks and workflows:
+### 2. Capabilities
 
 \`\`\`bash
-${getCommand('capabilities show --json')}
+${getCommand('ai capabilities show --json')}
 \`\`\`
 
-This returns:
-- Functional capabilities (auth, projects, deployment, secrets, etc.)
-- Common workflows with step-by-step instructions
-- Requirements for each capability (auth, project)
+Higher-level than commands: groups commands by task (auth, projects,
+deployment, services, secrets) and lists common workflows with the
+exact command sequence.
 
-### 3. Examples
-
-All commands include examples in their help text and schema:
+### 3. Per-Command Schema
 
 \`\`\`bash
-${getCommand('command subcommand --help')}
+${getCommand('<command> --describe')}
+${getCommand('ai schema show')}
 \`\`\`
+
+\`--describe\` is the right call once you know which command you want
+to invoke; it gives you the full input contract.
+
+## Authentication
+
+Most commands require an authenticated session. Check
+\`requires.auth\` in a command's schema before calling it.
+
+\`\`\`bash
+# Are we authenticated?
+${getCommand('auth whoami')}
+
+# Browser-based login (interactive)
+${getCommand('auth login')}
+
+# Create a new account (interactive)
+${getCommand('auth signup')}
+\`\`\`
+
+In non-TTY contexts, log in interactively first, or pre-set
+credentials. Commands that require interaction without a TTY fail
+with a structured \`AUTH_REQUIRED\` error and a suggestion to run
+\`${getCommand('auth login')}\`.
+
+## Project Context
+
+Most cloud-side commands operate on an Agentuity project. The CLI
+finds the project via:
+
+1. The \`--project-id <id>\` flag (or \`AGENTUITY_CLOUD_PROJECT_ID\`).
+2. An \`agentuity.json\` file in the working directory (or in the
+   directory passed via \`--dir\`).
+
+If neither is present and the command requires a project, you'll get
+a \`PROJECT_NOT_FOUND\` error.
+
+\`\`\`bash
+# Bind to a specific project regardless of cwd
+${getCommand('--project-id proj_abc123 cloud deployment list')}
+
+# Run from a different directory
+${getCommand('--dir /path/to/project cloud deploy')}
+\`\`\`
+
+To create a project (or scaffold a new framework template inside one):
+\`\`\`bash
+${getCommand('project create')}
+\`\`\`
+
+## Build & Deploy
+
+There is **one build pipeline**. \`agentuity build\` and
+\`agentuity cloud deploy\` use the same framework detector, the same
+adapters (Next.js, TanStack Start, generic), the same packager, the
+same typecheck step. \`build\` stops after writing \`.agentuity/\`;
+\`cloud deploy\` continues with upload.
+
+You normally don't need a separate \`build\` step before
+\`cloud deploy\` — \`cloud deploy\` runs the build internally.
+
+\`\`\`bash
+# Local sanity check — produces .agentuity/ for inspection
+${getCommand('build')}
+
+# Full pipeline: build, package, encrypt, upload, register
+${getCommand('cloud deploy')}
+
+# Preview what would happen
+${getCommand('--explain cloud deploy')}
+
+# Build + plan, but don't upload
+${getCommand('--dry-run cloud deploy')}
+
+# Get the deploy command's schema (what flags exist?)
+${getCommand('cloud deploy --describe')}
+\`\`\`
+
+The deploy bundle is a directory called \`.agentuity/\` containing
+\`launch.json\`, the framework's build output (preserving the
+framework's own directory layout), and \`node_modules\`. The
+\`launch.json\` \`processes[0].command\` is what runs in the
+container; for a TanStack Start project that's
+\`node .output/server/index.mjs\`, for SvelteKit \`node build/index.js\`,
+etc.
+
+## Cloud Services
+
+Each Agentuity service has its own subcommand under \`cloud\`. All
+support \`--describe\`, \`--json\`, and the standard flags.
+
+\`\`\`bash
+${getCommand('cloud keyvalue')}     # KV storage (alias: cloud kv)
+${getCommand('cloud vector')}       # Vector database
+${getCommand('cloud storage')}      # Object storage
+${getCommand('cloud aigateway')}    # AI Gateway: list models, run completions
+${getCommand('cloud queue')}        # Message queues
+${getCommand('cloud schedule')}     # Cron-like schedules
+${getCommand('cloud webhook')}      # Inbound webhooks
+${getCommand('cloud sandbox')}      # Code execution sandboxes
+${getCommand('cloud email')}        # Inbound + outbound email
+${getCommand('cloud db')}           # Postgres databases
+${getCommand('cloud stream')}       # Streaming endpoints
+\`\`\`
+
+Each service has \`list\`, \`get\`, \`set\`/\`create\`, \`delete\` /
+similar verbs. Inspect with \`--describe\` to see exact subcommands.
+
+## Environment Variables & Secrets
+
+Project-scoped env vars (and secrets) sync between a local \`.env\`
+and the cloud:
+
+\`\`\`bash
+# Show what's set on the cloud side (values redacted by default)
+${getCommand('cloud env list --json')}
+
+# Push the local .env file to the cloud (project-scoped)
+${getCommand('cloud env push')}
+
+# Push to the org instead of the current project
+${getCommand('cloud env push --org')}
+
+# Pull the cloud values into a local .env file
+${getCommand('cloud env pull')}
+\`\`\`
+
+There is no v2-style \`env set KEY value\`. Edit the \`.env\`, push.
 
 ## Error Handling
 
-### Structured Errors
-
-When using \`--json\` or \`--error-format=json\`, errors are structured:
+With \`--json\` (or \`--error-format=json\`), errors look like:
 
 \`\`\`json
 {
   "error": {
     "code": "PROJECT_NOT_FOUND",
-    "message": "Invalid project folder",
-    "details": {},
+    "message": "No agentuity.json found in /home/user/work",
     "suggestions": [
-      "Use --dir to specify a different directory",
-      "Change to a directory containing agentuity.json",
-      "Run \\"${getCommand('project create')}\\" to create a new project"
+      "Run \\"${getCommand('project create')}\\" to create a new project",
+      "Use --dir to point at an existing project",
+      "Use --project-id to bind to a project by id"
     ]
   }
 }
@@ -128,239 +277,152 @@ When using \`--json\` or \`--error-format=json\`, errors are structured:
 
 ### Common Error Codes
 
-- \`VALIDATION_FAILED\`: Invalid arguments or options
-- \`AUTH_REQUIRED\`: Authentication needed
-- \`PROJECT_NOT_FOUND\`: No project configuration found
-- \`REGION_REQUIRED\`: Cloud region must be specified
-- \`RESOURCE_NOT_FOUND\`: Requested resource doesn't exist
-- \`PERMISSION_DENIED\`: Insufficient permissions
+| Code | What it means |
+|---|---|
+| \`AUTH_REQUIRED\` | Not authenticated. Run \`${getCommand('auth login')}\`. |
+| \`PROJECT_NOT_FOUND\` | No \`agentuity.json\` and no \`--project-id\`. |
+| \`VALIDATION_FAILED\` | Bad arg/option. Check \`--describe\` for the schema. |
+| \`REGION_REQUIRED\` | A region is needed. Use \`--region\` or set \`AGENTUITY_REGION\`. |
+| \`RESOURCE_NOT_FOUND\` | Targeted resource doesn't exist. |
+| \`PERMISSION_DENIED\` | Authenticated, but no access to that org/project/resource. |
+| \`NETWORK_ERROR\` | Transient. Retry with exponential backoff. |
+| \`INTERNAL_ERROR\` | Bug or platform issue. Capture the suggestions and surface them. |
 
-### Error Recovery
-
-Always check error details and suggestions for recovery steps. Errors include actionable guidance.
-
-## Authentication Flow
-
-### Required for Most Operations
-
-Many commands require authentication. Check the schema's \`requires.auth\` field.
-
-### Authentication Commands
-
-\`\`\`bash
-# Check if authenticated
-${getCommand('auth whoami')}
-
-# Login (interactive)
-${getCommand('auth login')}
-
-# Signup (interactive)
-${getCommand('auth signup')}
-\`\`\`
-
-### Non-Interactive Environments
-
-In non-TTY environments:
-- Commands requiring interactive input will fail with clear error messages
-- Use API keys or pre-authenticate before running automated tasks
-- Some commands support \`--confirm\` to skip interactive prompts
-
-## Project Context
-
-### Project-Based Commands
-
-Commands requiring a project look for \`agentuity.json\` in the current directory.
-
-### Specifying Project Directory
-
-\`\`\`bash
-${getCommand('--dir /path/to/project command')}
-\`\`\`
-
-### Creating a Project
-
-\`\`\`bash
-${getCommand('project create')}
-\`\`\`
+Always read the \`suggestions\` array — it's machine-actionable
+guidance, not just human prose.
 
 ## Common Workflows
 
-### 1. Initial Setup
-
+### First-time setup
 \`\`\`bash
-${getCommand('auth signup')}
 ${getCommand('auth login')}
 ${getCommand('project create')}
-${getCommand('env set API_KEY <value> --secret')}
-\`\`\`
-
-### 2. Deploy Application
-
-\`\`\`bash
-# Preview deployment
-${getCommand('--explain bundle')}
-
-# Test deployment (dry-run)
-${getCommand('--dry-run cloud deploy')}
-
-# Actual deployment
-${getCommand('bundle')}
 ${getCommand('cloud deploy')}
-
-# Check deployment status
-${getCommand('--json cloud deployment show')}
 \`\`\`
 
-### 3. Manage Environment Variables & Secrets
-
+### Iterate on an existing project
 \`\`\`bash
-${getCommand('--json env list')}
-${getCommand('env set DATABASE_URL <value> --secret')}
-${getCommand('env get DATABASE_URL')}
-\`\`\`
-
-### 4. List Resources
-
-\`\`\`bash
-${getCommand('--json project list')}
 ${getCommand('--json cloud deployment list')}
-${getCommand('--json kv list')}
+${getCommand('cloud deploy')}
 \`\`\`
 
-## Best Practices
+### Inspect a deployment
+\`\`\`bash
+${getCommand('--json --fields "id,status,region" cloud deployment list')}
+${getCommand('cloud deployment show <deployment-id> --json')}
+${getCommand('cloud deployment logs <deployment-id>')}
+\`\`\`
 
-### 1. Always Validate First
+### Set a secret
+\`\`\`bash
+# Edit local .env then push
+${getCommand('cloud env push')}
+\`\`\`
 
-- Use \`--explain\` to understand what will happen
-- Use \`--dry-run\` for commands that mutate state
-- Check schema to understand command requirements
+### Run a model through the AI Gateway
+\`\`\`bash
+${getCommand('cloud aigateway models --json')}
+${getCommand("cloud aigateway complete --model openai/gpt-4o-mini --prompt 'hello'")}
+\`\`\`
 
-### 2. Use Structured Output
+### Manage KV
+\`\`\`bash
+${getCommand('cloud keyvalue list-namespaces --json')}
+${getCommand('cloud keyvalue set <namespace> <key> <value>')}
+${getCommand('cloud keyvalue get <namespace> <key>')}
+\`\`\`
 
-- Always use \`--json\` when parsing output programmatically
-- Parse error messages from structured error format
-- Never rely on human-readable text parsing
+## Safety Practices
 
-### 3. Handle Non-Interactive Mode
+### Before any mutation
+1. \`<command> --describe\` to confirm the schema.
+2. \`--explain <command>\` to read what it would do.
+3. \`--dry-run <command>\` to plan without touching state.
+4. \`--validate <command>\` to check the inputs.
+5. Then run for real.
 
-- Detect TTY status
-- Provide all required arguments upfront
-- Use \`--confirm\` or similar flags to skip prompts
+### Confirmation flags
+Many commands have a \`--confirm\` (or \`-y\`) flag to skip
+interactive confirmation prompts. Use it deliberately in
+non-interactive contexts; do not pass it casually for destructive
+ops.
 
-### 4. Check Requirements
+### Always-safe commands
+These never mutate state:
+- \`--describe\`, \`--help\`, \`--help=json\`
+- \`ai intro\`, \`ai prompt llm\`, \`ai capabilities show\`,
+  \`ai schema show\`
+- \`--explain <anything>\`, \`--dry-run <anything>\`,
+  \`--validate <anything>\`
+- \`auth whoami\`
+- Any \`list\` / \`get\` / \`show\` / \`describe\` subcommand
 
-Before running a command, verify from schema:
-- Does it require authentication?
-- Does it require a project context?
-- Does it require organization or region selection?
+## JSON Cookbook
 
-### 5. Progressive Enhancement
-
-Start with safe operations:
-1. Discover capabilities (\`capabilities show\`)
-2. Get schema for specific command (\`--help=json\`)
-3. Use \`--explain\` to preview
-4. Use \`--dry-run\` to test
-5. Execute actual command
-
-### 6. Error Recovery
-
-When an error occurs:
-1. Parse the error code
-2. Read the suggestions array
-3. Take corrective action
-4. Retry the operation
-
-## Agent Safety Guidelines
-
-### Destructive Operations
-
-For destructive operations (delete, remove, rollback):
-1. ALWAYS use \`--explain\` first
-2. ALWAYS use \`--dry-run\` before execution
-3. Verify the operation matches intent
-4. Only then execute the actual command
-
-### Confirmation Flags
-
-Many destructive commands support:
-- \`--confirm\`: Skip confirmation prompts (be careful!)
-- \`--no-confirm\`: Disable confirmation (dangerous!)
-
-### Non-Destructive Exploration
-
-These are always safe:
-- \`--help\`, \`--help=json\`
-- \`capabilities show\`
-- \`schema show\`
-- \`--explain\` (never executes)
-- \`--dry-run\` (no side effects)
-- List commands (\`list\`, \`ls\`)
-- Show commands (\`show\`, \`get\` without mutations)
-
-## Examples for Common Tasks
-
-### Discover All Commands
-
+### Discover all top-level commands
 \`\`\`bash
 ${getCommand('--help=json')} | jq '.commands[].name'
 \`\`\`
 
-### Find Commands Requiring Auth
-
+### Find commands that need authentication
 \`\`\`bash
 ${getCommand('--help=json')} | jq '.commands[] | select(.requires.auth == true) | .name'
 \`\`\`
 
-### Get Details About a Specific Command
-
+### Get the input schema for a specific command
 \`\`\`bash
-${getCommand('auth ssh delete --help')}
-${getCommand('--help=json')} | jq '.commands[] | select(.name == "auth")'
+${getCommand('cloud deploy --describe')} | jq '.options'
 \`\`\`
 
-### Test a Deployment
-
+### Pull a single field out of a list response
 \`\`\`bash
-${getCommand('--explain bundle')}
-${getCommand('--dry-run cloud deploy')}
-${getCommand('cloud deploy')}
+${getCommand('--json --fields "id,status" cloud deployment list')}
 \`\`\`
 
-### Safe SSH Key Deletion
+## CI / Non-Interactive Use
 
-\`\`\`bash
-${getCommand('--explain auth ssh delete abc123')}
-${getCommand('--dry-run auth ssh delete abc123')}
-${getCommand('auth ssh delete abc123')}
-\`\`\`
+When the CLI doesn't see a TTY:
+- Spinners / progress are suppressed (or pass \`--no-progress\` to
+  force).
+- Interactive prompts fail with a structured error rather than
+  hanging.
+- Pass all required values via flags, env vars, or \`--input\`.
 
-## Version Information
+Useful environment variables:
+- \`AGENTUITY_CLI_API_KEY\` + \`AGENTUITY_USER_ID\` — pre-auth
+  without an interactive login.
+- \`AGENTUITY_CLOUD_ORG_ID\` — pin to an org.
+- \`AGENTUITY_CLOUD_PROJECT_ID\` — pin to a project.
+- \`AGENTUITY_REGION\` — pin to a region.
 
-This prompt is for Agentuity CLI. Always check the version:
+## Versioning
 
 \`\`\`bash
 ${getCommand('version')}
 \`\`\`
 
-The CLI follows semantic versioning. Check schema compatibility across versions.
+The CLI is in semver. Cross-version schema changes are reflected in
+\`--describe\` output; if a field disappears or changes shape between
+versions, your agent should re-run discovery rather than hard-code.
 
-## Getting Help
+## Where to Look Next
 
-- CLI Schema: \`${getCommand('--help=json')}\`
-- Capabilities: \`${getCommand('capabilities show')}\`
-- Command Help: \`${getCommand('command --help')}\`
-- Examples: Included in help text for all commands
+- \`${getCommand('ai intro')}\` — short primer (start here on first
+  contact).
+- \`${getCommand('ai capabilities show')}\` — task-grouped command
+  catalog.
+- \`${getCommand('--help=json')}\` — full machine-readable schema.
+- \`${getCommand('<command> --describe')}\` — schema for a specific
+  command.
 
 ## Summary
 
-The Agentuity CLI is designed for agent-friendly usage with:
-- Complete introspection via \`--help=json\` and \`schema\` commands
-- Machine-readable output via \`--json\`
-- Safety features via \`--explain\` and \`--dry-run\`
-- Structured errors with recovery suggestions
-- Comprehensive examples for all commands
-
-Always start with discovery (\`capabilities\`, \`schema\`), use safety features (\`--explain\`, \`--dry-run\`), and rely on structured output (\`--json\`) for reliable automation.
+- Discover with \`--help=json\` and \`--describe\`.
+- Drive with \`--input\` and \`--json\`.
+- Preview destructive ops with \`--explain\` / \`--dry-run\` /
+  \`--validate\`.
+- Trim output with \`--fields\`.
+- Read errors as JSON; act on the \`suggestions\` array.
+- Treat the CLI as an API, not a UI.
 `;
 }

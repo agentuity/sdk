@@ -39,7 +39,12 @@ import * as tui from '../../tui.ts';
 import { createPrompt, note } from '../../tui.ts';
 import type { AuthData, Config } from '../../types.ts';
 import { getGithubBotIdentity } from '../git/api.ts';
-import { scaffoldFramework, setupProject, initGitRepo } from './scaffold.ts';
+import {
+	commitAgentuityAugmentation,
+	initGitRepo,
+	scaffoldFramework,
+	setupProject,
+} from './scaffold.ts';
 import { composeServices } from './services-composer.ts';
 import { getServiceCatalog, resolveSelection } from './services-catalog.ts';
 import { suggestBucketName, suggestDatabaseName } from './random-name.ts';
@@ -48,7 +53,10 @@ import {
 	resolveFlagAction,
 	shouldPromptForResource,
 } from './provisioning-decisions.ts';
+import { runtimeKind } from '../../node-compat/runtime-info.ts';
+import type { PackageManager } from '../build/detect/types.ts';
 import { frameworkCatalog, type FrameworkScaffold } from './frameworks.ts';
+import { PROJECT_GENERATION, providerForPackageManager } from './registration-metadata.ts';
 
 /**
  * Permissive RFC 1035 / RFC 1123 hostname check, allowing UTF-8 labels.
@@ -81,6 +89,12 @@ interface CreateFlowOptions {
 	 * are added.
 	 */
 	services?: string[];
+	/**
+	 * Package manager to drive the new project. When omitted, the
+	 * interactive flow asks for it; non-interactive runs default to
+	 * the host runtime (bun under Bun, npm under Node).
+	 */
+	packageManager?: PackageManager;
 }
 
 export interface CreateFlowResult {
@@ -112,6 +126,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		database: databaseOption,
 		storage: storageOption,
 		services: servicesOption,
+		packageManager: initialPackageManager,
 	} = options;
 
 	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
@@ -205,7 +220,47 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Step 2: Select framework
+	// Step 2: Select package manager
+	//
+	// We ask before framework so the framework's `createCommand`
+	// can render the right `--use-bun` / `--use-npm` / etc. flag.
+	// Default in non-interactive contexts is the host runtime
+	// (bun under Bun, npm under Node) — keeps the new project
+	// consistent with how the user invoked the CLI unless they
+	// override it explicitly.
+	const defaultPackageManager: PackageManager = runtimeKind() === 'bun' ? 'bun' : 'npm';
+	let packageManager: PackageManager;
+	if (initialPackageManager) {
+		packageManager = initialPackageManager;
+	} else if (!isInteractive) {
+		packageManager = defaultPackageManager;
+	} else {
+		const pmChoice = await prompt.select<PackageManager>({
+			message: 'Which package manager should the new project use?',
+			initial: defaultPackageManager,
+			options: [
+				{
+					value: 'bun',
+					label: 'bun',
+					hint: 'fast install + native TS runtime; the host CLI default under Bun',
+				},
+				{
+					value: 'npm',
+					label: 'npm',
+					hint: 'ships with Node; safest cross-platform default',
+				},
+				{ value: 'pnpm', label: 'pnpm', hint: 'content-addressed store; popular in monorepos' },
+				{ value: 'yarn', label: 'yarn', hint: 'classic alternative to npm' },
+			],
+		});
+		if (!pmChoice) {
+			logger.fatal('Package manager selection failed', ErrorCode.USER_CANCELLED);
+			return undefined as never;
+		}
+		packageManager = pmChoice;
+	}
+
+	// Step 3: Select framework
 	let selectedFramework: FrameworkScaffold;
 	if (initialFramework) {
 		const found = frameworkCatalog.find((f) => f.slug === initialFramework);
@@ -256,7 +311,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		selectedFramework = found;
 	}
 
-	// Step 3: Ask about AI example
+	// Step 4: Ask about AI example
 	let includeAiExample = true;
 	if (isInteractive && selectedFramework.overlayDir) {
 		includeAiExample = await prompt.confirm({
@@ -267,16 +322,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		includeAiExample = false;
 	}
 
-	// Step 4: Scaffold the framework
+	// Step 5: Scaffold the framework
 	await scaffoldFramework({
 		dest,
 		dirName,
 		framework: selectedFramework,
 		includeAiExample,
+		packageManager,
 		logger,
 	});
 
-	// Step 4.5: Resolve which service augments to apply.
+	// Step 5.5: Resolve which service augments to apply.
 	const selectedServices = await resolveServiceSelection({
 		servicesOption,
 		framework: selectedFramework.slug,
@@ -285,7 +341,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger,
 	});
 
-	// Step 4.6: Compose service augments. With no services selected this
+	// Step 5.6: Compose service augments. With no services selected this
 	// still runs to strip marker comments seeded by the AI overlay so
 	// user-visible files stay clean. Frameworks without a manifest are
 	// skipped silently.
@@ -296,12 +352,27 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger,
 	});
 
-	// Step 5: Setup project (install deps)
+	// Step 6: Setup project (install deps)
 	const setupResult = await setupProject({
 		dest,
 		projectName: projectName === '.' ? basename(dest) : projectName,
 		noInstall: options.noInstall,
+		packageManager,
 		logger,
+	});
+
+	let botAuthor: { name: string; email: string } | undefined;
+	if (apiClient) {
+		try {
+			botAuthor = await getGithubBotIdentity(apiClient);
+		} catch {
+			// Non-fatal: fall back to generic Agentuity author
+		}
+	}
+
+	await commitAgentuityAugmentation(dest, {
+		services: selectedServices,
+		author: botAuthor,
 	});
 
 	// If setup failed, skip resource prompts and registration
@@ -543,6 +614,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
+	if (selectedFramework.slug === 'sveltekit') {
+		resourceEnvVars.HOST_HEADER ??= 'x-forwarded-host';
+		resourceEnvVars.PROTOCOL_HEADER ??= 'x-forwarded-proto';
+	}
+
 	// === Custom domain ===
 	//
 	// Domain isn't a service augment — it's a deployment concern. Ask
@@ -591,6 +667,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					orgId,
 					cloudRegion,
 					domains: _domains,
+					generation: PROJECT_GENERATION,
+					provider: providerForPackageManager(packageManager),
+					framework: selectedFramework.slug,
 				});
 				projectId = project.id;
 				return createProjectConfig(dest, {
@@ -641,15 +720,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	}
 
 	// ─── Git initialization ─────────────────────────────────────────────────
-
-	let botAuthor: { name: string; email: string } | undefined;
-	if (apiClient) {
-		try {
-			botAuthor = await getGithubBotIdentity(apiClient);
-		} catch {
-			// Non-fatal: fall back to generic Agentuity author
-		}
-	}
 
 	await initGitRepo(dest, {
 		projectName,

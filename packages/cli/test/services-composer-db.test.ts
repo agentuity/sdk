@@ -8,8 +8,8 @@
  *      route) land at the expected per-framework paths.
  *   2. The translate helper picked up the cache-lookup snippet.
  *   3. The page picked up the history-panel snippet.
- *   4. package.json gained drizzle-orm + @neondatabase/serverless deps,
- *      drizzle-kit dev dep, and the four db:* scripts.
+ *   4. package.json gained drizzle-orm + pg deps, drizzle-kit + @types/pg
+ *      dev deps, and the four db:* scripts.
  *   5. .env.example carries DATABASE_URL.
  *   6. No marker comments leaked into any of these files.
  */
@@ -55,23 +55,6 @@ const dbChecks: DbCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		wholeFiles: [
-			'app/db/schema.ts',
-			'app/db/index.ts',
-			'drizzle.config.ts',
-			'app/routes/api.history.ts',
-		],
-		translateFile: 'app/lib/translate.ts',
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
-		framework: 'vite-react',
-		wholeFiles: ['server/db/schema.ts', 'server/db/index.ts', 'drizzle.config.ts'],
-		translateFile: 'server/translate.ts',
-		pageFile: 'src/App.tsx',
-	},
-	{
 		framework: 'nuxt',
 		wholeFiles: [
 			'server/db/schema.ts',
@@ -80,7 +63,7 @@ const dbChecks: DbCheck[] = [
 			'server/api/history.get.ts',
 		],
 		translateFile: 'server/utils/translate.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',
@@ -108,7 +91,7 @@ const dbChecks: DbCheck[] = [
 		framework: 'hono',
 		wholeFiles: ['src/db/schema.ts', 'src/db/index.ts', 'drizzle.config.ts'],
 		translateFile: 'src/translate.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 	},
 ];
 
@@ -162,8 +145,9 @@ describe('framework + db composition', () => {
 			// 4. package.json picked up deps + scripts.
 			const pkg = JSON.parse(await readFile(join(dest, 'package.json'), 'utf8'));
 			expect(pkg.dependencies['drizzle-orm']).toBeDefined();
-			expect(pkg.dependencies['@neondatabase/serverless']).toBeDefined();
+			expect(pkg.dependencies.pg).toBeDefined();
 			expect(pkg.devDependencies['drizzle-kit']).toBeDefined();
+			expect(pkg.devDependencies['@types/pg']).toBeDefined();
 			expect(pkg.scripts['db:push']).toBe('drizzle-kit push');
 			expect(pkg.scripts['db:generate']).toBe('drizzle-kit generate');
 

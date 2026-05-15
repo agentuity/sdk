@@ -1,6 +1,9 @@
 [install]
 peer = true
 production = false
+# Delay installing packages published within the last 3 days to mitigate npm
+# supply-chain attacks. Bun 1.3+. See https://bun.com/docs/runtime/bunfig#minimumreleaseage
+minimumReleaseAge = 259200
 
 [install.scopes]
 "@agentuity" = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }

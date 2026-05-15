@@ -1,5 +1,6 @@
 // Export
 app.post('/api/export', async (c) => {
+	const db = getDb();
 	const rows = await db
 		.select()
 		.from(translations)

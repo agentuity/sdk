@@ -34,6 +34,7 @@ import {
 	getGithubToken,
 	linkProjectToRepo,
 } from '../git/api.ts';
+import { detectProjectRegistrationMetadata } from './registration-metadata.ts';
 import { initGitRepo } from './scaffold.ts';
 
 // ─── Structured Errors ───
@@ -283,6 +284,7 @@ async function createProjectNonInteractive(
 	config: Config,
 	logger: Logger,
 	name: string,
+	projectDir?: string,
 	region?: string,
 	orgOverride?: string
 ): Promise<{ id: string; sdkKey: string; orgId: string; region: string }> {
@@ -313,6 +315,10 @@ async function createProjectNonInteractive(
 		selectedRegion = firstRegion.region;
 	}
 
+	const registrationMetadata = projectDir
+		? await detectProjectRegistrationMetadata(projectDir)
+		: undefined;
+
 	const newProject = await tui.spinner({
 		message: 'Creating project...',
 		clearOnSuccess: true,
@@ -321,6 +327,7 @@ async function createProjectNonInteractive(
 				name,
 				orgId,
 				cloudRegion: selectedRegion,
+				...registrationMetadata,
 			});
 		},
 	});
@@ -340,7 +347,8 @@ async function createProjectInteractive(
 	apiClient: APIClient,
 	config: Config,
 	logger: Logger,
-	defaultName?: string
+	defaultName?: string,
+	projectDir?: string
 ): Promise<{ id: string; sdkKey: string; orgId: string; region: string }> {
 	// Fetch orgs
 	const orgs = await tui.spinner({
@@ -393,6 +401,10 @@ async function createProjectInteractive(
 		},
 	});
 
+	const registrationMetadata = projectDir
+		? await detectProjectRegistrationMetadata(projectDir)
+		: undefined;
+
 	// Create the project
 	const newProject = await tui.spinner({
 		message: 'Registering project...',
@@ -402,6 +414,7 @@ async function createProjectInteractive(
 				name: projectName,
 				orgId,
 				cloudRegion: selectedRegion,
+				...registrationMetadata,
 			});
 		},
 	});
@@ -686,12 +699,19 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				config,
 				logger,
 				name,
+				sourceDir,
 				optRegion,
 				org
 			);
 		} else if (isTTY() && !options.confirm) {
 			// Interactive mode: prompt for org/region/name
-			projectInfo = await createProjectInteractive(apiClient, config, logger, parsed.repo);
+			projectInfo = await createProjectInteractive(
+				apiClient,
+				config,
+				logger,
+				parsed.repo,
+				sourceDir
+			);
 		} else {
 			// Non-interactive without --name: use repo name
 			projectInfo = await createProjectNonInteractive(
@@ -699,6 +719,7 @@ export async function runRemoteImport(options: RemoteImportOptions): Promise<voi
 				config,
 				logger,
 				parsed.repo,
+				sourceDir,
 				optRegion,
 				org
 			);

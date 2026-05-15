@@ -657,8 +657,8 @@ describe('composeServices', () => {
 				hint: '',
 				description: '',
 				order: 20,
-				packages: ['drizzle-orm', '@neondatabase/serverless'],
-				devPackages: ['drizzle-kit'],
+				packages: ['drizzle-orm', 'pg'],
+				devPackages: ['drizzle-kit', '@types/pg'],
 				scripts: { 'db:push': 'drizzle-kit push' },
 				frameworks: ['nextjs'],
 			})
@@ -688,8 +688,9 @@ describe('composeServices', () => {
 		const merged = JSON.parse(await readFile(join(f.dest, 'package.json'), 'utf8'));
 		expect(merged.dependencies.existing).toBe('^1.0.0');
 		expect(merged.dependencies['drizzle-orm']).toBe('latest');
-		expect(merged.dependencies['@neondatabase/serverless']).toBe('latest');
+		expect(merged.dependencies.pg).toBe('latest');
 		expect(merged.devDependencies['drizzle-kit']).toBe('latest');
+		expect(merged.devDependencies['@types/pg']).toBe('latest');
 		expect(merged.scripts.dev).toBe('next dev');
 		expect(merged.scripts['db:push']).toBe('drizzle-kit push');
 	});

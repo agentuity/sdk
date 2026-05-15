@@ -601,6 +601,77 @@ describe('CoderClient enabled agent roster contract', () => {
 		});
 	});
 
+	test('createSession sends sandbox create options and base64-encoded files', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session');
+			expect(init?.method).toBe('POST');
+			expect(JSON.parse(String(init?.body))).toMatchObject({
+				task: 'Prepare sandbox',
+				runtime: 'bun:1',
+				resources: { memory: '1Gi', cpu: '1' },
+				network: { enabled: true, port: 3000 },
+				timeout: { idle: '30m' },
+				dependencies: ['git'],
+				packages: ['typescript'],
+				scopes: ['services:read'],
+				files: [
+					{
+						path: 'README.md',
+						content: Buffer.from('# Hello').toString('base64'),
+					},
+				],
+				command: {
+					exec: ['bun', 'run', 'dev'],
+					mode: 'interactive',
+					files: [
+						{
+							path: 'package.json',
+							content: Buffer.from('{"type":"module"}').toString('base64'),
+						},
+					],
+				},
+			});
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_sandbox_options',
+					status: 'creating',
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createSession({
+				task: 'Prepare sandbox',
+				runtime: 'bun:1',
+				resources: { memory: '1Gi', cpu: '1' },
+				network: { enabled: true, port: 3000 },
+				timeout: { idle: '30m' },
+				dependencies: ['git'],
+				packages: ['typescript'],
+				scopes: ['services:read'],
+				files: [{ path: 'README.md', content: Buffer.from('# Hello') }],
+				command: {
+					exec: ['bun', 'run', 'dev'],
+					mode: 'interactive',
+					files: [{ path: 'package.json', content: Buffer.from('{"type":"module"}') }],
+				},
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_sandbox_options',
+			status: 'creating',
+		});
+	});
+
 	test('updateSession sends enabledAgents in the request body', async () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/session/codesess_enabled_update');

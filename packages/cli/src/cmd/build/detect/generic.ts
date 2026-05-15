@@ -26,8 +26,11 @@ export const genericDetector: FrameworkDetector = {
 
 		const pm = await detectPackageManager(projectDir);
 
-		// Determine build command
-		const buildCommand = pkg.scripts?.build ?? null;
+		// For the fallback detector, run the package.json script by name
+		// instead of re-interpreting its contents. A script like
+		// `"build": "tsc"` must execute as `npm run build`, not
+		// `npm run tsc`.
+		const buildCommand = pkg.scripts?.build ? 'build' : null;
 		if (!buildCommand) {
 			// No build script — might be a runtime-only project
 			// We'll still try if there's a start command
@@ -53,8 +56,22 @@ export const genericDetector: FrameworkDetector = {
 			return null;
 		}
 
-		// Detect runtime from engines field or package manager
-		const runtime = pkg.engines?.bun ? 'bun' : pm === 'bun' ? 'bun' : 'node';
+		// Pick runtime in this order:
+		//   1. The actual `start` script (`bun ...` / `bun run ...` = bun;
+		//      `node ...` = node) — strongest signal.
+		//   2. `engines.bun` in package.json.
+		//   3. A `bun.lock` / `bun.lockb` file in the project root.
+		//   4. Default to node.
+		const hasBunLockfile =
+			(await pathExists(join(projectDir, 'bun.lockb'))) ||
+			(await pathExists(join(projectDir, 'bun.lock')));
+		const runtime: 'bun' | 'node' = (() => {
+			if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
+			if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
+			if (pkg.engines?.bun) return 'bun';
+			if (hasBunLockfile) return 'bun';
+			return 'node';
+		})();
 
 		return {
 			name: 'generic',

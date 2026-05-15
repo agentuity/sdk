@@ -12,6 +12,7 @@
 
 import { cpSync } from 'node:fs';
 import { join } from 'node:path';
+import type { PackageManager } from '../build/detect/types.ts';
 import { currentDir } from '../../node-compat/runtime-info.ts';
 
 // Resolve the templates directory relative to this file.
@@ -46,9 +47,14 @@ export interface FrameworkScaffold {
 	 * Build the create command.
 	 *
 	 * @param projectDir - The target directory name (relative, e.g. "my-app")
+	 * @param pm - The package manager the user chose. Frameworks should
+	 *   honor it where they have a flag for it (each tool spells the
+	 *   flag differently); if a framework has no `--package-manager`
+	 *   equivalent, render the bare command and let it pick the pm via
+	 *   lockfile-detection.
 	 * @returns The full command as an argv array (e.g. ["bunx", "create-next-app", "my-app", ...])
 	 */
-	createCommand: (projectDir: string) => string[];
+	createCommand: (projectDir: string, pm: PackageManager) => string[];
 
 	/**
 	 * Agentuity packages to add as dependencies after scaffolding.
@@ -85,15 +91,36 @@ export function applyOverlay(dest: string, overlayDir: string): void {
 	cpSync(overlayPath, dest, { recursive: true, dereference: true, force: true });
 }
 
-// ─── Framework Catalog ───────────────────────────────────────────────────────
+// ─── Per-package-manager helpers ────────────────────────────────────────────────
+
+/**
+ * The command to invoke a remote npm package without installing it
+ * (the modern equivalent of `npx`). Each package manager spells
+ * this slightly differently. We hardcode the canonical pair for
+ * the four supported managers.
+ */
+function dlxCommand(pm: PackageManager): string[] {
+	switch (pm) {
+		case 'bun':
+			return ['bunx'];
+		case 'pnpm':
+			return ['pnpm', 'dlx'];
+		case 'yarn':
+			return ['yarn', 'dlx'];
+		default:
+			return ['npx'];
+	}
+}
+
+// ─── Framework Catalog ───────────────────────────────────────────────────────────
 
 export const frameworkCatalog: FrameworkScaffold[] = [
 	{
 		slug: 'nextjs',
 		name: 'Next.js',
 		description: 'Full-stack React framework with App Router',
-		createCommand: (dir) => [
-			'bunx',
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-next-app@latest',
 			dir,
 			'--ts',
@@ -103,10 +130,11 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'--src-dir',
 			'--import-alias',
 			'@/*',
-			'--use-bun',
+			`--use-${pm}`,
 		],
-		dependencies: ['ai', '@ai-sdk/openai', 'swr'],
+		dependencies: ['@agentuity/aigateway', 'swr'],
 		scripts: {
+			build: 'next build --webpack',
 			deploy: 'agentuity deploy',
 		},
 		overlayDir: 'nextjs',
@@ -115,38 +143,45 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'nuxt',
 		name: 'Nuxt',
 		description: 'Full-stack Vue framework with server routes',
-		createCommand: (dir) => ['bunx', 'nuxi@latest', 'init', dir, '--packageManager', 'bun'],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		// `nuxi init` has multiple interactive prompts:
+		//   1. template selection — `--template minimal` skips it.
+		//   2. git initialization — `--gitInit=false` skips it.
+		//   3. "would you like to browse and install modules?" — there’s no
+		//      flag for this one. We rely on the runner to deny stdin
+		//      so nuxi accepts the (No) default.
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
+			'nuxi@latest',
+			'init',
+			dir,
+			'--template',
+			'minimal',
+			'--gitInit=false',
+			'--packageManager',
+			pm,
+		],
+		dependencies: ['@agentuity/aigateway'],
+		devDependencies: ['@tailwindcss/vite', 'tailwindcss'],
 		scripts: {
 			deploy: 'agentuity deploy',
+			// Nitro's default `node-server` preset emits a self-listening
+			// Node entry at `.output/server/index.mjs`. Nuxi doesn't ship
+			// a `start` script by default, so the deploy pipeline falls
+			// back to a static-file server — wrong for SSR. Set it here
+			// so the user gets a working production process out of the box.
+			start: 'HOST=0.0.0.0 node .output/server/index.mjs',
 		},
 		overlayDir: 'nuxt',
-	},
-	{
-		slug: 'remix',
-		name: 'React Router',
-		description: 'Full-stack React framework with nested routing',
-		createCommand: (dir) => [
-			'bunx',
-			'create-react-router@latest',
-			dir,
-			'--yes',
-			'--install',
-			'--package-manager',
-			'bun',
-		],
-		dependencies: ['ai', '@ai-sdk/openai'],
-		scripts: {
-			deploy: 'agentuity deploy',
-		},
-		overlayDir: 'remix',
 	},
 	{
 		slug: 'sveltekit',
 		name: 'SvelteKit',
 		description: 'Full-stack Svelte framework',
-		createCommand: (dir) => [
-			'bunx',
+		// `sv create` would otherwise hang on its add-ons prompt;
+		// `--no-add-ons` skips it. `--install <pm>` passes the chosen
+		// pm directly.
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'sv@latest',
 			'create',
 			dir,
@@ -154,11 +189,25 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 			'minimal',
 			'--types',
 			'ts',
+			'--no-add-ons',
+			'--install',
+			pm,
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
-		devDependencies: ['@agentuity/vite'],
+		dependencies: ['@agentuity/aigateway'],
+		// Swap sv's default `@sveltejs/adapter-auto` (which can't detect
+		// our runtime) for `@sveltejs/adapter-node`, which emits a
+		// self-listening Node server at `build/index.js`. The overlay
+		// drops a matching svelte.config.js. @agentuity/vite configures
+		// Vite dev/HMR for `agentuity dev --public`.
+		devDependencies: [
+			'@agentuity/vite',
+			'@sveltejs/adapter-node',
+			'@tailwindcss/vite',
+			'tailwindcss',
+		],
 		scripts: {
 			deploy: 'agentuity deploy',
+			start: 'node build/index.js',
 		},
 		overlayDir: 'sveltekit',
 	},
@@ -166,21 +215,29 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'astro',
 		name: 'Astro',
 		description: 'Content-focused framework with island architecture',
-		createCommand: (dir) => [
-			'bunx',
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-astro@latest',
 			dir,
 			'--template',
 			'basics',
 			'--install',
+			'--package-manager',
+			pm,
 			'--yes',
 			'--typescript',
 			'strict',
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
-		devDependencies: ['@agentuity/vite'],
+		dependencies: ['@agentuity/aigateway'],
+		// Astro defaults to a static SPA build. We swap to SSR via
+		// `@astrojs/node` (standalone mode) so the deploy can host
+		// server-rendered pages and API routes. The overlay drops a
+		// matching `astro.config.mjs`. @agentuity/vite configures Vite
+		// dev/HMR for `agentuity dev --public`.
+		devDependencies: ['@agentuity/vite', '@astrojs/node', '@tailwindcss/vite', 'tailwindcss'],
 		scripts: {
 			deploy: 'agentuity deploy',
+			start: 'node ./dist/server/entry.mjs',
 		},
 		overlayDir: 'astro',
 	},
@@ -188,33 +245,29 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		slug: 'hono',
 		name: 'Hono',
 		description: 'Lightweight, fast web framework for the edge',
-		createCommand: (dir) => [
-			'bunx',
+		// Use create-hono's Node template regardless of package manager.
+		// The Bun template intentionally has no build script and runs
+		// TypeScript directly; our package smoke tests and deploy pipeline
+		// expect a real build artifact. Package-manager selection still
+		// controls install/lockfile behavior via `--pm`.
+		createCommand: (dir, pm) => [
+			...dlxCommand(pm),
 			'create-hono@latest',
 			dir,
 			'--template',
-			'bun',
+			'nodejs',
 			'--install',
 			'--pm',
-			'bun',
+			pm,
 		],
-		dependencies: ['ai', '@ai-sdk/openai'],
+		dependencies: ['@agentuity/aigateway'],
+		devDependencies: ['esbuild'],
 		scripts: {
+			build: 'esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/src/index.cjs',
 			deploy: 'agentuity deploy',
+			start: 'node dist/src/index.cjs',
 		},
 		overlayDir: 'hono',
-	},
-	{
-		slug: 'vite-react',
-		name: 'Vite + React',
-		description: 'React SPA with Vite bundler',
-		createCommand: (dir) => ['bunx', 'create-vite@latest', dir, '--template', 'react-ts'],
-		dependencies: ['ai', '@ai-sdk/openai', '@tanstack/react-query'],
-		devDependencies: ['tailwindcss', '@tailwindcss/vite', '@agentuity/vite'],
-		scripts: {
-			deploy: 'agentuity deploy',
-		},
-		overlayDir: 'vite-react',
 	},
 ];
 

@@ -1,12 +1,8 @@
 // @agentuity:imports
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import { translate } from './translate';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const landing = readFileSync(join(here, 'landing.html'), 'utf8');
+import { LandingPage } from './landing.js';
+import { translate } from './translate.js';
 
 // @agentuity:module
 
@@ -14,7 +10,7 @@ const app = new Hono();
 
 // API route
 app.post('/api/translate', async (c) => {
-	const { text, toLanguage, model = 'gpt-4o-mini' } = await c.req.json();
+	const { text, toLanguage, model = 'openai/gpt-4o-mini' } = await c.req.json();
 	const result = await translate({ text, toLanguage, model });
 	return c.json(result);
 });
@@ -23,7 +19,19 @@ app.post('/api/translate', async (c) => {
 
 // Landing page
 app.get('/', (c) => {
-	return c.html(landing);
+	return c.html(LandingPage());
 });
+
+const port = Number(process.env.PORT ?? 3000);
+
+serve(
+	{
+		fetch: app.fetch,
+		port,
+	},
+	(info) => {
+		console.log(`Server is running on http://localhost:${info.port}`);
+	}
+);
 
 export default app;

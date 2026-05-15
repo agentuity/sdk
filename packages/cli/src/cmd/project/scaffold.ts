@@ -6,14 +6,16 @@
  * then augment the result with Agentuity integration.
  */
 
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui.ts';
 import { getVersion } from '../../version.ts';
+import type { PackageManager } from '../build/detect/types.ts';
 import type { FrameworkScaffold } from './frameworks.ts';
 import { applyOverlay } from './frameworks.ts';
+import { getService } from './services-catalog.ts';
 
 interface ScaffoldOptions {
 	/** Absolute path to the target directory */
@@ -24,6 +26,8 @@ interface ScaffoldOptions {
 	framework: FrameworkScaffold;
 	/** Whether to include AI example */
 	includeAiExample: boolean;
+	/** Package manager to drive the framework's create command. */
+	packageManager: PackageManager;
 	/** Logger */
 	logger: Logger;
 }
@@ -33,8 +37,10 @@ interface SetupOptions {
 	dest: string;
 	/** Human-readable project name */
 	projectName: string;
-	/** Whether to skip `bun install` */
+	/** Whether to skip the post-scaffold install step. */
 	noInstall: boolean;
+	/** Package manager to use when re-running install after augments. */
+	packageManager: PackageManager;
 	/** Logger */
 	logger: Logger;
 }
@@ -43,10 +49,10 @@ interface SetupOptions {
  * Run the framework's official create CLI to scaffold the project.
  */
 export async function scaffoldFramework(options: ScaffoldOptions): Promise<void> {
-	const { dest, dirName, framework, includeAiExample, logger } = options;
+	const { dest, dirName, framework, includeAiExample, packageManager, logger } = options;
 
 	// Step 1: Run the framework's create command
-	const cmd = framework.createCommand(dirName);
+	const cmd = framework.createCommand(dirName, packageManager);
 	logger.debug('Scaffolding with: %s', cmd.join(' '));
 
 	const parentDir = join(dest, '..');
@@ -68,7 +74,7 @@ export async function scaffoldFramework(options: ScaffoldOptions): Promise<void>
 	}
 
 	// Step 2: Augment with Agentuity integration
-	await augmentProject(dest, framework, includeAiExample, logger);
+	await augmentProject(dest, framework, includeAiExample, packageManager, logger);
 }
 
 /**
@@ -83,6 +89,7 @@ async function augmentProject(
 	dest: string,
 	framework: FrameworkScaffold,
 	includeAiExample: boolean,
+	packageManager: PackageManager,
 	logger: Logger
 ): Promise<void> {
 	await tui.spinner({
@@ -91,19 +98,23 @@ async function augmentProject(
 		clearOnSuccess: true,
 		callback: async (progress) => {
 			// Step 1: Merge package.json
-			await mergePackageJson(dest, framework);
+			await mergePackageJson(dest, framework, packageManager);
 			progress(25);
 
 			// Step 2: Apply template overlay if configured
 			if (framework.overlayDir) {
 				if (includeAiExample) {
 					applyOverlay(dest, framework.overlayDir);
+					removeTemplateManifest(dest);
 					logger.debug('Applied template overlay: %s', framework.overlayDir);
 				} else {
 					// When AI example is not requested, we still want the landing page
 					// but without the API route. For now, skip the entire overlay.
 					logger.debug('Skipped template overlay (AI example not requested)');
 				}
+			}
+			if (framework.slug === 'hono' && packageManager === 'bun') {
+				await addHonoBunTypes(dest);
 			}
 			progress(75);
 
@@ -117,7 +128,33 @@ async function augmentProject(
 /**
  * Merge Agentuity dependencies and scripts into the project's package.json.
  */
-async function mergePackageJson(dest: string, framework: FrameworkScaffold): Promise<void> {
+function removeTemplateManifest(dest: string): void {
+	const manifestPath = join(dest, 'manifest.json');
+	if (existsSync(manifestPath)) {
+		rmSync(manifestPath);
+	}
+}
+
+async function addHonoBunTypes(dest: string): Promise<void> {
+	const tsconfigPath = join(dest, 'tsconfig.json');
+	if (!existsSync(tsconfigPath)) return;
+
+	const tsconfig = JSON.parse(await readFile(tsconfigPath, 'utf-8'));
+	const compilerOptions = tsconfig.compilerOptions ?? {};
+	const types = Array.isArray(compilerOptions.types) ? compilerOptions.types : [];
+	if (!types.includes('bun')) {
+		compilerOptions.types = [...types, 'bun'];
+	}
+	tsconfig.compilerOptions = compilerOptions;
+
+	await writeFile(tsconfigPath, JSON.stringify(tsconfig, null, '\t') + '\n');
+}
+
+async function mergePackageJson(
+	dest: string,
+	framework: FrameworkScaffold,
+	packageManager: PackageManager
+): Promise<void> {
 	const pkgPath = join(dest, 'package.json');
 	const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 
@@ -126,11 +163,9 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 	pkg.devDependencies = pkg.devDependencies ?? {};
 	pkg.scripts = pkg.scripts ?? {};
 
-	// Derive the version specifier for @agentuity packages from the CLI's own version.
-	// If the CLI is a prerelease (e.g. 3.0.0-alpha.2), use the dist-tag (alpha)
-	// so that `bun install` can resolve it from the correct npm tag.
-	// For stable releases, use the major version range (e.g. ^3.0.0).
-	const agentuityVersion = getAgentuityVersionSpecifier(getVersion());
+	// Pin Agentuity packages to the exact CLI version so generated apps do
+	// not mix stable packages with beta/alpha CLI templates.
+	const agentuityVersion = getVersion();
 
 	// Add @agentuity/cli as devDependency
 	pkg.devDependencies['@agentuity/cli'] = agentuityVersion;
@@ -153,6 +188,14 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 		}
 	}
 
+	if (
+		framework.slug === 'hono' &&
+		packageManager === 'bun' &&
+		!pkg.devDependencies['@types/bun']
+	) {
+		pkg.devDependencies['@types/bun'] = '^1.3.14';
+	}
+
 	// Merge scripts (framework-specific scripts win)
 	if (framework.scripts) {
 		for (const [name, script] of Object.entries(framework.scripts)) {
@@ -161,22 +204,6 @@ async function mergePackageJson(dest: string, framework: FrameworkScaffold): Pro
 	}
 
 	await writeFile(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
-}
-
-/**
- * Derive the version specifier for @agentuity packages from the CLI's own version.
- *
- * If the CLI is a prerelease (e.g. 3.0.0-alpha.2), use the dist-tag (alpha)
- * so that `bun install` can resolve it from the correct npm tag.
- * For stable releases, use the major version range (e.g. ^3.0.0).
- */
-function getAgentuityVersionSpecifier(cliVersion: string): string {
-	const match = cliVersion.match(/-([a-zA-Z]+)/);
-	if (match) {
-		return match[1]!.toLowerCase();
-	}
-	const major = cliVersion.split('.')[0] ?? '3';
-	return `^${major}.0.0`;
 }
 
 /**
@@ -202,18 +229,20 @@ async function appendGitignore(dest: string): Promise<void> {
  * Set up the project after scaffolding: install deps, generate docs.
  */
 export async function setupProject(options: SetupOptions): Promise<{ success: boolean }> {
-	const { dest, projectName, noInstall, logger } = options;
+	const { dest, projectName, noInstall, packageManager, logger } = options;
 	let hasError = false;
 
 	tui.info(`🔧 Setting up ${projectName}...`);
 
 	// Install dependencies (the framework CLI may have already done this,
-	// but we need to install our added deps)
+	// but we need to install our added deps).
 	if (!noInstall) {
+		const installCmd: string[] =
+			packageManager === 'yarn' ? ['yarn', 'install'] : [packageManager, 'install'];
 		const exitCode = await tui.runCommand({
-			command: 'bun install',
+			command: installCmd.join(' '),
 			cwd: dest,
-			cmd: ['bun', 'install'],
+			cmd: installCmd,
 			clearOnSuccess: true,
 		});
 		if (exitCode !== 0) {
@@ -234,6 +263,74 @@ interface InitGitRepoOptions {
 	source?: string;
 	/** Git commit author */
 	author?: { name: string; email: string };
+}
+
+interface CommitAgentuityAugmentationOptions {
+	/** Selected service ids included in the Agentuity example augmentation. */
+	services: string[];
+	/** Git commit author */
+	author?: { name: string; email: string };
+}
+
+/**
+ * Commit Agentuity augmentation changes when the framework scaffold already
+ * created a git repository. Many official framework CLIs create an initial
+ * commit before our overlays and service examples are applied; without this
+ * follow-up commit those generated changes are left in the user's worktree.
+ */
+export async function commitAgentuityAugmentation(
+	dest: string,
+	options: CommitAgentuityAugmentationOptions
+): Promise<void> {
+	const { isGitAvailable, runGit } = await import('../../git-helper.ts');
+	if (!(await isGitAvailable())) return;
+
+	const insideWorkTree = await runGit(['rev-parse', '--is-inside-work-tree'], { cwd: dest });
+	if (!insideWorkTree.ok || insideWorkTree.stdout !== 'true') return;
+
+	const status = await runGit(['status', '--porcelain', '--', '.'], { cwd: dest });
+	if (!status.ok || status.stdout.trim() === '') return;
+
+	const add = await runGit(['add', '.'], { cwd: dest });
+	if (!add.ok) return;
+
+	const staged = await runGit(['diff', '--cached', '--quiet', '--', '.'], { cwd: dest });
+	if (staged.exitCode !== 1) return;
+
+	const authorName = options.author?.name ?? 'Agentuity';
+	const authorEmail = options.author?.email ?? 'bot@agentuity.com';
+	const authorStr = `${authorName} <${authorEmail}>`;
+	const message = augmentationCommitMessage(options.services);
+
+	await tui.runCommand({
+		command: 'git commit',
+		cwd: dest,
+		cmd: [
+			'git',
+			'-c',
+			'commit.gpgsign=false',
+			'commit',
+			`--author=${authorStr}`,
+			'-m',
+			message,
+			'--',
+			'.',
+		],
+		env: {
+			GIT_COMMITTER_NAME: authorName,
+			GIT_COMMITTER_EMAIL: authorEmail,
+		},
+		clearOnSuccess: true,
+	});
+}
+
+function augmentationCommitMessage(services: string[]): string {
+	if (services.length === 0) {
+		return 'Augmented with Agentuity examples';
+	}
+
+	const serviceNames = services.map((service) => getService(service)?.label ?? service);
+	return `Augmented with Agentuity examples for services: ${serviceNames.join(', ')}`;
 }
 
 /**

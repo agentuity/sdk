@@ -91,6 +91,11 @@ export const stepError = (message: string, cause?: Error, output?: string[]): St
  */
 export interface StepContext {
 	progress: (n: number) => void;
+	/**
+	 * Update the running step's output box. Useful for long server-side
+	 * waits where progress is not numeric but users still need a heartbeat.
+	 */
+	output: (lines: string[]) => void;
 	signal: AbortSignal;
 }
 
@@ -462,20 +467,15 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				currentFrameIndex++;
 			}, 120);
 
-			// Progress callback
-			const progressCallback = (progress: number) => {
+			const rerenderRunningStep = () => {
 				if (isPaused) return;
 
-				stepState.progress = Math.min(100, Math.max(0, progress));
-
-				// Render all steps from state
 				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length] ?? 'cyan';
 				const color = getColor(colorKey);
 				const frame = FRAMES[currentFrameIndex % FRAMES.length] ?? FRAMES[0] ?? '◐';
 				const spinner = `${color}${COLORS.bold}${frame}${COLORS.reset}`;
 				const rendered = renderAllSteps(state, currentStepIndex, spinner);
 
-				// Move to start, clear, render
 				if (totalLinesFromLastRender > 0) {
 					process.stdout.write(`\x1B[${totalLinesFromLastRender}A`);
 					process.stdout.write('\x1B[0G');
@@ -486,10 +486,22 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				totalLinesFromLastRender = rendered.totalLines;
 			};
 
+			// Progress callback
+			const progressCallback = (progress: number) => {
+				stepState.progress = Math.min(100, Math.max(0, progress));
+				rerenderRunningStep();
+			};
+
+			const outputCallback = (lines: string[]) => {
+				stepState.output = lines;
+				rerenderRunningStep();
+			};
+
 			// Run the step
 			try {
 				const outcome = await step.run({
 					progress: progressCallback,
+					output: outputCallback,
 					signal: abortController.signal,
 				});
 
@@ -609,7 +621,13 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 			let outcome: StepOutcome;
 
 			try {
-				outcome = await step.run({ progress: () => {}, signal: abortController.signal });
+				outcome = await step.run({
+					progress: () => {},
+					output: (lines) => {
+						for (const line of lines) console.log(`  ${line}`);
+					},
+					signal: abortController.signal,
+				});
 			} catch (err) {
 				// If the step was aborted due to cancellation, treat as interrupt
 				if (err instanceof Error && err.name === 'AbortError') {
@@ -712,6 +730,7 @@ export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void
 				const ctx: StepContext = {
 					signal: abortController.signal,
 					progress: () => {},
+					output: () => {},
 				};
 				let outcome: StepOutcome;
 				try {

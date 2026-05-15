@@ -12,6 +12,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { composeServices } from '../src/cmd/project/services-composer';
+import { getVersion } from '../src/version';
 
 const cleanup: string[] = [];
 
@@ -40,22 +41,10 @@ const storageChecks: StorageCheck[] = [
 		pageFile: 'src/app/page.tsx',
 	},
 	{
-		framework: 'remix',
-		storageClient: 'app/storage/index.ts',
-		exportFile: 'app/routes/api.export.ts',
-		pageFile: 'app/routes/home.tsx',
-	},
-	{
-		framework: 'vite-react',
-		storageClient: 'server/storage/index.ts',
-		serverFile: 'server.ts',
-		pageFile: 'src/App.tsx',
-	},
-	{
 		framework: 'nuxt',
 		storageClient: 'server/storage/index.ts',
 		exportFile: 'server/api/export.post.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 	},
 	{
 		framework: 'sveltekit',
@@ -73,7 +62,7 @@ const storageChecks: StorageCheck[] = [
 		framework: 'hono',
 		storageClient: 'src/storage/index.ts',
 		serverFile: 'src/index.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 	},
 ];
 
@@ -125,9 +114,9 @@ describe('framework + storage composition (auto-pulls db)', () => {
 			expect(pageOut).toContain('Export history');
 			expect(pageOut).not.toContain('@agentuity:');
 
-			// db was auto-pulled in.
+			// db was auto-pulled in, and Agentuity packages are pinned to the CLI version.
 			const pkg = JSON.parse(await readFile(join(dest, 'package.json'), 'utf8'));
-			expect(pkg.dependencies['@agentuity/storage']).toBeDefined();
+			expect(pkg.dependencies['@agentuity/storage']).toBe(getVersion());
 			expect(pkg.dependencies['drizzle-orm']).toBeDefined();
 			expect(pkg.devDependencies['drizzle-kit']).toBeDefined();
 

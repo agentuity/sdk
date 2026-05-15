@@ -2,7 +2,7 @@
  * Launch metadata generation for buildpack-compatible output.
  *
  * Generates the metadata that tells the runtime how to start the application.
- * This is analogous to CNB's launch.toml / Procfile / Docker CMD.
+ * This is analogous to CNB's launch.toml / Docker CMD.
  */
 
 import { join } from 'node:path';
@@ -66,6 +66,21 @@ export function generateLaunchMetadata(
 		});
 	}
 
+	// Reconcile runtime against the actual launch command.
+	// `framework.runtime` reflects what the detector inferred from the
+	// project (lockfile, engines, the start script before adapters had
+	// a chance to rewrite it). But adapters can override the start
+	// command — e.g. the Next.js adapter writes `node server.js`
+	// because Next.js standalone is Node-only, even if the user's
+	// project uses Bun for everything else. The runtime in launch.json
+	// must match what gets executed; pilot's memory tuning depends on
+	// it.
+	const runtimeName = (() => {
+		if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
+		if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
+		return framework.runtime;
+	})();
+
 	return {
 		processes,
 		framework: {
@@ -73,7 +88,7 @@ export function generateLaunchMetadata(
 			version: framework.version,
 		},
 		runtime: {
-			name: framework.runtime,
+			name: runtimeName,
 			port: buildResult.port ?? framework.port,
 		},
 		build: {
@@ -86,19 +101,11 @@ export function generateLaunchMetadata(
 /**
  * Write launch metadata to the output directory.
  *
- * Writes both:
- * - launch.json — machine-readable launch metadata
- * - Procfile — simple process definition for compatibility
+ * Writes launch.json — machine-readable launch metadata.
  */
 export function writeLaunchMetadata(outputDir: string, metadata: LaunchMetadata): void {
 	mkdirSync(outputDir, { recursive: true });
 
-	// Write JSON metadata
 	const jsonPath = join(outputDir, 'launch.json');
 	writeFileSync(jsonPath, JSON.stringify(metadata, null, 2), 'utf-8');
-
-	// Write Procfile for broad compatibility (Heroku, Railway, Render, etc.)
-	const procfilePath = join(outputDir, 'Procfile');
-	const procfileLines = metadata.processes.map((p) => `${p.type}: ${p.command}`);
-	writeFileSync(procfilePath, procfileLines.join('\n') + '\n', 'utf-8');
 }

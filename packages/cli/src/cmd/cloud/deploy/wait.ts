@@ -113,11 +113,12 @@ export async function runWaitForDeployment(params: WaitParams): Promise<void> {
 
 			await tui
 				.progress({
-					message: 'Deploying project...',
+					message: 'Waiting for deployment warmup...',
 					type: 'logger',
-					maxLines: 2,
+					maxLines: 3,
 					clearOnSuccess: true,
 					callback: async (log) => {
+						log('Deployment is provisioned; waiting for warmup logs...');
 						const logStreamController = new AbortController();
 						const logStreamPromise = (async () => {
 							try {
@@ -131,6 +132,7 @@ export async function runWaitForDeployment(params: WaitParams): Promise<void> {
 								});
 								if (!resp.ok || !resp.body) {
 									logger.trace(`Failed to connect to warmup log stream: ${resp.status}`);
+									log('Warmup logs are not available yet; polling deployment status.');
 									return;
 								}
 								const reader = resp.body.getReader();

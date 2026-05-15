@@ -6,7 +6,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const text = formData.get('text') as string;
 		const toLanguage = formData.get('toLanguage') as string;
-		const model = (formData.get('model') as string) || 'gpt-4o-mini';
+		const model = (formData.get('model') as string) || 'openai/gpt-4o-mini';
 
 		return translate({ text, toLanguage, model });
 	},

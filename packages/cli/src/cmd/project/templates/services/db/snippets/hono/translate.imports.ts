@@ -1,2 +1,2 @@
 import { eq, and } from 'drizzle-orm';
-import { db, translations } from './db';
+import { getDb, translations } from './db/index.js';

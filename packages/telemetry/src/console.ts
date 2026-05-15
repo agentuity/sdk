@@ -64,6 +64,10 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 	shutdown(): Promise<void> {
 		return Promise.resolve();
 	}
+
+	forceFlush(): Promise<void> {
+		return Promise.resolve();
+	}
 }
 
 /**

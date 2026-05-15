@@ -119,7 +119,46 @@ export function schemaToZod(source: string): SchemaToZodResult {
 		changes.push('Rewrote z.union(a, b, c) → z.union([a, b, c])');
 	}
 
+	// 6. @agentuity/schema's `.pick(['a', 'b'])` / `.omit(['a', 'b'])` use
+	// the array form; zod 4 only accepts the object/mask form
+	// (`{ a: true, b: true }`). Rewrite call sites where the sole
+	// argument is a string-array literal.
+	const maskBefore = output;
+	output = rewritePickOmitCalls(output);
+	if (output !== maskBefore) {
+		changes.push("Rewrote .pick(['a']) / .omit(['a']) to .pick({a: true}) / .omit({a: true})");
+	}
+
 	return { source: output, changed: changes.length > 0, changes };
+}
+
+/**
+ * Walk `.pick([...])` / `.omit([...])` call sites and rewrite the
+ * string-array argument as a `{ key: true, ... }` mask, which is the
+ * only form zod 4 accepts. We only transform calls whose single
+ * argument is a literal array of string literals — anything more
+ * complex (a variable, a spread, mixed types) is left alone with a
+ * TODO comment so the user can hand-translate it.
+ */
+function rewritePickOmitCalls(source: string): string {
+	const pattern = /\.(pick|omit)\s*\(\s*\[([^\]]*)\]\s*\)/g;
+	return source.replace(pattern, (match, method: string, body: string) => {
+		const keys: string[] = [];
+		const keyPattern = /['"`]([^'"`]+)['"`]/g;
+		let m: RegExpExecArray | null;
+		// biome-ignore lint/suspicious/noAssignInExpressions: standard global-regex drain pattern
+		while ((m = keyPattern.exec(body)) !== null) {
+			keys.push(m[1]!);
+		}
+		// If the array contained anything other than string literals, leave
+		// the call alone with a TODO so the user can hand-translate.
+		const stripped = body.replace(/['"`][^'"`]+['"`]/g, '').replace(/[\s,]+/g, '');
+		if (stripped.length > 0 || keys.length === 0) {
+			return `/* TODO: rewrite as zod 4 mask: ${match} */ ${match}`;
+		}
+		const mask = keys.map((k) => `${k}: true`).join(', ');
+		return `.${method}({ ${mask} })`;
+	});
 }
 
 /**

@@ -16,6 +16,7 @@ import { cp, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { composeServices } from '../src/cmd/project/services-composer';
+import { getVersion } from '../src/version';
 
 const cleanup: string[] = [];
 
@@ -44,7 +45,7 @@ async function listFilesRecursive(dir: string, prefix = ''): Promise<string[]> {
 	return out;
 }
 
-const frameworks = ['nextjs', 'remix', 'vite-react', 'nuxt', 'sveltekit', 'astro', 'hono'];
+const frameworks = ['nextjs', 'nuxt', 'sveltekit', 'astro', 'hono'];
 
 describe('framework + all services composition', () => {
 	for (const framework of frameworks) {
@@ -81,13 +82,18 @@ describe('framework + all services composition', () => {
 				}
 			}
 
+			if (framework === 'sveltekit') {
+				const page = await readFile(join(dest, 'src/routes/+page.svelte'), 'utf8');
+				expect(page.match(/import \{ onMount \} from 'svelte';/g)).toHaveLength(1);
+			}
+
 			// All five services contributed package deps.
 			const pkg = JSON.parse(await readFile(join(dest, 'package.json'), 'utf8'));
 			expect(pkg.dependencies['drizzle-orm']).toBeDefined();
-			expect(pkg.dependencies['@agentuity/keyvalue']).toBeDefined();
-			expect(pkg.dependencies['@agentuity/queue']).toBeDefined();
-			expect(pkg.dependencies['@agentuity/vector']).toBeDefined();
-			expect(pkg.dependencies['@agentuity/storage']).toBeDefined();
+			expect(pkg.dependencies['@agentuity/keyvalue']).toBe(getVersion());
+			expect(pkg.dependencies['@agentuity/queue']).toBe(getVersion());
+			expect(pkg.dependencies['@agentuity/vector']).toBe(getVersion());
+			expect(pkg.dependencies['@agentuity/storage']).toBe(getVersion());
 
 			// .env.example collects vars from db + storage.
 			const env = await readFile(join(dest, '.env.example'), 'utf8');

@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext, Theme } from '@mariozechner/pi-coding-agent';
+import type { ExtensionAPI, ExtensionContext, Theme } from '@earendil-works/pi-coding-agent';
 
 type TuiRenderer = {
 	requestRender(): void;

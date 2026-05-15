@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { AIGatewayModelsSchema, type AIGatewayModels } from '@agentuity/core';
+import { AIGatewayModelsSchema, type AIGatewayModels } from '@agentuity/core/aigateway';
 import { getDefaultConfigDir } from '../../../config.ts';
 import { type Database, openDatabase } from '../../../node-compat/sqlite.ts';
 

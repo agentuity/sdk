@@ -3,22 +3,22 @@ interface QueuedJob {
 	text: string;
 	toLanguage: string;
 	model: string;
-	at: number;
+	offset: number;
+	publishedAt: string;
 }
 const jobs = ref<QueuedJob[]>([]);
 
 async function handleQueue() {
-	const res = await $fetch<{ id: string }>('/api/jobs', {
+	const job = await $fetch<Pick<QueuedJob, 'id' | 'offset' | 'publishedAt'>>('/api/jobs', {
 		method: 'POST',
 		body: { text: text.value, toLanguage: toLanguage.value, model: model.value },
 	});
 	jobs.value = [
 		{
-			id: res.id,
+			...job,
 			text: text.value,
 			toLanguage: toLanguage.value,
 			model: model.value,
-			at: Date.now(),
 		},
 		...jobs.value,
 	];

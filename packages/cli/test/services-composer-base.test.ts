@@ -13,7 +13,7 @@
 
 import { createMockLogger } from '@agentuity/test-utils';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { composeServices } from '../src/cmd/project/services-composer';
@@ -65,31 +65,11 @@ const checks: FrameworkCheck[] = [
 		],
 	},
 	{
-		framework: 'remix',
-		files: [
-			{ path: 'app/lib/translate.ts', mustContain: ['export async function translate'] },
-			{
-				path: 'app/routes/home.tsx',
-				mustContain: ['export default function Home()', 'Translation will appear here'],
-			},
-		],
-	},
-	{
-		framework: 'vite-react',
-		files: [
-			{ path: 'server/translate.ts', mustContain: ['export async function translate'] },
-			{
-				path: 'src/App.tsx',
-				mustContain: ['function App()', 'Translation will appear here'],
-			},
-		],
-	},
-	{
 		framework: 'nuxt',
 		files: [
 			{ path: 'server/utils/translate.ts', mustContain: ['export async function translate'] },
 			{
-				path: 'app.vue',
+				path: 'app/app.vue',
 				mustStartWith: '<script setup lang="ts">',
 				mustContain: ['<template>', 'Translation will appear here'],
 			},
@@ -122,9 +102,9 @@ const checks: FrameworkCheck[] = [
 		files: [
 			{ path: 'src/translate.ts', mustContain: ['export async function translate'] },
 			{
-				path: 'src/landing.html',
-				mustStartWith: '<!DOCTYPE html>',
-				mustContain: ['Translation will appear here', '<script>'],
+				path: 'src/landing.tsx',
+				mustStartWith: 'const clientScript',
+				mustContain: ['Translation will appear here', '<script'],
 			},
 		],
 	},
@@ -162,4 +142,49 @@ describe('framework base composition (no services)', () => {
 			}
 		});
 	}
+
+	test('skips missing composable files when no services were selected', async () => {
+		// Setup: a project where the composable files declared in the
+		// nextjs manifest (src/app/page.tsx, src/lib/translate.ts) are
+		// genuinely absent. With no services selected the composer should
+		// no-op rather than complaining about manifest entries that have
+		// nothing to splice into.
+		const dest = await mkdtemp(join(tmpdir(), 'nextjs-empty-base-'));
+		cleanup.push(dest);
+
+		await writeFile(join(dest, 'package.json'), JSON.stringify({ scripts: {} }, null, '\t'));
+
+		await expect(
+			composeServices({
+				dest,
+				framework: 'nextjs',
+				selectedServices: [],
+				templatesRoot,
+				logger: createMockLogger(),
+			})
+		).resolves.toBeUndefined();
+	});
+
+	test('rejects when a manifest-declared marker is absent from an existing composable file', async () => {
+		// A composable file that exists but has been stripped of its
+		// `@agentuity:` markers indicates drift between the manifest and
+		// the template. Surface it at compose time — even with no
+		// services selected — rather than letting it ship silently.
+		const dest = await mkdtemp(join(tmpdir(), 'nextjs-drift-base-'));
+		cleanup.push(dest);
+
+		await mkdir(join(dest, 'src', 'app'), { recursive: true });
+		await writeFile(join(dest, 'package.json'), JSON.stringify({ scripts: {} }, null, '\t'));
+		await writeFile(join(dest, 'src', 'app', 'page.tsx'), 'export default function Home() {}\n');
+
+		await expect(
+			composeServices({
+				dest,
+				framework: 'nextjs',
+				selectedServices: [],
+				templatesRoot,
+				logger: createMockLogger(),
+			})
+		).rejects.toThrow(/@agentuity:/);
+	});
 });

@@ -7,8 +7,11 @@
  * Detection strategy:
  * 1. Run the framework database engine (rules derived from @vercel/frameworks)
  * 2. Fall back to generic detection (package.json scripts)
+ * 3. As a last resort, deploy bare static HTML projects that only have index.html
  */
 
+import { join } from 'node:path';
+import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
 import { readPackageJson, detectPackageManager } from './util.ts';
 import { frameworkDefinitions } from './frameworks.ts';
@@ -44,13 +47,51 @@ async function frameworkDefToDetected(
 			? resolvedOutputDir // null means entire output IS the static dir
 			: (staticDirectory ?? undefined);
 
+	// If the project ships a `start` script, prefer it over
+	// framework-default behaviour. Most production setups
+	// (e.g. TanStack Start with the Nitro plugin, Hono with
+	// `@hono/node-server`, custom Express wrappers) document
+	// the launch command via `pkg.json` — honoring it lets the
+	// generic adapter skip injecting its static-file fallback.
+	const resolvedStartCommand = pkg.scripts?.start;
+
+	// Pick the runtime based on, in order:
+	//  1. The actual `start` script: `bun ...` / `bun run ...` =
+	//     bun. Anything else (`next start`, `node ...`, etc.) = node.
+	//     This is the most reliable signal — it's literally what the
+	//     user wrote.
+	//  2. `engines.bun` in package.json (declarative preference).
+	//  3. A `bun.lock` / `bun.lockb` lockfile in the project root.
+	//     We don't fall back to the package-manager DEFAULT here:
+	//     `detectPackageManager` returns `'bun'` when no lockfile is
+	//     present, which would mis-classify a freshly-scaffolded
+	//     Next.js project as bun. We only count the lockfile as a
+	//     bun signal when it actually exists.
+	//  4. Default to node.
+	//
+	// The runtime name flows into `launch.json.runtime.name`, which
+	// pilot uses for memory tuning (BUN_JSC_forceRAMSize vs
+	// NODE_OPTIONS=--max-old-space-size).
+	const hasBunLockfile =
+		(await pathExists(join(projectDir, 'bun.lockb'))) ||
+		(await pathExists(join(projectDir, 'bun.lock')));
+	const runtime: 'bun' | 'node' = (() => {
+		if (resolvedStartCommand && /^\s*bun(\s+run)?\s+/.test(resolvedStartCommand)) {
+			return 'bun';
+		}
+		if (pkg.engines?.bun) return 'bun';
+		if (hasBunLockfile) return 'bun';
+		return 'node';
+	})();
+
 	return {
 		name: slug,
-		runtime: 'node',
+		runtime,
 		packageManager: pm,
 		buildCommand: resolvedBuildCommand,
 		buildOutput: resolvedOutputDir,
 		staticDir: resolvedStaticDir,
+		startCommand: resolvedStartCommand,
 		confidence: 'high',
 	};
 }
@@ -61,9 +102,39 @@ async function frameworkDefToDetected(
  * @param projectDir - Absolute path to the project root
  * @returns DetectedFramework or null if nothing could be detected
  */
+function bareStaticHtmlDetected(): DetectedFramework {
+	return {
+		name: 'static-html',
+		runtime: 'node',
+		packageManager: 'npm',
+		buildCommand: '__agentuity_internal__',
+		buildOutput: '.',
+		staticDir: '.',
+		startCommand: 'npx serve',
+		port: 3000,
+		confidence: 'low',
+	};
+}
+
+async function detectBareStaticHtml(projectDir: string): Promise<DetectedFramework | null> {
+	if (!(await pathExists(join(projectDir, 'index.html')))) return null;
+	return bareStaticHtmlDetected();
+}
+
+/**
+ * Canonical error message for "no deployable project here." Centralised
+ * so adding a new supported entrypoint (e.g. a Python project) only
+ * requires updating one string instead of hunting down every caller's
+ * copy. Used by build, deploy, discover, and project-reconcile error
+ * paths. If you add a new entrypoint, update this string and the
+ * `detectBareStaticHtml`-style checks in lockstep.
+ */
+export const NO_DEPLOYABLE_PROJECT_MESSAGE =
+	'Could not detect a deployable project. Expected a package.json with a build script (e.g. "build": "next build"), or a bare index.html for static HTML deploys.';
+
 export async function detectFramework(projectDir: string): Promise<DetectedFramework | null> {
 	const pkg = await readPackageJson(projectDir);
-	if (!pkg) return null;
+	if (!pkg) return detectBareStaticHtml(projectDir);
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
@@ -90,7 +161,9 @@ export async function detectFrameworkWithPackageJson(
 	projectDir: string
 ): Promise<{ framework: DetectedFramework | null; packageJson: PackageJsonData | null }> {
 	const pkg = await readPackageJson(projectDir);
-	if (!pkg) return { framework: null, packageJson: null };
+	if (!pkg) {
+		return { framework: await detectBareStaticHtml(projectDir), packageJson: null };
+	}
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);

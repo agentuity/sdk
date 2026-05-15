@@ -27,9 +27,23 @@ describe('Framework Detection', () => {
 
 	// ── No project ──
 
-	test('returns null when no package.json exists', async () => {
+	test('returns null when no package.json or index.html exists', async () => {
 		const result = await detectFramework(testDir);
 		expect(result).toBeNull();
+	});
+
+	test('detects bare index.html project without package.json', async () => {
+		writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+		const result = await detectFramework(testDir);
+		expect(result).not.toBeNull();
+		expect(result!.name).toBe('static-html');
+		expect(result!.runtime).toBe('node');
+		expect(result!.packageManager).toBe('npm');
+		expect(result!.buildCommand).toBe('__agentuity_internal__');
+		expect(result!.buildOutput).toBe('.');
+		expect(result!.staticDir).toBe('.');
+		expect(result!.startCommand).toBe('npx serve');
 	});
 
 	test('returns null when package.json has no scripts or main', async () => {
@@ -223,15 +237,27 @@ describe('Framework Detection', () => {
 	// ── TanStack Start ──
 
 	describe('TanStack Start', () => {
-		test('detects @tanstack/router-plugin + nitro', async () => {
+		test('detects @tanstack/react-start', async () => {
+			// TanStack Start removed Nitro from its default setup; we now
+			// match on the @tanstack/react-start package alone. Users add
+			// `nitro()` to vite.config.ts for Node hosting per their
+			// hosting docs, and we honor whatever `start` script they wrote.
 			writePackageJson(testDir, {
 				name: 'my-tanstack-app',
-				dependencies: { '@tanstack/router-plugin': '^1.0.0', nitro: '^2.0.0' },
-				scripts: { build: 'vite build' },
+				dependencies: {
+					'@tanstack/react-start': '^1.0.0',
+					'@tanstack/router-plugin': '^1.0.0',
+				},
+				scripts: {
+					build: 'vite build',
+					start: 'node .output/server/index.mjs',
+				},
 			});
 
 			const result = await detectFramework(testDir);
 			expect(result!.name).toBe('tanstack-start');
+			expect(result!.startCommand).toBe('node .output/server/index.mjs');
+			expect(result!.buildOutput).toBe('.output');
 		});
 	});
 
@@ -250,6 +276,7 @@ describe('Framework Detection', () => {
 			const result = await detectFramework(testDir);
 			expect(result).not.toBeNull();
 			expect(result!.confidence).toBe('low');
+			expect(result!.buildCommand).toBe('build');
 		});
 
 		test('detects static project with build but no start', async () => {
@@ -318,6 +345,16 @@ describe('Framework Detection', () => {
 		test('returns null packageJson when file missing', async () => {
 			const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
 			expect(framework).toBeNull();
+			expect(packageJson).toBeNull();
+		});
+
+		test('returns static-html framework and null packageJson for bare index.html', async () => {
+			writeFileSync(join(testDir, 'index.html'), '<h1>Hello</h1>');
+
+			const { framework, packageJson } = await detectFrameworkWithPackageJson(testDir);
+			expect(framework).not.toBeNull();
+			expect(framework!.name).toBe('static-html');
+			expect(framework!.startCommand).toBe('npx serve');
 			expect(packageJson).toBeNull();
 		});
 	});

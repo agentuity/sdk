@@ -482,17 +482,8 @@ describe('Static Asset CDN Upload', () => {
 			logger,
 		});
 
-		// The output dir contains build packaging artifacts (launch.json, Procfile, etc.)
-		// but no user-created static assets from the build.
-		// In a real deploy these packaging files would not be in a separate static dir,
-		// but for this test the entire outputDir IS the staticDir.
-		// Verify no user content files are present (only build infrastructure).
-		const userAssets = metadata.assets.filter(
-			(a) =>
-				!['launch.json', 'Procfile', '.agentuity-build', 'package.json', '_serve.js'].includes(
-					a.filename
-				)
-		);
-		expect(userAssets).toEqual([]);
+		// The output dir contains build packaging artifacts, but these should not
+		// be uploaded as user static assets.
+		expect(metadata.assets).toEqual([]);
 	}, 30_000);
 });

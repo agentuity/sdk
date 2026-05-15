@@ -36,21 +36,9 @@ const vecChecks: VecCheck[] = [
 		translateFile: 'src/lib/translate.ts',
 	},
 	{
-		framework: 'remix',
-		similarFile: 'app/routes/api.similar.ts',
-		pageFile: 'app/routes/home.tsx',
-		translateFile: 'app/lib/translate.ts',
-	},
-	{
-		framework: 'vite-react',
-		serverFile: 'server.ts',
-		pageFile: 'src/App.tsx',
-		translateFile: 'server/translate.ts',
-	},
-	{
 		framework: 'nuxt',
 		similarFile: 'server/api/similar.get.ts',
-		pageFile: 'app.vue',
+		pageFile: 'app/app.vue',
 		translateFile: 'server/utils/translate.ts',
 	},
 	{
@@ -68,7 +56,7 @@ const vecChecks: VecCheck[] = [
 	{
 		framework: 'hono',
 		serverFile: 'src/index.ts',
-		pageFile: 'src/landing.html',
+		pageFile: 'src/landing.tsx',
 		translateFile: 'src/translate.ts',
 	},
 ];
