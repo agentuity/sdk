@@ -1,27 +1,8 @@
 {
 	"framework": "nextjs",
 	"displayName": "Next.js",
-	"composableFiles": {
-		"translate": {
-			"path": "src/lib/translate.ts",
-			"markers": {
-				"imports":        { "syntax": "//" },
-				"module":         { "syntax": "//" },
-				"translate-pre":  { "syntax": "//" },
-				"translate-post": { "syntax": "//" }
-			}
-		},
-		"page": {
-			"path": "src/app/page.tsx",
-			"markers": {
-				"imports":             { "syntax": "//" },
-				"state":               { "syntax": "//" },
-				"on-mount":            { "syntax": "//" },
-				"on-result":           { "syntax": "//" },
-				"inside-form-buttons": { "syntax": "{/* */}" },
-				"after-result":        { "syntax": "{/* */}" },
-				"after-form":          { "syntax": "{/* */}" }
-			}
-		}
+	"checklistFile": {
+		"path": "src/app/page.tsx",
+		"syntax": "{/* */}"
 	}
 }

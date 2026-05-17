@@ -1,7 +1,5 @@
-// @agentuity:imports
 import { AIGatewayClient } from '@agentuity/aigateway';
 
-// @agentuity:module
 
 export interface TranslateInput {
 	text: string;
@@ -59,7 +57,6 @@ function getTokenCount(response: unknown): number {
 }
 
 export async function translate(input: TranslateInput): Promise<TranslateResult> {
-	// @agentuity:translate-pre
 
 	const client = new AIGatewayClient();
 	const completion = await client.complete({
@@ -79,7 +76,6 @@ export async function translate(input: TranslateInput): Promise<TranslateResult>
 		toLanguage: input.toLanguage,
 	};
 
-	// @agentuity:translate-post
 
 	return result;
 }

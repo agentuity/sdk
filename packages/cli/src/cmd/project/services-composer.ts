@@ -4,15 +4,14 @@
  * Applies a selection of service augments to a scaffolded project:
  *
  *  1. Copies whole files owned by the service into the project tree.
- *  2. Splices snippet contributions into composable base files at named
- *     comment markers.
- *  3. Merges package.json (deps, devDeps, scripts) and .env.example.
+ *  2. Merges package.json (deps, devDeps, scripts) and .env.example.
+ *  3. Injects a services checklist into the landing page.
  *
- * The composer is pure text. Markers are single-line comments like
- * `// @agentuity:translate-pre`; whatever syntax the framework manifest
- * declares for a given marker is what the composer looks for. Snippets
- * are authored at zero indent and re-indented to match the marker line's
- * leading whitespace at splice time.
+ * The checklist marker `@agentuity:services-checklist` is a single
+ * line in the framework's page template. When services are selected,
+ * the marker is replaced with a styled checklist showing which
+ * services were set up. When no services are selected, the marker
+ * line is simply removed.
  *
  * Service order is fixed by the catalog (see services-catalog.ts).
  * `composeServices` will internally re-sort the requested selection so
@@ -32,22 +31,18 @@ import {
 	resolveSelection,
 } from './services-catalog.ts';
 
-/** Comment syntax used to delimit a marker. */
+/** Comment syntax used to delimit the checklist marker. */
 type MarkerSyntax = '//' | '{/* */}' | '<!-- -->';
 
-interface MarkerSpec {
-	syntax: MarkerSyntax;
-}
-
-interface ComposableFile {
+interface ChecklistFile {
 	path: string;
-	markers: Record<string, MarkerSpec>;
+	syntax: MarkerSyntax;
 }
 
 interface FrameworkManifest {
 	framework: FrameworkId;
 	displayName: string;
-	composableFiles: Record<string, ComposableFile>;
+	checklistFile: ChecklistFile;
 }
 
 export interface ComposeOptions {
@@ -73,9 +68,9 @@ export interface ComposeOptions {
  * Apply selected service augments to the project at `dest`.
  *
  * Idempotent in the file-copy step (rerunning overwrites with the same
- * content) but NOT in the marker-splice step — the markers get stripped
- * after composition, so a second run finds nothing to splice. Don't run
- * twice.
+ * content) but NOT in the checklist-injection step — the marker gets
+ * stripped after composition, so a second run finds nothing to inject.
+ * Don't run twice.
  */
 export async function composeServices(opts: ComposeOptions): Promise<void> {
 	const { dest, framework, selectedServices, logger } = opts;
@@ -84,9 +79,6 @@ export async function composeServices(opts: ComposeOptions): Promise<void> {
 	const catalog = loadCatalog(servicesRoot(templatesRoot));
 	const services = resolveSelection(selectedServices, catalog);
 	if (services.length === 0) {
-		// No services selected — still strip marker lines from composable
-		// files so the output reads cleanly. We treat this as "compose
-		// with zero contributions".
 		logger.debug('No services selected; stripping markers only.');
 	} else {
 		logger.debug(`Composing services: ${services.map((s) => s.id).join(', ')}`);
@@ -109,11 +101,8 @@ export async function composeServices(opts: ComposeOptions): Promise<void> {
 		await copyServiceFiles(templatesRoot, service, framework, dest, logger);
 	}
 
-	// 2. Marker splicing on each composable file declared by the framework.
-	for (const handle of Object.keys(frameworkManifest.composableFiles)) {
-		const file = frameworkManifest.composableFiles[handle]!;
-		await spliceComposableFile(templatesRoot, handle, file, services, framework, dest);
-	}
+	// 2. Inject services checklist into the landing page.
+	await injectChecklist(dest, frameworkManifest, services);
 
 	// 3. Package.json + .env.example merges.
 	await mergePackageJson(dest, services);
@@ -137,10 +126,6 @@ function servicesRoot(templatesRoot: string): string {
 function loadFrameworkManifest(templatesRoot: string, framework: string): FrameworkManifest | null {
 	const path = join(frameworkDir(templatesRoot, framework), 'manifest.json');
 	if (!existsSync(path)) {
-		// Framework hasn't been refactored for service composition yet —
-		// composer is a no-op for it. Returns null instead of throwing so
-		// `composeServices` can gracefully skip while we roll out support
-		// to remaining frameworks.
 		return null;
 	}
 	const raw = readFileSync(path, 'utf8');
@@ -161,283 +146,137 @@ async function copyServiceFiles(
 	logger: Logger
 ): Promise<void> {
 	const filesDir = join(servicesRoot(templatesRoot), service.id, 'files', framework);
-	if (!existsSync(filesDir)) return; // Service may not target this framework, or has no whole files.
+	if (!existsSync(filesDir)) return;
 
 	logger.debug(`Copying files for service '${service.id}' from ${filesDir}`);
 	await cp(filesDir, dest, { recursive: true, force: true, dereference: true });
 }
 
-async function spliceComposableFile(
-	templatesRoot: string,
-	handle: string,
-	file: ComposableFile,
-	services: ServiceAugment[],
-	framework: string,
-	dest: string
+/**
+ * Inject the services checklist into the page file declared in the
+ * framework manifest.
+ *
+ * When services are selected, the `@agentuity:services-checklist` marker
+ * is replaced with a styled checklist section. When no services are
+ * selected, the marker is simply removed.
+ */
+async function injectChecklist(
+	dest: string,
+	manifest: FrameworkManifest,
+	services: ServiceAugment[]
 ): Promise<void> {
-	const fullPath = join(dest, file.path);
+	const fullPath = join(dest, manifest.checklistFile.path);
 	if (!existsSync(fullPath)) {
 		if (services.length === 0) {
 			return;
 		}
 		throw new Error(
-			`Composable file '${handle}' (${file.path}) declared in framework manifest is missing in ${dest}`
+			`Checklist file '${manifest.checklistFile.path}' declared in framework manifest is missing in ${dest}`
 		);
 	}
 
 	let source = await readFile(fullPath, 'utf8');
-
-	for (const [markerName, spec] of Object.entries(file.markers)) {
-		const snippets = await collectSnippetsForMarker(
-			templatesRoot,
-			services,
-			framework,
-			handle,
-			markerName,
-			file.path
-		);
-		source = spliceMarker(source, markerName, spec.syntax, snippets, file.path);
-	}
-
-	source = mergeAdjacentImports(source);
-	source = collapseExtraBlankLines(source);
-
-	await writeFile(fullPath, source);
-}
-
-/**
- * Collapse runs of 3+ blank lines down to a single blank line.
- *
- * Stripping a marker on its own line in source that already had blank
- * lines around it can leave 3 or 4 consecutive newlines. Hand-written
- * code rarely has more than one blank line in a row; we normalize here
- * so composed output looks natural without requiring a follow-up
- * formatter pass.
- */
-function collapseExtraBlankLines(source: string): string {
-	return source.replace(/\n{3,}/g, '\n\n');
-}
-
-/**
- * Merge `import` statements at the top of a file that pull from the
- * same source.
- *
- * When a service contributes an `imports` snippet that uses a binding
- * the base file already imports from the same module (commonly
- * `react`), the composer naively concatenates both `import` statements.
- * The resulting code is valid but reads as duplicate-import noise.
- *
- * This pass scans the leading import block (everything up to the first
- * non-import, non-blank, non-directive line) and merges named-import
- * statements for the same module. Type-only and value imports are kept
- * distinct so we never silently change the import semantics. Default,
- * namespace, and side-effect imports are left untouched; merging them
- * is too easy to get wrong.
- *
- * The first occurrence of each (module, kind) pair stays in place; any
- * later duplicates are removed and their bindings folded into the
- * first statement, preserving import order.
- */
-function mergeAdjacentImports(source: string): string {
-	const svelteScript = source.match(/^(<script[^>]*>\n)([\s\S]*?)(\n<\/script>)([\s\S]*)$/);
-	if (svelteScript) {
-		const [, open, body, close, rest] = svelteScript;
-		return `${open}${mergeLeadingImports(body ?? '')}${close}${rest}`;
-	}
-
-	return mergeLeadingImports(source);
-}
-
-function mergeLeadingImports(source: string): string {
-	const lines = source.split('\n');
-	const importLine =
-		/^(\s*)(import(\s+type)?)\s+\{\s*([^}]*?)\s*\}\s+from\s+(['"])([^'"]+)\5;?\s*$/;
-
-	// Identify the leading import block. Anything up to the first line
-	// that is not blank, not an import (named or otherwise), and not a
-	// directive ('use client', etc.) ends the block.
-	let blockEnd = 0;
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i]!;
-		const trimmed = line.trim();
-		if (
-			trimmed === '' ||
-			trimmed.startsWith('//') ||
-			trimmed.startsWith('/*') ||
-			trimmed.startsWith('*') ||
-			trimmed.startsWith('import ') ||
-			/^['"]use [a-z]+['"];?$/.test(trimmed)
-		) {
-			blockEnd = i + 1;
-			continue;
-		}
-		break;
-	}
-
-	interface MergedImport {
-		index: number;
-		leading: string;
-		kind: string;
-		quote: string;
-		names: string[];
-	}
-	const byKey = new Map<string, MergedImport>();
-	const removeIndices = new Set<number>();
-
-	for (let i = 0; i < blockEnd; i++) {
-		const m = lines[i]!.match(importLine);
-		if (!m) continue;
-		const kind = m[2] ?? 'import';
-		const module_ = m[6] ?? '';
-		const key = `${kind}::${module_}`;
-		const names = (m[4] ?? '')
-			.split(',')
-			.map((s) => s.trim())
-			.filter(Boolean);
-
-		const existing = byKey.get(key);
-		if (!existing) {
-			byKey.set(key, {
-				index: i,
-				leading: m[1] ?? '',
-				kind,
-				quote: m[5] ?? "'",
-				names,
-			});
-			continue;
-		}
-		for (const name of names) {
-			if (!existing.names.includes(name)) existing.names.push(name);
-		}
-		removeIndices.add(i);
-	}
-
-	if (removeIndices.size === 0) return source;
-
-	// Rewrite the merged statements at their original indices, then drop
-	// the duplicate lines.
-	for (const merged of byKey.values()) {
-		lines[merged.index] =
-			`${merged.leading}${merged.kind} { ${merged.names.join(', ')} } from ${merged.quote}${lines[merged.index]!.match(importLine)![6]}${merged.quote};`;
-	}
-	return lines.filter((_, i) => !removeIndices.has(i)).join('\n');
-}
-
-async function collectSnippetsForMarker(
-	templatesRoot: string,
-	services: ServiceAugment[],
-	framework: string,
-	fileHandle: string,
-	markerName: string,
-	composableFilePath: string
-): Promise<string[]> {
-	const ext = extensionOf(composableFilePath);
-	const fragments: string[] = [];
-
-	for (const service of services) {
-		const snippetDir = join(servicesRoot(templatesRoot), service.id, 'snippets', framework);
-		if (!existsSync(snippetDir)) continue;
-
-		// Snippet filename: <handle>.<marker>.<ext>
-		const snippetPath = join(snippetDir, `${fileHandle}.${markerName}${ext}`);
-		if (!existsSync(snippetPath)) continue;
-
-		const body = (await readFile(snippetPath, 'utf8')).replace(/\n+$/, '');
-		if (body.length === 0) continue;
-		fragments.push(body);
-	}
-
-	return fragments;
-}
-
-/**
- * Find the marker line for `markerName` using `syntax`, replace it
- * with the concatenated `snippets` (re-indented to match the marker's
- * own leading whitespace), and return the new source.
- *
- * Throws if the marker is not found — a marker named in the framework
- * manifest must exist in the declared file, even when no services are
- * selected. Drift between manifest and templates is an authoring bug
- * we surface at compose time rather than letting it ship.
- *
- * If `snippets` is empty, the marker line is simply removed (its
- * surrounding blank lines, if any, are preserved as-is).
- */
-function spliceMarker(
-	source: string,
-	markerName: string,
-	syntax: MarkerSyntax,
-	snippets: string[],
-	debugPath: string
-): string {
-	const pattern = markerLinePattern(markerName, syntax);
+	const pattern = checklistMarkerPattern(manifest.checklistFile.syntax);
 	const match = source.match(pattern);
+
 	if (!match) {
-		throw new Error(
-			`Marker '@agentuity:${markerName}' (syntax ${syntax}) not found in ${debugPath}`
-		);
+		return;
 	}
 
 	const leadingNewline = match[1] ?? '';
 	const leadingWs = match[2] ?? '';
 
 	let replacement: string;
-	if (snippets.length === 0) {
-		// Drop the marker line entirely. Keep the leading newline so the
-		// previous line stays on its own line; drop the trailing newline
-		// because the marker line itself disappears completely.
+	if (services.length === 0) {
 		replacement = leadingNewline;
 	} else {
-		const reindented = snippets.map((s) => indentBlock(s, leadingWs)).join('\n\n');
-		replacement = `${leadingNewline}${reindented}\n`;
+		const checklist = renderChecklist(services, manifest.checklistFile.syntax, leadingWs);
+		replacement = `${leadingNewline}${checklist}\n`;
 	}
 
-	return source.replace(pattern, replacement);
+	source = source.replace(pattern, replacement);
+	source = collapseExtraBlankLines(source);
+
+	await writeFile(fullPath, source);
 }
 
 /**
- * Build a regex matching the marker line plus its trailing newline.
- * Captures the line's leading whitespace in group 1 so callers can
- * re-indent snippets to match.
- *
- * The regex is anchored to a line boundary on both ends; markers must
- * sit on their own line.
+ * Render a services checklist section for the given framework syntax.
  */
-function markerLinePattern(markerName: string, syntax: MarkerSyntax): RegExp {
-	const escapedName = markerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	// Inside the marker body we deliberately use `[ \t]*` (horizontal
-	// whitespace only) rather than `\s*` so we don't accidentally eat
-	// trailing newlines and collapse blank lines around the marker.
+function renderChecklist(services: ServiceAugment[], syntax: MarkerSyntax, indent: string): string {
+	const items = services
+		.map((s) => {
+			switch (syntax) {
+				case '//':
+					return `${indent}// - ${s.label}`;
+				case '{/* */}':
+					return `${indent}<div class="flex items-center gap-2 text-sm text-gray-400">
+${indent}\t<div class="flex size-3 shrink-0 items-center justify-center rounded border border-cyan-500 bg-cyan-950">
+${indent}\t\t<svg aria-hidden="true" class="size-2" fill="none" stroke="var(--color-cyan-500)" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+${indent}\t</div>
+${indent}\t${s.label}
+${indent}</div>`;
+				case '<!-- -->':
+					return `${indent}<div class="flex items-center gap-2 text-sm text-gray-400">
+${indent}\t<div class="flex size-3 shrink-0 items-center justify-center rounded border border-cyan-500 bg-cyan-950">
+${indent}\t\t<svg aria-hidden="true" class="size-2" fill="none" stroke="var(--color-cyan-500)" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+${indent}\t</div>
+${indent}\t${s.label}
+${indent}</div>`;
+			}
+		})
+		.join('\n');
+
+	let wrapper: string;
+	switch (syntax) {
+		case '//':
+			wrapper = `${indent}// Services configured:\n${items}`;
+			break;
+		case '{/* */}':
+			wrapper = `${indent}<div class="rounded-lg border border-gray-900 bg-black p-8">
+${indent}\t<h3 class="m-0 mb-4 text-lg font-normal leading-none text-white">Services</h3>
+${indent}\t<div class="flex flex-col gap-3">
+${items}
+${indent}\t</div>
+${indent}</div>`;
+			break;
+		case '<!-- -->':
+			wrapper = `${indent}<div class="rounded-lg border border-gray-900 bg-black p-8">
+${indent}\t<h3 class="m-0 mb-4 text-lg font-normal leading-none text-white">Services</h3>
+${indent}\t<div class="flex flex-col gap-3">
+${items}
+${indent}\t</div>
+${indent}</div>`;
+			break;
+	}
+
+	return wrapper;
+}
+
+/**
+ * Build a regex matching the checklist marker line plus its trailing newline.
+ */
+function checklistMarkerPattern(syntax: MarkerSyntax): RegExp {
 	let body: string;
 	switch (syntax) {
 		case '//':
-			body = `\\/\\/[ \\t]*@agentuity:${escapedName}`;
+			body = `\\/\\/[ \\t]*@agentuity:services-checklist`;
 			break;
 		case '{/* */}':
-			body = `\\{[ \\t]*\\/\\*[ \\t]*@agentuity:${escapedName}[ \\t]*\\*\\/[ \\t]*\\}`;
+			body = `\\{[ \\t]*\\/\\*[ \\t]*@agentuity:services-checklist[ \\t]*\\*\\/[ \\t]*\\}`;
 			break;
 		case '<!-- -->':
-			body = `<!--[ \\t]*@agentuity:${escapedName}[ \\t]*-->`;
+			body = `<!--[ \\t]*@agentuity:services-checklist[ \\t]*-->`;
 			break;
 	}
 	return new RegExp(`(^|\\n)([ \\t]*)${body}[ \\t]*(\\r?\\n|$)`);
 }
 
 /**
- * Re-indent each line of `block` by prepending `indent`. Empty lines
- * stay empty (no trailing-whitespace pollution).
+ * Collapse runs of 3+ blank lines down to a single blank line.
  */
-function indentBlock(block: string, indent: string): string {
-	if (indent.length === 0) return block;
-	return block
-		.split('\n')
-		.map((line) => (line.length === 0 ? line : indent + line))
-		.join('\n');
-}
-
-function extensionOf(path: string): string {
-	const idx = path.lastIndexOf('.');
-	return idx === -1 ? '' : path.slice(idx);
+function collapseExtraBlankLines(source: string): string {
+	return source.replace(/\n{3,}/g, '\n\n');
 }
 
 async function mergePackageJson(dest: string, services: ServiceAugment[]): Promise<void> {
@@ -466,7 +305,7 @@ async function mergePackageJson(dest: string, services: ServiceAugment[]): Promi
 			devDeps[p] ??= packageVersionFor(p, agentuityVersion);
 		}
 		for (const [name, cmd] of Object.entries(service.scripts ?? {})) {
-			scripts[name] = cmd; // services may overwrite, by intent
+			scripts[name] = cmd;
 		}
 	}
 

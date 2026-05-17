@@ -2,7 +2,7 @@
   "id": "storage",
   "label": "Storage",
   "hint": "Export history as files in object storage",
-  "description": "Add an 'Export history' button that bundles the translation history into a JSON file, uploads it to S3-compatible storage, and returns a download URL.",
+  "description": "Object storage (S3-compatible) for file uploads and downloads.",
   "order": 50,
   "requires": [
     "db"

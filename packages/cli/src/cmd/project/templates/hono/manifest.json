@@ -1,34 +1,8 @@
 {
 	"framework": "hono",
 	"displayName": "Hono",
-	"composableFiles": {
-		"translate": {
-			"path": "src/translate.ts",
-			"markers": {
-				"imports":        { "syntax": "//" },
-				"module":         { "syntax": "//" },
-				"translate-pre":  { "syntax": "//" },
-				"translate-post": { "syntax": "//" }
-			}
-		},
-		"server": {
-			"path": "src/index.ts",
-			"markers": {
-				"imports": { "syntax": "//" },
-				"module":  { "syntax": "//" },
-				"routes":  { "syntax": "//" }
-			}
-		},
-		"page": {
-			"path": "src/landing.tsx",
-			"markers": {
-				"state":               { "syntax": "//" },
-				"on-mount":            { "syntax": "//" },
-				"on-result":           { "syntax": "//" },
-				"inside-form-buttons": { "syntax": "{/* */}" },
-				"after-result":        { "syntax": "{/* */}" },
-				"after-form":          { "syntax": "{/* */}" }
-			}
-		}
+	"checklistFile": {
+		"path": "src/landing.tsx",
+		"syntax": "{/* */}"
 	}
 }

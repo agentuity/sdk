@@ -5,10 +5,6 @@ const toLangSelect = document.getElementById('toLanguage');
 const modelSelect = document.getElementById('model');
 const resultDiv = document.getElementById('result');
 
-// @agentuity:state
-
-// @agentuity:on-mount
-
 btn.addEventListener('click', async () => {
 	const text = textInput.value;
 	const toLanguage = toLangSelect.value;
@@ -27,8 +23,6 @@ btn.addEventListener('click', async () => {
 		});
 		if (!res.ok) throw new Error('API error ' + res.status);
 		const data = await res.json();
-
-		// @agentuity:on-result
 
 		resultDiv.className = 'output rounded-md border border-gray-800 bg-gray-950 px-4 py-3 text-sm text-cyan-500';
 		resultDiv.innerHTML = data.translation + '<div class="flex gap-4 text-xs text-gray-500 mt-3">' + (data.tokens > 0 ? '<span>Tokens <strong class="text-gray-400">' + data.tokens + '</strong></span>' : '') + '<span>Model <strong class="text-gray-400">' + data.model + '</strong></span><span>Language <strong class="text-gray-400">' + data.toLanguage + '</strong></span></div>';
@@ -317,8 +311,7 @@ export function LandingPage() {
 									<option value="openai/gpt-4.1-nano">openai/gpt-4.1-nano</option>
 								</select>
 								<div class="ml-auto flex items-center gap-2">
-									{/* @agentuity:inside-form-buttons */}
-									<div class="group relative z-0">
+													<div class="group relative z-0">
 										<div class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
 										<div class="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
 										<button
@@ -346,16 +339,12 @@ export function LandingPage() {
 							>
 								Translation will appear here
 							</div>
-							{/* @agentuity:after-result */}
-
-							<p class="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
+										<p class="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
 								Translation powered by <code class="text-gray-500">@agentuity/aigateway</code>
 							</p>
 						</div>
 
-						{/* @agentuity:after-form */}
-
-						<div class="rounded-lg border border-gray-900 bg-black p-8">
+									<div class="rounded-lg border border-gray-900 bg-black p-8">
 							<h3 class="m-0 mb-6 text-xl font-normal leading-none text-white">How it works</h3>
 							<div class="flex flex-col gap-6">
 								<HowItWorksItem title="AI Gateway routing">
@@ -371,6 +360,8 @@ export function LandingPage() {
 						</div>
 					</div>
 				</div>
+
+				{/* @agentuity:services-checklist */}
 				<script dangerouslySetInnerHTML={{ __html: clientScript }} />
 			</body>
 		</html>

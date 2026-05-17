@@ -1,10 +1,8 @@
-// @agentuity:imports
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { LandingPage } from './landing.js';
 import { translate } from './translate.js';
 
-// @agentuity:module
 
 const app = new Hono();
 
@@ -15,7 +13,6 @@ app.post('/api/translate', async (c) => {
 	return c.json(result);
 });
 
-// @agentuity:routes
 
 // Landing page
 app.get('/', (c) => {

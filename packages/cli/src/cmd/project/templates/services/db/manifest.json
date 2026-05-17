@@ -2,7 +2,7 @@
   "id": "db",
   "label": "Database",
   "hint": "PostgreSQL via Drizzle ORM",
-  "description": "Cache translations in PostgreSQL. Adds a translations table and a history panel below the form.",
+  "description": "PostgreSQL via Drizzle ORM with schema and client setup.",
   "order": 20,
   "packages": [
     "drizzle-orm",

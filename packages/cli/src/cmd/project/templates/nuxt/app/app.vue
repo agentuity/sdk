@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// @agentuity:imports
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
@@ -21,12 +20,6 @@ const {
 });
 
 const isLoading = computed(() => status.value === 'pending');
-
-// @agentuity:state
-
-// @agentuity:on-mount
-
-// @agentuity:on-result
 </script>
 
 <template>
@@ -84,7 +77,6 @@ const isLoading = computed(() => status.value === 'pending');
 						<option v-for="m in MODELS" :key="m" :value="m">{{ m }}</option>
 					</select>
 					<div class="ml-auto flex items-center gap-2">
-						<!-- @agentuity:inside-form-buttons -->
 						<div class="group relative z-0">
 							<div
 								class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
@@ -151,14 +143,12 @@ const isLoading = computed(() => status.value === 'pending');
 					</div>
 				</template>
 
-				<!-- @agentuity:after-result -->
 
 				<p class="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
 					Translation powered by <code class="text-gray-500">@agentuity/aigateway</code>
 				</p>
 			</div>
 
-			<!-- @agentuity:after-form -->
 
 			<!-- How it works -->
 			<div class="rounded-lg border border-gray-900 bg-black p-8">
@@ -204,6 +194,8 @@ const isLoading = computed(() => status.value === 'pending');
 					</div>
 				</div>
 			</div>
+
+			<!-- @agentuity:services-checklist -->
 		</div>
 	</div>
 </template>

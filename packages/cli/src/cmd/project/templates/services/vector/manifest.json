@@ -2,7 +2,7 @@
   "id": "vector",
   "label": "Vector Search",
   "hint": "Semantic search over past translations",
-  "description": "Upsert each translation into a vector namespace and surface similar past translations under each result.",
+  "description": "Vector search for semantic similarity queries.",
   "order": 30,
   "packages": [
     "@agentuity/vector"

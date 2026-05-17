@@ -1,5 +1,4 @@
 <script lang="ts">
-// @agentuity:imports
 import { enhance } from '$app/forms';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
@@ -13,12 +12,6 @@ let model: (typeof MODELS)[number] = $state('openai/gpt-4o-mini');
 let isLoading = $state(false);
 
 let { form } = $props();
-
-// @agentuity:state
-
-// @agentuity:on-mount
-
-// @agentuity:on-result
 </script>
 
 <svelte:head>
@@ -93,7 +86,6 @@ let { form } = $props();
 					{/each}
 				</select>
 				<div class="ml-auto flex items-center gap-2">
-					<!-- @agentuity:inside-form-buttons -->
 					<div class="group relative z-0">
 						<div
 							class="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl"
@@ -163,14 +155,12 @@ let { form } = $props();
 				</div>
 			{/if}
 
-			<!-- @agentuity:after-result -->
 
 			<p class="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
 				Translation powered by <code class="text-gray-500">@agentuity/aigateway</code>
 			</p>
 		</form>
 
-		<!-- @agentuity:after-form -->
 
 		<!-- How it works -->
 		<div class="rounded-lg border border-gray-900 bg-black p-8">
@@ -216,6 +206,8 @@ let { form } = $props();
 						</div>
 					</div>
 				{/each}
+
+		<!-- @agentuity:services-checklist -->
 			</div>
 		</div>
 	</div>

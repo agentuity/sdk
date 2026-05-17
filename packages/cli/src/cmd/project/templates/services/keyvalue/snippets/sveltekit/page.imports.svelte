@@ -1,1 +1,0 @@
-import { onMount } from 'svelte';

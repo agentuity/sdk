@@ -1,6 +1,5 @@
 'use client';
 
-// @agentuity:imports
 import { useState, type ChangeEvent } from 'react';
 import useSWRMutation from 'swr/mutation';
 
@@ -34,15 +33,9 @@ export default function Home() {
 		translateRequest,
 	);
 
-	// @agentuity:state
-
 	const handleTranslate = () => {
 		trigger({ text, toLanguage, model });
 	};
-
-	// @agentuity:on-mount
-
-	// @agentuity:on-result
 
 	return (
 		<div className="flex min-h-screen justify-center font-sans text-white">
@@ -111,8 +104,7 @@ export default function Home() {
 							))}
 						</select>
 						<div className="ml-auto flex items-center gap-2">
-							{/* @agentuity:inside-form-buttons */}
-							<div className="group relative z-0">
+									<div className="group relative z-0">
 								<div className="absolute inset-0 rounded-lg bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 opacity-75 blur-xl transition-all duration-700 group-hover:opacity-100 group-hover:blur-2xl" />
 								<div className="absolute inset-0 rounded-lg bg-cyan-500/50 opacity-50 blur-3xl" />
 								<button
@@ -172,14 +164,10 @@ export default function Home() {
 						</div>
 					)}
 
-					{/* @agentuity:after-result */}
-
-					<p className="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
+						<p className="border-t border-gray-900 pt-4 text-[11px] text-gray-600">
 						Translation powered by <code className="text-gray-500">@agentuity/aigateway</code>
 					</p>
 				</div>
-
-				{/* @agentuity:after-form */}
 
 				{/* How it works */}
 				<div className="rounded-lg border border-gray-900 bg-black p-8">
@@ -247,6 +235,8 @@ export default function Home() {
 					</div>
 				</div>
 			</div>
+
+			{/* @agentuity:services-checklist */}
 		</div>
 	);
 }

@@ -1,11 +1,11 @@
 /**
  * Composer tests build a synthetic templates tree in a temp directory,
- * exercise `composeServices` against it, and assert byte-level on the
- * spliced output.
+ * exercise `composeServices` against it, and assert on the output.
  *
- * Each test sets up its own templates root + project dir so cases stay
- * isolated. Fixtures are minimal — we test composer mechanics, not
- * realistic service contents.
+ * The composer now has a simplified flow:
+ *   1. Copy whole files owned by the service.
+ *   2. Inject a services checklist into the landing page.
+ *   3. Merge package.json and .env.example.
  */
 
 import { createMockLogger } from '@agentuity/test-utils';
@@ -46,43 +46,35 @@ afterEach(async () => {
 });
 
 describe('composeServices', () => {
-	test('strips marker lines when no services are selected', async () => {
+	test('strips checklist marker when no services are selected', async () => {
 		const f = await makeFixture();
 
-		// Synthetic framework manifest with one composable file.
 		await writeFile_(
 			join(f.templatesRoot, 'nextjs', 'manifest.json'),
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {
-					translate: {
-						path: 'src/lib/translate.ts',
-						markers: {
-							imports: { syntax: '//' },
-							'translate-pre': { syntax: '//' },
-						},
-					},
+				checklistFile: {
+					path: 'src/app/page.tsx',
+					syntax: '{/* */}',
 				},
 			})
 		);
 
-		// Project file that contains the markers.
 		await writeFile_(
-			join(f.dest, 'src/lib/translate.ts'),
+			join(f.dest, 'src/app/page.tsx'),
 			[
-				'// @agentuity:imports',
-				"import { foo } from 'bar';",
-				'',
-				'export function translate() {',
-				'\t// @agentuity:translate-pre',
-				'\treturn null;',
+				'export default function Home() {',
+				'\treturn (',
+				'\t\t<div>',
+				'\t\t\t{/* @agentuity:services-checklist */}',
+				'\t\t</div>',
+				'\t);',
 				'}',
 				'',
 			].join('\n')
 		);
 
-		// package.json so the merge step is happy.
 		await writeFile_(join(f.dest, 'package.json'), '{}');
 
 		await composeServices({
@@ -93,20 +85,11 @@ describe('composeServices', () => {
 			logger: createMockLogger(),
 		});
 
-		const out = await readFile(join(f.dest, 'src/lib/translate.ts'), 'utf8');
-		expect(out).toBe(
-			[
-				"import { foo } from 'bar';",
-				'',
-				'export function translate() {',
-				'\treturn null;',
-				'}',
-				'',
-			].join('\n')
-		);
+		const out = await readFile(join(f.dest, 'src/app/page.tsx'), 'utf8');
+		expect(out).not.toContain('@agentuity:services-checklist');
 	});
 
-	test('inserts a single service snippet at the marker, indented to match', async () => {
+	test('injects a checklist when services are selected (JSX syntax)', async () => {
 		const f = await makeFixture();
 
 		await writeFile_(
@@ -114,13 +97,9 @@ describe('composeServices', () => {
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {
-					translate: {
-						path: 'src/lib/translate.ts',
-						markers: {
-							'translate-pre': { syntax: '//' },
-						},
-					},
+				checklistFile: {
+					path: 'src/app/page.tsx',
+					syntax: '{/* */}',
 				},
 			})
 		);
@@ -138,207 +117,20 @@ describe('composeServices', () => {
 			})
 		);
 
-		// Snippet body is zero-indented; composer should re-indent to match
-		// the marker line's leading whitespace.
-		await writeFile_(
-			join(
-				f.templatesRoot,
-				'services',
-				'db',
-				'snippets',
-				'nextjs',
-				'translate.translate-pre.ts'
-			),
-			['const cached = await checkCache();', 'if (cached) return cached;'].join('\n')
-		);
-
-		await writeFile_(
-			join(f.dest, 'src/lib/translate.ts'),
-			[
-				'export function translate() {',
-				'\t// @agentuity:translate-pre',
-				'\treturn doIt();',
-				'}',
-				'',
-			].join('\n')
-		);
-
-		await writeFile_(join(f.dest, 'package.json'), '{}');
-
-		await composeServices({
-			dest: f.dest,
-			framework: 'nextjs',
-			selectedServices: ['db'],
-			templatesRoot: f.templatesRoot,
-			logger: createMockLogger(),
-		});
-
-		const out = await readFile(join(f.dest, 'src/lib/translate.ts'), 'utf8');
-		expect(out).toBe(
-			[
-				'export function translate() {',
-				'\tconst cached = await checkCache();',
-				'\tif (cached) return cached;',
-				'\treturn doIt();',
-				'}',
-				'',
-			].join('\n')
-		);
-	});
-
-	test('concatenates contributions from multiple services in catalog order', async () => {
-		const f = await makeFixture();
-
-		await writeFile_(
-			join(f.templatesRoot, 'nextjs', 'manifest.json'),
-			JSON.stringify({
-				framework: 'nextjs',
-				displayName: 'Next.js',
-				composableFiles: {
-					translate: {
-						path: 'src/lib/translate.ts',
-						markers: {
-							'translate-post': { syntax: '//' },
-						},
-					},
-				},
-			})
-		);
-
-		// Two services. Catalog order: kv (10), db (20).
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'kv', 'manifest.json'),
-			JSON.stringify({
-				id: 'kv',
-				label: 'KV',
-				hint: '',
-				description: '',
-				order: 10,
-				packages: [],
-				frameworks: ['nextjs'],
-			})
-		);
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
-			JSON.stringify({
-				id: 'db',
-				label: 'DB',
-				hint: '',
-				description: '',
-				order: 20,
-				packages: [],
-				frameworks: ['nextjs'],
-			})
-		);
-		await writeFile_(
-			join(
-				f.templatesRoot,
-				'services',
-				'kv',
-				'snippets',
-				'nextjs',
-				'translate.translate-post.ts'
-			),
-			'await saveToKV(result);'
-		);
-		await writeFile_(
-			join(
-				f.templatesRoot,
-				'services',
-				'db',
-				'snippets',
-				'nextjs',
-				'translate.translate-post.ts'
-			),
-			'await saveToDB(result);'
-		);
-
-		await writeFile_(
-			join(f.dest, 'src/lib/translate.ts'),
-			[
-				'export function translate() {',
-				'\t// @agentuity:translate-post',
-				'\treturn x;',
-				'}',
-				'',
-			].join('\n')
-		);
-		await writeFile_(join(f.dest, 'package.json'), '{}');
-
-		// Caller passes services in reverse order; composer must still
-		// emit them in catalog order (kv before db).
-		await composeServices({
-			dest: f.dest,
-			framework: 'nextjs',
-			selectedServices: ['db', 'kv'],
-			templatesRoot: f.templatesRoot,
-			logger: createMockLogger(),
-		});
-
-		const out = await readFile(join(f.dest, 'src/lib/translate.ts'), 'utf8');
-		expect(out).toBe(
-			[
-				'export function translate() {',
-				'\tawait saveToKV(result);',
-				'',
-				'\tawait saveToDB(result);',
-				'\treturn x;',
-				'}',
-				'',
-			].join('\n')
-		);
-	});
-
-	test('handles JSX-style {/* */} markers', async () => {
-		const f = await makeFixture();
-
-		await writeFile_(
-			join(f.templatesRoot, 'nextjs', 'manifest.json'),
-			JSON.stringify({
-				framework: 'nextjs',
-				displayName: 'Next.js',
-				composableFiles: {
-					page: {
-						path: 'src/app/page.tsx',
-						markers: {
-							'after-result': { syntax: '{/* */}' },
-						},
-					},
-				},
-			})
-		);
-
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
-			JSON.stringify({
-				id: 'db',
-				label: 'DB',
-				hint: '',
-				description: '',
-				order: 20,
-				packages: [],
-				frameworks: ['nextjs'],
-			})
-		);
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'snippets', 'nextjs', 'page.after-result.tsx'),
-			'<div className="cache-badge">Cached</div>'
-		);
-
 		await writeFile_(
 			join(f.dest, 'src/app/page.tsx'),
 			[
 				'export default function Home() {',
 				'\treturn (',
 				'\t\t<div>',
-				'\t\t\t<p>result</p>',
-				'\t\t\t{/* @agentuity:after-result */}',
+				'\t\t\t{/* @agentuity:services-checklist */}',
 				'\t\t</div>',
 				'\t);',
 				'}',
 				'',
 			].join('\n')
 		);
+
 		await writeFile_(join(f.dest, 'package.json'), '{}');
 
 		await composeServices({
@@ -350,36 +142,22 @@ describe('composeServices', () => {
 		});
 
 		const out = await readFile(join(f.dest, 'src/app/page.tsx'), 'utf8');
-		expect(out).toBe(
-			[
-				'export default function Home() {',
-				'\treturn (',
-				'\t\t<div>',
-				'\t\t\t<p>result</p>',
-				'\t\t\t<div className="cache-badge">Cached</div>',
-				'\t\t</div>',
-				'\t);',
-				'}',
-				'',
-			].join('\n')
-		);
+		expect(out).not.toContain('@agentuity:services-checklist');
+		expect(out).toContain('Services');
+		expect(out).toContain('Database');
 	});
 
-	test('handles HTML-style <!-- --> markers', async () => {
+	test('injects a checklist when services are selected (HTML comment syntax)', async () => {
 		const f = await makeFixture();
 
 		await writeFile_(
-			join(f.templatesRoot, 'hono', 'manifest.json'),
+			join(f.templatesRoot, 'nuxt', 'manifest.json'),
 			JSON.stringify({
-				framework: 'hono',
-				displayName: 'Hono',
-				composableFiles: {
-					landing: {
-						path: 'src/landing.html',
-						markers: {
-							'after-form': { syntax: '<!-- -->' },
-						},
-					},
+				framework: 'nuxt',
+				displayName: 'Nuxt',
+				checklistFile: {
+					path: 'app/app.vue',
+					syntax: '<!-- -->',
 				},
 			})
 		);
@@ -388,47 +166,44 @@ describe('composeServices', () => {
 			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
 			JSON.stringify({
 				id: 'db',
-				label: 'DB',
+				label: 'Database',
 				hint: '',
 				description: '',
 				order: 20,
-				packages: [],
-				frameworks: ['hono'],
+				packages: ['drizzle-orm'],
+				frameworks: ['nuxt'],
 			})
-		);
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'snippets', 'hono', 'landing.after-form.html'),
-			'<div class="history">history</div>'
 		);
 
 		await writeFile_(
-			join(f.dest, 'src/landing.html'),
-			['<form>...</form>', '<!-- @agentuity:after-form -->', '<footer>...</footer>', ''].join(
-				'\n'
-			)
+			join(f.dest, 'app/app.vue'),
+			[
+				'<template>',
+				'\t<div>',
+				'\t\t<!-- @agentuity:services-checklist -->',
+				'\t</div>',
+				'</template>',
+				'',
+			].join('\n')
 		);
+
 		await writeFile_(join(f.dest, 'package.json'), '{}');
 
 		await composeServices({
 			dest: f.dest,
-			framework: 'hono',
+			framework: 'nuxt',
 			selectedServices: ['db'],
 			templatesRoot: f.templatesRoot,
 			logger: createMockLogger(),
 		});
 
-		const out = await readFile(join(f.dest, 'src/landing.html'), 'utf8');
-		expect(out).toBe(
-			[
-				'<form>...</form>',
-				'<div class="history">history</div>',
-				'<footer>...</footer>',
-				'',
-			].join('\n')
-		);
+		const out = await readFile(join(f.dest, 'app/app.vue'), 'utf8');
+		expect(out).not.toContain('@agentuity:services-checklist');
+		expect(out).toContain('Services');
+		expect(out).toContain('Database');
 	});
 
-	test('throws when a marker declared in the manifest is missing from the file', async () => {
+	test('injects a checklist with multiple services', async () => {
 		const f = await makeFixture();
 
 		await writeFile_(
@@ -436,60 +211,30 @@ describe('composeServices', () => {
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {
-					translate: {
-						path: 'src/lib/translate.ts',
-						markers: {
-							'translate-pre': { syntax: '//' },
-						},
-					},
+				checklistFile: {
+					path: 'src/app/page.tsx',
+					syntax: '{/* */}',
 				},
 			})
 		);
 
 		await writeFile_(
-			join(f.dest, 'src/lib/translate.ts'),
-			['export function translate() { return null; }', ''].join('\n')
-		);
-		await writeFile_(join(f.dest, 'package.json'), '{}');
-
-		await expect(
-			composeServices({
-				dest: f.dest,
-				framework: 'nextjs',
-				selectedServices: [],
-				templatesRoot: f.templatesRoot,
-				logger: createMockLogger(),
-			})
-		).rejects.toThrow(/translate-pre/);
-	});
-
-	test('skips snippets a service did not provide for a given marker', async () => {
-		const f = await makeFixture();
-
-		await writeFile_(
-			join(f.templatesRoot, 'nextjs', 'manifest.json'),
+			join(f.templatesRoot, 'services', 'kv', 'manifest.json'),
 			JSON.stringify({
-				framework: 'nextjs',
-				displayName: 'Next.js',
-				composableFiles: {
-					translate: {
-						path: 'src/lib/translate.ts',
-						markers: {
-							imports: { syntax: '//' },
-							'translate-pre': { syntax: '//' },
-						},
-					},
-				},
+				id: 'kv',
+				label: 'Key-Value Store',
+				hint: '',
+				description: '',
+				order: 10,
+				packages: [],
+				frameworks: ['nextjs'],
 			})
 		);
-
-		// db contributes only `imports`, not `translate-pre`.
 		await writeFile_(
 			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
 			JSON.stringify({
 				id: 'db',
-				label: 'DB',
+				label: 'Database',
 				hint: '',
 				description: '',
 				order: 20,
@@ -497,19 +242,16 @@ describe('composeServices', () => {
 				frameworks: ['nextjs'],
 			})
 		);
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'snippets', 'nextjs', 'translate.imports.ts'),
-			"import { db } from './db';"
-		);
 
 		await writeFile_(
-			join(f.dest, 'src/lib/translate.ts'),
+			join(f.dest, 'src/app/page.tsx'),
 			[
-				'// @agentuity:imports',
-				'',
-				'export function translate() {',
-				'\t// @agentuity:translate-pre',
-				'\treturn null;',
+				'export default function Home() {',
+				'\treturn (',
+				'\t\t<div>',
+				'\t\t\t{/* @agentuity:services-checklist */}',
+				'\t\t</div>',
+				'\t);',
 				'}',
 				'',
 			].join('\n')
@@ -519,22 +261,18 @@ describe('composeServices', () => {
 		await composeServices({
 			dest: f.dest,
 			framework: 'nextjs',
-			selectedServices: ['db'],
+			selectedServices: ['db', 'kv'],
 			templatesRoot: f.templatesRoot,
 			logger: createMockLogger(),
 		});
 
-		const out = await readFile(join(f.dest, 'src/lib/translate.ts'), 'utf8');
-		expect(out).toBe(
-			[
-				"import { db } from './db';",
-				'',
-				'export function translate() {',
-				'\treturn null;',
-				'}',
-				'',
-			].join('\n')
-		);
+		const out = await readFile(join(f.dest, 'src/app/page.tsx'), 'utf8');
+		expect(out).toContain('Key-Value Store');
+		expect(out).toContain('Database');
+		// KV should appear before DB (catalog order)
+		const kvIdx = out.indexOf('Key-Value Store');
+		const dbIdx = out.indexOf('Database');
+		expect(kvIdx).toBeLessThan(dbIdx);
 	});
 
 	test('expands transitive `requires` and applies them in catalog order', async () => {
@@ -545,11 +283,9 @@ describe('composeServices', () => {
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {
-					translate: {
-						path: 'src/lib/translate.ts',
-						markers: { 'translate-post': { syntax: '//' } },
-					},
+				checklistFile: {
+					path: 'src/app/page.tsx',
+					syntax: '{/* */}',
 				},
 			})
 		);
@@ -558,7 +294,7 @@ describe('composeServices', () => {
 			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
 			JSON.stringify({
 				id: 'db',
-				label: 'DB',
+				label: 'Database',
 				hint: '',
 				description: '',
 				order: 20,
@@ -579,43 +315,23 @@ describe('composeServices', () => {
 				frameworks: ['nextjs'],
 			})
 		);
-		await writeFile_(
-			join(
-				f.templatesRoot,
-				'services',
-				'db',
-				'snippets',
-				'nextjs',
-				'translate.translate-post.ts'
-			),
-			'await saveToDB(result);'
-		);
-		await writeFile_(
-			join(
-				f.templatesRoot,
-				'services',
-				'storage',
-				'snippets',
-				'nextjs',
-				'translate.translate-post.ts'
-			),
-			'await uploadHistory(result);'
-		);
 
 		await writeFile_(
-			join(f.dest, 'src/lib/translate.ts'),
+			join(f.dest, 'src/app/page.tsx'),
 			[
-				'export function translate() {',
-				'\t// @agentuity:translate-post',
-				'\treturn x;',
+				'export default function Home() {',
+				'\treturn (',
+				'\t\t<div>',
+				'\t\t\t{/* @agentuity:services-checklist */}',
+				'\t\t</div>',
+				'\t);',
 				'}',
 				'',
 			].join('\n')
 		);
 		await writeFile_(join(f.dest, 'package.json'), '{}');
 
-		// Caller picks only `storage`. Composer must auto-include `db` and
-		// emit db's contribution before storage's (catalog order).
+		// Caller picks only `storage`; composer must auto-include `db`.
 		await composeServices({
 			dest: f.dest,
 			framework: 'nextjs',
@@ -624,18 +340,13 @@ describe('composeServices', () => {
 			logger: createMockLogger(),
 		});
 
-		const out = await readFile(join(f.dest, 'src/lib/translate.ts'), 'utf8');
-		expect(out).toBe(
-			[
-				'export function translate() {',
-				'\tawait saveToDB(result);',
-				'',
-				'\tawait uploadHistory(result);',
-				'\treturn x;',
-				'}',
-				'',
-			].join('\n')
-		);
+		const out = await readFile(join(f.dest, 'src/app/page.tsx'), 'utf8');
+		expect(out).toContain('Database');
+		expect(out).toContain('Storage');
+		// Database should appear before Storage (catalog order)
+		const dbIdx = out.indexOf('Database');
+		const storageIdx = out.indexOf('Storage');
+		expect(dbIdx).toBeLessThan(storageIdx);
 	});
 
 	test('merges package.json deps, devDeps, and scripts from selected services', async () => {
@@ -646,7 +357,7 @@ describe('composeServices', () => {
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {},
+				checklistFile: { path: 'src/app/page.tsx', syntax: '{/* */}' },
 			})
 		);
 		await writeFile_(
@@ -677,6 +388,11 @@ describe('composeServices', () => {
 			)
 		);
 
+		await writeFile_(
+			join(f.dest, 'src/app/page.tsx'),
+			'export default function Home() { return null; }\n'
+		);
+
 		await composeServices({
 			dest: f.dest,
 			framework: 'nextjs',
@@ -703,7 +419,7 @@ describe('composeServices', () => {
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {},
+				checklistFile: { path: 'src/app/page.tsx', syntax: '{/* */}' },
 			})
 		);
 		await writeFile_(
@@ -728,6 +444,10 @@ describe('composeServices', () => {
 		);
 
 		await writeFile_(join(f.dest, 'package.json'), '{}');
+		await writeFile_(
+			join(f.dest, 'src/app/page.tsx'),
+			'export default function Home() { return null; }\n'
+		);
 		await writeFile_(join(f.dest, '.env.example'), ['EXISTING_VAR=already-here', ''].join('\n'));
 
 		await composeServices({
@@ -740,82 +460,9 @@ describe('composeServices', () => {
 
 		const env = await readFile(join(f.dest, '.env.example'), 'utf8');
 		expect(env).toContain('EXISTING_VAR=already-here');
-		// EXISTING_VAR should not be added a second time.
 		expect(env.match(/^EXISTING_VAR=/gm)?.length).toBe(1);
 		expect(env).toContain('# Set when DB is provisioned');
 		expect(env).toContain('DATABASE_URL=postgres://...');
-	});
-
-	test('merges adjacent imports from the same module', async () => {
-		const f = await makeFixture();
-
-		await writeFile_(
-			join(f.templatesRoot, 'nextjs', 'manifest.json'),
-			JSON.stringify({
-				framework: 'nextjs',
-				displayName: 'Next.js',
-				composableFiles: {
-					page: {
-						path: 'src/page.tsx',
-						markers: { imports: { syntax: '//' } },
-					},
-				},
-			})
-		);
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
-			JSON.stringify({
-				id: 'db',
-				label: 'DB',
-				hint: '',
-				description: '',
-				order: 20,
-				packages: [],
-				frameworks: ['nextjs'],
-			})
-		);
-		await writeFile_(
-			join(f.templatesRoot, 'services', 'db', 'snippets', 'nextjs', 'page.imports.tsx'),
-			["import { useEffect } from 'react';", "import type { Translation } from '@/db';"].join(
-				'\n'
-			)
-		);
-
-		// Base file already imports useState from react. After composition,
-		// useState and useEffect should end up in a single react import.
-		await writeFile_(
-			join(f.dest, 'src/page.tsx'),
-			[
-				"'use client';",
-				'',
-				'// @agentuity:imports',
-				"import { useState } from 'react';",
-				"import useSWRMutation from 'swr/mutation';",
-				'',
-				'export default function Home() { return null; }',
-				'',
-			].join('\n')
-		);
-		await writeFile_(join(f.dest, 'package.json'), '{}');
-
-		await composeServices({
-			dest: f.dest,
-			framework: 'nextjs',
-			selectedServices: ['db'],
-			templatesRoot: f.templatesRoot,
-			logger: createMockLogger(),
-		});
-
-		const out = await readFile(join(f.dest, 'src/page.tsx'), 'utf8');
-		// Single react import, both bindings present.
-		const reactImports = out.match(/^import .* from 'react';$/gm) ?? [];
-		expect(reactImports.length).toBe(1);
-		expect(reactImports[0]).toContain('useState');
-		expect(reactImports[0]).toContain('useEffect');
-		// Default and namespace imports are untouched.
-		expect(out).toContain("import useSWRMutation from 'swr/mutation';");
-		// Type-only imports stay as-is.
-		expect(out).toContain("import type { Translation } from '@/db';");
 	});
 
 	test('copies whole files declared by a service', async () => {
@@ -826,7 +473,7 @@ describe('composeServices', () => {
 			JSON.stringify({
 				framework: 'nextjs',
 				displayName: 'Next.js',
-				composableFiles: {},
+				checklistFile: { path: 'src/app/page.tsx', syntax: '{/* */}' },
 			})
 		);
 		await writeFile_(
@@ -852,6 +499,10 @@ describe('composeServices', () => {
 		);
 
 		await writeFile_(join(f.dest, 'package.json'), '{}');
+		await writeFile_(
+			join(f.dest, 'src/app/page.tsx'),
+			'export default function Home() { return null; }\n'
+		);
 
 		await composeServices({
 			dest: f.dest,
@@ -867,5 +518,54 @@ describe('composeServices', () => {
 		expect(await readFile(join(f.dest, 'drizzle.config.ts'), 'utf8')).toBe(
 			'export default { schema: ... };'
 		);
+	});
+
+	test('does nothing when framework has no manifest and no services', async () => {
+		const f = await makeFixture();
+
+		// No manifest.json for 'unknown' framework.
+		await writeFile_(join(f.dest, 'package.json'), '{}');
+
+		await composeServices({
+			dest: f.dest,
+			framework: 'unknown',
+			selectedServices: [],
+			templatesRoot: f.templatesRoot,
+			logger: createMockLogger(),
+		});
+
+		// No error — composer is a no-op.
+		const pkg = JSON.parse(await readFile(join(f.dest, 'package.json'), 'utf8'));
+		expect(pkg.name).toBeUndefined();
+	});
+
+	test('throws when services selected but framework has no manifest', async () => {
+		const f = await makeFixture();
+
+		// Add a service manifest so the catalog resolves, but no framework manifest.
+		await writeFile_(
+			join(f.templatesRoot, 'services', 'db', 'manifest.json'),
+			JSON.stringify({
+				id: 'db',
+				label: 'DB',
+				hint: '',
+				description: '',
+				order: 20,
+				packages: [],
+				frameworks: ['nextjs'],
+			})
+		);
+
+		await writeFile_(join(f.dest, 'package.json'), '{}');
+
+		await expect(
+			composeServices({
+				dest: f.dest,
+				framework: 'unknown',
+				selectedServices: ['db'],
+				templatesRoot: f.templatesRoot,
+				logger: createMockLogger(),
+			})
+		).rejects.toThrow(/does not yet support service augments/);
 	});
 });
