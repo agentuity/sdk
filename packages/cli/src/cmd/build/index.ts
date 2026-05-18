@@ -159,7 +159,12 @@ export const command = createCommand({
 			}
 
 			// Step 4: Package the output with launch metadata
-			const packageResult = packageBuildOutput(framework, buildResult, buildResult.outputDir);
+			const packageResult = packageBuildOutput(
+				framework,
+				buildResult,
+				buildResult.outputDir,
+				absoluteProjectDir
+			);
 			ctx.logger.debug('Launch metadata: %s', JSON.stringify(packageResult.launch, null, 2));
 
 			// Step 5: Copy profile-specific .env file AFTER building

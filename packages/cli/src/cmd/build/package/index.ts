@@ -11,7 +11,12 @@
 
 import type { DetectedFramework } from '../detect/types.ts';
 import type { BuildResult } from '../adapters/types.ts';
-import { generateLaunchMetadata, writeLaunchMetadata, type LaunchMetadata } from './launch.ts';
+import {
+	generateLaunchMetadata,
+	readUserLaunchOverride,
+	writeLaunchMetadata,
+	type LaunchMetadata,
+} from './launch.ts';
 
 export interface PackageResult {
 	/** Absolute path to the packaged output */
@@ -29,14 +34,21 @@ export interface PackageResult {
 
 /**
  * Package a build result into a deployment-ready directory.
+ *
+ * If `projectDir` is supplied and contains a user-authored `launch.json`,
+ * its fields override the generated launch metadata. See
+ * `readUserLaunchOverride` for the merge semantics.
  */
 export function packageBuildOutput(
 	framework: DetectedFramework,
 	buildResult: BuildResult,
-	outputDir: string
+	outputDir: string,
+	projectDir?: string
 ): PackageResult {
-	// Generate launch metadata
-	const launch = generateLaunchMetadata(framework, buildResult);
+	const override = projectDir ? readUserLaunchOverride(projectDir) : null;
+
+	// Generate launch metadata (with optional user override applied)
+	const launch = generateLaunchMetadata(framework, buildResult, override);
 
 	// Write launch metadata to the output directory
 	writeLaunchMetadata(outputDir, launch);

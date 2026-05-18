@@ -185,7 +185,8 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				const packageResult: PackageResult = packageBuildOutput(
 					framework,
 					buildResult,
-					buildResult.outputDir
+					buildResult.outputDir,
+					rootDir
 				);
 
 				// 5. Generate metadata. Agentuity-native projects emit a

@@ -17,6 +17,58 @@ import { readPackageJson, detectPackageManager } from './util.ts';
 import { frameworkDefinitions, type FrameworkDefinition } from './frameworks.ts';
 import { detectFromDatabase } from './engine.ts';
 import { genericDetector } from './generic.ts';
+import { readUserLaunchOverride } from '../package/launch.ts';
+
+/**
+ * Custom-launcher fallback. If the user ships their own `launch.json`
+ * at the project root and we couldn't match anything else, treat the
+ * project as a deployable "custom" framework: skip the build (the
+ * user is responsible for prebuilding), copy the project root into
+ * the output, and let the user's launch.json supply the start command
+ * and runtime. The user's launch.json is later merged on top of this
+ * by `packageBuildOutput`.
+ */
+async function detectCustomLauncher(
+	projectDir: string,
+	pkg: PackageJsonData | null
+): Promise<DetectedFramework | null> {
+	const override = readUserLaunchOverride(projectDir);
+	if (!override) return null;
+
+	const webProcess =
+		override.processes?.find((p) => p.type === 'web' && p.default) ??
+		override.processes?.find((p) => p.type === 'web') ??
+		override.processes?.[0];
+
+	const startCommand = webProcess?.command;
+	const declaredRuntime = override.runtime?.name;
+
+	const pm = await detectPackageManager(projectDir);
+	const hasBunLockfile =
+		(await pathExists(join(projectDir, 'bun.lockb'))) ||
+		(await pathExists(join(projectDir, 'bun.lock')));
+	const runtime: 'bun' | 'node' = (() => {
+		if (declaredRuntime === 'bun' || declaredRuntime === 'node') return declaredRuntime;
+		if (startCommand && /^\s*bun(\s+run)?\s+/.test(startCommand)) return 'bun';
+		if (startCommand && /^\s*node(\s|$)/.test(startCommand)) return 'node';
+		if (pkg?.engines?.bun) return 'bun';
+		if (hasBunLockfile) return 'bun';
+		return 'node';
+	})();
+
+	return {
+		name: 'custom',
+		runtime,
+		packageManager: pm,
+		// Sentinel that tells the generic adapter to skip the build step.
+		// The user is on the hook for prebuilding before `agentuity deploy`.
+		buildCommand: '__agentuity_internal__',
+		buildOutput: '.',
+		startCommand,
+		port: override.runtime?.port,
+		confidence: 'low',
+	};
+}
 
 /**
  * Convert a matched framework definition + project context into a DetectedFramework.
@@ -148,7 +200,9 @@ export const NO_DEPLOYABLE_PROJECT_MESSAGE =
 
 export async function detectFramework(projectDir: string): Promise<DetectedFramework | null> {
 	const pkg = await readPackageJson(projectDir);
-	if (!pkg) return detectBareStaticHtml(projectDir);
+	if (!pkg) {
+		return (await detectCustomLauncher(projectDir, null)) ?? detectBareStaticHtml(projectDir);
+	}
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
@@ -157,7 +211,11 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 	}
 
 	// 2. Generic fallback
-	return genericDetector.detect(projectDir, pkg);
+	const generic = await genericDetector.detect(projectDir, pkg);
+	if (generic) return generic;
+
+	// 3. Custom-launcher fallback: user shipped their own launch.json.
+	return detectCustomLauncher(projectDir, pkg);
 }
 
 /**
@@ -168,6 +226,8 @@ export async function detectFrameworkWithPackageJson(
 ): Promise<{ framework: DetectedFramework | null; packageJson: PackageJsonData | null }> {
 	const pkg = await readPackageJson(projectDir);
 	if (!pkg) {
+		const custom = await detectCustomLauncher(projectDir, null);
+		if (custom) return { framework: custom, packageJson: null };
 		return { framework: await detectBareStaticHtml(projectDir), packageJson: null };
 	}
 
@@ -180,7 +240,11 @@ export async function detectFrameworkWithPackageJson(
 
 	// 2. Generic fallback
 	const generic = await genericDetector.detect(projectDir, pkg);
-	return { framework: generic, packageJson: pkg };
+	if (generic) return { framework: generic, packageJson: pkg };
+
+	// 3. Custom-launcher fallback: user shipped their own launch.json.
+	const custom = await detectCustomLauncher(projectDir, pkg);
+	return { framework: custom, packageJson: pkg };
 }
 
 // Re-export types

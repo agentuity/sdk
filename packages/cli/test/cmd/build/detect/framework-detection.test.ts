@@ -52,6 +52,59 @@ describe('Framework Detection', () => {
 		expect(result).toBeNull();
 	});
 
+	// ── Custom launcher (user-supplied launch.json) ──
+
+	describe('Custom launcher', () => {
+		test('detects custom launcher when no framework matches but launch.json exists', async () => {
+			writePackageJson(testDir, { name: 'custom-app', version: '1.0.0' });
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({
+					processes: [{ type: 'web', command: 'node dist/server.js', default: true }],
+					runtime: { name: 'node', port: 4000 },
+				})
+			);
+
+			const result = await detectFramework(testDir);
+			expect(result).not.toBeNull();
+			expect(result!.name).toBe('custom');
+			expect(result!.buildCommand).toBe('__agentuity_internal__');
+			expect(result!.startCommand).toBe('node dist/server.js');
+			expect(result!.runtime).toBe('node');
+			expect(result!.port).toBe(4000);
+		});
+
+		test('detects custom launcher without package.json', async () => {
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({
+					processes: [{ type: 'web', command: 'bun run server.ts', default: true }],
+				})
+			);
+
+			const result = await detectFramework(testDir);
+			expect(result).not.toBeNull();
+			expect(result!.name).toBe('custom');
+			expect(result!.runtime).toBe('bun');
+			expect(result!.startCommand).toBe('bun run server.ts');
+		});
+
+		test('prefers detected framework over custom launcher', async () => {
+			writePackageJson(testDir, {
+				name: 'my-next-app',
+				dependencies: { next: '15.0.0' },
+				scripts: { build: 'next build', start: 'next start' },
+			});
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({ processes: [{ type: 'web', command: 'bun run x', default: true }] })
+			);
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('nextjs');
+		});
+	});
+
 	// ── Next.js ──
 
 	describe('Next.js', () => {

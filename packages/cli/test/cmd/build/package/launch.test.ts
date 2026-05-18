@@ -1,9 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
 	generateLaunchMetadata,
+	readUserLaunchOverride,
 	writeLaunchMetadata,
 } from '../../../../src/cmd/build/package/launch';
 import { packageBuildOutput } from '../../../../src/cmd/build/package';
@@ -284,6 +285,47 @@ describe('Launch Metadata', () => {
 			expect(result.hasStaticAssets).toBe(false);
 		});
 
+		test('user override at projectDir replaces processes and runtime fields', () => {
+			const framework: DetectedFramework = {
+				name: 'nextjs',
+				runtime: 'node',
+				packageManager: 'npm',
+				buildCommand: 'next build',
+				buildOutput: '.next',
+				startCommand: 'node server.js',
+				confidence: 'high',
+			};
+			const buildResult: BuildResult = {
+				outputDir: testDir,
+				startCommand: 'node server.js',
+				duration: 2000,
+				logs: [],
+			};
+
+			writeFileSync(
+				join(testDir, 'launch.json'),
+				JSON.stringify({
+					processes: [
+						{ type: 'web', command: 'bun run start', default: true },
+						{ type: 'worker', command: 'bun run worker', default: false },
+					],
+					runtime: { name: 'bun', port: 8080 },
+				})
+			);
+
+			packageBuildOutput(framework, buildResult, testDir, testDir);
+
+			const parsed = JSON.parse(readFileSync(join(testDir, 'launch.json'), 'utf-8'));
+			expect(parsed.processes).toHaveLength(2);
+			expect(parsed.processes[0].command).toBe('bun run start');
+			expect(parsed.processes[1].type).toBe('worker');
+			expect(parsed.runtime.name).toBe('bun');
+			expect(parsed.runtime.port).toBe(8080);
+			// Build metadata is always machine-generated.
+			expect(typeof parsed.build.date).toBe('string');
+			expect(parsed.build.duration).toBe(2000);
+		});
+
 		test('writes launch metadata output files', () => {
 			const framework: DetectedFramework = {
 				name: 'sveltekit',
@@ -305,6 +347,25 @@ describe('Launch Metadata', () => {
 			packageBuildOutput(framework, buildResult, testDir);
 
 			expect(existsSync(join(testDir, 'launch.json'))).toBe(true);
+		});
+	});
+
+	// ── readUserLaunchOverride ──
+
+	describe('readUserLaunchOverride', () => {
+		test('returns null when no launch.json present', () => {
+			expect(readUserLaunchOverride(testDir)).toBeNull();
+		});
+
+		test('parses a partial override', () => {
+			writeFileSync(join(testDir, 'launch.json'), JSON.stringify({ runtime: { name: 'bun' } }));
+			const result = readUserLaunchOverride(testDir);
+			expect(result?.runtime?.name).toBe('bun');
+		});
+
+		test('throws on invalid JSON', () => {
+			writeFileSync(join(testDir, 'launch.json'), '{ not json');
+			expect(() => readUserLaunchOverride(testDir)).toThrow(/Invalid launch\.json/);
 		});
 	});
 });

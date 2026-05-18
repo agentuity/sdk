@@ -6,9 +6,46 @@
  */
 
 import { join } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { BuildResult } from '../adapters/types.ts';
 import type { DetectedFramework } from '../detect/types.ts';
+
+/**
+ * Filename the CLI looks for at the project root when a user wants to
+ * override or fully supply the launch metadata. Same name as the file
+ * we emit into the build output so users can copy/edit one we generated.
+ */
+export const USER_LAUNCH_FILENAME = 'launch.json';
+
+/**
+ * Partial launch metadata a user can ship at the project root to
+ * override what the CLI infers. Every field is optional; provided
+ * fields win over the generated ones. `build.{date,duration}` is
+ * always machine-generated and ignored here.
+ */
+export interface UserLaunchOverride {
+	processes?: ProcessDefinition[];
+	framework?: { name?: string; version?: string };
+	runtime?: { name?: string; port?: number };
+}
+
+/**
+ * Read a user-supplied `launch.json` from the project root, if any.
+ *
+ * Returns `null` when the file is missing. Throws on invalid JSON —
+ * a malformed override is a user error worth surfacing rather than
+ * silently falling back to inference.
+ */
+export function readUserLaunchOverride(projectDir: string): UserLaunchOverride | null {
+	const path = join(projectDir, USER_LAUNCH_FILENAME);
+	if (!existsSync(path)) return null;
+	try {
+		return JSON.parse(readFileSync(path, 'utf-8')) as UserLaunchOverride;
+	} catch (ex) {
+		const _ex = ex as Error;
+		throw new Error(`Invalid ${USER_LAUNCH_FILENAME} at ${path}: ${_ex.message}`);
+	}
+}
 
 /**
  * Process definition for the launch metadata.
@@ -49,10 +86,16 @@ export interface LaunchMetadata {
 
 /**
  * Generate launch metadata from a build result and detected framework.
+ *
+ * If a user-supplied override is provided, its fields take precedence:
+ * `processes` (whole array replaces ours), `framework.{name,version}`,
+ * and `runtime.{name,port}`. `build.{date,duration}` is always emitted
+ * from the actual build and cannot be overridden.
  */
 export function generateLaunchMetadata(
 	framework: DetectedFramework,
-	buildResult: BuildResult
+	buildResult: BuildResult,
+	override?: UserLaunchOverride | null
 ): LaunchMetadata {
 	const processes: ProcessDefinition[] = [];
 
@@ -81,15 +124,18 @@ export function generateLaunchMetadata(
 		return framework.runtime;
 	})();
 
+	const finalProcesses =
+		override?.processes && override.processes.length > 0 ? override.processes : processes;
+
 	return {
-		processes,
+		processes: finalProcesses,
 		framework: {
-			name: framework.name,
-			version: framework.version,
+			name: override?.framework?.name ?? framework.name,
+			version: override?.framework?.version ?? framework.version,
 		},
 		runtime: {
-			name: runtimeName,
-			port: buildResult.port ?? framework.port,
+			name: override?.runtime?.name ?? runtimeName,
+			port: override?.runtime?.port ?? buildResult.port ?? framework.port,
 		},
 		build: {
 			date: new Date().toISOString(),
