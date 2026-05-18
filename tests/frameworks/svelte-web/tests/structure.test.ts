@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 describe('svelte-web', () => {
 	test('svelte.config.js uses adapter-node', async () => {
 		const config = await import('../svelte.config.js');
-		expect(config.default.kit.adapter).toBeDefined();
+		expect(config.default.kit?.adapter).toBeDefined();
 	});
 
 	test('app.html contains SvelteKit placeholders', async () => {

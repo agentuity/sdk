@@ -567,6 +567,15 @@ export const ProjectSchema = zod.object({
 		.optional()
 		.describe('whether to skip the git integration setup prompt during deploy'),
 	template: TemplateSchema.optional().describe('template metadata and requirements'),
+	devmode: zod
+		.object({
+			public: zod
+				.boolean()
+				.optional()
+				.describe('whether `agentuity dev` should expose a public URL via the gravity tunnel'),
+		})
+		.optional()
+		.describe('per-project devmode preferences'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;

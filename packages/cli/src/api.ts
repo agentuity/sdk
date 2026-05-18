@@ -92,3 +92,23 @@ export function getAppBaseURL(config?: Config | null): string {
 	const overrides = config?.overrides as { app_url?: string } | undefined;
 	return baseGetAppBaseURL(config?.name, overrides);
 }
+
+/**
+ * URL the gravity tunnel binary connects to.
+ *
+ * Profile overrides win, then a hardcoded `local` profile target,
+ * then the default production endpoint. Region is currently unused
+ * because the platform exposes a single global devmode endpoint, but
+ * the parameter is accepted so callers can pass it forward without
+ * branching.
+ */
+export function getGravityDevModeURL(_region: string, config?: Config | null): string {
+	const overrides = config?.overrides as { gravity_url?: string } | undefined;
+	if (overrides?.gravity_url) {
+		return overrides.gravity_url;
+	}
+	if (config?.name === 'local') {
+		return 'grpc://gravity.agentuity.io:443';
+	}
+	return 'grpc://devmode-us.agentuity.com';
+}

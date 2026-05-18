@@ -6,6 +6,7 @@
 // a static SPA that doesn't run any user-side server code.
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
+import agentuity from '@agentuity/vite';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
@@ -14,7 +15,7 @@ export default defineConfig({
 		mode: 'standalone',
 	}),
 	vite: {
-		plugins: [tailwindcss()],
+		plugins: [agentuity(), tailwindcss()],
 		ssr: {
 			noExternal: ['pg'],
 		},

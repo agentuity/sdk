@@ -197,8 +197,14 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		// Swap sv's default `@sveltejs/adapter-auto` (which can't detect
 		// our runtime) for `@sveltejs/adapter-node`, which emits a
 		// self-listening Node server at `build/index.js`. The overlay
-		// drops a matching svelte.config.js.
-		devDependencies: ['@sveltejs/adapter-node', '@tailwindcss/vite', 'tailwindcss'],
+		// drops a matching svelte.config.js. @agentuity/vite configures
+		// Vite dev/HMR for `agentuity dev --public`.
+		devDependencies: [
+			'@agentuity/vite',
+			'@sveltejs/adapter-node',
+			'@tailwindcss/vite',
+			'tailwindcss',
+		],
 		scripts: {
 			deploy: 'agentuity deploy',
 			start: 'node build/index.js',
@@ -226,8 +232,9 @@ export const frameworkCatalog: FrameworkScaffold[] = [
 		// Astro defaults to a static SPA build. We swap to SSR via
 		// `@astrojs/node` (standalone mode) so the deploy can host
 		// server-rendered pages and API routes. The overlay drops a
-		// matching `astro.config.mjs`.
-		devDependencies: ['@astrojs/node', '@tailwindcss/vite', 'tailwindcss'],
+		// matching `astro.config.mjs`. @agentuity/vite configures Vite
+		// dev/HMR for `agentuity dev --public`.
+		devDependencies: ['@agentuity/vite', '@astrojs/node', '@tailwindcss/vite', 'tailwindcss'],
 		scripts: {
 			deploy: 'agentuity deploy',
 			start: 'node ./dist/server/entry.mjs',
