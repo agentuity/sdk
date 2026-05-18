@@ -5,7 +5,7 @@ import { basename, join } from 'node:path';
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { APIResponseSchema } from '@agentuity/server';
-import archiver from 'archiver';
+import { ZipFile } from 'yazl';
 import { z } from 'zod';
 import { getLogSessionsInCurrentWindow } from '../../internal-logger.ts';
 import { pathExists } from '../../node-compat/fs.ts';
@@ -69,7 +69,7 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 	const tempZip = join(tmpdir(), `agentuity-report-${randomBytes(8).toString('hex')}.zip`);
 
 	const output = createWriteStream(tempZip);
-	const zip = archiver('zip', { zlib: { level: 9 } });
+	const zip = new ZipFile();
 
 	const writeDone = new Promise<void>((resolve, reject) => {
 		output.on('close', resolve);
@@ -77,7 +77,7 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 		zip.on('error', reject);
 	});
 
-	zip.pipe(output);
+	zip.outputStream.pipe(output);
 
 	for (const sessionDir of sessionDirs) {
 		const sessionFile = join(sessionDir, 'session.json');
@@ -88,14 +88,14 @@ async function createReportZip(sessionDirs: string[]): Promise<string> {
 
 		// Add files with session ID prefix to avoid conflicts
 		if (await pathExists(sessionFile)) {
-			zip.file(sessionFile, { name: `${sessionId}/session.json` });
+			zip.addFile(sessionFile, `${sessionId}/session.json`);
 		}
 		if (await pathExists(logsFile)) {
-			zip.file(logsFile, { name: `${sessionId}/logs.jsonl` });
+			zip.addFile(logsFile, `${sessionId}/logs.jsonl`);
 		}
 	}
 
-	await zip.finalize();
+	zip.end();
 	await writeDone;
 
 	return tempZip;

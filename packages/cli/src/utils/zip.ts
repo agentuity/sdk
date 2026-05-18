@@ -2,7 +2,7 @@ import { createWriteStream, lstatSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { dirname, relative } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import archiver from 'archiver';
+import { ZipFile } from 'yazl';
 import { glob } from 'tinyglobby';
 import { toForwardSlash } from './normalize-path.ts';
 
@@ -14,9 +14,7 @@ interface Options {
 export async function zipDir(dir: string, outdir: string, options?: Options) {
 	await mkdir(dirname(outdir), { recursive: true });
 	const output = createWriteStream(outdir);
-	const zip = archiver('zip', {
-		zlib: { level: 9 },
-	});
+	const zip = new ZipFile();
 
 	const writeDone = new Promise<void>((resolve, reject) => {
 		output.on('close', resolve);
@@ -24,7 +22,7 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 		zip.on('error', reject);
 	});
 
-	zip.pipe(output);
+	zip.outputStream.pipe(output);
 
 	const files = await glob(['**/*'], {
 		cwd: dir,
@@ -50,7 +48,7 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 				const stat = lstatSync(file);
 				if (!stat.isSymbolicLink() && !stat.isDirectory()) {
 					// Set explicit Unix permissions (0o644) for portability across OSes.
-					zip.file(file, { name: rel, mode: 0o644 });
+					zip.addFile(file, rel, { mode: 0o644 });
 				}
 			} catch (err) {
 				throw new Error(`Failed to add file to zip: ${rel} (${file})`, { cause: err });
@@ -63,7 +61,7 @@ export async function zipDir(dir: string, outdir: string, options?: Options) {
 			await sleep(10); // give some time for the progress bar to render
 		}
 	}
-	await zip.finalize();
+	zip.end();
 	await writeDone;
 	if (options?.progress) {
 		options.progress(100);

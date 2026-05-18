@@ -41,7 +41,8 @@
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@agentuity/storage": "workspace:*",
-		"archiver": "^8.0.0",
+		"yazl": "^3.3.1",
+		"@types/yazl": "^3.3.1",
 		"cli-table3": "^0.6.5",
 		"commander": "^14.0.2",
 		"enquirer": "^2.4.1",
@@ -56,7 +57,7 @@
 	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
-		"@types/archiver": "^7.0.0",
+
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
 		"@types/semver": "^7.5.8",
