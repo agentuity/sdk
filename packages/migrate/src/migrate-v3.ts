@@ -324,6 +324,53 @@ export async function migrateV3(opts: MigrateV3Options = {}): Promise<MigrateV3R
 		}
 	}
 
+	// ── 5a″. Delete @agentuity/react files ───────────────────────────────────
+	// @agentuity/react is fully deprecated in v3 with no automated rewrite
+	// path. Files that import it must be deleted wholesale, otherwise the
+	// typecheck fails because the package is removed from package.json.
+	if (detection.hasReactPackage) {
+		const srcDir = join(projectDir, 'src');
+		const reactFiles: string[] = [];
+		const walkForReact = (dir: string) => {
+			if (!existsSync(dir)) return;
+			for (const entry of readdirSync(dir, { withFileTypes: true })) {
+				const full = join(dir, entry.name);
+				if (entry.isDirectory()) {
+					if (['node_modules', 'dist', '.agentuity', '.git'].includes(entry.name)) continue;
+					walkForReact(full);
+				} else if (
+					entry.isFile() &&
+					(entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))
+				) {
+					const content = readFileSyncSafe(full);
+					if (content && content.includes("from '@agentuity/react'")) {
+						reactFiles.push(full);
+					}
+				}
+			}
+		};
+		walkForReact(srcDir);
+
+		for (const file of reactFiles) {
+			const rel = file.replace(projectDir + '/', '');
+			try {
+				unlinkSync(file);
+				changedFiles.push(rel);
+				allChangeSummary.push({
+					file: rel,
+					changes: ['Deleted — @agentuity/react removed in v3'],
+				});
+			} catch {
+				// ignore
+			}
+		}
+
+		if (reactFiles.length > 0) {
+			printStep(`Deleted ${reactFiles.length} @agentuity/react file(s)`);
+			printStepDone();
+		}
+	}
+
 	// ── 5b. Transform agent files ─────────────────────────────────────────
 	if (detection.agentFiles.length > 0) {
 		console.log(`\n  Transforming ${detection.agentFiles.length} agent file(s):`);

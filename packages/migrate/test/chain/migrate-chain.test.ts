@@ -37,7 +37,7 @@ const RUN = process.env.MIGRATE_CHAIN_TEST === '1';
 describe.skipIf(!RUN)('migrate chain v1 → v2 → v3', () => {
 	let workDir: string;
 	let tarballs: TarballSet;
-	let projectDir: string;
+	let projectDir: string | undefined;
 
 	beforeAll(async () => {
 		workDir = createWorkDir();
@@ -80,6 +80,7 @@ describe.skipIf(!RUN)('migrate chain v1 → v2 → v3', () => {
 	it(
 		'runs v1 → v2 migration successfully',
 		async () => {
+			if (!projectDir) throw new Error('Scaffold failed — projectDir is undefined');
 			const result = await runMigrate(projectDir, 'v1-to-v2');
 			if (result.exitCode !== 0) {
 				console.error('[chain] v1→v2 migrate failed:\n' + result.stdout + result.stderr);
@@ -100,6 +101,7 @@ describe.skipIf(!RUN)('migrate chain v1 → v2 → v3', () => {
 	it(
 		'runs v2 → v3 migration successfully',
 		async () => {
+			if (!projectDir) throw new Error('Scaffold failed — projectDir is undefined');
 			const result = await runMigrate(projectDir, 'v2-to-v3');
 			if (result.exitCode !== 0) {
 				console.error('[chain] v2→v3 migrate failed:\n' + result.stdout + result.stderr);
@@ -129,6 +131,7 @@ describe.skipIf(!RUN)('migrate chain v1 → v2 → v3', () => {
 	it(
 		'installs deps and typechecks clean after full chain',
 		async () => {
+			if (!projectDir) throw new Error('Scaffold failed — projectDir is undefined');
 			await rewriteAgentuityDepsToTarballs(projectDir, tarballs.map);
 
 			const install = runBunInstall(projectDir);

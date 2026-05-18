@@ -77,6 +77,7 @@ export async function scaffoldProject(opts: ScaffoldOptions): Promise<ScaffoldRe
 			'--template',
 			'default',
 			'--no-install',
+			'--no-build',
 			'--no-register',
 			'--confirm',
 		],
@@ -84,6 +85,11 @@ export async function scaffoldProject(opts: ScaffoldOptions): Promise<ScaffoldRe
 			cwd: opts.workDir,
 			stdout: 'pipe',
 			stderr: 'pipe',
+			stdin: 'ignore',
+			// 2-minute timeout; bunx + create-agentuity should finish well
+			// within this. Prevents CI hangs where the scaffolder stalls
+			// on interactive prompts or network issues.
+			timeout: 2 * 60_000,
 			env: {
 				...process.env,
 				// The v1/v2 scaffolder runs a post-scaffold `agentuity build --dev`;
@@ -102,9 +108,11 @@ export async function scaffoldProject(opts: ScaffoldOptions): Promise<ScaffoldRe
 
 	const projectDir = join(opts.workDir, opts.name);
 	if (!existsSync(join(projectDir, 'package.json'))) {
+		const timedOut = (proc as any).exitedDueToTimeout === true;
 		throw new Error(
-			`create-agentuity did not produce a project at ${projectDir}\n` +
-				`stdout:\n${stdout}\n\nstderr:\n${stderr}`
+			`create-agentuity did not produce a project at ${projectDir}` +
+				(timedOut ? ' (process timed out after 2m)' : '') +
+				`\nstdout:\n${stdout}\n\nstderr:\n${stderr}`
 		);
 	}
 
