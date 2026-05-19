@@ -953,6 +953,19 @@ export async function resolveRegion(opts: ResolveRegionOptions): Promise<string 
 		// If not valid, fall through to error/prompt
 	}
 
+	// Project region beats the user's saved global preference: for project-
+	// scoped commands, the project's own region is canonical. Using the
+	// preferred region against the wrong catalyst yields a 404 on
+	// /cli/project/{id}/... endpoints (the project doesn't live there).
+	const projectRegion = opts.region;
+	if (projectRegion) {
+		const matchingRegion = regions.find((r) => r.region === projectRegion);
+		if (matchingRegion) {
+			logger.trace('selected project region: %s', matchingRegion.region);
+			return matchingRegion.region;
+		}
+	}
+
 	// Check for preferred region in config
 	const preferredRegion = config?.preferences?.region;
 	if (preferredRegion) {
@@ -963,15 +976,6 @@ export async function resolveRegion(opts: ResolveRegionOptions): Promise<string 
 				return region;
 			}
 			logger.trace('selected preferred region (non-TTY): %s', matchingRegion.region);
-			return matchingRegion.region;
-		}
-	}
-
-	// Check for project region fallback
-	const projectRegion = opts.region;
-	if (projectRegion) {
-		const matchingRegion = regions.find((r) => r.region === projectRegion);
-		if (matchingRegion) {
 			return matchingRegion.region;
 		}
 	}
