@@ -6,15 +6,12 @@ import { ErrorCode } from '../../errors.ts';
 import { pathExists } from '../../node-compat/fs.ts';
 import * as tui from '../../tui.ts';
 import { createCommand, DeployOptionsSchema } from '../../types.ts';
-import { typecheck } from './typecheck.ts';
 import {
 	BuildReportCollector,
 	setGlobalCollector,
 	clearGlobalCollector,
 } from '../../build-report.ts';
-import { detectFrameworkWithPackageJson, NO_DEPLOYABLE_PROJECT_MESSAGE } from './detect/index.ts';
-import { getAdapter } from './adapters/index.ts';
-import { packageBuildOutput } from './package/index.ts';
+import { FrameworkDetectionError, TypecheckError, runBuildPipeline } from './run.ts';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -107,67 +104,45 @@ export const command = createCommand({
 		}
 
 		const absoluteProjectDir = resolve(projectDir);
-		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
 
 		try {
-			const rel = outDir.startsWith(absoluteProjectDir)
-				? relative(absoluteProjectDir, outDir)
-				: outDir;
-
-			// Step 1: Detect framework
 			tui.info('Detecting framework...');
-			const { framework, packageJson } =
-				await detectFrameworkWithPackageJson(absoluteProjectDir);
-
-			if (!framework) {
-				collector.addGeneralError('build', NO_DEPLOYABLE_PROJECT_MESSAGE, 'BUILD010');
-				if (opts.reportFile) {
-					await collector.forceWrite();
-				}
-				clearGlobalCollector();
-				tui.fatal(NO_DEPLOYABLE_PROJECT_MESSAGE, ErrorCode.BUILD_FAILED);
-			}
-
-			const frameworkLabel = framework.version
-				? `${framework.name} v${framework.version}`
-				: framework.name;
-			tui.success(`Detected ${tui.bold(frameworkLabel)} (${framework.runtime})`);
-
-			// Step 2: Get the build adapter for this framework
-			const adapter = getAdapter(framework.name);
-			tui.info(`Building with ${adapter.name} adapter to ${rel}`);
-
-			// Step 3: Run the build
-			const endBuildDiagnostic = collector.startDiagnostic('build');
-			const buildResult = await adapter.build({
+			const pipelineResult = await runBuildPipeline({
 				projectDir: absoluteProjectDir,
-				framework,
-				packageJson: packageJson ?? {},
-				outputDir: outDir,
 				logger: ctx.logger,
 				collector,
+				outputDir: opts.outdir ? resolve(opts.outdir) : undefined,
+				skipTypeCheck: opts.skipTypeCheck,
 				dev: opts.dev,
 				projectId: project?.projectId,
 				orgId: project?.orgId,
 				region: project?.region ?? 'local',
 			});
-			endBuildDiagnostic();
 
-			// Log build output
-			for (const line of buildResult.logs) {
-				tui.info(tui.muted(line));
+			const { framework, monorepo, buildResult, packageResult, outputDir } = pipelineResult;
+
+			const frameworkLabel = framework.version
+				? `${framework.name} v${framework.version}`
+				: framework.name;
+			tui.success(`Detected ${tui.bold(frameworkLabel)} (${framework.runtime})`);
+			if (monorepo) {
+				tui.info(
+					`Detected ${tui.bold(monorepo.packageManager)} workspace at ${tui.muted(monorepo.root)} (subpackage: ${tui.bold(monorepo.subpath)})`
+				);
 			}
 
-			// Step 4: Package the output with launch metadata
-			const packageResult = packageBuildOutput(
-				framework,
-				buildResult,
-				buildResult.outputDir,
-				absoluteProjectDir
-			);
+			const rel = outputDir.startsWith(absoluteProjectDir)
+				? relative(absoluteProjectDir, outputDir)
+				: outputDir;
+			tui.info(`Built to ${rel}`);
+			for (const line of pipelineResult.logs) {
+				tui.info(tui.muted(line));
+			}
 			ctx.logger.debug('Launch metadata: %s', JSON.stringify(packageResult.launch, null, 2));
 
-			// Step 5: Copy profile-specific .env file AFTER building
+			// Copy profile-specific .env file AFTER building, before returning
+			// success. The shared pipeline doesn't know about CLI profiles, so
+			// this stays here.
 			if (opts.dev && ctx.config?.name) {
 				const envSourcePath = join(absoluteProjectDir, `.env.${ctx.config.name}`);
 				const envDestPath = join(buildResult.outputDir, '.env');
@@ -180,52 +155,8 @@ export const command = createCommand({
 				}
 			}
 
-			// Step 6: Run TypeScript type checking (skip in dev mode, skip for non-TS projects)
-			if (!opts.dev && !opts.skipTypeCheck) {
-				try {
-					tui.info('Running type check...');
-					const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-					const typeResult = await typecheck(absoluteProjectDir, {
-						collector,
-						typegenCommand: framework.typegenCommand,
-					});
-					endTypecheckDiagnostic();
-
-					if (typeResult.success) {
-						tui.success('Type check passed');
-					} else {
-						console.error('');
-						console.error(typeResult.output);
-						console.error('');
-						const msg =
-							'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
-
-						if (opts.reportFile) {
-							await collector.forceWrite();
-						}
-						clearGlobalCollector();
-						tui.fatal(msg, ErrorCode.BUILD_FAILED);
-					}
-				} catch (error: unknown) {
-					const errorMsg = error instanceof Error ? error.message : String(error);
-					collector.addGeneralError('typescript', errorMsg, 'BUILD008');
-
-					if (opts.reportFile) {
-						await collector.forceWrite();
-					}
-					clearGlobalCollector();
-
-					tui.error(`Type check failed to run: ${errorMsg}`);
-					tui.fatal(
-						'Unable to run TypeScript type checking. Ensure TypeScript is installed.',
-						ErrorCode.BUILD_FAILED
-					);
-				}
-			}
-
 			tui.success(`Build complete (${frameworkLabel}, ${buildResult.duration}ms)`);
 
-			// Write final report on success
 			if (opts.reportFile) {
 				await collector.forceWrite();
 			}
@@ -239,6 +170,22 @@ export const command = createCommand({
 				framework: framework.name,
 			};
 		} catch (error: unknown) {
+			// Translate structured pipeline errors into the CLI's fatal surface.
+			if (error instanceof FrameworkDetectionError) {
+				collector.addGeneralError('build', error.message, 'BUILD010');
+				if (opts.reportFile) await collector.forceWrite();
+				clearGlobalCollector();
+				tui.fatal(error.message, ErrorCode.BUILD_FAILED);
+			}
+			if (error instanceof TypecheckError) {
+				console.error('');
+				console.error(error.output);
+				console.error('');
+				if (opts.reportFile) await collector.forceWrite();
+				clearGlobalCollector();
+				tui.fatal('Fix type errors before building', ErrorCode.BUILD_FAILED);
+			}
+			// Fall through to the original generic error handler below.
 			// Add error to collector
 			if (error instanceof AggregateError) {
 				const ae = error as AggregateError;

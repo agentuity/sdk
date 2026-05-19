@@ -15,6 +15,7 @@ import { basename, join, relative, resolve } from 'node:path';
 import { run } from '../../../node-compat/proc.ts';
 import { getRunCommand } from '../detect/util.ts';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
+import type { MonorepoContext } from '../detect/monorepo.ts';
 
 /**
  * Run a shell command and return exit code.
@@ -126,20 +127,49 @@ function rewriteRuntimePackageJson(packageJsonPath: string, runtimeDependencies:
 	writeFileSync(packageJsonPath, JSON.stringify(pkg, null, '\t') + '\n');
 }
 
+/**
+ * Per-package-manager lockfile filenames, in canonical order.
+ * `copyRuntimeManifests` uses this to ship only the lockfile that
+ * matches the active package manager, so stale rogue lockfiles
+ * (e.g. a `bun.lock` left over from a default-pm install in a
+ * monorepo subpackage) don't end up next to the real one and
+ * confuse Hadron's preference order (bun > npm > pnpm > yarn).
+ */
+const LOCKFILES_BY_PM: Record<string, readonly string[]> = {
+	npm: ['package-lock.json', 'npm-shrinkwrap.json'],
+	pnpm: ['pnpm-lock.yaml'],
+	yarn: ['yarn.lock'],
+	bun: ['bun.lock', 'bun.lockb'],
+};
+
 export function copyRuntimeManifests(
 	projectDir: string,
 	outputDir: string,
-	runtimeDependencies: string[] = []
+	runtimeDependencies: string[] = [],
+	packageManager?: string
 ): void {
-	for (const name of [
-		'package.json',
-		'package-lock.json',
-		'npm-shrinkwrap.json',
-		'pnpm-lock.yaml',
-		'yarn.lock',
-		'bun.lock',
-		'bun.lockb',
-	]) {
+	// Always ship the manifest.
+	const pkgSrc = join(projectDir, 'package.json');
+	const pkgDst = join(outputDir, 'package.json');
+	if (existsSync(pkgSrc) && !existsSync(pkgDst)) {
+		cpSync(pkgSrc, pkgDst);
+	}
+
+	// Ship only the lockfile that matches the active pm. When the
+	// caller didn't pin a pm (older call sites), fall back to the
+	// legacy behavior of shipping every lockfile present — callers
+	// should pass `packageManager` to avoid this ambiguity.
+	const lockfiles = packageManager
+		? (LOCKFILES_BY_PM[packageManager] ?? [])
+		: ([
+				'package-lock.json',
+				'npm-shrinkwrap.json',
+				'pnpm-lock.yaml',
+				'yarn.lock',
+				'bun.lock',
+				'bun.lockb',
+			] as const);
+	for (const name of lockfiles) {
 		const src = join(projectDir, name);
 		const dst = join(outputDir, name);
 		if (existsSync(src) && !existsSync(dst)) {
@@ -260,6 +290,124 @@ async function prepareFrameworkBuild(
 	};
 }
 
+/**
+ * Recursively copy the monorepo tree from `monorepo.root` into
+ * `outputDir`, excluding directories that must never ship (or that
+ * would explode upload size: every nested `node_modules`, the VCS dir,
+ * agent dotfiles, dev env files).
+ *
+ * Build artifacts already live inside the tree at their natural
+ * paths (e.g. `<root>/apps/web/dist/`); this single pass picks them
+ * up along with every workspace package's source. The deploy zip
+ * filter (`cmd/cloud/deploy/upload.ts`) re-applies the same
+ * exclusions defensively so anything new we drop in here (e.g. a
+ * staging `.agentuity/` sibling) doesn't slip through either.
+ */
+function copyMonorepoTree(
+	monorepo: MonorepoContext,
+	outputDir: string,
+	logger: { debug: (...args: unknown[]) => void }
+): void {
+	const absOut = resolve(outputDir);
+	// If the staging dir lives inside the monorepo (it does by default
+	// at `<root>/.agentuity/`), skipping it during the walk prevents an
+	// infinite copy-into-self loop.
+	const outRelToRoot = relative(monorepo.root, absOut);
+	const skipNames = new Set(['node_modules', '.git', '.ssh', '.vite', '.agentuity', '.DS_Store']);
+
+	function walk(src: string, dst: string): void {
+		mkdirSync(dst, { recursive: true });
+		for (const entry of readdirSync(src, { withFileTypes: true })) {
+			if (skipNames.has(entry.name)) continue;
+			if (entry.name.startsWith('.env')) continue;
+			const srcChild = join(src, entry.name);
+			const dstChild = join(dst, entry.name);
+			const relFromMonorepo = relative(monorepo.root, srcChild);
+			if (relFromMonorepo === outRelToRoot) continue; // skip the staging dir itself
+			if (entry.isDirectory()) {
+				walk(srcChild, dstChild);
+			} else if (entry.isSymbolicLink()) {
+				// Resolve symlinks during copy. `node_modules` symlinks have
+				// already been skipped above; everything else is either a
+				// genuine source link or a regular file pretending to be one.
+				cpSync(srcChild, dstChild, { dereference: true });
+			} else {
+				cpSync(srcChild, dstChild);
+			}
+		}
+	}
+
+	logger.debug(`Mirroring monorepo from ${monorepo.root} to ${absOut}`);
+	walk(monorepo.root, absOut);
+}
+
+/**
+ * Finish the build for monorepo mode: pick the right start command,
+ * inject the static server when none is set, copy root runtime
+ * manifests, and return a `BuildResult`. Mirrors the post-copy steps
+ * in `genericAdapter.build` but adapted to the monorepo tree layout
+ * (start commands live under `<outputDir>/<subpath>/...`, manifests
+ * come from the workspace root).
+ */
+async function finishMonorepoBuild(
+	options: BuildAdapterOptions,
+	started: number,
+	logs: string[]
+): Promise<BuildResult> {
+	const { framework, outputDir, monorepo } = options;
+	if (!monorepo) throw new Error('finishMonorepoBuild called without monorepo context');
+
+	let { startCommand, serverEntry } = framework;
+
+	if (!startCommand) {
+		// Static SPA in a monorepo — inject the static server inside the
+		// subpackage's build output directory so it serves the right
+		// `index.html`. `processes[].workingDirectory` later points at
+		// the subpackage so the launch command resolves correctly.
+		const { injectStaticServer } = await import('./static-server.ts');
+		const subBuildOut = resolve(outputDir, monorepo.subpath, framework.buildOutput);
+		if (existsSync(subBuildOut)) {
+			const injected = injectStaticServer(subBuildOut);
+			startCommand = injected.startCommand;
+			serverEntry = injected.serverEntry;
+			logs.push('✓ Injected static file server (no start script found)');
+		} else {
+			throw new Error(
+				`Monorepo subpackage at ${monorepo.subpath} produced no start command and ` +
+					`no build output at ${framework.buildOutput}. Add a "start" script or a build step.`
+			);
+		}
+	}
+
+	// Source root manifests so Hadron's runtime install sees the full
+	// workspaces config. The subpackage's own manifest is still inside
+	// the copied tree at <outputDir>/<subpath>/package.json.
+	copyRuntimeManifests(
+		monorepo.root,
+		outputDir,
+		framework.runtimeDependencies ?? [],
+		framework.packageManager
+	);
+
+	// Static asset enumeration for CDN upload. In monorepo mode the
+	// build output lives under `<outputDir>/<subpath>/<framework.buildOutput>`.
+	let resolvedStaticDir: string | undefined;
+	if (framework.staticDir) {
+		const candidate = resolve(outputDir, monorepo.subpath, framework.staticDir);
+		if (existsSync(candidate)) resolvedStaticDir = candidate;
+	}
+
+	return {
+		outputDir,
+		startCommand,
+		serverEntry,
+		staticDir: resolvedStaticDir,
+		port: framework.port,
+		duration: Date.now() - started,
+		logs,
+	};
+}
+
 export const genericAdapter: BuildAdapter = {
 	name: 'generic',
 
@@ -269,14 +417,26 @@ export const genericAdapter: BuildAdapter = {
 		const logs: string[] = [];
 		let preparation: BuildPreparation | undefined;
 
+		// Monorepo mode plumbing.
+		//
+		// When the project lives inside a workspace, `install` runs at
+		// the workspace root so pnpm/npm/yarn/bun resolve `workspace:*`
+		// refs natively. The build itself still runs in the subpackage
+		// directory — each pm hoists `.bin` such that the local build
+		// command (e.g. `next build`, `vite build`) resolves correctly
+		// from inside the subpackage, and this matches how the user
+		// invokes the build locally.
+		const installCwd = options.monorepo?.root ?? projectDir;
+		const buildCwd = projectDir;
+
 		try {
 			// Step 1: Install dependencies when the project has a package.json.
 			// Bare static HTML projects intentionally have no package setup; they
 			// are copied as-is and launched by the platform static server command.
-			if (existsSync(join(projectDir, 'package.json'))) {
+			if (existsSync(join(installCwd, 'package.json'))) {
 				logger.debug('Installing dependencies...');
 				const installStart = Date.now();
-				await installDependencies(projectDir, framework.packageManager, logger);
+				await installDependencies(installCwd, framework.packageManager, logger);
 				logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
 			} else {
 				logs.push('✓ No package.json found; skipped dependency installation');
@@ -289,7 +449,7 @@ export const genericAdapter: BuildAdapter = {
 				logger.debug(`Running build: ${framework.buildCommand}`);
 				const buildStart = Date.now();
 				await runBuildCommand(
-					projectDir,
+					buildCwd,
 					framework.buildCommand,
 					framework.packageManager,
 					framework.buildEnv,
@@ -299,6 +459,20 @@ export const genericAdapter: BuildAdapter = {
 			}
 		} finally {
 			preparation?.cleanup();
+		}
+
+		// In monorepo mode, the deploy artifact mirrors the monorepo
+		// root: every workspace package, the root manifest, and the root
+		// lockfile all ship together so Hadron's runtime install can
+		// resolve `workspace:*` refs the same way the user does locally.
+		// Build artifacts already live inside the subpackage tree (e.g.
+		// `apps/web/dist/`), so a single recursive copy captures both
+		// the source workspace and the built output in one pass.
+		if (options.monorepo) {
+			mkdirSync(resolve(outputDir), { recursive: true });
+			copyMonorepoTree(options.monorepo, resolve(outputDir), logger);
+			logs.push(`✓ Copied monorepo (root: ${relative(buildCwd, options.monorepo.root) || '.'})`);
+			return finishMonorepoBuild(options, started, logs);
 		}
 
 		// Step 3: Copy build output to output directory.
@@ -383,7 +557,14 @@ export const genericAdapter: BuildAdapter = {
 
 		// Step 5: Copy package manifests for Hadron's runtime dependency install.
 		// Do not copy node_modules: Hadron installs production dependencies before launch.
-		copyRuntimeManifests(projectDir, outputDir, framework.runtimeDependencies ?? []);
+		// (Monorepo mode takes a separate early-return path above and
+		// sources manifests from the workspace root in `finishMonorepoBuild`.)
+		copyRuntimeManifests(
+			projectDir,
+			outputDir,
+			framework.runtimeDependencies ?? [],
+			framework.packageManager
+		);
 
 		// Step 6: Resolve static asset directory for CDN upload
 		// staticDir is relative to the project root (set by framework detection).

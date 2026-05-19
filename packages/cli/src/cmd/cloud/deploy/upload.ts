@@ -116,16 +116,29 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 			// command's import graph for non-deploy paths.
 			const { zipDir } = await import('../../../utils/zip.ts');
 			await zipDir(zipSourceDir, deploymentZip, {
-				filter: (_filename: string, relative: string) => {
-					if (relative.startsWith('.vite/')) {
-						return false;
+				filter: (_filename: string, rel: string) => {
+					// `rel` is a posix-style relative path from the zip source
+					// dir. Match per path-segment so the filter does the right
+					// thing in monorepos where `node_modules/`, `.git/`, etc.
+					// can appear at any depth.
+					const segments = rel.split('/');
+					for (const segment of segments) {
+						if (
+							segment === 'node_modules' ||
+							segment === '.git' ||
+							segment === '.ssh' ||
+							segment === '.vite' ||
+							segment === '.DS_Store' ||
+							segment === '.agentuity'
+						) {
+							return false;
+						}
 					}
-					// ignore common stuff we never want to include in the zip
-					if (relative.startsWith('.env')) return false;
-					if (relative.startsWith('.git/')) return false;
-					if (relative.startsWith('.ssh/')) return false;
-					if (relative.startsWith('node_modules/')) return false;
-					if (relative === '.DS_Store') return false;
+					// `.env` and its variants (`.env.local`, `.env.production`)
+					// at any depth — the deploy host injects secrets out of
+					// band, never ship developer dotfiles.
+					const base = segments[segments.length - 1];
+					if (base && base.startsWith('.env')) return false;
 					return true;
 				},
 			});

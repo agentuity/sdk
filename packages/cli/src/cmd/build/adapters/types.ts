@@ -6,6 +6,7 @@
  */
 
 import type { DetectedFramework, PackageJsonData } from '../detect/types.ts';
+import type { MonorepoContext } from '../detect/monorepo.ts';
 import type { Logger, DeployOptions } from '../../../types.ts';
 import type { BuildReportCollector } from '../../../build-report.ts';
 
@@ -77,6 +78,18 @@ export interface BuildAdapterOptions {
 
 	/** Deployment config from agentuity.json (resources, mode, dependencies, domains) */
 	deploymentConfig?: Record<string, unknown>;
+
+	/**
+	 * Monorepo context, when `projectDir` is a subpackage inside a
+	 * workspace. Adapters use this to:
+	 *   - run install/build at the workspace root
+	 *   - target the right subpackage via the pm's workspace filter
+	 *   - source root `package.json` + lockfile for runtime install
+	 *   - emit `processes[].workingDirectory = monorepo.subpath` so the
+	 *     deployed process starts inside the subpackage tree
+	 * `undefined` means single-package mode (today's behavior).
+	 */
+	monorepo?: MonorepoContext;
 }
 
 /**

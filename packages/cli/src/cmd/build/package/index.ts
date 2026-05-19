@@ -10,6 +10,7 @@
  */
 
 import type { DetectedFramework } from '../detect/types.ts';
+import type { MonorepoContext } from '../detect/monorepo.ts';
 import type { BuildResult } from '../adapters/types.ts';
 import {
 	generateLaunchMetadata,
@@ -43,12 +44,15 @@ export function packageBuildOutput(
 	framework: DetectedFramework,
 	buildResult: BuildResult,
 	outputDir: string,
-	projectDir?: string
+	projectDir?: string,
+	monorepo?: MonorepoContext
 ): PackageResult {
 	const override = projectDir ? readUserLaunchOverride(projectDir) : null;
 
-	// Generate launch metadata (with optional user override applied)
-	const launch = generateLaunchMetadata(framework, buildResult, override);
+	// Generate launch metadata (with optional user override applied).
+	// In monorepo mode, every process inherits the subpackage as its
+	// `workingDirectory` so pilot launches inside the right subdir.
+	const launch = generateLaunchMetadata(framework, buildResult, override, monorepo);
 
 	// Write launch metadata to the output directory
 	writeLaunchMetadata(outputDir, launch);

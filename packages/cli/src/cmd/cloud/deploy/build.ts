@@ -31,7 +31,7 @@
  * threading more arguments around.
  */
 
-import { resolve, join } from 'node:path';
+import { resolve } from 'node:path';
 import type { Logger } from '@agentuity/core';
 import { type BuildMetadata, type Deployment, projectDeploymentUpdate } from '@agentuity/server';
 import type { APIClient } from '../../../api.ts';
@@ -47,14 +47,7 @@ import {
 } from '../../../steps.ts';
 import * as tui from '../../../tui.ts';
 import type { DeployOptions, Project } from '../../../types.ts';
-import { getAdapter } from '../../build/adapters/index.ts';
-import type { BuildResult } from '../../build/adapters/types.ts';
-import {
-	detectFrameworkWithPackageJson,
-	NO_DEPLOYABLE_PROJECT_MESSAGE,
-} from '../../build/detect/index.ts';
-import { packageBuildOutput, type PackageResult } from '../../build/package/index.ts';
-import { typecheck } from '../../build/typecheck.ts';
+import { FrameworkDetectionError, TypecheckError, runBuildPipeline } from '../../build/run.ts';
 import type { DeployPipelineState } from './types.ts';
 
 export interface BuildStepParams {
@@ -107,39 +100,27 @@ export function buildBuildStep(params: BuildStepParams): Step {
 			const rootDir = resolve(projectDir);
 
 			try {
-				// 1. Resolve framework + package.json. The Discover phase ran
-				//    first in normal flow and stashed the result on `state`;
-				//    in child mode we skip Discover and re-detect here.
-				const discovered =
-					state.discover ??
-					(await detectFrameworkWithPackageJson(rootDir).then((res) =>
-						res.framework ? { framework: res.framework, packageJson: res.packageJson } : null
-					));
-
-				if (!discovered) {
-					return stepError(NO_DEPLOYABLE_PROJECT_MESSAGE);
-				}
-
-				const { framework, packageJson } = discovered;
-
-				// 2. Typecheck. Failures are surfaced via the collector and the
-				//    Step's error output; the build report is written before
-				//    we return so CI always has the diagnostics on disk.
-				const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-				const started = Date.now();
-				const typeResult = await typecheck(rootDir, {
+				// Run the shared build pipeline: detect framework + monorepo,
+				// typecheck, adapter build, packageBuildOutput. The Discover
+				// phase may have cached detection on `state.discover`; in child
+				// mode Discover is skipped and the pipeline re-runs detection.
+				const pipelineResult = await runBuildPipeline({
+					projectDir: rootDir,
+					logger,
 					collector,
-					typegenCommand: framework.typegenCommand,
+					prediscovered: state.discover ?? null,
+					projectId: project.projectId,
+					orgId: deployment.orgId,
+					region: project.region,
+					deploymentId: deployment.id,
+					deploymentOptions: deployOptions,
+					deploymentConfig: project.deployment,
 				});
-				endTypecheckDiagnostic();
 
-				if (typeResult.success) {
-					capturedOutput.push(tui.muted(`✓ Typechecked in ${Date.now() - started}ms`));
-				} else {
-					if (hasReportFile) {
-						await collector.forceWrite();
-					}
-					return stepError('Typecheck failed\n\n' + typeResult.output);
+				const { framework, buildResult, packageResult } = pipelineResult;
+
+				if (pipelineResult.typecheckMs > 0) {
+					capturedOutput.push(tui.muted(`✓ Typechecked in ${pipelineResult.typecheckMs}ms`));
 				}
 
 				// In child mode we didn't run Discover, so emit a one-line
@@ -152,42 +133,16 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					capturedOutput.push(
 						tui.muted(`✓ Detected ${frameworkLabel} (${framework.runtime})`)
 					);
+					if (pipelineResult.monorepo) {
+						const { packageManager, root, subpath } = pipelineResult.monorepo;
+						capturedOutput.push(
+							tui.muted(`✓ ${packageManager} workspace ${root} (subpackage: ${subpath})`)
+						);
+					}
 				}
-
-				// 3. Adapter build. Output goes to `<rootDir>/.agentuity` by
-				//    convention; the adapter may produce a different
-				//    `outputDir` if it stages files elsewhere.
-				const outDir = join(rootDir, '.agentuity');
-				const adapter = getAdapter(framework.name);
-
-				const endBuildDiagnostic = collector.startDiagnostic('build');
-				const buildResult: BuildResult = await adapter.build({
-					projectDir: rootDir,
-					framework,
-					packageJson: packageJson ?? {},
-					outputDir: outDir,
-					logger,
-					collector,
-					dev: false,
-					projectId: project.projectId,
-					orgId: deployment.orgId,
-					region: project.region,
-					deploymentId: deployment.id,
-					deploymentOptions: deployOptions,
-					deploymentConfig: project.deployment,
-				});
-				endBuildDiagnostic();
 
 				capturedOutput.push(...buildResult.logs);
 				state.buildOutputDir = buildResult.outputDir;
-
-				// 4. Package output: writes launch.json into the build output directory.
-				const packageResult: PackageResult = packageBuildOutput(
-					framework,
-					buildResult,
-					buildResult.outputDir,
-					rootDir
-				);
 
 				// 5. Generate metadata. Agentuity-native projects emit a
 				//    full agentuity.metadata.json from their Vite pipeline
@@ -227,6 +182,16 @@ export function buildBuildStep(params: BuildStepParams): Step {
 
 				return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 			} catch (ex) {
+				// Translate the shared pipeline's structured errors into the
+				// Step's failure surface.
+				if (ex instanceof FrameworkDetectionError) {
+					if (hasReportFile) await collector.forceWrite();
+					return stepError(ex.message);
+				}
+				if (ex instanceof TypecheckError) {
+					if (hasReportFile) await collector.forceWrite();
+					return stepError('Typecheck failed\n\n' + ex.output);
+				}
 				const _ex = ex as Error;
 				if (hasReportFile) {
 					await collector.forceWrite();

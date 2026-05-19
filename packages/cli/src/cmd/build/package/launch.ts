@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { BuildResult } from '../adapters/types.ts';
 import type { DetectedFramework } from '../detect/types.ts';
+import type { MonorepoContext } from '../detect/monorepo.ts';
 
 /**
  * Filename the CLI looks for at the project root when a user wants to
@@ -95,7 +96,8 @@ export interface LaunchMetadata {
 export function generateLaunchMetadata(
 	framework: DetectedFramework,
 	buildResult: BuildResult,
-	override?: UserLaunchOverride | null
+	override?: UserLaunchOverride | null,
+	monorepo?: MonorepoContext
 ): LaunchMetadata {
 	const processes: ProcessDefinition[] = [];
 
@@ -106,6 +108,12 @@ export function generateLaunchMetadata(
 			type: 'web',
 			command: startCommand,
 			default: true,
+			// Pilot interprets a relative `workingDirectory` against the
+			// container's deploy root (`/home/agentuity/app`). The
+			// monorepo subpath places the process inside the workspace
+			// subpackage so paths in the start command (`dist/index.js`,
+			// `.next/standalone/server.js`, ...) resolve unchanged.
+			...(monorepo?.subpath ? { workingDirectory: monorepo.subpath } : {}),
 		});
 	}
 

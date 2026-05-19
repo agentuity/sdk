@@ -190,7 +190,7 @@ export const nextjsAdapter: BuildAdapter = {
 		logger.debug('No standalone output found — copying full .next directory');
 		const nextDst = join(outputDir, '.next');
 		cpSync(join(projectDir, '.next'), nextDst, { recursive: true });
-		copyRuntimeManifests(projectDir, outputDir);
+		copyRuntimeManifests(projectDir, outputDir, [], framework.packageManager);
 
 		logs.push('⚠ No standalone output — using full build (consider enabling standalone mode)');
 
