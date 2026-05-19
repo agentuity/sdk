@@ -65,25 +65,37 @@ function findStandaloneServer(standaloneRoot: string): string | null {
  * which can be read in next.config.js, or we check if standalone is already configured.
  * As a fallback, we also set the experimental config via env.
  */
-function getNextBuildEnv(): Record<string, string> {
-	return {
+function getNextBuildEnv(monorepoRoot?: string): Record<string, string> {
+	const env: Record<string, string> = {
 		// Signal to the build that we want standalone output
 		NEXT_PRIVATE_STANDALONE: 'true',
 	};
+	// In monorepo mode, point Next.js's file-tracing at the workspace
+	// root so the standalone bundle pulls in workspace-package source
+	// files alongside the app's own traced dependencies. Without this,
+	// `require('@workspace/shared')` at runtime would miss because the
+	// trace would only see the subpackage's own `node_modules`.
+	if (monorepoRoot) {
+		env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT = monorepoRoot;
+	}
+	return env;
 }
 
 export const nextjsAdapter: BuildAdapter = {
 	name: 'nextjs',
 
 	async build(options: BuildAdapterOptions): Promise<BuildResult> {
-		const { projectDir, framework, outputDir, logger } = options;
+		const { projectDir, framework, outputDir, logger, monorepo } = options;
 		const started = Date.now();
 		const logs: string[] = [];
 
-		// Step 1: Install dependencies
+		// Step 1: Install dependencies. In monorepo mode, install runs at
+		// the workspace root so `workspace:*` refs resolve before the
+		// Next.js build kicks in.
+		const installCwd = monorepo?.root ?? projectDir;
 		logger.debug('Installing dependencies...');
 		const installStart = Date.now();
-		await installDependencies(projectDir, framework.packageManager, logger);
+		await installDependencies(installCwd, framework.packageManager, logger);
 		logs.push(`✓ Dependencies installed in ${Date.now() - installStart}ms`);
 
 		// Step 2: Check if standalone mode is configured
@@ -101,10 +113,12 @@ export const nextjsAdapter: BuildAdapter = {
 			);
 		}
 
-		// Step 3: Run the build with standalone env
+		// Step 3: Run the build with standalone env. In monorepo mode we
+		// also set `NEXT_PRIVATE_OUTPUT_TRACE_ROOT` to the workspace root
+		// so the standalone bundle traces deps from the right base.
 		const buildEnv = {
 			...framework.buildEnv,
-			...getNextBuildEnv(),
+			...getNextBuildEnv(monorepo?.root),
 		};
 
 		logger.debug(`Running Next.js build: ${framework.buildCommand}`);
@@ -114,7 +128,8 @@ export const nextjsAdapter: BuildAdapter = {
 			framework.buildCommand,
 			framework.packageManager,
 			buildEnv,
-			logger
+			logger,
+			monorepo ? [join(monorepo.root, 'node_modules', '.bin')] : []
 		);
 		logs.push(`✓ Next.js build completed in ${Date.now() - buildStart}ms`);
 
@@ -148,7 +163,14 @@ export const nextjsAdapter: BuildAdapter = {
 				);
 			}
 			const serverDir = dirname(serverJs);
-			const serverEntryRel = relative(outputDir, serverJs);
+			// In monorepo mode, `processes[].workingDirectory = monorepo.subpath`
+			// will cd pilot into the subpackage before exec; the start
+			// command needs to be relative to *that* dir, not to the
+			// output root. server.js lives at `<outputDir>/<subpath>/server.js`
+			// so the relative-to-subpath path is just `server.js`.
+			const serverEntryRel = monorepo
+				? relative(join(outputDir, monorepo.subpath), serverJs)
+				: relative(outputDir, serverJs);
 
 			// Copy static assets into <serverDir>/.next/static so Next.js
 			// finds them at the path it bakes into the bundle. Standalone

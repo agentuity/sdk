@@ -188,7 +188,8 @@ export async function runBuildCommand(
 	buildCommand: string,
 	packageManager: string,
 	buildEnv?: Record<string, string>,
-	logger?: { debug: (...args: unknown[]) => void }
+	logger?: { debug: (...args: unknown[]) => void },
+	extraBinDirs: string[] = []
 ): Promise<{ stdout: string; stderr: string }> {
 	// If it's a package.json script name, use the package manager's run command
 	// If it contains spaces or special chars, it's likely a direct command
@@ -210,10 +211,16 @@ export async function runBuildCommand(
 	// like `vite build` or `tsc -b && vite build` via `sh -c`. Without
 	// this, framework-defined buildCommands that aren't bare script
 	// names fail with `command not found`.
-	const localBin = join(projectDir, 'node_modules', '.bin');
+	//
+	// `extraBinDirs` is appended after the project-local `.bin`. In
+	// monorepo mode, callers pass the workspace root's `node_modules/.bin`
+	// so hoisted binaries (typical for npm/yarn workspaces — e.g. `next`,
+	// `vite` end up at root rather than in the subpackage) still
+	// resolve when the build shells out from inside the subpackage.
+	const binDirs = [join(projectDir, 'node_modules', '.bin'), ...extraBinDirs];
 	const envWithLocalBin: Record<string, string> = {
 		...(buildEnv ?? {}),
-		PATH: `${localBin}:${buildEnv?.PATH ?? process.env.PATH ?? ''}`,
+		PATH: `${binDirs.join(':')}:${buildEnv?.PATH ?? process.env.PATH ?? ''}`,
 	};
 
 	const result = await runCommand(cmd, projectDir, envWithLocalBin);
@@ -303,7 +310,7 @@ async function prepareFrameworkBuild(
  * exclusions defensively so anything new we drop in here (e.g. a
  * staging `.agentuity/` sibling) doesn't slip through either.
  */
-function copyMonorepoTree(
+export function copyMonorepoTree(
 	monorepo: MonorepoContext,
 	outputDir: string,
 	logger: { debug: (...args: unknown[]) => void }
@@ -453,7 +460,8 @@ export const genericAdapter: BuildAdapter = {
 					framework.buildCommand,
 					framework.packageManager,
 					framework.buildEnv,
-					logger
+					logger,
+					options.monorepo ? [join(options.monorepo.root, 'node_modules', '.bin')] : []
 				);
 				logs.push(`✓ Build completed in ${Date.now() - buildStart}ms`);
 			}

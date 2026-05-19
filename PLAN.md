@@ -139,12 +139,18 @@ A `.agentuityignore` at the monorepo root applies to the whole upload. A `.agent
 - [x] **M3**: Package step emits `.agentuity/` at the workspace root, mirroring the whole monorepo (every workspace package + build artifacts + root manifest + root lockfile). `copyRuntimeManifests` now also pins the lockfile to the active pm. Zip filter (`cmd/cloud/deploy/upload.ts`) drops any segment named `node_modules`, `.git`, `.agentuity`, `.ssh`, `.vite` or starting with `.env` — fixes the prior top-level-only filter.
 - [x] **M4**: `processes[0].workingDirectory = monorepo.subpath` when in monorepo mode.
 - [x] **Shared pipeline**: `runBuildPipeline` extracted. `agentuity build` and the deploy step both delegate; no parallel implementations.
-- [ ] **M5**: Next.js adapter taught about monorepo context (set `outputFileTracingRoot = monorepoRoot`, point standalone-walker at the right subdir).
+- [x] **M5**: Next.js adapter takes a `MonorepoContext` and:
+  - installs at the workspace root (so `workspace:*` resolves)
+  - sets `NEXT_PRIVATE_OUTPUT_TRACE_ROOT` so the standalone bundle traces from the workspace root and packages workspace-package source
+  - extends PATH with the workspace root's `node_modules/.bin` (npm/yarn hoist `next` there)
+  - rebases the start command relative to `<outputDir>/<subpath>/` so `processes[].workingDirectory = monorepo.subpath` resolves correctly
+  - **deploy verified**: `deploy_f50eeed94086e79bfdd59686cc122965` serves the workspace-resolved page from a Next.js monorepo.
+- [x] **Zip filter / staging hygiene**: the zip filter was over-aggressive (dropped `node_modules` everywhere) and would have stripped Next.js standalone's traced `node_modules/`. Filter now only rejects truly-unsafe paths (`.git`, `.ssh`, `.DS_Store`, `.agentuity`, any `.env*`). Adapters' copy steps still skip the user's `node_modules` so the staging dir stays clean. Pinned by `test/cmd/build/staging-cleanliness.test.ts` (11 tests).
 - [ ] **M6**: Smoke tests:
   - [x] npm-workspaces (Hono + `packages/shared`, runtime-resolved): `deploy_51f98243a9b86ec47731c29b3019107e`
-  - [ ] pnpm-workspaces (SvelteKit + `packages/shared`)
-  - [ ] bun-workspaces (Hono + `packages/shared`)
-  - [ ] One Next.js monorepo (depends on M5)
+  - [x] Next.js monorepo (Next 16 + workspace shared package, traced into standalone): `deploy_f50eeed94086e79bfdd59686cc122965`
+  - [ ] pnpm-workspaces — SDK side works; deploy blocked on agentuity/infra#421 (Hadron pnpm install bypasses module proxy)
+  - [ ] bun-workspaces — SDK side works; deploy blocked on agentuity/infra#423 (warmup fails with empty logs for bun workspace deploys)
 - [ ] **M7**: Docs: add a "Deploying from a monorepo" section to the CLI docs / v3 architecture overview. Explain detection rules, `.agentuityignore` semantics, upload-size caveats.
 - [ ] **M8**: Follow-up tracking issue for upload-size optimization (turbo prune / pnpm deploy).
 

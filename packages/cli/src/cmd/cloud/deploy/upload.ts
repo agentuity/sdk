@@ -46,6 +46,44 @@ import {
 import * as tui from '../../../tui.ts';
 import type { DeployPipelineState } from './types.ts';
 
+/**
+ * Path-segment filter applied to every entry going into the deploy
+ * zip. `rel` is posix-style, relative to the staging dir.
+ *
+ * The staging dir is curated by the adapter — it intentionally places
+ * `node_modules/` there for layouts that ship traced runtime
+ * dependencies (Next.js standalone, future bundlers). So we don't
+ * drop `node_modules` here; the adapters' copy steps already exclude
+ * *the user's* node_modules when mirroring source into staging.
+ *
+ * What we still defensively reject at the zip layer:
+ *   - `.git`, `.ssh` at any depth — VCS / credentials should never ship
+ *   - `.DS_Store` — macOS clutter
+ *   - `.agentuity` at any depth — prevents zipping the staging dir
+ *     into itself when an adapter accidentally nests output
+ *   - any file whose basename starts with `.env` — secrets land on the
+ *     deploy host through the platform's env injection, never through
+ *     a developer dotfile we accidentally bundled
+ *
+ * Exported so it can be unit-tested directly.
+ */
+export function deployZipFilter(_filename: string, rel: string): boolean {
+	const segments = rel.split('/');
+	for (const segment of segments) {
+		if (
+			segment === '.git' ||
+			segment === '.ssh' ||
+			segment === '.DS_Store' ||
+			segment === '.agentuity'
+		) {
+			return false;
+		}
+	}
+	const base = segments[segments.length - 1];
+	if (base && base.startsWith('.env')) return false;
+	return true;
+}
+
 export interface UploadStepParams {
 	projectDir: string;
 	collector: BuildReportCollector;
@@ -115,33 +153,7 @@ export function buildEncryptUploadStep(params: UploadStepParams): Step {
 			// Lazy-load `zipDir` to avoid hauling archiver into the deploy
 			// command's import graph for non-deploy paths.
 			const { zipDir } = await import('../../../utils/zip.ts');
-			await zipDir(zipSourceDir, deploymentZip, {
-				filter: (_filename: string, rel: string) => {
-					// `rel` is a posix-style relative path from the zip source
-					// dir. Match per path-segment so the filter does the right
-					// thing in monorepos where `node_modules/`, `.git/`, etc.
-					// can appear at any depth.
-					const segments = rel.split('/');
-					for (const segment of segments) {
-						if (
-							segment === 'node_modules' ||
-							segment === '.git' ||
-							segment === '.ssh' ||
-							segment === '.vite' ||
-							segment === '.DS_Store' ||
-							segment === '.agentuity'
-						) {
-							return false;
-						}
-					}
-					// `.env` and its variants (`.env.local`, `.env.production`)
-					// at any depth — the deploy host injects secrets out of
-					// band, never ship developer dotfiles.
-					const base = segments[segments.length - 1];
-					if (base && base.startsWith('.env')) return false;
-					return true;
-				},
-			});
+			await zipDir(zipSourceDir, deploymentZip, { filter: deployZipFilter });
 			logger.trace(`Deployment zip created: ${deploymentZip}`);
 			endZipDiagnostic();
 
