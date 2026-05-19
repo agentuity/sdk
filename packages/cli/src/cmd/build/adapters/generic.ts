@@ -38,31 +38,58 @@ async function runCommand(
 export async function installDependencies(
 	projectDir: string,
 	packageManager: string,
-	logger: { debug: (...args: unknown[]) => void }
+	logger: { debug: (...args: unknown[]) => void; warn?: (...args: unknown[]) => void }
 ): Promise<void> {
-	let cmd: string[];
+	// Strict (lockfile-honoring) install first. If the lockfile is out
+	// of sync — a common case after the user adds a dependency without
+	// regenerating the lockfile, or after the lockfile picks up
+	// platform-specific optional natives from a different machine —
+	// fall back to a regular install. Better to deploy than to fail
+	// builds on lockfile drift.
+	let strict: string[];
+	let fallback: string[];
 	switch (packageManager) {
 		case 'bun':
-			cmd = ['bun', 'install'];
+			// `bun install` already tolerates lockfile drift.
+			strict = ['bun', 'install'];
+			fallback = ['bun', 'install'];
 			break;
 		case 'pnpm':
-			cmd = ['pnpm', 'install', '--frozen-lockfile'];
+			strict = ['pnpm', 'install', '--frozen-lockfile'];
+			fallback = ['pnpm', 'install'];
 			break;
 		case 'yarn':
-			cmd = ['yarn', 'install', '--frozen-lockfile'];
+			strict = ['yarn', 'install', '--frozen-lockfile'];
+			fallback = ['yarn', 'install'];
 			break;
 		default:
-			cmd = ['npm', 'ci'];
+			strict = ['npm', 'ci'];
+			// `--include=optional` so platform-specific optional natives
+			// (lightningcss, @parcel/watcher, sharp, @emnapi/*) get pulled
+			// for the current arch even when the lockfile only recorded a
+			// different host's variants.
+			fallback = ['npm', 'install', '--include=optional'];
 			break;
 	}
 
-	logger.debug(`Installing dependencies with: ${cmd.join(' ')}`);
+	logger.debug(`Installing dependencies with: ${strict.join(' ')}`);
+	const result = await runCommand(strict, projectDir);
+	if (result.exitCode === 0) return;
 
-	const result = await runCommand(cmd, projectDir);
-	if (result.exitCode !== 0) {
+	if (strict.join(' ') === fallback.join(' ')) {
 		throw new Error(
 			`Dependency installation failed (exit ${result.exitCode}):\n${result.stderr}`
 		);
+	}
+
+	logger.warn?.(
+		`Lockfile-strict install failed; retrying with \`${fallback.join(' ')}\`. ` +
+			'Regenerating the lockfile locally avoids this fallback.'
+	);
+	logger.debug(`Installing dependencies with: ${fallback.join(' ')}`);
+	const retry = await runCommand(fallback, projectDir);
+	if (retry.exitCode !== 0) {
+		throw new Error(`Dependency installation failed (exit ${retry.exitCode}):\n${retry.stderr}`);
 	}
 }
 

@@ -87,6 +87,46 @@ function resolveDefaultStartCommand(
 	return defaultStart.command;
 }
 
+/**
+ * First word of a `start` script that's a clear signal the script is
+ * a dev-server invocation, not a production start. These CLIs are
+ * almost always devDependencies, so they vanish at runtime when the
+ * deploy host runs `npm install --omit=dev` (or the equivalent).
+ *
+ * When a project's `start` script begins with one of these, we ignore
+ * it and fall back to the framework's `defaultStartCommand` (and from
+ * there, to the static-file server injector).
+ */
+const DEV_ONLY_START_BINARIES = new Set([
+	'vite',
+	'astro',
+	'next',
+	'nuxt',
+	'nuxi',
+	'sv',
+	'svelte',
+	'qwik',
+	'nest',
+	'mastra',
+	'remix',
+	'ng',
+	'tsx',
+	'ts-node',
+	'nodemon',
+	'turbo',
+	'webpack',
+	'rollup',
+	'parcel',
+	'vinxi',
+]);
+
+function isLikelyProductionStart(cmd: string | undefined): boolean {
+	if (!cmd) return false;
+	const first = cmd.trim().split(/\s+/)[0];
+	if (!first) return false;
+	return !DEV_ONLY_START_BINARIES.has(first);
+}
+
 async function frameworkDefToDetected(
 	definition: FrameworkDefinition,
 	projectDir: string,
@@ -97,8 +137,12 @@ async function frameworkDefToDetected(
 	// Use the project's build script if available, otherwise the framework default
 	const resolvedBuildCommand = pkg.scripts?.build ?? definition.buildCommand ?? 'npm run build';
 
-	// Resolve output directory — use framework default or '.'
-	const resolvedOutputDir = definition.outputDirectory ?? '.';
+	// Resolve output directory — prefer the framework's dynamic resolver
+	// (e.g. Angular reads angular.json) over the static default.
+	const dynamicOutputDir = definition.resolveOutputDirectory
+		? await definition.resolveOutputDirectory(projectDir)
+		: null;
+	const resolvedOutputDir = dynamicOutputDir ?? definition.outputDirectory ?? '.';
 
 	// Resolve static asset directory (relative to project root):
 	// - explicit string: path relative to project root (e.g., '.next/static', '.output/public')
@@ -109,13 +153,32 @@ async function frameworkDefToDetected(
 			? resolvedOutputDir // null means entire output IS the static dir
 			: (definition.staticDir ?? undefined);
 
-	// If the project ships a `start` script, prefer it over
-	// framework-default behaviour. Most production setups
-	// (e.g. TanStack Start with the Nitro plugin, Hono with
-	// `@hono/node-server`, custom Express wrappers) document
-	// the launch command via `pkg.json` — honoring it lets the
-	// generic adapter skip injecting its static-file fallback.
-	const resolvedStartCommand = pkg.scripts?.start ?? resolveDefaultStartCommand(definition, pkg);
+	// Resolve the start command.
+	//
+	// Default precedence is: project's `start` script wins, falling back
+	// to the framework's `defaultStartCommand`. This honors production
+	// setups that document their launch in `package.json` (e.g. TanStack
+	// Start with the Nitro plugin, Hono with `@hono/node-server`).
+	//
+	// Two exceptions flip that precedence:
+	//   1. `definition.preferDefaultStart` — when the framework explicitly
+	//      says its scaffolded `start` is a dev-server alias (Nest,
+	//      Mastra) and the production command lives in `defaultStartCommand`.
+	//   2. The user's `start` invokes a known dev-only CLI (`vite`, `nest`,
+	//      `astro`, ...). These binaries are devDependencies; running
+	//      them at runtime fails with `command not found` once `--omit=dev`
+	//      strips them. Fall back to the framework default (which may be
+	//      undefined — in that case the generic adapter injects the
+	//      static-file server).
+	const userStart = pkg.scripts?.start;
+	const frameworkDefault = resolveDefaultStartCommand(definition, pkg);
+	const userStartIsProduction = isLikelyProductionStart(userStart);
+	const resolvedStartCommand =
+		definition.preferDefaultStart && frameworkDefault
+			? frameworkDefault
+			: userStartIsProduction
+				? userStart
+				: frameworkDefault;
 
 	// Pick the runtime based on, in order:
 	//  1. The actual `start` script: `bun ...` / `bun run ...` =

@@ -38,6 +38,21 @@ export interface FrameworkDefinition {
 		/** Only use this default when the package is present in dependencies or devDependencies. */
 		whenPackage?: string;
 	};
+	/**
+	 * Always use `defaultStartCommand` even when the project ships its
+	 * own `start` script. Useful for frameworks whose scaffolded `start`
+	 * invokes a dev-only CLI (e.g. `nest start`, `mastra start`) that
+	 * is not present in the production runtime (devDependency only).
+	 */
+	preferDefaultStart?: boolean;
+	/**
+	 * Override `outputDirectory` at detect time by inspecting the project.
+	 * Used by frameworks whose output path is determined by a config file
+	 * the user owns (e.g. Angular's `angular.json` for v17+ where the
+	 * applicationBuilder emits `dist/<project>/browser/`).
+	 * Returning `null` falls back to `outputDirectory`.
+	 */
+	resolveOutputDirectory?: (projectDir: string) => Promise<string | null>;
 	/** Commands that generate framework virtual TypeScript files before tsc runs. */
 	typegenCommand?: string | string[];
 	/** Packages required by the built runtime even if templates install them as devDependencies. */
@@ -307,10 +322,82 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'Angular',
 		slug: 'angular',
 		buildCommand: 'ng build',
+		// Angular's actual output path is `dist/<project>/browser/` for
+		// the v17+ applicationBuilder; for legacy browserBuilder it's
+		// `dist/<project>/`. We resolve it dynamically from angular.json.
 		outputDirectory: 'dist',
-		staticDir: null, // Entire dist/ is static output (browser subfolder in v17+)
+		resolveOutputDirectory: async (projectDir) => {
+			const { readFile } = await import('node:fs/promises');
+			const { join } = await import('node:path');
+			try {
+				const raw = await readFile(join(projectDir, 'angular.json'), 'utf-8');
+				const cfg = JSON.parse(raw) as {
+					defaultProject?: string;
+					projects?: Record<
+						string,
+						{
+							architect?: {
+								build?: {
+									builder?: string;
+									options?: { outputPath?: string };
+								};
+							};
+						}
+					>;
+				};
+				const projects = cfg.projects ?? {};
+				const name = cfg.defaultProject ?? Object.keys(projects)[0];
+				if (!name) return null;
+				const build = projects[name]?.architect?.build;
+				const base = build?.options?.outputPath ?? `dist/${name}`;
+				// The modern applicationBuilder always writes a `browser/`
+				// subdir alongside server assets. Detect it by builder name.
+				const isApplicationBuilder =
+					typeof build?.builder === 'string' &&
+					build.builder.includes('@angular/build:application');
+				return isApplicationBuilder ? `${base}/browser` : base;
+			} catch {
+				return null;
+			}
+		},
+		staticDir: null, // Entire output dir is static (browser/ for v17+, project root pre-17)
+		// `ng serve` is the dev server — never a production start.
+		// Angular ships static assets; the generic adapter injects a
+		// static file server when `startCommand` is absent.
+		preferDefaultStart: true,
 		detectors: {
 			every: [{ matchPackage: '@angular/cli' }],
+		},
+	},
+	{
+		name: 'NestJS',
+		slug: 'nestjs',
+		// `nest build` invokes the Nest CLI (devDependency). The compiled
+		// entry lands at `dist/main.js`. The scaffolded `start` is
+		// `nest start`, which requires `@nestjs/cli` at runtime — a
+		// devDependency, stripped by `--omit=dev` on the deploy host.
+		// Always run the compiled artifact instead.
+		buildCommand: 'nest build',
+		outputDirectory: 'dist',
+		defaultStartCommand: { command: 'node dist/main.js' },
+		preferDefaultStart: true,
+		detectors: {
+			some: [{ matchPackage: '@nestjs/core' }, { matchPackage: '@nestjs/common' }],
+		},
+	},
+	{
+		name: 'Mastra',
+		slug: 'mastra',
+		// `mastra build` bundles into `.mastra/output/`. The scaffolded
+		// `start` is `mastra start`, which shells out to the Mastra CLI
+		// (devDependency) at runtime — same problem as Nest. Run the
+		// bundled entry directly.
+		buildCommand: 'mastra build',
+		outputDirectory: '.mastra/output',
+		defaultStartCommand: { command: 'node .mastra/output/index.mjs' },
+		preferDefaultStart: true,
+		detectors: {
+			some: [{ matchPackage: '@mastra/core' }, { matchPackage: 'mastra' }],
 		},
 	},
 	{
