@@ -5,6 +5,7 @@ import {
 	isReservedAgentuityKey,
 	validateNoPublicSecrets,
 	filterAgentuitySdkKeys,
+	normalizeBucketEnv,
 	splitEnvAndSecrets,
 	AGENTUITY_ALLOWED_KEYS,
 } from '../../src/env-util';
@@ -391,5 +392,117 @@ describe('splitEnvAndSecrets', () => {
 			API_KEY: 'key',
 			DATABASE_URL: 'url',
 		});
+	});
+
+	test('classifies AWS bucket credentials as secrets', () => {
+		const result = splitEnvAndSecrets({
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_BUCKET: 'mybucket',
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AWS_SECRET_ACCESS_KEY: 'sekret',
+		});
+		expect(result.env).toEqual({
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_BUCKET: 'mybucket',
+		});
+		expect(result.secrets).toEqual({
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AWS_SECRET_ACCESS_KEY: 'sekret',
+		});
+	});
+
+	test('routes AGENTUITY_BUCKET_* keys through env/secret classification', () => {
+		const result = splitEnvAndSecrets({
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_REGION: 'auto',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+		});
+		expect(result.env).toEqual({
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_REGION: 'auto',
+		});
+		expect(result.secrets).toEqual({
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+		});
+	});
+});
+
+describe('isReservedAgentuityKey - resource-provided prefixes', () => {
+	test('allows AGENTUITY_BUCKET_* keys', () => {
+		expect(isReservedAgentuityKey('AGENTUITY_BUCKET_ENDPOINT')).toBe(false);
+		expect(isReservedAgentuityKey('AGENTUITY_BUCKET_ACCESS_KEY')).toBe(false);
+		expect(isReservedAgentuityKey('AGENTUITY_BUCKET_SECRET_KEY')).toBe(false);
+		expect(isReservedAgentuityKey('AGENTUITY_BUCKET_REGION')).toBe(false);
+	});
+});
+
+describe('filterAgentuitySdkKeys - resource-provided prefixes', () => {
+	test('does not strip AGENTUITY_BUCKET_* keys', () => {
+		const result = filterAgentuitySdkKeys({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+			MY_VAR: 'value',
+		});
+		expect(result).toEqual({
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+			MY_VAR: 'value',
+		});
+	});
+});
+
+describe('normalizeBucketEnv', () => {
+	test('translates raw AWS_* keys into AGENTUITY_BUCKET_* and drops the AWS partners', () => {
+		const result = normalizeBucketEnv({
+			AWS_ENDPOINT: 'https://s3.example.com/',
+			AWS_BUCKET: 'mybucket',
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AWS_SECRET_ACCESS_KEY: 'sekret',
+			AWS_REGION: 'us-east-1',
+		});
+		expect(result).toEqual({
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+			AGENTUITY_BUCKET_REGION: 'us-east-1',
+		});
+	});
+
+	test('preserves AGENTUITY_BUCKET_* and drops AWS_* partners when both are present', () => {
+		const result = normalizeBucketEnv({
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_BUCKET: 'mybucket',
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AWS_SECRET_ACCESS_KEY: 'sekret',
+		});
+		expect(result).toEqual({
+			AGENTUITY_BUCKET_ENDPOINT: 'mybucket.s3.example.com',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+			AGENTUITY_BUCKET_SECRET_KEY: 'sekret',
+		});
+	});
+
+	test('keeps incomplete AWS_* keys in place rather than producing a half-translated config', () => {
+		const result = normalizeBucketEnv({
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+		});
+		expect(result).toEqual({
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AGENTUITY_BUCKET_ACCESS_KEY: 'AKIA...',
+		});
+	});
+
+	test('is a no-op when env is empty', () => {
+		expect(normalizeBucketEnv({})).toEqual({});
 	});
 });

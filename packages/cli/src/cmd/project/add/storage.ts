@@ -6,6 +6,7 @@ import {
 	addResourceEnvVars,
 	filterAgentuitySdkKeys,
 	findExistingEnvFile,
+	normalizeBucketEnv,
 	readEnvFile,
 	splitEnvAndSecrets,
 } from '../../../env-util.ts';
@@ -131,8 +132,9 @@ export const storageSubcommand = createSubcommand({
 			tui.fatal('Failed to select storage bucket', ErrorCode.INTERNAL_ERROR);
 		}
 
-		if (selectedBucket.env && Object.keys(selectedBucket.env).length > 0) {
-			await addResourceEnvVars(projectDir, selectedBucket.env);
+		const bucketEnv = selectedBucket.env ? normalizeBucketEnv(selectedBucket.env) : undefined;
+		if (bucketEnv && Object.keys(bucketEnv).length > 0) {
+			await addResourceEnvVars(projectDir, bucketEnv);
 			if (!options.json) {
 				tui.success(`Linked storage bucket: ${tui.bold(selectedBucket.bucket_name)}`);
 				tui.info('Environment variables written to .env');
