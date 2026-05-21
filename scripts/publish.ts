@@ -871,10 +871,16 @@ async function commitReleaseChanges(version: string) {
 	// Globs are written into separate template strings so Bun's `$`
 	// passes them through to git for pathspec expansion (interpolating
 	// the glob via `${var}` would single-quote it and disable matching).
+	//
+	// `packages/claude-code/.claude-plugin/plugin.json` is passed as an
+	// explicit path because Bun's shell glob (`$`) fails with `no matches
+	// found` when a glob has to traverse a dot-directory, even when the
+	// file exists. Verified on Bun 1.3.14: `packages/*/package.json`
+	// expands fine, `packages/*/.claude-plugin/plugin.json` doesn't.
 	try {
 		await $`git add package.json bun.lock .claude-plugin/marketplace.json`.cwd(rootDir);
 		await $`git add packages/*/package.json`.cwd(rootDir);
-		await $`git add packages/*/.claude-plugin/plugin.json`.cwd(rootDir).nothrow();
+		await $`git add packages/claude-code/.claude-plugin/plugin.json`.cwd(rootDir).nothrow();
 	} catch (err) {
 		console.warn('   ⚠ Failed to stage release files:', err);
 		return;
