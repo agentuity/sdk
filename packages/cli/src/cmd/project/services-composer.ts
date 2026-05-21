@@ -210,9 +210,12 @@ function renderChecklist(services: ServiceAugment[], syntax: MarkerSyntax, inden
 				case '//':
 					return `${indent}// - ${s.label}`;
 				case '{/* */}':
-					return `${indent}<div class="flex items-center gap-2 text-sm text-gray-400">
-${indent}\t<div class="flex size-3 shrink-0 items-center justify-center rounded border border-cyan-500 bg-cyan-950">
-${indent}\t\t<svg aria-hidden="true" class="size-2" fill="none" stroke="var(--color-cyan-500)" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+					// JSX rendered by both React (Next.js) and hono/jsx — React rejects
+					// the HTML `class` attribute, hono/jsx accepts `className`. Use
+					// `className` so the same snippet works in both.
+					return `${indent}<div className="flex items-center gap-2 text-sm text-gray-400">
+${indent}\t<div className="flex size-3 shrink-0 items-center justify-center rounded border border-cyan-500 bg-cyan-950">
+${indent}\t\t<svg aria-hidden="true" className="size-2" fill="none" stroke="var(--color-cyan-500)" strokeWidth="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
 ${indent}\t</div>
 ${indent}\t${s.label}
 ${indent}</div>`;
@@ -233,9 +236,9 @@ ${indent}</div>`;
 			wrapper = `${indent}// Services configured:\n${items}`;
 			break;
 		case '{/* */}':
-			wrapper = `${indent}<div class="rounded-lg border border-gray-900 bg-black p-8">
-${indent}\t<h3 class="m-0 mb-4 text-lg font-normal leading-none text-white">Services</h3>
-${indent}\t<div class="flex flex-col gap-3">
+			wrapper = `${indent}<div className="rounded-lg border border-gray-900 bg-black p-8">
+${indent}\t<h3 className="m-0 mb-4 text-lg font-normal leading-none text-white">Services</h3>
+${indent}\t<div className="flex flex-col gap-3">
 ${items}
 ${indent}\t</div>
 ${indent}</div>`;
