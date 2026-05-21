@@ -659,6 +659,10 @@ export const CoderCreateSessionRequestSchema = z
 			.record(z.string(), z.string())
 			.optional()
 			.describe('Arbitrary metadata associated with the session'),
+		scopes: z
+			.array(z.string())
+			.optional()
+			.describe('Agentuity scopes requested for the sandbox-scoped token'),
 	})
 	.describe('Request body for creating a coder session');
 export type CoderCreateSessionRequest = z.infer<typeof CoderCreateSessionRequestSchema>;

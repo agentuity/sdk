@@ -601,6 +601,43 @@ describe('CoderClient enabled agent roster contract', () => {
 		});
 	});
 
+	test('createSession sends sandbox scopes in the request body', async () => {
+		mockFetch(async (url, init) => {
+			expect(url).toBe('https://coder.example/api/hub/session');
+			expect(init?.method).toBe('POST');
+			expect(JSON.parse(String(init?.body))).toMatchObject({
+				task: 'Start delegated session',
+				scopes: ['genesis:identity:user_123'],
+			});
+			return new Response(
+				JSON.stringify({
+					sessionId: 'codesess_scoped_create',
+					status: 'creating',
+				}),
+				{
+					status: 201,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
+		});
+
+		const client = new CoderClient({
+			apiKey: 'ag_test',
+			url: 'https://coder.example',
+			orgId: 'org_test',
+		});
+
+		await expect(
+			client.createSession({
+				task: 'Start delegated session',
+				scopes: ['genesis:identity:user_123'],
+			})
+		).resolves.toMatchObject({
+			sessionId: 'codesess_scoped_create',
+			status: 'creating',
+		});
+	});
+
 	test('updateSession sends enabledAgents in the request body', async () => {
 		mockFetch(async (url, init) => {
 			expect(url).toBe('https://coder.example/api/hub/session/codesess_enabled_update');
