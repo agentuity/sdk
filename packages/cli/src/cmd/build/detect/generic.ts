@@ -12,15 +12,25 @@
 import { join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, FrameworkDetector } from './types.ts';
-import { detectPackageManager } from './util.ts';
+import { detectPackageManager, isAgentuityCliInvocation } from './util.ts';
 
 export const genericDetector: FrameworkDetector = {
 	name: 'generic',
 	priority: 100, // Lowest priority — true fallback
 
 	async detect(projectDir, pkg): Promise<DetectedFramework | null> {
+		// Ignore scripts that just re-invoke the agentuity CLI — honoring
+		// them would recurse. v2 → v3 migrations that didn't rewrite
+		// `package.json` scripts hit this all the time.
+		const userBuild = isAgentuityCliInvocation(pkg.scripts?.build)
+			? undefined
+			: pkg.scripts?.build;
+		const userStart = isAgentuityCliInvocation(pkg.scripts?.start)
+			? undefined
+			: pkg.scripts?.start;
+
 		// Must have a package.json with something we can work with
-		if (!pkg.scripts?.build && !pkg.scripts?.start && !pkg.main) {
+		if (!userBuild && !userStart && !pkg.main) {
 			return null;
 		}
 
@@ -30,7 +40,7 @@ export const genericDetector: FrameworkDetector = {
 		// instead of re-interpreting its contents. A script like
 		// `"build": "tsc"` must execute as `npm run build`, not
 		// `npm run tsc`.
-		const buildCommand = pkg.scripts?.build ? 'build' : null;
+		const buildCommand = userBuild ? 'build' : null;
 		if (!buildCommand) {
 			// No build script — might be a runtime-only project
 			// We'll still try if there's a start command
@@ -40,8 +50,8 @@ export const genericDetector: FrameworkDetector = {
 		let startCommand: string | undefined;
 		let serverEntry: string | undefined;
 
-		if (pkg.scripts?.start) {
-			startCommand = pkg.scripts.start;
+		if (userStart) {
+			startCommand = userStart;
 		} else if (pkg.main) {
 			// Check if main entry exists
 			if (await pathExists(join(projectDir, pkg.main))) {

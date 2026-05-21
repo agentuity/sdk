@@ -13,7 +13,7 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { run } from '../../../node-compat/proc.ts';
-import { getRunCommand } from '../detect/util.ts';
+import { getRunCommand, isAgentuityCliInvocation } from '../detect/util.ts';
 import type { BuildAdapter, BuildAdapterOptions, BuildResult } from './types.ts';
 import type { MonorepoContext } from '../detect/monorepo.ts';
 
@@ -201,6 +201,19 @@ export async function runBuildCommand(
 		cmd = runCmd.split(' ').concat(buildCommand);
 	} else {
 		cmd = ['sh', '-c', buildCommand];
+	}
+
+	// Last-resort guard against build-loop recursion. The detector strips
+	// `agentuity ...` scripts before they get here, but if some new code
+	// path ever lets one through, fail loudly with a useful message instead
+	// of silently shelling into ourselves.
+	if (isAgentuityCliInvocation(buildCommand)) {
+		throw new Error(
+			`Refusing to run build command \`${buildCommand}\` — it would re-invoke the agentuity CLI ` +
+				`and cause infinite recursion. Update the project's package.json "build" script ` +
+				`to call the framework directly (e.g. "vite build", "next build"), or remove it ` +
+				`so the framework default applies.`
+		);
 	}
 
 	logger?.debug(`Running build command: ${cmd.join(' ')}`);

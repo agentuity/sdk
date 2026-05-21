@@ -11,6 +11,7 @@ import {
 	getRunCommand,
 	getExecCommand,
 	readPackageJson,
+	isAgentuityCliInvocation,
 } from '../../../../src/cmd/build/detect/util';
 import type { PackageJsonData } from '../../../../src/cmd/build/detect/types';
 
@@ -252,6 +253,54 @@ describe('Detection Utilities', () => {
 			const result = await readPackageJson(testDir);
 			expect(result!.engines!.node).toBe('>=18');
 			expect(result!.engines!.bun).toBe('>=1.0.0');
+		});
+	});
+
+	describe('isAgentuityCliInvocation', () => {
+		test('matches bare agentuity invocations', () => {
+			expect(isAgentuityCliInvocation('agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('agentuity dev')).toBe(true);
+			expect(isAgentuityCliInvocation('  agentuity  build  ')).toBe(true);
+			expect(isAgentuityCliInvocation('AGENTUITY build')).toBe(true);
+		});
+
+		test('matches common runner prefixes', () => {
+			expect(isAgentuityCliInvocation('npx agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('npx --yes agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('npx -y agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('bunx agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('bun x agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('pnpm dlx agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('pnpm exec agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('yarn dlx agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('yarn agentuity build')).toBe(true);
+		});
+
+		test('matches local bin paths', () => {
+			expect(isAgentuityCliInvocation('./node_modules/.bin/agentuity build')).toBe(true);
+		});
+
+		test('strips env-var prefixes', () => {
+			expect(isAgentuityCliInvocation('NODE_ENV=production agentuity build')).toBe(true);
+			expect(isAgentuityCliInvocation('cross-env NODE_ENV=production agentuity build')).toBe(
+				true
+			);
+			expect(isAgentuityCliInvocation('FOO=bar BAZ=qux agentuity build')).toBe(true);
+		});
+
+		test('does not match other commands', () => {
+			expect(isAgentuityCliInvocation('vite build')).toBe(false);
+			expect(isAgentuityCliInvocation('next build')).toBe(false);
+			expect(isAgentuityCliInvocation('bun src/index.ts')).toBe(false);
+			expect(isAgentuityCliInvocation('npx vite build')).toBe(false);
+			expect(isAgentuityCliInvocation('agentuity-something-else build')).toBe(false);
+		});
+
+		test('handles empty / nullish input', () => {
+			expect(isAgentuityCliInvocation(undefined)).toBe(false);
+			expect(isAgentuityCliInvocation(null)).toBe(false);
+			expect(isAgentuityCliInvocation('')).toBe(false);
+			expect(isAgentuityCliInvocation('   ')).toBe(false);
 		});
 	});
 });

@@ -131,6 +131,17 @@ describe('Framework Detection', () => {
 			const result = await detectFramework(testDir);
 			expect(result!.buildCommand).toBe('next build && do-something-else');
 		});
+
+		test('ignores `agentuity build` script (v2 leftover) and falls back to framework default', async () => {
+			writePackageJson(testDir, {
+				name: 'my-next-app',
+				dependencies: { next: '^15.0.0' },
+				scripts: { build: 'agentuity build' },
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result!.buildCommand).toBe('next build');
+		});
 	});
 
 	// ── Nuxt ──
@@ -330,6 +341,16 @@ describe('Framework Detection', () => {
 			expect(result).not.toBeNull();
 			expect(result!.confidence).toBe('low');
 			expect(result!.buildCommand).toBe('build');
+		});
+
+		test('returns null when the only build script just invokes agentuity', async () => {
+			writePackageJson(testDir, {
+				name: 'orphan-v2-project',
+				scripts: { build: 'agentuity build', start: 'agentuity start' },
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result).toBeNull();
 		});
 
 		test('detects static project with build but no start', async () => {

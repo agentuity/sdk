@@ -13,7 +13,7 @@
 import { join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
-import { readPackageJson, detectPackageManager } from './util.ts';
+import { readPackageJson, detectPackageManager, isAgentuityCliInvocation } from './util.ts';
 import { frameworkDefinitions, type FrameworkDefinition } from './frameworks.ts';
 import { detectFromDatabase } from './engine.ts';
 import { genericDetector } from './generic.ts';
@@ -134,8 +134,14 @@ async function frameworkDefToDetected(
 ): Promise<DetectedFramework> {
 	const pm = await detectPackageManager(projectDir);
 
-	// Use the project's build script if available, otherwise the framework default
-	const resolvedBuildCommand = pkg.scripts?.build ?? definition.buildCommand ?? 'npm run build';
+	// Use the project's build script if available, otherwise the framework default.
+	// Skip the user's script when it just invokes `agentuity` itself — honoring
+	// it would make `agentuity build` shell out to `agentuity build` and recurse.
+	// Common shape on v2 → v3 migrations that didn't rewrite scripts.
+	const userBuild = pkg.scripts?.build;
+	const userBuildIsAgentuity = isAgentuityCliInvocation(userBuild);
+	const resolvedBuildCommand =
+		(userBuildIsAgentuity ? undefined : userBuild) ?? definition.buildCommand ?? 'npm run build';
 
 	// Resolve output directory — prefer the framework's dynamic resolver
 	// (e.g. Angular reads angular.json) over the static default.

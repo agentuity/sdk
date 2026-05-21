@@ -11,6 +11,32 @@
 import { SERVICE_PACKAGE_MAP, type V3OutdatedPackage } from '../../detect-v3';
 
 /**
+ * Return true when a `package.json` script just shells out to the
+ * `agentuity` CLI. Catches the same leading-runner shapes the build
+ * detector uses (`npx`, `bunx`, `pnpm dlx`, `pnpm exec`, `yarn dlx`,
+ * `./node_modules/.bin/...`) plus any leading `KEY=value` env-var
+ * assignments and `cross-env`. Kept local to the migrator so we
+ * don't have to depend on `@agentuity/cli`.
+ *
+ * Mirrors `packages/cli/src/cmd/build/detect/util.ts::isAgentuityCliInvocation`.
+ */
+function invokesAgentuityCli(cmd: string | undefined | null): boolean {
+	if (!cmd) return false;
+	let rest = cmd.trim();
+	rest = rest.replace(/^cross-env\s+/i, '');
+	while (/^[A-Z_][A-Z0-9_]*=\S+\s+/i.test(rest)) {
+		rest = rest.replace(/^[A-Z_][A-Z0-9_]*=\S+\s+/i, '');
+	}
+	rest = rest.replace(
+		/^(?:npx(?:\s+(?:--yes|-y))?|bunx|bun\s+x|pnpm\s+(?:dlx|exec)|yarn(?:\s+dlx)?)\s+/i,
+		''
+	);
+	const first = rest.split(/\s+/, 1)[0] ?? '';
+	const bin = first.replace(/^\.\/(?:node_modules\/\.bin\/)?/i, '').toLowerCase();
+	return bin === 'agentuity';
+}
+
+/**
  * Packages that existed in v2 but are removed in v3.
  *
  * v3 is a deliberate "eject" — agent framework magic (evals, workbench) and
@@ -175,11 +201,7 @@ export function transformPackageJsonV3(
 
 	// Ensure a start script exists that points to the new entry point.
 	// The buildpack's generic detector uses this to determine how to run the app.
-	if (
-		!scripts.start ||
-		scripts.start.includes('.agentuity') ||
-		scripts.start.includes('agentuity')
-	) {
+	if (!scripts.start || invokesAgentuityCli(scripts.start)) {
 		const oldStart = scripts.start;
 		scripts.start = 'bun src/index.ts';
 		if (oldStart) {
@@ -187,6 +209,33 @@ export function transformPackageJsonV3(
 		} else {
 			changes.push(`Added start script: "${scripts.start}"`);
 		}
+	}
+
+	// Rewrite `build` / `dev` scripts that still shell out to the agentuity
+	// CLI. v2 scaffolds shipped these as `agentuity build` / `agentuity dev`;
+	// leaving them in place on v3 causes `bun run build` → `agentuity build`
+	// → (CLI honors the `build` script) → `agentuity build` recursion. The
+	// migrator's output is a plain Hono app, so:
+	//   - `dev` only gets overridden here when `dev-setup` didn't already
+	//     supply one (Hono+Vite SPA case). Pure Hono dev = bun --hot.
+	//   - `build` gets removed entirely — a plain Hono app has no build step.
+	//     The buildpack runs `<pm> install --production` and the start
+	//     script directly. We don't try to guess `vite build` here because
+	//     SPA setups already get explicit `dev` / `server:api` scripts from
+	//     `dev-setup`, and any user with a separate build step can re-add it.
+	const devFromSetup = options?.devScripts?.dev;
+	if (scripts.dev && invokesAgentuityCli(scripts.dev) && !devFromSetup) {
+		const oldDev = scripts.dev;
+		scripts.dev = 'bun --hot src/index.ts';
+		changes.push(`Replaced dev script: "${oldDev}" → "${scripts.dev}"`);
+	}
+	if (scripts.build && invokesAgentuityCli(scripts.build)) {
+		const oldBuild = scripts.build;
+		delete scripts.build;
+		changes.push(
+			`Removed build script ("${oldBuild}") — v3 Hono apps have no build step; ` +
+				'add a framework-specific build command back if you need one.'
+		);
 	}
 
 	// Apply dev scripts from dev-setup transform

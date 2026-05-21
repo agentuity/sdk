@@ -44,6 +44,47 @@ export function hasDependencyMatching(pkg: PackageJsonData, pattern: RegExp): bo
 }
 
 /**
+ * Match a shell command that, when executed, would invoke the agentuity
+ * CLI itself. We use this to refuse to honor `package.json` scripts that
+ * just shell out to `agentuity build` / `agentuity dev` (a leftover from
+ * v2 scaffolds) — running them from inside `agentuity build` recurses
+ * forever.
+ *
+ * Recognised forms (case-insensitive on the binary name):
+ *
+ *   agentuity ...
+ *   ./node_modules/.bin/agentuity ...
+ *   npx agentuity ... / npx --yes agentuity ... / npx -y agentuity ...
+ *   bunx agentuity ... / bun x agentuity ...
+ *   pnpm dlx agentuity ... / pnpm exec agentuity ...
+ *   yarn agentuity ... / yarn dlx agentuity ...
+ *
+ * Leading `cross-env FOO=bar` / `FOO=bar` env-var prefixes are stripped
+ * before matching so the check survives the usual real-world wrappers.
+ */
+export function isAgentuityCliInvocation(cmd: string | undefined | null): boolean {
+	if (!cmd) return false;
+	let rest = cmd.trim();
+	// Strip a leading `cross-env` wrapper.
+	rest = rest.replace(/^cross-env\s+/i, '');
+	// Strip leading `KEY=value` env-var assignments (any number).
+	while (/^[A-Z_][A-Z0-9_]*=\S+\s+/i.test(rest)) {
+		rest = rest.replace(/^[A-Z_][A-Z0-9_]*=\S+\s+/i, '');
+	}
+	// Strip a single leading runner prefix that's documented to fall through
+	// to its first non-flag arg: npx, bunx, `bun x`, `pnpm dlx`, `pnpm exec`,
+	// `yarn dlx`, `yarn`.
+	rest = rest.replace(
+		/^(?:npx(?:\s+(?:--yes|-y))?|bunx|bun\s+x|pnpm\s+(?:dlx|exec)|yarn(?:\s+dlx)?)\s+/i,
+		''
+	);
+	// Now `rest` should start with the binary name.
+	const first = rest.split(/\s+/, 1)[0] ?? '';
+	const bin = first.replace(/^\.\/(?:node_modules\/\.bin\/)?/i, '').toLowerCase();
+	return bin === 'agentuity';
+}
+
+/**
  * Detect which package manager the project uses by checking lockfiles.
  */
 export async function detectPackageManager(projectDir: string): Promise<PackageManager> {
