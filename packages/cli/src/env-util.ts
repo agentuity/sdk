@@ -25,25 +25,6 @@ export const AGENTUITY_ALLOWED_KEYS = [
 ] as const;
 
 /**
- * Prefixes for AGENTUITY_ keys that are injected by the platform when a
- * resource is provisioned (bucket, etc.). These are treated like regular
- * user env vars: written to .env, synced to the cloud project, and routed
- * through the normal env/secret classification — not stripped as reserved.
- *
- * Note: There is also a whitelist on the API side that must be kept in sync.
- */
-export const AGENTUITY_RESOURCE_PREFIXES = ['AGENTUITY_BUCKET_'] as const;
-
-/**
- * Check if a key is an AGENTUITY_ key that comes from a provisioned resource
- * (and therefore should be allowed through the reserved-key filter).
- */
-export function isResourceProvidedAgentuityKey(key: string): boolean {
-	const upperKey = key.toUpperCase();
-	return AGENTUITY_RESOURCE_PREFIXES.some((prefix) => upperKey.startsWith(prefix));
-}
-
-/**
  * Check if a key is a public variable (exposed to frontend)
  */
 export function isPublicVarKey(key: string): boolean {
@@ -63,9 +44,6 @@ export function isReservedAgentuityKey(key: string): boolean {
 		return false;
 	}
 	if (AGENTUITY_ALLOWED_KEYS.includes(key as (typeof AGENTUITY_ALLOWED_KEYS)[number])) {
-		return false;
-	}
-	if (isResourceProvidedAgentuityKey(upperKey)) {
 		return false;
 	}
 	return true;
@@ -444,62 +422,6 @@ export function looksLikeSecret(key: string, value: string): boolean {
 	}
 
 	return false;
-}
-
-/**
- * Normalize an env map coming from a provisioned bucket resource into the
- * canonical `AGENTUITY_BUCKET_*` shape used by `@agentuity/storage` and the
- * service template. If only the platform's raw `AWS_*` keys are present,
- * translate them; if `AGENTUITY_BUCKET_*` are already present, drop any
- * `AWS_*` partner keys so the two schemes don't coexist on disk.
- *
- * Mirrors the host/endpoint resolution rule in
- * `packages/storage/src/types.ts` (`resolveEndpoint`):
- *   `AGENTUITY_BUCKET_ENDPOINT = "<AWS_BUCKET>.<host(AWS_ENDPOINT)>"`
- * with scheme stripped from the host so the SDK can re-prefix it.
- */
-export function normalizeBucketEnv(envVars: EnvVars): EnvVars {
-	const out: EnvVars = { ...envVars };
-
-	const hasAgentuityEndpoint = !!out.AGENTUITY_BUCKET_ENDPOINT;
-	const hasAgentuityAccess = !!out.AGENTUITY_BUCKET_ACCESS_KEY;
-	const hasAgentuitySecret = !!out.AGENTUITY_BUCKET_SECRET_KEY;
-
-	const awsHost = out.AWS_ENDPOINT;
-	const awsBucket = out.AWS_BUCKET;
-	const awsAccess = out.AWS_ACCESS_KEY_ID;
-	const awsSecret = out.AWS_SECRET_ACCESS_KEY;
-	const awsRegion = out.AWS_REGION;
-
-	if (!hasAgentuityEndpoint && awsHost && awsBucket) {
-		const hostOnly = awsHost.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-		out.AGENTUITY_BUCKET_ENDPOINT = `${awsBucket}.${hostOnly}`;
-	}
-	if (!hasAgentuityAccess && awsAccess) {
-		out.AGENTUITY_BUCKET_ACCESS_KEY = awsAccess;
-	}
-	if (!hasAgentuitySecret && awsSecret) {
-		out.AGENTUITY_BUCKET_SECRET_KEY = awsSecret;
-	}
-	if (!out.AGENTUITY_BUCKET_REGION && awsRegion) {
-		out.AGENTUITY_BUCKET_REGION = awsRegion;
-	}
-
-	// Drop AWS_* partners once we have the canonical AGENTUITY_BUCKET_* set,
-	// so projects don't end up with two parallel naming schemes in .env.
-	if (
-		out.AGENTUITY_BUCKET_ENDPOINT &&
-		out.AGENTUITY_BUCKET_ACCESS_KEY &&
-		out.AGENTUITY_BUCKET_SECRET_KEY
-	) {
-		delete out.AWS_ENDPOINT;
-		delete out.AWS_BUCKET;
-		delete out.AWS_ACCESS_KEY_ID;
-		delete out.AWS_SECRET_ACCESS_KEY;
-		delete out.AWS_REGION;
-	}
-
-	return out;
 }
 
 /**

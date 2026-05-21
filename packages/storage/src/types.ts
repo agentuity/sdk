@@ -78,28 +78,17 @@ export function resolveEndpoint(bucket: BucketConfig): string {
 /**
  * Build a `BucketConfig` from environment variables.
  *
- * Two naming schemes are recognised, in this priority order:
+ * Uses the standard AWS naming scheme — same one the AWS SDKs and CLI
+ * read — so no key translation is needed when targeting AWS or any
+ * S3-compatible service. This matches what the Agentuity platform
+ * injects when a bucket is provisioned:
  *
- * 1. **Agentuity-canonical** —
- *    `AGENTUITY_BUCKET_ENDPOINT`,
- *    `AGENTUITY_BUCKET_ACCESS_KEY`,
- *    `AGENTUITY_BUCKET_SECRET_KEY`,
- *    optional `AGENTUITY_BUCKET_REGION`.
- *    The endpoint is treated as bucket-scoped
- *    (virtual-hosted-style, `<bucket>.<host>`) and used as-is.
+ *   `AWS_ENDPOINT` (shared host) + `AWS_BUCKET` (bucket name) +
+ *   `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`,
+ *   optional `AWS_REGION`.
  *
- * 2. **AWS-style fallback** —
- *    `AWS_ENDPOINT` (shared host) + `AWS_BUCKET` (bucket name) +
- *    `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`,
- *    optional `AWS_REGION`.
- *    This matches what the Agentuity platform currently injects
- *    when a bucket is provisioned (host and bucket are kept
- *    separate). Falls through to it only if no
- *    `AGENTUITY_BUCKET_ENDPOINT` is set.
- *
- * Throws a single, descriptive error when neither scheme yields a
- * complete configuration so callers can surface a useful message at
- * startup or first request.
+ * Throws a descriptive error when the required vars are missing so
+ * callers can surface a useful message at startup or first request.
  *
  * Pass an explicit `env` (defaults to `process.env`) to make this
  * unit-testable without mutating global state.
@@ -107,39 +96,24 @@ export function resolveEndpoint(bucket: BucketConfig): string {
 export function bucketConfigFromEnv(
 	env: Record<string, string | undefined> = process.env
 ): BucketConfig {
-	// 1. Agentuity-canonical naming.
-	const agentuityEndpoint = env.AGENTUITY_BUCKET_ENDPOINT;
-	const agentuityAccess = env.AGENTUITY_BUCKET_ACCESS_KEY;
-	const agentuitySecret = env.AGENTUITY_BUCKET_SECRET_KEY;
-	if (agentuityEndpoint && agentuityAccess && agentuitySecret) {
+	const host = env.AWS_ENDPOINT;
+	const bucket = env.AWS_BUCKET;
+	const access = env.AWS_ACCESS_KEY_ID;
+	const secret = env.AWS_SECRET_ACCESS_KEY;
+	if (host && bucket && access && secret) {
 		return {
-			endpoint: agentuityEndpoint,
-			access_key: agentuityAccess,
-			secret_key: agentuitySecret,
-			region: env.AGENTUITY_BUCKET_REGION,
-		};
-	}
-
-	// 2. AWS-style fallback (matches the platform's current injection).
-	const awsHost = env.AWS_ENDPOINT;
-	const awsBucket = env.AWS_BUCKET;
-	const awsAccess = env.AWS_ACCESS_KEY_ID;
-	const awsSecret = env.AWS_SECRET_ACCESS_KEY;
-	if (awsHost && awsBucket && awsAccess && awsSecret) {
-		return {
-			host: awsHost,
-			bucket: awsBucket,
-			access_key: awsAccess,
-			secret_key: awsSecret,
+			host,
+			bucket,
+			access_key: access,
+			secret_key: secret,
 			region: env.AWS_REGION,
 		};
 	}
 
 	throw new Error(
-		'Storage env vars are not set. Expected AGENTUITY_BUCKET_ENDPOINT + ' +
-			'AGENTUITY_BUCKET_ACCESS_KEY + AGENTUITY_BUCKET_SECRET_KEY, or the ' +
-			'AWS-equivalents (AWS_ENDPOINT + AWS_BUCKET + AWS_ACCESS_KEY_ID + ' +
-			'AWS_SECRET_ACCESS_KEY). Provision an Agentuity bucket or set them manually.'
+		'Storage env vars are not set. Expected AWS_ENDPOINT + AWS_BUCKET + ' +
+			'AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY. Provision an Agentuity ' +
+			'bucket or set them manually.'
 	);
 }
 

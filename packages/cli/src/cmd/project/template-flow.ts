@@ -30,7 +30,6 @@ import {
 	type EnvVars,
 	filterAgentuitySdkKeys,
 	findExistingEnvFile,
-	normalizeBucketEnv,
 	readEnvFile,
 	splitEnvAndSecrets,
 } from '../../env-util.ts';
@@ -607,11 +606,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 							{ type: 's3', name: bucketName, description: bucketDescription },
 						]),
 				});
-				if (created[0]?.env) Object.assign(resourceEnvVars, normalizeBucketEnv(created[0].env));
+				if (created[0]?.env) Object.assign(resourceEnvVars, created[0].env);
 			} else if (s3Action && s3Action !== 'Skip') {
 				const selectedBucket = resources?.s3.find((b) => b.bucket_name === s3Action);
-				if (selectedBucket?.env)
-					Object.assign(resourceEnvVars, normalizeBucketEnv(selectedBucket.env));
+				if (selectedBucket?.env) Object.assign(resourceEnvVars, selectedBucket.env);
 			}
 		}
 	}

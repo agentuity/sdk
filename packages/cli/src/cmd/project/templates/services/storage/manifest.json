@@ -12,16 +12,20 @@
   ],
   "envVars": [
     {
-      "name": "AGENTUITY_BUCKET_ENDPOINT",
-      "placeholder": "your-bucket.agentuity.run",
-      "comment": "Set automatically when an Agentuity bucket is provisioned (or use AWS_ENDPOINT + AWS_BUCKET as a fallback)"
+      "name": "AWS_ENDPOINT",
+      "placeholder": "https://s3.amazonaws.com",
+      "comment": "Set automatically when an Agentuity bucket is provisioned"
     },
     {
-      "name": "AGENTUITY_BUCKET_ACCESS_KEY",
+      "name": "AWS_BUCKET",
+      "placeholder": "my-bucket"
+    },
+    {
+      "name": "AWS_ACCESS_KEY_ID",
       "placeholder": ""
     },
     {
-      "name": "AGENTUITY_BUCKET_SECRET_KEY",
+      "name": "AWS_SECRET_ACCESS_KEY",
       "placeholder": ""
     }
   ],

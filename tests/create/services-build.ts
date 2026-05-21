@@ -88,10 +88,11 @@ async function run(cmd: string[], opts: RunOptions): Promise<boolean> {
 function buildEnv(): Record<string, string> {
 	return {
 		DATABASE_URL: 'postgres://user:pass@localhost:5432/agentuity_test',
-		AGENTUITY_BUCKET_ENDPOINT: 'test-bucket.agentuity.test',
-		AGENTUITY_BUCKET_ACCESS_KEY: 'test-access-key',
-		AGENTUITY_BUCKET_SECRET_KEY: 'test-secret-key',
-		AGENTUITY_BUCKET_REGION: 'auto',
+		AWS_ENDPOINT: 'https://agentuity.test',
+		AWS_BUCKET: 'test-bucket',
+		AWS_ACCESS_KEY_ID: 'test-access-key',
+		AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+		AWS_REGION: 'auto',
 		OPENAI_API_KEY: 'test-openai-key',
 		OPENAI_BASE_URL: 'https://api.agentuity.test/v1',
 	};
