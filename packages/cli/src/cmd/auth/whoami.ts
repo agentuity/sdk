@@ -50,9 +50,7 @@ export const whoamiCommand = createSubcommand({
 			organizations: user.organizations,
 		};
 
-		if (options.json) {
-			console.log(JSON.stringify(result, null, 2));
-		} else {
+		if (!options.json) {
 			const fullName = `${user.firstName} ${user.lastName}`;
 
 			tui.newline();

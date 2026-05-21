@@ -9,6 +9,13 @@ export {
 	type CoderCreateSessionRequest,
 	type CoderUpdateSessionRequest,
 	type CoderListSessionsParams,
+	type FileToWrite,
+	type SandboxCommand,
+	type SandboxCreateOptions,
+	type SandboxNetworkConfig,
+	type SandboxResources,
+	type SandboxStreamConfig,
+	type SandboxTimeoutConfig,
 	// Session domain types
 	type CoderSessionVisibility,
 	type CoderWorkflowMode,

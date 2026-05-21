@@ -1,4 +1,12 @@
 import { z } from 'zod/v4';
+import {
+	FileToWriteSchema,
+	SandboxCommandSchema,
+	SandboxNetworkConfigSchema,
+	SandboxResourcesSchema,
+	SandboxStreamConfigSchema,
+	SandboxTimeoutConfigSchema,
+} from '../sandbox/types.ts';
 
 export const CoderSessionVisibilitySchema = z
 	.enum(['private', 'organization', 'collaborate'])
@@ -651,18 +659,59 @@ export const CoderCreateSessionRequestSchema = z
 			.string()
 			.optional()
 			.describe('Workspace identifier associated with the session'),
+		projectId: z.string().optional().describe('Project ID to associate the session sandbox with'),
+		runtime: z
+			.string()
+			.optional()
+			.describe('Runtime name for the session sandbox (e.g., "bun:1", "python:3.14")'),
+		runtimeId: z
+			.string()
+			.optional()
+			.describe('Runtime ID for the session sandbox (e.g., "srt_xxx")'),
+		name: z.string().optional().describe('Optional sandbox name'),
+		description: z.string().optional().describe('Optional sandbox description'),
+		resources: SandboxResourcesSchema.optional().describe(
+			'Resource limits for the session sandbox'
+		),
 		env: z
 			.record(z.string(), z.string())
 			.optional()
 			.describe('Environment variables injected into session runtime'),
+		network: SandboxNetworkConfigSchema.optional().describe(
+			'Network configuration for the session sandbox'
+		),
+		stream: SandboxStreamConfigSchema.optional().describe(
+			'Stream configuration for the session sandbox'
+		),
+		timeout: SandboxTimeoutConfigSchema.optional().describe(
+			'Timeout configuration for the session sandbox'
+		),
+		command: SandboxCommandSchema.optional().describe(
+			'Initial command to run in the session sandbox'
+		),
+		files: z
+			.array(FileToWriteSchema)
+			.optional()
+			.describe('Files to write to the session sandbox workspace on creation'),
+		snapshot: z.string().optional().describe('Snapshot ID or tag to restore the sandbox from'),
+		dependencies: z
+			.array(z.string())
+			.optional()
+			.describe('Apt packages to install when creating the session sandbox'),
+		packages: z
+			.array(z.string())
+			.optional()
+			.describe('npm/bun packages to install globally when creating the session sandbox'),
 		metadata: z
-			.record(z.string(), z.string())
+			.record(z.string(), z.unknown())
 			.optional()
 			.describe('Arbitrary metadata associated with the session'),
 		scopes: z
 			.array(z.string())
 			.optional()
-			.describe('Agentuity scopes requested for the sandbox-scoped token'),
+			.describe(
+				'Permission scopes for automatic service access (e.g., "services:read", "services:write")'
+			),
 	})
 	.describe('Request body for creating a coder session');
 export type CoderCreateSessionRequest = z.infer<typeof CoderCreateSessionRequestSchema>;

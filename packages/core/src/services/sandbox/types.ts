@@ -229,8 +229,8 @@ export type SandboxStreamConfig = z.infer<typeof SandboxStreamConfigSchema>;
 export const FileToWriteSchema = z.object({
 	/** Path to the file relative to the sandbox workspace */
 	path: z.string().describe('Path to the file relative to the sandbox workspace'),
-	/** File content as a Buffer */
-	content: z.instanceof(Buffer).describe('File content as a Buffer'),
+	/** File content as bytes */
+	content: z.instanceof(Uint8Array).describe('File content as bytes'),
 });
 export type FileToWrite = z.infer<typeof FileToWriteSchema>;
 
