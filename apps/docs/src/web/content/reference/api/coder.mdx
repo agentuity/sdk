@@ -202,6 +202,12 @@ Session creation payload.
     "required": false
   },
   {
+    "name": "skills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills",
+    "required": false
+  },
+  {
     "name": "repo",
     "type": "object",
     "description": "Primary repository mounted for the session",
@@ -388,15 +394,219 @@ Session creation payload.
     "required": false
   },
   {
+    "name": "projectId",
+    "type": "string",
+    "description": "Project ID to associate the session sandbox with",
+    "required": false
+  },
+  {
+    "name": "runtime",
+    "type": "string",
+    "description": "Runtime name for the session sandbox (e.g., \"bun:1\", \"python:3.14\")",
+    "required": false
+  },
+  {
+    "name": "runtimeId",
+    "type": "string",
+    "description": "Runtime ID for the session sandbox (e.g., \"srt_xxx\")",
+    "required": false
+  },
+  {
+    "name": "name",
+    "type": "string",
+    "description": "Optional sandbox name",
+    "required": false
+  },
+  {
+    "name": "description",
+    "type": "string",
+    "description": "Optional sandbox description",
+    "required": false
+  },
+  {
+    "name": "resources",
+    "type": "object",
+    "description": "Resource limits for the session sandbox",
+    "required": false
+  },
+  {
+    "name": "resources.memory",
+    "type": "string",
+    "description": "Memory limit (e.g., \"500Mi\", \"1Gi\")",
+    "required": false
+  },
+  {
+    "name": "resources.cpu",
+    "type": "string",
+    "description": "CPU limit in millicores (e.g., \"500m\", \"1000m\")",
+    "required": false
+  },
+  {
+    "name": "resources.disk",
+    "type": "string",
+    "description": "Disk limit (e.g., \"500Mi\", \"1Gi\")",
+    "required": false
+  },
+  {
     "name": "env",
     "type": "object",
     "description": "Environment variables injected into session runtime",
     "required": false
   },
   {
+    "name": "network",
+    "type": "object",
+    "description": "Network configuration for the session sandbox",
+    "required": false
+  },
+  {
+    "name": "network.enabled",
+    "type": "boolean",
+    "description": "Whether to enable outbound network access (default: false)",
+    "required": false
+  },
+  {
+    "name": "network.port",
+    "type": "number",
+    "description": "Port to expose from the sandbox to the outside Internet (1024-65535)",
+    "required": false
+  },
+  {
+    "name": "stream",
+    "type": "object",
+    "description": "Stream configuration for the session sandbox",
+    "required": false
+  },
+  {
+    "name": "stream.stdout",
+    "type": "string",
+    "description": "Stream ID for stdout (or \"ignore\" to discard)",
+    "required": false
+  },
+  {
+    "name": "stream.stderr",
+    "type": "string",
+    "description": "Stream ID for stderr (or \"ignore\" to discard)",
+    "required": false
+  },
+  {
+    "name": "stream.stdin",
+    "type": "string",
+    "description": "Stream ID for stdin input",
+    "required": false
+  },
+  {
+    "name": "stream.timestamps",
+    "type": "boolean",
+    "description": "Include timestamps in output (default: true)",
+    "required": false
+  },
+  {
+    "name": "timeout",
+    "type": "object",
+    "description": "Timeout configuration for the session sandbox",
+    "required": false
+  },
+  {
+    "name": "timeout.idle",
+    "type": "string",
+    "description": "Idle timeout before sandbox is reaped (e.g., \"10m\", \"1h\")",
+    "required": false
+  },
+  {
+    "name": "timeout.execution",
+    "type": "string",
+    "description": "Maximum execution time per command (e.g., \"5m\", \"1h\")",
+    "required": false
+  },
+  {
+    "name": "timeout.paused",
+    "type": "string",
+    "description": "Maximum duration a sandbox can remain paused before termination (e.g., \"24h\", \"0\" for infinite)",
+    "required": false
+  },
+  {
+    "name": "command",
+    "type": "object",
+    "description": "Initial command to run in the session sandbox",
+    "required": false
+  },
+  {
+    "name": "command.exec",
+    "type": "string[]",
+    "description": "Command and arguments to execute",
+    "required": true
+  },
+  {
+    "name": "command.files",
+    "type": "object[]",
+    "description": "Files to create before execution",
+    "required": false
+  },
+  {
+    "name": "command.files[].path",
+    "type": "string",
+    "description": "Path to the file relative to the sandbox workspace",
+    "required": true
+  },
+  {
+    "name": "command.files[].content",
+    "type": "any",
+    "description": "File content as bytes",
+    "required": true
+  },
+  {
+    "name": "command.mode",
+    "type": "string",
+    "description": "Execution mode: \"oneshot\" auto-destroys sandbox on exit",
+    "required": false
+  },
+  {
+    "name": "files",
+    "type": "object[]",
+    "description": "Files to write to the session sandbox workspace on creation",
+    "required": false
+  },
+  {
+    "name": "files[].path",
+    "type": "string",
+    "description": "Path to the file relative to the sandbox workspace",
+    "required": true
+  },
+  {
+    "name": "files[].content",
+    "type": "any",
+    "description": "File content as bytes",
+    "required": true
+  },
+  {
+    "name": "snapshot",
+    "type": "string",
+    "description": "Snapshot ID or tag to restore the sandbox from",
+    "required": false
+  },
+  {
+    "name": "dependencies",
+    "type": "string[]",
+    "description": "Apt packages to install when creating the session sandbox",
+    "required": false
+  },
+  {
+    "name": "packages",
+    "type": "string[]",
+    "description": "npm/bun packages to install globally when creating the session sandbox",
+    "required": false
+  },
+  {
     "name": "metadata",
     "type": "object",
     "description": "Arbitrary metadata associated with the session",
+    "required": false
+  },
+  {
+    "name": "scopes",
+    "type": "string[]",
+    "description": "Permission scopes for automatic service access (e.g., \"services:read\", \"services:write\")",
     "required": false
   }
 ]} />
@@ -940,6 +1150,11 @@ Returns a session list.
     "description": "Canonical URL for the skill repository or page"
   },
   {
+    "name": "sessions.websocket[].skills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
+  },
+  {
     "name": "sessions.websocket[].enabledAgents",
     "type": "string[]",
     "description": "Enabled agent roster attached to the session"
@@ -1450,6 +1665,11 @@ Returns the full session object.
     "description": "Canonical URL for the skill repository or page"
   },
   {
+    "name": "skills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
+  },
+  {
     "name": "enabledAgents",
     "type": "string[]",
     "description": "Enabled agent roster attached to the session"
@@ -1635,6 +1855,11 @@ Returns the full session object.
     "description": "Canonical URL for the skill repository or page"
   },
   {
+    "name": "builder.proposal.savedSkills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
+  },
+  {
     "name": "builder.proposal.companionAgents",
     "type": "string[]",
     "description": "Proposed companion agents to auto-include"
@@ -1801,6 +2026,12 @@ Session update payload.
     "name": "skills[].url",
     "type": "string",
     "description": "Canonical URL for the skill repository or page",
+    "required": false
+  },
+  {
+    "name": "skills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills",
     "required": false
   },
   {
@@ -2652,6 +2883,11 @@ Returns custom agents visible to the caller.
     "description": "Canonical URL for the skill repository or page"
   },
   {
+    "name": "agents[].savedSkills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
+  },
+  {
     "name": "agents[].companionAgents",
     "type": "string[]",
     "description": "Companion agents auto-included alongside this custom agent"
@@ -2782,6 +3018,11 @@ Returns custom agents visible to the caller.
     "description": "Canonical URL for the skill repository or page"
   },
   {
+    "name": "agents[].published.savedSkills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
+  },
+  {
     "name": "agents[].published.companionAgents",
     "type": "string[]",
     "description": "Companion agents auto-included alongside this custom agent"
@@ -2885,6 +3126,11 @@ Returns custom agents visible to the caller.
     "name": "agents[].draft.savedSkills[].url",
     "type": "string",
     "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "agents[].draft.savedSkills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
   },
   {
     "name": "agents[].draft.companionAgents",
@@ -3364,6 +3610,11 @@ Returns published versions for the custom agent.
     "name": "versions[].savedSkills[].url",
     "type": "string",
     "description": "Canonical URL for the skill repository or page"
+  },
+  {
+    "name": "versions[].savedSkills[].content",
+    "type": "string",
+    "description": "Inline SKILL.md content for custom skills"
   },
   {
     "name": "versions[].companionAgents",

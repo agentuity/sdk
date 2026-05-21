@@ -8,6 +8,7 @@ export const docsRedirects = {
 	frontendWorkbench: '/frontend',
 	agentsEvaluations: '/cookbook/patterns/llm-as-a-judge',
 	referenceApiEvaluations: '/reference/api',
+	referenceCoder: '/reference/sdk-reference/coder',
 	referenceSdkEvaluations: '/reference/sdk-reference',
 } as const;
 
@@ -32,6 +33,10 @@ export const docRedirectRules = [
 	{
 		paths: ['/reference/api/evaluations', '/reference/api/evaluations/'],
 		target: docsRedirects.referenceApiEvaluations,
+	},
+	{
+		paths: ['/reference/coder', '/reference/coder/'],
+		target: docsRedirects.referenceCoder,
 	},
 	{
 		paths: ['/reference/sdk-reference/evaluations', '/reference/sdk-reference/evaluations/'],

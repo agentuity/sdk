@@ -62,6 +62,7 @@ import { Route as DocsReferenceStandalonePackagesRouteImport } from './routes/_d
 import { Route as DocsReferenceMigrationGuideRouteImport } from './routes/_docs/reference/migration-guide';
 import { Route as DocsReferenceGravityNetworkRouteImport } from './routes/_docs/reference/gravity-network';
 import { Route as DocsReferenceGithubAppRouteImport } from './routes/_docs/reference/github-app';
+import { Route as DocsReferenceCoderRouteImport } from './routes/_docs/reference/coder';
 import { Route as DocsGetStartedWhatIsAgentuityRouteImport } from './routes/_docs/get-started/what-is-agentuity';
 import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get-started/quickstart';
 import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_docs/get-started/project-structure';
@@ -461,6 +462,11 @@ const DocsReferenceGravityNetworkRoute = DocsReferenceGravityNetworkRouteImport.
 const DocsReferenceGithubAppRoute = DocsReferenceGithubAppRouteImport.update({
 	id: '/reference/github-app',
 	path: '/reference/github-app',
+	getParentRoute: () => DocsRouteRoute,
+} as any);
+const DocsReferenceCoderRoute = DocsReferenceCoderRouteImport.update({
+	id: '/reference/coder',
+	path: '/reference/coder',
 	getParentRoute: () => DocsRouteRoute,
 } as any);
 const DocsGetStartedWhatIsAgentuityRoute = DocsGetStartedWhatIsAgentuityRouteImport.update({
@@ -1230,6 +1236,7 @@ export interface FileRoutesByFullPath {
 	'/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/reference/coder': typeof DocsReferenceCoderRoute;
 	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
@@ -1418,6 +1425,7 @@ export interface FileRoutesByTo {
 	'/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/reference/coder': typeof DocsReferenceCoderRoute;
 	'/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
@@ -1610,6 +1618,7 @@ export interface FileRoutesById {
 	'/_docs/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute;
 	'/_docs/get-started/quickstart': typeof DocsGetStartedQuickstartRoute;
 	'/_docs/get-started/what-is-agentuity': typeof DocsGetStartedWhatIsAgentuityRoute;
+	'/_docs/reference/coder': typeof DocsReferenceCoderRoute;
 	'/_docs/reference/github-app': typeof DocsReferenceGithubAppRoute;
 	'/_docs/reference/gravity-network': typeof DocsReferenceGravityNetworkRoute;
 	'/_docs/reference/migration-guide': typeof DocsReferenceMigrationGuideRoute;
@@ -1802,6 +1811,7 @@ export interface FileRouteTypes {
 		| '/get-started/project-structure'
 		| '/get-started/quickstart'
 		| '/get-started/what-is-agentuity'
+		| '/reference/coder'
 		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
@@ -1990,6 +2000,7 @@ export interface FileRouteTypes {
 		| '/get-started/project-structure'
 		| '/get-started/quickstart'
 		| '/get-started/what-is-agentuity'
+		| '/reference/coder'
 		| '/reference/github-app'
 		| '/reference/gravity-network'
 		| '/reference/migration-guide'
@@ -2181,6 +2192,7 @@ export interface FileRouteTypes {
 		| '/_docs/get-started/project-structure'
 		| '/_docs/get-started/quickstart'
 		| '/_docs/get-started/what-is-agentuity'
+		| '/_docs/reference/coder'
 		| '/_docs/reference/github-app'
 		| '/_docs/reference/gravity-network'
 		| '/_docs/reference/migration-guide'
@@ -2716,6 +2728,13 @@ declare module '@tanstack/react-router' {
 			path: '/reference/github-app';
 			fullPath: '/reference/github-app';
 			preLoaderRoute: typeof DocsReferenceGithubAppRouteImport;
+			parentRoute: typeof DocsRouteRoute;
+		};
+		'/_docs/reference/coder': {
+			id: '/_docs/reference/coder';
+			path: '/reference/coder';
+			fullPath: '/reference/coder';
+			preLoaderRoute: typeof DocsReferenceCoderRouteImport;
 			parentRoute: typeof DocsRouteRoute;
 		};
 		'/_docs/get-started/what-is-agentuity': {
@@ -3809,6 +3828,7 @@ interface DocsRouteRouteChildren {
 	DocsGetStartedProjectStructureRoute: typeof DocsGetStartedProjectStructureRoute;
 	DocsGetStartedQuickstartRoute: typeof DocsGetStartedQuickstartRoute;
 	DocsGetStartedWhatIsAgentuityRoute: typeof DocsGetStartedWhatIsAgentuityRoute;
+	DocsReferenceCoderRoute: typeof DocsReferenceCoderRoute;
 	DocsReferenceGithubAppRoute: typeof DocsReferenceGithubAppRoute;
 	DocsReferenceGravityNetworkRoute: typeof DocsReferenceGravityNetworkRoute;
 	DocsReferenceMigrationGuideRoute: typeof DocsReferenceMigrationGuideRoute;
@@ -3935,6 +3955,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
 	DocsGetStartedProjectStructureRoute: DocsGetStartedProjectStructureRoute,
 	DocsGetStartedQuickstartRoute: DocsGetStartedQuickstartRoute,
 	DocsGetStartedWhatIsAgentuityRoute: DocsGetStartedWhatIsAgentuityRoute,
+	DocsReferenceCoderRoute: DocsReferenceCoderRoute,
 	DocsReferenceGithubAppRoute: DocsReferenceGithubAppRoute,
 	DocsReferenceGravityNetworkRoute: DocsReferenceGravityNetworkRoute,
 	DocsReferenceMigrationGuideRoute: DocsReferenceMigrationGuideRoute,
