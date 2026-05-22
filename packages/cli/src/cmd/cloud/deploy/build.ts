@@ -36,6 +36,7 @@ import type { Logger } from '@agentuity/core';
 import { type BuildMetadata, type Deployment, projectDeploymentUpdate } from '@agentuity/server';
 import type { APIClient } from '../../../api.ts';
 import type { BuildReportCollector } from '../../../build-report.ts';
+import { getCachedProject } from '../../../cache/index.ts';
 import { loadBuildMetadata } from '../../../config.ts';
 import { generateDeployMetadata } from '../../../deploy-metadata.ts';
 import {
@@ -67,6 +68,13 @@ export interface BuildStepParams {
 	hasReportFile: boolean;
 	/** Pipeline state accumulator (shared with other phases). */
 	state: DeployPipelineState;
+	/**
+	 * CLI config — used to look up the cached cloud project (populated by
+	 * the Register phase) so the generated build metadata can pin
+	 * `project.name` to the cloud's registered name rather than the
+	 * possibly-renamed package.json `name`.
+	 */
+	config?: { name?: string } | null;
 }
 
 /**
@@ -98,6 +106,15 @@ export function buildBuildStep(params: BuildStepParams): Step {
 			}
 			const capturedOutput: string[] = [];
 			const rootDir = resolve(projectDir);
+
+			// The Register phase pulls the cloud project (for region
+			// reconciliation) and caches it. Pin `project.name` in the
+			// generated metadata to the cloud's registered name so renaming
+			// `package.json` `"name"` doesn't try to rename the cloud project
+			// — the server rejects that with a name-collision error when any
+			// other project in the org already uses the new name.
+			const profile = params.config?.name ?? 'default';
+			const registeredProjectName = getCachedProject(profile, project.projectId)?.name;
 
 			try {
 				// Run the shared build pipeline: detect framework + monorepo,
@@ -154,6 +171,12 @@ export function buildBuildStep(params: BuildStepParams): Step {
 				if (isAgentuity) {
 					build = await loadBuildMetadata(buildResult.outputDir);
 					build.launch = packageResult.launch;
+					// Same pinning logic as the non-agentuity branch below: prefer
+					// the cloud's registered name over whatever package.json (and
+					// thus the Vite plugin) wrote into agentuity.metadata.json.
+					if (registeredProjectName) {
+						build.project.name = registeredProjectName;
+					}
 				} else {
 					build = await generateDeployMetadata({
 						buildResult,
@@ -165,6 +188,7 @@ export function buildBuildStep(params: BuildStepParams): Step {
 						deploymentId: deployment.id,
 						deploymentConfig: project.deployment,
 						deploymentOptions: deployOptions,
+						registeredProjectName,
 						logger,
 					});
 				}

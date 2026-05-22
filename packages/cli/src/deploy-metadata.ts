@@ -176,6 +176,20 @@ export interface GenerateDeployMetadataOptions {
 	deploymentConfig?: z.infer<typeof DeploymentConfig>;
 	/** Deploy CLI options (git info, etc.) */
 	deploymentOptions?: DeployOptions;
+	/**
+	 * The project's registered name in the cloud, if known. When set, this is
+	 * used as `project.name` in the generated metadata instead of the
+	 * package.json `name` field. The cloud project name is the source of
+	 * truth once a project is registered; renaming package.json should not
+	 * try to silently rename the cloud project (which fails with a name
+	 * collision against any other project in the org with that name).
+	 *
+	 * Tracked server-side at agentuity/infra#482 — once the platform stops
+	 * using `project.name` from BuildMetadata as a uniqueness key on the
+	 * deployment-update path, the pinning here becomes redundant and can
+	 * be removed.
+	 */
+	registeredProjectName?: string;
 	/** Logger */
 	logger: Logger;
 }
@@ -201,6 +215,7 @@ export async function generateDeployMetadata(
 		deploymentId,
 		deploymentConfig,
 		deploymentOptions,
+		registeredProjectName,
 		logger,
 	} = options;
 
@@ -239,7 +254,11 @@ export async function generateDeployMetadata(
 		assets,
 		project: {
 			id: projectId,
-			name: pkgContents.name || kebabize(basename(projectDir)),
+			// Once a project is registered, its name is owned by the cloud, not
+			// package.json. Renaming package.json must not try to rename the
+			// cloud project (the server enforces name uniqueness within an org
+			// and will reject the deploy if the new name collides).
+			name: registeredProjectName ?? pkgContents.name ?? kebabize(basename(projectDir)),
 			version: pkgContents.version,
 			description: pkgContents.description,
 			keywords: pkgContents.keywords,

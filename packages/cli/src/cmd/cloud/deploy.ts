@@ -508,6 +508,7 @@ export const deploySubcommand = createSubcommand({
 						deployOptions: opts,
 						hasReportFile: Boolean(opts.reportFile),
 						state: pipelineState,
+						config,
 					}),
 					{
 						label: 'Security Scan',
