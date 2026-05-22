@@ -41,7 +41,7 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@opencode-ai/plugin": "^1.1.36",
+		"@opencode-ai/plugin": "^1.15.5",
 		"yaml": "^2.8.1",
 		"zod": "^4.3.5"
 	},

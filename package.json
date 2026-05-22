@@ -62,11 +62,12 @@
 		"@better-auth/core": "1.5.2",
 		"cookie": "0.7.2",
 		"dompurify": "3.4.2",
-		"kysely": "0.29.0",
+		"kysely": "0.29.2",
 		"langsmith": "0.6.0",
 		"mermaid": "11.15.0",
 		"postcss": "8.5.14",
-		"protobufjs": "8.0.2"
+		"protobufjs": "8.2.0",
+		"uuid": "^11.1.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.5",
