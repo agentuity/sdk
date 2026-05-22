@@ -392,4 +392,21 @@ describe('splitEnvAndSecrets', () => {
 			DATABASE_URL: 'url',
 		});
 	});
+
+	test('classifies AWS bucket credentials as secrets', () => {
+		const result = splitEnvAndSecrets({
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_BUCKET: 'mybucket',
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AWS_SECRET_ACCESS_KEY: 'sekret',
+		});
+		expect(result.env).toEqual({
+			AWS_ENDPOINT: 'https://s3.example.com',
+			AWS_BUCKET: 'mybucket',
+		});
+		expect(result.secrets).toEqual({
+			AWS_ACCESS_KEY_ID: 'AKIA...',
+			AWS_SECRET_ACCESS_KEY: 'sekret',
+		});
+	});
 });

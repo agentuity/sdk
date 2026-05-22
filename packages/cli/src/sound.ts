@@ -1,4 +1,7 @@
-export function playSound(): void {
+import { spawnDetached } from './node-compat/proc.ts';
+import { which } from './node-compat/which.ts';
+
+export async function playSound(): Promise<void> {
 	const platform = process.platform;
 
 	let command: string[];
@@ -18,11 +21,9 @@ export function playSound(): void {
 	}
 
 	const executable = command[0];
-	if (process.stdout.isTTY && executable && Bun.which(executable)) {
+	if (process.stdout.isTTY && executable && (await which(executable))) {
 		try {
-			Bun.spawn(command, {
-				stdio: ['ignore', 'ignore', 'ignore'],
-			}).unref();
+			spawnDetached({ cmd: command });
 		} catch {
 			/* ignore */
 		}

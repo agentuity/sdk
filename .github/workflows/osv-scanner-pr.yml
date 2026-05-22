@@ -9,6 +9,9 @@ permissions:
   contents: read
   security-events: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   scan-pr:
     name: OSV Scanner PR
@@ -16,8 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          fetch-depth: 0
-          persist-credentials: false
+           fetch-depth: 0
+           persist-credentials: false
 
       - name: Checkout target branch
         env:

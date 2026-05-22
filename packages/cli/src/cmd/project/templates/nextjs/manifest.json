@@ -1,0 +1,8 @@
+{
+	"framework": "nextjs",
+	"displayName": "Next.js",
+	"checklistFile": {
+		"path": "src/app/page.tsx",
+		"syntax": "{/* */}"
+	}
+}

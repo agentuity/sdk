@@ -1,11 +1,11 @@
 import { machineDelete, machineGet } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 const MachineDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the deletion succeeded'),

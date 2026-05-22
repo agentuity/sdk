@@ -1,0 +1,79 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+
+	"workspaces": {
+		".": {
+			"entry": ["scripts/*.ts"],
+			"project": ["scripts/**/*.ts"]
+		},
+		"packages/cli": {
+			"entry": ["src/main.ts", "bin/cli.js", "test/**/*.test.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"]
+		},
+		"packages/core": {
+			"entry": [
+				"src/index.ts",
+				"src/**/index.ts",
+				"test/**/*.test.ts",
+				"src/services/api-reference.ts",
+				"src/services/*/api-reference.ts"
+			],
+			"project": ["src/**/*.ts", "test/**/*.ts"]
+		},
+		"packages/server": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/adapter": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/analytics": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/telemetry": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/stream": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/hono": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+
+		"packages/db": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/email": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/keyvalue": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/queue": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/sandbox": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/schedule": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/storage": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/task": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/vector": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/webhook": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/coder": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] },
+		"packages/coder-tui": {
+			"entry": ["src/index.ts", "src/remote-tui.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"packages/migrate": {
+			"entry": ["bin/migrate.ts", "src/index.ts"],
+			"project": ["src/**/*.ts", "bin/**/*.ts"]
+		},
+		"packages/create-agentuity": {
+			"entry": ["src/bin.ts", "src/index.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"packages/test-utils": { "entry": ["src/index.ts"], "project": ["src/**/*.ts"] }
+	},
+	"ignoreWorkspaces": [
+		"docs",
+		"tests/**",
+		"packages/runtime",
+		"packages/postgres",
+		"packages/drizzle",
+		"packages/schema",
+		"packages/local",
+		"packages/vscode",
+		"packages/claude-code",
+		"packages/opencode"
+	],
+	"ignore": [
+		"**/dist/**",
+		"**/.cache/**",
+		"**/templates/**",
+		"**/.test-projects/**",
+		"**/test-results/**",
+		"**/test-interop/**",
+		"**/generated/**",
+		"**/*.gen.ts"
+	],
+	"ignoreBinaries": ["gh", "opencode", "amp", "npm"],
+	"ignoreDependencies": ["@mariozechner/pi-coding-agent"]
+}

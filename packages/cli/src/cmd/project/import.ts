@@ -1,12 +1,12 @@
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { isTTY } from '../../auth';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import * as tui from '../../tui';
-import { createSubcommand } from '../../types';
-import { runProjectImport } from './reconcile';
-import { runRemoteImport } from './remote-import';
+import { isTTY } from '../../auth.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import * as tui from '../../tui.ts';
+import { createSubcommand } from '../../types.ts';
+import { runProjectImport } from './reconcile.ts';
+import { runRemoteImport } from './remote-import.ts';
 
 const ProjectImportResponseSchema = z.object({
 	success: z.boolean().describe('Whether the import succeeded'),

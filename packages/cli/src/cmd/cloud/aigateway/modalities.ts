@@ -1,12 +1,15 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { StructuredError, type AIGatewayService } from '@agentuity/core';
+import { setTimeout } from 'node:timers/promises';
+import { StructuredError } from '@agentuity/core';
+import { type AIGatewayService } from '@agentuity/core/aigateway';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { isJSONMode } from '../../../output';
-import * as tui from '../../../tui';
-import { createCommand } from '../../../types';
-import { createAIGatewayService } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import { readStdinText } from '../../../node-compat/stdin.ts';
+import { isJSONMode } from '../../../output.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { createAIGatewayService } from './util.ts';
 
 const AIGatewayModalityInputError = StructuredError('AIGatewayModalityInputError')<{
 	code: string;
@@ -87,10 +90,10 @@ async function readTextInput(opts: {
 		return opts.input;
 	}
 	if (opts.file) {
-		return await Bun.file(opts.file).text();
+		return await readFile(opts.file, 'utf8');
 	}
 	if (opts.stdin || !process.stdin.isTTY) {
-		const text = await Bun.stdin.text();
+		const text = await readStdinText();
 		if (text.trim().length > 0) return text;
 	}
 	throw new AIGatewayModalityInputError({
@@ -118,26 +121,26 @@ function providerlessModel(model: string): string {
 async function saveBase64(path: string, b64: string): Promise<number> {
 	await ensureParent(path);
 	const bytes = Buffer.from(b64, 'base64');
-	await Bun.write(path, bytes);
+	await writeFile(path, bytes);
 	return bytes.byteLength;
 }
 
 async function saveBinary(path: string, data: unknown): Promise<number> {
 	await ensureParent(path);
 	if (data instanceof ArrayBuffer) {
-		await Bun.write(path, data);
+		await writeFile(path, Buffer.from(data));
 		return data.byteLength;
 	}
 	if (data instanceof Uint8Array) {
-		await Bun.write(path, data);
+		await writeFile(path, data);
 		return data.byteLength;
 	}
 	if (typeof data === 'string') {
-		await Bun.write(path, data);
+		await writeFile(path, data);
 		return Buffer.byteLength(data);
 	}
 	const json = JSON.stringify(data, null, 2);
-	await Bun.write(path, json);
+	await writeFile(path, json);
 	return Buffer.byteLength(json);
 }
 
@@ -381,7 +384,8 @@ export const transcriptionSubcommand = createCommand({
 		const model = await resolveDefaultModel(service, 'transcription', ctx.opts.model);
 		const form = new FormData();
 		form.set('model', model);
-		form.set('file', Bun.file(ctx.opts.file));
+		const file = await readFile(ctx.opts.file);
+		form.set('file', new Blob([file]));
 		if (ctx.opts.language) form.set('language', ctx.opts.language);
 		if (ctx.opts.prompt) form.set('prompt', ctx.opts.prompt);
 		if (ctx.opts.format) form.set('response_format', ctx.opts.format);
@@ -484,7 +488,7 @@ export const videoSubcommand = createCommand({
 				if (response.data.done) {
 					break;
 				}
-				await Bun.sleep(ctx.opts.interval * 1000);
+				await setTimeout(ctx.opts.interval * 1000);
 			}
 		}
 

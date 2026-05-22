@@ -73,33 +73,71 @@ export const BuildAgentSchema = z.object({
 	...BaseAgentFields,
 });
 
+/**
+ * Launch process definition — describes how to start the application.
+ * Produced by the buildpack pipeline for any framework.
+ */
+export const LaunchProcessSchema = z.object({
+	type: z.string().describe('process type (e.g., web, worker)'),
+	command: z.string().describe('command to execute'),
+	default: z.boolean().describe('whether this is the default process'),
+	workingDirectory: z.string().optional().describe('working directory relative to app root'),
+});
+
+export const LaunchMetadataSchema = z.object({
+	processes: z.array(LaunchProcessSchema).describe('application processes'),
+	framework: z.object({
+		name: z.string().describe('detected framework name'),
+		version: z.string().optional().describe('framework version'),
+	}),
+	runtime: z.object({
+		name: z.string().describe('runtime binary (node, bun, deno)'),
+		port: z.number().optional().describe('port the app listens on'),
+	}),
+	build: z.object({
+		date: z.string().describe('build timestamp'),
+		duration: z.number().describe('build duration in ms'),
+	}),
+});
+
+export type LaunchMetadata = z.infer<typeof LaunchMetadataSchema>;
+
 export const BuildMetadataSchema = z.object({
-	routes: z.array(
-		z.object({
-			id: z.string().describe('the unique calculated id for the route'),
-			filename: z.string().describe('the relative path for the file'),
-			path: z.string().describe('the route path'),
-			method: z.enum(['get', 'post', 'put', 'delete', 'patch']).describe('the HTTP method'),
-			version: z.string().describe('the SHA256 content of the file'),
-			type: z.enum(['api', 'sms', 'email', 'cron', 'websocket', 'sse', 'stream']),
-			agentIds: z
-				.array(z.string())
-				.optional()
-				.describe('the agent ids associated with this route'),
-			config: z
-				.record(z.string(), z.unknown())
-				.optional()
-				.describe('type specific configuration'),
-			schema: z
-				.object({
-					input: z.string().optional().describe('JSON schema for input (stringified JSON)'),
-					output: z.string().optional().describe('JSON schema for output (stringified JSON)'),
-				})
-				.optional()
-				.describe('input and output JSON schemas for the route'),
-		})
-	),
-	agents: z.array(BuildAgentSchema),
+	routes: z
+		.array(
+			z.object({
+				id: z.string().describe('the unique calculated id for the route'),
+				filename: z.string().describe('the relative path for the file'),
+				path: z.string().describe('the route path'),
+				method: z.enum(['get', 'post', 'put', 'delete', 'patch']).describe('the HTTP method'),
+				version: z.string().describe('the SHA256 content of the file'),
+				type: z.enum(['api', 'sms', 'email', 'cron', 'websocket', 'sse', 'stream']),
+				agentIds: z
+					.array(z.string())
+					.optional()
+					.describe('the agent ids associated with this route'),
+				config: z
+					.record(z.string(), z.unknown())
+					.optional()
+					.describe('type specific configuration'),
+				schema: z
+					.object({
+						input: z.string().optional().describe('JSON schema for input (stringified JSON)'),
+						output: z
+							.string()
+							.optional()
+							.describe('JSON schema for output (stringified JSON)'),
+					})
+					.optional()
+					.describe('input and output JSON schemas for the route'),
+			})
+		)
+		.default([])
+		.describe('routes — only present for Agentuity native apps'),
+	agents: z
+		.array(BuildAgentSchema)
+		.default([])
+		.describe('agents — only present for Agentuity native apps'),
 	assets: z.array(
 		z.object({
 			filename: z.string().describe('the relative path for the file'),
@@ -175,6 +213,9 @@ export const BuildMetadataSchema = z.object({
 				platform: z.string().describe('the machine os platform'),
 			}),
 		})
+	),
+	launch: LaunchMetadataSchema.optional().describe(
+		'launch metadata — how to start the application (processes, framework, runtime)'
 	),
 });
 

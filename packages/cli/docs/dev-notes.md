@@ -15,20 +15,20 @@ When developing locally, the CLI may encounter version check errors from the API
 
 ```bash
 # Auto-skip (version is 0.0.5)
-bun bin/cli.ts auth login
+bun src/main.ts auth login
 
 # Force skip with CLI flag
-bun bin/cli.ts --skip-version-check auth login
+bun src/main.ts --skip-version-check auth login
 
 # Force skip with env var
-AGENTUITY_SKIP_VERSION_CHECK=1 bun bin/cli.ts auth login
+AGENTUITY_SKIP_VERSION_CHECK=1 bun src/main.ts auth login
 
 # Skip via profile config
 echo 'name: "dev"
 overrides:
   skip_version_check: true' > ~/.config/agentuity/dev.yaml
-bun bin/cli.ts profile use dev
-bun bin/cli.ts auth login
+bun src/main.ts profile use dev
+bun src/main.ts auth login
 ```
 
 ### Limitations:
@@ -39,7 +39,7 @@ The skip only prevents the CLI from showing upgrade errors. If the API server en
 
 To test against a local API server, use profile overrides:
 
-1. Create a dev profile: `bun bin/cli.ts profile create dev`
+1. Create a dev profile: `bun src/main.ts profile create dev`
 2. Edit `~/.config/agentuity/dev.yaml`:
    ```yaml
    name: 'dev'
@@ -47,14 +47,14 @@ To test against a local API server, use profile overrides:
       api_url: http://localhost:3500
       app_url: http://localhost:5173
    ```
-3. Switch to dev profile: `bun bin/cli.ts profile use dev`
+3. Switch to dev profile: `bun src/main.ts profile use dev`
 
 ## Debug Mode
 
 Enable detailed error logging:
 
 ```bash
-bun bin/cli.ts --log-level=debug auth login
+bun src/main.ts --log-level=debug auth login
 ```
 
 This shows:

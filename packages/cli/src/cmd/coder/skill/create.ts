@@ -1,10 +1,11 @@
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { CoderClient } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 async function readSkillContent(input: {
 	content?: string;
@@ -18,7 +19,7 @@ async function readSkillContent(input: {
 		throw new Error('Provide --content or --content-file.');
 	}
 	try {
-		return await Bun.file(input.contentFile).text();
+		return await readFile(input.contentFile, 'utf-8');
 	} catch (error) {
 		throw new Error(
 			`Failed to read content file "${input.contentFile}": ${

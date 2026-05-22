@@ -1,7 +1,7 @@
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
 import { whoami } from '@agentuity/server';
-import { getCommand } from '../../command-prefix';
+import { getCommand } from '../../command-prefix.ts';
 import { z } from 'zod';
 
 const WhoamiResponseSchema = z.object({

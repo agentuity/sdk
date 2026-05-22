@@ -1,8 +1,8 @@
-import { createSubcommand } from '../../../types';
+import { createSubcommand } from '../../../types.ts';
 import { z } from 'zod';
 import { readFileSync, existsSync } from 'node:fs';
-import { getLatestLogSession, getLogsDirPath } from '../../../internal-logger';
-import * as tui from '../../../tui';
+import { getLatestLogSession, getLogsDirPath } from '../../../internal-logger.ts';
+import * as tui from '../../../tui.ts';
 import { join } from 'node:path';
 
 const argsSchema = z.object({});

@@ -1,6 +1,8 @@
-import { join, basename } from 'node:path';
 import { existsSync, statSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import type { Logger } from '@agentuity/core';
+import { pathExists } from '../../node-compat/fs.ts';
 import {
 	projectGet,
 	projectCreate,
@@ -9,21 +11,23 @@ import {
 	type OrganizationList,
 	type RegionList,
 } from '@agentuity/server';
-import type { APIClient } from '../../api';
-import type { AuthData, Config, Project } from '../../types';
-import { loadProjectConfig, createProjectConfig } from '../../config';
-import * as tui from '../../tui';
-import { createPrompt } from '../../tui';
-import { isTTY } from '../../auth';
+import type { APIClient } from '../../api.ts';
+import type { AuthData, Config, Project } from '../../types.ts';
+import { loadProjectConfig, createProjectConfig } from '../../config.ts';
+import * as tui from '../../tui.ts';
+import { createPrompt } from '../../tui.ts';
+import { isTTY } from '../../auth.ts';
 import {
 	findExistingEnvFile,
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
-} from '../../env-util';
-import { fetchRegionsWithCache } from '../../regions';
-import { getCachedProject, setCachedProject } from '../../cache';
+} from '../../env-util.ts';
+import { NO_DEPLOYABLE_PROJECT_MESSAGE } from '../build/detect/index.ts';
+import { fetchRegionsWithCache } from '../../regions.ts';
+import { getCachedProject, setCachedProject } from '../../cache/index.ts';
+import { detectProjectRegistrationMetadata } from './registration-metadata.ts';
 
 export interface ReconcileResult {
 	status: 'valid' | 'imported' | 'skipped' | 'error';
@@ -48,6 +52,14 @@ export interface ReconcileOptions {
 	region?: string;
 	/** Project name from --name flag */
 	name?: string;
+	/**
+	 * When true, suppress the "Would you like to register it now?"
+	 * confirmation in `createNewProject`. Use this when the caller has
+	 * already obtained explicit consent to register — e.g. the user
+	 * typed `agentuity project import`, or answered "yes" to the
+	 * existing-project detour in `agentuity project create`.
+	 */
+	skipRegisterPrompt?: boolean;
 }
 
 /**
@@ -99,9 +111,9 @@ export async function tryLoadProjectConfig(
  */
 export async function getDefaultProjectName(dir: string): Promise<string> {
 	const pkgPath = join(dir, 'package.json');
-	if (await Bun.file(pkgPath).exists()) {
+	if (await pathExists(pkgPath)) {
 		try {
-			const pkg = await Bun.file(pkgPath).json();
+			const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 			if (pkg.name && typeof pkg.name === 'string' && pkg.name.trim()) {
 				// Strip org scope if present (e.g., @myorg/project-name -> project-name)
 				return pkg.name.replace(/^@[^/]+\//, '').trim();
@@ -118,39 +130,37 @@ export async function getDefaultProjectName(dir: string): Promise<string> {
  * @internal Exported for testing
  */
 export async function isValidProjectStructure(dir: string): Promise<boolean> {
-	// Check 1: package.json with @agentuity/runtime and agentuity.config.ts
+	// Check 1: package.json exists (any JS/TS project is valid)
 	const pkgPath = join(dir, 'package.json');
-	const configPath = join(dir, 'agentuity.config.ts');
 
-	if (await Bun.file(pkgPath).exists()) {
+	if (await pathExists(pkgPath)) {
 		try {
-			const pkg = await Bun.file(pkgPath).json();
-			const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-			if (deps['@agentuity/runtime'] && (await Bun.file(configPath).exists())) {
+			const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
+			// Valid if it has a name and at least some structure
+			if (pkg.name || pkg.dependencies || pkg.devDependencies) {
 				return true;
 			}
 		} catch {
-			// Fall through to check child project
+			// Invalid package.json
 		}
 	}
 
-	// Check 2: ./agentuity/ subdirectory exists with valid structure (parent project with child)
+	// Check 2: ./agentuity/ subdirectory exists with a package.json (parent project with child)
 	const agentuityDir = join(dir, 'agentuity');
 	if (existsSync(agentuityDir) && statSync(agentuityDir).isDirectory()) {
 		const childPkgPath = join(agentuityDir, 'package.json');
-		const childConfigPath = join(agentuityDir, 'agentuity.config.ts');
 
-		if (await Bun.file(childPkgPath).exists()) {
-			try {
-				const childPkg = await Bun.file(childPkgPath).json();
-				const childDeps = { ...childPkg.dependencies, ...childPkg.devDependencies };
-				if (childDeps['@agentuity/runtime'] && (await Bun.file(childConfigPath).exists())) {
-					return true;
-				}
-			} catch {
-				// Invalid package.json in child - fall through
-			}
+		if (await pathExists(childPkgPath)) {
+			return true;
 		}
+	}
+
+	// Check 3: bare static HTML deploy (index.html with no package.json).
+	// Must stay in sync with `detectBareStaticHtml` in build/detect/index.ts:
+	// anything detection accepts as a non-package.json entrypoint must also
+	// pass here, or import will reject projects that deploy would build.
+	if (await pathExists(join(dir, 'index.html'))) {
+		return true;
 	}
 
 	return false;
@@ -161,9 +171,8 @@ export async function isValidProjectStructure(dir: string): Promise<boolean> {
  */
 async function updateSdkKeyInEnv(dir: string, sdkKey: string): Promise<void> {
 	const envPath = join(dir, '.env');
-	const envFile = Bun.file(envPath);
 
-	if (await envFile.exists()) {
+	if (await pathExists(envPath)) {
 		// Update existing .env - read, modify, write
 		const existing = await readEnvFile(envPath);
 		existing.AGENTUITY_SDK_KEY = sdkKey;
@@ -173,7 +182,7 @@ async function updateSdkKeyInEnv(dir: string, sdkKey: string): Promise<void> {
 		const comment =
 			'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
 		const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
-		await Bun.write(envPath, content);
+		await writeFile(envPath, content);
 	}
 }
 
@@ -313,6 +322,39 @@ async function textPrompt(options: {
 }
 
 /**
+ * Resolve the cloud project display name for registration/import.
+ * Explicit CLI names are always authoritative over package.json defaults.
+ * @internal Exported for testing.
+ */
+export async function resolveProjectRegistrationName(
+	opts: Pick<ReconcileOptions, 'dir' | 'name' | 'confirm'>
+): Promise<string> {
+	if (opts.name !== undefined) {
+		const trimmed = opts.name.trim();
+		if (trimmed.length === 0) {
+			throw new Error('Project name is required.');
+		}
+		return trimmed;
+	}
+
+	const defaultName = await getDefaultProjectName(opts.dir);
+	if (opts.confirm) {
+		return defaultName;
+	}
+
+	return textPrompt({
+		message: 'Project name:',
+		initial: defaultName,
+		validate: (value: string) => {
+			if (!value || value.trim().length === 0) {
+				return 'Project name is required';
+			}
+			return true;
+		},
+	});
+}
+
+/**
  * Import an existing project (with invalid/inaccessible agentuity.json) to user's org
  */
 async function importExistingProject(
@@ -379,29 +421,17 @@ async function importExistingProject(
 		}
 	}
 
-	// Get project name
-	const defaultName = await getDefaultProjectName(dir);
 	let projectName: string;
-	if (opts.name) {
-		const trimmed = opts.name.trim();
-		if (trimmed.length === 0) {
-			return { status: 'error', message: 'Project name is required.' };
-		}
-		projectName = trimmed;
-	} else if (opts.confirm) {
-		projectName = defaultName;
-	} else {
-		projectName = await textPrompt({
-			message: 'Project name:',
-			initial: defaultName,
-			validate: (value: string) => {
-				if (!value || value.trim().length === 0) {
-					return 'Project name is required';
-				}
-				return true;
-			},
-		});
+	try {
+		projectName = await resolveProjectRegistrationName(opts);
+	} catch (err) {
+		return {
+			status: 'error',
+			message: err instanceof Error ? err.message : 'Project name is required.',
+		};
 	}
+
+	const registrationMetadata = await detectProjectRegistrationMetadata(dir);
 
 	// Create the project
 	const newProject = await tui.spinner({
@@ -412,6 +442,7 @@ async function importExistingProject(
 				name: projectName,
 				orgId,
 				cloudRegion: region,
+				...registrationMetadata,
 			});
 		},
 	});
@@ -453,7 +484,11 @@ async function importExistingProject(
 async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult> {
 	const { dir, apiClient, config, logger } = opts;
 
-	if (opts.interactive !== false) {
+	// Skip the "register now?" prompt when the caller already has
+	// explicit consent (`runProjectImport`, or the create-detour after
+	// the user accepted "import this project instead"). Asking again is
+	// a noisy double-confirm that made the flow feel split.
+	if (opts.interactive !== false && !opts.skipRegisterPrompt) {
 		tui.warning('This project is not registered with Agentuity Cloud.');
 		tui.newline();
 
@@ -511,29 +546,17 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 		}
 	}
 
-	// Get project name from package.json or prompt
-	const defaultName = await getDefaultProjectName(dir);
 	let projectName: string;
-	if (opts.name) {
-		const trimmed = opts.name.trim();
-		if (trimmed.length === 0) {
-			return { status: 'error', message: 'Project name is required.' };
-		}
-		projectName = trimmed;
-	} else if (opts.confirm) {
-		projectName = defaultName;
-	} else {
-		projectName = await textPrompt({
-			message: 'Project name:',
-			initial: defaultName,
-			validate: (value: string) => {
-				if (!value || value.trim().length === 0) {
-					return 'Project name is required';
-				}
-				return true;
-			},
-		});
+	try {
+		projectName = await resolveProjectRegistrationName(opts);
+	} catch (err) {
+		return {
+			status: 'error',
+			message: err instanceof Error ? err.message : 'Project name is required.',
+		};
 	}
+
+	const registrationMetadata = await detectProjectRegistrationMetadata(dir);
 
 	// Create the project
 	const newProject = await tui.spinner({
@@ -544,6 +567,7 @@ async function createNewProject(opts: ReconcileOptions): Promise<ReconcileResult
 				name: projectName,
 				orgId,
 				cloudRegion: region,
+				...registrationMetadata,
 			});
 		},
 	});
@@ -615,7 +639,7 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 			}
 
 			// User doesn't have access - offer to import
-			if (!interactive || validateOnly) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message:
@@ -628,7 +652,7 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 			// Project not found or access denied
 			logger.debug('Failed to get project:', err);
 
-			if (!interactive || validateOnly) {
+			if ((!interactive && !opts.confirm) || validateOnly) {
 				return {
 					status: 'error',
 					message:
@@ -647,14 +671,11 @@ export async function reconcileProject(opts: ReconcileOptions): Promise<Reconcil
 	if (!isValid) {
 		return {
 			status: 'error',
-			message:
-				'This directory does not appear to be a valid Agentuity project. ' +
-				'Expected agentuity.config.ts and @agentuity/runtime dependency, ' +
-				'or an agentuity/ subdirectory.',
+			message: NO_DEPLOYABLE_PROJECT_MESSAGE,
 		};
 	}
 
-	if (!interactive || validateOnly) {
+	if ((!interactive && !opts.confirm) || validateOnly) {
 		return {
 			status: 'error',
 			message:
@@ -742,10 +763,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 	if (!isValid && !opts.confirm) {
 		return {
 			status: 'error',
-			message:
-				'This directory does not appear to be a valid Agentuity project. ' +
-				'Expected agentuity.config.ts and @agentuity/runtime dependency, ' +
-				'or an agentuity/ subdirectory.',
+			message: NO_DEPLOYABLE_PROJECT_MESSAGE,
 		};
 	}
 
@@ -763,5 +781,8 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 		};
 	}
 
-	return await createNewProject(opts);
+	// User explicitly invoked `project import` (or accepted the create
+	// detour); skip the redundant "register it now?" confirm inside
+	// createNewProject.
+	return await createNewProject({ ...opts, skipRegisterPrompt: true });
 }

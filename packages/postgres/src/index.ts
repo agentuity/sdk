@@ -1,8 +1,13 @@
 /**
- * @agentuity/postgres - Resilient PostgreSQL client with automatic reconnection
+ * @agentuity/postgres - DEPRECATED
  *
- * This package provides a PostgreSQL client that wraps Bun's native SQL driver
- * and adds automatic reconnection with exponential backoff.
+ * Use pg or drizzle-orm/node-postgres directly against your DATABASE_URL.
+ * This package is no longer recommended for new projects.
+ *
+ * ~~Resilient PostgreSQL client with automatic reconnection~~
+ *
+ * This package provided a PostgreSQL client that wrapped Bun's native SQL driver
+ * and added automatic reconnection with exponential backoff.
  *
  * @example
  * ```typescript

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createQueueAPIClient, getQueueApiOptions } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { createQueueAPIClient, getQueueApiOptions } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 import {
 	getOrgAnalytics,
 	getQueueAnalytics,
@@ -293,5 +293,3 @@ export const statsSubcommand = createCommand({
 		return { type: 'org' as const, analytics };
 	},
 });
-
-export default statsSubcommand;

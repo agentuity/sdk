@@ -18,7 +18,6 @@ import { registerDeploymentExplorer } from './features/deploymentExplorer';
 import { registerSandboxExplorer } from './features/sandboxExplorer';
 import { disposeSandboxManager } from './core/sandboxManager';
 import { registerDevServerCommands } from './features/devServer';
-import { registerWorkbenchCommands } from './features/workbench';
 import {
 	registerChatParticipant,
 	registerCliTool,
@@ -84,7 +83,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 
 	registerDevServerCommands(context);
-	registerWorkbenchCommands(context);
 	registerChatParticipant(context);
 	registerCliTool(context);
 	registerChatContextProvider(context);

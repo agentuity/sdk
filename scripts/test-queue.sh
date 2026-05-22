@@ -8,7 +8,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="bun $SDK_ROOT/packages/cli/bin/cli.ts"
+
+# Exercise the BUILT CLI, not the source TypeScript. This catches
+# build-only regressions (missing assets, Node-only errors, etc.)
+# that `bun src/main.ts` would mask. CLI_RUNTIME chooses bun vs
+# node so the same script can be matrixed in CI.
+source "$SDK_ROOT/scripts/lib/ensure-cli-built.sh"
+CLI_RUNTIME="${CLI_RUNTIME:-node}"
+CLI="$CLI_RUNTIME $SDK_ROOT/packages/cli/bin/cli.js"
+echo "→ Using CLI runtime: $CLI_RUNTIME (CLI=\"$CLI\")"
 
 # Get commit SHA for queue descriptions
 COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -87,8 +95,10 @@ fi
 section "CREATE Command Tests"
 # ============================================
 
-# Generate unique queue name
-QUEUE_NAME="test_queue_$(date +%s)"
+# Generate unique queue name. Include CLI_RUNTIME and a random
+# component so parallel matrix jobs (bun + node) and concurrent CI
+# runs don't collide on the same name.
+QUEUE_NAME="test_queue_${CLI_RUNTIME:-node}_$(date +%s)_${RANDOM}"
 
 # Test: Create worker queue
 info "Test: queue create worker"
@@ -157,7 +167,7 @@ fi
 
 # Test: Publish with idempotency key
 info "Test: queue publish with idempotency key"
-IDEM_KEY="test-idem-$(date +%s)"
+IDEM_KEY="test-idem-${CLI_RUNTIME:-node}-$(date +%s)-${RANDOM}"
 PUBLISH_IDEM_OUTPUT=$($CLI cloud queue publish "$QUEUE_NAME" '{"task":"test3"}' --idempotency-key "$IDEM_KEY" --json 2>&1) || true
 if echo "$PUBLISH_IDEM_OUTPUT" | grep -q '"id".*"qmsg_'; then
 	pass "queue publish with idempotency key succeeds"
@@ -482,7 +492,7 @@ section "PUBSUB Queue Type Tests"
 # ============================================
 
 # Test: Create pubsub queue
-PUBSUB_QUEUE_NAME="test_pubsub_$(date +%s)"
+PUBSUB_QUEUE_NAME="test_pubsub_${CLI_RUNTIME:-node}_$(date +%s)_${RANDOM}"
 info "Test: queue create pubsub"
 PUBSUB_CREATE_OUTPUT=$($CLI cloud queue create pubsub --name "$PUBSUB_QUEUE_NAME" --description "$QUEUE_DESC" --json 2>&1) || true
 if echo "$PUBSUB_CREATE_OUTPUT" | grep -q '"queue_type".*"pubsub"'; then

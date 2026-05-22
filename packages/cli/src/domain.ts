@@ -1,7 +1,9 @@
-import type { Config } from './types';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { StructuredError } from '@agentuity/core';
-import { getIONHost } from './config';
-import * as tui from './tui';
+import { getIONHost } from './config.ts';
+import { shortHash16 } from './node-compat/crypto.ts';
+import * as tui from './tui.ts';
+import type { Config } from './types.ts';
 
 interface BaseDNSResult {
 	domain: string;
@@ -104,7 +106,7 @@ export async function checkCustomDomainForDNS(
 	config?: Config | null
 ): Promise<DNSResult[]> {
 	const suffix = config?.overrides?.api_url?.includes('agentuity.io') ? LOCAL_DNS : PRODUCTION_DNS;
-	const id = Bun.hash.xxHash64(projectId).toString(16).padStart(16, '0');
+	const id = shortHash16(projectId);
 	const proxy = `p${id}.${suffix}`;
 
 	// Resolve the ION host A record(s) so we can validate A records
@@ -146,7 +148,7 @@ export async function checkCustomDomainForDNS(
 
 			// Step 1: Check CNAME record
 			try {
-				let timeoutId: Timer | undefined;
+				let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					timeoutId = setTimeout(() => {
@@ -215,7 +217,7 @@ export async function checkCustomDomainForDNS(
 			// Step 2: Check A record (supports apex domains and ALIAS/ANAME/CNAME-flattening)
 			if (ionIPs.length > 0) {
 				try {
-					let aTimeoutId: Timer | undefined;
+					let aTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
 					const aTimeoutPromise = new Promise<never>((_, reject) => {
 						aTimeoutId = setTimeout(() => {
@@ -344,7 +346,7 @@ export async function promptForDNS(
 				message: 'Checking again in 5s...',
 				clearOnSuccess: true,
 				callback: () => {
-					return Bun.sleep(5000);
+					return sleep(5000);
 				},
 			});
 			tui.clearLastLines(linesShown);

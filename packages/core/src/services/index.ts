@@ -1,6 +1,5 @@
 export * from './adapter.ts';
 export * from './aigateway/index.ts';
-export * from './auth/index.ts';
 export * from './email/index.ts';
 export * from './exception.ts';
 export * from './keyvalue/index.ts';
@@ -17,7 +16,6 @@ export * from './api.ts';
 
 export * from './apikey/index.ts';
 export * from './db/index.ts';
-export * from './eval/index.ts';
 export * from './machine/index.ts';
 export * from './monitoring/index.ts';
 export * from './oauth/index.ts';

@@ -1,0 +1,39 @@
+{
+  "id": "storage",
+  "label": "Storage",
+  "hint": "Export history as files in object storage",
+  "description": "Object storage (S3-compatible) for file uploads and downloads.",
+  "order": 50,
+  "requires": [
+    "db"
+  ],
+  "packages": [
+    "@agentuity/storage"
+  ],
+  "envVars": [
+    {
+      "name": "AWS_ENDPOINT",
+      "placeholder": "https://s3.amazonaws.com",
+      "comment": "Set automatically when an Agentuity bucket is provisioned"
+    },
+    {
+      "name": "AWS_BUCKET",
+      "placeholder": "my-bucket"
+    },
+    {
+      "name": "AWS_ACCESS_KEY_ID",
+      "placeholder": ""
+    },
+    {
+      "name": "AWS_SECRET_ACCESS_KEY",
+      "placeholder": ""
+    }
+  ],
+  "frameworks": [
+    "nextjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "hono"
+  ]
+}

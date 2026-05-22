@@ -6,10 +6,10 @@ import {
 } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
 
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
 
 function formatRelativeTime(isoDate: string): string {
 	const parsed = new Date(isoDate).getTime();

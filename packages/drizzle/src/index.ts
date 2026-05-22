@@ -1,7 +1,12 @@
 /**
- * @agentuity/drizzle - Drizzle ORM integration with resilient PostgreSQL connections
+ * @agentuity/drizzle - DEPRECATED
  *
- * This package provides a seamless integration between Drizzle ORM and
+ * Use drizzle-orm/node-postgres with pg directly against your DATABASE_URL.
+ * This package is no longer recommended for new projects.
+ *
+ * ~~Drizzle ORM integration with resilient PostgreSQL connections~~
+ *
+ * This package provided a seamless integration between Drizzle ORM and
  * @agentuity/postgres, combining type-safe database queries with automatic
  * reconnection capabilities.
  *
@@ -123,6 +128,3 @@ export {
 	index,
 	check,
 } from 'drizzle-orm/pg-core';
-
-// Re-export better-auth drizzle adapter for use with @agentuity/auth
-export { drizzleAdapter } from 'better-auth/adapters/drizzle';

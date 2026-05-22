@@ -1,21 +1,21 @@
-import { createCommand } from '../../../types';
-import { listSubcommand } from './list';
-import { createSubcommand } from './create';
-import { getSubcommand } from './get';
-import { deleteSubcommand } from './delete';
-import { publishSubcommand } from './publish';
-import { messagesSubcommand } from './messages';
-import { receiveSubcommand } from './receive';
-import { ackSubcommand } from './ack';
-import { nackSubcommand } from './nack';
-import { dlqSubcommand } from './dlq';
-import { destinationsSubcommand } from './destinations';
-import { sourcesSubcommand } from './sources';
-import { consumersSubcommand } from './consumers';
-import { pauseSubcommand } from './pause';
-import { resumeSubcommand } from './resume';
-import { statsSubcommand } from './stats';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { createSubcommand } from './create.ts';
+import { getSubcommand } from './get.ts';
+import { deleteSubcommand } from './delete.ts';
+import { publishSubcommand } from './publish.ts';
+import { messagesSubcommand } from './messages.ts';
+import { receiveSubcommand } from './receive.ts';
+import { ackSubcommand } from './ack.ts';
+import { nackSubcommand } from './nack.ts';
+import { dlqSubcommand } from './dlq.ts';
+import { destinationsSubcommand } from './destinations.ts';
+import { sourcesSubcommand } from './sources.ts';
+import { consumersSubcommand } from './consumers.ts';
+import { pauseSubcommand } from './pause.ts';
+import { resumeSubcommand } from './resume.ts';
+import { statsSubcommand } from './stats.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'queue',

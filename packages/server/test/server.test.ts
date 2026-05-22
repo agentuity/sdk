@@ -1,5 +1,5 @@
 import { describe, test, expect, mock } from 'bun:test';
-import { createServerFetchAdapter, redact } from '../src/server.ts';
+import { createServerFetchAdapter, redact } from '../src/index.ts';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
 describe('redact', () => {

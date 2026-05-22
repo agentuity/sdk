@@ -10,6 +10,9 @@ permissions:
   id-token: write # Required for npm Trusted Publishers (OIDC)
 
 concurrency:
+  # Never cancel an in-flight release: a half-cancelled run can leave npm in a
+  # partially-published state (some packages at the new version, others not).
+  # New pushes to main will queue and run after the current release finishes.
   group: release-next-${{ github.ref_name }}
   cancel-in-progress: false
 
@@ -17,6 +20,7 @@ env:
   CI: true
   GITHUB_TOKEN: ''
   NODE_ENV: production
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
@@ -76,11 +80,28 @@ jobs:
           NODE_ENV: test
         run: bun run test:unit
 
+      # The CLI's compiled dist/bin/cli.js ships with a #!/usr/bin/env
+      # node shebang and must run under Node 24+. Smoke this
+      # end-to-end so a regression that re-introduces a Bun-only API
+      # gets caught before publish.
+      - name: Setup Node.js for CLI smoke test
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: CLI smoke test under Node
+        run: |
+          set -euo pipefail
+          cd packages/cli
+          node ./dist/bin/cli.js --version
+          node ./dist/bin/cli.js --help > /dev/null
+
   release:
     name: Release to npm
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: build-and-test
+    # Only run for pushes to main (next tag)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
@@ -100,24 +121,7 @@ jobs:
           node-version: '24'
 
       - name: Build packages
-        run: bun run build:packages
-
-      # Build additional packages not covered by build:packages
-      - name: Build remaining packages
-        run: |
-          bun run --filter='./packages/claude-code' build
-          bun run --filter='./packages/coder' build
-          bun run --filter='./packages/coder-tui' build
-          bun run --filter='./packages/db' build
-          bun run --filter='./packages/email' build
-          bun run --filter='./packages/keyvalue' build
-          bun run --filter='./packages/migrate' build
-          bun run --filter='./packages/queue' build
-          bun run --filter='./packages/sandbox' build
-          bun run --filter='./packages/schedule' build
-          bun run --filter='./packages/task' build
-          bun run --filter='./packages/vector' build
-          bun run --filter='./packages/webhook' build
+        run: bun run build
 
       - name: Publish packages
         run: |
@@ -130,7 +134,6 @@ jobs:
             "packages/claude-code"
             "packages/coder"
             "packages/coder-tui"
-            "packages/frontend"
             "packages/schema"
             "packages/server"
             "packages/queue"
@@ -142,14 +145,11 @@ jobs:
             "packages/schedule"
             "packages/sandbox"
             "packages/task"
-            "packages/auth"
-            "packages/evals"
             "packages/webhook"
             "packages/keyvalue"
             "packages/email"
-            "packages/react"
+            "packages/storage"
             "packages/cli"
-            "packages/workbench"
             "packages/db"
           )
 
@@ -167,10 +167,6 @@ jobs:
 
             (cd "$pkg_path" && npm publish --tag next --access public)
           done
-        # Uses npm Trusted Publishers (OIDC) - no token needed
-        # Requires: GitHub-hosted runner + Node 24+ (npm v11.x+)
-        # Provenance is automatically generated for GitHub Actions
-        # Configure on npm: https://docs.npmjs.com/trusted-publishers
 
       - name: Summary
         run: |
@@ -178,7 +174,7 @@ jobs:
           {
             echo "## 📦 Released to npm"
             echo ""
-            echo "**Version:** \`${VERSION}\`"
+            echo "**Version:** \`$VERSION\`"
             echo "**Tag:** \`next\`"
             echo ""
             echo "Install with:"
@@ -186,3 +182,4 @@ jobs:
             echo "npm install @agentuity/core@next"
             echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY"
+

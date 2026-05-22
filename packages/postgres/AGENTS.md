@@ -108,10 +108,6 @@ console.log(hasActiveClients());
 await shutdownAll(5000); // 5 second timeout
 ```
 
-## Runtime Integration
-
-When `@agentuity/runtime` is available, the package automatically registers a shutdown hook. This means all postgres clients are closed during graceful shutdown without any additional code.
-
 ## Testing
 
 - Tests require a running PostgreSQL instance

@@ -1,6 +1,6 @@
-import { createCommand } from '../../../../types';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
+import { createCommand } from '../../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
 
 export const inboundCommand = createCommand({
 	name: 'inbound',
@@ -9,5 +9,3 @@ export const inboundCommand = createCommand({
 	requires: { auth: true },
 	subcommands: [listSubcommand, getSubcommand],
 });
-
-export default inboundCommand;

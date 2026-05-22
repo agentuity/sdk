@@ -34,9 +34,9 @@ import {
 	type AIGatewayRequestResponse,
 	type AIGatewayStreamingCompletion,
 } from '@agentuity/core/aigateway';
-import { createMinimalLogger, getEnv } from '@agentuity/core';
+import { createMinimalLogger, getEnv, type Logger } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
-import { buildClientHeaders, createServerFetchAdapter, type Logger } from '@agentuity/server';
+import { buildClientHeaders, createServerFetchAdapter } from '@agentuity/adapter';
 import { z } from 'zod';
 
 const isLogger = (val: unknown): val is Logger =>

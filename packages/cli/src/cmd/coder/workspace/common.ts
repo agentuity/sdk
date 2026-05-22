@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import {
 	type CoderCreateWorkspaceRequest,
 	type CoderUpdateWorkspaceRequest,
@@ -5,7 +6,7 @@ import {
 	type CoderWorkspaceSystemPromptMode,
 } from '@agentuity/core/coder';
 import { StructuredError } from '@agentuity/core';
-import * as tui from '../../../tui';
+import * as tui from '../../../tui.ts';
 
 export const EMPTY_WORKSPACE_ERROR =
 	'A workspace needs at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent';
@@ -50,7 +51,7 @@ export async function readSetupScript(input: {
 	if (input.setupScript !== undefined) return input.setupScript;
 	if (!input.setupScriptFile) return undefined;
 	try {
-		return await Bun.file(input.setupScriptFile).text();
+		return await readFile(input.setupScriptFile, 'utf-8');
 	} catch (error) {
 		throw new SetupScriptValidationError({
 			message: `Failed to read setup script file "${input.setupScriptFile}": ${
@@ -74,7 +75,7 @@ export async function readSystemPrompt(input: {
 	if (input.systemPrompt !== undefined) return input.systemPrompt;
 	if (!input.systemPromptFile) return undefined;
 	try {
-		return await Bun.file(input.systemPromptFile).text();
+		return await readFile(input.systemPromptFile, 'utf-8');
 	} catch (error) {
 		throw new SystemPromptValidationError({
 			message: `Failed to read system prompt file "${input.systemPromptFile}": ${

@@ -1,1247 +1,615 @@
-import { z } from 'zod';
-import { resolve, join } from 'node:path';
+/**
+ * Dev command — runs the project's own dev script and (optionally)
+ * exposes it through an Agentuity gravity tunnel as a public HTTPS
+ * URL.
+ *
+ * Detects the package manager (bun/npm/pnpm/yarn) from the project,
+ * then runs `<pm> run dev`. Before spawning, injects Agentuity AI
+ * Gateway environment variables so LLM SDK calls (OpenAI, Anthropic,
+ * Groq) are automatically routed through the gateway when the user
+ * has an AGENTUITY_SDK_KEY configured.
+ *
+ * When `--public` is enabled (saved per-project, prompted on first
+ * run), the CLI also reserves a devmode endpoint, downloads the
+ * gravity tunnel binary if needed, spawns it pointing at the user's
+ * dev port, and exports `AGENTUITY_DEVMODE_HOSTNAME` /
+ * `AGENTUITY_DEVMODE_URL` so framework plugins (e.g.
+ * `@agentuity/vite`) can configure themselves for the tunnel.
+ */
+
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { getServiceUrls } from '@agentuity/server';
-import { createCommand } from '../../types';
-import { startBunDevServer } from '../build/vite/bun-dev-server';
-import { startViteAssetServer } from '../build/vite/vite-asset-server';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { generateEndpoint, type DevmodeResponse } from './api';
-import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '../../api';
-import { download, sweepOldGravityVersions } from './download';
-import { createDevmodeSyncService } from './sync';
-import { getDevmodeDeploymentId } from '../build/ids';
-import { getDefaultConfigDir, saveConfig, loadProjectSDKKey, getAuth } from '../../config';
-import type { Config } from '../../types';
-import { typecheck } from '../build/typecheck';
-import { validateGravityRequiresUpgrade } from '../../runtime';
-import { isTTY, hasLoggedInBefore } from '../../auth';
+import { join, resolve } from 'node:path';
+import { z } from 'zod';
+import { APIClient, getAPIBaseURL, getGravityDevModeURL } from '../../api.ts';
+import { isTTY } from '../../auth.ts';
+import { getCommand } from '../../command-prefix.ts';
+import {
+	getAuth,
+	getDefaultConfigDir,
+	loadConfig,
+	loadProjectConfig,
+	loadProjectSDKKey,
+	saveConfig,
+	updateProjectConfig,
+} from '../../config.ts';
+import { ErrorCode } from '../../errors.ts';
+import { validateGravityRequiresUpgrade } from '../../runtime.ts';
+import * as tui from '../../tui.ts';
+import { createCommand } from '../../types.ts';
+import type { Config, Logger, ProjectConfig } from '../../types.ts';
+import { detectFrameworkWithPackageJson } from '../build/detect/index.ts';
+import { detectPackageManager, getRunCommand } from '../build/detect/util.ts';
+import { generateEndpoint, type DevmodeResponse } from './api.ts';
+import { download, sweepOldGravityVersions } from './download.ts';
+import { killLingeringGravityProcesses, startGravity, type GravityHandle } from './gravity.ts';
 
-import { prepareDevLock, releaseLockSync } from './dev-lock';
-import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
-import { initProcessManager } from './process-manager';
-import { detectVersionMismatch, formatVersionMismatchWarning } from '../../utils/version-mismatch';
-
-import { ErrorCode } from '../../errors';
-
-const DEFAULT_PORT = 3500;
-const MIN_PORT = 1024;
-const MAX_PORT = 65535;
-
-// Minimal interface for subprocess management
-interface ProcessLike {
-	kill: (signal?: number | NodeJS.Signals) => void;
-	exitCode: number | null;
-	pid?: number;
-	stdout?: AsyncIterable<Uint8Array>;
-	stderr?: AsyncIterable<Uint8Array>;
-}
-
-interface ServerLike {
-	close: () => void | Promise<void>;
-}
-
-/**
- * Kill any lingering gravity processes from previous dev sessions.
- * This is a defensive measure to clean up orphaned processes.
- *
- * When a projectId is provided, only kills gravity processes for that specific
- * project. Otherwise falls back to killing all gravity processes (used during
- * startup before project info is available).
- */
-async function killLingeringGravityProcesses(
-	logger: {
-		debug: (msg: string, ...args: unknown[]) => void;
-	},
-	projectId?: string
-): Promise<void> {
-	// Only attempt on Unix-like systems (macOS, Linux)
-	if (process.platform === 'win32') {
-		return;
-	}
-
-	try {
-		// Scope the pkill pattern to the specific project when possible,
-		// avoiding killing gravity processes from other dev sessions.
-		const pattern = projectId ? `gravity.*--project-id.*${projectId}` : 'gravity.*--endpoint-id';
-
-		const result = Bun.spawnSync(['pkill', '-f', pattern], {
-			stdout: 'ignore',
-			stderr: 'ignore',
-		});
-
-		// Exit code 0 = processes killed, 1 = no matching processes, other = error
-		if (result.exitCode === 0) {
-			logger.debug(
-				'Killed lingering gravity processes%s from previous session',
-				projectId ? ` (project ${projectId})` : ''
-			);
-			// Brief pause to let processes fully terminate
-			await new Promise((resolve) => setTimeout(resolve, 100));
-		} else if (result.exitCode === 1) {
-			logger.debug('no lingering gravity processes found');
-		}
-	} catch {
-		// pkill not available or failed - not critical, continue
-	}
-}
-
-/**
- * Kill the Bun backend subprocess if one is running.
- *
- * @param forceKill - If true, sends SIGKILL instead of SIGTERM. Used in
- *   process.on('exit') handlers where there's no time for graceful shutdown.
- *   Also kills the entire process tree to prevent orphaned child processes.
- */
-function killBunSubprocess(
-	logger: { debug: (msg: string, ...args: unknown[]) => void },
-	forceKill = false
-): void {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const globalAny = globalThis as any;
-	const bunSubprocess = globalAny.__AGENTUITY_BUN_SUBPROCESS__ as ProcessLike | undefined;
-	if (!bunSubprocess) return;
-
-	const signal: NodeJS.Signals = forceKill ? 'SIGKILL' : 'SIGTERM';
-	const pid = bunSubprocess.pid;
-
-	// Kill the entire process tree if we have a PID (guard against dangerous PIDs)
-	if (pid && pid > 1) {
-		try {
-			process.kill(-pid, signal);
-			logger.debug('Sent %s to Bun subprocess process group -%d', signal, pid);
-		} catch {
-			// Process group kill failed, fall back to direct kill
-			try {
-				bunSubprocess.kill(signal);
-				logger.debug('Sent %s to Bun subprocess pid %d (direct)', signal, pid);
-			} catch (err) {
-				logger.debug('Error killing Bun subprocess: %s', err);
-			}
-		}
-	} else {
-		try {
-			bunSubprocess.kill(signal);
-			logger.debug('Bun subprocess killed with %s', signal);
-		} catch (err) {
-			logger.debug('Error killing Bun subprocess: %s', err);
-		}
-	}
-
-	globalAny.__AGENTUITY_BUN_SUBPROCESS__ = undefined;
-}
-
-const getDefaultPort = (): number => {
-	const envPort = process.env.PORT;
-	if (!envPort) {
-		return DEFAULT_PORT;
-	}
-	const trimmed = envPort.trim();
-	if (!trimmed || !/^\d+$/.test(trimmed)) {
-		return DEFAULT_PORT;
-	}
-	const parsed = Number(trimmed);
-	if (!Number.isInteger(parsed) || parsed < MIN_PORT || parsed > MAX_PORT) {
-		return DEFAULT_PORT;
-	}
-	return parsed;
-};
-
-const shouldDisableInteractive = (interactive?: boolean) => {
-	if (!interactive) {
-		return true;
-	}
-	return process.env.TERM_PROGRAM === 'vscode';
-};
+const DEFAULT_PORT = 3000;
+const GRAVITY_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1h
 
 export const command = createCommand({
 	name: 'dev',
-	description: 'Build and run the development server',
-	tags: ['mutating', 'slow', 'requires-project'],
+	description: 'Run the project development server',
+	tags: ['mutating', 'slow'],
 	idempotent: true,
+	optional: { project: true },
 	examples: [
 		{ command: getCommand('dev'), description: 'Start development server' },
 		{ command: getCommand('dev --port 8080'), description: 'Specify custom port' },
-		{ command: getCommand('dev --local'), description: 'Run in local mode' },
-		{ command: getCommand('dev --no-public'), description: 'Disable public URL' },
+		{
+			command: getCommand('dev --public'),
+			description: 'Expose dev server through a public URL (gravity tunnel)',
+		},
+		{
+			command: getCommand('dev --no-public'),
+			description: 'Run without a public URL even if one was previously enabled',
+		},
 	],
 	schema: {
 		options: z.object({
-			local: z.boolean().optional().describe('Turn on local services (instead of cloud)'),
-			interactive: z.boolean().default(true).optional().describe('Turn on interactive mode'),
-			public: z
-				.boolean()
-				.optional()
-				.default(!process.env.CI)
-				.describe('Turn on or off the public url'),
 			port: z
 				.number()
-				.min(MIN_PORT)
-				.max(MAX_PORT)
-				.default(getDefaultPort())
-				.describe('The TCP port to start the dev server (also reads from PORT env)'),
-			inspect: z.boolean().optional().describe('Enable bun debugger on available port'),
-			inspectWait: z
-				.boolean()
+				.min(1024)
+				.max(65535)
 				.optional()
-				.describe('Enable bun debugger and wait for connection before executing'),
-			inspectBrk: z
-				.boolean()
+				.describe('Port to pass to the dev server via PORT env var'),
+			script: z
+				.string()
 				.optional()
-				.describe('Enable bun debugger with breakpoint at first line'),
-
-			noTypecheck: z
-				.boolean()
-				.optional()
-				.describe('Skip TypeScript type checking on startup and restarts'),
-
-			resume: z.string().optional().describe('Resume a paused Hub session by ID'),
+				.describe('Custom script name to run instead of "dev" (e.g., "dev:web")'),
+			public: z.boolean().optional().describe('Expose dev server via gravity public-URL tunnel'),
 		}),
 	},
-	optional: { project: true },
 
 	async handler(ctx) {
-		const { opts, logger, projectDir } = ctx;
-		let { config, project } = ctx;
-
-		// Get auth state - we handle auth ourselves based on project state
-		let auth = await getAuth();
-
+		const { opts, projectDir, logger } = ctx;
 		const rootDir = resolve(projectDir);
-		const appTs = join(rootDir, 'app.ts');
-		const srcDir = join(rootDir, 'src');
 
-		// Verify required files exist
-		const mustHaves = [join(rootDir, 'package.json'), appTs, srcDir];
-		const missing: string[] = [];
+		// Read package.json
+		const { packageJson } = await detectFrameworkWithPackageJson(rootDir);
 
-		const interactive = !shouldDisableInteractive(opts.interactive);
-
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		let originalExit = (globalThis as any).AGENTUITY_PROCESS_EXIT;
-
-		if (!originalExit) {
-			originalExit = process.exit.bind(process);
-		}
-
-		for (const filename of mustHaves) {
-			if (!existsSync(filename)) {
-				missing.push(filename);
-			}
-		}
-
-		if (missing.length) {
-			tui.error(`${rootDir} does not appear to be a valid Agentuity project`);
-			for (const filename of missing) {
-				tui.bullet(`Missing ${filename}`);
-			}
-			originalExit(1);
-		}
-
-		// Handle authentication state based on project registration
-		if (project) {
-			// Registered project (has agentuity.json) - check if user needs to login
-			const isValidAuth = auth && auth.expires > new Date();
-			if (!isValidAuth) {
-				if (isTTY()) {
-					const hasProfile = await hasLoggedInBefore();
-					const message = hasProfile
-						? 'Your session has expired or you are not logged in.'
-						: 'This project is registered with Agentuity Cloud but you are not logged in.';
-
-					tui.warning(message);
-					tui.newline();
-
-					const shouldLogin = await tui.confirm(
-						hasProfile
-							? 'Would you like to login now?'
-							: 'Would you like to login or create an account?',
-						true
-					);
-
-					if (shouldLogin) {
-						tui.newline();
-
-						// Run login flow inline
-						const { loginCommand } = await import('../auth/login');
-
-						// Ensure apiClient is available for login handler
-						const loginCtx = ctx as unknown as Record<string, unknown>;
-						if (!loginCtx.apiClient) {
-							loginCtx.apiClient = new APIClient(getAPIBaseURL(config), logger, config);
-						}
-
-						if (loginCommand.handler) {
-							await loginCommand.handler(
-								loginCtx as Parameters<NonNullable<typeof loginCommand.handler>>[0]
-							);
-						}
-
-						// Refresh auth state after login
-						const freshAuth = await getAuth();
-						if (!freshAuth || freshAuth.expires <= new Date()) {
-							tui.fatal('Login was not completed successfully.', ErrorCode.AUTH_FAILED);
-						}
-						auth = freshAuth;
-						tui.newline();
-						tui.success('Login successful! Continuing with dev server...');
-						tui.newline();
-					} else {
-						// User chose not to login - show warning about disabled features
-						tui.newline();
-						tui.showLoggedOutMessage(getAppBaseURL(config), hasProfile);
-					}
-				} else {
-					// Non-TTY: fatal error with instruction
-					logger.fatal(
-						`Authentication required for this project.\n` +
-							`Run "${getCommand('auth login')}" to login to Agentuity`,
-						ErrorCode.AUTH_REQUIRED
-					);
-				}
-			}
-
-			// After auth is established, verify project access
-			if (auth && config) {
-				const { reconcileProject } = await import('../project/reconcile');
-				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
-
-				const result = await reconcileProject({
-					dir: rootDir,
-					auth,
-					apiClient,
-					config,
-					logger,
-					interactive: isTTY(),
-				});
-
-				if (result.status === 'error') {
-					tui.fatal(result.message!, ErrorCode.PROJECT_NOT_FOUND);
-				} else if (result.status === 'imported' && result.project) {
-					// Project was re-imported to user's org
-					project = result.project;
-					tui.newline();
-				} else if (result.status === 'skipped') {
-					// User declined import - can't continue with cloud features
-					tui.warning('Continuing in local-only mode.');
-					project = undefined;
-				}
-			}
-		} else {
-			// No agentuity.json - check if this is a valid project that needs importing
-			if (auth && config) {
-				const { reconcileProject } = await import('../project/reconcile');
-				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
-
-				const result = await reconcileProject({
-					dir: rootDir,
-					auth,
-					apiClient,
-					config,
-					logger,
-					interactive: isTTY(),
-				});
-
-				if (result.status === 'error') {
-					// Not a valid project - show local-only warning
-					tui.showLocalOnlyWarning();
-				} else if (result.status === 'imported' && result.project) {
-					// Project was imported - reload project config
-					project = result.project;
-					tui.newline();
-				} else if (result.status === 'skipped') {
-					// User declined import - continue in local-only mode
-					tui.showLocalOnlyWarning();
-				}
-			} else {
-				// Not authenticated - local-only mode
-				tui.showLocalOnlyWarning();
-			}
-		}
-
-		// Prepare dev lock: cleans up stale processes from previous sessions
-		// and creates a new lockfile for this session
-		const devLock = await prepareDevLock(rootDir, opts.port, logger);
-
-		// Kill any lingering gravity processes from previous dev sessions.
-		// Scoped to this project to avoid killing gravity from other dev sessions.
-		await killLingeringGravityProcesses(logger, project?.projectId);
-
-		// Check and upgrade @agentuity/* dependencies if needed
-		const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);
-		if (upgradeResult.failed.length > 0) {
-			devLock.release();
+		if (!packageJson) {
 			tui.fatal(
-				`Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
-				ErrorCode.BUILD_FAILED
+				'No package.json found. Ensure you are in a JS/TS project directory.',
+				ErrorCode.CONFIG_INVALID
 			);
 		}
 
-		// Check for version mismatches (v1 vs v2 SDK packages)
-		const versionMismatch = detectVersionMismatch(rootDir, logger);
-		if (versionMismatch.hasV1Packages || versionMismatch.hasMajorMismatches) {
-			tui.newline();
-			tui.warning(formatVersionMismatchWarning(versionMismatch));
-			tui.newline();
+		// Determine which script to run
+		const scriptName = opts.script ?? 'dev';
+
+		if (!packageJson.scripts?.[scriptName]) {
+			const available = packageJson.scripts
+				? Object.keys(packageJson.scripts).join(', ')
+				: 'none';
+			tui.fatal(
+				`No "${scriptName}" script found in package.json. Available scripts: ${available}`,
+				ErrorCode.CONFIG_INVALID
+			);
 		}
 
-		try {
-			// Setup devmode and gravity (if using public URL)
-			const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
-			// Create apiClient with fresh auth API key (important after inline login)
-			const apiClient = auth
-				? new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config)
-				: null;
-			const syncService = apiClient
-				? createDevmodeSyncService({
-						logger,
-						apiClient,
-						mock: useMockService,
-					})
-				: null;
+		// Detect package manager
+		const pm = await detectPackageManager(rootDir);
+		const runCmd = getRunCommand(pm);
 
-			// Track previous metadata for sync diffing
-			let previousMetadata:
-				| Awaited<
-						ReturnType<typeof import('../build/vite/metadata-generator').generateMetadata>
-				  >
-				| undefined;
+		// Build the command
+		const cmd = runCmd.split(' ');
+		cmd.push(scriptName);
 
-			let devmode: DevmodeResponse | undefined;
-			let gravityBin: string | undefined;
-			let gravityURL: string | undefined;
-			let gravitySweepTarget: { gravityDir: string; version: string } | null = null;
-			let appURL: string | undefined;
-			let savedPrivateKey: string | undefined = config?.devmode?.privateKey
-				? Buffer.from(config.devmode.privateKey, 'base64').toString('utf-8')
-				: undefined;
+		// Build environment
+		const env: Record<string, string> = { ...process.env } as Record<string, string>;
+		const port = opts.port ?? DEFAULT_PORT;
+		env.PORT = String(port);
 
-			if (auth && project && opts.public) {
-				// Generate devmode endpoint for public URL
-				const endpoint = await tui.spinner({
-					message: 'Connecting to Gravity',
-					callback: () => {
-						return generateEndpoint(
-							apiClient!,
-							project.projectId,
-							config?.devmode?.hostname,
-							savedPrivateKey
-						);
-					},
-					clearOnSuccess: true,
-				});
-
-				if (endpoint.privateKey) {
-					savedPrivateKey = endpoint.privateKey;
-				}
-				const _config = { ...config } as Config;
-				_config.devmode = {
-					hostname: endpoint.hostname,
-					privateKey: savedPrivateKey
-						? Buffer.from(savedPrivateKey).toString('base64')
-						: undefined,
-				};
-				await saveConfig(_config);
-				config = _config;
-				devmode = endpoint;
-				gravityURL = getGravityDevModeURL(project.region, config);
-				appURL = `${getAppBaseURL(config)}/r/${project.projectId}`;
-
-				// Download gravity client
-				const configDir = getDefaultConfigDir();
-				const gravityDir = join(configDir, 'gravity');
-				let mustCheck = true;
-
-				if (
-					config?.gravity?.version &&
-					existsSync(join(gravityDir, config.gravity.version, 'gravity')) &&
-					config?.gravity?.checked &&
-					!validateGravityRequiresUpgrade(config.gravity.version)
-				) {
-					if (Date.now() - config.gravity.checked < 3.6e6) {
-						mustCheck = false;
-						gravityBin = join(gravityDir, config.gravity.version, 'gravity');
-					}
-				}
-
-				if (mustCheck) {
-					const previousGravityVersion = config?.gravity?.version;
-					const res = await download(gravityDir);
-					gravityBin = res.filename;
-					if (previousGravityVersion !== res.version) {
-						gravitySweepTarget = { gravityDir, version: res.version };
-					}
-					const _config = { ...config } as Config;
-					_config.gravity = {
-						checked: Date.now(),
-						version: res.version,
-					};
-					await saveConfig(_config);
-					config = _config;
-				}
-			}
-
-			// Get workbench info from createApp() in app.ts (v2 approach)
-			const { getWorkbenchConfig, loadRuntimeConfig } = await import(
-				'../build/vite/config-loader'
-			);
-			const runtimeConfig = await loadRuntimeConfig(rootDir, logger);
-			const workbenchConfigData = getWorkbenchConfig(true, runtimeConfig); // dev mode
-			const workbench = {
-				hasWorkbench: workbenchConfigData.enabled,
-				config: workbenchConfigData.enabled
-					? { route: workbenchConfigData.route, headers: workbenchConfigData.headers }
-					: null,
-			};
-
-			const deploymentId = getDevmodeDeploymentId(project?.projectId ?? '', devmode?.id ?? '');
-
-			// Calculate URLs for banner
-			const padding = 12;
-
-			const devmodebody =
-				tui.muted(tui.padRight('Local:', padding)) +
-				tui.link(`http://127.0.0.1:${opts.port}`) +
-				'\n' +
-				tui.muted(tui.padRight('Public:', padding)) +
-				(devmode?.hostname ? tui.link(`https://${devmode.hostname}`) : tui.warn('Disabled')) +
-				'\n' +
-				tui.muted(tui.padRight('Dashboard:', padding)) +
-				(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
-				'\n' +
-				(interactive
-					? '\n' + tui.muted('Press ') + tui.bold('h') + tui.muted(' for keyboard shortcuts')
-					: '');
-
-			tui.banner('⨺ Agentuity DevMode', devmodebody, {
-				padding: 2,
-				topSpacer: false,
-				bottomSpacer: false,
-				centerTitle: false,
-			});
-
-			// Detect user route mount paths for Vite proxy configuration
-			// This is a quick AST scan of app.ts — runs before Vite starts
-			let routePaths: string[] = ['/api']; // Default fallback
-			try {
-				const { detectExplicitRouter } = await import('../build/app-router-detector');
-				const detection = await detectExplicitRouter(rootDir, logger);
-				if (detection.detected && detection.mounts.length > 0) {
-					routePaths = detection.mounts.map((m) => m.path);
-					logger.debug('Detected route mount paths: %s', routePaths.join(', '));
-				}
-			} catch (err) {
-				logger.debug('Route detection failed, using default /api: %s', err);
-			}
-
-			// Pick internal ports (neither is user-facing — the front-door proxy is)
-			const bunBackendPort = opts.port + 1;
-			const viteInternalPort = opts.port + 2;
-
-			// No-bundle dev mode guard: ensure stale bundled app artifact cannot be executed.
-			// We keep other .agentuity artifacts (metadata/workbench files) intact.
-			try {
-				const staleBundlePath = join(rootDir, '.agentuity', 'app.js');
-				if (existsSync(staleBundlePath)) {
-					await Bun.file(staleBundlePath).delete();
-					logger.debug('Removed stale dev bundle artifact: %s', staleBundlePath);
-				}
-			} catch (err) {
-				logger.debug('Failed to remove stale dev bundle artifact: %s', err);
-			}
-
-			// Debug trace: locate unexpected legacy credential warnings.
-			// Enable with AGENTUITY_TRACE_CREDENTIAL_WARNINGS=true.
-			if (process.env.AGENTUITY_TRACE_CREDENTIAL_WARNINGS === 'true') {
-				const originalConsoleError = console.error.bind(console);
-				console.error = (...args: unknown[]) => {
-					try {
-						const first = typeof args[0] === 'string' ? args[0] : '';
-						if (first.includes('No credentials found for this AI provider')) {
-							const stack = new Error('Credential warning trace').stack;
-							originalConsoleError('[TRACE] Credential warning origin stack:');
-							if (stack) originalConsoleError(stack);
-						}
-					} catch {
-						// ignore tracing errors
-					}
-					originalConsoleError(...args);
-				};
-			}
-
-			// --- State for long-running processes ---
-			// Declared early so signal handlers can reference them before
-			// servers are started.
-			let viteServer: ServerLike | null = null;
-			let frontDoorServer: import('../build/vite/ws-proxy').WsProxyServer | null = null;
-			let gravityProcess: ProcessLike | null = null;
-			let gravityHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
-			let stdinListenerRegistered = false;
-			let stdinDataHandler: ((data: Buffer | string) => void) | null = null;
-			let shutdownRequested = false;
-
-			// Initialize process manager to track all servers/processes
-			const procManager = initProcessManager(logger);
-
-			// Resolve the actual Vite port BEFORE starting Bun so that env vars
-			// like AGENTUITY_BASE_URL contain the correct port. The runtime's
-			// CORS trusted-origins are built once at startup, so a late update
-			// would leave the backend with stale origins.
-			const { findAvailablePort } = await import('../build/vite/vite-asset-server');
-			const vitePort = await findAvailablePort(viteInternalPort, '127.0.0.1');
-
-			if (vitePort !== viteInternalPort) {
-				logger.info(
-					`Port ${viteInternalPort} is in use, using port ${vitePort} for Vite dev server`
-				);
-			}
-
-			// Separate guard flags:
-			// - cleanupStarted: prevents double-entry into cleanup()
-			// - shutdownRequested: breaks the main wait loop (set inside cleanup
-			//   AFTER the cleanupStarted guard passes, so the loop resolves only
-			//   once cleanup has actually started running)
-			let cleanupStarted = false;
-
-			/**
-			 * Centralized cleanup function for all resources.
-			 * Uses the process manager for tracked servers/processes.
-			 */
-			const cleanup = async (exitAfter = false, exitCode = 0, silent = false) => {
-				if (cleanupStarted) return;
-				cleanupStarted = true;
-				shutdownRequested = true;
-
-				if (!silent) {
-					tui.info('Shutting down...');
-				}
-
-				// Stop gravity heartbeat interval first
-				if (gravityHeartbeatInterval) {
-					clearInterval(gravityHeartbeatInterval);
-					gravityHeartbeatInterval = null;
-				}
-
-				// Use process manager for tracked cleanup
-				await procManager.cleanup('shutdown');
-
-				// Additional cleanup for non-tracked resources
-				await devLock.release();
-				await killLingeringGravityProcesses(logger, project?.projectId);
-
-				if (exitAfter) {
-					if (stdinListenerRegistered && process.stdin.isTTY) {
-						try {
-							if (stdinDataHandler) {
-								process.stdin.removeListener('data', stdinDataHandler);
-								stdinDataHandler = null;
-							}
-							process.stdin.setRawMode(false);
-							process.stdin.pause();
-							process.stdin.unref();
-						} catch {
-							// Ignore
-						}
-					}
-					originalExit(exitCode);
-				}
-			};
-
-			// Signal handlers
-			let exitingFromSignal = false;
-			const safeExit = (code: number, reason?: string) => {
-				if (exitingFromSignal) return;
-				exitingFromSignal = true;
-				if (reason) logger.debug('DevMode terminating (%d): %s', code, reason);
-				cleanup(true, code).catch(() => originalExit(1));
-			};
-
-			process.on('SIGINT', () => safeExit(0, 'SIGINT'));
-			process.on('SIGTERM', () => safeExit(0, 'SIGTERM'));
-			process.on('SIGHUP', () => safeExit(0, 'SIGHUP'));
-			process.on('uncaughtException', (err) => {
-				tui.error(
-					`Uncaught exception: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`
-				);
-				void safeExit(1, 'uncaughtException');
-			});
-			process.on('unhandledRejection', (reason) => {
-				logger.warn(
-					'Unhandled promise rejection: %s',
-					reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)
-				);
-			});
-			process.on('exit', () => {
-				// Last-resort synchronous cleanup. Only runs aggressive SIGKILL
-				// if the async cleanup() hasn't already handled everything.
-				// This prevents the race where both cleanup paths try to kill
-				// the same processes.
-				procManager.forceKillAllSync();
-
-				// SIGKILL the Bun subprocess tree as a final safety net.
-				// forceKill=true ensures we use SIGKILL (no time for graceful
-				// shutdown in an exit handler) and target the process group.
-				killBunSubprocess(logger, true);
-				releaseLockSync(rootDir);
-			});
-
-			// ================================================================
-			// Step 0b: Early environment setup
-			// ================================================================
-			// Load SDK key and set gateway env vars BEFORE agent discovery.
-			// Agent discovery imports eval files, which may import LLM SDKs at
-			// module scope. Those SDKs check for API keys (e.g. GROQ_API_KEY)
-			// at import time, so the gateway env patching must happen first.
-
-			if (!process.env.AGENTUITY_SDK_KEY) {
-				const sdkKey = await loadProjectSDKKey(logger, rootDir);
-				if (sdkKey) {
-					process.env.AGENTUITY_SDK_KEY = sdkKey;
-				} else if (project) {
-					tui.warning(
-						'AGENTUITY_SDK_KEY not found in .env file. Numerous features will be unavailable.'
-					);
-					tui.bullet(
-						`Run "${getCommand('cloud env pull')}" to sync your SDK key, or add AGENTUITY_SDK_KEY to your .env file.`
-					);
-				}
-			}
-
-			process.env.NODE_ENV = 'development';
-			process.env.AGENTUITY_ENV = 'development';
-
-			if (project) {
-				const earlyServiceUrls = getServiceUrls(project.region);
-				if (!process.env.AGENTUITY_TRANSPORT_URL) {
-					process.env.AGENTUITY_TRANSPORT_URL = earlyServiceUrls.catalyst;
-				}
-			}
-
-			// Apply gateway env patching so LLM SDK API keys are set before
-			// agent discovery imports eval files that may reference them.
-			{
-				const sdkKey = process.env.AGENTUITY_SDK_KEY;
-				const gatewayUrl =
-					process.env.AGENTUITY_AIGATEWAY_URL ||
-					process.env.AGENTUITY_TRANSPORT_URL ||
-					(sdkKey ? 'https://catalyst.agentuity.cloud' : '');
-
-				const gatewayConfigs = [
-					{
-						apiKeyEnv: 'ANTHROPIC_API_KEY',
-						baseUrlEnv: 'ANTHROPIC_BASE_URL',
-						provider: 'anthropic',
-					},
-					{ apiKeyEnv: 'GROQ_API_KEY', baseUrlEnv: 'GROQ_BASE_URL', provider: 'groq' },
-					{ apiKeyEnv: 'OPENAI_API_KEY', baseUrlEnv: 'OPENAI_BASE_URL', provider: 'openai' },
-				];
-
-				for (const cfg of gatewayConfigs) {
-					const currentKey = process.env[cfg.apiKeyEnv];
-					if (currentKey && currentKey !== sdkKey) continue;
-					if (gatewayUrl && sdkKey) {
-						process.env[cfg.apiKeyEnv] = sdkKey;
-						process.env[cfg.baseUrlEnv] = `${gatewayUrl}/gateway/${cfg.provider}`;
-						logger.debug('Enabled Agentuity AI Gateway for %s', cfg.provider);
-					}
-				}
-			}
-
-			// ================================================================
-			// Step 1: Prepare dev server (once)
-			// ================================================================
-
-			await tui.spinner({
-				message: 'Preparing dev server',
-				callback: async () => {
-					// Typecheck (skip with --no-typecheck)
-					if (!opts.noTypecheck) {
-						const typeResult = await typecheck(rootDir);
-						if (!typeResult.success) {
-							// Non-fatal in dev: log errors and continue
-							console.log('');
-							console.log(typeResult.output);
-							console.log('');
-						}
-					}
-
-					// Generate workbench files if enabled
-					if (workbenchConfigData.enabled) {
-						const { generateWorkbenchFiles } = await import(
-							'../build/vite/workbench-generator'
-						);
-						await generateWorkbenchFiles(
-							rootDir,
-							project?.projectId ?? '',
-							workbenchConfigData,
-							logger
-						);
-					}
-
-					// Discover agents and routes in parallel
-					const srcDir = join(rootDir, 'src');
-					const { discoverAgents } = await import('../build/vite/agent-discovery');
-					const { discoverRoutes } = await import('../build/vite/route-discovery');
-
-					const [agentMetadata, { routes }] = await Promise.all([
-						discoverAgents(srcDir, project?.projectId ?? '', deploymentId, logger),
-						discoverRoutes(srcDir, project?.projectId ?? '', deploymentId, logger),
-					]);
-
-					// Generate metadata file
-					const { generateMetadata, writeMetadataFile } = await import(
-						'../build/vite/metadata-generator'
-					);
-
-					const promises: Promise<void>[] = [];
-
-					// Generate prompt files (non-blocking)
-					promises.push(
-						import('../build/vite/prompt-generator')
-							.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
-							.catch((err) =>
-								logger.warn('Failed to generate prompt files: %s', err.message)
-							)
-					);
-
-					const metadata = await generateMetadata({
-						rootDir,
-						projectId: project?.projectId ?? '',
-						orgId: project?.orgId ?? '',
-						deploymentId,
-						agents: agentMetadata,
-						routes,
-						dev: true,
-						logger,
-					});
-
-					writeMetadataFile(rootDir, metadata, true, logger);
-
-					// Sync metadata with backend
-					if (syncService && project?.projectId) {
-						promises.push(
-							syncService.sync(metadata, previousMetadata, project.projectId, deploymentId)
-						);
-						previousMetadata = metadata;
-					}
-					await Promise.all(promises);
-				},
-				clearOnSuccess: true,
-			});
-
-			// ================================================================
-			// Step 2: Set remaining environment variables
-			// ================================================================
-			// Note: AGENTUITY_SDK_KEY, NODE_ENV, AGENTUITY_ENV, and
-			// AGENTUITY_TRANSPORT_URL are already set in Step 0b (before
-			// agent discovery) to support gateway env patching.
-			//
-			// vitePort is pre-resolved (via findAvailablePort) before Bun
-			// starts, so env vars like AGENTUITY_BASE_URL are correct when
-			// the runtime builds its CORS trusted-origin set.
-
-			process.env.AGENTUITY_SDK_DEV_MODE = 'true';
-			process.env.AGENTUITY_RUNTIME = 'yes';
-			process.env.AGENTUITY_PROJECT_DIR = rootDir;
-			if (project?.region) {
-				process.env.AGENTUITY_REGION = project.region;
-			}
-			process.env.PORT = String(bunBackendPort);
-			process.env.AGENTUITY_PORT = String(bunBackendPort);
-			process.env.AGENTUITY_BASE_URL =
-				process.env.AGENTUITY_BASE_URL || `http://localhost:${vitePort}`;
-			process.env.AGENTUITY_NO_BUNDLE = 'true';
-
-			if (opts.resume) {
-				process.env.AGENTUITY_CODER_RESUME_SESSION = opts.resume;
-			}
-
-			if (project) {
-				const serviceUrls = getServiceUrls(project.region);
-				process.env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
-				process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
-				process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
-				process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
-				process.env.AGENTUITY_SANDBOX_URL = serviceUrls.sandbox;
-				process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
-				process.env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
-				process.env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
-				process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID = deploymentId;
-			}
-
-			if (devmode?.hostname) {
-				process.env.AGENTUITY_DEVMODE_URL = `https://${devmode.hostname}`;
+		// Resolve SDK key: env → .env files → auth profile
+		if (!env.AGENTUITY_SDK_KEY) {
+			const sdkKey = await loadProjectSDKKey(logger, rootDir);
+			if (sdkKey) {
+				env.AGENTUITY_SDK_KEY = sdkKey;
 			} else {
-				process.env.AGENTUITY_DEVMODE_URL = `http://localhost:${vitePort}`;
-			}
-
-			// ================================================================
-			// Step 3: Start Bun backend with --hot (handles its own HMR)
-			// ================================================================
-
-			try {
-				await startBunDevServer({
-					rootDir,
-					port: bunBackendPort,
-					logger,
-					vitePort,
-					inspect: opts.inspect,
-					inspectWait: opts.inspectWait,
-					inspectBrk: opts.inspectBrk,
-					// Register the subprocess BEFORE the readiness wait so a SIGINT
-					// during startup can clean it up via procManager. Without this,
-					// the only safety net is the synchronous process.on('exit')
-					// handler, which is fragile and runs too late on some signals.
-					onSpawn: (proc) => {
-						procManager.registerProcess({
-							id: 'bun-backend',
-							process: proc,
-							description: 'Bun backend server (--hot)',
-							port: bunBackendPort,
-							critical: true,
-						});
-					},
-				});
-			} catch (error) {
-				tui.error(`Failed to start Bun backend server: ${error}`);
-				await cleanup(true, 1, true);
-				return;
-			}
-
-			// ================================================================
-			// Step 4: Start Vite asset server (frontend + API proxy)
-			// ================================================================
-			// Vite starts AFTER the Bun backend so that its proxy is ready
-			// to forward API requests immediately — no ECONNREFUSED race.
-
-			try {
-				logger.debug('Starting Vite dev server (internal port %d)...', viteInternalPort);
-				const viteResult = await startViteAssetServer({
-					rootDir,
-					logger,
-					workbenchPath: workbench.config?.route,
-					port: vitePort,
-					backendPort: bunBackendPort,
-					routePaths,
-					liveHostname: devmode?.hostname,
-				});
-				viteServer = viteResult.server;
-
-				// Verify Vite used the port we pre-resolved (should always match
-				// since strictPort:true is set and we already confirmed availability).
-				if (viteResult.port !== vitePort) {
-					logger.warn(
-						`Vite started on port ${viteResult.port} instead of expected ${vitePort} — env vars may be incorrect`
+				// No project-level SDK key — fall back to CLI auth key
+				const auth = await getAuth();
+				if (auth?.apiKey) {
+					env.AGENTUITY_SDK_KEY = auth.apiKey;
+					tui.warning(
+						'No linked Agentuity project found. Using your auth key for AI Gateway.'
 					);
-				}
-
-				// Register Vite server with process manager.
-				// We wrap close() to first force-drop keep-alive HTTP/HMR sockets via
-				// httpServer.closeAllConnections() (Node 18.2+). Without this, idle
-				// keep-alive connections keep the listener bound until they time out,
-				// which leaves the Vite port reserved for several seconds after the
-				// CLI exits. We also extend the close timeout (Vite's chokidar +
-				// HMR teardown can exceed 1s under load).
-				const viteForCleanup = viteServer;
-				procManager.registerServer({
-					id: 'vite',
-					server: {
-						close: async () => {
-							try {
-								const http = (
-									viteForCleanup as unknown as {
-										httpServer?: {
-											closeAllConnections?: () => void;
-											closeIdleConnections?: () => void;
-										};
-									}
-								).httpServer;
-								http?.closeIdleConnections?.();
-								http?.closeAllConnections?.();
-							} catch {
-								// Best effort — these methods are runtime-dependent.
-							}
-							await viteForCleanup.close();
-						},
-					},
-					description: 'Vite dev server (frontend assets)',
-					port: vitePort,
-					closeTimeoutMs: 3000,
-				});
-
-				// Update dev lock with actual Vite port
-				await devLock.updatePorts({ vite: vitePort });
-
-				logger.debug(
-					`Vite dev server running on port ${vitePort} (internal, proxying backend on port ${bunBackendPort})`
-				);
-			} catch (error) {
-				tui.error(`Failed to start Vite dev server: ${error}`);
-				await cleanup(true, 1, true);
-				return;
-			}
-
-			// ================================================================
-			// Step 5: Start front-door TCP proxy (user-facing port)
-			// ================================================================
-			// Routes WebSocket upgrades (for /api/*, /_agentuity/*) directly to Bun
-			// and everything else (HTTP, HMR WebSocket) to Vite.
-			// This works around Bun's broken node:http upgrade socket implementation.
-
-			try {
-				const { startWsProxy } = await import('../build/vite/ws-proxy');
-				frontDoorServer = await startWsProxy({
-					port: opts.port,
-					vitePort,
-					backendPort: bunBackendPort,
-					routePaths,
-					logger,
-				});
-
-				// Register front-door proxy with process manager. Use closeAll()
-				// (returns a Promise) so cleanup actually waits for the listener
-				// to release the user-facing port instead of fire-and-forgetting.
-				// closeAll() also destroys live piped sockets (HMR WS, backend WS)
-				// so the listener doesn't sit waiting for clients to disconnect.
-				procManager.registerServer({
-					id: 'front-door-proxy',
-					server: {
-						close: () => frontDoorServer?.closeAll() ?? Promise.resolve(),
-					},
-					description: 'Front-door TCP proxy (WS routing)',
-					port: opts.port,
-				});
-
-				logger.debug(
-					`Front-door proxy on port ${opts.port} (Vite:${vitePort}, Bun:${bunBackendPort})`
-				);
-			} catch (error) {
-				tui.error(`Failed to start front-door proxy: ${error}`);
-				await cleanup(true, 1, true);
-				return;
-			}
-
-			// ================================================================
-			// Step 6: Start gravity tunnel (if public URL enabled)
-			// ================================================================
-
-			if (gravityBin && gravityURL && devmode && project) {
-				const privateKeyPEM = devmode.privateKey ?? savedPrivateKey;
-				if (!privateKeyPEM) {
-					tui.error(
-						'No private key available for gravity connection. Please re-run to generate a new key.'
+					tui.arrow(
+						`Link this project: ${tui.colorInfo(tui.bold('agentuity project import'))}`
 					);
-					await cleanup(true, 1, true);
-					return;
-				}
-
-				// Gravity must target the user-facing front-door proxy port.
-				// The front-door proxy (ws-proxy) is the only server that correctly
-				// routes public WebSocket upgrades to /api/* through to the Bun backend.
-				// We read the actual bound port from the front-door server to avoid any
-				// mismatch with opts.port (e.g. if the port was overridden or shifted).
-				const frontDoorPort =
-					(frontDoorServer?.address() as import('node:net').AddressInfo | null)?.port ??
-					opts.port;
-
-				try {
-					gravityProcess = Bun.spawn(
-						[
-							gravityBin,
-							'--endpoint-id',
-							devmode.id,
-							'--port',
-							frontDoorPort.toString(),
-							'--url',
-							gravityURL,
-							'--log-level',
-							process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
-							'--org-id',
-							project.orgId,
-							'--project-id',
-							project.projectId,
-							'--private-key',
-							Buffer.from(privateKeyPEM).toString('base64'),
-							'--health-check',
-						],
-						{
-							cwd: rootDir,
-							stdout: 'pipe',
-							stderr: 'pipe',
-							// Make the child a process-group leader so process.kill(-pid, signal)
-							// from procManager.killProcessTree() actually reaches the whole tree
-							// (otherwise it fails with EPERM and falls back to a direct PID kill
-							// that leaves any grandchildren running). We intentionally do NOT call
-							// .unref() — we still want the parent to track the child's lifecycle
-							// and drive cleanup on Ctrl-C / shutdown.
-							detached: true,
-							// Pass a clean env without PORT to prevent the inherited
-							// PORT (set to bunBackendPort) from leaking into gravity.
-							env: {
-								...process.env,
-								PORT: undefined,
-							},
-						}
-					);
-
-					logger.debug('Gravity tunnel targeting front-door proxy on port %d', frontDoorPort);
-
-					const gravityPid = (gravityProcess as { pid?: number }).pid;
-					if (gravityPid) {
-						await devLock.registerChild({
-							pid: gravityPid,
-							type: 'gravity',
-							description: 'Gravity public URL tunnel',
-						});
-
-						// Register with process manager
-						procManager.registerProcess({
-							id: 'gravity',
-							process: gravityProcess,
-							description: 'Gravity public URL tunnel',
-							critical: false,
-						});
-					}
-
-					// Log gravity output and detect heartbeat port
-					(async () => {
-						try {
-							if (gravityProcess?.stdout) {
-								for await (const chunk of gravityProcess.stdout) {
-									const text = new TextDecoder().decode(chunk);
-									const trimmed = text.trim();
-
-									const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
-									if (match?.[1]) {
-										const heartbeatPort = parseInt(match[1], 10);
-										logger.debug('Gravity heartbeat port: %d', heartbeatPort);
-
-										if (!gravityHeartbeatInterval) {
-											const sendHeartbeat = async () => {
-												try {
-													await fetch(`http://127.0.0.1:${heartbeatPort}/heartbeat`, {
-														method: 'POST',
-														signal: AbortSignal.timeout(2000),
-													});
-												} catch {
-													// Ignore heartbeat failures
-												}
-											};
-											sendHeartbeat();
-											gravityHeartbeatInterval = setInterval(sendHeartbeat, 5000);
-										}
-
-										if (gravitySweepTarget) {
-											try {
-												const removed = sweepOldGravityVersions(
-													gravitySweepTarget.gravityDir,
-													gravitySweepTarget.version
-												);
-												logger.debug(
-													'Swept %d old gravity version director%s after successful startup',
-													removed.length,
-													removed.length === 1 ? 'y' : 'ies'
-												);
-											} catch (error) {
-												logger.warn('Failed to sweep old gravity versions: %s', error);
-											} finally {
-												gravitySweepTarget = null;
-											}
-										}
-									} else if (trimmed) {
-										logger.debug('[gravity] %s', trimmed);
-									}
-								}
-							}
-						} catch (err) {
-							logger.error('Error reading gravity stdout: %s', err);
-						}
-					})();
-
-					(async () => {
-						try {
-							if (gravityProcess?.stderr) {
-								for await (const chunk of gravityProcess.stderr) {
-									logger.warn('[gravity] %s', new TextDecoder().decode(chunk).trim());
-								}
-							}
-						} catch (err) {
-							logger.error('Error reading gravity stderr: %s', err);
-						}
-					})();
-				} catch (error) {
-					tui.error(`Failed to start gravity tunnel: ${error}`);
-					await cleanup(true, 1, true);
-					return;
+					tui.newline();
 				}
 			}
-
-			// ================================================================
-			// Step 7: Keyboard shortcuts + wait for shutdown
-			// ================================================================
-
-			if (interactive && process.stdin.isTTY && process.stdout.isTTY) {
-				stdinListenerRegistered = true;
-				process.stdin.setRawMode(true);
-				process.stdin.resume();
-				process.stdin.setEncoding('utf8');
-
-				const showHelp = () => {
-					console.log('\n' + tui.bold('Keyboard Shortcuts:'));
-					console.log(tui.muted('  h') + ' - show this help');
-					console.log(tui.muted('  c') + ' - clear console');
-					console.log(tui.muted('  q') + ' - quit\n');
-				};
-
-				stdinDataHandler = (data) => {
-					const key = data.toString();
-					if (key === '\u0003' || key === 'q') {
-						if (stdinDataHandler) {
-							process.stdin.removeListener('data', stdinDataHandler);
-							stdinDataHandler = null;
-						}
-						cleanup(true, 0).catch(() => originalExit(1));
-						return;
-					}
-					switch (key) {
-						case 'h':
-							showHelp();
-							break;
-						case 'c':
-							console.clear();
-							tui.banner('⨺ Agentuity DevMode', devmodebody, {
-								padding: 2,
-								topSpacer: false,
-								bottomSpacer: false,
-								centerTitle: false,
-							});
-							break;
-						default:
-							process.stdout.write(data);
-							break;
-					}
-				};
-				process.stdin.on('data', stdinDataHandler);
-			}
-
-			logger.info('DevMode ready 🚀');
-
-			// Block until shutdown — bun --hot handles backend HMR,
-			// Vite handles frontend HMR. Nothing to restart.
-			await new Promise<void>((resolve) => {
-				const check = setInterval(() => {
-					if (shutdownRequested) {
-						clearInterval(check);
-						resolve();
-					}
-				}, 200);
-			});
-		} finally {
-			/* brute force clean up */
-			await devLock.release();
-			await killLingeringGravityProcesses(logger, project?.projectId);
-			releaseLockSync(rootDir);
 		}
+
+		// Load profile config to get transport URL for gateway routing
+		let config = await loadConfig();
+		if (config?.overrides?.transport_url && !env.AGENTUITY_TRANSPORT_URL) {
+			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
+		}
+		if (config?.overrides?.catalyst_url && !env.AGENTUITY_CATALYST_URL) {
+			env.AGENTUITY_CATALYST_URL = config.overrides.catalyst_url;
+		}
+
+		// Load agentuity.json (if present) so we can surface the project's
+		// orgId to the dev process. The aigateway client and other service
+		// clients accept orgId as a constructor option but otherwise have no
+		// way to pick it up under `agentuity dev`. Other parts of the platform
+		// (pi, coder-tui) already read AGENTUITY_ORGID from env, so we match
+		// that name here.
+		const projectConfig = await tryLoadProjectConfig(rootDir, config);
+		if (projectConfig?.orgId && !env.AGENTUITY_ORGID) {
+			env.AGENTUITY_ORGID = projectConfig.orgId;
+		}
+
+		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
+		const gatewayInjected = injectGatewayEnv(env, logger);
+		if (gatewayInjected) {
+			tui.info('AI Gateway: routing LLM requests through Agentuity');
+		} else if (!env.OPENAI_API_KEY && !env.ANTHROPIC_API_KEY) {
+			tui.warning(
+				'No AI API keys found. Run ' +
+					tui.bold('agentuity auth login') +
+					' to enable AI Gateway routing.'
+			);
+		}
+
+		// ────────────────────────────────────────────────────────────
+		// Public URL (gravity tunnel) setup
+		// ────────────────────────────────────────────────────────────
+
+		// Reuse the project config we loaded earlier (above the env-injection
+		// block) so we don't read agentuity.json twice.
+		const project = projectConfig;
+		const publicEnabled = await resolvePublicMode(opts.public, project, rootDir, config, logger);
+
+		let gravity: GravityHandle | null = null;
+		let publicUrl: string | undefined;
+
+		if (publicEnabled) {
+			const result = await setupPublicTunnel({
+				rootDir,
+				port,
+				project,
+				config,
+				logger,
+				env,
+				packageJson,
+			});
+			gravity = result.gravity;
+			publicUrl = result.publicUrl;
+			config = result.config;
+		}
+
+		// ────────────────────────────────────────────────────────────
+		// Banner — show local + public URLs
+		// ────────────────────────────────────────────────────────────
+
+		printDevBanner(port, publicUrl);
+
+		// ────────────────────────────────────────────────────────────
+		// Spawn user's dev server (inherits stdio for full interactivity)
+		// ────────────────────────────────────────────────────────────
+
+		const [bin, ...args] = cmd;
+		const proc = spawn(bin!, args, {
+			cwd: rootDir,
+			env: { ...process.env, ...env },
+			stdio: 'inherit',
+		});
+
+		// Forward signals to BOTH the framework and the gravity tunnel.
+		// Killing them in parallel matches the v2 procManager behavior —
+		// without it the tunnel would keep running until the framework
+		// finished its (potentially slow) graceful shutdown.
+		let shuttingDown = false;
+		const signalHandler = (signal: NodeJS.Signals) => {
+			if (shuttingDown) return;
+			shuttingDown = true;
+			const forwarded = signal === 'SIGINT' ? 'SIGINT' : 'SIGTERM';
+			try {
+				proc.kill(forwarded);
+			} catch {
+				// already exited
+			}
+			if (gravity) {
+				void gravity.stop();
+			}
+		};
+		process.on('SIGINT', signalHandler);
+		process.on('SIGTERM', signalHandler);
+
+		// Last-resort synchronous SIGKILL: if Node tears down before our
+		// async cleanup finishes (uncaught exception, parent abandoned us)
+		// the process.on('exit') handler is the final chance to avoid
+		// orphaning gravity. async work is not allowed here.
+		const exitHandler = () => {
+			if (gravity) {
+				try {
+					gravity.forceKillSync();
+				} catch {
+					// best effort
+				}
+			}
+		};
+		process.on('exit', exitHandler);
+
+		const exitCode = await new Promise<number | null>((resolve) => {
+			proc.once('close', (code) => resolve(code));
+		});
+
+		process.off('SIGINT', signalHandler);
+		process.off('SIGTERM', signalHandler);
+
+		if (gravity) {
+			await gravity.stop();
+		}
+
+		process.off('exit', exitHandler);
+
+		if (exitCode !== 0 && exitCode !== 130) {
+			// 130 = SIGINT (Ctrl+C), which is normal
+			logger.debug('Dev server exited with code %d', exitCode);
+		}
+
+		process.exit(exitCode ?? 0);
 	},
 });
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+async function tryLoadProjectConfig(
+	rootDir: string,
+	config: Config | null
+): Promise<ProjectConfig | undefined> {
+	try {
+		return await loadProjectConfig(rootDir, config);
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Decide whether the public URL should be enabled for this run.
+ *
+ * Precedence:
+ *   1. Explicit `--public` / `--no-public` flag.
+ *   2. Saved per-project preference (`agentuity.json` `devmode.public`).
+ *   3. Interactive prompt (only when stdin is a TTY); default no.
+ *   4. Non-TTY default: off.
+ *
+ * Saves the chosen value back to `agentuity.json` when the user is
+ * prompted, so subsequent runs honor the choice silently.
+ */
+async function resolvePublicMode(
+	explicit: boolean | undefined,
+	project: ProjectConfig | undefined,
+	rootDir: string,
+	config: Config | null,
+	logger: Logger
+): Promise<boolean> {
+	if (explicit !== undefined) {
+		// Persist if the user opted in/out from the CLI and we have a
+		// project config to save it to.
+		if (project && project.devmode?.public !== explicit) {
+			try {
+				await updateProjectConfig(
+					rootDir,
+					{ devmode: { ...project.devmode, public: explicit } },
+					config
+				);
+			} catch (err) {
+				logger.debug('Could not persist devmode.public preference: %s', err);
+			}
+		}
+		return explicit;
+	}
+
+	if (project?.devmode?.public !== undefined) {
+		return project.devmode.public;
+	}
+
+	if (!project || !isTTY()) {
+		return false;
+	}
+
+	tui.newline();
+	const enabled = await tui.confirm(
+		'Expose this dev server through a public URL (gravity tunnel)?',
+		false
+	);
+	tui.newline();
+
+	try {
+		await updateProjectConfig(
+			rootDir,
+			{ devmode: { ...project.devmode, public: enabled } },
+			config
+		);
+	} catch (err) {
+		logger.debug('Could not persist devmode.public preference: %s', err);
+	}
+
+	return enabled;
+}
+
+interface SetupTunnelArgs {
+	rootDir: string;
+	port: number;
+	project: ProjectConfig | undefined;
+	config: Config | null;
+	logger: Logger;
+	env: Record<string, string>;
+	packageJson: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+}
+
+interface SetupTunnelResult {
+	gravity: GravityHandle | null;
+	publicUrl?: string;
+	config: Config | null;
+}
+
+async function setupPublicTunnel(args: SetupTunnelArgs): Promise<SetupTunnelResult> {
+	const { rootDir, port, project, logger, env, packageJson } = args;
+	let config = args.config;
+
+	// Best-effort: clear any orphaned gravity tunnels left over from a
+	// previous dev session for this project. Without this, the platform
+	// can briefly refuse the new tunnel because the old endpoint hasn't
+	// timed out yet.
+	killLingeringGravityProcesses(logger, project?.projectId);
+
+	// Public URL needs both a registered project and a valid auth.
+	if (!project) {
+		tui.fatal(
+			`Public URL requires a registered project.\n` +
+				`Run ${tui.bold(getCommand('project import'))} to link this directory to an Agentuity project, ` +
+				`or re-run with ${tui.bold('--no-public')}.`,
+			ErrorCode.PROJECT_NOT_FOUND
+		);
+	}
+
+	const auth = await getAuth();
+	if (!auth || auth.expires <= new Date()) {
+		tui.fatal(
+			`Public URL requires authentication.\n` +
+				`Run ${tui.bold(getCommand('auth login'))} to log in, or re-run with ${tui.bold('--no-public')}.`,
+			ErrorCode.AUTH_REQUIRED
+		);
+	}
+
+	// Friendly heads-up when the project uses Vite but hasn't installed
+	// the @agentuity/vite plugin (Vite blocks unknown hosts in dev).
+	checkVitePluginInstalled(rootDir, packageJson, logger);
+
+	// Reserve (or refresh) the devmode endpoint with the platform.
+	const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
+
+	const savedPrivateKey = config?.devmode?.privateKey
+		? Buffer.from(config.devmode.privateKey, 'base64').toString('utf-8')
+		: undefined;
+
+	let endpoint: DevmodeResponse;
+	try {
+		endpoint = await tui.spinner({
+			message: 'Connecting to Gravity',
+			callback: () =>
+				generateEndpoint(
+					apiClient,
+					project.projectId,
+					config?.devmode?.hostname,
+					savedPrivateKey
+				),
+			clearOnSuccess: true,
+		});
+	} catch (err) {
+		tui.fatal(
+			`Failed to reserve devmode endpoint: ${err instanceof Error ? err.message : String(err)}`,
+			ErrorCode.NETWORK_ERROR
+		);
+	}
+
+	// Stash the hostname/private key so the same URL persists across
+	// dev sessions on this machine.
+	const updatedPrivateKey = endpoint.privateKey ?? savedPrivateKey;
+	const updatedConfig: Config = {
+		...(config ?? ({ name: 'default' } as Config)),
+		devmode: {
+			hostname: endpoint.hostname,
+			privateKey: updatedPrivateKey
+				? Buffer.from(updatedPrivateKey).toString('base64')
+				: undefined,
+		},
+	};
+	await saveConfig(updatedConfig);
+	config = updatedConfig;
+
+	// Resolve gravity binary — re-use cached copy if recent enough,
+	// otherwise download.
+	const gravityDir = join(getDefaultConfigDir(), 'gravity');
+	let gravityBin: string | undefined;
+	let sweepTarget: { gravityDir: string; version: string } | null = null;
+
+	const cached = config.gravity;
+	if (
+		cached?.version &&
+		existsSync(join(gravityDir, cached.version, 'gravity')) &&
+		cached.checked &&
+		Date.now() - cached.checked < GRAVITY_CHECK_INTERVAL_MS &&
+		!validateGravityRequiresUpgrade(cached.version)
+	) {
+		gravityBin = join(gravityDir, cached.version, 'gravity');
+	} else {
+		const previousVersion = cached?.version;
+		const res = await download(gravityDir);
+		gravityBin = res.filename;
+		if (previousVersion && previousVersion !== res.version) {
+			sweepTarget = { gravityDir, version: res.version };
+		}
+		const refreshed: Config = {
+			...config,
+			gravity: { checked: Date.now(), version: res.version },
+		};
+		await saveConfig(refreshed);
+		config = refreshed;
+	}
+
+	// Spawn gravity, pointing at the user's dev port.
+	const privateKeyPEM = endpoint.privateKey ?? savedPrivateKey;
+	if (!privateKeyPEM) {
+		tui.fatal(
+			'No private key returned for devmode endpoint. Re-run to generate a fresh key.',
+			ErrorCode.INTERNAL_ERROR
+		);
+	}
+
+	const gravityURL = getGravityDevModeURL(project.region, config);
+	const handle = startGravity({
+		binary: gravityBin,
+		endpointId: endpoint.id,
+		targetPort: port,
+		gravityURL,
+		orgId: project.orgId,
+		projectId: project.projectId,
+		privateKeyB64: Buffer.from(privateKeyPEM).toString('base64'),
+		cwd: rootDir,
+		logger,
+	});
+
+	if (sweepTarget) {
+		// Wait for the first heartbeat (= tunnel up) before sweeping the
+		// previous gravity binary; if the new version doesn't connect we
+		// don't want to lose the working fallback. Failure is non-fatal.
+		void handle.ready.then(() => {
+			try {
+				const removed = sweepOldGravityVersions(sweepTarget!.gravityDir, sweepTarget!.version);
+				if (removed.length > 0) {
+					logger.debug('Swept %d old gravity version dir(s)', removed.length);
+				}
+			} catch (err) {
+				logger.debug('sweep of old gravity versions failed: %s', err);
+			}
+		});
+	}
+
+	const publicUrl = `https://${endpoint.hostname}`;
+	env.AGENTUITY_DEVMODE_URL = publicUrl;
+	env.AGENTUITY_DEVMODE_HOSTNAME = endpoint.hostname;
+
+	return { gravity: handle, publicUrl, config };
+}
+
+function checkVitePluginInstalled(
+	_rootDir: string,
+	packageJson: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> },
+	logger: Logger
+): void {
+	const allDeps = {
+		...(packageJson.dependencies ?? {}),
+		...(packageJson.devDependencies ?? {}),
+	};
+	const usesVite = 'vite' in allDeps;
+	const hasPlugin = '@agentuity/vite' in allDeps;
+	if (usesVite && !hasPlugin) {
+		logger.debug('Vite project detected without @agentuity/vite plugin');
+		tui.warning(
+			'This project uses Vite but does not have @agentuity/vite installed. ' +
+				'Vite will reject requests from the public URL with "Blocked request". ' +
+				'Install with: ' +
+				tui.bold('bun add -d @agentuity/vite') +
+				' and add ' +
+				tui.bold('agentuity()') +
+				' to vite.config plugins.'
+		);
+	}
+}
+
+function printDevBanner(port: number, publicUrl?: string): void {
+	const padding = 12;
+	const lines = [
+		tui.muted(tui.padRight('Local:', padding)) + tui.link(`http://127.0.0.1:${port}`),
+	];
+	if (publicUrl) {
+		lines.push(tui.muted(tui.padRight('Public:', padding)) + tui.link(publicUrl));
+	}
+	tui.banner('⨺ Agentuity DevMode', lines.join('\n'), {
+		padding: 2,
+		topSpacer: false,
+		bottomSpacer: false,
+		centerTitle: false,
+	});
+}
+
+// ─── AI Gateway Env Injection ─────────────────────────────────────────────────
+
+interface GatewayProvider {
+	apiKeyEnv: string;
+	baseUrlEnv: string;
+	provider: string;
+}
+
+const GATEWAY_PROVIDERS: GatewayProvider[] = [
+	{ apiKeyEnv: 'OPENAI_API_KEY', baseUrlEnv: 'OPENAI_BASE_URL', provider: 'openai' },
+	{ apiKeyEnv: 'ANTHROPIC_API_KEY', baseUrlEnv: 'ANTHROPIC_BASE_URL', provider: 'anthropic' },
+	{ apiKeyEnv: 'GROQ_API_KEY', baseUrlEnv: 'GROQ_BASE_URL', provider: 'groq' },
+];
+
+/**
+ * Inject AI Gateway environment variables into the child process env.
+ *
+ * For each LLM provider, if the user hasn't set their own API key
+ * (or it matches the SDK key), we redirect to the Agentuity gateway.
+ * This lets `openai`, `@anthropic-ai/sdk`, and `groq-sdk` work
+ * out of the box without separate provider API keys.
+ */
+function injectGatewayEnv(
+	env: Record<string, string>,
+	logger: { debug: (...args: unknown[]) => void }
+): boolean {
+	const sdkKey = env.AGENTUITY_SDK_KEY;
+	if (!sdkKey) return false;
+
+	let injected = false;
+
+	const gatewayUrl =
+		env.AGENTUITY_AIGATEWAY_URL ||
+		env.AGENTUITY_TRANSPORT_URL ||
+		env.AGENTUITY_CATALYST_URL ||
+		'https://catalyst-usc.agentuity.cloud';
+
+	for (const { apiKeyEnv, baseUrlEnv, provider } of GATEWAY_PROVIDERS) {
+		const currentKey = env[apiKeyEnv];
+
+		// If the user provided their own key (different from SDK key), leave it alone
+		if (currentKey && currentKey !== sdkKey) {
+			continue;
+		}
+
+		env[apiKeyEnv] = sdkKey;
+		env[baseUrlEnv] = `${gatewayUrl}/gateway/${provider}`;
+		logger.debug('AI Gateway: routing %s through %s', provider, env[baseUrlEnv]);
+		injected = true;
+	}
+
+	return injected;
+}

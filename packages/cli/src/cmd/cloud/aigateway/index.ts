@@ -1,15 +1,15 @@
-import { createCommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { completeSubcommand } from './complete';
+import { createCommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { completeSubcommand } from './complete.ts';
 import {
 	embeddingsSubcommand,
 	imageSubcommand,
 	speechSubcommand,
 	transcriptionSubcommand,
 	videoSubcommand,
-} from './modalities';
-import { modelsSubcommand } from './models';
-import { requestSubcommand } from './request';
+} from './modalities.ts';
+import { modelsSubcommand } from './models.ts';
+import { requestSubcommand } from './request.ts';
 
 export const aigatewayCommand = createCommand({
 	name: 'aigateway',

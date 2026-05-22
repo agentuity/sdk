@@ -1,166 +1,6 @@
 # @agentuity/migrate
 
-CLI tool to migrate Agentuity SDK projects from v1 to v2.
-
-## What's Changed in v2
-
-v2 introduces seven fundamental architectural changes:
-
-### 1. Agents are Declarative
-
-**v1**: Agents were auto-discovered from `src/agent/*/agent.ts` files at runtime.
-
-**v2**: Agents must be explicitly imported and passed to `createApp()`:
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-import agents from './agent'; // Barrel default export (AgentRunner[])
-
-export default await createApp({
-  agents,
-});
-```
-
-### 2. No More setup/shutdown Hooks
-
-**v1**: Lifecycle hooks in `createApp()`:
-
-```typescript
-createApp({
-  setup: async (ctx) => { /* initialize */ },
-  shutdown: async (ctx) => { /* cleanup */ }
-});
-```
-
-**v2**: Use standard patterns:
-- **Initialization**: Module-level code only for env-independent setup
-  (for env-dependent SDK clients, initialize inside agent `setup()`)
-- **Cleanup**: `registerShutdownHook()` from `@agentuity/runtime`, or Bun's `process.on('beforeExit', ...)`
-
-### 3. Explicit Router Configuration
-
-**v1**: File-based auto-discovery — routes in `src/api/*.ts` were automatically mounted.
-
-**v2**: Routes are explicitly provided to `createApp()` when needed:
-
-```typescript
-import router from './api'; // Your Hono router
-
-export default await createApp({
-  router,
-});
-```
-
-The old file-based approach no longer works. Routes must be composed into a barrel (`src/api/index.ts`) and exported as a Hono instance.
-
-### 4. Hono-Based Routing
-
-**v1**: `createRouter()` was a wrapper around Hono using mutating methods:
-
-```typescript
-import { createRouter } from '@agentuity/runtime';
-
-const router = createRouter();
-router.get('/hello', async (c) => c.json({ msg: 'hi' }));
-```
-
-**v2**: Use `createRouter()` or `new Hono<Env>()` with chained methods:
-
-```typescript
-// Option A: createRouter() from @agentuity/runtime
-import { createRouter } from '@agentuity/runtime';
-
-const router = createRouter()
-  .get('/hello', async (c) => c.json({ msg: 'hi' }));
-
-// Option B: plain Hono instance
-import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
-
-const router = new Hono<Env>()
-  .get('/hello', async (c) => c.json({ msg: 'hi' }));
-```
-
-### 5. React Helpers Removed
-
-**v1**: `@agentuity/react` exported `createClient`, `useAPI`, `useAgentuity`, `RPCRouteRegistry` for API calls.
-
-**v2**: These are removed. Use your preferred data fetching library:
-- **Hono client directly**: `hc<AppRouter>()` from `hono/client`
-- **TanStack Query**: Combine with Hono client for caching, background updates
-- **SWR**: Stale-while-revalidate pattern
-- **RTK Query**: If already using Redux Toolkit
-
-Example with TanStack Query:
-
-```typescript
-import { useQuery } from '@tanstack/react-query';
-import { hc } from 'hono/client';
-import type { AppRouter } from '../api';
-
-const client = hc<AppRouter>('/api');
-
-function useHello() {
-  return useQuery({
-    queryKey: ['hello'],
-    queryFn: async () => {
-      const res = await client.hello.$get();
-      return res.json();
-    },
-  });
-}
-```
-
-### 6. Standard vite.config.ts
-
-**v1**: Vite config lived inside `agentuity.config.ts` along with workbench settings.
-
-**v2**: Use standard `vite.config.ts` for build config; runtime settings go in `createApp()`:
-
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-export default defineConfig({
-  plugins: [react()], // Add your frontend framework's plugin
-});
-```
-
-```typescript
-// app.ts
-import { createApp } from '@agentuity/runtime';
-
-export default await createApp({
-  analytics: true,
-  workbench: true,
-});
-```
-
-> **Note**: v2 doesn't include a default Vite plugin. You must add the plugin for your frontend framework (React, Vue, Svelte, Solid, etc.).
->
-> **Note**: If your frontend entry is at `src/web/index.html` (not the project root), either add `build.rollupOptions.input` to your config, or omit `vite.config.ts` entirely and let the CLI generate a correct fallback.
-
-### 7. Build-Time Agent Imports
-
-v2's build system imports agent files at build time to extract metadata. Module-scope code that requires environment variables (like `new OpenAI()`) will fail during `agentuity build`.
-
-Move SDK client constructors into the agent's `setup()` function:
-
-```typescript
-// ❌ Fails at build time (module scope)
-const openai = new OpenAI();
-
-// ✅ Runs at startup (agent setup)
-export default createAgent('my-agent', {
-  setup: async () => ({ openai: new OpenAI() }),
-  handler: async (ctx, input) => {
-    const result = await ctx.config.openai.chat.completions.create({...});
-  },
-});
-```
-
----
+CLI tool to migrate Agentuity SDK projects between major versions. Auto-detects the source version from `package.json` and runs the right migration; supports being chained (v1 → v2 → v3) in a single invocation when needed.
 
 ## Usage
 
@@ -168,65 +8,100 @@ export default createAgent('my-agent', {
 npx @agentuity/migrate [project-dir] [options]
 ```
 
-Run in your project root (or pass a path). The tool checks that your **git worktree is clean** before touching anything, so you can always `git diff` to review changes or `git checkout .` to roll back.
+Run in your project root, or pass a path. The tool refuses to make changes if your **git worktree is dirty** — commit or stash first, then re-run. Every transform is then visible via `git diff`, so you can always review or roll back with `git checkout .`.
 
 ## Options
 
 | Flag | Description |
 |---|---|
-| `--yes`, `-y` | Skip interactive confirmation |
+| `--yes`, `-y` | Skip interactive confirmation prompts |
 | `--dry-run` | Print the migration report without modifying files |
+| `--v1-to-v2` | Force v1 → v2 migration mode (skip auto-detection) |
+| `--v2-to-v3` | Force v2 → v3 migration mode (skip auto-detection) |
 | `--help`, `-h` | Show help |
 
-## What it migrates
+### Auto-detection
 
-### Auto-fixable (fully automated)
+The tool reads `package.json` and picks the migration based on the version of `@agentuity/runtime`:
+
+- `@agentuity/runtime ^1.x` → v1 → v2 migration
+- `@agentuity/runtime ^2.x` → v2 → v3 migration
+- otherwise: prints a hint and exits
+
+Use `--v1-to-v2` or `--v2-to-v3` to override detection (useful for v1 → v3 chains: run with `--v1-to-v2` first, commit, then run again).
+
+---
+
+## v1 → v2
+
+v2 introduced a more declarative architecture: agents are explicitly imported, routes are explicitly composed, and the configuration story collapsed onto `createApp()`.
+
+### Auto-applied transforms
 
 | Finding | Action |
 |---|---|
 | `src/generated/` directory | Deleted |
-| `bootstrapRuntimeEnv()` call in `app.ts` | Removed (createApp handles it) |
-| v1 `createRouter()` + mutating `.get()/.post()` route files | Rewritten to `new Hono<Env>()` chained style |
+| `bootstrapRuntimeEnv()` call in `app.ts` | Removed (`createApp()` handles it) |
+| v1 `createRouter()` with mutating `.get()/.post()` calls | Rewritten to `new Hono<Env>()` chained style |
 | Missing `src/api/index.ts` barrel | Generated from discovered route files |
 | Missing `src/agent/index.ts` barrel | Generated from discovered agent files |
+| `@agentuity/*` deps still on `^1.x` | Updated to `^2.0.0` |
 
-### Guided (applied with your review)
+### Guided (you review the comment, apply by hand)
 
-| Finding | What happens |
+| Finding | What you'll see |
 |---|---|
-| `setup` in `createApp()` | Migration comment added — move init to module level |
-| `shutdown` in `createApp()` | Guidance to use `registerShutdownHook()` from `@agentuity/runtime` instead |
-| No `router`/`agents` in `createApp()` | Guidance shown — wire up the generated barrels |
-| `agentuity.config.ts` has Vite keys | Guidance to create `vite.config.ts` with plugins/define/render/bundle |
-| `agentuity.config.ts` has analytics/workbench | Remove — keep only in `createApp()` |
-| `agentuity.config.ts` empty | Can be deleted |
+| `setup` in `createApp()` | A migration comment explaining where to move env-independent init |
+| `shutdown` in `createApp()` | A pointer to `registerShutdownHook()` from `@agentuity/runtime` |
+| `agentuity.config.ts` with Vite-only keys | Guidance to create `vite.config.ts` with the right plugins |
+| `agentuity.config.ts` with analytics/workbench | Move those into `createApp()` and delete the file |
+| Frontend code using `createClient`/`useAPI`/`RPCRouteRegistry` from `@agentuity/react` | Replace with `hc<AppRouter>()` from `hono/client` |
 
-### Manual (instructions only, no auto-transform)
+---
+
+## v2 → v3
+
+v3 dropped the `@agentuity/runtime` runtime entirely. Projects bring their own framework (Next.js, Hono, SvelteKit, Astro, etc.) and call Agentuity service clients directly. The migration converts the v2 `createApp()` shape into a plain framework app + standalone service-client imports.
+
+### Auto-applied transforms
+
+| Finding | Action |
+|---|---|
+| `app.ts` calling `createApp({ agents, router })` | Replaced with a plain Hono app wired up via `@agentuity/hono` middleware |
+| Agent files using `createAgent()` | Converted to plain exported async functions |
+| `ctx.kv` / `ctx.queue` / `ctx.vector` / etc. inside agents/routes | Rewritten to direct imports from `@agentuity/keyvalue`, `@agentuity/queue`, `@agentuity/vector`, ... |
+| `c.var.kv` / `c.var.queue` / etc. inside Hono routes | Same: rewritten to direct service-client imports |
+| `src/agent/index.ts` barrel | Deleted (agents are no longer registered with a runtime) |
+| Service singletons | New `src/services.ts` file with one `Client` per service the project actually uses |
+| `app.ts` (v2 entry point) | Deleted; new `src/index.ts` becomes the entry |
+| `agentuity.config.ts` | Deleted (v3 has no SDK-side config file — frameworks own their own config) |
+| `package.json` deps | Removes `@agentuity/runtime`, adds `hono` + the service-client packages the project actually uses |
+| `@agentuity/schema` (`s.string()`, `s.object(...)`, etc.) | Best-effort rewrite to Zod equivalents (`z.string()`, `z.object(...)`); `s.toJSONSchema` is left with a TODO comment for manual review |
+
+### Manual (instructions only)
 
 | Finding | Guidance |
 |---|---|
-| Frontend files using `createClient`, `useAPI`, `useAgentuity`, `RPCRouteRegistry` etc. | Replace with `hc<AppRouter>()` from `hono/client` or your preferred data fetching library |
+| Setup/shutdown hooks | Move env-independent init to module top level; use `process.on('beforeExit', ...)` for cleanup |
+| Workbench | Sunset on v3 — remove the dependency and any `<Workbench />` usage |
+| Custom agent-to-agent invocation patterns | v3 has no `ctx.invoke()` — call agents over plain HTTP using your framework's client |
 
-## V1 → V2 changes summary
+After the v2 → v3 transform completes, the tool runs `bun install` and a typecheck pass so anything left needing manual attention surfaces immediately.
 
-**Configuration (consolidated)**
-- v1: Config split between `app.ts` and `agentuity.config.ts`
-- v2: **All runtime config in `createApp()`** — analytics, workbench, cors, compression, etc.
-- v2: **Vite config in `vite.config.ts`** — plugins, define, render, bundle
-- v2: `agentuity.config.ts` is **deprecated** — delete it
+---
 
-**`app.ts` entrypoint**
-- v1: thin shell; CLI generated a 500-line `src/generated/app.ts`
-- v2: `app.ts` is the real entrypoint; `createApp()` handles all lifecycle
+## What the transforms cannot do
 
-**Routing**
-- v1: file-based auto-discovery + `createRouter()` mutating style
-- v2: explicit `src/api/index.ts` barrel + `new Hono<Env>()` chained style
+The migrator is conservative — it will not make a change if the source code shape is ambiguous. When that happens, it prints a clear note in the report and stops on that file. You'll typically see this for:
 
-**Type-safe API client**
-- v1: `createClient<RPCRouteRegistry>()` from `@agentuity/react`
-- v2: `hc<AppRouter>()` from `hono/client` — Hono's native RPC inference
+- Hand-written entry points that don't follow the standard `src/api/*.ts` + `src/agent/*/agent.ts` layout.
+- Custom Hono middleware that wraps `c.var.*` access in non-trivial ways.
+- Anything that relies on the deleted `@agentuity/auth`, `@agentuity/react`, `@agentuity/frontend`, `@agentuity/workbench`, or `@agentuity/evals` packages — those have no v3 equivalent and the SDK can't pick one for you.
 
-**Setup/shutdown lifecycle**
-- v1: `createApp({ setup, shutdown })` with generic state via `ctx.app`
-- v2: Module-level init for env-independent setup; agent `setup()` for SDK clients; `registerShutdownHook()` for cleanup
+For these cases, the report links to the v3 docs (https://agentuity.dev/) and the relevant package READMEs.
+
+## Safety
+
+- **Won't run on a dirty worktree.** Commit or stash first.
+- **Idempotent** — re-running on an already-migrated project is a no-op (every transform checks for v3 markers before applying).
+- **`--dry-run`** prints the full report without writing anything.

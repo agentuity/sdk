@@ -1,0 +1,8 @@
+{
+	"framework": "hono",
+	"displayName": "Hono",
+	"checklistFile": {
+		"path": "src/landing.tsx",
+		"syntax": "{/* */}"
+	}
+}

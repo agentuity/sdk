@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 
-import { readdir, readFile, writeFile, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { $ } from 'bun';
 import * as readline from 'node:readline';
 
 const rootDir = join(import.meta.dir, '..');
 const packagesDir = join(rootDir, 'packages');
-const appsDir = join(rootDir, 'apps');
+const releaseNotesCacheDir = join(rootDir, '.cache', 'release-notes');
 
 const rl = readline.createInterface({
 	input: process.stdin,
@@ -28,9 +29,17 @@ Usage: bun scripts/publish.ts [options]
 
 Options:
   --version=X.Y.Z  Force a specific version instead of interactive prompt
+  --tag=TAG        Override the npm dist-tag (e.g. alpha, next, beta, latest)
+  --yes, -y        Skip all confirmation prompts and OTP (use with automation token)
+  --no-cache       Ignore cached release notes and regenerate them via opencode
   --dry-run        Run the publish process without actually publishing to npm.
                    Version changes will be automatically reverted after completion.
   --help           Show this help message
+
+  Release notes are cached under .cache/release-notes/ keyed by
+  version + previous tag + HEAD commit, so a re-run after a publish
+  failure will reuse the previously generated notes instead of
+  re-invoking opencode. Pass --no-cache to force regeneration.
 
 Description:
   Interactive script to publish packages to npm. Supports patch, minor, major,
@@ -52,15 +61,18 @@ Description:
     Beta:       1.0.0 -> 2.0.0-beta.0 (first beta of next major)
                 2.0.0-beta.0 -> 2.0.0-beta.1 (increment beta)
 
+    Alpha:      1.0.0 -> 2.0.0-alpha.0 (first alpha of next major)
+                2.0.0-alpha.0 -> 2.0.0-alpha.1 (increment alpha)
+
   npm dist-tags:
     - Stable releases (patch/minor/major) are published with tag "latest"
     - Prereleases are published with tag "next"
     - Beta prereleases are published with tag "beta"
+    - Alpha prereleases are published with tag "alpha"
 
   GitHub Release:
     - Creates/updates GitHub release with generated release notes
     - Builds and uploads VS Code extension (.vsix) for manual installation
-    - Builds and uploads templates tarball (templates-{version}.tar.gz)
     - Marks pre-releases appropriately on GitHub
 
 Required Tools:
@@ -139,9 +151,20 @@ function bumpBeta(version: string): string {
 	return `${nextMajor}-beta.0`;
 }
 
+function bumpAlpha(version: string): string {
+	// If already an alpha, increment: 2.0.0-alpha.0 → 2.0.0-alpha.1
+	const alphaMatch = version.match(/^(.+)-alpha\.(\d+)$/);
+	if (alphaMatch) {
+		return `${alphaMatch[1]}-alpha.${Number(alphaMatch[2]) + 1}`;
+	}
+	// Otherwise, create alpha of next major: 1.x.x → 2.0.0-alpha.0
+	const nextMajor = bumpMajor(version);
+	return `${nextMajor}-alpha.0`;
+}
+
 async function promptReleaseType(
 	currentVersion: string
-): Promise<'patch' | 'minor' | 'major' | 'prerelease' | 'beta'> {
+): Promise<'patch' | 'minor' | 'major' | 'prerelease' | 'beta' | 'alpha'> {
 	console.log(`\nCurrent version: ${currentVersion}`);
 	console.log('Options:');
 	console.log('  [1] prerelease - Create/increment prerelease version (default)');
@@ -149,15 +172,17 @@ async function promptReleaseType(
 	console.log('  [3] minor - Minor release (0.x.0)');
 	console.log('  [4] major - Major release (x.0.0)');
 	console.log('  [5] beta - Create/increment beta prerelease (x.0.0-beta.N)');
+	console.log('  [6] alpha - Create/increment alpha prerelease (x.0.0-alpha.N)');
 
 	while (true) {
-		const input = await readLine('Choose release type (1/2/3/4/5) [1]: ');
+		const input = await readLine('Choose release type (1/2/3/4/5/6) [1]: ');
 		if (!input || input === '1') return 'prerelease';
 		if (input === '2') return 'patch';
 		if (input === '3') return 'minor';
 		if (input === '4') return 'major';
 		if (input === '5') return 'beta';
-		console.log('Invalid choice. Please enter 1, 2, 3, 4, or 5.');
+		if (input === '6') return 'alpha';
+		console.log('Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.');
 	}
 }
 
@@ -245,44 +270,6 @@ async function updateVersions(version: string) {
 			console.log(`⊘ Skipped packages/${pkg} (no package.json)`);
 		}
 	}
-
-	// Update apps/*
-	const apps = await readdir(appsDir);
-	for (const app of apps) {
-		const pkgJsonPath = join(appsDir, app, 'package.json');
-		try {
-			const pkgJson = await readJSON(pkgJsonPath);
-			pkgJson.version = version;
-
-			// Update workspace:* dependencies to explicit version
-			if (pkgJson.dependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
-					if (depVersion === 'workspace:*') {
-						pkgJson.dependencies[dep] = version;
-					}
-				}
-			}
-			if (pkgJson.devDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
-					if (depVersion === 'workspace:*') {
-						pkgJson.devDependencies[dep] = version;
-					}
-				}
-			}
-			if (pkgJson.peerDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
-					if (depVersion === 'workspace:*') {
-						pkgJson.peerDependencies[dep] = version;
-					}
-				}
-			}
-
-			await writeJSON(pkgJsonPath, pkgJson);
-			console.log(`✓ Updated apps/${app} to ${version}`);
-		} catch {
-			console.log(`⊘ Skipped apps/${app} (no package.json)`);
-		}
-	}
 }
 
 async function restoreWorkspaceDependencies(version: string) {
@@ -329,48 +316,6 @@ async function restoreWorkspaceDependencies(version: string) {
 			// Skip
 		}
 	}
-
-	// Restore apps/*
-	const apps = await readdir(appsDir);
-	for (const app of apps) {
-		const pkgJsonPath = join(appsDir, app, 'package.json');
-		try {
-			const pkgJson = await readJSON(pkgJsonPath);
-			let changed = false;
-
-			if (pkgJson.dependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
-					if (depVersion === version && dep.startsWith('@agentuity/')) {
-						pkgJson.dependencies[dep] = 'workspace:*';
-						changed = true;
-					}
-				}
-			}
-			if (pkgJson.devDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
-					if (depVersion === version && dep.startsWith('@agentuity/')) {
-						pkgJson.devDependencies[dep] = 'workspace:*';
-						changed = true;
-					}
-				}
-			}
-			if (pkgJson.peerDependencies) {
-				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
-					if (depVersion === version && dep.startsWith('@agentuity/')) {
-						pkgJson.peerDependencies[dep] = 'workspace:*';
-						changed = true;
-					}
-				}
-			}
-
-			if (changed) {
-				await writeJSON(pkgJsonPath, pkgJson);
-				console.log(`✓ Restored workspace:* in apps/${app}`);
-			}
-		} catch {
-			// Skip
-		}
-	}
 }
 
 async function getPublishablePackages(): Promise<
@@ -392,21 +337,8 @@ async function getPublishablePackages(): Promise<
 		}
 	}
 
-	// Check apps/*
-	const apps = await readdir(appsDir);
-	for (const app of apps) {
-		const pkgJsonPath = join(appsDir, app, 'package.json');
-		try {
-			const pkgJson = await readJSON(pkgJsonPath);
-			if (!pkgJson.private) {
-				publishable.push({ name: app, dir: 'apps', path: join(appsDir, app) });
-			}
-		} catch {
-			// Skip if no package.json
-		}
-	}
-
-	// Sort by dependency order: core first, then bundler, then others, create-agentuity last
+	// Sort by dependency order: core first, then cli, then others, create-agentuity last
+	// (create-agentuity depends on @agentuity/cli being published first)
 	return publishable.sort((a, b) => {
 		if (a.name === 'core') return -1;
 		if (b.name === 'core') return 1;
@@ -419,7 +351,7 @@ async function getPublishablePackages(): Promise<
 }
 
 async function revertVersionChanges() {
-	await $`git checkout -- package.json packages/*/package.json apps/*/package.json .claude-plugin/marketplace.json packages/claude-code/.claude-plugin/plugin.json bun.lock`.cwd(
+	await $`git checkout -- package.json packages/*/package.json .claude-plugin/marketplace.json packages/claude-code/.claude-plugin/plugin.json bun.lock`.cwd(
 		rootDir
 	);
 }
@@ -489,10 +421,62 @@ const CONTRIBUTORS: Record<string, string> = {
 	'Dhilan Fye': 'https://github.com/dhilanfye34',
 };
 
+async function getHeadCommit(): Promise<string> {
+	try {
+		const sha = await $`git rev-parse HEAD`.text();
+		return sha.trim();
+	} catch {
+		return 'unknown';
+	}
+}
+
+function getReleaseNotesCachePath(
+	newVersion: string,
+	previousTag: string | null,
+	headCommit: string
+): string {
+	// Hash the cache key so we don't have to worry about characters in tags/SHAs
+	// that aren't filesystem-safe.
+	const key = `${newVersion}|${previousTag ?? 'initial'}|${headCommit}`;
+	const hash = createHash('sha256').update(key).digest('hex').slice(0, 12);
+	return join(releaseNotesCacheDir, `${newVersion}-${hash}.md`);
+}
+
+async function readCachedReleaseNotes(cachePath: string): Promise<string | null> {
+	try {
+		const contents = await readFile(cachePath, 'utf-8');
+		return contents.trim();
+	} catch {
+		return null;
+	}
+}
+
+async function writeCachedReleaseNotes(cachePath: string, notes: string): Promise<void> {
+	try {
+		await mkdir(releaseNotesCacheDir, { recursive: true });
+		await writeFile(cachePath, `${notes}\n`);
+	} catch (err) {
+		// Cache writes are best-effort; never fail the publish over them.
+		console.warn(`⚠️  Failed to cache release notes: ${(err as Error).message}`);
+	}
+}
+
 async function generateReleaseNotes(
 	newVersion: string,
-	previousTag: string | null
+	previousTag: string | null,
+	useCache: boolean
 ): Promise<string> {
+	const headCommit = await getHeadCommit();
+	const cachePath = getReleaseNotesCachePath(newVersion, previousTag, headCommit);
+
+	if (useCache) {
+		const cached = await readCachedReleaseNotes(cachePath);
+		if (cached) {
+			console.log(`\n📝 Using cached release notes (${cachePath.replace(rootDir + '/', '')})\n`);
+			return cached;
+		}
+	}
+
 	console.log('\n📝 Generating release notes with Opencode...\n');
 
 	// Get git log since previous tag
@@ -543,9 +527,9 @@ Formatting Instructions:
 
 	try {
 		// Invoke opencode to generate release notes (pipe prompt via stdin)
-		const releaseNotes = await $`echo ${prompt} | opencode run`.text();
-
-		return releaseNotes.trim();
+		const releaseNotes = (await $`echo ${prompt} | opencode run`.text()).trim();
+		await writeCachedReleaseNotes(cachePath, releaseNotes);
+		return releaseNotes;
 	} catch (err) {
 		console.error('✗ Failed to generate release notes with OpenCode:', err);
 		throw err;
@@ -579,65 +563,11 @@ async function buildVSCodeExtension(version: string): Promise<string> {
 	}
 }
 
-async function buildTemplatesTarball(version: string): Promise<string> {
-	console.log('\n📦 Building templates tarball...\n');
-
-	const templatesDir = join(rootDir, 'templates');
-	const tarballName = `templates-${version}.tar.gz`;
-	const tarballPath = join('/tmp', tarballName);
-	// Use sdk-main as the directory prefix to match what the CLI expects
-	// The CLI constructs the prefix as `sdk-${branch}` where branch defaults to 'main'
-	const tempDir = join('/tmp', 'sdk-main');
-	const templatesSubdir = join(tempDir, 'templates');
-
-	// Validate templates directory exists
-	try {
-		const stats = await stat(templatesDir);
-		if (!stats.isDirectory()) {
-			throw new Error(`Templates path is not a directory: ${templatesDir}`);
-		}
-	} catch (err) {
-		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-			throw new Error(`Templates directory not found: ${templatesDir}`);
-		}
-		throw err;
-	}
-
-	try {
-		// Clean up any existing temp directory and tarball
-		// Use explicit /tmp/sdk-main path to ensure we always clean up the fixed location
-		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
-
-		// Create temp directory with sdk-main/templates structure
-		await $`mkdir -p ${templatesSubdir}`;
-
-		// Copy all contents including dotfiles using trailing dot syntax
-		// cp -r source/. dest/ copies all files including hidden ones
-		await $`cp -r ${templatesDir}/. ${templatesSubdir}/`;
-
-		// Create tarball from /tmp with sdk-main as root directory
-		// COPYFILE_DISABLE=1 prevents macOS from including AppleDouble (._*) resource fork files
-		await $`COPYFILE_DISABLE=1 tar -czf ${tarballPath} -C /tmp sdk-main`;
-
-		// Clean up temp directory
-		await $`rm -rf /tmp/sdk-main`;
-
-		console.log(`✓ Built templates tarball: ${tarballName}`);
-		return tarballPath;
-	} catch (err) {
-		// Clean up on error
-		await $`rm -rf /tmp/sdk-main ${tarballPath}`.quiet().nothrow();
-		console.error('✗ Failed to build templates tarball:', err);
-		throw err;
-	}
-}
-
 async function createOrUpdateGitHubRelease(
 	version: string,
 	releaseNotes: string,
 	isPrerelease: boolean,
-	vsixPath?: string,
-	templatesTarballPath?: string
+	vsixPath?: string
 ) {
 	const tag = `v${version}`;
 	console.log(`\n🏷️  Creating GitHub release ${tag}...\n`);
@@ -651,11 +581,19 @@ async function createOrUpdateGitHubRelease(
 		// Release doesn't exist, continue
 	}
 
+	// Pin the release (and the tag gh creates server-side) to the current
+	// HEAD. Without --target, gh defaults to the repository's default branch,
+	// which means a release cut from any non-default branch (e.g. v3) lands
+	// on the wrong commit and has to be retargeted by hand afterwards.
+	const headSha = (await $`git rev-parse HEAD`.cwd(rootDir).text()).trim();
+
 	// Create the release
 	const args = [
 		'release',
 		'create',
 		tag,
+		'--target',
+		headSha,
 		'--title',
 		`Release ${version}`,
 		'--notes',
@@ -687,19 +625,6 @@ async function createOrUpdateGitHubRelease(
 			throw err;
 		}
 	}
-
-	// Upload templates tarball if provided
-	if (templatesTarballPath) {
-		const assetName = templatesTarballPath.split('/').pop();
-		console.log(`   Uploading ${assetName}...`);
-		try {
-			await $`gh release upload ${tag} ${templatesTarballPath} --clobber`.cwd(rootDir);
-			console.log(`   ✓ Uploaded ${assetName}`);
-		} catch (err) {
-			console.error(`✗ Failed to upload ${assetName}:`, err);
-			throw err;
-		}
-	}
 }
 
 async function main() {
@@ -707,7 +632,9 @@ async function main() {
 		showHelp();
 	}
 
+	const skipPrompts = process.argv.includes('--yes') || process.argv.includes('-y');
 	const isDryRun = process.argv.includes('--dry-run');
+	const useReleaseNotesCache = !process.argv.includes('--no-cache');
 
 	// Parse --version flag (supports both --version=X.Y.Z and --version X.Y.Z)
 	let forcedVersion: string | null = null;
@@ -735,7 +662,7 @@ async function main() {
 		// Validate version format (basic semver check)
 		if (!/^\d+\.\d+\.\d+(-(\d+|[a-z]+\.\d+))?$/.test(forcedVersion)) {
 			console.error(`\n❌ Invalid version format: ${forcedVersion}`);
-			console.error('   Expected format: X.Y.Z, X.Y.Z-N, or X.Y.Z-beta.N\n');
+			console.error('   Expected format: X.Y.Z, X.Y.Z-N, X.Y.Z-beta.N, or X.Y.Z-alpha.N\n');
 			rl.close();
 			process.exit(1);
 		}
@@ -760,21 +687,49 @@ async function main() {
 			case 'beta':
 				newVersion = bumpBeta(currentVersion);
 				break;
+			case 'alpha':
+				newVersion = bumpAlpha(currentVersion);
+				break;
+		}
+	}
+
+	// Parse --tag flag (supports both --tag=TAG and --tag TAG)
+	let forcedTag: string | null = null;
+	const tagEqArg = process.argv.find((arg) => arg.startsWith('--tag='));
+	if (tagEqArg) {
+		forcedTag = tagEqArg.split('=')[1];
+	} else {
+		const tagIndex = process.argv.indexOf('--tag');
+		if (tagIndex !== -1 && process.argv[tagIndex + 1]) {
+			forcedTag = process.argv[tagIndex + 1];
 		}
 	}
 
 	const isPreReleaseVersion = isPrerelease(newVersion);
-	const distTag = isPreReleaseVersion
-		? newVersion.includes('-beta.')
-			? 'beta'
-			: 'next'
-		: 'latest';
+	const distTag =
+		forcedTag ??
+		(isPreReleaseVersion
+			? newVersion.includes('-beta.')
+				? 'beta'
+				: newVersion.includes('-alpha.')
+					? 'alpha'
+					: 'next'
+			: 'latest');
 
-	const confirmed = await confirmVersion(newVersion);
+	const confirmed = skipPrompts || (await confirmVersion(newVersion));
 	if (!confirmed) {
 		console.log('\n❌ Publish cancelled\n');
 		rl.close();
 		process.exit(0);
+	}
+
+	// Prompt for npm OTP code upfront (skip for dry runs or --yes)
+	let otp: string | null = null;
+	if (!isDryRun && !skipPrompts) {
+		const input = await readLine(
+			'\n🔑 Enter npm OTP code (leave empty if using automation token): '
+		);
+		if (input) otp = input;
 	}
 
 	console.log(`\n📦 Setting version to: ${newVersion}`);
@@ -787,7 +742,7 @@ async function main() {
 		let releaseNotes = '';
 		if (!isDryRun) {
 			const previousTag = await getPreviousReleaseTag();
-			releaseNotes = await generateReleaseNotes(newVersion, previousTag);
+			releaseNotes = await generateReleaseNotes(newVersion, previousTag, useReleaseNotesCache);
 			console.log('\n📋 Generated release notes:\n');
 			console.log('─'.repeat(80));
 			console.log(releaseNotes);
@@ -809,18 +764,9 @@ async function main() {
 		// Build VS Code extension
 		const vsixPath = await buildVSCodeExtension(newVersion);
 
-		// Build templates tarball
-		const templatesTarballPath = await buildTemplatesTarball(newVersion);
-
 		// Create GitHub release before npm publish (skip in dry-run)
 		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(
-				newVersion,
-				releaseNotes,
-				isPreReleaseVersion,
-				vsixPath,
-				templatesTarballPath
-			);
+			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion, vsixPath);
 		}
 
 		const publishable = await getPublishablePackages();
@@ -842,9 +788,15 @@ async function main() {
 			let lastErr: unknown;
 			for (let attempt = 1; attempt <= maxRetries; attempt++) {
 				try {
-					const args = ['publish', '--access', 'public', '--tag', distTag];
+					// Use npm publish instead of bun publish:
+					// 1. --ignore-scripts skips prepublishOnly which would rebuild and
+					//    fail resolving workspace deps pinned to the new version
+					// 2. bun publish validates all deps exist on the registry, which
+					//    fails for private workspace packages like @agentuity/test-utils
+					const args = ['publish', '--access', 'public', '--tag', distTag, '--ignore-scripts'];
+					if (otp) args.push(`--otp=${otp}`);
 					if (isDryRun) args.push('--dry-run');
-					await $`bun ${args}`.cwd(pkg.path);
+					await $`npm ${args}`.cwd(pkg.path);
 					console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
 					lastErr = undefined;
 					break;
@@ -880,6 +832,8 @@ async function main() {
 
 			console.log('\n📥 Running bun install to pick up new versions...');
 			await $`bun install`.cwd(rootDir);
+
+			await commitReleaseChanges(newVersion);
 		}
 	} catch (err) {
 		console.error('\n❌ Publish failed:', err);
@@ -894,6 +848,59 @@ async function main() {
 			console.log('✓ Changes reverted\n');
 		}
 		rl.close();
+	}
+}
+
+/**
+ * Stage and commit the release artifacts (bumped package.json files,
+ * marketplace.json/plugin.json version bumps, refreshed bun.lock) so
+ * the working tree isn't left dirty after a successful publish.
+ *
+ * Pushing is intentionally left to the operator: the npm publish has
+ * already happened, but the operator may still want to review the
+ * generated commit, retarget the tag, or pull in additional changes
+ * before pushing.
+ */
+async function commitReleaseChanges(version: string) {
+	console.log('\n📝 Committing release changes...');
+
+	// Only stage the files we know we touched. We intentionally avoid
+	// `git add -A` here so unrelated working-tree changes (e.g. local
+	// experiments) don't get rolled into the release commit.
+	//
+	// Globs are written into separate template strings so Bun's `$`
+	// passes them through to git for pathspec expansion (interpolating
+	// the glob via `${var}` would single-quote it and disable matching).
+	//
+	// `packages/claude-code/.claude-plugin/plugin.json` is passed as an
+	// explicit path because Bun's shell glob (`$`) fails with `no matches
+	// found` when a glob has to traverse a dot-directory, even when the
+	// file exists. Verified on Bun 1.3.14: `packages/*/package.json`
+	// expands fine, `packages/*/.claude-plugin/plugin.json` doesn't.
+	try {
+		await $`git add package.json bun.lock .claude-plugin/marketplace.json`.cwd(rootDir);
+		await $`git add packages/*/package.json`.cwd(rootDir);
+		await $`git add packages/claude-code/.claude-plugin/plugin.json`.cwd(rootDir).nothrow();
+	} catch (err) {
+		console.warn('   ⚠ Failed to stage release files:', err);
+		return;
+	}
+
+	// Bail out if there's actually nothing to commit (e.g. only the cli
+	// or create-agentuity packages were bumped on a previous release and
+	// those files happen to be unchanged this run).
+	const diff = await $`git diff --cached --name-only`.cwd(rootDir).text();
+	if (!diff.trim()) {
+		console.log('   ⊘ No release changes to commit.');
+		return;
+	}
+
+	const message = `Release ${version}`;
+	try {
+		await $`git commit -m ${message}`.cwd(rootDir);
+		console.log(`✓ Committed release ${version} (push manually when ready)`);
+	} catch (err) {
+		console.warn('   ⚠ Failed to commit release changes:', err);
 	}
 }
 

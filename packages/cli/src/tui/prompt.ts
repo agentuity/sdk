@@ -2,8 +2,8 @@
  * Interactive prompt system for TUI
  */
 import * as readline from 'node:readline';
-import { symbols } from './symbols';
-import { colors } from './colors';
+import { symbols } from './symbols.ts';
+import { colors } from './colors.ts';
 
 interface KeypressEvent {
 	name: string;

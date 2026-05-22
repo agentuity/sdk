@@ -1,6 +1,9 @@
-import { parse, type GrammarItem } from '../../tsc-output-parser';
-import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors';
-import type { BuildReportCollector } from '../../build-report';
+import { join } from 'node:path';
+import type { BuildReportCollector } from '../../build-report.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import { run } from '../../node-compat/proc.ts';
+import { type GrammarItem, parse } from '../../tsc-output-parser.ts';
+import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors.ts';
 
 interface TypeError {
 	success: false;
@@ -22,6 +25,8 @@ type TypeResult = TypeError | TypeSuccess | TypeUnknownError;
 export interface TypecheckOptions {
 	/** Optional collector for structured error reporting */
 	collector?: BuildReportCollector;
+	/** Framework commands that generate virtual TypeScript files before tsc runs. */
+	typegenCommand?: string | string[];
 }
 
 /**
@@ -36,6 +41,20 @@ export interface TypecheckOptions {
  * We also strip continuation lines (indented with 2+ leading spaces) that
  * follow a node_modules error line, as they are part of the same diagnostic.
  */
+async function runTypeGeneration(
+	dir: string,
+	typegenCommand: string | string[] | undefined
+): Promise<void> {
+	const commands = typeof typegenCommand === 'string' ? [typegenCommand] : (typegenCommand ?? []);
+	if (commands.length === 0) return;
+
+	const localBin = join(dir, 'node_modules', '.bin');
+	const env = { PATH: `${localBin}:${process.env.PATH ?? ''}` };
+	for (const command of commands) {
+		await run({ cmd: ['sh', '-c', command], cwd: dir, env });
+	}
+}
+
 function filterNodeModulesErrors(output: string): string {
 	const lines = output.split('\n');
 	const filtered: string[] = [];
@@ -73,13 +92,21 @@ function filterNodeModulesErrors(output: string): string {
  * @returns
  */
 export async function typecheck(dir: string, options?: TypecheckOptions): Promise<TypeResult> {
-	const { collector } = options ?? {};
-	const result = await Bun.$`bunx tsc --noEmit --skipLibCheck --pretty false`
-		.cwd(dir)
-		.quiet()
-		.nothrow();
+	// Skip typecheck for projects without tsconfig.json (plain JS projects)
+	const tsconfigPath = join(dir, 'tsconfig.json');
+	if (!(await pathExists(tsconfigPath))) {
+		return { success: true };
+	}
 
-	const output = await result.text();
+	const { collector, typegenCommand } = options ?? {};
+	await runTypeGeneration(dir, typegenCommand);
+
+	const result = await run({
+		cmd: ['bunx', 'tsc', '--noEmit', '--skipLibCheck', '--pretty', 'false'],
+		cwd: dir,
+	});
+
+	const output = result.stdout;
 
 	// Filter out node_modules errors before parsing to prevent parser crashes.
 	// The PEG parser is strict and fails on lines it cannot match as tsc error items.
@@ -92,11 +119,11 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 		// If the parser still fails (e.g. unexpected tsc output format), treat as
 		// an unknown error and show the raw output instead of crashing.
 		if (collector) {
-			collector.addGeneralError('typescript', output || result.stderr.toString());
+			collector.addGeneralError('typescript', output || result.stderr);
 		}
 		return {
 			success: false,
-			output: output || result.stderr.toString(),
+			output: output || result.stderr,
 		};
 	}
 
@@ -121,12 +148,12 @@ export async function typecheck(dir: string, options?: TypecheckOptions): Promis
 	} else {
 		// Unknown error - add to collector as general error
 		if (collector) {
-			collector.addGeneralError('typescript', output || result.stderr.toString());
+			collector.addGeneralError('typescript', output || result.stderr);
 		}
 
 		return {
 			success: false,
-			output: output || result.stderr.toString(),
+			output: output || result.stderr,
 		};
 	}
 }

@@ -16,7 +16,7 @@ import {
 	type AIGatewayModel,
 	type AIGatewayModels,
 } from '@agentuity/core/aigateway';
-import { createServerFetchAdapter } from '@agentuity/server';
+import { createServerFetchAdapter } from '@agentuity/adapter';
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,

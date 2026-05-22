@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import { createRepl, type ReplCommand } from '../../../repl';
-import { showBanner } from '../../../banner';
-import * as tui from '../../../tui';
-import { isPossiblyJSON, tryParseJSON } from '../../../json';
-import { createStorageAdapter } from './util';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { createRepl, type ReplCommand } from '../../../repl.ts';
+import { showBanner } from '../../../banner.ts';
+import * as tui from '../../../tui.ts';
+import { isPossiblyJSON, tryParseJSON } from '../../../json.ts';
+import { createStorageAdapter } from './util.ts';
+import { getCommand } from '../../../command-prefix.ts';
 export const replSubcommand = createCommand({
 	name: 'repl',
 	description: 'Start an interactive repl for working with keyvalue database',
@@ -162,18 +162,15 @@ export const replSubcommand = createCommand({
 					ctx.setProgress('searching');
 					const started = Date.now();
 					const results = await storage.search(ctx.parsed.args[0]!, ctx.parsed.args[1]!);
-					const keys = Object.keys(results);
-					if (keys.length === 0) {
+					if (results.size === 0) {
 						ctx.info(
 							`No keys found matching ${tui.bold(ctx.parsed.args[1]!)} in ${tui.bold(ctx.parsed.args[0]!)}`
 						);
 					} else {
 						ctx.info(
-							`Found ${keys.length} key(s) matching ${tui.bold(ctx.parsed.args[1]!)}:`
+							`Found ${results.size} key(s) matching ${tui.bold(ctx.parsed.args[1]!)}:`
 						);
-						for (const key of keys) {
-							const item = results[key];
-							if (!item) continue;
+						for (const [key, item] of results) {
 							const sizeMB = (item.size / (1024 * 1024)).toFixed(2);
 							const date =
 								item.lastUsed != null
@@ -293,5 +290,3 @@ export const replSubcommand = createCommand({
 		});
 	},
 });
-
-export default replSubcommand;

@@ -28,7 +28,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # local config files
 agentuity.*.json
-!apps/docs/src/web/public/schemas/agentuity.json.schema.json
+!docs/src/web/public/schemas/agentuity.json.schema.json
 
 # caches
 .eslintcache
@@ -56,10 +56,6 @@ playwright-report/
 /TODO*.md
 /PR*.md
 
-# Generated CLI skills (keep coderabbit-conversations as an exception)
-**/.agents/skills/*
-!**/.agents/skills/coderabbit-conversations
-!**/.agents/skills/sandbox-test
 apps/testing/ag-auth-test-app/cookies.txt
 apps/testing/ag-auth-test-app/agentuity.json
 

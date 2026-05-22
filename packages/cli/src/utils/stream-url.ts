@@ -1,6 +1,6 @@
 import { writeAndDrain } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
-import * as tui from '../tui';
+import * as tui from '../tui.ts';
 
 export interface StreamUrlOptions {
 	signal?: AbortSignal;

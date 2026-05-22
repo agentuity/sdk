@@ -1,5 +1,9 @@
 # @agentuity/postgres
 
+> **⚠️ DEPRECATED** — Use `pg` or `drizzle-orm/node-postgres` directly against your `DATABASE_URL`.
+>
+> This package is no longer recommended for new projects.
+
 Resilient PostgreSQL client with automatic reconnection for Agentuity projects.
 
 ## Features
@@ -254,11 +258,9 @@ Returned by `transaction.savepoint()`:
 - `rollback()` - Rollback to this savepoint
 - `release()` - Release the savepoint
 
-## Global Registry and Runtime Integration
+## Global Registry and Shutdown
 
-All PostgreSQL clients are automatically registered in a global registry. When used with `@agentuity/runtime`, clients are automatically closed during graceful shutdown.
-
-### Manual Shutdown (without runtime)
+All PostgreSQL clients are automatically registered in a global registry. Wire `shutdownAll()` into your process's shutdown signals so clients close cleanly:
 
 ```typescript
 import { shutdownAll, getClientCount } from '@agentuity/postgres';
@@ -271,25 +273,6 @@ process.on('SIGTERM', async () => {
 	await shutdownAll(5000); // 5 second timeout
 	process.exit(0);
 });
-```
-
-### With @agentuity/runtime
-
-When using `@agentuity/runtime`, postgres clients are automatically closed during graceful shutdown - no additional code needed:
-
-```typescript
-import { createApp } from '@agentuity/runtime';
-import { postgres } from '@agentuity/postgres';
-
-// Create postgres client - it auto-registers with the runtime
-const sql = postgres();
-
-const app = await createApp({
-	// ... your app config
-});
-
-// When the runtime shuts down (SIGTERM/SIGINT), all postgres
-// clients are automatically closed via the shutdown hook system
 ```
 
 ## License

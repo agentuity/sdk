@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.11/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -17,6 +17,7 @@
 			"!**/ai-elements",
 			"!**/tsc-output-parser.ts",
 			"!**/generated/*.ts",
+			"!**/routeTree.gen.ts",
 			"!bun.lock",
 			"!**/*.sh"
 		]

@@ -1,16 +1,19 @@
 # @agentuity/cli
 
-Bun-native CLI framework for Agentuity applications.
+The Agentuity command line tool. Project scaffolding, dev server,
+build, deploy, cloud resource management.
 
 ## Requirements
 
-- Bun 1.3.0 or higher
+- Bun 1.3+ **or** Node.js 24+
 
 ## Installation
 
 ```bash
 # Global installation
 bun install -g @agentuity/cli
+# or
+npm install -g @agentuity/cli
 
 # Local installation
 bun add -d @agentuity/cli
@@ -260,7 +263,6 @@ Every command receives a `CommandContext` with:
 - `registerCommands(program, commands, ctx)` - Register commands
 - `discoverCommands()` - Auto-discover commands from src/cmd/
 - `loadConfig(path?)` - Load YAML config
-- `validateRuntime()` - Validate Bun runtime
 - `showBanner(version)` - Show startup banner
 
 ## License

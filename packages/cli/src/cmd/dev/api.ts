@@ -1,8 +1,8 @@
+import { createPublicKey } from 'node:crypto';
 import { APIResponseSchema } from '@agentuity/server';
 import { z } from 'zod';
-import type { APIClient } from '../../api';
 import { StructuredError } from '@agentuity/core';
-import { createPublicKey } from 'crypto';
+import type { APIClient } from '../../api.ts';
 
 const DevmodeRequestSchema = z.object({
 	hostname: z.string().optional().describe('the hostname for the endpoint'),
@@ -33,13 +33,17 @@ type DevmodeResponseAPI = z.infer<typeof DevmodeResponseAPISchema>;
 const DevmodeEndpointError = StructuredError('DevmodeEndpointError');
 
 /**
- * Generate an Endpoint ID and Hostname
+ * Reserve (or re-use) an Agentuity devmode endpoint for the current
+ * project. The platform returns a hostname plus a private key the
+ * gravity binary uses to authenticate when it dials the public-URL
+ * tunnel. Re-passing a previously-issued private key keeps the same
+ * hostname stable across dev sessions on the same machine.
  *
- * @param apiClient the api client to use
- * @param projectId the project id
- * @param hostname the hostname is already configured
- * @param privateKey the private key PEM if already configured
- * @returns
+ * KNOWN PLATFORM BUG: as of 2026-05-07 this endpoint routes hostnames
+ * by the caller's `User-Agent` and v3-shaped UAs (`Agentuity CLI/3.x`)
+ * receive hostnames under `*.agentuity.live`, which has no wildcard
+ * DNS configured — so the URL never resolves. v2 UAs and curl get
+ * `*.agentuity-us.live`, which works. Tracking in agentuity/infra#210.
  */
 export async function generateEndpoint(
 	apiClient: APIClient,

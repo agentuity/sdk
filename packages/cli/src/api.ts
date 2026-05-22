@@ -4,8 +4,8 @@
  * Re-exports from @agentuity/server with CLI-specific configuration
  */
 
-import type { Config, Logger } from './types';
-import { getVersion, getRevision } from './version';
+import type { Config, Logger } from './types.ts';
+import { getVersion, getRevision } from './version.ts';
 import {
 	APIClient as BaseAPIClient,
 	getAPIBaseURL as baseGetAPIBaseURL,
@@ -93,6 +93,15 @@ export function getAppBaseURL(config?: Config | null): string {
 	return baseGetAppBaseURL(config?.name, overrides);
 }
 
+/**
+ * URL the gravity tunnel binary connects to.
+ *
+ * Profile overrides win, then a hardcoded `local` profile target,
+ * then the default production endpoint. Region is currently unused
+ * because the platform exposes a single global devmode endpoint, but
+ * the parameter is accepted so callers can pass it forward without
+ * branching.
+ */
 export function getGravityDevModeURL(_region: string, config?: Config | null): string {
 	const overrides = config?.overrides as { gravity_url?: string } | undefined;
 	if (overrides?.gravity_url) {

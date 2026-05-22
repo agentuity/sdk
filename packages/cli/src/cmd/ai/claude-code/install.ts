@@ -1,8 +1,10 @@
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createSubcommand, type CommandContext } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
+import { getCommand } from '../../../command-prefix.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import { run } from '../../../node-compat/proc.ts';
+import * as tui from '../../../tui.ts';
+import { type CommandContext, createSubcommand } from '../../../types.ts';
 import {
 	type ClaudeSettings,
 	CLAUDE_DIR,
@@ -10,11 +12,11 @@ import {
 	PLUGIN_INSTALL_DIR,
 	AGENTUITY_ALLOW_PERMISSIONS,
 	AGENTUITY_DENY_PERMISSIONS,
-} from './constants';
+} from './constants.ts';
 
 async function readClaudeSettings(): Promise<ClaudeSettings> {
 	try {
-		if (await Bun.file(CLAUDE_SETTINGS_FILE).exists()) {
+		if (await pathExists(CLAUDE_SETTINGS_FILE)) {
 			const content = readFileSync(CLAUDE_SETTINGS_FILE, 'utf-8');
 			return JSON.parse(content);
 		}
@@ -63,7 +65,7 @@ async function installPackage(logger: { debug: (msg: string) => void }): Promise
 	mkdirSync(PLUGIN_INSTALL_DIR, { recursive: true });
 
 	const packageJsonPath = join(PLUGIN_INSTALL_DIR, 'package.json');
-	if (!(await Bun.file(packageJsonPath).exists())) {
+	if (!(await pathExists(packageJsonPath))) {
 		writeFileSync(
 			packageJsonPath,
 			JSON.stringify({ name: 'agentuity-claude-code-plugin', private: true }, null, 2)
@@ -72,15 +74,13 @@ async function installPackage(logger: { debug: (msg: string) => void }): Promise
 
 	logger.debug(`Installing @agentuity/claude-code to ${PLUGIN_INSTALL_DIR}`);
 
-	const proc = Bun.spawn(['bun', 'add', '@agentuity/claude-code@latest'], {
+	await run({
+		cmd: ['bun', 'add', '@agentuity/claude-code@latest'],
 		cwd: PLUGIN_INSTALL_DIR,
-		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 
-	await proc.exited;
-
 	const pluginPath = join(PLUGIN_INSTALL_DIR, 'node_modules', '@agentuity', 'claude-code');
-	if (await Bun.file(join(pluginPath, '.claude-plugin', 'plugin.json')).exists()) {
+	if (await pathExists(join(pluginPath, '.claude-plugin', 'plugin.json'))) {
 		return pluginPath;
 	}
 
@@ -174,5 +174,3 @@ export const installSubcommand = createSubcommand({
 		return { success: true, orgId, pluginPath };
 	},
 });
-
-export default installSubcommand;

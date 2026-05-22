@@ -1,12 +1,12 @@
-import { createCommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
-import { createSubcommand } from './create';
-import { deleteSubcommand } from './delete';
-import { rotateSecretSubcommand } from './rotate-secret';
-import { activitySubcommand } from './activity';
-import { usersSubcommand } from './users';
+import { createCommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
+import { createSubcommand } from './create.ts';
+import { deleteSubcommand } from './delete.ts';
+import { rotateSecretSubcommand } from './rotate-secret.ts';
+import { activitySubcommand } from './activity.ts';
+import { usersSubcommand } from './users.ts';
 
 export const command = createCommand({
 	name: 'oidc',

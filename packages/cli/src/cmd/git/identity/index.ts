@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types';
-import { connectSubcommand } from './connect';
-import { disconnectSubcommand } from './disconnect';
-import { statusSubcommand } from './status';
+import { createCommand } from '../../../types.ts';
+import { connectSubcommand } from './connect.ts';
+import { disconnectSubcommand } from './disconnect.ts';
+import { statusSubcommand } from './status.ts';
 
 export const identityCommand = createCommand({
 	name: 'identity',

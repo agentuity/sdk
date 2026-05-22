@@ -14,24 +14,9 @@ declare global {
 
 			/**
 			 * SDK authentication key for Agentuity services.
-			 * Used by the runtime to authenticate API requests.
+			 * Used by the service clients to authenticate API requests.
 			 */
 			AGENTUITY_SDK_KEY?: string;
-
-			/**
-			 * Auth secret for session signing and encryption.
-			 * Falls back to BETTER_AUTH_SECRET if not set.
-			 */
-			AGENTUITY_AUTH_SECRET?: string;
-
-			/**
-			 * Cloud base URL for authentication.
-			 * Fallback chain: AGENTUITY_BASE_URL → BETTER_AUTH_URL
-			 */
-			AGENTUITY_CLOUD_BASE_URL?: string;
-
-			/** Base URL fallback for cloud services */
-			AGENTUITY_BASE_URL?: string;
 
 			/** User ID for authentication context */
 			AGENTUITY_USER_ID?: string;
@@ -110,9 +95,6 @@ declare global {
 			/** Directory for cloud telemetry export */
 			AGENTUITY_CLOUD_EXPORT_DIR?: string;
 
-			/** Log level for Gravity logging subsystem */
-			AGENTUITY_GRAVITY_LOG_LEVEL?: string;
-
 			/** File path for clean/structured log output */
 			AGENTUITY_CLEAN_LOGS_FILE?: string;
 
@@ -134,12 +116,6 @@ declare global {
 
 			/** Enable SDK development mode with additional debugging */
 			AGENTUITY_SDK_DEV_MODE?: string;
-
-			/**
-			 * Flag indicating code is running inside the Agentuity agent runtime.
-			 * Set automatically by the runtime.
-			 */
-			AGENTUITY_RUNTIME?: string;
 
 			/** Environment shorthand (dev, staging, prod) */
 			AGENTUITY_ENV?: string;
@@ -222,12 +198,6 @@ declare global {
 
 			/** AWS endpoint URL override */
 			AWS_ENDPOINT?: string;
-
-			/**
-			 * Trusted domains for authentication.
-			 * Comma-separated list of domain patterns.
-			 */
-			AUTH_TRUSTED_DOMAINS?: string;
 		}
 	}
 }

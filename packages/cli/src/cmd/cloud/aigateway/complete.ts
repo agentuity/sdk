@@ -1,10 +1,14 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { StructuredError, type AIGatewayModels, type AIGatewayService } from '@agentuity/core';
-import { createCommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { getExecutingAgent } from '../../../agent-detection';
-import { createAIGatewayService, getAIGatewayUrl, getCompletionText } from './util';
-import { getCachedAIGatewayModels, setCachedAIGatewayModels } from './model-cache';
+import { StructuredError } from '@agentuity/core';
+import { type AIGatewayModels, type AIGatewayService } from '@agentuity/core/aigateway';
+import { createCommand } from '../../../types.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getExecutingAgent } from '../../../agent-detection.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import { readStdinText } from '../../../node-compat/stdin.ts';
+import { createAIGatewayService, getAIGatewayUrl, getCompletionText } from './util.ts';
+import { getCachedAIGatewayModels, setCachedAIGatewayModels } from './model-cache.ts';
 
 const CompletionResponseSchema = z.object({
 	text: z.string(),
@@ -29,23 +33,27 @@ async function readPromptFromStdin(): Promise<string | undefined> {
 	if (process.stdin.isTTY) {
 		return undefined;
 	}
-	const text = await Bun.stdin.text();
-	const trimmed = text.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
+	try {
+		const text = await readStdinText();
+		const trimmed = text.trim();
+		return trimmed.length > 0 ? trimmed : undefined;
+	} catch {
+		// stdin closed prematurely (e.g. under bun test); treat as empty.
+		return undefined;
+	}
 }
 
 async function readPromptFromFile(filename?: string): Promise<string | undefined> {
 	if (!filename) {
 		return undefined;
 	}
-	const file = Bun.file(filename);
-	if (!(await file.exists())) {
+	if (!(await pathExists(filename))) {
 		throw new PromptFileNotFoundError({
 			message: `Prompt file not found: ${filename}`,
 			filename,
 		});
 	}
-	const text = await file.text();
+	const text = await readFile(filename, 'utf-8');
 	const trimmed = text.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
 }
@@ -395,7 +403,7 @@ export const completeSubcommand = createCommand({
 			const metadata = await streamed.metadata;
 			const cost = metadata.cost;
 			if (ctx.opts.save) {
-				await Bun.write(ctx.opts.save, text);
+				await writeFile(ctx.opts.save, text);
 			}
 			if (!ctx.options.json && format === 'json') {
 				console.log(
@@ -419,7 +427,7 @@ export const completeSubcommand = createCommand({
 		const text = getCompletionText(response);
 		const cost = getCostInfo(response);
 		if (ctx.opts.save) {
-			await Bun.write(ctx.opts.save, text);
+			await writeFile(ctx.opts.save, text);
 		}
 
 		if (!ctx.options.json) {

@@ -1,10 +1,10 @@
-import { createCommand } from '../../../types';
-import { listSubcommand } from './list';
-import { createCustomSkillSubcommand } from './create';
-import { saveSkillSubcommand } from './save';
-import { deleteSkillSubcommand } from './delete';
-import { bucketsSubcommand } from './buckets';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { listSubcommand } from './list.ts';
+import { createCustomSkillSubcommand } from './create.ts';
+import { saveSkillSubcommand } from './save.ts';
+import { deleteSkillSubcommand } from './delete.ts';
+import { bucketsSubcommand } from './buckets.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const skillCommand = createCommand({
 	name: 'skill',

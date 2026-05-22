@@ -1,12 +1,12 @@
-import { createCommand } from '../../types';
-import { apikeyCommand } from './apikey';
-import { loginCommand } from './login';
-import { logoutCommand } from './logout';
-import { signupCommand } from './signup';
-import { whoamiCommand } from './whoami';
-import { sshSubcommand } from './ssh';
-import { orgSubcommand } from './org';
-import { getCommand } from '../../command-prefix';
+import { createCommand } from '../../types.ts';
+import { apikeyCommand } from './apikey.ts';
+import { loginCommand } from './login.ts';
+import { logoutCommand } from './logout.ts';
+import { signupCommand } from './signup.ts';
+import { whoamiCommand } from './whoami.ts';
+import { sshSubcommand } from './ssh/index.ts';
+import { orgSubcommand } from './org/index.ts';
+import { getCommand } from '../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'auth',

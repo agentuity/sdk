@@ -9,6 +9,9 @@ export const CreateProjectRequestSchema = z.object({
 	orgId: z.string().max(255).min(1).describe('the organization id to create the project in'),
 	cloudRegion: z.string().describe('the cloud region to create the project'),
 	domains: z.array(z.string()).optional().describe('the custom domains for this project'),
+	generation: z.string().optional().describe('the platform generation for this project'),
+	provider: z.string().optional().describe('the runtime provider for this project'),
+	framework: z.string().optional().describe('the framework used by this project'),
 });
 
 export const NewProjectSchema = z.object({

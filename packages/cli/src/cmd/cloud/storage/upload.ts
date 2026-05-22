@@ -1,13 +1,15 @@
+import { basename } from 'node:path';
 import { listOrgResources } from '@agentuity/server';
-import { basename } from 'path';
 import { z } from 'zod';
-import { getResourceInfo, setResourceInfo } from '../../../cache';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { createS3Client } from './utils';
+import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { openReadStream, pathExists } from '../../../node-compat/fs.ts';
+import { stdinWebStream } from '../../../node-compat/stdin.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { createS3Client } from './utils.ts';
 
 export const uploadSubcommand = createSubcommand({
 	name: 'upload',
@@ -123,14 +125,13 @@ export const uploadSubcommand = createSubcommand({
 
 		if (args.filename === '-') {
 			// Stream from STDIN
-			stream = Bun.stdin.stream();
+			stream = stdinWebStream();
 		} else {
 			// Stream from file
-			const file = Bun.file(args.filename);
-			if (!(await file.exists())) {
+			if (!(await pathExists(args.filename))) {
 				tui.fatal(`File not found: ${args.filename}`, ErrorCode.FILE_NOT_FOUND);
 			}
-			stream = file.stream();
+			stream = openReadStream(args.filename);
 		}
 
 		// Derive the remote object key:
@@ -172,7 +173,7 @@ export const uploadSubcommand = createSubcommand({
 			contentType = ext ? mimeTypes[ext] : 'application/octet-stream';
 		}
 
-		// Upload using Bun.s3
+		// Upload via @agentuity/storage's S3ClientLike.
 		const s3Client = createS3Client({
 			endpoint: bucket.endpoint,
 			access_key: bucket.access_key,
@@ -180,15 +181,18 @@ export const uploadSubcommand = createSubcommand({
 			region: bucket.region,
 		});
 
-		// Upload using streaming - wrap the stream in a Response object
-		// S3Client.write accepts Response which allows streaming without buffering in memory
+		// Upload using streaming. The S3ClientLike interface from
+		// @agentuity/storage accepts a ReadableStream<Uint8Array> directly
+		// for write() bodies; both backends handle streaming internally
+		// (Bun via its native S3Client, Node via a counting passthrough
+		// transform that reports exact bytes uploaded).
 		let bytesUploaded = 0;
 
 		await tui.spinner({
 			message: `Uploading ${objectKey} to ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				bytesUploaded = await s3Client.write(objectKey, new Response(stream), {
+				bytesUploaded = await s3Client.write(objectKey, stream, {
 					type: contentType,
 				});
 			},

@@ -1,13 +1,17 @@
+import { copyFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
 import { z } from 'zod';
-import { resolve, join, relative } from 'node:path';
-import { createCommand, DeployOptionsSchema } from '../../types';
-import { viteBundle } from './vite-bundler';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
-import { typecheck } from './typecheck';
-import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
-import { detectVersionMismatch, formatVersionMismatchWarning } from '../../utils/version-mismatch';
+import { getCommand } from '../../command-prefix.ts';
+import { ErrorCode } from '../../errors.ts';
+import { pathExists } from '../../node-compat/fs.ts';
+import * as tui from '../../tui.ts';
+import { createCommand, DeployOptionsSchema } from '../../types.ts';
+import {
+	BuildReportCollector,
+	setGlobalCollector,
+	clearGlobalCollector,
+} from '../../build-report.ts';
+import { FrameworkDetectionError, TypecheckError, runBuildPipeline } from './run.ts';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -15,6 +19,7 @@ const BuildResponseSchema = z.object({
 	projectName: z.string().describe('Project name'),
 	dev: z.boolean().describe('Whether dev mode was enabled'),
 	size: z.number().optional().describe('Build size in bytes'),
+	framework: z.string().optional().describe('Detected framework name'),
 });
 
 const BuildOptionsSchema = z.intersection(
@@ -58,7 +63,11 @@ export const command = createCommand({
 		const { opts, projectDir, project } = ctx;
 
 		if (opts.ci) {
-			const { runCIBuild } = await import('./ci');
+			if (!opts.url) {
+				tui.fatal('--url is required when using --ci mode', ErrorCode.CONFIG_INVALID);
+			}
+
+			const { runCIBuild } = await import('./ci.ts');
 			await runCIBuild(
 				{
 					url: opts.url,
@@ -96,91 +105,58 @@ export const command = createCommand({
 
 		const absoluteProjectDir = resolve(projectDir);
 
-		// Check for version mismatches (v1 vs v2 SDK packages)
-		const versionMismatch = detectVersionMismatch(absoluteProjectDir, ctx.logger);
-		if (versionMismatch.hasV1Packages || versionMismatch.hasMajorMismatches) {
-			tui.newline();
-			tui.warning(formatVersionMismatchWarning(versionMismatch));
-			tui.newline();
-		}
-
-		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
-
 		try {
-			const rel = outDir.startsWith(absoluteProjectDir)
-				? relative(absoluteProjectDir, outDir)
-				: outDir;
-			tui.info(`Building project with Vite at ${absoluteProjectDir} to ${rel}`);
-
-			await viteBundle({
-				rootDir: absoluteProjectDir,
-				dev: opts.dev || false,
+			tui.info('Detecting framework...');
+			const pipelineResult = await runBuildPipeline({
+				projectDir: absoluteProjectDir,
+				logger: ctx.logger,
+				collector,
+				outputDir: opts.outdir ? resolve(opts.outdir) : undefined,
+				skipTypeCheck: opts.skipTypeCheck,
+				dev: opts.dev,
 				projectId: project?.projectId,
 				orgId: project?.orgId,
 				region: project?.region ?? 'local',
-				logger: ctx.logger,
-				collector,
 			});
 
-			// Copy profile-specific .env file AFTER bundling (bundler clears outDir first)
+			const { framework, monorepo, buildResult, packageResult, outputDir } = pipelineResult;
+
+			const frameworkLabel = framework.version
+				? `${framework.name} v${framework.version}`
+				: framework.name;
+			tui.success(`Detected ${tui.bold(frameworkLabel)} (${framework.runtime})`);
+			if (monorepo) {
+				tui.info(
+					`Detected ${tui.bold(monorepo.packageManager)} workspace at ${tui.muted(monorepo.root)} (subpackage: ${tui.bold(monorepo.subpath)})`
+				);
+			}
+
+			const rel = outputDir.startsWith(absoluteProjectDir)
+				? relative(absoluteProjectDir, outputDir)
+				: outputDir;
+			tui.info(`Built to ${rel}`);
+			for (const line of pipelineResult.logs) {
+				tui.info(tui.muted(line));
+			}
+			ctx.logger.debug('Launch metadata: %s', JSON.stringify(packageResult.launch, null, 2));
+
+			// Copy profile-specific .env file AFTER building, before returning
+			// success. The shared pipeline doesn't know about CLI profiles, so
+			// this stays here.
 			if (opts.dev && ctx.config?.name) {
 				const envSourcePath = join(absoluteProjectDir, `.env.${ctx.config.name}`);
-				const envDestPath = join(outDir, '.env');
+				const envDestPath = join(buildResult.outputDir, '.env');
 
-				const envFile = Bun.file(envSourcePath);
-				if (await envFile.exists()) {
-					await Bun.write(envDestPath, envFile);
+				if (await pathExists(envSourcePath)) {
+					await copyFile(envSourcePath, envDestPath);
 					ctx.logger.debug(`Copied ${envSourcePath} to ${envDestPath}`);
 				} else {
 					ctx.logger.debug(`No .env.${ctx.config.name} file found, skipping env copy`);
 				}
 			}
 
-			// Run TypeScript type checking after registry generation (skip in dev mode)
-			if (!opts.dev && !opts.skipTypeCheck) {
-				try {
-					tui.info('Running type check...');
-					const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
-					const typeResult = await typecheck(absoluteProjectDir, { collector });
-					endTypecheckDiagnostic();
+			tui.success(`Build complete (${frameworkLabel}, ${buildResult.duration}ms)`);
 
-					if (typeResult.success) {
-						tui.success('Type check passed');
-					} else {
-						console.error('');
-						console.error(typeResult.output);
-						console.error('');
-						const msg =
-							'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
-
-						// Write report before fatal exit
-						if (opts.reportFile) {
-							await collector.forceWrite();
-						}
-						clearGlobalCollector();
-						tui.fatal(msg, ErrorCode.BUILD_FAILED);
-					}
-				} catch (error: unknown) {
-					const errorMsg = error instanceof Error ? error.message : String(error);
-					collector.addGeneralError('typescript', errorMsg, 'BUILD008');
-
-					// Write report before fatal exit
-					if (opts.reportFile) {
-						await collector.forceWrite();
-					}
-					clearGlobalCollector();
-
-					tui.error(`Type check failed to run: ${errorMsg}`);
-					tui.fatal(
-						'Unable to run TypeScript type checking. Ensure TypeScript is installed.',
-						ErrorCode.BUILD_FAILED
-					);
-				}
-			}
-
-			tui.success('Build complete');
-
-			// Write final report on success
 			if (opts.reportFile) {
 				await collector.forceWrite();
 			}
@@ -188,11 +164,28 @@ export const command = createCommand({
 
 			return {
 				success: true,
-				bundlePath: outDir,
+				bundlePath: buildResult.outputDir,
 				projectName: project?.projectId || 'unknown',
 				dev: opts.dev || false,
+				framework: framework.name,
 			};
 		} catch (error: unknown) {
+			// Translate structured pipeline errors into the CLI's fatal surface.
+			if (error instanceof FrameworkDetectionError) {
+				collector.addGeneralError('build', error.message, 'BUILD010');
+				if (opts.reportFile) await collector.forceWrite();
+				clearGlobalCollector();
+				tui.fatal(error.message, ErrorCode.BUILD_FAILED);
+			}
+			if (error instanceof TypecheckError) {
+				console.error('');
+				console.error(error.output);
+				console.error('');
+				if (opts.reportFile) await collector.forceWrite();
+				clearGlobalCollector();
+				tui.fatal('Fix type errors before building', ErrorCode.BUILD_FAILED);
+			}
+			// Fall through to the original generic error handler below.
 			// Add error to collector
 			if (error instanceof AggregateError) {
 				const ae = error as AggregateError;

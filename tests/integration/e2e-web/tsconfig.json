@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"outDir": "dist",
+		"types": ["bun"]
+	},
+	"include": ["src", "test"],
+	"exclude": ["node_modules", "dist"]
+}

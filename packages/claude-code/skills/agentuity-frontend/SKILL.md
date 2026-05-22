@@ -1,6 +1,6 @@
 ---
 name: agentuity-frontend
-description: When building website or app frontends that connect to Agentuity agents and services. Covers @agentuity/react hooks, @agentuity/auth for login flows, @agentuity/frontend for WebRTC and real-time communication, and @agentuity/workbench for the agent testing UI.
+description: When building website or app frontends that connect to Agentuity agents and services. Covers @agentuity/react hooks, @agentuity/auth for login flows, @agentuity/frontend for WebRTC and real-time communication.
 version: 2.0.0
 ---
 
@@ -13,7 +13,6 @@ version: 2.0.0
 | `@agentuity/react`     | React hooks for context, auth, WebRTC, and analytics |
 | `@agentuity/frontend`  | Framework-agnostic web utilities                      |
 | `@agentuity/auth`      | Authentication (server + client)                      |
-| `@agentuity/workbench` | Dev UI for testing agents                             |
 
 ## Key Concepts
 

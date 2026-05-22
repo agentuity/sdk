@@ -1,22 +1,22 @@
-import { createCommand } from '../../../types';
-import { runSubcommand } from './run';
-import { createSubcommand } from './create';
-import { execSubcommand } from './exec';
-import { listSubcommand } from './list';
-import { getSubcommand } from './get';
-import { deleteSubcommand } from './delete';
-import { snapshotCommand } from './snapshot';
-import { runtimeCommand } from './runtime';
-import { command as fsCommand } from './fs';
-import { command as executionCommand } from './execution';
-import { command as jobCommand } from './job';
-import { envSubcommand } from './env';
-import { pauseSubcommand } from './pause';
-import { resumeSubcommand } from './resume';
-import { checkpointCommand } from './checkpoint';
-import { statsSubcommand } from './stats';
-import { eventsSubcommand } from './events';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { runSubcommand } from './run.ts';
+import { createSubcommand } from './create.ts';
+import { execSubcommand } from './exec.ts';
+import { listSubcommand } from './list.ts';
+import { getSubcommand } from './get.ts';
+import { deleteSubcommand } from './delete.ts';
+import { snapshotCommand } from './snapshot/index.ts';
+import { runtimeCommand } from './runtime/index.ts';
+import { command as fsCommand } from './fs/index.ts';
+import { command as executionCommand } from './execution/index.ts';
+import { command as jobCommand } from './job/index.ts';
+import { envSubcommand } from './env.ts';
+import { pauseSubcommand } from './pause.ts';
+import { resumeSubcommand } from './resume.ts';
+import { checkpointCommand } from './checkpoint/index.ts';
+import { statsSubcommand } from './stats.ts';
+import { eventsSubcommand } from './events.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'sandbox',

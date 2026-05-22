@@ -1,13 +1,18 @@
-import { basename, join } from 'path';
-import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { createStorageAdapter, parseMetadataFlag, cacheTaskId } from './util';
-import { getCommand } from '../../../command-prefix';
-import { whoami } from '@agentuity/server';
+import { createReadStream, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import type { TaskPriority, TaskStatus, TaskType, UserType } from '@agentuity/core';
-import { getCachedUserInfo, setCachedUserInfo } from '../../../cache';
-import { defaultProfileName } from '../../../config';
+import { getContentType, whoami } from '@agentuity/server';
+import { z } from 'zod';
+import { getCachedUserInfo, setCachedUserInfo } from '../../../cache/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { defaultProfileName } from '../../../config.ts';
+import { pathExists } from '../../../node-compat/fs.ts';
+import * as tui from '../../../tui.ts';
+import { createCommand } from '../../../types.ts';
+import { cacheTaskId, createStorageAdapter, parseMetadataFlag } from './util.ts';
 
 const TaskCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -131,7 +136,7 @@ export const createSubcommand = createCommand({
 		} else {
 			// Using auth userId — check cache first, then fall back to whoami API call
 			const profileName = ctx.config?.name ?? defaultProfileName;
-			const cached = getCachedUserInfo(profileName);
+			const cached = await getCachedUserInfo(profileName);
 			if (cached) {
 				const name = [cached.firstName, cached.lastName].filter(Boolean).join(' ');
 				if (name) {
@@ -145,7 +150,7 @@ export const createSubcommand = createCommand({
 					if (name) {
 						creator = { id: createdId, name, type: createdType };
 					}
-					setCachedUserInfo(profileName, createdId, user.firstName, user.lastName);
+					await setCachedUserInfo(profileName, createdId, user.firstName, user.lastName);
 				} catch {
 					// Fall back to no creator EntityRef — task DB will use id as name
 				}
@@ -162,9 +167,8 @@ export const createSubcommand = createCommand({
 			let projectName = ctx.project.projectId;
 			try {
 				const pkgPath = join(ctx.projectDir, 'package.json');
-				const pkgFile = Bun.file(pkgPath);
-				if (await pkgFile.exists()) {
-					const pkg = await pkgFile.json();
+				if (await pathExists(pkgPath)) {
+					const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
 					if (pkg.name) {
 						projectName = pkg.name;
 					}
@@ -195,14 +199,13 @@ export const createSubcommand = createCommand({
 		// Handle --file attachment
 		let attachmentInfo: { id: string; filename: string } | undefined;
 		if (opts.file) {
-			const file = Bun.file(opts.file);
-			if (!(await file.exists())) {
+			if (!(await pathExists(opts.file))) {
 				tui.fatal(`File not found: ${opts.file}`);
 			}
 
 			const filename = basename(opts.file);
-			const contentType = file.type || 'application/octet-stream';
-			const size = file.size;
+			const contentType = getContentType(opts.file) || 'application/octet-stream';
+			const size = statSync(opts.file).size;
 
 			const presign = await storage.uploadAttachment(task.id, {
 				filename,
@@ -210,14 +213,18 @@ export const createSubcommand = createCommand({
 				size,
 			});
 
+			const uploadBody = Readable.toWeb(
+				createReadStream(opts.file)
+			) as unknown as NodeWebReadableStream<Uint8Array> as ReadableStream<Uint8Array>;
 			const uploadResponse = await fetch(presign.presigned_url, {
 				method: 'PUT',
-				body: file.stream(),
+				body: uploadBody,
 				headers: {
 					'Content-Type': contentType,
+					'Content-Length': String(size),
 				},
 				duplex: 'half',
-			});
+			} as RequestInit & { duplex: 'half' });
 			if (!uploadResponse.ok) {
 				tui.fatal(`Attachment upload failed: ${uploadResponse.statusText}`);
 			}
@@ -276,5 +283,3 @@ export const createSubcommand = createCommand({
 		};
 	},
 });
-
-export default createSubcommand;

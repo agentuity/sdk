@@ -1,7 +1,7 @@
-import { createCommand } from '../../../types';
-import { installSubcommand } from './install';
-import { uninstallSubcommand } from './uninstall';
-import { getCommand } from '../../../command-prefix';
+import { createCommand } from '../../../types.ts';
+import { installSubcommand } from './install.ts';
+import { uninstallSubcommand } from './uninstall.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'claude-code',

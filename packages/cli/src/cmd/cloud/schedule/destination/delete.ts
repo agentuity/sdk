@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createScheduleAdapter } from '../util';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createScheduleAdapter } from '../util.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 
 const DestinationDeleteResponseSchema = z.object({
 	success: z.boolean(),
@@ -41,5 +41,3 @@ export const deleteSubcommand = createCommand({
 		return { success: true, destination_id: args.destination_id };
 	},
 });
-
-export default deleteSubcommand;

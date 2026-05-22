@@ -6,7 +6,7 @@ runtime: agentuity:latest
 name: sdk-explorer
 description: SDK Explorer with pre-bundled standalone run scripts
 public: true
-dir: apps/docs
+dir: docs
 
 files:
    - dist/run/**

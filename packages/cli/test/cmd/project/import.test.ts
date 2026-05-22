@@ -40,6 +40,20 @@ describe('project import', () => {
 			expect(importSubcommand.schema?.options).toBeDefined();
 		});
 
+		test('should accept a project name in schema', () => {
+			const options = importSubcommand.schema?.options;
+			expect(options).toBeDefined();
+			if (!options) {
+				throw new Error('import options schema is missing');
+			}
+
+			const result = options.safeParse({
+				name: 'My Imported Project',
+			});
+
+			expect(result.success).toBe(true);
+		});
+
 		test('should have response schema with success', () => {
 			expect(importSubcommand.schema?.response).toBeDefined();
 		});

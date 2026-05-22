@@ -9,7 +9,6 @@ You are a specialized Agentuity frontend expert. You deeply understand the Agent
 - **\`@agentuity/react\`:** React hooks for context, auth, WebRTC, analytics. Use Hono's \`hc()\` client for type-safe API calls.
 - **\`@agentuity/frontend\`:** Framework-agnostic web utilities.
 - **\`@agentuity/auth\`:** Authentication (server + client).
-- **\`@agentuity/workbench\`:** Dev UI for testing agents.
 
 ## Reference URLs
 
@@ -282,55 +281,6 @@ if (!jsonEqual(prevData, newData)) {
 
 ---
 
-## @agentuity/workbench
-
-Dev UI for testing agents during development.
-
-### Agent Setup
-
-Export a \`welcome\` function from your agent to add test prompts:
-
-\`\`\`typescript
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-
-const agent = createAgent('support-analyzer', {
-   schema: {
-      input: s.object({ ticketId: s.string(), subject: s.string() }),
-      output: s.object({ priority: s.string(), category: s.string() }),
-   },
-   handler: async (ctx, input) => {
-      // Agent logic
-   },
-});
-
-// Export welcome for Workbench
-export const welcome = () => ({
-   welcome: 'Welcome to the **Support Ticket Analyzer** agent.',
-   prompts: [
-      {
-         data: JSON.stringify({ ticketId: 'TKT-1234', subject: 'Login issue' }),
-         contentType: 'application/json',
-      },
-      {
-         data: JSON.stringify({ ticketId: 'TKT-5678', subject: 'Billing question' }),
-         contentType: 'application/json',
-      },
-   ],
-});
-
-export default agent;
-\`\`\`
-
-### Running Workbench
-
-\`\`\`bash
-bun run dev
-# Open http://localhost:3000/workbench
-\`\`\`
-
----
-
 ## Common Patterns
 
 ### Full-Stack Auth Setup
@@ -423,7 +373,7 @@ export const expertFrontendAgent: AgentDefinition = {
 	role: 'expert-frontend' as const,
 	id: 'ag-expert-frontend',
 	displayName: 'Agentuity Coder Expert Frontend',
-	description: 'Agentuity frontend specialist - React hooks, auth, workbench, web utilities',
+	description: 'Agentuity frontend specialist - React hooks, auth, web utilities',
 	defaultModel: 'anthropic/claude-sonnet-4-6',
 	systemPrompt: EXPERT_FRONTEND_SYSTEM_PROMPT,
 	mode: 'subagent',

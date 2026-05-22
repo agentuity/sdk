@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/email",
-	"version": "2.0.21",
+	"version": "3.0.0-beta.9",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -20,23 +20,27 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build --force",
-		"typecheck": "bunx tsc --noEmit",
+		"build": "tsgo --build --force",
+		"typecheck": "tsgo --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@agentuity/server": "workspace:*",
+		"@agentuity/adapter": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
-		"bun-types": "latest",
-		"typescript": "^5.9.0"
+		"typescript": "^6.0.2"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": false
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/email"
+	}
 }

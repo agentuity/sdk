@@ -1,0 +1,17 @@
+{
+  "id": "queue",
+  "label": "Queue",
+  "hint": "Publish translation requests to a queue",
+  "description": "Queue for processing asynchronous jobs.",
+  "order": 40,
+  "packages": [
+    "@agentuity/queue"
+  ],
+  "frameworks": [
+    "nextjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "hono"
+  ]
+}

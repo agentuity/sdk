@@ -1,0 +1,21 @@
+{
+	"name": "testing",
+	"version": "3.0.0-beta.0",
+	"license": "Apache-2.0",
+	"private": true,
+	"scripts": {
+		"typecheck:tanstack": "cd frameworks/tanstack-start && bun run typecheck",
+		"typecheck:nextjs": "cd frameworks/nextjs-app && bun run typecheck",
+		"typecheck:svelte": "cd frameworks/svelte-web && bun run typecheck",
+		"typecheck:all": "bun run typecheck:tanstack && bun run typecheck:nextjs && bun run typecheck:svelte",
+		"build:tanstack": "cd frameworks/tanstack-start && bun run build",
+		"build:nextjs": "cd frameworks/nextjs-app && bun run build",
+		"build:svelte": "cd frameworks/svelte-web && bun run build",
+		"test:create": "bun create/basic-flow.ts && bun create/services-build.ts",
+		"test:create:services": "bun create/services-build.ts",
+		"test:frameworks": "bash ../scripts/test-framework-demos.sh",
+		"test:frameworks:tanstack": "bash ../scripts/test-framework-demos.sh --tanstack-only",
+		"test:frameworks:nextjs": "bash ../scripts/test-framework-demos.sh --nextjs-only",
+		"test:frameworks:svelte": "bash ../scripts/test-framework-demos.sh --svelte-only"
+	}
+}

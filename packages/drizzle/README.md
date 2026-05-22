@@ -1,5 +1,9 @@
 # @agentuity/drizzle
 
+> **⚠️ DEPRECATED** — Use `drizzle-orm/node-postgres` with `pg` directly against your `DATABASE_URL`.
+>
+> This package is no longer recommended for new projects.
+
 Drizzle ORM integration with resilient PostgreSQL connections for Agentuity projects.
 
 ## Installation
@@ -13,7 +17,6 @@ bun add @agentuity/drizzle
 - **Type-safe queries** - Full TypeScript support with Drizzle ORM's schema inference
 - **Automatic reconnection** - Built on @agentuity/postgres with exponential backoff
 - **Convenient re-exports** - Common Drizzle utilities available from a single import
-- **Auth integration** - Works seamlessly with @agentuity/auth via drizzleAdapter
 
 ## Basic Usage
 
@@ -74,24 +77,6 @@ const { db, client, close } = createPostgresDrizzle({
 // Access connection statistics
 console.log(client.stats);
 // { connected: true, reconnecting: false, totalConnections: 1, ... }
-```
-
-## Using with @agentuity/auth
-
-```typescript
-import { createPostgresDrizzle, drizzleAdapter } from '@agentuity/drizzle';
-import { createAuth } from '@agentuity/auth';
-import * as schema from './schema';
-
-// Create database instance
-const { db, close } = createPostgresDrizzle({ schema });
-
-// Create auth with Drizzle adapter
-const auth = createAuth({
-	database: drizzleAdapter(db, {
-		provider: 'pg',
-	}),
-});
 ```
 
 ## Accessing the Underlying Client

@@ -1,7 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import { getCommand } from '../../../command-prefix';
-import { createAIGatewayService } from './util';
+import { getCommand } from '../../../command-prefix.ts';
+import { readStdinText } from '../../../node-compat/stdin.ts';
+import { createCommand } from '../../../types.ts';
+import { createAIGatewayService } from './util.ts';
 
 const RequestResponseSchema = z.object({
 	path: z.string(),
@@ -15,13 +17,13 @@ async function readStdin(): Promise<string | undefined> {
 	if (process.stdin.isTTY) {
 		return undefined;
 	}
-	const text = await Bun.stdin.text();
+	const text = await readStdinText();
 	const trimmed = text.trim();
 	return trimmed.length > 0 ? trimmed : undefined;
 }
 
 async function readBody(opts: { body?: string; file?: string; raw?: boolean }): Promise<unknown> {
-	const text = opts.body ?? (opts.file ? await Bun.file(opts.file).text() : await readStdin());
+	const text = opts.body ?? (opts.file ? await readFile(opts.file, 'utf8') : await readStdin());
 	if (text === undefined) {
 		return undefined;
 	}

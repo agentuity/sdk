@@ -1,0 +1,8 @@
+{
+	"framework": "nuxt",
+	"displayName": "Nuxt",
+	"checklistFile": {
+		"path": "app/app.vue",
+		"syntax": "<!-- -->"
+	}
+}

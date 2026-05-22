@@ -204,12 +204,4 @@ describe('exports', () => {
 			expect(mod).toBeDefined();
 		});
 	});
-
-	describe('re-exports from better-auth', () => {
-		test('drizzleAdapter is exported', async () => {
-			const { drizzleAdapter } = await import('../src/index');
-			expect(drizzleAdapter).toBeDefined();
-			expect(typeof drizzleAdapter).toBe('function');
-		});
-	});
 });

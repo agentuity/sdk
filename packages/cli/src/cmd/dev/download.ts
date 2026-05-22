@@ -4,7 +4,7 @@ import { tmpdir, platform } from 'node:os';
 import { join, dirname } from 'node:path';
 import * as tar from 'tar';
 import { StructuredError } from '@agentuity/core';
-import { spinner } from '../../tui';
+import { spinner } from '../../tui.ts';
 
 interface GravityClient {
 	filename: string;
@@ -12,11 +12,11 @@ interface GravityClient {
 }
 
 /**
- * Remove previously downloaded gravity version directories after a newer
- * version has started successfully.
+ * Remove previously downloaded gravity version directories after a
+ * newer version has started successfully.
  *
- * Safety guard: only removes sibling directories that contain a gravity
- * binary, leaving any unrelated files/folders untouched.
+ * Safety guard: only removes sibling directories that contain a
+ * gravity binary, leaving any unrelated files/folders untouched.
  */
 export function sweepOldGravityVersions(gravityDir: string, currentVersion: string): string[] {
 	if (!existsSync(gravityDir)) {
@@ -59,8 +59,9 @@ function getBaseURL(): string {
 }
 
 /**
- *
- * @returns full path to the downloaded file
+ * Resolve the latest gravity version, download (or re-use) the
+ * binary for the host platform, and extract it to
+ * `<gravityDir>/<version>/gravity`.
  */
 export async function download(gravityDir: string): Promise<GravityClient> {
 	const baseURL = getBaseURL();
@@ -88,7 +89,7 @@ export async function download(gravityDir: string): Promise<GravityClient> {
 	const releaseFilename = join(gravityDir, version, 'gravity');
 
 	// Step 2: Check if already downloaded
-	if (await Bun.file(releaseFilename).exists()) {
+	if (existsSync(releaseFilename)) {
 		return { filename: releaseFilename, version };
 	}
 
@@ -125,7 +126,7 @@ export async function download(gravityDir: string): Promise<GravityClient> {
 			message: 'Extracting release',
 			callback: async () => {
 				const downloadDir = dirname(releaseFilename);
-				if (!(await Bun.file(downloadDir).exists())) {
+				if (!existsSync(downloadDir)) {
 					mkdirSync(downloadDir, { recursive: true });
 				}
 				await tar.x({ file: tmpFile, cwd: downloadDir, chmod: true });
@@ -134,13 +135,13 @@ export async function download(gravityDir: string): Promise<GravityClient> {
 		});
 	} finally {
 		// Clean up temp file regardless of success or failure
-		if (await Bun.file(tmpFile).exists()) {
+		if (existsSync(tmpFile)) {
 			rmSync(tmpFile);
 		}
 	}
 
 	// Step 5: Verify the binary was extracted
-	if (!(await Bun.file(releaseFilename).exists())) {
+	if (!existsSync(releaseFilename)) {
 		throw new GravityExtractionError({ path: releaseFilename });
 	}
 

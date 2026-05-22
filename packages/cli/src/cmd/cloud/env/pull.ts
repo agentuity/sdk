@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
 import { projectGet, orgEnvGet } from '@agentuity/server';
 import {
 	findExistingEnvFile,
@@ -9,10 +9,10 @@ import {
 	mergeEnvVars,
 	splitEnvAndSecrets,
 	filterAgentuitySdkKeys,
-} from '../../../env-util';
-import { getCommand } from '../../../command-prefix';
-import { resolveOrgId, isOrgScope } from './org-util';
-import { computeEnvDiff, displayEnvDiff } from './env-diff';
+} from '../../../env-util.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { resolveOrgId, isOrgScope } from './org-util.ts';
+import { computeEnvDiff, displayEnvDiff } from './env-diff.ts';
 
 const EnvPullResponseSchema = z.object({
 	success: z.boolean().describe('Whether pull succeeded'),

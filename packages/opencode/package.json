@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/opencode",
-	"version": "2.0.21",
+	"version": "3.0.0-beta.9",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Agentuity Open Code plugin with specialized AI coding agents",
@@ -41,7 +41,7 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@opencode-ai/plugin": "^1.1.36",
+		"@opencode-ai/plugin": "^1.15.5",
 		"yaml": "^2.8.1",
 		"zod": "^4.3.5"
 	},
@@ -54,5 +54,10 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": false
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/opencode"
+	}
 }

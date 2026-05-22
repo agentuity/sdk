@@ -2,7 +2,9 @@
  * Utility functions for handling .env files
  */
 
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathExists } from './node-compat/fs.ts';
 
 export interface EnvVars {
 	[key: string]: string;
@@ -127,13 +129,11 @@ export function parseEnvLine(line: string): { key: string; value: string } | nul
  * Read and parse an .env file
  */
 export async function readEnvFile(path: string): Promise<EnvVars> {
-	const file = Bun.file(path);
-
-	if (!(await file.exists())) {
+	if (!(await pathExists(path))) {
 		return {};
 	}
 
-	const content = await file.text();
+	const content = await readFile(path, 'utf-8');
 	const lines = content.split('\n');
 	const env: EnvVars = {};
 
@@ -202,7 +202,7 @@ export async function writeEnvFile(
 	}
 
 	const content = lines.join('\n') + '\n';
-	await Bun.write(path, content);
+	await writeFile(path, content);
 }
 
 /**
@@ -253,7 +253,7 @@ export function filterAgentuitySdkKeys(vars?: EnvVars): EnvVars {
 /**
  * Keys that should always be treated as secrets (exact match)
  */
-const secretExactKeys = ['DATABASE_URL'];
+const secretExactKeys = ['DATABASE_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SESSION_TOKEN'];
 
 /**
  * Split env vars into env and secrets based on key names

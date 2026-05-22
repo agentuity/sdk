@@ -9,10 +9,10 @@ import {
 	type MonitorMessage,
 	type MonitorScope,
 } from '@agentuity/core';
-import { getAPIBaseURL } from '../../api';
-import { getCommand } from '../../command-prefix';
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
+import { getAPIBaseURL } from '../../api.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { createSubcommand } from '../../types.ts';
+import * as tui from '../../tui.ts';
 
 const monitorOptionsSchema = z.object({
 	machine: z.string().optional().describe('Monitor a specific machine id'),
@@ -371,5 +371,3 @@ function usecToISO(us?: number): string | undefined {
 	}
 	return new Date(Math.floor(us / 1000)).toISOString();
 }
-
-export default monitorSubcommand;

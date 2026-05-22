@@ -1,19 +1,19 @@
 import { listResources, projectEnvUpdate } from '@agentuity/server';
 import { z } from 'zod';
-import { getCommand } from '../../../command-prefix';
-import { getCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix.ts';
+import { getCatalystAPIClient } from '../../../config.ts';
 import {
 	addResourceEnvVars,
 	filterAgentuitySdkKeys,
 	findExistingEnvFile,
 	readEnvFile,
 	splitEnvAndSecrets,
-} from '../../../env-util';
-import { ErrorCode } from '../../../errors';
-import { isDryRunMode, outputDryRun } from '../../../explain';
-import * as tui from '../../../tui';
-import { createPrompt } from '../../../tui';
-import { createSubcommand } from '../../../types';
+} from '../../../env-util.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { isDryRunMode, outputDryRun } from '../../../explain.ts';
+import * as tui from '../../../tui.ts';
+import { createPrompt } from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
 
 export const databaseSubcommand = createSubcommand({
 	name: 'database',

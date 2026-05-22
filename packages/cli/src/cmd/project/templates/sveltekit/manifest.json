@@ -1,0 +1,8 @@
+{
+	"framework": "sveltekit",
+	"displayName": "SvelteKit",
+	"checklistFile": {
+		"path": "src/routes/+page.svelte",
+		"syntax": "<!-- -->"
+	}
+}

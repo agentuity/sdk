@@ -1,11 +1,10 @@
 import { z } from 'zod';
 import { CoderClient } from '@agentuity/core/coder';
 import { ValidationOutputError } from '@agentuity/core';
-import { createSubcommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-import { printWorkspaceSummary } from './common';
+import { createSubcommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { ErrorCode } from '../../../errors.ts';
 
 function formatRelativeTime(isoDate: string): string {
 	const parsed = new Date(isoDate).getTime();
@@ -64,7 +63,11 @@ export const getWorkspaceSubcommand = createSubcommand({
 			tui.header(`Workspace: ${workspace.name}`);
 			tui.newline();
 			tui.output(`  ID:          ${workspace.id}`);
-			printWorkspaceSummary(workspace);
+			tui.output(`  Name:        ${tui.bold(workspace.name)}`);
+			if (workspace.description) {
+				tui.output(`  Description: ${workspace.description}`);
+			}
+			tui.output(`  Scope:       ${workspace.scope}`);
 			tui.output(`  Owner:       ${workspace.ownerUserId}`);
 			tui.output(`  Created:     ${formatRelativeTime(workspace.createdAt)}`);
 			tui.output(`  Updated:     ${formatRelativeTime(workspace.updatedAt)}`);

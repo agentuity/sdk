@@ -1,0 +1,8 @@
+{
+	"framework": "astro",
+	"displayName": "Astro",
+	"checklistFile": {
+		"path": "src/pages/index.astro",
+		"syntax": "<!-- -->"
+	}
+}

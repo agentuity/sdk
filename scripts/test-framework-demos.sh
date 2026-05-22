@@ -1,5 +1,5 @@
 #!/bin/bash
-# Framework Demo Tests - Playwright E2E Tests for TanStack, Next.js, and Vite RSC Integration
+# Framework Demo Tests - Playwright E2E Tests for TanStack, Next.js, and SvelteKit Integration
 # Tests the frontend framework integration demos with Agentuity
 
 set -e
@@ -7,31 +7,33 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+
 echo "╔════════════════════════════════════════════════╗"
 echo "║  Framework Demo Tests                          ║"
-echo "║  TanStack & Next.js & Vite RSC                 ║"
+echo "║  TanStack & Next.js & SvelteKit                ║"
+echo "║  (via agentuity dev)                           ║"
 echo "╚════════════════════════════════════════════════╝"
 echo ""
 
 # Parse arguments
 RUN_TANSTACK=true
 RUN_NEXTJS=true
-RUN_VITE_RSC=true
+RUN_SVELTE=true
 SKIP_BUILD=false
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
 		--tanstack-only)
 			RUN_NEXTJS=false
-			RUN_VITE_RSC=false
+			RUN_SVELTE=false
 			shift
 			;;
 		--nextjs-only)
 			RUN_TANSTACK=false
-			RUN_VITE_RSC=false
+			RUN_SVELTE=false
 			shift
 			;;
-		--vite-rsc-only)
+		--svelte-only)
 			RUN_TANSTACK=false
 			RUN_NEXTJS=false
 			shift
@@ -57,16 +59,11 @@ cleanup() {
 	if [ -n "$NEXTJS_PID" ]; then
 		kill $NEXTJS_PID 2>/dev/null || true
 	fi
-	if [ -n "$VITE_RSC_PID" ]; then
-		kill $VITE_RSC_PID 2>/dev/null || true
+	if [ -n "$SVELTE_PID" ]; then
+		kill $SVELTE_PID 2>/dev/null || true
 	fi
-	# Kill any remaining processes on the ports
+	# Kill any remaining processes on the port
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3500 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3501 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3502 | xargs kill -9 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -106,13 +103,12 @@ if [ "$RUN_TANSTACK" = true ]; then
 	
 	# Start TanStack app
 	echo "Starting TanStack app..."
-	cd "$SDK_ROOT/apps/testing/tanstack-start"
+	cd "$SDK_ROOT/tests/frameworks/tanstack-start"
 	bun run dev &
 	TANSTACK_PID=$!
 	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3000" "TanStack web (3000)"
-	wait_for_server "http://localhost:3500" "TanStack agent (3500)"
+	# Wait for web server
+	wait_for_server "http://localhost:3000" "TanStack (3000)"
 	
 	# Run Playwright tests for TanStack
 	echo ""
@@ -124,7 +120,6 @@ if [ "$RUN_TANSTACK" = true ]; then
 	kill $TANSTACK_PID 2>/dev/null || true
 	TANSTACK_PID=""
 	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3500 | xargs kill -9 2>/dev/null || true
 	sleep 2
 	
 	echo ""
@@ -141,13 +136,12 @@ if [ "$RUN_NEXTJS" = true ]; then
 	
 	# Start Next.js app
 	echo "Starting Next.js app..."
-	cd "$SDK_ROOT/apps/testing/nextjs-app"
+	cd "$SDK_ROOT/tests/frameworks/nextjs-app"
 	bun run dev &
 	NEXTJS_PID=$!
 	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3001" "Next.js web (3001)"
-	wait_for_server "http://localhost:3501" "Next.js agent (3501)"
+	# Wait for web server
+	wait_for_server "http://localhost:3000" "Next.js (3000)"
 	
 	# Run Playwright tests for Next.js
 	echo ""
@@ -158,45 +152,43 @@ if [ "$RUN_NEXTJS" = true ]; then
 	# Stop Next.js
 	kill $NEXTJS_PID 2>/dev/null || true
 	NEXTJS_PID=""
-	lsof -ti:3001 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3501 | xargs kill -9 2>/dev/null || true
+	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+	sleep 2
 	
 	echo ""
 	echo "✓ Next.js tests completed"
 	echo ""
 fi
 
-# Run Vite RSC tests
-if [ "$RUN_VITE_RSC" = true ]; then
+# Run SvelteKit tests
+if [ "$RUN_SVELTE" = true ]; then
 	echo "═══════════════════════════════════════════════"
-	echo "  Testing Vite RSC + Agentuity"
+	echo "  Testing SvelteKit + Agentuity"
 	echo "═══════════════════════════════════════════════"
 	echo ""
 	
-	# Start Vite RSC app
-	echo "Starting Vite RSC app..."
-	cd "$SDK_ROOT/apps/testing/vite-rsc-app"
+	# Start SvelteKit app
+	echo "Starting SvelteKit app..."
+	cd "$SDK_ROOT/tests/frameworks/svelte-web"
 	bun run dev &
-	VITE_RSC_PID=$!
+	SVELTE_PID=$!
 	
-	# Wait for both web and agent servers
-	wait_for_server "http://localhost:3002" "Vite RSC web (3002)"
-	wait_for_server "http://localhost:3502" "Vite RSC agent (3502)"
+	# Wait for web server
+	wait_for_server "http://localhost:3000" "SvelteKit (3000)"
 	
-	# Run Playwright tests for Vite RSC
+	# Run Playwright tests for SvelteKit
 	echo ""
-	echo "Running Playwright tests for Vite RSC..."
+	echo "Running Playwright tests for SvelteKit..."
 	cd "$SDK_ROOT"
-	bun run playwright test --config=playwright.frameworks.config.ts --project=vite-rsc
+	bun run playwright test --config=playwright.frameworks.config.ts --project=svelte
 	
-	# Stop Vite RSC
-	kill $VITE_RSC_PID 2>/dev/null || true
-	VITE_RSC_PID=""
-	lsof -ti:3002 | xargs kill -9 2>/dev/null || true
-	lsof -ti:3502 | xargs kill -9 2>/dev/null || true
+	# Stop SvelteKit
+	kill $SVELTE_PID 2>/dev/null || true
+	SVELTE_PID=""
+	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 	
 	echo ""
-	echo "✓ Vite RSC tests completed"
+	echo "✓ SvelteKit tests completed"
 	echo ""
 fi
 

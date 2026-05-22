@@ -1,7 +1,7 @@
-import { createCommand } from '../../../../types';
-import { getSubcommand } from './get';
-import { listSubcommand } from './list';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import { getSubcommand } from './get.ts';
+import { listSubcommand } from './list.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 
 export const command = createCommand({
 	name: 'execution',
@@ -21,5 +21,3 @@ export const command = createCommand({
 	subcommands: [getSubcommand, listSubcommand],
 	requires: { auth: true, org: true },
 });
-
-export default command;

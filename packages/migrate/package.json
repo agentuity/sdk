@@ -1,7 +1,7 @@
 {
 	"name": "@agentuity/migrate",
-	"version": "2.0.21",
-	"description": "Migration tool from Agentuity SDK v1 to v2",
+	"version": "3.0.0-beta.9",
+	"description": "Migration tool for Agentuity SDK (v1→v2 and v2→v3)",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -30,16 +30,18 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
 		"typescript": "^5.9.0"
 	},
 	"devDependencies": {
-		"@agentuity/test-utils": "workspace:*",
-		"@types/bun": "latest",
-		"bun-types": "latest"
+		"@types/bun": "latest"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": false
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/migrate"
+	}
 }

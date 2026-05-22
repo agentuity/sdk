@@ -3,12 +3,12 @@
 	"private": true,
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "2.0.21",
+	"version": "3.0.0-beta.9",
 	"publisher": "agentuity",
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/agentuity/sdk"
+		"url": "git+https://github.com/agentuity/sdk.git"
 	},
 	"engines": {
 		"vscode": "^1.90.0"
@@ -103,11 +103,6 @@
 			{
 				"command": "agentuity.dev.showLogs",
 				"title": "Show Dev Server Logs",
-				"category": "Agentuity"
-			},
-			{
-				"command": "agentuity.workbench.open",
-				"title": "Open Workbench",
 				"category": "Agentuity"
 			},
 			{
@@ -495,11 +490,6 @@
 					"command": "agentuity.dev.stop",
 					"when": "view == agentuity.agents && agentuity.devServerRunning",
 					"group": "1_actions"
-				},
-				{
-					"command": "agentuity.workbench.open",
-					"when": "view == agentuity.agents && agentuity.hasProject",
-					"group": "2_links"
 				},
 				{
 					"command": "agentuity.deployments.refresh",

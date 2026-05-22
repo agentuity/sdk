@@ -1,0 +1,35 @@
+{
+  "id": "db",
+  "label": "Database",
+  "hint": "PostgreSQL via Drizzle ORM",
+  "description": "PostgreSQL via Drizzle ORM with schema and client setup.",
+  "order": 20,
+  "packages": [
+    "drizzle-orm",
+    "pg"
+  ],
+  "devPackages": [
+    "drizzle-kit",
+    "@types/pg"
+  ],
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "envVars": [
+    {
+      "name": "DATABASE_URL",
+      "placeholder": "postgres://user:pass@host/db",
+      "comment": "Set automatically when an Agentuity DB is provisioned"
+    }
+  ],
+  "frameworks": [
+    "nextjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "hono"
+  ]
+}

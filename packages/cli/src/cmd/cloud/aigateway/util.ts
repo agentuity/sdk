@@ -1,7 +1,9 @@
-import { AIGatewayService, type Logger } from '@agentuity/core';
-import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
-import * as tui from '../../../tui';
-import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
+import { type Logger } from '@agentuity/core';
+import { getServiceUrls } from '@agentuity/core/config';
+import { AIGatewayService } from '@agentuity/core/aigateway';
+import { createServerFetchAdapter } from '@agentuity/server';
+import * as tui from '../../../tui.ts';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types.ts';
 
 const defaultAIGatewayRegion = 'usc';
 

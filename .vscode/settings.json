@@ -7,17 +7,13 @@
 		"**/.agentuity": true,
 		"**/*.tgz": true
 	},
-	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.defaultFormatter": "biomejs.biome",
 	"editor.formatOnSave": true,
 	"editor.formatOnPaste": false,
 	"editor.codeActionsOnSave": {
-		"source.fixAll.eslint": "explicit"
+		"source.fixAll.biome": "explicit",
+		"source.organizeImports.biome": "explicit"
 	},
-	"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-	"prettier.useEditorConfig": true,
-	"prettier.requireConfig": true,
-	"prettier.prettierPath": "./node_modules/prettier",
-	"prettier.configPath": ".prettierrc",
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"typescript.enablePromptUseWorkspaceTsdk": true
 }

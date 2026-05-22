@@ -1,6 +1,5 @@
 import { describe, test, expect } from 'bun:test';
 import { z } from 'zod';
-import { s } from '@agentuity/schema';
 import { toJSONSchema } from '../src/schema.ts';
 
 describe('toJSONSchema', () => {
@@ -88,52 +87,6 @@ describe('toJSONSchema', () => {
 			expect(result.enum).toContain('admin');
 			expect(result.enum).toContain('user');
 			expect(result.enum).toContain('guest');
-		});
-	});
-
-	describe('Agentuity schemas', () => {
-		test('converts s.object() to JSON Schema', () => {
-			const schema = s.object({
-				name: s.string(),
-				age: s.number(),
-			});
-
-			const result = toJSONSchema(schema);
-
-			expect(result).toHaveProperty('type', 'object');
-			expect(result).toHaveProperty('properties');
-			expect(result.properties).toHaveProperty('name');
-			expect(result.properties).toHaveProperty('age');
-		});
-
-		test('converts s.string() to JSON Schema', () => {
-			const schema = s.string();
-			const result = toJSONSchema(schema);
-
-			expect(result).toHaveProperty('type', 'string');
-		});
-
-		test('converts s.number() to JSON Schema', () => {
-			const schema = s.number();
-			const result = toJSONSchema(schema);
-
-			expect(result).toHaveProperty('type', 'number');
-		});
-
-		test('converts s.boolean() to JSON Schema', () => {
-			const schema = s.boolean();
-			const result = toJSONSchema(schema);
-
-			expect(result).toHaveProperty('type', 'boolean');
-		});
-
-		test('converts s.array() to JSON Schema', () => {
-			const schema = s.array(s.string());
-			const result = toJSONSchema(schema);
-
-			expect(result).toHaveProperty('type', 'array');
-			expect(result).toHaveProperty('items');
-			expect(result.items).toHaveProperty('type', 'string');
 		});
 	});
 

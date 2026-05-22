@@ -1,6 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
+import { rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { OpenCodeDBReader } from '../src/sqlite';
 
 type TestContext = {
@@ -259,7 +262,11 @@ function seedData(db: Database): void {
 }
 
 function createContext(): TestContext {
-	const dbPath = `file:opencode-test-${randomUUID()}?mode=memory&cache=shared`;
+	// `file:NAME?mode=memory&cache=shared` URIs require SQLITE_OPEN_URI,
+	// which `bun:sqlite`'s default constructor doesn't enable — passing
+	// such a path creates a literal on-disk file in cwd. Use a real temp
+	// file instead so both connections see the same store.
+	const dbPath = join(tmpdir(), `opencode-test-${randomUUID()}.db`);
 	const db = new Database(dbPath);
 	createSchema(db);
 	seedData(db);
@@ -277,6 +284,7 @@ describe('OpenCodeDBReader', () => {
 	afterEach(() => {
 		ctx.reader.close();
 		ctx.db.close();
+		rmSync(ctx.dbPath, { force: true });
 	});
 
 	it('reports unavailable when DB path is missing', () => {
@@ -355,16 +363,20 @@ describe('OpenCodeDBReader', () => {
 	});
 
 	it('fails schema validation when tables are missing', () => {
-		const dbPath = `file:opencode-missing-${randomUUID()}?mode=memory&cache=shared`;
+		const dbPath = join(tmpdir(), `opencode-missing-${randomUUID()}.db`);
 		const db = new Database(dbPath);
 		db.run(
 			'CREATE TABLE session (id TEXT PRIMARY KEY, project_id TEXT, parent_id TEXT, slug TEXT, directory TEXT, title TEXT, version TEXT, time_created INTEGER, time_updated INTEGER)'
 		);
 
-		const reader = new OpenCodeDBReader({ dbPath });
-		expect(reader.open()).toBe(false);
-		reader.close();
-		db.close();
+		try {
+			const reader = new OpenCodeDBReader({ dbPath });
+			expect(reader.open()).toBe(false);
+			reader.close();
+			db.close();
+		} finally {
+			rmSync(dbPath, { force: true });
+		}
 	});
 
 	describe('compaction support', () => {

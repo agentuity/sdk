@@ -31,11 +31,3 @@ export function setCachedProject(profile: string, projectId: string, project: Pr
 	const key = getCacheKey(profile, projectId);
 	projectCache.set(key, project);
 }
-
-/**
- * Clear all cached projects.
- * Useful for testing or when switching contexts.
- */
-export function clearProjectCache(): void {
-	projectCache.clear();
-}

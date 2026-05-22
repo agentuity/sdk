@@ -21,6 +21,7 @@ permissions:
 env:
    CI: true
    GITHUB_TOKEN: ''
+   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
    AGENTUITY_API_URL: https://api.agentuity.com
    AGENTUITY_APP_URL: https://app.agentuity.com
    AGENTUITY_ORG_ID: org_2u8RgDTwcZWrZrZ3sZh24T5FCtz
@@ -37,6 +38,13 @@ jobs:
          - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
            with:
               persist-credentials: false
+
+         - name: Setup Node.js
+           # The published agentuity binary uses a #!/usr/bin/env node
+           # shebang and requires Node >= 24.
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+           with:
+              node-version: '24'
 
          - name: Setup Bun
            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
@@ -57,7 +65,7 @@ jobs:
               # Build SDK packages (needed for sdk-explorer)
               bun install --frozen-lockfile
               bun run build
-              cd apps/docs && bun run scripts/bundle-run-scripts.ts && cd ../..
+              cd docs && bun run scripts/bundle-run-scripts.ts && cd ..
 
               # Scaffold demo project into tmp/demo-project (used by agentuity-demo-project.yaml via dir field)
               mkdir -p tmp

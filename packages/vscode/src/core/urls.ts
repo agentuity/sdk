@@ -10,7 +10,7 @@ const DEFAULT_API_URL = 'https://api.agentuity.com';
 
 /**
  * Get the base URL for the Agentuity web app.
- * Used for sessions, workbench, and other web UI links.
+ * Used for sessions and other web UI links.
  */
 export function getAppUrl(): string {
 	const config = vscode.workspace.getConfiguration('agentuity');
@@ -35,14 +35,6 @@ export function getSessionsUrl(projectId: string, agentIdentifier?: string): str
 		url += `?agent=${encodeURIComponent(agentIdentifier)}`;
 	}
 	return url;
-}
-
-/**
- * Build a workbench URL for a specific project.
- */
-export function getWorkbenchUrl(projectId: string): string {
-	const base = getAppUrl();
-	return `${base}/projects/${projectId}`;
 }
 
 /**

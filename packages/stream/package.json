@@ -1,0 +1,46 @@
+{
+	"name": "@agentuity/stream",
+	"version": "3.0.0-beta.9",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/adapter": "workspace:*",
+		"zod": "^4.3.5"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/node": "^22.0.0",
+		"typescript": "^6.0.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/stream"
+	}
+}

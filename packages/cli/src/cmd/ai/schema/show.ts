@@ -1,6 +1,6 @@
-import { createSubcommand, type CommandContext } from '../../../types';
-import { ErrorCode } from '../../../errors';
-import { getCommand } from '../../../command-prefix';
+import { createSubcommand, type CommandContext } from '../../../types.ts';
+import { ErrorCode } from '../../../errors.ts';
+import { getCommand } from '../../../command-prefix.ts';
 
 export const showSubcommand = createSubcommand({
 	name: 'show',
@@ -26,5 +26,3 @@ export const showSubcommand = createSubcommand({
 		console.log(JSON.stringify(schema, null, 2));
 	},
 });
-
-export default showSubcommand;

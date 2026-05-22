@@ -1,12 +1,13 @@
+import { writeFile } from 'node:fs/promises';
 import { listOrgResources } from '@agentuity/server';
 import { z } from 'zod';
-import { getResourceInfo, setResourceInfo } from '../../../cache';
-import { getCommand } from '../../../command-prefix';
-import { getGlobalCatalystAPIClient } from '../../../config';
-import { ErrorCode } from '../../../errors';
-import * as tui from '../../../tui';
-import { createSubcommand } from '../../../types';
-import { createS3Client } from './utils';
+import { getResourceInfo, setResourceInfo } from '../../../cache/index.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getGlobalCatalystAPIClient } from '../../../config.ts';
+import { ErrorCode } from '../../../errors.ts';
+import * as tui from '../../../tui.ts';
+import { createSubcommand } from '../../../types.ts';
+import { createS3Client } from './utils.ts';
 
 export const downloadSubcommand = createSubcommand({
 	name: 'download',
@@ -177,7 +178,7 @@ export const downloadSubcommand = createSubcommand({
 			process.stdout.write(fileContent);
 		} else {
 			// Write to file
-			await Bun.write(outputPath, fileContent);
+			await writeFile(outputPath, fileContent);
 			if (!options.json) {
 				tui.success(
 					`Downloaded ${tui.bold(args.filename)} to ${tui.bold(outputPath)} (${fileContent.length} bytes)`

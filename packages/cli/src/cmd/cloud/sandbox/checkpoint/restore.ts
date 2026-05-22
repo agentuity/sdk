@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../../../types';
-import * as tui from '../../../../tui';
-import { createSandboxClient, resolveSandboxTarget } from '../util';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import * as tui from '../../../../tui.ts';
+import { createSandboxClient, resolveSandboxTarget } from '../util.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 import { diskCheckpointRestore } from '@agentuity/server';
 
 const CheckpointRestoreResponseSchema = z.object({
@@ -74,5 +74,3 @@ export const restoreSubcommand = createCommand({
 		};
 	},
 });
-
-export default restoreSubcommand;

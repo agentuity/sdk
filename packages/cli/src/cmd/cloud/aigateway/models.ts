@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createCommand } from '../../../types';
-import * as tui from '../../../tui';
-import { getCommand } from '../../../command-prefix';
-import { getExecutingAgent } from '../../../agent-detection';
-import { createPublicAIGatewayService, getAIGatewayUrl } from './util';
-import { getCachedAIGatewayModels, setCachedAIGatewayModels } from './model-cache';
+import { createCommand } from '../../../types.ts';
+import * as tui from '../../../tui.ts';
+import { getCommand } from '../../../command-prefix.ts';
+import { getExecutingAgent } from '../../../agent-detection.ts';
+import { createPublicAIGatewayService, getAIGatewayUrl } from './util.ts';
+import { getCachedAIGatewayModels, setCachedAIGatewayModels } from './model-cache.ts';
 
 const ModelRowSchema = z.object({
 	provider: z.string(),

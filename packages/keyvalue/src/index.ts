@@ -31,7 +31,7 @@ import {
 	type KeyValueStorageSetParams,
 	type DataResult,
 } from '@agentuity/core/keyvalue';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/server';
+import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
 import { createMinimalLogger } from '@agentuity/core';
 import { getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';

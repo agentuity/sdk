@@ -1,0 +1,55 @@
+{
+	"name": "@agentuity/hono",
+	"version": "3.0.0-beta.9",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"src",
+		"dist"
+	],
+	"scripts": {
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
+		"build": "bunx tsc --build",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@agentuity/telemetry": "workspace:*",
+		"@agentuity/keyvalue": "workspace:*",
+		"@agentuity/vector": "workspace:*",
+		"@agentuity/stream": "workspace:*",
+		"@agentuity/queue": "workspace:*",
+		"@agentuity/email": "workspace:*",
+		"@agentuity/task": "workspace:*",
+		"@agentuity/schedule": "workspace:*",
+		"@agentuity/sandbox": "workspace:*",
+		"hono": "^4.7.13"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"peerDependencies": {
+		"hono": "^4.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/hono"
+	}
+}

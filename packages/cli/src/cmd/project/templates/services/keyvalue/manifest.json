@@ -1,0 +1,17 @@
+{
+  "id": "keyvalue",
+  "label": "Key-Value Store",
+  "hint": "Remember user preferences across sessions",
+  "description": "Key-Value store for persisting data across sessions.",
+  "order": 10,
+  "packages": [
+    "@agentuity/keyvalue"
+  ],
+  "frameworks": [
+    "nextjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "hono"
+  ]
+}

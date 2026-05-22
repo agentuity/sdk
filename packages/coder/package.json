@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/coder",
-	"version": "2.0.21",
+	"version": "3.0.0-beta.9",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -25,17 +25,20 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@agentuity/server": "workspace:*"
+		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
-		"bun-types": "latest",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": false
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/coder"
+	}
 }

@@ -1,9 +1,9 @@
-import { createSubcommand } from '../../types';
-import type { CommandContext } from '../../types';
-import { getCommand } from '../../command-prefix';
-import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection';
-import { getVersion } from '../../version';
-import * as tui from '../../tui';
+import { createSubcommand } from '../../types.ts';
+import type { CommandContext } from '../../types.ts';
+import { getCommand } from '../../command-prefix.ts';
+import { getExecutingAgent, getAgentDisplayName, KNOWN_AGENTS } from '../../agent-detection.ts';
+import { getVersion } from '../../version.ts';
+import * as tui from '../../tui.ts';
 
 /**
  * Generate the introduction prompt for AI agents
@@ -53,12 +53,13 @@ ${getCommand('cloud deployment logs')}    # View deployment logs
 
 ### Cloud Services
 \`\`\`bash
-${getCommand('cloud kv')}                 # Key-value storage operations
+${getCommand('cloud keyvalue')}           # Key-value storage operations (alias: cloud kv)
 ${getCommand('cloud vector')}             # Vector database operations
 ${getCommand('cloud aigateway')}          # AI Gateway model and completion operations
 ${getCommand('cloud storage')}            # Object storage operations
-${getCommand('env set KEY value')}        # Set environment variables
-${getCommand('env set KEY value --secret')} # Set secrets (encrypted)
+${getCommand('cloud env list')}           # List environment variables and secrets
+${getCommand('cloud env push')}           # Push values from local .env to cloud
+${getCommand('cloud env pull')}           # Pull values from cloud to local .env
 \`\`\`
 
 ## Best Practices for AI Agents
@@ -66,7 +67,7 @@ ${getCommand('env set KEY value --secret')} # Set secrets (encrypted)
 1. **Use \`--input <json>\` to pass arguments and options as a single JSON object**
    \`\`\`bash
    ${getCommand('cloud sandbox create --input \'{"runtime":"bun:1","memory":"1Gi","network":true}\'')}
-   ${getCommand('cloud kv set --input \'{"namespace":"ns","key":"k","value":"v","ttl":300}\'')}
+   ${getCommand('cloud keyvalue set --input \'{"namespace":"ns","key":"k","value":"v","ttl":300}\'')}
    \`\`\`
    JSON keys must be the **camelCase schema keys** shown by \`--describe\` output (not kebab-case flag names). For example, the flag \`--dry-run\` becomes \`dryRun\` in JSON. CLI flags take precedence over --input values.
 
@@ -94,7 +95,7 @@ ${getCommand('env set KEY value --secret')} # Set secrets (encrypted)
 
 6. **Use \`--validate\` to check inputs without executing**
    \`\`\`bash
-   ${getCommand('--validate cloud kv set --input \'{"namespace":"ns","key":"k","value":"v"}\'')}
+   ${getCommand('--validate cloud keyvalue set --input \'{"namespace":"ns","key":"k","value":"v"}\'')}
    \`\`\`
 
 7. **Check requirements before running commands**

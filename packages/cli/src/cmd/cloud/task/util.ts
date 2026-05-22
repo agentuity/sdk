@@ -1,10 +1,10 @@
 import { type Logger, TaskStorageService } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
-import { setResourceInfo } from '../../../cache';
-import { getCatalystUrl } from '../../../catalyst';
-import { defaultProfileName, getDefaultRegion } from '../../../config';
-import * as tui from '../../../tui';
-import type { AuthData, Config, GlobalOptions } from '../../../types';
+import { setResourceInfo } from '../../../cache/index.ts';
+import { getCatalystUrl } from '../../../catalyst.ts';
+import { defaultProfileName, getDefaultRegion } from '../../../config.ts';
+import * as tui from '../../../tui.ts';
+import type { AuthData, Config, GlobalOptions } from '../../../types.ts';
 
 export interface TaskContext {
 	logger: Logger;

@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/pi",
-	"version": "2.0.21",
+	"version": "3.0.0-beta.9",
 	"description": "Agentuity AI Gateway provider plugin for Pi coding agent",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
@@ -20,13 +20,14 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist tsconfig.tsbuildinfo",
-		"build": "bunx tsc --build",
-		"typecheck": "bunx tsc --noEmit",
+		"build": "tsgo --build --force",
+		"typecheck": "tsgo --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@agentuity/server": "workspace:*"
+		"@agentuity/aigateway": "workspace:*",
+		"@agentuity/adapter": "workspace:*",
+		"@agentuity/core": "workspace:*"
 	},
 	"peerDependencies": {
 		"@earendil-works/pi-coding-agent": "^0.74.0"
@@ -40,5 +41,10 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"sideEffects": false
+	"sideEffects": false,
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/agentuity/sdk.git",
+		"directory": "packages/pi"
+	}
 }

@@ -1,9 +1,9 @@
-import { createCommand } from '../../../../types';
-import { createSubcommand } from './create';
-import { listSubcommand } from './list';
-import { restoreSubcommand } from './restore';
-import { deleteSubcommand } from './delete';
-import { getCommand } from '../../../../command-prefix';
+import { createCommand } from '../../../../types.ts';
+import { createSubcommand } from './create.ts';
+import { listSubcommand } from './list.ts';
+import { restoreSubcommand } from './restore.ts';
+import { deleteSubcommand } from './delete.ts';
+import { getCommand } from '../../../../command-prefix.ts';
 
 export const checkpointCommand = createCommand({
 	name: 'checkpoint',

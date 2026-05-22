@@ -1,0 +1,22 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"declaration": true,
+		"types": ["bun-types"]
+	},
+	"include": ["src/**/*"],
+	"references": [
+		{ "path": "../telemetry" },
+		{ "path": "../keyvalue" },
+		{ "path": "../vector" },
+		{ "path": "../stream" },
+		{ "path": "../queue" },
+		{ "path": "../email" },
+		{ "path": "../task" },
+		{ "path": "../schedule" },
+		{ "path": "../sandbox" }
+	]
+}

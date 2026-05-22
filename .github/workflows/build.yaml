@@ -17,6 +17,7 @@ concurrency:
 env:
    CI: true
    GITHUB_TOKEN: ''
+   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
    AGENTUITY_API_URL: https://api.agentuity.com
    AGENTUITY_APP_URL: https://app.agentuity.com
    AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
@@ -39,6 +40,12 @@ jobs:
          - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
            with:
               persist-credentials: false
+         - name: Setup Node.js
+           # The CLI is dual-runtime; we smoke-test the built artifact
+           # under both bun and node, so both must be on PATH.
+           uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+           with:
+              node-version: '24'
          - name: Setup Bun
            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
            with:
@@ -58,11 +65,16 @@ jobs:
            run: |
               set -eou pipefail
               bun run build
+              # Smoke-test the BUILT CLI under both runtimes. The CLI is
+              # runtime-agnostic; CI proves both invocations produce the
+              # same result.
               bun run whoami
-              ./packages/cli/bin/cli.ts profile show --json
-              # Run all checks except integration-suite (handled by package-smoke-test.yaml)
+              bun run whoami:bun
+              node packages/cli/bin/cli.js profile show --json
+              bun packages/cli/bin/cli.js profile show --json
+              # Run all checks. Integration apps under tests/integration/
+              # are exercised by package-smoke-test.yaml in their own job.
               bun format
               bun lint
               bun typecheck
-              # Run only package unit tests, skip integration-suite
               bun run test:unit

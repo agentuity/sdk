@@ -1,0 +1,17 @@
+{
+  "id": "vector",
+  "label": "Vector Search",
+  "hint": "Semantic search over past translations",
+  "description": "Vector search for semantic similarity queries.",
+  "order": 30,
+  "packages": [
+    "@agentuity/vector"
+  ],
+  "frameworks": [
+    "nextjs",
+    "nuxt",
+    "sveltekit",
+    "astro",
+    "hono"
+  ]
+}

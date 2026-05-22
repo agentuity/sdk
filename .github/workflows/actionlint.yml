@@ -18,6 +18,7 @@ permissions:
 
 env:
   GITHUB_TOKEN: ''
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   actionlint:
@@ -25,6 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          persist-credentials: false
+           persist-credentials: false
 
       - uses: rhysd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca
