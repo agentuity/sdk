@@ -151,6 +151,17 @@ export const command = createCommand({
 			env.AGENTUITY_CATALYST_URL = config.overrides.catalyst_url;
 		}
 
+		// Load agentuity.json (if present) so we can surface the project's
+		// orgId to the dev process. The aigateway client and other service
+		// clients accept orgId as a constructor option but otherwise have no
+		// way to pick it up under `agentuity dev`. Other parts of the platform
+		// (pi, coder-tui) already read AGENTUITY_ORGID from env, so we match
+		// that name here.
+		const projectConfig = await tryLoadProjectConfig(rootDir, config);
+		if (projectConfig?.orgId && !env.AGENTUITY_ORGID) {
+			env.AGENTUITY_ORGID = projectConfig.orgId;
+		}
+
 		// Inject AI Gateway env vars so LLM SDKs route through Agentuity
 		const gatewayInjected = injectGatewayEnv(env, logger);
 		if (gatewayInjected) {
@@ -167,7 +178,9 @@ export const command = createCommand({
 		// Public URL (gravity tunnel) setup
 		// ────────────────────────────────────────────────────────────
 
-		const project = await tryLoadProjectConfig(rootDir, config);
+		// Reuse the project config we loaded earlier (above the env-injection
+		// block) so we don't read agentuity.json twice.
+		const project = projectConfig;
 		const publicEnabled = await resolvePublicMode(opts.public, project, rootDir, config, logger);
 
 		let gravity: GravityHandle | null = null;
