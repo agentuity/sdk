@@ -4,14 +4,14 @@ import { type ChangeEvent, useState } from 'react';
 export const Route = createFileRoute('/')({ component: App });
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
 
 function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
-	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-4o-mini');
+	const [model, setModel] = useState<(typeof MODELS)[number]>('openai/gpt-4o-mini');
 	const [result, setResult] = useState<{
 		translation: string;
 		tokens: number;
@@ -176,12 +176,13 @@ function App() {
 					<div className="flex flex-col gap-6">
 						{[
 							{
-								title: 'AI Gateway routing',
+								title: 'AI Gateway client',
 								text: (
 									<>
-										<code className="text-white">agentuity dev</code> automatically sets
-										OPENAI_API_KEY and OPENAI_BASE_URL so the AI SDK routes through the
-										Agentuity gateway.
+										Uses <code className="text-white">@agentuity/aigateway</code>. Auth
+										comes from <code className="text-white">AGENTUITY_SDK_KEY</code>,
+										which <code className="text-white">agentuity dev</code> injects
+										automatically.
 									</>
 								),
 							},
@@ -189,8 +190,8 @@ function App() {
 								title: 'Server functions',
 								text: (
 									<>
-										Edit <code className="text-white">src/server/translate.ts</code> to
-										change the AI model, prompt, or add new server functions.
+										Edit <code className="text-white">src/routes/api/translate.ts</code>{' '}
+										to change the model, prompt, or add new server functions.
 									</>
 								),
 							},

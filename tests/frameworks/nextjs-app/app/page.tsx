@@ -3,7 +3,7 @@
 import { type ChangeEvent, useState } from 'react';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 const DEFAULT_TEXT =
 	'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
 
@@ -19,7 +19,7 @@ type Result = {
 export default function Home() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<Language>('Spanish');
-	const [model, setModel] = useState<Model>('gpt-4o-mini');
+	const [model, setModel] = useState<Model>('openai/gpt-4o-mini');
 	const [result, setResult] = useState<Result | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -153,9 +153,9 @@ export default function Home() {
 				<h3>How it works</h3>
 				<ul>
 					<li>
-						<strong>AI Gateway routing</strong> — <code>agentuity dev</code> injects{' '}
-						<code>OPENAI_API_KEY</code> and <code>OPENAI_BASE_URL</code> so the AI SDK routes
-						through the Agentuity gateway.
+						<strong>AI Gateway client</strong> — uses <code>@agentuity/aigateway</code>. Auth
+						comes from <code>AGENTUITY_SDK_KEY</code>, which <code>agentuity dev</code>{' '}
+						injects automatically.
 					</li>
 					<li>
 						<strong>Route handlers</strong> — edit <code>app/api/translate/route.ts</code> to

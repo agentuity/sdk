@@ -1,6 +1,6 @@
 <script lang="ts">
 	const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-	const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-nano'] as const;
+	const MODELS = ['openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-nano'] as const;
 	const DEFAULT_TEXT =
 		'Welcome to Agentuity! This translation demo shows what you can build with the platform. It connects to AI models through our gateway — no separate API keys needed. Try translating this text into different languages to see it in action.';
 
@@ -15,7 +15,7 @@
 
 	let text = $state(DEFAULT_TEXT);
 	let toLanguage = $state<Language>('Spanish');
-	let model = $state<Model>('gpt-4o-mini');
+	let model = $state<Model>('openai/gpt-4o-mini');
 	let result = $state<Result | null>(null);
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
@@ -122,9 +122,9 @@
 		<h3>How it works</h3>
 		<ul>
 			<li>
-				<strong>AI Gateway routing</strong> —
-				<code>agentuity dev</code> injects <code>OPENAI_API_KEY</code> and
-				<code>OPENAI_BASE_URL</code> so the AI SDK routes through the Agentuity gateway.
+				<strong>AI Gateway client</strong> — uses <code>@agentuity/aigateway</code>.
+				Auth comes from <code>AGENTUITY_SDK_KEY</code>, which
+				<code>agentuity dev</code> injects automatically.
 			</li>
 			<li>
 				<strong>Server endpoints</strong> — edit

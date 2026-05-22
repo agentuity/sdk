@@ -14,9 +14,8 @@
 		"typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@ai-sdk/openai": "^3.0.0",
-		"ai": "^6.0.0"
+		"@agentuity/aigateway": "workspace:*",
+		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
 		"@agentuity/cli": "workspace:*",
