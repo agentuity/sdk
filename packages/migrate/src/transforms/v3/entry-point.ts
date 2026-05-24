@@ -83,8 +83,13 @@ export function generateEntryPoint(detection: V3DetectionResult): EntryPointTran
 	lines.push("// in package.json's `dev` script orphans on every shutdown. Installing an");
 	lines.push("// explicit handler runs before Bun's trap and lets the process actually exit.");
 	lines.push('// Upstream: oven-sh/bun#5624, oven-sh/bun#12127.');
-	lines.push("process.on('SIGINT', () => process.exit(0));");
-	lines.push("process.on('SIGTERM', () => process.exit(0));");
+	lines.push('// Guarded so `bun --hot` re-evaluations do not stack duplicate listeners.');
+	lines.push(
+		"if (process.listenerCount('SIGINT') === 0) process.on('SIGINT', () => process.exit(0));"
+	);
+	lines.push(
+		"if (process.listenerCount('SIGTERM') === 0) process.on('SIGTERM', () => process.exit(0));"
+	);
 	lines.push('');
 
 	lines.push('export default app;');
