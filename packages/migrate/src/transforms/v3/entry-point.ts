@@ -78,10 +78,22 @@ export function generateEntryPoint(detection: V3DetectionResult): EntryPointTran
 		lines.push('');
 	}
 
+	lines.push('// `bun --hot` traps SIGINT/SIGTERM for its reload protocol, so the dev server');
+	lines.push('// otherwise survives Ctrl-C and the bash-backgrounded `bun run server:api &`');
+	lines.push("// in package.json's `dev` script orphans on every shutdown. Installing an");
+	lines.push("// explicit handler runs before Bun's trap and lets the process actually exit.");
+	lines.push('// Upstream: oven-sh/bun#5624, oven-sh/bun#12127.');
+	lines.push("process.on('SIGINT', () => process.exit(0));");
+	lines.push("process.on('SIGTERM', () => process.exit(0));");
+	lines.push('');
+
 	lines.push('export default app;');
 	lines.push('');
 
 	changes.push('Generated src/index.ts with Hono app (replaces app.ts + createApp)');
+	changes.push(
+		'Added SIGINT/SIGTERM handlers so `bun --hot` exits cleanly under backgrounded dev scripts'
+	);
 
 	return {
 		source: lines.join('\n'),
