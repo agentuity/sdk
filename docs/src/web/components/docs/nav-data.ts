@@ -622,11 +622,6 @@ export const navData: NavSection[] = [
 		],
 	},
 	{
-		title: 'Community',
-		url: '/community',
-		items: [],
-	},
-	{
 		title: 'Reference',
 		url: '/reference',
 		items: [

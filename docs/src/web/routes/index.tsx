@@ -6,7 +6,6 @@ import {
 	Server,
 	Play,
 	BookOpen,
-	Users,
 	Code,
 	Terminal,
 	Package,
@@ -118,12 +117,6 @@ function HomePage() {
 					title="Migration"
 					description="Move older runtime apps toward the v3 framework model"
 					icon={<BookOpen />}
-				/>
-				<CardLink
-					href="/community"
-					title="Community"
-					description="Open-source examples and third-party integrations"
-					icon={<Users />}
 				/>
 			</Cards>
 

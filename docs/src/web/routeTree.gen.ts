@@ -41,7 +41,6 @@ import { Route as DocsFrontendIndexRouteImport } from './routes/_docs/frontend/i
 import { Route as DocsFrameworksIndexRouteImport } from './routes/_docs/frameworks/index'
 import { Route as DocsDeployOperateIndexRouteImport } from './routes/_docs/deploy-operate/index'
 import { Route as DocsCookbookIndexRouteImport } from './routes/_docs/cookbook/index'
-import { Route as DocsCommunityIndexRouteImport } from './routes/_docs/community/index'
 import { Route as DocsBuildIndexRouteImport } from './routes/_docs/build/index'
 import { Route as DocsApisIndexRouteImport } from './routes/_docs/apis/index'
 import { Route as DocsServicesWebhooksRouteImport } from './routes/_docs/services/webhooks'
@@ -345,11 +344,6 @@ const DocsDeployOperateIndexRoute = DocsDeployOperateIndexRouteImport.update({
 const DocsCookbookIndexRoute = DocsCookbookIndexRouteImport.update({
   id: '/cookbook/',
   path: '/cookbook/',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
-const DocsCommunityIndexRoute = DocsCommunityIndexRouteImport.update({
-  id: '/community/',
-  path: '/community/',
   getParentRoute: () => DocsRouteRoute,
 } as any)
 const DocsBuildIndexRoute = DocsBuildIndexRouteImport.update({
@@ -1258,7 +1252,6 @@ export interface FileRoutesByFullPath {
   '/services/webhooks': typeof DocsServicesWebhooksRoute
   '/apis/': typeof DocsApisIndexRoute
   '/build/': typeof DocsBuildIndexRoute
-  '/community/': typeof DocsCommunityIndexRoute
   '/cookbook/': typeof DocsCookbookIndexRoute
   '/deploy-operate/': typeof DocsDeployOperateIndexRoute
   '/frameworks/': typeof DocsFrameworksIndexRoute
@@ -1435,7 +1428,6 @@ export interface FileRoutesByTo {
   '/services/webhooks': typeof DocsServicesWebhooksRoute
   '/apis': typeof DocsApisIndexRoute
   '/build': typeof DocsBuildIndexRoute
-  '/community': typeof DocsCommunityIndexRoute
   '/cookbook': typeof DocsCookbookIndexRoute
   '/deploy-operate': typeof DocsDeployOperateIndexRoute
   '/frameworks': typeof DocsFrameworksIndexRoute
@@ -1616,7 +1608,6 @@ export interface FileRoutesById {
   '/_docs/services/webhooks': typeof DocsServicesWebhooksRoute
   '/_docs/apis/': typeof DocsApisIndexRoute
   '/_docs/build/': typeof DocsBuildIndexRoute
-  '/_docs/community/': typeof DocsCommunityIndexRoute
   '/_docs/cookbook/': typeof DocsCookbookIndexRoute
   '/_docs/deploy-operate/': typeof DocsDeployOperateIndexRoute
   '/_docs/frameworks/': typeof DocsFrameworksIndexRoute
@@ -1797,7 +1788,6 @@ export interface FileRouteTypes {
     | '/services/webhooks'
     | '/apis/'
     | '/build/'
-    | '/community/'
     | '/cookbook/'
     | '/deploy-operate/'
     | '/frameworks/'
@@ -1974,7 +1964,6 @@ export interface FileRouteTypes {
     | '/services/webhooks'
     | '/apis'
     | '/build'
-    | '/community'
     | '/cookbook'
     | '/deploy-operate'
     | '/frameworks'
@@ -2154,7 +2143,6 @@ export interface FileRouteTypes {
     | '/_docs/services/webhooks'
     | '/_docs/apis/'
     | '/_docs/build/'
-    | '/_docs/community/'
     | '/_docs/cookbook/'
     | '/_docs/deploy-operate/'
     | '/_docs/frameworks/'
@@ -2505,13 +2493,6 @@ declare module '@tanstack/react-router' {
       path: '/cookbook'
       fullPath: '/cookbook/'
       preLoaderRoute: typeof DocsCookbookIndexRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/_docs/community/': {
-      id: '/_docs/community/'
-      path: '/community'
-      fullPath: '/community/'
-      preLoaderRoute: typeof DocsCommunityIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/build/': {
@@ -3667,7 +3648,6 @@ interface DocsRouteRouteChildren {
   DocsServicesWebhooksRoute: typeof DocsServicesWebhooksRoute
   DocsApisIndexRoute: typeof DocsApisIndexRoute
   DocsBuildIndexRoute: typeof DocsBuildIndexRoute
-  DocsCommunityIndexRoute: typeof DocsCommunityIndexRoute
   DocsCookbookIndexRoute: typeof DocsCookbookIndexRoute
   DocsDeployOperateIndexRoute: typeof DocsDeployOperateIndexRoute
   DocsFrameworksIndexRoute: typeof DocsFrameworksIndexRoute
@@ -3801,7 +3781,6 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsServicesWebhooksRoute: DocsServicesWebhooksRoute,
   DocsApisIndexRoute: DocsApisIndexRoute,
   DocsBuildIndexRoute: DocsBuildIndexRoute,
-  DocsCommunityIndexRoute: DocsCommunityIndexRoute,
   DocsCookbookIndexRoute: DocsCookbookIndexRoute,
   DocsDeployOperateIndexRoute: DocsDeployOperateIndexRoute,
   DocsFrameworksIndexRoute: DocsFrameworksIndexRoute,
