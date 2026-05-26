@@ -9,12 +9,13 @@
  * GET /logger     - Demonstrates logger at different levels
  * GET /background - Demonstrates waitUntil() for background tasks
  */
-import { type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
+import { waitUntil } from '../http';
 import contextAgent from '../../agent/context/agent';
 import { formatTimestamps } from '../../lib/utils';
 import { Hono } from 'hono';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 	.get('/session', async (c) => {
 		const result = await contextAgent.run('session');
 		return c.json(result);
@@ -72,10 +73,13 @@ const router = new Hono<Env>()
 
 	// waitUntil() allows response to return immediately while task runs in background
 	.get('/background', async (c) => {
-		c.waitUntil(async () => {
-			await new Promise((resolve) => setTimeout(resolve, 5000));
-			c.var.logger?.info('Background task completed after 5 seconds!');
-		});
+		waitUntil(
+			c,
+			(async () => {
+				await new Promise((resolve) => setTimeout(resolve, 5000));
+				c.var.logger?.info('Background task completed after 5 seconds!');
+			})()
+		);
 
 		return c.json({
 			message: 'Background task started',

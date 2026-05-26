@@ -1,0 +1,60 @@
+---
+title: Build
+description: Build model calls, streaming routes, and background work in framework apps
+---
+
+import { Bot, Database, MessageSquareText, Rows3, Wrench } from 'lucide-react';
+
+Add model calls, conversation state, tool use, and background work to a framework app that's already set up. These pages assume v3's default shape: routes, server functions, scripts, and workers use normal framework code plus Agentuity service clients.
+
+<Cards>
+  <CardLink
+    href="/build/agents"
+    title="Build Agents"
+    description="Build model-backed workflows with ordinary framework code"
+    icon={<Bot />}
+  />
+  <CardLink
+    href="/build/chat-and-streaming"
+    title="Chat and Streaming"
+    description="Stream model output and keep conversation state in a service client"
+    icon={<MessageSquareText />}
+  />
+  <CardLink
+    href="/build/tool-calling"
+    title="Tool Calling"
+    description="Let models call bounded app functions with typed inputs"
+    icon={<Wrench />}
+  />
+  <CardLink
+    href="/build/state-and-memory"
+    title="State and Memory"
+    description="Store app memory explicitly with KV, databases, and cookies"
+    icon={<Database />}
+  />
+  <CardLink
+    href="/build/background-work"
+    title="Background Work"
+    description="Move slow work out of request handlers with queues, KV, and durable streams"
+    icon={<Rows3 />}
+  />
+</Cards>
+
+## Pick a Starting Point
+
+| If you need to... | Start with | Mental model |
+| --- | --- | --- |
+| Run a model-backed workflow from a route, job, or script | [Build Agents](/build/agents) | An agent is app code that calls a model and returns a typed result |
+| Send tokens to the browser as they arrive | [Chat and Streaming](/build/chat-and-streaming) | The framework owns the response stream; storage is explicit |
+| Let a model call bounded app functions | [Tool Calling](/build/tool-calling) | Tools are validated functions you own |
+| Remember user or conversation state | [State and Memory](/build/state-and-memory) | Pick KV, database rows, cookies, or vector storage by access pattern |
+| Keep slow work out of request handlers | [Background Work](/build/background-work) | Queue, task, schedule, or stream the work outside the request path |
+
+The examples use direct service clients because that path works across all supported frameworks and scripts. Hono apps can also install `@agentuity/hono` and read the same clients from `c.var.*`.
+
+## Related Docs
+
+- [Frameworks](/frameworks): start from Next.js, Hono, TanStack Start, or another supported framework
+- [Services](/services): choose the Agentuity client for storage, queues, tasks, schedules, sandbox, and observability
+- [Deploy and Operate](/deploy-operate): run the same framework project with `agentuity dev` and `agentuity deploy`
+- [Migration](/migration): move older apps that use `@agentuity/runtime`, `createApp()`, or `createAgent()` into the framework model

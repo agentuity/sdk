@@ -1,14 +1,14 @@
 /**
  * Standalone invoke script for Email Agent
  *
- * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
+ * Uses the same plain function module as the API route.
  *
  * Usage: bun run src/run/email.ts '{"template":"welcome"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import emailAgent from '../agent/email/agent';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 const OUTBOUND_POLL_ATTEMPTS = 6;
 const POLL_INTERVAL_MS = 750;
 type EmailOutboundRecord = { status?: string } | null;
@@ -46,7 +46,7 @@ async function waitForOutboundStatus(outboundId: string) {
 
 try {
 	const input = JSON.parse(process.argv[2] ?? '{"template":"welcome"}');
-	const result = await ctx.invoke(() => emailAgent.run(input));
+	const result = await emailAgent.run(input);
 	const outbound = await waitForOutboundStatus(result.id);
 
 	console.log('---OUTPUT---');

@@ -12,7 +12,7 @@
  *
  * Docs: https://agentuity.dev/services/email
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import {
 	EMAIL_ADDRESS_SCHEMA,
@@ -21,7 +21,7 @@ import {
 	generateEmailContent,
 } from '../../lib/email-templates';
 
-const agent = createAgent('email-sender', {
+const agent = defineDemoAgent('email-sender', {
 	description: 'Send templated emails via the Agentuity email service',
 
 	schema: {

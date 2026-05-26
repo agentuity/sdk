@@ -16,7 +16,7 @@
  * Docs: https://agentuity.dev/cookbook/patterns/chat-with-history
  */
 
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { generateText } from 'ai';
 import { createGoogleProvider } from '../../lib/ai-gateway';
@@ -30,7 +30,7 @@ interface Message {
 // Sliding window: keep last 50 messages (25 turns) to bound memory usage
 const MAX_MESSAGES = 50;
 
-const agent = createAgent('chat', {
+const agent = defineDemoAgent('chat', {
 	description: 'Agentuity expert chat with thread-based memory',
 	schema: {
 		input: s.object({

@@ -18,11 +18,11 @@ const endpoints = [
 		description: 'Session & thread IDs, state',
 		explanation: (
 			<>
-				Access per-request state via <code>ctx.session.state</code> and the unique session ID
-				via <code>ctx.session.id</code>. State resets after each request.
+				Read request identity from <code>c.var.session</code>, <code>c.var.thread</code>, and{' '}
+				<code>c.var.sessionId</code> when the route middleware provides them.
 			</>
 		),
-		codeHint: 'ctx.session',
+		codeHint: 'c.var.session, c.var.thread',
 	},
 	{
 		id: 'services',
@@ -30,23 +30,23 @@ const endpoints = [
 		description: 'Available storage & observability',
 		explanation: (
 			<>
-				Check which services are available: <code>ctx.kv</code>, <code>ctx.vector</code>,{' '}
-				<code>ctx.logger</code>, <code>ctx.tracer</code>. All are initialized automatically.
+				Check which services are available on the route context: <code>c.var.kv</code>,{' '}
+				<code>c.var.vector</code>, <code>c.var.logger</code>, and <code>c.var.tracer</code>.
 			</>
 		),
-		codeHint: 'ctx.kv, ctx.vector, ctx.logger',
+		codeHint: 'c.var.kv, c.var.vector, c.var.logger',
 	},
 	{
 		id: 'agents',
-		label: 'Agents',
-		description: 'Agent registry info',
+		label: 'Composition',
+		description: 'Reusable route logic',
 		explanation: (
 			<>
-				List all registered agents and invoke them with <code>agent.run(input)</code>. Both
-				routes and agents can call <i>other</i> agents for complex workflows.
+				Keep reusable model-backed work in functions, then call those functions from routes,
+				queues, schedules, or other server code.
 			</>
 		),
-		codeHint: 'ctx.agents',
+		codeHint: 'plain functions + route handlers',
 	},
 	{
 		id: 'state',
@@ -54,11 +54,11 @@ const endpoints = [
 		description: 'State management (call multiple times!)',
 		explanation: (
 			<>
-				Thread state persists across requests (via cookies). Use <code>ctx.thread.state</code>{' '}
-				to store conversation history or user preferences.
+				Use a service such as key-value storage when request handlers need conversation history,
+				user preferences, or other lightweight state between calls.
 			</>
 		),
-		codeHint: 'ctx.thread.state',
+		codeHint: 'KeyValueClient',
 	},
 	{
 		id: 'full',
@@ -78,11 +78,11 @@ const endpoints = [
 		description: 'Log at different levels (check console)',
 		explanation: (
 			<>
-				Structured logging with <code>ctx.logger.info()</code>, <code>.warn()</code>,{' '}
-				<code>.error()</code>, <code>.trace()</code>. Logs appear in the Agentuity console.
+				Structured logging with <code>c.var.logger.info()</code>, <code>.warn()</code>,{' '}
+				<code>.error()</code>, and <code>.trace()</code>. Logs appear in the Agentuity console.
 			</>
 		),
-		codeHint: 'ctx.logger.info()',
+		codeHint: 'c.var.logger.info()',
 	},
 	{
 		id: 'background',
@@ -90,11 +90,11 @@ const endpoints = [
 		description: 'waitUntil demo (5s delay in logs)',
 		explanation: (
 			<>
-				Run tasks after the response is sent with <code>ctx.waitUntil(promise)</code>. Perfect
-				for analytics, cleanup, or slow operations.
+				Run tasks after the response with the platform <code>waitUntil()</code> helper when your
+				adapter exposes one, or move longer work to a queue.
 			</>
 		),
-		codeHint: 'ctx.waitUntil()',
+		codeHint: 'waitUntil() or QueueClient',
 	},
 ];
 

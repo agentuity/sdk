@@ -1,0 +1,304 @@
+---
+title: Using SvelteKit with Agentuity
+short_title: SvelteKit
+description: Add Agentuity service clients, local development, and deploy validation to a SvelteKit app
+---
+
+Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. Agentuity adds service clients, local development support, and deploy validation around the file-based routing and build output you already use.
+
+## Create a Starter
+
+```bash
+bun create agentuity@beta --name my-sveltekit-app --framework sveltekit
+cd my-sveltekit-app
+```
+
+The starter calls [`sv create`](https://svelte.dev/docs/cli/overview) under the hood, then adds `@agentuity/cli`, installs `@sveltejs/adapter-node`, adds a `deploy` script, and overlays an AI example using `+page.server.ts` form actions.
+
+Key files in the AI example:
+
+| File | Purpose |
+|------|---------|
+| `src/routes/+page.svelte` | Page UI with Svelte 5 runes |
+| `src/routes/+page.server.ts` | Server actions that call a model |
+| `svelte.config.js` | Adapter, asset path, and compiler config |
+| `package.json` | `dev`, `build`, and `deploy` scripts |
+
+The starter sets `kit.paths.relative` to `false`, so SvelteKit emits root-relative build asset URLs during server rendering unless you configure an external asset path.
+
+## Import an Existing App
+
+For an existing SvelteKit app, add the CLI and register the project:
+
+```bash
+bun add -d @agentuity/cli@beta
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
+
+<Callout type="tip" title="Existing app?">
+See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
+</Callout>
+
+## What Agentuity Adds
+
+| Area | SvelteKit keeps | Agentuity adds |
+| --- | --- | --- |
+| routing | `+server.ts`, `+page.server.ts`, and normal file routing | service clients imported in server-only modules |
+| local dev | Vite and SvelteKit dev server | `agentuity dev` injects service and AI Gateway environment values |
+| build | SvelteKit adapter output | `agentuity build` packages launch metadata |
+| deploy | the adapter server entry | `agentuity deploy` ships the packaged app |
+
+## Add an API Route
+
+SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define pure JSON endpoints. Put Agentuity service clients here; never import them in client-side `<script>` blocks.
+
+```bash
+bun add @agentuity/keyvalue@beta valibot openai
+```
+
+```typescript title="src/routes/api/translate/+server.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import OpenAI from 'openai';
+import * as v from 'valibot';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+const HISTORY_NAMESPACE = 'translation-history';
+const SESSION_COOKIE = 'agentuity_session';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+
+interface HistoryEntry {
+  readonly model: string;
+  readonly sessionId: string;
+  readonly text: string;
+  readonly timestamp: string;
+  readonly tokens: number;
+  readonly toLanguage: string;
+  readonly translation: string;
+}
+
+interface HistoryState {
+  readonly history: readonly HistoryEntry[];
+  readonly translationCount: number;
+}
+
+const requestSchema = v.object({
+  model: v.optional(v.string()),
+  text: v.string(),
+  toLanguage: v.string(),
+});
+
+// Instantiated once at module level; reads AGENTUITY_SDK_KEY from env
+const kv = new KeyValueClient(); // [!code highlight]
+
+export const POST: RequestHandler = async ({ cookies, request }) => {
+  const body: unknown = await request.json();
+  const parsed = v.safeParse(requestSchema, body);
+
+  if (!parsed.success) {
+    return json({ error: 'text and toLanguage are required' }, { status: 400 });
+  }
+
+  const input = parsed.output;
+  const model = input.model ?? process.env.OPENAI_MODEL;
+  if (!model) {
+    return json({ error: 'OPENAI_MODEL is required' }, { status: 500 });
+  }
+
+  // Instantiate after validation so plain SvelteKit builds do not need provider env at module load.
+  const openai = new OpenAI(); // [!code highlight]
+
+  // Read or create a session cookie to scope history per browser session
+  const sessionId = cookies.get(SESSION_COOKIE) ?? crypto.randomUUID();
+  cookies.set(SESSION_COOKIE, sessionId, {
+    httpOnly: true,
+    path: '/',
+    sameSite: 'lax',
+    maxAge: SESSION_TTL_SECONDS,
+  });
+
+  const completion = await openai.chat.completions.create({ // [!code highlight]
+    model,
+    messages: [
+      {
+        role: 'user',
+        content: `Translate to ${input.toLanguage}:\n\n${input.text}`,
+      },
+    ],
+  });
+
+  const translation = completion.choices[0]?.message?.content ?? '';
+  const tokens = completion.usage?.total_tokens ?? 0;
+
+  // Append to the last 5 entries stored for this session
+  const previous = await kv.get<HistoryState>(HISTORY_NAMESPACE, sessionId);
+  const history = [
+    ...(previous.exists ? previous.data.history : []),
+    {
+      model,
+      sessionId,
+      text: input.text,
+      timestamp: new Date().toISOString(),
+      tokens,
+      toLanguage: input.toLanguage,
+      translation,
+    },
+  ].slice(-5);
+  const translationCount = (previous.exists ? previous.data.translationCount : 0) + 1;
+  await kv.set(HISTORY_NAMESPACE, sessionId, { history, translationCount }, { ttl: SESSION_TTL_SECONDS }); // [!code highlight]
+
+  return json({ translation, history, tokens, model, translationCount });
+};
+```
+
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app via `agentuity dev` to have those values injected automatically.
+
+Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
+
+## Call the Route from a Component
+
+Svelte 5 uses rune-based reactivity (`$state`, `$props`). The component calls the server route directly:
+
+```svelte title="src/routes/+page.svelte"
+<script lang="ts">
+  let text = $state('Welcome to Agentuity');
+  let toLanguage = $state('Spanish');
+  let translation = $state('');
+  let history: Array<{ text: string; translation: string; toLanguage: string }> = $state([]);
+  let loading = $state(false);
+
+  async function translate() {
+    loading = true;
+    try {
+      const response = await fetch('/api/translate', { // [!code highlight]
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text, toLanguage }),
+      });
+      const result = await response.json();
+      translation = result.translation;
+      history = result.history;
+    } finally {
+      loading = false;
+    }
+  }
+</script>
+
+<textarea bind:value={text} rows="4" placeholder="Text to translate"></textarea>
+<button onclick={translate} disabled={loading}>
+  {loading ? 'Translating…' : 'Translate'}
+</button>
+
+{#if translation}
+  <p>{translation}</p>
+{/if}
+```
+
+<Callout type="info" title="Form actions vs. +server.ts">
+The starter uses `+page.server.ts` form actions for the page UI because they integrate with SvelteKit's progressive enhancement via `use:enhance`. Use `+server.ts` routes for pure JSON endpoints called by `fetch` or external clients.
+</Callout>
+
+## Run Locally
+
+`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000` into the dev process. If you want `bun run dev` to go through Agentuity on a fixed port, wrap the framework command like this:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "agentuity dev --script dev:start",
+    "dev:start": "vite dev --port 3000",
+    "build": "vite build",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+Then run:
+
+```bash
+bun run dev
+```
+
+Smoke-test the JSON route on port 3000:
+
+```bash
+curl http://127.0.0.1:3000/api/translate \
+  -H "content-type: application/json" \
+  -d '{"text":"Hello","toLanguage":"Spanish"}'
+```
+
+The `--port 3000` flag is required because Vite ignores the `PORT` env var. Frameworks like Next.js read `PORT` directly, while Nuxt's native `nuxt dev` flow does not need this wrapper pattern.
+
+## Deployed Environment Variables
+
+Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+
+| Variable | Used by |
+| --- | --- |
+| `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
+| `OPENAI_MODEL` | example routes that call the OpenAI SDK |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `DATABASE_URL` | database server routes |
+| `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
+
+## Validate Before Deploy
+
+Build with SvelteKit first, then run the Agentuity build step:
+
+```bash
+bun run build
+agentuity build
+```
+
+After both succeed, inspect the launch metadata:
+
+```bash
+cat .agentuity/launch.json
+```
+
+If `agentuity build` cannot find the local Vite or SvelteKit binary, add `node_modules/.bin` to `PATH`:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+```
+
+SvelteKit requires a server adapter for SSR routes. The starter uses `@sveltejs/adapter-node` (one of the [five official adapters](https://svelte.dev/docs/kit/adapters)), which produces a `build/` directory with a `index.js` server entry. The `launch.json` command must start that entry. If it points at a static `_serve.js` helper, the packaged output is not serving your `+server.ts` routes.
+
+Deploy only after the framework build, Agentuity build, and a local packaged validation of `/` and one API route pass:
+
+```bash
+agentuity deploy --confirm
+```
+
+<Callout type="warning" title="Adapter required for SSR">
+`@sveltejs/adapter-static` produces no server entry. If your app has SSR routes or API endpoints, use `adapter-node` or another server-capable adapter before deploying.
+</Callout>
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| Service client code appears in the browser bundle | Keep `KeyValueClient` and `OpenAI` in `+server.ts` or `+page.server.ts`, not in `<script>` blocks |
+| Route works in dev but fails after `agentuity build` | Inspect `.agentuity/launch.json` for the correct server entry path |
+| Built assets 404 on nested routes | Confirm `kit.paths.relative` is `false`; SvelteKit defaults to relative asset paths |
+| OpenAI calls bypass Agentuity AI Gateway | Run with `agentuity dev` so `OPENAI_BASE_URL` is set; verify it is not overridden by a local `.env`. See [AI Gateway](/services/ai-gateway) |
+| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| Cookies do not persist across requests | Set `path: '/'` when writing cookies from API routes |
+| Route returns HTML instead of JSON | API handlers go in `+server.ts`, not in `+page.server.ts` actions |
+| Missing adapter error at build | Confirm `svelte.config.js` imports a server-capable adapter; `@sveltejs/adapter-static` has no server entry. See [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters) |
+
+## Framework Docs
+
+- [SvelteKit Routing](https://svelte.dev/docs/kit/routing): `+server.ts` shape, `RequestHandler` type, and `json()` helper
+- [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters): choose a server adapter for apps with runtime routes
+
+## Next Steps
+
+- [Key-Value Storage](/services/storage/key-value): store compact state from server routes with TTL
+- [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity for all supported models
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Deployment](/reference/cli/deployment): CLI deploy flags and lifecycle script behavior

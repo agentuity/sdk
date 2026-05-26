@@ -1,0 +1,96 @@
+---
+title: Migration
+description: Move existing Agentuity projects toward the v3 framework-first model
+---
+
+import { ArrowRightLeft, Route, Terminal } from 'lucide-react';
+
+Use these pages when an existing Agentuity app needs a controlled move between SDK generations. v3 is the default path for new work. Existing v2 apps can stay on v2 until the framework-first app shape is worth the migration work.
+
+```bash
+npx @agentuity/migrate@beta --v2-to-v3 --dry-run
+```
+
+<Tabs items={["v2 → v3", "v1 → v2"]} defaultValue="v2 → v3">
+  <Tab value="v2 → v3">
+    The v2 to v3 migration is an eject from the Agentuity runtime container into a framework-owned app. The tool can move simple runtime code into a Hono starting point, remove v2-only packages, and leave review markers where app state, lifecycle, auth, or frontend behavior needs a human decision.
+
+    ```bash
+    npx @agentuity/migrate@beta --v2-to-v3 --dry-run
+    ```
+
+    Start here when your app imports `@agentuity/runtime`, calls `createApp()`, uses `createAgent()`, or depends on runtime `ctx.*` service access.
+  </Tab>
+  <Tab value="v1 → v2">
+    The v1 to v2 migration keeps the runtime model and updates older route structure into the v2 runtime shape. Use it only for apps that must stop at v2 before later moving to v3.
+
+    ```bash
+    npx @agentuity/migrate@beta --v1-to-v2 --dry-run
+    ```
+
+    If your target is v3, run v1 to v2 first, verify the app, then run the v2 to v3 path.
+  </Tab>
+</Tabs>
+
+<Cards>
+  <CardLink
+    href="/migration/from-v2"
+    title="Migrating from v2"
+    description="Plan the v2 to v3 migration, then validate local build and deploy readiness"
+    icon={<ArrowRightLeft />}
+  />
+  <CardLink
+    href="/migration/runtime-to-frameworks"
+    title="Runtime to Frameworks"
+    description="Map createApp, createAgent, and ctx services to framework routes and clients"
+    icon={<Route />}
+  />
+  <CardLink
+    href="/migration/migrate-cli"
+    title="Migration CLI"
+    description="Run the migration tool, review its changes, and handle manual follow-up"
+    icon={<Terminal />}
+  />
+</Cards>
+
+## Which Guide to Use
+
+| Starting point | Use |
+| --- | --- |
+| v2 app using `@agentuity/runtime`, `createApp()`, or `createAgent()` | [Migrating from v2](/migration/from-v2): run the migration in order and review the manual work |
+| v1 app using older route files and generated SDK folders | [Migration CLI](/migration/migrate-cli): run `--v1-to-v2`, verify v2, then decide whether to continue to v3 |
+| You want to understand the app model change before editing code | [Runtime to Frameworks](/migration/runtime-to-frameworks): map runtime APIs to framework routes, functions, and service clients |
+| You want the exact command, flags, and generated changes | [Migration CLI](/migration/migrate-cli): inspect `npx @agentuity/migrate@beta` before applying it |
+
+<Callout type="info" title="Using a v2 runtime app?">
+Apps using `@agentuity/runtime`, `createApp()`, or `createAgent()` continue to work. See the [v2 docs](https://v2.agentuity.dev) for that model, or [Migration](/migration) to move to v3.
+</Callout>
+
+## What Changes in v3
+
+The v3 migration is not a package bump. It changes where Agentuity sits in your app. Treat it as a one-way door until you have reviewed the diff and run your checks:
+
+- your framework owns the HTTP entry point, routes, server functions, and build script
+- Agentuity services are used through standalone clients such as `KeyValueClient`, `QueueClient`, or `SandboxClient`
+- Hono apps can use `@agentuity/hono` when `c.var.*` service access reads better than direct imports
+- `agentuity project import`, `agentuity build`, and `agentuity deploy` register, package, and deploy the framework output
+
+The migration CLI gives you a reviewable starting point. It does not decide your app state model, auth provider, frontend framework, or long-running workflow design.
+
+## Should I Migrate Now?
+
+| Situation | Recommendation |
+| --- | --- |
+| the v2 app is stable and only needs small maintenance | stay on v2 for now |
+| you are adding framework routes, server functions, or new service clients | plan the v3 migration |
+| you rely heavily on `ctx.thread`, `ctx.session`, lifecycle hooks, or Workbench | budget manual design time before applying changes |
+| you are starting a new app | create a v3 app with `bun create agentuity@beta` |
+
+## Recommended Order
+
+1. Run the dry run and read the report.
+2. Apply the migration in a branch with a clean git worktree.
+3. Review generated files and manual markers.
+4. Run your app's typecheck and framework build.
+5. Register the project with Agentuity Cloud.
+6. Run `agentuity build`, then deploy after that build passes.

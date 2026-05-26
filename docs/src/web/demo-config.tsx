@@ -17,6 +17,7 @@ import { EmailDemo } from './components/EmailDemo';
 import { QueueDemo } from './components/QueueDemo';
 import { SchedulesDemo } from './components/SchedulesDemo';
 
+import { WebRTCDemo } from './components/WebRTCDemo';
 import { WebSocketDemo } from './components/WebSocketDemo';
 import type { LineHighlight } from './components/CodeBlock';
 
@@ -31,6 +32,7 @@ export type DemoId =
 	| 'sse-stream'
 	| 'streaming'
 	| 'websocket'
+	| 'webrtc'
 	| 'durable-stream'
 	| 'schedules'
 	| 'agent-calls'
@@ -85,7 +87,7 @@ export const DEMOS: DemoConfig[] = [
 				to see what tools are available inside your handler.
 			</>
 		),
-		docsUrl: '/agents/creating-agents',
+		docsUrl: '/build/agents',
 		category: 'basics',
 		component: HelloDemo,
 		codeExample: CODE_EXAMPLES.hello,
@@ -96,18 +98,17 @@ export const DEMOS: DemoConfig[] = [
 	{
 		id: 'handler-context',
 		title: 'Handler Context',
-		subtitle: 'AgentContext Properties',
-		description: "See what's available inside your agent handler.",
+		subtitle: 'Request Context',
+		description: "See what's available inside your route handler.",
 		explanation: (
 			<>
-				When your agent runs, it receives a <em>context object</em> (ctx) with everything you
-				need:{' '}
+				When an Agentuity route runs, the request context includes the pieces your app code
+				needs:{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
 					logging, storage access, session info, and more
 				</span>
-				. Think of it as your agent's toolbox. Click the buttons below to see live responses
-				from the API routes. The reference code on the right shows a simplified standalone
-				example you can run in the sandbox.
+				. Click the buttons below to see live responses from the docs API routes. The reference
+				code on the right shows the v3 shape for using those services from a Hono route.
 			</>
 		),
 		docsUrl: '/reference/sdk-reference/context-api',
@@ -224,19 +225,19 @@ export const DEMOS: DemoConfig[] = [
 		id: 'ai-gateway',
 		title: 'AI Gateway',
 		subtitle: 'Multi-Provider Routing',
-		description: 'Use any AI provider with a single API key.',
+		description: 'Route supported model calls through one Agentuity project credential.',
 		explanation: (
 			<>
-				Use any AI model from any provider (OpenAI, Anthropic, Google, etc.) with a{' '}
-				<strong>single API key</strong>. No juggling multiple accounts or credentials.{' '}
+				Call supported provider models through Agentuity instead of wiring every route to a
+				separate gateway setup.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					The AI Gateway handles authentication, tracks usage, and lets you switch models
+					The AI Gateway handles project authentication, model routing, and usage metadata
 				</span>{' '}
-				with minimal code changes. Just import the provider SDK and call it. Works seamlessly
-				with the Vercel AI SDK for streaming and structured output.
+				when the response includes it. This demo compares a fixed model set; use the live model
+				catalog before choosing app defaults.
 			</>
 		),
-		docsUrl: '/agents/ai-gateway',
+		docsUrl: '/services/ai-gateway',
 		category: 'services',
 		component: AIGatewayDemo,
 		codeExample: CODE_EXAMPLES['ai-gateway'],
@@ -269,7 +270,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/agents/streaming-responses',
+		docsUrl: '/build/chat-and-streaming',
 		category: 'io-patterns',
 		component: StreamingDemo,
 		codeExample: CODE_EXAMPLES.streaming,
@@ -301,7 +302,7 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/routes/sse',
+		docsUrl: '/build/chat-and-streaming',
 		category: 'io-patterns',
 		component: SSEStreamDemo,
 		codeExample: CODE_EXAMPLES['sse-stream'],
@@ -320,10 +321,10 @@ export const DEMOS: DemoConfig[] = [
 				WebSockets give you a <em>persistent, bidirectional</em> connection between client and
 				server. Unlike SSE, both sides can send messages at any time.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					The websocket() middleware handles the protocol upgrade and lifecycle for you
+					Use WebSockets when the server needs to receive messages without a new HTTP request
 				</span>
-				. Define <em>onOpen</em>, <em>onMessage</em>, and <em>onClose</em> callbacks, and call
-				agents or other async code from inside them. For one-way streaming, see{' '}
+				. Define <em>open</em>, <em>message</em>, and <em>close</em> handlers, then call your
+				Agentuity service clients or app code from inside them. For one-way streaming, see{' '}
 				<a
 					href={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
@@ -333,12 +334,43 @@ export const DEMOS: DemoConfig[] = [
 				.
 			</>
 		),
-		docsUrl: '/routes/websockets',
+		docsUrl: '/build/chat-and-streaming',
 		category: 'io-patterns',
 		component: WebSocketDemo,
 		codeExample: CODE_EXAMPLES.websocket,
 		sandboxEnabled: true,
 		sandboxScript: 'websocket',
+		isRoute: true,
+	},
+	{
+		id: 'webrtc',
+		title: 'WebRTC Signaling',
+		subtitle: 'Browser Peer Connections',
+		description: 'Host the signaling route on Agentuity while browsers carry media peer-to-peer.',
+		explanation: (
+			<>
+				Browser WebRTC sends media and data directly between peers, but the browsers still need
+				a signaling route to exchange offers, answers, and ICE candidates.{' '}
+				<span className="bg-cyan-500/10 px-1 rounded">
+					Agentuity hosts the app and WebSocket relay
+				</span>
+				. The browser <em>RTCPeerConnection</em> carries camera, microphone, and data-channel
+				traffic. Open the same room in another tab to connect. For server-to-client events, see{' '}
+				<a
+					href={explorerHref('sse-stream')}
+					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
+				>
+					SSE Stream
+				</a>
+				.
+			</>
+		),
+		docsUrl: '/build/chat-and-streaming',
+		category: 'io-patterns',
+		component: WebRTCDemo,
+		codeExample: CODE_EXAMPLES.webrtc,
+		sandboxEnabled: true,
+		sandboxScript: 'webrtc',
 		isRoute: true,
 	},
 	{
@@ -361,7 +393,7 @@ export const DEMOS: DemoConfig[] = [
 				>
 					SSE streaming
 				</a>
-				. Use <code className="bg-cyan-500/10 px-1 rounded">ctx.stream</code> to create, list,
+				. Use <code className="bg-cyan-500/10 px-1 rounded">StreamClient</code> to create, list,
 				and manage your streams.
 			</>
 		),
@@ -376,21 +408,20 @@ export const DEMOS: DemoConfig[] = [
 	{
 		id: 'agent-calls',
 		title: 'Agent Calls',
-		subtitle: 'Invocation Patterns',
-		description: 'Call agents from routes or other agents.',
+		subtitle: 'Composition Patterns',
+		description: 'Compose focused functions from routes, queues, and schedules.',
 		explanation: (
 			<>
-				Agents can call other agents, and routes can call agents too. Think of it like functions
-				calling functions:{' '}
+				Keep reusable work in focused functions, then call those functions from routes, queues,
+				schedules, or other app code:{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					you can break complex workflows into focused, reusable pieces
+					complex workflows stay easier to test when each step has one job
 				</span>
-				. Use <code className="bg-cyan-500/10 px-1 rounded">agent.run()</code> to invoke any
-				agent, wait for results synchronously, or use <em>ctx.waitUntil</em> for fire-and-forget
-				background tasks.
+				. Return results directly for request/response flows, or queue background work when a
+				step should run after the response.
 			</>
 		),
-		docsUrl: '/agents/calling-other-agents',
+		docsUrl: '/build/agents',
 		category: 'io-patterns',
 		component: AgentCallsDemo,
 		codeExample: CODE_EXAMPLES['agent-calls'],
@@ -431,11 +462,11 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Conversation memory that persists across messages.',
 		explanation: (
 			<>
-				A conversation that remembers what was said before. Each message you send is a separate
-				request, but the agent keeps track of the full conversation using <em>thread state</em>.
-				This lets the AI reference earlier messages and maintain context.{' '}
+				A conversation that remembers what was said before. Each message is a separate request,
+				and the app stores recent turns in key-value storage so the next model call has the
+				right context.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					No database setup required; state management is built in
+					Key-value storage is enough for lightweight chat history
 				</span>
 				. See{' '}
 				<a
@@ -497,8 +528,8 @@ export const DEMOS: DemoConfig[] = [
 					If processing fails, the message retries automatically
 				</span>
 				. After exhausting retries, it moves to the <em>dead letter queue</em> (DLQ) for
-				inspection and replay. Agents use <em>ctx.queue</em> to create queues and publish.
-				Server routes consume with receive/ack/nack.
+				inspection and replay. Use <em>QueueClient</em> from routes, workers, or scripts to
+				create queues and publish messages.
 			</>
 		),
 		docsUrl: '/services/queues',
@@ -515,7 +546,7 @@ export const DEMOS: DemoConfig[] = [
 		description: 'Preview the email, send it to your inbox, and inspect delivery status.',
 		explanation: (
 			<>
-				Send transactional emails using <em>ctx.email.send()</em> with full control over HTML
+				Send transactional emails using <em>EmailClient</em> with full control over HTML
 				content, recipients, and attachments.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
 					Preview the exact HTML first, then send it to an address you control

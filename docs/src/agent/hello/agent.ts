@@ -6,15 +6,15 @@
  * then write a handler function. The schema provides TypeScript types automatically.
  *
  * Key concepts:
- * - createAgent() registers the agent with auto-discovery
+ * - defineDemoAgent() registers the agent with auto-discovery
  * - schema.input/output define the contract (uses @agentuity/schema, Zod, etc.)
  * - handler receives typed input and returns typed output
  *
  * Docs: https://agentuity.dev/agents/creating-agents
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-const agent = createAgent('hello', {
+const agent = defineDemoAgent('hello', {
 	// Description shown in Workbench and agent registry
 	description: 'Simple greeting agent',
 

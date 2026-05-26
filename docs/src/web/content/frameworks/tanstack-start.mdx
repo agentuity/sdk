@@ -1,0 +1,183 @@
+---
+title: Using TanStack Start with Agentuity
+short_title: TanStack Start
+description: Add Agentuity service clients to a TanStack Start app and validate the detected build path before deploying
+---
+
+TanStack Start is not a `bun create agentuity@beta --framework` starter today. Start with TanStack's own CLI, then add Agentuity to the resulting app and inspect the server output before deploying.
+
+## Create the Framework App
+
+```bash
+npx @tanstack/cli@latest create my-start-app
+cd my-start-app
+```
+
+Choose the React framework and Nitro deployment target during setup. That gives you TanStack Start output that matches the Node-compatible server path Agentuity expects to package.
+
+Then add Agentuity:
+
+```bash
+npm install @agentuity/keyvalue@beta
+npm install -D @agentuity/cli@beta
+npx @agentuity/cli@beta project import --validate-only   # dry run: checks config only
+npx @agentuity/cli@beta project import                   # registers the project and writes agentuity.json
+```
+
+Use the package manager that the TanStack CLI configured. Substitute `bun add`, `pnpm add`, or `yarn add` if your project does not use npm.
+
+`agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
+
+<Callout type="tip" title="Existing app?">
+See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
+</Callout>
+
+## What Agentuity Adds
+
+| Area | TanStack Start keeps | Agentuity adds |
+| --- | --- | --- |
+| routing | file routes, server routes, and server functions | service clients imported in server handlers |
+| local dev | Vite dev server | `agentuity dev` injects service and AI Gateway environment values |
+| build | TanStack Start and Nitro output | `agentuity build` packages launch metadata |
+| deploy | the emitted server entry | `agentuity deploy` ships the packaged app |
+
+## Add a Server Route
+
+TanStack Start server routes use `createFileRoute` with a `server.handlers` object. A file named `src/routes/api.visits.tsx` maps to `/api/visits`.
+
+```tsx title="src/routes/api.visits.tsx"
+import { createFileRoute } from '@tanstack/react-router';
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface VisitCounter {
+	readonly count: number;
+}
+
+const kv = new KeyValueClient();
+
+export const Route = createFileRoute('/api/visits')({ // [!code highlight]
+	server: {
+		handlers: {
+			GET: async () => {
+				const current = await kv.get<VisitCounter>('metrics', 'visits'); // [!code highlight]
+				const count = current.exists ? current.data.count + 1 : 1;
+
+				await kv.set('metrics', 'visits', { count }, { ttl: null }); // [!code highlight]
+
+				return Response.json({ count });
+			},
+		},
+	},
+});
+```
+
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. During local development, `agentuity dev` injects that variable alongside your framework's dev script.
+
+Call the route from a component or loader with `fetch`:
+
+```ts
+const response = await fetch('/api/visits');
+const { count } = await response.json();
+```
+
+## Run Locally
+
+`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000`. The recommended pattern is a wrapper `dev` script that delegates to a `dev:start` script with the framework-specific flags:
+
+```json title="package.json"
+{
+	"scripts": {
+		"dev": "agentuity dev --script dev:start",
+		"dev:start": "vite dev --port 3000",
+		"build": "vite build",
+		"start": "node .output/server/index.mjs",
+		"deploy": "agentuity deploy"
+	}
+}
+```
+
+Then run:
+
+```bash
+bun run dev
+```
+
+The `--port 3000` flag is required because Vite ignores the `PORT` env var.
+
+Smoke-test the route once the dev server is up:
+
+```bash
+curl http://127.0.0.1:3000/api/visits
+```
+
+## Deployed Environment Variables
+
+Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+
+| Variable | Used by |
+| --- | --- |
+| `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `DATABASE_URL` | database server routes |
+| `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
+
+## Validate Before Deploy
+
+Agentuity detects TanStack Start from `@tanstack/react-start`. After the framework build, inspect the package metadata so you know whether the deployed command starts the server output you expect.
+
+Check what the detector found:
+
+```bash
+bun run build
+agentuity build
+cat .agentuity/launch.json
+```
+
+The `start` script is what tells Agentuity to package the SSR server entry. If the official scaffold does not include it, add `"start": "node .output/server/index.mjs"` before running `agentuity build`.
+
+The default TanStack Start scaffold can build without a production `start` script. In that state, Agentuity may inject a static `_serve.js` helper, which is not enough for Start server routes or server functions. Use Nitro output and point `start` at the emitted server entry before deploying.
+
+If `agentuity build` cannot find the local Vite or Nitro binary, add `node_modules/.bin` to `PATH`:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+```
+
+For an SSR app, the `launch.json` start command must point at the server entry the build emits. If the package starts a static helper, it will not serve TanStack Start server routes.
+
+Deploy only after the framework build, Agentuity build, and a local packaged validation of `/` and one server route pass:
+
+```bash
+agentuity deploy --confirm
+```
+
+<Callout type="warning" title="Inspect the launch command">
+Do not deploy until `.agentuity/launch.json` points at the server bundle emitted by the TanStack Start build. Validate `/` and one server route from the packaged output first.
+</Callout>
+
+## Common Gotchas
+
+| Symptom | Check |
+|---------|-------|
+| Route URL does not match | Confirm the `src/routes/api.*.tsx` filename and `createFileRoute()` path string agree |
+| Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` |
+| OpenAI or other AI SDK calls bypass the AI Gateway | Verify `OPENAI_API_KEY` and `OPENAI_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| `launch.json` points at a static helper | Add `"start": "node .output/server/index.mjs"` so Agentuity starts the TanStack/Nitro server entry |
+| `launch.json` shows static-only server | Verify the build emits a Nitro server bundle under `.output/server/`; check [TanStack Start Hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting) for supported adapters |
+| Launch command points at a missing file | Compare the command in `launch.json` against files emitted under `.agentuity` |
+| App detected as `vite` instead of `tanstack-start` | Confirm `@tanstack/react-start` is installed in the app package and rerun `agentuity build` |
+
+## Framework Docs
+
+- [TanStack Start Getting Started](https://tanstack.com/start/latest/docs/framework/react/getting-started): scaffold with the TanStack CLI
+- [TanStack Start Server Routes](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes): `createFileRoute` server handlers reference
+- [TanStack Start Hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting): Nitro and platform-specific deployment adapters
+
+## Next Steps
+
+- [Key-Value Storage](/services/storage/key-value): use the same `KeyValueClient` API from any server route
+- [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity
+- [Deployment](/reference/cli/deployment): review deploy behavior before wiring CI
+- [Build Configuration](/reference/cli/build-configuration): inspect detected framework output and launch metadata

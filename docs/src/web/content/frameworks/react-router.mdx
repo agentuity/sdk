@@ -1,0 +1,342 @@
+---
+title: Using React Router with Agentuity
+short_title: React Router
+description: Connect a React Router framework-mode app to Agentuity services and deploy it from the CLI
+---
+
+Add Agentuity service clients to a [React Router](https://reactrouter.com/home) **framework-mode** app (the full-stack SSR mode, not a plain SPA). Keep your route modules, loaders, actions, and `routes.ts` as-is. Agentuity connects through the CLI and its service packages wherever server code needs storage, AI Gateway routing, or deploy metadata.
+
+## Create the Framework App
+
+```bash
+npx create-react-router@latest my-react-router-app
+cd my-react-router-app
+```
+
+Then add Agentuity:
+
+```bash
+bun add -d @agentuity/cli@beta
+agentuity project import --validate-only
+agentuity project import
+```
+
+Use the package manager that `create-react-router` configured. Substitute `npm install`, `pnpm add`, or `yarn add` if your project does not use Bun.
+
+`agentuity project import` writes the local metadata needed for deploys. The `--validate-only` flag lets you review before linking.
+
+Agentuity does not scaffold React Router from `bun create agentuity@beta` today. The build detector still recognizes existing React Router framework-mode apps from `react-router.config.*` or the React Router Vite plugin.
+
+The examples below use these files:
+
+| File | Purpose |
+|------|---------|
+| `app/routes/home.tsx` | UI component that calls the resource route |
+| `app/routes/api.translate.ts` | Resource route that exports `loader` and `action` only |
+| `app/routes.ts` | Route map registering both modules |
+
+## Import an Existing App
+
+Use the same Agentuity commands in an app that already exists:
+
+```bash
+bun add -d @agentuity/cli@beta
+agentuity project import --validate-only  # review what the CLI finds
+agentuity project import                  # write local project metadata
+```
+
+<Callout type="tip" title="Existing app?">
+See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
+</Callout>
+
+## What Agentuity Adds
+
+| Area | React Router keeps | Agentuity adds |
+| --- | --- | --- |
+| routing | `routes.ts`, loaders, actions, and resource routes | service clients imported in server route code |
+| local dev | `react-router dev` | `agentuity dev` injects service and AI Gateway environment values |
+| build | React Router build output | `agentuity build` packages launch metadata |
+| deploy | the React Router server entry | `agentuity deploy` ships the packaged app |
+
+## Add a Resource Route
+
+A resource route is any route module that exports `loader` or `action` but no default component. React Router sends `GET` requests to `loader` and `POST`, `PUT`, `PATCH`, `DELETE` to `action`.
+
+Install the packages used in this example:
+
+```bash
+bun add @agentuity/keyvalue@beta zod openai
+```
+
+Create the route file:
+
+```typescript title="app/routes/api.translate.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import OpenAI from 'openai';
+import { z } from 'zod';
+import type { Route } from './+types/api.translate';
+
+const HISTORY_NAMESPACE = 'translation-history';
+const HISTORY_LIMIT = 5;
+const SESSION_COOKIE = 'agentuity_session';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+
+interface HistoryEntry {
+  readonly model: string;
+  readonly sessionId: string;
+  readonly text: string;
+  readonly timestamp: string;
+  readonly tokens: number;
+  readonly toLanguage: string;
+  readonly translation: string;
+}
+
+interface HistoryState {
+  readonly history: readonly HistoryEntry[];
+  readonly translationCount: number;
+}
+
+const requestSchema = z.object({
+  model: z.string().optional(),
+  text: z.string(),
+  toLanguage: z.string(),
+});
+
+const kv = new KeyValueClient();
+
+function createSessionId(): string {
+  return `sess_${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
+}
+
+function getSessionId(request: Request): string {
+  const cookie = request.headers.get('cookie') ?? '';
+  const match = cookie.match(new RegExp(`(?:^|; )${SESSION_COOKIE}=([^;]+)`));
+  return match?.[1] ? decodeURIComponent(match[1]) : createSessionId();
+}
+
+function sessionCookie(sessionId: string): string {
+  const parts = [
+    `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}`,
+    'HttpOnly',
+    'Path=/',
+    'SameSite=Lax',
+    `Max-Age=${SESSION_TTL_SECONDS}`,
+  ];
+  if (process.env.NODE_ENV === 'production') parts.push('Secure');
+  return parts.join('; ');
+}
+
+async function readHistory(sessionId: string): Promise<HistoryState> {
+  const result = await kv.get<HistoryState>(HISTORY_NAMESPACE, sessionId);
+  return result.exists ? result.data : { history: [], translationCount: 0 };
+}
+
+// loader handles GET and returns session history
+export async function loader({ request }: Route.LoaderArgs) { // [!code highlight]
+  const sessionId = getSessionId(request);
+  const state = await readHistory(sessionId);
+  return Response.json(
+    { sessionId, history: state.history, translationCount: state.translationCount },
+    { headers: { 'Set-Cookie': sessionCookie(sessionId) } }
+  );
+}
+
+// action handles POST / PUT / PATCH / DELETE
+export async function action({ request }: Route.ActionArgs) { // [!code highlight]
+  const sessionId = getSessionId(request);
+
+  if (request.method === 'DELETE') {
+    await kv.delete(HISTORY_NAMESPACE, sessionId);
+    return Response.json(
+      { sessionId, history: [], translationCount: 0 },
+      { headers: { 'Set-Cookie': sessionCookie(sessionId) } }
+    );
+  }
+
+  const body: unknown = await request.json();
+  const parsed = requestSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: 'text and toLanguage are required' }, { status: 400 });
+  }
+
+  const { text, toLanguage } = parsed.data;
+  const model = parsed.data.model ?? process.env.OPENAI_MODEL;
+  if (!model) {
+    return Response.json({ error: 'OPENAI_MODEL is required' }, { status: 500 });
+  }
+
+  // Instantiate after validation so plain React Router type checks do not need provider env at module load.
+  const openai = new OpenAI(); // [!code highlight]
+
+  const completion = await openai.chat.completions.create({
+    model,
+    messages: [{ role: 'user', content: `Translate to ${toLanguage}:\n\n${text}` }],
+  });
+  const translation = completion.choices[0]?.message?.content ?? '';
+  const tokens = completion.usage?.total_tokens ?? 0;
+
+  const previous = await readHistory(sessionId);
+  const history = [
+    ...previous.history,
+    { model, sessionId, text, timestamp: new Date().toISOString(), tokens, toLanguage, translation },
+  ].slice(-HISTORY_LIMIT);
+  const next: HistoryState = { history, translationCount: previous.translationCount + 1 };
+
+  await kv.set(HISTORY_NAMESPACE, sessionId, next, { ttl: SESSION_TTL_SECONDS }); // [!code highlight]
+
+  return Response.json(
+    { sessionId, history, translationCount: next.translationCount, translation, tokens, model, toLanguage },
+    { headers: { 'Set-Cookie': sessionCookie(sessionId) } }
+  );
+}
+// Omitting the default export makes this a resource route
+```
+
+`Route.LoaderArgs` and `Route.ActionArgs` come from React Router's typegen. Run `react-router typegen` (or a package script that runs it) before a direct TypeScript check or `agentuity build`; the `import type` line stays unresolved until the generated `.react-router/types` output exists.
+
+Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
+
+Register the route in `app/routes.ts`:
+
+```typescript title="app/routes.ts"
+import { index, route } from '@react-router/dev/routes';
+import type { RouteConfig } from '@react-router/dev/routes';
+
+export default [
+  index('routes/home.tsx'),
+  route('api/translate', 'routes/api.translate.ts'),
+] satisfies RouteConfig;
+```
+
+## Call from a Component
+
+Use `fetch` from client code. Do not use React Router's `<Link>` for resource routes because client-side navigation won't reach a module with no component to render.
+
+```typescript title="app/routes/home.tsx (excerpt)"
+async function translate(text: string, toLanguage: string, model: string) {
+  const response = await fetch('/api/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, toLanguage, model }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(err.error ?? `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// GET history on mount
+const history = await fetch('/api/translate').then((r) => r.json());
+
+// DELETE to clear
+await fetch('/api/translate', { method: 'DELETE' });
+```
+
+Plain anchor tags and `<Link reloadDocument>` also work for non-JSON resource routes (downloads, feeds, etc.) because they issue a full browser request.
+
+## Run Locally
+
+`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000`. Use a wrapper script that delegates to the framework dev command:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "agentuity dev --script dev:start",
+    "dev:start": "react-router dev --port 3000",
+    "build": "react-router build",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+Then run:
+
+```bash
+bun run dev
+```
+
+The `--port 3000` flag is required because Vite (which React Router uses under the hood) ignores the `PORT` env var.
+
+Smoke-test the resource route before touching the UI:
+
+```bash
+# GET, returns session history
+curl http://127.0.0.1:3000/api/translate
+
+# POST, translate text
+curl http://127.0.0.1:3000/api/translate \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Hello","toLanguage":"Spanish"}'
+
+# DELETE, clear history
+curl -X DELETE http://127.0.0.1:3000/api/translate
+```
+
+## Deployed Environment Variables
+
+Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+
+| Variable | Used by |
+| --- | --- |
+| `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
+| `OPENAI_MODEL` | example routes that call the OpenAI SDK |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `DATABASE_URL` | database resource routes |
+| `AWS_*` | object storage resource routes; see [Object Storage](/services/storage/object) for exact variables |
+
+## Validate Before Deploy
+
+Build with React Router first, then run the Agentuity packaging check:
+
+```bash
+bunx react-router typegen
+bun run build
+agentuity build
+```
+
+React Router outputs to `build/` (client assets in `build/client/`, server in `build/server/`). The Agentuity CLI currently packages React Router apps through the generic adapter. Inspect the generated metadata to confirm the server entry and static paths match what was built:
+
+```bash
+cat .agentuity/launch.json
+```
+
+If `agentuity build` cannot find local binaries, prefix the command:
+
+```bash
+PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
+```
+
+Deploy only after the packaging check and a local packaged validation of `/` and the resource route pass:
+
+```bash
+agentuity deploy --confirm
+```
+
+## Common Gotchas
+
+| Symptom | What to check |
+|---------|---------------|
+| Route returns 404 in dev or deployed | [`app/routes.ts`](https://reactrouter.com/api/framework-conventions/routes.ts) must include `route('api/translate', 'routes/api.translate.ts')`; React Router does not auto-discover routes |
+| `Cannot find module './+types/api.translate'` | Run `bunx react-router typegen` or your package `typecheck` script before `agentuity build` |
+| KV client or OpenAI calls return auth errors | Start the app with `agentuity dev`, not `bun run dev`, so credentials are injected |
+| OpenAI calls hit the wrong provider or use no API key | Check that `OPENAI_BASE_URL` and `OPENAI_API_KEY` are present in the process; `agentuity dev` sets both. See [AI Gateway](/services/ai-gateway) |
+| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| Deploy starts but only static assets are served | Inspect `.agentuity/launch.json`: `processes[0].command` must run the React Router server entry (`build/server/index.js`) |
+| Client-side `<Link>` to the resource route renders nothing or errors | [Resource routes](https://reactrouter.com/how-to/resource-routes) have no component; navigate to them with `fetch`, plain `<a>`, or `<Link reloadDocument>` |
+
+## Framework Docs
+
+- [React Router `routes.ts`](https://reactrouter.com/api/framework-conventions/routes.ts): route module registration reference
+- [React Router Resource Routes](https://reactrouter.com/how-to/resource-routes): `loader`/`action` behavior for non-UI routes
+- [React Router Route Module](https://reactrouter.com/start/framework/route-module): `Route.LoaderArgs`, `Route.ActionArgs`, and other typegen exports
+
+## Next Steps
+
+- [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
+- [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output
+- [AI Gateway](/services/ai-gateway): how `OPENAI_BASE_URL` routes provider calls through Agentuity
+- [Key-Value Storage](/services/storage/key-value): store compact route state by namespace and key

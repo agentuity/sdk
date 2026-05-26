@@ -17,7 +17,7 @@
  *
  * Docs: https://agentuity.dev/services/storage/object
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { s3 } from 'bun';
 
@@ -49,7 +49,7 @@ const InputSchema = s.union(
 	})
 );
 
-const agent = createAgent('objectstore', {
+const agent = defineDemoAgent('objectstore', {
 	description: 'File storage using Bun S3 API (download, list, presign)',
 	schema: {
 		input: InputSchema,

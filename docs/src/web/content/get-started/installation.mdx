@@ -1,55 +1,153 @@
 ---
 title: Installation
-description: Set up your development environment
+description: Install the Agentuity CLI, sign in, and create a framework starter
 ---
 
-## Install the CLI
+The fastest path is to scaffold a project with `bun create agentuity@beta`, which runs the current framework-first create flow without a global install.
+
+## Prerequisites
+
+Install [Bun](https://bun.sh) `1.3` or newer. The published create wrapper delegates to `bunx`, so Bun is required even when you start from `npm create` or `npx`.
 
 ```bash
-curl -fsSL https://agentuity.sh | sh
+bun --version
 ```
 
-This installs the `agentuity` CLI globally on your system.
+The CLI runtime also supports Node.js `24.0.0` or newer. Use Node for existing project scripts when that is how the framework app already runs, but keep Bun installed for the create flow until the wrapper no longer delegates to `bunx`.
 
-<Callout type="info" title="Alternative: Install via Bun">
-If you prefer package managers: `bun install -g @agentuity/cli`
-</Callout>
+```bash
+node --version
+```
 
 ## Create a Project
 
-```bash
-agentuity project create --name my-app
-# or
-agentuity create --name my-app
-```
-
-This scaffolds a project using the [default template](/reference/cli/getting-started#default-template), which includes a translation agent, API routes, and a React frontend with Tailwind.
-
-## Start the Dev Server
+Scaffold a starter and pick a framework:
 
 ```bash
-agentuity dev
-# or
-bun run dev
+bun create agentuity@beta --name my-app
 ```
 
-Your project is now running at `http://localhost:3500`. The dev server uses Vite for frontend updates and Bun for server rebuilds.
+In an interactive terminal, the CLI prompts for a framework, signs you in (if you're not already), and registers the project with Agentuity Cloud. Skip the prompt with `--framework`:
 
-<Callout type="info" title="Bun Required">
-Agentuity projects run on [Bun](https://bun.sh). If you don't have Bun installed, the CLI will prompt you to install it when you create your first project.
+```bash
+bun create agentuity@beta --name my-app --framework nextjs
+```
+
+Pass `--package-manager` when you care which lockfile the new framework app uses:
+
+```bash
+bun create agentuity@beta \
+  --name my-app \
+  --framework nextjs \
+  --package-manager bun
+```
+
+The create flow runs the framework's official create CLI, applies an Agentuity overlay (an AI translation example, scripts, deps), then registers the project unless you pass `--no-register`.
+
+### Create-supported framework slugs
+
+| Slug | Framework | Created with |
+|------|-----------|--------------|
+| `nextjs` | Next.js | `create-next-app` (App Router, src dir, Tailwind) |
+| `nuxt` | Nuxt | `nuxi init` (minimal) |
+| `sveltekit` | SvelteKit | `sv create` |
+| `astro` | Astro | `create-astro` (basics template) |
+| `hono` | Hono | `create-hono` (Node.js template) |
+
+React Router, Vite + React, and TanStack Start are build/deploy detection targets, not create slugs. Start with each framework's own CLI, then run `agentuity project import` to add Agentuity metadata.
+
+### Useful Flags
+
+| Flag | What it does |
+|------|--------------|
+| `--name <name>` | Project name (also used for the directory) |
+| `--framework <slug>` | Pick a framework non-interactively |
+| `--package-manager <pm>` | Choose `bun`, `npm`, `pnpm`, or `yarn` for the scaffolded app |
+| `--services <list>` | Add service augments such as `db`, `keyvalue`, `queue`, `vector`, or `storage` |
+| `--no-register` | Skip cloud registration; create a local-only project |
+| `--no-install` | Skip `bun install` |
+| `--no-build` | Skip the post-install build step |
+| `--dir <path>` | Place the project under a different directory |
+
+Run `bun create agentuity@beta --help` for the full list.
+
+## Run Locally
+
+`@agentuity/cli@beta` is added as a devDependency during the create flow, so `bunx` resolves the right CLI inside the project:
+
+```bash
+cd my-app
+bunx agentuity dev
+```
+
+`agentuity dev` runs your framework's `dev` script and patches `AGENTUITY_SDK_KEY` and AI Gateway base URLs into the dev process. OpenAI, Anthropic, and Groq SDK calls route through Agentuity when no provider key is set.
+
+Override the port (passed as `PORT` to the framework):
+
+```bash
+bunx agentuity dev --port 8080
+```
+
+Use a non-default script name:
+
+```bash
+bunx agentuity dev --script dev:web
+```
+
+## Deploy
+
+The create flow adds `deploy: agentuity deploy` to `package.json`, so this works without a global install:
+
+```bash
+bun run deploy
+```
+
+See [Deploy & Operate](/deploy-operate) for the full lifecycle.
+
+## Optional: Install the CLI Globally
+
+Install the CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
+
+```bash
+bun add -g @agentuity/cli@beta
+```
+
+The shell installer also accepts a version:
+
+```bash
+curl -fsSL https://agentuity.sh | sh -s -- --version beta
+```
+
+After install, sign in once:
+
+```bash
+agentuity auth login
+```
+
+<Callout type="warning" title="Check the CLI channel">
+`@agentuity/cli@latest` and the shell installer default may still point at the previous stable channel. Pass `--version beta` (or `bun add -g @agentuity/cli@beta`) until the framework-first CLI is the default release channel.
+
+Inside a scaffolded project, `bunx agentuity` uses the local `@agentuity/cli@beta` devDependency. Outside a project, use `bunx @agentuity/cli@beta` when you want this CLI without installing it globally.
 </Callout>
 
-### CLI Shortcuts
+## Verify the Install
 
-While the dev server is running, use these shortcuts:
+In a scaffolded project:
 
-| Key | Action |
-|-----|--------|
-| `h` | Show help |
-| `c` | Clear console |
-| `q` | Quit |
+```bash
+bunx agentuity --version
+# 3.0.0-beta.x
+```
+
+After the global v3 install:
+
+```bash
+agentuity --version
+# 3.0.0-beta.x
+```
 
 ## Next Steps
 
-- [Quickstart](/get-started/quickstart): Build your first agent
-- [Project Structure](/get-started/project-structure): Understand the file layout
+- [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it locally, and deploy
+- [Project Structure](/get-started/project-structure): see exactly what the scaffold adds to a framework app
+- [App Configuration](/get-started/app-configuration): configure scripts, `agentuity.json`, env vars, and service clients

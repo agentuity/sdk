@@ -10,9 +10,9 @@
  *
  * Usage: bun run src/run/kv.ts '{}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 // Unique key prefix for this run (isolation)
 const runId = Date.now().toString(36);

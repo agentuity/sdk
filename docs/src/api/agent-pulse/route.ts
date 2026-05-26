@@ -1,8 +1,8 @@
-import { validator, type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { bearerTokenAuth, cookieAuth } from '../../middleware/auth';
 import { config } from '../../config';
-import agentPulse from '@agent/agent_pulse';
-import type { ConversationMessage } from '@agent/agent_pulse/types';
+import agentPulse from '../../agent/agent_pulse';
+import type { ConversationMessage } from '../../agent/agent_pulse/types';
 import {
 	getCurrentTutorialState,
 	updateTutorialProgress,
@@ -119,85 +119,82 @@ const SSE_HEADERS = {
 	Connection: 'keep-alive',
 };
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	// POST /api/agent-pulse
-	.post(
-		'/',
-		bearerTokenAuth,
-		cookieAuth,
-		validator({ input: AgentPulseRequestSchema }),
-		async (c) => {
-			try {
-				const userId = (c.get as (key: string) => string)('userId');
-				const kv = c.var.kv;
-				const logger = c.var.logger;
+	.post('/', bearerTokenAuth, cookieAuth, async (c) => {
+		try {
+			const userId = (c.get as (key: string) => string)('userId');
+			const kv = c.var.kv;
+			const logger = c.var.logger;
 
-				const validatedRequest = c.req.valid('json');
-				const conversationHistory: ConversationMessage[] =
-					validatedRequest.conversationHistory || [];
-
-				// Get current tutorial state if not provided
-				let tutorialData = validatedRequest.tutorialData;
-				if (!tutorialData && userId) {
-					tutorialData = (await getCurrentTutorialState(userId, kv)) || undefined;
-				}
-
-				// Run agent and get stream
-				const agentStream = await agentPulse.run({
-					message: validatedRequest.message,
-					conversationHistory,
-					tutorialData,
-				});
-
-				// If no sessionId provided, return raw stream (no persistence)
-				if (!validatedRequest.sessionId) {
-					return new Response(agentStream, { headers: SSE_HEADERS });
-				}
-
-				// Wrap stream with persistence
-				const persistedStream = withPersistence(agentStream, {
-					kv,
-					userId,
-					sessionId: validatedRequest.sessionId,
-					kvStoreName: config.kvStoreName,
-					logger,
-					onTutorialProgress: async (td: TutorialData) => {
-						if (userId && td.tutorialId) {
-							await updateTutorialProgress(
-								userId,
-								td.tutorialId,
-								td.currentStep,
-								td.totalSteps ?? 0,
-								kv
-							);
-						}
-					},
-					onSessionSaved: (session: Session) => {
-						// Fire and forget title generation
-						const sessionKey = `${userId}_${validatedRequest.sessionId}`;
-						void generateAndPersistTitle(sessionKey, session, kv, logger);
-					},
-				});
-
-				return new Response(persistedStream, { headers: SSE_HEADERS });
-			} catch (error) {
-				c.var.logger.error(
-					'Agent request failed: %s',
-					error instanceof Error ? error.message : String(error)
-				);
-
-				const statusCode =
-					error instanceof Error && error.message.includes('Invalid') ? 400 : 500;
-
-				return c.json(
-					{
-						error: 'Sorry, I encountered an error while processing your request. Please try again.',
-					},
-					{ status: statusCode }
-				);
+			const parsed = AgentPulseRequestSchema.safeParse(await c.req.json());
+			if (!parsed.success) {
+				return c.json({ error: 'Invalid Agent Pulse request' }, 400);
 			}
+			const validatedRequest = parsed.data;
+			const conversationHistory: ConversationMessage[] =
+				validatedRequest.conversationHistory || [];
+
+			// Get current tutorial state if not provided
+			let tutorialData = validatedRequest.tutorialData;
+			if (!tutorialData && userId) {
+				tutorialData = (await getCurrentTutorialState(userId, kv)) || undefined;
+			}
+
+			// Run agent and get stream
+			const agentStream = await agentPulse.run({
+				message: validatedRequest.message,
+				conversationHistory,
+				tutorialData,
+			});
+
+			// If no sessionId provided, return raw stream (no persistence)
+			if (!validatedRequest.sessionId) {
+				return new Response(agentStream, { headers: SSE_HEADERS });
+			}
+
+			// Wrap stream with persistence
+			const persistedStream = withPersistence(agentStream, {
+				kv,
+				userId,
+				sessionId: validatedRequest.sessionId,
+				kvStoreName: config.kvStoreName,
+				logger,
+				onTutorialProgress: async (td: TutorialData) => {
+					if (userId && td.tutorialId) {
+						await updateTutorialProgress(
+							userId,
+							td.tutorialId,
+							td.currentStep,
+							td.totalSteps ?? 0,
+							kv
+						);
+					}
+				},
+				onSessionSaved: (session: Session) => {
+					// Fire and forget title generation
+					const sessionKey = `${userId}_${validatedRequest.sessionId}`;
+					void generateAndPersistTitle(sessionKey, session, kv, logger);
+				},
+			});
+
+			return new Response(persistedStream, { headers: SSE_HEADERS });
+		} catch (error) {
+			c.var.logger.error(
+				'Agent request failed: %s',
+				error instanceof Error ? error.message : String(error)
+			);
+
+			const statusCode = error instanceof Error && error.message.includes('Invalid') ? 400 : 500;
+
+			return c.json(
+				{
+					error: 'Sorry, I encountered an error while processing your request. Please try again.',
+				},
+				{ status: statusCode }
+			);
 		}
-	);
+	});
 
 export default router;

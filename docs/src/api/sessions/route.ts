@@ -1,4 +1,4 @@
-import { validator, type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { bearerTokenAuth, cookieAuth } from '../../middleware/auth';
 import { config } from '../../config';
 import { SessionSchema, MessageSchema, type Session } from '../../types/chat';
@@ -14,7 +14,7 @@ export const AddMessageSchema = z.object({
 	message: MessageSchema,
 });
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	/**
 	 * GET /api/sessions - Get all sessions (paginated)
@@ -87,11 +87,15 @@ const router = new Hono<Env>()
 	/**
 	 * POST /api/sessions - Create a new session
 	 */
-	.post('/', bearerTokenAuth, cookieAuth, validator({ input: SessionSchema }), async (c) => {
+	.post('/', bearerTokenAuth, cookieAuth, async (c) => {
 		try {
 			const userId = (c.get as (key: string) => string)('userId');
 
-			const session = c.req.valid('json');
+			const parsed = SessionSchema.safeParse(await c.req.json());
+			if (!parsed.success) {
+				return c.json({ error: 'Invalid session payload' }, { status: 400 });
+			}
+			const session = parsed.data;
 
 			if (session.messages && session.messages.length > 0) {
 				const now = new Date().toISOString();
@@ -163,58 +167,56 @@ const router = new Hono<Env>()
 	/**
 	 * PUT /api/sessions/:sessionId - Update a session
 	 */
-	.put(
-		'/:sessionId',
-		bearerTokenAuth,
-		cookieAuth,
-		validator({ input: SessionSchema }),
-		async (c) => {
-			try {
-				const userId = (c.get as (key: string) => string)('userId');
-				const sessionId = c.req.param('sessionId');
-				const sessionKey = `${userId}_${sessionId}`;
+	.put('/:sessionId', bearerTokenAuth, cookieAuth, async (c) => {
+		try {
+			const userId = (c.get as (key: string) => string)('userId');
+			const sessionId = c.req.param('sessionId');
+			const sessionKey = `${userId}_${sessionId}`;
 
-				const session = c.req.valid('json');
-
-				if (session.sessionId !== sessionId) {
-					return c.json({ error: 'Session ID mismatch' }, { status: 400 });
-				}
-
-				// Generate server-side timestamps for messages that don't have one
-				if (session.messages && session.messages.length > 0) {
-					const now = new Date().toISOString();
-					session.messages = session.messages.map((message) => ({
-						...message,
-						timestamp: message.timestamp || now,
-					}));
-				}
-
-				// Update the individual session
-				await c.var.kv.set(config.kvStoreName, sessionKey, session);
-
-				// Update the master list if needed (ensure the session ID is in the list)
-				const allSessionsResponse = await c.var.kv.get<string[]>(config.kvStoreName, userId);
-				const sessionIds = allSessionsResponse.exists ? allSessionsResponse.data || [] : [];
-
-				// If the session ID isn't in the list, add it to the beginning
-				if (!sessionIds.includes(sessionKey)) {
-					const updatedSessionIds = [sessionKey, ...sessionIds];
-					await c.var.kv.set(config.kvStoreName, userId, updatedSessionIds);
-				}
-
-				return c.json({ success: true, session });
-			} catch (error) {
-				c.var.logger.error(
-					'Update session failed: %s',
-					error instanceof Error ? error.message : String(error)
-				);
-				return c.json(
-					{ error: error instanceof Error ? error.message : 'Unknown error occurred' },
-					{ status: 500 }
-				);
+			const parsed = SessionSchema.safeParse(await c.req.json());
+			if (!parsed.success) {
+				return c.json({ error: 'Invalid session payload' }, { status: 400 });
 			}
+			const session = parsed.data;
+
+			if (session.sessionId !== sessionId) {
+				return c.json({ error: 'Session ID mismatch' }, { status: 400 });
+			}
+
+			// Generate server-side timestamps for messages that don't have one
+			if (session.messages && session.messages.length > 0) {
+				const now = new Date().toISOString();
+				session.messages = session.messages.map((message) => ({
+					...message,
+					timestamp: message.timestamp || now,
+				}));
+			}
+
+			// Update the individual session
+			await c.var.kv.set(config.kvStoreName, sessionKey, session);
+
+			// Update the master list if needed (ensure the session ID is in the list)
+			const allSessionsResponse = await c.var.kv.get<string[]>(config.kvStoreName, userId);
+			const sessionIds = allSessionsResponse.exists ? allSessionsResponse.data || [] : [];
+
+			// If the session ID isn't in the list, add it to the beginning
+			if (!sessionIds.includes(sessionKey)) {
+				const updatedSessionIds = [sessionKey, ...sessionIds];
+				await c.var.kv.set(config.kvStoreName, userId, updatedSessionIds);
+			}
+
+			return c.json({ success: true, session });
+		} catch (error) {
+			c.var.logger.error(
+				'Update session failed: %s',
+				error instanceof Error ? error.message : String(error)
+			);
+			return c.json(
+				{ error: error instanceof Error ? error.message : 'Unknown error occurred' },
+				{ status: 500 }
+			);
 		}
-	)
+	})
 
 	/**
 	 * DELETE /api/sessions/:sessionId - Delete a session
@@ -251,62 +253,60 @@ const router = new Hono<Env>()
 	/**
 	 * POST /api/sessions/:sessionId/messages - Add a message to a session
 	 */
-	.post(
-		'/:sessionId/messages',
-		bearerTokenAuth,
-		cookieAuth,
-		validator({ input: AddMessageSchema }),
-		async (c) => {
-			try {
-				const userId = (c.get as (key: string) => string)('userId');
-				const sessionId = c.req.param('sessionId');
-				const sessionKey = `${userId}_${sessionId}`;
+	.post('/:sessionId/messages', bearerTokenAuth, cookieAuth, async (c) => {
+		try {
+			const userId = (c.get as (key: string) => string)('userId');
+			const sessionId = c.req.param('sessionId');
+			const sessionKey = `${userId}_${sessionId}`;
 
-				const { message } = c.req.valid('json');
-
-				// Get current session
-				const sessionResponse = await c.var.kv.get<Session>(config.kvStoreName, sessionKey);
-				if (!sessionResponse.exists || !sessionResponse.data) {
-					return c.json({ error: 'Session not found' }, { status: 404 });
-				}
-
-				// Generate server-side timestamp
-				const messageWithTimestamp = {
-					...message,
-					timestamp: new Date().toISOString(),
-				};
-
-				const session = sessionResponse.data;
-				const updatedSession: Session = {
-					...session,
-					messages: [...session.messages, messageWithTimestamp],
-				};
-
-				// Update the individual session
-				await c.var.kv.set(config.kvStoreName, sessionKey, updatedSession);
-
-				// Move this session ID to the top of the master list (most recently used)
-				const allSessionsResponse = await c.var.kv.get<string[]>(config.kvStoreName, userId);
-				const sessionIds = allSessionsResponse.exists ? allSessionsResponse.data || [] : [];
-
-				// Remove the current session ID if it exists and add it to the beginning
-				const filteredSessionIds = sessionIds.filter((id) => id !== sessionKey);
-				const updatedSessionIds = [sessionKey, ...filteredSessionIds];
-
-				await c.var.kv.set(config.kvStoreName, userId, updatedSessionIds);
-
-				return c.json({ success: true, session: updatedSession });
-			} catch (error) {
-				c.var.logger.error(
-					'Add message failed: %s',
-					error instanceof Error ? error.message : String(error)
-				);
-				return c.json(
-					{ error: error instanceof Error ? error.message : 'Unknown error occurred' },
-					{ status: 500 }
-				);
+			const parsed = AddMessageSchema.safeParse(await c.req.json());
+			if (!parsed.success) {
+				return c.json({ error: 'Invalid message payload' }, { status: 400 });
 			}
+			const { message } = parsed.data;
+
+			// Get current session
+			const sessionResponse = await c.var.kv.get<Session>(config.kvStoreName, sessionKey);
+			if (!sessionResponse.exists || !sessionResponse.data) {
+				return c.json({ error: 'Session not found' }, { status: 404 });
+			}
+
+			// Generate server-side timestamp
+			const messageWithTimestamp = {
+				...message,
+				timestamp: new Date().toISOString(),
+			};
+
+			const session = sessionResponse.data;
+			const updatedSession: Session = {
+				...session,
+				messages: [...session.messages, messageWithTimestamp],
+			};
+
+			// Update the individual session
+			await c.var.kv.set(config.kvStoreName, sessionKey, updatedSession);
+
+			// Move this session ID to the top of the master list (most recently used)
+			const allSessionsResponse = await c.var.kv.get<string[]>(config.kvStoreName, userId);
+			const sessionIds = allSessionsResponse.exists ? allSessionsResponse.data || [] : [];
+
+			// Remove the current session ID if it exists and add it to the beginning
+			const filteredSessionIds = sessionIds.filter((id) => id !== sessionKey);
+			const updatedSessionIds = [sessionKey, ...filteredSessionIds];
+
+			await c.var.kv.set(config.kvStoreName, userId, updatedSessionIds);
+
+			return c.json({ success: true, session: updatedSession });
+		} catch (error) {
+			c.var.logger.error(
+				'Add message failed: %s',
+				error instanceof Error ? error.message : String(error)
+			);
+			return c.json(
+				{ error: error instanceof Error ? error.message : 'Unknown error occurred' },
+				{ status: 500 }
+			);
 		}
-	);
+	});
 
 export default router;

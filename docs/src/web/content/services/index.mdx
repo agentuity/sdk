@@ -1,6 +1,6 @@
 ---
 title: Services
-description: Identity, storage, messaging, observability, and execution services
+description: Agentuity service clients for identity, storage, messaging, observability, and execution
 ---
 
 import {
@@ -25,7 +25,37 @@ import {
   Webhook,
 } from 'lucide-react';
 
-Agentuity provides built-in services for identity, storage, messaging, observability, and code execution. These pages cover patterns, configuration, and best practices. For method signatures and return types, see the [SDK Reference](/reference/sdk-reference).
+Agentuity services are server-side clients for identity, storage, messaging, observability, Coder, and sandbox execution. In v3, start with the direct client in the framework route, server function, worker, script, or CLI that owns the work.
+
+## Choose a Service
+
+| Need | Start With | Why |
+|------|------------|-----|
+| sign users in with Agentuity accounts or OAuth scopes | [OIDC Provider](/services/oidc-provider) or [Authentication](/services/authentication) | keep user auth in your framework or identity layer |
+| exact-key state, cache, counters, or preferences | [Key-Value](/services/storage/key-value) | read and write small records by bucket and key |
+| semantic search, embeddings, or RAG retrieval | [Vector](/services/storage/vector) | store documents and query by meaning |
+| files, images, documents, or large blobs | [Object](/services/storage/object) | use object storage for binary data |
+| relational app data and SQL queries | [Database](/services/database) | keep tables and migrations in your app's database layer |
+| async handoff, inbound events, or timed delivery | [Queues](/services/queues), [Webhooks](/services/webhooks), or [Schedules](/services/schedules) | decouple work from the request that discovered it |
+| tracked work items, issue state, comments, or attachments | [Tasks](/services/tasks) | give work a lifecycle your app can inspect |
+| logs, spans, request history, or eval runs | [Observability](/services/observability) and [Evals and Testing](/services/observability/evals-and-testing) | treat evals as app code with traces and output contracts |
+| isolated command execution, generated-code checks, or sandbox files | [Sandbox](/services/sandbox) | run code away from your own host with explicit limits |
+| repo-aware coding work with history, reconnects, skills, or review | [Coder](/services/coder) | use a managed coding session instead of only a process |
+
+The package pattern is the same across services:
+
+```typescript
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+const kv = new KeyValueClient();
+
+await kv.set('cache', 'homepage', { generatedAt: new Date().toISOString() });
+const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage');
+```
+
+For method signatures and return types, see the [SDK Reference](/reference/sdk-reference). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
+
+Hono apps can also install `@agentuity/hono` when they want middleware to create common clients once and expose them on `c.var.*`. Other frameworks should create the standalone client in server-only code. Relational Postgres has its own database section; for other services, use the package that owns that service.
 
 ## Identity
 
@@ -68,7 +98,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/database"
     title="Database"
-    description="PostgreSQL and Drizzle ORM"
+    description="Relational Postgres for app-owned data"
     icon={<Server />}
   />
   <CardLink
@@ -126,7 +156,7 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/observability/logging"
     title="Logging"
-    description="Structured logging with ctx.logger"
+    description="Structured application logs"
     icon={<FileText />}
   />
   <CardLink
@@ -134,6 +164,12 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
     title="Tracing"
     description="Distributed tracing for debugging"
     icon={<Route />}
+  />
+  <CardLink
+    href="/services/observability/evals-and-testing"
+    title="Evals and Testing"
+    description="Evaluate app behavior with tests, traces, judges, and output contracts"
+    icon={<Eye />}
   />
   <CardLink
     href="/services/observability/sessions-debugging"
@@ -172,8 +208,14 @@ Agentuity provides built-in services for identity, storage, messaging, observabi
   <CardLink
     href="/services/sandbox/sdk-usage"
     title="SDK Usage"
-    description="Use the sandbox from your agents"
+    description="Use the sandbox client from app code"
     icon={<Eye />}
+  />
+  <CardLink
+    href="/services/sandbox/coding-agents"
+    title="Coding Agents"
+    description="Run agent CLIs or servers when you need direct process control"
+    icon={<BrainCircuit />}
   />
   <CardLink
     href="/services/sandbox/snapshots"

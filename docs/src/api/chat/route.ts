@@ -4,14 +4,14 @@
  * POST / - Send message to chat agent (with optional command)
  * GET  / - Usage information
  */
-import { type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import chatAgent from '../../agent/chat/agent';
 import { Hono } from 'hono';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
-	.post('/', chatAgent.validator(), async (c) => {
-		const data = c.req.valid('json');
+	.post('/', async (c) => {
+		const data = await c.req.json();
 		const result = await chatAgent.run(data);
 		return c.json(result);
 	})

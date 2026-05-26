@@ -7,9 +7,9 @@
  *
  * Usage: bun run src/run/queue.ts '{}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 const output: string[] = [];
 
 const queueName = `explorer-sandbox-${Date.now().toString(36)}`;

@@ -1,0 +1,139 @@
+---
+title: The coding agent is a general-purpose agent
+short_title: Coding Agent
+description: Use the Coder SDK when the agent needs a repo, tools, session history, and live events.
+---
+
+When someone asks what framework to use to build an agent that edits code, runs commands, and resumes later, start with the Coder SDK. It gives the agent a cloud session, repo context, event stream, and shared access from the CLI, SDK, API, and web app.
+
+```bash
+bun add @agentuity/coder@beta @agentuity/telemetry@beta
+```
+
+## Choose the Execution Surface
+
+| Need | Use | Why |
+|------|-----|-----|
+| an app route that calls a model and tools | your framework plus AI Gateway/provider SDKs | the agent is part of your app request flow |
+| one isolated command or generated-code validation | [Sandbox `run()`](/services/sandbox/ephemeral-workflows) | the work has clear inputs, command output, and a short timeout |
+| a coding-agent CLI or server that you manage yourself | [coding-agent sandbox runtime](/services/sandbox/coding-agents) | you need direct control over the agent process, provider config, and workspace |
+| repo-aware coding work with history, review, reconnects, and skills | [Coder session](/services/coder) | the unit of work is a managed session, not a single process |
+
+The Coder path is the default for coding work that should be inspectable later. Plain sandbox workflows are better when the task is already a bounded command.
+
+## Start a Session
+
+Create a session with a task, a label, and, optionally, a primary repo.
+
+```typescript
+import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
+
+const client = new CoderClient();
+
+const session = await client.createSession({
+  task: [
+    'Goal: add a CSV export endpoint and tests.',
+    'Success criteria: endpoint returns valid CSV, tests pass, and changed files are listed.',
+    'Stop when: tests pass or you are blocked by missing credentials or product ambiguity.',
+    'If blocked: write the blocker and the exact command or file that proved it.',
+  ].join('\n'),
+  label: 'CSV export endpoint',
+  repo: {
+    url: 'https://github.com/acme/app',
+    branch: 'main',
+  },
+  workflowMode: 'standard',
+  metadata: {
+    expectedReportPath: 'agent-output/csv-export-report.md',
+  },
+  tags: ['exports', 'backend'],
+});
+
+logger.info('coder session created', {
+  sessionId: session.sessionId,
+  status: session.status,
+});
+```
+
+`createSession()` starts the work and returns session state. It does not mean the agent is done. Keep the `sessionId`, then poll session state or subscribe to events.
+
+## Use an Output Contract
+
+Coding agents do better when the prompt names the required files or reports, verification command, and stopping rule. This block is designed for humans and agents to read the same way.
+
+```text
+Goal:
+Inspect the existing app and add a CSV export endpoint.
+
+Inputs:
+- Repo: acme/app on main
+- Feature area: routes/reporting
+- Existing test command: bun test
+
+Write:
+- agent-output/csv-export-result.json
+- agent-output/csv-export-report.md
+
+Contract shape:
+{
+  "status": "completed" | "blocked",
+  "changedFiles": string[],
+  "commandsRun": string[],
+  "verification": {
+    "command": string,
+    "passed": boolean,
+    "outputExcerpt": string
+  },
+  "blockers": string[]
+}
+
+Success criteria:
+- Endpoint returns valid CSV.
+- Tests pass.
+- Report lists changed files, commands, and remaining risks.
+
+Stop when:
+- Success criteria pass, or a blocker is proven with a file path, command, or API response.
+
+Do not include hidden reasoning. Summarize findings, decisions, evidence, and tradeoffs.
+```
+
+Put paths like `expectedReportPath` or a run id in `metadata` so your app can correlate the session with the files or reports it asked for. Use the retrieval path approved for your product surface; do not assume session creation returns files inline.
+
+## Subscribe to Events
+
+Stream events when your app needs a live activity feed or wants to react to task progress.
+
+```typescript
+import { streamCoderSessionSSE } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
+
+for await (const event of streamCoderSessionSSE({
+  sessionId: 'codesess_abc123',
+  subscribe: ['task_*', 'agent_*'],
+})) {
+  logger.info('coder event', {
+    event: event.event,
+    data: event.data,
+  });
+}
+```
+
+Use [Coder](/services/coder) for session lifecycle, workspace, skills, replay, and participant details. Use [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk) when you need complete session creation and polling examples.
+
+## What Coder Adds
+
+| Need | Coder behavior |
+|------|----------------|
+| Repo-aware work | Mount one repo or a workspace of repos and setup scripts |
+| Live access | Humans, apps, and agents can attach to the same session stream |
+| Resume | Wake paused sessions and continue after a terminal closes |
+| Audit | Read replay, participants, event history, and loop state |
+| Programmability | Create sessions from the SDK or REST API instead of only a terminal |
+
+## What This Does Not Do
+
+Coder does not replace your framework, router, ORM, auth, provider SDKs, or test runner. It gives coding work a managed session. Your app still decides what repos are allowed, which tasks are safe to run, what outputs count as complete, and what to do when the agent reports a blocker.
+
+Use [Coding agents in sandboxes](/services/sandbox/coding-agents) when you want direct control over a specific agent runtime. Use [Ephemeral workflows](/services/sandbox/ephemeral-workflows) when you only need to validate generated code with a short command.

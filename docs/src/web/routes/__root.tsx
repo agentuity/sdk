@@ -1,5 +1,16 @@
-import { createRootRoute } from '@tanstack/react-router';
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { DocsLayout } from '../components/docs';
+import { ThemeProvider } from '../components/ThemeContext';
+
+import appCss from '../index.css?url';
+
+const themeScript = `(function () {
+	const stored = localStorage.getItem('theme-preference');
+	const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+	const isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
+	if (isDark) document.documentElement.classList.add('dark');
+})();`;
 
 function NotFound() {
 	return (
@@ -18,6 +29,61 @@ function NotFound() {
 }
 
 export const Route = createRootRoute({
-	component: DocsLayout,
+	head: () => ({
+		meta: [
+			{
+				charSet: 'utf-8',
+			},
+			{
+				name: 'viewport',
+				content: 'width=device-width, initial-scale=1.0',
+			},
+			{
+				title: 'Agentuity Documentation',
+			},
+			{
+				name: 'description',
+				content:
+					'The full-stack cloud platform built for AI agents. Guides, interactive demos, and reference docs for building, deploying, and scaling agents with TypeScript.',
+			},
+		],
+		links: [
+			{
+				rel: 'icon',
+				type: 'image/x-icon',
+				href: '/favicon.ico',
+			},
+			{
+				rel: 'stylesheet',
+				href: appCss,
+			},
+		],
+	}),
+	component: RootComponent,
+	shellComponent: RootDocument,
 	notFoundComponent: NotFound,
 });
+
+function RootComponent() {
+	return (
+		<ThemeProvider>
+			<DocsLayout />
+		</ThemeProvider>
+	);
+}
+
+function RootDocument({ children }: { readonly children: ReactNode }) {
+	return (
+		<html lang="en" className="h-full antialiased" suppressHydrationWarning>
+			<head>
+				<HeadContent />
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme bootstrap prevents a flash before hydration. */}
+				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
+			</head>
+			<body className="h-full">
+				{children}
+				<Scripts />
+			</body>
+		</html>
+	);
+}

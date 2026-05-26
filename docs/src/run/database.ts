@@ -1,19 +1,19 @@
 /**
  * Standalone invoke script for Database Agent
  *
- * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
+ * Uses the same plain function module as the API route.
  *
  * Usage: bun run src/run/database.ts '{"query":"summary","seedData":true}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import databaseAgent from '../agent/database/agent';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
 	const input = JSON.parse(process.argv[2] ?? '{"query":"summary","seedData":true}');
 	ctx.logger.info('Running database query', { query: input.query, seedData: input.seedData });
-	const result = await ctx.invoke(() => databaseAgent.run(input));
+	const result = await databaseAgent.run(input);
 
 	console.log('---OUTPUT---');
 	console.log(JSON.stringify(result, null, 2));

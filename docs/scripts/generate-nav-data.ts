@@ -93,7 +93,7 @@ const SDK_EXPLORER: NavSection = {
 		{
 			title: 'AI Gateway',
 			url: '/explorer/ai-gateway',
-			description: 'Use any AI provider with a single API key',
+			description: 'Route supported model calls through Agentuity',
 		},
 		{
 			title: 'Text Stream',

@@ -13,7 +13,8 @@
  * GET /list          - List all summary streams
  * GET /progress/:id  - Get stream progress
  */
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
+import { waitUntil } from '../http';
 import { streamText } from 'ai';
 import { getModel } from '../../lib/models';
 import agentuityDocs from '../../agent/chat/agentuity-context.txt';
@@ -29,7 +30,7 @@ const PROMPT = `You are a technical writer. Based on the following documentation
 
 Write the summary now:`;
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	// Create a new persistent stream with LLM-generated content
 	.post('/create', async (c) => {
@@ -95,7 +96,7 @@ const router = new Hono<Env>()
 		};
 
 		// Start generation in background
-		c.waitUntil(generateInBackground());
+		waitUntil(c, generateInBackground());
 
 		// Return immediately - URL will return content once stream is closed
 		return c.json({

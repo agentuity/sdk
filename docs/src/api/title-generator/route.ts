@@ -1,4 +1,4 @@
-import { validator, type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
@@ -61,12 +61,16 @@ function formatHistory(messages: ConversationMessage[]): string {
 		.join('\n');
 }
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	// POST /api/title-generator
-	.post('/', validator({ input: TitleGeneratorRequestSchema }), async (c) => {
+	.post('/', async (c) => {
 		try {
-			const { conversationHistory } = c.req.valid('json');
+			const parsed = TitleGeneratorRequestSchema.safeParse(await c.req.json());
+			if (!parsed.success) {
+				return c.json({ error: 'Invalid title generation request' }, 400);
+			}
+			const { conversationHistory } = parsed.data;
 
 			if (conversationHistory.length === 0) {
 				return c.json({ title: 'New chat' });

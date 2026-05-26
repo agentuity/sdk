@@ -16,9 +16,9 @@
  *
  * Docs: https://agentuity.dev/routes/websockets
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-const agent = createAgent('websocket', {
+const agent = defineDemoAgent('websocket', {
 	description: 'Echo agent for WebSocket messages with timestamps',
 	schema: {
 		input: s.string(),

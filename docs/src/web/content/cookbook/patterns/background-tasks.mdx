@@ -1,167 +1,101 @@
 ---
-title: Background Tasks
-description: Use waitUntil to return quickly while background work continues
+title: Fire-and-Forget Background Work
+short_title: Background Tasks
+description: Return a fast response while side effects continue in the background, plus when to upgrade to a durable queue
 ---
 
-Use `waitUntil` for work the caller does not need to wait on, such as analytics, notifications, or cleanup. The response returns immediately while the runtime tracks the work until it finishes.
+Some side effects do not need to complete before the response goes out: analytics, audit log writes, notification fan-out. Two paths cover the common cases.
 
-## The Pattern
+| Need | Use |
+|---|---|
+| ephemeral side effect, OK if dropped on restart | in-process promise |
+| durable handoff with retries, status, and observability | [Queues](/services/queues) and the [Background Work](/build/background-work) pattern |
 
-`waitUntil` accepts a promise or callback. The callback starts right away, runs independently of the response, and multiple callbacks can run at the same time.
+## In-Process Promise
 
-This example uses `@agentuity/schema` for lightweight input and output validation:
+For best-effort work, kick off the promise and return. Wrap it in `try/catch` so an uncaught rejection cannot crash the process.
 
-```typescript title="src/agent/order-processor/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { logger } from '@agentuity/telemetry';
 
-const agent = createAgent('OrderProcessor', {
-  schema: {
-    input: s.object({
-      orderId: s.string(),
-      userId: s.string(),
-    }),
-    output: s.object({
-      status: s.literal('confirmed'),
-      orderId: s.string(),
-    }),
-  },
-  handler: async (ctx, input) => {
-    const { orderId, userId } = input;
+const app = new Hono();
 
-    // Process the order synchronously
-    const order = await processOrder(orderId);
+app.post('/api/orders', async (c) => {
+  const body = await c.req.json<{ orderId: string; userId: string }>();
 
-    // Background: send confirmation email
-    ctx.waitUntil(async () => { // [!code highlight]
-      await sendConfirmationEmail(userId, order);
-      ctx.logger.info('Confirmation email sent', { orderId });
-    });
+  // do the durable work first
+  await confirmOrder(body.orderId);
 
-    // Background: update analytics
-    ctx.waitUntil(async () => { // [!code highlight]
-      await trackPurchase(userId, order);
-    });
+  // ephemeral side effects: best-effort, do not block the response
+  void runInBackground(() => trackPurchase(body.userId, body.orderId));
+  void runInBackground(() => notifyWarehouse(body.orderId));
 
-    // Background: notify warehouse
-    ctx.waitUntil(async () => { // [!code highlight]
-      await notifyWarehouse(order);
-    });
-
-    // Response returns immediately, background tasks continue
-    return {
-      status: 'confirmed',
-      orderId,
-    };
-  },
+  return c.json({ status: 'confirmed', orderId: body.orderId });
 });
 
-export default agent;
+async function runInBackground(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (error) {
+    logger.warn('background task failed', { error });
+  }
+}
+
+declare function confirmOrder(orderId: string): Promise<void>;
+declare function trackPurchase(userId: string, orderId: string): Promise<void>;
+declare function notifyWarehouse(orderId: string): Promise<void>;
+
+export default app;
 ```
 
-## With Durable Streams
+`logger` from `@agentuity/telemetry` writes through the Agentuity logger pipeline. Use `c.var.logger` inside Hono handlers when [`@agentuity/hono`](/build/agents) middleware is mounted.
 
-Create a stream for the client to poll, then populate it in the background:
+<Callout type="warning" title="In-process promises do not survive restart">
+A redeploy, container shutdown, or crash drops in-flight promises. Use this pattern only for work the app can lose without consequence. Move durable work to a queue.
+</Callout>
 
-```typescript title="src/agent/async-generator/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { s } from '@agentuity/schema';
+## Durable Queue Handoff
 
-const agent = createAgent('AsyncGenerator', {
-  schema: {
-    input: s.object({ prompt: s.string() }),
-    output: s.object({
-      streamId: s.string(),
-      streamUrl: s.string(),
-    }),
-  },
-  handler: async (ctx, input) => {
-    // Create a durable stream the client can read from
-    const stream = await ctx.stream.create('generation', { // [!code highlight]
-      contentType: 'text/plain',
-      metadata: { sessionId: ctx.sessionId },
-    });
+When the work must survive restarts, has retry semantics, or needs status reporting, hand it off to a queue. The request route publishes; a worker route runs the slow part.
 
-    // Generate content in the background
-    ctx.waitUntil(async () => { // [!code highlight]
-      try {
-        const { textStream } = streamText({
-          model: openai('gpt-5-mini'),
-          prompt: input.prompt,
-        });
+```typescript
+import { Hono } from 'hono';
+import { QueueClient } from '@agentuity/queue';
 
-        for await (const chunk of textStream) {
-          await stream.write(chunk);
-        }
-      } finally {
-        await stream.close(); // [!code highlight]
-      }
-    });
+const queue = new QueueClient();
+const app = new Hono();
 
-    // Return stream URL immediately
-    return {
-      streamId: stream.id,
-      streamUrl: stream.url,
-    };
-  },
+app.post('/api/orders', async (c) => {
+  const body = await c.req.json<{ orderId: string; userId: string }>();
+
+  await confirmOrder(body.orderId);
+
+  await queue.publish(
+    'order-side-effects',
+    { orderId: body.orderId, userId: body.userId },
+    { idempotencyKey: body.orderId }
+  );
+
+  return c.json({ status: 'confirmed', orderId: body.orderId });
 });
 
-export default agent;
+declare function confirmOrder(orderId: string): Promise<void>;
+
+export default app;
 ```
 
-## Progress Reporting
+The full request, status, worker, and stream wiring lives in [Background Work](/build/background-work).
 
-Write progress updates to a stream as background work proceeds:
+## Notes
 
-```typescript title="src/agent/batch-processor/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
+- run only ephemeral side effects in process, not durable work
+- always wrap the promise so a rejection does not crash the runtime
+- prefer the queue path for anything that must reach a definite state
+- record an idempotency key in the queue payload when retries should converge
 
-const agent = createAgent('BatchProcessor', {
-  schema: {
-    input: s.object({ items: s.array(s.string()) }),
-    output: s.object({ progressUrl: s.string() }),
-  },
-  handler: async (ctx, input) => {
-    const progress = await ctx.stream.create('progress', {
-      contentType: 'application/x-ndjson',
-    });
+## Next Steps
 
-    ctx.waitUntil(async () => {
-      try {
-        for (const [index, item] of input.items.entries()) {
-          await processItem(item);
-
-          await progress.write(JSON.stringify({
-            completed: index + 1,
-            total: input.items.length,
-            percent: Math.round(((index + 1) / input.items.length) * 100),
-          }) + '\n');
-        }
-
-        await progress.write(JSON.stringify({ done: true }) + '\n');
-      } finally {
-        await progress.close();
-      }
-    });
-
-    return { progressUrl: progress.url };
-  },
-});
-
-export default agent;
-```
-
-## Key Points
-
-- **Non-blocking**: Response returns immediately while tracked work continues
-- **Concurrent**: Multiple `waitUntil` callbacks run at the same time
-- **Error isolation**: Background task failures don't affect the response
-- **Always close streams**: Use `finally` blocks to ensure cleanup
-
-## See Also
-
-- [Durable Streams](/services/storage/durable-streams) for stream creation and management
-- [Webhook Handler](/cookbook/patterns/webhook-handler) for another `waitUntil` example
+- [Background Work](/build/background-work): the durable request/status/worker/stream pattern
+- [Queues](/services/queues): publish API, partitioning, idempotency, and HTTP destinations
+- [Webhook Handler](/cookbook/patterns/webhook-handler): another queue handoff pattern, scoped to incoming webhooks

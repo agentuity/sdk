@@ -7,12 +7,12 @@
  * GET /list              - Lists all files in sdk-explorer bucket
  * POST /presign/:filename - Generates presigned URL for temporary access
  */
-import { type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { s3 } from 'bun';
 import objectstoreAgent from '../../agent/objectstore/agent';
 import { Hono } from 'hono';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
 		return c.json({

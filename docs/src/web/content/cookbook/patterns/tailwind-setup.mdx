@@ -1,106 +1,55 @@
 ---
 title: Tailwind CSS Setup
 short_title: Tailwind Setup
-description: Add Tailwind CSS styling to your Agentuity frontend
+description: Add Tailwind CSS to the framework app you deploy with Agentuity
 ---
 
-Add [Tailwind CSS](https://tailwindcss.com) v4 to your Agentuity project using the official Tailwind Vite plugin.
+Agentuity v3 does not require a special Tailwind setup. Use the Tailwind path your framework expects, then keep Agentuity service clients in server routes.
 
-<Callout type="tip" title="Starting a New Project?">
-The default template includes Tailwind CSS pre-configured:
+## Vite-Based Apps
 
-```bash
-agentuity create my-app
-```
-</Callout>
-
-## Prerequisites
-
-- An Agentuity project with a `src/web/` directory
-- Bun runtime (included with Agentuity CLI)
-
-## Step 1: Install Dependencies
+For Vite-based apps, use Tailwind's Vite plugin:
 
 ```bash
 bun add -D tailwindcss @tailwindcss/vite
 ```
 
-## Step 2: Create Build Configuration
-
-Add the Tailwind plugin to your existing `vite.config.ts`. Keep the React plugin and any Agentuity build settings already in the file:
-
 ```typescript title="vite.config.ts"
-import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
-import { join } from 'node:path';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  root: '.',
-  publicDir: 'src/web/public',
-  build: {
-    rollupOptions: {
-      input: join(import.meta.dirname, 'src/web/index.html'),
-    },
-  },
+  plugins: [tailwindcss()],
 });
 ```
 
-## Step 3: Import Tailwind in Your CSS
+Import Tailwind from the CSS file your framework already loads:
 
-Create or update the CSS file imported by your frontend, for example `src/web/App.css`:
-
-```css
+```css title="src/styles.css"
 @import 'tailwindcss';
 ```
 
-Then import it from your frontend entry or root component:
-
-```typescript title="src/web/App.tsx"
-import './App.css';
-```
-
-## Step 4: Use Tailwind Classes
-
-Add utility classes to your React components:
+Then use Tailwind classes in your components:
 
 ```tsx
-// src/web/App.tsx
-export function App() {
+export function EmptyState() {
   return (
-    <div className="min-h-screen bg-zinc-900 flex items-center justify-center">
-      <div className="bg-zinc-800 rounded-lg p-8 max-w-md">
-        <h1 className="text-2xl font-bold text-white mb-4">
-          Hello, Tailwind!
-        </h1>
-        <p className="text-zinc-400">
-          Your Agentuity frontend is styled with Tailwind CSS.
-        </p>
-      </div>
-    </div>
+    <section className="mx-auto max-w-xl rounded-lg border border-zinc-800 p-6">
+      <h1 className="text-xl font-semibold text-zinc-50">No sessions yet</h1>
+      <p className="mt-2 text-sm text-zinc-400">
+        Start a Coder session or run an API route to create your first record.
+      </p>
+    </section>
   );
 }
 ```
 
-## Step 5: Verify
+## Framework Apps
 
-Start the dev server and check that styles are applied:
-
-```bash
-bun run dev
-```
-
-Open `http://localhost:3500` in your browser. You should see your styled component.
-
-## Key Points
-
-- Tailwind applies to frontend builds only (via Vite)
-- The plugin scans your components and generates only the CSS you use
-- No `tailwind.config.ts` needed for basic usage (Tailwind v4 works out of the box)
-- Style changes reflect immediately in dev mode via Vite HMR
+If your app uses Next.js, TanStack Start, SvelteKit, Astro, Nuxt, or React Router, follow that framework's Tailwind guide. Agentuity deploys the built framework output and does not need its own Tailwind config.
 
 ## Next Steps
 
-- [Build Configuration](/reference/cli/build-configuration): Explore all config options including plugins and define constants
-- [Frontend Development](/frontend/react-hooks): Connect your styled frontend to agents using React hooks
+- [Frameworks](/frameworks): choose the framework page that matches your app
+- [Using Next.js with Agentuity](/frameworks/nextjs): add Agentuity clients to Next.js route handlers
+- [Using TanStack Start with Agentuity](/frameworks/tanstack-start): use Agentuity clients from TanStack server routes

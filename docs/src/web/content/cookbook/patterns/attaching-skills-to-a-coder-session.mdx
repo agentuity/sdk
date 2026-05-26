@@ -4,7 +4,7 @@ short_title: Attach Skills
 description: Save skills, group them into buckets, and attach them to a Coder session with CoderClient
 ---
 
-The Hub injects system skills into every session automatically. Saved skills and skill buckets are the part your app owns. Save them to your library once, then attach them to new sessions with `savedSkillIds` or `skillBucketIds`, so you don't reship the definitions each time.
+System skills are platform-managed. Saved skills and skill buckets are the part your app owns. Save them to your library once, then attach them to new sessions with `savedSkillIds` or `skillBucketIds`, so you don't reship the definitions each time.
 
 <Callout type="tip" title="Read the session back after creation">
 `getSession()` is the simplest way to confirm a session started with the selections you passed. Skill detail appears on the session right away, so you can verify it even while the session is still `creating` or `provisioning`.
@@ -16,6 +16,7 @@ Save a skill, optionally group it into a bucket, then attach both selections whe
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 const DEFAULT_TASK =
   'Review the repo and use the attached skills where they help the work move faster.';
@@ -61,7 +62,7 @@ async function main(): Promise<void> {
   const { skills } = await client.listSavedSkills();
   const { buckets } = await client.listSkillBuckets();
 
-  console.log(
+  logger.info(
     JSON.stringify(
       {
         sessionId: session.sessionId,
@@ -115,7 +116,7 @@ What this means:
 
 The easiest mental model is:
 
-- system skills are automatic and platform-managed
+- system skills are platform-managed
 - saved skills are your reusable library entries
 - skill buckets are just reusable groups of saved skills
 

@@ -10,7 +10,8 @@
  *
  * Usage: GET /run?script=<name>&input=<base64JSON>
  */
-import { sse, createAgentContext, type Env } from '@agentuity/runtime';
+import { sse } from '../http';
+import type { ApiEnv } from '../context';
 import {
 	APIClient,
 	sandboxRun,
@@ -70,7 +71,7 @@ async function withHeartbeat<T>(
 	}
 }
 
-const router = new Hono<Env>().get(
+const router = new Hono<ApiEnv>().get(
 	'/run',
 	sse(async (c, stream) => {
 		// Validate config
@@ -151,8 +152,7 @@ const router = new Hono<Env>().get(
 			const threadId = c.var.thread?.id;
 
 			if (threadId) {
-				const ctx = createAgentContext();
-				const kvResult = await ctx.kv.get<string>(SESSION_BUCKET, threadId);
+				const kvResult = await c.var.kv.get<string>(SESSION_BUCKET, threadId);
 
 				let sandboxId: string;
 
@@ -165,7 +165,7 @@ const router = new Hono<Env>().get(
 						const output = await withHeartbeat(stream, () =>
 							executeOnSandbox(client, sandboxId, command, orgId)
 						);
-						await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
+						await c.var.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 						await sendOutput(stream, output);
 						return;
 					} catch (err) {
@@ -198,7 +198,7 @@ const router = new Hono<Env>().get(
 				sandboxId = createResponse.sandboxId;
 				logger?.info('Created interactive sandbox', { sandboxId, threadId });
 
-				await ctx.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
+				await c.var.kv.set(SESSION_BUCKET, threadId, sandboxId, { ttl: SESSION_TTL });
 
 				await stream.writeSSE({ event: 'status', data: 'running' });
 				const output = await withHeartbeat(stream, () =>

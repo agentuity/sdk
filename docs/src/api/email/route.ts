@@ -4,7 +4,7 @@
  * POST / - Send an email using a template
  */
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import { s } from '@agentuity/schema';
 import { EMAIL_ADDRESS_SCHEMA } from '../../lib/email-templates';
 import emailAgent from '../../agent/email/agent';
@@ -63,7 +63,7 @@ function normalizeEmailDemoRequest(body: unknown): unknown {
 	};
 }
 
-const router = new Hono<Env>().post('/', async (c) => {
+const router = new Hono<ApiEnv>().post('/', async (c) => {
 	try {
 		const body = await c.req.json<unknown>();
 		const parsed = EmailDemoRequestSchema.safeParse(normalizeEmailDemoRequest(body));

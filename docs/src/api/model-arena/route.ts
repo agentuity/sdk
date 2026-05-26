@@ -4,7 +4,8 @@
  * GET /        - Returns metadata about the arena configuration
  * GET /stream  - Streams stories as each model finishes, then the judge verdict
  */
-import { stream, type Env } from '@agentuity/runtime';
+import { stream } from '../http';
+import type { ApiEnv } from '../context';
 import { Hono } from 'hono';
 import { generateStory, judgeStories, MODELS } from '../../agent/model-arena/lib';
 import { PROVIDER_DISPLAY_NAMES, type ModelResult, type Tone } from '../../agent/model-arena/types';
@@ -17,7 +18,7 @@ function toLine(event: string, data: unknown): Uint8Array {
 	return new TextEncoder().encode(`${JSON.stringify({ event, data })}\n`);
 }
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 	.get('/', (c) => {
 		return c.json({
 			name: 'Model Arena',

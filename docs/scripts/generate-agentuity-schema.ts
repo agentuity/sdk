@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path';
 
 const ROOT_DIR = join(import.meta.dir, '..');
 const PUBLIC_DIR = join(ROOT_DIR, 'src/web/public');
-const REPO_DIR = join(ROOT_DIR, '../..');
-const CLI_PATH = join(ROOT_DIR, '../../packages/cli/bin/cli.ts');
+const REPO_DIR = join(ROOT_DIR, '..');
+const CLI_PATH = join(REPO_DIR, 'packages/cli/src/main.ts');
 const SCHEMA_DRAFT_URL = 'https://json-schema.org/draft/2020-12/schema';
 const AGENTUITY_SCHEMA_URL = 'https://agentuity.dev/schema/cli/v1/agentuity.json';
 const CANONICAL_SCHEMA_PATH = join(PUBLIC_DIR, 'schema/cli/v1/agentuity.json');

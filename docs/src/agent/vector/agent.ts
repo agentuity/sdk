@@ -16,7 +16,7 @@
  *
  * Docs: https://agentuity.dev/services/storage/vector
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
@@ -37,7 +37,7 @@ const namespace = 'sdk-explorer';
 const SIMILARITY_THRESHOLD = 0.3; // Minimum similarity score (0-1) for search results
 const SEARCH_LIMIT = 3; // Maximum number of results to return
 
-const agent = createAgent('vector', {
+const agent = defineDemoAgent('vector', {
 	description: 'Semantic product search with AI recommendations',
 	schema: {
 		input: s.object({

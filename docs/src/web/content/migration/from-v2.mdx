@@ -1,0 +1,312 @@
+---
+title: Migrating from v2 to v3
+short_title: From v2
+description: Move a v2 runtime app toward the v3 framework-first app shape.
+---
+
+Start with a dry run. It tells you which v2 runtime patterns the migrator can rewrite and which parts need a person to choose the v3 shape.
+
+```bash
+npx @agentuity/migrate@beta --v2-to-v3 --dry-run
+```
+
+## Before You Start
+
+Work from a branch with a clean git worktree. The migration tool checks this before writing files, because it rewrites source files and package metadata.
+
+<Callout type="info" title="v2 remains supported for existing apps">
+You can keep a v2 app on the v2 runtime model until you are ready to migrate. Use v3 when you want framework-native routes, direct service clients, and the v3 build and deploy flow.
+</Callout>
+
+## What Changes
+
+| v2 runtime app | v3 framework app |
+| --- | --- |
+| `app.ts` calls `createApp()` | the framework owns the entry point |
+| `createAgent()` wraps handlers | model-backed work becomes route code, server functions, queue handlers, or plain functions |
+| services arrive through `ctx.*` or `c.var.*` | service clients are imported directly, with Hono middleware as an option |
+| `ctx.thread`, `ctx.session`, `ctx.sessionId`, or `c.var.thread` | app-owned state in cookies, databases, KV records, durable streams, or platform inspection APIs |
+| `agentuity.config.ts` carries runtime settings | framework config handles framework concerns, `agentuity.json` handles project metadata |
+| `src/agent/index.ts` registers agents with the runtime | functions are imported where they are called |
+
+The [Runtime to Frameworks](/migration/runtime-to-frameworks) page shows the same shift with code.
+
+## Run the Migration
+
+Use the v3 migration command so the `--v2-to-v3` flag is available.
+
+```bash
+npx @agentuity/migrate@beta --v2-to-v3
+```
+
+The migrator creates a Hono-based starting point because Hono is the closest mechanical replacement for the v2 runtime's HTTP layer. If your final target is Next.js, React Router, TanStack Start, SvelteKit, Nuxt, Astro, or another framework, use the generated diff as a cleanup step, then move the code into that framework's route conventions.
+
+The migrator can make these changes:
+
+- generate `src/index.ts` with a Hono app and `@agentuity/hono`
+- generate `src/services.ts` for detected service clients
+- convert simple `createAgent()` handlers to plain exported functions
+- rewrite `ctx.kv`, `ctx.vector`, and other detected service access to direct imports
+- rewrite some `c.var.*` service access in Hono routes to direct imports
+- remove `@agentuity/runtime`, `@agentuity/evals`, `@agentuity/frontend`, and `@agentuity/workbench` from `package.json`
+- remove the old `app.ts`, `agentuity.config.ts`, and top-level `src/agent/index.ts` barrel when they match the v2 runtime shape
+- port detected `@agentuity/schema` usage to Zod in files where that transform applies
+- run `bun install` and `tsc --noEmit --skipLibCheck` after writing changes
+
+## Review Manual Work
+
+Some v2 patterns need a person to choose the replacement:
+
+| Pattern | What to do |
+| --- | --- |
+| `setup()` or `shutdown()` lifecycle hooks | move initialization and cleanup into normal framework or module-level code |
+| `ctx.thread.state`, `ctx.session.state`, or `c.var.thread` | choose the app-owned state boundary: cookie, database, KV, durable stream, or platform session lookup |
+| `ctx.config` or `ctx.app` | replace shared runtime state with explicit imports or framework state |
+| event listeners on agents | move the behavior into your app's own event flow |
+| `agentuity.config.ts` runtime options | move build options to framework config and project metadata to `agentuity.json` |
+| files importing `@agentuity/evals` | rebuild that evaluation flow with [Evals and Testing](/services/observability/evals-and-testing) patterns |
+| frontend code using v2 Agentuity React or Workbench helpers | replace it with your framework's normal client code, auth provider, or inspection UI |
+
+The migration tool also strips v2 validator middleware from routes. Validate request bodies inside the framework route, usually with Zod or your existing validation library.
+
+The migrator may leave stubs for thread and session APIs. Treat those as review markers, not as working conversation memory.
+
+## Before and After Patterns
+
+### Thread State
+
+In v2, conversation state often lived behind the runtime thread API:
+
+```typescript title="v2 agent"
+import { createAgent } from '@agentuity/runtime';
+
+export const chat = createAgent('chat', async ({ ctx, input }) => {
+  const existing = await ctx.thread.state.get('history');
+  const history = Array.isArray(existing) ? existing : [];
+  const next = [...history, { role: 'user', content: input.message }];
+
+  await ctx.thread.state.set('history', next);
+
+  return { history: next };
+});
+```
+
+In v3, make the state boundary explicit. This example stores chat history in KV with an app-owned conversation ID:
+
+```typescript title="src/chat/history.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface HistoryEntry {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+}
+
+const kv = new KeyValueClient();
+
+export async function appendHistory(
+  conversationId: string,
+  entry: HistoryEntry
+): Promise<readonly HistoryEntry[]> {
+  const existing = await kv.get<readonly HistoryEntry[]>('chat-history', conversationId);
+  const history = existing.exists ? existing.data : [];
+  const next = [...history, entry];
+
+  await kv.set('chat-history', conversationId, next);
+
+  return next;
+}
+```
+
+### Lifecycle Hooks
+
+Move `setup()` and `shutdown()` work into framework or module-level code. The exact shape depends on the resource, but the migration decision should be explicit.
+
+```typescript title="v2 agent"
+import { createAgent } from '@agentuity/runtime';
+
+interface SummaryClient {
+  summarize(text: string): Promise<string>;
+  close(): Promise<void>;
+}
+
+async function createSummaryClient(): Promise<SummaryClient> {
+  return {
+    async summarize(text) {
+      return text.slice(0, 120);
+    },
+    async close() {},
+  };
+}
+
+export const summarize = createAgent(
+  'summarize',
+  async ({ ctx, input }) => {
+    return ctx.config.client.summarize(input.text);
+  },
+  {
+    setup: async () => {
+      const client = await createSummaryClient();
+      return { client };
+    },
+    shutdown: async ({ client }) => {
+      await client.close();
+    },
+  }
+);
+```
+
+```typescript title="src/summary/client.ts"
+interface SummaryClient {
+  summarize(text: string): Promise<string>;
+  close(): Promise<void>;
+}
+
+let client: SummaryClient | undefined;
+
+async function createSummaryClient(): Promise<SummaryClient> {
+  return {
+    async summarize(text) {
+      return text.slice(0, 120);
+    },
+    async close() {},
+  };
+}
+
+export async function getSummaryClient(): Promise<SummaryClient> {
+  client ??= await createSummaryClient();
+  return client;
+}
+
+export async function closeSummaryClient(): Promise<void> {
+  await client?.close();
+  client = undefined;
+}
+```
+
+Call `closeSummaryClient()` from your framework's shutdown hook or from the script that owns the process. Do not hide app lifecycle work in a migrated agent wrapper.
+
+### Queue Producer
+
+In v2, queue publishing usually sat behind `ctx`:
+
+```typescript title="v2 agent"
+await ctx.queue.publish(
+  'email-reports',
+  { userId: input.userId, report: 'daily' },
+  { idempotencyKey: `daily-report:${input.userId}` }
+);
+```
+
+In v3, construct the queue client once and call it from the route, server function, or plain function that owns the request:
+
+```typescript title="src/reports/queue.ts"
+import { QueueClient } from '@agentuity/queue';
+
+const queue = new QueueClient();
+
+export async function enqueueDailyReport(userId: string): Promise<string> {
+  const message = await queue.publish(
+    'email-reports',
+    { userId, report: 'daily' },
+    {
+      partitionKey: userId,
+      idempotencyKey: `daily-report:${userId}`,
+    }
+  );
+
+  return message.id;
+}
+```
+
+### KV Access
+
+In v2:
+
+```typescript title="v2 route"
+const preferences = await ctx.kv.get('preferences', userId);
+await ctx.kv.set('preferences', userId, {
+  theme: 'dark',
+  notifications: true,
+});
+```
+
+In v3:
+
+```typescript title="src/preferences.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+
+interface Preferences {
+  readonly theme: 'light' | 'dark';
+  readonly notifications: boolean;
+}
+
+const kv = new KeyValueClient();
+
+export async function savePreferences(userId: string, preferences: Preferences): Promise<void> {
+  await kv.set('preferences', userId, preferences);
+}
+```
+
+## Dry Run Markers
+
+Dry runs print the migration report and do not write files. Manual items are markers for design work, not errors from the tool.
+
+```text
+━━━ Agentuity v2 → v3 Migration Report ━━━
+Project: /path/to/app
+
+Summary: 6 auto-fixable, 2 guided, 1 manual
+
+Manual (requires human action)
+  [ manual ] Agent "chat" is complex
+       Thread or session state needs an app-owned replacement.
+
+  (dry-run mode, no files modified)
+```
+
+## Verify Locally
+
+After the diff looks right, run the checks your app already uses. For a TypeScript app with a build script, that usually starts here:
+
+```bash
+bun run typecheck
+bun run build
+```
+
+Then run the Agentuity packaging check:
+
+```bash
+agentuity build
+```
+
+If the framework build passes but `agentuity build` fails, fix the packaging issue before deploying. The build output and `--report-file` option are usually the fastest way to see what the CLI detected:
+
+```bash
+agentuity build --report-file build-report.json
+```
+
+## Register Before Deploy
+
+Migrated apps usually need to be linked to Agentuity Cloud before their first v3 deploy. Validate the local project shape, then import it:
+
+```bash
+agentuity project import --validate-only
+agentuity project import
+```
+
+`agentuity project import` registers the project, writes `agentuity.json`, and creates or updates `.env` with `AGENTUITY_SDK_KEY`. After that, deploy from the app directory:
+
+```bash
+agentuity build
+agentuity deploy
+```
+
+<Callout type="warning" title="Deploy only after the Agentuity build passes">
+Framework projects should pass `agentuity build` before deploy. For Hono migrations, check the generated `package.json` scripts and `.agentuity/launch.json` before treating the app as deploy-ready.
+</Callout>
+
+## Next Steps
+
+- [Migration CLI](/migration/migrate-cli): see the full command flow and flags
+- [Deploying Framework Apps](/deploy-operate/deploy-framework-apps): register, build, and deploy framework projects
+- [Services](/services): choose standalone service clients after the runtime migration

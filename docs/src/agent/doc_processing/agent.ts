@@ -1,8 +1,8 @@
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { syncDocsFromPayload } from './docs-orchestrator';
 
-const agent = createAgent('DocProcessing', {
+const agent = defineDemoAgent('DocProcessing', {
 	description: 'Documentation Sync Agent - Processes embedded MDX content from GitHub workflows',
 	schema: {
 		input: s.object({

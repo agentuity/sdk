@@ -7,13 +7,14 @@
  * POST /chain    - Sequential agent calls (output flows to next input)
  * POST /process  - Direct agent call with validation
  */
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
+import { waitUntil } from '../http';
 import textProcessorAgent from '../../agent/text-processor/agent';
 import { Hono } from 'hono';
 
 const AGENT_CALLS_SAMPLE_TEXT = 'Hello!!!   from the ***SDK Explorer***...  #demo @test';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 	.get('/', (c) => {
 		return c.json({
 			name: 'Agent Calls Demo',
@@ -71,16 +72,19 @@ const router = new Hono<Env>()
 		c.var.logger?.info('Background agent call starting', { taskId, operation });
 
 		// waitUntil() allows response to return immediately while agent runs in background
-		c.waitUntil(async () => {
-			const result = await textProcessorAgent.run({
-				text: AGENT_CALLS_SAMPLE_TEXT,
-				operation,
-			});
-			c.var.logger?.info('Background task completed', {
-				taskId,
-				result: result.result,
-			});
-		});
+		waitUntil(
+			c,
+			(async () => {
+				const result = await textProcessorAgent.run({
+					text: AGENT_CALLS_SAMPLE_TEXT,
+					operation,
+				});
+				c.var.logger?.info('Background task completed', {
+					taskId,
+					result: result.result,
+				});
+			})()
+		);
 
 		return c.json({
 			pattern: 'background',
@@ -120,9 +124,8 @@ const router = new Hono<Env>()
 		});
 	})
 
-	// validator() auto-validates request body against agent's input schema
-	.post('/process', textProcessorAgent.validator(), async (c) => {
-		const data = c.req.valid('json');
+	.post('/process', async (c) => {
+		const data = await c.req.json();
 		const result = await textProcessorAgent.run(data);
 		return c.json(result);
 	});

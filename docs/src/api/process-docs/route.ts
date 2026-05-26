@@ -1,14 +1,14 @@
-import { type Env } from '@agentuity/runtime';
-import docProcessingAgent from '@agent/doc_processing';
+import type { ApiEnv } from '../context';
+import docProcessingAgent from '../../agent/doc_processing';
 import { bearerTokenAuth } from '../../middleware/auth';
 import { Hono } from 'hono';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 	// POST /api/process-docs
 	// Processes docs synchronously and returns stats.
 	// Callers should batch large payloads (~10 files per request).
-	.post('/', bearerTokenAuth, docProcessingAgent.validator(), async (c) => {
-		const data = c.req.valid('json');
+	.post('/', bearerTokenAuth, async (c) => {
+		const data = await c.req.json();
 
 		c.var.logger.info('Starting docs sync', {
 			changed: data.changed?.length ?? 0,

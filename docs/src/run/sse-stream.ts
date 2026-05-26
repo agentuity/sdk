@@ -10,7 +10,7 @@
  *
  * Usage: bun run src/run/sse-stream.ts '{"prompt":"Tell me a story"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 
@@ -18,7 +18,7 @@ interface Input {
 	prompt?: string;
 }
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
 	const input: Input = JSON.parse(process.argv[2] ?? '{}');

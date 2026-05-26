@@ -1,31 +1,27 @@
-import { createApp } from '@agentuity/runtime';
 import { Hono } from 'hono';
+import { websocket } from 'hono/bun';
 import router from './src/api';
-import agents from './src/agent';
+import { attachDemoContext, type ApiEnv } from './src/api/context';
 import { docRedirectRules, getDemoRedirectTarget } from './src/web/lib/docs-redirects';
 
-const redirects = new Hono();
+const app = new Hono<ApiEnv>();
 
 // Permanent server-side redirects for legacy docs URLs
-// Matching TanStack routes handle the same redirects during client navigation
+// Some matching TanStack routes handle redirects during client navigation
 for (const rule of docRedirectRules) {
 	for (const path of rule.paths) {
-		redirects.get(path, (c) => c.redirect(rule.target, 301));
+		app.get(path, (c) => c.redirect(rule.target, 301));
 	}
 }
 
-redirects.get('/demo/:rest{.+}', (c) => {
+app.get('/demo/:rest{.+}', (c) => {
 	return c.redirect(getDemoRedirectTarget(c.req.param('rest')), 301);
 });
 
-const app = await createApp({
-	router: [
-		{ path: '/', router: redirects },
-		{ path: '/api', router },
-	],
-	agents,
-});
+app.use('/api/*', attachDemoContext);
+app.route('/api', router);
 
-app.logger.debug('Running %s', app.server.url);
-
-export default app;
+export default {
+	fetch: app.fetch,
+	websocket,
+};

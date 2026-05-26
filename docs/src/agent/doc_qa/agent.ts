@@ -1,8 +1,8 @@
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import answerQuestion from './rag';
 
-const agent = createAgent('DocQA', {
+const agent = defineDemoAgent('DocQA', {
 	description:
 		'Documentation Q&A Agent - Answers questions about Agentuity documentation using RAG',
 	schema: {

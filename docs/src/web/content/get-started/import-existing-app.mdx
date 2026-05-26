@@ -1,0 +1,189 @@
+---
+title: Add Agentuity to an existing app
+short_title: Add to Existing App
+description: Add Agentuity services and local validation to an app you already have.
+---
+
+Use this path when the app already exists and you want to add one server-side Agentuity endpoint without changing the router, scripts, or build setup.
+
+```bash
+bun add -d @agentuity/cli@beta
+bun add @agentuity/keyvalue@beta
+```
+
+## Pick the Right Path
+
+| Starting point | Use this path | First command |
+| --- | --- | --- |
+| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `bun create agentuity@beta --framework nextjs --services keyvalue` |
+| New framework app | You already ran the framework's create command and want to add Agentuity next. | `bun add -d @agentuity/cli@beta` |
+| Existing app | The app already has routes, scripts, env conventions, and a working build. | `bun add -d @agentuity/cli@beta` |
+
+For an existing app, keep the app shape you have. Add service clients only inside server-only routes, handlers, server actions, or background jobs.
+
+## Add One Server Route
+
+This Next.js route is a small read-only validation route. It keeps `AGENTUITY_SDK_KEY` on the server and does not use a `NEXT_PUBLIC_*` env var. Use `app/api/agentuity/route.ts` instead if your Next.js app does not use a `src/` directory.
+
+```typescript title="src/app/api/agentuity/route.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { NextResponse } from 'next/server';
+
+const kv = new KeyValueClient();
+const namespace = 'my-app';
+
+export async function GET(): Promise<Response> {
+  try {
+    const result = await kv.get<{ readonly checkedAt: string }>(
+      namespace,
+      'health',
+    );
+
+    return NextResponse.json({
+      sdkKeyAvailable: Boolean(process.env.AGENTUITY_SDK_KEY),
+      keyValue: {
+        ok: true,
+        exists: result.exists,
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        sdkKeyAvailable: Boolean(process.env.AGENTUITY_SDK_KEY),
+        keyValue: {
+          ok: false,
+          error:
+            error instanceof Error ? error.message : 'Unknown key-value error',
+        },
+      },
+      { status: 503 },
+    );
+  }
+}
+```
+
+Use the same idea in the route shape your framework already uses:
+
+| Framework | Route shape |
+| --- | --- |
+| Next.js | `app/api/agentuity/route.ts` or `src/app/api/agentuity/route.ts` |
+| React Router | `app/routes/api.agentuity.ts`, registered in `app/routes.ts` |
+| TanStack Start | `src/routes/api.agentuity.tsx` with `server.handlers.GET` |
+| Hono | `app.get('/api/agentuity', handler)` |
+| Nuxt | `server/api/agentuity.get.ts` |
+| SvelteKit | `src/routes/api/agentuity/+server.ts` |
+| Astro | `src/pages/api/agentuity.ts` |
+| Vite + React | a server boundary such as `server.ts`; keep browser code out of service clients |
+
+<Callout type="warning" title="Keep secrets server-side">
+Do not put `AGENTUITY_SDK_KEY` in `NEXT_PUBLIC_*`, `VITE_*`, or other client-exposed prefixes. Browser code should call your server route, and the route should call Agentuity.
+</Callout>
+
+## Validate Locally
+
+Run the app the way you normally do:
+
+```bash
+cd existing-app
+bun run dev
+```
+
+Check the existing page and the new route:
+
+```bash
+curl http://localhost:3000/
+curl http://localhost:3000/api/agentuity
+```
+
+Then run the native build:
+
+```bash
+bun run build
+```
+
+## Add Agentuity Project Metadata
+
+Validate the directory before writing project metadata:
+
+```bash
+bunx agentuity project import --validate-only
+```
+
+If the output looks right, register the project and write `agentuity.json`:
+
+```bash
+bunx agentuity project import --name existing-app --confirm
+```
+
+For non-interactive cloud setup, pass the org explicitly:
+
+```bash
+bunx agentuity project import \
+  --name existing-app \
+  --org-id <org-id> \
+  --confirm
+```
+
+In a monorepo, run the command from the app package or pass `--dir`:
+
+```bash
+bunx agentuity project import \
+  --dir apps/web \
+  --name existing-web-app \
+  --org-id <org-id> \
+  --confirm
+```
+
+That writes `apps/web/agentuity.json` and `apps/web/.env`. The build step can still detect the workspace root and write a launch command with `workingDirectory: "apps/web"` when the CLI package includes monorepo staging support.
+
+## Run Through Agentuity
+
+`agentuity dev` wraps your existing `dev` script and injects Agentuity env values into the server process:
+
+```bash
+bunx agentuity dev --port 3000
+```
+
+If the framework prints a different URL, open or curl the printed URL. Some framework dev scripts own their port flags.
+
+Build the Agentuity package after the native build passes:
+
+```bash
+bunx agentuity build
+```
+
+This is a packaging check. When `.agentuity/launch.json` exists, inspect it before deploying. The launch command is the process Agentuity will start for the packaged app. For a local validation check, run that command from `.agentuity` and curl the root page and the route you added.
+
+## Deploy
+
+After import and local validation, deploy from the same directory:
+
+```bash
+bunx agentuity deploy
+```
+
+An interactive `agentuity deploy` can offer to register an unregistered directory before it builds. In a non-interactive shell, pass `--confirm` and a name, or run `project import --confirm` first:
+
+```bash
+bunx agentuity deploy --name existing-app --confirm
+```
+
+## Remote Repos
+
+You can import from GitHub when the app is not local:
+
+```bash
+bunx agentuity project import --source owner/repo --name existing-app --confirm
+```
+
+Use `--deploy` when you want the import flow to deploy after the project is registered:
+
+```bash
+bunx agentuity project import --source owner/repo --name existing-app --deploy --confirm
+```
+
+## Next Steps
+
+- [Frameworks](/frameworks): add framework-specific route and deploy notes
+- [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): inspect build output before deploying
+- [AI Commands](/reference/cli/ai-commands): give coding agents CLI context before they edit your app

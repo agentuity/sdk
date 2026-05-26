@@ -1,13 +1,13 @@
-import { type Env } from '@agentuity/runtime';
-import docQAAgent from '@agent/doc_qa';
+import type { ApiEnv } from '../context';
+import docQAAgent from '../../agent/doc_qa';
 import { documentPathToUrl } from '../../lib/doc-urls';
 import { Hono } from 'hono';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	// POST /api/doc-qa - Answer questions about documentation
-	.post('/', docQAAgent.validator(), async (c) => {
-		const data = c.req.valid('json');
+	.post('/', async (c) => {
+		const data = await c.req.json();
 		let result: Awaited<ReturnType<typeof docQAAgent.run>>;
 		try {
 			result = await docQAAgent.run(data);

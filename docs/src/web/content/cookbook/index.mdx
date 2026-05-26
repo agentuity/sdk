@@ -1,32 +1,119 @@
 ---
 title: Cookbook
-description: Tutorials and patterns for building with Agentuity
+description: Tutorials, reusable patterns, and external integrations for Agentuity apps
 ---
 
-import { BookOpen, Search, Clock, MessageSquare, Timer, Scale, Server, ShoppingCart, Paintbrush, Webhook, Link, Globe, Bot } from 'lucide-react';
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Calendar,
+  Compass,
+  Globe,
+  Link,
+  MessageSquare,
+  Network,
+  Plug,
+  Scale,
+  Search,
+  Server,
+  Sparkles,
+  Webhook,
+  Workflow,
+  Zap,
+} from 'lucide-react';
 
-Learn common patterns and build real-world applications with these guides.
+Use the cookbook when you want an applied example after reading the core docs. Pages here use framework routes, direct service clients, and external libraries.
 
 ## Tutorials
 
+End-to-end builds. Start here when you want a complete feature, not a snippet.
+
 <Cards>
   <CardLink
-    href="/cookbook/tutorials/understanding-agents"
-    title="Understanding Agents"
-    description="How agents use tools and run in loops"
-    icon={<BookOpen />}
-  />
-  <CardLink
     href="/cookbook/tutorials/rag-agent"
-    title="RAG Agent"
-    description="Build a retrieval-augmented generation agent"
-    icon={<Search />}
+    title="Build a RAG Agent"
+    description="Index documents into vector storage, retrieve the closest matches, and answer with citations"
+    icon={<Sparkles />}
   />
 </Cards>
 
 ## Patterns
 
+Reusable shapes for common app problems. Each pattern is one focused job.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/chat-with-history"
+    title="Chat with History"
+    description="Store chat turns in key-value storage from a framework route"
+    icon={<MessageSquare />}
+  />
+  <CardLink
+    href="/cookbook/patterns/product-search"
+    title="Product Search"
+    description="Semantic search with metadata filters and an optional model recommendation"
+    icon={<Search />}
+  />
+  <CardLink
+    href="/cookbook/patterns/webhook-handler"
+    title="Webhook Handler"
+    description="Verify a signed webhook in a framework route and hand the payload to a queue"
+    icon={<Webhook />}
+  />
+  <CardLink
+    href="/cookbook/patterns/cron-with-storage"
+    title="Cron with Storage"
+    description="Refresh data on a schedule, cache it in key-value, and serve fast reads"
+    icon={<Calendar />}
+  />
+  <CardLink
+    href="/cookbook/patterns/background-tasks"
+    title="Background Tasks"
+    description="Return a fast response while side effects continue in the background"
+    icon={<Zap />}
+  />
+  <CardLink
+    href="/cookbook/patterns/autonomous-research"
+    title="Autonomous Research"
+    description="Drive an Anthropic Messages API tool loop with native tool_use blocks"
+    icon={<Brain />}
+  />
+  <CardLink
+    href="/cookbook/patterns/llm-as-a-judge"
+    title="LLM as a Judge"
+    description="Score quality, check grounding, or pick a winner with a fast judge model"
+    icon={<Scale />}
+  />
+  <CardLink
+    href="/cookbook/patterns/web-exploration"
+    title="Web Exploration"
+    description="Run a headless browser inside a sandbox with an AI SDK tool loop"
+    icon={<Compass />}
+  />
+  <CardLink
+    href="/cookbook/patterns/hono-rpc-tanstack-query"
+    title="Hono RPC + TanStack"
+    description="Share Hono route types with a React client using TanStack Query"
+    icon={<Link />}
+  />
+  <CardLink
+    href="/cookbook/patterns/server-utilities"
+    title="Server Utilities"
+    description="Use Agentuity services from external apps, scripts, and backends"
+    icon={<Server />}
+  />
+  <CardLink
+    href="/cookbook/patterns/tailwind-setup"
+    title="Tailwind Setup"
+    description="Use your framework's Tailwind setup with Agentuity service routes"
+    icon={<Globe />}
+  />
+</Cards>
+
 ### Coder
+
+Manage [Coder](/services/coder) sessions, skills, and workspaces from the SDK.
 
 <Cards>
   <CardLink
@@ -73,126 +160,37 @@ Learn common patterns and build real-world applications with these guides.
   />
 </Cards>
 
-### More Patterns
-
-<Cards>
-  <CardLink
-    href="/cookbook/patterns/autonomous-research"
-    title="Autonomous Research"
-    description="Recursive research loop with native tool calling"
-    icon={<Search />}
-  />
-  <CardLink
-    href="/cookbook/patterns/background-tasks"
-    title="Background Tasks"
-    description="Run long-running tasks asynchronously"
-    icon={<Clock />}
-  />
-  <CardLink
-    href="/cookbook/patterns/chat-with-history"
-    title="Chat with History"
-    description="Persist conversation history"
-    icon={<MessageSquare />}
-  />
-  <CardLink
-    href="/cookbook/patterns/cron-with-storage"
-    title="Cron with Storage"
-    description="Schedule tasks that read and write data"
-    icon={<Timer />}
-  />
-  <CardLink
-    href="/cookbook/patterns/hono-rpc-tanstack-query"
-    title="Hono RPC + TanStack"
-    description="Type-safe API calls between server and React frontend"
-    icon={<Link />}
-  />
-  <CardLink
-    href="/cookbook/patterns/llm-as-a-judge"
-    title="LLM as a Judge"
-    description="Use LLMs to evaluate agent outputs"
-    icon={<Scale />}
-  />
-  <CardLink
-    href="/cookbook/patterns/server-utilities"
-    title="Server Utilities"
-    description="Common server-side utilities"
-    icon={<Server />}
-  />
-  <CardLink
-    href="/cookbook/patterns/product-search"
-    title="Product Search"
-    description="Build a semantic product search"
-    icon={<ShoppingCart />}
-  />
-  <CardLink
-    href="/cookbook/patterns/tailwind-setup"
-    title="Tailwind Setup"
-    description="Configure Tailwind CSS for your frontend"
-    icon={<Paintbrush />}
-  />
-  <CardLink
-    href="/cookbook/patterns/web-exploration"
-    title="Web Exploration"
-    description="Headless browser in a sandbox for AI-guided browsing"
-    icon={<Globe />}
-  />
-  <CardLink
-    href="/cookbook/patterns/webhook-handler"
-    title="Webhook Handler"
-    description="Handle incoming webhooks"
-    icon={<Webhook />}
-  />
-</Cards>
-
 ## Integrations
+
+External libraries that run on or alongside Agentuity. Framework setup lives under [Frameworks](/frameworks).
 
 <Cards>
   <CardLink
     href="/cookbook/integrations/mastra"
     title="Mastra"
-    description="Deploy Mastra agents with tools, structured output, and multi-agent workflows"
-    icon={<picture><img src="/images/integrations/mastra.svg" alt="Mastra" width={28} height={28} /></picture>}
-  />
-  <CardLink
-    href="/cookbook/integrations/langchain"
-    title="LangChain"
-    description="ReAct agents, dynamic tools, and streaming with LangChain.js"
-    icon={<picture><img src="/images/integrations/langchain.svg" alt="LangChain" width={28} height={28} /></picture>}
+    description="Run a Mastra Agent inside a framework route with key-value memory"
+    icon={<Workflow />}
   />
   <CardLink
     href="/cookbook/integrations/openai-agents"
     title="OpenAI Agents SDK"
-    description="Tool calling, handoffs, and streaming with the OpenAI Agents SDK"
-    icon={<picture><img src="/images/integrations/openai.svg" alt="OpenAI" width={28} height={28} /></picture>}
+    description="Drive @openai/agents tool calls and handoffs from a Hono route"
+    icon={<Plug />}
   />
   <CardLink
     href="/cookbook/integrations/claude-agent"
     title="Claude Agent SDK"
-    description="Conversational code intelligence with sandbox execution"
-    icon={<picture><img src="/images/integrations/claude.svg" alt="Anthropic" width={28} height={28} /></picture>}
+    description="Run multi-turn Claude Agent sessions and store the session ID per conversation"
+    icon={<BookOpen />}
   />
   <CardLink
-    href="/cookbook/integrations/chat-sdk"
-    title="Chat SDK"
-    description="Multi-platform chatbots for Slack and Discord"
-    icon={<picture><img src="/images/integrations/vercel.svg" alt="Chat SDK" width={28} height={28} /></picture>}
-  />
-  <CardLink
-    href="/cookbook/integrations/nextjs"
-    title="Next.js"
-    description="Add agents to an existing Next.js application"
-    icon={<picture><img src="/images/integrations/nextjs.svg" alt="Next.js" width={28} height={28} /></picture>}
-  />
-  <CardLink
-    href="/cookbook/integrations/tanstack-start"
-    title="TanStack Start"
-    description="Add agents to an existing TanStack Start application"
-    icon={<picture><img src="/images/integrations/tanstack.svg" alt="TanStack" width={28} height={28} /></picture>}
-  />
-  <CardLink
-    href="/cookbook/integrations/turborepo"
-    title="Turborepo"
-    description="Add Agentuity agents as a workspace package in a Turborepo monorepo with shared types"
-    icon={<picture><img src="/images/integrations/turborepo.svg" alt="Turborepo" width={28} height={28} /></picture>}
+    href="/cookbook/integrations/langchain"
+    title="LangChain"
+    description="Wrap a LangChain createAgent loop in a framework route with middleware"
+    icon={<Network />}
   />
 </Cards>
+
+<Callout type="info" title="Looking for Next.js, TanStack Start, Hono, SvelteKit, Nuxt, Astro, React Router, or Vite + React?">
+Framework integration pages live under [Frameworks](/frameworks). The cookbook is for external libraries, not framework setup.
+</Callout>

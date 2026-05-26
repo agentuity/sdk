@@ -9,7 +9,7 @@
  *
  * Usage: bun run src/run/ai-gateway.ts '{"prompt":"Tell me a joke"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
@@ -29,7 +29,7 @@ function parseJSON<T>(text: string, fallback: T): T {
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const prompt = input.prompt ?? 'Explain AI agents in 1 sentence.';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
 	// Call both in parallel for speed

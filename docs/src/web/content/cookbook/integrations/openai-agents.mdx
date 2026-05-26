@@ -1,22 +1,28 @@
 ---
-title: Using OpenAI Agents SDK with Agentuity
-short_title: OpenAI Agents SDK
-description: Run OpenAI Agents SDK tool calling, handoffs, and structured output on Agentuity's deployment runtime
+title: OpenAI Agents SDK
+description: Run an OpenAI Agents SDK agent loop inside a framework route
 ---
 
-The [OpenAI Agents SDK](https://github.com/openai/openai-agents-js) handles tool calling, handoffs, and structured output. Agentuity gives those agents a place to run: deployment, persistent state, observability, and cloud services like storage and queues. The SDK manages the agent loop, Agentuity manages everything around it.
+The [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) provides a small typed `Agent` class plus a `run()` function that drives the tool-calling loop. Drop it into a Hono route when you want an OpenAI-flavored agent without writing the loop yourself.
 
-## Tool Calling Agent
+```bash
+bun add hono @openai/agents zod
+```
 
-Define tools with the OpenAI Agents SDK `tool()` function and run them inside an Agentuity handler. The SDK manages the ReAct loop automatically.
+## Define the Agent and Tools
 
-Define your tools using `tool()` with Zod parameter schemas:
+Tools use Zod schemas for parameters. Each tool has a `name`, `description`, parameters schema, and an `execute` function.
 
-```typescript title="src/agent/tool-calling/index.ts"
+```typescript title="src/lib/research-agent.ts"
 import { Agent, tool, setTracingDisabled } from '@openai/agents';
 import { z } from 'zod';
 
 setTracingDisabled(true);
+const model = process.env.OPENAI_MODEL;
+
+if (!model) {
+  throw new Error('Set OPENAI_MODEL to the model this agent should use.');
+}
 
 const search = tool({
   name: 'search',
@@ -24,202 +30,90 @@ const search = tool({
   parameters: z.object({
     query: z.string().describe('The search query'),
   }),
-  execute: async ({ query }) => {
-    return `Results for: ${query}`;
-  },
+  execute: async ({ query }) => `Results for: ${query}`,
 });
 
-const assistant = new Agent({
+export const researchAgent = new Agent({
   name: 'Research Assistant',
   instructions: 'You are a helpful assistant. Be concise.',
-  model: 'gpt-5.4',
+  model,
   tools: [search],
 });
 ```
 
-Create an OpenAI agent and wrap it with [`createAgent()`](/agents/creating-agents):
+`setTracingDisabled(true)` skips the SDK's local tracing exporter. Remove that line if you want the SDK's traces.
 
-```typescript title="src/agent/tool-calling/index.ts"
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
+## Wire the Route
+
+`run(agent, message)` runs the full ReAct loop. The route validates, runs, returns.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
 import { run } from '@openai/agents';
-
-export default createAgent('tool-calling', {
-  description: 'OpenAI Agents SDK with function tools',
-  schema: {
-    input: s.object({ message: s.string() }),
-    output: s.object({ response: s.string() }),
-  },
-  handler: async (ctx, { message }) => {
-    ctx.logger.info('Running OpenAI agent', { message });
-
-    // run() executes the full ReAct loop
-    const result = await run(assistant, message); // [!code highlight]
-
-    return {
-      response: typeof result.finalOutput === 'string'
-        ? result.finalOutput
-        : 'No response generated',
-    };
-  },
-});
-```
-
-- OpenAI Agents SDK uses `parameters` for tool schemas, while LangChain uses `schema`
-- `run(agent, input)` executes the full ReAct loop automatically, including all tool calls
-- `result.finalOutput` contains the agent's final response; `result.newItems` contains the full execution trace
-
-<Callout type="info" title="Use one trace source">
-The OpenAI Agents SDK enables tracing by default in server runtimes. If Agentuity should be your trace source, set `OPENAI_AGENTS_DISABLE_TRACING=1` or call `setTracingDisabled(true)` during process startup. If you instantiate `Runner` directly instead of using the `run()` helper, pass `new Runner({ tracingDisabled: true })`.
-</Callout>
-
-## Agent Handoffs
-
-Use the SDK's `handoffs` array and `handoff()` function to route requests between specialist agents. A triage agent decides which specialist handles each request.
-
-```typescript title="src/agent/handoffs/index.ts"
-import { Agent, run, handoff } from '@openai/agents';
+import { researchAgent } from './lib/research-agent';
 import { z } from 'zod';
 
-// ... tool definitions above (lookupInvoice, processRefund)
-
-// Specialist agents with focused instructions
-const billingAgent = new Agent({
-  name: 'Billing Agent',
-  instructions: 'Help with invoice lookups and payment status.',
-  model: 'gpt-5.4',
-  tools: [lookupInvoice],
+const requestSchema = z.object({
+  message: z.string(),
 });
+
+const app = new Hono();
+
+app.post('/api/research', async (c) => {
+  const body: unknown = await c.req.json();
+  const { message } = requestSchema.parse(body);
+
+  const result = await run(researchAgent, message);
+
+  return c.json({
+    response: typeof result.finalOutput === 'string'
+      ? result.finalOutput
+      : JSON.stringify(result.finalOutput),
+  });
+});
+
+export default app;
+```
+
+## Handoffs
+
+Multiple agents compose with the SDK's handoff pattern. Each child agent has its own instructions and tools; the parent decides when to delegate.
+
+```typescript
+import { Agent, run } from '@openai/agents';
+
+const model = process.env.OPENAI_MODEL;
+
+if (!model) {
+  throw new Error('Set OPENAI_MODEL to the model this workflow should use.');
+}
 
 const refundAgent = new Agent({
   name: 'Refund Agent',
-  instructions: 'Process refund requests immediately.',
-  model: 'gpt-5.4',
-  tools: [processRefund],
+  instructions: 'Process refund requests. Confirm the order ID first.',
+  model,
 });
 
-// Typed escalation data for the refund handoff
-const EscalationData = z.object({
-  reason: z.string().describe('Why this is being escalated'),
+const triageAgent = new Agent({
+  name: 'Triage',
+  instructions: 'Route the user to the right specialist.',
+  model,
+  handoffs: [refundAgent],
 });
 
-function createTriageAgent(onRefundEscalation: (reason: string) => void) {
-  return Agent.create({ // [!code highlight]
-    name: 'Triage Agent',
-    instructions: `Route requests to the right specialist:
-- Billing questions → Billing Agent
-- Refund requests → Refund Agent (use escalate_to_refund)`,
-    model: 'gpt-5.4',
-    handoffs: [
-      billingAgent, // basic handoff
-      handoff(refundAgent, { // [!code highlight]
-        onHandoff: (_ctx, input) => {
-          if (input?.reason) {
-            onRefundEscalation(input.reason);
-          }
-        },
-        inputType: EscalationData,
-        toolNameOverride: 'escalate_to_refund',
-      }),
-    ],
-  });
-}
+const result = await run(triageAgent, 'I want a refund on order ord_123.');
 ```
 
-Inside the request handler, track which specialist handled the request using `result.lastAgent`:
+The SDK manages the handoff turn for you. The route still sees one round trip.
 
-```typescript
-const refundEscalations: string[] = [];
-const triageAgent = createTriageAgent((reason) => refundEscalations.push(reason));
-const result = await run(triageAgent, message);
-const handledBy = result.lastAgent?.name ?? 'Triage Agent';
-ctx.logger.info('Request routed', { handledBy, refundEscalations });
-```
+## When to Reach for the OpenAI Agents SDK
 
-The `handoff()` wrapper adds typed escalation data and a callback. Keep handoff side effects request-scoped, as shown above, or store them in Agentuity storage when another request needs to read them. After the run completes, `result.lastAgent.name` tells you which agent handled the request. Use `Agent.create()` for the triage agent to get full type inference across the handoff chain.
+Pick this SDK when you want OpenAI's first-party agent loop, especially for handoffs and hosted tools. Pick the [Anthropic SDK loop](/cookbook/patterns/autonomous-research) when Anthropic's `tool_use` blocks are central. Pick raw [AI SDK](/build/agents) when you want one provider-agnostic surface.
 
-<Callout type="tip" title="Agent.create() for type inference">
-Use `Agent.create()` instead of `new Agent()` for the triage agent. This gives TypeScript full type inference across the handoff chain, including typed `inputType` schemas.
-</Callout>
-
-## Structured Context
-
-Use `RunContext<T>` to pass typed data to tools at runtime. The context is available inside tool `execute` functions but is never sent to the LLM. Pair it with `outputType` to get structured JSON output.
-
-Define the context interface and a tool that reads from it:
-
-```typescript title="src/agent/structured-context/index.ts"
-import { tool } from '@openai/agents';
-import type { RunContext } from '@openai/agents';
-import { z } from 'zod';
-
-// Context type: available to tools, never sent to the LLM
-interface UserInfo {
-  name: string;
-  uid: number;
-  role: string;
-}
-
-const lookupContact = tool({
-  name: 'lookup_contact',
-  description: 'Look up a contact by name',
-  parameters: z.object({ name: z.string() }),
-  execute: async ({ name }, ctx?: RunContext<UserInfo>) => {
-    // ctx.context holds typed data from the run() call
-    const requester = ctx?.context.name ?? 'unknown'; // [!code highlight]
-    return `[Looked up by ${requester}] ${name}: alice@acme.com`;
-  },
-});
-```
-
-Create the agent with `outputType` and pass context at runtime via `run()`:
-
-```typescript title="src/agent/structured-context/index.ts"
-import { Agent, run } from '@openai/agents';
-import { z } from 'zod';
-
-// Structured output schema: the LLM must return this exact shape
-const ContactOutput = z.object({
-  name: z.string(),
-  email: z.string(),
-  company: z.string(),
-  summary: z.string(),
-});
-
-const assistant = new Agent<UserInfo, typeof ContactOutput>({
-  name: 'Contact Finder',
-  instructions: 'Look up contacts and return structured data.',
-  model: 'gpt-5.4',
-  tools: [lookupContact],
-  outputType: ContactOutput, // [!code highlight]
-});
-
-// Pass context at runtime: tools receive it, LLM does not
-const result = await run(assistant, 'Find Alice', {
-  context: { name: 'Demo User', uid: 42, role: 'admin' },
-});
-// result.finalOutput is typed as z.infer<typeof ContactOutput>
-```
-
-- Context is passed at runtime via `run(agent, input, { context: data })` and is never sent to the LLM
-- Tools receive context as the second parameter: `execute(args, ctx?: RunContext<T>)`
-- `outputType` forces the agent to return structured JSON matching the Zod schema; `result.finalOutput` is fully typed
-
-<Callout type="info" title="Context vs. instructions">
-`RunContext` is for runtime data that tools need (user identity, permissions, session state). Use `instructions` for LLM behavior guidance. They serve different purposes: context stays server-side, instructions go to the model.
-</Callout>
-
-## Full Examples
-
-Explore complete working examples for each pattern:
-
-- [Tool Calling](https://github.com/agentuity/examples/tree/main/integrations/openai/tool-calling): function tools, model config, ReAct loop
-- [Agent Handoffs](https://github.com/agentuity/examples/tree/main/integrations/openai/agent-handoffs): triage routing, typed escalation, `lastAgent` tracking
-- [Structured Context](https://github.com/agentuity/examples/tree/main/integrations/openai/structured-context): `RunContext<T>` for typed tool context, `outputType` for structured JSON
-- [Streaming Events](https://github.com/agentuity/examples/tree/main/integrations/openai/streaming-events): `stream: true` with real-time event timeline
+Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for the OpenAI SDK. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs.
 
 ## Next Steps
 
-- [Creating Agents](/agents/creating-agents): Agentuity agent patterns and schemas
-- [AI Gateway](/agents/ai-gateway): Managed model credentials across providers
-- [Tracing](/services/observability/tracing): Observability that replaces OpenAI's built-in tracing
+- [Build Agents](/build/agents): the plain-function pattern this page wraps
+- [Tool Calling](/build/tool-calling): the AI SDK 6 path with provider-agnostic tool calls
+- [Autonomous Research](/cookbook/patterns/autonomous-research): a hand-rolled tool loop using the Anthropic SDK

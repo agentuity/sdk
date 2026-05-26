@@ -9,7 +9,6 @@
  *
  * Usage: bun run src/run/model-arena.ts '{"prompt":"Write a haiku about coding"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
 import { anthropic } from '@ai-sdk/anthropic';
 import { createGroq } from '@ai-sdk/groq';
 import { openai } from '@ai-sdk/openai';
@@ -42,8 +41,6 @@ const groq = createGroq({ baseURL: process.env.GROQ_BASE_URL });
 
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const userPrompt = input.prompt ?? 'Write a creative one-liner about programming.';
-
-const _ctx = createAgentContext();
 
 // Collect all output, print at the very end
 const output: string[] = [];

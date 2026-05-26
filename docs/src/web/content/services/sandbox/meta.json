@@ -1,4 +1,4 @@
 {
 	"title": "Sandbox",
-	"pages": ["index", "sdk-usage", "snapshots"]
+	"pages": ["index", "sdk-usage", "ephemeral-workflows", "coding-agents", "snapshots"]
 }

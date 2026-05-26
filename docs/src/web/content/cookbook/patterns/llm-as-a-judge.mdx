@@ -1,109 +1,91 @@
 ---
 title: LLM as a Judge
-description: Use LLMs to evaluate and score agent outputs for quality, safety, and compliance
+description: Use a model to evaluate another model's output for quality, grounding, or comparison
 ---
 
-The LLM-as-judge pattern uses one model to evaluate another model's output. This is useful for subjective quality assessments that can't be checked programmatically.
+LLM-as-judge is the right tool when the rubric needs context, nuance, or subjective comparison. It is the wrong tool when the check is structural (JSON shape, length, presence of a field). For those, validate with a schema and skip the model call.
 
-## When to Use This Pattern
+| Use case | LLM-as-judge | Code or schema |
+|---|---|---|
+| Factual grounding against retrieved sources | Yes | |
+| Tone, helpfulness, politeness | Yes | |
+| Picking a winner between two outputs | Yes | |
+| Hallucination detection in RAG | Yes | |
+| Validating JSON structure | | Yes |
+| Word count, regex match | | Yes |
 
-| Use Case | Good Fit? |
-|----------|-----------|
-| Checking factual accuracy against sources | Yes |
-| Evaluating tone and politeness | Yes |
-| Detecting hallucinations in RAG | Yes |
-| Comparing response quality | Yes |
-| Validating JSON structure | No (use schema validation) |
-| Checking string length | No (use code) |
+```bash
+bun add ai @ai-sdk/openai @ai-sdk/anthropic @ai-sdk/groq @agentuity/queue@beta @agentuity/vector@beta @agentuity/telemetry@beta zod
+```
 
-Use LLM-as-judge when the evaluation requires understanding context, nuance, or subjective criteria.
+## Inline Quality Check
 
-## Inline vs Background Checks
+Run the judge in the same request when the score is part of the response. Fast judge models keep the added latency manageable.
 
-LLM-as-judge can be used in two contexts:
-
-| Context | When to Use | Blocks Response? |
-|---------|-------------|------------------|
-| **Inline** (in handler) | Scores returned with the response, model comparison, or request-time gating | Yes |
-| **Background** (`waitUntil()`) | Quality monitoring, compliance checks, or review flows after the response is sent | No |
-
-**Inline example**: A model arena that shows users which response "won" needs scores returned with the response.
-
-**Background example**: Checking responses for PII or hallucinations without adding latency to the main response.
-
-<Callout type="info" title="When to Run a Judge">
-Run LLM-as-judge inline when the score is part of the response. Use `waitUntil()` when the result is for monitoring, review, or follow-up work.
-</Callout>
-
-## Basic Pattern
-
-Use a fast model to judge outputs. Groq provides low-latency inference for judge calls:
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { generateText, generateObject } from 'ai';
+```typescript title="src/lib/quality-check.ts"
 import { openai } from '@ai-sdk/openai';
 import { groq } from '@ai-sdk/groq';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-const JudgmentSchema = z.object({
+const judgmentSchema = z.object({
   score: z.number().min(0).max(1).describe('Quality score from 0 to 1'),
-  passed: z.boolean().describe('Whether the response meets quality threshold'),
-  reason: z.string().describe('Brief explanation of the judgment'),
+  passed: z.boolean().describe('Whether the response meets the threshold'),
+  reason: z.string().describe('Brief explanation'),
 });
 
-const agent = createAgent('QualityChecker', {
-  schema: {
-    input: z.object({ question: z.string() }),
-    output: z.object({
-      answer: z.string(),
-      judgment: JudgmentSchema,
-    }),
-  },
-  handler: async (ctx, input) => {
-    // Generate answer with primary model
-    const { text: answer } = await generateText({
-      model: openai('gpt-5-mini'),
-      prompt: input.question,
-    });
+const answerModel = process.env.OPENAI_ANSWER_MODEL;
+const judgeModel = process.env.GROQ_JUDGE_MODEL;
 
-    // Judge with fast model
-    const { object: judgment } = await generateObject({
-      model: groq('openai/gpt-oss-120b'),
-      schema: JudgmentSchema,
-      prompt: `Evaluate this response on a 0-1 scale.
+if (!answerModel || !judgeModel) {
+  throw new Error('Set OPENAI_ANSWER_MODEL and GROQ_JUDGE_MODEL.');
+}
 
-Question: ${input.question}
+interface QualityResult {
+  readonly answer: string;
+  readonly judgment: z.infer<typeof judgmentSchema>;
+}
+
+export async function answerWithQualityCheck(question: string): Promise<QualityResult> {
+  const { text: answer } = await generateText({
+    model: openai(answerModel),
+    prompt: question,
+  });
+
+  const { output: judgment } = await generateText({
+    model: groq(judgeModel),
+    output: Output.object({ schema: judgmentSchema }),
+    prompt: `Evaluate this response on a 0-1 scale.
+
+Question: ${question}
 Response: ${answer}
 
 Consider:
 - Does it directly answer the question?
 - Is the information accurate?
-- Is it clear and easy to understand?
+- Is it clear and easy to read?
 
 Score 0.7+ to pass.`,
-    });
+  });
 
-    return { answer, judgment };
-  },
-});
-
-export default agent;
+  return { answer, judgment };
+}
 ```
 
-## Model Comparison Arena
+The judge model is intentionally smaller and faster than the answer model. Inline judging is for cases where the user sees the score; otherwise move it off the request path.
 
-Compare responses from multiple providers and declare a winner. This pattern is useful for benchmarking, A/B testing, or letting users see quality differences:
+## Model Arena
 
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { generateText, generateObject } from 'ai';
+Compare two providers side-by-side and let a third model pick the winner. Run the candidates in parallel, then judge.
+
+```typescript title="src/lib/model-arena.ts"
 import { openai } from '@ai-sdk/openai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { groq } from '@ai-sdk/groq';
+import { generateText, Output, type LanguageModel } from 'ai';
 import { z } from 'zod';
 
-const ArenaJudgment = z.object({
+const arenaJudgment = z.object({
   winner: z.enum(['openai', 'anthropic']),
   reasoning: z.string(),
   scores: z.object({
@@ -112,40 +94,38 @@ const ArenaJudgment = z.object({
   }),
 });
 
-const arenaAgent = createAgent('ModelArena', {
-  schema: {
-    input: z.object({
-      prompt: z.string(),
-      tone: z.enum(['whimsical', 'suspenseful', 'comedic']),
-    }),
-    output: z.object({
-      results: z.array(z.object({
-        provider: z.string(),
-        story: z.string(),
-        generationMs: z.number(),
-      })),
-      judgment: ArenaJudgment,
-    }),
-  },
-  handler: async (ctx, input) => {
-    // Generate from both models in parallel
-    const [openaiResult, anthropicResult] = await Promise.all([
-      generateWithTiming(openai('gpt-5.4-nano'), input.prompt, input.tone),
-      generateWithTiming(anthropic('claude-haiku-4-5'), input.prompt, input.tone),
-    ]);
+const openaiModel = process.env.OPENAI_ARENA_MODEL;
+const anthropicModel = process.env.ANTHROPIC_ARENA_MODEL;
+const judgeModel = process.env.GROQ_JUDGE_MODEL;
 
-    const results = [
-      { provider: 'openai', ...openaiResult },
-      { provider: 'anthropic', ...anthropicResult },
-    ];
+if (!openaiModel || !anthropicModel || !judgeModel) {
+  throw new Error('Set OPENAI_ARENA_MODEL, ANTHROPIC_ARENA_MODEL, and GROQ_JUDGE_MODEL.');
+}
 
-    // Judge with fast model
-    const { object: judgment } = await generateObject({
-      model: groq('openai/gpt-oss-120b'),
-      schema: ArenaJudgment,
-      prompt: `Compare these ${input.tone} stories and pick a winner.
+interface ArenaResult {
+  readonly results: ReadonlyArray<{
+    readonly provider: 'openai' | 'anthropic';
+    readonly story: string;
+    readonly generationMs: number;
+  }>;
+  readonly judgment: z.infer<typeof arenaJudgment>;
+}
 
-PROMPT: "${input.prompt}"
+export async function runArena(
+  prompt: string,
+  tone: 'whimsical' | 'suspenseful' | 'comedic'
+): Promise<ArenaResult> {
+  const [openaiResult, anthropicResult] = await Promise.all([
+    generateWithTiming(openai(openaiModel), prompt, tone),
+    generateWithTiming(anthropic(anthropicModel), prompt, tone),
+  ]);
+
+  const { output: judgment } = await generateText({
+    model: groq(judgeModel),
+    output: Output.object({ schema: arenaJudgment }),
+    prompt: `Compare these ${tone} stories and pick a winner.
+
+PROMPT: "${prompt}"
 
 --- OpenAI ---
 ${openaiResult.story}
@@ -153,20 +133,23 @@ ${openaiResult.story}
 --- Anthropic ---
 ${anthropicResult.story}
 
-Score each on creativity, engagement, and tone match (0-1).
-Declare a winner with reasoning.`,
-    });
+Score each on creativity, engagement, and tone match (0-1).`,
+  });
 
-    ctx.logger.info('Arena complete', { winner: judgment.winner });
-    return { results, judgment };
-  },
-});
+  return {
+    results: [
+      { provider: 'openai', ...openaiResult },
+      { provider: 'anthropic', ...anthropicResult },
+    ],
+    judgment,
+  };
+}
 
 async function generateWithTiming(
-  model: Parameters<typeof generateText>[0]['model'],
+  model: LanguageModel,
   prompt: string,
   tone: string
-) {
+): Promise<{ story: string; generationMs: number }> {
   const start = Date.now();
   const { text } = await generateText({
     model,
@@ -175,213 +158,201 @@ async function generateWithTiming(
   });
   return { story: text, generationMs: Date.now() - start };
 }
-
-export default arenaAgent;
 ```
-
-<Callout type="tip" title="See It Live">
-The [SDK Explorer](/explorer/model-arena) includes a working Model Arena demo that demonstrates this pattern in more detail.
-</Callout>
 
 ## Grounding Check for RAG
 
-Detect hallucinations by checking if claims are supported by retrieved sources:
+Score whether an answer is supported by the retrieved sources. Returning the unsupported claims back to the caller turns the judge into a hallucination filter.
 
-```typescript
-import { createAgent } from '@agentuity/runtime';
-import { generateText, generateObject } from 'ai';
+```typescript title="src/lib/rag-grounding.ts"
+import { VectorClient } from '@agentuity/vector';
 import { openai } from '@ai-sdk/openai';
 import { groq } from '@ai-sdk/groq';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-const GroundingJudgment = z.object({
-  isGrounded: z.boolean().describe('Whether all claims are supported by sources'),
-  score: z.number().min(0).max(1).describe('Percentage of claims supported'),
-  unsupportedClaims: z.array(z.string()).describe('Claims not found in sources'),
+type DocumentMetadata = {
+  readonly content: string;
+  readonly title: string;
+} & Record<string, unknown>;
+
+const groundingJudgment = z.object({
+  isGrounded: z.boolean(),
+  score: z.number().min(0).max(1).describe('Fraction of claims supported by sources'),
+  unsupportedClaims: z.array(z.string()),
   reason: z.string(),
 });
 
-interface DocumentMetadata extends Record<string, unknown> {
-  content: string;
-  title: string | undefined;
+const answerModel = process.env.OPENAI_ANSWER_MODEL;
+const judgeModel = process.env.GROQ_JUDGE_MODEL;
+
+if (!answerModel || !judgeModel) {
+  throw new Error('Set OPENAI_ANSWER_MODEL and GROQ_JUDGE_MODEL.');
 }
 
-const ragAgent = createAgent('RAGWithGrounding', {
-  schema: {
-    input: z.object({ question: z.string() }),
-    output: z.object({
-      answer: z.string(),
-      grounding: GroundingJudgment,
-      sources: z.array(z.string()),
-    }),
-  },
-  handler: async (ctx, input) => {
-    // Retrieve relevant documents
-    const results = await ctx.vector.search<DocumentMetadata>('knowledge-base', {
-      query: input.question,
-      limit: 3,
-    });
+interface GroundedAnswer {
+  readonly answer: string;
+  readonly grounding: z.infer<typeof groundingJudgment>;
+  readonly sources: readonly string[];
+}
 
-    const sources = results.map(r => r.metadata?.content || '').filter(Boolean);
+const vector = new VectorClient();
 
-    // Generate answer
-    const { text: answer } = await generateText({
-      model: openai('gpt-5-mini'),
-      prompt: `Answer based on these sources:\n\n${sources.join('\n\n')}\n\nQuestion: ${input.question}`,
-    });
+export async function answerWithGrounding(question: string): Promise<GroundedAnswer> {
+  const matches = await vector.search<DocumentMetadata>('knowledge-base', {
+    query: question,
+    limit: 3,
+  });
 
-    // Check grounding with fast model
-    const { object: grounding } = await generateObject({
-      model: groq('openai/gpt-oss-120b'),
-      schema: GroundingJudgment,
-      prompt: `Check if this answer is supported by the sources.
+  const sources = matches
+    .map((match) => match.metadata?.content ?? '')
+    .filter((text) => text.length > 0);
+
+  const { text: answer } = await generateText({
+    model: openai(answerModel),
+    prompt: `Answer using these sources:\n\n${sources.join('\n\n')}\n\nQuestion: ${question}`,
+  });
+
+  const { output: grounding } = await generateText({
+    model: groq(judgeModel),
+    output: Output.object({ schema: groundingJudgment }),
+    prompt: `Check whether this answer is supported by the sources.
 
 Answer: ${answer}
 
 Sources:
-${sources.map((s, i) => `[${i + 1}] ${s}`).join('\n\n')}
+${sources.map((source, i) => `[${i + 1}] ${source}`).join('\n\n')}
 
-Are all factual claims in the answer supported by the sources?
-List any unsupported claims.`,
-    });
+Return any factual claim in the answer that is not supported by the sources.`,
+  });
 
-    if (!grounding.isGrounded) {
-      ctx.logger.warn('Hallucination detected', {
-        claims: grounding.unsupportedClaims,
-      });
-    }
-
-    return { answer, grounding, sources: results.map(r => r.key) };
-  },
-});
-
-export default ragAgent;
+  return {
+    answer,
+    grounding,
+    sources: matches.map((match) => match.key),
+  };
+}
 ```
 
-## Run in the Background
+Pair this with [Build a RAG Agent](/cookbook/tutorials/rag-agent) when answers should be filtered or flagged before they reach the user.
 
-For background quality monitoring, queue the judge with `ctx.waitUntil()` so the response returns immediately:
+## Background Judging
 
-```typescript title="src/agent/qa-agent/agent.ts"
-import { createAgent } from '@agentuity/runtime';
-import { generateText, generateObject } from 'ai';
+For monitoring and review flows, the judge does not need to block the response. Publish to a queue and let a worker route do the scoring.
+
+```typescript title="src/index.ts"
+import { Hono } from 'hono';
+import { QueueClient } from '@agentuity/queue';
+import { logger } from '@agentuity/telemetry';
 import { openai } from '@ai-sdk/openai';
 import { groq } from '@ai-sdk/groq';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-const HelpfulnessJudgment = z.object({
-  scores: z.object({
-    helpfulness: z.object({
-      score: z.number().min(0).max(1),
-      reason: z.string(),
-    }),
-  }),
-  checks: z.object({
-    answersQuestion: z.object({
-      passed: z.boolean(),
-      reason: z.string(),
-    }),
-    actionable: z.object({
-      passed: z.boolean(),
-      reason: z.string(),
-    }),
-  }),
+const helpfulnessJudgment = z.object({
+  score: z.number().min(0).max(1),
+  answersQuestion: z.boolean(),
+  actionable: z.boolean(),
+  reason: z.string(),
 });
 
-const agent = createAgent('QAAgent', {
-  schema: {
-    input: z.object({ question: z.string() }),
-    output: z.object({ answer: z.string() }),
-  },
-  handler: async (ctx, input) => {
-    const { text: answer } = await generateText({
-      model: openai('gpt-5-mini'),
-      prompt: input.question,
-    });
-
-    ctx.waitUntil(async () => {
-      const { object } = await generateObject({
-        model: groq('openai/gpt-oss-120b'),
-        schema: HelpfulnessJudgment,
-        prompt: `Evaluate this response.
-
-Question: ${input.question}
-Response: ${answer}
-
-SCORE:
-- helpfulness: How useful is this response? (0 = useless, 1 = extremely helpful)
-
-CHECKS:
-- answersQuestion: Does it directly answer what was asked?
-- actionable: Can someone act on this information?`,
-      });
-
-      ctx.logger.info('Judge completed', {
-        helpfulness: object.scores.helpfulness.score,
-        answersQuestion: object.checks.answersQuestion.passed,
-        actionable: object.checks.actionable.passed,
-      });
-    });
-
-    return { answer };
-  },
+const judgePayload = z.object({
+  question: z.string(),
+  answer: z.string(),
 });
 
-export default agent;
+const queue = new QueueClient();
+const app = new Hono();
+const answerModel = process.env.OPENAI_ANSWER_MODEL;
+const judgeModel = process.env.GROQ_JUDGE_MODEL;
+
+if (!answerModel || !judgeModel) {
+  throw new Error('Set OPENAI_ANSWER_MODEL and GROQ_JUDGE_MODEL.');
+}
+
+app.post('/api/answer', async (c) => {
+  const { question } = await c.req.json<{ question: string }>();
+
+  const { text: answer } = await generateText({
+    model: openai(answerModel),
+    prompt: question,
+  });
+
+  // hand the (question, answer) pair to the worker for background scoring
+  await queue.publish('answer-quality', { question, answer });
+
+  return c.json({ answer });
+});
+
+app.post('/api/workers/answer-quality', async (c) => {
+  const body = judgePayload.parse(await c.req.json());
+
+  const { output } = await generateText({
+    model: groq(judgeModel),
+    output: Output.object({ schema: helpfulnessJudgment }),
+    prompt: `Score this answer.
+
+Question: ${body.question}
+Answer: ${body.answer}
+
+- score: 0 = useless, 1 = extremely helpful
+- answersQuestion: directly addresses the question?
+- actionable: can the user act on this?`,
+  });
+
+  logger.info('judge complete', {
+    score: output.score,
+    answersQuestion: output.answersQuestion,
+  });
+
+  return c.json({ ok: true });
+});
+
+export default app;
 ```
 
-## Structuring Judge Prompts
+The worker route is fired by an HTTP destination on the `answer-quality` queue. See [Background Work](/build/background-work) for the full request/status/worker shape.
 
-Good judge prompts have clear structure:
+## Prompt Structure
 
-```typescript
-const judgePrompt = `You are evaluating a ${taskType} response.
+Judge prompts work better when the rubric is explicit and the scale is fixed.
+
+```text
+You are evaluating a {taskType} response.
 
 CONTEXT:
-${context}
+{context}
 
 RESPONSE TO EVALUATE:
-${response}
+{response}
 
-SCORING CRITERIA (0.0-1.0):
-- criterion1: What specifically to look for
-- criterion2: What specifically to look for
+SCORING (0.0-1.0):
+- criterion1: what to look for
+- criterion2: what to look for
 
 CHECKS (pass/fail):
-- check1: Specific yes/no question
-- check2: Specific yes/no question
+- check1: yes/no question with clear answer
+- check2: yes/no question with clear answer
 
-Evaluate each criterion, then provide an overall assessment.`;
+Return scores and a one-sentence reason.
 ```
 
-**Tips:**
-- Be explicit about the scale (0-1, not 1-10)
-- Define what each score level means
-- Make checks binary questions with clear answers
-- Include the original context/prompt for reference
+- pin a single scale ("0.0 to 1.0") rather than letting the model pick its own
+- separate score-able criteria from binary checks
+- include the original question or source in the prompt; the judge has no other context
+- prefer faster judge models for lower added latency, and keep the exact model ID in configuration
 
-## Best Practices
+## Cost Notes
 
-- **Use lower-latency judge models**: examples here use Groq `openai/gpt-oss-120b`, OpenAI `gpt-5.4-nano`, and Anthropic `claude-haiku-4-5`
-- **Separate scores from checks**: Scores for gradients, checks for pass/fail
-- **Structure prompts clearly**: List criteria explicitly with descriptions
-- **Log low scores**: Track failures for debugging and model improvement
-- **Consider latency**: Use inline judging only when users need to see results
+LLM-as-judge doubles the model calls per request. Manage the cost by:
 
-## Cost Optimization
-
-LLM-as-judge adds model calls. Optimize by:
-
-- Using the fastest capable model for the rubric, such as Groq `openai/gpt-oss-120b` or a smaller provider model
-- Running the judge asynchronously when the request path does not need a score
-- Sampling a percentage of requests in high-volume scenarios
-- Batching judgments when evaluating multiple items
-
-<Callout type="tip" title="Full Working Example">
-See the [Code Runner](https://github.com/agentuity/examples/tree/main/features/code-runner) example for parallel sandbox execution with LLM-as-judge checks across TypeScript and Python.
-</Callout>
+- using smaller, faster judge models selected from the live provider or AI Gateway catalog
+- moving the judge off the request path with [Queues](/services/queues) when the score does not affect the response
+- sampling a percentage of requests in high-volume traffic
+- batching judgments when the rubric is the same across many items
 
 ## Next Steps
 
-- [Using the AI SDK](/agents/ai-sdk-integration): Model selection and configuration
-- [Vector Storage](/services/storage/vector): Build RAG systems to ground responses
+- [Build a RAG Agent](/cookbook/tutorials/rag-agent): the answer pipeline this judge plugs into
+- [Background Work](/build/background-work): wire the judge worker route to a queue with retries and status
+- [AI Gateway](/services/ai-gateway): local dev routing and deployed provider env choices

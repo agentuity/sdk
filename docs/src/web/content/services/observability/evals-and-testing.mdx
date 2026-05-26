@@ -1,0 +1,121 @@
+---
+title: Evals and testing
+description: Evaluate agent behavior with LLM judges, traces, Braintrust, or your own tooling.
+---
+
+In v3, an eval is a repeatable app workflow: run normal app code, capture a stable output, assert or judge it, and keep enough logs and traces to explain failures. Use LLM-as-judge checks for qualitative behavior, OpenTelemetry traces for what happened, Braintrust when you want hosted experiment tracking, or your own test runner when assertions are enough.
+
+```bash
+bun add ai@latest @ai-sdk/openai@latest zod @agentuity/telemetry@beta
+```
+
+<Callout type="info" title="No first-party v3 eval runner">
+The v2 `@agentuity/evals` package and platform collection model are not a first-party v3 eval surface. Keep evals in your app repo as scripts, tests, traces, and optional external tooling.
+</Callout>
+
+## Shape Evals Like Tests
+
+| Part | Keep Stable |
+|------|-------------|
+| input fixture | user prompt, retrieved context, tool responses, headers, or test data |
+| app invocation | the framework route, service function, agent entrypoint, or sandbox command under test |
+| output contract | JSON fields, report path, status enum, citations, changed files, or answer text |
+| check | deterministic assertion, schema validation, judge rubric, or hosted eval score |
+| observability | run id, fixture id, trace id, model name, duration, pass/fail, and failure reason |
+
+That shape keeps evals close to the code they protect. A CI job can run the same script as a local developer, and a failed run can point back to logs, spans, and the exact output that broke the contract.
+
+## Define the Output Contract
+
+Do this before adding a judge. The output contract is the part your app, CI job, or reviewer can inspect without reading model prose.
+
+```json
+{
+  "status": "passed",
+  "answer": "For an existing app, run project import before deploy.",
+  "sources": ["docs/src/web/content/get-started/import-existing-app.mdx"],
+  "checks": [
+    {
+      "name": "mentions import before deploy",
+      "passed": true
+    }
+  ],
+  "blockers": []
+}
+```
+
+For coding-agent tasks, include the expected report path, verification command, changed files, and blocker format in the task prompt. See [The coding agent is a general-purpose agent](/build/coding-agent) for a fuller output-contract pattern.
+
+## LLM-as-Judge Example
+
+This script grades an answer against a rubric. Drop it into a Bun or Node script that already has `OPENAI_API_KEY` or runs under `agentuity dev`.
+
+```typescript
+import { openai } from '@ai-sdk/openai';
+import { generateText, Output } from 'ai';
+import { z } from 'zod';
+import { logger } from '@agentuity/telemetry';
+
+const model = process.env.OPENAI_MODEL;
+
+if (!model) {
+  throw new Error('Set OPENAI_MODEL to the judge model you want to use.');
+}
+
+const judgmentSchema = z.object({
+  score: z.number().min(0).max(1),
+  passed: z.boolean(),
+  reason: z.string(),
+});
+
+async function judgeAnswer(input: {
+  readonly question: string;
+  readonly answer: string;
+  readonly rubric: string;
+}): Promise<z.infer<typeof judgmentSchema>> {
+  const { output } = await generateText({
+    model: openai(model),
+    output: Output.object({ schema: judgmentSchema }),
+    prompt: `Grade the answer from 0 to 1.
+
+Question:
+${input.question}
+
+Answer:
+${input.answer}
+
+Rubric:
+${input.rubric}
+
+Return a passing score only when the answer satisfies the rubric.`,
+  });
+
+  return output;
+}
+
+const judgment = await judgeAnswer({
+  question: 'How do I deploy an imported Agentuity app?',
+  answer: 'Run agentuity project import first, then run agentuity deploy from the app directory.',
+  rubric: 'Mentions import before deploy and avoids claiming deploy imports automatically.',
+});
+
+logger.info('eval complete', judgment);
+```
+
+## Trace the Run
+
+Wrap eval runs with spans when you need to inspect the app call, model choice, tool behavior, assertion, and judge result later. Prefer attributes such as `eval.run_id`, `eval.fixture_id`, `eval.contract_version`, `eval.passed`, and `eval.failure_reason`; avoid raw prompts, secrets, and personal data in span attributes. See [Tracing](/services/observability/tracing) for OpenTelemetry setup and exporter configuration.
+
+## Use Braintrust or BYO Tooling
+
+Use a hosted eval tool when you need datasets, experiment comparison, reviewers, or reports. Use your normal test runner when the check is deterministic, such as JSON shape, latency budget, retrieval count, or exact routing behavior.
+
+| Check | Good fit |
+|-------|----------|
+| JSON shape or required fields | unit test plus schema |
+| Tool routing | integration test with mocks or fixtures |
+| Grounding against sources | LLM-as-judge |
+| Regression suite with reports | Braintrust or BYO eval runner |
+| Debugging one bad request | OTEL traces and logs |
+
+See [LLM as a Judge](/cookbook/patterns/llm-as-a-judge) for more judging patterns.

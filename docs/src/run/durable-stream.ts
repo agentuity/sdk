@@ -10,11 +10,11 @@
  *
  * Usage: bun run src/run/durable-stream.ts
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
 	ctx.logger.info('Creating durable stream with LLM content');

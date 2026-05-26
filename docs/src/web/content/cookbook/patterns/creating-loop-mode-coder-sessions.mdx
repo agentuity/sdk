@@ -12,6 +12,7 @@ Create the session with `workflowMode: 'loop'`, then call `getLoopState()` to re
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 
 async function main(): Promise<void> {
   const client = new CoderClient();
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
     const session = await client.getSession(created.sessionId);
     const loopState = await client.getLoopState(created.sessionId); // [!code highlight]
 
-    console.log(
+    logger.info(
       JSON.stringify(
         {
           session: {
@@ -52,8 +53,8 @@ async function main(): Promise<void> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    console.error('Failed to create or inspect the loop-mode session');
-    console.error(message);
+    logger.error('Failed to create or inspect the loop-mode session');
+    logger.error(message);
     process.exitCode = 1;
   }
 }
@@ -105,6 +106,7 @@ For polling, treat `completed`, `cancelled`, and `blocked` as terminal statuses.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
 import type { CoderLoopStatus } from '@agentuity/coder';
 
 const TERMINAL: ReadonlySet<CoderLoopStatus> = new Set(['completed', 'cancelled', 'blocked']);
@@ -126,7 +128,7 @@ async function main(): Promise<void> {
     tags: ['deps', 'audit'],
   });
 
-  console.log('Session created:', created.sessionId);
+  logger.info('Session created:', created.sessionId);
 
   const deadline = Date.now() + MAX_WAIT_MS;
 
@@ -141,12 +143,12 @@ async function main(): Promise<void> {
     }
 
     const { status, iteration, maxIterations } = loop;
-    console.log(`iteration ${iteration}/${maxIterations ?? '?'}: ${status}`);
+    logger.info(`iteration ${iteration}/${maxIterations ?? '?'}: ${status}`);
 
     if (TERMINAL.has(status)) {
-      console.log('Loop finished with status:', status);
+      logger.info('Loop finished with status:', status);
       if (loop.summary) {
-        console.log('Summary:', loop.summary);
+        logger.info('Summary:', loop.summary);
       }
       return;
     }
@@ -154,12 +156,12 @@ async function main(): Promise<void> {
     if (status === 'awaiting_input') {
       // The loop paused and is waiting for external input; your app would handle this
       // by prompting the user or sending a response through the Hub WebSocket or REST API
-      console.log('Loop is awaiting input. Exiting poll loop.');
+      logger.info('Loop is awaiting input. Exiting poll loop.');
       return;
     }
   }
 
-  console.error('Timed out waiting for loop to complete.');
+  logger.error('Timed out waiting for loop to complete.');
   process.exitCode = 1;
 }
 

@@ -15,11 +15,11 @@
  *
  * Docs: https://agentuity.dev/cookbook/patterns/llm-as-a-judge
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { generateStory, judgeStories, MODELS } from './lib';
 
-const agent = createAgent('model-arena', {
+const agent = defineDemoAgent('model-arena', {
 	description: 'Compare short stories from multiple AI models with LLM-as-judge evaluation',
 	schema: {
 		input: s.object({

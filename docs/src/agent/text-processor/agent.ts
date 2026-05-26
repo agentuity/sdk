@@ -1,4 +1,4 @@
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { generateText } from 'ai';
 import { createGroqProvider } from '../../lib/ai-gateway';
@@ -9,7 +9,7 @@ import { createGroqProvider } from '../../lib/ai-gateway';
  * An agent that cleans or analyzes text using AI. Used by the Agent Calls demo
  * to demonstrate agent-to-agent communication patterns.
  */
-const agent = createAgent('text-processor', {
+const agent = defineDemoAgent('text-processor', {
 	description: 'Cleans or analyzes text using AI',
 	schema: {
 		input: s.object({

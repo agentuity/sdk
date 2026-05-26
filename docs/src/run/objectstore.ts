@@ -10,10 +10,10 @@
  *
  * Usage: bun run src/run/objectstore.ts '{}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import { s3 } from 'bun';
 
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 const filename = `demo-${Date.now()}.txt`;
 const content = `Hello from Object Storage!\nTimestamp: ${new Date().toISOString()}`;

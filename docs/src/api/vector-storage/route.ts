@@ -5,7 +5,7 @@
  * POST /search - Searches products by query and returns AI recommendation
  * GET /status  - Checks if vector store contains data
  */
-import { type Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import vectorAgent from '../../agent/vector/agent';
 import sampleProducts from '../../agent/vector/sample-products.json';
 import { Hono } from 'hono';
@@ -20,7 +20,7 @@ function getVectorSeedDocuments() {
 	}));
 }
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	.post('/seed', async (c) => {
 		try {

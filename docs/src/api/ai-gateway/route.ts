@@ -4,14 +4,15 @@
  * GET /         - Returns gateway configuration and fixed prompt
  * STREAM /compare - Streams LLM response for selected model
  */
-import { stream, type Env } from '@agentuity/runtime';
+import { stream } from '../http';
+import type { ApiEnv } from '../context';
 import { generateText, streamText } from 'ai';
 import { getModel } from '../../lib/models';
 import { Hono } from 'hono';
 
 const FIXED_PROMPT = 'What is backpropagation and why does it matter for AI?';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
 		return c.json({

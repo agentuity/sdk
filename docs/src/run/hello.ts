@@ -1,19 +1,19 @@
 /**
  * Standalone invoke script for Hello Agent
  *
- * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
+ * Uses the same plain function module as the API route.
  *
  * Usage: bun run src/run/hello.ts '{"name":"World"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 import helloAgent from '../agent/hello/agent';
 
 const input = JSON.parse(process.argv[2] ?? '{"name":"World"}');
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 try {
 	ctx.logger.info('Processing greeting', { name: input.name });
-	const result = await ctx.invoke(() => helloAgent.run(input));
+	const result = await helloAgent.run(input);
 
 	console.log('---OUTPUT---');
 	console.log(result);

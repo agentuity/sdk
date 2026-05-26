@@ -15,9 +15,9 @@
  *
  * Docs: https://agentuity.dev/routes/sse
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
-const agent = createAgent('sse-stream', {
+const agent = defineDemoAgent('sse-stream', {
 	description: 'Real-time LLM token streaming via Server-Sent Events',
 	schema: {
 		input: s.object({ prompt: s.string() }),

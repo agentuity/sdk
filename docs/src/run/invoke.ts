@@ -1,7 +1,7 @@
 /**
  * Generic agent invoker - runs any agent by name
  *
- * Uses ctx.invoke() with agent.run() pattern (SDK 0.1.14+)
+ * Loads one Explorer demo module and runs it with the local docs context.
  *
  * Usage: bun run src/run/invoke.ts <agent-name> '<json-input>'
  *
@@ -9,8 +9,6 @@
  *   bun run src/run/invoke.ts hello '{"name":"World"}'
  *   bun run src/run/invoke.ts vector '{"query":"ergonomic chair","seedData":true}'
  */
-import { createAgentContext } from '@agentuity/runtime';
-
 const [agentName, inputJson] = process.argv.slice(2);
 
 if (!agentName) {
@@ -30,10 +28,8 @@ try {
 	process.exit(1);
 }
 
-const ctx = createAgentContext();
-
 try {
-	const result = await ctx.invoke(() => agent.run(input));
+	const result = await agent.run(input);
 
 	console.log('---OUTPUT---');
 	console.log(JSON.stringify(result, null, 2));

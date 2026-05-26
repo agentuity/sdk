@@ -1,4 +1,4 @@
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { streamText, stepCountIs } from 'ai';
 import { openai } from '@ai-sdk/openai';
@@ -7,7 +7,7 @@ import { createTools } from './tools';
 import { createStreamingProcessor } from './streaming-processor';
 import type { ConversationMessage, Action } from './types';
 
-const agent = createAgent('AgentPulse', {
+const agent = defineDemoAgent('AgentPulse', {
 	description:
 		'Multi-turn tutorial and documentation assistant using LLM with tools for tutorial navigation and documentation search',
 	schema: {

@@ -264,7 +264,7 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
   <CardLink
     href="/reference/api/ai-gateway"
     title="AI Gateway"
-    description="List supported LLM models and run OpenAI-compatible chat completions"
+    description="List supported LLM models and run routed AI Gateway completions"
     icon={<Cpu className="size-5" />}
   />
   <CardLink

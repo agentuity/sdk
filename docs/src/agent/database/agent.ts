@@ -12,7 +12,7 @@
  * Docs: https://agentuity.dev/services/database
  */
 import { createPostgresDrizzle, sql, lt, gte, ilike } from '@agentuity/drizzle';
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { products } from './schema';
 import sampleProducts from '../vector/sample-products.json';
@@ -24,7 +24,7 @@ interface DatabaseSummaryRow {
 	total: number;
 }
 
-const agent = createAgent('database', {
+const agent = defineDemoAgent('database', {
 	description: 'Query a PostgreSQL database with type-safe Drizzle ORM',
 
 	schema: {

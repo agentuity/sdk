@@ -36,6 +36,7 @@ import { navData, type NavItem } from './nav-data';
 import { useAISearch } from '../../hooks/use-ai-search';
 import { AISearchMessages, AISearchActions } from './ai-search-messages';
 import { searchPagefind } from '../../lib/pagefind-search';
+import { SearchKeyboardShortcut } from './keyboard-shortcut';
 
 const MODE_STORAGE_KEY = 'agentuity-search-mode';
 
@@ -370,17 +371,7 @@ function KeywordSearchContent({
 				>
 					<SparklesIcon className="size-3.5" />
 					<span>Ask AI</span>
-					<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
-						<span>
-							{typeof navigator !== 'undefined' &&
-							/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
-								<span className="text-sm">⌘</span>
-							) : (
-								'Ctrl '
-							)}
-						</span>
-						K
-					</kbd>
+					<SearchKeyboardShortcut />
 				</button>
 			</div>
 			<CommandList ref={listRef} className="h-[400px] max-h-[60vh]">
@@ -511,17 +502,7 @@ function AISearchContent({
 				>
 					<SearchIcon className="size-3.5" />
 					<span>Search</span>
-					<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
-						<span>
-							{typeof navigator !== 'undefined' &&
-							/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
-								<span className="text-sm">⌘</span>
-							) : (
-								'Ctrl '
-							)}
-						</span>
-						K
-					</kbd>
+					<SearchKeyboardShortcut />
 				</button>
 			</div>
 

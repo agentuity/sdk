@@ -18,13 +18,13 @@ Identifiers:
   sessionId: sess_abc123xyz
   threadId: thrd_def456uvw
 
-Logger (writes to trace, shown above):
-  ctx.logger.info(), .debug(), .error() available
+	Logger (writes to trace, shown above):
+	  c.var.logger.info(), .debug(), .error() available
 
-Storage Access:
-  ctx.kv - Key-Value storage
-  ctx.vector - Vector storage
-  ctx.objectstore - Object storage (S3)
+	Storage Access:
+	  c.var.kv - Key-Value storage
+	  c.var.vector - Vector storage
+	  @agentuity/storage - Object storage (S3-compatible)
 
 Thread State (persists across requests):
   set("demo-key", {value: "test"})
@@ -108,14 +108,14 @@ Public URL (shareable):
 
 	'agent-calls': `[INFO] Cleaned text
 ---OUTPUT---
-=== Agent Calls Demo ===
-Original: "  Hello!!!  World...  #testing   @demo  "
+	=== Route Composition Demo ===
+	Original: "  Hello!!!  World...  #testing   @demo  "
 
-Step 1: Calling text-processor (clean)...
-  Result: "Hello! World. testing demo"
+	Step 1: Calling cleanText()...
+	  Result: "Hello! World. testing demo"
 
-Step 2: Calling text-processor (analyze)...
-  Result: 4 words, 26 characters, 2 sentences
+	Step 2: Calling analyzeText()...
+	  Result: 4 words, 26 characters, 2 sentences
 
 Pipeline completed`,
 

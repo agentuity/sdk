@@ -10,16 +10,13 @@
  *
  * Usage: bun run src/run/handler-context.ts '{}'
  */
-import { createAgentContext, getAgentContext } from '@agentuity/runtime';
+import { getDemoContext, runWithDemoContext } from '../api/context';
 
-const standaloneCtx = createAgentContext();
+const standaloneCtx = getDemoContext();
 
-// Wrap in invoke() - inside the callback, use getAgentContext() to get the
-// context with real IDs (the outer standaloneCtx still has "pending" IDs)
-await standaloneCtx.invoke(async () => {
+await runWithDemoContext(standaloneCtx, async () => {
 	try {
-		// Get the actual context from AsyncLocalStorage (has real sessionId/threadId)
-		const ctx = getAgentContext();
+		const ctx = getDemoContext();
 
 		console.log('---OUTPUT---');
 		console.log('');

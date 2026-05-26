@@ -10,11 +10,11 @@
  *
  * Usage: bun run src/run/vector.ts '{"query":"comfortable chair"}'
  */
-import { createAgentContext } from '@agentuity/runtime';
+import { getDemoContext } from '../api/context';
 
 const input = JSON.parse(process.argv[2] ?? '{}');
 const query = input.query ?? 'comfortable chair';
-const ctx = createAgentContext();
+const ctx = getDemoContext();
 
 // Unique key prefix for this run (isolation)
 const runId = Date.now().toString(36);

@@ -1,11 +1,12 @@
 /**
  * Context Agent
  *
- * Demonstrates the AgentContext (ctx) object available in every handler.
- * This is your agent's toolbox - it provides access to logging, storage,
- * state management, and observability features.
+ * Demonstrates the runtime context used by the live docs app.
+ * Public v3 examples should prefer framework route handlers and direct service
+ * clients; this compatibility agent remains here so the Explorer can inspect
+ * session, thread, logging, storage, and observability values.
  *
- * Key properties shown:
+ * Compatibility properties shown:
  * - ctx.sessionId / ctx.thread.id - Request and conversation identifiers
  * - ctx.session.state - Per-request state (cleared after response)
  * - ctx.thread.state - Persistent state (survives across requests, 1hr TTL)
@@ -15,12 +16,12 @@
  *
  * Docs: https://agentuity.dev/reference/sdk-reference/context-api
  */
-import { createAgent, getAgents } from '@agentuity/runtime';
+import { defineDemoAgent, getDemoAgents } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { formatTimestamps } from '../../lib/utils';
 
-const agent = createAgent('context', {
-	description: 'Demonstrates AgentContext: sessions, threads, services, state, logging',
+const agent = defineDemoAgent('context', {
+	description: 'Demonstrates request context: sessions, threads, services, state, logging',
 	schema: {
 		input: s.enum(['session', 'services', 'agents', 'state']),
 		output: s.object({
@@ -60,7 +61,7 @@ const agent = createAgent('context', {
 				};
 
 			case 'agents': {
-				const agentsMap = getAgents();
+				const agentsMap = getDemoAgents();
 				const agentList = Array.from(agentsMap.entries()).map(([name, agentDef]) => ({
 					name,
 					description: agentDef.metadata?.description || '',
@@ -71,7 +72,7 @@ const agent = createAgent('context', {
 					data: {
 						count: agentList.length,
 						agents: agentList,
-						note: 'Import agents via: import agent from "@agent/name"; agent.run(input)',
+						note: 'For v3 apps, keep reusable model-backed work in plain functions or framework routes, then call those directly.',
 					},
 				};
 			}

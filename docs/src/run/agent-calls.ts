@@ -1,15 +1,15 @@
 /**
- * Standalone invoke script for Agent Calls Demo
+ * Standalone script for Route Composition Demo
  *
- * Demonstrates: agent.run() for invoking agents, ctx.waitUntil() for background tasks
- * Shows the standalone pattern for agent invocation.
+ * Demonstrates direct work, background work, and the compatibility context used
+ * by the live sandbox. Public reference code lives in src/web/code-examples.ts.
  *
  * Usage: bun run src/run/agent-calls.ts '{"name":"World"}'
  */
-import { createAgentContext, getAgentContext } from '@agentuity/runtime';
+import { getDemoContext, runWithDemoContext } from '../api/context';
 import helloAgent from '../agent/hello/agent';
 
-const standaloneCtx = createAgentContext();
+const standaloneCtx = getDemoContext();
 
 try {
 	const input: unknown = JSON.parse(process.argv[2] ?? '{}');
@@ -21,20 +21,16 @@ try {
 			? input.name
 			: 'Explorer';
 
-	standaloneCtx.logger.info('Agent calls demo');
+	standaloneCtx.logger.info('Route composition demo');
 
-	// Must use invoke() to get proper execution context for waitUntil
-	await standaloneCtx.invoke(async () => {
-		const ctx = getAgentContext();
+	await runWithDemoContext(standaloneCtx, async () => {
+		const ctx = getDemoContext();
 
-		// agent.run() invokes the agent and waits for result
 		const greeting = await helloAgent.run({ name });
 
-		// ctx.waitUntil() schedules background work that runs after main execution
 		let backgroundCompleted = false;
 		ctx.waitUntil(
 			(async () => {
-				// Simulate async work (analytics, cleanup, etc)
 				await new Promise((resolve) => setTimeout(resolve, 100));
 				backgroundCompleted = true;
 			})()
@@ -44,11 +40,11 @@ try {
 		await new Promise((resolve) => setTimeout(resolve, 150));
 
 		console.log('---OUTPUT---');
-		console.log('Agent Invocation (agent.run):');
+		console.log('Direct work:');
 		console.log(`  Input: { name: "${name}" }`);
 		console.log(`  Result: ${JSON.stringify(greeting)}`);
 		console.log('');
-		console.log('Background Task (ctx.waitUntil):');
+		console.log('Background task:');
 		console.log('  Scheduled async work after main execution');
 		console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
 		console.log('---OUTPUT---');

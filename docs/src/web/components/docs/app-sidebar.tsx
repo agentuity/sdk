@@ -17,6 +17,7 @@ import {
 } from '../ui';
 import { cn } from '../../lib/utils';
 import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data';
+import { SearchKeyboardShortcut } from './keyboard-shortcut';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	currentPage: string;
@@ -302,17 +303,7 @@ export function AppSidebar({
 					>
 						<SearchIcon className="size-4" />
 						<span className="flex-1 text-left">Search</span>
-						<kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-xs font-medium text-sidebar-foreground/70">
-							<span>
-								{typeof navigator !== 'undefined' &&
-								/Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? (
-									<span className="text-sm">⌘</span>
-								) : (
-									'Ctrl '
-								)}
-							</span>
-							K
-						</kbd>
+						<SearchKeyboardShortcut />
 					</button>
 					<button
 						type="button"

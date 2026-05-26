@@ -16,7 +16,7 @@
  * POST /dlq/:id     - Replay a DLQ message
  */
 import { Hono } from 'hono';
-import type { Env } from '@agentuity/runtime';
+import type { ApiEnv } from '../context';
 import type { IssuesType, Logger } from '@agentuity/server';
 import {
 	APIClient,
@@ -49,6 +49,7 @@ function createQueueClient(logger: Logger) {
 
 // Per-request context set by middleware
 type QueueVars = { queueName: string; queueClient: APIClient };
+type QueueEnv = ApiEnv & { Variables: ApiEnv['Variables'] & QueueVars };
 
 function isMissingQueueError(error: unknown): boolean {
 	const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
@@ -69,7 +70,7 @@ function isEmptyReceiveValidationError(error: InstanceType<typeof ValidationOutp
 	);
 }
 
-const router = new Hono<Env & { Variables: QueueVars }>()
+const router = new Hono<QueueEnv>()
 
 	// Derive queue name and client once per request
 	.use(async (c, next) => {

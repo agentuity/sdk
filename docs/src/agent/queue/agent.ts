@@ -12,7 +12,7 @@
  *
  * Docs: https://agentuity.dev/services/queues
  */
-import { createAgent } from '@agentuity/runtime';
+import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 
 const DEFAULT_QUEUE_NAME = 'explorer-demo';
@@ -89,7 +89,7 @@ const InputSchema = s.union(
 	})
 );
 
-const agent = createAgent('queue', {
+const agent = defineDemoAgent('queue', {
 	description: 'Demonstrates message queue publish operations',
 	schema: {
 		input: InputSchema,

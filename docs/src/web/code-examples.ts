@@ -1,548 +1,506 @@
 /**
  * Code examples displayed in the Monaco editor for each demo.
- * These are educational - they show best practices and patterns.
- * The actual executable scripts live in src/run/*.ts
+ * The live sandbox scripts live in src/run/*.ts. These examples show the
+ * v3-facing shape readers should copy into their own framework apps.
  */
 export const CODE_EXAMPLES = {
-	hello: `import { createAgent } from "@agentuity/runtime";
-import { s } from "@agentuity/schema";
+	hello: `import { agentuity } from "@agentuity/hono";
+import type { Logger } from "@agentuity/hono";
+import { Hono } from "hono";
+import { z } from "zod";
 
-const agent = createAgent("hello", {
-  description: "Simple greeting agent",
-  // Schema defines typed input/output for your agent
-  schema: {
-    input: s.object({ name: s.string() }),
-    output: s.string(),
-  },
-  // Handler receives context (ctx) and validated input
-  handler: async (ctx, { name }) => {
-    ctx.logger.info("Processing greeting", { name });
-    // Return value becomes the agent's output
-    return \`Hello, \${name}! Welcome to Agentuity.\`;
-  },
-});`,
+type Variables = { logger: Logger };
 
-	'handler-context': `// AgentContext provides access to all SDK capabilities.
-// This shows the most commonly used properties and methods.
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", agentuity());
 
-handler: async (ctx, input) => {
+const HelloInput = z.object({
+  name: z.string().min(1).default("World"),
+});
 
-  /***************
-   * Identifiers *
-   ***************/
+app.post("/api/hello", async (c) => {
+  const input = HelloInput.parse(await c.req.json());
+  c.var.logger.info("Processing greeting", { name: input.name });
 
-  ctx.sessionId;      // Unique execution ID (sess_...)
-  ctx.thread.id;      // Thread ID for conversation continuity (thrd_...)
-
-  /***********
-   * Logging *
-   ***********/
-
-  ctx.logger.info("Processing request", { userId: input.userId });
-  ctx.logger.debug("Debug details", { threadId: ctx.thread.id });
-  ctx.logger.warn("Example warning log");
-  ctx.logger.error("Example error log");
-
-  /***********
-   * Storage *
-   ***********/
-
-  // Key-Value: fast ephemeral data (see KV Storage demo)
-  await ctx.kv.get("bucket", "key");
-  await ctx.kv.set("bucket", "key", { data: "value" }, { ttl: 3600 });
-
-  // Vector: semantic search (see Vector Search demo)
-  await ctx.vector.search("namespace", { query: "search text", limit: 5 });
-
-  /********************
-   * State Management *
-   ********************/
-
-  // Session state - resets each request
-  ctx.session.state.set("requestTime", Date.now());
-
-  // Thread state - persists across requests (1 hour, cookie-based)
-  const visits = ((await ctx.thread.state.get("visits")) as number) || 0;
-  await ctx.thread.state.set("visits", visits + 1);
-
-  /*******************
-   * Background Tasks *
-   *******************/
-
-  // Fire-and-forget: continues after response is sent
-  ctx.waitUntil(async () => {
-    await sendAnalytics();
-    await updateCache();
+  return c.json({
+    greeting: "Hello, " + input.name + "! Welcome to Agentuity.",
   });
-}`,
+});
 
-	'key-value': `// Key-Value storage: fast ephemeral data by exact key.
-// Namespaces auto-created. Keys should be unique per run.
+export default app;`,
 
+	'handler-context': `import { agentuity } from "@agentuity/hono";
+import type { Logger, Services } from "@agentuity/hono";
+import { Hono } from "hono";
+
+type Variables = Pick<Services, "kv" | "queue" | "stream" | "vector"> & {
+  logger: Logger;
+};
+
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", agentuity());
+
+app.get("/api/context", async (c) => {
+  const requestId = crypto.randomUUID();
+
+  c.var.logger.info("Context inspected", {
+    requestId,
+    path: c.req.path,
+  });
+
+  await c.var.kv.set("request-inspection", requestId, {
+    method: c.req.method,
+    userAgent: c.req.header("user-agent") ?? "unknown",
+  }, { ttl: 300 });
+
+  return c.json({
+    requestId,
+    available: {
+      logger: "c.var.logger",
+      keyValue: "c.var.kv",
+      vector: "c.var.vector",
+      queues: "c.var.queue",
+      durableStreams: "c.var.stream",
+    },
+  });
+});
+
+export default app;`,
+
+	'key-value': `import { KeyValueClient } from "@agentuity/keyvalue";
+
+const kv = new KeyValueClient();
 const namespace = "explorer-sandbox";
-const runId = Date.now().toString(36);
-const key = \`\${runId}:session-001\`;
+const key = "session-" + crypto.randomUUID();
 
-// Sample session data
-const sessionData = {
+const session = {
   visitorId: "visitor-abc123",
   lastActive: new Date().toISOString(),
   preferences: { theme: "dark" },
 };
 
-ctx.logger.info("Setting key", { key });
+await kv.set(namespace, key, session, { ttl: 300 });
 
-// SET: store data with optional TTL (minimum 60 seconds, 0 for no expiration)
-await ctx.kv.set(namespace, key, sessionData, { ttl: 300 });
-
-ctx.logger.info("Getting key", { key });
-
-// GET: returns { exists, data } discriminated union
-const result = await ctx.kv.get(namespace, key);
-
+const result = await kv.get<typeof session>(namespace, key);
 if (result.exists) {
-  ctx.logger.info("Session found", {
+  // result.data is typed after the discriminated check.
+  await kv.set(namespace, key + ":summary", {
     visitorId: result.data.visitorId,
     theme: result.data.preferences.theme,
-  });
-} else {
-  ctx.logger.info("Session not found");
+  }, { ttl: 300 });
 }
 
-// CLEANUP: delete the unique key
-await ctx.kv.delete(namespace, key);
-ctx.logger.info("Cleaned up", { key });`,
+await kv.delete(namespace, key);`,
 
-	'vector-storage': `// Vector storage: semantic search by meaning, not keywords.
-// Namespaces auto-created. Keys should be unique per run.
+	'vector-storage': `import { VectorClient } from "@agentuity/vector";
 
-const namespace = "explorer-sandbox";
-const runId = Date.now().toString(36);
+const vector = new VectorClient();
+const namespace = "product-search";
+const sku = "chair-" + crypto.randomUUID();
 
-const product = {
-  sku: \`\${runId}:chair-001\`,
-  name: "ErgoMax Pro Chair",
-  price: 549,
-};
-
-// UPSERT: document text is auto-embedded
-await ctx.vector.upsert(namespace, {
-  key: product.sku,
-  document: \`\${product.name}: Premium ergonomic office chair with lumbar support\`,
-  metadata: product,
+await vector.upsert(namespace, {
+  key: sku,
+  document: "ErgoMax Pro Chair: ergonomic office chair with lumbar support",
+  metadata: {
+    sku,
+    name: "ErgoMax Pro Chair",
+    price: 549,
+  },
 });
 
-// SEARCH: finds by meaning ("comfortable" matches "ergonomic")
-const results = await ctx.vector.search(namespace, {
+const results = await vector.search<{
+  sku: string;
+  name: string;
+  price: number;
+}>(namespace, {
   query: "comfortable chair",
   limit: 3,
   similarity: 0.3,
 });
 
-// Results include similarity scores and metadata
 for (const result of results) {
-  ctx.logger.info("Match found", {
-    name: result.metadata?.name,
-    price: result.metadata?.price,
-    similarity: result.similarity.toFixed(2),
-  });
+  // Similarity scores make ranking visible in your UI or logs.
+  result.metadata?.name;
+  result.similarity;
 }
 
-// CLEANUP: delete the unique key
-await ctx.vector.delete(namespace, product.sku);
-ctx.logger.info("Cleaned up", { sku: product.sku });`,
+await vector.delete(namespace, sku);`,
 
-	'object-storage': `// Object storage for files, images, and binary data.
-// Uses Bun's native S3 API - credentials are auto-injected by Agentuity.
-import { s3 } from "bun";
+	'object-storage': `import { bucketConfigFromEnv, createS3Client } from "@agentuity/storage";
 
-const filename = \`demo-\${Date.now()}.txt\`;
-const content = \`Hello from Object Storage!\\nTimestamp: \${new Date().toISOString()}\`;
+const storage = createS3Client(bucketConfigFromEnv());
+const key = "reports/demo-" + crypto.randomUUID() + ".txt";
+const body = "Generated at " + new Date().toISOString();
 
-ctx.logger.info("Writing file", { filename });
+await storage.write(key, body, {
+  type: "text/plain",
+});
 
-// Write a file
-const file = s3.file(filename);
-await file.write(content);
+const file = storage.file(key);
+const text = await file.text();
+const stat = await storage.stat(key);
 
-ctx.logger.info("Reading file", { filename });
+await storage.delete(key);
 
-// Read it back
-const readContent = await file.text();
+export const report = {
+  key,
+  text,
+  bytes: stat.size,
+};`,
 
-ctx.logger.info("Checking exists", { filename });
-
-// Check existence
-const exists = await file.exists();
-
-ctx.logger.info("Deleting file", { filename });
-
-// Delete
-await file.delete();
-
-// Verify deletion
-const existsAfter = await file.exists();
-ctx.logger.info("Cleaned up", { filename, existsAfter });`,
-
-	'sse-stream': `// Server-Sent Events (SSE) for real-time streaming to clients.
-// Perfect for incremental text streaming, progress updates, and live feeds.
-import { Hono } from "hono";
-import { type Env, sse } from "@agentuity/runtime";
+	'sse-stream': `import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const router = new Hono<Env>()
-  // sse() middleware with flattened (c, stream) signature
-  .get("/stream", sse(async (c, stream) => {
-  const prompt = c.req.query("prompt") ?? "Tell me a story";
+const app = new Hono();
 
-  c.var.logger?.info("SSE stream started", { prompt });
+app.get("/api/sse-stream", (c) => {
+  const result = streamText({
+    model: openai("gpt-5.4-mini"),
+    prompt: "What are AI agents and how do they work?",
+  });
 
-  const { textStream, usage } = streamText({
-    model: openai("gpt-5.4-nano"),
+  return streamSSE(c, async (stream) => {
+    let id = 0;
+    for await (const chunk of result.textStream) {
+      await stream.writeSSE({
+        event: "chunk",
+        data: chunk,
+        id: String(id++),
+      });
+    }
+
+    const usage = await result.usage;
+    await stream.writeSSE({
+      event: "done",
+      data: JSON.stringify({ totalTokens: usage.totalTokens }),
+      id: String(id),
+    });
+  });
+});
+
+export default app;`,
+
+	streaming: `import { Hono } from "hono";
+import { openai } from "@ai-sdk/openai";
+import { streamText } from "ai";
+
+const app = new Hono();
+
+app.post("/api/stream", async (c) => {
+  const body: unknown = await c.req.json();
+  const prompt =
+    typeof body === "object" && body !== null && "prompt" in body
+      ? String(body.prompt)
+      : "Write a short note about AI agents.";
+
+  const result = streamText({
+    model: openai("gpt-5.4-mini"),
     prompt,
   });
 
-  // Stream text chunks as they arrive from the LLM
-  let chunkCount = 0;
-  for await (const chunk of textStream) {
-    await stream.writeSSE({
-      event: "chunk",      // Event type (client listens for this)
-      data: chunk,         // The actual content
-      id: String(chunkCount++),  // enables client reconnection
-    });
-  }
-
-  // Signal completion with a usage-derived token count
-  const usageData = await usage;
-  await stream.writeSSE({
-    event: "done",
-    data: JSON.stringify({ totalTokens: usageData?.totalTokens ?? 0 }),
-  });
-
-  // Stream closes automatically when handler returns
-}));`,
-
-	streaming: `// Raw streaming for simple text responses.
-// Simpler than SSE - just returns a ReadableStream directly.
-import { Hono } from "hono";
-import { type Env, stream } from "@agentuity/runtime";
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-const router = new Hono<Env>();
-
-// stream() middleware wraps your handler and pipes the ReadableStream
-// Clients consume with fetch + getReader()
-router.post(
-  "/stream",
-  stream(async (c) => {
-    const { prompt } = await c.req.json();
-
-    c.var.logger?.info("Streaming started", { prompt });
-
-    const { textStream } = streamText({
-      model: openai("gpt-5.4-nano"),
-      prompt,
-    });
-
-    // Return the stream directly - Agentuity handles the response
-    return textStream;
-  })
-);`,
-
-	'agent-calls': `// Agent calls in standalone scripts.
-// Use ctx.invoke() + getAgentContext() when you also need ctx.waitUntil().
-import { createAgentContext, getAgentContext } from "@agentuity/runtime";
-import helloAgent from "@agent/hello/agent";
-
-const standaloneCtx = createAgentContext();
-
-await standaloneCtx.invoke(async () => {
-  const ctx = getAgentContext();
-  const name = "from the hello agent";
-
-  ctx.logger.info("Calling hello agent", { name });
-
-  // Call another agent inside the current invocation context
-  const greeting = await helloAgent.run({ name });
-  ctx.logger.info("Agent returned", { greeting });
-
-  // Background work must be scheduled from the active invocation context
-  ctx.waitUntil(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    ctx.logger.info("Background task completed");
-  });
-});`,
-
-	schedules: `// Managed schedules are platform resources with delivery tracking.
-// Use ScheduleClient in standalone scripts, CLIs, or background jobs.
-import { ScheduleClient } from "@agentuity/schedule";
-
-const schedules = new ScheduleClient();
-const name = \`explorer-demo-\${Date.now()}\`;
-let scheduleId: string | undefined;
-
-try {
-  const { schedule, destinations } = await schedules.create({
-    name,
-    description: "Call the docs hello route every minute",
-    expression: "* * * * *",
-    destinations: [
-      {
-        type: "url",
-        config: {
-          // The live Explorer sandbox passes a real URL for its Hello World route.
-          // In your app, point this at one of your own routes.
-          url: "<YOUR_APP_URL>/api/hello",
-          method: "GET",
-        },
-      },
-    ],
-  });
-
-  scheduleId = schedule.id;
-
-  // Change the cadence later
-  // await schedules.update(schedule.id, { expression: "*/5 * * * *" });
-
-  // Add a sandbox destination
-  // await schedules.createDestination(schedule.id, {
-  //   type: "sandbox",
-  //   config: { sandbox_id: "sbx_abc123", command: "bun run src/run/sync.ts" },
-  // });
-
-  // List schedules for an admin or dashboard view
-  // const { schedules: allSchedules, total } = await schedules.list({ limit: 20, offset: 0 });
-
-  // Remove a destination without deleting the schedule
-  // await schedules.deleteDestination("sdst_abc123");
-
-  console.log("Created schedule:", schedule.id);
-  console.log("Next run:", schedule.due_date);
-  console.log("Destinations:", destinations.length);
-} finally {
-  if (scheduleId) {
-    await schedules.delete(scheduleId).catch(() => undefined);
-  }
-}`,
-
-	'durable-stream': `// Durable streams keep generated content available by URL after the request finishes.
-// Streams expire after 30 days by default; set ttl: null or 0 to keep them indefinitely.
-import { Hono } from "hono";
-import type { Env } from "@agentuity/runtime";
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-const router = new Hono<Env>();
-
-router.post("/create", async (c) => {
-  // Create a durable stream - returns a shareable URL
-  const stream = await c.var.stream.create("ai-summary", {
-    contentType: "text/plain",
-    metadata: { created: new Date().toISOString() },
-    // ttl: 0, // or null to keep the stream indefinitely
-  });
-
-  // Write content in the background, then close the stream
-  c.waitUntil(async () => {
-    const { textStream } = streamText({
-      model: openai("gpt-5.4-nano"),
-      prompt: "Write a summary of what Agentuity is.",
-    });
-
-    for await (const chunk of textStream) {
-      await stream.write(chunk);
-    }
-    await stream.close();
-  });
-
-  // Return immediately while content is still being generated
-  return c.json({
-    streamId: stream.id,
-    streamUrl: stream.url,
-    status: "generating",
-  });
+  return result.toTextStreamResponse();
 });
 
-// List previously generated summaries
-router.get("/list", async (c) => {
-  const result = await c.var.stream.list({ namespace: "ai-summary" });
-  return c.json(result.streams);
-});`,
+export default app;`,
 
-	chat: `// Multi-turn chat with thread state inside an agent handler.
-// Thread state persists across requests that share the same thread.
-import { createAgent } from "@agentuity/runtime";
-import { s } from "@agentuity/schema";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-
-type Message = { role: "user" | "assistant"; content: string };
-
-const chatAgent = createAgent("chat", {
-  description: "Conversation memory with thread state",
-  schema: {
-    input: s.object({ message: s.string() }),
-    output: s.object({
-      response: s.string(),
-      turnCount: s.number(),
-      threadId: s.string(),
-    }),
-  },
-  handler: async (ctx, { message }) => {
-    const messages = ((await ctx.thread.state.get("messages")) as Message[]) ?? [];
-    const turnCount = ((await ctx.thread.state.get("turnCount")) as number) ?? 0;
-
-    const { text } = await generateText({
-      model: openai("gpt-5.4-nano"),
-      system: "You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).",
-      messages: [...messages, { role: "user", content: message }],
-    });
-
-    await ctx.thread.state.push("messages", { role: "user", content: message }, 50);
-    await ctx.thread.state.push("messages", { role: "assistant", content: text }, 50);
-    await ctx.thread.state.set("turnCount", turnCount + 1);
-
-    return {
-      response: text,
-      turnCount: turnCount + 1,
-      threadId: ctx.thread.id,
-    };
-  },
-});`,
-
-	'model-arena': `// LLM-as-Judge: Have one model evaluate outputs from other models.
-// Pattern: Generate responses in parallel, then use generateObject()
-// to get structured evaluation with guaranteed schema compliance.
-import { createAgentContext } from "@agentuity/runtime";
-import { anthropic } from "@ai-sdk/anthropic";
-import { groq } from "@ai-sdk/groq";
-import { openai } from "@ai-sdk/openai";
-import { generateText, generateObject } from "ai";
+	'agent-calls': `import { Hono } from "hono";
 import { z } from "zod";
 
-const ctx = createAgentContext();
-const userPrompt = "Write a haiku about coding";
-
-// Define evaluation criteria as a Zod schema
-// generateObject() guarantees the LLM returns exactly this shape
-const JudgmentSchema = z.object({
-  winner: z.enum(["model-a", "model-b"]),
-  reasoning: z.string(),
-  scores: z.object({
-    creativity: z.number().min(0).max(1),
-    clarity: z.number().min(0).max(1),
-  }),
+const ClassifyInput = z.object({
+  message: z.string().min(1),
 });
 
-// Generate competing responses in parallel
-const [responseA, responseB] = await Promise.all([
-  generateText({
-    model: openai("gpt-5.4-nano"),
-    prompt: userPrompt,
-  }),
-  generateText({
-    model: anthropic("claude-haiku-4-5"),
-    prompt: userPrompt,
-  }),
-]);
+async function classifyIntent(message: string): Promise<"sales" | "support"> {
+  return message.toLowerCase().includes("price") ? "sales" : "support";
+}
 
-// Use Groq/GPT-OSS-120B for fast structured evaluation
-const { object: judgment } = await generateObject({
-  model: groq("openai/gpt-oss-120b"),
-  schema: JudgmentSchema,
-  prompt: \`Compare these responses and pick a winner.
-Score each on creativity and clarity (0-1).
+async function draftReply(message: string, intent: "sales" | "support") {
+  return {
+    intent,
+    reply:
+      intent === "sales"
+        ? "A teammate can help with pricing."
+        : "A teammate can help troubleshoot this.",
+    original: message,
+  };
+}
 
-Model A: \${responseA.text}
-Model B: \${responseB.text}\`,
+const app = new Hono();
+
+app.post("/api/triage", async (c) => {
+  const input = ClassifyInput.parse(await c.req.json());
+
+  // In v3, compose plain functions or call routes over HTTP.
+  const intent = await classifyIntent(input.message);
+  const response = await draftReply(input.message, intent);
+
+  return c.json(response);
 });
 
-// TypeScript knows the exact shape (fully typed, no parsing needed)
-ctx.logger.info("Judge result", { winner: judgment.winner });
-ctx.logger.info("Scores", judgment.scores);`,
+export default app;`,
 
-	'ai-gateway': `// AI Gateway: One SDK key, any provider.
-// The Gateway handles authentication for all AI providers automatically.
-import { anthropic } from "@ai-sdk/anthropic";
+	schedules: `import { ScheduleClient } from "@agentuity/schedule";
+
+const schedules = new ScheduleClient();
+const name = "nightly-sync-" + crypto.randomUUID();
+
+const { schedule, destinations } = await schedules.create({
+  name,
+  description: "Call the sync endpoint every night",
+  expression: "0 2 * * *",
+  destinations: [
+    {
+      type: "url",
+      config: {
+        url: process.env.APP_URL + "/api/sync",
+        method: "POST",
+      },
+    },
+  ],
+});
+
+const deliveryHistory = await schedules.listDeliveries(schedule.id, {
+  limit: 10,
+});
+
+await schedules.update(schedule.id, {
+  expression: "0 3 * * *",
+});
+
+await schedules.delete(schedule.id);
+
+export const summary = {
+  scheduleId: schedule.id,
+  destinations: destinations.length,
+  deliveries: deliveryHistory.deliveries.length,
+};`,
+
+	'durable-stream': `import { StreamClient } from "@agentuity/stream";
 import { openai } from "@ai-sdk/openai";
-// import { google } from "@ai-sdk/google";  // Also supported!
+import { streamText } from "ai";
+
+const streams = new StreamClient();
+
+const durable = await streams.create("ai-summaries", {
+  contentType: "text/plain",
+  metadata: { source: "nightly-report" },
+  ttl: 60 * 60 * 24 * 30,
+});
+
+const result = streamText({
+  model: openai("gpt-5.4-mini"),
+  prompt: "Write a short summary of today's customer feedback.",
+});
+
+for await (const chunk of result.textStream) {
+  await durable.write(chunk);
+}
+
+await durable.close();
+
+export const published = {
+  streamId: durable.id,
+  url: durable.url,
+  bytesWritten: durable.bytesWritten,
+};`,
+
+	chat: `import { KeyValueClient } from "@agentuity/keyvalue";
+import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-// Call OpenAI - no API key configuration needed
-ctx.logger.info("Calling OpenAI", { model: "gpt-5.4-nano" });
-const openaiResult = await generateText({
-  model: openai("gpt-5.4-nano"),
-  prompt: "Explain AI agents in 1 sentence.",
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+const kv = new KeyValueClient();
+const threadId = "thread-" + crypto.randomUUID();
+const key = threadId + ":messages";
+
+async function chat(message: string) {
+  const history = await kv.get<Message[]>("chat-history", key);
+  const messages = history.exists ? history.data : [];
+
+  const result = await generateText({
+    model: openai("gpt-5.4-mini"),
+    system: "You are a concise support assistant.",
+    messages: [...messages, { role: "user", content: message }],
+  });
+
+  const nextMessages = [
+    ...messages,
+    { role: "user", content: message },
+    { role: "assistant", content: result.text },
+  ].slice(-50);
+
+  await kv.set("chat-history", key, nextMessages, { ttl: 60 * 60 });
+
+  return {
+    reply: result.text,
+    turns: nextMessages.length / 2,
+  };
+}`,
+
+	'model-arena': `import { anthropic } from "@ai-sdk/anthropic";
+import { groq } from "@ai-sdk/groq";
+import { openai } from "@ai-sdk/openai";
+import { generateObject, generateText } from "ai";
+import { z } from "zod";
+
+const prompt = "Write a haiku about coding.";
+
+const [openaiResult, anthropicResult] = await Promise.all([
+  generateText({ model: openai("gpt-5.4-nano"), prompt }),
+  generateText({ model: anthropic("claude-haiku-4-5"), prompt }),
+]);
+
+const Judgment = z.object({
+  winner: z.enum(["openai", "anthropic"]),
+  reasoning: z.string(),
+  scores: z.object({
+    clarity: z.number().min(0).max(1),
+    originality: z.number().min(0).max(1),
+  }),
 });
-ctx.logger.info("OpenAI response", { text: openaiResult.text });
 
-// Call Anthropic - same simple pattern
-ctx.logger.info("Calling Anthropic", { model: "claude-haiku-4-5" });
-const claudeResult = await generateText({
-  model: anthropic("claude-haiku-4-5"),
-  prompt: "Explain AI agents in 1 sentence.",
+const { object: judgment } = await generateObject({
+  model: groq("openai/gpt-oss-120b"),
+  schema: Judgment,
+  prompt:
+    "Pick the better answer.\\n\\nOpenAI:\\n" +
+    openaiResult.text +
+    "\\n\\nAnthropic:\\n" +
+    anthropicResult.text,
 });
-ctx.logger.info("Claude response", { text: claudeResult.text });
 
-// That's it! The Gateway:
-// - Routes requests to the correct provider
-// - Handles authentication automatically
-// - Tracks usage and costs in your dashboard`,
+export { judgment };`,
 
-	websocket: `// WebSocket route for real-time bidirectional communication.
-// The websocket() middleware handles upgrade and lifecycle automatically.
-import { createRouter, websocket } from "@agentuity/runtime";
+	'ai-gateway': `import { AIGatewayClient } from "@agentuity/aigateway";
 
-const router = createRouter();
+const gateway = new AIGatewayClient();
 
-router.get("/connect", websocket((c, ws) => {
+const models = await gateway.listModels();
+
+const completion = await gateway.complete({
+  model: "openai/gpt-5.4-nano",
+  messages: [
+    {
+      role: "user",
+      content: "Explain AI agents in one sentence.",
+    },
+  ],
+});
+
+export const result = {
+  providers: Object.keys(models),
+  model: completion.model,
+  firstChoice: completion.choices?.[0],
+};`,
+
+	websocket: `import { Hono } from "hono";
+import { createBunWebSocket } from "hono/bun";
+import type { ServerWebSocket } from "bun";
+
+const { upgradeWebSocket, websocket } =
+  createBunWebSocket<ServerWebSocket>();
+
+const app = new Hono();
+
+app.get("/api/websocket", upgradeWebSocket(() => {
   let heartbeat: ReturnType<typeof setInterval> | undefined;
 
-  ws.onOpen(() => {
-    c.var.logger?.info("Client connected");
-
-    ws.send(JSON.stringify({
-      type: "system",
-      message: "Connected! Send messages and I will echo them back.",
-      timestamp: new Date().toISOString(),
-    }));
-
-    heartbeat = setInterval(() => {
+  return {
+    onOpen(_event, ws) {
       ws.send(JSON.stringify({
-        type: "heartbeat",
-        message: "ping",
+        type: "system",
+        message: "Connected. Send a message to echo it back.",
+      }));
+
+      heartbeat = setInterval(() => {
+        ws.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
+      }, 15000);
+    },
+    onMessage(event, ws) {
+      ws.send(JSON.stringify({
+        type: "echo",
+        message: String(event.data),
         timestamp: new Date().toISOString(),
       }));
-    }, 15000);
-  });
+    },
+    onClose() {
+      clearInterval(heartbeat);
+    },
+  };
+}));
 
-  ws.onMessage(async (event) => {
-    const message = String(event.data).trim();
-    const timestamp = new Date().toISOString();
+export default {
+  fetch: app.fetch,
+  websocket,
+};`,
 
-    c.var.logger?.info("WebSocket message received", { message });
+	webrtc: `import { Hono } from "hono";
+import { createBunWebSocket } from "hono/bun";
+import type { ServerWebSocket } from "bun";
 
-    ws.send(JSON.stringify({
-      type: "echo",
-      message: \`[\${timestamp}] Echo: \${message}\`,
-      original: message,
-      timestamp,
-    }));
-  });
+const { upgradeWebSocket, websocket } =
+  createBunWebSocket<ServerWebSocket>();
 
-  ws.onClose(() => {
-    if (heartbeat) clearInterval(heartbeat);
-  });
-}));`,
+const rooms = new Map<string, Set<{ send(data: string): void }>>();
+const app = new Hono();
 
-	queue: `// Message Queue: publish messages for async processing.
-// Agents publish via ctx.queue. Workers receive and ack/nack.
+app.get("/api/webrtc/signal", upgradeWebSocket((c) => {
+  const roomId = c.req.query("room") ?? "default";
+  const peers = rooms.get(roomId) ?? new Set();
+  rooms.set(roomId, peers);
 
-// CREATE a queue with worker type and retry settings
-const queueName = "task-queue";
-await ctx.queue.createQueue(queueName, {
+  return {
+    onOpen(_event, ws) {
+      if (peers.size >= 2) {
+        ws.send(JSON.stringify({ type: "room-full" }));
+        return;
+      }
+
+      peers.add(ws);
+      ws.send(JSON.stringify({
+        type: "joined",
+        initiator: peers.size === 2,
+      }));
+    },
+    onMessage(event, ws) {
+      // Relay opaque SDP and ICE payloads. The server does not inspect them.
+      for (const peer of peers) {
+        if (peer !== ws) {
+          peer.send(String(event.data));
+        }
+      }
+    },
+    onClose(_event, ws) {
+      peers.delete(ws);
+      if (peers.size === 0) {
+        rooms.delete(roomId);
+      }
+    },
+  };
+}));
+
+// Agentuity hosts this route. Browser WebRTC handles media and data channels.
+// Create RTCPeerConnection in the client, send each offer/answer/candidate over
+// /api/webrtc/signal, then pass received payloads into setRemoteDescription()
+// or addIceCandidate().
+
+export default {
+  fetch: app.fetch,
+  websocket,
+};`,
+
+	queue: `import { QueueClient } from "@agentuity/queue";
+
+const queues = new QueueClient();
+const queueName = "orders-" + crypto.randomUUID();
+
+await queues.createQueue(queueName, {
   queueType: "worker",
   settings: {
     defaultMaxRetries: 3,
@@ -550,140 +508,79 @@ await ctx.queue.createQueue(queueName, {
   },
 });
 
-// PUBLISH a message
-const published = await ctx.queue.publish(queueName, {
+const published = await queues.publish(queueName, {
   task: "process-order",
   orderId: "order-123",
   priority: "high",
 }, {
   sync: true,
-  metadata: { source: "checkout" },
   idempotencyKey: "order-123-v1",
+  metadata: { source: "checkout" },
 });
 
-ctx.logger.info("Published processing job");
-
-// If you need queue metadata:
-// ctx.logger.info("Message metadata", {
-//   id: published.id,
-//   offset: published.offset,
-// });
-
-// PUBLISH another message (fire-and-forget, no sync)
-await ctx.queue.publish(queueName, {
+await queues.publish(queueName, {
   task: "send-receipt",
   orderId: "order-123",
 });
 
-// Expire a message after a fixed number of seconds
-// await ctx.queue.publish(queueName, { task: "remind-user" }, { ttl: 3600 });
+await queues.deleteQueue(queueName);
 
-// Use QueueClient in CLIs or background jobs with the same core methods
-// const client = new QueueClient();
-// await client.createQueue(queueName);
-// await client.publish(queueName, { task: "process-order" });
+export { published };`,
 
-// CLEANUP
-await ctx.queue.deleteQueue(queueName);
-ctx.logger.info("Queue deleted");`,
+	email: `import { EmailClient } from "@agentuity/email";
 
-	email: `import { createAgent } from "@agentuity/runtime";
-import { s } from "@agentuity/schema";
+const email = new EmailClient();
 
-const agent = createAgent("email-sender", {
-  description: "Send a demo email",
-  schema: {
-    input: s.object({
-      template: s.literal("welcome"),
-      to: s.string().email(),
-    }),
-    output: s.object({
-      status: s.string(),
-      subject: s.string(),
-      to: s.array(s.string()),
-      from: s.string(),
-    }),
-  },
-  handler: async (ctx, { template, to }) => {
-    const subject = "Hello from the Agentuity SDK Explorer";
-    const from = "hello-explorer@agentuity.email";
+const outbound = await email.send({
+  from: "hello@your-domain.com",
+  to: ["parteek@example.com"],
+  subject: "Hello from Agentuity",
+  text: "This is the plain-text body.",
+  html: "<p>This is the HTML body.</p>",
+});
 
-    ctx.logger.info("Sending email demo", {
-      subject,
-      to: [to],
-    });
+const latest = await email.getOutbound(outbound.id);
 
-    const result = await ctx.email.send({
-      from,
-      to: [to],
-      subject,
-      text: "This is a demo email from Agentuity's SDK Explorer.",
-      html: "<p>This is a demo email from Agentuity's SDK Explorer, sent with <code>ctx.email.send()</code>.</p>",
-    });
+export const status = {
+  outboundId: outbound.id,
+  status: latest?.status ?? outbound.status,
+};`,
 
-    // send() returns immediately with a pending record.
-    const outbound = await ctx.email.getOutbound(result.id);
+	database: `import { gte, ilike, lt } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { pgTable, real, serial, text } from "drizzle-orm/pg-core";
+import { Pool } from "pg";
 
-    // If you need the outbound record later:
-    // const outboundId = result.id;
-    // const fullRecord = await ctx.email.getOutbound(result.id);
-
-    // Inbound is a separate flow:
-    // const inbox = await ctx.email.listInbound("eaddr_abc123");
-    // const reply = await ctx.email.getInbound("einb_abc123");
-
-    return {
-      status: outbound?.status ?? result.status,
-      subject,
-      to: [to],
-      from,
-    };
-  },
-});`,
-
-	database: `// Database: type-safe PostgreSQL queries with Drizzle ORM.
-// Same chairs as the vector demo — found by exact criteria instead of meaning.
-import { createPostgresDrizzle, pgTable, text, real, serial, lt, gte, ilike, sql } from "@agentuity/drizzle";
-
-// Define your schema in TypeScript
 const products = pgTable("products", {
   id: serial("id").primaryKey(),
   sku: text("sku").notNull().unique(),
   name: text("name").notNull(),
   price: real("price").notNull(),
-  avg_rating: real("avg_rating").notNull(),
-  description: text("description").notNull(),
-  customer_feedback: text("customer_feedback").notNull(),
+  avgRating: real("avg_rating").notNull(),
 });
 
-// Connect (uses DATABASE_URL by default)
-const { db, close } = createPostgresDrizzle({ schema: { products } });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-// All products
-const all = await db.select().from(products);
-ctx.logger.info("All products", { count: all.length });
+const db = drizzle(pool, { schema: { products } });
 
-// Budget chairs (under $200)
-const budget = await db.select().from(products).where(lt(products.price, 200));
-ctx.logger.info("Budget chairs", { count: budget.length });
+const budget = await db
+  .select()
+  .from(products)
+  .where(lt(products.price, 200));
 
-// Top rated (4.5+)
-const topRated = await db.select().from(products).where(gte(products.avg_rating, 4.5));
-ctx.logger.info("Top rated", { count: topRated.length });
+const topRated = await db
+  .select()
+  .from(products)
+  .where(gte(products.avgRating, 4.5));
 
-// Search by keyword
-const search = await db.select().from(products).where(ilike(products.name, "%Ergo%"));
-ctx.logger.info("Search results", { count: search.length });
+const search = await db
+  .select()
+  .from(products)
+  .where(ilike(products.name, "%Ergo%"));
 
-// Aggregates are a good sandbox default because they keep output compact.
-const result = await db.execute(sql\`
-  SELECT ROUND(AVG(price)::numeric, 2) AS "avgPrice",
-         MIN(price) AS "minPrice", MAX(price) AS "maxPrice",
-         COUNT(*)::int AS "total"
-  FROM products
-\`);
-const summary = result.rows[0];
-ctx.logger.info("Price summary", summary);
+await pool.end();
 
-await close();`,
+export { budget, topRated, search };`,
 };

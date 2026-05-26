@@ -1,0 +1,208 @@
+---
+title: Coding agents in sandboxes
+short_title: Coding Agents
+description: Run coding-agent runtimes in isolated sandboxes when you need direct control over the tool process.
+---
+
+Use a coding-agent sandbox when your app needs to run a specific agent CLI or server inside an isolated workspace that you control. Start with [Coder](/services/coder) when you want Agentuity to manage the session lifecycle, repo context, event history, reconnects, and human review.
+
+```bash
+bun add @agentuity/sandbox@beta @agentuity/telemetry@beta
+```
+
+## Choose a Path
+
+| Path | Use It When | What You Manage |
+|------|-------------|-----------------|
+| `SandboxClient.run()` | One bounded command, such as checking a runtime, validating generated code, or running a short CLI task | command, files, timeout, output parsing |
+| `SandboxClient.create()` | Multi-step work with files, network, background jobs, snapshots, or a long-lived agent server | lifecycle, cleanup, readiness checks, credentials |
+| [Coder session](/services/coder) | Repo-aware coding work that needs session history, skills, output contracts, reconnects, or human review | task prompt, workspace/repo choice, expected output paths |
+| Coding-agent runtime | You need direct process control over a specific agent CLI or server image | provider config, permissions, agent events, failure detection |
+
+A runtime being present only proves the tool image is available. Model access, provider credentials, network policy, and tool permissions are separate prerequisites.
+
+## Verify a Runtime in the Catalog
+
+List runtimes before hard-coding one into a workflow. Runtime names are catalog data for your org, not a TypeScript enum or a guaranteed product roster.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const runtimeName = 'opencode:latest';
+const client = new SandboxClient();
+const { runtimes } = await client.listRuntimes({ limit: 50 });
+const runtime = runtimes.find((item) => item.name === runtimeName);
+
+if (!runtime) {
+  throw new Error(`${runtimeName} is not available in this org's runtime catalog.`);
+}
+
+logger.info('runtime available', {
+  name: runtime.name,
+  tags: runtime.tags,
+  requirements: runtime.requirements,
+});
+```
+
+Expected output excerpt:
+
+```json
+{
+  "name": "opencode:latest"
+}
+```
+
+Use this catalog check for the runtime you intend to run. The examples below use `opencode:latest` only after the catalog returns it. If your org does not return that runtime, stop and pick a listed runtime or ask an org admin whether that image should be enabled.
+
+## Verify OpenCode Is Installed
+
+Use `SandboxClient.run()` for a fast runtime check before you build a longer workflow around a coding-agent image.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'opencode:latest',
+  command: {
+    exec: ['sh', '-lc', 'pwd && which opencode && opencode --version'],
+  },
+  timeout: { execution: '30s' },
+});
+
+logger.info('opencode runtime check', {
+  exitCode: result.exitCode,
+  stdout: result.stdout,
+  stderr: result.stderr,
+});
+
+if (result.exitCode !== 0) {
+  process.exitCode = 1;
+}
+```
+
+Expected output excerpt:
+
+```text
+<working-directory>
+<path-to-opencode>
+<version>
+```
+
+Do not assume the writable directory or binary path across runtimes. Use `pwd`, `which`, and relative paths unless the runtime catalog or your own validation proves a fixed path.
+
+## Run Agent CLIs With Explicit Failure Checks
+
+Coding-agent CLIs can emit structured error events even when the process exits successfully. When you run a headless agent command, parse the event stream and fail the workflow if any event reports an error.
+
+```typescript
+import { SandboxClient } from '@agentuity/sandbox';
+import { logger } from '@agentuity/telemetry';
+
+type AgentEvent = {
+  type: string;
+  error: unknown | undefined;
+};
+
+function parseAgentEvent(line: string): AgentEvent | undefined {
+  try {
+    const parsed: unknown = JSON.parse(line);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'type' in parsed &&
+      typeof parsed.type === 'string'
+    ) {
+      return {
+        type: parsed.type,
+        error: 'error' in parsed ? parsed.error : undefined,
+      };
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+const client = new SandboxClient();
+
+const result = await client.run({
+  runtime: 'opencode:latest',
+  command: {
+    exec: [
+      'sh',
+      '-lc',
+      [
+        'mkdir -p project',
+        'cd project',
+        'opencode run --format json "Inspect this empty project and return one sentence."',
+      ].join(' && '),
+    ],
+  },
+  timeout: { execution: '2m' },
+});
+
+const events = result.stdout
+  .split('\n')
+  .map((line) => line.trim())
+  .filter((line) => line.startsWith('{'))
+  .flatMap((line) => {
+    const event = parseAgentEvent(line);
+    return event ? [event] : [];
+  });
+
+const errorEvent = events.find((event) => event.type === 'error');
+if (errorEvent) {
+  logger.error('coding agent reported an error', { errorEvent });
+  process.exitCode = 1;
+}
+
+logger.info('coding agent command finished', {
+  exitCode: result.exitCode,
+  eventCount: events.length,
+});
+```
+
+<Callout type="warning" title="Provider access is separate from runtime access">
+`opencode --version` only proves the runtime image and binary are available. A headless `opencode run --format json` command can still return provider, network, auth, or permission errors in JSON event output. Treat those as configuration failures, not as proof that the runtime is missing.
+</Callout>
+
+## Long-Lived Agent Servers
+
+Use `SandboxClient.create()` when the coding agent exposes a server or needs multiple requests against the same workspace.
+
+<Callout type="info" title="Validate every moving part">
+This is architecture guidance for long-lived agent processes. Before you depend on it, validate the runtime, provider, network port, health check, and cleanup path end to end.
+</Callout>
+
+The shape is:
+
+1. Create a sandbox with the agent runtime.
+2. Enable network access and expose the server port.
+3. Start the agent server as a background job or long-running command.
+4. Poll the health endpoint before sending prompts.
+5. Store the sandbox ID and server URL in your app state.
+6. Destroy the sandbox when the session ends, or pause it when you want to resume later.
+
+This pattern fits assistant-style workflows where your app keeps a conversation open against one workspace. Use [Coder](/services/coder) instead when you want Agentuity to manage the shared session, event history, reconnects, and review surface.
+
+## If This Fails
+
+| Symptom | Likely Cause | What to Check |
+|---------|--------------|---------------|
+| Runtime name is missing | The org runtime catalog does not include that image | Run `client.listRuntimes({ limit: 50 })` and choose a returned name |
+| `mkdir /workspace` fails | The runtime does not make `/workspace` writable | Use a relative directory or `~/project` |
+| CLI exits 0 but no answer appears | First-run setup or agent event output did not include a final answer | Inspect stdout/stderr and parse JSON events |
+| JSON event has `type: "error"` | Provider, network, auth, or tool permission failure | Log the event payload and fix the provider/runtime config |
+| Workflow needs repo history, review, or reconnect | Plain sandbox state is the wrong abstraction | Start a [Coder session](/services/coder) with a repo/workspace and output contract |
+
+## See Also
+
+- [Ephemeral workflows](/services/sandbox/ephemeral-workflows): validate generated code with one-shot sandboxes
+- [Using the Sandbox API](/services/sandbox/sdk-usage): file I/O, jobs, pause/resume, events, and snapshots
+- [Coder](/services/coder): managed coding-agent sessions with Hub state and replay
+- [The coding agent is a general-purpose agent](/build/coding-agent): design coding-agent workflows with output contracts

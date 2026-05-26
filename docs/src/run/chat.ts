@@ -5,13 +5,13 @@
  * Uses simplified model (gpt-5.4-nano) without commands.
  * See src/run/AGENTS.md for architecture details.
  *
- * Demonstrates: Thread state and session state APIs inside a real invoke() context.
+ * Demonstrates: Thread state and session state APIs inside the docs demo context.
  * Standalone runs create a fresh thread unless you provide one explicitly,
  * so this shows the API shape rather than cross-run history persistence.
  *
  * Usage: bun run src/run/chat.ts '{"message":"Hello!"}'
  */
-import { createAgentContext, getAgentContext } from '@agentuity/runtime';
+import { getDemoContext, runWithDemoContext } from '../api/context';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import agentuityDocs from '../agent/chat/agentuity-context.txt';
@@ -25,14 +25,14 @@ interface Input {
 	message?: string;
 }
 
-const standaloneCtx = createAgentContext();
+const standaloneCtx = getDemoContext();
 
 try {
 	const input: Input = JSON.parse(process.argv[2] ?? '{}');
 	const message = input.message ?? 'What is Agentuity?';
 
-	await standaloneCtx.invoke(async () => {
-		const ctx = getAgentContext();
+	await runWithDemoContext(standaloneCtx, async () => {
+		const ctx = getDemoContext();
 
 		// Session state: per-request timing
 		ctx.session.state.set('requestStart', Date.now());

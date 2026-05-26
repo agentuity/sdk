@@ -4,7 +4,8 @@
  * GET /       - Returns metadata about the stream configuration
  * SSE /stream - Streams AI response chunks in real-time (query param: model)
  */
-import { sse, type Env } from '@agentuity/runtime';
+import { sse } from '../http';
+import type { ApiEnv } from '../context';
 import { streamText } from 'ai';
 import { getModel } from '../../lib/models';
 import { Hono } from 'hono';
@@ -12,7 +13,7 @@ import { Hono } from 'hono';
 // Fixed prompt for the demo - users choose the model
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
 
-const router = new Hono<Env>()
+const router = new Hono<ApiEnv>()
 
 	.get('/', (c) => {
 		return c.json({

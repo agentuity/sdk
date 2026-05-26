@@ -1,5 +1,5 @@
 import Editor, { type OnMount } from '@monaco-editor/react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button, Separator } from './ui';
 import { useTheme } from './ThemeContext';
 
@@ -28,6 +28,11 @@ export function CodeBlock({
 }: CodeBlockProps) {
 	const { resolvedTheme } = useTheme();
 	const [copied, setCopied] = useState(false);
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
 
 	const handleCopy = async () => {
 		await navigator.clipboard.writeText(code.trim());
@@ -143,35 +148,41 @@ export function CodeBlock({
 
 			{/* Monaco Editor */}
 			<div className="flex-1 min-h-0 pl-2">
-				<Editor
-					value={code.trim()}
-					language="typescript"
-					theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
-					onMount={handleEditorMount}
-					options={{
-						readOnly: true,
-						minimap: { enabled: false },
-						scrollBeyondLastLine: false,
-						fontSize: 13,
-						lineNumbers: 'on',
-						lineNumbersMinChars: 3,
-						glyphMargin: false,
-						folding: true,
-						renderLineHighlight: 'line',
-						overviewRulerLanes: 0,
-						hideCursorInOverviewRuler: true,
-						overviewRulerBorder: false,
-						scrollbar: {
-							vertical: 'auto',
-							horizontal: 'auto',
-							verticalScrollbarSize: 8,
-							horizontalScrollbarSize: 8,
-						},
-						padding: { top: 12, bottom: 12 },
-						domReadOnly: true,
-						contextmenu: false,
-					}}
-				/>
+				{mounted ? (
+					<Editor
+						value={code.trim()}
+						language="typescript"
+						theme={resolvedTheme === 'dark' ? 'vs-dark' : 'light'}
+						onMount={handleEditorMount}
+						options={{
+							readOnly: true,
+							minimap: { enabled: false },
+							scrollBeyondLastLine: false,
+							fontSize: 13,
+							lineNumbers: 'on',
+							lineNumbersMinChars: 3,
+							glyphMargin: false,
+							folding: true,
+							renderLineHighlight: 'line',
+							overviewRulerLanes: 0,
+							hideCursorInOverviewRuler: true,
+							overviewRulerBorder: false,
+							scrollbar: {
+								vertical: 'auto',
+								horizontal: 'auto',
+								verticalScrollbarSize: 8,
+								horizontalScrollbarSize: 8,
+							},
+							padding: { top: 12, bottom: 12 },
+							domReadOnly: true,
+							contextmenu: false,
+						}}
+					/>
+				) : (
+					<pre className="h-full overflow-auto whitespace-pre p-3 font-mono text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-300">
+						<code>{code.trim()}</code>
+					</pre>
+				)}
 			</div>
 		</div>
 	);
