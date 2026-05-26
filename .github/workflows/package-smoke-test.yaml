@@ -116,6 +116,7 @@ jobs:
       steps:
          - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
            with:
+              fetch-depth: 0
               persist-credentials: false
 
          - name: Setup Node.js
@@ -233,10 +234,10 @@ jobs:
          AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_REGION: usc
          # The DB smoke test would normally read these. It's currently
-         # disabled (see the db step below) because project-scoped SDK
+         # disabled because project-scoped SDK
          # keys can't auth against the DB /resource endpoints. Tracked
-         # in agentuity/infra#120. Keeping the env wired up so the test
-         # works again as soon as that lands.
+         # in agentuity/infra#120. Keeping the env wired up so re-enabling
+         # the test later is a workflow-only change.
          AGENTUITY_ORG_ID: ${{ secrets.AGENTUITY_ORG_ID }}
          AGENTUITY_DB_DATABASE: testdb
       steps:
@@ -290,14 +291,6 @@ jobs:
            continue-on-error: true
            run: cd tests/services/email && bun run start
 
-         - name: Run db client smoke
-           id: db
-           continue-on-error: true
-           env:
-              # testdb is provisioned in `use`, not `usc`.
-              AGENTUITY_REGION: use
-           run: cd tests/services/db && bun run start
-
          - name: Run schedule client smoke
            id: schedule
            continue-on-error: true
@@ -324,7 +317,6 @@ jobs:
               VECTOR: ${{ steps.vector.outcome }}
               QUEUE: ${{ steps.queue.outcome }}
               EMAIL: ${{ steps.email.outcome }}
-              DB: ${{ steps.db.outcome }}
               SCHEDULE: ${{ steps.schedule.outcome }}
               TASK: ${{ steps.task.outcome }}
               WEBHOOK: ${{ steps.webhook.outcome }}
@@ -337,7 +329,7 @@ jobs:
               printf "│ %-11s │ %-7s │\n" "Service" "Outcome"
               echo "├─────────────┼─────────┤"
               failed=0
-              for svc in KEYVALUE VECTOR QUEUE EMAIL DB SCHEDULE TASK WEBHOOK SANDBOX; do
+              for svc in KEYVALUE VECTOR QUEUE EMAIL SCHEDULE TASK WEBHOOK SANDBOX; do
                 outcome=$(eval echo "\$$svc")
                 printf "│ %-11s │ %-7s │\n" "$svc" "$outcome"
                 if [ "$outcome" = "failure" ]; then
@@ -358,6 +350,7 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5

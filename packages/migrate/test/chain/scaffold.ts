@@ -1,12 +1,21 @@
 /**
- * Helpers to scaffold v1/v2 Agentuity projects using published create-agentuity
- * tarballs, then rewrite dependencies to point at local tarballs so we can
- * exercise the migrate tool against not-yet-published v3 packages.
+ * Helpers to scaffold v1/v2 Agentuity projects, then rewrite dependencies to
+ * point at local tarballs so we can exercise the migrate tool against
+ * not-yet-published v3 packages.
  */
 
-import { existsSync, rmSync } from 'node:fs';
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	renameSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
-import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 export type MajorVersion = 1 | 2;
@@ -58,11 +67,17 @@ export interface ScaffoldResult {
 }
 
 /**
- * Scaffold a fresh Agentuity project using `bunx create-agentuity@<major>`.
+ * Scaffold a fresh Agentuity project from the matching repo tag when
+ * available, falling back to `bunx create-agentuity@<version>` otherwise.
  */
 export async function scaffoldProject(opts: ScaffoldOptions): Promise<ScaffoldResult> {
 	const version = opts.versionOverride ?? (await latestVersionForMajor(opts.major));
 	const spec = `create-agentuity@${version}`;
+	const taggedResult = scaffoldProjectFromRepoTag(opts, version);
+	if (taggedResult) {
+		console.log(`[scaffold] Using repo tag v${version}`);
+		return taggedResult;
+	}
 
 	console.log(`[scaffold] Using ${spec}`);
 
@@ -123,6 +138,139 @@ export async function scaffoldProject(opts: ScaffoldOptions): Promise<ScaffoldRe
 	rmSync(join(projectDir, 'bun.lock'), { force: true });
 
 	return { projectDir, version };
+}
+
+function scaffoldProjectFromRepoTag(
+	opts: ScaffoldOptions,
+	version: string
+): ScaffoldResult | undefined {
+	const tag = `v${version}`;
+	if (!repoHasTag(tag)) {
+		return undefined;
+	}
+
+	const templateDir = mkdtempSync(join(tmpdir(), `migrate-chain-template-${version}-`));
+	try {
+		extractTagTemplates(tag, templateDir);
+		const projectDir = join(opts.workDir, opts.name);
+		mkdirSync(projectDir, { recursive: true });
+		copyTemplateTree(join(templateDir, 'templates', '_base'), projectDir, true);
+		copyTemplateTree(join(templateDir, 'templates', 'default'), projectDir, false);
+		mergeOverlayPackageJson(projectDir, join(templateDir, 'templates', 'default'));
+		replaceProjectPlaceholders(projectDir, opts.name, opts.name);
+		return { projectDir, version };
+	} finally {
+		rmSync(templateDir, { recursive: true, force: true });
+	}
+}
+
+function repoHasTag(tag: string): boolean {
+	const proc = Bun.spawnSync(['git', 'rev-parse', '--verify', '--quiet', `refs/tags/${tag}`], {
+		cwd: REPO_ROOT,
+		stdout: 'ignore',
+		stderr: 'ignore',
+	});
+	return proc.exitCode === 0;
+}
+
+function extractTagTemplates(tag: string, dest: string): void {
+	const archivePath = join(dest, 'templates.tar');
+	const archive = Bun.spawnSync(
+		['git', 'archive', '--format=tar', '--output', archivePath, tag, 'templates'],
+		{
+			cwd: REPO_ROOT,
+			stdout: 'ignore',
+			stderr: 'pipe',
+		}
+	);
+	if (archive.exitCode !== 0) {
+		throw new Error(`git archive failed for ${tag}: ${new TextDecoder().decode(archive.stderr)}`);
+	}
+
+	const extract = Bun.spawnSync(['tar', '-xf', archivePath, '-C', dest], {
+		cwd: REPO_ROOT,
+		stdout: 'ignore',
+		stderr: 'pipe',
+	});
+	if (extract.exitCode !== 0) {
+		throw new Error(`tar extract failed for ${tag}: ${new TextDecoder().decode(extract.stderr)}`);
+	}
+
+	rmSync(archivePath, { force: true });
+}
+
+function copyTemplateTree(sourceDir: string, dest: string, skipGitignoreRename: boolean): void {
+	if (!existsSync(sourceDir)) {
+		throw new Error(`Template directory not found: ${sourceDir}`);
+	}
+
+	for (const file of readdirSync(sourceDir)) {
+		if (file === 'package.overlay.json' || file === '.gitkeep') {
+			continue;
+		}
+		cpSync(join(sourceDir, file), join(dest, file), { recursive: true });
+	}
+
+	if (!skipGitignoreRename) {
+		const gitignore = join(dest, 'gitignore');
+		if (existsSync(gitignore)) {
+			renameSync(gitignore, join(dest, '.gitignore'));
+		}
+	}
+}
+
+function mergeOverlayPackageJson(projectDir: string, overlayDir: string): void {
+	const overlayPackagePath = join(overlayDir, 'package.overlay.json');
+	if (!existsSync(overlayPackagePath)) {
+		return;
+	}
+
+	const packagePath = join(projectDir, 'package.json');
+	const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, unknown>;
+	const overlay = JSON.parse(readFileSync(overlayPackagePath, 'utf8')) as Record<string, unknown>;
+
+	mergePackageSection(pkg, overlay, 'dependencies');
+	mergePackageSection(pkg, overlay, 'devDependencies');
+	mergePackageSection(pkg, overlay, 'scripts');
+
+	writeFileSync(packagePath, JSON.stringify(pkg, null, '\t') + '\n');
+}
+
+function mergePackageSection(
+	pkg: Record<string, unknown>,
+	overlay: Record<string, unknown>,
+	key: 'dependencies' | 'devDependencies' | 'scripts'
+): void {
+	const baseSection = (pkg[key] as Record<string, unknown> | undefined) ?? {};
+	const overlaySection = overlay[key] as Record<string, unknown> | undefined;
+	if (!overlaySection) {
+		pkg[key] = baseSection;
+		return;
+	}
+	pkg[key] = {
+		...baseSection,
+		...overlaySection,
+	};
+}
+
+function replaceProjectPlaceholders(
+	projectDir: string,
+	projectName: string,
+	dirName: string
+): void {
+	for (const file of ['package.json', 'README.md', 'AGENTS.md']) {
+		const filePath = join(projectDir, file);
+		if (!existsSync(filePath)) {
+			continue;
+		}
+
+		let content = readFileSync(filePath, 'utf8');
+		content = content.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
+		if (file === 'package.json') {
+			content = content.replace(/"name":\s*".*?"/, `"name": "${dirName}"`);
+		}
+		writeFileSync(filePath, content);
+	}
 }
 
 /**
