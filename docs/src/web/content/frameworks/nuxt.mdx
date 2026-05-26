@@ -9,7 +9,7 @@ Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity adds service cl
 ## Create a Starter
 
 ```bash
-bun create agentuity@beta --name my-nuxt-app --framework nuxt
+bun create agentuity@next --name my-nuxt-app --framework nuxt
 cd my-nuxt-app
 ```
 
@@ -28,10 +28,12 @@ If you choose the AI example, the key files are:
 For an existing Nuxt app, add the CLI and import the project:
 
 ```bash
-bun add -d @agentuity/cli@beta
+bun add -d @agentuity/cli@next
 agentuity project import --validate-only
 agentuity project import
 ```
+
+If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
 
 `agentuity project import` registers the app and writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy for existing apps.
 
@@ -53,7 +55,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 Use standalone service clients directly from Nitro routes. Files under `server/api/` are automatically prefixed with `/api`, and the `.post.ts` suffix limits this example to `POST` requests.
 
 ```bash
-bun add @agentuity/keyvalue@beta openai arktype
+bun add @agentuity/keyvalue@next openai arktype
 ```
 
 ```typescript title="server/api/translate.post.ts"

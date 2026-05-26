@@ -9,7 +9,7 @@ Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. A
 ## Create a Starter
 
 ```bash
-bun create agentuity@beta --name my-sveltekit-app --framework sveltekit
+bun create agentuity@next --name my-sveltekit-app --framework sveltekit
 cd my-sveltekit-app
 ```
 
@@ -31,10 +31,12 @@ The starter sets `kit.paths.relative` to `false`, so SvelteKit emits root-relati
 For an existing SvelteKit app, add the CLI and register the project:
 
 ```bash
-bun add -d @agentuity/cli@beta
+bun add -d @agentuity/cli@next
 agentuity project import --validate-only
 agentuity project import
 ```
+
+If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
 
@@ -56,7 +58,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define pure JSON endpoints. Put Agentuity service clients here; never import them in client-side `<script>` blocks.
 
 ```bash
-bun add @agentuity/keyvalue@beta valibot openai
+bun add @agentuity/keyvalue@next valibot openai
 ```
 
 ```typescript title="src/routes/api/translate/+server.ts"

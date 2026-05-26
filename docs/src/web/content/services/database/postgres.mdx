@@ -56,10 +56,10 @@ The default terminal output masks credentials. Use `--show-credentials` only in 
 
 ## Bun-Only Compatibility Helper
 
-`@agentuity/postgres` is an opt-in compatibility helper for Bun code that wants Bun's tagged SQL driver with Agentuity reconnect defaults. It is not required for framework apps.
+`@agentuity/postgres` is a deprecated, opt-in compatibility helper for Bun code that wants Bun's tagged SQL driver with Agentuity reconnect defaults. It is not required for framework apps.
 
 ```bash
-bun add @agentuity/postgres@beta
+bun add @agentuity/postgres@next
 ```
 
 ```typescript
@@ -75,7 +75,7 @@ const users = await sql`
 ```
 
 <Callout type="info" title="This client is Bun-native">
-`@agentuity/postgres` imports Bun's SQL driver. Use it in Bun-based apps and scripts that intentionally choose this helper. In Node.js processes, use your framework's Postgres client, ORM, or the `@agentuity/db` service client for trusted admin scripts.
+`@agentuity/postgres` imports Bun's SQL driver. The package is deprecated, so prefer `pg` or `drizzle-orm/node-postgres` for new work. Use it only in Bun-based apps and scripts that intentionally keep this helper. In Node.js processes, use your framework's Postgres client, ORM, or the `@agentuity/db` service client for trusted admin scripts.
 </Callout>
 
 ## Helper Connection Setup

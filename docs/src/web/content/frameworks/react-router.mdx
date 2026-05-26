@@ -16,16 +16,18 @@ cd my-react-router-app
 Then add Agentuity:
 
 ```bash
-bun add -d @agentuity/cli@beta
+bun add -d @agentuity/cli@next
 agentuity project import --validate-only
 agentuity project import
 ```
 
 Use the package manager that `create-react-router` configured. Substitute `npm install`, `pnpm add`, or `yarn add` if your project does not use Bun.
 
+If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, or the equivalent for your package manager.
+
 `agentuity project import` writes the local metadata needed for deploys. The `--validate-only` flag lets you review before linking.
 
-Agentuity does not scaffold React Router from `bun create agentuity@beta` today. The build detector still recognizes existing React Router framework-mode apps from `react-router.config.*` or the React Router Vite plugin.
+Agentuity does not scaffold React Router from `bun create agentuity@next` today. The build detector still recognizes existing React Router framework-mode apps from `react-router.config.*` or the React Router Vite plugin.
 
 The examples below use these files:
 
@@ -40,7 +42,7 @@ The examples below use these files:
 Use the same Agentuity commands in an app that already exists:
 
 ```bash
-bun add -d @agentuity/cli@beta
+bun add -d @agentuity/cli@next
 agentuity project import --validate-only  # review what the CLI finds
 agentuity project import                  # write local project metadata
 ```
@@ -65,7 +67,7 @@ A resource route is any route module that exports `loader` or `action` but no de
 Install the packages used in this example:
 
 ```bash
-bun add @agentuity/keyvalue@beta zod openai
+bun add @agentuity/keyvalue@next zod openai
 ```
 
 Create the route file:

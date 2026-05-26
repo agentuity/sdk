@@ -8,7 +8,7 @@ Tool calling lets a model request structured function results mid-generation. Yo
 For chat-style tool loops that span requests, see [State and Memory](/build/state-and-memory).
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@beta zod
+bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
 ```
 
 ## Choose the Right Loop
@@ -132,7 +132,7 @@ Pending tool calls appear in the model result's content. Store the pending actio
 Use this pattern when your app is already on the Responses API and you want to chain turns using `previous_response_id`. The Responses API accumulates conversation state server-side so you only need to send new input items in follow-up requests.
 
 ```bash
-bun add openai @agentuity/keyvalue@beta zod
+bun add openai @agentuity/keyvalue@next zod
 ```
 
 The Responses API returns `function_call` items in `response.output`. Run your tool, then send a `function_call_output` item with the matching `call_id` in a follow-up request. Pass `previous_response_id` to reuse the model's prior turn state.
@@ -235,7 +235,7 @@ export async function answerWithOpenAI(question: string): Promise<string> {
 Use this pattern when your app uses the Anthropic SDK directly and needs `tool_use` block fidelity, such as when you log tool calls for auditing or need `strict: true` schema enforcement on every invocation.
 
 ```bash
-bun add @anthropic-ai/sdk @agentuity/keyvalue@beta zod
+bun add @anthropic-ai/sdk @agentuity/keyvalue@next zod
 ```
 
 The Messages API returns `tool_use` blocks when the model wants to call a tool (`stop_reason: 'tool_use'`). Continue the conversation by appending the prior assistant message and a new user message whose content is the `tool_result` block.

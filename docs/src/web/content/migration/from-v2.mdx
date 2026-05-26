@@ -7,7 +7,7 @@ description: Move a v2 runtime app toward the v3 framework-first app shape.
 Start with a dry run. It tells you which v2 runtime patterns the migrator can rewrite and which parts need a person to choose the v3 shape.
 
 ```bash
-npx @agentuity/migrate@beta --v2-to-v3 --dry-run
+npx @agentuity/migrate@next --v2-to-v3 --dry-run
 ```
 
 ## Before You Start
@@ -36,8 +36,10 @@ The [Runtime to Frameworks](/migration/runtime-to-frameworks) page shows the sam
 Use the v3 migration command so the `--v2-to-v3` flag is available.
 
 ```bash
-npx @agentuity/migrate@beta --v2-to-v3
+npx @agentuity/migrate@next --v2-to-v3
 ```
+
+When you switch to the v3 CLI after migration, the examples below use `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
 
 The migrator creates a Hono-based starting point because Hono is the closest mechanical replacement for the v2 runtime's HTTP layer. If your final target is Next.js, React Router, TanStack Start, SvelteKit, Nuxt, Astro, or another framework, use the generated diff as a cleanup step, then move the code into that framework's route conventions.
 

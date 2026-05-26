@@ -16,7 +16,7 @@ console.info(JSON.stringify({
 Use the Agentuity logger when you want child loggers and the same telemetry configuration as your traces:
 
 ```bash
-bun add @agentuity/telemetry@beta
+bun add @agentuity/telemetry@next
 ```
 
 ```typescript
@@ -107,7 +107,7 @@ Nested children inherit parent fields and add their own fields.
 `@agentuity/hono` initializes telemetry once and exposes the logger on `c.var.logger`.
 
 ```bash
-bun add @agentuity/hono@beta hono
+bun add @agentuity/hono@next hono
 ```
 
 ```typescript

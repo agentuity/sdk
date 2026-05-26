@@ -7,7 +7,7 @@ description: Store small durable values by namespace and key with optional TTL
 Use key-value storage for cache entries, user preferences, rate-limit counters, feature flags, and other data you fetch by exact key. Start with `KeyValueClient`; Hono apps can use `c.var.kv` after installing the Agentuity middleware.
 
 ```bash
-bun add @agentuity/keyvalue@beta
+bun add @agentuity/keyvalue@next
 ```
 
 ```typescript
@@ -196,7 +196,7 @@ export async function startSession(token: string, session: Session): Promise<voi
 In Hono apps, `@agentuity/hono` initializes `KeyValueClient` once and exposes it on `c.var.kv`.
 
 ```bash
-bun add @agentuity/hono@beta hono
+bun add @agentuity/hono@next hono
 ```
 
 ```typescript

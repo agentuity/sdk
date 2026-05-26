@@ -6,7 +6,7 @@ description: Track work items, issues, and agent activity with lifecycle managem
 Use tasks when work needs a durable lifecycle, not just a one-shot message: a status that changes over time, a priority, an assignee, comments, tags, attachments, and an audit trail. Start with `TaskClient`; Hono apps can use `c.var.task` after installing the Agentuity middleware.
 
 ```bash
-bun add @agentuity/task@beta
+bun add @agentuity/task@next
 ```
 
 ```typescript
@@ -283,7 +283,7 @@ const activity = await tasks.getActivity({ days: 30 });
 `@agentuity/hono` builds `TaskClient` once and exposes it on `c.var.task`.
 
 ```bash
-bun add @agentuity/hono@beta hono
+bun add @agentuity/hono@next hono
 ```
 
 ```typescript

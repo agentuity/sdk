@@ -80,8 +80,8 @@ Define larger schemas in a separate file and import them into your route or serv
 Use `@agentuity/postgres` or `@agentuity/drizzle` only when you are running in Bun and explicitly want those deprecated compatibility helpers around `DATABASE_URL`. They are not the default database path for framework apps.
 
 ```bash
-bun add @agentuity/postgres@beta
-bun add @agentuity/drizzle@beta drizzle-orm
+bun add @agentuity/postgres@next
+bun add @agentuity/drizzle@next drizzle-orm
 ```
 
 ```typescript
@@ -109,7 +109,7 @@ export const users = pgTable('users', {
 `DBClient` calls the Agentuity database service API by database name and org ID. Use it for trusted scripts that inspect tables, run administrative queries, or read query logs without opening a direct Postgres connection from the script.
 
 ```bash
-bun add @agentuity/db@beta
+bun add @agentuity/db@next
 ```
 
 ```typescript

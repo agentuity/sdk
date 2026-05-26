@@ -14,15 +14,15 @@ interface LogEntry {
 const endpoints = [
 	{
 		id: 'session',
-		label: 'Session',
-		description: 'Session & thread IDs, state',
+		label: 'Request',
+		description: 'Method, path, and headers',
 		explanation: (
 			<>
-				Read request identity from <code>c.var.session</code>, <code>c.var.thread</code>, and{' '}
-				<code>c.var.sessionId</code> when the route middleware provides them.
+				Read request data from <code>c.req</code>. In v3, the framework owns the request
+				boundary and your route decides what state to derive from it.
 			</>
 		),
-		codeHint: 'c.var.session, c.var.thread',
+		codeHint: 'c.req.method, c.req.path',
 	},
 	{
 		id: 'services',
@@ -51,26 +51,27 @@ const endpoints = [
 	{
 		id: 'state',
 		label: 'State',
-		description: 'State management (call multiple times!)',
+		description: 'App-owned state boundary',
 		explanation: (
 			<>
-				Use a service such as key-value storage when request handlers need conversation history,
-				user preferences, or other lightweight state between calls.
+				Use cookies plus app-owned storage when request handlers need history, preferences, or
+				other lightweight state between calls. This demo uses a cookie and a local store to stay
+				self-contained.
 			</>
 		),
-		codeHint: 'KeyValueClient',
+		codeHint: 'cookie + KeyValueClient',
 	},
 	{
 		id: 'full',
 		label: 'Full Context',
-		description: 'Complete context dump from route',
+		description: 'Request + services snapshot',
 		explanation: (
 			<>
-				Direct access to the full context object showing session, thread, and all available
-				properties.
+				See the request summary and injected services together. No runtime-owned session or
+				thread objects are required for the public v3 model.
 			</>
 		),
-		codeHint: 'ctx',
+		codeHint: 'c.req + c.var.*',
 	},
 	{
 		id: 'logger',
@@ -246,7 +247,7 @@ export function HandlerContextDemo() {
 									{selectedEndpoint?.codeHint}
 								</code>
 								<a
-									href="https://github.com/agentuity/sdk/blob/main/docs/src/agent/context/agent.ts"
+									href="https://github.com/agentuity/sdk/blob/main/docs/src/api/context/route.ts"
 									target="_blank"
 									rel="noopener noreferrer"
 									className="text-xs text-zinc-500 hover:text-cyan-700 dark:hover:text-cyan-500 flex items-center gap-1"

@@ -7,17 +7,17 @@ description: Add Agentuity services and local validation to an app you already h
 Use this path when the app already exists and you want to add one server-side Agentuity endpoint without changing the router, scripts, or build setup.
 
 ```bash
-bun add -d @agentuity/cli@beta
-bun add @agentuity/keyvalue@beta
+bun add -d @agentuity/cli@next
+bun add @agentuity/keyvalue@next
 ```
 
 ## Pick the Right Path
 
 | Starting point | Use this path | First command |
 | --- | --- | --- |
-| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `bun create agentuity@beta --framework nextjs --services keyvalue` |
-| New framework app | You already ran the framework's create command and want to add Agentuity next. | `bun add -d @agentuity/cli@beta` |
-| Existing app | The app already has routes, scripts, env conventions, and a working build. | `bun add -d @agentuity/cli@beta` |
+| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `bun create agentuity@next --framework nextjs --services keyvalue` |
+| New framework app | You already ran the framework's create command and want to add Agentuity next. | `bun add -d @agentuity/cli@next` |
+| Existing app | The app already has routes, scripts, env conventions, and a working build. | `bun add -d @agentuity/cli@next` |
 
 For an existing app, keep the app shape you have. Add service clients only inside server-only routes, handlers, server actions, or background jobs.
 

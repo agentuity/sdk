@@ -7,11 +7,11 @@ The create flow runs the framework's official scaffolding tool, then layers on A
 
 ## What the Scaffold Adds
 
-After `bun create agentuity@beta`, expect the framework's normal files plus:
+After `bun create agentuity@next`, expect the framework's normal files plus:
 
 | Addition | Where | When |
 |----------|-------|------|
-| `@agentuity/cli@beta` | `package.json` devDependencies | Always |
+| `@agentuity/cli@next` | `package.json` devDependencies | Always |
 | `@agentuity/aigateway` | `package.json` dependencies | When the AI example is included |
 | `swr` | `package.json` dependencies | Next.js AI example |
 | Selected service packages, for example `@agentuity/keyvalue` | `package.json` dependencies | When selected with `--services` or the service prompt |
@@ -44,7 +44,7 @@ For create-supported frameworks, the scaffold places the AI translation example 
 
 `agentuity dev` calls the framework's own `dev` script through your package manager.
 
-React Router, Vite + React, and TanStack Start are existing-app adoption paths today. See [Frameworks](/frameworks) for adding Agentuity to those apps without using `bun create agentuity@beta`.
+React Router, Vite + React, and TanStack Start are existing-app adoption paths today. See [Frameworks](/frameworks) for adding Agentuity to those apps without using `bun create agentuity@next`.
 
 ## Routes and Services
 

@@ -316,8 +316,8 @@ type Message = {
 };
 
 const kv = new KeyValueClient();
-const threadId = "thread-" + crypto.randomUUID();
-const key = threadId + ":messages";
+const conversationId = "conv-" + crypto.randomUUID();
+const key = "conversation:" + conversationId + ":messages";
 
 async function chat(message: string) {
   const history = await kv.get<Message[]>("chat-history", key);
@@ -340,6 +340,7 @@ async function chat(message: string) {
   return {
     reply: result.text,
     turns: nextMessages.length / 2,
+    conversationId,
   };
 }`,
 

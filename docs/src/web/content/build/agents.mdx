@@ -10,7 +10,7 @@ When a request needs a decision loop, such as validating input, reading context,
 Start with a plain typed function. It accepts validated input, returns typed output, and does not call `createAgent()`.
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@beta zod
+bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
 ```
 
 ```typescript
@@ -83,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
 This is the full file version: one module, schemas, agent function, and route handler together. Use this shape for smaller features before splitting.
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@beta zod
+bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
 ```
 
 ```typescript title="app/api/triage/route.ts"
@@ -199,7 +199,7 @@ See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) whe
 In a Hono app, `@agentuity/hono` initializes all service clients once and injects them via `c.var`. Use this when most routes in the app need the same clients or logger.
 
 ```bash
-bun add hono @agentuity/hono@beta zod
+bun add hono @agentuity/hono@next zod
 ```
 
 ```typescript title="src/index.ts"

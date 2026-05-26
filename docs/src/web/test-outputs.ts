@@ -7,32 +7,28 @@ export const TEST_OUTPUTS: Record<string, string> = {
 ---OUTPUT---
 Hello, World! Welcome to Agentuity.`,
 
-	'handler-context': `[INFO] Processing request {"userId":"user-123"}
-[DEBUG] Debug details {"threadId":"thrd_def456uvw"}
+	'handler-context': `[INFO] Context inspected {"visitorId":"demo_abc123xyz"}
+[DEBUG] Service surface checked {"visitorId":"demo_abc123xyz"}
 [WARN] Example warning log
 [ERROR] Example error log
 ---OUTPUT---
-=== Handler Context Demo ===
+Route logging:
+  Hono routes read the logger from c.var.logger
 
-Identifiers:
-  sessionId: sess_abc123xyz
-  threadId: thrd_def456uvw
+Services available to route code:
+  c.var.kv - Key-Value storage
+  c.var.vector - Vector storage
+  c.var.stream - Durable stream management
+  c.var.queue - Queue publishing
 
-	Logger (writes to trace, shown above):
-	  c.var.logger.info(), .debug(), .error() available
+App-owned state boundary:
+  visitorId: demo_abc123xyz
+  previous visits: 0
+  current visits: 1
+  in a real route, keep the id in a cookie and the record in KV or your DB
 
-	Storage Access:
-	  c.var.kv - Key-Value storage
-	  c.var.vector - Vector storage
-	  @agentuity/storage - Object storage (S3-compatible)
-
-Thread State (persists across requests):
-  set("demo-key", {value: "test"})
-  get("demo-key") -> {"value":"test"}
-
-Session State (per-request only):
-  set("request-time", Date.now())
-  get("request-time") -> 1736956200000`,
+Background helper:
+  background task completed`,
 
 	kv: `[INFO] Session found {"data":{"message":"Hello from KV!","timestamp":"2026-01-15T11:30:00.000Z"}}
 [INFO] Active sessions {"count":1}

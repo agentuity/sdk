@@ -21,7 +21,7 @@ The examples below are standalone `@agentuity/coder` TypeScript snippets. Bun is
 Install the package:
 
 ```bash
-bun add @agentuity/coder@beta @agentuity/telemetry@beta
+bun add @agentuity/coder@next @agentuity/telemetry@next
 ```
 
 If your app creates sessions from more than one place (an HTTP route, a background job, a webhook handler), construct a `CoderClient` once and share it:
@@ -355,8 +355,8 @@ Use `listSessions()` when you are building a dashboard or history view. Once the
 
 When your app needs Coder to operate on a specific repository, use `listGitHubAccounts()` to retrieve the GitHub accounts connected via the GitHub App installation, then `listGitHubRepos(accountId)` to list repositories under that account. Pass the chosen repository to `createSession()` via the `repo` field.
 
-<Callout type="warning" title="Sign in to Agentuity before calling the GitHub APIs">
-`listGitHubAccounts()` and `listGitHubRepos()` require an Agentuity OAuth login, not just the GitHub App installation. Without the login, the Hub returns `HTTP 409` and the client throws before any account data is returned. Sign in from the [Agentuity Console](https://app.agentuity.com) (or via `agentuity auth login`) before running this flow.
+<Callout type="warning" title="Check your org's GitHub setup before calling the GitHub APIs">
+`listGitHubAccounts()` reads the GitHub App installations visible to the API key's org. If the call fails or returns no accounts, check the [Agentuity Console](https://app.agentuity.com), confirm the GitHub App is installed for the right org, and then retry.
 </Callout>
 
 ```typescript
@@ -368,11 +368,11 @@ async function main(): Promise<void> {
 
   let github;
   try {
-    // Sign in to Agentuity first; without that OAuth login, the Hub returns HTTP 409
+    // This depends on the GitHub App installations visible to the current org
     github = await client.listGitHubAccounts();
   } catch {
     throw new Error(
-      'Sign in to Agentuity first. Then run this again to list the GitHub accounts available to your org.'
+      'Check your Agentuity org and GitHub App installation, then run this again to list the GitHub accounts available to your org.'
     );
   }
 

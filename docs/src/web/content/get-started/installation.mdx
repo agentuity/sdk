@@ -3,7 +3,7 @@ title: Installation
 description: Install the Agentuity CLI, sign in, and create a framework starter
 ---
 
-The fastest path is to scaffold a project with `bun create agentuity@beta`, which runs the current framework-first create flow without a global install.
+The fastest path is to scaffold a project with `bun create agentuity@next`, which runs the current framework-first create flow without a global install.
 
 ## Prerequisites
 
@@ -24,19 +24,19 @@ node --version
 Scaffold a starter and pick a framework:
 
 ```bash
-bun create agentuity@beta --name my-app
+bun create agentuity@next --name my-app
 ```
 
 In an interactive terminal, the CLI prompts for a framework, signs you in (if you're not already), and registers the project with Agentuity Cloud. Skip the prompt with `--framework`:
 
 ```bash
-bun create agentuity@beta --name my-app --framework nextjs
+bun create agentuity@next --name my-app --framework nextjs
 ```
 
 Pass `--package-manager` when you care which lockfile the new framework app uses:
 
 ```bash
-bun create agentuity@beta \
+bun create agentuity@next \
   --name my-app \
   --framework nextjs \
   --package-manager bun
@@ -69,11 +69,11 @@ React Router, Vite + React, and TanStack Start are build/deploy detection target
 | `--no-build` | Skip the post-install build step |
 | `--dir <path>` | Place the project under a different directory |
 
-Run `bun create agentuity@beta --help` for the full list.
+Run `bun create agentuity@next --help` for the full list.
 
 ## Run Locally
 
-`@agentuity/cli@beta` is added as a devDependency during the create flow, so `bunx` resolves the right CLI inside the project:
+`@agentuity/cli@next` is added as a devDependency during the create flow, so `bunx` resolves the right CLI inside the project:
 
 ```bash
 cd my-app
@@ -109,13 +109,13 @@ See [Deploy & Operate](/deploy-operate) for the full lifecycle.
 Install the CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
 
 ```bash
-bun add -g @agentuity/cli@beta
+bun add -g @agentuity/cli@next
 ```
 
 The shell installer also accepts a version:
 
 ```bash
-curl -fsSL https://agentuity.sh | sh -s -- --version beta
+curl -fsSL https://agentuity.sh | sh -s -- --version next
 ```
 
 After install, sign in once:
@@ -125,9 +125,9 @@ agentuity auth login
 ```
 
 <Callout type="warning" title="Check the CLI channel">
-`@agentuity/cli@latest` and the shell installer default may still point at the previous stable channel. Pass `--version beta` (or `bun add -g @agentuity/cli@beta`) until the framework-first CLI is the default release channel.
+`@agentuity/cli@latest` and the shell installer default may still point at the previous stable channel. Pass `--version next` (or `bun add -g @agentuity/cli@next`) until the framework-first CLI is the default release channel.
 
-Inside a scaffolded project, `bunx agentuity` uses the local `@agentuity/cli@beta` devDependency. Outside a project, use `bunx @agentuity/cli@beta` when you want this CLI without installing it globally.
+Inside a scaffolded project, `bunx agentuity` uses the local `@agentuity/cli@next` devDependency. Outside a project, use `bunx @agentuity/cli@next` when you want this CLI without installing it globally.
 </Callout>
 
 ## Verify the Install
@@ -136,14 +136,14 @@ In a scaffolded project:
 
 ```bash
 bunx agentuity --version
-# 3.0.0-beta.x
+# 3.0.x
 ```
 
 After the global v3 install:
 
 ```bash
 agentuity --version
-# 3.0.0-beta.x
+# 3.0.x
 ```
 
 ## Next Steps

@@ -60,8 +60,8 @@ Pick the framework you already chose. Agentuity adds service clients, local deve
 
 | Path | Use when | Start with |
 | --- | --- | --- |
-| Create a new Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example routes. | `bun create agentuity@beta --framework nextjs --services keyvalue` |
-| Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `bun add -d @agentuity/cli@beta` and `bun add @agentuity/keyvalue@beta` |
+| Create a new Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example routes. | `bun create agentuity@next --framework nextjs --services keyvalue` |
+| Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `bun add -d @agentuity/cli@next` and `bun add @agentuity/keyvalue@next` |
 | Add Agentuity to an existing app | The app already has routes, scripts, env files, and a working build. | [Add Agentuity to an existing app](/get-started/import-existing-app) |
 
 ## How the Framework Shape Works
@@ -83,7 +83,7 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 
 ## Framework Starters
 
-`bun create agentuity@beta --framework <slug>` scaffolds these starters:
+`bun create agentuity@next --framework <slug>` scaffolds these starters:
 
 | Slug | Framework |
 | --- | --- |
@@ -93,7 +93,7 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 | `astro` | Astro |
 | `hono` | Hono |
 
-React Router, Vite + React, and TanStack Start are existing-framework adoption paths. Start with each framework's own CLI, then add `@agentuity/cli@beta`, import the project, and verify `agentuity build` output before deploying.
+React Router, Vite + React, and TanStack Start are existing-framework adoption paths. Start with each framework's own CLI, then add `@agentuity/cli@next`, import the project, and verify `agentuity build` output before deploying.
 
 <Callout type="tip" title="Validate packaging before deploy">
 Run `bun run build`, then `agentuity build`, inspect `.agentuity/launch.json`, and start the packaged command locally before your first deploy. Use `--skip-type-check` only when iterating on packaging, not before a real deploy.
@@ -115,7 +115,7 @@ If a framework page calls out a detector fallback or packaging caveat, treat it 
 Use standalone service clients across all supported frameworks:
 
 ```bash
-bun add @agentuity/keyvalue@beta
+bun add @agentuity/keyvalue@next
 ```
 
 ```typescript

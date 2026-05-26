@@ -6,7 +6,7 @@ description: Write generated output incrementally and keep it available by URL
 Use durable streams when output is produced over time and should remain readable after the request or worker finishes: CSV exports, logs, generated reports, transcripts, and long model outputs.
 
 ```bash
-bun add @agentuity/stream@beta
+bun add @agentuity/stream@next
 ```
 
 ```typescript
@@ -175,7 +175,7 @@ See [Background Work](/build/background-work): it pairs queues, KV status record
 In Hono apps, `@agentuity/hono` initializes `StreamClient` once and exposes it on `c.var.stream`.
 
 ```bash
-bun add @agentuity/hono@beta hono
+bun add @agentuity/hono@next hono
 ```
 
 ```typescript

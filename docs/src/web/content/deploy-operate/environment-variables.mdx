@@ -13,6 +13,8 @@ agentuity cloud env pull
 agentuity cloud env push
 ```
 
+These examples show `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+
 ## Local Env Files
 
 The CLI looks up `AGENTUITY_SDK_KEY` in your `.env` files using the active profile. Default profile is `production`. The local profile (`local`) loads a different file order so dev overrides do not bleed into other profiles.
@@ -67,7 +69,7 @@ The `set` command auto-detects whether a value should be stored as a secret. Pas
 
 ## Pull and Push
 
-Move values between local `.env` and the cloud project. By default both directions are conservative: `pull` keeps existing local values, `push` skips existing cloud values that would change.
+Move values between local `.env` and the cloud project. By default both directions avoid silent overwrites: `pull` keeps existing local values, and `push` shows the diff before it asks to overwrite existing cloud values.
 
 ```bash
 agentuity cloud env pull

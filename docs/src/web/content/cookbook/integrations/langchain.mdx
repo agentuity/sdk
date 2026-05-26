@@ -11,7 +11,7 @@ bun add hono langchain @langchain/openai @langchain/core zod
 
 ## Define the Agent
 
-The current LangChain entrypoint is `createAgent` from `langchain`. Tools come from `@langchain/core/tools`; the chat model comes from a provider package.
+The current LangChain entrypoint is `createAgent` from `langchain`. This is LangChain's API, not Agentuity's deprecated runtime helper with the same name. Tools come from `@langchain/core/tools`; the chat model comes from a provider package.
 
 ```typescript title="src/lib/research-agent.ts"
 import {

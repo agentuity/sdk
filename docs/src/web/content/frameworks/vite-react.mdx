@@ -16,12 +16,14 @@ cd my-vite-app
 Then add Agentuity and create a small server boundary:
 
 ```bash
-bun add -d @agentuity/cli@beta
+bun add -d @agentuity/cli@next
 agentuity project import --validate-only
 agentuity project import
 ```
 
-Use the package manager your Vite app uses. Agentuity does not scaffold Vite + React from `bun create agentuity@beta` today.
+Use the package manager your Vite app uses. Agentuity does not scaffold Vite + React from `bun create agentuity@next` today.
+
+If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, or the equivalent for your package manager.
 
 | File | Purpose |
 |------|---------|
@@ -34,7 +36,7 @@ Use the package manager your Vite app uses. Agentuity does not scaffold Vite + R
 Install the CLI as a dev dependency, then import the project:
 
 ```bash
-bun add -d @agentuity/cli@beta
+bun add -d @agentuity/cli@next
 agentuity project import --validate-only   # dry run: checks config only
 agentuity project import                   # registers the project and writes agentuity.json
 ```
@@ -59,7 +61,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 Browser code cannot use `AGENTUITY_SDK_KEY` or provider secrets safely. Move those calls into `server.ts` and call them from React over `fetch`.
 
 ```bash
-bun add @agentuity/keyvalue@beta zod@^3.23.8 openai
+bun add @agentuity/keyvalue@next zod@^3.23.8 openai
 ```
 
 The server below handles `POST /api/translate`, stores session history in KV, calls OpenAI through the AI Gateway, and falls back to a Vite dev proxy in development:
@@ -221,7 +223,7 @@ async function translate(text: string, toLanguage: string): Promise<string> {
 
 A Vite + React app needs two processes during development: Vite for the SPA and `server.ts` for the API. The default `dev` script from `create-vite` only runs Vite, so configure `package.json` to run both.
 
-The recommended pattern uses [`bun run --parallel`](https://bun.com/docs/cli/run) (added in Bun 1.3.9) to run both scripts simultaneously without a third-party dependency:
+The recommended pattern uses [`bun run --parallel`](https://bun.com/docs/cli/run) to run both scripts simultaneously without a third-party dependency:
 
 ```json title="package.json"
 {

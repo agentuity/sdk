@@ -25,7 +25,7 @@ import {
   Webhook,
 } from 'lucide-react';
 
-Agentuity services are server-side clients for identity, storage, messaging, observability, Coder, and sandbox execution. In v3, start with the direct client in the framework route, server function, worker, script, or CLI that owns the work.
+Agentuity services are server-side clients for identity, storage, messaging, AI Gateway access, observability, Coder, and sandbox execution. In v3, start with the direct client in the framework route, server function, worker, script, or CLI that owns the work.
 
 ## Choose a Service
 
@@ -38,6 +38,7 @@ Agentuity services are server-side clients for identity, storage, messaging, obs
 | relational app data and SQL queries | [Database](/services/database) | keep tables and migrations in your app's database layer |
 | async handoff, inbound events, or timed delivery | [Queues](/services/queues), [Webhooks](/services/webhooks), or [Schedules](/services/schedules) | decouple work from the request that discovered it |
 | tracked work items, issue state, comments, or attachments | [Tasks](/services/tasks) | give work a lifecycle your app can inspect |
+| routed model access, live model catalog lookup, or provider-SDK env wiring | [AI Gateway](/services/ai-gateway) | keep gateway setup and project credentials in one place |
 | logs, spans, request history, or eval runs | [Observability](/services/observability) and [Evals and Testing](/services/observability/evals-and-testing) | treat evals as app code with traces and output contracts |
 | isolated command execution, generated-code checks, or sandbox files | [Sandbox](/services/sandbox) | run code away from your own host with explicit limits |
 | repo-aware coding work with history, reconnects, skills, or review | [Coder](/services/coder) | use a managed coding session instead of only a process |
@@ -147,6 +148,17 @@ Hono apps can also install `@agentuity/hono` when they want middleware to create
     title="Schedules"
     description="Platform-managed cron jobs with HTTP and sandbox destinations"
     icon={<Clock />}
+  />
+</Cards>
+
+## AI Gateway
+
+<Cards>
+  <CardLink
+    href="/services/ai-gateway"
+    title="AI Gateway"
+    description="Route model calls through Agentuity with project credentials and live model catalog"
+    icon={<BrainCircuit />}
   />
 </Cards>
 

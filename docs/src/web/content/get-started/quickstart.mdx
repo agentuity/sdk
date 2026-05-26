@@ -8,7 +8,7 @@ This page follows the framework-first happy path with Next.js. You end with a no
 ## 1. Create the Project
 
 ```bash
-bun create agentuity@beta \
+bun create agentuity@next \
   --name my-app \
   --framework nextjs \
   --package-manager bun
@@ -17,7 +17,7 @@ cd my-app
 
 The scaffold runs `create-next-app`, then layers on:
 
-- `@agentuity/cli@beta` as a devDependency
+- `@agentuity/cli@next` as a devDependency
 - `@agentuity/aigateway` and `swr` as dependencies
 - A working translation page at `src/app/page.tsx`
 - An API route at `src/app/api/translate/route.ts` that uses `AIGatewayClient`
@@ -25,7 +25,7 @@ The scaffold runs `create-next-app`, then layers on:
 - `agentuity.json` with the registered project's metadata
 - `.env` with the project's `AGENTUITY_SDK_KEY`
 
-Expected result: the command exits with a `my-app/` directory that contains the framework files, `agentuity.json`, `.env`, and the translation route. If it stops before those files exist, rerun the command from an empty directory. If authentication fails before the project is created, run `bunx @agentuity/cli@beta auth login`, then create the project again.
+Expected result: the command exits with a `my-app/` directory that contains the framework files, `agentuity.json`, `.env`, and the translation route. If it stops before those files exist, rerun the command from an empty directory. If authentication fails before the project is created, run `bunx @agentuity/cli@next auth login`, then create the project again.
 
 ## 2. Run It Locally
 
@@ -62,7 +62,7 @@ Save the file. Next.js hot-reloads, the new option appears in the dropdown, and 
 Service clients work in any framework route or script. Add key-value storage without touching the router or runtime:
 
 ```bash
-bun add @agentuity/keyvalue@beta
+bun add @agentuity/keyvalue@next
 ```
 
 ```typescript title="src/app/api/translate/route.ts"
@@ -97,7 +97,7 @@ The CLI prints both the deployment-specific URL and the latest deployment URL. V
 | --- | --- | --- |
 | Create | `agentuity.json`, `.env`, and the framework route exist in `my-app/` | Start from an empty directory, then rerun the create command |
 | Local route | The page translates text, and the `curl` request returns JSON | Check the terminal error, project root, port, and `AGENTUITY_SDK_KEY` |
-| Service client | `bun add @agentuity/keyvalue@beta` installs, and server code imports `KeyValueClient` | Keep the client in server-side code, not browser components |
+| Service client | `bun add @agentuity/keyvalue@next` installs, and server code imports `KeyValueClient` | Keep the client in server-side code, not browser components |
 | Deploy | The CLI prints deployment URLs after the framework build | Fix the framework build error first; deploy packages that build output |
 
 ## Next Steps

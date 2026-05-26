@@ -6,7 +6,7 @@ description: Evaluate agent behavior with LLM judges, traces, Braintrust, or you
 In v3, an eval is a repeatable app workflow: run normal app code, capture a stable output, assert or judge it, and keep enough logs and traces to explain failures. Use LLM-as-judge checks for qualitative behavior, OpenTelemetry traces for what happened, Braintrust when you want hosted experiment tracking, or your own test runner when assertions are enough.
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest zod @agentuity/telemetry@beta
+bun add ai@latest @ai-sdk/openai@latest zod @agentuity/telemetry@next
 ```
 
 <Callout type="info" title="No first-party v3 eval runner">

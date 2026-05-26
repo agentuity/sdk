@@ -6,7 +6,7 @@ description: Send and receive emails with managed addresses, destinations, and d
 Use email when your app needs managed sending, inbound addresses on the `@agentuity.email` domain, and durable history of every send and receipt. Start with `EmailClient`; Hono apps can use `c.var.email` after installing the Agentuity middleware.
 
 ```bash
-bun add @agentuity/email@beta
+bun add @agentuity/email@next
 ```
 
 ```typescript
@@ -241,7 +241,7 @@ const activity = await email.getActivity({ days: 30 });
 `@agentuity/hono` builds `EmailClient` once and exposes it on `c.var.email`.
 
 ```bash
-bun add @agentuity/hono@beta hono
+bun add @agentuity/hono@next hono
 ```
 
 ```typescript

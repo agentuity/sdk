@@ -6,7 +6,7 @@ description: OpenTelemetry spans for performance debugging and operation trackin
 Use tracing when logs tell you something happened but not where the time went. You can use the OpenTelemetry setup your app already has, or use `@agentuity/telemetry` for Agentuity defaults. `@agentuity/hono` exposes the same tracer as `c.var.tracer` in Hono routes.
 
 ```bash
-bun add @agentuity/telemetry@beta @opentelemetry/api
+bun add @agentuity/telemetry@next @opentelemetry/api
 ```
 
 ## Bring Your Own OpenTelemetry
@@ -264,7 +264,7 @@ AI SDK telemetry span names and attributes can change with AI SDK releases. Afte
 Hono routes can read the tracer from `c.var.tracer` after installing the Agentuity middleware.
 
 ```bash
-bun add @agentuity/hono@beta @opentelemetry/api hono
+bun add @agentuity/hono@next @opentelemetry/api hono
 ```
 
 ```typescript

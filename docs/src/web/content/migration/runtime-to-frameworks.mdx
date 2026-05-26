@@ -17,6 +17,8 @@ export default await createApp({
 });
 ```
 
+When you switch to the v3 CLI after migration, the commands below use `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+
 ## Keep the Framework Entry Point
 
 A v3 app keeps the framework's normal entry point. In a Hono app, that means `new Hono()` and normal route mounting:

@@ -98,20 +98,20 @@ export const DEMOS: DemoConfig[] = [
 	{
 		id: 'handler-context',
 		title: 'Handler Context',
-		subtitle: 'Request Context',
-		description: "See what's available inside your route handler.",
+		subtitle: 'Hono Route Context',
+		description: 'See request data, injected services, and app-owned state in a Hono route.',
 		explanation: (
 			<>
-				When an Agentuity route runs, the request context includes the pieces your app code
+				When an Agentuity Hono route runs, the request context includes the pieces your app code
 				needs:{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
-					logging, storage access, session info, and more
+					request data, logging, service access, and background helpers
 				</span>
-				. Click the buttons below to see live responses from the docs API routes. The reference
-				code on the right shows the v3 shape for using those services from a Hono route.
+				. Click the buttons below to inspect the live docs API route. The reference code on the
+				right shows the v3 Hono shape with `agentuity()` middleware and `c.var.*` services.
 			</>
 		),
-		docsUrl: '/reference/sdk-reference/context-api',
+		docsUrl: '/frameworks/hono',
 		category: 'basics',
 		component: HandlerContextDemo,
 		codeExample: CODE_EXAMPLES['handler-context'],

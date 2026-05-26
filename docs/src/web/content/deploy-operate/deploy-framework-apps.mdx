@@ -13,6 +13,8 @@ agentuity build
 agentuity deploy
 ```
 
+These examples show `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+
 ## Register the Project
 
 Validate the directory before doing anything that talks to the cloud:
@@ -32,7 +34,7 @@ agentuity project import --org-id <org-id>
 agentuity project import --confirm
 ```
 
-The first run creates a project record in your org, writes `agentuity.json` with `projectId`, `orgId`, `region`, and the project SDK key, and adds `AGENTUITY_SDK_KEY=...` to `.env`. It also pushes any non-reserved values from `.env` into the cloud project so the deploy step has them available.
+The first run creates a project record in your org, writes `agentuity.json` with `projectId`, `orgId`, and `region`, and adds `AGENTUITY_SDK_KEY=...` to `.env`. It also pushes any non-reserved values from `.env` into the cloud project so the deploy step has them available.
 
 `--confirm` makes the command non-interactive: it accepts the default org, default region, and a name derived from the directory unless you pass `--name`. Use it in CI. Without `--confirm` and without a TTY, the import refuses to run.
 
@@ -374,7 +376,7 @@ See [Automating Deployments with the GitHub App](/reference/github-app) for the 
 For projects on the older deploy path, inspect the migration CLI before changing anything:
 
 ```bash
-npx @agentuity/migrate@beta --help
+npx @agentuity/migrate@next --help
 ```
 
 Use the migration command to inspect the changes needed before moving an existing project onto the latest CLI. Keep legacy projects on their existing deploy path until you have run the migration and checked the new build.

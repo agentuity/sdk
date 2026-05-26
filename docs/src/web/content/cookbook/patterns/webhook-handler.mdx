@@ -7,7 +7,7 @@ description: Verify a signed external webhook in a framework route and hand the 
 External services like Stripe, GitHub, and Slack need a 2xx response in seconds and retry on anything else. The pattern is: read the raw body, verify the signature, publish to a queue, return 2xx. The slow work runs in a separate worker route triggered by the queue's HTTP destination.
 
 ```bash
-bun add hono stripe @agentuity/queue@beta @agentuity/keyvalue@beta
+bun add hono stripe @agentuity/queue@next @agentuity/keyvalue@next
 ```
 
 <Callout type="info" title="Want a managed ingest URL instead?">

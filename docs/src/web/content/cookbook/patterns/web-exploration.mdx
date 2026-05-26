@@ -7,12 +7,12 @@ description: Run a headless browser inside a sandbox so an agent can navigate, s
 Agents that interact with live websites belong in a sandbox. Each session gets isolated network egress, ephemeral disk, and a clean process tree, so the agent can run untrusted page interactions without touching the host. This pattern uses [`SandboxClient`](/services/sandbox/sdk-usage), an AI SDK tool loop, and key-value memory.
 
 ```bash
-bun add hono ai @ai-sdk/openai @agentuity/sandbox@beta @agentuity/keyvalue@beta @agentuity/telemetry@beta arktype zod
+bun add hono ai @ai-sdk/openai @agentuity/sandbox@next @agentuity/keyvalue@next @agentuity/telemetry@next arktype zod
 ```
 
 ## Prerequisite: a Browser-Ready Snapshot
 
-`SandboxClient.create({ snapshot })` accepts a snapshot ID or tag. Build a snapshot that includes a headless browser (Playwright with Chromium is the common choice) plus a small CLI wrapper that exposes the actions you want the model to call: `screenshot`, `navigate`, `click`, `fill`, `eval`. Save it once, then create sandboxes from the tag.
+`SandboxClient.create({ snapshot })` accepts a snapshot ID or tag. Build a snapshot that includes a headless browser (Playwright with Chromium is the common choice). If your tool loop shells out to a `browser-cli`, bake that wrapper into the snapshot before you save it, then create sandboxes from the tag.
 
 ```typescript title="scripts/build-snapshot.ts"
 import { SandboxClient } from '@agentuity/sandbox';
@@ -43,6 +43,8 @@ try {
 ```
 
 See [Sandbox Snapshots](/services/sandbox/snapshots) for the full snapshot workflow. The rest of this page assumes a snapshot tagged `browser-tools` exists.
+
+If you use the `browser-cli` pattern from the examples below, install that wrapper into the snapshot alongside Playwright. The wrapper implementation is project-specific, so this page focuses on the sandbox and tool-loop wiring around it.
 
 ## Define the Browser Tools
 

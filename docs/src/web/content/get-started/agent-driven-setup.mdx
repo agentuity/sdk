@@ -6,8 +6,8 @@ description: Use a coding agent to create an Agentuity project with the CLI.
 Use this flow when you want a coding agent to choose the framework, add services, and leave you with a runnable project. The agent should read the CLI primer first, then run the same create command a human would run.
 
 ```bash
-agentuity ai intro
-bun create agentuity@beta --framework nextjs --services keyvalue --confirm
+bunx @agentuity/cli@next ai intro
+bun create agentuity@next --framework nextjs --services keyvalue --confirm
 ```
 
 ## Start With CLI Context
@@ -16,15 +16,15 @@ Ask the coding agent to inspect the CLI guidance before it creates files or runs
 
 ```text
 You are setting up a small Agentuity app.
-First run `agentuity ai intro`, then create a Next.js starter with key-value storage.
+First run `bunx @agentuity/cli@next ai intro`, then create a Next.js starter with key-value storage.
 Use the current v3 create command and skip interactive prompts.
 ```
 
 The resulting commands should look like this:
 
 ```bash
-agentuity ai intro
-bun create agentuity@beta --framework nextjs --services keyvalue --confirm
+bunx @agentuity/cli@next ai intro
+bun create agentuity@next --framework nextjs --services keyvalue --confirm
 cd <created-app>
 bunx agentuity dev
 ```
@@ -32,7 +32,7 @@ bunx agentuity dev
 For another create-supported framework, keep the same shape and change the framework slug:
 
 ```bash
-bun create agentuity@beta --framework <fw> --services <svcs> --confirm
+bun create agentuity@next --framework <fw> --services <svcs> --confirm
 ```
 
 Use this path for `nextjs`, `nuxt`, `sveltekit`, `astro`, and `hono`. For React Router, Vite + React, and TanStack Start, start with the framework's own CLI first, then run `agentuity project import`. See [Frameworks](/frameworks) for the split.
@@ -44,11 +44,11 @@ For an app that already exists, keep the task narrower. Ask the agent to add one
 ```text
 You are adding Agentuity key-value storage to this existing app.
 
-1. Run `agentuity ai intro` and read the current CLI setup model.
+1. Run `bunx @agentuity/cli@next ai intro` and read the current CLI setup model.
 2. Inspect the app's framework and route conventions before editing.
 3. Install only the needed packages:
-   `bun add -d @agentuity/cli@beta`
-   `bun add @agentuity/keyvalue@beta`
+   `bun add -d @agentuity/cli@next`
+   `bun add @agentuity/keyvalue@next`
 4. Add one server-only route that uses `KeyValueClient`.
 5. Run the app's normal dev/build checks, then run:
    `agentuity project import --validate-only`
@@ -73,9 +73,9 @@ Ask the agent to finish with a short report instead of a vague summary. The repo
     "package.json"
   ],
   "commandsRun": [
-    "agentuity ai intro",
-    "bun add -d @agentuity/cli@beta",
-    "bun add @agentuity/keyvalue@beta",
+    "bunx @agentuity/cli@next ai intro",
+    "bun add -d @agentuity/cli@next",
+    "bun add @agentuity/keyvalue@next",
     "bun run build",
     "agentuity project import --validate-only",
     "agentuity build"
@@ -97,8 +97,8 @@ If the agent cannot produce this shape, it should report the exact command, file
 When the agent already knows what the app needs, use `--services` in the create command. Ask the CLI for the current flags first if the agent is not sure:
 
 ```bash
-agentuity project create --help
-bun create agentuity@beta --framework nextjs --services keyvalue,queue --confirm
+bunx @agentuity/cli@next project create --help
+bun create agentuity@next --framework nextjs --services keyvalue,queue --confirm
 ```
 
 For reviewable agent-driven work, we recommend scaffold first, add one server-only route or handler, then run the framework build before `agentuity build`. That keeps generated service code easy to inspect and separates framework build errors from deploy packaging errors.
@@ -110,7 +110,7 @@ Use this when the app already builds and you want an agent to wire the Agentuity
 ```text
 You are preparing this existing app for Agentuity.
 
-1. Run `agentuity ai intro`.
+1. Run `bunx @agentuity/cli@next ai intro`.
 2. Read `agentuity project import --help`, `agentuity build --help`, and `agentuity deploy --help`.
 3. Run `agentuity project import --validate-only` first.
 4. If validation passes, run:
@@ -139,7 +139,7 @@ agentuity ai capabilities show
 agentuity ai prompt llm
 ```
 
-Use `agentuity ai intro` for the current setup model. Use `agentuity ai prompt llm` when an agent needs a broad CLI safety prompt, not as a replacement for a task-specific instruction.
+Use `bunx @agentuity/cli@next ai intro` for the current setup model before a project exists. After the scaffold installs `@agentuity/cli@next` locally, `bunx agentuity ...` is the shortest way to run the same commands. Use `agentuity ai prompt llm` only when an agent needs a broad CLI safety prompt, not as a replacement for a task-specific instruction.
 
 See [AI Commands](/reference/cli/ai-commands) for the full AI-facing command reference.
 

@@ -10,6 +10,8 @@ description: Run your framework dev script with Agentuity environment wiring.
 agentuity dev
 ```
 
+These examples show `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+
 ## What It Runs
 
 The CLI reads `package.json`, picks the package manager from the lockfile in the project root, and runs the chosen script:
@@ -145,7 +147,7 @@ The check accepts a `package.json` with at least one of `name`, `dependencies`, 
 | Process | Your framework dev script as a child | The command from `.agentuity/launch.json` |
 | `AGENTUITY_SDK_KEY` | Read from `.env` (profile-aware) or CLI auth | Injected by the platform |
 | Gateway base URLs | OpenAI, Anthropic, and Groq env pairs patched into the child process when no provider key is set; other AI SDK providers use explicit factories | Platform transport URLs are injected; provider SDKs still need the setup documented in [AI Gateway](/services/ai-gateway) or provider-owned keys |
-| Cloud transport URLs | Defaulted to `local` profile values | Injected by the platform per region |
+| Cloud transport URLs | Profile overrides such as `AGENTUITY_TRANSPORT_URL` or `AGENTUITY_CATALYST_URL` can be passed through from the active CLI profile | Injected by the platform per region |
 | Public URL | Optional Gravity URL through `--public` or `devmode.public` | Vanity URL, deployment URL, optional custom domain |
 | Hot reload | Yours, via the framework's dev server | None. Each deploy is a new build. |
 

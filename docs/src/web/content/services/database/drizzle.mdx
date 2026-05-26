@@ -112,10 +112,10 @@ await db.transaction(async (tx) => {
 
 ## Bun-Only Compatibility Helper
 
-`@agentuity/drizzle` is an opt-in compatibility helper for Bun code that wants Agentuity's Drizzle wrapper around the same Postgres resource. It is not required for framework apps, and Node.js routes should use Drizzle's standard `node-postgres` driver directly.
+`@agentuity/drizzle` is a deprecated, opt-in compatibility helper for Bun code that wants Agentuity's Drizzle wrapper around the same Postgres resource. It is not required for framework apps, and Node.js routes should use Drizzle's standard `node-postgres` driver directly.
 
 ```bash
-bun add @agentuity/drizzle@beta drizzle-orm
+bun add @agentuity/drizzle@next drizzle-orm
 ```
 
 ```typescript
@@ -147,7 +147,7 @@ export const users = pgTable('users', {
 ```
 
 <Callout type="info" title="Runtime imports and schema imports are different">
-Use top-level `@agentuity/drizzle` only from Bun code that chooses this helper. Use `@agentuity/drizzle/schema` from schema files and migration tooling when you need the helper's schema re-exports.
+Use top-level `@agentuity/drizzle` only from Bun code that intentionally keeps this deprecated helper. Use `@agentuity/drizzle/schema` from schema files and migration tooling when you need the helper's schema re-exports.
 </Callout>
 
 ## Auth and User Tables

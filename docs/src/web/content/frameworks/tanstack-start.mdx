@@ -4,7 +4,7 @@ short_title: TanStack Start
 description: Add Agentuity service clients to a TanStack Start app and validate the detected build path before deploying
 ---
 
-TanStack Start is not a `bun create agentuity@beta --framework` starter today. Start with TanStack's own CLI, then add Agentuity to the resulting app and inspect the server output before deploying.
+TanStack Start is not a `bun create agentuity@next --framework` starter today. Start with TanStack's own CLI, then add Agentuity to the resulting app and inspect the server output before deploying.
 
 ## Create the Framework App
 
@@ -18,13 +18,15 @@ Choose the React framework and Nitro deployment target during setup. That gives 
 Then add Agentuity:
 
 ```bash
-npm install @agentuity/keyvalue@beta
-npm install -D @agentuity/cli@beta
-npx @agentuity/cli@beta project import --validate-only   # dry run: checks config only
-npx @agentuity/cli@beta project import                   # registers the project and writes agentuity.json
+npm install @agentuity/keyvalue@next
+npm install -D @agentuity/cli@next
+npx @agentuity/cli@next project import --validate-only   # dry run: checks config only
+npx @agentuity/cli@next project import                   # registers the project and writes agentuity.json
 ```
 
 Use the package manager that the TanStack CLI configured. Substitute `bun add`, `pnpm add`, or `yarn add` if your project does not use npm.
+
+If the CLI is only installed locally, keep using your package manager's exec wrapper for later commands too, for example `npx agentuity ...`, `bunx agentuity ...`, or the equivalent for your package manager.
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
 

@@ -5,8 +5,8 @@
  * Uses simplified model (gpt-5.4-nano) without commands.
  * See src/run/AGENTS.md for architecture details.
  *
- * Demonstrates: Thread state and session state APIs inside the docs demo context.
- * Standalone runs create a fresh thread unless you provide one explicitly,
+ * Demonstrates: conversation-scoped state and request timing inside the docs demo context.
+ * Standalone runs create a fresh conversation unless you provide one explicitly,
  * so this shows the API shape rather than cross-run history persistence.
  *
  * Usage: bun run src/run/chat.ts '{"message":"Hello!"}'
@@ -39,10 +39,10 @@ try {
 
 		const messages = ((await ctx.thread.state.get('messages')) as Message[]) ?? [];
 		const turnCount = ((await ctx.thread.state.get('turnCount')) as number) ?? 0;
-		ctx.logger.info('Thread state retrieved', {
+		ctx.logger.info('Conversation state retrieved', {
 			messageCount: messages.length,
 			turnCount,
-			note: 'standalone demo starts a fresh thread each run unless you provide one',
+			note: 'standalone demo starts a fresh conversation each run unless you provide one',
 		});
 
 		// Generate response
@@ -60,7 +60,7 @@ ${agentuityDocs}`,
 		await ctx.thread.state.push('messages', { role: 'user', content: message }, 50);
 		await ctx.thread.state.push('messages', { role: 'assistant', content: text }, 50);
 		await ctx.thread.state.set('turnCount', turnCount + 1);
-		ctx.logger.info('Thread state updated', { newTurnCount: turnCount + 1 });
+		ctx.logger.info('Conversation state updated', { newTurnCount: turnCount + 1 });
 
 		// Session state: check elapsed time
 		const elapsed = Date.now() - (ctx.session.state.get('requestStart') as number);
@@ -69,9 +69,11 @@ ${agentuityDocs}`,
 		console.log('---OUTPUT---');
 		console.log(`User: "${message}"`);
 		console.log(`Assistant: "${text}"`);
-		console.log(`Thread: ${ctx.thread.id}`);
+		console.log(`Conversation: ${ctx.thread.id}`);
 		console.log(`Turn: ${turnCount + 1} (elapsed: ${elapsed}ms)`);
-		console.log('Note: standalone sandbox runs create a new thread unless one is supplied.');
+		console.log(
+			'Note: standalone sandbox runs create a new conversation unless one is supplied.'
+		);
 		console.log('---OUTPUT---');
 	});
 } catch (error) {
