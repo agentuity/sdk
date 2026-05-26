@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isDirEmptyForScaffold } from '../../../src/cmd/project/create';
+import { decideNoFrameworkHit, isDirEmptyForScaffold } from '../../../src/cmd/project/create';
 
 describe('isDirEmptyForScaffold', () => {
 	let dir: string;
@@ -50,5 +50,15 @@ describe('isDirEmptyForScaffold', () => {
 	test('returns false when an unknown dotfile is present', () => {
 		writeFileSync(join(dir, '.envrc'), 'export FOO=1\n');
 		expect(isDirEmptyForScaffold(dir)).toBe(false);
+	});
+});
+
+describe('decideNoFrameworkHit', () => {
+	test('interactive run falls through to scaffold a new subdirectory', () => {
+		expect(decideNoFrameworkHit({ isInteractive: true })).toBe('scaffold-subdir');
+	});
+
+	test('non-interactive run refuses with a fatal so callers must pass --name or use an empty dir', () => {
+		expect(decideNoFrameworkHit({ isInteractive: false })).toBe('fatal');
 	});
 });

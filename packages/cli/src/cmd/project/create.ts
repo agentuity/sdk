@@ -13,6 +13,30 @@ import { runProjectImport } from './reconcile.ts';
 import { runCreateFlow } from './template-flow.ts';
 
 /**
+ * Decision returned by `decideNoFrameworkHit` for the
+ * "non-empty dir, no supported framework detected" branch of the
+ * existing-project gate. Kept as a pure helper so it can be unit-
+ * tested without driving the CLI through a child process.
+ *
+ *   - `scaffold-subdir`: fall through to `runCreateFlow`, which will
+ *     prompt for a project name and scaffold into `<dir>/<name>`.
+ *   - `fatal`: refuse to proceed; the caller should surface the
+ *     usual "not empty / not a known framework" error.
+ */
+export type NoFrameworkHitDecision = 'scaffold-subdir' | 'fatal';
+
+/**
+ * Decide what to do when the target directory has files but doesn't
+ * look like any supported framework. Interactive runs fall through to
+ * the normal create flow (which will scaffold into a new subdirectory
+ * via the project-name prompt); non-interactive runs hard-fail because
+ * there's no way to ask the user for a subdir name.
+ */
+export function decideNoFrameworkHit(opts: { isInteractive: boolean }): NoFrameworkHitDecision {
+	return opts.isInteractive ? 'scaffold-subdir' : 'fatal';
+}
+
+/**
  * Names ignored when deciding whether a directory "has files" for the
  * purposes of the existing-project gate. A freshly `git init`'d folder
  * or one with editor metadata should still be considered empty enough
@@ -268,9 +292,15 @@ async function maybeImportExistingProject(
 
 	const hit = await detectExistingProject(dir);
 
-	// Has files but nothing we know how to deploy. Refuse to scaffold on
-	// top of unknown content.
+	// Has files but nothing we know how to deploy. We can't scaffold
+	// directly on top of unknown content, but we can still fall through
+	// to the normal create flow which will prompt for a project name and
+	// scaffold into a fresh `<dir>/<name>` subdirectory.
 	if (!hit) {
+		const decision = decideNoFrameworkHit({ isInteractive: isTTY() });
+		if (decision === 'scaffold-subdir') {
+			return null;
+		}
 		tui.fatal(
 			`${dir} is not empty and does not match a supported framework.\n` +
 				`Run \`${getCommand('project create')}\` from an empty directory, or pass --name <subdir> to scaffold into a new subdirectory.`,
