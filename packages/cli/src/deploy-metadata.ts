@@ -194,55 +194,6 @@ export interface GenerateDeployMetadataOptions {
 	logger: Logger;
 }
 
-function sourceFromDeployOptions(options: DeployOptions): 'github' | 'cli' | 'managed' | undefined {
-	if (options.trigger === 'managed') return 'managed';
-	if (options.trigger === 'webhook' && options.provider === 'github') return 'github';
-	if (options.trigger === 'cli') return 'cli';
-	return undefined;
-}
-
-export function applyDeploymentOptionsToMetadata(
-	metadata: BuildMetadata,
-	deploymentOptions?: DeployOptions
-): void {
-	if (metadata.deployment.git) {
-		metadata.deployment.git.tags = buildGitTags(metadata.deployment.git);
-	}
-
-	if (!deploymentOptions) return;
-
-	const {
-		commitUrl,
-		logsUrl,
-		pullRequestNumber,
-		pullRequestUrl,
-		skipDnsValidation: _skipDnsValidation,
-		...gitOptions
-	} = deploymentOptions;
-	const git = { ...(metadata.deployment.git ?? {}), ...gitOptions };
-
-	if (commitUrl) {
-		git.url = commitUrl;
-	}
-	if (logsUrl) {
-		git.buildUrl = logsUrl;
-	}
-	if (pullRequestNumber) {
-		git.pull_request = {
-			number: pullRequestNumber,
-			url: pullRequestUrl,
-		};
-	}
-
-	metadata.deployment.git = git;
-
-	const source = sourceFromDeployOptions(deploymentOptions);
-	if (source) {
-		(metadata.deployment as typeof metadata.deployment & { source?: typeof source }).source =
-			source;
-	}
-}
-
 /**
  * Generate BuildMetadata for a non-Agentuity framework deployment.
  *
@@ -332,7 +283,24 @@ export async function generateDeployMetadata(
 		launch: packageResult.launch,
 	};
 
-	applyDeploymentOptionsToMetadata(metadata, deploymentOptions);
+	// Build git tags
+	if (metadata.deployment.git) {
+		metadata.deployment.git.tags = buildGitTags(metadata.deployment.git);
+	}
+
+	// Merge deployment options (CI info, etc.)
+	if (deploymentOptions) {
+		const git = { ...(metadata.deployment.git ?? {}), ...deploymentOptions };
+		if (deploymentOptions.pullRequestNumber) {
+			git.pull_request = {
+				number: deploymentOptions.pullRequestNumber,
+				url: deploymentOptions.pullRequestUrl,
+			};
+			delete (git as Record<string, unknown>).pullRequestNumber;
+			delete (git as Record<string, unknown>).pullRequestUrl;
+		}
+		metadata.deployment.git = git;
+	}
 
 	return metadata;
 }

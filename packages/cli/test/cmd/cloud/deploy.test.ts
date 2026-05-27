@@ -30,19 +30,5 @@ describe('cloud deploy', () => {
 
 			expect(result.success).toBe(true);
 		});
-
-		test('accepts managed trigger', () => {
-			const options = deploySubcommand.schema?.options;
-			expect(options).toBeDefined();
-			if (!options) {
-				throw new Error('deploy options schema is missing');
-			}
-
-			const result = options.safeParse({
-				trigger: 'managed',
-			});
-
-			expect(result.success).toBe(true);
-		});
 	});
 });

@@ -38,10 +38,7 @@ import type { APIClient } from '../../../api.ts';
 import type { BuildReportCollector } from '../../../build-report.ts';
 import { getCachedProject } from '../../../cache/index.ts';
 import { loadBuildMetadata } from '../../../config.ts';
-import {
-	applyDeploymentOptionsToMetadata,
-	generateDeployMetadata,
-} from '../../../deploy-metadata.ts';
+import { generateDeployMetadata } from '../../../deploy-metadata.ts';
 import {
 	type Step,
 	type StepContext,
@@ -180,7 +177,6 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					if (registeredProjectName) {
 						build.project.name = registeredProjectName;
 					}
-					applyDeploymentOptionsToMetadata(build, deployOptions);
 				} else {
 					build = await generateDeployMetadata({
 						buildResult,
