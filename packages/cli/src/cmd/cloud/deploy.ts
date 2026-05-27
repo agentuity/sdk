@@ -401,6 +401,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.pullRequestNumber)
 				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
+			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
 
 			const result = await runForkedDeploy({
 				projectDir,
@@ -575,7 +576,7 @@ export const deploySubcommand = createSubcommand({
 
 			await runSteps(
 				[
-					!project.deployment?.domains?.length
+					opts.skipDnsValidation || !project.deployment?.domains?.length
 						? null
 						: {
 								label: `Validate Custom ${tui.plural(project.deployment.domains.length, 'Domain', 'Domains')}`,
