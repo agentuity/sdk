@@ -1,9 +1,9 @@
 ---
-title: Build Agents
-description: Structure model-backed workflows as plain server functions called from framework routes
+title: Agents
+description: Structure model-backed workflows as plain server functions called from routes, workers, schedules, and scripts
 ---
 
-When a request needs a decision loop, such as validating input, reading context, calling a model, and storing the result, that work belongs in a plain server-side function, not spread across the route handler. The route stays thin; the agent function owns the logic.
+When a request, job, or script needs a model-backed decision loop, put that work in a plain server-side function. The caller owns the trigger; the agent function owns validation, context reads, model calls, tool calls, and state writes.
 
 ## The Minimal Shape
 
@@ -182,9 +182,9 @@ Unit tests call `triageMessage()` directly with plain objects, so you do not nee
 
 ## Migration Boundary
 
-Use this table only when you are moving an older runtime app into v3. New code should start with the framework column.
+The current Agentuity shape is a normal app where routes, schedules, queues, and scripts call plain server-side functions. If you are copying code from previous SDK versions, use [Migration](/migration) first when you see the older patterns below.
 
-| Concern | v3 framework app | Older runtime app |
+| Concern | Current Agentuity app | Previous SDK versions |
 |---|---|---|
 | Agent entry point | Plain `async function` | `createAgent()` |
 | File location | Anywhere in your project | `src/agent/*` |
@@ -192,7 +192,7 @@ Use this table only when you are moving an older runtime app into v3. New code s
 | Calling an agent | Call the function directly | `agent.run(input)` |
 | Route ownership | You own it | Runtime-managed |
 
-See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) when a current app still has runtime-managed agents.
+See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) when an existing app still has runtime-managed agents.
 
 ## Using Hono Middleware for Shared Clients
 
@@ -253,9 +253,9 @@ Direct clients (`new KeyValueClient()`) are the portable default and work in Nex
 
 ## Next Steps
 
-- [Chat and Streaming](/build/chat-and-streaming): return model output as it is generated, rather than waiting for a complete response
-- [Tool Calling](/build/tool-calling): let a model call bounded app functions and act on results
-- [State and Memory](/build/state-and-memory): store and retrieve conversation context across requests
-- [Background Work](/build/background-work): move slow model or export work out of the request handler
+- [Chat and Streaming](/build/agents/chat-and-streaming): return model output as it is generated, rather than waiting for a complete response
+- [Tool Calling](/build/agents/tool-calling): let a model call bounded app functions and act on results
+- [State and Memory](/build/agents/state-and-memory): store and retrieve conversation context across requests
+- [Background Work](/build/apps-and-apis/background-work): move slow model or export work out of the request handler
 - [Evals and Testing](/services/observability/evals-and-testing): score agent outputs with judge tests and traces
 - [Key-Value Storage](/services/storage/key-value): full reference for `KeyValueClient` namespaces, TTLs, and search

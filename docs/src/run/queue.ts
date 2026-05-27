@@ -1,9 +1,9 @@
 /**
  * Standalone run script for Queue demo
  *
- * Shows the agent-side queue API: create queue, publish messages, delete queue.
- * Consume-side operations (receive, ack, nack, DLQ) require the server API
- * client — see src/api/queue/route.ts for those.
+ * Shows the service-client publishing path: create a worker queue, publish
+ * messages, then delete the demo queue. The live API route covers receive,
+ * ack, nack, and dead-letter behavior.
  *
  * Usage: bun run src/run/queue.ts '{}'
  */
@@ -39,7 +39,6 @@ function formatPublishedMessage(task: string, offset?: number): string {
 }
 
 try {
-	// CREATE queue
 	ctx.logger.info('Creating queue', { name: queueName });
 	const queue = await ctx.queue.createQueue(queueName, {
 		queueType: 'worker',
@@ -50,7 +49,6 @@ try {
 	});
 	ctx.logger.info('Queue created', { name: queue.name, type: queue.queueType });
 
-	// PUBLISH two messages with different payloads
 	ctx.logger.info('Publishing messages');
 
 	const firstPublish = await ctx.queue.publish(
@@ -76,7 +74,7 @@ try {
 	output.push(`Error: ${error instanceof Error ? error.message : String(error)}`);
 	process.exitCode = 1;
 } finally {
-	// Always clean up the queue, even if publishing failed
+	// Queues are real resources, so cleanup runs even when publish fails.
 	try {
 		ctx.logger.info('Deleting queue');
 		await ctx.queue.deleteQueue(queueName);

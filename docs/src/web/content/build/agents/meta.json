@@ -1,0 +1,4 @@
+{
+	"title": "Agents",
+	"pages": ["index", "chat-and-streaming", "tool-calling", "state-and-memory", "coding-agent"]
+}

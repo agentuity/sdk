@@ -31,14 +31,14 @@ export const navData: NavSection[] = [
 		hideItems: true,
 		items: [
 			{
-				title: 'Hello Agent',
+				title: 'Hello World',
 				url: '/explorer/hello',
-				description: 'Your first agent - send input, get output',
+				description: 'Send JSON to a server route and return a typed response',
 			},
 			{
-				title: 'Handler Context',
+				title: 'Route Context',
 				url: '/explorer/handler-context',
-				description: "See what's available inside your agent handler",
+				description: 'See request data, injected services, and app-owned state in a Hono route',
 			},
 			{
 				title: 'Chat',
@@ -88,7 +88,8 @@ export const navData: NavSection[] = [
 			{
 				title: 'Agent Calls',
 				url: '/explorer/agent-calls',
-				description: 'Call agents from routes or other agents',
+				description:
+					'Call model-backed functions from routes, queues, schedules, or other agents',
 			},
 			{
 				title: 'Schedules',
@@ -228,39 +229,63 @@ export const navData: NavSection[] = [
 		url: '/build',
 		items: [
 			{
-				title: 'Build Agents',
+				title: 'Apps and APIs',
+				url: '/build/apps-and-apis',
+				items: [
+					{
+						title: 'Web Apps',
+						url: '/build/apps-and-apis/web-apps',
+						description:
+							'Use Agentuity services from framework routes, server functions, and browser-facing apps',
+					},
+					{
+						title: 'Backend APIs',
+						url: '/build/apps-and-apis/backend-apis',
+						description:
+							'Deploy backend-only HTTP services, JSON APIs, and webhook handlers on Agentuity',
+					},
+					{
+						title: 'Static Sites',
+						url: '/build/apps-and-apis/static-sites',
+						description:
+							'Deploy plain HTML, static framework output, and SPA bundles on Agentuity',
+					},
+					{
+						title: 'Background Work',
+						url: '/build/apps-and-apis/background-work',
+						description:
+							'Use queues, status records, and durable streams for work that should outlive a request',
+					},
+				],
+			},
+			{
+				title: 'Agents',
 				url: '/build/agents',
-				description:
-					'Structure model-backed workflows as plain server functions called from framework routes',
-			},
-			{
-				title: 'Coding Agent',
-				url: '/build/coding-agent',
-				description:
-					'Use the Coder SDK when the agent needs a repo, tools, session history, and live events.',
-			},
-			{
-				title: 'Chat and Streaming',
-				url: '/build/chat-and-streaming',
-				description:
-					'Stream model output from framework routes and persist chat history with KV storage',
-			},
-			{
-				title: 'Tool Calling',
-				url: '/build/tool-calling',
-				description: 'Let models call bounded app functions from framework routes',
-			},
-			{
-				title: 'State and Memory',
-				url: '/build/state-and-memory',
-				description:
-					'Store app state explicitly with KV, databases, cookies, and service clients',
-			},
-			{
-				title: 'Background Work',
-				url: '/build/background-work',
-				description:
-					'Use queues, status records, and durable streams for work that should outlive a request',
+				items: [
+					{
+						title: 'Chat and Streaming',
+						url: '/build/agents/chat-and-streaming',
+						description:
+							'Stream model output from framework routes and persist chat history with KV storage',
+					},
+					{
+						title: 'Tool Calling',
+						url: '/build/agents/tool-calling',
+						description: 'Let models call bounded app functions from framework routes',
+					},
+					{
+						title: 'State and Memory',
+						url: '/build/agents/state-and-memory',
+						description:
+							'Store app state explicitly with KV, databases, cookies, and service clients',
+					},
+					{
+						title: 'Coding Agents',
+						url: '/build/agents/coding-agent',
+						description:
+							'Choose Coder, Sandbox, or app workflows for agents that edit code, run commands, and report results.',
+					},
+				],
 			},
 		],
 	},

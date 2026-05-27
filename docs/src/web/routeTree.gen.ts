@@ -92,7 +92,6 @@ import { Route as DocsBuildStateAndMemoryRouteImport } from './routes/_docs/buil
 import { Route as DocsBuildCodingAgentRouteImport } from './routes/_docs/build/coding-agent'
 import { Route as DocsBuildChatAndStreamingRouteImport } from './routes/_docs/build/chat-and-streaming'
 import { Route as DocsBuildBackgroundWorkRouteImport } from './routes/_docs/build/background-work'
-import { Route as DocsBuildAgentsRouteImport } from './routes/_docs/build/agents'
 import { Route as DocsApisWhenToUseRouteImport } from './routes/_docs/apis/when-to-use'
 import { Route as DocsApisCallingAgentsRouteImport } from './routes/_docs/apis/calling-agents'
 import { Route as DocsReferenceSdkReferenceRouteRouteImport } from './routes/_docs/reference/sdk-reference/route'
@@ -106,6 +105,8 @@ import { Route as DocsReferenceCliIndexRouteImport } from './routes/_docs/refere
 import { Route as DocsReferenceApiIndexRouteImport } from './routes/_docs/reference/api/index'
 import { Route as DocsCookbookTutorialsIndexRouteImport } from './routes/_docs/cookbook/tutorials/index'
 import { Route as DocsCookbookPatternsIndexRouteImport } from './routes/_docs/cookbook/patterns/index'
+import { Route as DocsBuildAppsAndApisIndexRouteImport } from './routes/_docs/build/apps-and-apis/index'
+import { Route as DocsBuildAgentsIndexRouteImport } from './routes/_docs/build/agents/index'
 import { Route as DocsServicesStorageVectorRouteImport } from './routes/_docs/services/storage/vector'
 import { Route as DocsServicesStorageObjectRouteImport } from './routes/_docs/services/storage/object'
 import { Route as DocsServicesStorageKeyValueRouteImport } from './routes/_docs/services/storage/key-value'
@@ -186,6 +187,14 @@ import { Route as DocsCookbookIntegrationsOpenaiAgentsRouteImport } from './rout
 import { Route as DocsCookbookIntegrationsMastraRouteImport } from './routes/_docs/cookbook/integrations/mastra'
 import { Route as DocsCookbookIntegrationsLangchainRouteImport } from './routes/_docs/cookbook/integrations/langchain'
 import { Route as DocsCookbookIntegrationsClaudeAgentRouteImport } from './routes/_docs/cookbook/integrations/claude-agent'
+import { Route as DocsBuildAppsAndApisWebAppsRouteImport } from './routes/_docs/build/apps-and-apis/web-apps'
+import { Route as DocsBuildAppsAndApisStaticSitesRouteImport } from './routes/_docs/build/apps-and-apis/static-sites'
+import { Route as DocsBuildAppsAndApisBackgroundWorkRouteImport } from './routes/_docs/build/apps-and-apis/background-work'
+import { Route as DocsBuildAppsAndApisBackendApisRouteImport } from './routes/_docs/build/apps-and-apis/backend-apis'
+import { Route as DocsBuildAgentsToolCallingRouteImport } from './routes/_docs/build/agents/tool-calling'
+import { Route as DocsBuildAgentsStateAndMemoryRouteImport } from './routes/_docs/build/agents/state-and-memory'
+import { Route as DocsBuildAgentsCodingAgentRouteImport } from './routes/_docs/build/agents/coding-agent'
+import { Route as DocsBuildAgentsChatAndStreamingRouteImport } from './routes/_docs/build/agents/chat-and-streaming'
 
 const DocsRouteRoute = DocsRouteRouteImport.update({
   id: '/_docs',
@@ -626,11 +635,6 @@ const DocsBuildBackgroundWorkRoute = DocsBuildBackgroundWorkRouteImport.update({
   path: '/build/background-work',
   getParentRoute: () => DocsRouteRoute,
 } as any)
-const DocsBuildAgentsRoute = DocsBuildAgentsRouteImport.update({
-  id: '/build/agents',
-  path: '/build/agents',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
 const DocsApisWhenToUseRoute = DocsApisWhenToUseRouteImport.update({
   id: '/apis/when-to-use',
   path: '/apis/when-to-use',
@@ -704,6 +708,17 @@ const DocsCookbookPatternsIndexRoute =
     path: '/cookbook/patterns/',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsBuildAppsAndApisIndexRoute =
+  DocsBuildAppsAndApisIndexRouteImport.update({
+    id: '/build/apps-and-apis/',
+    path: '/build/apps-and-apis/',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAgentsIndexRoute = DocsBuildAgentsIndexRouteImport.update({
+  id: '/build/agents/',
+  path: '/build/agents/',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
 const DocsServicesStorageVectorRoute =
   DocsServicesStorageVectorRouteImport.update({
     id: '/services/storage/vector',
@@ -1171,6 +1186,54 @@ const DocsCookbookIntegrationsClaudeAgentRoute =
     path: '/cookbook/integrations/claude-agent',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsBuildAppsAndApisWebAppsRoute =
+  DocsBuildAppsAndApisWebAppsRouteImport.update({
+    id: '/build/apps-and-apis/web-apps',
+    path: '/build/apps-and-apis/web-apps',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAppsAndApisStaticSitesRoute =
+  DocsBuildAppsAndApisStaticSitesRouteImport.update({
+    id: '/build/apps-and-apis/static-sites',
+    path: '/build/apps-and-apis/static-sites',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAppsAndApisBackgroundWorkRoute =
+  DocsBuildAppsAndApisBackgroundWorkRouteImport.update({
+    id: '/build/apps-and-apis/background-work',
+    path: '/build/apps-and-apis/background-work',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAppsAndApisBackendApisRoute =
+  DocsBuildAppsAndApisBackendApisRouteImport.update({
+    id: '/build/apps-and-apis/backend-apis',
+    path: '/build/apps-and-apis/backend-apis',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAgentsToolCallingRoute =
+  DocsBuildAgentsToolCallingRouteImport.update({
+    id: '/build/agents/tool-calling',
+    path: '/build/agents/tool-calling',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAgentsStateAndMemoryRoute =
+  DocsBuildAgentsStateAndMemoryRouteImport.update({
+    id: '/build/agents/state-and-memory',
+    path: '/build/agents/state-and-memory',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAgentsCodingAgentRoute =
+  DocsBuildAgentsCodingAgentRouteImport.update({
+    id: '/build/agents/coding-agent',
+    path: '/build/agents/coding-agent',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsBuildAgentsChatAndStreamingRoute =
+  DocsBuildAgentsChatAndStreamingRouteImport.update({
+    id: '/build/agents/chat-and-streaming',
+    path: '/build/agents/chat-and-streaming',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -1200,7 +1263,6 @@ export interface FileRoutesByFullPath {
   '/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren
   '/apis/calling-agents': typeof DocsApisCallingAgentsRoute
   '/apis/when-to-use': typeof DocsApisWhenToUseRoute
-  '/build/agents': typeof DocsBuildAgentsRoute
   '/build/background-work': typeof DocsBuildBackgroundWorkRoute
   '/build/chat-and-streaming': typeof DocsBuildChatAndStreamingRoute
   '/build/coding-agent': typeof DocsBuildCodingAgentRoute
@@ -1260,6 +1322,14 @@ export interface FileRoutesByFullPath {
   '/migration/': typeof DocsMigrationIndexRoute
   '/reference/': typeof DocsReferenceIndexRoute
   '/services/': typeof DocsServicesIndexRoute
+  '/build/agents/chat-and-streaming': typeof DocsBuildAgentsChatAndStreamingRoute
+  '/build/agents/coding-agent': typeof DocsBuildAgentsCodingAgentRoute
+  '/build/agents/state-and-memory': typeof DocsBuildAgentsStateAndMemoryRoute
+  '/build/agents/tool-calling': typeof DocsBuildAgentsToolCallingRoute
+  '/build/apps-and-apis/backend-apis': typeof DocsBuildAppsAndApisBackendApisRoute
+  '/build/apps-and-apis/background-work': typeof DocsBuildAppsAndApisBackgroundWorkRoute
+  '/build/apps-and-apis/static-sites': typeof DocsBuildAppsAndApisStaticSitesRoute
+  '/build/apps-and-apis/web-apps': typeof DocsBuildAppsAndApisWebAppsRoute
   '/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute
   '/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute
   '/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute
@@ -1340,6 +1410,8 @@ export interface FileRoutesByFullPath {
   '/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/services/storage/object': typeof DocsServicesStorageObjectRoute
   '/services/storage/vector': typeof DocsServicesStorageVectorRoute
+  '/build/agents/': typeof DocsBuildAgentsIndexRoute
+  '/build/apps-and-apis/': typeof DocsBuildAppsAndApisIndexRoute
   '/cookbook/patterns/': typeof DocsCookbookPatternsIndexRoute
   '/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute
   '/reference/api/': typeof DocsReferenceApiIndexRoute
@@ -1376,7 +1448,6 @@ export interface FileRoutesByTo {
   '/explorer': typeof ExplorerIndexRoute
   '/apis/calling-agents': typeof DocsApisCallingAgentsRoute
   '/apis/when-to-use': typeof DocsApisWhenToUseRoute
-  '/build/agents': typeof DocsBuildAgentsRoute
   '/build/background-work': typeof DocsBuildBackgroundWorkRoute
   '/build/chat-and-streaming': typeof DocsBuildChatAndStreamingRoute
   '/build/coding-agent': typeof DocsBuildCodingAgentRoute
@@ -1436,6 +1507,14 @@ export interface FileRoutesByTo {
   '/migration': typeof DocsMigrationIndexRoute
   '/reference': typeof DocsReferenceIndexRoute
   '/services': typeof DocsServicesIndexRoute
+  '/build/agents/chat-and-streaming': typeof DocsBuildAgentsChatAndStreamingRoute
+  '/build/agents/coding-agent': typeof DocsBuildAgentsCodingAgentRoute
+  '/build/agents/state-and-memory': typeof DocsBuildAgentsStateAndMemoryRoute
+  '/build/agents/tool-calling': typeof DocsBuildAgentsToolCallingRoute
+  '/build/apps-and-apis/backend-apis': typeof DocsBuildAppsAndApisBackendApisRoute
+  '/build/apps-and-apis/background-work': typeof DocsBuildAppsAndApisBackgroundWorkRoute
+  '/build/apps-and-apis/static-sites': typeof DocsBuildAppsAndApisStaticSitesRoute
+  '/build/apps-and-apis/web-apps': typeof DocsBuildAppsAndApisWebAppsRoute
   '/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute
   '/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute
   '/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute
@@ -1516,6 +1595,8 @@ export interface FileRoutesByTo {
   '/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/services/storage/object': typeof DocsServicesStorageObjectRoute
   '/services/storage/vector': typeof DocsServicesStorageVectorRoute
+  '/build/agents': typeof DocsBuildAgentsIndexRoute
+  '/build/apps-and-apis': typeof DocsBuildAppsAndApisIndexRoute
   '/cookbook/patterns': typeof DocsCookbookPatternsIndexRoute
   '/cookbook/tutorials': typeof DocsCookbookTutorialsIndexRoute
   '/reference/api': typeof DocsReferenceApiIndexRoute
@@ -1556,7 +1637,6 @@ export interface FileRoutesById {
   '/_docs/reference/sdk-reference': typeof DocsReferenceSdkReferenceRouteRouteWithChildren
   '/_docs/apis/calling-agents': typeof DocsApisCallingAgentsRoute
   '/_docs/apis/when-to-use': typeof DocsApisWhenToUseRoute
-  '/_docs/build/agents': typeof DocsBuildAgentsRoute
   '/_docs/build/background-work': typeof DocsBuildBackgroundWorkRoute
   '/_docs/build/chat-and-streaming': typeof DocsBuildChatAndStreamingRoute
   '/_docs/build/coding-agent': typeof DocsBuildCodingAgentRoute
@@ -1616,6 +1696,14 @@ export interface FileRoutesById {
   '/_docs/migration/': typeof DocsMigrationIndexRoute
   '/_docs/reference/': typeof DocsReferenceIndexRoute
   '/_docs/services/': typeof DocsServicesIndexRoute
+  '/_docs/build/agents/chat-and-streaming': typeof DocsBuildAgentsChatAndStreamingRoute
+  '/_docs/build/agents/coding-agent': typeof DocsBuildAgentsCodingAgentRoute
+  '/_docs/build/agents/state-and-memory': typeof DocsBuildAgentsStateAndMemoryRoute
+  '/_docs/build/agents/tool-calling': typeof DocsBuildAgentsToolCallingRoute
+  '/_docs/build/apps-and-apis/backend-apis': typeof DocsBuildAppsAndApisBackendApisRoute
+  '/_docs/build/apps-and-apis/background-work': typeof DocsBuildAppsAndApisBackgroundWorkRoute
+  '/_docs/build/apps-and-apis/static-sites': typeof DocsBuildAppsAndApisStaticSitesRoute
+  '/_docs/build/apps-and-apis/web-apps': typeof DocsBuildAppsAndApisWebAppsRoute
   '/_docs/cookbook/integrations/claude-agent': typeof DocsCookbookIntegrationsClaudeAgentRoute
   '/_docs/cookbook/integrations/langchain': typeof DocsCookbookIntegrationsLangchainRoute
   '/_docs/cookbook/integrations/mastra': typeof DocsCookbookIntegrationsMastraRoute
@@ -1696,6 +1784,8 @@ export interface FileRoutesById {
   '/_docs/services/storage/key-value': typeof DocsServicesStorageKeyValueRoute
   '/_docs/services/storage/object': typeof DocsServicesStorageObjectRoute
   '/_docs/services/storage/vector': typeof DocsServicesStorageVectorRoute
+  '/_docs/build/agents/': typeof DocsBuildAgentsIndexRoute
+  '/_docs/build/apps-and-apis/': typeof DocsBuildAppsAndApisIndexRoute
   '/_docs/cookbook/patterns/': typeof DocsCookbookPatternsIndexRoute
   '/_docs/cookbook/tutorials/': typeof DocsCookbookTutorialsIndexRoute
   '/_docs/reference/api/': typeof DocsReferenceApiIndexRoute
@@ -1736,7 +1826,6 @@ export interface FileRouteTypes {
     | '/reference/sdk-reference'
     | '/apis/calling-agents'
     | '/apis/when-to-use'
-    | '/build/agents'
     | '/build/background-work'
     | '/build/chat-and-streaming'
     | '/build/coding-agent'
@@ -1796,6 +1885,14 @@ export interface FileRouteTypes {
     | '/migration/'
     | '/reference/'
     | '/services/'
+    | '/build/agents/chat-and-streaming'
+    | '/build/agents/coding-agent'
+    | '/build/agents/state-and-memory'
+    | '/build/agents/tool-calling'
+    | '/build/apps-and-apis/backend-apis'
+    | '/build/apps-and-apis/background-work'
+    | '/build/apps-and-apis/static-sites'
+    | '/build/apps-and-apis/web-apps'
     | '/cookbook/integrations/claude-agent'
     | '/cookbook/integrations/langchain'
     | '/cookbook/integrations/mastra'
@@ -1876,6 +1973,8 @@ export interface FileRouteTypes {
     | '/services/storage/key-value'
     | '/services/storage/object'
     | '/services/storage/vector'
+    | '/build/agents/'
+    | '/build/apps-and-apis/'
     | '/cookbook/patterns/'
     | '/cookbook/tutorials/'
     | '/reference/api/'
@@ -1912,7 +2011,6 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/apis/calling-agents'
     | '/apis/when-to-use'
-    | '/build/agents'
     | '/build/background-work'
     | '/build/chat-and-streaming'
     | '/build/coding-agent'
@@ -1972,6 +2070,14 @@ export interface FileRouteTypes {
     | '/migration'
     | '/reference'
     | '/services'
+    | '/build/agents/chat-and-streaming'
+    | '/build/agents/coding-agent'
+    | '/build/agents/state-and-memory'
+    | '/build/agents/tool-calling'
+    | '/build/apps-and-apis/backend-apis'
+    | '/build/apps-and-apis/background-work'
+    | '/build/apps-and-apis/static-sites'
+    | '/build/apps-and-apis/web-apps'
     | '/cookbook/integrations/claude-agent'
     | '/cookbook/integrations/langchain'
     | '/cookbook/integrations/mastra'
@@ -2052,6 +2158,8 @@ export interface FileRouteTypes {
     | '/services/storage/key-value'
     | '/services/storage/object'
     | '/services/storage/vector'
+    | '/build/agents'
+    | '/build/apps-and-apis'
     | '/cookbook/patterns'
     | '/cookbook/tutorials'
     | '/reference/api'
@@ -2091,7 +2199,6 @@ export interface FileRouteTypes {
     | '/_docs/reference/sdk-reference'
     | '/_docs/apis/calling-agents'
     | '/_docs/apis/when-to-use'
-    | '/_docs/build/agents'
     | '/_docs/build/background-work'
     | '/_docs/build/chat-and-streaming'
     | '/_docs/build/coding-agent'
@@ -2151,6 +2258,14 @@ export interface FileRouteTypes {
     | '/_docs/migration/'
     | '/_docs/reference/'
     | '/_docs/services/'
+    | '/_docs/build/agents/chat-and-streaming'
+    | '/_docs/build/agents/coding-agent'
+    | '/_docs/build/agents/state-and-memory'
+    | '/_docs/build/agents/tool-calling'
+    | '/_docs/build/apps-and-apis/backend-apis'
+    | '/_docs/build/apps-and-apis/background-work'
+    | '/_docs/build/apps-and-apis/static-sites'
+    | '/_docs/build/apps-and-apis/web-apps'
     | '/_docs/cookbook/integrations/claude-agent'
     | '/_docs/cookbook/integrations/langchain'
     | '/_docs/cookbook/integrations/mastra'
@@ -2231,6 +2346,8 @@ export interface FileRouteTypes {
     | '/_docs/services/storage/key-value'
     | '/_docs/services/storage/object'
     | '/_docs/services/storage/vector'
+    | '/_docs/build/agents/'
+    | '/_docs/build/apps-and-apis/'
     | '/_docs/cookbook/patterns/'
     | '/_docs/cookbook/tutorials/'
     | '/_docs/reference/api/'
@@ -2852,13 +2969,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsBuildBackgroundWorkRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/build/agents': {
-      id: '/_docs/build/agents'
-      path: '/build/agents'
-      fullPath: '/build/agents'
-      preLoaderRoute: typeof DocsBuildAgentsRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
     '/_docs/apis/when-to-use': {
       id: '/_docs/apis/when-to-use'
       path: '/apis/when-to-use'
@@ -2948,6 +3058,20 @@ declare module '@tanstack/react-router' {
       path: '/cookbook/patterns'
       fullPath: '/cookbook/patterns/'
       preLoaderRoute: typeof DocsCookbookPatternsIndexRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/apps-and-apis/': {
+      id: '/_docs/build/apps-and-apis/'
+      path: '/build/apps-and-apis'
+      fullPath: '/build/apps-and-apis/'
+      preLoaderRoute: typeof DocsBuildAppsAndApisIndexRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/agents/': {
+      id: '/_docs/build/agents/'
+      path: '/build/agents'
+      fullPath: '/build/agents/'
+      preLoaderRoute: typeof DocsBuildAgentsIndexRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/services/storage/vector': {
@@ -3510,6 +3634,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsCookbookIntegrationsClaudeAgentRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/build/apps-and-apis/web-apps': {
+      id: '/_docs/build/apps-and-apis/web-apps'
+      path: '/build/apps-and-apis/web-apps'
+      fullPath: '/build/apps-and-apis/web-apps'
+      preLoaderRoute: typeof DocsBuildAppsAndApisWebAppsRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/apps-and-apis/static-sites': {
+      id: '/_docs/build/apps-and-apis/static-sites'
+      path: '/build/apps-and-apis/static-sites'
+      fullPath: '/build/apps-and-apis/static-sites'
+      preLoaderRoute: typeof DocsBuildAppsAndApisStaticSitesRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/apps-and-apis/background-work': {
+      id: '/_docs/build/apps-and-apis/background-work'
+      path: '/build/apps-and-apis/background-work'
+      fullPath: '/build/apps-and-apis/background-work'
+      preLoaderRoute: typeof DocsBuildAppsAndApisBackgroundWorkRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/apps-and-apis/backend-apis': {
+      id: '/_docs/build/apps-and-apis/backend-apis'
+      path: '/build/apps-and-apis/backend-apis'
+      fullPath: '/build/apps-and-apis/backend-apis'
+      preLoaderRoute: typeof DocsBuildAppsAndApisBackendApisRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/agents/tool-calling': {
+      id: '/_docs/build/agents/tool-calling'
+      path: '/build/agents/tool-calling'
+      fullPath: '/build/agents/tool-calling'
+      preLoaderRoute: typeof DocsBuildAgentsToolCallingRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/agents/state-and-memory': {
+      id: '/_docs/build/agents/state-and-memory'
+      path: '/build/agents/state-and-memory'
+      fullPath: '/build/agents/state-and-memory'
+      preLoaderRoute: typeof DocsBuildAgentsStateAndMemoryRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/agents/coding-agent': {
+      id: '/_docs/build/agents/coding-agent'
+      path: '/build/agents/coding-agent'
+      fullPath: '/build/agents/coding-agent'
+      preLoaderRoute: typeof DocsBuildAgentsCodingAgentRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/build/agents/chat-and-streaming': {
+      id: '/_docs/build/agents/chat-and-streaming'
+      path: '/build/agents/chat-and-streaming'
+      fullPath: '/build/agents/chat-and-streaming'
+      preLoaderRoute: typeof DocsBuildAgentsChatAndStreamingRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
   }
 }
 
@@ -3596,7 +3776,6 @@ interface DocsRouteRouteChildren {
   DocsReferenceSdkReferenceRouteRoute: typeof DocsReferenceSdkReferenceRouteRouteWithChildren
   DocsApisCallingAgentsRoute: typeof DocsApisCallingAgentsRoute
   DocsApisWhenToUseRoute: typeof DocsApisWhenToUseRoute
-  DocsBuildAgentsRoute: typeof DocsBuildAgentsRoute
   DocsBuildBackgroundWorkRoute: typeof DocsBuildBackgroundWorkRoute
   DocsBuildChatAndStreamingRoute: typeof DocsBuildChatAndStreamingRoute
   DocsBuildCodingAgentRoute: typeof DocsBuildCodingAgentRoute
@@ -3656,6 +3835,14 @@ interface DocsRouteRouteChildren {
   DocsMigrationIndexRoute: typeof DocsMigrationIndexRoute
   DocsReferenceIndexRoute: typeof DocsReferenceIndexRoute
   DocsServicesIndexRoute: typeof DocsServicesIndexRoute
+  DocsBuildAgentsChatAndStreamingRoute: typeof DocsBuildAgentsChatAndStreamingRoute
+  DocsBuildAgentsCodingAgentRoute: typeof DocsBuildAgentsCodingAgentRoute
+  DocsBuildAgentsStateAndMemoryRoute: typeof DocsBuildAgentsStateAndMemoryRoute
+  DocsBuildAgentsToolCallingRoute: typeof DocsBuildAgentsToolCallingRoute
+  DocsBuildAppsAndApisBackendApisRoute: typeof DocsBuildAppsAndApisBackendApisRoute
+  DocsBuildAppsAndApisBackgroundWorkRoute: typeof DocsBuildAppsAndApisBackgroundWorkRoute
+  DocsBuildAppsAndApisStaticSitesRoute: typeof DocsBuildAppsAndApisStaticSitesRoute
+  DocsBuildAppsAndApisWebAppsRoute: typeof DocsBuildAppsAndApisWebAppsRoute
   DocsCookbookIntegrationsClaudeAgentRoute: typeof DocsCookbookIntegrationsClaudeAgentRoute
   DocsCookbookIntegrationsLangchainRoute: typeof DocsCookbookIntegrationsLangchainRoute
   DocsCookbookIntegrationsMastraRoute: typeof DocsCookbookIntegrationsMastraRoute
@@ -3711,6 +3898,8 @@ interface DocsRouteRouteChildren {
   DocsServicesStorageKeyValueRoute: typeof DocsServicesStorageKeyValueRoute
   DocsServicesStorageObjectRoute: typeof DocsServicesStorageObjectRoute
   DocsServicesStorageVectorRoute: typeof DocsServicesStorageVectorRoute
+  DocsBuildAgentsIndexRoute: typeof DocsBuildAgentsIndexRoute
+  DocsBuildAppsAndApisIndexRoute: typeof DocsBuildAppsAndApisIndexRoute
   DocsCookbookPatternsIndexRoute: typeof DocsCookbookPatternsIndexRoute
   DocsCookbookTutorialsIndexRoute: typeof DocsCookbookTutorialsIndexRoute
   DocsReferenceCliIndexRoute: typeof DocsReferenceCliIndexRoute
@@ -3726,7 +3915,6 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
     DocsReferenceSdkReferenceRouteRouteWithChildren,
   DocsApisCallingAgentsRoute: DocsApisCallingAgentsRoute,
   DocsApisWhenToUseRoute: DocsApisWhenToUseRoute,
-  DocsBuildAgentsRoute: DocsBuildAgentsRoute,
   DocsBuildBackgroundWorkRoute: DocsBuildBackgroundWorkRoute,
   DocsBuildChatAndStreamingRoute: DocsBuildChatAndStreamingRoute,
   DocsBuildCodingAgentRoute: DocsBuildCodingAgentRoute,
@@ -3789,6 +3977,15 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsMigrationIndexRoute: DocsMigrationIndexRoute,
   DocsReferenceIndexRoute: DocsReferenceIndexRoute,
   DocsServicesIndexRoute: DocsServicesIndexRoute,
+  DocsBuildAgentsChatAndStreamingRoute: DocsBuildAgentsChatAndStreamingRoute,
+  DocsBuildAgentsCodingAgentRoute: DocsBuildAgentsCodingAgentRoute,
+  DocsBuildAgentsStateAndMemoryRoute: DocsBuildAgentsStateAndMemoryRoute,
+  DocsBuildAgentsToolCallingRoute: DocsBuildAgentsToolCallingRoute,
+  DocsBuildAppsAndApisBackendApisRoute: DocsBuildAppsAndApisBackendApisRoute,
+  DocsBuildAppsAndApisBackgroundWorkRoute:
+    DocsBuildAppsAndApisBackgroundWorkRoute,
+  DocsBuildAppsAndApisStaticSitesRoute: DocsBuildAppsAndApisStaticSitesRoute,
+  DocsBuildAppsAndApisWebAppsRoute: DocsBuildAppsAndApisWebAppsRoute,
   DocsCookbookIntegrationsClaudeAgentRoute:
     DocsCookbookIntegrationsClaudeAgentRoute,
   DocsCookbookIntegrationsLangchainRoute:
@@ -3870,6 +4067,8 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsServicesStorageKeyValueRoute: DocsServicesStorageKeyValueRoute,
   DocsServicesStorageObjectRoute: DocsServicesStorageObjectRoute,
   DocsServicesStorageVectorRoute: DocsServicesStorageVectorRoute,
+  DocsBuildAgentsIndexRoute: DocsBuildAgentsIndexRoute,
+  DocsBuildAppsAndApisIndexRoute: DocsBuildAppsAndApisIndexRoute,
   DocsCookbookPatternsIndexRoute: DocsCookbookPatternsIndexRoute,
   DocsCookbookTutorialsIndexRoute: DocsCookbookTutorialsIndexRoute,
   DocsReferenceCliIndexRoute: DocsReferenceCliIndexRoute,

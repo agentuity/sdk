@@ -1,13 +1,9 @@
 /**
  * Standalone run script for Chat demo
  *
- * NOTE: Intentionally separate from src/agent/chat/agent.ts.
- * Uses simplified model (gpt-5.4-nano) without commands.
- * See src/run/AGENTS.md for architecture details.
- *
- * Demonstrates: conversation-scoped state and request timing inside the docs demo context.
- * Standalone runs create a fresh conversation unless you provide one explicitly,
- * so this shows the API shape rather than cross-run history persistence.
+ * Uses the docs demo context to show conversation memory in a sandbox. A
+ * standalone run gets a fresh thread unless the caller provides one through the
+ * Explorer session, so this script teaches the state shape, not durable history.
  *
  * Usage: bun run src/run/chat.ts '{"message":"Hello!"}'
  */
@@ -34,7 +30,7 @@ try {
 	await runWithDemoContext(standaloneCtx, async () => {
 		const ctx = getDemoContext();
 
-		// Session state: per-request timing
+		// Session state is request-local here; conversation history belongs to the thread store.
 		ctx.session.state.set('requestStart', Date.now());
 
 		const messages = ((await ctx.thread.state.get('messages')) as Message[]) ?? [];
@@ -45,7 +41,6 @@ try {
 			note: 'standalone demo starts a fresh conversation each run unless you provide one',
 		});
 
-		// Generate response
 		ctx.logger.info('Generating response');
 		const { text } = await generateText({
 			model: openai('gpt-5.4-nano'),
@@ -56,13 +51,12 @@ ${agentuityDocs}`,
 			messages: [...messages, { role: 'user', content: message }],
 		});
 
-		// Update thread state with sliding window (max 50 messages)
+		// Keep only recent turns so prompt size stays bounded.
 		await ctx.thread.state.push('messages', { role: 'user', content: message }, 50);
 		await ctx.thread.state.push('messages', { role: 'assistant', content: text }, 50);
 		await ctx.thread.state.set('turnCount', turnCount + 1);
 		ctx.logger.info('Conversation state updated', { newTurnCount: turnCount + 1 });
 
-		// Session state: check elapsed time
 		const elapsed = Date.now() - (ctx.session.state.get('requestStart') as number);
 		ctx.logger.info('Request completed', { elapsedMs: elapsed });
 

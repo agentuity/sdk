@@ -1,7 +1,7 @@
 /**
  * Code examples displayed in the Monaco editor for each demo.
  * The live sandbox scripts live in src/run/*.ts. These examples show the
- * v3-facing shape readers should copy into their own framework apps.
+ * framework-first shape readers should copy into their own apps.
  */
 export const CODE_EXAMPLES = {
 	hello: `import { agentuity } from "@agentuity/hono";
@@ -12,6 +12,7 @@ import { z } from "zod";
 type Variables = { logger: Logger };
 
 const app = new Hono<{ Variables: Variables }>();
+// The middleware adds Agentuity helpers to c.var for each request.
 app.use("*", agentuity());
 
 const HelloInput = z.object({
@@ -38,6 +39,7 @@ type Variables = Pick<Services, "kv" | "queue" | "stream" | "vector"> & {
 };
 
 const app = new Hono<{ Variables: Variables }>();
+// Register once at the app boundary, then read only the helpers each route needs.
 app.use("*", agentuity());
 
 app.get("/api/context", async (c) => {
@@ -232,7 +234,7 @@ const app = new Hono();
 app.post("/api/triage", async (c) => {
   const input = ClassifyInput.parse(await c.req.json());
 
-  // In v3, compose plain functions or call routes over HTTP.
+  // The route owns validation and timing; the focused functions own the work.
   const intent = await classifyIntent(input.message);
   const response = await draftReply(input.message, intent);
 
@@ -245,6 +247,7 @@ export default app;`,
 
 const schedules = new ScheduleClient();
 const name = "nightly-sync-" + crypto.randomUUID();
+const appUrl = process.env.APP_URL ?? "https://your-app.agentuity.dev";
 
 const { schedule, destinations } = await schedules.create({
   name,
@@ -254,7 +257,7 @@ const { schedule, destinations } = await schedules.create({
     {
       type: "url",
       config: {
-        url: process.env.APP_URL + "/api/sync",
+        url: appUrl + "/api/sync",
         method: "POST",
       },
     },
@@ -316,10 +319,9 @@ type Message = {
 };
 
 const kv = new KeyValueClient();
-const conversationId = "conv-" + crypto.randomUUID();
-const key = "conversation:" + conversationId + ":messages";
 
-async function chat(message: string) {
+async function chat(conversationId: string, message: string) {
+  const key = "conversation:" + conversationId + ":messages";
   const history = await kv.get<Message[]>("chat-history", key);
   const messages = history.exists ? history.data : [];
 
@@ -342,7 +344,12 @@ async function chat(message: string) {
     turns: nextMessages.length / 2,
     conversationId,
   };
-}`,
+}
+
+export const preview = await chat(
+  "conv-" + crypto.randomUUID(),
+  "What is Agentuity?"
+);`,
 
 	'model-arena': `import { anthropic } from "@ai-sdk/anthropic";
 import { groq } from "@ai-sdk/groq";

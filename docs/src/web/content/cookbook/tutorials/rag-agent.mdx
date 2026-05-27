@@ -265,12 +265,12 @@ The response includes the model answer, the source IDs the model cited, and an a
   );
   ```
 
-- **Stream the answer.** Swap `generateText` for `streamText` and return a `Response` whose body is the stream. See [Chat and Streaming](/build/chat-and-streaming).
-- **Run indexing in the background.** Move `indexDocuments` behind a queue when documents arrive faster than the route should handle them. See [Background Work](/build/background-work).
-- **Track answer quality.** Feed the answer and retrieved context to a judge model to grade whether the answer was grounded. See [Build Agents](/build/agents) for the agent-as-function pattern.
+- **Stream the answer.** Swap `generateText` for `streamText` and return a `Response` whose body is the stream. See [Chat and Streaming](/build/agents/chat-and-streaming).
+- **Run indexing in the background.** Move `indexDocuments` behind a queue when documents arrive faster than the route should handle them. See [Background Work](/build/apps-and-apis/background-work).
+- **Track answer quality.** Feed the answer and retrieved context to a judge model to grade whether the answer was grounded. See [Agents](/build/agents) for the agent-as-function pattern.
 
 ## Next Steps
 
 - [Vector Storage](/services/storage/vector): metadata generics, TTL behavior, and search options
-- [Build Agents](/build/agents): the plain-function pattern for model-backed work
+- [Agents](/build/agents): the plain-function pattern for model-backed work
 - [Product Search](/cookbook/patterns/product-search): another vector pattern, with metadata filters and recommendations

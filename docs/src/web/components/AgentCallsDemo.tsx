@@ -183,7 +183,7 @@ export function AgentCallsDemo() {
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg shadow-2xl flex flex-col gap-4 overflow-hidden p-4">
 				{/* Hint text */}
 				<p className="text-zinc-500 text-sm m-0">
-					Select a pattern and operation, then click Run to see route composition in action.
+					Select a call shape and operation, then click Run to see agent calls in action.
 				</p>
 
 				{/* Pattern selector */}

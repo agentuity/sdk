@@ -1,12 +1,13 @@
 /**
- * Standalone run script for Handler Context demo
+ * Standalone run script for Route Context demo
  *
  * NOTE: This demo is intentionally route-adjacent rather than route-bound.
  * The live Explorer uses Hono request handlers; this script focuses on the
  * same service and logging concepts in a sandbox-friendly shape.
  * See src/run/AGENTS.md for architecture details.
  *
- * Demonstrates: service injection, logging, app-owned state, and background helpers.
+ * Shows request-adjacent concepts: logging, injected services, app-owned state,
+ * and background helpers.
  *
  * Usage: bun run src/run/handler-context.ts '{}'
  */
@@ -23,7 +24,6 @@ await runWithDemoContext(standaloneCtx, async () => {
 		console.log('---OUTPUT---');
 		console.log('');
 
-		// Logger demonstration
 		console.log('Route logging:');
 		ctx.logger.info('Context inspected', { visitorId });
 		ctx.logger.debug('Service surface checked', { visitorId });

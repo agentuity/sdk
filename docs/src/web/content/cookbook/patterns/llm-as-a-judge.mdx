@@ -311,7 +311,7 @@ Answer: ${body.answer}
 export default app;
 ```
 
-The worker route is fired by an HTTP destination on the `answer-quality` queue. See [Background Work](/build/background-work) for the full request/status/worker shape.
+The worker route is fired by an HTTP destination on the `answer-quality` queue. See [Background Work](/build/apps-and-apis/background-work) for the full request/status/worker shape.
 
 ## Prompt Structure
 
@@ -354,5 +354,5 @@ LLM-as-judge doubles the model calls per request. Manage the cost by:
 ## Next Steps
 
 - [Build a RAG Agent](/cookbook/tutorials/rag-agent): the answer pipeline this judge plugs into
-- [Background Work](/build/background-work): wire the judge worker route to a queue with retries and status
+- [Background Work](/build/apps-and-apis/background-work): wire the judge worker route to a queue with retries and status
 - [AI Gateway](/services/ai-gateway): local dev routing and deployed provider env choices

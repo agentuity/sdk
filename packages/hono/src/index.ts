@@ -21,6 +21,7 @@
  */
 
 import { createMiddleware } from 'hono/factory';
+import type { Env, MiddlewareHandler } from 'hono';
 import {
 	register,
 	type TelemetryConfig,
@@ -120,7 +121,9 @@ export function resetServices(): void {
  * Telemetry auto-configures from AGENTUITY_* environment variables.
  * Services auto-configure from AGENTUITY_SDK_KEY.
  */
-export function agentuity(options?: AgentuityOptions) {
+export function agentuity<E extends Env = any, P extends string = any>(
+	options?: AgentuityOptions
+): MiddlewareHandler<E, P> {
 	// Initialize telemetry (auto-configures from env vars)
 	if (!telemetryInstance) {
 		telemetryInstance = register(options?.telemetry);
@@ -133,22 +136,27 @@ export function agentuity(options?: AgentuityOptions) {
 	});
 
 	// Return the middleware handler
-	return createMiddleware(async (c, next) => {
+	return createMiddleware<E, P>(async (c, next) => {
+		// The middleware is path-agnostic, but Hono types `c.set()` from the
+		// consuming app's Variables map. Set by string here so typed apps can
+		// choose the subset of Agentuity variables they want to expose.
+		const setVar = c.set as (key: string, value: unknown) => void;
+
 		// Inject telemetry into context
-		c.set('tracer', telemetryInstance!.tracer as any);
-		c.set('logger', telemetryInstance!.logger as any);
-		c.set('meter', telemetryInstance!.meter as any);
+		setVar('tracer', telemetryInstance!.tracer);
+		setVar('logger', telemetryInstance!.logger);
+		setVar('meter', telemetryInstance!.meter);
 
 		// Inject services into context
 		const services = getServices();
-		c.set('kv', services.kv as any);
-		c.set('stream', services.stream as any);
-		c.set('vector', services.vector as any);
-		c.set('queue', services.queue as any);
-		c.set('email', services.email as any);
-		c.set('schedule', services.schedule as any);
-		c.set('task', services.task as any);
-		c.set('sandbox', services.sandbox as any);
+		setVar('kv', services.kv);
+		setVar('stream', services.stream);
+		setVar('vector', services.vector);
+		setVar('queue', services.queue);
+		setVar('email', services.email);
+		setVar('schedule', services.schedule);
+		setVar('task', services.task);
+		setVar('sandbox', services.sandbox);
 
 		await next();
 	});

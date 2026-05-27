@@ -1,13 +1,13 @@
 /**
- * Standalone script for Route Composition Demo
+ * Standalone script for the Agent Calls demo
  *
- * Demonstrates direct work, background work, and the compatibility context used
- * by the live sandbox. Public reference code lives in src/web/code-examples.ts.
+ * Mirrors direct, background, and chained call shapes in sandbox-friendly
+ * output. Public copy-paste code lives in src/web/code-examples.ts.
  *
  * Usage: bun run src/run/agent-calls.ts '{"name":"World"}'
  */
 import { getDemoContext, runWithDemoContext } from '../api/context';
-import helloAgent from '../agent/hello/agent';
+import hello from '../agent/hello/agent';
 
 const standaloneCtx = getDemoContext();
 
@@ -21,12 +21,12 @@ try {
 			? input.name
 			: 'Explorer';
 
-	standaloneCtx.logger.info('Route composition demo');
+	standaloneCtx.logger.info('Agent calls demo');
 
 	await runWithDemoContext(standaloneCtx, async () => {
 		const ctx = getDemoContext();
 
-		const greeting = await helloAgent.run({ name });
+		const greeting = await hello.run({ name });
 
 		let backgroundCompleted = false;
 		ctx.waitUntil(
@@ -36,7 +36,7 @@ try {
 			})()
 		);
 
-		// Wait a moment for background task to complete (for demo purposes)
+		// Sandboxes print buffered output, so wait long enough to show the handoff.
 		await new Promise((resolve) => setTimeout(resolve, 150));
 
 		console.log('---OUTPUT---');

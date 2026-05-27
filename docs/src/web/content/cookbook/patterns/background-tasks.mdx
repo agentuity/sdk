@@ -9,7 +9,7 @@ Some side effects do not need to complete before the response goes out: analytic
 | Need | Use |
 |---|---|
 | ephemeral side effect, OK if dropped on restart | in-process promise |
-| durable handoff with retries, status, and observability | [Queues](/services/queues) and the [Background Work](/build/background-work) pattern |
+| durable handoff with retries, status, and observability | [Queues](/services/queues) and the [Background Work](/build/apps-and-apis/background-work) pattern |
 
 ## In-Process Promise
 
@@ -85,7 +85,7 @@ declare function confirmOrder(orderId: string): Promise<void>;
 export default app;
 ```
 
-The full request, status, worker, and stream wiring lives in [Background Work](/build/background-work).
+The full request, status, worker, and stream wiring lives in [Background Work](/build/apps-and-apis/background-work).
 
 ## Notes
 
@@ -96,6 +96,6 @@ The full request, status, worker, and stream wiring lives in [Background Work](/
 
 ## Next Steps
 
-- [Background Work](/build/background-work): the durable request/status/worker/stream pattern
+- [Background Work](/build/apps-and-apis/background-work): the durable request/status/worker/stream pattern
 - [Queues](/services/queues): publish API, partitioning, idempotency, and HTTP destinations
 - [Webhook Handler](/cookbook/patterns/webhook-handler): another queue handoff pattern, scoped to incoming webhooks

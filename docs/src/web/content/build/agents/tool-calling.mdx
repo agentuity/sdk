@@ -5,7 +5,7 @@ description: Let models call bounded app functions from framework routes
 
 Tool calling lets a model request structured function results mid-generation. Your app runs the function, returns the result, and the model continues with that data. Use tools when the answer depends on live app state: a database record, an API response, or a typed action result.
 
-For chat-style tool loops that span requests, see [State and Memory](/build/state-and-memory).
+For chat-style tool loops that span requests, see [State and Memory](/build/agents/state-and-memory).
 
 ```bash
 bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
@@ -379,8 +379,8 @@ export async function answerWithAnthropic(question: string): Promise<string> {
 
 ## Next Steps
 
-- [State and Memory](/build/state-and-memory): persist tool results and pending approvals across requests
-- [Background Work](/build/background-work): enqueue tool actions that should outlive the HTTP request
+- [State and Memory](/build/agents/state-and-memory): persist tool results and pending approvals across requests
+- [Background Work](/build/apps-and-apis/background-work): enqueue tool actions that should outlive the HTTP request
 - [Key-Value Storage](/services/storage/key-value): keep compact state by namespace and key
 - [Queues](/services/queues): run approved side effects outside the request lifecycle
 - [AI Gateway](/services/ai-gateway): route LLM requests through Agentuity for observability and cost tracking

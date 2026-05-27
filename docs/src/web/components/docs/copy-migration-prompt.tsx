@@ -76,7 +76,7 @@ Phase 1 — Migration Inventory
 
 Phase 2 — Dry Run First
   Run:
-    npx @agentuity/migrate@beta --v2-to-v3 --dry-run
+    npx @agentuity/migrate@next --v2-to-v3 --dry-run
 
   Capture and summarize:
     files the migrator expects to create
@@ -90,7 +90,7 @@ Phase 2 — Dry Run First
 
 Phase 3 — Apply the Migration
   Run:
-    npx @agentuity/migrate@beta --v2-to-v3
+    npx @agentuity/migrate@next --v2-to-v3
 
   Expect the migrator to generate a Hono-oriented starting point because that is the closest mechanical replacement for the v2 runtime HTTP layer.
   Review the diff carefully after the tool runs.

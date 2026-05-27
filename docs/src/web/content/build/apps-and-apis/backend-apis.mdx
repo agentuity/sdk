@@ -1,0 +1,80 @@
+---
+title: Backend APIs
+description: Deploy backend-only HTTP services, JSON APIs, and webhook handlers on Agentuity
+---
+
+Use a backend API when the app does not need a browser UI, or when the UI is hosted somewhere else. The deployable unit can be a Hono app, another Node server, or a generic package with build and start scripts.
+
+## Hono API
+
+Hono is the smallest teaching path for backend-only services because the route shape is explicit and the server can export a standard `fetch` handler.
+
+```bash
+bun add hono @agentuity/keyvalue@next zod
+```
+
+```typescript title="src/index.ts"
+import { KeyValueClient } from '@agentuity/keyvalue';
+import { Hono } from 'hono';
+import { z } from 'zod';
+
+const eventSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  payload: z.record(z.unknown()),
+});
+
+const kv = new KeyValueClient();
+const app = new Hono();
+
+app.get('/health', (c) => {
+  return c.json({ healthy: true });
+});
+
+app.post('/api/events', async (c) => {
+  const body: unknown = await c.req.json();
+  const event = eventSchema.parse(body);
+
+  await kv.set('events', event.id, {
+    type: event.type,
+    payload: event.payload,
+    receivedAt: new Date().toISOString(),
+  });
+
+  return c.json({ accepted: true }, 202);
+});
+
+export default app;
+```
+
+## Package scripts
+
+The generic deploy path needs package scripts that build and start the server.
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/index.mjs",
+    "start": "node dist/index.mjs",
+    "deploy": "agentuity deploy"
+  }
+}
+```
+
+Run `agentuity build` before the first deploy and inspect `.agentuity/launch.json`. The command in `processes[0].command` is what Agentuity starts after upload.
+
+## Use backend APIs for
+
+| Use case | Notes |
+| --- | --- |
+| JSON APIs | Keep validation and service clients in route handlers. |
+| Webhook receivers | Verify signatures, publish to a queue, and return quickly. |
+| Internal service boundaries | Deploy a small API that other apps or jobs call. |
+| Worker destinations | Point queues or schedules at HTTP routes that do the work. |
+
+## Related docs
+
+- [Background Work](/build/apps-and-apis/background-work): wire request routes, worker routes, status records, and durable streams
+- [Webhook Handler](/cookbook/patterns/webhook-handler): verify signed external webhooks and hand off to queues
+- [Hono](/frameworks/hono): use direct clients or `@agentuity/hono` middleware in Hono apps

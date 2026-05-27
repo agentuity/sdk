@@ -197,39 +197,50 @@ function getStandaloneLogger(): Logger {
 	return sharedLogger;
 }
 
+function getStandaloneServiceOrgId(): string | undefined {
+	return (
+		process.env.AGENTUITY_ORG_ID ??
+		process.env.AGENTUITY_ORGID ??
+		process.env.AGENTUITY_CLOUD_ORG_ID ??
+		process.env.AGENTUITY_SANDBOX_ORG_ID
+	);
+}
+
 function getStandaloneServices(logger: Logger): Services {
+	const orgId = getStandaloneServiceOrgId();
+
 	sharedServices ??= {
 		kv: createLazyServiceClient<KeyValueClient>(async () => {
 			const { KeyValueClient } = await import('@agentuity/keyvalue');
-			return new KeyValueClient({ logger });
+			return new KeyValueClient({ logger, orgId });
 		}),
 		stream: createLazyServiceClient<StreamClient>(async () => {
 			const { StreamClient } = await import('@agentuity/stream');
-			return new StreamClient({ logger });
+			return new StreamClient({ logger, orgId });
 		}),
 		vector: createLazyServiceClient<VectorClient>(async () => {
 			const { VectorClient } = await import('@agentuity/vector');
-			return new VectorClient({ logger });
+			return new VectorClient({ logger, orgId });
 		}),
 		sandbox: createLazyServiceClient<SandboxClient>(async () => {
 			const { SandboxClient } = await import('@agentuity/sandbox');
-			return new SandboxClient({ logger });
+			return new SandboxClient({ logger, orgId });
 		}),
 		queue: createLazyServiceClient<QueueClient>(async () => {
 			const { QueueClient } = await import('@agentuity/queue');
-			return new QueueClient({ logger });
+			return new QueueClient({ logger, orgId });
 		}),
 		email: createLazyServiceClient<EmailClient>(async () => {
 			const { EmailClient } = await import('@agentuity/email');
-			return new EmailClient({ logger });
+			return new EmailClient({ logger, orgId });
 		}),
 		schedule: createLazyServiceClient<ScheduleClient>(async () => {
 			const { ScheduleClient } = await import('@agentuity/schedule');
-			return new ScheduleClient({ logger });
+			return new ScheduleClient({ logger, orgId });
 		}),
 		task: createLazyServiceClient<TaskClient>(async () => {
 			const { TaskClient } = await import('@agentuity/task');
-			return new TaskClient({ logger });
+			return new TaskClient({ logger, orgId });
 		}),
 	};
 

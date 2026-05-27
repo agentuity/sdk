@@ -32,6 +32,7 @@
 		"@agentuity/schedule": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/server": "workspace:*",
+		"@agentuity/storage": "workspace:*",
 		"@agentuity/stream": "workspace:*",
 		"@agentuity/task": "workspace:*",
 		"@agentuity/vector": "workspace:*",

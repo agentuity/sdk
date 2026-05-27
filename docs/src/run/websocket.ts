@@ -1,7 +1,7 @@
 /**
  * Standalone run script for WebSocket demo
  *
- * Protocol simulation for the WebSocket Explorer demo
+ * Simulates the browser/server message flow behind the live WebSocket route.
  *
  * Usage: bun run src/run/websocket.ts '{}'
  */
@@ -105,7 +105,7 @@ try {
 		console.log(`  ${msg}`);
 	}
 	console.log('');
-	console.log('This simulates the protocol flow behind websocket() route handlers');
+	console.log('This simulates the protocol flow behind the WebSocket route');
 	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');

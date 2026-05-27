@@ -14,7 +14,7 @@ export function HelloDemo() {
 	const [error, setError] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 
-	// HelloDemo calls the /api/hello agent endpoint directly with a simple
+	// HelloDemo calls the /api/hello route directly with a simple
 	// POST and receives plain text back. useSandboxRunner is for pre-baked
 	// sandbox scripts streamed over SSE — it is not the right fit here.
 	const invoke = useCallback(

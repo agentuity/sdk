@@ -18,8 +18,8 @@ const endpoints = [
 		description: 'Method, path, and headers',
 		explanation: (
 			<>
-				Read request data from <code>c.req</code>. In v3, the framework owns the request
-				boundary and your route decides what state to derive from it.
+				Read request data from <code>c.req</code>. This is the framework-owned boundary: method,
+				path, headers, and body parsing live here before you call services or shared app code.
 			</>
 		),
 		codeHint: 'c.req.method, c.req.path',
@@ -30,20 +30,22 @@ const endpoints = [
 		description: 'Available storage & observability',
 		explanation: (
 			<>
-				Check which services are available on the route context: <code>c.var.kv</code>,{' '}
-				<code>c.var.vector</code>, <code>c.var.logger</code>, and <code>c.var.tracer</code>.
+				Agentuity middleware adds service clients to <code>c.var.*</code>. This demo shows the
+				storage and observability helpers the route can use without creating them inside the
+				handler.
 			</>
 		),
 		codeHint: 'c.var.kv, c.var.vector, c.var.logger',
 	},
 	{
 		id: 'agents',
-		label: 'Composition',
-		description: 'Reusable route logic',
+		label: 'Agent Calls',
+		description: 'Reusable model-backed code',
 		explanation: (
 			<>
-				Keep reusable model-backed work in functions, then call those functions from routes,
-				queues, schedules, or other server code.
+				Keep focused model-backed work in functions, then call those functions from routes,
+				queues, schedules, or other server code. The route decides whether to wait for the
+				result or hand the work off.
 			</>
 		),
 		codeHint: 'plain functions + route handlers',
@@ -67,8 +69,8 @@ const endpoints = [
 		description: 'Request + services snapshot',
 		explanation: (
 			<>
-				See the request summary and injected services together. No runtime-owned session or
-				thread objects are required for the public v3 model.
+				See the request summary and injected services together. The route owns how it combines
+				request data with app-owned state; no runtime session or thread object is required.
 			</>
 		),
 		codeHint: 'c.req + c.var.*',

@@ -1,15 +1,15 @@
 /**
- * Agent Calls Route - Demonstrates different agent invocation patterns.
+ * Agent Calls Route - Demonstrates ways to call focused model-backed code.
  *
  * GET  /         - Info about available patterns
- * POST /sync     - Synchronous agent call (waits for response)
+ * POST /sync     - Direct call (waits for response)
  * POST /background - Fire-and-forget with waitUntil()
- * POST /chain    - Sequential agent calls (output flows to next input)
- * POST /process  - Direct agent call with validation
+ * POST /chain    - Sequential calls (output flows to next input)
+ * POST /process  - Direct call with validation
  */
 import type { ApiEnv } from '../context';
 import { waitUntil } from '../http';
-import textProcessorAgent from '../../agent/text-processor/agent';
+import textProcessor from '../../agent/text-processor/agent';
 import { Hono } from 'hono';
 
 const AGENT_CALLS_SAMPLE_TEXT = 'Hello!!!   from the ***SDK Explorer***...  #demo @test';
@@ -18,14 +18,14 @@ const router = new Hono<ApiEnv>()
 	.get('/', (c) => {
 		return c.json({
 			name: 'Agent Calls Demo',
-			description: 'Demonstrates agent invocation patterns (sync, background, chain)',
+			description: 'Demonstrates direct, background, and chained call shapes',
 			patterns: [
-				{ name: 'sync', description: 'Synchronous call - wait for response' },
+				{ name: 'sync', description: 'Direct call - wait for response' },
 				{
 					name: 'background',
 					description: 'Fire-and-forget with waitUntil()',
 				},
-				{ name: 'chain', description: 'Chain multiple agent calls' },
+				{ name: 'chain', description: 'Chain focused steps together' },
 			],
 			sampleText: AGENT_CALLS_SAMPLE_TEXT,
 		});
@@ -40,20 +40,20 @@ const router = new Hono<ApiEnv>()
 		}
 		const { operation = 'clean' } = body;
 
-		c.var.logger?.info('Sync agent call starting', { operation });
+		c.var.logger?.info('Direct call starting', { operation });
 		const startTime = Date.now();
 
-		const result = await textProcessorAgent.run({
+		const result = await textProcessor.run({
 			text: AGENT_CALLS_SAMPLE_TEXT,
 			operation,
 		});
 
 		const duration = Date.now() - startTime;
-		c.var.logger?.info('Sync agent call completed', { duration });
+		c.var.logger?.info('Direct call completed', { duration });
 
 		return c.json({
 			pattern: 'sync',
-			description: 'Waited for text-processor agent to complete',
+			description: 'Waited for the text processor to complete',
 			duration: `${duration}ms`,
 			result,
 		});
@@ -69,13 +69,13 @@ const router = new Hono<ApiEnv>()
 		const { operation = 'clean' } = body;
 
 		const taskId = crypto.randomUUID().slice(0, 8);
-		c.var.logger?.info('Background agent call starting', { taskId, operation });
+		c.var.logger?.info('Background call starting', { taskId, operation });
 
-		// waitUntil() allows response to return immediately while agent runs in background
+		// waitUntil lets the response return while the focused work continues.
 		waitUntil(
 			c,
 			(async () => {
-				const result = await textProcessorAgent.run({
+				const result = await textProcessor.run({
 					text: AGENT_CALLS_SAMPLE_TEXT,
 					operation,
 				});
@@ -88,31 +88,31 @@ const router = new Hono<ApiEnv>()
 
 		return c.json({
 			pattern: 'background',
-			description: 'Response returned immediately, agent runs in background',
+			description: 'Response returned immediately while work continued in the background',
 			taskId,
 			note: 'Check server logs to see when background task completes',
 		});
 	})
 
 	.post('/chain', async (c) => {
-		c.var.logger?.info('Chain agent calls starting');
+		c.var.logger?.info('Chained calls starting');
 		const startTime = Date.now();
 		const steps: { step: number; operation: string; result: string }[] = [];
 
-		const step1 = await textProcessorAgent.run({
+		const step1 = await textProcessor.run({
 			text: AGENT_CALLS_SAMPLE_TEXT,
 			operation: 'clean',
 		});
 		steps.push({ step: 1, operation: 'clean', result: step1.result });
 
-		const step2 = await textProcessorAgent.run({
+		const step2 = await textProcessor.run({
 			text: step1.result,
 			operation: 'analyze',
 		});
 		steps.push({ step: 2, operation: 'analyze', result: step2.result });
 
 		const duration = Date.now() - startTime;
-		c.var.logger?.info('Chain agent calls completed', { duration, steps: 2 });
+		c.var.logger?.info('Chained calls completed', { duration, steps: 2 });
 
 		return c.json({
 			pattern: 'chain',
@@ -126,7 +126,7 @@ const router = new Hono<ApiEnv>()
 
 	.post('/process', async (c) => {
 		const data = await c.req.json();
-		const result = await textProcessorAgent.run(data);
+		const result = await textProcessor.run(data);
 		return c.json(result);
 	});
 

@@ -61,14 +61,14 @@ const SDK_EXPLORER: NavSection = {
 	hideItems: true,
 	items: [
 		{
-			title: 'Hello Agent',
+			title: 'Hello World',
 			url: '/explorer/hello',
-			description: 'Your first agent - send input, get output',
+			description: 'Send JSON to a server route and return a typed response',
 		},
 		{
-			title: 'Handler Context',
+			title: 'Route Context',
 			url: '/explorer/handler-context',
-			description: "See what's available inside your agent handler",
+			description: 'See request data, injected services, and app-owned state in a Hono route',
 		},
 		{
 			title: 'Chat',
@@ -118,7 +118,7 @@ const SDK_EXPLORER: NavSection = {
 		{
 			title: 'Agent Calls',
 			url: '/explorer/agent-calls',
-			description: 'Call agents from routes or other agents',
+			description: 'Call model-backed functions from routes, queues, schedules, or other agents',
 		},
 		{
 			title: 'Schedules',

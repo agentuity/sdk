@@ -1,60 +1,49 @@
 ---
 title: Build
-description: Build model calls, streaming routes, and background work in framework apps
+description: Build apps, APIs, background work, and agent workflows on Agentuity
 ---
 
-import { Bot, Database, MessageSquareText, Rows3, Wrench } from 'lucide-react';
+import { Bot, Code2 } from 'lucide-react';
 
-Add model calls, conversation state, tool use, and background work to a framework app that's already set up. These pages assume v3's default shape: routes, server functions, scripts, and workers use normal framework code plus Agentuity service clients.
+Use Build after you have a framework or app shape in place. These pages cover the application patterns you put on Agentuity: normal web apps, backend APIs, static sites, background work, and model-backed agent workflows.
 
 <Cards>
   <CardLink
+    href="/build/apps-and-apis"
+    title="Apps and APIs"
+    description="Build web apps, backend APIs, static sites, and long-running work"
+    icon={<Code2 />}
+  />
+  <CardLink
     href="/build/agents"
-    title="Build Agents"
-    description="Build model-backed workflows with ordinary framework code"
+    title="Agents"
+    description="Structure model-backed workflows as reusable server-side functions"
     icon={<Bot />}
-  />
-  <CardLink
-    href="/build/chat-and-streaming"
-    title="Chat and Streaming"
-    description="Stream model output and keep conversation state in a service client"
-    icon={<MessageSquareText />}
-  />
-  <CardLink
-    href="/build/tool-calling"
-    title="Tool Calling"
-    description="Let models call bounded app functions with typed inputs"
-    icon={<Wrench />}
-  />
-  <CardLink
-    href="/build/state-and-memory"
-    title="State and Memory"
-    description="Store app memory explicitly with KV, databases, and cookies"
-    icon={<Database />}
-  />
-  <CardLink
-    href="/build/background-work"
-    title="Background Work"
-    description="Move slow work out of request handlers with queues, KV, and durable streams"
-    icon={<Rows3 />}
   />
 </Cards>
 
-## Pick a Starting Point
+## Pick a starting point
 
 | If you need to... | Start with | Mental model |
 | --- | --- | --- |
-| Run a model-backed workflow from a route, job, or script | [Build Agents](/build/agents) | An agent is app code that calls a model and returns a typed result |
-| Send tokens to the browser as they arrive | [Chat and Streaming](/build/chat-and-streaming) | The framework owns the response stream; storage is explicit |
-| Let a model call bounded app functions | [Tool Calling](/build/tool-calling) | Tools are validated functions you own |
-| Remember user or conversation state | [State and Memory](/build/state-and-memory) | Pick KV, database rows, cookies, or vector storage by access pattern |
-| Keep slow work out of request handlers | [Background Work](/build/background-work) | Queue, task, schedule, or stream the work outside the request path |
+| deploy a framework app with pages and server routes | [Web Apps](/build/apps-and-apis/web-apps) | keep the framework router; put Agentuity clients in server-only code |
+| expose JSON endpoints or an app-owned backend | [Backend APIs](/build/apps-and-apis/backend-apis) | a deployable Agentuity app can be a plain HTTP server |
+| host HTML or a static framework output | [Static Sites](/build/apps-and-apis/static-sites) | static output can deploy without an agent-specific wrapper |
+| move slow work out of request handlers | [Background Work](/build/apps-and-apis/background-work) | enqueue the job, return a handle, and let a worker route finish it |
+| run a model-backed decision or generation workflow | [Agents](/build/agents) | an agent is app code that calls models, tools, and services |
+| stream chat output or use tool calls | [Chat and Streaming](/build/agents/chat-and-streaming) or [Tool Calling](/build/agents/tool-calling) | the framework owns the response; tools are bounded functions you own |
+| store conversation state, memory, or pending work | [State and Memory](/build/agents/state-and-memory) | pick KV, database rows, cookies, or vector storage by access pattern |
+| delegate repo-aware coding work | [Coding Agents](/build/agents/coding-agent) | use Coder when the workflow needs repo context, sessions, tools, and live events |
 
-The examples use direct service clients because that path works across all supported frameworks and scripts. Hono apps can also install `@agentuity/hono` and read the same clients from `c.var.*`.
+## What Agentuity adds
 
-## Related Docs
+Agentuity does not replace your router, framework, or AI SDK. It gives the app deploy packaging, service credentials, hosted services, observability, sandboxes, Coder sessions, and AI Gateway access.
 
-- [Frameworks](/frameworks): start from Next.js, Hono, TanStack Start, or another supported framework
-- [Services](/services): choose the Agentuity client for storage, queues, tasks, schedules, sandbox, and observability
-- [Deploy and Operate](/deploy-operate): run the same framework project with `agentuity dev` and `agentuity deploy`
-- [Migration](/migration): move older apps that use `@agentuity/runtime`, `createApp()`, or `createAgent()` into the framework model
+The examples use direct service clients because that path works across supported frameworks, server functions, scripts, and workers. Hono apps can also install `@agentuity/hono` and read common clients from `c.var.*`.
+
+## Related docs
+
+- [Frameworks](/frameworks): connect Agentuity to Next.js, Nuxt, Hono, SvelteKit, Astro, Vite, TanStack Start, and other app shapes
+- [Services](/services): choose storage, messaging, identity, observability, sandbox, Coder, and AI Gateway clients
+- [Deploy and Operate](/deploy-operate): run local development, inspect packaged output, and deploy the app
+- [Migration](/migration): update older apps that use `@agentuity/runtime`, `createApp()`, or `createAgent()`

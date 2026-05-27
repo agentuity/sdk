@@ -41,6 +41,7 @@ const SANDBOX_SERVICE_SCOPES = [
 	'schedule:read',
 	'schedule:write',
 ];
+const OUTPUT_MARKER = '---OUTPUT---';
 
 // Terminal execution statuses — typed against the SDK enum so drift is caught at compile time
 const TERMINAL_STATUSES = new Set<ExecutionStatus>(['completed', 'failed', 'timeout', 'cancelled']);
@@ -54,6 +55,28 @@ function cleanOutput(content: string): string {
 		.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[ \t]*/gm, '')
 		.replace(/\\"/g, '"')
 		.replace(/\\n/g, '\n');
+}
+
+function extractOutputPayload(content: string): string {
+	const cleaned = cleanOutput(content);
+	const start = cleaned.indexOf(OUTPUT_MARKER);
+	if (start === -1) return cleaned;
+
+	const afterStart = cleaned.slice(start + OUTPUT_MARKER.length).replace(/^\r?\n/, '');
+	const end = afterStart.indexOf(OUTPUT_MARKER);
+	const payload = end === -1 ? afterStart : afterStart.slice(0, end);
+	return payload.replace(/\r?\n$/, '');
+}
+
+function normalizeStorageHost(
+	endpoint: string | undefined,
+	bucket: string | undefined
+): string | undefined {
+	if (!endpoint || !bucket) return endpoint;
+
+	const host = endpoint.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+	const bucketPrefix = `${bucket}.`;
+	return host.startsWith(bucketPrefix) ? host.slice(bucketPrefix.length) : endpoint;
 }
 
 async function withHeartbeat<T>(
@@ -114,7 +137,10 @@ const router = new Hono<ApiEnv>().get(
 			return;
 		}
 		const region = process.env.AGENTUITY_REGION ?? 'usc';
-		const orgId = process.env.AGENTUITY_ORG_ID;
+		const orgId =
+			process.env.AGENTUITY_ORG_ID ??
+			process.env.AGENTUITY_ORGID ??
+			process.env.AGENTUITY_CLOUD_ORG_ID;
 
 		const serviceUrls = getServiceUrls(region);
 		const client = new APIClient(serviceUrls.sandbox, logger, apiKey);
@@ -133,16 +159,37 @@ const router = new Hono<ApiEnv>().get(
 			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
-		// Exclude org/project identity — triggers session telemetry that sandbox
-		// tokens can't authorize, producing spurious errors on successful runs.
+		if (orgId) envVars.AGENTUITY_ORG_ID = orgId;
+
 		if (process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID)
 			envVars.AGENTUITY_CLOUD_DEPLOYMENT_ID = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 		if (process.env.DATABASE_URL) envVars.DATABASE_URL = process.env.DATABASE_URL;
-		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;
-		if (process.env.S3_ENDPOINT) envVars.S3_ENDPOINT = process.env.S3_ENDPOINT;
-		if (process.env.S3_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
-		if (process.env.S3_SECRET_ACCESS_KEY)
-			envVars.S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
+
+		// @agentuity/storage reads AWS_*; Bun's S3 helpers also accept S3_*.
+		// Pass both aliases when either one is configured so sandbox demos match
+		// the public storage docs and still support older local env names.
+		const storageBucket = process.env.AWS_BUCKET ?? process.env.S3_BUCKET;
+		const storageEndpoint = normalizeStorageHost(
+			process.env.AWS_ENDPOINT ?? process.env.S3_ENDPOINT,
+			storageBucket
+		);
+		const storageEnv = {
+			AWS_BUCKET: storageBucket,
+			AWS_ENDPOINT: storageEndpoint,
+			AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID,
+			AWS_SECRET_ACCESS_KEY:
+				process.env.AWS_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY,
+			AWS_REGION: process.env.AWS_REGION ?? process.env.S3_REGION,
+		};
+		for (const [key, value] of Object.entries(storageEnv)) {
+			if (value) envVars[key] = value;
+		}
+		if (storageEnv.AWS_BUCKET) envVars.S3_BUCKET = storageEnv.AWS_BUCKET;
+		if (storageEnv.AWS_ENDPOINT) envVars.S3_ENDPOINT = storageEnv.AWS_ENDPOINT;
+		if (storageEnv.AWS_ACCESS_KEY_ID) envVars.S3_ACCESS_KEY_ID = storageEnv.AWS_ACCESS_KEY_ID;
+		if (storageEnv.AWS_SECRET_ACCESS_KEY)
+			envVars.S3_SECRET_ACCESS_KEY = storageEnv.AWS_SECRET_ACCESS_KEY;
+		if (storageEnv.AWS_REGION) envVars.S3_REGION = storageEnv.AWS_REGION;
 
 		const scriptPath = `dist/run/${scriptName}.js`;
 		const command = ['bun', 'run', scriptPath, JSON.stringify(input)];
@@ -217,22 +264,18 @@ const router = new Hono<ApiEnv>().get(
 		await stream.writeSSE({ event: 'status', data: 'creating' });
 
 		let detectedExitCode: number | null = null;
+		const outputChunks: string[] = [];
 		const sseWritable = new Writable({
 			write(chunk, _encoding, callback) {
 				const raw = chunk.toString();
-				const text = cleanOutput(raw);
+				outputChunks.push(raw);
 
 				const exitMatch = raw.match(/process exited with error: exit status (\d+)/);
 				if (exitMatch) {
 					detectedExitCode = parseInt(exitMatch[1], 10);
 				}
 
-				if (text.length > 0) {
-					const encoded = text.replace(/\n/g, '\\n');
-					stream.writeSSE({ event: 'stdout', data: encoded }).then(() => callback(), callback);
-				} else {
-					callback();
-				}
+				callback();
 			},
 		});
 
@@ -266,10 +309,7 @@ const router = new Hono<ApiEnv>().get(
 				exitCode,
 			});
 
-			await stream.writeSSE({
-				event: 'done',
-				data: JSON.stringify({ exitCode, status: 'completed' }),
-			});
+			await sendOutput(stream, { output: outputChunks.join(''), exitCode });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Unknown error';
 			logger?.error('Sandbox error', { error: message });
@@ -357,7 +397,7 @@ async function sendOutput(
 	result: { output: string; exitCode: number }
 ): Promise<void> {
 	if (result.output) {
-		const cleaned = cleanOutput(result.output);
+		const cleaned = extractOutputPayload(result.output);
 		if (cleaned) {
 			const encoded = cleaned.replace(/\n/g, '\\n');
 			await stream.writeSSE({ event: 'stdout', data: encoded });

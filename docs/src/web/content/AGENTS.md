@@ -12,11 +12,29 @@ Writing conventions for Agentuity docs pages in this directory.
 6. **Source-verified**: Read SDK source and AGENTS.md files before documenting APIs or CLI flags.
 7. **Framework-native**: Check current upstream framework docs before documenting framework examples. Local Agentuity verification is required, but working code is not enough if the framework shape is not idiomatic.
 
+## Current Agentuity Model
+
+Agentuity is infrastructure for deploying apps, APIs, and agents. Start from the thing the reader is building: a framework app, backend API, static site, background job, or model-backed agent.
+
+Agentuity adds deploy packaging, local development wiring, and built-in agent-native services, for example storage, databases, sandboxes, AI Gateway, observability, and Coder. Link to [Services](/services) when the reader needs the full service catalog.
+
+In these docs, an agent is model-backed app code with a clear task. It can live in a route, server function, queue consumer, schedule target, script, or shared module. Agentuity also deploys apps, APIs, services, and static sites that are not themselves agents.
+
+When a page is not about migration, explain the current app shape directly. Do not frame normal docs as a v2-to-v3 comparison.
+
+## SDK Explorer Explanations
+
+SDK Explorer demos teach with just-in-time learning. Each explanation answers the question the demo raises at that moment: what the concept is, when to use it, what to notice in the live demo or code, and where to go next.
+
+Do not assume the reader already knows routes, services, streaming, or agents. Tie the explanation to the behavior on the page. Keep the explanation smaller than a guide, then link to the canonical docs page for setup or reference.
+
+Use one clear server shape in Explorer examples. Hono is the default because route and service boundaries are visible. Mention a few transferable framework shapes only when useful, for example Next.js route handlers, SvelteKit `+server.ts`, or TanStack Start server routes. Link to [Frameworks](/frameworks) instead of listing every framework.
+
 ## Exemplar Pages
 
 Before writing a new page, read these as reference implementations:
 
-- **Feature doc**: `build/agents.mdx` -- context-then-code flow, callouts, progressive examples
+- **Feature doc**: `build/agents/index.mdx` -- context-then-code flow, callouts, progressive examples
 - **Service doc**: `services/storage/key-value.mdx` -- comparison table, access patterns, comprehensive operations
 - **Cookbook pattern**: `cookbook/patterns/chat-with-history.mdx` -- concise, code-first, key-value history
 - **Getting started**: `get-started/quickstart.mdx` -- step-by-step, CardLinks, tips
@@ -30,7 +48,7 @@ Framework and Build pages still need the same depth as feature and service docs:
 | Type                 | Structure                                        | Example                          |
 | -------------------- | ------------------------------------------------ | -------------------------------- |
 | **Getting started**  | Step-by-step, minimal options, one happy path    | `get-started/quickstart.mdx`     |
-| **Feature doc**      | Context, basic, advanced, best practices         | `build/agents.mdx`               |
+| **Feature doc**      | Context, basic, advanced, best practices         | `build/agents/index.mdx`         |
 | **Service doc**      | When-to-use table, access patterns, operations   | `services/storage/key-value.mdx` |
 | **Cookbook pattern** | Problem statement, complete solution, variations | `cookbook/patterns/*.mdx`        |
 | **Reference**        | Factual, tables, complete flag/option lists      | `reference/cli/*.mdx`            |
@@ -234,7 +252,7 @@ Available components in doc pages:
 
 ### Links and Callouts
 
-- **Cross-links** include context: "See [Chat and Streaming](/build/chat-and-streaming) for chunked output patterns" not "See also: Streaming"
+- **Cross-links** include context: "See [Chat and Streaming](/build/agents/chat-and-streaming) for chunked output patterns" not "See also: Streaming"
 - **External links**: link on first mention. Don't re-link on the same page
 - **Canonical docs**: link to existing docs instead of re-explaining. One location is canonical, others link to it
 - **Callouts**: `info` for context and clarifications, `warning` for gotchas and required setup, `tip` for optimizations and advanced patterns

@@ -1,12 +1,8 @@
 /**
  * Standalone run script for Streaming demo
  *
- * Route pattern demo - no corresponding agent exists.
- * See src/run/AGENTS.md for architecture details.
- *
- * Demonstrates: Raw text streaming using streamText
- * Note: Sandbox buffers stdout, so output appears all at once.
- * In a real server, text chunks would stream to the client in real-time.
+ * The sandbox buffers stdout, so this script collects generated chunks and
+ * prints the same content the route would stream as raw text.
  *
  * Usage: bun run src/run/streaming.ts '{"prompt":"Tell me a story"}'
  */
@@ -29,7 +25,7 @@ try {
 		prompt,
 	});
 
-	// Collect streamed text chunks (sandbox buffers stdout anyway)
+	// Count chunks to make the stream visible even though stdout is buffered.
 	let fullText = '';
 	let chunkCount = 0;
 	for await (const chunk of textStream) {
@@ -37,7 +33,6 @@ try {
 		chunkCount++;
 	}
 
-	// Output everything at once
 	console.log('---OUTPUT---');
 	console.log(`Prompt: "${prompt}"`);
 	console.log('');

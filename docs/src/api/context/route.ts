@@ -1,5 +1,5 @@
 /**
- * Context Route - Demonstrates the public v3 Hono route model.
+ * Context Route - Demonstrates the public Hono route model.
  *
  * GET /session    - Request data from c.req
  * GET /services   - Services injected on c.var.*
@@ -84,7 +84,7 @@ function incrementState(visitorId: string): {
 const router = new Hono<ApiEnv>()
 	.get('/session', async (c) => {
 		return c.json({
-			note: 'In v3, the framework owns the request boundary. Read request data from c.req and decide what app state to derive from it.',
+			note: 'The framework owns the request boundary. Read request data from c.req and decide what app state to derive from it.',
 			request: getRequestData(c),
 			requestId: crypto.randomUUID(),
 		});
@@ -125,7 +125,7 @@ const router = new Hono<ApiEnv>()
 	.get('/full', async (c) => {
 		return c.json({
 			hasBackgroundHelper: true,
-			note: 'The docs app still carries some internal compatibility helpers, but public v3 code should model request state explicitly instead of relying on runtime-owned session or thread objects.',
+			note: 'Framework routes can combine request data, injected services, and app-owned state explicitly. Keep state in the store your app controls.',
 			request: getRequestData(c),
 			services: getAvailableServices(c),
 		});

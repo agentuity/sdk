@@ -1,11 +1,9 @@
 /**
  * Standalone run script for AI Gateway demo
  *
- * Route pattern demo - no corresponding agent exists.
- * See src/run/AGENTS.md for architecture details.
- *
- * Demonstrates: calling AI providers through Agentuity gateway
- * No API keys needed - uses AGENTUITY_SDK_KEY via gateway
+ * Compares supported provider models through Agentuity's AI Gateway.
+ * The sandbox receives provider base URLs that point at the gateway, so
+ * AI SDK calls use the project credential instead of per-provider keys.
  *
  * Usage: bun run src/run/ai-gateway.ts '{"prompt":"Tell me a joke"}'
  */
@@ -32,7 +30,7 @@ const prompt = input.prompt ?? 'Explain AI agents in 1 sentence.';
 const ctx = getDemoContext();
 
 try {
-	// Call both in parallel for speed
+	// Parallel calls make provider differences visible without stacking latency.
 	ctx.logger.info('Calling OpenAI and Anthropic in parallel...');
 
 	const [openaiResult, claudeResult] = await Promise.all([

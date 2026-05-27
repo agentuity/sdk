@@ -1,12 +1,8 @@
 /**
  * Standalone run script for Vector Search demo
  *
- * NOTE: Intentionally separate from src/agent/vector/agent.ts.
- * Uses "explorer-sandbox" namespace with cleanup (delete) operations.
- * See src/run/AGENTS.md for architecture details.
- *
- * Shows direct SDK calls: upsert → search → cleanup
- * Uses unique keys per run for isolation
+ * Shows the direct service flow: upsert text, search by meaning, then delete
+ * the demo document. Unique keys keep concurrent Explorer runs isolated.
  *
  * Usage: bun run src/run/vector.ts '{"query":"comfortable chair"}'
  */
@@ -16,11 +12,9 @@ const input = JSON.parse(process.argv[2] ?? '{}');
 const query = input.query ?? 'comfortable chair';
 const ctx = getDemoContext();
 
-// Unique key prefix for this run (isolation)
 const runId = Date.now().toString(36);
 const namespace = 'explorer-sandbox';
 
-// Sample product to upsert
 const product = {
 	sku: `${runId}:chair-001`,
 	name: 'ErgoMax Pro Chair',
@@ -28,21 +22,19 @@ const product = {
 };
 
 try {
-	// UPSERT: document text is auto-embedded
+	// Document text is embedded by the service so later searches can match by meaning.
 	await ctx.vector.upsert(namespace, {
 		key: product.sku,
 		document: `${product.name}: Premium ergonomic office chair with lumbar support`,
 		metadata: product,
 	});
 
-	// SEARCH: finds by meaning ("comfortable" matches "ergonomic")
 	const results = await ctx.vector.search(namespace, {
 		query,
 		limit: 3,
 		similarity: 0.3,
 	});
 
-	// Results include similarity scores and metadata
 	for (const result of results) {
 		ctx.logger.info('Match found', {
 			name: result.metadata?.name,
@@ -51,7 +43,6 @@ try {
 		});
 	}
 
-	// CLEANUP: delete the unique key
 	await ctx.vector.delete(namespace, product.sku);
 	ctx.logger.info('Cleaned up', { sku: product.sku });
 
