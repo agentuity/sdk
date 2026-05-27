@@ -6,4 +6,9 @@ describe('build ci', () => {
 		const args = buildDeployArgs({ skipDnsValidation: true });
 		expect(args).toContain('--skip-dns-validation');
 	});
+
+	test('passes managed trigger to nested deploy', () => {
+		const args = buildDeployArgs({ trigger: 'managed' });
+		expect(args).toEqual(['--trigger', 'managed']);
+	});
 });

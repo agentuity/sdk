@@ -5,6 +5,14 @@ import { ProjectResponseError } from './util.ts';
 // Simplified metadata schema for the client
 export const DeploymentMetadataSchema = z
 	.object({
+		source: z
+			.enum(['github', 'cli', 'managed'])
+			.optional()
+			.describe('Deployment source: github, cli, or managed automated deployment.'),
+		channel: z
+			.enum(['stable', 'edge'])
+			.optional()
+			.describe('Release channel for managed project deployments.'),
 		git: z
 			.object({
 				repo: z.string().optional().describe('Git repository URL or name.'),
