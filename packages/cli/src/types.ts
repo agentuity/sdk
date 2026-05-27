@@ -809,7 +809,7 @@ export const DeployOptionsSchema = zod
 	.object({
 		logsUrl: zod.url().optional().describe('The url to the CI build logs'),
 		trigger: zod
-			.enum(['cli', 'workflow', 'webhook', 'managed'])
+			.enum(['cli', 'workflow', 'webhook'])
 			.default('cli')
 			.optional()
 			.describe('The trigger that caused the build'),
