@@ -487,7 +487,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 		if (logsUrl) {
 			git.buildUrl = logsUrl;
 		}
-		if (options.deploymentOptions.pullRequestNumber) {
+		if (pullRequestNumber !== undefined) {
 			git.pull_request = {
 				number: pullRequestNumber,
 				url: pullRequestUrl,
