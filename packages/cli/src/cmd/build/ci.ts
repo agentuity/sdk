@@ -22,6 +22,7 @@ export interface CIBuildOptions {
 	pullRequestNumber?: number;
 	pullRequestUrl?: string;
 	logsUrl?: string;
+	skipDnsValidation?: boolean;
 }
 
 async function runCommand(cmd: string[], cwd: string): Promise<number> {
@@ -51,7 +52,7 @@ async function downloadSource(url: string, targetPath: string): Promise<void> {
 	throw lastError instanceof Error ? lastError : new Error('Download failed');
 }
 
-function buildDeployArgs(opts: CIBuildOptions): string[] {
+export function buildDeployArgs(opts: CIBuildOptions): string[] {
 	const args: string[] = [];
 
 	if (opts.trigger) args.push('--trigger', opts.trigger);
@@ -67,6 +68,7 @@ function buildDeployArgs(opts: CIBuildOptions): string[] {
 	}
 	if (opts.pullRequestUrl) args.push('--pull-request-url', opts.pullRequestUrl);
 	if (opts.logsUrl) args.push('--logs-url', opts.logsUrl);
+	if (opts.skipDnsValidation) args.push('--skip-dns-validation');
 
 	return args;
 }

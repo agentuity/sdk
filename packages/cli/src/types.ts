@@ -612,6 +612,10 @@ export const DeployOptionsSchema = zod
 			.describe('The event that triggered the deployment'),
 		pullRequestNumber: zod.number().optional().describe('the pull request number'),
 		pullRequestUrl: zod.url().optional().describe('the pull request url'),
+		skipDnsValidation: zod
+			.boolean()
+			.optional()
+			.describe('Skip custom domain DNS validation before deploying'),
 	})
 	.merge(GitOptionsSchema);
 
