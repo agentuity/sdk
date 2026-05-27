@@ -31,13 +31,6 @@ interface AssetInfo {
 	contentEncoding?: string;
 }
 
-function sourceFromDeployOptions(options: DeployOptions): 'github' | 'cli' | 'managed' | undefined {
-	if (options.trigger === 'managed') return 'managed';
-	if (options.trigger === 'webhook' && options.provider === 'github') return 'github';
-	if (options.trigger === 'cli') return 'cli';
-	return undefined;
-}
-
 /**
  * Determine if an asset should be compressed with gzip.
  * The result is included in asset metadata so the API can generate
@@ -472,34 +465,16 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 	}
 
 	if (options.deploymentOptions) {
-		const {
-			commitUrl,
-			logsUrl,
-			pullRequestNumber,
-			pullRequestUrl,
-			skipDnsValidation: _skipDnsValidation,
-			...gitOptions
-		} = options.deploymentOptions;
-		const git = { ...(metadata.deployment.git ?? {}), ...gitOptions };
-		if (commitUrl) {
-			git.url = commitUrl;
-		}
-		if (logsUrl) {
-			git.buildUrl = logsUrl;
-		}
-		if (pullRequestNumber !== undefined) {
+		const git = { ...(metadata.deployment.git ?? {}), ...options.deploymentOptions };
+		if (options.deploymentOptions.pullRequestNumber) {
 			git.pull_request = {
-				number: pullRequestNumber,
-				url: pullRequestUrl,
+				number: options.deploymentOptions.pullRequestNumber,
+				url: options.deploymentOptions.pullRequestUrl,
 			};
+			delete git.pullRequestNumber;
+			delete git.pullRequestUrl;
 		}
 		metadata.deployment.git = git;
-
-		const source = sourceFromDeployOptions(options.deploymentOptions);
-		if (source) {
-			(metadata.deployment as typeof metadata.deployment & { source?: typeof source }).source =
-				source;
-		}
 	}
 
 	return metadata;
