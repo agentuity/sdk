@@ -161,6 +161,18 @@ export const BuildMetadataSchema = z.object({
 	deployment: z.intersection(
 		DeploymentConfig,
 		z.object({
+			source: z
+				.enum(['github', 'cli', 'managed'])
+				.optional()
+				.describe(
+					'the origin of the deployment: github (webhook-triggered via GitHub App), cli (user-initiated via CLI), managed (automated deploy for a managed project)'
+				),
+			channel: z
+				.enum(['stable', 'edge'])
+				.optional()
+				.describe(
+					'the release channel for managed project deployments: stable (tag releases only) or edge (every push to main)'
+				),
 			id: z.string().describe('the deployment id'),
 			date: z.string().describe('the date the deployment was created in UTC format'),
 			git: z
