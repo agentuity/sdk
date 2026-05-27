@@ -254,6 +254,7 @@ export const deploySubcommand = createSubcommand({
 			if (opts.pullRequestNumber)
 				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
+			if (opts.skipDnsValidation) childArgs.push('--skip-dns-validation');
 
 			const result = await runForkedDeploy({
 				projectDir,
@@ -433,7 +434,7 @@ export const deploySubcommand = createSubcommand({
 					// because the parent process already validated the project and
 					// the duplicate output would just clutter the deploy log.
 					isChildProcess ? null : buildDiscoverStep(projectDir, logger, pipelineState),
-					!project.deployment?.domains?.length
+					opts.skipDnsValidation || !project.deployment?.domains?.length
 						? null
 						: {
 								label: `Validate Custom ${tui.plural(project.deployment.domains.length, 'Domain', 'Domains')}`,
