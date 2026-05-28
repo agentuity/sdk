@@ -180,7 +180,7 @@ export const command = createCommand({
 		// that name here.
 		const projectConfig = await tryLoadProjectConfig(rootDir, config);
 		const orgId = resolveDevOrgId({ env, projectConfig, config });
-		if (orgId && !env.AGENTUITY_ORGID) {
+		if (orgId && !normalizeOrgId(env.AGENTUITY_ORGID)) {
 			env.AGENTUITY_ORGID = orgId;
 		}
 
