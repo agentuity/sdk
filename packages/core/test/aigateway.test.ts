@@ -4,6 +4,7 @@ import {
 	AIGatewayChatCompletionParamsSchema,
 	AIGatewayService,
 	buildAIGatewayCompletionParams,
+	getAIGatewayCompletionText,
 	getAIGatewayStreamDeltaText,
 	getAIGatewayStreamReasoningText,
 } from '../src/services/aigateway/index.ts';
@@ -173,6 +174,39 @@ describe('AIGatewayService', () => {
 			},
 		]);
 		expect(completion.agentuity?.cost?.reasoningTokens).toBe(64);
+	});
+
+	test('extracts completion text through AI Gateway adapters', () => {
+		expect(
+			getAIGatewayCompletionText({
+				choices: [{ message: { role: 'assistant', content: 'OpenAI text' } }],
+			})
+		).toBe('OpenAI text');
+		expect(
+			getAIGatewayCompletionText({
+				output: [
+					{
+						type: 'reasoning',
+						summary: [{ type: 'summary_text', text: 'Reasoned briefly.' }],
+					},
+					{
+						type: 'message',
+						content: [{ type: 'output_text', text: 'Responses text' }],
+					},
+				],
+			})
+		).toBe('Responses text');
+		expect(
+			getAIGatewayCompletionText({
+				candidates: [
+					{
+						content: {
+							parts: [{ text: 'Gemini text' }],
+						},
+					},
+				],
+			})
+		).toBe('Gemini text');
 	});
 
 	test('prefers provider reasoning token usage over zero gateway metadata', async () => {
