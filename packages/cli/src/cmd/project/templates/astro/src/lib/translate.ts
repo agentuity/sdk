@@ -1,4 +1,4 @@
-import { AIGatewayClient } from '@agentuity/aigateway';
+import { AIGatewayClient, getAIGatewayCompletionText } from '@agentuity/aigateway';
 
 
 export interface TranslateInput {
@@ -18,36 +18,6 @@ export interface TranslateResult {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null;
-}
-
-function textFromContent(content: unknown): string {
-	if (typeof content === 'string') return content;
-	if (!Array.isArray(content)) return '';
-	return content
-		.map((part) => {
-			if (typeof part === 'string') return part;
-			if (isRecord(part) && typeof part.text === 'string') return part.text;
-			return '';
-		})
-		.join('');
-}
-
-function getCompletionText(response: unknown): string {
-	if (!isRecord(response)) return '';
-	const choices = response.choices;
-	if (Array.isArray(choices) && choices.length > 0) {
-		const first = choices[0];
-		if (isRecord(first)) {
-			const message = first.message;
-			if (isRecord(message)) {
-				const messageText = textFromContent(message.content);
-				if (messageText) return messageText;
-			}
-			const choiceText = textFromContent(first.text);
-			if (choiceText) return choiceText;
-		}
-	}
-	return textFromContent(response.content);
 }
 
 function getTokenCount(response: unknown): number {
@@ -70,7 +40,7 @@ export async function translate(input: TranslateInput): Promise<TranslateResult>
 	});
 
 	const result: TranslateResult = {
-		translation: getCompletionText(completion),
+		translation: getAIGatewayCompletionText(completion),
 		tokens: getTokenCount(completion),
 		model: input.model,
 		toLanguage: input.toLanguage,

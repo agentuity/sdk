@@ -403,6 +403,10 @@ export type AIGatewayStreamingCompletion = {
 	metadata: Promise<AIGatewayResponseMetadata>;
 };
 
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
 export function getAIGatewayTextFromParts(parts: unknown): string {
 	if (typeof parts === 'string') return parts;
 	if (!Array.isArray(parts)) return '';
@@ -419,6 +423,81 @@ export function getAIGatewayTextFromParts(parts: unknown): string {
 			return typeof text === 'string' ? text : '';
 		})
 		.join('');
+}
+
+function getAIGatewayChoiceText(choice: unknown): string {
+	if (!isUnknownRecord(choice)) return '';
+
+	const message = choice['message'];
+	if (isUnknownRecord(message)) {
+		const content = message['content'];
+		if (typeof content === 'string') return content;
+
+		const contentText = getAIGatewayTextFromParts(content);
+		if (contentText) return contentText;
+	}
+
+	const content = choice['content'];
+	if (typeof content === 'string') return content;
+
+	const contentText = getAIGatewayTextFromParts(content);
+	if (contentText) return contentText;
+
+	const text = choice['text'];
+
+	return typeof text === 'string' ? text : '';
+}
+
+function getAIGatewayResponseOutputText(output: unknown): string {
+	if (typeof output === 'string') return output;
+	if (!Array.isArray(output)) return '';
+
+	return output
+		.map((item) => {
+			if (typeof item === 'string') return item;
+			if (!isUnknownRecord(item)) return '';
+
+			const type = item['type'];
+			if (typeof type === 'string' && type.includes('reasoning')) return '';
+
+			const contentText = getAIGatewayTextFromParts(item['content']);
+			if (contentText) return contentText;
+
+			const text = item['text'];
+
+			return typeof text === 'string' ? text : '';
+		})
+		.join('');
+}
+
+function getAIGatewayCandidateText(candidate: unknown): string {
+	if (!isUnknownRecord(candidate)) return '';
+
+	const content = candidate['content'];
+	if (!isUnknownRecord(content)) return '';
+
+	return getAIGatewayTextFromParts(content['parts']);
+}
+
+export function getAIGatewayCompletionText(completion: unknown): string {
+	if (!isUnknownRecord(completion)) return '';
+
+	const choices = completion['choices'];
+	if (Array.isArray(choices)) {
+		const choicesText = choices.map(getAIGatewayChoiceText).join('');
+		if (choicesText) return choicesText;
+	}
+
+	const outputText = completion['output_text'];
+	if (typeof outputText === 'string') return outputText;
+
+	const output = getAIGatewayResponseOutputText(completion['output']);
+	if (output) return output;
+
+	const candidates = completion['candidates'];
+	if (!Array.isArray(candidates)) return '';
+
+	return candidates.map(getAIGatewayCandidateText).join('');
 }
 
 export function getAIGatewayStreamDeltaText(payload: unknown): string {
