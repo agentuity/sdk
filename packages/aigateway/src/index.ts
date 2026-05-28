@@ -47,6 +47,20 @@ const isLogger = (val: unknown): val is Logger =>
 		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
 	);
 
+function normalizeOrgId(orgId: string | undefined): string | undefined {
+	const trimmed = orgId?.trim();
+	return trimmed ? trimmed : undefined;
+}
+
+function resolveOrgId(orgId: string | undefined): string | undefined {
+	return (
+		normalizeOrgId(orgId) ??
+		normalizeOrgId(getEnv('AGENTUITY_ORGID')) ??
+		normalizeOrgId(getEnv('AGENTUITY_ORG_ID')) ??
+		normalizeOrgId(getEnv('AGENTUITY_CLOUD_ORG_ID'))
+	);
+}
+
 export const AIGatewayClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
 	url: z.string().optional().describe('Base URL for the AI Gateway API'),
@@ -73,7 +87,7 @@ export class AIGatewayClient {
 		const logger = validatedOptions.logger ?? createMinimalLogger();
 		const headers = buildClientHeaders({
 			apiKey,
-			orgId: validatedOptions.orgId,
+			orgId: resolveOrgId(validatedOptions.orgId),
 		});
 
 		const adapter = createServerFetchAdapter({ headers }, logger);

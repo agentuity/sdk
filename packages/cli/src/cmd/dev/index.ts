@@ -47,6 +47,27 @@ import { killLingeringGravityProcesses, startGravity, type GravityHandle } from 
 const DEFAULT_PORT = 3000;
 const GRAVITY_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1h
 
+interface ResolveDevOrgIdOptions {
+	readonly env: Readonly<Record<string, string | undefined>>;
+	readonly projectConfig?: Pick<ProjectConfig, 'orgId'> | null;
+	readonly config?: Pick<Config, 'preferences'> | null;
+}
+
+function normalizeOrgId(orgId: string | undefined): string | undefined {
+	const trimmed = orgId?.trim();
+	return trimmed ? trimmed : undefined;
+}
+
+export function resolveDevOrgId(options: ResolveDevOrgIdOptions): string | undefined {
+	return (
+		normalizeOrgId(options.projectConfig?.orgId) ??
+		normalizeOrgId(options.env.AGENTUITY_ORGID) ??
+		normalizeOrgId(options.env.AGENTUITY_ORG_ID) ??
+		normalizeOrgId(options.env.AGENTUITY_CLOUD_ORG_ID) ??
+		normalizeOrgId(options.config?.preferences?.orgId)
+	);
+}
+
 export const command = createCommand({
 	name: 'dev',
 	description: 'Run the project development server',
@@ -158,8 +179,9 @@ export const command = createCommand({
 		// (pi, coder-tui) already read AGENTUITY_ORGID from env, so we match
 		// that name here.
 		const projectConfig = await tryLoadProjectConfig(rootDir, config);
-		if (projectConfig?.orgId && !env.AGENTUITY_ORGID) {
-			env.AGENTUITY_ORGID = projectConfig.orgId;
+		const orgId = resolveDevOrgId({ env, projectConfig, config });
+		if (orgId && !env.AGENTUITY_ORGID) {
+			env.AGENTUITY_ORGID = orgId;
 		}
 
 		// Inject AI Gateway env vars so LLM SDKs route through Agentuity

@@ -2,14 +2,7 @@ import { AIGatewayClient, getAIGatewayCompletionText } from '@agentuity/aigatewa
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 // One client per worker; safe to reuse across requests.
-// Unlinked demo projects use CLI-key fallback, and that auth path still needs
-// an org header. Read the env var names used by local linked projects and CI.
-const gateway = new AIGatewayClient({
-	orgId:
-		process.env.AGENTUITY_ORGID ??
-		process.env.AGENTUITY_ORG_ID ??
-		process.env.AGENTUITY_CLOUD_ORG_ID,
-});
+const gateway = new AIGatewayClient();
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = (await request.json()) as {
