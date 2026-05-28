@@ -9,6 +9,7 @@ export {
 	AIGatewayModelsSchema,
 	AIGatewayPricingSchema,
 	buildAIGatewayCompletionParams,
+	getAIGatewayCompletionText,
 	getAIGatewayStreamDeltaText,
 	getAIGatewayStreamReasoningText,
 	getAIGatewayTextFromParts,

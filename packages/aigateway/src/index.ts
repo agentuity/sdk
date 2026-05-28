@@ -1,6 +1,7 @@
 export {
 	AIGatewayService,
 	buildAIGatewayCompletionParams,
+	getAIGatewayCompletionText,
 	type AIGatewayChatCompletion,
 	type AIGatewayChatCompletionParams,
 	type AIGatewayChatMessage,

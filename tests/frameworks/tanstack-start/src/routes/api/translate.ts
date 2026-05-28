@@ -1,14 +1,9 @@
-import { AIGatewayClient } from '@agentuity/aigateway';
+import { AIGatewayClient, getAIGatewayCompletionText } from '@agentuity/aigateway';
 import { createFileRoute } from '@tanstack/react-router';
 
 // One client per worker; safe to reuse across requests.
-// The gateway requires an orgId header in addition to the SDK key. Other
-// service clients in the SDK take it as a constructor option only — pick
-// it up here from any of the env var names the platform already uses so
-// `agentuity dev` (which injects AGENTUITY_ORGID from agentuity.json) and
-// CI (which sets AGENTUITY_ORG_ID) both work.
-// Tracked at agentuity/infra#483 — if/when the gateway accepts SDK-key-only
-// auth on this route, the orgId option here becomes optional.
+// Unlinked demo projects use CLI-key fallback, and that auth path still needs
+// an org header. Read the env var names used by local linked projects and CI.
 const gateway = new AIGatewayClient({
 	orgId:
 		process.env.AGENTUITY_ORGID ??
@@ -38,12 +33,7 @@ export const Route = createFileRoute('/api/translate')({
 					],
 				});
 
-				// The gateway returns an OpenAI-shaped response. Pull the assistant text
-				// out of the first choice and surface token usage when present.
-				const choice = (completion.choices?.[0] ?? {}) as {
-					message?: { content?: string };
-				};
-				const translation = choice.message?.content ?? '';
+				const translation = getAIGatewayCompletionText(completion);
 				const usage = completion.usage as { total_tokens?: number } | undefined;
 
 				return new Response(
