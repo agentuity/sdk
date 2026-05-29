@@ -71,9 +71,12 @@ Description:
     - Alpha prereleases are published with tag "alpha"
 
   GitHub Release:
-    - Creates/updates GitHub release with generated release notes
+    - Commits the version bump as "Release X.Y.Z", then tags that commit
+      (annotated) and pushes the tag
+    - Creates/updates the GitHub release against that tag with generated notes
     - Builds and uploads VS Code extension (.vsix) for manual installation
     - Marks pre-releases appropriately on GitHub
+    - Pushing the release branch is left to the operator
 
 Required Tools:
   gh                   GitHub CLI (https://cli.github.com/)
@@ -581,19 +584,29 @@ async function createOrUpdateGitHubRelease(
 		// Release doesn't exist, continue
 	}
 
-	// Pin the release (and the tag gh creates server-side) to the current
-	// HEAD. Without --target, gh defaults to the repository's default branch,
-	// which means a release cut from any non-default branch (e.g. v3) lands
-	// on the wrong commit and has to be retargeted by hand afterwards.
+	// Create and push an annotated tag pinned to the current HEAD (the
+	// "Release X.Y.Z" commit). This must run AFTER that commit exists.
+	//
+	// We create+push the tag ourselves rather than letting `gh release create`
+	// create it, for two reasons:
+	//   1. Without an explicit target, gh tags the repository's DEFAULT branch,
+	//      so a release cut from a non-default branch (e.g. v2) lands on the
+	//      wrong commit and has to be retargeted by hand.
+	//   2. `gh` creates a lightweight tag; our tooling and humans expect an
+	//      annotated release tag.
+	// Pushing the tag also uploads the release commit object to the remote even
+	// though its branch hasn't been pushed yet, so `gh release create` can
+	// attach to a tag that already resolves to the correct commit. Pushing the
+	// release *branch* is still left to the operator (see commitReleaseChanges).
 	const headSha = (await $`git rev-parse HEAD`.cwd(rootDir).text()).trim();
+	await $`git tag -f -a ${tag} -m ${`Release ${version}`} ${headSha}`.cwd(rootDir);
+	await $`git push origin ${tag} --force`.cwd(rootDir);
 
-	// Create the release
+	// Create the release against the tag we just pushed.
 	const args = [
 		'release',
 		'create',
 		tag,
-		'--target',
-		headSha,
 		'--title',
 		`Release ${version}`,
 		'--notes',
@@ -716,6 +729,13 @@ async function main() {
 					: 'next'
 			: 'latest');
 
+	// Mark the GitHub release as a pre-release whenever it isn't going to the
+	// `latest` dist-tag. This covers stable-looking semvers published to `next`
+	// (e.g. a v3 `3.0.2` while v2 is still `latest`): the version string isn't a
+	// prerelease, but the release must not grab GitHub's "Latest" badge away
+	// from the actual `latest` release. Only `latest` releases are non-pre.
+	const markAsPrerelease = distTag !== 'latest';
+
 	const confirmed = skipPrompts || (await confirmVersion(newVersion));
 	if (!confirmed) {
 		console.log('\n❌ Publish cancelled\n');
@@ -763,11 +783,6 @@ async function main() {
 
 		// Build VS Code extension
 		const vsixPath = await buildVSCodeExtension(newVersion);
-
-		// Create GitHub release before npm publish (skip in dry-run)
-		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion, vsixPath);
-		}
 
 		const publishable = await getPublishablePackages();
 		const names = publishable.map((p) => `${p.dir}/${p.name}`).join(', ');
@@ -833,7 +848,21 @@ async function main() {
 			console.log('\n📥 Running bun install to pick up new versions...');
 			await $`bun install`.cwd(rootDir);
 
-			await commitReleaseChanges(newVersion);
+			// Commit the release BEFORE creating the GitHub release so the tag the
+			// release is attached to targets the "Release X.Y.Z" commit rather than
+			// whatever HEAD was before the version bump. createOrUpdateGitHubRelease
+			// tags HEAD and pushes that tag, so the commit must exist first.
+			const released = await commitReleaseChanges(newVersion);
+
+			if (!released) {
+				// No release commit was made (nothing changed); the release will be
+				// tagged at the current HEAD instead.
+				console.warn(
+					'   ⚠ No release commit was created; GitHub release will be tagged at current HEAD.'
+				);
+			}
+
+			await createOrUpdateGitHubRelease(newVersion, releaseNotes, markAsPrerelease, vsixPath);
 		}
 	} catch (err) {
 		console.error('\n❌ Publish failed:', err);
@@ -858,10 +887,12 @@ async function main() {
  *
  * Pushing is intentionally left to the operator: the npm publish has
  * already happened, but the operator may still want to review the
- * generated commit, retarget the tag, or pull in additional changes
- * before pushing.
+ * generated commit or pull in additional changes before pushing.
+ *
+ * @returns true if a release commit was created, false if there was
+ * nothing to commit or committing failed.
  */
-async function commitReleaseChanges(version: string) {
+async function commitReleaseChanges(version: string): Promise<boolean> {
 	console.log('\n📝 Committing release changes...');
 
 	// Only stage the files we know we touched. We intentionally avoid
@@ -883,7 +914,7 @@ async function commitReleaseChanges(version: string) {
 		await $`git add packages/claude-code/.claude-plugin/plugin.json`.cwd(rootDir).nothrow();
 	} catch (err) {
 		console.warn('   ⚠ Failed to stage release files:', err);
-		return;
+		return false;
 	}
 
 	// Bail out if there's actually nothing to commit (e.g. only the cli
@@ -892,15 +923,17 @@ async function commitReleaseChanges(version: string) {
 	const diff = await $`git diff --cached --name-only`.cwd(rootDir).text();
 	if (!diff.trim()) {
 		console.log('   ⊘ No release changes to commit.');
-		return;
+		return false;
 	}
 
 	const message = `Release ${version}`;
 	try {
 		await $`git commit -m ${message}`.cwd(rootDir);
-		console.log(`✓ Committed release ${version} (push manually when ready)`);
+		console.log(`✓ Committed release ${version} (push the branch manually when ready)`);
+		return true;
 	} catch (err) {
 		console.warn('   ⚠ Failed to commit release changes:', err);
+		return false;
 	}
 }
 
