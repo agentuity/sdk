@@ -8,6 +8,11 @@ const AIGatewayModelsResponseError = StructuredError('AIGatewayModelsResponseErr
 	message?: string;
 }>();
 
+const AIGatewayResponseSchemaError = StructuredError('AIGatewayResponseSchemaError')<{
+	reason: 'conversion_failed' | 'invalid_input';
+	message: string;
+}>();
+
 export const AIGatewayPricingSchema = z.object({
 	input: z.number().describe('Input token price.'),
 	output: z.number().describe('Output token price.'),
@@ -129,6 +134,35 @@ function hasCompletionInput(params: {
 	return false;
 }
 
+const StandardSchemaCustom = z.custom<{ '~standard': unknown }>(
+	(value) =>
+		typeof value === 'object' &&
+		value !== null &&
+		(Object.hasOwn(value, '~standard') || '~standard' in value),
+	{ message: 'expected a StandardSchema-compliant value (must expose a `~standard` property)' }
+);
+
+export const AIGatewayResponseSchemaSchema = z
+	.object({
+		name: z
+			.string()
+			.optional()
+			.describe(
+				'Schema name. Used by providers that require a named JSON Schema (default: "response").'
+			),
+		description: z.string().optional().describe('Schema description; surfaced to the model.'),
+		strict: z
+			.boolean()
+			.optional()
+			.describe('Whether the provider should enforce strict adherence (default: true).'),
+		schema: z
+			.union([z.record(z.string(), z.unknown()), StandardSchemaCustom])
+			.describe(
+				'JSON Schema describing the desired response shape, or a StandardSchema/Zod schema. Translated to the provider-native structured-output primitive at request time.'
+			),
+	})
+	.describe('Structured-output schema. See `response_schema` on AIGatewayChatCompletionParams.');
+
 export const AIGatewayChatCompletionParamsSchema = z
 	.object({
 		model: z.string().describe('Model to use for the completion.'),
@@ -147,6 +181,22 @@ export const AIGatewayChatCompletionParamsSchema = z
 		max_tokens: z.number().optional(),
 		stream: z.boolean().optional(),
 		stop: z.union([z.string(), z.array(z.string())]).optional(),
+		response_format: z
+			.unknown()
+			.optional()
+			.describe(
+				'OpenAI-style `response_format` passed through to OpenAI-compatible providers. Prefer `response_schema` for provider-agnostic structured output.'
+			),
+		response_schema: z
+			.union([
+				AIGatewayResponseSchemaSchema,
+				z.record(z.string(), z.unknown()),
+				StandardSchemaCustom,
+			])
+			.optional()
+			.describe(
+				'Provider-agnostic structured-output schema (JSON Schema, StandardSchema v1, or Zod). At request time the gateway translates this to the right provider-native primitive: OpenAI `response_format: { type: "json_schema" }`, Anthropic `submit_response` tool with forced `tool_choice`, Google `generationConfig.responseSchema`, or schema-injected prompt fallback for unknown models.'
+			),
 	})
 	.catchall(z.unknown())
 	.superRefine((params, ctx) => {
@@ -321,6 +371,303 @@ export function buildAIGatewayCompletionParams({
 	}
 }
 
+export type AIGatewayResponseSchemaInput =
+	| z.infer<typeof AIGatewayResponseSchemaSchema>
+	| Record<string, unknown>
+	| { '~standard': unknown };
+
+export type AIGatewayProviderFamily = 'openai' | 'anthropic' | 'google' | 'unknown';
+
+/**
+ * Identify which provider family a model id maps to. Used to translate `response_schema`
+ * into the right native structured-output primitive at request time.
+ *
+ * Recognises both the canonical `provider/model` form (e.g. `openai/gpt-4.1-mini`) and bare
+ * model ids whose prefix unambiguously identifies a family (`gpt-`, `o1`/`o3`, `claude-`,
+ * `gemini-`). Unknown ids fall through to schema-injected prompt fallback.
+ */
+export function getAIGatewayProviderFamily(model: string): AIGatewayProviderFamily {
+	const lower = model.toLowerCase();
+	if (lower.startsWith('openai/') || /^(gpt-|o[0-9])/.test(lower)) return 'openai';
+	if (lower.startsWith('anthropic/') || lower.startsWith('claude-') || lower.startsWith('claude/'))
+		return 'anthropic';
+	if (lower.startsWith('google/') || lower.startsWith('gemini-') || lower.startsWith('gemini/'))
+		return 'google';
+	return 'unknown';
+}
+
+function isStandardSchema(value: unknown): value is { '~standard': unknown } {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		(Object.hasOwn(value, '~standard') || '~standard' in value)
+	);
+}
+
+function isPlainJsonSchema(value: unknown): value is Record<string, unknown> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	// Reject Schema-typed instances (they carry `~standard` as an own / prototype property).
+	// A JSON Schema object that was produced *from* a Schema has no own `~standard` property.
+	return !Object.hasOwn(value, '~standard');
+}
+
+function normalizeResponseSchemaInput(input: AIGatewayResponseSchemaInput): {
+	name: string;
+	description?: string;
+	strict: boolean;
+	schema: Record<string, unknown>;
+} {
+	// Wrapped form: { name?, description?, strict?, schema }
+	if (
+		typeof input === 'object' &&
+		input !== null &&
+		'schema' in input &&
+		!isStandardSchema(input)
+	) {
+		const wrapped = input as z.infer<typeof AIGatewayResponseSchemaSchema>;
+		return {
+			name: wrapped.name ?? 'response',
+			...(wrapped.description ? { description: wrapped.description } : {}),
+			strict: wrapped.strict ?? true,
+			schema: toPlainJsonSchema(wrapped.schema),
+		};
+	}
+	return {
+		name: 'response',
+		strict: true,
+		schema: toPlainJsonSchema(input),
+	};
+}
+
+function toPlainJsonSchema(value: unknown): Record<string, unknown> {
+	if (isStandardSchema(value)) {
+		const converted = standardSchemaToJsonSchema(value);
+		if (converted) return converted;
+		throw new AIGatewayResponseSchemaError({
+			reason: 'conversion_failed',
+			message:
+				'response_schema: could not convert the provided Schema to JSON Schema. Pass a JSON Schema object instead.',
+		});
+	}
+	if (isPlainJsonSchema(value)) return value;
+	throw new AIGatewayResponseSchemaError({
+		reason: 'invalid_input',
+		message:
+			'response_schema: expected a JSON Schema object, a Zod schema, or { schema, ... } wrapper.',
+	});
+}
+
+function standardSchemaToJsonSchema(value: unknown): Record<string, unknown> | undefined {
+	// Zod v4 exposes `.toJSONSchema()` on schema instances, and a `z.toJSONSchema()` static helper.
+	const instanceMethod = (value as { toJSONSchema?: () => unknown }).toJSONSchema;
+	if (typeof instanceMethod === 'function') {
+		const converted = instanceMethod.call(value);
+		if (converted && typeof converted === 'object' && !Array.isArray(converted)) {
+			return converted as Record<string, unknown>;
+		}
+	}
+	try {
+		const converted = z.toJSONSchema(value as unknown as z.ZodType, { target: 'draft-7' });
+		if (converted && typeof converted === 'object' && !Array.isArray(converted)) {
+			return converted as Record<string, unknown>;
+		}
+	} catch {
+		// Schema is not a Zod schema.
+	}
+	return undefined;
+}
+
+/**
+ * Inject `additionalProperties: false` recursively across object schemas. OpenAI and Google
+ * both reject strict structured-output schemas that don't already say so explicitly.
+ */
+function enforceStrictJsonSchema(schema: unknown): unknown {
+	if (Array.isArray(schema)) return schema.map(enforceStrictJsonSchema);
+	if (!schema || typeof schema !== 'object') return schema;
+	const record = schema as Record<string, unknown>;
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(record)) {
+		out[k] = enforceStrictJsonSchema(v);
+	}
+	if (out.type === 'object' && out.additionalProperties === undefined) {
+		out.additionalProperties = false;
+	}
+	return out;
+}
+
+function buildSchemaInstruction(
+	name: string,
+	description: string | undefined,
+	schema: Record<string, unknown>
+): string {
+	const preamble = [
+		'Respond with JSON that validates against the schema below.',
+		description,
+		'Output JSON only, no prose, no code fences.',
+	]
+		.filter(Boolean)
+		.join(' ');
+	return `${preamble}\n\nSchema name: ${name}\n\n${JSON.stringify(schema, null, 2)}`;
+}
+
+function prependSystemMessage(
+	messages: AIGatewayChatMessage[] | undefined,
+	text: string
+): AIGatewayChatMessage[] {
+	const base = messages ?? [];
+	if (base.length > 0 && base[0]?.role === 'system') {
+		const first = base[0];
+		const existing = typeof first.content === 'string' ? first.content : '';
+		return [{ ...first, content: existing ? `${existing}\n\n${text}` : text }, ...base.slice(1)];
+	}
+	return [{ role: 'system', content: text }, ...base];
+}
+
+/**
+ * Translate a `response_schema` request param into the provider-native structured-output
+ * primitive for the target model. Returns the rewritten params (with `response_schema`
+ * removed) and the resolved `family` so callers can attach a parser that matches the
+ * provider response shape.
+ *
+ * For models with no native support, the schema is injected into a system message and the
+ * caller is responsible for JSON-parsing the textual reply (fallback path).
+ */
+export function applyAIGatewayResponseSchema(params: AIGatewayChatCompletionParams): {
+	params: AIGatewayChatCompletionParams;
+	family: AIGatewayProviderFamily;
+	applied: boolean;
+} {
+	const { response_schema, ...rest } = params as AIGatewayChatCompletionParams & {
+		response_schema?: AIGatewayResponseSchemaInput;
+	};
+	if (response_schema === undefined) {
+		return { params, family: getAIGatewayProviderFamily(params.model), applied: false };
+	}
+
+	const normalized = normalizeResponseSchemaInput(response_schema);
+	const family = getAIGatewayProviderFamily(params.model);
+	const strictSchema = normalized.strict
+		? (enforceStrictJsonSchema(normalized.schema) as Record<string, unknown>)
+		: normalized.schema;
+
+	switch (family) {
+		case 'openai': {
+			return {
+				params: {
+					...rest,
+					response_format: {
+						type: 'json_schema',
+						json_schema: {
+							name: normalized.name,
+							...(normalized.description ? { description: normalized.description } : {}),
+							strict: normalized.strict,
+							schema: strictSchema,
+						},
+					},
+				},
+				family,
+				applied: true,
+			};
+		}
+		case 'anthropic': {
+			// Anthropic's structured-output pattern is a forced tool call whose input_schema is the
+			// caller's schema; the model's reply lives in the tool_use block's `input` field.
+			const toolName = normalized.name;
+			return {
+				params: {
+					...rest,
+					tools: [
+						{
+							name: toolName,
+							...(normalized.description ? { description: normalized.description } : {}),
+							input_schema: strictSchema,
+						},
+					],
+					tool_choice: { type: 'tool', name: toolName },
+				},
+				family,
+				applied: true,
+			};
+		}
+		case 'google': {
+			const existing =
+				rest.generationConfig && typeof rest.generationConfig === 'object'
+					? (rest.generationConfig as Record<string, unknown>)
+					: {};
+			return {
+				params: {
+					...rest,
+					generationConfig: {
+						...existing,
+						responseMimeType: 'application/json',
+						responseSchema: strictSchema,
+					},
+				},
+				family,
+				applied: true,
+			};
+		}
+		default: {
+			const instruction = buildSchemaInstruction(
+				normalized.name,
+				normalized.description,
+				strictSchema
+			);
+			return {
+				params: {
+					...rest,
+					messages: prependSystemMessage(rest.messages, instruction),
+				},
+				family,
+				applied: true,
+			};
+		}
+	}
+}
+
+/**
+ * Extract the structured-output payload from a completion when `response_schema` was used.
+ * Returns the raw parsed JSON (or undefined if the response carried no usable payload).
+ *
+ * - OpenAI / fallback: parse the assistant text as JSON (stripping any code fences).
+ * - Anthropic: read the forced `tool_use` block's `input` field.
+ * - Google: parse the assistant text as JSON.
+ */
+export function getAIGatewayCompletionStructured(
+	completion: unknown,
+	family: AIGatewayProviderFamily = 'unknown'
+): unknown {
+	if (family === 'anthropic') {
+		const result = getAIGatewayCompletionTextResult(completion);
+		const toolUse = result.toolCalls?.find(
+			(call) =>
+				call && typeof call === 'object' && (call as { type?: unknown }).type === 'tool_use'
+		);
+		if (toolUse && typeof toolUse === 'object') {
+			return (toolUse as { input?: unknown }).input;
+		}
+	}
+	const text = getAIGatewayCompletionText(completion);
+	if (!text) return undefined;
+	return parseJsonLoose(text);
+}
+
+function parseJsonLoose(text: string): unknown {
+	const stripped = stripJsonCodeFence(text).trim();
+	if (!stripped) return undefined;
+	try {
+		return JSON.parse(stripped);
+	} catch {
+		return undefined;
+	}
+}
+
+function stripJsonCodeFence(text: string): string {
+	const trimmed = text.trim();
+	const fence = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+	return fence?.[1] ?? trimmed;
+}
+
 export const AIGatewayChatCompletionStreamParamsSchema =
 	AIGatewayChatCompletionParamsSchema.safeExtend({
 		stream: z.literal(true).describe('Enable Server-Sent Events streaming.'),
@@ -403,6 +750,10 @@ export type AIGatewayStreamingCompletion = {
 	metadata: Promise<AIGatewayResponseMetadata>;
 };
 
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
 export function getAIGatewayTextFromParts(parts: unknown): string {
 	if (typeof parts === 'string') return parts;
 	if (!Array.isArray(parts)) return '';
@@ -419,6 +770,261 @@ export function getAIGatewayTextFromParts(parts: unknown): string {
 			return typeof text === 'string' ? text : '';
 		})
 		.join('');
+}
+
+export type AIGatewayCompletionTextReason =
+	| 'stop'
+	| 'length'
+	| 'tool_calls'
+	| 'content_filter'
+	| 'refusal'
+	| 'no_content'
+	| 'unknown';
+
+export interface AIGatewayCompletionTextResult {
+	/** Concatenated assistant text. Empty string if the response carried no textual content. */
+	text: string;
+	/** Whether any textual content was found. False distinguishes "empty response" from "response was ''". */
+	hasText: boolean;
+	/** Best-effort finish reason normalized across provider shapes. `undefined` when not reported. */
+	finishReason?: AIGatewayCompletionTextReason;
+	/** Tool calls reported by the model, if any (OpenAI shape or Anthropic tool_use blocks). */
+	toolCalls?: unknown[];
+}
+
+const KNOWN_FINISH_REASONS: ReadonlySet<AIGatewayCompletionTextReason> = new Set([
+	'stop',
+	'length',
+	'tool_calls',
+	'content_filter',
+	'refusal',
+	'no_content',
+	'unknown',
+]);
+
+function normalizeFinishReason(value: unknown): AIGatewayCompletionTextReason | undefined {
+	if (typeof value !== 'string') return undefined;
+	const lower = value.toLowerCase();
+	switch (lower) {
+		case 'stop':
+		case 'end_turn':
+		case 'stop_sequence':
+		case 'finish':
+		case 'completed':
+			return 'stop';
+		case 'incomplete':
+		case 'in_progress':
+			return 'unknown';
+		case 'cancelled':
+		case 'canceled':
+		case 'failed':
+			return 'unknown';
+		case 'length':
+		case 'max_tokens':
+		case 'max_output_tokens':
+			return 'length';
+		case 'tool_calls':
+		case 'tool_use':
+		case 'function_call':
+			return 'tool_calls';
+		case 'content_filter':
+		case 'safety':
+			return 'content_filter';
+		case 'refusal':
+			return 'refusal';
+		default:
+			return KNOWN_FINISH_REASONS.has(lower as AIGatewayCompletionTextReason)
+				? (lower as AIGatewayCompletionTextReason)
+				: 'unknown';
+	}
+}
+
+function collectToolCalls(value: unknown): unknown[] | undefined {
+	if (!Array.isArray(value) || value.length === 0) return undefined;
+	return value;
+}
+
+function extractFromOpenAIChoices(
+	completion: Record<string, unknown>
+): AIGatewayCompletionTextResult | undefined {
+	const choices = completion.choices;
+	if (!Array.isArray(choices) || choices.length === 0) return undefined;
+
+	const texts: string[] = [];
+	let sawTextField = false;
+	let finishReason: AIGatewayCompletionTextReason | undefined;
+	let toolCalls: unknown[] | undefined;
+
+	for (const choice of choices) {
+		if (!isUnknownRecord(choice)) continue;
+		const message = choice.message;
+		if (isUnknownRecord(message)) {
+			const content = message.content;
+			if (content !== undefined && content !== null) {
+				sawTextField = true;
+				texts.push(getAIGatewayTextFromParts(content));
+			}
+			const calls = collectToolCalls(message.tool_calls);
+			if (calls) toolCalls = toolCalls ? [...toolCalls, ...calls] : calls;
+		}
+		// Legacy completions-style text field.
+		if (typeof choice.text === 'string') {
+			sawTextField = true;
+			texts.push(choice.text);
+		}
+		finishReason ??= normalizeFinishReason(choice.finish_reason);
+	}
+
+	if (!sawTextField && !finishReason && !toolCalls) return undefined;
+
+	return {
+		text: texts.join(''),
+		hasText: sawTextField,
+		...(finishReason ? { finishReason } : {}),
+		...(toolCalls ? { toolCalls } : {}),
+	};
+}
+
+function extractFromOpenAIResponses(
+	completion: Record<string, unknown>
+): AIGatewayCompletionTextResult | undefined {
+	const output = completion.output;
+	if (!Array.isArray(output)) return undefined;
+
+	const texts: string[] = [];
+	let sawTextField = false;
+	let toolCalls: unknown[] | undefined;
+
+	for (const item of output) {
+		if (!isUnknownRecord(item)) continue;
+		const type = item.type;
+		if (type === 'function_call' || type === 'tool_use') {
+			toolCalls = toolCalls ? [...toolCalls, item] : [item];
+			continue;
+		}
+		const content = item.content;
+		if (content !== undefined && content !== null) {
+			sawTextField = true;
+			texts.push(getAIGatewayTextFromParts(content));
+		}
+	}
+
+	const topLevelText = (completion as { output_text?: unknown }).output_text;
+	if (typeof topLevelText === 'string') {
+		sawTextField = true;
+		texts.push(topLevelText);
+	}
+
+	if (!sawTextField && !toolCalls && completion.status === undefined) return undefined;
+
+	const finishReason =
+		normalizeFinishReason(completion.status) ?? normalizeFinishReason(completion.stop_reason);
+
+	return {
+		text: texts.join(''),
+		hasText: sawTextField,
+		...(finishReason ? { finishReason } : {}),
+		...(toolCalls ? { toolCalls } : {}),
+	};
+}
+
+function extractFromAnthropicMessages(
+	completion: Record<string, unknown>
+): AIGatewayCompletionTextResult | undefined {
+	const content = completion.content;
+	if (!Array.isArray(content)) return undefined;
+
+	const texts: string[] = [];
+	let sawTextField = false;
+	let toolCalls: unknown[] | undefined;
+
+	for (const part of content) {
+		if (!isUnknownRecord(part)) continue;
+		const type = part.type;
+		if (type === 'tool_use') {
+			toolCalls = toolCalls ? [...toolCalls, part] : [part];
+			continue;
+		}
+		const text = part.text;
+		if (typeof text === 'string') {
+			sawTextField = true;
+			texts.push(text);
+		}
+	}
+
+	const finishReason = normalizeFinishReason(completion.stop_reason);
+
+	if (!sawTextField && !toolCalls && !finishReason) return undefined;
+
+	return {
+		text: texts.join(''),
+		hasText: sawTextField,
+		...(finishReason ? { finishReason } : {}),
+		...(toolCalls ? { toolCalls } : {}),
+	};
+}
+
+function extractFromGoogleCandidates(
+	completion: Record<string, unknown>
+): AIGatewayCompletionTextResult | undefined {
+	const candidates = completion.candidates;
+	if (!Array.isArray(candidates) || candidates.length === 0) return undefined;
+
+	const texts: string[] = [];
+	let sawTextField = false;
+	let finishReason: AIGatewayCompletionTextReason | undefined;
+
+	for (const candidate of candidates) {
+		if (!isUnknownRecord(candidate)) continue;
+		const content = candidate.content;
+		const parts = isUnknownRecord(content) ? content.parts : undefined;
+		if (parts !== undefined) {
+			sawTextField = true;
+			texts.push(getAIGatewayTextFromParts(parts));
+		}
+		finishReason ??= normalizeFinishReason(candidate.finishReason);
+	}
+
+	if (!sawTextField && !finishReason) return undefined;
+
+	return {
+		text: texts.join(''),
+		hasText: sawTextField,
+		...(finishReason ? { finishReason } : {}),
+	};
+}
+
+/**
+ * Extract the assistant's textual reply from an `AIGatewayChatCompletion`, normalizing across
+ * OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, and Google Generative AI
+ * response shapes. Concatenates content-parts arrays.
+ *
+ * Returns a structured result so callers can distinguish "the model returned no text" (e.g. it
+ * stopped because of `tool_calls` or `length`) from "the model returned an empty string". For
+ * the common case of just wanting the string, see {@link getAIGatewayCompletionText}.
+ */
+export function getAIGatewayCompletionTextResult(
+	completion: unknown
+): AIGatewayCompletionTextResult {
+	if (!isUnknownRecord(completion)) {
+		return { text: '', hasText: false };
+	}
+
+	return (
+		extractFromOpenAIChoices(completion) ??
+		extractFromOpenAIResponses(completion) ??
+		extractFromAnthropicMessages(completion) ??
+		extractFromGoogleCandidates(completion) ?? { text: '', hasText: false }
+	);
+}
+
+/**
+ * Extract the assistant's textual reply from an `AIGatewayChatCompletion` as a plain string.
+ * Concatenates content-parts arrays; returns `''` when the response carried no textual content.
+ * Use {@link getAIGatewayCompletionTextResult} when you need to distinguish "no text" from `''`.
+ */
+export function getAIGatewayCompletionText(completion: unknown): string {
+	return getAIGatewayCompletionTextResult(completion).text;
 }
 
 export function getAIGatewayStreamDeltaText(payload: unknown): string {
@@ -890,8 +1496,9 @@ export class AIGatewayService {
 	async complete(params: AIGatewayChatCompletionParams): Promise<AIGatewayChatCompletion> {
 		const method = 'POST';
 		const url = buildUrl(this.baseUrl, '/');
+		const { params: translated } = applyAIGatewayResponseSchema(params);
 		const [body, contentType] = await toPayload(
-			AIGatewayChatCompletionParamsSchema.parse(params)
+			AIGatewayChatCompletionParamsSchema.parse(translated)
 		);
 		const response = await this.adapter.invoke<AIGatewayChatCompletion>(url, {
 			method,
@@ -945,8 +1552,9 @@ export class AIGatewayService {
 	): Promise<AIGatewayStreamingCompletion> {
 		const method = 'POST';
 		const url = buildUrl(this.baseUrl, '/');
+		const { params: translated } = applyAIGatewayResponseSchema(params);
 		const [body, contentType] = await toPayload(
-			AIGatewayChatCompletionParamsSchema.parse({ ...params, stream: true })
+			AIGatewayChatCompletionParamsSchema.parse({ ...translated, stream: true })
 		);
 		const response = await this.adapter.invoke<never>(url, {
 			method,

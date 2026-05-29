@@ -1,20 +1,8 @@
-import { AIGatewayClient } from '@agentuity/aigateway';
+import { AIGatewayClient, getAIGatewayCompletionText } from '@agentuity/aigateway';
 import { NextResponse } from 'next/server';
 
 // One client per worker; safe to reuse across requests.
-// The gateway requires an orgId header in addition to the SDK key. Other
-// service clients in the SDK take it as a constructor option only — pick
-// it up here from any of the env var names the platform already uses so
-// `agentuity dev` (which injects AGENTUITY_ORGID from agentuity.json) and
-// CI (which sets AGENTUITY_ORG_ID) both work.
-// Tracked at agentuity/infra#483 — if/when the gateway accepts SDK-key-only
-// auth on this route, the orgId option here becomes optional.
-const gateway = new AIGatewayClient({
-	orgId:
-		process.env.AGENTUITY_ORGID ??
-		process.env.AGENTUITY_ORG_ID ??
-		process.env.AGENTUITY_CLOUD_ORG_ID,
-});
+const gateway = new AIGatewayClient();
 
 export async function POST(request: Request) {
 	const body = (await request.json()) as {
@@ -35,10 +23,7 @@ export async function POST(request: Request) {
 		],
 	});
 
-	const choice = (completion.choices?.[0] ?? {}) as {
-		message?: { content?: string };
-	};
-	const translation = choice.message?.content ?? '';
+	const translation = getAIGatewayCompletionText(completion);
 	const usage = completion.usage as { total_tokens?: number } | undefined;
 
 	return NextResponse.json({

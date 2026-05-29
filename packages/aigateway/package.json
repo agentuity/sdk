@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/aigateway",
-	"version": "3.0.1",
+	"version": "3.0.2",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -30,6 +30,7 @@
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
 		"typescript": "^6.0.2"

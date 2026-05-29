@@ -1,9 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import { createMockAdapter } from '@agentuity/test-utils';
+import { z } from 'zod';
 import {
 	AIGatewayChatCompletionParamsSchema,
 	AIGatewayService,
+	applyAIGatewayResponseSchema,
 	buildAIGatewayCompletionParams,
+	getAIGatewayCompletionStructured,
+	getAIGatewayCompletionText,
+	getAIGatewayCompletionTextResult,
+	getAIGatewayProviderFamily,
 	getAIGatewayStreamDeltaText,
 	getAIGatewayStreamReasoningText,
 } from '../src/services/aigateway/index.ts';
@@ -173,6 +179,39 @@ describe('AIGatewayService', () => {
 			},
 		]);
 		expect(completion.agentuity?.cost?.reasoningTokens).toBe(64);
+	});
+
+	test('extracts completion text through AI Gateway adapters', () => {
+		expect(
+			getAIGatewayCompletionText({
+				choices: [{ message: { role: 'assistant', content: 'OpenAI text' } }],
+			})
+		).toBe('OpenAI text');
+		expect(
+			getAIGatewayCompletionText({
+				output: [
+					{
+						type: 'reasoning',
+						summary: [{ type: 'summary_text', text: 'Reasoned briefly.' }],
+					},
+					{
+						type: 'message',
+						content: [{ type: 'output_text', text: 'Responses text' }],
+					},
+				],
+			})
+		).toBe('Responses text');
+		expect(
+			getAIGatewayCompletionText({
+				candidates: [
+					{
+						content: {
+							parts: [{ text: 'Gemini text' }],
+						},
+					},
+				],
+			})
+		).toBe('Gemini text');
 	});
 
 	test('prefers provider reasoning token usage over zero gateway metadata', async () => {
@@ -649,5 +688,400 @@ describe('AIGatewayService', () => {
 				reasoningTokens: 64,
 			},
 		});
+	});
+
+	test('translates response_schema to response_format on the wire for OpenAI models', async () => {
+		const { adapter, calls } = createMockAdapter([
+			{
+				ok: true,
+				data: {
+					id: 'chatcmpl_struct',
+					choices: [
+						{
+							message: { role: 'assistant', content: '{"name":"ada","age":42}' },
+							finish_reason: 'stop',
+						},
+					],
+				},
+			},
+		]);
+		const service = new AIGatewayService(baseUrl, adapter);
+
+		await service.complete({
+			model: 'openai/gpt-4.1-mini',
+			messages: [{ role: 'user', content: 'who?' }],
+			response_schema: {
+				name: 'user',
+				schema: {
+					type: 'object',
+					properties: { name: { type: 'string' }, age: { type: 'number' } },
+					required: ['name', 'age'],
+				},
+			},
+		});
+
+		const sent = JSON.parse(String(calls[0]?.options.body)) as Record<string, unknown>;
+		expect(sent.response_schema).toBeUndefined();
+		const rf = sent.response_format as Record<string, unknown>;
+		expect(rf?.type).toBe('json_schema');
+		expect((rf?.json_schema as Record<string, unknown>)?.name).toBe('user');
+	});
+});
+
+describe('getAIGatewayCompletionText', () => {
+	test('extracts a string content from an OpenAI chat completion', () => {
+		const result = getAIGatewayCompletionTextResult({
+			choices: [
+				{ message: { role: 'assistant', content: 'Hello world' }, finish_reason: 'stop' },
+			],
+		});
+
+		expect(result).toEqual({ text: 'Hello world', hasText: true, finishReason: 'stop' });
+		expect(getAIGatewayCompletionText({ choices: [{ message: { content: 'Hi' } }] })).toBe('Hi');
+	});
+
+	test('concatenates content-parts from a Claude-style chat completion', () => {
+		const result = getAIGatewayCompletionTextResult({
+			choices: [
+				{
+					message: {
+						role: 'assistant',
+						content: [
+							{ type: 'text', text: 'Hello ' },
+							{ type: 'text', text: 'world' },
+						],
+					},
+					finish_reason: 'stop',
+				},
+			],
+		});
+
+		expect(result.text).toBe('Hello world');
+		expect(result.hasText).toBe(true);
+	});
+
+	test('distinguishes empty content (no text) from an empty-string reply', () => {
+		const noContent = getAIGatewayCompletionTextResult({
+			choices: [
+				{
+					message: {
+						role: 'assistant',
+						content: null,
+						tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'go' } }],
+					},
+					finish_reason: 'tool_calls',
+				},
+			],
+		});
+		expect(noContent).toEqual({
+			text: '',
+			hasText: false,
+			finishReason: 'tool_calls',
+			toolCalls: [{ id: 'call_1', type: 'function', function: { name: 'go' } }],
+		});
+
+		const emptyString = getAIGatewayCompletionTextResult({
+			choices: [{ message: { role: 'assistant', content: '' }, finish_reason: 'stop' }],
+		});
+		// content: '' (explicit) -> hasText: true; content: null (above) -> hasText: false.
+		expect(emptyString).toEqual({ text: '', hasText: true, finishReason: 'stop' });
+	});
+
+	test('extracts text from an OpenAI Responses-API completion', () => {
+		const result = getAIGatewayCompletionTextResult({
+			id: 'resp_1',
+			status: 'completed',
+			output: [
+				{ type: 'reasoning', summary: [{ type: 'summary_text', text: 'thinking' }] },
+				{ type: 'message', content: [{ type: 'output_text', text: 'Hello' }] },
+			],
+		});
+
+		expect(result.text).toBe('Hello');
+		expect(result.hasText).toBe(true);
+		expect(result.finishReason).toBe('stop');
+	});
+
+	test('extracts text from an Anthropic Messages-API completion', () => {
+		const result = getAIGatewayCompletionTextResult({
+			id: 'msg_1',
+			role: 'assistant',
+			content: [
+				{ type: 'thinking', thinking: 'reasoning aloud' },
+				{ type: 'text', text: 'Hello world' },
+			],
+			stop_reason: 'end_turn',
+		});
+
+		expect(result.text).toBe('Hello world');
+		expect(result.finishReason).toBe('stop');
+	});
+
+	test('surfaces tool_use from an Anthropic Messages-API completion', () => {
+		const result = getAIGatewayCompletionTextResult({
+			content: [{ type: 'tool_use', id: 'tu_1', name: 'lookup', input: { query: 'x' } }],
+			stop_reason: 'tool_use',
+		});
+
+		expect(result.text).toBe('');
+		expect(result.hasText).toBe(false);
+		expect(result.finishReason).toBe('tool_calls');
+		expect(result.toolCalls).toHaveLength(1);
+	});
+
+	test('extracts text from a Google Generative-AI completion', () => {
+		const result = getAIGatewayCompletionTextResult({
+			candidates: [
+				{
+					content: { parts: [{ text: 'Hello' }, { text: ' world' }] },
+					finishReason: 'STOP',
+				},
+			],
+		});
+
+		expect(result.text).toBe('Hello world');
+		expect(result.finishReason).toBe('stop');
+	});
+
+	test('returns an empty result for unknown / non-object inputs', () => {
+		expect(getAIGatewayCompletionTextResult(null)).toEqual({ text: '', hasText: false });
+		expect(getAIGatewayCompletionTextResult(undefined)).toEqual({ text: '', hasText: false });
+		expect(getAIGatewayCompletionTextResult('hello')).toEqual({ text: '', hasText: false });
+		expect(getAIGatewayCompletionTextResult({})).toEqual({ text: '', hasText: false });
+	});
+});
+
+describe('getAIGatewayProviderFamily', () => {
+	test('identifies model families by id prefix', () => {
+		expect(getAIGatewayProviderFamily('openai/gpt-4.1-mini')).toBe('openai');
+		expect(getAIGatewayProviderFamily('gpt-4o')).toBe('openai');
+		expect(getAIGatewayProviderFamily('o3-mini')).toBe('openai');
+		expect(getAIGatewayProviderFamily('anthropic/claude-haiku-4-5')).toBe('anthropic');
+		expect(getAIGatewayProviderFamily('claude-3-5-sonnet')).toBe('anthropic');
+		expect(getAIGatewayProviderFamily('google/gemini-2.5-flash')).toBe('google');
+		expect(getAIGatewayProviderFamily('gemini-2.5-flash')).toBe('google');
+		expect(getAIGatewayProviderFamily('deepseek/deepseek-chat')).toBe('unknown');
+	});
+});
+
+describe('applyAIGatewayResponseSchema', () => {
+	const userSchema = {
+		type: 'object',
+		properties: { name: { type: 'string' }, age: { type: 'number' } },
+		required: ['name', 'age'],
+	};
+
+	test('rejects invalid response_schema values at parse time', () => {
+		// Bare value that is neither a JSON Schema object, a wrapper, nor a StandardSchema.
+		expect(
+			AIGatewayChatCompletionParamsSchema.safeParse({
+				model: 'openai/gpt-4.1-mini',
+				messages: [{ role: 'user', content: 'hi' }],
+				response_schema: 42,
+			}).success
+		).toBe(false);
+		expect(
+			AIGatewayChatCompletionParamsSchema.safeParse({
+				model: 'openai/gpt-4.1-mini',
+				messages: [{ role: 'user', content: 'hi' }],
+				response_schema: 'a string',
+			}).success
+		).toBe(false);
+	});
+
+	test('passes through when no response_schema is set', () => {
+		const input = {
+			model: 'openai/gpt-4.1-mini',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+		};
+		const result = applyAIGatewayResponseSchema(input);
+		expect(result.applied).toBe(false);
+		expect(result.family).toBe('openai');
+		expect(result.params).toBe(input);
+	});
+
+	test('translates to OpenAI response_format for openai-family models', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'openai/gpt-4.1-mini',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+			response_schema: { name: 'user', schema: userSchema },
+		});
+		expect(result.applied).toBe(true);
+		expect(result.family).toBe('openai');
+		expect((result.params as Record<string, unknown>).response_schema).toBeUndefined();
+		const rf = (result.params as Record<string, unknown>).response_format as Record<
+			string,
+			unknown
+		>;
+		expect(rf.type).toBe('json_schema');
+		const js = rf.json_schema as Record<string, unknown>;
+		expect(js.name).toBe('user');
+		expect(js.strict).toBe(true);
+		expect((js.schema as Record<string, unknown>).additionalProperties).toBe(false);
+	});
+
+	test('translates to Anthropic tool-use for anthropic-family models', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'anthropic/claude-haiku-4-5',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+			response_schema: { name: 'finding', schema: userSchema },
+		});
+		expect(result.applied).toBe(true);
+		expect(result.family).toBe('anthropic');
+		const params = result.params as Record<string, unknown>;
+		const tools = params.tools as Array<Record<string, unknown>>;
+		expect(tools).toHaveLength(1);
+		expect(tools[0]?.name).toBe('finding');
+		expect(tools[0]?.input_schema).toBeDefined();
+		expect(params.tool_choice).toEqual({ type: 'tool', name: 'finding' });
+		expect(params.response_schema).toBeUndefined();
+	});
+
+	test('translates to Google generationConfig.responseSchema for google-family models', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'google/gemini-2.5-flash',
+			contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+			response_schema: { schema: userSchema },
+		});
+		expect(result.applied).toBe(true);
+		expect(result.family).toBe('google');
+		const gc = (result.params as Record<string, unknown>).generationConfig as Record<
+			string,
+			unknown
+		>;
+		expect(gc.responseMimeType).toBe('application/json');
+		expect(gc.responseSchema).toBeDefined();
+	});
+
+	test('falls back to schema-injected system message for unknown families', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'deepseek/deepseek-chat',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+			response_schema: { schema: userSchema },
+		});
+		expect(result.applied).toBe(true);
+		expect(result.family).toBe('unknown');
+		const params = result.params as Record<string, unknown>;
+		expect(params.tools).toBeUndefined();
+		expect(params.response_format).toBeUndefined();
+		const messages = params.messages as Array<Record<string, unknown>>;
+		expect(messages[0]?.role).toBe('system');
+		expect(String(messages[0]?.content)).toContain('JSON');
+		expect(String(messages[0]?.content)).toContain('"type": "object"');
+	});
+
+	test('accepts a raw JSON Schema as response_schema', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'openai/gpt-4.1-mini',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+			response_schema: userSchema,
+		});
+		expect(result.applied).toBe(true);
+		const rf = (result.params as Record<string, unknown>).response_format as Record<
+			string,
+			unknown
+		>;
+		const js = rf.json_schema as Record<string, unknown>;
+		expect(js.name).toBe('response');
+	});
+
+	test('accepts a Zod schema as response_schema', () => {
+		const zodSchema = z.object({ name: z.string(), age: z.number() });
+		const result = applyAIGatewayResponseSchema({
+			model: 'openai/gpt-4.1-mini',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+			response_schema: { name: 'user', schema: zodSchema },
+		});
+		expect(result.applied).toBe(true);
+		const rf = (result.params as Record<string, unknown>).response_format as Record<
+			string,
+			unknown
+		>;
+		const js = rf.json_schema as Record<string, unknown>;
+		const schema = js.schema as Record<string, unknown>;
+		expect(schema.type).toBe('object');
+		expect((schema.properties as Record<string, unknown>).name).toBeDefined();
+	});
+
+	test('strict=false leaves additionalProperties alone', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'openai/gpt-4.1-mini',
+			messages: [{ role: 'user' as const, content: 'hi' }],
+			response_schema: { schema: userSchema, strict: false },
+		});
+		const rf = (result.params as Record<string, unknown>).response_format as Record<
+			string,
+			unknown
+		>;
+		const js = rf.json_schema as Record<string, unknown>;
+		expect(js.strict).toBe(false);
+		expect((js.schema as Record<string, unknown>).additionalProperties).toBeUndefined();
+	});
+
+	test('appends to an existing system message in the fallback path', () => {
+		const result = applyAIGatewayResponseSchema({
+			model: 'deepseek/deepseek-chat',
+			messages: [
+				{ role: 'system' as const, content: 'You are terse.' },
+				{ role: 'user' as const, content: 'hi' },
+			],
+			response_schema: { schema: userSchema },
+		});
+		const messages = (result.params as Record<string, unknown>).messages as Array<
+			Record<string, unknown>
+		>;
+		expect(messages[0]?.role).toBe('system');
+		expect(String(messages[0]?.content)).toContain('You are terse.');
+		expect(String(messages[0]?.content)).toContain('JSON');
+	});
+});
+
+describe('getAIGatewayCompletionStructured', () => {
+	test('parses JSON from OpenAI chat content', () => {
+		const result = getAIGatewayCompletionStructured({
+			choices: [
+				{ message: { role: 'assistant', content: '{"ok":true,"n":3}' }, finish_reason: 'stop' },
+			],
+		});
+		expect(result).toEqual({ ok: true, n: 3 });
+	});
+
+	test('strips ```json code fences before parsing', () => {
+		const result = getAIGatewayCompletionStructured({
+			choices: [
+				{
+					message: { role: 'assistant', content: '```json\n{"ok":true}\n```' },
+					finish_reason: 'stop',
+				},
+			],
+		});
+		expect(result).toEqual({ ok: true });
+	});
+
+	test('returns the tool_use input for anthropic completions', () => {
+		const result = getAIGatewayCompletionStructured(
+			{
+				content: [
+					{
+						type: 'tool_use',
+						id: 'tu_1',
+						name: 'finding',
+						input: { findings: [{ path: 'a', line: 1 }] },
+					},
+				],
+				stop_reason: 'tool_use',
+			},
+			'anthropic'
+		);
+		expect(result).toEqual({ findings: [{ path: 'a', line: 1 }] });
+	});
+
+	test('returns undefined when no parseable JSON is available', () => {
+		expect(
+			getAIGatewayCompletionStructured({
+				choices: [{ message: { content: 'not json' }, finish_reason: 'stop' }],
+			})
+		).toBeUndefined();
+		expect(getAIGatewayCompletionStructured({}, 'openai')).toBeUndefined();
 	});
 });
