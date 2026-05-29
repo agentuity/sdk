@@ -8,6 +8,11 @@ const AIGatewayModelsResponseError = StructuredError('AIGatewayModelsResponseErr
 	message?: string;
 }>();
 
+const AIGatewayResponseSchemaError = StructuredError('AIGatewayResponseSchemaError')<{
+	reason: 'conversion_failed' | 'invalid_input';
+	message: string;
+}>();
+
 export const AIGatewayPricingSchema = z.object({
 	input: z.number().describe('Input token price.'),
 	output: z.number().describe('Output token price.'),
@@ -129,6 +134,14 @@ function hasCompletionInput(params: {
 	return false;
 }
 
+const StandardSchemaCustom = z.custom<{ '~standard': unknown }>(
+	(value) =>
+		typeof value === 'object' &&
+		value !== null &&
+		(Object.hasOwn(value, '~standard') || '~standard' in value),
+	{ message: 'expected a StandardSchema-compliant value (must expose a `~standard` property)' }
+);
+
 export const AIGatewayResponseSchemaSchema = z
 	.object({
 		name: z
@@ -143,7 +156,7 @@ export const AIGatewayResponseSchemaSchema = z
 			.optional()
 			.describe('Whether the provider should enforce strict adherence (default: true).'),
 		schema: z
-			.union([z.record(z.string(), z.unknown()), z.custom<{ '~standard': unknown }>()])
+			.union([z.record(z.string(), z.unknown()), StandardSchemaCustom])
 			.describe(
 				'JSON Schema describing the desired response shape, or a StandardSchema/Zod schema. Translated to the provider-native structured-output primitive at request time.'
 			),
@@ -178,7 +191,7 @@ export const AIGatewayChatCompletionParamsSchema = z
 			.union([
 				AIGatewayResponseSchemaSchema,
 				z.record(z.string(), z.unknown()),
-				z.custom<{ '~standard': unknown }>(),
+				StandardSchemaCustom,
 			])
 			.optional()
 			.describe(
@@ -430,14 +443,18 @@ function toPlainJsonSchema(value: unknown): Record<string, unknown> {
 	if (isStandardSchema(value)) {
 		const converted = standardSchemaToJsonSchema(value);
 		if (converted) return converted;
-		throw new Error(
-			'response_schema: could not convert the provided Schema to JSON Schema. Pass a JSON Schema object instead.'
-		);
+		throw new AIGatewayResponseSchemaError({
+			reason: 'conversion_failed',
+			message:
+				'response_schema: could not convert the provided Schema to JSON Schema. Pass a JSON Schema object instead.',
+		});
 	}
 	if (isPlainJsonSchema(value)) return value;
-	throw new Error(
-		'response_schema: expected a JSON Schema object, a Zod schema, or { schema, ... } wrapper.'
-	);
+	throw new AIGatewayResponseSchemaError({
+		reason: 'invalid_input',
+		message:
+			'response_schema: expected a JSON Schema object, a Zod schema, or { schema, ... } wrapper.',
+	});
 }
 
 function standardSchemaToJsonSchema(value: unknown): Record<string, unknown> | undefined {
@@ -483,9 +500,13 @@ function buildSchemaInstruction(
 	description: string | undefined,
 	schema: Record<string, unknown>
 ): string {
-	const preamble = description
-		? `Respond with JSON that validates against the schema below. ${description}`
-		: 'Respond with JSON that validates against the schema below. Output JSON only, no prose, no code fences.';
+	const preamble = [
+		'Respond with JSON that validates against the schema below.',
+		description,
+		'Output JSON only, no prose, no code fences.',
+	]
+		.filter(Boolean)
+		.join(' ');
 	return `${preamble}\n\nSchema name: ${name}\n\n${JSON.stringify(schema, null, 2)}`;
 }
 
@@ -729,6 +750,10 @@ export type AIGatewayStreamingCompletion = {
 	metadata: Promise<AIGatewayResponseMetadata>;
 };
 
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
 export function getAIGatewayTextFromParts(parts: unknown): string {
 	if (typeof parts === 'string') return parts;
 	if (!Array.isArray(parts)) return '';
@@ -831,32 +856,30 @@ function extractFromOpenAIChoices(
 	let toolCalls: unknown[] | undefined;
 
 	for (const choice of choices) {
-		if (!choice || typeof choice !== 'object') continue;
-		const record = choice as Record<string, unknown>;
-		const message = record.message;
-		if (message && typeof message === 'object') {
-			const content = (message as { content?: unknown }).content;
+		if (!isUnknownRecord(choice)) continue;
+		const message = choice.message;
+		if (isUnknownRecord(message)) {
+			const content = message.content;
 			if (content !== undefined && content !== null) {
 				sawTextField = true;
 				texts.push(getAIGatewayTextFromParts(content));
 			}
-			const calls = collectToolCalls((message as { tool_calls?: unknown }).tool_calls);
+			const calls = collectToolCalls(message.tool_calls);
 			if (calls) toolCalls = toolCalls ? [...toolCalls, ...calls] : calls;
 		}
 		// Legacy completions-style text field.
-		if (typeof record.text === 'string') {
+		if (typeof choice.text === 'string') {
 			sawTextField = true;
-			texts.push(record.text);
+			texts.push(choice.text);
 		}
-		finishReason ??= normalizeFinishReason(record.finish_reason);
+		finishReason ??= normalizeFinishReason(choice.finish_reason);
 	}
 
 	if (!sawTextField && !finishReason && !toolCalls) return undefined;
 
-	const text = texts.join('');
 	return {
-		text,
-		hasText: sawTextField && text.length > 0,
+		text: texts.join(''),
+		hasText: sawTextField,
 		...(finishReason ? { finishReason } : {}),
 		...(toolCalls ? { toolCalls } : {}),
 	};
@@ -873,13 +896,13 @@ function extractFromOpenAIResponses(
 	let toolCalls: unknown[] | undefined;
 
 	for (const item of output) {
-		if (!item || typeof item !== 'object') continue;
-		const type = (item as { type?: unknown }).type;
+		if (!isUnknownRecord(item)) continue;
+		const type = item.type;
 		if (type === 'function_call' || type === 'tool_use') {
 			toolCalls = toolCalls ? [...toolCalls, item] : [item];
 			continue;
 		}
-		const content = (item as { content?: unknown }).content;
+		const content = item.content;
 		if (content !== undefined && content !== null) {
 			sawTextField = true;
 			texts.push(getAIGatewayTextFromParts(content));
@@ -897,10 +920,9 @@ function extractFromOpenAIResponses(
 	const finishReason =
 		normalizeFinishReason(completion.status) ?? normalizeFinishReason(completion.stop_reason);
 
-	const text = texts.join('');
 	return {
-		text,
-		hasText: sawTextField && text.length > 0,
+		text: texts.join(''),
+		hasText: sawTextField,
 		...(finishReason ? { finishReason } : {}),
 		...(toolCalls ? { toolCalls } : {}),
 	};
@@ -917,13 +939,13 @@ function extractFromAnthropicMessages(
 	let toolCalls: unknown[] | undefined;
 
 	for (const part of content) {
-		if (!part || typeof part !== 'object') continue;
-		const type = (part as { type?: unknown }).type;
+		if (!isUnknownRecord(part)) continue;
+		const type = part.type;
 		if (type === 'tool_use') {
 			toolCalls = toolCalls ? [...toolCalls, part] : [part];
 			continue;
 		}
-		const text = (part as { text?: unknown }).text;
+		const text = part.text;
 		if (typeof text === 'string') {
 			sawTextField = true;
 			texts.push(text);
@@ -934,10 +956,9 @@ function extractFromAnthropicMessages(
 
 	if (!sawTextField && !toolCalls && !finishReason) return undefined;
 
-	const text = texts.join('');
 	return {
-		text,
-		hasText: sawTextField && text.length > 0,
+		text: texts.join(''),
+		hasText: sawTextField,
 		...(finishReason ? { finishReason } : {}),
 		...(toolCalls ? { toolCalls } : {}),
 	};
@@ -954,27 +975,21 @@ function extractFromGoogleCandidates(
 	let finishReason: AIGatewayCompletionTextReason | undefined;
 
 	for (const candidate of candidates) {
-		if (!candidate || typeof candidate !== 'object') continue;
-		const content = (candidate as { content?: unknown }).content;
-		const parts =
-			content && typeof content === 'object'
-				? (content as { parts?: unknown }).parts
-				: undefined;
+		if (!isUnknownRecord(candidate)) continue;
+		const content = candidate.content;
+		const parts = isUnknownRecord(content) ? content.parts : undefined;
 		if (parts !== undefined) {
 			sawTextField = true;
 			texts.push(getAIGatewayTextFromParts(parts));
 		}
-		finishReason ??= normalizeFinishReason(
-			(candidate as { finishReason?: unknown }).finishReason
-		);
+		finishReason ??= normalizeFinishReason(candidate.finishReason);
 	}
 
 	if (!sawTextField && !finishReason) return undefined;
 
-	const text = texts.join('');
 	return {
-		text,
-		hasText: sawTextField && text.length > 0,
+		text: texts.join(''),
+		hasText: sawTextField,
 		...(finishReason ? { finishReason } : {}),
 	};
 }
@@ -991,16 +1006,15 @@ function extractFromGoogleCandidates(
 export function getAIGatewayCompletionTextResult(
 	completion: unknown
 ): AIGatewayCompletionTextResult {
-	if (!completion || typeof completion !== 'object') {
+	if (!isUnknownRecord(completion)) {
 		return { text: '', hasText: false };
 	}
-	const record = completion as Record<string, unknown>;
 
 	return (
-		extractFromOpenAIChoices(record) ??
-		extractFromOpenAIResponses(record) ??
-		extractFromAnthropicMessages(record) ??
-		extractFromGoogleCandidates(record) ?? { text: '', hasText: false }
+		extractFromOpenAIChoices(completion) ??
+		extractFromOpenAIResponses(completion) ??
+		extractFromAnthropicMessages(completion) ??
+		extractFromGoogleCandidates(completion) ?? { text: '', hasText: false }
 	);
 }
 

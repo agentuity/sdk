@@ -181,6 +181,39 @@ describe('AIGatewayService', () => {
 		expect(completion.agentuity?.cost?.reasoningTokens).toBe(64);
 	});
 
+	test('extracts completion text through AI Gateway adapters', () => {
+		expect(
+			getAIGatewayCompletionText({
+				choices: [{ message: { role: 'assistant', content: 'OpenAI text' } }],
+			})
+		).toBe('OpenAI text');
+		expect(
+			getAIGatewayCompletionText({
+				output: [
+					{
+						type: 'reasoning',
+						summary: [{ type: 'summary_text', text: 'Reasoned briefly.' }],
+					},
+					{
+						type: 'message',
+						content: [{ type: 'output_text', text: 'Responses text' }],
+					},
+				],
+			})
+		).toBe('Responses text');
+		expect(
+			getAIGatewayCompletionText({
+				candidates: [
+					{
+						content: {
+							parts: [{ text: 'Gemini text' }],
+						},
+					},
+				],
+			})
+		).toBe('Gemini text');
+	});
+
 	test('prefers provider reasoning token usage over zero gateway metadata', async () => {
 		const { adapter } = createMockAdapter([
 			{
@@ -750,8 +783,8 @@ describe('getAIGatewayCompletionText', () => {
 		const emptyString = getAIGatewayCompletionTextResult({
 			choices: [{ message: { role: 'assistant', content: '' }, finish_reason: 'stop' }],
 		});
-		expect(emptyString).toEqual({ text: '', hasText: false, finishReason: 'stop' });
-		expect(emptyString.hasText).toBe(false); // distinguishable only via finish_reason here
+		// content: '' (explicit) -> hasText: true; content: null (above) -> hasText: false.
+		expect(emptyString).toEqual({ text: '', hasText: true, finishReason: 'stop' });
 	});
 
 	test('extracts text from an OpenAI Responses-API completion', () => {
@@ -837,6 +870,24 @@ describe('applyAIGatewayResponseSchema', () => {
 		properties: { name: { type: 'string' }, age: { type: 'number' } },
 		required: ['name', 'age'],
 	};
+
+	test('rejects invalid response_schema values at parse time', () => {
+		// Bare value that is neither a JSON Schema object, a wrapper, nor a StandardSchema.
+		expect(
+			AIGatewayChatCompletionParamsSchema.safeParse({
+				model: 'openai/gpt-4.1-mini',
+				messages: [{ role: 'user', content: 'hi' }],
+				response_schema: 42,
+			}).success
+		).toBe(false);
+		expect(
+			AIGatewayChatCompletionParamsSchema.safeParse({
+				model: 'openai/gpt-4.1-mini',
+				messages: [{ role: 'user', content: 'hi' }],
+				response_schema: 'a string',
+			}).success
+		).toBe(false);
+	});
 
 	test('passes through when no response_schema is set', () => {
 		const input = {

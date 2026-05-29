@@ -2,16 +2,11 @@ name: Actionlint
 
 on:
   pull_request:
-    paths:
-      - '.github/actionlint.yaml'
-      - '.github/workflows/**'
+  merge_group:
   push:
     branches:
       - main
       - v2
-    paths:
-      - '.github/actionlint.yaml'
-      - '.github/workflows/**'
 
 permissions:
   contents: read

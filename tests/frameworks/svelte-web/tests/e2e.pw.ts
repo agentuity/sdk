@@ -1,5 +1,30 @@
 import { expect, test } from '@playwright/test';
 
+interface TranslationResponse {
+	ok(): boolean;
+	text(): Promise<string>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+async function readTranslation(response: TranslationResponse): Promise<string> {
+	const responseText = await response.text();
+	expect(response.ok(), responseText).toBe(true);
+
+	const body: unknown = JSON.parse(responseText);
+	expect(isRecord(body)).toBe(true);
+	if (!isRecord(body)) throw new Error('Translation response body was not an object');
+
+	const translation = body.translation;
+	expect(typeof translation).toBe('string');
+	if (typeof translation !== 'string') throw new Error('Translation response was missing text');
+	expect(translation.trim().length).toBeGreaterThan(0);
+
+	return translation;
+}
+
 test.describe('SvelteKit + Agentuity', () => {
 	test('should load the home page with translation UI', async ({ page }) => {
 		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
@@ -16,29 +41,16 @@ test.describe('SvelteKit + Agentuity', () => {
 		await expect(page.locator('button:has-text("Translate")')).toBeVisible();
 	});
 
-	test('should translate text via AI Gateway', async ({ page }) => {
-		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
-		page.on('pageerror', (err) => console.error('PAGE ERROR:', err));
-
-		await page.goto('/');
-
-		// Fill in text
-		const input = page.locator('textarea');
-		await input.clear();
-		await input.fill('Hello from Playwright!');
-
-		// Select language
-		await page.locator('select').first().selectOption('French');
-
-		// Click translate
-		await page.locator('button:has-text("Translate")').click();
-
-		// Wait for result — the output div with translation text
-		const output = page.locator('.output');
-		await expect(output).toBeVisible({ timeout: 30000 });
-
-		// Verify translation result has actual content (not the placeholder)
-		await expect(output).not.toContainText('Translation will appear here');
+	test('should translate text via AI Gateway', async ({ request }) => {
+		const response = await request.post('/api/translate', {
+			data: {
+				text: 'Hello from Playwright!',
+				toLanguage: 'French',
+				model: 'openai/gpt-4o-mini',
+			},
+			timeout: 60000,
+		});
+		await readTranslation(response);
 	});
 
 	test('should navigate to about page', async ({ page }) => {
