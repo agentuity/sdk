@@ -37,7 +37,7 @@ export async function getPreference(userId: string): Promise<Preference | undefi
 
 `KeyValueClient` reads `AGENTUITY_SDK_KEY` by default. The other service clients use the same pattern unless their section below notes an extra required option.
 
-## Available Packages
+## Available packages
 
 | Package | Install | Use |
 |---------|---------|-----|
@@ -57,7 +57,7 @@ export async function getPreference(userId: string): Promise<Preference | undefi
 | [`@agentuity/hono`](#hono) | `bun add @agentuity/hono@next hono` | Hono middleware that injects common clients on `c.var.*` |
 | [`@agentuity/telemetry`](#telemetry) | `bun add @agentuity/telemetry@next` | logger, tracer, and meter setup outside Hono |
 
-## Direct Clients vs Middleware
+## Direct clients vs middleware
 
 | Where the code runs | Use |
 |---------------------|-----|
@@ -149,7 +149,7 @@ Storage buckets use a different env shape:
 
 `@agentuity/storage` reads these variables directly through `bucketConfigFromEnv()`.
 
-## Key-Value Storage
+## Key-value storage
 
 Use `KeyValueClient` for exact-key data with optional TTL.
 
@@ -169,7 +169,7 @@ await kv.delete('cache', 'session_123');
 
 See [Key-Value Storage](/services/storage/key-value) for namespace management, stats, search, and TTL behavior.
 
-## Vector Search
+## Vector search
 
 Use `VectorClient` when you need semantic search or retrieval.
 
@@ -196,7 +196,7 @@ const results = await vector.search('docs', {
 
 See [Vector Storage](/services/storage/vector) for batch retrieval, metadata filters, TTL, and namespace operations.
 
-## Object Storage
+## Object storage
 
 Use `@agentuity/storage` for S3-compatible object storage in Bun or Node.js server code.
 
@@ -219,7 +219,7 @@ const body = await file.text();
 
 Link a bucket with `agentuity project add storage <bucket-name>` so the CLI writes the `AWS_*` values to `.env`. See [Object Storage](/services/storage/object) for presigned URLs, browser uploads, and runtime-specific imports.
 
-## Durable Streams
+## Durable streams
 
 Use `StreamClient` for generated data that should be written incrementally and downloaded later.
 
@@ -270,7 +270,7 @@ const result = await gateway.complete({
 
 `AIGatewayClient` reads `AGENTUITY_AIGATEWAY_KEY`, then `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. Use `agentuity cloud aigateway models --recommended` before choosing a reusable model ID. See [AI Gateway](/services/ai-gateway) for provider SDK routing, local `agentuity dev` env wiring, and BYO provider keys.
 
-## Message Queues
+## Message queues
 
 Use `QueueClient` to publish work for later processing.
 

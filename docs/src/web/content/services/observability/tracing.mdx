@@ -3,44 +3,54 @@ title: Tracing
 description: OpenTelemetry spans for performance debugging and operation tracking
 ---
 
-Use tracing when logs tell you something happened but not where the time went. You can use the OpenTelemetry setup your app already has, or use `@agentuity/telemetry` for Agentuity defaults. `@agentuity/hono` exposes the same tracer as `c.var.tracer` in Hono routes.
+For Agentuity apps, tracing helps when logs tell you something happened but not where the time went. Keep an existing collector, vendor SDK, or framework instrumentation if you already have one. Use `@agentuity/telemetry` when you want Agentuity defaults, or `@agentuity/hono` when Hono routes read the tracer from `c.var.tracer`.
 
-```bash
-bun add @agentuity/telemetry@next @opentelemetry/api
-```
+## Bring your own OpenTelemetry
 
-## Bring Your Own OpenTelemetry
-
-If your app already sends traces to an OpenTelemetry Collector or vendor backend, keep that setup and add spans with the standard OpenTelemetry API.
+If your app already sends traces to an OpenTelemetry Collector or vendor backend, keep that setup. Add spans with the standard OpenTelemetry API in the route, server function, worker, or script that owns the work.
 
 ```bash
 bun add @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto
 ```
 
-```typescript title="instrumentation.ts"
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+Keep this path when a collector, vendor SDK, or framework instrumentation already owns startup. Start the SDK before route modules load, then keep route code on the standard API:
 
-const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+```typescript title="src/routes/checkout.ts"
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 
-if (!otlpEndpoint) {
-  throw new Error('OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is required');
+const tracer = trace.getTracer('checkout-api');
+
+export async function reserveInventory(sku: string): Promise<{ readonly reserved: boolean }> {
+  return tracer.startActiveSpan('reserve-inventory', async (span) => {
+    try {
+      span.setAttribute('sku', sku);
+
+      const reserved = sku.trim().length > 0;
+
+      span.setAttribute('reserved', reserved);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return { reserved };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      span.recordException(error instanceof Error ? error : new Error(message));
+      span.setStatus({ code: SpanStatusCode.ERROR, message });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
 }
-
-const sdk = new NodeSDK({
-  traceExporter: new OTLPTraceExporter({
-    url: otlpEndpoint,
-  }),
-  instrumentations: [getNodeAutoInstrumentations()],
-});
-
-sdk.start();
 ```
 
-Use this path when a collector, vendor SDK, or framework plugin already owns startup. Use `@agentuity/telemetry` when you want Agentuity's logger, tracer, meter, and exporter defaults from one package.
+See [Adding OpenTelemetry Spans to App Routes](/cookbook/patterns/opentelemetry-route-spans) for a complete `instrumentation.ts` and route-function example. If Langfuse owns your trace review path, see [Sending Traces to Langfuse](/cookbook/patterns/langfuse-otel-tracing) for a Langfuse startup and app-function shape.
 
-## Basic Span Pattern
+Use `@agentuity/telemetry` when you want Agentuity's logger, tracer, meter, auto-instrumentation, and exporter defaults from one package.
+
+## Use Agentuity telemetry spans
+
+```bash
+bun add @agentuity/telemetry@next @opentelemetry/api
+```
 
 ```typescript
 import { SpanStatusCode } from '@opentelemetry/api';
@@ -81,7 +91,7 @@ export async function searchProducts(input: SearchInput): Promise<readonly strin
 
 `startActiveSpan()` makes the span active while the callback runs, but it does not close the span. Call `span.end()` in a `finally` block, and set status when the outcome is meaningful.
 
-## Adding Attributes
+## Add attributes
 
 Use attributes for searchable span context: IDs, counts, categories, and boolean flags. Avoid raw prompts, tokens, secrets, or personal data.
 
@@ -112,7 +122,7 @@ export async function loadUser(input: UserLookup): Promise<{ readonly found: boo
 }
 ```
 
-## Recording Events
+## Record events
 
 Use `addEvent()` to mark important moments inside a longer span.
 
@@ -140,7 +150,7 @@ export async function processBatch(records: readonly string[]): Promise<{ readon
 
 Events create a timeline inside the span. Use them for milestones, not for every loop iteration.
 
-## Nested Spans
+## Nest spans
 
 Create child spans for multi-step operations. Inner spans inherit the active parent span.
 
@@ -190,7 +200,7 @@ export async function answerQuestion(question: string): Promise<{ readonly answe
 
 Nested spans preserve parent-child timing for any trace backend or timeline view that receives them.
 
-## Fetch Propagation
+## Fetch propagation
 
 When telemetry starts with an exporter or console debug exporter, `fetch()` calls made inside an active span get a child HTTP span and trace-context headers.
 
@@ -217,7 +227,7 @@ export async function loadCatalog(): Promise<Response> {
 }
 ```
 
-## AI SDK Telemetry
+## AI SDK telemetry
 
 AI SDK calls emit OpenTelemetry spans when telemetry is enabled for the call. Pass the Agentuity tracer when you want those spans to share the same trace pipeline as your framework code.
 
@@ -259,7 +269,7 @@ for await (const delta of stream.textStream) {
 
 AI SDK telemetry span names and attributes can change with AI SDK releases. After enabling telemetry, inspect the emitted spans in your collector or Agentuity session timeline before building dashboards or alerts around exact attribute names. Pass request, user, or session IDs in `metadata` when you need to search for them later.
 
-## Hono Routes
+## Hono routes
 
 Hono routes can read the tracer from `c.var.tracer` after installing the Agentuity middleware.
 
@@ -309,17 +319,17 @@ app.post('/customers/:id/notify', async (c) => {
 export default app;
 ```
 
-## Viewing Traces
+## View traces
 
-View traces for a session using the CLI:
+View Agentuity-collected traces for a session using the CLI:
 
 ```bash
 agentuity cloud session get sess_abc123xyz
 ```
 
-The command includes the session timeline when it is available. Traces are also visible in the [Agentuity Console](https://app.agentuity.com) session timeline.
+The command includes the session timeline when it is available. Traces are also visible in the [Agentuity Console](https://app.agentuity.com) session timeline. If you export to another collector or vendor backend, inspect traces there too.
 
-## When to Use Tracing
+## When to use tracing
 
 | Scenario | Approach |
 |----------|----------|
@@ -329,7 +339,7 @@ The command includes the session timeline when it is available. Traces are also 
 | External API calls | Wrap in spans to track latency |
 | Cross-service calls | Let trace context propagate through active spans and fetch |
 
-## Best Practices
+## Best practices
 
 - Name spans after work, not implementation steps: `generate-summary`, not `step-2`.
 - End every span in `finally`.
@@ -338,7 +348,8 @@ The command includes the session timeline when it is available. Traces are also 
 - Keep sensitive payloads out of span attributes and events.
 - Use events for milestones inside long operations.
 
-## Next Steps
+## Next steps
 
 - [Logging](/services/observability/logging): add searchable context to logs
 - [Sessions & Debugging](/services/observability/sessions-debugging): inspect timelines and logs from the CLI
+- [Sending Traces to Langfuse](/cookbook/patterns/langfuse-otel-tracing): keep Langfuse as the trace backend for app code

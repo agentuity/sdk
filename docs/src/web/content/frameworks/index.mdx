@@ -3,7 +3,7 @@ title: Frameworks
 description: Add Agentuity to a framework you already use, without replacing the router
 ---
 
-Pick the framework you already chose. Agentuity adds service clients, local development, and deploy packaging on top of its native conventions.
+Pick the framework you already chose. Keep its routes, middleware, logging, data layer, and build command. Agentuity adds service clients, local development, and deploy packaging on top of those conventions.
 
 <Cards>
   <CardLink
@@ -56,7 +56,7 @@ Pick the framework you already chose. Agentuity adds service clients, local deve
   />
 </Cards>
 
-## Choose a Starting Point
+## Choose a starting point
 
 | Path | Use when | Start with |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ Pick the framework you already chose. Agentuity adds service clients, local deve
 | Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `bun add -d @agentuity/cli@next` and `bun add @agentuity/keyvalue@next` |
 | Add Agentuity to an existing app | The app already has routes, scripts, env files, and a working build. | [Add Agentuity to an existing app](/get-started/import-existing-app) |
 
-## How the Framework Shape Works
+## How the framework shape works
 
 Keep the framework's normal file conventions. Agentuity overlays service clients, dev environment wiring, and deploy metadata. It does not replace the router.
 
@@ -79,9 +79,9 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 | Vite + React | browser UI with a Bun server boundary | standalone service clients |
 | TanStack Start | server routes and server functions | standalone service clients |
 
-`agentuity dev` runs your package manager's `dev` script with injected service credentials. `agentuity build` packages the app and writes `.agentuity/launch.json` when packaging succeeds. Treat that as a packaging check, then validate the packaged command locally before relying on server routes.
+`agentuity dev` runs your package manager's `dev` script with service credentials and supported provider SDK wiring when the linked project key is available. `agentuity build` runs the framework build, packages the app, and writes `.agentuity/launch.json` when packaging succeeds. Treat that as a packaging check, then validate the packaged command locally before relying on server routes.
 
-## Framework Starters
+## Framework starters
 
 `bun create agentuity@next --framework <slug>` scaffolds these starters:
 
@@ -96,10 +96,10 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 React Router, Vite + React, and TanStack Start are existing-framework adoption paths. Start with each framework's own CLI, then add `@agentuity/cli@next`, import the project, and verify `agentuity build` output before deploying.
 
 <Callout type="tip" title="Validate packaging before deploy">
-Run `bun run build`, then `agentuity build`, inspect `.agentuity/launch.json`, and start the packaged command locally before your first deploy. Use `--skip-type-check` only when iterating on packaging, not before a real deploy.
+Run the framework build when you want framework-only feedback, then run `agentuity build`, inspect `.agentuity/launch.json`, and start the packaged command locally before your first deploy. Use `--skip-type-check` only when iterating on packaging, not before a real deploy.
 </Callout>
 
-## Before You Deploy
+## Before you deploy
 
 | Check | What it proves |
 | --- | --- |
@@ -110,9 +110,9 @@ Run `bun run build`, then `agentuity build`, inspect `.agentuity/launch.json`, a
 
 If a framework page calls out a detector fallback or packaging caveat, treat it as a deploy check: inspect the generated command and validate at least one server route before you ship it.
 
-## Add Services
+## Add services
 
-Use standalone service clients across all supported frameworks:
+Direct service clients are the portable default across supported frameworks. Use them in route handlers, server functions, workers, scripts, or CLIs that own the work:
 
 ```bash
 bun add @agentuity/keyvalue@next
@@ -125,9 +125,9 @@ const kv = new KeyValueClient();
 await kv.set('sessions', 'current', { updatedAt: new Date().toISOString() });
 ```
 
-Hono apps can also install `@agentuity/hono` and read clients from `c.var.*` instead.
+Hono apps can also install `@agentuity/hono` when middleware is a convenient injection point for shared clients and telemetry. Direct clients still work in Hono when a route or module needs to stay framework-portable.
 
-## Next Steps
+## Next steps
 
 - [Services](/services): choose storage, messaging, identity, observability, and execution clients
 - [Build](/build): model calls, streaming routes, and background work patterns

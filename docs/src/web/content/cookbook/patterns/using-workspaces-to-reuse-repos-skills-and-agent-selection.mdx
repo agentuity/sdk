@@ -10,7 +10,7 @@ Workspaces save a session setup once and reuse it everywhere by `workspaceId`. T
 This example stores a saved skill and an agent selection, then pulls both in by `workspaceId`. Repositories and skill buckets can join the same workspace later.
 </Callout>
 
-## The Pattern
+## The pattern
 
 Create a workspace, then create a session that points at it:
 
@@ -80,7 +80,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## Example Output
+## Example output
 
 ```json
 {
@@ -103,7 +103,7 @@ What this means:
 - `workspaceId` carried those selections into the session
 - you can still set a default agent like `builder` when you create the session
 
-## Where Repositories Fit
+## Where repositories fit
 
 Once your app has a valid `CoderSessionRepositoryRef`, add it to the same workspace. If you already grouped skills into a bucket, attach that by `skillBucketIds` too:
 
@@ -120,7 +120,7 @@ const workspace = await client.createWorkspace({
 
 That keeps repo, skill, bucket, and agent selections in one reusable object. If your app doesn't have repository refs yet, start with skills and agents and layer repositories in later.
 
-## Where Setup Inputs Fit
+## Where setup inputs fit
 
 Use dependencies and setup scripts when every session needs the same packages or bootstrap commands. Validate APT dependencies first, then refresh the workspace snapshot after setup changes so future sessions start from the updated prepared state.
 
@@ -151,7 +151,7 @@ await client.refreshWorkspaceSnapshot(workspace.id);
 
 Use `systemPromptMode: 'overwrite'` only when the workspace should replace the default Lead prompt. Most reusable workspaces should append focused guidance instead.
 
-## When to Use This Pattern
+## When to use this pattern
 
 Use this pattern when you want:
 
@@ -160,14 +160,14 @@ Use this pattern when you want:
 - a stable place to store reusable skill and agent selections
 - session creation that starts from a named workspace instead of a long config object
 
-## Key Points
+## Key points
 
 - Workspaces pay off when the same selections repeat across sessions.
 - A workspace can't be empty. Include at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent selection.
 - `workspaceId` doesn't replace the normal session lifecycle APIs; create, inspect, archive, and delete sessions the same way.
 - Read the session back after creation to confirm the workspace selections flowed through.
 
-## See Also
+## See also
 
 - [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session): Attach saved skills directly without first creating a workspace
 - [Choosing Built-In Agents for a Coder Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Set the built-in roster without introducing a workspace

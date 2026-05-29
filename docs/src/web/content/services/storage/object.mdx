@@ -52,7 +52,7 @@ The credentials written to `.env` are:
 Do not expose bucket credentials to browser code. Create presigned URLs from a server route when a browser needs direct upload or download access.
 </Callout>
 
-## Runtime-Specific Imports
+## Runtime-specific imports
 
 Use `@agentuity/storage` when you want the same object-storage code to run under Bun or Node.js.
 
@@ -80,7 +80,7 @@ await storage.write('reports/monthly-summary.json', JSON.stringify({ total: 4281
 });
 ```
 
-## When to Use Object Storage
+## When to use object storage
 
 | Need | Use |
 |------|-----|
@@ -90,7 +90,7 @@ await storage.write('reports/monthly-summary.json', JSON.stringify({ total: 4281
 | generated output readable by URL | [Durable Streams](/services/storage/durable-streams) |
 | relational joins or transactions | [Database](/services/database) |
 
-## Read, Write, and Delete
+## Read, write, and delete
 
 Use the storage client with bucket credentials from the environment.
 
@@ -137,7 +137,7 @@ await storage.write('exports/large-report.csv', stream, {
 `@agentuity/storage` accepts streams but does not expose multipart tuning options. If you need `partSize` or `queueSize`, use Bun's `S3Client` directly and keep non-final multipart parts at 5 MB or larger.
 </Callout>
 
-## Framework Route Uploads
+## Framework route uploads
 
 In framework apps, keep the storage client in a server-only route or server module. This example writes text content from a Next.js route handler without exposing bucket credentials to the browser.
 
@@ -194,7 +194,7 @@ const uploadUrl = s3.presign('uploads/invoice.pdf', {
 
 For browser uploads, configure CORS on the bucket or the browser will reject the direct `PUT`. Allow the origin that hosts your app, the `PUT` method, and the headers your upload sends, especially `Content-Type`. Keep the presigned route server-side so bucket credentials never leave your app.
 
-## Uploads from a Hono Route
+## Uploads from a Hono route
 
 Keep browser uploads direct to S3 by returning a short-lived upload URL from your backend.
 
@@ -252,7 +252,7 @@ export default app;
 
 The download route returns a short-lived redirect. The file does not flow through your route process.
 
-## Custom S3 Clients
+## Custom S3 clients
 
 Use `S3Client` when you need Bun-only helpers, a specific bucket, an external S3-compatible service, or explicit credentials.
 
@@ -282,7 +282,7 @@ await uploads.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 
 For Agentuity-managed buckets, `new S3Client()` can read the linked `AWS_*` values from the environment. For other providers, pass that provider's bucket, endpoint, and credentials explicitly.
 
-## Next Steps
+## Next steps
 
 - [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
 - [Durable Streams](/services/storage/durable-streams): write generated output that remains accessible by URL

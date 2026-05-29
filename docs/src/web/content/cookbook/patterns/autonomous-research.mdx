@@ -10,7 +10,7 @@ The AI SDK is the right default for tool calling. Reach for the raw Anthropic SD
 bun add hono @anthropic-ai/sdk zod
 ```
 
-## Define Tools and Schemas
+## Define tools and schemas
 
 Anthropic tools use JSON Schema for `input_schema`. Validate the model's tool input with Zod before calling the implementation.
 
@@ -77,7 +77,7 @@ const tools: Anthropic.Tool[] = [
 
 `finish_research` doubles as the structured output mechanism. The loop ends when the model calls it, and the call's input becomes the final result.
 
-## Implement the Tools
+## Implement the tools
 
 Wikipedia exposes search and extract endpoints over plain `fetch`.
 
@@ -128,7 +128,7 @@ async function executeTool(name: string, input: unknown): Promise<string> {
 }
 ```
 
-## Run the Loop
+## Run the loop
 
 The loop sends messages, checks `stop_reason`, executes any `tool_use` blocks, and feeds the results back. It exits when the model calls `finish_research` or hits the step cap.
 
@@ -204,7 +204,7 @@ A few details that matter:
 - `finish_research` has a JSON Schema, so `block.input` is the validated final summary. No second `generateObject` call needed.
 - the loop breaks when the model returns `stop_reason !== 'tool_use'`, which means it stopped on `end_turn` or hit `max_tokens`.
 
-## Wire the Route
+## Wire the route
 
 The route validates the input topic and calls the agent function. The function is plain async code, so it works the same way from a queue consumer or a script.
 
@@ -227,7 +227,7 @@ app.post('/api/research', async (c) => {
 export default app;
 ```
 
-## When to Reach for the Anthropic SDK
+## When to reach for the Anthropic SDK
 
 | Pick this when | Otherwise prefer |
 |---|---|
@@ -237,7 +237,7 @@ export default app;
 
 Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for the Anthropic SDK. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs.
 
-## Next Steps
+## Next steps
 
 - [Agents](/build/agents): the plain-function pattern this page uses
 - [Tool Calling](/build/agents/tool-calling): the AI SDK 6 path with provider-agnostic tool calls

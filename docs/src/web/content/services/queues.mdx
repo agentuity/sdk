@@ -43,7 +43,7 @@ export async function queueReport(userId: string): Promise<string> {
 
 `QueueClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Keep that key in `.env` for local development and configure the same variable for deployed apps.
 
-## When to Use Queues
+## When to use queues
 
 | Need | Use |
 |------|-----|
@@ -53,7 +53,7 @@ export async function queueReport(userId: string): Promise<string> {
 | append-only ordered data with replay | [Durable Streams](/services/storage/durable-streams) |
 | exact key lookup or counters | [Key-Value Storage](/services/storage/key-value) |
 
-## Client Setup
+## Client setup
 
 Construct the client once at module scope and reuse it from handlers, routes, or scripts.
 
@@ -72,7 +72,7 @@ const queue = new QueueClient({
 | `url` | Optional Queue API URL. Defaults to `AGENTUITY_QUEUE_URL`, then the regional Agentuity service URL. |
 | `logger` | Optional logger instance. |
 
-## Create a Queue
+## Create a queue
 
 `createQueue()` is idempotent and caches the queue name in memory. Calling it again with the same name from the same client is a no-op.
 
@@ -101,7 +101,7 @@ await queue.createQueue('order-events', {
 
 Queue names must match `^[a-z_][a-z0-9_-]*$` and be 256 characters or fewer. The client validates this before sending the request.
 
-## Publish Messages
+## Publish messages
 
 Payloads can be strings or any JSON-serializable object. Objects are stringified before sending.
 
@@ -153,7 +153,7 @@ Payloads are limited to 1 MB. Publishing an empty payload throws `QueueValidatio
 If the caller may retry the same request, set `idempotencyKey` from the upstream event ID or business key. Use `partitionKey` separately when messages for the same entity should stay ordered.
 </Callout>
 
-## Processing Lifecycle
+## Processing lifecycle
 
 After a message is published, a worker or destination receives it. A received message is hidden from other workers for `defaultVisibilityTimeoutSeconds`. A successful worker acknowledges the message. A failed worker negatively acknowledges it, or lets the visibility timeout expire, so the queue can retry it. After `defaultMaxRetries` is exhausted, the message moves to the dead letter queue.
 
@@ -174,7 +174,7 @@ After a message is published, a worker or destination receives it. A received me
 - [Queue Destinations](/reference/api/queues#destinations): manage HTTP destinations and delivery logs
 - [Dead Letter Queue](/reference/api/queues#dead-letter-queue): list, replay, purge, or delete failed messages
 
-## Receive a Webhook and Hand It Off
+## Receive a webhook and hand it off
 
 Most apps publish from inside a framework route. The route validates the payload, hands it to a queue, and returns 2xx so the upstream sender does not retry.
 
@@ -209,7 +209,7 @@ export default app;
 
 The same shape works in Next.js route handlers, TanStack Start server functions, or plain scripts: build the client at module scope, validate, publish, return.
 
-## Delete a Queue
+## Delete a queue
 
 ```typescript
 await queue.deleteQueue('old-order-events');
@@ -221,7 +221,7 @@ await queue.deleteQueue('old-order-events');
 `deleteQueue()` permanently removes the queue and any pending, in-flight, or dead-lettered messages. It cannot be undone.
 </Callout>
 
-## Handle Errors
+## Handle errors
 
 The package exports typed errors for the common failure cases.
 
@@ -261,7 +261,7 @@ export async function publishNotification(userId: string): Promise<boolean> {
 
 `QueueValidationError` carries `field` and optional `value` so the caller can surface a useful message without parsing the error string.
 
-## Hono Middleware Variant
+## Hono middleware variant
 
 `@agentuity/hono` constructs `QueueClient` once and exposes it on `c.var.queue`. Use it when several routes share the same client and you do not want to manage instances by hand.
 
@@ -294,7 +294,7 @@ app.post('/jobs', async (c) => {
 export default app;
 ```
 
-## Next Steps
+## Next steps
 
 - [Webhooks](/services/webhooks): create managed ingest URLs that forward payloads to your app
 - [Schedules](/services/schedules): run recurring work on a cron expression

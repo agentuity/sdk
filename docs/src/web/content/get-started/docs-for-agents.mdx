@@ -10,7 +10,7 @@ https://agentuity.dev/llms.txt
 https://agentuity.dev/get-started/agent-driven-setup.md
 ```
 
-## Retrieval Surfaces
+## Retrieval surfaces
 
 | Surface | Use it when |
 | --- | --- |
@@ -23,7 +23,7 @@ The `.md` pages are generated from the MDX docs during the docs build. They are 
 
 For task-oriented agent work, do not start with the all-pages export. It is large enough to hide the boundaries that matter. Fetch the compact index first, then the page-level markdown for the task.
 
-## Start an Agent Session
+## Start an agent session
 
 Give the agent a task, the docs surface to fetch, and the approval boundary:
 
@@ -42,7 +42,7 @@ You are working in an existing app that may be deployed on Agentuity.
 
 For greenfield setup, point the agent at [Agentic Setup](/get-started/agent-driven-setup): it gives a setup report shape and stop conditions. For an existing app, point it at [Add Agentuity to an existing app](/get-started/import-existing-app): it starts from app inspection and validation instead of a fresh scaffold.
 
-## Use the CLI for Current Shape
+## Use the CLI for current shape
 
 Docs give the task model. The CLI gives the current command shape.
 
@@ -57,7 +57,7 @@ Use `agentuity ai intro` first for project setup tasks. Use `agentuity ai schema
 
 See [AI Commands](/reference/cli/ai-commands): the command reference for AI-facing CLI output.
 
-## What to Fetch First
+## What to fetch first
 
 | Task | Fetch these pages |
 | --- | --- |
@@ -71,7 +71,7 @@ See [AI Commands](/reference/cli/ai-commands): the command reference for AI-faci
 
 Fetch generated API reference pages when you need request and response fields. Use workflow pages first when the task is "make this work in my app."
 
-## Stop Before
+## Stop before
 
 | Situation | What the agent should do |
 | --- | --- |
@@ -81,11 +81,11 @@ Fetch generated API reference pages when you need request and response fields. U
 | framework build fails before Agentuity packaging | fix or report the app build first |
 | a runtime, provider, model, or Coder artifact path is not verified | record the gap and ask before adding a claim |
 
-## No Docs MCP Yet
+## No docs MCP yet
 
 Agentuity currently ships `llms.txt`, page-level `.md` files, and AI-facing CLI commands. Do not assume there is a public docs MCP server or installable docs skill unless a current Agentuity page announces one.
 
-## Next Steps
+## Next steps
 
 - [Agentic Setup](/get-started/agent-driven-setup): hand a coding agent a bounded setup task and require a report
 - [FAQ](/get-started/faq): choose the next setup, deploy, service, AI Gateway, Coder, Sandbox, or migration page

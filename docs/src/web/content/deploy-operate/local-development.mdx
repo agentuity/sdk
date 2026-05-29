@@ -10,9 +10,9 @@ description: Run your framework dev script with Agentuity environment wiring.
 agentuity dev
 ```
 
-These examples show `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
 
-## What It Runs
+## What it runs
 
 The CLI reads `package.json`, picks the package manager from the lockfile in the project root, and runs the chosen script:
 
@@ -39,7 +39,7 @@ This is the recommended pattern for existing apps. Keep your real dev command in
 
 If the named script is missing, the CLI prints the available scripts and exits.
 
-## Local Environment Loading
+## Local environment loading
 
 The CLI looks up `AGENTUITY_SDK_KEY` in your `.env` files using the active profile. The default profile is `production`. The local profile (`local`) loads a different file order so dev overrides do not bleed into other profiles.
 
@@ -52,7 +52,7 @@ Switch profiles with `--profile <name>` or the `AGENTUITY_PROFILE` env var. The 
 
 If no project SDK key is found, the CLI falls back to your CLI auth key for gateway routing and reminds you to run `agentuity project import` so the project gets its own key.
 
-## AI Gateway in Local Dev
+## AI Gateway in local dev
 
 `agentuity dev` automatically injects env vars for the SDKs that read provider API key and base URL values from process env. Other AI SDK providers need an explicit provider factory or a provider-owned key.
 
@@ -90,7 +90,7 @@ agentuity dev --port 4321
 
 Some frameworks ignore `PORT` and require a CLI flag in the dev script itself. Our SvelteKit, React Router, and TanStack Start examples use `dev:start` wrappers with `--port 3000` for that reason. Next.js can read `PORT` directly, though `next dev --port 3000` is also valid when you want the port pinned in the script.
 
-## Public Dev URL
+## Public dev URL
 
 By default, `agentuity dev` asks whether to expose the dev server through a public Gravity URL. The answer is stored in `agentuity.json`:
 
@@ -130,7 +130,7 @@ export default defineConfig({
 The CLI help examples may mention `agentuity dev --no-public`, but the current parser does not accept that flag. Set `devmode.public` to `false` in `agentuity.json`, or answer `n` when prompted.
 </Callout>
 
-## Validate Project Shape
+## Validate project shape
 
 When you want to confirm a directory looks right without registering it or writing files, run import in validate-only mode:
 
@@ -140,7 +140,7 @@ agentuity project import --validate-only
 
 The check accepts a `package.json` with at least one of `name`, `dependencies`, or `devDependencies`, or an `agentuity/` subdirectory containing a `package.json`. Nothing is written and nothing is created in the cloud.
 
-## Local vs Deployed
+## Local vs deployed
 
 | Aspect | Local (`agentuity dev`) | Deployed |
 |--------|-------------------------|----------|
@@ -151,7 +151,7 @@ The check accepts a `package.json` with at least one of `name`, `dependencies`, 
 | Public URL | Optional Gravity URL through `--public` or `devmode.public` | Vanity URL, deployment URL, optional custom domain |
 | Hot reload | Yours, via the framework's dev server | None. Each deploy is a new build. |
 
-## Next Steps
+## Next steps
 
 - [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): register the project, package the bundle, ship it.
 - [Environment Variables](/deploy-operate/environment-variables): which values go in `.env`, which go in cloud project vars, what becomes a secret.

@@ -55,7 +55,7 @@ When the follow-up steps call the Agentuity CLI, use your package manager's exec
   />
 </Cards>
 
-## Which Guide to Use
+## Which guide to use
 
 | Starting point | Use |
 | --- | --- |
@@ -68,7 +68,7 @@ When the follow-up steps call the Agentuity CLI, use your package manager's exec
 Existing v2 apps pinned to the v2 runtime model can keep running while you plan the move. The v3 `@agentuity/runtime` package is a deprecation shim that throws on `createApp()` and `createAgent()`. See [Runtime to Frameworks](/migration/runtime-to-frameworks) for the exact mapping.
 </Callout>
 
-## What Changes in v3
+## What changes in v3
 
 The v3 migration is not a package bump. It changes where Agentuity sits in your app. Treat it as a one-way door until you have reviewed the diff and run your checks:
 
@@ -79,7 +79,7 @@ The v3 migration is not a package bump. It changes where Agentuity sits in your 
 
 The migration CLI gives you a reviewable starting point. It does not decide your app state model, auth provider, frontend framework, or long-running workflow design.
 
-## Should I Migrate Now?
+## Should I migrate now?
 
 | Situation | Recommendation |
 | --- | --- |
@@ -88,7 +88,7 @@ The migration CLI gives you a reviewable starting point. It does not decide your
 | you rely heavily on `ctx.thread`, `ctx.session`, lifecycle hooks, or Workbench | budget manual design time before applying changes |
 | you are starting a new app | create a v3 app with `bun create agentuity@next` |
 
-## Recommended Order
+## Recommended order
 
 1. Run the dry run and read the report.
 2. Apply the migration in a branch with a clean git worktree.

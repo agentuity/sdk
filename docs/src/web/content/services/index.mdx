@@ -25,9 +25,23 @@ import {
   Webhook,
 } from 'lucide-react';
 
-Agentuity services are server-side clients for identity, storage, messaging, AI Gateway access, observability, Coder, and sandbox execution. In v3, start with the direct client in the framework route, server function, worker, script, or CLI that owns the work.
+Agentuity services are built-in app infrastructure you can call from server-side code: framework routes, server functions, workers, scripts, and CLIs. Use them when you want managed credentials, resources you can inspect in Agentuity, and service APIs that developers and coding agents can compose in the same project.
 
-## Choose a Service
+You do not have to replace tools your app already owns. Keep your framework logger, OpenTelemetry collector, Postgres client or ORM, vendor SDKs, and framework conventions when they fit. Add Agentuity-native services where they reduce setup or put app and agent infrastructure in one place.
+
+## Choose what Agentuity owns
+
+Use the app-owned path when it already works. Add an Agentuity service when the project needs credentials, resources, inspection, or a coding-agent-friendly API.
+
+| If your app already owns | Keep | Add Agentuity when |
+| --- | --- | --- |
+| user sessions and authorization | the framework session layer or auth provider | users sign in with Agentuity or grant scoped Agentuity access through [Authentication](/services/authentication) |
+| relational data | `DATABASE_URL`, the database client or ORM, and migrations | use [Database](/services/database) to create, link, or inspect the Postgres resource |
+| process logs and traces | [Pino](/cookbook/patterns/structured-logging-with-pino), [LogTape](/cookbook/patterns/logtape-structured-logging), your structured logger, log drain, [OpenTelemetry Collector](/cookbook/patterns/opentelemetry-route-spans), or [Langfuse](/cookbook/patterns/langfuse-otel-tracing) | use [Observability](/services/observability) to collect logs, spans, eval runs, or session timelines |
+| model provider calls | provider SDKs, provider keys, prompts, tools, and streaming UI | use [AI Gateway](/services/ai-gateway) for model catalog lookup, project credentials, or local env wiring |
+| storage abstractions | the app-owned interface and existing backend | use [Storage](/services/storage) for KV, vector, object, or stream resources, or [Custom Storage](/services/storage/custom) to hide the backend choice |
+
+## Choose a service
 
 | Need | Start With | Why |
 |------|------------|-----|
@@ -39,7 +53,7 @@ Agentuity services are server-side clients for identity, storage, messaging, AI 
 | async handoff, inbound events, or timed delivery | [Queues](/services/queues), [Webhooks](/services/webhooks), or [Schedules](/services/schedules) | decouple work from the request that discovered it |
 | tracked work items, issue state, comments, or attachments | [Tasks](/services/tasks) | give work a lifecycle your app can inspect |
 | routed model access, live model catalog lookup, or provider-SDK env wiring | [AI Gateway](/services/ai-gateway) | keep gateway setup and project credentials in one place |
-| logs, spans, request history, or eval runs | [Observability](/services/observability) and [Evals and Testing](/services/observability/evals-and-testing) | treat evals as app code with traces and output contracts |
+| logs, spans, request history, or eval runs | [Observability](/services/observability), [Evals and Testing](/services/observability/evals-and-testing), [OpenAI Evals API](/cookbook/patterns/openai-evals-api), or [Braintrust Evals](/cookbook/patterns/braintrust-evals) | treat evals as app code with traces and output contracts |
 | isolated command execution, generated-code checks, or sandbox files | [Sandbox](/services/sandbox) | run code away from your own host with explicit limits |
 | repo-aware coding work with history, reconnects, skills, or review | [Coder](/services/coder) | use a managed coding session instead of only a process |
 
@@ -56,7 +70,7 @@ const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage
 
 For method signatures and return types, see the [SDK Reference](/reference/sdk-reference). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
 
-Hono apps can also install `@agentuity/hono` when they want middleware to create common clients once and expose them on `c.var.*`. Other frameworks should create the standalone client in server-only code. Relational Postgres has its own database section; for other services, use the package that owns that service.
+Direct clients are the portable default across frameworks, workers, scripts, and CLIs. Hono apps can also install `@agentuity/hono` when middleware is the right injection point for common clients and telemetry on `c.var.*`. Relational Postgres has its own database section; for other services, use the package that owns that service.
 
 ## Identity
 
@@ -116,7 +130,7 @@ Hono apps can also install `@agentuity/hono` when they want middleware to create
   />
 </Cards>
 
-## Messaging & Integrations
+## Messaging & integrations
 
 <Cards>
   <CardLink

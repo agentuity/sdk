@@ -6,7 +6,7 @@ description: Add Agentuity service clients, local development, and deploy valida
 
 Start with a normal [Astro](https://docs.astro.build) app. Agentuity adds service clients, local development support, and deploy validation around the file-based routing and build output you already use.
 
-## Create a Starter
+## Create a starter
 
 ```bash
 bun create agentuity@next --name my-astro-app --framework astro
@@ -24,17 +24,17 @@ Key files in the AI example:
 | `astro.config.mjs` | Adapter and output mode config |
 | `package.json` | `dev`, `build`, and `deploy` scripts pre-wired |
 
-## Import an Existing App
+## Import an existing app
 
 For an existing Astro app, add the CLI and register the project:
 
 ```bash
 bun add -d @agentuity/cli@next
-agentuity project import --validate-only   # dry run: checks config only
-agentuity project import                   # registers the project and writes agentuity.json
+bunx agentuity project import --validate-only   # dry run: checks config only
+bunx agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the Astro `dev` script with the Agentuity environment values your app needs.
 
@@ -42,16 +42,16 @@ If you did not install the CLI globally, run the same commands through your pack
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
 </Callout>
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | Astro keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | `src/pages/api/*.ts` endpoint files | service clients imported in server endpoints |
-| local dev | `astro dev` | `agentuity dev` injects service and AI Gateway environment values |
-| build | Astro server output and adapter config | `agentuity build` packages launch metadata |
+| local dev | `astro dev` | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| build | Astro server output and adapter config | `agentuity build` runs the build and packages launch metadata |
 | deploy | the Node adapter server entry | `agentuity deploy` ships the packaged app |
 
-## Add an API Route
+## Add an API route
 
 Astro [endpoint files](https://docs.astro.build/en/guides/endpoints/) in `src/pages/api/` export named functions per HTTP method. Put Agentuity service clients here; never import them from client-side `<script>` blocks.
 
@@ -92,7 +92,7 @@ const requestSchema = type({
 
 // Instantiated once at module level; reads AGENTUITY_SDK_KEY from env
 const kv = new KeyValueClient(); // [!code highlight]
-// agentuity dev injects OPENAI_API_KEY and OPENAI_BASE_URL so calls route through AI Gateway
+// agentuity dev can wire OPENAI_API_KEY and OPENAI_BASE_URL so calls route through AI Gateway
 
 function getSessionId(cookies: Parameters<APIRoute>[0]['cookies']): string {
   const existing = cookies.get(SESSION_COOKIE)?.value;
@@ -170,11 +170,11 @@ export const POST: APIRoute = async ({ cookies, request }) => {
 };
 ```
 
-`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app via `agentuity dev` to have those values injected automatically.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app via `agentuity dev` so the linked project key is available to endpoints.
 
 Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
 
-## Call the Route from a Page
+## Call the route from a page
 
 The `.astro` page calls the server route from a client-side `<script>` block:
 
@@ -238,9 +238,9 @@ const title = 'Agentuity + Astro';
 For richer client-side behavior, use an Astro island with `client:load` and a React or Svelte component instead of the inline `<script>` block above. The API call pattern stays the same.
 </Callout>
 
-## Run Locally
+## Run locally
 
-Run through Agentuity so the service key and AI Gateway settings are injected into the Astro process:
+Run through Agentuity. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Astro process:
 
 ```bash
 agentuity dev
@@ -249,14 +249,14 @@ agentuity dev
 Smoke-test the API route:
 
 ```bash
-curl http://127.0.0.1:4321/api/translate \
+curl http://localhost:4321/api/translate \
   -H "content-type: application/json" \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
 
-## Deployed Environment Variables
+## Deployed environment variables
 
-Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
 | Variable | Used by |
 | --- | --- |
@@ -264,10 +264,11 @@ Configure the same variables in the deployed app that `agentuity dev` injects lo
 | `OPENAI_MODEL` | example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database endpoints |
 | `AWS_*` | object storage endpoints; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate Before Deploy
+## Validate before deploy
 
 Astro requires a server adapter for routes that must render on demand. The starter uses `@astrojs/node` in `standalone` mode. Install it either via the Astro CLI or directly:
 
@@ -294,18 +295,12 @@ export default defineConfig({
 });
 ```
 
-Then build and inspect the launch metadata:
+Then build and inspect the launch metadata. Run `bun run build` when you want Astro-only feedback; `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
 ```bash
 bun run build
 agentuity build
 cat .agentuity/launch.json   # verify processes[0].command runs dist/server/entry.mjs
-```
-
-If `agentuity build` cannot find the local Astro binary, add `node_modules/.bin` to `PATH`:
-
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
 ```
 
 Deploy only after the framework build, Agentuity build, and a local packaged validation of `/` and one endpoint pass:
@@ -322,7 +317,7 @@ Astro 6 and official server adapters require Node `22.12.0` or newer. Pin that v
 Without `output: 'server'` (or an adapter with `output: 'hybrid'` and `export const prerender = false`), Astro attempts to prerender API routes as static files at build time. The route will be missing or return the wrong content type when deployed.
 </Callout>
 
-## Common Gotchas
+## Common gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -330,18 +325,18 @@ Without `output: 'server'` (or an adapter with `output: 'hybrid'` and `export co
 | Endpoint returns static HTML, not JSON | API route files need `output: 'server'`; without it, Astro prerenders them at build time. See [on-demand rendering](https://docs.astro.build/en/guides/on-demand-rendering/) |
 | `launch.json` points at `_serve.js` | The packaged output is static-only and will not serve `src/pages/api/*.ts` endpoints |
 | Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` manually |
-| OpenAI calls bypass Agentuity AI Gateway | Run with `agentuity dev` so `OPENAI_BASE_URL` is injected; verify it is not overridden by a local `.env`. See [AI Gateway](/services/ai-gateway) |
-| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
+| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
 | Service client code appears in the browser bundle | Keep `KeyValueClient` and `OpenAI` in `src/pages/api/*.ts`, never in client `<script>` blocks |
 | Cookies do not persist across requests | Pass `path: '/'` when setting cookies; Astro's `cookies.set` defaults differ from browser `document.cookie` |
 
-## Framework Docs
+## Framework docs
 
 - [Astro Endpoints](https://docs.astro.build/en/guides/endpoints/): `src/pages/api/*.ts` handler shape, HTTP method exports, and `APIRoute` type
 - [Astro On-Demand Rendering](https://docs.astro.build/en/guides/on-demand-rendering/): `output: 'server'` vs `'hybrid'`, and the `prerender` export flag
 - [Astro Node Adapter](https://docs.astro.build/en/guides/integrations-guide/node/): `mode: 'standalone'` vs `'middleware'`, and the `dist/server/entry.mjs` entry point
 
-## Next Steps
+## Next steps
 
 - [Key-Value Storage](/services/storage/key-value): TTL semantics, namespaces, and type-safe reads
 - [AI Gateway](/services/ai-gateway): supported providers and how environment injection works

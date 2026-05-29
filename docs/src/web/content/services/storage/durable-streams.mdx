@@ -32,7 +32,7 @@ const url = stream.url;
 
 `StreamClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Pass constructor options only when a script needs an explicit `apiKey`, `url`, `orgId`, or `logger`.
 
-## When to Use Durable Streams
+## When to use durable streams
 
 | Need | Use |
 |------|-----|
@@ -44,7 +44,7 @@ const url = stream.url;
 
 Use streams when you need to write chunks as they are produced, hand a URL to another service, or keep a finished artifact around without first assembling the full file in memory.
 
-## Create and Write
+## Create and write
 
 `create()` returns a writable stream with an `id`, public `url`, `bytesWritten`, and `compressed` flag.
 
@@ -105,7 +105,7 @@ await stream.close();
 
 Compression is finalized when the stream closes. Clients that fetch the stream URL should support gzip, which browsers and most HTTP clients handle automatically.
 
-## Read, List, and Delete
+## Read, list, and delete
 
 Use `get()` for metadata, `download()` for content, `list()` for filtered discovery, and `delete()` for cleanup.
 
@@ -136,7 +136,7 @@ await streams.delete(info.id);
 Use the stream URL as the artifact pointer you store in KV, a queue message, an email, or a task. Keep larger structured context in metadata or a database row instead of encoding it into the URL.
 </Callout>
 
-## Background Work
+## Background work
 
 Create streams inside the worker, job, or route that owns the generated output. If the work should outlive the request, enqueue it first and store status separately.
 
@@ -206,7 +206,7 @@ app.post('/exports', async (c) => {
 export default app;
 ```
 
-## Next Steps
+## Next steps
 
 - [Background Work](/build/apps-and-apis/background-work): run long jobs with queues, status records, and streams
 - [Object Storage](/services/storage/object): store files and binary blobs with Bun S3

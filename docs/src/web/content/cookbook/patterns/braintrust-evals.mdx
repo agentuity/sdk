@@ -1,0 +1,150 @@
+---
+title: Running Braintrust Evals
+short_title: Braintrust Evals
+description: Run Braintrust evals against app-owned Agentuity functions
+---
+
+When an Agentuity project needs evals that call app code, keep the task in route helpers, retrieval functions, service clients, or model-backed workflows. [Braintrust](https://www.braintrust.dev/docs/evaluate/run-evaluations) owns the experiment runner and reports; Agentuity still owns the app shape and any service clients your function uses.
+
+```bash
+bun add braintrust
+```
+
+## Keep the task in app code
+
+The eval imports the same server-side function your route, worker, or script calls. This example is deterministic so it can run locally without a provider key.
+
+```typescript title="src/lib/support-answer.ts"
+export interface SupportAnswerInput {
+  readonly question: string;
+  readonly context: readonly string[];
+}
+
+export interface SupportAnswer {
+  readonly answer: string;
+  readonly sources: readonly string[];
+  readonly escalated: boolean;
+}
+
+export async function answerSupportQuestion(input: SupportAnswerInput): Promise<SupportAnswer> {
+  const importDoc = input.context.find((source) => source.includes('project import'));
+  const needsHuman = input.question.toLowerCase().includes('billing');
+
+  return {
+    answer: importDoc
+      ? 'Run project import before deploy so Agentuity can link the existing app.'
+      : 'I need more context before I can answer that.',
+    sources: importDoc ? ['docs/import-existing-app'] : [],
+    escalated: needsHuman,
+  };
+}
+```
+
+## Define the Braintrust eval
+
+Braintrust evals have three pieces: data, the task function, and scorers. Type the scorer with `EvalScorer` so the output and expected shapes stay aligned.
+
+```typescript title="src/evals/support-answer.eval.ts"
+import { Eval, type EvalScorer } from 'braintrust';
+import {
+  answerSupportQuestion,
+  type SupportAnswer,
+  type SupportAnswerInput,
+} from '../lib/support-answer';
+
+interface ExpectedAnswer {
+  readonly requiredSources: readonly string[];
+  readonly escalated: boolean;
+}
+
+const data: Array<{
+  input: SupportAnswerInput;
+  expected: ExpectedAnswer;
+}> = [
+  {
+    input: {
+      question: 'How do I deploy an imported Agentuity app?',
+      context: ['Run project import before deploy.'],
+    },
+    expected: {
+      requiredSources: ['docs/import-existing-app'],
+      escalated: false,
+    },
+  },
+  {
+    input: {
+      question: 'Can billing approve this contract?',
+      context: [],
+    },
+    expected: {
+      requiredSources: [],
+      escalated: true,
+    },
+  },
+];
+
+const citesRequiredSources: EvalScorer<
+  SupportAnswerInput,
+  SupportAnswer,
+  ExpectedAnswer
+> = ({ output, expected }) => {
+  const covered = expected.requiredSources.every((source) =>
+    output.sources.includes(source)
+  );
+
+  return {
+    name: 'Cites required sources',
+    score: covered ? 1 : 0,
+    metadata: {
+      requiredSources: expected.requiredSources.length,
+      actualSources: output.sources.length,
+    },
+  };
+};
+
+const escalationMatches: EvalScorer<
+  SupportAnswerInput,
+  SupportAnswer,
+  ExpectedAnswer
+> = ({ output, expected }) => ({
+  name: 'Escalation matches',
+  score: output.escalated === expected.escalated ? 1 : 0,
+});
+
+Eval('Agentuity support answer', {
+  data,
+  task: answerSupportQuestion,
+  scores: [citesRequiredSources, escalationMatches],
+  metadata: {
+    app: 'support-docs-app',
+  },
+});
+```
+
+## Run locally before uploading
+
+Use `--no-send-logs` while wiring the eval. The task and scorers still run, but the results stay local.
+
+```bash
+bunx braintrust eval --no-send-logs --no-progress-bars src/evals/support-answer.eval.ts
+```
+
+When you are ready to create Braintrust experiments, set `BRAINTRUST_API_KEY` and remove `--no-send-logs`:
+
+```bash
+BRAINTRUST_API_KEY=... bunx braintrust eval src/evals/support-answer.eval.ts
+```
+
+<Callout type="info" title="Keep Agentuity resources explicit">
+If the task uses Agentuity service clients, run it with the same environment you use for app tests or `agentuity dev`. Pass `--org-id org_2zgmb8jl16mZ3tzXBqg9gO9SS5V` to Agentuity CLI commands that support it.
+</Callout>
+
+## Add traces around failures
+
+Braintrust gives you experiment summaries and per-case scores. Pair it with [OpenTelemetry spans](/cookbook/patterns/opentelemetry-route-spans) or [`@agentuity/telemetry`](/services/observability/tracing#use-agentuity-telemetry-spans) when a failed case needs timing, request IDs, retrieval counts, or service-client context.
+
+## Next steps
+
+- [Evals and Testing](/services/observability/evals-and-testing): choose between tests, output contracts, judges, and hosted eval tooling
+- [OpenAI Evals API](/cookbook/patterns/openai-evals-api): run prompt and model suites through OpenAI's eval service
+- [Tracing](/services/observability/tracing): add spans around the app code Braintrust calls

@@ -9,7 +9,7 @@ The [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) provides a s
 bun add hono @openai/agents zod
 ```
 
-## Define the Agent and Tools
+## Define the agent and tools
 
 Tools use Zod schemas for parameters. Each tool has a `name`, `description`, parameters schema, and an `execute` function.
 
@@ -43,7 +43,7 @@ export const researchAgent = new Agent({
 
 `setTracingDisabled(true)` skips the SDK's local tracing exporter. Remove that line if you want the SDK's traces.
 
-## Wire the Route
+## Wire the route
 
 `run(agent, message)` runs the full ReAct loop. The route validates, runs, returns.
 
@@ -106,13 +106,13 @@ const result = await run(triageAgent, 'I want a refund on order ord_123.');
 
 The SDK manages the handoff turn for you. The route still sees one round trip.
 
-## When to Reach for the OpenAI Agents SDK
+## When to reach for the OpenAI Agents SDK
 
 Pick this SDK when you want OpenAI's first-party agent loop, especially for handoffs and hosted tools. Pick the [Anthropic SDK loop](/cookbook/patterns/autonomous-research) when Anthropic's `tool_use` blocks are central. Pick raw [AI SDK](/build/agents) when you want one provider-agnostic surface.
 
 Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for the OpenAI SDK. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs.
 
-## Next Steps
+## Next steps
 
 - [Agents](/build/agents): the plain-function pattern this page wraps
 - [Tool Calling](/build/agents/tool-calling): the AI SDK 6 path with provider-agnostic tool calls

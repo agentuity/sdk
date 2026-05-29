@@ -9,7 +9,7 @@ description: Run a Mastra Agent inside a framework route with key-value memory
 bun add hono @mastra/core @agentuity/keyvalue@next valibot
 ```
 
-## Define the Agent
+## Define the agent
 
 `Agent` accepts a model spec, instructions, and an optional tool map. Mastra resolves provider strings (`openai/...`, `anthropic/...`) through its built-in registry. Run locally with `agentuity dev` when you want those provider calls to use [AI Gateway](/services/ai-gateway) env wiring.
 
@@ -30,7 +30,7 @@ export const chatAgent = new Agent({
 });
 ```
 
-## Wire the Route
+## Wire the route
 
 Validate the request, load the conversation, call `agent.generate()`, store the new turn. The route is thin; the Mastra agent owns the model call.
 
@@ -127,11 +127,11 @@ export const supportAgent = new Agent({
 
 The Mastra tool loop runs entirely inside `agent.generate()`. The route still owns HTTP and storage.
 
-## When to Reach for Mastra
+## When to reach for Mastra
 
 Pick Mastra when you want its agent abstractions (workflows, multi-agent handoffs, structured output via Mastra primitives) and you do not want to build them on AI SDK directly. Pick raw [AI SDK](/build/agents) when you want fewer layers.
 
-## Next Steps
+## Next steps
 
 - [Agents](/build/agents): the plain-function pattern this page wraps
 - [Chat with History](/cookbook/patterns/chat-with-history): the same KV layout, without Mastra

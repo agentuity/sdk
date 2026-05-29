@@ -1,0 +1,173 @@
+---
+title: Using OpenAI Evals API
+short_title: OpenAI Evals API
+description: Run OpenAI Evals API suites against prompts that live in an Agentuity app
+---
+
+When an Agentuity app needs a prompt and model regression suite, keep the prompt text in app code and let the [OpenAI Evals API](https://developers.openai.com/api/docs/guides/evals) run the dataset and graders. This fits checks where the behavior under test is the prompt, model choice, and output contract.
+
+```bash
+bun add openai zod
+```
+
+<Callout type="warning" title="This creates OpenAI resources">
+The script below uploads a JSONL file and creates an eval run through the OpenAI API. Keep `OPENAI_API_KEY` and `OPENAI_EVAL_MODEL` out of committed files.
+</Callout>
+
+## Share the task prompt
+
+Put the prompt and output vocabulary in the same server module your app uses. The eval script can import those constants without importing the framework route.
+
+```typescript title="src/lib/ticket-classifier.ts"
+export const TICKET_CLASSIFIER_INSTRUCTIONS =
+  'Categorize the support ticket into one of Hardware, Software, or Other. Respond with only the label.';
+
+export type TicketLabel = 'Hardware' | 'Software' | 'Other';
+
+export function normalizeTicketLabel(value: string): TicketLabel | undefined {
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === 'hardware') {
+    return 'Hardware';
+  }
+
+  if (normalized === 'software') {
+    return 'Software';
+  }
+
+  if (normalized === 'other') {
+    return 'Other';
+  }
+
+  return undefined;
+}
+```
+
+## Write the dataset
+
+The Evals API file upload expects JSONL rows whose `item` object matches the eval's `item_schema`.
+
+```json title="src/evals/tickets.jsonl"
+{ "item": { "ticket_text": "My monitor will not turn on.", "correct_label": "Hardware" } }
+{ "item": { "ticket_text": "The app crashes after I update the package.", "correct_label": "Software" } }
+{ "item": { "ticket_text": "Where should I eat lunch?", "correct_label": "Other" } }
+```
+
+## Create the eval run
+
+Create the eval once, upload the dataset, then start a run that uses the Responses API data source. The `string_check` grader compares the model output with the human label in each row.
+
+```typescript title="src/evals/openai-ticket-eval.ts"
+import fs from 'node:fs';
+import OpenAI from 'openai';
+import { TICKET_CLASSIFIER_INSTRUCTIONS } from '../lib/ticket-classifier';
+
+async function createTicketEval(openai: OpenAI): Promise<string> {
+  const evalObject = await openai.evals.create({
+    name: 'Agentuity support ticket classifier',
+    data_source_config: {
+      type: 'custom',
+      item_schema: {
+        type: 'object',
+        properties: {
+          ticket_text: { type: 'string' },
+          correct_label: { type: 'string' },
+        },
+        required: ['ticket_text', 'correct_label'],
+      },
+      include_sample_schema: true,
+    },
+    testing_criteria: [
+      {
+        type: 'string_check',
+        name: 'Matches expected label',
+        input: '{{ sample.output_text }}',
+        operation: 'eq',
+        reference: '{{ item.correct_label }}',
+      },
+    ],
+  });
+
+  return evalObject.id;
+}
+
+async function uploadTicketDataset(openai: OpenAI, filePath: string): Promise<string> {
+  const file = await openai.files.create({
+    file: fs.createReadStream(filePath),
+    purpose: 'evals',
+  });
+
+  return file.id;
+}
+
+async function createTicketEvalRun(
+  openai: OpenAI,
+  evalId: string,
+  fileId: string,
+  model: string
+): Promise<string> {
+  const run = await openai.evals.runs.create(evalId, {
+    name: `Agentuity support ticket classifier: ${model}`,
+    data_source: {
+      type: 'responses',
+      model,
+      input_messages: {
+        type: 'template',
+        template: [
+          { role: 'developer', content: TICKET_CLASSIFIER_INSTRUCTIONS },
+          { role: 'user', content: '{{ item.ticket_text }}' },
+        ],
+      },
+      source: { type: 'file_id', id: fileId },
+    },
+  });
+
+  return run.id;
+}
+
+const apiKey = process.env.OPENAI_API_KEY;
+const model = process.env.OPENAI_EVAL_MODEL;
+
+if (!apiKey || !model) {
+  throw new Error('Set OPENAI_API_KEY and OPENAI_EVAL_MODEL.');
+}
+
+const openai = new OpenAI({ apiKey });
+const evalId = await createTicketEval(openai);
+const fileId = await uploadTicketDataset(openai, 'src/evals/tickets.jsonl');
+const runId = await createTicketEvalRun(openai, evalId, fileId, model);
+
+console.log({ evalId, fileId, runId });
+```
+
+Run the script from your app root:
+
+```bash
+OPENAI_EVAL_MODEL=gpt-4.1 bun run src/evals/openai-ticket-eval.ts
+```
+
+## Check the run status
+
+Eval runs execute asynchronously. Poll the run or open the `report_url` returned by the API.
+
+```typescript
+const run = await openai.evals.runs.retrieve(runId, { eval_id: evalId });
+
+console.log({
+  status: run.status,
+  resultCounts: run.result_counts,
+  reportUrl: run.report_url,
+});
+```
+
+## Keep Agentuity beside it
+
+The Evals API runs the model task from the eval configuration. It does not call your deployed Agentuity route or exercise Agentuity service clients unless your eval task is shaped to do that elsewhere.
+
+Use [Evals and Testing](/services/observability/evals-and-testing) or [Braintrust Evals](/cookbook/patterns/braintrust-evals) when the test needs to call app functions, routes, retrieval code, service clients, or a full workflow. Use [Tracing](/services/observability/tracing) when a failed eval needs spans around the app-owned work.
+
+## Next steps
+
+- [Evals and Testing](/services/observability/evals-and-testing): choose the eval shape for app-owned workflows
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): score model output with a rubric in code
+- [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity when the app uses project credentials

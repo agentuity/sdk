@@ -16,7 +16,7 @@ If discovery succeeds but session calls fail with an org-level error, your API k
 
 The examples below are standalone `@agentuity/coder` TypeScript snippets. Bun is the quickest way to run them locally. If you prefer Node, use `tsx` or another TypeScript runner.
 
-## The Pattern
+## The pattern
 
 Install the package:
 
@@ -100,7 +100,7 @@ This gives you two things you need right away:
 - a `sessionId` you can reuse in later calls or other apps
 - the first session detail from `getSession()`
 
-## What You Should See
+## What you should see
 
 The exact values will vary, but a brand-new session usually looks like this:
 
@@ -126,7 +126,7 @@ The exact `status` string varies and is not the field to branch on in this examp
 - `getSession()` returns usable session detail immediately
 - `bucket` and the availability/history booleans tell your app whether the session is still provisioning, attachable, wakeable, or replay-only
 
-## Creating Sessions From Your App
+## Creating sessions from your app
 
 In app code, the shape you usually reach for adds three fields on top of `task`: `label`, `metadata`, and `env`. These cover the pieces apps actually need: a short label for list UIs, correlation ids that tie the session back to your own records, and any credentials the sandbox-side agent reads at runtime.
 
@@ -167,7 +167,7 @@ export async function startSession(input: StartSessionInput) {
 
 When your app already resolved user or account context, the common split is: put resolved context into `task`, correlation ids into `metadata`, and integration credentials into `env`. `env` is fixed once the session is created, so prefer credentials the agent can refresh itself over short-lived access tokens.
 
-## Add an Output Contract
+## Add an output contract
 
 Coder sessions are long-running work, so make the expected result explicit before the session starts. A good task names the goal, inputs, files or reports, verification command, stopping rule, and missing-evidence behavior.
 
@@ -238,7 +238,7 @@ export async function startReleaseReview(input: StartReleaseReviewInput) {
 
 `createSession()` returns session state, not completed files. Keep the `sessionId`, store the expected output paths in your own app state, then poll or subscribe until the session reaches a state your workflow considers complete. Use the retrieval path approved for your product surface; do not assume a file read helper exists unless your SDK version exposes one.
 
-## Reading Session State
+## Reading session state
 
 Once you have a session ID, use the read APIs to build dashboards, admin tools, or a simple status view in another app.
 
@@ -304,7 +304,7 @@ Fresh or idle sessions can legitimately return empty participants, event history
 `getReplay()` returns the durable event stream a late-joining client uses to catch up to the Hub's current state. Treat the result as the hydration payload, not as a list you enumerate in a dashboard. For a structured timeline, use `listEventHistory()` instead.
 </Callout>
 
-## Listing Sessions for Dashboards or History Views
+## Listing sessions for dashboards or history views
 
 If your app needs a broader session list before it drills into one session, start with `listSessions()`.
 
@@ -351,7 +351,7 @@ void main();
 
 Use `listSessions()` when you are building a dashboard or history view. Once the user picks a session, switch back to `getSession()`, replay, participants, or lifecycle methods. List items include status, bucket, workflow mode, and tags, but not the `task` prompt; that only appears on the full `getSession()` response. `total` can exceed `sessions.length` because the Hub counts a broader set than the SDK surfaces; render from `sessions` and treat `total` as a hint that more exist.
 
-## Pinning a GitHub Repo
+## Pinning a GitHub repo
 
 When your app needs Coder to operate on a specific repository, use `listGitHubAccounts()` to retrieve the GitHub accounts connected via the GitHub App installation, then `listGitHubRepos(accountId)` to list repositories under that account. Pass the chosen repository to `createSession()` via the `repo` field.
 
@@ -423,7 +423,7 @@ void main();
 
 `listGitHubAccounts()` reflects the GitHub App installations active for the API key's org. If `accounts` is empty, install the Agentuity GitHub App from your org settings in the [Agentuity Console](https://app.agentuity.com) and grant it access to the repositories you need, then try again.
 
-## Updating and Cleaning Up
+## Updating and cleaning up
 
 Use `updateSession()` to relabel a session, retag it, adjust its visibility, or update its `metadata`. Then archive the session for later replay, or delete it.
 
@@ -487,7 +487,7 @@ Archive the session instead when you want to inspect its history later:
 await client.archiveSession(sessionId);
 ```
 
-## Key Points
+## Key points
 
 - Keep the `sessionId` from `createSession()`. Most follow-on APIs start there.
 - In app code, pair `task` with `label` for list UIs, `metadata` for correlation ids, and `env` for credentials the sandbox-side agent reads.
@@ -497,7 +497,7 @@ await client.archiveSession(sessionId);
 - Use `archiveSession()` for sessions you may want to inspect later, and `deleteSession()` for temporary tests and cleanup.
 - To reconnect to an older session, switch to the reconnect flow instead of starting from `listSessions()`.
 
-## See Also
+## See also
 
 - [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach): Find live or wakeable sessions before re-attaching
 - [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Use loop workflow state instead of a standard session

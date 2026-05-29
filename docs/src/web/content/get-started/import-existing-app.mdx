@@ -4,16 +4,16 @@ short_title: Add to Existing App
 description: Add Agentuity services and local validation to an app you already have.
 ---
 
-Use this path when the app already exists and you want to add one server-side Agentuity endpoint without changing the router, scripts, or build setup.
+Choose this path when the app already exists and you want to add one server-side Agentuity endpoint without changing the router, scripts, or build setup.
 
 ```bash
 bun add -d @agentuity/cli@next
 bun add @agentuity/keyvalue@next
 ```
 
-## Pick the Right Path
+## Pick the right path
 
-| Starting point | Use this path | First command |
+| Starting point | Good fit | First command |
 | --- | --- | --- |
 | Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `bun create agentuity@next --framework nextjs --services keyvalue` |
 | New framework app | You already ran the framework's create command and want to add Agentuity next. | `bun add -d @agentuity/cli@next` |
@@ -21,7 +21,22 @@ bun add @agentuity/keyvalue@next
 
 For an existing app, keep the app shape you have. Add service clients only inside server-only routes, handlers, server actions, or background jobs.
 
-## Add One Server Route
+## Keep your existing stack
+
+Agentuity fits beside the app stack you already trust. Keep the thing that owns the request, session, data model, or vendor account, then add Agentuity where a managed resource or project credential helps.
+
+| Existing owner | Keep using | Add Agentuity when |
+| --- | --- | --- |
+| framework routes, scripts, and build | your router, package scripts, dev server, and framework build | `agentuity project import`, `agentuity dev`, and `agentuity build` validate the same app for Agentuity |
+| auth and sessions | your framework session layer or auth provider | users sign in with Agentuity or grant scoped Agentuity access through [Authentication](/services/authentication) |
+| logs and traces | [Pino](/cookbook/patterns/structured-logging-with-pino), [LogTape](/cookbook/patterns/logtape-structured-logging), your structured logger, log drain, [OpenTelemetry Collector](/cookbook/patterns/opentelemetry-route-spans), or [Langfuse](/cookbook/patterns/langfuse-otel-tracing) | Agentuity-collected [logs](/services/observability/logging), [spans](/services/observability/tracing), or session timelines make debugging easier |
+| relational data | your `DATABASE_URL`, database client, ORM, and migrations | use [Database](/services/database) to create or link the Postgres resource for the project |
+| model calls | your provider SDKs, prompts, tool schemas, retries, and streaming UI | use [AI Gateway](/services/ai-gateway#bring-your-own-provider-key) for catalog lookup, project credentials, or local provider-SDK env wiring |
+| storage backends | your app-owned storage interface or existing backend | use an Agentuity storage client for the managed resource, or [Custom Storage](/services/storage/custom) to hide the backend choice |
+
+Add Agentuity service clients only in server-only code. Verify the change with your app's normal dev server and build first, then run through `agentuity dev` and `agentuity build` before deploy.
+
+## Add one server route
 
 This Next.js route is a small read-only validation route. It keeps `AGENTUITY_SDK_KEY` on the server and does not use a `NEXT_PUBLIC_*` env var. Use `app/api/agentuity/route.ts` instead if your Next.js app does not use a `src/` directory.
 
@@ -76,10 +91,10 @@ Use the same idea in the route shape your framework already uses:
 | Vite + React | a server boundary such as `server.ts`; keep browser code out of service clients |
 
 <Callout type="warning" title="Keep secrets server-side">
-Do not put `AGENTUITY_SDK_KEY` in `NEXT_PUBLIC_*`, `VITE_*`, or other client-exposed prefixes. Browser code should call your server route, and the route should call Agentuity.
+Do not put `AGENTUITY_SDK_KEY` in `NEXT_PUBLIC_*`, `VITE_*`, or other client-exposed prefixes. Browser code calls your server route, and the route calls Agentuity.
 </Callout>
 
-## Validate Locally
+## Validate locally
 
 Run the app the way you normally do:
 
@@ -101,7 +116,7 @@ Then run the native build:
 bun run build
 ```
 
-## Add Agentuity Project Metadata
+## Add Agentuity project metadata
 
 Validate the directory before writing project metadata:
 
@@ -136,7 +151,7 @@ bunx agentuity project import \
 
 That writes `apps/web/agentuity.json` and `apps/web/.env`. The build step can still detect the workspace root and write a launch command with `workingDirectory: "apps/web"` when the CLI package includes monorepo staging support.
 
-## Run Through Agentuity
+## Run through Agentuity
 
 `agentuity dev` wraps your existing `dev` script and injects Agentuity env values into the server process:
 
@@ -168,7 +183,7 @@ An interactive `agentuity deploy` can offer to register an unregistered director
 bunx agentuity deploy --name existing-app --confirm
 ```
 
-## Remote Repos
+## Remote repos
 
 You can import from GitHub when the app is not local:
 
@@ -182,7 +197,7 @@ Use `--deploy` when you want the import flow to deploy after the project is regi
 bunx agentuity project import --source owner/repo --name existing-app --deploy --confirm
 ```
 
-## Next Steps
+## Next steps
 
 - [Frameworks](/frameworks): add framework-specific route and deploy notes
 - [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): inspect build output before deploying

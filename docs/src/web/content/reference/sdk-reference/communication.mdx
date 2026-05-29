@@ -10,7 +10,7 @@ In framework-first apps, "calling another agent" usually means calling ordinary 
 See [Agents](/build/agents) for model-backed workflows and [Background Work](/build/apps-and-apis/background-work) for moving slower work out of request handlers.
 </Callout>
 
-## Shared Function
+## Shared function
 
 ```bash
 bun add @agentuity/keyvalue@next zod
@@ -55,7 +55,7 @@ export async function enrichMessage(body: unknown): Promise<EnrichOutput> {
 
 The function owns validation and service calls. Any server entry point can call it without recreating a separate app registry.
 
-## Framework Route
+## Framework route
 
 ```typescript title="app/api/messages/route.ts"
 import { enrichMessage } from '@/workflows/enrich-message';
@@ -68,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
 
 Use the same function from a server action, queue consumer, cron job, or script when that trigger should run the same work.
 
-## Hono Route
+## Hono route
 
 Use `@agentuity/hono` when you want Hono context variables for shared service clients.
 
@@ -102,7 +102,7 @@ export default app;
 
 Direct clients are still the portable default. Hono middleware is useful when a route should receive clients and telemetry through `c.var.*`.
 
-## Parallel Calls
+## Parallel calls
 
 Use `Promise.all` when independent workflows can run at the same time.
 
@@ -128,7 +128,7 @@ export async function processMessage(body: unknown): Promise<{
 
 Keep sequential `await` when the second call depends on the first result.
 
-## Typed Outputs
+## Typed outputs
 
 Export function return types from the implementation instead of duplicating output shapes in callers.
 
@@ -142,6 +142,6 @@ export function formatEnrichedMessage(message: EnrichedMessage): string {
 }
 ```
 
-## Migration Note
+## Migration note
 
 If an older app still imports agents from `@agentuity/runtime` and calls `.run()`, treat that code as migration context. New v3 code should use framework routes, shared functions, and standalone service clients.

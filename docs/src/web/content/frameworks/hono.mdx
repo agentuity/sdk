@@ -4,9 +4,9 @@ short_title: Hono
 description: Add Agentuity service clients and AI Gateway routing to a Hono app
 ---
 
-Use service clients directly inside [Hono](https://hono.dev/docs/) route handlers, or add `@agentuity/hono` middleware to share clients and a logger across every route.
+Write normal [Hono](https://hono.dev/docs/) route handlers. Use direct Agentuity clients inside handlers by default, or add `@agentuity/hono` when middleware is the convenient place to share clients and telemetry across routes.
 
-## Create a Starter
+## Create a starter
 
 ```bash
 bun create agentuity@next --name my-hono-api --framework hono --services keyvalue
@@ -27,28 +27,28 @@ For an existing Hono app, add the CLI and link the project:
 
 ```bash
 bun add -d @agentuity/cli@next
-agentuity project import --validate-only
-agentuity project import
+bunx agentuity project import --validate-only
+bunx agentuity project import
 ```
 
-If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
-<Callout type="tip" title="Existing app?">
+<Callout type="tip" title="Already have an app?">
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
 </Callout>
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | Hono keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | `new Hono()` and normal route handlers | direct service clients or `@agentuity/hono` middleware |
-| local dev | your Hono dev script | `agentuity dev` injects service and AI Gateway environment values |
-| build | your Node-targeted build command | `agentuity build` writes launch metadata |
+| local dev | your Hono dev script | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| build | your Node-targeted build command | `agentuity build` runs the build and writes generic launch metadata |
 | deploy | the built server entry | `agentuity deploy` ships the packaged app |
 
-## Use Service Clients in Routes
+## Use service clients in routes
 
-Direct service clients work in any Hono handler. They read `AGENTUITY_SDK_KEY` (with `AGENTUITY_CLI_KEY` as a fallback) from the process environment, so `agentuity dev` can supply that for local runs.
+Direct service clients work in any Hono handler. They read `AGENTUITY_SDK_KEY` (with `AGENTUITY_CLI_KEY` as a fallback) from the process environment, so `agentuity dev` can supply the linked project key for local runs.
 
 Install what the example uses:
 
@@ -162,9 +162,9 @@ export default app;
 
 Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
 
-## Use `@agentuity/hono` for Shared Clients
+## Use `@agentuity/hono` for shared clients
 
-When most routes need the same Agentuity clients, `@agentuity/hono` can initialize them once and expose them on `c.var.*`. Keep direct clients for a single route or one-off script. Use middleware when the app benefits from shared clients, telemetry, and route-local access through `c.var`.
+When most routes need the same Agentuity clients, `@agentuity/hono` can initialize them once and expose them on `c.var.*`. Keep direct clients for a single route, one-off script, or code you want to move across frameworks. Use middleware when the app benefits from shared clients, telemetry defaults, and route-local access through `c.var`. If your unbundled dev runner has trouble resolving the telemetry package, keep direct clients in dev or bundle the server entry before using the middleware path.
 
 ```bash
 bun add @agentuity/hono@next
@@ -205,14 +205,14 @@ export default app;
 
 | | Direct clients | `@agentuity/hono` middleware |
 |---|---|---|
-| **Setup** | Instantiate per file | One `app.use('*', agentuity())` |
+| **Setup** | Instantiate in the module that needs the client | One `app.use('*', agentuity())` |
 | **Scope** | Works anywhere (scripts, workers, other frameworks) | Hono apps only |
-| **Telemetry** | Manual | OpenTelemetry wired up automatically |
-| **Best for** | Single route or one service client | Most routes need multiple services |
+| **Telemetry** | Use your existing setup or `@agentuity/telemetry` directly | Agentuity telemetry defaults through `c.var.logger` and `c.var.tracer` |
+| **Best for** | Single route, script, or cross-framework module | Most routes need multiple services |
 
-## Run Locally
+## Run locally
 
-`agentuity dev` runs your package manager's `dev` script, injects `AGENTUITY_SDK_KEY` from the linked project, and points provider SDKs at the AI Gateway.
+`agentuity dev` runs your package manager's `dev` script. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Hono process.
 
 ```bash
 agentuity dev
@@ -227,14 +227,14 @@ agentuity dev --script dev:api
 Smoke-test before debugging the UI:
 
 ```bash
-curl -X POST http://127.0.0.1:3000/api/translate \
+curl -X POST http://localhost:3000/api/translate \
   -H "content-type: application/json" \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
 
-## Deployed Environment Variables
+## Deployed environment variables
 
-Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
 | Variable | Used by |
 | --- | --- |
@@ -242,12 +242,13 @@ Configure the same variables in the deployed app that `agentuity dev` injects lo
 | `OPENAI_MODEL` | example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database routes |
 | `AWS_*` | object storage routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate Before Deploy
+## Validate before deploy
 
-The v3 starter uses Hono's Node template and adds explicit build and start scripts so the deploy can launch a single process.
+The current starter uses Hono's Node template and adds explicit build and start scripts so the deploy can launch a single process.
 
 ```json title="package.json"
 {
@@ -259,18 +260,12 @@ The v3 starter uses Hono's Node template and adds explicit build and start scrip
 }
 ```
 
-Then validate the packaging:
+Then validate the packaging. Hono apps are packaged through Agentuity's generic adapter, so the `start` script is the contract for what the deployed process runs.
 
 ```bash
 bun run build
 agentuity build
 cat .agentuity/launch.json
-```
-
-If `agentuity build` cannot find a local package binary, add `node_modules/.bin` to `PATH`:
-
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
 ```
 
 Deploy only after `.agentuity/launch.json` points at the documented web process and a local packaged validation of `/` plus one API route passes:
@@ -279,28 +274,29 @@ Deploy only after `.agentuity/launch.json` points at the documented web process 
 agentuity deploy --confirm
 ```
 
-## Common Gotchas
+## Common gotchas
 
 | Symptom | Check |
 |---------|-------|
 | Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` |
-| OpenAI calls bypass Agentuity AI Gateway | Check that `OPENAI_API_KEY` and `OPENAI_BASE_URL` are present in the process. See [AI Gateway](/services/ai-gateway) |
-| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
+| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
 | Cookies not set or missing flags | Import `getCookie`/`setCookie` from [`hono/cookie`](https://hono.dev/docs/helpers/cookie); setting cookies directly on the response object bypasses Hono's helper |
-| Route works in dev but not after build | Run `bun run build` before `agentuity build`, then re-inspect `.agentuity/launch.json`. See [Hono on Node.js](https://hono.dev/docs/getting-started/nodejs) for the adapter shape |
+| Route works in dev but not after build | Re-inspect `.agentuity/launch.json` after `agentuity build`. See [Hono on Node.js](https://hono.dev/docs/getting-started/nodejs) for the adapter shape |
 | Deploy starts the wrong file | Confirm `scripts.start` in `package.json` points at the built server entry (`dist/src/index.cjs`) |
 | `c.var.kv` is undefined | Add `app.use('*', agentuity())` before any route that reads from `c.var` |
 | `c.var.*` types are missing | Declare the `Variables` generic on `new Hono<{ Variables: ... }>()` |
 
-## Framework Docs
+## Framework docs
 
 - [Hono on Node.js](https://hono.dev/docs/getting-started/nodejs): confirm the `src/index.ts` entry and `@hono/node-server` adapter setup
 - [Hono Routing](https://hono.dev/docs/api/routing): use standard Hono routing helpers
 - [Hono Cookies](https://hono.dev/docs/helpers/cookie): configure `getCookie`, `setCookie`, and signed cookies
 
-## Next Steps
+## Next steps
 
 - [Agents](/build/agents): wrap model calls in reusable functions called from Hono routes
 - [Chat and Streaming](/build/agents/chat-and-streaming): return streamed model output from Hono routes
 - [Key-Value Storage](/services/storage/key-value): store compact state by namespace and key
 - [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity
+- [Observability](/services/observability): choose app-owned logging and tracing or Agentuity telemetry defaults

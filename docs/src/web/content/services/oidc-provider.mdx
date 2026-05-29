@@ -166,7 +166,7 @@ This example uses Hono because the flow is easy to see in one file. The same bou
 
 The cookie in this example is intentionally small. In an app with roles, teams, or long-lived sessions, store the session server-side or use your framework's session adapter.
 
-## Create an OAuth App
+## Create an OAuth app
 
 Create the OAuth app in the [Agentuity Console](https://app.agentuity.com/settings/oauth-apps) or with the CLI. For server-backed framework apps, use a confidential client so the client secret stays on the server.
 
@@ -188,7 +188,7 @@ The redirect URI must match the URL your callback route actually serves. Registe
 
 The examples on this page use confidential clients. Do not put the client secret in browser code.
 
-## Configure Environment Variables
+## Configure environment variables
 
 The `@agentuity/core/oauth` helpers read `OAUTH_*` variables by default:
 
@@ -249,7 +249,7 @@ Use the discovery document when you need endpoint metadata or the current JWKS U
 The CLI `--scopes` flag is comma-separated, for example `openid,profile,email`. `OAUTH_SCOPES` is space-separated because it is sent as the OAuth `scope` parameter.
 </Callout>
 
-## Store Tokens for Scoped Access
+## Store tokens for scoped access
 
 If your app needs to call Agentuity APIs on behalf of the signed-in user, store OAuth tokens server-side. `KeyValueTokenStorage` stores tokens in Agentuity KV and refreshes expired access tokens when a refresh token and OAuth config are available.
 
@@ -313,7 +313,7 @@ OAUTH_SCOPES=openid profile email offline_access
 
 When a user disconnects the app, call `tokenStore.invalidate(userId)` to remove the stored token and revoke it with the provider when possible.
 
-## Token Lifecycle Helpers
+## Token lifecycle helpers
 
 `tokenStore.invalidate()` handles revocation as part of the storage layer. When you need to call the token endpoints directly, the same primitives `KeyValueTokenStorage` uses internally are also exported.
 
@@ -351,7 +351,7 @@ export async function revokeAccess(
 
 Per RFC 7009, the revocation endpoint returns success even if the token was already invalid. Prefer revoking the refresh token over the access token because revoking the refresh token invalidates the entire grant.
 
-## Scopes and Consent
+## Scopes and consent
 
 Start with `openid profile email`. Add service scopes only when your app needs them. Users see requested scopes during consent.
 
@@ -372,7 +372,7 @@ agentuity cloud oidc create \
   --scopes "openid,profile,email,offline_access"
 ```
 
-## Next Steps
+## Next steps
 
 - [Choosing Authentication](/services/authentication): decide between OIDC and framework-owned sessions
 - [CLI OAuth Commands](/reference/cli/oauth): create clients, rotate secrets, and inspect connected users

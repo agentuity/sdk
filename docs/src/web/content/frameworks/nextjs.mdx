@@ -6,7 +6,7 @@ description: Connect Agentuity service clients, local development, and deploy pa
 
 Call Agentuity services (key-value, AI Gateway, queues) from Next.js App Router route handlers. Use `agentuity build` to inspect the package, then deploy with `agentuity deploy`.
 
-## Create a Starter
+## Create a starter
 
 The quickest way to start is with the Agentuity CLI:
 
@@ -23,17 +23,17 @@ The starter includes a working translation demo: a React page that calls an API 
 | `src/app/api/translate/route.ts` | Route handler that calls the AI Gateway |
 | `package.json` | `dev`, `build`, and `deploy` scripts pre-wired |
 
-## Add to an Existing App
+## Add to an existing app
 
 Install the CLI as a dev dependency, then import the project:
 
 ```bash
 bun add -d @agentuity/cli@next
-agentuity project import --validate-only   # dry run: checks config only
-agentuity project import                   # registers the project and writes agentuity.json
+bunx agentuity project import --validate-only   # dry run: checks config only
+bunx agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
 
@@ -41,16 +41,16 @@ If you did not install the CLI globally, run the same commands through your pack
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for the import flow, the `Invalid project folder` deploy case, and the first deploy command.
 </Callout>
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | Next.js keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | App Router pages and `app/api/**/route.ts` handlers | service clients you import in server code |
-| local dev | `next dev` | `agentuity dev` injects service and AI Gateway environment values |
-| build | `next build` and standalone output | `agentuity build` packages launch metadata |
+| local dev | `next dev` | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| build | `next build` and standalone output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the generated standalone server | `agentuity deploy` ships the packaged app |
 
-## Service Client Example
+## Service client example
 
 Route handlers use standalone service clients. They do not need an Agentuity-owned router or `createApp()`.
 
@@ -113,11 +113,11 @@ export async function GET(request: Request): Promise<NextResponse> {
 }
 ```
 
-`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app with `agentuity dev` to have the key injected automatically.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app with `agentuity dev` so the linked project key is available during local development.
 
-## AI Gateway Example
+## AI Gateway example
 
-If you prefer the OpenAI SDK directly, `agentuity dev` injects `OPENAI_API_KEY` and `OPENAI_BASE_URL` so the SDK routes calls through the AI Gateway. Use Zod to validate input at the boundary.
+If you prefer the OpenAI SDK directly, `agentuity dev` can wire `OPENAI_API_KEY` and `OPENAI_BASE_URL` so the SDK routes calls through the AI Gateway. It preserves a provider key you already set, so keep provider env in `.env` intentional. Use Zod to validate input at the boundary.
 
 ```bash
 bun add openai zod
@@ -169,9 +169,9 @@ Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catal
 Agentuity does not require `createApp()` or an Agentuity-owned router for Next.js projects. Standard App Router route handlers work as-is.
 </Callout>
 
-## Run Locally
+## Run locally
 
-Start the app with `agentuity dev`, which injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` into the Next.js process:
+Start the app with `agentuity dev`. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Next.js process:
 
 ```bash
 agentuity dev
@@ -180,14 +180,14 @@ agentuity dev
 Smoke-test the route:
 
 ```bash
-curl http://127.0.0.1:3000/api/chat \
+curl http://localhost:3000/api/chat \
   -H "content-type: application/json" \
   -d '{"message":"Hello"}'
 ```
 
-## Deployed Environment Variables
+## Deployed environment variables
 
-Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
 | Variable | Used by |
 | --- | --- |
@@ -195,12 +195,13 @@ Configure the same variables in the deployed app that `agentuity dev` injects lo
 | `OPENAI_MODEL` | example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database routes |
 | `AWS_*` | object storage routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate Before Deploy
+## Validate before deploy
 
-Run the Next.js build first, then the Agentuity build. The Agentuity build produces `.agentuity/launch.json` with the start command for the deployed container.
+Run the framework build when you want Next.js-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and produces `.agentuity/launch.json` with the start command for the deployed container.
 
 ```bash
 bun run build
@@ -228,30 +229,23 @@ Deploy only after the framework build, Agentuity build, and a local packaged val
 agentuity deploy --confirm
 ```
 
-If `agentuity build` cannot find the local `next` binary, add `node_modules/.bin` to `PATH`:
-
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
-```
-
-## Common Gotchas
+## Common gotchas
 
 | Symptom | Check |
 |---------|-------|
 | Service client returns 401 or auth errors | Run with `agentuity dev`, or set `AGENTUITY_SDK_KEY` manually |
-| OpenAI calls hit the real provider instead of the AI Gateway | `OPENAI_BASE_URL` is only injected by `agentuity dev`; see [AI Gateway](/services/ai-gateway) for how env injection works |
-| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
-| `agentuity build` fails with "next: command not found" | Prefix with `PATH="$(pwd)/node_modules/.bin:$PATH"` |
+| OpenAI calls hit the real provider instead of the AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
+| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
 | `launch.json` starts `node node_modules/.bin/next start` | Do not deploy that package. Rebuild after the adapter writes a command that starts the standalone `server.js` output |
 | `.next/standalone` is empty after build | Confirm Next.js version is 12+; older versions do not support standalone output |
 | Files outside the app root are missing in the standalone bundle | Set `outputFileTracingRoot` in `next.config.ts` to include monorepo paths |
 
-## Framework Docs
+## Framework docs
 
 - [Next.js Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers): current App Router route handler shape and HTTP method exports
 - [Next.js Standalone Output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output): how `output: 'standalone'` works and what it produces
 
-## Next Steps
+## Next steps
 
 - [Key-Value Storage](/services/storage/key-value): TTL semantics, namespaces, and type-safe reads
 - [AI Gateway](/services/ai-gateway): supported providers and how environment injection works

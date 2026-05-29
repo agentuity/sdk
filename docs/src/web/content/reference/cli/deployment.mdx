@@ -6,7 +6,7 @@ description: Deploy registered framework apps to Agentuity Cloud.
 
 Use `agentuity deploy` from a registered project when you are ready to build, upload, and activate a cloud deployment.
 
-## Before You Deploy
+## Before you deploy
 
 Deploy expects a local project linked to Agentuity Cloud. A linked project has `agentuity.json` and an Agentuity SDK key available through `.env` or your environment.
 
@@ -37,7 +37,7 @@ agentuity deploy
 
 The deploy command can reconcile missing project configuration interactively, but importing first gives you a clear setup step before the build starts.
 
-## Deploy Your Project
+## Deploy your project
 
 Deploy the current project:
 
@@ -78,7 +78,7 @@ Project:        https://<project-url>
 Dashboard:      https://app.agentuity.com/r/deploy_abc123xyz
 ```
 
-## Deployment Bundle
+## Deployment bundle
 
 During deploy, the CLI runs the same framework detection and adapter pipeline used by `agentuity build`. The result is a `.agentuity` deployment bundle with:
 
@@ -90,7 +90,7 @@ During deploy, the CLI runs the same framework detection and adapter pipeline us
 
 For non-Agentuity framework apps, deploy metadata contains empty Agentuity route and agent lists, plus the launch metadata and any static assets discovered in the framework build output.
 
-## Deploy Options
+## Deploy options
 
 | Option | Description |
 |--------|-------------|
@@ -130,7 +130,7 @@ A successful deploy can return a deployment URL, a project URL, and configured c
 
 The project URL points to the active deployment and updates after each successful deploy.
 
-## Viewing Deployments
+## Viewing deployments
 
 List recent deployments:
 
@@ -156,7 +156,7 @@ agentuity cloud deployment logs deploy_abc123xyz --no-timestamps
 agentuity cloud deployment logs deploy_abc123xyz --project-id=proj_abc123xyz
 ```
 
-## Rollback, Undeploy, and Delete
+## Rollback, undeploy, and delete
 
 Roll back to the previous completed deployment:
 
@@ -185,7 +185,7 @@ agentuity cloud deployment delete deploy_abc123xyz --project-id=proj_abc123xyz
 Deleting a deployment removes it permanently. Undeploying only stops the active deployment, and rollback keeps previous completed deployments available.
 </Callout>
 
-## Environment Variables
+## Environment variables
 
 Deploy syncs values from `.env` before the build step. Keys that start with `AGENTUITY_` are filtered out because the platform manages them.
 
@@ -229,7 +229,7 @@ The selected project region is stored in `agentuity.json`:
 
 If the local region differs from the server region, interactive deploys prompt before updating it. In non-interactive runs, pass `--confirm` when you intend to accept the region change.
 
-## Custom Domains
+## Custom domains
 
 Add custom domains in `agentuity.json`:
 
@@ -257,7 +257,7 @@ TTL:   600
 Custom domain changes take effect after a successful deploy.
 </Callout>
 
-## Runtime and Build Resources
+## Runtime and build resources
 
 Configure runtime resources in `agentuity.json`:
 
@@ -305,7 +305,7 @@ agentuity cloud machine delete machine_abc123xyz
 Deleting a machine terminates deployments running on it. Use it only when you intend to remove that capacity.
 </Callout>
 
-## Deploy Lifecycle Scripts
+## Deploy lifecycle scripts
 
 `bun run deploy` follows normal package manager lifecycle hooks. Add `predeploy` and `postdeploy` scripts when you want local work to run before or after the CLI command.
 
@@ -321,7 +321,7 @@ Deleting a machine terminates deployments running on it. Use it only when you in
 
 `predeploy` and `postdeploy` run when you call `bun run deploy`. They do not run when you call `agentuity deploy` directly.
 
-## CI Deployments
+## CI deployments
 
 CI systems can pass git and pull request metadata directly to `agentuity deploy`:
 
@@ -344,7 +344,7 @@ agentuity deploy
 
 The JSON object requires `id`, `orgId`, and `publicKey`.
 
-## Next Steps
+## Next steps
 
 - [Build Configuration](/reference/cli/build-configuration): Inspect the local deployment bundle before deploy
 - [Debugging Deployments](/reference/cli/debugging): Connect with SSH and inspect deployed behavior

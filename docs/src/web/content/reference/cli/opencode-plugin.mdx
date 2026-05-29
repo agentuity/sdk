@@ -31,7 +31,7 @@ agentuity ai opencode uninstall
 
 The plugin registers agents by display name. Use these exact names when overriding models in `opencode.json`.
 
-### Coder Team
+### Coder team
 
 | Agent | Role | When to Use |
 |-------|------|-------------|
@@ -45,7 +45,7 @@ The plugin registers agents by display name. Use these exact names when overridi
 | **Runner** | Command Executor | Run lint/build/test/typecheck/format, returns structured summaries |
 | **Product** | Product Strategy | Clarifying requirements, validating scope, tracking PRD-style work |
 
-### Expert Subagents
+### Expert subagents
 
 The Expert agent can route deeper Agentuity questions to hidden specialist subagents:
 
@@ -57,7 +57,7 @@ The Expert agent can route deeper Agentuity questions to hidden specialist subag
 
 The Lead agent coordinates most user-facing work and delegates to the right subagent through OpenCode's task system.
 
-### Builder vs Architect
+### Builder vs architect
 
 | Aspect | Builder | Architect |
 |--------|---------|-----------|
@@ -69,7 +69,7 @@ The Lead agent coordinates most user-facing work and delegates to the right suba
 
 Use **Builder** for interactive changes and small implementation tasks. Use **Architect** for Cadence mode, complex multi-file features, and longer autonomous work.
 
-### Memory System
+### Memory system
 
 The Memory agent stores reusable context by entity type:
 
@@ -84,7 +84,7 @@ Memory tracks conclusions, corrections, relationships, session summaries, and co
 
 Use `/agentuity-memory-save` to explicitly save important context. Use `/agentuity-memory-share` when you want to create a public share URL for a session summary or saved memory content.
 
-### Model Configuration
+### Model configuration
 
 Override any agent's model in `opencode.json`. See [Agent Model Overrides](#agent-model-overrides) for full configuration options.
 
@@ -94,7 +94,7 @@ Run `opencode models` to see all available models.
 The plugin's default deny list blocks these command patterns: `agentuity cloud secrets`, `agentuity cloud secret`, `agentuity cloud apikey`, and `agentuity auth token`.
 </Callout>
 
-## Slash Commands
+## Slash commands
 
 The plugin adds slash commands for common Agentuity tasks:
 
@@ -113,7 +113,7 @@ Use these commands by typing them directly in OpenCode:
 /agentuity-coder Create a new agent that processes webhooks from Stripe
 ```
 
-## MCP Servers
+## MCP servers
 
 The plugin works without extra MCP servers, but Scout and Expert are more useful when `context7` and `grep_app` are configured in `opencode.json`.
 
@@ -133,7 +133,7 @@ The plugin works without extra MCP servers, but Scout and Expert are more useful
 
 The install command prints this recommendation, but it does not modify your MCP config automatically.
 
-## Headless Mode
+## Headless mode
 
 Run Agentuity tasks from the command line without opening OpenCode:
 
@@ -151,7 +151,7 @@ agentuity ai opencode run --sandbox "run the test suite"
 agentuity ai opencode run --json "fix the failing auth test"
 ```
 
-## Cadence Mode
+## Cadence mode
 
 Cadence enables long-running autonomous work sessions. Start it with the `/agentuity-cadence` slash command:
 
@@ -175,7 +175,7 @@ For headless execution:
 agentuity ai opencode run "/agentuity-cadence Build the feature"
 ```
 
-## Tmux Integration
+## Tmux integration
 
 When running inside tmux, the plugin can spawn agent work into separate panes for a visible multi-agent layout.
 
@@ -201,7 +201,7 @@ coder:
 
 When enabled, agents spawn in a dedicated `Agents` window with a tiled grid layout. Oldest panes close automatically when `maxPanes` is reached.
 
-## Plugin Tools
+## Plugin tools
 
 The plugin registers a small set of tools for the agents:
 
@@ -216,7 +216,7 @@ These are agent-facing tools. In normal use, call `/agentuity-coder`, `/agentuit
 
 Agent models are configured in `~/.config/opencode/opencode.json`. OpenCode reads plugin-provided agents and the `agent` entries in `opencode.json`, so you can override any Agentuity Coder agent by display name. Plugin behavior settings such as tmux live in your Agentuity CLI profile.
 
-### Agent Model Overrides
+### Agent model overrides
 
 Override any agent's default model in `opencode.json`:
 
@@ -245,7 +245,7 @@ Override any agent's default model in `opencode.json`:
 | `maxSteps` | Maximum tool use steps per turn |
 | provider-specific options | Additional fields passed through by OpenCode, such as provider or model options |
 
-## Monitoring Sessions
+## Monitoring sessions
 
 View and inspect OpenCode coding sessions from the CLI.
 
@@ -302,7 +302,7 @@ agentuity ai opencode inspect ses_abc123
 agentuity ai opencode inspect ses_abc123 --json
 ```
 
-### Database Location
+### Database location
 
 <Callout type="info" title="Requires OpenCode v1.2.0+">
 The dashboard and inspect commands require OpenCode v1.2.0+ with SQLite storage.
@@ -320,7 +320,7 @@ Override the path with the `OPENCODE_DB_PATH` environment variable:
 OPENCODE_DB_PATH=/path/to/opencode.db agentuity ai opencode dashboard
 ```
 
-## Next Steps
+## Next steps
 
 - [AI Commands](/reference/cli/ai-commands): Other AI-related CLI commands
 - [Local Development](/reference/cli/development): Run Agentuity projects locally

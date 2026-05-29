@@ -20,7 +20,7 @@ Add `--json` when you want to pipe session output into another tool.
 
 Older runtime examples may show `ctx.session` or `ctx.thread`. Treat those as migration context. New v3 apps should use telemetry packages and platform inspection APIs.
 
-## Filter Sessions
+## Filter sessions
 
 The session list command supports common filters:
 
@@ -40,7 +40,7 @@ Use `--all` when you want sessions outside the current project context:
 agentuity cloud session list --all --count=50
 ```
 
-## Programmatic Inspection
+## Programmatic inspection
 
 Use the CLI for day-to-day debugging. If you are building an internal tool, `@agentuity/core` exports session helpers for platform API access.
 
@@ -88,7 +88,7 @@ logger.info('First failure detail', detail);
 
 `sessionList()` supports filters for project, deployment, trigger, environment, dev mode, success, time range, thread ID, agent identifier, and metadata.
 
-## Add Useful Context to Logs
+## Add useful context to logs
 
 Session records tell you when and where a request ran. Your logs should add the application context you will search for later.
 
@@ -112,7 +112,7 @@ export function logSupportRequest(request: SupportRequest): void {
 
 Prefer opaque internal IDs over raw emails, names, tokens, prompts, or full request bodies. Metadata returned on session records is unencrypted and should follow the same rule.
 
-## Debugging Flow
+## Debugging flow
 
 1. List recent failures with `agentuity cloud session list --success=false`.
 2. Open one record with `agentuity cloud session get <session-id>`.
@@ -123,7 +123,7 @@ Prefer opaque internal IDs over raw emails, names, tokens, prompts, or full requ
 Session logs are request-scoped. Use `agentuity cloud deployment logs <deployment-id>` when you need deployment-level process logs.
 </Callout>
 
-## Next Steps
+## Next steps
 
 - [Logging](/services/observability/logging): add searchable fields to log records
 - [Tracing](/services/observability/tracing): create spans that show up in session timelines

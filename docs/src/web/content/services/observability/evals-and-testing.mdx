@@ -1,19 +1,19 @@
 ---
 title: Evals and testing
-description: Evaluate agent behavior with LLM judges, traces, Braintrust, or your own tooling.
+description: Add eval workflows with output contracts, judges, traces, and external tools.
 ---
 
-In v3, an eval is a repeatable app workflow: run normal app code, capture a stable output, assert or judge it, and keep enough logs and traces to explain failures. Use LLM-as-judge checks for qualitative behavior, OpenTelemetry traces for what happened, Braintrust when you want hosted experiment tracking, or your own test runner when assertions are enough.
+To add evaluations to an Agentuity project, set up a workflow that runs normal app code, captures a stable output, checks it, and records enough logs or traces to explain failures. Use deterministic assertions for structural checks, LLM-as-judge checks for qualitative behavior, OpenTelemetry traces to inspect failures, and hosted eval tools when you need datasets, reviewers, or reports.
 
 ```bash
 bun add ai@latest @ai-sdk/openai@latest zod @agentuity/telemetry@next
 ```
 
-<Callout type="info" title="No first-party v3 eval runner">
-The v2 `@agentuity/evals` package and platform collection model are not a first-party v3 eval surface. Keep evals in your app repo as scripts, tests, traces, and optional external tooling.
+<Callout type="info" title="Keep evals in your app repo">
+The v2 `@agentuity/evals` package and platform collection model are migration context, not the current eval surface. Keep evals in your app repo as scripts, tests, traces, and optional external tooling.
 </Callout>
 
-## Shape Evals Like Tests
+## Shape evals like tests
 
 | Part | Keep Stable |
 |------|-------------|
@@ -25,7 +25,7 @@ The v2 `@agentuity/evals` package and platform collection model are not a first-
 
 That shape keeps evals close to the code they protect. A CI job can run the same script as a local developer, and a failed run can point back to logs, spans, and the exact output that broke the contract.
 
-## Define the Output Contract
+## Define the output contract
 
 Do this before adding a judge. The output contract is the part your app, CI job, or reviewer can inspect without reading model prose.
 
@@ -46,7 +46,7 @@ Do this before adding a judge. The output contract is the part your app, CI job,
 
 For coding-agent tasks, include the expected report path, verification command, changed files, and blocker format in the task prompt. See [Building Coding Agents](/build/agents/coding-agent) for a fuller output-contract pattern.
 
-## LLM-as-Judge Example
+## Run an LLM-as-judge check
 
 This script grades an answer against a rubric. Drop it into a Bun or Node script that already has `OPENAI_API_KEY` or runs under `agentuity dev`.
 
@@ -102,20 +102,21 @@ const judgment = await judgeAnswer({
 logger.info('eval complete', judgment);
 ```
 
-## Trace the Run
+## Trace the run
 
 Wrap eval runs with spans when you need to inspect the app call, model choice, tool behavior, assertion, and judge result later. Prefer attributes such as `eval.run_id`, `eval.fixture_id`, `eval.contract_version`, `eval.passed`, and `eval.failure_reason`; avoid raw prompts, secrets, and personal data in span attributes. See [Tracing](/services/observability/tracing) for OpenTelemetry setup and exporter configuration.
 
-## Use Braintrust or BYO Tooling
+## Choose the eval runner
 
-Use a hosted eval tool when you need datasets, experiment comparison, reviewers, or reports. Use your normal test runner when the check is deterministic, such as JSON shape, latency budget, retrieval count, or exact routing behavior.
+Start with the runner that gives the check enough context. Hosted tools help with datasets, experiment comparison, reviewers, and reports. Unit and integration tests are better for deterministic checks such as JSON shape, latency budget, retrieval count, or exact routing behavior.
 
 | Check | Good fit |
 |-------|----------|
 | JSON shape or required fields | unit test plus schema |
 | Tool routing | integration test with mocks or fixtures |
-| Grounding against sources | LLM-as-judge |
-| Regression suite with reports | Braintrust or BYO eval runner |
-| Debugging one bad request | OTEL traces and logs |
+| Prompt and model regression suite | [OpenAI Evals API](/cookbook/patterns/openai-evals-api) |
+| Grounding against sources | [LLM-as-judge](/cookbook/patterns/llm-as-a-judge) |
+| App-function regression suite with reports | [Braintrust Evals](/cookbook/patterns/braintrust-evals) or your eval runner |
+| Debugging one bad request | OpenTelemetry traces and logs |
 
 See [LLM as a Judge](/cookbook/patterns/llm-as-a-judge) for more judging patterns.

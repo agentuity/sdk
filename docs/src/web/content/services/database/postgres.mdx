@@ -54,7 +54,7 @@ agentuity cloud db get app_data --show-credentials
 
 The default terminal output masks credentials. Use `--show-credentials` only in a trusted shell.
 
-## Bun-Only Compatibility Helper
+## Bun-only compatibility helper
 
 `@agentuity/postgres` is a deprecated, opt-in compatibility helper for Bun code that wants Bun's tagged SQL driver with Agentuity reconnect defaults. It is not required for framework apps.
 
@@ -78,7 +78,7 @@ const users = await sql`
 `@agentuity/postgres` imports Bun's SQL driver. The package is deprecated, so prefer `pg` or `drizzle-orm/node-postgres` for new work. Use it only in Bun-based apps and scripts that intentionally keep this helper. In Node.js processes, use your framework's Postgres client, ORM, or the `@agentuity/db` service client for trusted admin scripts.
 </Callout>
 
-## Helper Connection Setup
+## Helper connection setup
 
 `postgres()` reads `DATABASE_URL` by default. You can also pass a connection URL or a configuration object.
 
@@ -151,7 +151,7 @@ try {
 }
 ```
 
-## Connection Options
+## Connection options
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -169,7 +169,7 @@ try {
 
 The client also supports callbacks such as `onclose`, `onreconnect`, `onreconnected`, and `onreconnectfailed`.
 
-## Connection Stats
+## Connection stats
 
 Use `sql.stats` when you need to inspect connection state, for example from a health route.
 
@@ -192,7 +192,7 @@ if (stats.reconnecting) {
 | `lastDisconnectedAt` | Last disconnection time |
 | `lastReconnectAttemptAt` | Last reconnect attempt time |
 
-## Utility Methods
+## Utility methods
 
 Wait for a lazy connection to be established:
 
@@ -222,7 +222,7 @@ const arrays = await sql.unsafeQuery('SELECT id, name FROM items').values();
 
 Each `unsafeQuery` result can be consumed once, either as row objects (`await result`) or as raw arrays (`await result.values()`), not both. For dynamic values prefer tagged templates; reach for `unsafeQuery` when the SQL itself is built from a trusted source.
 
-## Next Steps
+## Next steps
 
 - [Database Overview](/services/database): create or link Agentuity-managed Postgres
 - [Drizzle ORM](/services/database/drizzle): use schema-first type-safe queries

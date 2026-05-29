@@ -14,9 +14,11 @@ Writing conventions for Agentuity docs pages in this directory.
 
 ## Current Agentuity Model
 
-Agentuity is infrastructure for deploying apps, APIs, and agents. Start from the thing the reader is building: a framework app, backend API, static site, background job, or model-backed agent.
+Agentuity is infrastructure for deploying apps, APIs, static sites, backend work, and agents. Start from the thing the reader is building: a framework app, backend API, static site, background job, or model-backed agent.
 
 Agentuity adds deploy packaging, local development wiring, and built-in agent-native services, for example storage, databases, sandboxes, AI Gateway, observability, and Coder. Link to [Services](/services) when the reader needs the full service catalog.
+
+Treat existing app tools and Agentuity-native services as complementary. Readers can keep their framework logger, OpenTelemetry collector, database client or ORM, provider SDKs, and framework conventions. Use Agentuity services when built-in credentials, managed resources, inspection surfaces, or coding-agent-friendly composition reduce setup.
 
 In these docs, an agent is model-backed app code with a clear task. It can live in a route, server function, queue consumer, schedule target, script, or shared module. Agentuity also deploys apps, APIs, services, and static sites that are not themselves agents.
 
@@ -107,16 +109,16 @@ description: One sentence explaining what readers will learn
 
 Brief context: what is this for, when do you use it? (1-2 sentences)
 
-## Basic Usage
+## Basic usage
 [Complete code block with imports]
 
 ## [Variant/Pattern Name]
 [Next complexity level, builds on previous]
 
-## Best Practices
+## Best practices
 [Short bullets with code, not prose]
 
-## Next Steps
+## Next steps
 - [Related Topic](path): When you need X
 ```
 
@@ -242,6 +244,7 @@ Available components in doc pages:
 ### Headings and Intros
 
 - **Titles** are action-oriented: "Using Key-Value Storage" not "Key-Value Storage Overview"
+- **Headings** create hierarchy for readers and agents. Use sentence case, keep them concrete, and capitalize only proper nouns, acronyms, API names, and exact identifiers. Prefer headings that name the job of the section, for example "When to use this pattern", "Add service clients", or "View traces"
 - **Intros** are 1-2 sentences. Lead with the problem, not the feature. Don't repeat frontmatter description
 
 ### Content

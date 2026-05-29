@@ -6,7 +6,7 @@ description: Build framework apps into Agentuity deployment bundles with launch 
 
 Use `agentuity build` to turn a framework app into the `.agentuity` deployment bundle that `agentuity deploy` uploads.
 
-## Basic Build
+## Basic build
 
 Build the current project:
 
@@ -37,7 +37,7 @@ agentuity project import --validate-only
 agentuity build
 ```
 
-## Read the Build Output
+## Read the build output
 
 The first few lines tell you what the detector found and which adapter packaged the app:
 
@@ -63,7 +63,7 @@ PATH="$PWD/node_modules/.bin:$PATH" agentuity build
 ```
 </Callout>
 
-## Build Options
+## Build options
 
 | Option | Description |
 |--------|-------------|
@@ -74,7 +74,7 @@ PATH="$PWD/node_modules/.bin:$PATH" agentuity build
 | `--report-file <path>` | Write build diagnostics as JSON |
 | `--project-id <id>` | Project ID, alternative to resolving from `--dir` |
 
-### CI Build Options
+### CI build options
 
 | Option | Description |
 |--------|-------------|
@@ -87,7 +87,7 @@ PATH="$PWD/node_modules/.bin:$PATH" agentuity build
 | `--pull-request-number <number>` | Pull request number |
 | `--pull-request-url <url>` | Pull request URL |
 
-### Git Metadata Options
+### Git metadata options
 
 | Option | Description |
 |--------|-------------|
@@ -98,7 +98,7 @@ PATH="$PWD/node_modules/.bin:$PATH" agentuity build
 | `--provider <provider>` | Git provider, such as `github`, `gitlab`, or `bitbucket` |
 | `--commit-url <url>` | URL to the commit |
 
-## Deployment Bundle Contents
+## Deployment bundle contents
 
 The build output is a self-contained deployment bundle. It includes framework output plus Agentuity metadata:
 
@@ -152,7 +152,7 @@ For a workspace app, a monorepo-aware build stages from the workspace root and a
 }
 ```
 
-## Custom Launchers
+## Custom launchers
 
 If your app is not a JavaScript framework app, add a root `launch.json`. The build can package a directory without `package.json` when the launcher tells Agentuity what to run:
 
@@ -177,7 +177,7 @@ If your app is not a JavaScript framework app, add a root `launch.json`. The bui
 
 `agentuity build` copies the directory, skips dependency installation when no `package.json` exists, and writes the final `.agentuity/launch.json`. The command must bind the same port as `runtime.port`.
 
-## Framework Notes
+## Framework notes
 
 Next.js generated projects can build with the framework command:
 
@@ -189,7 +189,7 @@ If `agentuity build` cannot resolve `next` or another local framework binary, us
 
 Generated Hono projects include `build` and `start` scripts so the generic detector has a process to package. If `agentuity build` reports `BUILD010`, check that `package.json` still has both scripts and that `start` points at the built server entry.
 
-## Vite Projects
+## Vite projects
 
 For Vite-based apps, use `vite.config.ts` the same way you would in a normal Vite project.
 
@@ -210,7 +210,7 @@ Values exposed through Vite public prefixes are bundled into frontend code. Do n
 
 Use framework-native config files for non-Vite frameworks such as Next.js, Nuxt, SvelteKit, Astro, and React Router.
 
-## Next Steps
+## Next steps
 
 - [Local Development](/reference/cli/development): Run the framework dev server with Agentuity environment wiring
 - [Deployment](/reference/cli/deployment): Upload and provision the deployment bundle

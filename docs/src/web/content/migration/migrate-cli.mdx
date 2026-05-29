@@ -39,7 +39,7 @@ The tool can also auto-detect migration mode from `@agentuity/runtime` in `packa
 
 Pass `--v2-to-v3` when you are following the v3 migration docs. Pass `--v1-to-v2` only when an older app must land on v2 first.
 
-## Safe Workflow
+## Safe workflow
 
 Preview first:
 
@@ -74,7 +74,7 @@ Manual (requires human action)
   (dry-run mode, no files modified)
 ```
 
-## What the Tool Changes
+## What the tool changes
 
 The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically. It creates a Hono starting point because that is the closest mechanical replacement for the old runtime container.
 
@@ -95,7 +95,7 @@ The v1 to v2 migrator keeps the runtime model. It rewrites older route files to 
 
 After writing changes, the tool runs `bun install` and a TypeScript check. If TypeScript reports errors, keep the diff and fix the remaining migration work manually.
 
-## What Still Needs Review
+## What still needs review
 
 Manual work is normal for apps that used runtime container features:
 
@@ -112,7 +112,7 @@ Manual work is normal for apps that used runtime container features:
 The migrator gives you a starting point, not a deploy guarantee. Review `src/index.ts`, `src/services.ts`, package scripts, and the TypeScript output before deploying.
 </Callout>
 
-## After Migration
+## After migration
 
 Review the diff first:
 
@@ -139,7 +139,7 @@ agentuity project import
 
 Deploy only after the framework build and `agentuity build` both succeed for your app shape.
 
-## Next Steps
+## Next steps
 
 - [Migrating from v2](/migration/from-v2): put the CLI into the full migration flow
 - [Runtime to Frameworks](/migration/runtime-to-frameworks): map runtime APIs to framework code

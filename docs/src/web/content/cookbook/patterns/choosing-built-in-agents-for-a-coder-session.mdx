@@ -10,7 +10,7 @@ A session can start with only the Hub-provided agents you care about. Use `enabl
 `getSession()` returns the session's lifecycle state, `enabledAgents`, and `defaultAgent`. That's usually enough to confirm the session started the way you intended.
 </Callout>
 
-## The Pattern
+## The pattern
 
 Create the session with an explicit agent selection, then inspect the session detail:
 
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## Example Output
+## Example output
 
 ```json
 {
@@ -90,7 +90,7 @@ What this means:
 - `defaultAgent` tells the Hub which agent should handle routed work by default
 - `status` and `bucket` still describe the lifecycle state of the session itself
 
-## How Agent Selection Works
+## How agent selection works
 
 The simplest mental model:
 
@@ -109,7 +109,7 @@ So if you create a session with:
 
 you're saying: make `builder` and `reviewer` available, and route to `builder` by default.
 
-## When to Use This Pattern
+## When to use this pattern
 
 Use this pattern when you want:
 
@@ -120,14 +120,14 @@ Use this pattern when you want:
 
 If you want a normal Coder session, omit both fields.
 
-## Key Points
+## Key points
 
 - Start with the Hub-provided agents you need. You can widen the selection later.
 - Prefer `getSession()` over list views when you need a definitive view of one session.
 - Use agent names your Hub exposes.
 - For agent definitions you author yourself, switch to the custom-agent flow.
 
-## See Also
+## See also
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the core create, read, archive, and delete flow
 - [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Add explicit workflow state on top of session composition

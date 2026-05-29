@@ -10,9 +10,9 @@ For a "resume session" or "attach to session" flow, don't start from the full se
 These methods tell you whether a session can still be reconnected to or should fall back to replay. They don't open a controller socket for you.
 </Callout>
 
-## The Pattern
+## The pattern
 
-### Listing Reconnectable Sessions
+### Listing reconnectable sessions
 
 Use `listConnectableSessions()` when you want to show only sessions that still have a reconnect story.
 
@@ -54,7 +54,7 @@ void main();
 
 An empty list is common. Sessions in `bucket: 'provisioning'` are intentionally excluded until they reach `running` or `paused`, so a session you just created won't show up yet. Others may be absent because they're already history-only or no longer in a resumable state.
 
-### Preparing One Session for Reconnect
+### Preparing one session for reconnect
 
 Once a user picks a session, use `prepareSessionForRemoteAttach()` to check whether it is live, wakeable, or already read-only.
 
@@ -133,7 +133,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## What to Look For
+## What to look for
 
 The two methods solve different parts of the reconnect story:
 
@@ -147,7 +147,7 @@ Use `listConnectableSessions()` instead of `listSessions()` here. It already fil
 
 In app code, call `prepareSessionForRemoteAttach()` right before your app opens a live connection to the session, whether that's to send messages to the agent or stream its events. It returns the current session detail so your app can branch on `runtimeAvailable`, `wakeAvailable`, and `historyOnly`. A thrown error usually means the underlying `getSession()` or `resumeSession()` call failed, so handle it like any other SDK error.
 
-## Example Output
+## Example output
 
 An attachable session may look like this:
 
@@ -173,7 +173,7 @@ A session that can no longer be re-attached falls back to session history or sto
 }
 ```
 
-## Key Points
+## Key points
 
 - Use `listConnectableSessions()` for chooser UIs, resume commands, and recent-session pickers.
 - Call `prepareSessionForRemoteAttach()` right before your app opens its live connection to the session, and branch on `runtimeAvailable`, `wakeAvailable`, and `historyOnly` to decide the next step.
@@ -181,7 +181,7 @@ A session that can no longer be re-attached falls back to session history or sto
 - Once a session is `historyOnly`, switch to the replay hydration stream or `listEventHistory()` for a structured timeline.
 - For the CLI flow, `agentuity coder tui --remote` builds on the same reconnect idea.
 
-## See Also
+## See also
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Create sessions, read state, and manage lifecycle from code
 - [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Create loop workflows and inspect loop state

@@ -169,17 +169,23 @@ import { Route as DocsCookbookPatternsWebhookHandlerRouteImport } from './routes
 import { Route as DocsCookbookPatternsWebExplorationRouteImport } from './routes/_docs/cookbook/patterns/web-exploration'
 import { Route as DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRouteImport } from './routes/_docs/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection'
 import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/_docs/cookbook/patterns/tailwind-setup'
+import { Route as DocsCookbookPatternsStructuredLoggingWithPinoRouteImport } from './routes/_docs/cookbook/patterns/structured-logging-with-pino'
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities'
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search'
 import { Route as DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRouteImport } from './routes/_docs/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
+import { Route as DocsCookbookPatternsOpentelemetryRouteSpansRouteImport } from './routes/_docs/cookbook/patterns/opentelemetry-route-spans'
+import { Route as DocsCookbookPatternsOpenaiEvalsApiRouteImport } from './routes/_docs/cookbook/patterns/openai-evals-api'
 import { Route as DocsCookbookPatternsObservingACoderSessionThroughTheHubRouteImport } from './routes/_docs/cookbook/patterns/observing-a-coder-session-through-the-hub'
+import { Route as DocsCookbookPatternsLogtapeStructuredLoggingRouteImport } from './routes/_docs/cookbook/patterns/logtape-structured-logging'
 import { Route as DocsCookbookPatternsLlmAsAJudgeRouteImport } from './routes/_docs/cookbook/patterns/llm-as-a-judge'
+import { Route as DocsCookbookPatternsLangfuseOtelTracingRouteImport } from './routes/_docs/cookbook/patterns/langfuse-otel-tracing'
 import { Route as DocsCookbookPatternsHonoRpcTanstackQueryRouteImport } from './routes/_docs/cookbook/patterns/hono-rpc-tanstack-query'
 import { Route as DocsCookbookPatternsCronWithStorageRouteImport } from './routes/_docs/cookbook/patterns/cron-with-storage'
 import { Route as DocsCookbookPatternsCreatingLoopModeCoderSessionsRouteImport } from './routes/_docs/cookbook/patterns/creating-loop-mode-coder-sessions'
 import { Route as DocsCookbookPatternsCreatingCoderSessionsWithSdkRouteImport } from './routes/_docs/cookbook/patterns/creating-coder-sessions-with-sdk'
 import { Route as DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRouteImport } from './routes/_docs/cookbook/patterns/choosing-built-in-agents-for-a-coder-session'
 import { Route as DocsCookbookPatternsChatWithHistoryRouteImport } from './routes/_docs/cookbook/patterns/chat-with-history'
+import { Route as DocsCookbookPatternsBraintrustEvalsRouteImport } from './routes/_docs/cookbook/patterns/braintrust-evals'
 import { Route as DocsCookbookPatternsBackgroundTasksRouteImport } from './routes/_docs/cookbook/patterns/background-tasks'
 import { Route as DocsCookbookPatternsAutonomousResearchRouteImport } from './routes/_docs/cookbook/patterns/autonomous-research'
 import { Route as DocsCookbookPatternsAttachingSkillsToACoderSessionRouteImport } from './routes/_docs/cookbook/patterns/attaching-skills-to-a-coder-session'
@@ -1078,6 +1084,12 @@ const DocsCookbookPatternsTailwindSetupRoute =
     path: '/cookbook/patterns/tailwind-setup',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsCookbookPatternsStructuredLoggingWithPinoRoute =
+  DocsCookbookPatternsStructuredLoggingWithPinoRouteImport.update({
+    id: '/cookbook/patterns/structured-logging-with-pino',
+    path: '/cookbook/patterns/structured-logging-with-pino',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsCookbookPatternsServerUtilitiesRoute =
   DocsCookbookPatternsServerUtilitiesRouteImport.update({
     id: '/cookbook/patterns/server-utilities',
@@ -1096,16 +1108,40 @@ const DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute =
     path: '/cookbook/patterns/preparing-coder-sessions-for-remote-attach',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsCookbookPatternsOpentelemetryRouteSpansRoute =
+  DocsCookbookPatternsOpentelemetryRouteSpansRouteImport.update({
+    id: '/cookbook/patterns/opentelemetry-route-spans',
+    path: '/cookbook/patterns/opentelemetry-route-spans',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCookbookPatternsOpenaiEvalsApiRoute =
+  DocsCookbookPatternsOpenaiEvalsApiRouteImport.update({
+    id: '/cookbook/patterns/openai-evals-api',
+    path: '/cookbook/patterns/openai-evals-api',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute =
   DocsCookbookPatternsObservingACoderSessionThroughTheHubRouteImport.update({
     id: '/cookbook/patterns/observing-a-coder-session-through-the-hub',
     path: '/cookbook/patterns/observing-a-coder-session-through-the-hub',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsCookbookPatternsLogtapeStructuredLoggingRoute =
+  DocsCookbookPatternsLogtapeStructuredLoggingRouteImport.update({
+    id: '/cookbook/patterns/logtape-structured-logging',
+    path: '/cookbook/patterns/logtape-structured-logging',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
 const DocsCookbookPatternsLlmAsAJudgeRoute =
   DocsCookbookPatternsLlmAsAJudgeRouteImport.update({
     id: '/cookbook/patterns/llm-as-a-judge',
     path: '/cookbook/patterns/llm-as-a-judge',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCookbookPatternsLangfuseOtelTracingRoute =
+  DocsCookbookPatternsLangfuseOtelTracingRouteImport.update({
+    id: '/cookbook/patterns/langfuse-otel-tracing',
+    path: '/cookbook/patterns/langfuse-otel-tracing',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsCookbookPatternsHonoRpcTanstackQueryRoute =
@@ -1142,6 +1178,12 @@ const DocsCookbookPatternsChatWithHistoryRoute =
   DocsCookbookPatternsChatWithHistoryRouteImport.update({
     id: '/cookbook/patterns/chat-with-history',
     path: '/cookbook/patterns/chat-with-history',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCookbookPatternsBraintrustEvalsRoute =
+  DocsCookbookPatternsBraintrustEvalsRouteImport.update({
+    id: '/cookbook/patterns/braintrust-evals',
+    path: '/cookbook/patterns/braintrust-evals',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsCookbookPatternsBackgroundTasksRoute =
@@ -1337,17 +1379,23 @@ export interface FileRoutesByFullPath {
   '/cookbook/patterns/attaching-skills-to-a-coder-session': typeof DocsCookbookPatternsAttachingSkillsToACoderSessionRoute
   '/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute
   '/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute
+  '/cookbook/patterns/braintrust-evals': typeof DocsCookbookPatternsBraintrustEvalsRoute
   '/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute
   '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session': typeof DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRoute
   '/cookbook/patterns/creating-coder-sessions-with-sdk': typeof DocsCookbookPatternsCreatingCoderSessionsWithSdkRoute
   '/cookbook/patterns/creating-loop-mode-coder-sessions': typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   '/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
   '/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  '/cookbook/patterns/langfuse-otel-tracing': typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   '/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  '/cookbook/patterns/logtape-structured-logging': typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
   '/cookbook/patterns/observing-a-coder-session-through-the-hub': typeof DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute
+  '/cookbook/patterns/openai-evals-api': typeof DocsCookbookPatternsOpenaiEvalsApiRoute
+  '/cookbook/patterns/opentelemetry-route-spans': typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   '/cookbook/patterns/preparing-coder-sessions-for-remote-attach': typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   '/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
   '/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
+  '/cookbook/patterns/structured-logging-with-pino': typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   '/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
   '/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection': typeof DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRoute
   '/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute
@@ -1522,17 +1570,23 @@ export interface FileRoutesByTo {
   '/cookbook/patterns/attaching-skills-to-a-coder-session': typeof DocsCookbookPatternsAttachingSkillsToACoderSessionRoute
   '/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute
   '/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute
+  '/cookbook/patterns/braintrust-evals': typeof DocsCookbookPatternsBraintrustEvalsRoute
   '/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute
   '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session': typeof DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRoute
   '/cookbook/patterns/creating-coder-sessions-with-sdk': typeof DocsCookbookPatternsCreatingCoderSessionsWithSdkRoute
   '/cookbook/patterns/creating-loop-mode-coder-sessions': typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   '/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
   '/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  '/cookbook/patterns/langfuse-otel-tracing': typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   '/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  '/cookbook/patterns/logtape-structured-logging': typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
   '/cookbook/patterns/observing-a-coder-session-through-the-hub': typeof DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute
+  '/cookbook/patterns/openai-evals-api': typeof DocsCookbookPatternsOpenaiEvalsApiRoute
+  '/cookbook/patterns/opentelemetry-route-spans': typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   '/cookbook/patterns/preparing-coder-sessions-for-remote-attach': typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   '/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
   '/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
+  '/cookbook/patterns/structured-logging-with-pino': typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   '/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
   '/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection': typeof DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRoute
   '/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute
@@ -1711,17 +1765,23 @@ export interface FileRoutesById {
   '/_docs/cookbook/patterns/attaching-skills-to-a-coder-session': typeof DocsCookbookPatternsAttachingSkillsToACoderSessionRoute
   '/_docs/cookbook/patterns/autonomous-research': typeof DocsCookbookPatternsAutonomousResearchRoute
   '/_docs/cookbook/patterns/background-tasks': typeof DocsCookbookPatternsBackgroundTasksRoute
+  '/_docs/cookbook/patterns/braintrust-evals': typeof DocsCookbookPatternsBraintrustEvalsRoute
   '/_docs/cookbook/patterns/chat-with-history': typeof DocsCookbookPatternsChatWithHistoryRoute
   '/_docs/cookbook/patterns/choosing-built-in-agents-for-a-coder-session': typeof DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRoute
   '/_docs/cookbook/patterns/creating-coder-sessions-with-sdk': typeof DocsCookbookPatternsCreatingCoderSessionsWithSdkRoute
   '/_docs/cookbook/patterns/creating-loop-mode-coder-sessions': typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   '/_docs/cookbook/patterns/cron-with-storage': typeof DocsCookbookPatternsCronWithStorageRoute
   '/_docs/cookbook/patterns/hono-rpc-tanstack-query': typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  '/_docs/cookbook/patterns/langfuse-otel-tracing': typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   '/_docs/cookbook/patterns/llm-as-a-judge': typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  '/_docs/cookbook/patterns/logtape-structured-logging': typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
   '/_docs/cookbook/patterns/observing-a-coder-session-through-the-hub': typeof DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute
+  '/_docs/cookbook/patterns/openai-evals-api': typeof DocsCookbookPatternsOpenaiEvalsApiRoute
+  '/_docs/cookbook/patterns/opentelemetry-route-spans': typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   '/_docs/cookbook/patterns/preparing-coder-sessions-for-remote-attach': typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   '/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
   '/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
+  '/_docs/cookbook/patterns/structured-logging-with-pino': typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   '/_docs/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
   '/_docs/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection': typeof DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRoute
   '/_docs/cookbook/patterns/web-exploration': typeof DocsCookbookPatternsWebExplorationRoute
@@ -1900,17 +1960,23 @@ export interface FileRouteTypes {
     | '/cookbook/patterns/attaching-skills-to-a-coder-session'
     | '/cookbook/patterns/autonomous-research'
     | '/cookbook/patterns/background-tasks'
+    | '/cookbook/patterns/braintrust-evals'
     | '/cookbook/patterns/chat-with-history'
     | '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session'
     | '/cookbook/patterns/creating-coder-sessions-with-sdk'
     | '/cookbook/patterns/creating-loop-mode-coder-sessions'
     | '/cookbook/patterns/cron-with-storage'
     | '/cookbook/patterns/hono-rpc-tanstack-query'
+    | '/cookbook/patterns/langfuse-otel-tracing'
     | '/cookbook/patterns/llm-as-a-judge'
+    | '/cookbook/patterns/logtape-structured-logging'
     | '/cookbook/patterns/observing-a-coder-session-through-the-hub'
+    | '/cookbook/patterns/openai-evals-api'
+    | '/cookbook/patterns/opentelemetry-route-spans'
     | '/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
     | '/cookbook/patterns/product-search'
     | '/cookbook/patterns/server-utilities'
+    | '/cookbook/patterns/structured-logging-with-pino'
     | '/cookbook/patterns/tailwind-setup'
     | '/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection'
     | '/cookbook/patterns/web-exploration'
@@ -2085,17 +2151,23 @@ export interface FileRouteTypes {
     | '/cookbook/patterns/attaching-skills-to-a-coder-session'
     | '/cookbook/patterns/autonomous-research'
     | '/cookbook/patterns/background-tasks'
+    | '/cookbook/patterns/braintrust-evals'
     | '/cookbook/patterns/chat-with-history'
     | '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session'
     | '/cookbook/patterns/creating-coder-sessions-with-sdk'
     | '/cookbook/patterns/creating-loop-mode-coder-sessions'
     | '/cookbook/patterns/cron-with-storage'
     | '/cookbook/patterns/hono-rpc-tanstack-query'
+    | '/cookbook/patterns/langfuse-otel-tracing'
     | '/cookbook/patterns/llm-as-a-judge'
+    | '/cookbook/patterns/logtape-structured-logging'
     | '/cookbook/patterns/observing-a-coder-session-through-the-hub'
+    | '/cookbook/patterns/openai-evals-api'
+    | '/cookbook/patterns/opentelemetry-route-spans'
     | '/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
     | '/cookbook/patterns/product-search'
     | '/cookbook/patterns/server-utilities'
+    | '/cookbook/patterns/structured-logging-with-pino'
     | '/cookbook/patterns/tailwind-setup'
     | '/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection'
     | '/cookbook/patterns/web-exploration'
@@ -2273,17 +2345,23 @@ export interface FileRouteTypes {
     | '/_docs/cookbook/patterns/attaching-skills-to-a-coder-session'
     | '/_docs/cookbook/patterns/autonomous-research'
     | '/_docs/cookbook/patterns/background-tasks'
+    | '/_docs/cookbook/patterns/braintrust-evals'
     | '/_docs/cookbook/patterns/chat-with-history'
     | '/_docs/cookbook/patterns/choosing-built-in-agents-for-a-coder-session'
     | '/_docs/cookbook/patterns/creating-coder-sessions-with-sdk'
     | '/_docs/cookbook/patterns/creating-loop-mode-coder-sessions'
     | '/_docs/cookbook/patterns/cron-with-storage'
     | '/_docs/cookbook/patterns/hono-rpc-tanstack-query'
+    | '/_docs/cookbook/patterns/langfuse-otel-tracing'
     | '/_docs/cookbook/patterns/llm-as-a-judge'
+    | '/_docs/cookbook/patterns/logtape-structured-logging'
     | '/_docs/cookbook/patterns/observing-a-coder-session-through-the-hub'
+    | '/_docs/cookbook/patterns/openai-evals-api'
+    | '/_docs/cookbook/patterns/opentelemetry-route-spans'
     | '/_docs/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
     | '/_docs/cookbook/patterns/product-search'
     | '/_docs/cookbook/patterns/server-utilities'
+    | '/_docs/cookbook/patterns/structured-logging-with-pino'
     | '/_docs/cookbook/patterns/tailwind-setup'
     | '/_docs/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection'
     | '/_docs/cookbook/patterns/web-exploration'
@@ -3508,6 +3586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsCookbookPatternsTailwindSetupRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/cookbook/patterns/structured-logging-with-pino': {
+      id: '/_docs/cookbook/patterns/structured-logging-with-pino'
+      path: '/cookbook/patterns/structured-logging-with-pino'
+      fullPath: '/cookbook/patterns/structured-logging-with-pino'
+      preLoaderRoute: typeof DocsCookbookPatternsStructuredLoggingWithPinoRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/cookbook/patterns/server-utilities': {
       id: '/_docs/cookbook/patterns/server-utilities'
       path: '/cookbook/patterns/server-utilities'
@@ -3529,6 +3614,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/cookbook/patterns/opentelemetry-route-spans': {
+      id: '/_docs/cookbook/patterns/opentelemetry-route-spans'
+      path: '/cookbook/patterns/opentelemetry-route-spans'
+      fullPath: '/cookbook/patterns/opentelemetry-route-spans'
+      preLoaderRoute: typeof DocsCookbookPatternsOpentelemetryRouteSpansRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/patterns/openai-evals-api': {
+      id: '/_docs/cookbook/patterns/openai-evals-api'
+      path: '/cookbook/patterns/openai-evals-api'
+      fullPath: '/cookbook/patterns/openai-evals-api'
+      preLoaderRoute: typeof DocsCookbookPatternsOpenaiEvalsApiRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/cookbook/patterns/observing-a-coder-session-through-the-hub': {
       id: '/_docs/cookbook/patterns/observing-a-coder-session-through-the-hub'
       path: '/cookbook/patterns/observing-a-coder-session-through-the-hub'
@@ -3536,11 +3635,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsCookbookPatternsObservingACoderSessionThroughTheHubRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/cookbook/patterns/logtape-structured-logging': {
+      id: '/_docs/cookbook/patterns/logtape-structured-logging'
+      path: '/cookbook/patterns/logtape-structured-logging'
+      fullPath: '/cookbook/patterns/logtape-structured-logging'
+      preLoaderRoute: typeof DocsCookbookPatternsLogtapeStructuredLoggingRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
     '/_docs/cookbook/patterns/llm-as-a-judge': {
       id: '/_docs/cookbook/patterns/llm-as-a-judge'
       path: '/cookbook/patterns/llm-as-a-judge'
       fullPath: '/cookbook/patterns/llm-as-a-judge'
       preLoaderRoute: typeof DocsCookbookPatternsLlmAsAJudgeRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/patterns/langfuse-otel-tracing': {
+      id: '/_docs/cookbook/patterns/langfuse-otel-tracing'
+      path: '/cookbook/patterns/langfuse-otel-tracing'
+      fullPath: '/cookbook/patterns/langfuse-otel-tracing'
+      preLoaderRoute: typeof DocsCookbookPatternsLangfuseOtelTracingRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/cookbook/patterns/hono-rpc-tanstack-query': {
@@ -3583,6 +3696,13 @@ declare module '@tanstack/react-router' {
       path: '/cookbook/patterns/chat-with-history'
       fullPath: '/cookbook/patterns/chat-with-history'
       preLoaderRoute: typeof DocsCookbookPatternsChatWithHistoryRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/patterns/braintrust-evals': {
+      id: '/_docs/cookbook/patterns/braintrust-evals'
+      path: '/cookbook/patterns/braintrust-evals'
+      fullPath: '/cookbook/patterns/braintrust-evals'
+      preLoaderRoute: typeof DocsCookbookPatternsBraintrustEvalsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/cookbook/patterns/background-tasks': {
@@ -3850,17 +3970,23 @@ interface DocsRouteRouteChildren {
   DocsCookbookPatternsAttachingSkillsToACoderSessionRoute: typeof DocsCookbookPatternsAttachingSkillsToACoderSessionRoute
   DocsCookbookPatternsAutonomousResearchRoute: typeof DocsCookbookPatternsAutonomousResearchRoute
   DocsCookbookPatternsBackgroundTasksRoute: typeof DocsCookbookPatternsBackgroundTasksRoute
+  DocsCookbookPatternsBraintrustEvalsRoute: typeof DocsCookbookPatternsBraintrustEvalsRoute
   DocsCookbookPatternsChatWithHistoryRoute: typeof DocsCookbookPatternsChatWithHistoryRoute
   DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRoute: typeof DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRoute
   DocsCookbookPatternsCreatingCoderSessionsWithSdkRoute: typeof DocsCookbookPatternsCreatingCoderSessionsWithSdkRoute
   DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute: typeof DocsCookbookPatternsCreatingLoopModeCoderSessionsRoute
   DocsCookbookPatternsCronWithStorageRoute: typeof DocsCookbookPatternsCronWithStorageRoute
   DocsCookbookPatternsHonoRpcTanstackQueryRoute: typeof DocsCookbookPatternsHonoRpcTanstackQueryRoute
+  DocsCookbookPatternsLangfuseOtelTracingRoute: typeof DocsCookbookPatternsLangfuseOtelTracingRoute
   DocsCookbookPatternsLlmAsAJudgeRoute: typeof DocsCookbookPatternsLlmAsAJudgeRoute
+  DocsCookbookPatternsLogtapeStructuredLoggingRoute: typeof DocsCookbookPatternsLogtapeStructuredLoggingRoute
   DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute: typeof DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute
+  DocsCookbookPatternsOpenaiEvalsApiRoute: typeof DocsCookbookPatternsOpenaiEvalsApiRoute
+  DocsCookbookPatternsOpentelemetryRouteSpansRoute: typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute: typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute
   DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute
+  DocsCookbookPatternsStructuredLoggingWithPinoRoute: typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   DocsCookbookPatternsTailwindSetupRoute: typeof DocsCookbookPatternsTailwindSetupRoute
   DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRoute: typeof DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRoute
   DocsCookbookPatternsWebExplorationRoute: typeof DocsCookbookPatternsWebExplorationRoute
@@ -3999,6 +4125,8 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
     DocsCookbookPatternsAutonomousResearchRoute,
   DocsCookbookPatternsBackgroundTasksRoute:
     DocsCookbookPatternsBackgroundTasksRoute,
+  DocsCookbookPatternsBraintrustEvalsRoute:
+    DocsCookbookPatternsBraintrustEvalsRoute,
   DocsCookbookPatternsChatWithHistoryRoute:
     DocsCookbookPatternsChatWithHistoryRoute,
   DocsCookbookPatternsChoosingBuiltInAgentsForACoderSessionRoute:
@@ -4011,15 +4139,25 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
     DocsCookbookPatternsCronWithStorageRoute,
   DocsCookbookPatternsHonoRpcTanstackQueryRoute:
     DocsCookbookPatternsHonoRpcTanstackQueryRoute,
+  DocsCookbookPatternsLangfuseOtelTracingRoute:
+    DocsCookbookPatternsLangfuseOtelTracingRoute,
   DocsCookbookPatternsLlmAsAJudgeRoute: DocsCookbookPatternsLlmAsAJudgeRoute,
+  DocsCookbookPatternsLogtapeStructuredLoggingRoute:
+    DocsCookbookPatternsLogtapeStructuredLoggingRoute,
   DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute:
     DocsCookbookPatternsObservingACoderSessionThroughTheHubRoute,
+  DocsCookbookPatternsOpenaiEvalsApiRoute:
+    DocsCookbookPatternsOpenaiEvalsApiRoute,
+  DocsCookbookPatternsOpentelemetryRouteSpansRoute:
+    DocsCookbookPatternsOpentelemetryRouteSpansRoute,
   DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute:
     DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute,
   DocsCookbookPatternsProductSearchRoute:
     DocsCookbookPatternsProductSearchRoute,
   DocsCookbookPatternsServerUtilitiesRoute:
     DocsCookbookPatternsServerUtilitiesRoute,
+  DocsCookbookPatternsStructuredLoggingWithPinoRoute:
+    DocsCookbookPatternsStructuredLoggingWithPinoRoute,
   DocsCookbookPatternsTailwindSetupRoute:
     DocsCookbookPatternsTailwindSetupRoute,
   DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentSelectionRoute:

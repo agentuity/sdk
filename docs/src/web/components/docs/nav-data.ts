@@ -167,7 +167,8 @@ export const navData: NavSection[] = [
 			{
 				title: 'What is Agentuity?',
 				url: '/get-started/what-is-agentuity',
-				description: 'The full-stack platform for building, deploying, and operating AI agents',
+				description:
+					'Deploy framework apps, APIs, static sites, backend work, and agents on Agentuity',
 			},
 		],
 	},
@@ -428,7 +429,7 @@ export const navData: NavSection[] = [
 						title: 'Evals and testing',
 						url: '/services/observability/evals-and-testing',
 						description:
-							'Evaluate agent behavior with LLM judges, traces, Braintrust, or your own tooling.',
+							'Add eval workflows with output contracts, judges, traces, and external tools.',
 					},
 					{
 						title: 'Sessions & Debugging',
@@ -591,6 +592,40 @@ export const navData: NavSection[] = [
 						url: '/cookbook/patterns/llm-as-a-judge',
 						description:
 							"Use a model to evaluate another model's output for quality, grounding, or comparison",
+					},
+					{
+						title: 'OpenAI Evals API',
+						url: '/cookbook/patterns/openai-evals-api',
+						description:
+							'Run OpenAI Evals API suites against prompts that live in an Agentuity app',
+					},
+					{
+						title: 'Braintrust Evals',
+						url: '/cookbook/patterns/braintrust-evals',
+						description: 'Run Braintrust evals against app-owned Agentuity functions',
+					},
+					{
+						title: 'Pino Logging',
+						url: '/cookbook/patterns/structured-logging-with-pino',
+						description:
+							'Keep app-owned Pino logs while adding Agentuity services beside them',
+					},
+					{
+						title: 'LogTape Logging',
+						url: '/cookbook/patterns/logtape-structured-logging',
+						description:
+							'Keep LogTape structured logs app-owned while optionally exporting logs through OpenTelemetry',
+					},
+					{
+						title: 'OpenTelemetry Spans',
+						url: '/cookbook/patterns/opentelemetry-route-spans',
+						description:
+							'Keep existing OpenTelemetry startup and add route-level spans with the standard API',
+					},
+					{
+						title: 'Langfuse Tracing',
+						url: '/cookbook/patterns/langfuse-otel-tracing',
+						description: 'Keep Langfuse as the trace backend for Agentuity app code',
 					},
 					{
 						title: 'Web Exploration',

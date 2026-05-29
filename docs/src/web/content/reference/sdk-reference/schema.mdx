@@ -10,11 +10,11 @@ Use this page when you maintain code that already uses `@agentuity/schema`. New 
 `@agentuity/schema` remains available for existing projects, but new v3 docs and starters should prefer Zod, ArkType, or Valibot. Keep using this reference when you are migrating older code or need the package-specific helpers below.
 </Callout>
 
-## StandardSchema Support
+## StandardSchema support
 
 `@agentuity/schema` implements the [StandardSchemaV1](https://github.com/standard-schema/standard-schema) interface. That makes schemas usable at app boundaries, service helpers, AI SDK structured output calls, and any code that accepts StandardSchema validators.
 
-## Type Inference
+## Type inference
 
 Derive TypeScript types from the schema instead of writing a second interface.
 
@@ -60,7 +60,7 @@ export async function POST(request: Request): Promise<Response> {
 
 Type inference keeps route code, shared functions, and tests tied to the same source of truth. Change the schema and callers see the new type.
 
-## Primitive Types
+## Primitive types
 
 The `s` builder provides schemas for all JavaScript primitive types.
 
@@ -95,7 +95,7 @@ Every schema supports `.describe()` for documentation. Descriptions carry throug
 const age = s.number().describe('Age in years');
 ```
 
-## Complex Types
+## Complex types
 
 Build structured schemas with `s.object()`, `s.array()`, and `s.record()`.
 
@@ -142,7 +142,7 @@ config.parse({ timeout: 30, retries: 3 }); // OK
 config.parse({ timeout: 'fast' }); // throws ValidationError
 ```
 
-## Utility Types
+## Utility types
 
 Utility schemas modify or combine other schemas.
 
@@ -190,7 +190,7 @@ const maybeString = s.string().optional();  // string | undefined
 const nullableNum = s.number().nullable();  // number | null
 ```
 
-## Extracting Types with `s.infer`
+## Extracting types with `s.infer`
 
 Use `s.infer<typeof Schema>` to extract the TypeScript type from any schema. Derive the type from the schema instead of writing a separate interface.
 
@@ -224,7 +224,7 @@ import { type Infer } from '@agentuity/schema';
 type User = Infer<typeof UserSchema>;
 ```
 
-## Type Coercion
+## Type coercion
 
 Coercion schemas convert input values before validating. Useful for form data, query parameters, and other string-based inputs where the runtime type doesn't match the desired type.
 
@@ -263,7 +263,7 @@ s.coerce.number().parse('abc');     // throws: Cannot coerce string to number
 s.coerce.date().parse('not-a-date'); // throws: Cannot coerce string to date
 ```
 
-## JSON Schema Conversion
+## JSON schema conversion
 
 Convert between `@agentuity/schema` schemas and a JSON Schema Draft 7 subset. This is useful for LLM structured output, API documentation, and interoperability with tools that consume JSON Schema.
 
@@ -313,7 +313,7 @@ const schema = s.fromJSONSchema(jsonSchema);
 const result = schema.parse({ name: 'Alice', score: 95 });
 ```
 
-### Using with AI SDK Structured Output
+### Using with AI SDK structured output
 
 Use `toJSONSchema()` with `{ strict: true }` when passing an `@agentuity/schema` schema to AI SDK structured output. The `strict` flag adds `additionalProperties: false` to every object, which providers like OpenAI require.
 
@@ -358,7 +358,7 @@ This approach works with any provider that accepts JSON Schema for structured ou
 
 For supported LLM providers, see [AI Gateway](/services/ai-gateway).
 
-## Validation Errors
+## Validation errors
 
 Every schema provides two ways to validate data: `parse()` throws on failure, `safeParse()` returns a result object.
 

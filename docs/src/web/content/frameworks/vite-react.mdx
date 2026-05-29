@@ -6,7 +6,7 @@ description: Build a Vite React SPA with a Bun server boundary for secrets and A
 
 A Vite React app runs entirely in the browser, which means it cannot safely hold API keys or call Agentuity services directly. The pattern here pairs the SPA with a thin `server.ts` that handles `/api/*` routes, holds secrets, and proxies the Vite dev server in development. In deployed builds the same process serves the static bundle.
 
-## Create the Framework App
+## Create the framework app
 
 ```bash
 npm create vite@latest my-vite-app -- --template react-ts
@@ -16,14 +16,23 @@ cd my-vite-app
 Then add Agentuity and create a small server boundary:
 
 ```bash
-bun add -d @agentuity/cli@next
-agentuity project import --validate-only
-agentuity project import
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only
+npx agentuity project import
 ```
 
-Use the package manager your Vite app uses. Agentuity does not scaffold Vite + React from `bun create agentuity@next` today.
+Use the package manager your Vite app uses. The CLI install is project-local: `-D` or `--dev` records `@agentuity/cli` in `devDependencies`, which keeps the CLI version in the app's lockfile. Bun's equivalent is lowercase `-d`.
 
-If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, or the equivalent for your package manager.
+| Package manager | Add local CLI | Run local CLI | Undo local install |
+| --- | --- | --- | --- |
+| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+
+A global install is optional. It only makes bare `agentuity ...` work outside a project; it does not import or register the app. You can switch back by adding the dev dependency again and using the package-manager exec wrapper. The global install can stay installed, or you can remove it with the package manager that created it. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for the trade-offs.
+
+Agentuity does not scaffold Vite + React from `bun create agentuity@next` today.
 
 | File | Purpose |
 |------|---------|
@@ -31,37 +40,40 @@ If you did not install the CLI globally, run the same commands through your pack
 | `server.ts` | Bun server: handles `/api/*` and serves static files in deployed builds |
 | `vite.config.ts` | Vite configuration |
 
-## Add to an Existing App
+## Add to an existing app
 
 Install the CLI as a dev dependency, then import the project:
 
 ```bash
-bun add -d @agentuity/cli@next
-agentuity project import --validate-only   # dry run: checks config only
-agentuity project import                   # registers the project and writes agentuity.json
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only   # dry run: checks config only
+npx agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, and `OPENAI_BASE_URL` into the process that runs your `dev` script.
+Use the package-manager table above if the app is not npm-based.
+
+`agentuity dev` can supply `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the process that runs your `dev` script.
 
 <Callout type="tip" title="Existing app?">
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
 </Callout>
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | Vite keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | browser SPA routes | a server boundary for secrets and `/api/*` routes |
-| local dev | Vite dev server | `agentuity dev` injects service and AI Gateway environment values |
-| build | Vite browser bundle | `agentuity build` packages the Bun server entry |
+| local dev | Vite dev server | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| build | Vite browser bundle | `agentuity build` runs the build and packages the Bun server entry |
 | deploy | `dist/server.js` plus static assets | `agentuity deploy` ships the packaged app |
 
-## Add a Server Boundary
+## Add a server boundary
 
 Browser code cannot use `AGENTUITY_SDK_KEY` or provider secrets safely. Move those calls into `server.ts` and call them from React over `fetch`.
 
 ```bash
-bun add @agentuity/keyvalue@next zod@^3.23.8 openai
+npm install @agentuity/keyvalue@next zod openai
+npm install -D @types/bun
 ```
 
 The server below handles `POST /api/translate`, stores session history in KV, calls OpenAI through the AI Gateway, and falls back to a Vite dev proxy in development:
@@ -183,7 +195,7 @@ Bun.serve({ // [!code highlight]
     }
 
     // Development: proxy everything else to the Vite dev server
-    const viteRes = await fetch(`http://localhost:5173${url.pathname}${url.search}`, { // [!code highlight]
+    const viteRes = await fetch(`http://127.0.0.1:5173${url.pathname}${url.search}`, { // [!code highlight]
       method: request.method,
       headers: request.headers,
       body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
@@ -200,7 +212,7 @@ The local script below runs this file with Bun so `Bun.serve`, `Bun.file`, and H
 
 Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
 
-### Call the Server from React
+### Call the server from React
 
 ```tsx title="src/App.tsx"
 async function translate(text: string, toLanguage: string): Promise<string> {
@@ -219,7 +231,7 @@ async function translate(text: string, toLanguage: string): Promise<string> {
 }
 ```
 
-## Run Locally
+## Run locally
 
 A Vite + React app needs two processes during development: Vite for the SPA and `server.ts` for the API. The default `dev` script from `create-vite` only runs Vite, so configure `package.json` to run both.
 
@@ -230,7 +242,7 @@ The recommended pattern uses [`bun run --parallel`](https://bun.com/docs/cli/run
   "scripts": {
     "dev": "agentuity dev --script dev:start",
     "dev:start": "bun run --parallel dev:vite dev:server",
-    "dev:vite": "vite",
+    "dev:vite": "vite --host 127.0.0.1",
     "dev:server": "bun --hot server.ts",
     "build": "tsc -b && vite build && bun build server.ts --target=bun --outfile=dist/server.js",
     "start": "NODE_ENV=production bun dist/server.js",
@@ -240,10 +252,10 @@ The recommended pattern uses [`bun run --parallel`](https://bun.com/docs/cli/run
 ```
 
 ```bash
-bun run dev
+npm run dev
 ```
 
-`agentuity dev` runs the wrapper `dev:start` script, which uses Bun's parallel runner to launch both Vite and `server.ts` in the same process group. `agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000` so both scripts inherit them. `server.ts` reads `PORT` and listens on 3000; Vite uses its default port 5173 internally.
+`agentuity dev` runs the wrapper `dev:start` script, which uses Bun's parallel runner to launch both Vite and `server.ts` in the same process group. The CLI supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and `PORT=3000` when the linked project key is available. `server.ts` reads `PORT` and listens on 3000; Vite uses port 5173 internally.
 
 <Callout type="warning" title="This server boundary uses Bun">
 Do not swap `dev:server` to `node --watch server.ts` unless you also rewrite `server.ts` for Node APIs. This example uses `Bun.serve` and `Bun.file`, so run it with Bun locally and in the deployed start script.
@@ -252,7 +264,7 @@ Do not swap `dev:server` to `node --watch server.ts` unless you also rewrite `se
 Smoke-test the API route on port 3000:
 
 ```bash
-curl http://127.0.0.1:3000/api/translate \
+curl http://localhost:3000/api/translate \
   -H "content-type: application/json" \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
@@ -261,9 +273,9 @@ curl http://127.0.0.1:3000/api/translate \
 In development, `server.ts` proxies non-API requests to Vite on port 5173. Your browser hits port 3000 for everything, including HMR. `vite.config.ts` does not need a proxy entry because the proxy runs in the other direction.
 </Callout>
 
-## Deployed Environment Variables
+## Deployed environment variables
 
-Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
 | Variable | Used by |
 | --- | --- |
@@ -271,38 +283,33 @@ Configure the same variables in the deployed app that `agentuity dev` injects lo
 | `OPENAI_MODEL` | example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database routes in `server.ts` |
 | `AWS_*` | object storage routes in `server.ts`; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate Before Deploy
+## Validate before deploy
 
-Build the app and run the Agentuity build validator before deploying:
+Run the framework build when you want Vite/server-only feedback, then run the Agentuity build validator before deploying. `agentuity build` runs the build script during packaging and writes `.agentuity/launch.json`.
 
 ```bash
-bun run build
-agentuity build
+npm run build
+npx agentuity build
 cat .agentuity/launch.json
 ```
 
-If `agentuity build` cannot find the local Vite binary, add `node_modules/.bin` to `PATH`:
-
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
-```
-
-The `vite-react` create slug is detected as the generic `vite` adapter. Inspect `.agentuity/launch.json` to confirm the `start` command points at `dist/server.js`, not at `vite preview` or a static `_serve.js` helper.
+Vite + React apps are detected as the generic `vite` adapter. Inspect `.agentuity/launch.json` to confirm the `start` command points at `dist/server.js`, not at `vite preview` or a static `_serve.js` helper. If your start command has an env prefix such as `NODE_ENV=production bun dist/server.js`, trust `processes[0].command` over the `runtime.name` hint.
 
 Deploy only after the framework build, Agentuity build, and a local packaged validation of `/` and `/api/translate` pass:
 
 ```bash
-agentuity deploy --confirm
+npx agentuity deploy --confirm
 ```
 
 <Callout type="warning" title="Build server.ts separately">
 `vite build` only bundles the browser code. The `build` script must also run `bun build server.ts --target=bun --outfile=dist/server.js` so the deployed process has a compiled server entry. Missing this step means Agentuity will have no server to start.
 </Callout>
 
-## Common Gotchas
+## Common gotchas
 
 | Symptom | Fix |
 |---------|-----|
@@ -311,15 +318,15 @@ agentuity deploy --confirm
 | `/api/*` routes return SPA HTML after packaging | `launch.json` is starting a static helper such as `_serve.js`; it is not running `server.ts` |
 | `vite preview` used as the deployed server | `vite preview` is for local build verification only; it has no `/api/*` handler. See [Vite backend integration](https://vite.dev/guide/backend-integration) |
 | Missing `dist/server.js` after build | Add `bun build server.ts --target=bun --outfile=dist/server.js` to the `build` script |
-| OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` is set in the server process; `agentuity dev` sets it automatically. See [AI Gateway](/services/ai-gateway) |
-| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set in the server process; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway in the server process and a local `.env` is not intentionally overriding provider SDK wiring |
+| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway in the server process. See [AI Gateway](/services/ai-gateway) |
 
-## Framework Docs
+## Framework docs
 
 - [Vite Backend Integration](https://vite.dev/guide/backend-integration): how to connect Vite development to a backend server
 - [Vite Static Deploy](https://vite.dev/guide/static-deploy.html): `vite preview` is for local build verification only, not for serving deployed apps
 
-## Next Steps
+## Next steps
 
 - [App Configuration](/get-started/app-configuration): configure `agentuity.json`, environment variables, and scripts
 - [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output

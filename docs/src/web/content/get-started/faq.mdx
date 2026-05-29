@@ -11,7 +11,7 @@ Use this page when you need to choose the next docs path quickly. Each answer po
 
 No. Current Agentuity apps are normal framework apps with Agentuity services attached where you need them. Keep using your framework's routes, server functions, scripts, and build command, then use the Agentuity CLI for project metadata, local env wiring, packaging, deploy, and service clients. Start with [What is Agentuity?](/get-started/what-is-agentuity) for the mental model.
 
-### Should I start with Agentuity or my framework's CLI?
+### Start with Agentuity or my framework's CLI?
 
 Use [Quickstart](/get-started/quickstart) when you want Agentuity to create a fresh starter. Use your framework's official CLI first when you already know the framework shape you want, then follow [Add Agentuity to an existing app](/get-started/import-existing-app). For coding-agent work, scaffold first, add one service route, then require the agent to report the exact files and commands it changed.
 
@@ -19,15 +19,15 @@ Use [Quickstart](/get-started/quickstart) when you want Agentuity to create a fr
 
 No. Bun is common in these docs because the SDK repo and current starter path use it heavily, but the framework app still controls its own package manager and build scripts. When you import an existing app, keep the app's package manager unless you are intentionally migrating it.
 
-### Where should service client code live?
+### Where does service client code live?
 
 Put service clients in server-only code: route handlers, server actions, queue workers, schedule handlers, scripts, or other backend entry points. Do not put `AGENTUITY_SDK_KEY` in browser-exposed prefixes such as `NEXT_PUBLIC_*`, `VITE_*`, or `PUBLIC_*`. See [Add Agentuity to an existing app](/get-started/import-existing-app) for a minimal route.
 
-### Should a coding agent deploy for me?
+### Can a coding agent deploy for me?
 
-Only after you explicitly approve the exact cloud mutation. Ask the agent to run the native framework build, `agentuity project import --validate-only`, `agentuity build`, and to inspect `.agentuity/launch.json` before deploy. [Docs for Agents](/get-started/docs-for-agents) lists the stop conditions agents should follow.
+Only after you explicitly approve the exact cloud mutation. Ask the agent to run the native framework build, `agentuity project import --validate-only`, `agentuity build`, and to inspect `.agentuity/launch.json` before deploy. [Docs for Agents](/get-started/docs-for-agents) lists the stop conditions agents need to follow.
 
-## Build and Deploy
+## Build and deploy
 
 ### What is `launch.json`?
 
@@ -37,25 +37,25 @@ Only after you explicitly approve the exact cloud mutation. Ask the agent to run
 
 The CLI packages the build output it can detect. If the framework produces only static assets, Agentuity will serve static assets. For server behavior, use the framework's server output and start command, then run `agentuity build` and inspect `.agentuity/launch.json`; [TanStack Start](/frameworks/tanstack-start) shows this pattern with Nitro.
 
-### Should I use `project add` or install a package directly?
+### Use `project add` or install a package directly?
 
 Use the CLI when you want Agentuity to link a cloud-backed resource and write local project env. Install the package directly when you already have the resource/env values and only need the client in code. Either way, keep the service call in server-side code and verify with your app's normal build before deploy.
 
 ## Services
 
-### What database client should I use?
+### Which database client fits?
 
-Use the client that fits your app. For a SQL app that already owns `DATABASE_URL`, `pg`, Drizzle, Prisma, and Kysely are all normal choices because they sit on the app's database connection. Use Agentuity database docs for Agentuity-managed setup and deploy wiring, and avoid older helper patterns unless you are reading migration guidance.
+Use the client that fits your app. For a SQL app that already owns `DATABASE_URL`, `pg`, Drizzle, Prisma, and Kysely are all normal choices because they sit on the app's database connection. Use [Database](/services/database) for Agentuity-managed setup and deploy wiring, and avoid older helper patterns unless you are reading migration guidance.
 
 ### Where do AI Gateway model IDs come from?
 
-Run `agentuity cloud aigateway models` and use the exact catalog `id` your project can call. Display names help you scan the catalog, but code should use the model ID. See [AI Gateway](/services/ai-gateway) for catalog commands, provider SDK env wiring, and when to use your own provider key.
+Run `agentuity cloud aigateway models` and use the exact catalog `id` your project can call. Display names help you scan the catalog; code needs the model ID. See [AI Gateway](/services/ai-gateway) for catalog commands, provider SDK env wiring, and when to use your own provider key.
 
 ### Do I need provider keys for AI Gateway?
 
 `AIGatewayClient` can authenticate through your Agentuity project key. During local development, `agentuity dev` can also wire supported provider SDK env vars when no provider key override is already set. Set provider keys directly when you want calls to go through your provider account instead of the Agentuity gateway path.
 
-### When should I use Sandbox instead of Coder?
+### When do I use sandbox instead of Coder?
 
 Use [Sandbox](/services/sandbox) when your app needs isolated command execution, generated code execution, files, jobs, snapshots, or short-lived runtimes. Use [Coder](/services/coder) when the product workflow is a managed coding session with repos, skills, live events, replay, and reconnect. If the workflow creates a long-lived sandbox or coder session, document the cleanup path.
 
@@ -63,12 +63,12 @@ Use [Sandbox](/services/sandbox) when your app needs isolated command execution,
 
 ### What happened to `createApp()` and `createAgent()`?
 
-Those belong to the older runtime-wrapper model. In v3 docs, agents are app-level patterns you call from framework routes, workers, schedules, or scripts. Use [Migration](/migration) when you are moving old `@agentuity/runtime`, `createApp()`, or `createAgent()` code.
+Those belong to the older runtime-wrapper model. Current agent docs use app-level patterns you call from framework routes, workers, schedules, or scripts. Use [Migration](/migration) when you are moving old `@agentuity/runtime`, `createApp()`, or `createAgent()` code.
 
 ### Where are the old docs?
 
 Use the current docs for v3 framework-first apps. If you need older runtime-wrapper material, treat it as migration context and confirm the target version before copying patterns into a v3 app.
 
-### What should a coding agent fetch first?
+### What does a coding agent fetch first?
 
-Start with `https://agentuity.dev/llms.txt`, then fetch the page-level markdown for the task, such as `/get-started/quickstart.md`, `/get-started/import-existing-app.md`, or a framework page. The agent should stop and ask before deploys, deletes, domain changes, missing credentials, or unsupported runtime/provider claims.
+Start with `https://agentuity.dev/llms.txt`, then fetch the page-level markdown for the task, such as `/get-started/quickstart.md`, `/get-started/import-existing-app.md`, or a framework page. The agent needs to stop and ask before deploys, deletes, domain changes, missing credentials, or unsupported runtime/provider claims.

@@ -19,7 +19,7 @@ The CLI runtime also supports Node.js `24.0.0` or newer. Use Node for existing p
 node --version
 ```
 
-## Create a Project
+## Create a project
 
 Scaffold a starter and pick a framework:
 
@@ -56,7 +56,7 @@ The create flow runs the framework's official create CLI, applies an Agentuity o
 
 React Router, Vite + React, and TanStack Start are build/deploy detection targets, not create slugs. Start with each framework's own CLI, then run `agentuity project import` to add Agentuity metadata.
 
-### Useful Flags
+### Useful flags
 
 | Flag | What it does |
 |------|--------------|
@@ -71,7 +71,7 @@ React Router, Vite + React, and TanStack Start are build/deploy detection target
 
 Run `bun create agentuity@next --help` for the full list.
 
-## Run Locally
+## Run locally
 
 `@agentuity/cli@next` is added as a devDependency during the create flow, so `bunx` resolves the right CLI inside the project:
 
@@ -94,6 +94,23 @@ Use a non-default script name:
 bunx agentuity dev --script dev:web
 ```
 
+## Local versus global CLI
+
+We recommend a project-local CLI for app repos. `-D`, `--dev`, or Bun's lowercase `-d` records `@agentuity/cli` in `devDependencies`. This keeps the CLI version with the app instead of relying on whichever global CLI is installed on your machine.
+
+| Package manager | Add local CLI | Run local CLI | Undo local install |
+|------|------|------|------|
+| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+
+A global install is optional. It only changes your shell so bare `agentuity ...` works outside a project; it does not import or register an app by itself.
+
+You can switch later. To move from global to local, run the local add command and call the CLI through the exec wrapper. The global install can stay installed because the wrapper resolves the project copy. To move from local to global, install the global CLI, then keep the dev dependency if package scripts or CI call `agentuity`, or remove it with the table command when you no longer want the project to pin the CLI.
+
+For global cleanup, use the package manager that created the global install. For the Bun global install below, run `bun remove -g @agentuity/cli`; for npm, run `npm uninstall -g @agentuity/cli`.
+
 ## Deploy
 
 The create flow adds `deploy: agentuity deploy` to `package.json`, so this works without a global install:
@@ -104,7 +121,7 @@ bun run deploy
 
 See [Deploy & Operate](/deploy-operate) for the full lifecycle.
 
-## Optional: Install the CLI Globally
+## Optional: install the CLI globally
 
 Install the CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
 
@@ -130,7 +147,7 @@ agentuity auth login
 Inside a scaffolded project, `bunx agentuity` uses the local `@agentuity/cli@next` devDependency. Outside a project, use `bunx @agentuity/cli@next` when you want this CLI without installing it globally.
 </Callout>
 
-## Verify the Install
+## Verify the install
 
 In a scaffolded project:
 
@@ -146,7 +163,7 @@ agentuity --version
 # 3.0.x
 ```
 
-## Next Steps
+## Next steps
 
 - [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it locally, and deploy
 - [Project Structure](/get-started/project-structure): see exactly what the scaffold adds to a framework app

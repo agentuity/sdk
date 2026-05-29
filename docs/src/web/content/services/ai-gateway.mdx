@@ -42,7 +42,7 @@ Use the model `id` exactly as it appears in the gateway catalog. Display names g
 Use `@agentuity/aigateway` when you want the Agentuity client directly. `agentuity dev` can also wire OpenAI, Anthropic, and Groq SDK env vars for local development when you have an Agentuity SDK key and no provider key override.
 </Callout>
 
-## What the Gateway Handles
+## What the gateway handles
 
 The Agentuity AI Gateway is the model access layer for an Agentuity project. Your code can call `AIGatewayClient` directly, or keep using provider SDKs that read gateway env vars during `agentuity dev`.
 
@@ -90,7 +90,7 @@ Catalog entries include the provider ID, model ID, request API shape, modalities
 
 The local CLI path exposes provider-specific base URLs for OpenAI, Anthropic, and Groq. For other providers, use a provider factory only when your project environment gives you a confirmed gateway base URL for that provider. Otherwise set the provider key directly.
 
-## Model Catalog
+## Model catalog
 
 Use the live model catalog before choosing a model ID for docs, examples, or app defaults.
 
@@ -206,7 +206,7 @@ export async function classify(message: string): Promise<string> {
 
 `@anthropic-ai/sdk` reads `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL`, so it works with the env vars injected by `agentuity dev`.
 
-## When to Use the AI Gateway
+## When to use the AI Gateway
 
 | Need | Use |
 |------|-----|
@@ -217,7 +217,7 @@ export async function classify(message: string): Promise<string> {
 | keep provider SDK code and let the gateway authenticate with `AGENTUITY_SDK_KEY` | the AI Gateway |
 | use a provider account, limits, or base URL directly | Set your own provider key and bypass the gateway |
 
-## Local Development
+## Local development
 
 `agentuity dev` looks for `AGENTUITY_SDK_KEY`, then wires supported provider env vars into the framework process before it loads your app code. Automatic env wiring currently covers OpenAI, Anthropic, and Groq.
 
@@ -239,7 +239,7 @@ The env patching above is part of `agentuity dev`. A built app that you run dire
 
 See [Running Local Development](/deploy-operate/local-development#ai-gateway-in-local-dev): how `agentuity dev` starts the framework server and loads Agentuity env values.
 
-## Bring Your Own Provider Key
+## Bring your own provider key
 
 Set a provider key when you want the SDK to talk to that provider directly:
 
@@ -250,7 +250,7 @@ OPENAI_API_KEY=sk-your-own-key
 
 When `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY` contains your own provider key, `agentuity dev` leaves it in place. Use that path when you want provider-specific credentials or base URLs instead of Agentuity's gateway wiring.
 
-## Explicit Provider Factories
+## Explicit provider factories
 
 Provider factories can still use the AI Gateway locally when they read the provider env vars that `agentuity dev` injects. For providers that are not automatically patched, pass provider-owned keys or a confirmed gateway base URL explicitly.
 
@@ -277,7 +277,7 @@ export async function rewrite(message: string): Promise<string> {
 
 This example does not pass `apiKey` or `baseURL`. In local development, `@ai-sdk/openai` reads `OPENAI_API_KEY` and `OPENAI_BASE_URL` from the `agentuity dev` process env.
 
-## Deployed Apps
+## Deployed apps
 
 For deployed apps, choose one of these paths:
 
@@ -290,7 +290,7 @@ Local gateway wiring is part of `agentuity dev`. In deployed apps, set provider 
 
 See [Managing Environment Variables](/deploy-operate/environment-variables): how the CLI finds `AGENTUITY_SDK_KEY` locally and how deploy sync handles `.env` values.
 
-## Next Steps
+## Next steps
 
 - [Running Local Development](/deploy-operate/local-development): run your framework server through `agentuity dev`
 - [Managing Environment Variables](/deploy-operate/environment-variables): keep `AGENTUITY_SDK_KEY` and provider keys in the right place

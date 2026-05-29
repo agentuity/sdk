@@ -7,7 +7,7 @@ import { Key, Search, HardDrive, Activity } from 'lucide-react';
 
 Choose storage by access pattern first: key lookup, semantic search, files, streams, or relational SQL. Start with the direct storage client or API, and use Hono `c.var.*` when you want the same managed clients injected into routes.
 
-## Storage Types
+## Storage types
 
 <Cards>
   <CardLink
@@ -36,7 +36,7 @@ Choose storage by access pattern first: key lookup, semantic search, files, stre
   />
 </Cards>
 
-## When to Use Each Type
+## When to use each type
 
 | Storage Type | Best For | Client Path |
 |--------------|----------|-------------|
@@ -48,7 +48,7 @@ Choose storage by access pattern first: key lookup, semantic search, files, stre
 
 Use storage services when data must outlive the current request, be shared across workers or routes, or be inspected and managed as an Agentuity resource.
 
-## Access Patterns
+## Access patterns
 
 | App Shape | KV | Vector | Durable Streams | Object Storage | Database |
 |-----------|----|--------|-----------------|----------------|----------|
@@ -62,6 +62,6 @@ Use storage services when data must outlive the current request, be shared acros
 
 Database is listed here for relational SQL. For KV, vector, streams, queues, tasks, schedules, email, webhooks, or sandboxes, use that service's dedicated client instead.
 
-## Custom Storage
+## Custom storage
 
 For service code that needs a different backend, you can implement [custom Key-Value, Vector, or Durable Stream storage](/services/storage/custom).

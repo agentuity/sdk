@@ -5,7 +5,7 @@ description: See exactly what the create flow adds to a framework app
 
 The create flow runs the framework's official scaffolding tool, then layers on Agentuity dependencies, scripts, and a working AI translation example. Your framework's file layout is unchanged. Nothing is moved into an Agentuity-owned runtime structure.
 
-## What the Scaffold Adds
+## What the scaffold adds
 
 After `bun create agentuity@next`, expect the framework's normal files plus:
 
@@ -30,7 +30,7 @@ If you scaffolded with `--no-register`, run `agentuity project import` later to 
 For a single-app repo, run `agentuity project import` from the app root. In a monorepo, run it from the app package directory, or pass `--dir apps/web`, so `agentuity.json` and `.env` are written next to that app's `package.json`.
 </Callout>
 
-## Framework File Layouts
+## Framework file layouts
 
 For create-supported frameworks, the scaffold places the AI translation example where each framework expects routes and pages:
 
@@ -46,7 +46,7 @@ For create-supported frameworks, the scaffold places the AI translation example 
 
 React Router, Vite + React, and TanStack Start are existing-app adoption paths today. See [Frameworks](/frameworks) for adding Agentuity to those apps without using `bun create agentuity@next`.
 
-## Routes and Services
+## Routes and services
 
 Routes live where the framework expects them. To add Agentuity services, import a standalone client inside the route or function that owns the work:
 
@@ -68,7 +68,7 @@ This pattern is portable across framework server code, scripts, and workers. See
 In Hono projects, `@agentuity/hono` exposes service clients on `c.var.*` for routes that prefer Hono context. Use standalone clients as the default; reach for the middleware when you want Hono-specific ergonomics.
 </Callout>
 
-## App Entrypoints
+## App entrypoints
 
 There is no Agentuity entrypoint. Each framework owns startup and routing as usual:
 
@@ -82,7 +82,7 @@ There is no Agentuity entrypoint. Each framework owns startup and routing as usu
 
 `agentuity build` packages the framework's build output for deploy. `agentuity deploy` does both, then encrypts and uploads the bundle.
 
-## Build Output
+## Build output
 
 `agentuity build` writes `.agentuity/launch.json`. That file is the process contract Agentuity uses at deploy time:
 
@@ -129,7 +129,7 @@ In a detected monorepo subpackage, the output is staged at the workspace root an
 
 Inspect `launch.json` after the first build. It shows the exact command the platform will run.
 
-## Next Steps
+## Next steps
 
 - [App Configuration](/get-started/app-configuration): scripts, `agentuity.json`, env vars, and service clients
 - [Frameworks](/frameworks): per-framework setup, route patterns, and deploy notes

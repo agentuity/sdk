@@ -9,7 +9,7 @@ description: Run a LangChain ReAct agent inside a framework route with tools and
 bun add hono langchain @langchain/openai @langchain/core zod
 ```
 
-## Define the Agent
+## Define the agent
 
 The current LangChain entrypoint is `createAgent` from `langchain`. This is LangChain's API, not Agentuity's deprecated runtime helper with the same name. Tools come from `@langchain/core/tools`; the chat model comes from a provider package.
 
@@ -65,7 +65,7 @@ export const researchAgent = createAgent({
 
 The middleware is optional but useful: a thrown tool error becomes a `ToolMessage` the agent can recover from instead of crashing the loop.
 
-## Wire the Route
+## Wire the route
 
 LangChain agents implement the LangGraph runnable interface. `invoke()` returns the final state; the last message is the assistant response.
 
@@ -124,13 +124,13 @@ app.post('/api/research-stream', async (c) => {
 });
 ```
 
-## When to Reach for LangChain
+## When to reach for LangChain
 
 Pick LangChain when you already have LangChain or LangGraph code, or when the middleware and graph model give you something AI SDK does not. Pick raw [AI SDK](/build/agents) when you want fewer layers and provider-agnostic tool calling.
 
 Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for `ChatOpenAI`. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs. Setting `OPENAI_API_KEY` keeps `ChatOpenAI` on the direct provider.
 
-## Next Steps
+## Next steps
 
 - [Agents](/build/agents): the plain-function pattern this page wraps
 - [Tool Calling](/build/agents/tool-calling): the AI SDK 6 path with provider-agnostic tool calls

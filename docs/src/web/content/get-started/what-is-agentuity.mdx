@@ -1,9 +1,9 @@
 ---
 title: What is Agentuity?
-description: The full-stack platform for building, deploying, and operating AI agents
+description: Deploy framework apps, APIs, static sites, backend work, and agents on Agentuity
 ---
 
-Agentuity is the full-stack platform for building, deploying, and operating AI agents. Current apps start from a framework you already use: keep the framework's routes and server code, add Agentuity services where the app needs them, and use the CLI to run, package, and deploy.
+Agentuity is infrastructure for deploying framework apps, APIs, static sites, background work, and model-backed agents. Current apps start from a framework you already use: keep the framework's routes and server code, add Agentuity services where the app needs them, and use the CLI to run, package, and deploy.
 
 ```bash
 bun create agentuity@next --name my-app --framework nextjs
@@ -11,7 +11,7 @@ cd my-app
 bunx agentuity dev
 ```
 
-## The Default Shape
+## The default shape
 
 Your app stays a framework app. A Next.js route reads input, validates it, and calls a model:
 
@@ -28,7 +28,7 @@ const ChatRequest = z.object({
 const model = process.env.OPENAI_MODEL;
 
 if (!model) {
-  throw new Error('Set OPENAI_MODEL to the model this route should use.');
+  throw new Error('Set OPENAI_MODEL to the route model.');
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -52,7 +52,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
 `agentuity build` and `agentuity deploy` detect the framework and package the app around its native conventions.
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | What you use |
 |------|--------------|
@@ -61,7 +61,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 | Project metadata | `agentuity.json` stores the project id, org id, region, domains, and resource settings |
 | Services | standalone clients such as `@agentuity/keyvalue`, `@agentuity/queue`, `@agentuity/sandbox`, and `@agentuity/email` |
 | AI Gateway | model access for OpenAI, Anthropic, Groq, Google, and other providers through your Agentuity project |
-| Operations | deployments, logs, env values, and project settings in the [Agentuity Console](https://app.agentuity.com) |
+| Inspection | sessions, deployment logs, traces, and project resources in the [Agentuity Console](https://app.agentuity.com) |
+| Operations | deployments, env values, and project settings in the [Agentuity Console](https://app.agentuity.com) |
 
 Use service clients in the route, server function, queue handler, or script that owns the work:
 
@@ -77,17 +78,19 @@ await kv.set('sessions', 'user-123', {
 
 The client reads `AGENTUITY_SDK_KEY` from the environment, so it works in framework routes, server functions, scripts, and workers without extra wiring.
 
-## Where Agents Fit
+Keep existing app tools where they fit: framework logging, Postgres clients or ORMs, OpenTelemetry collectors, provider SDKs, and framework middleware. Add Agentuity-native services when built-in credentials, managed resources, or shared inspection reduce setup. See [Add Agentuity to an existing app](/get-started/import-existing-app) for the keep/add matrix.
+
+## Where agents fit
 
 Agents are application patterns: model-backed functions that classify, summarize, route, draft, or make a bounded decision. Call them from a framework route, queue consumer, schedule, or script. There is no `src/agent/` folder or `createAgent()` wrapper.
 
 See [Agents](/build/agents) for typed inputs, tool calling, and streaming.
 
-## Next Steps
+## Next steps
 
 - [Installation](/get-started/installation): install the CLI and sign in
 - [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it, and deploy
 - [Project Structure](/get-started/project-structure): see exactly what the scaffold adds
 - [Frameworks](/frameworks): per-framework setup and route patterns
-- [Services](/services): pick storage, messaging, identity, observability, and execution clients
+- [Services](/services): choose Agentuity service clients for storage, messaging, identity, observability, and execution
 - [Migration](/migration): move older `@agentuity/runtime`, `createApp()`, or `createAgent()` apps into framework routes and direct service clients

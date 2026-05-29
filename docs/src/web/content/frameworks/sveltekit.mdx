@@ -6,7 +6,7 @@ description: Add Agentuity service clients, local development, and deploy valida
 
 Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. Agentuity adds service clients, local development support, and deploy validation around the file-based routing and build output you already use.
 
-## Create a Starter
+## Create a starter
 
 ```bash
 bun create agentuity@next --name my-sveltekit-app --framework sveltekit
@@ -26,17 +26,17 @@ Key files in the AI example:
 
 The starter sets `kit.paths.relative` to `false`, so SvelteKit emits root-relative build asset URLs during server rendering unless you configure an external asset path.
 
-## Import an Existing App
+## Import an existing app
 
 For an existing SvelteKit app, add the CLI and register the project:
 
 ```bash
 bun add -d @agentuity/cli@next
-agentuity project import --validate-only
-agentuity project import
+bunx agentuity project import --validate-only
+bunx agentuity project import
 ```
 
-If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
 
@@ -44,16 +44,16 @@ If you did not install the CLI globally, run the same commands through your pack
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
 </Callout>
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | SvelteKit keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | `+server.ts`, `+page.server.ts`, and normal file routing | service clients imported in server-only modules |
-| local dev | Vite and SvelteKit dev server | `agentuity dev` injects service and AI Gateway environment values |
-| build | SvelteKit adapter output | `agentuity build` packages launch metadata |
+| local dev | Vite and SvelteKit dev server | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| build | SvelteKit adapter output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the adapter server entry | `agentuity deploy` ships the packaged app |
 
-## Add an API Route
+## Add an API route
 
 SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define pure JSON endpoints. Put Agentuity service clients here; never import them in client-side `<script>` blocks.
 
@@ -156,11 +156,11 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 };
 ```
 
-`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app via `agentuity dev` to have those values injected automatically.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app via `agentuity dev` so the linked project key is available to server routes.
 
 Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
 
-## Call the Route from a Component
+## Call the route from a component
 
 Svelte 5 uses rune-based reactivity (`$state`, `$props`). The component calls the server route directly:
 
@@ -203,9 +203,9 @@ Svelte 5 uses rune-based reactivity (`$state`, `$props`). The component calls th
 The starter uses `+page.server.ts` form actions for the page UI because they integrate with SvelteKit's progressive enhancement via `use:enhance`. Use `+server.ts` routes for pure JSON endpoints called by `fetch` or external clients.
 </Callout>
 
-## Run Locally
+## Run locally
 
-`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000` into the dev process. If you want `bun run dev` to go through Agentuity on a fixed port, wrap the framework command like this:
+`agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value to the dev process. If you want `bun run dev` to go through Agentuity on a fixed port, wrap the framework command like this:
 
 ```json title="package.json"
 {
@@ -227,16 +227,16 @@ bun run dev
 Smoke-test the JSON route on port 3000:
 
 ```bash
-curl http://127.0.0.1:3000/api/translate \
+curl http://localhost:3000/api/translate \
   -H "content-type: application/json" \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
 
 The `--port 3000` flag is required because Vite ignores the `PORT` env var. Frameworks like Next.js read `PORT` directly, while Nuxt's native `nuxt dev` flow does not need this wrapper pattern.
 
-## Deployed Environment Variables
+## Deployed environment variables
 
-Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
 | Variable | Used by |
 | --- | --- |
@@ -244,12 +244,13 @@ Configure the same variables in the deployed app that `agentuity dev` injects lo
 | `OPENAI_MODEL` | example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database server routes |
 | `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate Before Deploy
+## Validate before deploy
 
-Build with SvelteKit first, then run the Agentuity build step:
+Run the framework build when you want SvelteKit-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
 ```bash
 bun run build
@@ -260,12 +261,6 @@ After both succeed, inspect the launch metadata:
 
 ```bash
 cat .agentuity/launch.json
-```
-
-If `agentuity build` cannot find the local Vite or SvelteKit binary, add `node_modules/.bin` to `PATH`:
-
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
 ```
 
 SvelteKit requires a server adapter for SSR routes. The starter uses `@sveltejs/adapter-node` (one of the [five official adapters](https://svelte.dev/docs/kit/adapters)), which produces a `build/` directory with a `index.js` server entry. The `launch.json` command must start that entry. If it points at a static `_serve.js` helper, the packaged output is not serving your `+server.ts` routes.
@@ -280,25 +275,25 @@ agentuity deploy --confirm
 `@sveltejs/adapter-static` produces no server entry. If your app has SSR routes or API endpoints, use `adapter-node` or another server-capable adapter before deploying.
 </Callout>
 
-## Common Gotchas
+## Common gotchas
 
 | Symptom | Check |
 |---------|-------|
 | Service client code appears in the browser bundle | Keep `KeyValueClient` and `OpenAI` in `+server.ts` or `+page.server.ts`, not in `<script>` blocks |
 | Route works in dev but fails after `agentuity build` | Inspect `.agentuity/launch.json` for the correct server entry path |
 | Built assets 404 on nested routes | Confirm `kit.paths.relative` is `false`; SvelteKit defaults to relative asset paths |
-| OpenAI calls bypass Agentuity AI Gateway | Run with `agentuity dev` so `OPENAI_BASE_URL` is set; verify it is not overridden by a local `.env`. See [AI Gateway](/services/ai-gateway) |
-| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
+| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
 | Cookies do not persist across requests | Set `path: '/'` when writing cookies from API routes |
 | Route returns HTML instead of JSON | API handlers go in `+server.ts`, not in `+page.server.ts` actions |
 | Missing adapter error at build | Confirm `svelte.config.js` imports a server-capable adapter; `@sveltejs/adapter-static` has no server entry. See [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters) |
 
-## Framework Docs
+## Framework docs
 
 - [SvelteKit Routing](https://svelte.dev/docs/kit/routing): `+server.ts` shape, `RequestHandler` type, and `json()` helper
 - [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters): choose a server adapter for apps with runtime routes
 
-## Next Steps
+## Next steps
 
 - [Key-Value Storage](/services/storage/key-value): store compact state from server routes with TTL
 - [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity for all supported models

@@ -5,7 +5,7 @@ description: Build web apps, backend APIs, static sites, and background work on 
 
 import { FileCode2, Globe2, Rows3, Server } from 'lucide-react';
 
-Start here when the thing you are deploying is an app, API, static site, worker route, or service boundary. Agentuity packages the project you already own and adds service clients where server-side code needs storage, queues, AI Gateway, sandbox, Coder, or observability.
+Start here when the thing you are deploying is an app, API, static site, worker route, or service boundary. Agentuity packages the project you already own. Keep the framework conventions, logging, and app data layer; add service clients where server-side code needs Agentuity infrastructure.
 
 <Cards>
   <CardLink
@@ -64,7 +64,7 @@ app.post('/echo', async (c) => {
 export default app;
 ```
 
-Add service clients only where the app needs them. A route can call `KeyValueClient`, a worker can publish to `QueueClient`, and a script can call `SandboxClient` with the same project credentials.
+Add service clients only where the app needs them. A route can call `KeyValueClient`, a worker can publish to `QueueClient`, and a script can call `SandboxClient` with the same project credentials. Keep your app database, ORM, and framework logger where they already fit.
 
 ## Related docs
 

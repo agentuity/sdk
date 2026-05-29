@@ -6,7 +6,7 @@ description: Create a loop-mode Coder session and inspect its workflow state wit
 
 Loop mode gives a session explicit workflow state across iterations: a goal, iteration counters, and loop-specific status you can inspect separately from the standard session detail. It's the shape you want for review loops, bounded research, or any iteration-aware workflow that needs explicit pause and resume state.
 
-## The Pattern
+## The pattern
 
 Create the session with `workflowMode: 'loop'`, then call `getLoopState()` to read the workflow state back.
 
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## Example Output
+## Example output
 
 ```json
 {
@@ -89,7 +89,7 @@ void main();
 }
 ```
 
-## What to Inspect
+## What to inspect
 
 `getSession()` returns the session's lifecycle state. `getLoopState()` returns the workflow state inside a loop-mode run. When you read loop state, the fields that usually matter:
 
@@ -98,7 +98,7 @@ void main();
 - `goal`: the high-level goal you gave the loop
 - `autoContinue` and `allowDetached`: whether the loop can advance and keep running without a manual step or an attached client
 
-## Polling a Loop to Completion
+## Polling a loop to completion
 
 For headless, unattended runs, configure the loop with `autoContinue: true` and `allowDetached: true`, then poll `getLoopState()` until the loop reaches a terminal status. This lets your app dispatch the work and check back at a controlled interval rather than staying connected.
 
@@ -170,7 +170,7 @@ void main();
 
 `getLoopState()` exposes `loop.summary` and `loop.nextAction` as the loop progresses, so your UI or downstream step can poll for them without holding a live controller socket.
 
-## When to Use This Pattern
+## When to use this pattern
 
 Use loop mode when your app needs explicit iteration-aware workflow state, not just a long-running session.
 
@@ -180,14 +180,14 @@ Use loop mode when your app needs explicit iteration-aware workflow state, not j
 
 If you only need a normal interactive coding session, stick with `workflowMode: 'standard'`.
 
-## Key Points
+## Key points
 
 - Loop mode is explicit. Sessions do not become loop-mode sessions automatically.
 - `getLoopState()` is the right place to inspect loop progress. Do not infer it only from top-level session status.
 - Keep the loop goal concrete. It becomes part of the state your app can show to users.
 - Start with `autoContinue: false` unless you specifically want unattended advancement.
 
-## See Also
+## See also
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the standard session flow and core lifecycle
 - [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach): Resume or inspect sessions that may still be live

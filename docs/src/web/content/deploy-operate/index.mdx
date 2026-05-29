@@ -34,7 +34,7 @@ Use these pages when you want to run a framework app locally with Agentuity wiri
   />
 </Cards>
 
-## Canonical Flow
+## Canonical flow
 
 ```bash
 agentuity dev                            # iterate locally with gateway wiring
@@ -44,11 +44,11 @@ agentuity build                          # package .agentuity for deploy
 agentuity deploy                         # encrypt, upload, provision
 ```
 
-These examples show `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
+These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
 
 The full deploy command runs `build` itself and uploads the result. Run `agentuity build` ahead of time when you want to inspect the bundle, the detected framework, or `launch.json` before shipping.
 
-## Where to Start
+## Where to start
 
 | Goal | Page |
 |------|------|

@@ -38,7 +38,7 @@ export const pool = new Pool({ connectionString: databaseUrl });
 export const db = drizzle(pool, { schema });
 ```
 
-## Framework Route
+## Framework route
 
 Initialize the database client at module scope, then import it into framework routes, server functions, queue consumers, or scripts.
 
@@ -110,7 +110,7 @@ await db.transaction(async (tx) => {
 });
 ```
 
-## Bun-Only Compatibility Helper
+## Bun-only compatibility helper
 
 `@agentuity/drizzle` is a deprecated, opt-in compatibility helper for Bun code that wants Agentuity's Drizzle wrapper around the same Postgres resource. It is not required for framework apps, and Node.js routes should use Drizzle's standard `node-postgres` driver directly.
 
@@ -150,11 +150,11 @@ export const users = pgTable('users', {
 Use top-level `@agentuity/drizzle` only from Bun code that intentionally keeps this deprecated helper. Use `@agentuity/drizzle/schema` from schema files and migration tooling when you need the helper's schema re-exports.
 </Callout>
 
-## Auth and User Tables
+## Auth and user tables
 
 In v3 apps, keep authentication in your framework or identity provider, then use Drizzle for the user, account, or session tables your app owns. See [Authentication](/services/authentication) for choosing between framework-owned sessions and Agentuity OIDC.
 
-## Next Steps
+## Next steps
 
 - [Database Overview](/services/database): managed Postgres setup and provisioning
 - [Postgres Clients](/services/database/postgres): query with `pg` or the Bun-only compatibility helper

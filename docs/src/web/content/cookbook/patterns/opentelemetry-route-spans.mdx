@@ -1,0 +1,119 @@
+---
+title: Adding OpenTelemetry Spans to App Routes
+short_title: OpenTelemetry Spans
+description: Keep existing OpenTelemetry startup and add route-level spans with the standard API
+---
+
+When an Agentuity app already starts telemetry through an OpenTelemetry Collector, vendor SDK, or framework instrumentation, keep that startup path. Add spans inside the route, worker, or server function that owns the work.
+
+```bash
+bun add @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto
+```
+
+## Keep startup in instrumentation
+
+Load this module before your route modules with your framework's instrumentation hook, process manager, or runtime preload. Route code does not create another SDK.
+
+```typescript title="instrumentation.ts"
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+
+const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT;
+
+if (!otlpEndpoint) {
+  throw new Error('OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is required');
+}
+
+const sdk = new NodeSDK({
+  traceExporter: new OTLPTraceExporter({
+    url: otlpEndpoint,
+  }),
+  instrumentations: [getNodeAutoInstrumentations()],
+});
+
+sdk.start();
+```
+
+## Keep collector tooling outside route code
+
+Run the OpenTelemetry Collector, vendor agent, or framework instrumentation as startup or infrastructure. Keep SDK creation out of route code; use the standard API and let the active startup path decide where spans go.
+
+For a Collector-backed setup, point startup code at the OTLP traces endpoint:
+
+```bash
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
+```
+
+Keep the collector config with your deployment or local observability tooling, not in the route module.
+
+## Add spans in route code
+
+Route code only needs the OpenTelemetry API package. The active SDK or instrumentation setup decides where spans go.
+
+```typescript title="src/routes/checkout.ts"
+import { SpanStatusCode, trace } from '@opentelemetry/api';
+
+interface ReserveInventoryInput {
+  readonly requestId: string;
+  readonly orderId: string;
+  readonly sku: string;
+}
+
+const tracer = trace.getTracer('checkout-api');
+
+export async function reserveInventory(
+  input: ReserveInventoryInput
+): Promise<{ readonly reserved: boolean }> {
+  return tracer.startActiveSpan('reserve-inventory', async (span) => {
+    try {
+      span.setAttribute('requestId', input.requestId);
+      span.setAttribute('orderId', input.orderId);
+      span.setAttribute('sku', input.sku);
+
+      const reserved = input.sku.trim().length > 0;
+
+      span.setAttribute('reserved', reserved);
+      span.setStatus({ code: SpanStatusCode.OK });
+      return { reserved };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      span.recordException(error instanceof Error ? error : new Error(message));
+      span.setStatus({ code: SpanStatusCode.ERROR, message });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
+}
+```
+
+Use IDs, counts, categories, and booleans as attributes. Keep raw prompts, tokens, secrets, full emails, and full request bodies out of span attributes.
+
+## Use Agentuity telemetry defaults
+
+Use [`@agentuity/telemetry`](/services/observability/tracing#use-agentuity-telemetry-spans) when you want Agentuity's logger, tracer, meter, auto-instrumentation, and exporter defaults from one package. Hono apps can use [`@agentuity/hono`](/frameworks/hono) when route handlers read the tracer from `c.var.tracer`.
+
+## Test the function
+
+Without an SDK registered, OpenTelemetry's API returns a no-op tracer. That keeps unit tests focused on your function behavior while the deployed startup path handles exporting.
+
+```typescript title="src/routes/checkout.test.ts"
+import { test, expect } from 'bun:test';
+import { reserveInventory } from './checkout';
+
+test('reserves inventory for a non-empty SKU', async () => {
+  await expect(
+    reserveInventory({
+      requestId: 'req_123',
+      orderId: 'ord_123',
+      sku: 'sku_123',
+    })
+  ).resolves.toEqual({ reserved: true });
+});
+```
+
+## Next steps
+
+- [Tracing](/services/observability/tracing): choose between app-owned OpenTelemetry and Agentuity telemetry defaults
+- [Sessions & Debugging](/services/observability/sessions-debugging): inspect Agentuity-collected timelines and logs

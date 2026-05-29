@@ -38,7 +38,7 @@ export async function fileBug(errorMessage: string, traceId: string): Promise<st
 
 `TaskClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Keep that key in `.env` for local development and configure the same variable for deployed apps.
 
-## When to Use Tasks
+## When to use tasks
 
 | Need | Use |
 |------|-----|
@@ -48,7 +48,7 @@ export async function fileBug(errorMessage: string, traceId: string): Promise<st
 | inbound HTTP events with receipts | [Webhooks](/services/webhooks) |
 | exact key lookup or counters | [Key-Value Storage](/services/storage/key-value) |
 
-## Client Setup
+## Client setup
 
 Construct the client once at module scope and reuse it from handlers, routes, or scripts.
 
@@ -67,7 +67,7 @@ const tasks = new TaskClient({
 | `url` | Optional Task API URL. Defaults to `AGENTUITY_TASK_URL`, then the regional Agentuity service URL. |
 | `logger` | Optional logger instance. |
 
-## Create Tasks
+## Create tasks
 
 `create()` requires `title`, `type`, and `created_id`. Pass `creator` so dashboards and history can show a display name and whether the actor is a human or an agent.
 
@@ -107,7 +107,7 @@ const task = await tasks.create({
 | `metadata` | No | JSON metadata for trace IDs, integration IDs, or custom fields. |
 | `project` | No | `{ id, name }` project reference. |
 
-## Update Lifecycle
+## Update lifecycle
 
 Tasks use four canonical statuses. The client also accepts `started`, `completed`, and `closed`, and normalizes them server-side.
 
@@ -129,7 +129,7 @@ const closed = await tasks.close(claimed.id);
 
 Use `close(id)` for completed work. Use `update(id, { status: 'cancelled' })` when the task should be abandoned.
 
-## Comments and Tags
+## Comments and tags
 
 Comments take the task ID, body, and author user ID. Pass `author` so the comment lists carry a display name and type.
 
@@ -176,7 +176,7 @@ const { presigned_url: downloadUrl, expiry_seconds } = await tasks.downloadAttac
 
 Presigned URLs expire after `expiry_seconds`. Request a fresh URL when a user needs to upload or read the file again.
 
-## File a Task From a Server Route
+## File a task from a server route
 
 Filing a task is a typical pattern when an agent or background worker spots something that needs human follow-up. The route validates the payload, calls `tasks.create()`, and returns the new task ID.
 
@@ -219,7 +219,7 @@ app.get('/tasks/:id', async (c) => {
 export default app;
 ```
 
-## List and Inspect
+## List and inspect
 
 Use `list()` for filtered views and `changelog()` when you need the field-level history for one task.
 
@@ -253,7 +253,7 @@ const { changelog } = await tasks.changelog(task.id, { limit: 50, offset: 0 });
 
 `list()` returns a reduced summary by default. Use `include` when a dashboard needs description, tags, or subtask counts in the same call.
 
-## Soft Delete Tasks
+## Soft delete tasks
 
 `softDelete()` removes a task from normal work views without erasing its history.
 
@@ -268,7 +268,7 @@ const { tasks: deletedTasks } = await tasks.list({
 
 Use `close()` or `update(id, { status: 'cancelled' })` for lifecycle changes. Use `softDelete()` for cleanup or admin flows where the task should no longer appear in default lists.
 
-## Activity Counts
+## Activity counts
 
 `getActivity()` returns daily counts grouped by canonical status.
 
@@ -278,7 +278,7 @@ const activity = await tasks.getActivity({ days: 30 });
 
 `days` is optional and accepts values between 7 and 365. The service applies its own default when `days` is omitted, so pass an explicit value if dashboards depend on a specific range.
 
-## Hono Middleware Variant
+## Hono middleware variant
 
 `@agentuity/hono` builds `TaskClient` once and exposes it on `c.var.task`.
 
@@ -318,7 +318,7 @@ app.get('/tasks/:id', async (c) => {
 export default app;
 ```
 
-## Next Steps
+## Next steps
 
 - [Queues](/services/queues): hand task-related work to background processors
 - [Schedules](/services/schedules): create recurring checks that file or update tasks

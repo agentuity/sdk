@@ -10,7 +10,7 @@ Start with a dry run. It tells you which v2 runtime patterns the migrator can re
 npx @agentuity/migrate@next --v2-to-v3 --dry-run
 ```
 
-## Before You Start
+## Before you start
 
 Work from a branch with a clean git worktree. The migration tool checks this before writing files, because it rewrites source files and package metadata.
 
@@ -18,7 +18,7 @@ Work from a branch with a clean git worktree. The migration tool checks this bef
 You can keep a v2 app on the v2 runtime model until you are ready to migrate. Use v3 when you want framework-native routes, direct service clients, and the v3 build and deploy flow.
 </Callout>
 
-## What Changes
+## What changes
 
 | v2 runtime app | v3 framework app |
 | --- | --- |
@@ -31,7 +31,7 @@ You can keep a v2 app on the v2 runtime model until you are ready to migrate. Us
 
 The [Runtime to Frameworks](/migration/runtime-to-frameworks) page shows the same shift with code.
 
-## Run the Migration
+## Run the migration
 
 Use the v3 migration command so the `--v2-to-v3` flag is available.
 
@@ -55,7 +55,7 @@ The migrator can make these changes:
 - port detected `@agentuity/schema` usage to Zod in files where that transform applies
 - run `bun install` and `tsc --noEmit --skipLibCheck` after writing changes
 
-## Review Manual Work
+## Review manual work
 
 Some v2 patterns need a person to choose the replacement:
 
@@ -73,9 +73,9 @@ The migration tool also strips v2 validator middleware from routes. Validate req
 
 The migrator may leave stubs for thread and session APIs. Treat those as review markers, not as working conversation memory.
 
-## Before and After Patterns
+## Before and after patterns
 
-### Thread State
+### Thread state
 
 In v2, conversation state often lived behind the runtime thread API:
 
@@ -119,7 +119,7 @@ export async function appendHistory(
 }
 ```
 
-### Lifecycle Hooks
+### Lifecycle hooks
 
 Move `setup()` and `shutdown()` work into framework or module-level code. The exact shape depends on the resource, but the migration decision should be explicit.
 
@@ -187,7 +187,7 @@ export async function closeSummaryClient(): Promise<void> {
 
 Call `closeSummaryClient()` from your framework's shutdown hook or from the script that owns the process. Do not hide app lifecycle work in a migrated agent wrapper.
 
-### Queue Producer
+### Queue producer
 
 In v2, queue publishing usually sat behind `ctx`:
 
@@ -220,7 +220,7 @@ export async function enqueueDailyReport(userId: string): Promise<string> {
 }
 ```
 
-### KV Access
+### KV access
 
 In v2:
 
@@ -249,7 +249,7 @@ export async function savePreferences(userId: string, preferences: Preferences):
 }
 ```
 
-## Dry Run Markers
+## Dry run markers
 
 Dry runs print the migration report and do not write files. Manual items are markers for design work, not errors from the tool.
 
@@ -266,7 +266,7 @@ Manual (requires human action)
   (dry-run mode, no files modified)
 ```
 
-## Verify Locally
+## Verify locally
 
 After the diff looks right, run the checks your app already uses. For a TypeScript app with a build script, that usually starts here:
 
@@ -287,7 +287,7 @@ If the framework build passes but `agentuity build` fails, fix the packaging iss
 agentuity build --report-file build-report.json
 ```
 
-## Register Before Deploy
+## Register before deploy
 
 Migrated apps usually need to be linked to Agentuity Cloud before their first v3 deploy. Validate the local project shape, then import it:
 
@@ -307,7 +307,7 @@ agentuity deploy
 Framework projects should pass `agentuity build` before deploy. For Hono migrations, check the generated `package.json` scripts and `.agentuity/launch.json` before treating the app as deploy-ready.
 </Callout>
 
-## Next Steps
+## Next steps
 
 - [Migration CLI](/migration/migrate-cli): see the full command flow and flags
 - [Deploying Framework Apps](/deploy-operate/deploy-framework-apps): register, build, and deploy framework projects

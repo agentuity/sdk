@@ -9,7 +9,7 @@ Use ephemeral sandboxes when a job needs a clean Linux container, temporary file
 bun add @agentuity/sandbox@next @agentuity/telemetry@next
 ```
 
-## Run a One-Shot Python Job
+## Run a one-shot Python job
 
 `SandboxClient.run()` creates a sandbox, writes files, runs the command, captures output, and destroys the sandbox.
 
@@ -46,7 +46,7 @@ logger.info('sandbox finished', {
 });
 ```
 
-## Validate Generated Code
+## Validate generated code
 
 Use a one-shot sandbox when a model generates code and your app needs a clean compile or test result before using it.
 
@@ -97,7 +97,7 @@ logger.info('generated code validation finished', {
 
 Use [Coder](/services/coder) instead when the work needs a repo checkout, multiple tools, session history, human review, or a workflow that can pause and resume. Use `SandboxClient.run()` when the job is a bounded command with inputs and outputs. If the bounded command is a coding-agent CLI, read [Coding agents in sandboxes](/services/sandbox/coding-agents) first so you verify the runtime, provider access, and structured error events.
 
-## Keep a Sandbox for Multiple Steps
+## Keep a sandbox for multiple steps
 
 Use `client.create()` when you need to install packages, write more than one file, or run several commands against the same filesystem.
 
@@ -152,7 +152,7 @@ for region, total in db.execute("select region, sum(amount) from sales group by 
 
 The `finally` block matters: it destroys the sandbox even when package install, file writes, or execution fail.
 
-## When to Use a Database
+## When to use a database
 
 Use an in-memory SQLite database inside the sandbox for one job's scratch data. Use [Database](/services/database) when records need to outlive the sandbox, serve app traffic, or be queried later by another process.
 

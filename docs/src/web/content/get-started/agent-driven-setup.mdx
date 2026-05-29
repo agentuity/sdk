@@ -10,7 +10,7 @@ bunx @agentuity/cli@next ai intro
 bun create agentuity@next --framework nextjs --services keyvalue --confirm
 ```
 
-## Start With CLI Context
+## Start with CLI context
 
 Ask the coding agent to inspect the CLI guidance before it creates files or runs mutating commands:
 
@@ -37,7 +37,7 @@ bun create agentuity@next --framework <fw> --services <svcs> --confirm
 
 Use this path for `nextjs`, `nuxt`, `sveltekit`, `astro`, and `hono`. For React Router, Vite + React, and TanStack Start, start with the framework's own CLI first, then run `agentuity project import`. See [Frameworks](/frameworks) for the split.
 
-## Ask an Agent to Add a Service
+## Ask an agent to add a service
 
 For an app that already exists, keep the task narrower. Ask the agent to add one server-only service route, validate it locally, and stop before deploy:
 
@@ -60,7 +60,7 @@ The service code should live in a server route, server action, queue worker, sch
 
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for a complete route example.
 
-## Require a Setup Report
+## Require a setup report
 
 Ask the agent to finish with a short report instead of a vague summary. The report should tell you what changed, what ran, and whether cloud mutation is still waiting on approval.
 
@@ -92,7 +92,7 @@ Ask the agent to finish with a short report instead of a vague summary. The repo
 
 If the agent cannot produce this shape, it should report the exact command, file, or error response that blocked it. Missing CLI output or missing framework evidence is a reason to stop and ask, not a reason to guess.
 
-## Create With Services
+## Create with services
 
 When the agent already knows what the app needs, use `--services` in the create command. Ask the CLI for the current flags first if the agent is not sure:
 
@@ -103,7 +103,7 @@ bun create agentuity@next --framework nextjs --services keyvalue,queue --confirm
 
 For reviewable agent-driven work, we recommend scaffold first, add one server-only route or handler, then run the framework build before `agentuity build`. That keeps generated service code easy to inspect and separates framework build errors from deploy packaging errors.
 
-## Ask an Agent to Import, Build, and Deploy
+## Ask an agent to import, build, and deploy
 
 Use this when the app already builds and you want an agent to wire the Agentuity project metadata:
 
@@ -129,7 +129,7 @@ agentuity deploy --confirm
 
 If the app is not imported yet, `agentuity deploy --dir <fresh-app>` fails with `Invalid project folder`. Import first, or use `agentuity project import --deploy --confirm` only when deploy was explicitly approved.
 
-## Inspect the CLI Surface
+## Inspect the CLI surface
 
 Coding agents can ask the CLI for structured command metadata before running mutating commands:
 
@@ -143,7 +143,7 @@ Use `bunx @agentuity/cli@next ai intro` for the current setup model before a pro
 
 See [AI Commands](/reference/cli/ai-commands) for the full AI-facing command reference.
 
-## Setup Tokens
+## Setup tokens
 
 Some app-to-agent handoff flows provide a one-time setup token. The CLI shape is:
 
@@ -153,11 +153,11 @@ agentuity setup --setup-token <token>
 
 The token must come from the handoff flow. Do not ask a coding agent to invent one. A valid token authenticates the CLI for the first-run setup path and prints the onboarding prompt intended for the agent.
 
-## What This Is Not
+## What this is not
 
 This is not a separate project type, template language, or runtime wrapper. Agentic setup is a way to drive the normal framework-first CLI with a coding agent in the loop.
 
-## Stop and Ask Before
+## Stop and ask before
 
 | Situation | Why |
 | --- | --- |

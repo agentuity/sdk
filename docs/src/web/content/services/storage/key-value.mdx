@@ -36,7 +36,7 @@ const preferences = result.exists
 
 `KeyValueClient` reads `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, from the environment. Agentuity project code can keep that key in `.env` for local development and deployed environments can receive it through project environment configuration.
 
-## When to Use KV
+## When to use KV
 
 | Need | Use |
 |------|-----|
@@ -69,7 +69,7 @@ Managed KV clamps per-key TTL values below 60 seconds to 60 seconds and values a
 Managed KV uses sliding expiration: a read on a key with less than 50% of its TTL remaining renews it back to the original TTL. Frequently accessed cache entries stay alive without manual renewal.
 </Callout>
 
-## Type Safety
+## Type safety
 
 Pass a generic to `get()`, `set()`, and `search()` to keep stored values typed end to end. The `exists` discriminator lets TypeScript narrow the result.
 
@@ -92,7 +92,7 @@ async function loadCachedResponse(
 }
 ```
 
-## Search and Inspect Keys
+## Search and inspect keys
 
 Use `search()` when you need matching keys with stored value metadata. Use `getKeys()` when you only need the keys in a namespace.
 
@@ -124,7 +124,7 @@ const allStats = await kv.getAllStats({ limit: 100, sort: 'size' });
 `@agentuity/local` is useful when you want local reads and writes without managed credentials. For search, key listing, stats, or namespace operations, test against the managed KV service.
 </Callout>
 
-## Namespace Management
+## Namespace management
 
 Create namespaces when you want a default TTL before the first write. Delete namespaces only when you mean to remove every key inside them.
 
@@ -140,7 +140,7 @@ await kv.deleteNamespace('old-cache');
 `deleteNamespace()` permanently removes the namespace and all keys inside it.
 </Callout>
 
-## Common Patterns
+## Common patterns
 
 ### Cache around a slow read
 
@@ -228,7 +228,7 @@ app.get('/sessions/:id', async (c) => {
 export default app;
 ```
 
-## Next Steps
+## Next steps
 
 - [Vector Storage](/services/storage/vector): use semantic search when exact keys are not enough
 - [Database](/services/database): use Postgres for joins, constraints, and transactions

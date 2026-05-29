@@ -3,15 +3,44 @@ title: Logging
 description: Write structured logs from framework apps and Hono routes
 ---
 
-Use your framework's normal stdout, console, or structured logger for process logs. Use `@agentuity/telemetry` when framework code needs Agentuity's logger and telemetry export setup. Hono apps can use `@agentuity/hono` when route handlers should read the same logger from `c.var.logger`.
+For Agentuity apps, keep your framework's normal stdout path or structured logger for process logs. Keep [Pino](https://github.com/pinojs/pino), [LogTape](https://logtape.org/manual/start), a platform log drain, or a vendor agent when your app already standardizes on it. Use `@agentuity/telemetry` when server code needs Agentuity's logger and telemetry export setup. Hono apps can use `@agentuity/hono` when route handlers need the same logger from `c.var.logger`.
+
+## Bring your own Pino logger
+
+Keep this path when the app already owns process logs and your platform or log drain reads stdout. This is app-owned logging; Agentuity does not need a Pino integration for these lines to keep working.
+
+```bash
+bun add pino
+```
 
 ```typescript
-console.info(JSON.stringify({
-  level: 'info',
-  message: 'checkout accepted',
+import pino from 'pino';
+
+const appLogger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+});
+
+const checkoutLogger = appLogger.child({
+  requestId: 'req_123',
   orderId: 'ord_123',
-}));
+});
+
+checkoutLogger.info({ totalCents: 4900 }, 'Checkout accepted');
 ```
+
+Child loggers keep request and order fields on every line in that scope. See [Structured Logging with Pino](/cookbook/patterns/structured-logging-with-pino) for a complete server-function example that keeps Pino app-owned.
+
+## Bring your own LogTape logger
+
+Keep this path when the app already uses LogTape categories, structured message placeholders, or a LogTape OpenTelemetry sink. Agentuity does not need a LogTape integration for those logs to keep flowing through your process logger or collector.
+
+```bash
+bun add @logtape/logtape @logtape/otel
+```
+
+See [Using LogTape with an OpenTelemetry Sink](/cookbook/patterns/logtape-structured-logging) for a complete startup and server-function example.
+
+## Use Agentuity telemetry logger
 
 Use the Agentuity logger when you want child loggers and the same telemetry configuration as your traces:
 
@@ -50,9 +79,9 @@ export async function recordCheckout(
 
 `logger.child(fields)` attaches fields as log attributes. Additional arguments passed to `info()`, `warn()`, or `error()` are formatted into the log message body. When Agentuity telemetry env is present, these logs export through the same telemetry pipeline as traces.
 
-If your app already uses Pino, Winston, console JSON logs, a platform log drain, or a vendor agent, keep that logger. Add OpenTelemetry spans where timing and cross-service context matter.
+These paths compose: keep the app logger for process logs, then add OpenTelemetry spans where timing and cross-service context matter.
 
-## Configure at Startup
+## Configure at startup
 
 The named exports initialize telemetry from Agentuity environment variables on first use. Call `register()` once at app startup when you want explicit service metadata, a different log level, or predictable initialization before other modules log.
 
@@ -71,7 +100,7 @@ telemetry.logger.info('Telemetry initialized');
 
 The telemetry package supports `trace`, `debug`, `info`, `warn`, and `error` as minimum levels. If you do not pass `logLevel`, the package default is `warn`.
 
-## Log Levels
+## Log levels
 
 | Method | Use For |
 |--------|---------|
@@ -79,14 +108,14 @@ The telemetry package supports `trace`, `debug`, `info`, `warn`, and `error` as 
 | `debug()` | local request context and intermediate values |
 | `info()` | normal milestones, state changes, and accepted work |
 | `warn()` | recoverable problems or missing optional configuration |
-| `error()` | failed operations that should be investigated |
-| `fatal()` | unrecoverable errors that should exit the process |
+| `error()` | failed operations that need investigation |
+| `fatal()` | unrecoverable errors that exit the process |
 
 `fatal()` logs through the error path and exits the process. Use it sparingly in server apps, because it terminates the current process.
 
-## Child Loggers
+## Child loggers
 
-Create child loggers when every line in a small scope should carry the same IDs or category fields.
+Create child loggers when every line in a small scope needs the same IDs or category fields.
 
 ```typescript
 import { logger } from '@agentuity/telemetry';
@@ -102,7 +131,7 @@ requestLogger.child({ durationMs: 42, rows: 8 }).debug('Invoice rows loaded');
 
 Nested children inherit parent fields and add their own fields.
 
-## Hono Routes
+## Hono routes
 
 `@agentuity/hono` initializes telemetry once and exposes the logger on `c.var.logger`.
 
@@ -156,9 +185,9 @@ app.post('/webhooks/payments', async (c) => {
 export default app;
 ```
 
-## Viewing Logs
+## View logs
 
-During local development, `agentuity dev` runs your framework's own `dev` script with Agentuity environment behavior, so stdout and console output appear in the terminal. In deployed apps, inspect logs by session or deployment.
+During local development, `agentuity dev` runs your framework's own `dev` script with injected service environment values, so stdout and console output appear in the terminal. In deployed apps, inspect logs by session or deployment.
 
 ```bash
 agentuity dev
@@ -169,7 +198,7 @@ agentuity cloud session logs sess_abc123xyz
 agentuity cloud deployment logs deploy_abc123xyz --limit=50
 ```
 
-## Best Practices
+## Best practices
 
 - Use stdout, console JSON, or your existing logger when that is already your app standard.
 - Use `logger` or `c.var.logger` when you want Agentuity telemetry configuration and child logger fields.
@@ -178,7 +207,8 @@ agentuity cloud deployment logs deploy_abc123xyz --limit=50
 - Use `info` for accepted work, `warn` for recoverable problems, and `error` for failed operations.
 - Avoid logging secrets, tokens, raw emails, or full request bodies.
 
-## Next Steps
+## Next steps
 
 - [Tracing](/services/observability/tracing): add OpenTelemetry spans around slow or multi-step work
 - [Sessions & Debugging](/services/observability/sessions-debugging): find the session that contains a log line
+- [Using LogTape with an OpenTelemetry Sink](/cookbook/patterns/logtape-structured-logging): keep LogTape logging app-owned

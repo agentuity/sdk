@@ -10,7 +10,7 @@ Use [Hono RPC](https://hono.dev/docs/guides/rpc) when a React client should call
 bun add hono @tanstack/react-query zod @hono/zod-validator
 ```
 
-## Define Typed Routes
+## Define typed routes
 
 Chain route methods on the same `Hono` instance. Hono infers the client contract from that chained route tree.
 
@@ -56,7 +56,7 @@ export default router;
 Route files can import service clients, read environment variables, or use server-only framework APIs. Export their types through a type-only file so the browser never imports the route module as runtime code.
 </Callout>
 
-## Export Route Types
+## Export route types
 
 Use a dedicated type-only file for client imports:
 
@@ -212,7 +212,7 @@ export function UserList() {
 }
 ```
 
-## Compose Multiple Routers
+## Compose multiple routers
 
 When you split routes across files, compose them with Hono and export the composed type:
 
@@ -257,7 +257,7 @@ export const client = hc<AppRoute>('/api');
 
 If you mount a router at `.route('/users', users)`, define the users router with relative paths like `/` and `/:id`. Otherwise Hono composes doubled paths such as `/users/users`.
 
-## With Agentuity Services
+## With Agentuity services
 
 Hono RPC works with ordinary Hono route handlers. If the route needs Agentuity service clients, install `@agentuity/hono` and add the middleware before the route handlers that read `c.var.*`.
 

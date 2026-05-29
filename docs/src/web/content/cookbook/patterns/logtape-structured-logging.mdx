@@ -1,0 +1,132 @@
+---
+title: Using LogTape with an OpenTelemetry Sink
+short_title: LogTape Logging
+description: Keep LogTape structured logs app-owned while optionally exporting logs through OpenTelemetry
+---
+
+When an Agentuity app already uses [LogTape](https://logtape.org/manual/start) categories and structured log records, keep LogTape as the process logger. Agentuity services and telemetry can still sit beside it in server-only app code.
+
+```bash
+bun add @logtape/logtape @logtape/otel
+```
+
+## Configure sinks at startup
+
+Configure LogTape once before route modules or workers start logging. Keep the OpenTelemetry sink behind an explicit option so local tests can run with console output only.
+
+```typescript title="src/lib/logging.ts"
+import {
+  configure,
+  dispose,
+  getConsoleSink,
+  getLogger,
+  type Sink,
+} from '@logtape/logtape';
+import { getOpenTelemetrySink } from '@logtape/otel';
+
+const supportLogger = getLogger(['support']);
+
+export async function configureSupportLogging(options: {
+  readonly useOtel: boolean;
+}): Promise<void> {
+  const sinks: Record<string, Sink> = {
+    console: getConsoleSink(),
+  };
+
+  const loggerSinks = ['console'];
+
+  if (options.useOtel) {
+    sinks.otel = getOpenTelemetrySink(); // [!code highlight]
+    loggerSinks.push('otel');
+  }
+
+  await configure({
+    reset: true,
+    sinks,
+    loggers: [
+      {
+        category: ['support'],
+        lowestLevel: 'info',
+        sinks: loggerSinks,
+      },
+      {
+        category: ['logtape', 'meta'],
+        lowestLevel: 'warning',
+        sinks: ['console'],
+      },
+    ],
+  });
+}
+
+export function logSupportAnswer(input: {
+  readonly question: string;
+  readonly sourceCount: number;
+  readonly escalated: boolean;
+}): void {
+  supportLogger.info('Support answer {questionLength} completed', {
+    questionLength: input.question.length,
+    sourceCount: input.sourceCount,
+    escalated: input.escalated,
+  });
+}
+
+export async function disposeSupportLogging(): Promise<void> {
+  await dispose();
+}
+```
+
+## Point the sink at a collector
+
+The LogTape OpenTelemetry sink reads standard OTLP log exporter environment variables. Use the log-specific variables when your collector has separate endpoints.
+
+```bash
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://127.0.0.1:4318/v1/logs
+OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/json
+```
+
+For vendor collectors, add the headers that collector requires:
+
+```bash
+OTEL_EXPORTER_OTLP_LOGS_HEADERS='Authorization=Bearer ...'
+```
+
+## Use it from app code
+
+Keep the logger call close to the app boundary that knows IDs, counts, and outcome fields.
+
+```typescript title="src/lib/support-answer.ts"
+import { logSupportAnswer } from './logging';
+
+interface SupportAnswer {
+  readonly answer: string;
+  readonly sources: readonly string[];
+  readonly escalated: boolean;
+}
+
+export function recordSupportAnswer(
+  question: string,
+  output: SupportAnswer
+): SupportAnswer {
+  logSupportAnswer({
+    question,
+    sourceCount: output.sources.length,
+    escalated: output.escalated,
+  });
+
+  return output;
+}
+```
+
+LogTape message placeholders become structured fields on the record. Keep secrets, raw prompts, tokens, and full request bodies out of the properties object.
+
+## Keep Agentuity beside it
+
+This path does not require an Agentuity logging integration. Keep LogTape for process logs, then add [Tracing](/services/observability/tracing) or [Sessions & Debugging](/services/observability/sessions-debugging) when you need Agentuity timelines, deployment logs, or spans from Agentuity telemetry.
+
+Use [`@agentuity/telemetry`](/services/observability/logging#use-agentuity-telemetry-logger) instead when you want Agentuity's logger and telemetry export setup to own the log path.
+
+## Next steps
+
+- [Logging](/services/observability/logging): choose between app-owned logs and Agentuity telemetry logs
+- [Tracing](/services/observability/tracing): add spans around slow or multi-step work
+- [OpenTelemetry route spans](/cookbook/patterns/opentelemetry-route-spans): send spans through the collector your app already uses

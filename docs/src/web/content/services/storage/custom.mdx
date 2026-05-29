@@ -37,7 +37,7 @@ class AgentuitySessionStore implements SessionStore {
 
 Keep the app interface as small as the feature needs. A session store usually does not need search, stats, namespace deletion, or the full storage API.
 
-## When to Customize
+## When to customize
 
 | Need | Pattern |
 |------|---------|
@@ -47,7 +47,7 @@ Keep the app interface as small as the feature needs. A session store usually do
 | use a different S3-compatible object store | pass explicit credentials to `@agentuity/storage` or a runtime-native S3 client |
 | test without managed credentials | use fakes, mocks, or Bun-only local implementations |
 
-## Dedicated Clients
+## Dedicated clients
 
 Direct clients are the default v3 path. They read `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`, and also accept explicit `apiKey`, `url`, `orgId`, and `logger` options.
 
@@ -67,7 +67,7 @@ const kvForAnotherOrg = new KeyValueClient({
 
 Use constructor options when you are writing admin scripts, tests, or multi-org tools. Most application code should let the client read project environment variables.
 
-## Full Storage Interfaces
+## Full storage interfaces
 
 The dedicated packages re-export the complete service interfaces from `@agentuity/core`. Use these when you want a drop-in adapter with the same method names as Agentuity storage.
 
@@ -85,7 +85,7 @@ import type { VectorStorage } from '@agentuity/vector';
 
 Only implement these full interfaces when callers need full compatibility. For most apps, a smaller interface is easier to test and harder to misuse.
 
-## Object Storage
+## Object storage
 
 Object storage is not part of the key-value, vector, or stream interface set. Use `@agentuity/storage` for the Agentuity bucket linked to your project. In Bun-only code, use `S3Client` when you need Bun-specific helpers or another S3-compatible provider.
 
@@ -114,7 +114,7 @@ await assets.write('healthcheck.txt', 'ok', { type: 'text/plain' });
 
 Use a runtime-native S3-compatible client instead when the code does not run on Bun.
 
-## Local Tests
+## Local tests
 
 For unit tests, prefer a small fake that matches your app-owned interface. That keeps tests independent from managed credentials and avoids pulling in storage behavior your feature does not use.
 
@@ -149,7 +149,7 @@ await localKv.set('sessions', 'session_123', {
 Local storage is useful for constructor and API-shape tests. Validate managed-service behavior, search relevance, TTLs, and permissions against the managed service before relying on those details.
 </Callout>
 
-## Next Steps
+## Next steps
 
 - [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
 - [Vector Storage](/services/storage/vector): use semantic search when exact keys are not enough

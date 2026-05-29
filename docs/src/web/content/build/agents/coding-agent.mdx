@@ -10,7 +10,7 @@ When someone asks what framework to use to build an agent that edits code, runs 
 bun add @agentuity/coder@next @agentuity/telemetry@next
 ```
 
-## Choose the Execution Surface
+## Choose the execution surface
 
 | Need | Use | Why |
 |------|-----|-----|
@@ -21,7 +21,7 @@ bun add @agentuity/coder@next @agentuity/telemetry@next
 
 The Coder path is the default for coding work that should be inspectable later. Plain sandbox workflows are better when the task is already a bounded command.
 
-## Start a Session
+## Start a session
 
 Create a session with a task, a label, and, optionally, a primary repo.
 
@@ -58,7 +58,7 @@ logger.info('coder session created', {
 
 `createSession()` starts the work and returns session state. It does not mean the agent is done. Keep the `sessionId`, then poll session state or subscribe to events.
 
-## Use an Output Contract
+## Use an output contract
 
 Coding agents do better when the prompt names the required files or reports, verification command, and stopping rule. This block is designed for humans and agents to read the same way.
 
@@ -101,7 +101,7 @@ Do not include hidden reasoning. Summarize findings, decisions, evidence, and tr
 
 Put paths like `expectedReportPath` or a run id in `metadata` so your app can correlate the session with the files or reports it asked for. Use the retrieval path approved for your product surface; do not assume session creation returns files inline.
 
-## Subscribe to Events
+## Subscribe to events
 
 Stream events when your app needs a live activity feed or wants to react to task progress.
 
@@ -122,7 +122,7 @@ for await (const event of streamCoderSessionSSE({
 
 Use [Coder](/services/coder) for session lifecycle, workspace, skills, replay, and participant details. Use [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk) when you need complete session creation and polling examples.
 
-## What Coder Adds
+## What Coder adds
 
 | Need | Coder behavior |
 |------|----------------|
@@ -132,7 +132,7 @@ Use [Coder](/services/coder) for session lifecycle, workspace, skills, replay, a
 | Audit | Read replay, participants, event history, and loop state |
 | Programmability | Create sessions from the SDK or REST API instead of only a terminal |
 
-## What This Does Not Do
+## What this does not do
 
 Coder does not replace your framework, router, ORM, auth, provider SDKs, or test runner. It gives coding work a managed session. Your app still decides what repos are allowed, which tasks are safe to run, what outputs count as complete, and what to do when the agent reports a blocker.
 

@@ -6,7 +6,7 @@ description: Connect a React Router framework-mode app to Agentuity services and
 
 Add Agentuity service clients to a [React Router](https://reactrouter.com/home) **framework-mode** app (the full-stack SSR mode, not a plain SPA). Keep your route modules, loaders, actions, and `routes.ts` as-is. Agentuity connects through the CLI and its service packages wherever server code needs storage, AI Gateway routing, or deploy metadata.
 
-## Create the Framework App
+## Create the framework app
 
 ```bash
 npx create-react-router@latest my-react-router-app
@@ -16,14 +16,21 @@ cd my-react-router-app
 Then add Agentuity:
 
 ```bash
-bun add -d @agentuity/cli@next
-agentuity project import --validate-only
-agentuity project import
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only
+npx agentuity project import
 ```
 
-Use the package manager that `create-react-router` configured. Substitute `npm install`, `pnpm add`, or `yarn add` if your project does not use Bun.
+Use the package manager that `create-react-router` configured. The CLI install is project-local: `-D` or `--dev` records `@agentuity/cli` in `devDependencies`, which keeps the CLI version in the app's lockfile. Bun's equivalent is lowercase `-d`.
 
-If you did not install the CLI globally, run the same commands through your package manager's exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, or the equivalent for your package manager.
+| Package manager | Add local CLI | Run local CLI | Undo local install |
+| --- | --- | --- | --- |
+| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
+| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
+| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
+| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+
+A global install is optional. It only makes bare `agentuity ...` work outside a project; it does not import or register the app. You can switch back by adding the dev dependency again and using the package-manager exec wrapper. The global install can stay installed, or you can remove it with the package manager that created it. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for the trade-offs.
 
 `agentuity project import` writes the local metadata needed for deploys. The `--validate-only` flag lets you review before linking.
 
@@ -37,37 +44,39 @@ The examples below use these files:
 | `app/routes/api.translate.ts` | Resource route that exports `loader` and `action` only |
 | `app/routes.ts` | Route map registering both modules |
 
-## Import an Existing App
+## Import an existing app
 
 Use the same Agentuity commands in an app that already exists:
 
 ```bash
-bun add -d @agentuity/cli@next
-agentuity project import --validate-only  # review what the CLI finds
-agentuity project import                  # write local project metadata
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only  # review what the CLI finds
+npx agentuity project import                  # write local project metadata
 ```
+
+Use the package-manager table above if the app is not npm-based.
 
 <Callout type="tip" title="Existing app?">
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.
 </Callout>
 
-## What Agentuity Adds
+## What Agentuity adds
 
 | Area | React Router keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | `routes.ts`, loaders, actions, and resource routes | service clients imported in server route code |
-| local dev | `react-router dev` | `agentuity dev` injects service and AI Gateway environment values |
-| build | React Router build output | `agentuity build` packages launch metadata |
+| local dev | `react-router dev` | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| build | React Router build output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the React Router server entry | `agentuity deploy` ships the packaged app |
 
-## Add a Resource Route
+## Add a resource route
 
 A resource route is any route module that exports `loader` or `action` but no default component. React Router sends `GET` requests to `loader` and `POST`, `PUT`, `PATCH`, `DELETE` to `action`.
 
 Install the packages used in this example:
 
 ```bash
-bun add @agentuity/keyvalue@next zod openai
+npm install @agentuity/keyvalue@next zod openai
 ```
 
 Create the route file:
@@ -210,7 +219,7 @@ export default [
 ] satisfies RouteConfig;
 ```
 
-## Call from a Component
+## Call from a component
 
 Use `fetch` from client code. Do not use React Router's `<Link>` for resource routes because client-side navigation won't reach a module with no component to render.
 
@@ -239,9 +248,9 @@ await fetch('/api/translate', { method: 'DELETE' });
 
 Plain anchor tags and `<Link reloadDocument>` also work for non-JSON resource routes (downloads, feeds, etc.) because they issue a full browser request.
 
-## Run Locally
+## Run locally
 
-`agentuity dev` injects `AGENTUITY_SDK_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `PORT=3000`. Use a wrapper script that delegates to the framework dev command:
+`agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value. Use a wrapper script that delegates to the framework dev command:
 
 ```json title="package.json"
 {
@@ -257,7 +266,7 @@ Plain anchor tags and `<Link reloadDocument>` also work for non-JSON resource ro
 Then run:
 
 ```bash
-bun run dev
+npm run dev
 ```
 
 The `--port 3000` flag is required because Vite (which React Router uses under the hood) ignores the `PORT` env var.
@@ -266,20 +275,20 @@ Smoke-test the resource route before touching the UI:
 
 ```bash
 # GET, returns session history
-curl http://127.0.0.1:3000/api/translate
+curl http://localhost:3000/api/translate
 
 # POST, translate text
-curl http://127.0.0.1:3000/api/translate \
+curl http://localhost:3000/api/translate \
   -H 'Content-Type: application/json' \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 
 # DELETE, clear history
-curl -X DELETE http://127.0.0.1:3000/api/translate
+curl -X DELETE http://localhost:3000/api/translate
 ```
 
-## Deployed Environment Variables
+## Deployed environment variables
 
-Configure the same variables in the deployed app that `agentuity dev` injects locally when you use the matching service.
+Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
 | Variable | Used by |
 | --- | --- |
@@ -287,56 +296,51 @@ Configure the same variables in the deployed app that `agentuity dev` injects lo
 | `OPENAI_MODEL` | example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
+| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database resource routes |
 | `AWS_*` | object storage resource routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate Before Deploy
+## Validate before deploy
 
-Build with React Router first, then run the Agentuity packaging check:
+Run React Router typegen and the framework build when you want framework-only feedback, then run the Agentuity packaging check. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
 ```bash
-bunx react-router typegen
-bun run build
-agentuity build
+npx react-router typegen
+npm run build
+npx agentuity build
 ```
 
-React Router outputs to `build/` (client assets in `build/client/`, server in `build/server/`). The Agentuity CLI currently packages React Router apps through the generic adapter. Inspect the generated metadata to confirm the server entry and static paths match what was built:
+React Router outputs to `build/` (client assets in `build/client/`, server in `build/server/`). Agentuity detects framework-mode apps from `react-router.config.*` or the React Router Vite plugin. Inspect the generated metadata to confirm the server entry and static paths match what was built:
 
 ```bash
 cat .agentuity/launch.json
 ```
 
-If `agentuity build` cannot find local binaries, prefix the command:
-
-```bash
-PATH="$(pwd)/node_modules/.bin:$PATH" agentuity build
-```
-
 Deploy only after the packaging check and a local packaged validation of `/` and the resource route pass:
 
 ```bash
-agentuity deploy --confirm
+npx agentuity deploy --confirm
 ```
 
-## Common Gotchas
+## Common gotchas
 
 | Symptom | What to check |
 |---------|---------------|
 | Route returns 404 in dev or deployed | [`app/routes.ts`](https://reactrouter.com/api/framework-conventions/routes.ts) must include `route('api/translate', 'routes/api.translate.ts')`; React Router does not auto-discover routes |
-| `Cannot find module './+types/api.translate'` | Run `bunx react-router typegen` or your package `typecheck` script before `agentuity build` |
-| KV client or OpenAI calls return auth errors | Start the app with `agentuity dev`, not `bun run dev`, so credentials are injected |
-| OpenAI calls hit the wrong provider or use no API key | Check that `OPENAI_BASE_URL` and `OPENAI_API_KEY` are present in the process; `agentuity dev` sets both. See [AI Gateway](/services/ai-gateway) |
-| Anthropic SDK calls bypass the AI Gateway | Verify `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` are set; `agentuity dev` injects both. See [AI Gateway](/services/ai-gateway) |
+| `Cannot find module './+types/api.translate'` | Run `npx react-router typegen` or your package `typecheck` script before direct TypeScript checks |
+| KV client or OpenAI calls return auth errors | Start the app through the `agentuity dev --script dev:start` wrapper so credentials are available |
+| OpenAI calls hit the wrong provider or use no API key | Verify `OPENAI_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
+| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
 | Deploy starts but only static assets are served | Inspect `.agentuity/launch.json`: `processes[0].command` must run the React Router server entry (`build/server/index.js`) |
 | Client-side `<Link>` to the resource route renders nothing or errors | [Resource routes](https://reactrouter.com/how-to/resource-routes) have no component; navigate to them with `fetch`, plain `<a>`, or `<Link reloadDocument>` |
 
-## Framework Docs
+## Framework docs
 
 - [React Router `routes.ts`](https://reactrouter.com/api/framework-conventions/routes.ts): route module registration reference
 - [React Router Resource Routes](https://reactrouter.com/how-to/resource-routes): `loader`/`action` behavior for non-UI routes
 - [React Router Route Module](https://reactrouter.com/start/framework/route-module): `Route.LoaderArgs`, `Route.ActionArgs`, and other typegen exports
 
-## Next Steps
+## Next steps
 
 - [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
 - [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output

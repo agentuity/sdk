@@ -37,8 +37,9 @@ function HomePage() {
 				>
 					Agentuity
 				</a>{' '}
-				is the cloud platform for deploying apps, APIs, and agents with built-in, agent-native
-				services for storage, databases, sandboxes, AI Gateway access, and more.
+				is the cloud platform for deploying apps, APIs, static sites, background work, and
+				agents. Keep your framework conventions and add built-in, agent-native services where
+				they help.
 			</p>
 			<p className="text-lg text-zinc-600 dark:text-zinc-400 mb-10">
 				Start with a guide, explore interactive demos, or dive into the reference docs.
@@ -106,7 +107,7 @@ function HomePage() {
 				<CardLink
 					href="/services"
 					title="Services"
-					description="Use agent-native services from routes, workers, scripts, and apps"
+					description="Add app infrastructure from routes, workers, scripts, and agents"
 					icon={<Layers />}
 				/>
 			</Cards>
