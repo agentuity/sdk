@@ -81,6 +81,9 @@ export function buildDiscoverStep(
 					summary.push(`Static:       ${framework.staticDir}`);
 				}
 				summary.push(`Pkg manager:  ${framework.packageManager}`);
+				for (const warning of framework.warnings ?? []) {
+					summary.push(`⚠ ${warning}`);
+				}
 
 				return stepSuccess(summary);
 			} catch (err) {

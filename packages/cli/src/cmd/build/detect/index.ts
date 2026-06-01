@@ -215,6 +215,20 @@ async function frameworkDefToDetected(
 		return 'node';
 	})();
 
+	// Flag frameworks that need a server adapter the project hasn't
+	// installed (e.g. TanStack Start without `nitro`). Skipped when the
+	// user ships their own production `start` script — that's a strong
+	// signal they've wired up server hosting some other way and don't
+	// need the nudge.
+	const warnings: string[] = [];
+	if (
+		definition.requiresServerAdapter &&
+		!hasPackage(pkg, definition.requiresServerAdapter.package) &&
+		!userStartIsProduction
+	) {
+		warnings.push(definition.requiresServerAdapter.warning);
+	}
+
 	return {
 		name: definition.slug,
 		runtime,
@@ -228,6 +242,7 @@ async function frameworkDefToDetected(
 		buildFileReplacements: definition.buildFileReplacements,
 		startCommand: resolvedStartCommand,
 		confidence: 'high',
+		warnings: warnings.length > 0 ? warnings : undefined,
 	};
 }
 
