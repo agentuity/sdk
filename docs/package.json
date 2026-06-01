@@ -46,6 +46,7 @@
 		"@mdx-js/rollup": "^3.1.0",
 		"@monaco-editor/react": "^4.7.0",
 		"@radix-ui/react-aspect-ratio": "^1.1.8",
+		"@radix-ui/react-tabs": "^1.1.13",
 		"@shikijs/langs": "^3.20.0",
 		"@shikijs/themes": "^3.20.0",
 		"@shikijs/transformers": "^3.20.0",
