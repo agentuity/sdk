@@ -150,6 +150,9 @@ export function buildBuildStep(params: BuildStepParams): Step {
 					capturedOutput.push(
 						tui.muted(`✓ Detected ${frameworkLabel} (${framework.runtime})`)
 					);
+					for (const warning of framework.warnings ?? []) {
+						capturedOutput.push(`⚠ ${warning}`);
+					}
 					if (pipelineResult.monorepo) {
 						const { packageManager, root, subpath } = pipelineResult.monorepo;
 						capturedOutput.push(
