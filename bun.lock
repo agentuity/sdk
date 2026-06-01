@@ -35,7 +35,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -45,7 +45,7 @@
     },
     "apps/docs": {
       "name": "docs",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/drizzle": "workspace:*",
@@ -114,7 +114,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "2.0.24",
+      "version": "2.0.25",
     },
     "apps/testing/auth-package-app": {
       "name": "auth-package-app",
@@ -420,7 +420,7 @@
     },
     "packages/aigateway": {
       "name": "@agentuity/aigateway",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -435,7 +435,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/drizzle": "workspace:*",
@@ -469,7 +469,7 @@
     },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "devDependencies": {
         "@types/bun": "latest",
         "bun-types": "latest",
@@ -478,7 +478,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -519,7 +519,7 @@
     },
     "packages/coder": {
       "name": "@agentuity/coder",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -533,7 +533,7 @@
     },
     "packages/coder-tui": {
       "name": "@agentuity/coder-tui",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/pi": "workspace:*",
         "@earendil-works/pi-coding-agent": "^0.74.0",
@@ -549,7 +549,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -563,7 +563,7 @@
     },
     "packages/db": {
       "name": "@agentuity/db",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -578,7 +578,7 @@
     },
     "packages/drizzle": {
       "name": "@agentuity/drizzle",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/postgres": "workspace:*",
@@ -594,7 +594,7 @@
     },
     "packages/email": {
       "name": "@agentuity/email",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -609,7 +609,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -626,7 +626,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -639,7 +639,7 @@
     },
     "packages/keyvalue": {
       "name": "@agentuity/keyvalue",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -654,7 +654,7 @@
     },
     "packages/migrate": {
       "name": "@agentuity/migrate",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "bin": {
         "agentuity-migrate": "./bin/migrate.ts",
       },
@@ -670,7 +670,7 @@
     },
     "packages/opencode": {
       "name": "@agentuity/opencode",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@opencode-ai/plugin": "^1.1.36",
@@ -686,7 +686,7 @@
     },
     "packages/pi": {
       "name": "@agentuity/pi",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -703,7 +703,7 @@
     },
     "packages/postgres": {
       "name": "@agentuity/postgres",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "pg": "^8.13.1",
@@ -726,7 +726,7 @@
     },
     "packages/queue": {
       "name": "@agentuity/queue",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -741,7 +741,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -760,7 +760,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -800,7 +800,7 @@
     },
     "packages/sandbox": {
       "name": "@agentuity/sandbox",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -810,7 +810,7 @@
     },
     "packages/schedule": {
       "name": "@agentuity/schedule",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -825,7 +825,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -838,7 +838,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -854,7 +854,7 @@
     },
     "packages/task": {
       "name": "@agentuity/task",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -869,7 +869,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -879,7 +879,7 @@
     },
     "packages/vector": {
       "name": "@agentuity/vector",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -894,7 +894,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -908,7 +908,7 @@
     },
     "packages/webhook": {
       "name": "@agentuity/webhook",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -923,7 +923,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "2.0.24",
+      "version": "2.0.25",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
@@ -3050,7 +3050,7 @@
 
     "integration-suite": ["integration-suite@workspace:apps/testing/integration-suite"],
 
-    "internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
+    "internmap": ["internmap@2.0.3", "", {}, "sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg=="],
 
     "is-alphabetical": ["is-alphabetical@2.0.1", "", {}, "sha512-FWyyY60MeTNyeSRpkM2Iry0G9hpr7/9kD40mD/cGQEuilcZYS4okz8SN2Q6rLCJ8gbCt6fN+rC+6tMGS99LaxQ=="],
 
@@ -4318,7 +4318,7 @@
 
     "@tanstack/devtools-vite/chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
 
-    "@testing-library/jest-dom/aria-query": ["aria-query@5.3.1", "", {}, "sha512-Z/ZeOgVl7bcSYZ/u/rh0fOpvEpq//LZmdbkXyc7syVzjPAhfOa9ebsdTSjEBDU4vs5nC98Kfduj1uFo0qyET3g=="],
+    "@testing-library/jest-dom/aria-query": ["aria-query@5.3.2", "", {}, "sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw=="],
 
     "@testing-library/jest-dom/dom-accessibility-api": ["dom-accessibility-api@0.6.3", "", {}, "sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w=="],
 
@@ -4609,6 +4609,8 @@
     "create-agentuity/@agentuity/cli/@agentuity/server": ["@agentuity/server@2.0.22", "", { "dependencies": { "@agentuity/core": "2.0.22", "@agentuity/schema": "2.0.22", "zod": "^4.3.5" } }, "sha512-1nhcXXeTH5IwzxfZrMB+w9DQk0YMS7U78xjga9MhL+EH4AEmCIRZKRyUfsggv/RIBr8txIj7Mz7MA/ALLCN4xg=="],
 
     "cytoscape-fcose/cose-base/layout-base": ["layout-base@2.0.1", "", {}, "sha512-dp3s92+uNI1hWIpPGH3jK2kxE2lMjdXdr+DH8ynZHpd6PUlH6x6cbuXnoMmiNumznqaNO31xu9e79F0uuZ0JFg=="],
+
+    "d3-sankey/d3-array/internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
 
     "d3-sankey/d3-shape/d3-path": ["d3-path@1.0.9", "", {}, "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="],
 
