@@ -66,6 +66,23 @@ async function serveStatic(pathname) {
 	});
 }
 
+const healthPaths = new Set(['/_health', '/_agentuity/health', '/__health']);
+
+function healthResponse(request) {
+	if (request.method !== 'GET' && request.method !== 'HEAD') return undefined;
+
+	const url = new URL(request.url);
+	if (!healthPaths.has(url.pathname)) return undefined;
+
+	return new Response(null, {
+		status: 200,
+		headers: {
+			'cache-control': 'no-store',
+			'content-type': 'text/plain; charset=utf-8',
+		},
+	});
+}
+
 const startFetch = server.fetch.bind(server);
 
 Bun.serve({
@@ -73,6 +90,9 @@ Bun.serve({
 	port,
 	websocket,
 	async fetch(request, bunServer) {
+		const health = healthResponse(request);
+		if (health) return health;
+
 		const url = new URL(request.url);
 		if (request.method === 'GET' || request.method === 'HEAD') {
 			const staticResponse = await serveStatic(url.pathname);
