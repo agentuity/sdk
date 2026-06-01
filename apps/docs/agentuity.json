@@ -1,14 +1,14 @@
 {
 	"$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
-	"projectId": "proj_5ed7da797bef771d65e1bd6946a052b1",
+	"projectId": "proj_28be46e57262a19acdccf29a3154835d",
 	"orgId": "org_2u8RgDTwcZWrZrZ3sZh24T5FCtz",
 	"deployment": {
-		"domains": ["agentuity.dev"],
 		"resources": {
 			"memory": "2Gi",
 			"cpu": "2",
 			"disk": "4Gi"
-		}
+		},
+		"domains": ["v2.agentuity.dev"]
 	},
 	"build": {
 		"timeout": "45m",

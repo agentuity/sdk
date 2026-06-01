@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://agentuity.com/docs/sitemap.xml
+Sitemap: https://v2.agentuity.dev/sitemap.xml
