@@ -12,7 +12,7 @@ export interface DocsAssistantContext {
 	};
 }
 
-export interface DocsChunkMetadata {
+export interface DocsChunkMetadata extends Record<string, unknown> {
 	readonly path?: string;
 	readonly title?: string;
 	readonly text?: string;
