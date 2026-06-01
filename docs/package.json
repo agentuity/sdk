@@ -88,6 +88,9 @@
 		"@vitejs/plugin-react": "^4.5.2",
 		"pagefind": "^1.5.2",
 		"playwright": "^1.58.1",
+		"rehype-pretty-code": "^0.14.3",
+		"remark-frontmatter": "^5.0.0",
+		"remark-mdx-frontmatter": "^5.2.0",
 		"tailwindcss": "^4.1.18",
 		"typescript": "^5",
 		"vite": "^7.2.7"
