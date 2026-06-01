@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/storage",
-	"version": "3.0.2",
+	"version": "3.0.3",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Dual-runtime S3 client for Agentuity storage buckets. Bun backend uses Bun.S3Client; Node backend uses @aws-sdk/client-s3.",
