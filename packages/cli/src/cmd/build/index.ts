@@ -126,6 +126,9 @@ export const command = createCommand({
 				? `${framework.name} v${framework.version}`
 				: framework.name;
 			tui.success(`Detected ${tui.bold(frameworkLabel)} (${framework.runtime})`);
+			for (const warning of framework.warnings ?? []) {
+				tui.warning(warning);
+			}
 			if (monorepo) {
 				tui.info(
 					`Detected ${tui.bold(monorepo.packageManager)} workspace at ${tui.muted(monorepo.root)} (subpackage: ${tui.bold(monorepo.subpath)})`

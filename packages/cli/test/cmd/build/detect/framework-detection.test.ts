@@ -323,6 +323,52 @@ describe('Framework Detection', () => {
 			expect(result!.startCommand).toBe('node .output/server/index.mjs');
 			expect(result!.buildOutput).toBe('.output');
 		});
+
+		test('defaults to the Nitro server entry when no start script exists', async () => {
+			// The hosting docs don't add a `start` script. Without a
+			// framework default, detection yields no start command and the
+			// generic adapter injects a static-file server, which 404s every
+			// route for an SSR build (no root index.html).
+			writePackageJson(testDir, {
+				name: 'my-tanstack-app',
+				dependencies: {
+					'@tanstack/react-start': '^1.0.0',
+					'@tanstack/router-plugin': '^1.0.0',
+				},
+				scripts: {
+					build: 'vite build',
+				},
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('tanstack-start');
+			expect(result!.startCommand).toBe('HOST=0.0.0.0 node .output/server/index.mjs');
+			expect(result!.buildOutput).toBe('.output');
+		});
+
+		test('warns when nitro is missing (client-only SPA build)', async () => {
+			writePackageJson(testDir, {
+				name: 'my-tanstack-app',
+				dependencies: { '@tanstack/react-start': '^1.0.0' },
+				scripts: { build: 'vite build' },
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('tanstack-start');
+			expect(result!.warnings?.some((w) => w.includes('Nitro'))).toBe(true);
+		});
+
+		test('does not warn when nitro is configured', async () => {
+			writePackageJson(testDir, {
+				name: 'my-tanstack-app',
+				dependencies: { '@tanstack/react-start': '^1.0.0', nitro: 'npm:nitro-nightly@latest' },
+				scripts: { build: 'vite build' },
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('tanstack-start');
+			expect(result!.warnings).toBeUndefined();
+		});
 	});
 
 	// ── Generic ──

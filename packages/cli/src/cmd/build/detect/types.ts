@@ -88,6 +88,13 @@ export interface DetectedFramework {
 
 	/** Detection confidence: 'high' if config file found, 'low' if inferred */
 	confidence: 'high' | 'medium' | 'low';
+
+	/**
+	 * Non-fatal advisories surfaced to the user at build/deploy time
+	 * (e.g. a framework that needs a server adapter the project hasn't
+	 * installed). Empty/undefined when there's nothing to flag.
+	 */
+	warnings?: string[];
 }
 
 /**

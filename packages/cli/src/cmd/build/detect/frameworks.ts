@@ -46,6 +46,22 @@ export interface FrameworkDefinition {
 	 */
 	preferDefaultStart?: boolean;
 	/**
+	 * Server-adapter requirement. Some frameworks only emit a deployable
+	 * Node server when a server/SSR adapter is configured; for the
+	 * Vite-based ones (TanStack Start) that's the `nitro()` plugin from
+	 * the `nitro` package. Without it, `vite build` emits a client-only
+	 * SPA, the `defaultStartCommand` server entry never exists, and any
+	 * backend routes (and SSR) are dropped. When `package` is absent from
+	 * the project's dependencies we surface `warning` at detect time so
+	 * the user can add it before they ship a broken deploy.
+	 */
+	requiresServerAdapter?: {
+		/** Package whose presence indicates the server adapter is configured. */
+		package: string;
+		/** Actionable guidance shown when the package is missing. */
+		warning: string;
+	};
+	/**
 	 * Override `outputDirectory` at detect time by inspecting the project.
 	 * Used by frameworks whose output path is determined by a config file
 	 * the user owns (e.g. Angular's `angular.json` for v17+ where the
@@ -228,12 +244,25 @@ export const frameworkDefinitions: FrameworkDefinition[] = [
 		name: 'TanStack Start',
 		slug: 'tanstack-start',
 		buildCommand: 'vite build',
+		defaultStartCommand: { command: 'HOST=0.0.0.0 node .output/server/index.mjs' },
+		requiresServerAdapter: {
+			package: 'nitro',
+			warning:
+				'TanStack Start needs the Nitro Vite plugin to build a deployable server. ' +
+				'Without it, `vite build` produces a client-only SPA and your SSR + server ' +
+				'routes are dropped, so the deploy 404s every route. Install `nitro` and add ' +
+				"`import { nitro } from 'nitro/vite'` to the plugins in your vite.config.ts.",
+		},
 		// With the `nitro()` Vite plugin (see hosting docs), TanStack
 		// Start emits a self-listening Node server at
 		// `.output/server/index.mjs` plus static assets under
-		// `.output/public/`. The user's package.json `start` script
-		// (`node .output/server/index.mjs`) is what we run; the generic
-		// adapter handles the rest.
+		// `.output/public/` — the same Nitro `node-server` preset Nuxt
+		// uses. The hosting docs don't add a `start` script, so we
+		// default to launching that server entry; a user-supplied
+		// production `start` script still wins via the resolver. Without
+		// this default, a project with no `start` script falls through to
+		// the static-file server injector, which has no root index.html
+		// for an SSR build and 404s every route.
 		outputDirectory: '.output',
 		staticDir: '.output/public',
 		detectors: {
