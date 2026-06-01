@@ -651,7 +651,27 @@ async function createOrUpdateGitHubRelease(
 		// Release doesn't exist, continue
 	}
 
-	// Create the release
+	// Create and push an annotated tag pinned to the current HEAD (the
+	// "Release X.Y.Z" commit). This must run AFTER that commit exists.
+	//
+	// We create+push the tag ourselves rather than letting `gh release create`
+	// create it, for two reasons:
+	//   1. Without an explicit target, gh tags the repository's DEFAULT branch
+	//      (`main`, i.e. v3 — which has no `templates/` dir). A v2 release cut
+	//      from the `v2` branch then lands its tag on a v3 commit, so
+	//      `refs/tags/vX.Y.Z/templates/templates.json` 404s and the hosted
+	//      template route breaks until the tag is retargeted by hand.
+	//   2. `gh` creates a lightweight tag; our tooling and humans expect an
+	//      annotated release tag.
+	// Pushing the tag also uploads the release commit object to the remote even
+	// though its branch hasn't been pushed yet, so `gh release create` can
+	// attach to a tag that already resolves to the correct commit. Pushing the
+	// release *branch* is still left to the operator (see commitReleaseChanges).
+	const headSha = (await $`git rev-parse HEAD`.cwd(rootDir).text()).trim();
+	await $`git tag -f -a ${tag} -m ${`Release ${version}`} ${headSha}`.cwd(rootDir);
+	await $`git push origin ${tag} --force`.cwd(rootDir);
+
+	// Create the release against the tag we just pushed
 	const args = [
 		'release',
 		'create',
@@ -699,6 +719,57 @@ async function createOrUpdateGitHubRelease(
 			console.error(`✗ Failed to upload ${assetName}:`, err);
 			throw err;
 		}
+	}
+}
+
+/**
+ * Stage and commit the release artifacts (bumped package.json files,
+ * marketplace.json/plugin.json version bumps, refreshed bun.lock) so the
+ * release commit exists before the GitHub release tag is created against it.
+ *
+ * Pushing the branch is intentionally left to the operator: the npm publish
+ * has already happened, but the operator may still want to review the
+ * generated commit before pushing.
+ *
+ * @returns true if a release commit was created, false if there was nothing
+ * to commit or committing failed.
+ */
+async function commitReleaseChanges(version: string): Promise<boolean> {
+	console.log('\n📝 Committing release changes...');
+
+	// Only stage the files we know we touched (the same set revertVersionChanges
+	// restores). We avoid `git add -A` so unrelated working-tree changes don't
+	// get rolled into the release commit.
+	//
+	// Globs are written into separate template strings so Bun's `$` passes them
+	// through to git for pathspec expansion (interpolating a glob via `${var}`
+	// single-quotes it and disables matching). `plugin.json` lives under a
+	// dot-directory, where Bun's shell glob fails with `no matches found`, so it
+	// is staged as an explicit path with `.nothrow()`.
+	try {
+		await $`git add package.json bun.lock .claude-plugin/marketplace.json`.cwd(rootDir);
+		await $`git add packages/*/package.json apps/*/package.json`.cwd(rootDir);
+		await $`git add packages/claude-code/.claude-plugin/plugin.json`.cwd(rootDir).nothrow();
+	} catch (err) {
+		console.warn('   ⚠ Failed to stage release files:', err);
+		return false;
+	}
+
+	// Bail out if there's actually nothing to commit.
+	const diff = await $`git diff --cached --name-only`.cwd(rootDir).text();
+	if (!diff.trim()) {
+		console.log('   ⊘ No release changes to commit.');
+		return false;
+	}
+
+	const message = `Release ${version}`;
+	try {
+		await $`git commit -m ${message}`.cwd(rootDir);
+		console.log(`✓ Committed release ${version} (push the branch manually when ready)`);
+		return true;
+	} catch (err) {
+		console.warn('   ⚠ Failed to commit release changes:', err);
+		return false;
 	}
 }
 
@@ -770,6 +841,14 @@ async function main() {
 			: 'next'
 		: 'latest';
 
+	// Mark the GitHub release as a pre-release whenever it isn't going to the
+	// `latest` dist-tag. This covers stable-looking semvers published to a
+	// non-`latest` line (e.g. a v2.x prerelease on `next`/`beta`): the version
+	// string isn't a prerelease, but the release must not grab GitHub's "Latest"
+	// badge away from the actual `latest` release. Only `latest` releases are
+	// non-pre.
+	const markAsPrerelease = distTag !== 'latest';
+
 	const confirmed = await confirmVersion(newVersion);
 	if (!confirmed) {
 		console.log('\n❌ Publish cancelled\n');
@@ -811,17 +890,6 @@ async function main() {
 
 		// Build templates tarball
 		const templatesTarballPath = await buildTemplatesTarball(newVersion);
-
-		// Create GitHub release before npm publish (skip in dry-run)
-		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(
-				newVersion,
-				releaseNotes,
-				isPreReleaseVersion,
-				vsixPath,
-				templatesTarballPath
-			);
-		}
 
 		const publishable = await getPublishablePackages();
 		const names = publishable.map((p) => `${p.dir}/${p.name}`).join(', ');
@@ -880,6 +948,25 @@ async function main() {
 
 			console.log('\n📥 Running bun install to pick up new versions...');
 			await $`bun install`.cwd(rootDir);
+
+			// Commit the release BEFORE creating the GitHub release so the tag the
+			// release is attached to targets the "Release X.Y.Z" commit rather than
+			// whatever HEAD was before the version bump. createOrUpdateGitHubRelease
+			// tags HEAD and pushes that tag, so the commit must exist first.
+			const released = await commitReleaseChanges(newVersion);
+			if (!released) {
+				console.warn(
+					'   ⚠ No release commit was created; GitHub release will be tagged at current HEAD.'
+				);
+			}
+
+			await createOrUpdateGitHubRelease(
+				newVersion,
+				releaseNotes,
+				markAsPrerelease,
+				vsixPath,
+				templatesTarballPath
+			);
 		}
 	} catch (err) {
 		console.error('\n❌ Publish failed:', err);

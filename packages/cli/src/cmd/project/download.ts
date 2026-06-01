@@ -19,7 +19,7 @@ import { downloadWithSpinner } from '../../download';
 import * as tui from '../../tui';
 import type { TemplateInfo } from './templates';
 
-const GITHUB_BRANCH = 'main';
+const GITHUB_BRANCH = 'v2';
 const BASE_TEMPLATE_DIR = '_base';
 
 interface DownloadOptions {

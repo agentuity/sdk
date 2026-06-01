@@ -1,6 +1,6 @@
 import { StructuredError, Logger } from '@agentuity/core';
 
-const GITHUB_BRANCH = 'main';
+const GITHUB_BRANCH = 'v2';
 
 export interface TemplateInfo {
 	id: string;

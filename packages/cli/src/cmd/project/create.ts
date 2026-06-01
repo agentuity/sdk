@@ -55,7 +55,7 @@ export const createProjectSubcommand = createSubcommand({
 			templateBranch: z
 				.string()
 				.optional()
-				.describe('GitHub branch to use for templates (default: main)'),
+				.describe('GitHub branch to use for templates (default: v2)'),
 			install: z
 				.boolean()
 				.optional()
