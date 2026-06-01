@@ -43,6 +43,10 @@ const TemplateDirectoryNotFoundError = StructuredError('TemplateDirectoryNotFoun
 	directory: string;
 }>();
 
+const TemplateExtractionEmptyError = StructuredError('TemplateExtractionEmptyError')<{
+	url: string;
+}>();
+
 async function copyTemplateFiles(sourceDir: string, dest: string, skipGitignoreRename = false) {
 	if (!existsSync(sourceDir)) {
 		return; // Source directory doesn't exist, skip (overlay may be empty)
@@ -225,14 +229,21 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		);
 
 		// Step 2: Extract tarball - extract both base and overlay templates
-		// The tarball structure is: sdk-{branch}/templates/{template.directory}/...
+		// The archive's top-level directory is named by GitHub from the ref, which
+		// strips a leading "v" (branch `v2` -> `sdk-2/`, not `sdk-v2/`; tag `v2.0.24`
+		// -> `sdk-2.0.24/`). So we can't assume the root equals `sdk-${branch}`;
+		// match each entry by its path *after* the first segment instead.
 		const baseExtractDir = join(tempDir, 'base');
 		const overlayExtractDir = join(tempDir, 'overlay');
 		mkdirSync(baseExtractDir, { recursive: true });
 		mkdirSync(overlayExtractDir, { recursive: true });
 
-		const basePrefix = `sdk-${branch}/${basePath}/`;
-		const overlayPrefix = `sdk-${branch}/${overlayPath}/`;
+		const basePrefix = `${basePath}/`;
+		const overlayPrefix = `${overlayPath}/`;
+		const stripRoot = (name: string): string => {
+			const slash = name.indexOf('/');
+			return slash === -1 ? '' : name.slice(slash + 1);
+		};
 		logger.debug('[extract] Base extract dir: %s', baseExtractDir);
 		logger.debug('[extract] Overlay extract dir: %s', overlayExtractDir);
 		logger.debug('[extract] Base prefix: %s', basePrefix);
@@ -252,20 +263,18 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 			// We extract base files to baseExtractDir and overlay files to overlayExtractDir
 			map: (header: Headers) => {
 				const originalName = header.name;
+				const rel = stripRoot(header.name);
 
 				// Check if this is a base template file
-				if (header.name.startsWith(basePrefix) && header.name.length > basePrefix.length) {
-					header.name = `base/${header.name.substring(basePrefix.length)}`;
+				if (rel.startsWith(basePrefix) && rel.length > basePrefix.length) {
+					header.name = `base/${rel.substring(basePrefix.length)}`;
 					mappedEntries.add(header.name);
 					logger.debug('[extract] MAP BASE: %s -> %s', originalName, header.name);
 					baseExtractedCount++;
 				}
 				// Check if this is an overlay template file
-				else if (
-					header.name.startsWith(overlayPrefix) &&
-					header.name.length > overlayPrefix.length
-				) {
-					header.name = `overlay/${header.name.substring(overlayPrefix.length)}`;
+				else if (rel.startsWith(overlayPrefix) && rel.length > overlayPrefix.length) {
+					header.name = `overlay/${rel.substring(overlayPrefix.length)}`;
 					mappedEntries.add(header.name);
 					logger.debug('[extract] MAP OVERLAY: %s -> %s', originalName, header.name);
 					overlayExtractedCount++;
@@ -301,6 +310,17 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		logger.debug('[extract] Ignored entries: %d', ignoredCount);
 		logger.debug('[extract] Base extracted entries: %d', baseExtractedCount);
 		logger.debug('[extract] Overlay extracted entries: %d', overlayExtractedCount);
+
+		// Fail loudly instead of reporting a successful but empty scaffold. If both
+		// counts are zero the archive layout didn't match what we expected (e.g. the
+		// root-dir prefix drifted), and copying nothing would leave the user with an
+		// empty project.
+		if (baseExtractedCount === 0 && overlayExtractedCount === 0) {
+			throw new TemplateExtractionEmptyError({
+				url,
+				message: `No template files were extracted from ${url} (expected entries under ${basePrefix} and ${overlayPrefix}).`,
+			});
+		}
 
 		// Step 3: Copy base template files, then overlay template files
 		await tui.spinner({
