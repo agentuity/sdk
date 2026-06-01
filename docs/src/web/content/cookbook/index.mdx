@@ -18,6 +18,7 @@ import {
   Search,
   Server,
   Sparkles,
+  Terminal,
   Webhook,
   Workflow,
   Zap,
@@ -111,6 +112,19 @@ Reusable shapes for common app problems. Each pattern is one focused job.
   />
 </Cards>
 
+### Sandbox
+
+Run bounded code workflows in isolated sandboxes when your app owns the command, files, and result parsing.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/running-external-coding-tools-in-sandbox"
+    title="External Coding Tools"
+    description="Run a formatter, linter, test command, or agent CLI as a one-shot sandbox workflow"
+    icon={<Terminal />}
+  />
+</Cards>
+
 ### Coder
 
 Manage [Coder](/services/coder) sessions, skills, and workspaces from the SDK.
@@ -130,8 +144,8 @@ Manage [Coder](/services/coder) sessions, skills, and workspaces from the SDK.
   />
   <CardLink
     href="/cookbook/patterns/choosing-built-in-agents-for-a-coder-session"
-    title="Built-In Agents"
-    description="Choose which built-in Coder agents are enabled for a session and set the default agent"
+    title="Agent Selection"
+    description="Choose built-in or published custom agents for a session and set the default route target"
     icon={<Bot />}
   />
   <CardLink
@@ -194,3 +208,11 @@ External libraries that run on or alongside Agentuity. Framework setup lives und
 <Callout type="info" title="Looking for Next.js, TanStack Start, Hono, SvelteKit, Nuxt, Astro, React Router, or Vite + React?">
 Framework integration pages live under [Frameworks](/frameworks). The cookbook is for external libraries, not framework setup.
 </Callout>
+
+## Next steps
+
+Use these pages when a recipe points back to a core concept or app shape.
+
+- [Build](/build): learn the base app, API, background work, and agent patterns before adapting a recipe
+- [Services](/services): choose the managed client a recipe uses
+- [Frameworks](/frameworks): add a pattern to your framework's route or server function shape

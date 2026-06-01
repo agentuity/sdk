@@ -149,7 +149,7 @@ bunx agentuity project import \
   --confirm
 ```
 
-That writes `apps/web/agentuity.json` and `apps/web/.env`. The build step can still detect the workspace root and write a launch command with `workingDirectory: "apps/web"` when the CLI package includes monorepo staging support.
+That writes `apps/web/agentuity.json` and `apps/web/.env`. The build step detects the workspace root and writes a launch command with `workingDirectory: "apps/web"` for the app subdirectory.
 
 ## Run through Agentuity
 

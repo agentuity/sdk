@@ -326,8 +326,8 @@ if (message) {
 }
 ```
 
-<Callout type="info" title="CLI for Quick Operations">
-For one-off queue management, use the CLI instead: `agentuity cloud queue create worker --name my-queue`, `agentuity cloud queue dlq list my-queue`, etc. See [Queues](/services/queues) for CLI commands.
+<Callout type="info" title="Use the CLI for one-off queue operations">
+For one-off queue management, use `agentuity cloud queue --help` to inspect the current queue commands and flags. The service page covers the queue lifecycle and links to the lower-level API reference.
 </Callout>
 
 ## Alternative: Hono routes
@@ -564,14 +564,15 @@ const jsonSchema = toJSONSchema(schema);
 ## Key points
 
 - **Standalone packages** are the simplest way to access services from external backends
-- **Manual configuration** with `@agentuity/server` supports custom adapters and service URL overrides
-- **Required env vars**: `AGENTUITY_SDK_KEY` and `AGENTUITY_REGION` (from `agentuity.json`)
+- **Manual configuration** with `@agentuity/server` is for custom adapters, direct service URL overrides, or lower-level API helpers
+- **Required env vars**: standalone clients read `AGENTUITY_SDK_KEY` by default; manual `@agentuity/server` setup also needs the service base URL or region it will target
 - **HTTP routes** are an alternative for centralized logic, middleware, or sharing across apps
 - **Works with any framework**: Next.js, React Router, Remix, Express, and more.
 
 ## See also
 
 - [Standalone Packages](/reference/standalone-packages): Full list of service packages and their APIs
-- [Queues](/services/queues): Queue concepts and CLI commands
+- [Queues](/services/queues): queue concepts, publish options, lifecycle, and API links
+- [Message Queues API](/reference/api/queues): lower-level queue, message, destination, source, and dead letter queue endpoints
 - [Using Hono with Agentuity](/frameworks/hono): Route creation and middleware patterns
 - [Hono RPC + TanStack](/cookbook/patterns/hono-rpc-tanstack-query): Share Hono route types with a React client

@@ -11,6 +11,10 @@ Use Coder when coding work needs to persist beyond the process that started it: 
 Use the [`@agentuity/coder`](/reference/standalone-packages#coder) package to manage sessions from any Node.js or Bun application without the full runtime.
 </Callout>
 
+<Callout type="tip" title="Let Coder choose the runtime first">
+For normal managed sessions, omit `runtime`. Coder's default runtime includes the session driver that connects the sandbox to the Hub. Set `runtime` only after you have validated that the image supports Coder sessions and the task really needs a custom runtime. If you only need a language image for a bounded command, use [Sandbox](/services/sandbox) instead.
+</Callout>
+
 ## When to use Coder
 
 | Approach | Best For |
@@ -70,19 +74,33 @@ A Coder session has three components:
 2. **Agent**: An AI coding agent that connects to the Hub and executes tasks
 3. **Sandbox**: An isolated cloud environment where the agent writes, builds, and tests code
 
-Sessions support multiple participants: the primary agent, sub-agents that split work, teammates in the web app, a terminal TUI, SDK/API clients, and observers that stream the session in real time.
+Sessions support multiple participants: the Lead agent, delegated specialist agents, teammates in the web app, a terminal TUI, SDK/API clients, and observers that stream the session in real time.
 
 ## Agents and skills
 
-Coder has three related but distinct selection layers:
+Coder has a Lead agent for coordination. The Lead can delegate work to enabled specialists, including built-in agents such as `builder` and `reviewer`, and published custom agents from your org library.
+
+The web app exposes this as two choices: which agents are available, and where new work routes by default. The SDK uses the same shape.
+
+| Field | What it controls |
+|------|------------------|
+| `enabledAgents` | The built-in or published custom agents mounted for a session or workspace |
+| `defaultAgent` | The route target for new work when the caller does not explicitly choose one |
+| `workspaceId` | A reusable bundle of repos, skills, setup inputs, prompt guidance, and agent selections |
+
+If you omit `defaultAgent`, new work routes through the Coder Lead. `lead` is a reserved route target, not an agent you add to `enabledAgents`.
+
+<Callout type="info" title="Customize guidance, not the built-in Lead">
+Workspaces can append to or overwrite the Lead prompt with `systemPrompt` and `systemPromptMode`. Custom agents are separate reusable specialists with their own instructions, tools, skills, and companion agents.
+</Callout>
+
+Keep these library concepts separate:
 
 - **Built-in agents** are Hub-provided agent names you can select for a session or workspace
 - **System skills** are platform-managed concepts, not skill records your app attaches directly
 - **Saved skills and skill buckets** are user-managed selections you attach to sessions or workspaces
 
-Use `enabledAgents` to choose from the roster your Hub exposes for a session or workspace. Use `defaultAgent` when you want routed work to prefer a specific agent.
-
-Workspaces bundle the setup a coding session needs: repositories, saved skills, skill buckets, dependency setup, Lead prompt guidance, and agent selections. Custom agents let you package reusable domain knowledge, tools, service access, and companion agents. Use `createAgentBuilderSession()` when you want Agent Builder to help create or update a reusable custom agent programmatically.
+Workspaces bundle the setup a coding session needs: repositories, saved skills, skill buckets, dependency setup, Lead prompt guidance, and agent selections. Use `createAgentBuilderSession()` when you want Agent Builder to help create or update a reusable custom agent programmatically.
 
 ## Reading session state
 
@@ -105,6 +123,7 @@ In practice:
 - `runtimeAvailable: true` usually means “the session is live enough to attach to”
 - `wakeAvailable: true` usually means “the session is not live now, but it may still be resumable”
 - fresh sessions often have little or no replay, event history, or participant data yet
+- a session can still be `active` and `bucket: "running"` after the first task reports done, so treat completion as an output contract you verify from event history, replay, or the artifacts you asked the agent to write
 
 ## Which read method to use
 
@@ -317,7 +336,11 @@ await client.deleteSkillBucket('bucket_abc123');
 
 ### Custom agents
 
-Custom agents package reusable domain knowledge, tools, and service access that can be attached to sessions. Use `createAgentBuilderSession()` to let Agent Builder help author or update one interactively.
+Custom agents package reusable domain knowledge, tools, service access, saved skills, and companion agents. Create or edit a draft, then publish it before selecting its slug in a session or workspace roster.
+
+The web app exposes the same library lifecycle: drafts, published versions, archived agents, and Agent Builder for drafting updates. The SDK methods below cover the same lifecycle from your own app or automation.
+
+Use `createAgentBuilderSession()` when you want Agent Builder to help author or update one interactively.
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -519,7 +542,7 @@ The Claude Code and OpenCode plugins integrate with the Coder ecosystem:
 ## Next steps
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Core SDK flow for create, read, archive, and delete operations
-- [Choosing Coder Agents for a Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Choose the Hub-provided roster for a session
+- [Choosing Coder Agents for a Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Choose the built-in or published custom agent roster for a session
 - [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session): Attach saved skills and skill buckets from your library
 - [CoderClient Reference](/reference/sdk-reference/coder): Full method reference for `@agentuity/coder`
 - [Coder CLI Commands](/reference/cli/coder): Full command reference

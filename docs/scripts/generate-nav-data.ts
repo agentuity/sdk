@@ -111,6 +111,12 @@ const SDK_EXPLORER: NavSection = {
 			description: 'Real-time bidirectional messaging over a persistent connection',
 		},
 		{
+			title: 'WebRTC Signaling',
+			url: '/explorer/webrtc',
+			description:
+				'Host the signaling route on Agentuity while browsers carry media peer-to-peer',
+		},
+		{
 			title: 'Durable Streams',
 			url: '/explorer/durable-stream',
 			description: 'Generate content and get a permanent, shareable URL',

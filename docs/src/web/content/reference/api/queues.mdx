@@ -1028,7 +1028,7 @@ List messages with pagination and optional state filter.
     "type": "string",
     "in": "query",
     "required": false,
-    "description": "`pending`, `processing`, `completed`, `failed`, or `dead`"
+    "description": "`pending`, `leased`, `delivered`, `failed`, or `dead`. `processing` is a legacy alias for `leased`."
   }
 ]} />
 
@@ -1269,7 +1269,7 @@ Replayed message object.
 
 ### Consume Messages
 
-Log-style consumption starting from offset. Does not mark messages as processing.
+Log-style consumption starting from offset. Does not lease messages.
 
 <ApiEndpoint method="GET" path="/queue/consume/{name}" />
 
@@ -1500,7 +1500,7 @@ Response containing a message or `null` when none available.
 
 ### Acknowledge Message
 
-Mark message as successfully processed (completed).
+Mark message as successfully processed (`delivered`).
 
 <ApiEndpoint method="POST" path="/queue/ack/{name}/{messageId}" />
 

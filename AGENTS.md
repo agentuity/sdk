@@ -59,4 +59,7 @@ Repo-level test apps live under `tests/`:
 - **Verification**: Run format, lint, typecheck, build, test before committing
 - **Main branch**: NEVER commit directly
 - **Documentation**: Don't create docs unless explicitly asked
+- **Docs env vars**: Don't invent platform-looking env vars for app configuration. If a value is app-owned, name it as app config and make clear it is not an extra Agentuity credential.
+- **AI Gateway docs**: Direct Gateway calls need Agentuity project auth. Model IDs are request/config values, not additional Gateway secrets.
+- **Docs audience**: Write user-facing guidance for people building apps, not maintainer-facing notes about publishing docs or examples.
 - **Clarification**: Ask before major code changes if unsure

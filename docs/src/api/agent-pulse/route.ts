@@ -60,7 +60,7 @@ async function generateAndPersistTitle(
 
 		// Call title generator endpoint internally
 		const { generateText } = await import('ai');
-		const { openai } = await import('@ai-sdk/openai');
+		const { getModel } = await import('../../lib/models');
 
 		const historyText = history
 			.map(
@@ -81,7 +81,7 @@ Conversation:
 ${historyText}`;
 
 		const response = await generateText({
-			model: openai('gpt-5.4-mini'),
+			model: getModel('anthropic/claude-opus-4-8'),
 			prompt,
 			system:
 				'You are a title generator for chat sessions. Generate concise, descriptive titles only. Output only the title text, nothing else.',

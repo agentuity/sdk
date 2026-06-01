@@ -236,7 +236,152 @@ export async function startReleaseReview(input: StartReleaseReviewInput) {
 }
 ```
 
-`createSession()` returns session state, not completed files. Keep the `sessionId`, store the expected output paths in your own app state, then poll or subscribe until the session reaches a state your workflow considers complete. Use the retrieval path approved for your product surface; do not assume a file read helper exists unless your SDK version exposes one.
+`createSession()` returns session state, not completed files. Keep the `sessionId`, store the expected output paths in your own app state, then check event history, replay, or artifacts until the output contract is satisfied. Use the retrieval path approved for your product surface; do not assume a file read helper exists unless your SDK version exposes one.
+
+## Start from files
+
+Use `files` when your app wants to hand Coder a small repro, generated fixture, or one-off workspace. Keep the task prompt focused on the output contract. The session can stay live after the task finishes, so the contract is how your app decides whether the work is done.
+
+<Callout type="tip" title="Start with the default Coder runtime">
+Do not set `runtime` for the normal managed-session path. Coder chooses a runtime that includes the Hub driver. Reach for `runtime` only when you are intentionally validating an advanced Coder runtime configuration.
+</Callout>
+
+```typescript title="scripts/start-coder-fix.ts"
+import { Buffer } from 'node:buffer';
+import { CoderClient } from '@agentuity/coder';
+import { logger } from '@agentuity/telemetry';
+
+async function main(): Promise<void> {
+  const client = new CoderClient();
+  const runId = `calc-fix-${Date.now()}`;
+  const resultPath = `agent-output/${runId}/result.json`;
+  const reportPath = `agent-output/${runId}/report.md`;
+
+  const created = await client.createSession({
+    label: `Fix total() ${runId}`,
+    workflowMode: 'standard',
+    defaultAgent: 'builder',
+    enabledAgents: ['builder', 'reviewer'],
+    tags: ['docs-example', runId],
+    metadata: {
+      runId,
+      resultPath,
+      reportPath,
+    },
+    files: [
+      {
+        path: 'package.json',
+        content: Buffer.from(
+          JSON.stringify(
+            {
+              type: 'module',
+              scripts: { test: 'bun test' },
+              devDependencies: { '@types/bun': 'latest' },
+            },
+            null,
+            2
+          )
+        ),
+      },
+      {
+        path: 'src/calc.ts',
+        content: Buffer.from(
+          [
+            'export function total(values: readonly number[]): number {',
+            '  return values.reduce((sum, value) => sum - value, 0);',
+            '}',
+            '',
+          ].join('\n')
+        ),
+      },
+      {
+        path: 'src/calc.test.ts',
+        content: Buffer.from(
+          [
+            "import { expect, test } from 'bun:test';",
+            "import { total } from './calc.ts';",
+            '',
+            "test('totals positive values', () => {",
+            '  expect(total([2, 3, 5])).toBe(10);',
+            '});',
+            '',
+          ].join('\n')
+        ),
+      },
+    ],
+    task: [
+      'Goal: fix the TypeScript utility in this session workspace.',
+      '',
+      'Inputs:',
+      '- src/calc.ts currently implements total incorrectly.',
+      '- src/calc.test.ts is the verification command target.',
+      '',
+      'Do:',
+      '- inspect the provided files',
+      '- fix src/calc.ts',
+      '- run bun test',
+      `- write ${resultPath}`,
+      `- write ${reportPath}`,
+      '',
+      'Result JSON shape:',
+      '{',
+      '  "status": "completed" | "blocked",',
+      '  "changedFiles": string[],',
+      '  "commandsRun": string[],',
+      '  "verification": { "command": string, "passed": boolean, "outputExcerpt": string },',
+      '  "blockers": string[]',
+      '}',
+      '',
+      'Stop when bun test passes and the two output files are written, or when a blocker is proven with exact command output.',
+    ].join('\n'),
+  });
+
+  logger.info('coder session started', {
+    sessionId: created.sessionId,
+    resultPath,
+    reportPath,
+  });
+}
+
+void main();
+```
+
+Example log shape:
+
+```json
+{
+  "sessionId": "codesess_23bc720766d7",
+  "resultPath": "agent-output/calc-fix-123/result.json",
+  "reportPath": "agent-output/calc-fix-123/report.md"
+}
+```
+
+The two agent-selection fields do different jobs:
+
+- `enabledAgents` chooses the specialist roster for this session.
+- `defaultAgent` chooses the default route target when work is not explicitly routed elsewhere.
+- Omit both fields when you want the Hub's normal Coder team behavior.
+
+After creation, store `sessionId`, `resultPath`, and `reportPath` with your app record. Then use the read APIs below from a UI refresh, background job, webhook flow, or scheduler.
+
+```typescript
+const [session, history] = await Promise.all([
+  client.getSession(sessionId),
+  client.listEventHistory(sessionId, { limit: 50 }),
+]);
+
+const taskCompleted = history.events.some((event) => event.event === 'task_complete');
+
+logger.info('coder session progress', {
+  sessionId: session.sessionId,
+  status: session.status,
+  bucket: session.bucket,
+  runtimeAvailable: session.runtimeAvailable,
+  taskCompleted,
+});
+```
+
+In that shape, `status: "active"` does not mean the task is unfinished. A session can remain live for attach or follow-up work after the task completion event and output contract are satisfied.
 
 ## Reading session state
 

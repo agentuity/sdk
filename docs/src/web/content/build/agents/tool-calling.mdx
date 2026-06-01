@@ -8,14 +8,14 @@ Tool calling lets a model request structured function results mid-generation. Yo
 For chat-style tool loops that span requests, see [State and Memory](/build/agents/state-and-memory).
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
+bun add ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue@next zod
 ```
 
 ## Choose the right loop
 
 | Use | Good fit |
 |-----|----------|
-| [AI SDK 6](#ai-sdk-6) | one typed tool loop across providers, minimal boilerplate |
+| [AI SDK](#ai-sdk) | one typed tool loop across providers, minimal boilerplate |
 | [OpenAI Responses API](#openai-responses-api) | apps already on Responses with `previous_response_id` turn chaining |
 | [Anthropic Messages API](#anthropic-messages-api) | apps that need `tool_use` block fidelity or `strict: true` on every tool |
 
@@ -28,13 +28,13 @@ bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
 | Enqueue a job or create a task | Long-running work inside the request lifecycle |
 | Return a compact, typed result | Returning large files, full transcripts, or raw blobs |
 
-## AI SDK 6
+## AI SDK
 
-AI SDK 6 handles the tool loop internally. `generateText` calls your `execute` function, injects the result into the next turn, and continues until the model stops or `stopWhen` fires. All tools are validated with `inputSchema` before `execute` runs.
+The AI SDK handles the tool loop internally. `generateText` calls your `execute` function, injects the result into the next turn, and continues until the model stops or `stopWhen` fires. All tools are validated with `inputSchema` before `execute` runs.
 
 ```typescript title="app/api/orders/answer/route.ts"
 import { KeyValueClient } from '@agentuity/keyvalue';
-import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 
@@ -50,15 +50,15 @@ interface OrderSummary {
 }
 
 const kv = new KeyValueClient();
-const model = process.env.OPENAI_MODEL;
+const model = process.env.ANTHROPIC_MODEL;
 
 if (!model) {
-  throw new Error('Set OPENAI_MODEL to the model this workflow should use.');
+  throw new Error('Set ANTHROPIC_MODEL to the model this workflow should use.');
 }
 
 async function answerOrderQuestion(orderId: string, question: string): Promise<string> {
   const { text } = await generateText({
-    model: openai(model),
+    model: anthropic(model),
     system: 'Answer using only the order facts returned by tools.',
     prompt: question,
     tools: {
@@ -93,6 +93,8 @@ export async function POST(request: Request): Promise<Response> {
   return Response.json({ answer });
 }
 ```
+
+This section uses the Anthropic AI SDK provider because AI SDK owns the tool loop. Under `agentuity dev`, `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` can route through AI Gateway from `AGENTUITY_SDK_KEY` when no provider key override is set. For structured JSON without an AI SDK tool loop, use [`AIGatewayClient.completeStructured()`](/services/ai-gateway#structured-output).
 
 <Callout type="info" title="stepCountIs counts model turns, not tool calls">
   Each `generateText` iteration (whether or not it makes a tool call) is one step. `stepCountIs(4)` stops after four turns regardless of how many individual tool calls occurred in those turns.

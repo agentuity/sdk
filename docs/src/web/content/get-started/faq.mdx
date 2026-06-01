@@ -3,9 +3,11 @@ title: FAQ
 description: Short answers for common Agentuity v3 setup, deploy, services, AI Gateway, Coder, Sandbox, and migration questions.
 ---
 
-Use this page when you need to choose the next docs path quickly. Each answer points to the page that has the full workflow.
+Use this page for decisions that come up while creating, importing, deploying, or extending an Agentuity app. Each answer keeps the decision short and links to the full workflow.
 
 ## Setup
+
+Use these answers when you are choosing between a fresh scaffold, an existing app, and safe service placement.
 
 ### Is Agentuity an app framework?
 
@@ -29,6 +31,8 @@ Only after you explicitly approve the exact cloud mutation. Ask the agent to run
 
 ## Build and deploy
 
+Use these answers when the app runs locally but packaging, deploy metadata, or server output is unclear.
+
 ### What is `launch.json`?
 
 `.agentuity/launch.json` records the process Agentuity will start from the packaged bundle. Inspect it after `agentuity build`, especially for server-rendered frameworks or monorepos, because it shows whether the CLI found the expected server command and working directory. See [Deploy Framework Apps](/deploy-operate/deploy-framework-apps) for the deploy checklist.
@@ -42,6 +46,8 @@ The CLI packages the build output it can detect. If the framework produces only 
 Use the CLI when you want Agentuity to link a cloud-backed resource and write local project env. Install the package directly when you already have the resource/env values and only need the client in code. Either way, keep the service call in server-side code and verify with your app's normal build before deploy.
 
 ## Services
+
+Use these answers when you need to decide which infrastructure stays app-owned and which Agentuity service to add.
 
 ### Which database client fits?
 
@@ -59,15 +65,21 @@ Run `agentuity cloud aigateway models` and use the exact catalog `id` your proje
 
 Use [Sandbox](/services/sandbox) when your app needs isolated command execution, generated code execution, files, jobs, snapshots, or short-lived runtimes. Use [Coder](/services/coder) when the product workflow is a managed coding session with repos, skills, live events, replay, and reconnect. If the workflow creates a long-lived sandbox or coder session, document the cleanup path.
 
-## v2 and v3
+## Older apps
 
-### What happened to `createApp()` and `createAgent()`?
+Use these answers when a project predates the current framework-first docs.
 
-Those belong to the older runtime-wrapper model. Current agent docs use app-level patterns you call from framework routes, workers, schedules, or scripts. Use [Migration](/migration) when you are moving old `@agentuity/runtime`, `createApp()`, or `createAgent()` code.
+### I have an older Agentuity app. Where do I start?
+
+Use [Migration](/migration) if your app imports `@agentuity/runtime`, calls `createApp()`, uses `createAgent()`, or depends on runtime `ctx.*` service access. For new v3 work, start with [Frameworks](/frameworks), [Agents](/build/agents), or [Services](/services), depending on what you are adding. If you are maintaining an older runtime app, keep using the [v2 docs](https://v2.agentuity.dev/) until you are ready to migrate.
 
 ### Where are the old docs?
 
-Use the current docs for v3 framework-first apps. If you need older runtime-wrapper material, treat it as migration context and confirm the target version before copying patterns into a v3 app.
+Older runtime docs live at [v2.agentuity.dev](https://v2.agentuity.dev/). Use them for pinned v2 apps. When you are moving code into the current app shape, use [Migrating from v2](/migration/from-v2) for old path mappings and runtime concept translations.
+
+## Coding agents
+
+Use this answer when you are handing docs context to a coding agent.
 
 ### What does a coding agent fetch first?
 

@@ -155,22 +155,22 @@ If the caller may retry the same request, set `idempotencyKey` from the upstream
 
 ## Processing lifecycle
 
-After a message is published, a worker or destination receives it. A received message is hidden from other workers for `defaultVisibilityTimeoutSeconds`. A successful worker acknowledges the message. A failed worker negatively acknowledges it, or lets the visibility timeout expire, so the queue can retry it. After `defaultMaxRetries` is exhausted, the message moves to the dead letter queue.
+After a message is published, a worker or destination receives it. A received message is hidden from other workers for `defaultVisibilityTimeoutSeconds`. A successful worker acknowledges the message and it becomes `delivered`. A failed worker negatively acknowledges it, or lets the visibility timeout expire, so the queue can retry it. After `defaultMaxRetries` is exhausted, the message moves to the dead letter queue.
 
 | Step | State | Result |
 |------|-------|--------|
 | publish | pending | message is durable and available to process |
-| receive | processing | one worker has the message until ack, nack, or visibility timeout |
-| ack | acknowledged | message is complete and will not be delivered again |
-| nack or timeout | pending again | message can be retried until the retry limit |
-| retry limit reached | dead letter | message is held for inspection, replay, purge, or delete |
+| receive | leased | one worker has the message until ack, nack, or visibility timeout |
+| ack | delivered | message is complete and will not be delivered again |
+| nack or timeout | pending or failed | message can be retried until the retry limit |
+| retry limit reached | dead | message is held in the dead letter queue for inspection, replay, purge, or delete |
 | replay from dead letter queue | pending | message returns to the normal queue flow |
 
 `@agentuity/queue` currently covers queue creation, publishing, and deletion. Consumer receive, ack, nack, destination delivery logs, and dead letter queue operations are available through the Queue API reference. Use those lower-level endpoints when you are writing a custom worker, inspecting failed deliveries, or replaying dead letter messages.
 
 - [Receive Message](/reference/api/queues#receive-message): lock the next pending message
-- [Ack Message](/reference/api/queues#ack-message): mark a message complete
-- [Nack Message](/reference/api/queues#nack-message): return a message for retry
+- [Ack Message](/reference/api/queues#acknowledge-message): mark a message complete
+- [Nack Message](/reference/api/queues#negative-acknowledge): return a message for retry
 - [Queue Destinations](/reference/api/queues#destinations): manage HTTP destinations and delivery logs
 - [Dead Letter Queue](/reference/api/queues#dead-letter-queue): list, replay, purge, or delete failed messages
 

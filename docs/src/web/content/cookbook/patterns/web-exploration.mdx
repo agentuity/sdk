@@ -7,7 +7,7 @@ description: Run a headless browser inside a sandbox so an agent can navigate, s
 Agents that interact with live websites belong in a sandbox. Each session gets isolated network egress, ephemeral disk, and a clean process tree, so the agent can run untrusted page interactions without touching the host. This pattern uses [`SandboxClient`](/services/sandbox/sdk-usage), an AI SDK tool loop, and key-value memory.
 
 ```bash
-bun add hono ai @ai-sdk/openai @agentuity/sandbox@next @agentuity/keyvalue@next @agentuity/telemetry@next arktype zod
+bun add hono ai @ai-sdk/anthropic @agentuity/sandbox@next @agentuity/keyvalue@next @agentuity/telemetry@next arktype zod
 ```
 
 ## Prerequisite: a browser-ready snapshot
@@ -200,7 +200,7 @@ The exploration is one `generateText` call with three tools and two stop conditi
 
 ```typescript title="src/lib/explorer.ts"
 import { generateText, hasToolCall, stepCountIs } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 
 interface ExplorationResult {
   readonly summary: string;
@@ -214,6 +214,11 @@ interface ExploreOptions {
 
 const sandboxes = new SandboxClient();
 const kv = new KeyValueClient();
+const model = process.env.ANTHROPIC_MODEL;
+
+if (!model) {
+  throw new Error('Set ANTHROPIC_MODEL to the model this exploration workflow should use.');
+}
 
 export async function explore(options: ExploreOptions): Promise<ExplorationResult> {
   const sandbox = await sandboxes.create({
@@ -234,13 +239,8 @@ export async function explore(options: ExploreOptions): Promise<ExplorationResul
       : `Begin exploring ${options.url}. Take a screenshot first, then interact.`;
 
     const tools = buildTools({ sandbox, kv, url: options.url });
-    const model = process.env.OPENAI_MODEL;
-    if (!model) {
-      throw new Error('Set OPENAI_MODEL to the exploration model this workflow should use.');
-    }
-
     const result = await generateText({
-      model: openai(model),
+      model: anthropic(model),
       system: SYSTEM_PROMPT,
       prompt,
       tools,
@@ -298,7 +298,7 @@ async function loadPastVisits(
 }
 ```
 
-The sandbox is destroyed in `finally` so a thrown error inside the loop still cleans up. `network: { enabled: true }` is required because the sandbox default disables egress.
+The sandbox is destroyed in `finally` so a thrown error inside the loop still cleans up. `network: { enabled: true }` is required because the sandbox default disables egress. This example uses the Anthropic AI SDK provider for the tool loop; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway from the Agentuity SDK key when no provider key override is set.
 
 ## Wire the route
 

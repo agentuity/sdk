@@ -3,10 +3,9 @@
  *
  * Common configuration and functions used by both the agent and route.
  */
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
 import { generateObject, generateText } from 'ai';
 import { createGroqProvider } from '../../lib/ai-gateway';
+import { getModel as getGatewayModel } from '../../lib/models';
 import { getJudgePrompt, getStorySystemPrompt } from './prompts';
 import { JudgmentSchema } from './types';
 import type { Judgment, ModelResult, Provider, Tone } from './types';
@@ -28,22 +27,15 @@ async function repairJudgmentText({ text }: { text: string }): Promise<string | 
 }
 
 export const MODELS: GenerationConfig[] = [
-	{ provider: 'openai', model: 'gpt-5.4-mini' },
-	{ provider: 'anthropic', model: 'claude-haiku-4-5' },
+	{ provider: 'anthropic', model: 'anthropic/claude-opus-4-8' },
+	{ provider: 'google', model: 'googleai/gemini-3.5-flash' },
 ];
 
 // Using GPT-OSS 120B via Groq for fast judging with structured outputs
 export const getJudgeModel = () => createGroqProvider()('openai/gpt-oss-120b');
 
 export function getModel(config: GenerationConfig) {
-	switch (config.provider) {
-		case 'openai':
-			return openai(config.model);
-		case 'anthropic':
-			return anthropic(config.model);
-		default:
-			throw new Error(`Unknown provider: ${config.provider}`);
-	}
+	return getGatewayModel(config.model);
 }
 
 export async function generateStory(
@@ -81,7 +73,7 @@ export async function judgeStories(
 		schema: JudgmentSchema,
 		schemaName: 'ModelArenaJudgment',
 		schemaDescription:
-			'Structured judgment comparing the OpenAI and Anthropic stories with scores, checks, and a winner.',
+			'Structured judgment comparing the Anthropic and Google stories with scores, checks, and a winner.',
 		temperature: 0,
 		experimental_repairText: repairJudgmentText,
 		prompt: getJudgePrompt([...results], tone, prompt),

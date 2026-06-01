@@ -31,6 +31,7 @@ import threadService from '../../packages/core/src/services/thread/api-reference
 import userService from '../../packages/core/src/services/user/api-reference.ts';
 import vectorService from '../../packages/core/src/services/vector/api-reference.ts';
 import webhooksService from '../../packages/core/src/services/webhook/api-reference.ts';
+import workflowsService from '../../packages/core/src/services/workflow/api-reference.ts';
 
 const services: Service[] = [
 	aiGatewayService,
@@ -55,6 +56,7 @@ const services: Service[] = [
 	userService,
 	vectorService,
 	webhooksService,
+	workflowsService,
 ];
 
 const ROOT_DIR = join(import.meta.dir, '..');
@@ -256,7 +258,7 @@ description: Direct HTTP access to Agentuity platform services
 
 {/* This file is auto-generated from Zod schemas. Do not edit manually. Run scripts/generate-api-reference.ts to regenerate. */}
 
-import { Activity, Box, BrainCircuit, Building, Clock, Cpu, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook } from 'lucide-react';
+import { Activity, Box, BrainCircuit, Building, Clock, Cpu, Database, FolderKanban, Globe, HardDrive, Key, Layers, ListTodo, Mail, MessageSquare, Search, Server, Shield, Table, Timer, User, Webhook, Workflow } from 'lucide-react';
 
 Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK or the CLI.
 
@@ -392,6 +394,12 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
     title="Webhooks"
     description="Manage webhook endpoints, destinations, receipts, deliveries, and analytics"
     icon={<Webhook className="size-5" />}
+  />
+  <CardLink
+    href="/reference/api/workflows"
+    title="Workflows"
+    description="Create and manage workflows that route events from sources to destinations"
+    icon={<Workflow className="size-5" />}
   />
 </Cards>`;
 }

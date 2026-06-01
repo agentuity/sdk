@@ -6,12 +6,24 @@ description: Add eval workflows with output contracts, judges, traces, and exter
 To add evaluations to an Agentuity project, set up a workflow that runs normal app code, captures a stable output, checks it, and records enough logs or traces to explain failures. Use deterministic assertions for structural checks, LLM-as-judge checks for qualitative behavior, OpenTelemetry traces to inspect failures, and hosted eval tools when you need datasets, reviewers, or reports.
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest zod @agentuity/telemetry@next
+bun add @agentuity/aigateway@next zod @agentuity/telemetry@next
 ```
 
 <Callout type="info" title="Keep evals in your app repo">
 The v2 `@agentuity/evals` package and platform collection model are migration context, not the current eval surface. Keep evals in your app repo as scripts, tests, traces, and optional external tooling.
 </Callout>
+
+## When to use this path
+
+Use this path when the behavior under test is app-owned: a framework route, retrieval function, queue worker, sandbox command, or coding-agent session. Agentuity gives you service clients, AI Gateway auth, telemetry, sandbox execution, and session inspection. You still bring the test runner, fixtures, judge rubric, hosted eval tool, and pass/fail policy.
+
+| Need | Use |
+|------|-----|
+| deterministic contracts | your test runner with schema validation |
+| qualitative answer grading | an LLM-as-judge script or hosted eval tool |
+| model access through project credentials | `AIGatewayClient` with a catalog model ID |
+| command or generated-code checks | [Sandbox](/services/sandbox) |
+| failure investigation | [Logging](/services/observability/logging), [Tracing](/services/observability/tracing), and [Sessions & Debugging](/services/observability/sessions-debugging) |
 
 ## Shape evals like tests
 
@@ -48,19 +60,17 @@ For coding-agent tasks, include the expected report path, verification command, 
 
 ## Run an LLM-as-judge check
 
-This script grades an answer against a rubric. Drop it into a Bun or Node script that already has `OPENAI_API_KEY` or runs under `agentuity dev`.
+This script grades an answer against a rubric. Drop it into a Bun or Node script that has Agentuity project credentials or runs under `agentuity dev`.
+
+Because this uses `AIGatewayClient`, `AGENTUITY_SDK_KEY` is enough for Gateway auth. Use provider keys only when the eval is testing provider SDK behavior.
 
 ```typescript
-import { openai } from '@ai-sdk/openai';
-import { generateText, Output } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 import { logger } from '@agentuity/telemetry';
 
-const model = process.env.OPENAI_MODEL;
-
-if (!model) {
-  throw new Error('Set OPENAI_MODEL to the judge model you want to use.');
-}
+const gateway = new AIGatewayClient();
+const JUDGE_MODEL = 'anthropic/claude-opus-4-8';
 
 const judgmentSchema = z.object({
   score: z.number().min(0).max(1),
@@ -73,10 +83,12 @@ async function judgeAnswer(input: {
   readonly answer: string;
   readonly rubric: string;
 }): Promise<z.infer<typeof judgmentSchema>> {
-  const { output } = await generateText({
-    model: openai(model),
-    output: Output.object({ schema: judgmentSchema }),
-    prompt: `Grade the answer from 0 to 1.
+  const { data } = await gateway.completeStructured({
+    model: JUDGE_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Grade the answer from 0 to 1.
 
 Question:
 ${input.question}
@@ -88,9 +100,12 @@ Rubric:
 ${input.rubric}
 
 Return a passing score only when the answer satisfies the rubric.`,
+      },
+    ],
+    response_schema: { name: 'judgment', schema: judgmentSchema },
   });
 
-  return output;
+  return judgmentSchema.parse(data);
 }
 
 const judgment = await judgeAnswer({
@@ -119,4 +134,10 @@ Start with the runner that gives the check enough context. Hosted tools help wit
 | App-function regression suite with reports | [Braintrust Evals](/cookbook/patterns/braintrust-evals) or your eval runner |
 | Debugging one bad request | OpenTelemetry traces and logs |
 
-See [LLM as a Judge](/cookbook/patterns/llm-as-a-judge) for more judging patterns.
+## Next steps
+
+- [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): score model output with a rubric in code
+- [OpenAI Evals API](/cookbook/patterns/openai-evals-api): run OpenAI-hosted evals when that service owns the prompt regression suite
+- [Braintrust Evals](/cookbook/patterns/braintrust-evals): run app-function evals with reports
+- [AI Gateway API Reference](/reference/api/ai-gateway): inspect model catalog and completion request fields
+- [Sessions API Reference](/reference/api/sessions): inspect generated REST details for session records

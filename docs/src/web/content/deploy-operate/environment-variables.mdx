@@ -32,7 +32,7 @@ Switch profiles with `--profile <name>` or `AGENTUITY_PROFILE=...`. Your framewo
 
 ## AI Gateway in local dev
 
-Agentuity's AI Gateway supports ten public provider families: OpenAI, Anthropic, Groq, Google, xAI, DeepSeek, Mistral, Cohere, Perplexity, and Fireworks. Local `agentuity dev` has one automatic env-injection path today.
+Agentuity's AI Gateway provider catalog can change by project and release. Use [AI Gateway](/services/ai-gateway#provider-ids) or `agentuity cloud aigateway models --simple` for the current provider IDs. Local `agentuity dev` has one automatic env-injection path today.
 
 For OpenAI, Anthropic, and Groq SDKs, `agentuity dev` patches the API key and base URL env vars directly into the dev process:
 
@@ -44,7 +44,7 @@ For OpenAI, Anthropic, and Groq SDKs, `agentuity dev` patches the API key and ba
 
 The patch fires only when the API key var is missing or already equals `AGENTUITY_SDK_KEY`. If you set `OPENAI_API_KEY` to a real OpenAI key in `.env`, the CLI leaves it alone and your call goes straight to the provider.
 
-See [AI Gateway > Local Development](/services/ai-gateway#local-development) for the canonical provider list and BYOK options.
+See [AI Gateway local development](/services/ai-gateway#local-development) for env injection and [Bring your own provider key](/services/ai-gateway#bring-your-own-provider-key) for BYOK options.
 
 ## Project SDK key
 

@@ -256,16 +256,18 @@ bun add @agentuity/aigateway@next
 import { AIGatewayClient } from '@agentuity/aigateway';
 
 const gateway = new AIGatewayClient();
-const model = process.env.AGENTUITY_AI_MODEL;
+const SUMMARY_MODEL = process.env.AI_GATEWAY_MODEL ?? 'anthropic/claude-opus-4-8';
 
-if (!model) {
-  throw new Error('AGENTUITY_AI_MODEL is required');
-}
-
-const result = await gateway.complete({
-  model,
+const result = await gateway.completeText({
+  model: SUMMARY_MODEL,
   messages: [{ role: 'user', content: 'Summarize the upload in one sentence.' }],
 });
+
+if (!result.hasText) {
+  throw new Error('The model returned no text.');
+}
+
+const summary = result.text;
 ```
 
 `AIGatewayClient` reads `AGENTUITY_AIGATEWAY_KEY`, then `AGENTUITY_SDK_KEY`, then `AGENTUITY_CLI_KEY`. Use `agentuity cloud aigateway models --recommended` before choosing a reusable model ID. See [AI Gateway](/services/ai-gateway) for provider SDK routing, local `agentuity dev` env wiring, and BYO provider keys.

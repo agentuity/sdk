@@ -7,7 +7,7 @@ description: Semantic product search with metadata filters and an optional model
 A product search built on vector storage understands natural language ("comfortable office chair under $300") instead of matching exact tokens. This pattern indexes products, searches by query, applies metadata filters in the route, and optionally asks a model to pick the best match.
 
 ```bash
-bun add hono ai @ai-sdk/openai @agentuity/vector@next zod
+bun add hono @agentuity/aigateway@next @agentuity/vector@next zod
 ```
 
 ## Index products
@@ -159,11 +159,10 @@ A note on metadata generics:
 
 ## Optional: recommend the best match
 
-When customers benefit from guidance ("which chair fits a tall desk?"), feed the top matches into a model and ask for one structured pick. `Output.object` validates the model output before it leaves the route.
+When customers benefit from guidance ("which chair fits a tall desk?"), feed the top matches into a model and ask for one structured pick. Validate the parsed response before it leaves the route.
 
 ```typescript title="src/lib/recommend-product.ts"
-import { openai } from '@ai-sdk/openai';
-import { generateText, Output } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 import { searchProducts, type ProductHit } from './search-products';
 
@@ -177,6 +176,9 @@ interface Recommendation {
   readonly recommendedId: string;
   readonly rationale: string;
 }
+
+const gateway = new AIGatewayClient();
+const RECOMMENDATION_MODEL = 'googleai/gemini-3.5-flash';
 
 export async function recommendProduct(body: unknown): Promise<Recommendation> {
   const { products } = await searchProducts(body);
@@ -196,17 +198,22 @@ export async function recommendProduct(body: unknown): Promise<Recommendation> {
     )
     .join('\n');
 
-  const model = process.env.OPENAI_MODEL;
-  if (!model) {
-    throw new Error('Set OPENAI_MODEL to the recommendation model this route should use.');
-  }
-
-  const { output } = await generateText({
-    model: openai(model),
-    output: Output.object({ schema: recommendationSchema }),
-    system: 'You help customers compare products. Pick exactly one option from the list.',
-    prompt: `Candidates:\n${catalog}\n\nPick the option that fits a typical customer searching this catalog.`,
+  const { data } = await gateway.completeStructured({
+    model: RECOMMENDATION_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'You help customers compare products. Pick exactly one option from the list.',
+      },
+      {
+        role: 'user',
+        content: `Candidates:\n${catalog}\n\nPick the option that fits a typical customer searching this catalog.`,
+      },
+    ],
+    response_schema: { name: 'product_recommendation', schema: recommendationSchema },
   });
+
+  const output = recommendationSchema.parse(data);
 
   return {
     matches: products,
@@ -312,7 +319,7 @@ curl -X POST http://localhost:3000/api/products/recommend \
 - post-filter for booleans and numeric ranges; pass `metadata` to `search()` only when the filter satisfies the full metadata type
 - pull `limit * 2` matches when post-filtering reduces the result set
 - treat `vector.upsert()` as idempotent; reindex the same `id` to replace it
-- AI SDK's `Output.object` validates the model response before the route returns
+- pass a schema to `completeStructured()`, then validate `data` before the route returns
 
 ## Next steps
 

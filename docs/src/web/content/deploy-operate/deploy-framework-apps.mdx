@@ -44,7 +44,7 @@ In a monorepo, run import against the app package:
 agentuity project import --dir apps/web --name web --confirm
 ```
 
-The project metadata and `.env` are written inside `apps/web`. A monorepo-aware build can still stage the deployment bundle from the workspace root and set `workingDirectory` in `launch.json`.
+The project metadata and `.env` are written inside `apps/web`. A monorepo-aware build stages the deployment bundle from the workspace root and sets `workingDirectory` in `launch.json` for the app subdirectory.
 
 <Callout type="warning" title="Existing apps need import before non-interactive deploy">
 In an interactive terminal, `agentuity deploy` offers to register an unregistered project before it builds. In CI or any non-TTY context, deploy fails fast with `PROJECT_NOT_FOUND` if there is no `agentuity.json`. Run `agentuity project import --confirm` once before the first deploy.
@@ -132,10 +132,11 @@ After the build, `.agentuity/` contains:
 | File or directory | What it is |
 |-------------------|------------|
 | Framework build output | Mirrored from the framework's build directory, minus `node_modules`, `.git`, `.env`, and `.agentuity` itself |
-| `node_modules/` | Copied from the project root |
-| `package.json` | Copied from the project root |
+| `package.json` and matching lockfile | Copied from the project or workspace root so the deploy runtime can install dependencies |
 | `launch.json` | Process command, framework slug and version, runtime name and port, build timestamp |
 | `_serve.js` (static-only frameworks) | Generated Node HTTP server that serves the build output and falls back to `index.html` |
+
+The bundle does not rely on your local `node_modules/` directory. The deploy runtime installs dependencies from the copied manifest and lockfile before it starts the command in `launch.json`.
 
 `launch.json` is the deploy gate's source of truth for what the platform will actually run. Read it before deploy if anything looks off:
 
@@ -255,6 +256,16 @@ curl https://<vanity-url>/                       # exercise the running deploy
 ```
 
 Use the build report when something fails non-obviously: it captures TypeScript errors with file paths and line numbers, build phase timings, and warnings. The deploy banner gives you the URL; a quick `curl` or browser load confirms the platform actually started the process.
+
+## Recover common failures
+
+| Symptom | First check |
+|---------|-------------|
+| `PROJECT_NOT_FOUND` before build | Run `agentuity project import --validate-only`, then `agentuity project import --confirm` from the app directory or pass `--dir` |
+| deploy exits before building because `AGENTUITY_SDK_KEY` is missing | Run `agentuity cloud env pull`, or re-import the project to refresh local `.env` |
+| `BUILD010` or framework detection fails | Confirm `package.json` has a framework build script, a start script or `main`, and that the command is not another `agentuity build` wrapper |
+| typecheck fails during deploy | Fix the TypeScript error locally. `agentuity deploy` does not accept `--skip-type-check` |
+| server routes work in dev but 404 after packaging | Inspect `.agentuity/launch.json`; the web process must start the server output, not a static `_serve.js` helper |
 
 ## Operate a deployment
 

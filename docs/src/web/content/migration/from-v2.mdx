@@ -31,6 +31,21 @@ You can keep a v2 app on the v2 runtime model until you are ready to migrate. Us
 
 The [Runtime to Frameworks](/migration/runtime-to-frameworks) page shows the same shift with code.
 
+## Find the current docs path
+
+If you arrived from a v2 bookmark, use this map before copying code. Pages outside Migration describe current v3 patterns, not a compatibility layer for the old runtime.
+
+- `/agents` -> [Agents](/build/agents): model-backed work is plain server-side app code called from the route, worker, schedule, or script that owns the trigger.
+- `/agents/creating-agents`, `createAgent()` -> [Agents](/build/agents): model-backed work is a plain server function called by the route, worker, schedule, or script that owns the trigger.
+- `/agents/state-management`, `ctx.thread`, `ctx.session` -> [State and Memory](/build/agents/state-and-memory): choose an app-owned state boundary, such as cookies, KV, or your database.
+- `/agents/calling-other-agents`, `agent.run()` -> [Calling App Code](/reference/sdk-reference/communication): import and call shared functions directly; use `Promise.all` for independent work.
+- `/routes` -> [Apps and APIs](/build/apps-and-apis): the framework or HTTP server owns routing.
+- `/routes/http`, `createRouter()` -> [Backend APIs](/build/apps-and-apis/backend-apis) or [Hono](/frameworks/hono): the framework or Hono app owns routing; parse and validate inside that route.
+- `/routes/cron` -> [Schedules](/services/schedules): use platform-managed schedules when you need cron delivery, tracking, and retries.
+- `/frontend`, `/frontend/*`, `@agentuity/react`, `@agentuity/frontend` -> [Frameworks](/frameworks): keep normal framework client code and call your own server routes.
+- `/community` -> [Cookbook](/cookbook): use recipes for app, service, and agent patterns after you know the current framework or service path.
+- runtime SDK reference pages -> [Runtime to Frameworks](/migration/runtime-to-frameworks): old container APIs map to framework entry points, service clients, and explicit app state.
+
 ## Run the migration
 
 Use the v3 migration command so the `--v2-to-v3` flag is available.

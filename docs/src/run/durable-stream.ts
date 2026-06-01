@@ -7,10 +7,11 @@
  * Usage: bun run src/run/durable-stream.ts
  */
 import { getDemoContext } from '../api/context';
-import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
+import { getModel } from '../lib/models';
 
 const ctx = getDemoContext();
+const DEFAULT_MODEL = 'groq/openai/gpt-oss-120b';
 
 try {
 	ctx.logger.info('Creating durable stream with LLM content');
@@ -29,7 +30,7 @@ try {
 
 	// The route version would stream chunks as they arrive; the sandbox buffers stdout.
 	const { textStream } = streamText({
-		model: openai('gpt-5.4-nano'),
+		model: getModel(DEFAULT_MODEL),
 		prompt: 'Write a 3-paragraph summary of what Agentuity is.',
 	});
 

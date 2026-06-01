@@ -12,18 +12,13 @@ bun add @agentuity/aigateway@next
 
 ```typescript
 import { AIGatewayClient } from '@agentuity/aigateway';
-import type { AIGatewayChatCompletion } from '@agentuity/aigateway';
 
 const gateway = new AIGatewayClient();
-const model = process.env.AGENTUITY_AI_MODEL;
+const SUMMARY_MODEL = 'anthropic/claude-opus-4-8';
 
-if (!model) {
-  throw new Error('Set AGENTUITY_AI_MODEL to a model ID from `agentuity cloud aigateway models`.');
-}
-
-export async function summarize(message: string): Promise<AIGatewayChatCompletion> {
-  return gateway.complete({
-    model,
+export async function summarize(message: string): Promise<string> {
+  const result = await gateway.completeText({
+    model: SUMMARY_MODEL,
     messages: [
       {
         role: 'user',
@@ -31,16 +26,41 @@ export async function summarize(message: string): Promise<AIGatewayChatCompletio
       },
     ],
   });
+
+  if (!result.hasText) {
+    throw new Error(`The model returned no text. finish_reason=${result.finishReason ?? 'unknown'}`);
+  }
+
+  return result.text;
 }
 ```
 
-Run the app with `agentuity dev`. `AIGatewayClient` reads `AGENTUITY_AIGATEWAY_KEY`, `AGENTUITY_SDK_KEY`, or `AGENTUITY_CLI_KEY`, then sends the request through the Agentuity AI Gateway.
+Run the app with `agentuity dev`. `AIGatewayClient` reads `AGENTUITY_AIGATEWAY_KEY`, `AGENTUITY_SDK_KEY`, or `AGENTUITY_CLI_KEY`, then sends the request through the Agentuity AI Gateway. The model ID is app configuration; it does not need a provider key.
 
 Use the model `id` exactly as it appears in the gateway catalog. Display names give you a readable overview, but the `id` is the value to pass to the gateway or provider SDK.
+
+<Callout type="tip" title="Use the project key for Gateway models">
+Direct `AIGatewayClient` calls use the Agentuity project credential for models your project can call through the Gateway. Set provider keys only when you intentionally call a provider SDK with provider-owned credentials.
+</Callout>
+
+<Callout type="tip" title="Use the narrow helper first">
+Use `completeText()` when you only need assistant text. Use `completeStructured()` with `response_schema` for provider-agnostic JSON output. Keep `complete()` when you need the raw provider-shaped response, tool calls, streaming metadata, or custom parsing.
+</Callout>
 
 <Callout type="info" title="Two ways to use the gateway">
 Use `@agentuity/aigateway` when you want the Agentuity client directly. `agentuity dev` can also wire OpenAI, Anthropic, and Groq SDK env vars for local development when you have an Agentuity SDK key and no provider key override.
 </Callout>
+
+## Choose the model path
+
+Use AI Gateway for generic app model calls where the model is configuration, policy, or deployment choice. Use a provider SDK when the provider-specific workflow is the point of the page or feature.
+
+| Need | Use |
+|------|-----|
+| call a model from a route, worker, queue handler, or script with one Agentuity project credential | `AIGatewayClient` |
+| choose models from the gateway catalog, switch providers by config, or inspect gateway cost metadata when available | `AIGatewayClient` |
+| use OpenAI Responses state, Anthropic `tool_use` blocks, LangChain `ChatOpenAI`, or another provider/library-specific API | the provider SDK or library |
+| use a provider-owned account, limit, region, or feature that the gateway path does not expose | the provider SDK with your provider key |
 
 ## What the gateway handles
 
@@ -92,7 +112,8 @@ The local CLI path exposes provider-specific base URLs for OpenAI, Anthropic, an
 
 ## Model catalog
 
-Use the live model catalog before choosing a model ID for docs, examples, or app defaults.
+Use the live model catalog before choosing a model ID for a route, worker, script,
+or app default.
 
 ```bash
 agentuity cloud aigateway models --recommended
@@ -103,13 +124,59 @@ agentuity cloud aigateway models --refresh-models
 
 The gateway `/models` response is the source of truth for model metadata. The CLI reads that catalog and can filter by provider, model name, modality, reasoning support, and recommended status. Use `--refresh-models` when freshness matters, because the CLI can serve cached catalog results between runs.
 
-Set the model as configuration instead of hardcoding it in reusable examples:
+The only required Agentuity env for direct Gateway calls is project auth. Choose
+a catalog model ID and pass it in the request. If your app needs runtime model
+selection, store that ID with the rest of your app configuration. It is not an
+extra Gateway credential.
 
-```bash title=".env"
-AGENTUITY_AI_MODEL=openai/your-model-id
+When you choose or change a Gateway model, run the catalog command and use the
+exact ID it returns. When you call a provider SDK directly, use the model string
+expected by that SDK.
+
+## Structured output
+
+Use `completeStructured()` when a route needs JSON instead of prose. The gateway translates `response_schema` to the provider's structured-output shape where it can, then returns the parsed JSON payload in `data`.
+
+```typescript
+import { AIGatewayClient } from '@agentuity/aigateway';
+import { z } from 'zod';
+
+const gateway = new AIGatewayClient();
+const SUMMARY_MODEL = 'googleai/gemini-3.5-flash';
+
+const summarySchema = z.object({
+  title: z.string(),
+  bullets: z.array(z.string()).max(5),
+});
+
+type Summary = z.infer<typeof summarySchema>;
+
+export async function summarizeTicket(ticket: string): Promise<Summary> {
+  const { data } = await gateway.completeStructured({
+    model: SUMMARY_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Summarize this support ticket:\n\n${ticket}`,
+      },
+    ],
+    response_schema: {
+      name: 'ticket_summary',
+      schema: summarySchema,
+    },
+  });
+
+  const parsed = summarySchema.safeParse(data);
+
+  if (!parsed.success) {
+    throw new Error('The model response did not match the expected summary shape.');
+  }
+
+  return parsed.data;
+}
 ```
 
-Model IDs move. Verify the gateway catalog and the provider's own docs when you write a new page, then use the exact model string that the active SDK expects.
+`data` is parsed JSON, not a trusted TypeScript value. Validate it with Zod, Valibot, ArkType, or another Standard Schema-compatible library before returning it from app code.
 
 ## AI SDK
 
@@ -137,7 +204,7 @@ export async function summarize(message: string): Promise<string> {
 }
 ```
 
-AI SDK 6 accepts current and future OpenAI model IDs as strings. `@ai-sdk/openai` reads `OPENAI_API_KEY` and `OPENAI_BASE_URL`, so it works with the env vars injected by `agentuity dev`.
+The AI SDK accepts provider model IDs as strings. `@ai-sdk/openai` reads `OPENAI_API_KEY` and `OPENAI_BASE_URL`, so it works with the env vars injected by `agentuity dev`.
 
 For Google Gemini, use an explicit provider factory. `agentuity dev` does not patch Google env vars automatically. This example uses a provider-owned Google key:
 
@@ -206,20 +273,11 @@ export async function classify(message: string): Promise<string> {
 
 `@anthropic-ai/sdk` reads `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL`, so it works with the env vars injected by `agentuity dev`.
 
-## When to use the AI Gateway
-
-| Need | Use |
-|------|-----|
-| pick from the gateway model catalog | Agentuity's AI Gateway |
-| authenticate model calls with an Agentuity project key | Agentuity's AI Gateway |
-| read gateway response headers and cost metadata when available | Agentuity's AI Gateway |
-| local OpenAI, Anthropic, or Groq development without separate provider keys | the AI Gateway via `agentuity dev` |
-| keep provider SDK code and let the gateway authenticate with `AGENTUITY_SDK_KEY` | the AI Gateway |
-| use a provider account, limits, or base URL directly | Set your own provider key and bypass the gateway |
-
 ## Local development
 
-`agentuity dev` looks for `AGENTUITY_SDK_KEY`, then wires supported provider env vars into the framework process before it loads your app code. Automatic env wiring currently covers OpenAI, Anthropic, and Groq.
+For direct `AIGatewayClient` calls, `AGENTUITY_SDK_KEY` is enough for local auth. Your code still passes a model ID on the request or reads one from app configuration.
+
+`agentuity dev` also wires supported provider SDK env vars into the framework process before it loads your app code. Automatic env wiring currently covers OpenAI, Anthropic, and Groq.
 
 | Provider | API key env | Base URL env |
 |----------|-------------|--------------|
@@ -283,8 +341,9 @@ For deployed apps, choose one of these paths:
 
 | Path | Use When |
 |------|----------|
+| call `AIGatewayClient` with Agentuity project credentials | generic app-owned model calls |
 | set provider keys directly | you need the provider path to be explicit and provider-owned |
-| rely on Agentuity gateway env | the deployed project receives the gateway env needed by your provider SDK |
+| rely on provider SDK gateway env | the deployed project receives the gateway env needed by your provider SDK |
 
 Local gateway wiring is part of `agentuity dev`. In deployed apps, set provider keys directly unless you have confirmed the project receives the gateway env needed by your provider SDK.
 
@@ -295,3 +354,4 @@ See [Managing Environment Variables](/deploy-operate/environment-variables): how
 - [Running Local Development](/deploy-operate/local-development): run your framework server through `agentuity dev`
 - [Managing Environment Variables](/deploy-operate/environment-variables): keep `AGENTUITY_SDK_KEY` and provider keys in the right place
 - [App Configuration](/get-started/app-configuration#environment-variables): review the env var layout for framework projects
+- [AI Gateway API Reference](/reference/api/ai-gateway): inspect REST paths and response fields

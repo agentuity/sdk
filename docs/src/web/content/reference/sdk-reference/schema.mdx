@@ -319,7 +319,7 @@ Use `toJSONSchema()` with `{ strict: true }` when passing an `@agentuity/schema`
 
 ```typescript
 import { Output, generateText, jsonSchema } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { anthropic } from '@ai-sdk/anthropic';
 import { s } from '@agentuity/schema';
 
 const SentimentSchema = s.object({
@@ -344,7 +344,7 @@ const SentimentOutput = jsonSchema<Sentiment>(
 );
 
 const { output } = await generateText({
-  model: openai('gpt-5.4-nano'),
+  model: anthropic('claude-opus-4-8'),
   output: Output.object({
     schema: SentimentOutput,
   }),

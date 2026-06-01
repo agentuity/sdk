@@ -12,13 +12,12 @@ Because agents are app code, they use the same dependencies as the rest of the a
 Start with a plain typed function. It accepts validated input, returns typed output, and does not call `createAgent()`.
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
+bun add @agentuity/aigateway@next @agentuity/keyvalue@next zod
 ```
 
 ```typescript
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { KeyValueClient } from '@agentuity/keyvalue';
-import { openai } from '@ai-sdk/openai';
-import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
 const outputSchema = z.object({
@@ -29,11 +28,8 @@ const outputSchema = z.object({
 type TriageResult = z.infer<typeof outputSchema>;
 
 const kv = new KeyValueClient();
-const model = process.env.OPENAI_MODEL;
-
-if (!model) {
-  throw new Error('Set OPENAI_MODEL to the model you want this workflow to use.');
-}
+const gateway = new AIGatewayClient();
+const TRIAGE_MODEL = 'googleai/gemini-3.5-flash';
 
 export async function triageMessage(
   customerId: string,
@@ -41,17 +37,27 @@ export async function triageMessage(
 ): Promise<TriageResult> {
   const previous = await kv.get<TriageResult>('support-triage', customerId);
 
-  const { output } = await generateText({ // [!code highlight]
-    model: openai(model),
-    output: Output.object({ schema: outputSchema }), // [!code highlight]
-    system: 'Classify support messages for a product engineering team.',
-    prompt: [
-      `Customer message: ${message}`,
-      previous.exists ? `Previous summary: ${previous.data.summary}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
+  const { data } = await gateway.completeStructured({ // [!code highlight]
+    model: TRIAGE_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'Classify support messages for a product engineering team.',
+      },
+      {
+        role: 'user',
+        content: [
+          `Customer message: ${message}`,
+          previous.exists ? `Previous summary: ${previous.data.summary}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ],
+    response_schema: { name: 'triage_result', schema: outputSchema }, // [!code highlight]
   });
+
+  const output = outputSchema.parse(data);
 
   await kv.set('support-triage', customerId, output, { // [!code highlight]
     ttl: 60 * 60 * 24 * 30, // 30 days
@@ -85,16 +91,15 @@ export async function POST(request: Request): Promise<Response> {
 This is the full file version: one module, schemas, agent function, and route handler together. Use this shape for smaller features before splitting.
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next zod
+bun add @agentuity/aigateway@next @agentuity/keyvalue@next zod
 ```
 
 ```typescript title="app/api/triage/route.ts"
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { KeyValueClient } from '@agentuity/keyvalue';
-import { openai } from '@ai-sdk/openai';
-import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-// Schemas defined once, reused for Output.object and type inference
+// Zod validates app data and gives the gateway a structured-output schema
 const inputSchema = z.object({
   customerId: z.string(),
   message: z.string(),
@@ -111,26 +116,33 @@ type TriageResult = z.infer<typeof outputSchema>;
 
 // Module-level client: initialized once, reused across requests
 const kv = new KeyValueClient();
-const model = process.env.OPENAI_MODEL;
-
-if (!model) {
-  throw new Error('Set OPENAI_MODEL to the model you want this workflow to use.');
-}
+const gateway = new AIGatewayClient();
+const TRIAGE_MODEL = 'googleai/gemini-3.5-flash';
 
 async function runSupportTriage(input: TriageInput): Promise<TriageResult> {
   const previous = await kv.get<TriageResult>('support-triage', input.customerId);
 
-  const { output } = await generateText({
-    model: openai(model),
-    output: Output.object({ schema: outputSchema }),
-    system: 'Classify support messages for a product engineering team.',
-    prompt: [
-      `Customer message: ${input.message}`,
-      previous.exists ? `Previous summary: ${previous.data.summary}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
+  const { data } = await gateway.completeStructured({
+    model: TRIAGE_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: 'Classify support messages for a product engineering team.',
+      },
+      {
+        role: 'user',
+        content: [
+          `Customer message: ${input.message}`,
+          previous.exists ? `Previous summary: ${previous.data.summary}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ],
+    response_schema: { name: 'triage_result', schema: outputSchema },
   });
+
+  const output = outputSchema.parse(data);
 
   await kv.set('support-triage', input.customerId, output, {
     ttl: 60 * 60 * 24 * 30,
@@ -152,11 +164,11 @@ What each layer does:
 - The route owns HTTP parsing and response formatting
 - `runSupportTriage` owns the model call, context read, and state write
 - `KeyValueClient` stores context by namespace (`'support-triage'`) and key (customer ID)
-- `Output.object({ schema })` validates the model response before storage; `previous.exists` is the type-safe way to access `previous.data`
-- Zod's `.describe()` hints on enum and string fields improve model output consistency
+- `response_schema` asks the gateway for provider-agnostic structured output; Zod validates the parsed data before storage
+- `previous.exists` is the type-safe way to access `previous.data`
 
 <Callout type="tip" title="Configure models by task">
-Keep the model ID in configuration so you can change extraction, classification, review, and reasoning workflows independently. Use [AI Gateway](/services/ai-gateway#model-catalog) or your provider's catalog to pick the exact model ID.
+Keep the model ID in configuration so you can change extraction, classification, review, and reasoning workflows independently. Direct Gateway calls use the Agentuity project credential; use [AI Gateway](/services/ai-gateway#model-catalog) or your provider's catalog to pick the exact model ID.
 </Callout>
 
 ## Split the route from the work

@@ -1,8 +1,8 @@
 import type { ApiEnv } from '../context';
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { Hono } from 'hono';
+import { getModel } from '../../lib/models';
 
 // Schema for conversation message
 export const ConversationMessageSchema = z.object({
@@ -16,6 +16,7 @@ export const TitleGeneratorRequestSchema = z.object({
 });
 
 type ConversationMessage = z.infer<typeof ConversationMessageSchema>;
+const TITLE_MODEL = 'anthropic/claude-opus-4-8';
 
 function sanitizeTitle(input: string): string {
 	if (!input) return '';
@@ -90,7 +91,7 @@ Conversation:
 ${historyText}`;
 
 			const response = await generateText({
-				model: openai('gpt-5.4-mini'),
+				model: getModel(TITLE_MODEL),
 				prompt,
 				system:
 					'You are a title generator for chat sessions. Generate concise, descriptive titles only. Output only the title text, nothing else.',

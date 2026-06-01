@@ -53,6 +53,37 @@ function extractDefaultInput(content: string): unknown {
 	return {};
 }
 
+function quoteTsString(value: string): string {
+	const escaped = JSON.stringify(value).slice(1, -1).replace(/'/g, "\\'");
+	return `'${escaped}'`;
+}
+
+function formatPropertyKey(key: string): string {
+	return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? key : quoteTsString(key);
+}
+
+function formatTsValue(value: unknown): string {
+	if (typeof value === 'string') return quoteTsString(value);
+	if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+	if (typeof value === 'boolean') return String(value);
+	if (value === null) return 'null';
+
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => formatTsValue(item)).join(', ')}]`;
+	}
+
+	if (typeof value === 'object') {
+		const entries = Object.entries(value as Record<string, unknown>);
+		if (entries.length === 0) return '{}';
+		const properties = entries
+			.map(([key, entryValue]) => `${formatPropertyKey(key)}: ${formatTsValue(entryValue)}`)
+			.join(', ');
+		return `{ ${properties} }`;
+	}
+
+	throw new Error(`Unsupported default input value: ${String(value)}`);
+}
+
 async function generateScripts(): Promise<void> {
 	const files = await readdir(RUN_DIR);
 	const scripts: ScriptInfo[] = [];
@@ -87,7 +118,9 @@ ${scripts.map(({ name }) => `\t'${name}',`).join('\n')}
 
 /** Default inputs for each script (extracted from source files) */
 export const SCRIPT_DEFAULTS: Record<string, unknown> = {
-${scripts.map(({ name, defaultInput }) => `\t'${name}': ${JSON.stringify(defaultInput)},`).join('\n')}
+${scripts
+	.map(({ name, defaultInput }) => `\t${formatPropertyKey(name)}: ${formatTsValue(defaultInput)},`)
+	.join('\n')}
 };
 `;
 

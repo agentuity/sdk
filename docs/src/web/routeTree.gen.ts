@@ -142,6 +142,7 @@ import { Route as DocsReferenceCliCoderRouteImport } from './routes/_docs/refere
 import { Route as DocsReferenceCliClaudeCodePluginRouteImport } from './routes/_docs/reference/cli/claude-code-plugin'
 import { Route as DocsReferenceCliBuildConfigurationRouteImport } from './routes/_docs/reference/cli/build-configuration'
 import { Route as DocsReferenceCliAiCommandsRouteImport } from './routes/_docs/reference/cli/ai-commands'
+import { Route as DocsReferenceApiWorkflowsRouteImport } from './routes/_docs/reference/api/workflows'
 import { Route as DocsReferenceApiWebhooksRouteImport } from './routes/_docs/reference/api/webhooks'
 import { Route as DocsReferenceApiVectorRouteImport } from './routes/_docs/reference/api/vector'
 import { Route as DocsReferenceApiUserRouteImport } from './routes/_docs/reference/api/user'
@@ -171,6 +172,7 @@ import { Route as DocsCookbookPatternsUsingWorkspacesToReuseReposSkillsAndAgentS
 import { Route as DocsCookbookPatternsTailwindSetupRouteImport } from './routes/_docs/cookbook/patterns/tailwind-setup'
 import { Route as DocsCookbookPatternsStructuredLoggingWithPinoRouteImport } from './routes/_docs/cookbook/patterns/structured-logging-with-pino'
 import { Route as DocsCookbookPatternsServerUtilitiesRouteImport } from './routes/_docs/cookbook/patterns/server-utilities'
+import { Route as DocsCookbookPatternsRunningExternalCodingToolsInSandboxRouteImport } from './routes/_docs/cookbook/patterns/running-external-coding-tools-in-sandbox'
 import { Route as DocsCookbookPatternsProductSearchRouteImport } from './routes/_docs/cookbook/patterns/product-search'
 import { Route as DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRouteImport } from './routes/_docs/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
 import { Route as DocsCookbookPatternsOpentelemetryRouteSpansRouteImport } from './routes/_docs/cookbook/patterns/opentelemetry-route-spans'
@@ -931,6 +933,12 @@ const DocsReferenceCliAiCommandsRoute =
     path: '/reference/cli/ai-commands',
     getParentRoute: () => DocsRouteRoute,
   } as any)
+const DocsReferenceApiWorkflowsRoute =
+  DocsReferenceApiWorkflowsRouteImport.update({
+    id: '/workflows',
+    path: '/workflows',
+    getParentRoute: () => DocsReferenceApiRouteRoute,
+  } as any)
 const DocsReferenceApiWebhooksRoute =
   DocsReferenceApiWebhooksRouteImport.update({
     id: '/webhooks',
@@ -1094,6 +1102,12 @@ const DocsCookbookPatternsServerUtilitiesRoute =
   DocsCookbookPatternsServerUtilitiesRouteImport.update({
     id: '/cookbook/patterns/server-utilities',
     path: '/cookbook/patterns/server-utilities',
+    getParentRoute: () => DocsRouteRoute,
+  } as any)
+const DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute =
+  DocsCookbookPatternsRunningExternalCodingToolsInSandboxRouteImport.update({
+    id: '/cookbook/patterns/running-external-coding-tools-in-sandbox',
+    path: '/cookbook/patterns/running-external-coding-tools-in-sandbox',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsCookbookPatternsProductSearchRoute =
@@ -1394,6 +1408,7 @@ export interface FileRoutesByFullPath {
   '/cookbook/patterns/opentelemetry-route-spans': typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   '/cookbook/patterns/preparing-coder-sessions-for-remote-attach': typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   '/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
+  '/cookbook/patterns/running-external-coding-tools-in-sandbox': typeof DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute
   '/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
   '/cookbook/patterns/structured-logging-with-pino': typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   '/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
@@ -1423,6 +1438,7 @@ export interface FileRoutesByFullPath {
   '/reference/api/user': typeof DocsReferenceApiUserRoute
   '/reference/api/vector': typeof DocsReferenceApiVectorRoute
   '/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute
+  '/reference/api/workflows': typeof DocsReferenceApiWorkflowsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
@@ -1585,6 +1601,7 @@ export interface FileRoutesByTo {
   '/cookbook/patterns/opentelemetry-route-spans': typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   '/cookbook/patterns/preparing-coder-sessions-for-remote-attach': typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   '/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
+  '/cookbook/patterns/running-external-coding-tools-in-sandbox': typeof DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute
   '/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
   '/cookbook/patterns/structured-logging-with-pino': typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   '/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
@@ -1614,6 +1631,7 @@ export interface FileRoutesByTo {
   '/reference/api/user': typeof DocsReferenceApiUserRoute
   '/reference/api/vector': typeof DocsReferenceApiVectorRoute
   '/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute
+  '/reference/api/workflows': typeof DocsReferenceApiWorkflowsRoute
   '/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
@@ -1780,6 +1798,7 @@ export interface FileRoutesById {
   '/_docs/cookbook/patterns/opentelemetry-route-spans': typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   '/_docs/cookbook/patterns/preparing-coder-sessions-for-remote-attach': typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   '/_docs/cookbook/patterns/product-search': typeof DocsCookbookPatternsProductSearchRoute
+  '/_docs/cookbook/patterns/running-external-coding-tools-in-sandbox': typeof DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute
   '/_docs/cookbook/patterns/server-utilities': typeof DocsCookbookPatternsServerUtilitiesRoute
   '/_docs/cookbook/patterns/structured-logging-with-pino': typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   '/_docs/cookbook/patterns/tailwind-setup': typeof DocsCookbookPatternsTailwindSetupRoute
@@ -1809,6 +1828,7 @@ export interface FileRoutesById {
   '/_docs/reference/api/user': typeof DocsReferenceApiUserRoute
   '/_docs/reference/api/vector': typeof DocsReferenceApiVectorRoute
   '/_docs/reference/api/webhooks': typeof DocsReferenceApiWebhooksRoute
+  '/_docs/reference/api/workflows': typeof DocsReferenceApiWorkflowsRoute
   '/_docs/reference/cli/ai-commands': typeof DocsReferenceCliAiCommandsRoute
   '/_docs/reference/cli/build-configuration': typeof DocsReferenceCliBuildConfigurationRoute
   '/_docs/reference/cli/claude-code-plugin': typeof DocsReferenceCliClaudeCodePluginRoute
@@ -1975,6 +1995,7 @@ export interface FileRouteTypes {
     | '/cookbook/patterns/opentelemetry-route-spans'
     | '/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
     | '/cookbook/patterns/product-search'
+    | '/cookbook/patterns/running-external-coding-tools-in-sandbox'
     | '/cookbook/patterns/server-utilities'
     | '/cookbook/patterns/structured-logging-with-pino'
     | '/cookbook/patterns/tailwind-setup'
@@ -2004,6 +2025,7 @@ export interface FileRouteTypes {
     | '/reference/api/user'
     | '/reference/api/vector'
     | '/reference/api/webhooks'
+    | '/reference/api/workflows'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
     | '/reference/cli/claude-code-plugin'
@@ -2166,6 +2188,7 @@ export interface FileRouteTypes {
     | '/cookbook/patterns/opentelemetry-route-spans'
     | '/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
     | '/cookbook/patterns/product-search'
+    | '/cookbook/patterns/running-external-coding-tools-in-sandbox'
     | '/cookbook/patterns/server-utilities'
     | '/cookbook/patterns/structured-logging-with-pino'
     | '/cookbook/patterns/tailwind-setup'
@@ -2195,6 +2218,7 @@ export interface FileRouteTypes {
     | '/reference/api/user'
     | '/reference/api/vector'
     | '/reference/api/webhooks'
+    | '/reference/api/workflows'
     | '/reference/cli/ai-commands'
     | '/reference/cli/build-configuration'
     | '/reference/cli/claude-code-plugin'
@@ -2360,6 +2384,7 @@ export interface FileRouteTypes {
     | '/_docs/cookbook/patterns/opentelemetry-route-spans'
     | '/_docs/cookbook/patterns/preparing-coder-sessions-for-remote-attach'
     | '/_docs/cookbook/patterns/product-search'
+    | '/_docs/cookbook/patterns/running-external-coding-tools-in-sandbox'
     | '/_docs/cookbook/patterns/server-utilities'
     | '/_docs/cookbook/patterns/structured-logging-with-pino'
     | '/_docs/cookbook/patterns/tailwind-setup'
@@ -2389,6 +2414,7 @@ export interface FileRouteTypes {
     | '/_docs/reference/api/user'
     | '/_docs/reference/api/vector'
     | '/_docs/reference/api/webhooks'
+    | '/_docs/reference/api/workflows'
     | '/_docs/reference/cli/ai-commands'
     | '/_docs/reference/cli/build-configuration'
     | '/_docs/reference/cli/claude-code-plugin'
@@ -3397,6 +3423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsReferenceCliAiCommandsRouteImport
       parentRoute: typeof DocsRouteRoute
     }
+    '/_docs/reference/api/workflows': {
+      id: '/_docs/reference/api/workflows'
+      path: '/workflows'
+      fullPath: '/reference/api/workflows'
+      preLoaderRoute: typeof DocsReferenceApiWorkflowsRouteImport
+      parentRoute: typeof DocsReferenceApiRouteRoute
+    }
     '/_docs/reference/api/webhooks': {
       id: '/_docs/reference/api/webhooks'
       path: '/webhooks'
@@ -3598,6 +3631,13 @@ declare module '@tanstack/react-router' {
       path: '/cookbook/patterns/server-utilities'
       fullPath: '/cookbook/patterns/server-utilities'
       preLoaderRoute: typeof DocsCookbookPatternsServerUtilitiesRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/_docs/cookbook/patterns/running-external-coding-tools-in-sandbox': {
+      id: '/_docs/cookbook/patterns/running-external-coding-tools-in-sandbox'
+      path: '/cookbook/patterns/running-external-coding-tools-in-sandbox'
+      fullPath: '/cookbook/patterns/running-external-coding-tools-in-sandbox'
+      preLoaderRoute: typeof DocsCookbookPatternsRunningExternalCodingToolsInSandboxRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/cookbook/patterns/product-search': {
@@ -3836,6 +3876,7 @@ interface DocsReferenceApiRouteRouteChildren {
   DocsReferenceApiUserRoute: typeof DocsReferenceApiUserRoute
   DocsReferenceApiVectorRoute: typeof DocsReferenceApiVectorRoute
   DocsReferenceApiWebhooksRoute: typeof DocsReferenceApiWebhooksRoute
+  DocsReferenceApiWorkflowsRoute: typeof DocsReferenceApiWorkflowsRoute
   DocsReferenceApiIndexRoute: typeof DocsReferenceApiIndexRoute
 }
 
@@ -3862,6 +3903,7 @@ const DocsReferenceApiRouteRouteChildren: DocsReferenceApiRouteRouteChildren = {
   DocsReferenceApiUserRoute: DocsReferenceApiUserRoute,
   DocsReferenceApiVectorRoute: DocsReferenceApiVectorRoute,
   DocsReferenceApiWebhooksRoute: DocsReferenceApiWebhooksRoute,
+  DocsReferenceApiWorkflowsRoute: DocsReferenceApiWorkflowsRoute,
   DocsReferenceApiIndexRoute: DocsReferenceApiIndexRoute,
 }
 
@@ -3985,6 +4027,7 @@ interface DocsRouteRouteChildren {
   DocsCookbookPatternsOpentelemetryRouteSpansRoute: typeof DocsCookbookPatternsOpentelemetryRouteSpansRoute
   DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute: typeof DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute
   DocsCookbookPatternsProductSearchRoute: typeof DocsCookbookPatternsProductSearchRoute
+  DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute: typeof DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute
   DocsCookbookPatternsServerUtilitiesRoute: typeof DocsCookbookPatternsServerUtilitiesRoute
   DocsCookbookPatternsStructuredLoggingWithPinoRoute: typeof DocsCookbookPatternsStructuredLoggingWithPinoRoute
   DocsCookbookPatternsTailwindSetupRoute: typeof DocsCookbookPatternsTailwindSetupRoute
@@ -4154,6 +4197,8 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
     DocsCookbookPatternsPreparingCoderSessionsForRemoteAttachRoute,
   DocsCookbookPatternsProductSearchRoute:
     DocsCookbookPatternsProductSearchRoute,
+  DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute:
+    DocsCookbookPatternsRunningExternalCodingToolsInSandboxRoute,
   DocsCookbookPatternsServerUtilitiesRoute:
     DocsCookbookPatternsServerUtilitiesRoute,
   DocsCookbookPatternsStructuredLoggingWithPinoRoute:

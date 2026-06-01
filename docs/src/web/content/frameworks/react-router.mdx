@@ -73,6 +73,8 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 
 A resource route is any route module that exports `loader` or `action` but no default component. React Router sends `GET` requests to `loader` and `POST`, `PUT`, `PATCH`, `DELETE` to `action`.
 
+The route below intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
+
 Install the packages used in this example:
 
 ```bash
@@ -205,7 +207,7 @@ export async function action({ request }: Route.ActionArgs) { // [!code highligh
 
 `Route.LoaderArgs` and `Route.ActionArgs` come from React Router's typegen. Run `react-router typegen` (or a package script that runs it) before a direct TypeScript check or `agentuity build`; the `import type` line stays unresolved until the generated `.react-router/types` output exists.
 
-Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
+Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
 Register the route in `app/routes.ts`:
 
@@ -293,7 +295,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
-| `OPENAI_MODEL` | example routes that call the OpenAI SDK |
+| `OPENAI_MODEL` | provider SDK env-wiring example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
 | `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |

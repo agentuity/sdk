@@ -7,18 +7,19 @@ description: Store chat history with key-value storage from a framework route
 Use key-value storage when a chat route needs to remember recent turns. In v3, keep the route in your framework and store the conversation under an explicit `conversationId`.
 
 ```bash
-bun add hono openai @agentuity/keyvalue@next zod
+bun add hono @agentuity/aigateway@next @agentuity/keyvalue@next zod
 ```
 
 ```typescript title="src/index.ts"
 import { Hono } from 'hono';
-import OpenAI from 'openai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { KeyValueClient } from '@agentuity/keyvalue';
 import { z } from 'zod';
 
 const chatRequestSchema = z.object({
   conversationId: z.string(),
   message: z.string(),
+  model: z.string().min(1).default('deepseek/deepseek-v4-flash'),
 });
 
 const messageSchema = z.object({
@@ -36,7 +37,7 @@ const HISTORY_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 const app = new Hono();
 const kv = new KeyValueClient();
-const openai = new OpenAI();
+const gateway = new AIGatewayClient();
 
 async function readHistory(conversationId: string): Promise<readonly ChatMessage[]> {
   const stored = await kv.get<unknown>(HISTORY_NAMESPACE, conversationId);
@@ -58,10 +59,6 @@ async function saveHistory(
 app.post('/api/chat', async (c) => {
   const body: unknown = await c.req.json();
   const input = chatRequestSchema.parse(body);
-  const model = process.env.OPENAI_MODEL;
-  if (!model) {
-    return c.json({ error: 'OPENAI_MODEL is required' }, 500);
-  }
 
   const history = await readHistory(input.conversationId);
   const userMessage: ChatMessage = {
@@ -71,17 +68,21 @@ app.post('/api/chat', async (c) => {
 
   const messages = [...history, userMessage];
 
-  const completion = await openai.chat.completions.create({
-    model,
+  const result = await gateway.completeText({
+    model: input.model,
     messages: [
       { role: 'system', content: 'You are a concise product support assistant.' },
       ...messages,
     ],
   });
 
+  if (!result.hasText) {
+    return c.json({ error: 'The model returned no text.' }, 502);
+  }
+
   const assistantMessage: ChatMessage = {
     role: 'assistant',
-    content: completion.choices[0]?.message?.content ?? '',
+    content: result.text,
   };
 
   const nextHistory = await saveHistory(input.conversationId, [
@@ -93,8 +94,8 @@ app.post('/api/chat', async (c) => {
     conversationId: input.conversationId,
     message: assistantMessage,
     messageCount: nextHistory.length,
-    model: completion.model,
-    tokens: completion.usage?.total_tokens ?? 0,
+    model: result.completion.model ?? input.model,
+    finishReason: result.finishReason ?? 'unknown',
   });
 });
 
@@ -115,7 +116,7 @@ app.delete('/api/chat/:conversationId', async (c) => {
 export default app;
 ```
 
-`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run this through `agentuity dev` or a linked Agentuity project when you want managed key-value storage and AI Gateway routing.
+`KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. `AIGatewayClient` reads `AGENTUITY_AIGATEWAY_KEY`, `AGENTUITY_SDK_KEY`, or `AGENTUITY_CLI_KEY`. The route accepts a model override but does not require provider keys or provider SDK env. Run this through `agentuity dev` or a linked Agentuity project when you want managed key-value storage and AI Gateway model routing.
 
 ## Call the route
 
@@ -140,7 +141,7 @@ if (!response.ok) {
 const result = await response.json();
 ```
 
-The response includes the assistant message, model name, token count when the provider returns usage, and the stored message count.
+The response includes the assistant message, model name, finish reason, and stored message count.
 
 ## Reset a conversation
 
@@ -154,7 +155,7 @@ await fetch(`/api/chat/${conversationId}`, { method: 'DELETE' });
 
 - use one namespace for chat history and make the key explicit
 - store a rolling window or summary instead of unlimited messages
-- keep provider token usage in the response when the UI should show model details
+- keep gateway metadata in the response when the UI should show model details
 - use key-value storage or a database for new app state, not legacy runtime thread state
 
 ## Next steps

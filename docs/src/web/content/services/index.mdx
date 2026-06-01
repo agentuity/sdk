@@ -68,7 +68,7 @@ await kv.set('cache', 'homepage', { generatedAt: new Date().toISOString() });
 const cached = await kv.get<{ readonly generatedAt: string }>('cache', 'homepage');
 ```
 
-For method signatures and return types, see the [SDK Reference](/reference/sdk-reference). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
+For package install and constructor options, see [Standalone Packages](/reference/standalone-packages). For REST request and response fields, use the generated [API Reference](/reference/api). For environment variables used by service clients, see [App Configuration](/get-started/app-configuration#agentuity-keys).
 
 Direct clients are the portable default across frameworks, workers, scripts, and CLIs. Hono apps can also install `@agentuity/hono` when middleware is the right injection point for common clients and telemetry on `c.var.*`. Relational Postgres has its own database section; for other services, use the package that owns that service.
 
@@ -119,7 +119,7 @@ Direct clients are the portable default across frameworks, workers, scripts, and
   <CardLink
     href="/services/storage/durable-streams"
     title="Durable Streams"
-    description="Persistent message streams"
+    description="Chunked generated output with reusable URLs"
     icon={<Activity />}
   />
   <CardLink
@@ -250,3 +250,12 @@ Direct clients are the portable default across frameworks, workers, scripts, and
     icon={<Camera />}
   />
 </Cards>
+
+## Next steps
+
+Use these pages after you choose a service and need to wire it into app code.
+
+- [Frameworks](/frameworks): add service clients to framework-native routes and server functions
+- [Standalone Packages](/reference/standalone-packages): install and configure client packages in server-side code
+- [App Configuration](/get-started/app-configuration): connect service clients to project keys and environment values
+- [API Reference](/reference/api): inspect generated method-level REST details when a guide intentionally stays conceptual

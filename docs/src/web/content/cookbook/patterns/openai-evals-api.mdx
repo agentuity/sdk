@@ -7,7 +7,7 @@ description: Run OpenAI Evals API suites against prompts that live in an Agentui
 When an Agentuity app needs a prompt and model regression suite, keep the prompt text in app code and let the [OpenAI Evals API](https://developers.openai.com/api/docs/guides/evals) run the dataset and graders. This fits checks where the behavior under test is the prompt, model choice, and output contract.
 
 ```bash
-bun add openai zod
+bun add openai zod @agentuity/telemetry@next
 ```
 
 <Callout type="warning" title="This creates OpenAI resources">
@@ -60,6 +60,7 @@ Create the eval once, upload the dataset, then start a run that uses the Respons
 ```typescript title="src/evals/openai-ticket-eval.ts"
 import fs from 'node:fs';
 import OpenAI from 'openai';
+import { logger } from '@agentuity/telemetry';
 import { TICKET_CLASSIFIER_INSTRUCTIONS } from '../lib/ticket-classifier';
 
 async function createTicketEval(openai: OpenAI): Promise<string> {
@@ -137,7 +138,7 @@ const evalId = await createTicketEval(openai);
 const fileId = await uploadTicketDataset(openai, 'src/evals/tickets.jsonl');
 const runId = await createTicketEvalRun(openai, evalId, fileId, model);
 
-console.log({ evalId, fileId, runId });
+logger.info('openai eval run created', { evalId, fileId, runId });
 ```
 
 Run the script from your app root:
@@ -153,7 +154,7 @@ Eval runs execute asynchronously. Poll the run or open the `report_url` returned
 ```typescript
 const run = await openai.evals.runs.retrieve(runId, { eval_id: evalId });
 
-console.log({
+logger.info('openai eval run status', {
   status: run.status,
   resultCounts: run.result_counts,
   reportUrl: run.report_url,

@@ -2,12 +2,26 @@ export const docsRedirects = {
 	demo: '/explorer',
 	explorerEvals: '/build/agents',
 	apis: '/build/agents',
-	apisCallingAgents: '/build/agents',
+	apisCallingAgents: '/reference/sdk-reference/communication',
 	apisWhenToUse: '/build/agents',
 	agentsWorkbench: '/build/agents',
+	agentsAiSdkIntegration: '/build/agents',
 	agentsAiGateway: '/services/ai-gateway',
+	agentsCreating: '/build/agents',
+	agentsEventsLifecycle: '/migration/from-v2',
+	agentsSchemaLibraries: '/reference/sdk-reference/schema',
+	agentsStandaloneExecution: '/reference/sdk-reference/communication',
+	agentsStateManagement: '/build/agents/state-and-memory',
 	agentsStreaming: '/build/agents/chat-and-streaming',
+	agentsWhenToUse: '/build/agents',
+	routes: '/build/apps-and-apis',
+	routesCallingAgents: '/reference/sdk-reference/communication',
+	routesCron: '/services/schedules',
+	routesExplicitRouting: '/frameworks/hono',
+	routesHttp: '/build/apps-and-apis/backend-apis',
+	routesMiddleware: '/frameworks/hono',
 	routesStreaming: '/build/agents/chat-and-streaming',
+	routesWebrtc: '/migration/from-v2',
 	patterns: '/build',
 	patternsAgents: '/build/agents',
 	patternsBackgroundWork: '/build/apps-and-apis/background-work',
@@ -35,6 +49,7 @@ export const docsRedirects = {
 	referenceSdkSandbox: '/services/sandbox',
 	referenceSdkObservability: '/services/observability',
 	communityInboundEmail: '/services/email',
+	community: '/cookbook',
 	cookbookBackgroundTasks: '/build/apps-and-apis/background-work',
 	cookbookCronStorage: '/services/schedules',
 	cookbookLlmJudge: '/build/agents',
@@ -58,6 +73,18 @@ export const docRedirectRules = [
 	{ paths: ['/apis', '/apis/'], target: docsRedirects.apis },
 	{ paths: ['/agents', '/agents/'], target: docsRedirects.apis },
 	{
+		paths: ['/agents/creating-agents', '/agents/creating-agents/'],
+		target: docsRedirects.agentsCreating,
+	},
+	{
+		paths: ['/agents/when-to-use', '/agents/when-to-use/'],
+		target: docsRedirects.agentsWhenToUse,
+	},
+	{
+		paths: ['/agents/ai-sdk-integration', '/agents/ai-sdk-integration/'],
+		target: docsRedirects.agentsAiSdkIntegration,
+	},
+	{
 		paths: ['/apis/calling-agents', '/apis/calling-agents/'],
 		target: docsRedirects.apisCallingAgents,
 	},
@@ -71,12 +98,53 @@ export const docRedirectRules = [
 		target: docsRedirects.agentsStreaming,
 	},
 	{
+		paths: ['/agents/state-management', '/agents/state-management/'],
+		target: docsRedirects.agentsStateManagement,
+	},
+	{
+		paths: ['/agents/events-lifecycle', '/agents/events-lifecycle/'],
+		target: docsRedirects.agentsEventsLifecycle,
+	},
+	{
+		paths: ['/agents/schema-libraries', '/agents/schema-libraries/'],
+		target: docsRedirects.agentsSchemaLibraries,
+	},
+	{
+		paths: ['/agents/standalone-execution', '/agents/standalone-execution/'],
+		target: docsRedirects.agentsStandaloneExecution,
+	},
+	{
 		paths: ['/agents/calling-other-agents', '/agents/calling-other-agents/'],
 		target: docsRedirects.apisCallingAgents,
 	},
 	{
 		paths: ['/routes/sse', '/routes/sse/', '/routes/websockets', '/routes/websockets/'],
 		target: docsRedirects.routesStreaming,
+	},
+	{ paths: ['/routes', '/routes/'], target: docsRedirects.routes },
+	{
+		paths: ['/routes/http', '/routes/http/'],
+		target: docsRedirects.routesHttp,
+	},
+	{
+		paths: ['/routes/explicit-routing', '/routes/explicit-routing/'],
+		target: docsRedirects.routesExplicitRouting,
+	},
+	{
+		paths: ['/routes/middleware', '/routes/middleware/'],
+		target: docsRedirects.routesMiddleware,
+	},
+	{
+		paths: ['/routes/calling-agents', '/routes/calling-agents/'],
+		target: docsRedirects.routesCallingAgents,
+	},
+	{
+		paths: ['/routes/cron', '/routes/cron/'],
+		target: docsRedirects.routesCron,
+	},
+	{
+		paths: ['/routes/webrtc', '/routes/webrtc/'],
+		target: docsRedirects.routesWebrtc,
 	},
 	{ paths: ['/patterns', '/patterns/'], target: docsRedirects.patterns },
 	{
@@ -221,6 +289,7 @@ export const docRedirectRules = [
 		paths: ['/community/inbound-email-agent', '/community/inbound-email-agent/'],
 		target: docsRedirects.communityInboundEmail,
 	},
+	{ paths: ['/community', '/community/'], target: docsRedirects.community },
 	{
 		paths: [
 			'/cookbook/tutorials/understanding-agents',

@@ -19,15 +19,15 @@ export const Route = createFileRoute('/explorer/')({
 function ExplorerPage() {
 	return (
 		<div className="max-w-6xl mx-auto px-6 py-12">
-			<div className="max-w-3xl mb-10">
+			<div className="max-w-2xl mb-10">
 				<h1 className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
 					SDK Explorer
 				</h1>
-				<p className="text-lg text-zinc-600 dark:text-zinc-400">
-					Explore live Agentuity demos without creating a project. Examples use Hono because
-					route and service boundaries are easy to see; the same patterns apply in framework
-					routes such as Next.js route handlers, SvelteKit <code>+server.ts</code>, and
-					TanStack Start server routes.
+				<p className="text-lg text-zinc-600 dark:text-zinc-400 text-pretty">
+					Explore live Agentuity demos without creating a project. The examples use Hono so
+					request, route, and service boundaries stay visible. The same server-side patterns
+					apply in Next.js route handlers, SvelteKit <code>+server.ts</code>, and
+					TanStack&nbsp;Start server routes.
 				</p>
 			</div>
 			{categories.map((category) => {

@@ -12,6 +12,7 @@ import { Hono } from 'hono';
 
 // Fixed prompt for the demo - users choose the model
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
 const router = new Hono<ApiEnv>()
 
@@ -31,7 +32,7 @@ const router = new Hono<ApiEnv>()
 				const model =
 					typeof (body as { model?: unknown }).model === 'string'
 						? (body as { model: string }).model
-						: 'gpt-5.4-mini';
+						: DEFAULT_MODEL;
 
 				c.var.logger?.info('Raw stream started', {
 					prompt: FIXED_PROMPT.slice(0, 50),

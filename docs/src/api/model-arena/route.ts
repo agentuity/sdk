@@ -23,7 +23,7 @@ const router = new Hono<ApiEnv>()
 		return c.json({
 			name: 'Model Arena',
 			description:
-				'Compare short stories from OpenAI and Anthropic with LLM-as-judge evaluation',
+				'Compare short stories from Anthropic and Google with LLM-as-judge evaluation',
 			prompt: FIXED_PROMPT,
 			tone: FIXED_TONE,
 			competitors: MODELS.map((model) => ({

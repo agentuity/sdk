@@ -81,6 +81,12 @@ export const navData: NavSection[] = [
 				description: 'Real-time bidirectional messaging over a persistent connection',
 			},
 			{
+				title: 'WebRTC Signaling',
+				url: '/explorer/webrtc',
+				description:
+					'Host the signaling route on Agentuity while browsers carry media peer-to-peer',
+			},
+			{
 				title: 'Durable Streams',
 				url: '/explorer/durable-stream',
 				description: 'Generate content and get a permanent, shareable URL',
@@ -524,7 +530,7 @@ export const navData: NavSection[] = [
 								title: 'Agent Selection',
 								url: '/cookbook/patterns/choosing-built-in-agents-for-a-coder-session',
 								description:
-									'Use enabledAgents and defaultAgent to choose which Hub-provided Coder agents are available in a session',
+									'Use enabledAgents and defaultAgent to choose which built-in or published custom Coder agents are available in a session',
 							},
 							{
 								title: 'Attach Skills',
@@ -549,6 +555,17 @@ export const navData: NavSection[] = [
 								url: '/cookbook/patterns/observing-a-coder-session-through-the-hub',
 								description:
 									"Subscribe to a session's live event stream, page through its event history, and hydrate a client from the durable replay stream",
+							},
+						],
+					},
+					{
+						title: 'Sandbox',
+						items: [
+							{
+								title: 'External Coding Tools',
+								url: '/cookbook/patterns/running-external-coding-tools-in-sandbox',
+								description:
+									'Run a formatter, linter, test command, or agent CLI in a disposable Sandbox workflow',
 							},
 						],
 					},
@@ -838,6 +855,12 @@ export const navData: NavSection[] = [
 						url: '/reference/api/webhooks',
 						description:
 							'Manage webhook endpoints, destinations, receipts, deliveries, and analytics',
+					},
+					{
+						title: 'Workflows',
+						url: '/reference/api/workflows',
+						description:
+							'Create and manage workflows that route events from sources to destinations',
 					},
 				],
 			},

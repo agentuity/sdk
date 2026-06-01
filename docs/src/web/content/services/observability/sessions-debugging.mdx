@@ -5,6 +5,17 @@ description: Inspect session records, logs, and timelines
 
 Use sessions when you need to move from "something failed" to the exact request, log lines, and trace timeline. In v3 framework apps, sessions are platform observability records you inspect through the CLI, Console, or core API helpers.
 
+## When to use sessions
+
+Session records are for debugging Agentuity runs, not for storing signed-in users. Use them when you need request-scoped evidence, and keep your framework or auth provider responsible for app sessions.
+
+| Need | Use |
+|------|-----|
+| inspect one failed request | `agentuity cloud session get` and `agentuity cloud session logs` |
+| search recent failures | `agentuity cloud session list` with filters |
+| collect app-owned context | structured logs and span attributes |
+| build an internal debug tool | `sessionList()` and `sessionGet()` from `@agentuity/core` |
+
 ## Start with the CLI
 
 ```bash
@@ -127,3 +138,4 @@ Session logs are request-scoped. Use `agentuity cloud deployment logs <deploymen
 
 - [Logging](/services/observability/logging): add searchable fields to log records
 - [Tracing](/services/observability/tracing): create spans that show up in session timelines
+- [Sessions API Reference](/reference/api/sessions): inspect generated REST fields for session records and logs

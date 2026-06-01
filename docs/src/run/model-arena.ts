@@ -6,11 +6,9 @@
  *
  * Usage: bun run src/run/model-arena.ts '{"prompt":"Write a haiku about coding"}'
  */
-import { anthropic } from '@ai-sdk/anthropic';
-import { createGroq } from '@ai-sdk/groq';
-import { openai } from '@ai-sdk/openai';
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
+import { getModel } from '../lib/models';
 
 interface Input {
 	prompt?: string;
@@ -33,11 +31,11 @@ const JudgmentSchema = z.object({
 	}),
 });
 
-// Run scripts bypass CLI provider patching, so pass the gateway URL explicitly.
-const groq = createGroq({ baseURL: process.env.GROQ_BASE_URL });
-
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const userPrompt = input.prompt ?? 'Write a creative one-liner about programming.';
+const ANTHROPIC_MODEL = 'anthropic/claude-opus-4-8';
+const GOOGLE_MODEL = 'googleai/gemini-3.5-flash';
+const JUDGE_MODEL = 'groq/openai/gpt-oss-120b';
 
 // Buffer output so the Explorer terminal receives one clean result block.
 const output: string[] = [];
@@ -46,30 +44,30 @@ try {
 	// Compare model quality without making the user wait for sequential calls.
 	const [responseA, responseB] = await Promise.all([
 		generateText({
-			model: openai('gpt-5.4-nano'),
+			model: getModel(ANTHROPIC_MODEL),
 			prompt: userPrompt,
 		}),
 		generateText({
-			model: anthropic('claude-haiku-4-5'),
+			model: getModel(GOOGLE_MODEL),
 			prompt: userPrompt,
 		}),
 	]);
 
 	const { object: judgment } = await generateObject({
-		model: groq('openai/gpt-oss-120b'),
+		model: getModel(JUDGE_MODEL),
 		schema: JudgmentSchema,
 		prompt: `Compare these responses and pick a winner.
 Score each on creativity and clarity (0-1).
 
-Model A: ${responseA.text.slice(0, 200)}
-Model B: ${responseB.text.slice(0, 200)}`,
+Model A (${ANTHROPIC_MODEL}): ${responseA.text.slice(0, 200)}
+Model B (${GOOGLE_MODEL}): ${responseB.text.slice(0, 200)}`,
 	});
 
-	output.push(`[INFO] Model A (OpenAI gpt-5.4-nano): "${responseA.text}"`);
+	output.push(`[INFO] Model A (Anthropic ${ANTHROPIC_MODEL}): "${responseA.text}"`);
 	output.push('');
-	output.push(`[INFO] Model B (Anthropic claude-haiku-4-5): "${responseB.text}"`);
+	output.push(`[INFO] Model B (Google ${GOOGLE_MODEL}): "${responseB.text}"`);
 	output.push('');
-	output.push(`[INFO] Judge (Groq gpt-oss-120b) {"winner":"${judgment.winner}"}`);
+	output.push(`[INFO] Judge (Groq ${JUDGE_MODEL}) {"winner":"${judgment.winner}"}`);
 	output.push(
 		`[INFO] Scores {"creativity":${judgment.scores.creativity},"clarity":${judgment.scores.clarity}}`
 	);

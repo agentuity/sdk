@@ -6,7 +6,7 @@
  * generateObject() for the judge's scoring.
  *
  * Pattern shown:
- * 1. Generate content from multiple providers in parallel (OpenAI, Anthropic)
+ * 1. Generate content from multiple providers in parallel (Anthropic, Google)
  * 2. Use a fast model (Groq) as judge with strict JSON schema output
  * 3. Score on multiple dimensions (creativity, engagement, tone, word count)
  *
@@ -30,26 +30,26 @@ const agent = defineDemoAgent('model-arena', {
 			id: s.string(),
 			results: s.array(
 				s.object({
-					provider: s.enum(['openai', 'anthropic']),
+					provider: s.enum(['anthropic', 'google']),
 					model: s.string(),
 					story: s.string(),
 					generationMs: s.number(),
 				})
 			),
 			judgment: s.object({
-				winner: s.enum(['openai', 'anthropic']),
+				winner: s.enum(['anthropic', 'google']),
 				reasoning: s.string(),
 				scores: s.object({
 					creativity: s.array(
 						s.object({
-							provider: s.enum(['openai', 'anthropic']),
+							provider: s.enum(['anthropic', 'google']),
 							score: s.number(),
 							reason: s.string(),
 						})
 					),
 					engagement: s.array(
 						s.object({
-							provider: s.enum(['openai', 'anthropic']),
+							provider: s.enum(['anthropic', 'google']),
 							score: s.number(),
 							reason: s.string(),
 						})
@@ -58,14 +58,14 @@ const agent = defineDemoAgent('model-arena', {
 				checks: s.object({
 					toneMatch: s.array(
 						s.object({
-							provider: s.enum(['openai', 'anthropic']),
+							provider: s.enum(['anthropic', 'google']),
 							passed: s.boolean(),
 							reason: s.string(),
 						})
 					),
 					wordCount: s.array(
 						s.object({
-							provider: s.enum(['openai', 'anthropic']),
+							provider: s.enum(['anthropic', 'google']),
 							passed: s.boolean(),
 							reason: s.string(),
 						})

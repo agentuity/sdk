@@ -8,9 +8,8 @@
  * Usage: bun run src/run/ai-gateway.ts '{"prompt":"Tell me a joke"}'
  */
 import { getDemoContext } from '../api/context';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
+import { getModel } from '../lib/models';
 
 interface Input {
 	prompt?: string;
@@ -26,20 +25,22 @@ function parseJSON<T>(text: string, fallback: T): T {
 
 const input: Input = parseJSON<Input>(process.argv[2] ?? '{}', {});
 const prompt = input.prompt ?? 'Explain AI agents in 1 sentence.';
+const ANTHROPIC_MODEL = 'anthropic/claude-opus-4-8';
+const GOOGLE_MODEL = 'googleai/gemini-3.5-flash';
 
 const ctx = getDemoContext();
 
 try {
 	// Parallel calls make provider differences visible without stacking latency.
-	ctx.logger.info('Calling OpenAI and Anthropic in parallel...');
+	ctx.logger.info('Calling Anthropic and Google through AI Gateway in parallel...');
 
-	const [openaiResult, claudeResult] = await Promise.all([
+	const [anthropicResult, googleResult] = await Promise.all([
 		generateText({
-			model: openai('gpt-5.4-nano'),
+			model: getModel(ANTHROPIC_MODEL),
 			prompt,
 		}),
 		generateText({
-			model: anthropic('claude-haiku-4-5'),
+			model: getModel(GOOGLE_MODEL),
 			prompt,
 		}),
 	]);
@@ -49,11 +50,11 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Prompt: "${prompt}"`);
 	console.log('');
-	console.log('OpenAI (gpt-5.4-nano):');
-	console.log(openaiResult.text);
+	console.log(`Anthropic (${ANTHROPIC_MODEL}):`);
+	console.log(anthropicResult.text);
 	console.log('');
-	console.log('Anthropic (claude-haiku-4-5):');
-	console.log(claudeResult.text);
+	console.log(`Google (${GOOGLE_MODEL}):`);
+	console.log(googleResult.text);
 	console.log('---OUTPUT---');
 } catch (error) {
 	console.log('---OUTPUT---');

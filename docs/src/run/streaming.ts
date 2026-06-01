@@ -7,21 +7,22 @@
  * Usage: bun run src/run/streaming.ts '{"prompt":"Tell me a story"}'
  */
 import { getDemoContext } from '../api/context';
-import { openai } from '@ai-sdk/openai';
 import { streamText } from 'ai';
+import { getModel } from '../lib/models';
 
 interface Input {
 	prompt?: string;
 }
 
 const ctx = getDemoContext();
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
 try {
 	const input: Input = JSON.parse(process.argv[2] ?? '{}');
 	const prompt = input.prompt ?? 'Write a short poem about AI.';
 	ctx.logger.info('Streaming started', { prompt });
 	const { textStream } = streamText({
-		model: openai('gpt-5.4-nano'),
+		model: getModel(DEFAULT_MODEL),
 		prompt,
 	});
 

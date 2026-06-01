@@ -11,6 +11,7 @@ import { getModel } from '../../lib/models';
 import { Hono } from 'hono';
 
 const FIXED_PROMPT = 'What is backpropagation and why does it matter for AI?';
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
 const router = new Hono<ApiEnv>()
 
@@ -29,14 +30,14 @@ const router = new Hono<ApiEnv>()
 		stream(async (c) => {
 			try {
 				const body = await c.req.json();
-				const { model = 'gpt-5.4-mini' } = body as { model?: string };
+				const { model = DEFAULT_MODEL } = body as { model?: string };
 
 				c.var.logger?.info('Gateway comparison started', {
 					prompt: FIXED_PROMPT.slice(0, 50),
 					model,
 				});
 
-				if (model.startsWith('gemini-')) {
+				if (model.startsWith('googleai/') || model.startsWith('gemini-')) {
 					// Gemini gateway streaming currently returns no chunks. Use one-shot
 					// generation here so the demo stays usable until that path is fixed.
 					const { text } = await generateText({

@@ -15,7 +15,7 @@ bun add @agentuity/coder@next @agentuity/telemetry@next
 | Need | Use | Why |
 |------|-----|-----|
 | an app route that calls a model and tools | your framework plus AI Gateway/provider SDKs | the agent is part of your app request flow |
-| one isolated command or generated-code validation | [Sandbox `run()`](/services/sandbox/ephemeral-workflows) | the work has clear inputs, command output, and a short timeout |
+| one isolated command or generated-code validation | [Sandbox `run()`](/cookbook/patterns/running-external-coding-tools-in-sandbox) | the work has clear inputs, command output, and a short timeout |
 | a coding-agent CLI or server that you manage yourself | [coding-agent sandbox runtime](/services/sandbox/coding-agents) | you need direct control over the agent process, provider config, and workspace |
 | repo-aware coding work with history, review, reconnects, and skills | [Coder session](/services/coder) | the unit of work is a managed session, not a single process |
 
@@ -120,7 +120,7 @@ for await (const event of streamCoderSessionSSE({
 }
 ```
 
-Use [Coder](/services/coder) for session lifecycle, workspace, skills, replay, and participant details. Use [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk) when you need complete session creation and polling examples.
+Use [Coder](/services/coder) for session lifecycle, workspace, skills, replay, and participant details. Use [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk) when you need complete session creation and read examples.
 
 ## What Coder adds
 

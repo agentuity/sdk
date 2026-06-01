@@ -15,17 +15,19 @@ LLM-as-judge is the right tool when the rubric needs context, nuance, or subject
 | Word count, regex match | | Yes |
 
 ```bash
-bun add ai @ai-sdk/openai @ai-sdk/anthropic @ai-sdk/groq @agentuity/queue@next @agentuity/vector@next @agentuity/telemetry@next zod
+bun add @agentuity/aigateway@next @agentuity/queue@next @agentuity/vector@next @agentuity/telemetry@next zod
 ```
+
+<Callout type="tip" title="Compare models with one project credential">
+These examples use `AIGatewayClient`, so the same Agentuity project credential can call the candidate and judge models through the Gateway. Keep the model IDs explicit, and validate judge output before acting on it.
+</Callout>
 
 ## Inline quality check
 
 Run the judge in the same request when the score is part of the response. Fast judge models keep the added latency manageable.
 
 ```typescript title="src/lib/quality-check.ts"
-import { openai } from '@ai-sdk/openai';
-import { groq } from '@ai-sdk/groq';
-import { generateText, Output } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 
 const judgmentSchema = z.object({
@@ -34,12 +36,9 @@ const judgmentSchema = z.object({
   reason: z.string().describe('Brief explanation'),
 });
 
-const answerModel = process.env.OPENAI_ANSWER_MODEL;
-const judgeModel = process.env.GROQ_JUDGE_MODEL;
-
-if (!answerModel || !judgeModel) {
-  throw new Error('Set OPENAI_ANSWER_MODEL and GROQ_JUDGE_MODEL.');
-}
+const gateway = new AIGatewayClient();
+const ANSWER_MODEL = 'deepseek/deepseek-v4-flash';
+const JUDGE_MODEL = 'googleai/gemini-3.5-flash';
 
 interface QualityResult {
   readonly answer: string;
@@ -47,18 +46,24 @@ interface QualityResult {
 }
 
 export async function answerWithQualityCheck(question: string): Promise<QualityResult> {
-  const { text: answer } = await generateText({
-    model: openai(answerModel),
-    prompt: question,
+  const answerResult = await gateway.completeText({
+    model: ANSWER_MODEL,
+    messages: [{ role: 'user', content: question }],
   });
 
-  const { output: judgment } = await generateText({
-    model: groq(judgeModel),
-    output: Output.object({ schema: judgmentSchema }),
-    prompt: `Evaluate this response on a 0-1 scale.
+  if (!answerResult.hasText) {
+    throw new Error('The answer model returned no text.');
+  }
+
+  const { data } = await gateway.completeStructured({
+    model: JUDGE_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Evaluate this response on a 0-1 scale.
 
 Question: ${question}
-Response: ${answer}
+Response: ${answerResult.text}
 
 Consider:
 - Does it directly answer the question?
@@ -66,9 +71,12 @@ Consider:
 - Is it clear and easy to read?
 
 Score 0.7+ to pass.`,
+      },
+    ],
+    response_schema: { name: 'judgment', schema: judgmentSchema },
   });
 
-  return { answer, judgment };
+  return { answer: answerResult.text, judgment: judgmentSchema.parse(data) };
 }
 ```
 
@@ -79,32 +87,26 @@ The judge model is intentionally smaller and faster than the answer model. Inlin
 Compare two providers side-by-side and let a third model pick the winner. Run the candidates in parallel, then judge.
 
 ```typescript title="src/lib/model-arena.ts"
-import { openai } from '@ai-sdk/openai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { groq } from '@ai-sdk/groq';
-import { generateText, Output, type LanguageModel } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 
 const arenaJudgment = z.object({
-  winner: z.enum(['openai', 'anthropic']),
+  winner: z.enum(['anthropic', 'deepseek']),
   reasoning: z.string(),
   scores: z.object({
-    openai: z.number().min(0).max(1),
     anthropic: z.number().min(0).max(1),
+    deepseek: z.number().min(0).max(1),
   }),
 });
 
-const openaiModel = process.env.OPENAI_ARENA_MODEL;
-const anthropicModel = process.env.ANTHROPIC_ARENA_MODEL;
-const judgeModel = process.env.GROQ_JUDGE_MODEL;
-
-if (!openaiModel || !anthropicModel || !judgeModel) {
-  throw new Error('Set OPENAI_ARENA_MODEL, ANTHROPIC_ARENA_MODEL, and GROQ_JUDGE_MODEL.');
-}
+const gateway = new AIGatewayClient();
+const JUDGE_MODEL = 'googleai/gemini-3.5-flash';
+const ANTHROPIC_MODEL = 'anthropic/claude-opus-4-8';
+const DEEPSEEK_MODEL = 'deepseek/deepseek-v4-pro';
 
 interface ArenaResult {
   readonly results: ReadonlyArray<{
-    readonly provider: 'openai' | 'anthropic';
+    readonly provider: 'anthropic' | 'deepseek';
     readonly story: string;
     readonly generationMs: number;
   }>;
@@ -115,48 +117,61 @@ export async function runArena(
   prompt: string,
   tone: 'whimsical' | 'suspenseful' | 'comedic'
 ): Promise<ArenaResult> {
-  const [openaiResult, anthropicResult] = await Promise.all([
-    generateWithTiming(openai(openaiModel), prompt, tone),
-    generateWithTiming(anthropic(anthropicModel), prompt, tone),
+  const [anthropicResult, deepseekResult] = await Promise.all([
+    generateWithTiming(ANTHROPIC_MODEL, prompt, tone),
+    generateWithTiming(DEEPSEEK_MODEL, prompt, tone),
   ]);
 
-  const { output: judgment } = await generateText({
-    model: groq(judgeModel),
-    output: Output.object({ schema: arenaJudgment }),
-    prompt: `Compare these ${tone} stories and pick a winner.
+  const { data } = await gateway.completeStructured({
+    model: JUDGE_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Compare these ${tone} stories and pick a winner.
 
 PROMPT: "${prompt}"
-
---- OpenAI ---
-${openaiResult.story}
 
 --- Anthropic ---
 ${anthropicResult.story}
 
+--- DeepSeek ---
+${deepseekResult.story}
+
 Score each on creativity, engagement, and tone match (0-1).`,
+      },
+    ],
+    response_schema: { name: 'arena_judgment', schema: arenaJudgment },
   });
 
   return {
     results: [
-      { provider: 'openai', ...openaiResult },
       { provider: 'anthropic', ...anthropicResult },
+      { provider: 'deepseek', ...deepseekResult },
     ],
-    judgment,
+    judgment: arenaJudgment.parse(data),
   };
 }
 
 async function generateWithTiming(
-  model: LanguageModel,
+  model: string,
   prompt: string,
   tone: string
 ): Promise<{ story: string; generationMs: number }> {
   const start = Date.now();
-  const { text } = await generateText({
+  const result = await gateway.completeText({
     model,
-    system: `Write a short ${tone} story (max 200 words) with a beginning, middle, and end.`,
-    prompt,
+    messages: [
+      {
+        role: 'system',
+        content: `Write a short ${tone} story (max 200 words) with a beginning, middle, and end.`,
+      },
+      { role: 'user', content: prompt },
+    ],
   });
-  return { story: text, generationMs: Date.now() - start };
+  if (!result.hasText) {
+    throw new Error(`The model returned no text: ${model}`);
+  }
+  return { story: result.text, generationMs: Date.now() - start };
 }
 ```
 
@@ -166,9 +181,7 @@ Score whether an answer is supported by the retrieved sources. Returning the uns
 
 ```typescript title="src/lib/rag-grounding.ts"
 import { VectorClient } from '@agentuity/vector';
-import { openai } from '@ai-sdk/openai';
-import { groq } from '@ai-sdk/groq';
-import { generateText, Output } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 
 type DocumentMetadata = {
@@ -183,12 +196,8 @@ const groundingJudgment = z.object({
   reason: z.string(),
 });
 
-const answerModel = process.env.OPENAI_ANSWER_MODEL;
-const judgeModel = process.env.GROQ_JUDGE_MODEL;
-
-if (!answerModel || !judgeModel) {
-  throw new Error('Set OPENAI_ANSWER_MODEL and GROQ_JUDGE_MODEL.');
-}
+const ANSWER_MODEL = 'anthropic/claude-opus-4-8';
+const JUDGE_MODEL = 'googleai/gemini-3.5-flash';
 
 interface GroundedAnswer {
   readonly answer: string;
@@ -197,6 +206,7 @@ interface GroundedAnswer {
 }
 
 const vector = new VectorClient();
+const gateway = new AIGatewayClient();
 
 export async function answerWithGrounding(question: string): Promise<GroundedAnswer> {
   const matches = await vector.search<DocumentMetadata>('knowledge-base', {
@@ -208,27 +218,41 @@ export async function answerWithGrounding(question: string): Promise<GroundedAns
     .map((match) => match.metadata?.content ?? '')
     .filter((text) => text.length > 0);
 
-  const { text: answer } = await generateText({
-    model: openai(answerModel),
-    prompt: `Answer using these sources:\n\n${sources.join('\n\n')}\n\nQuestion: ${question}`,
+  const answerResult = await gateway.completeText({
+    model: ANSWER_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Answer using these sources:\n\n${sources.join('\n\n')}\n\nQuestion: ${question}`,
+      },
+    ],
   });
 
-  const { output: grounding } = await generateText({
-    model: groq(judgeModel),
-    output: Output.object({ schema: groundingJudgment }),
-    prompt: `Check whether this answer is supported by the sources.
+  if (!answerResult.hasText) {
+    throw new Error('The answer model returned no text.');
+  }
 
-Answer: ${answer}
+  const { data } = await gateway.completeStructured({
+    model: JUDGE_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Check whether this answer is supported by the sources.
+
+Answer: ${answerResult.text}
 
 Sources:
 ${sources.map((source, i) => `[${i + 1}] ${source}`).join('\n\n')}
 
 Return any factual claim in the answer that is not supported by the sources.`,
+      },
+    ],
+    response_schema: { name: 'grounding_judgment', schema: groundingJudgment },
   });
 
   return {
-    answer,
-    grounding,
+    answer: answerResult.text,
+    grounding: groundingJudgment.parse(data),
     sources: matches.map((match) => match.key),
   };
 }
@@ -242,11 +266,9 @@ For monitoring and review flows, the judge does not need to block the response. 
 
 ```typescript title="src/index.ts"
 import { Hono } from 'hono';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { QueueClient } from '@agentuity/queue';
 import { logger } from '@agentuity/telemetry';
-import { openai } from '@ai-sdk/openai';
-import { groq } from '@ai-sdk/groq';
-import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
 const helpfulnessJudgment = z.object({
@@ -262,35 +284,38 @@ const judgePayload = z.object({
 });
 
 const queue = new QueueClient();
+const gateway = new AIGatewayClient();
 const app = new Hono();
-const answerModel = process.env.OPENAI_ANSWER_MODEL;
-const judgeModel = process.env.GROQ_JUDGE_MODEL;
-
-if (!answerModel || !judgeModel) {
-  throw new Error('Set OPENAI_ANSWER_MODEL and GROQ_JUDGE_MODEL.');
-}
+const ANSWER_MODEL = 'deepseek/deepseek-v4-flash';
+const JUDGE_MODEL = 'googleai/gemini-3.5-flash';
 
 app.post('/api/answer', async (c) => {
   const { question } = await c.req.json<{ question: string }>();
 
-  const { text: answer } = await generateText({
-    model: openai(answerModel),
-    prompt: question,
+  const answerResult = await gateway.completeText({
+    model: ANSWER_MODEL,
+    messages: [{ role: 'user', content: question }],
   });
 
-  // hand the (question, answer) pair to the worker for background scoring
-  await queue.publish('answer-quality', { question, answer });
+  if (!answerResult.hasText) {
+    return c.json({ error: 'The model returned no text.' }, 502);
+  }
 
-  return c.json({ answer });
+  // hand the (question, answer) pair to the worker for background scoring
+  await queue.publish('answer-quality', { question, answer: answerResult.text });
+
+  return c.json({ answer: answerResult.text });
 });
 
 app.post('/api/workers/answer-quality', async (c) => {
   const body = judgePayload.parse(await c.req.json());
 
-  const { output } = await generateText({
-    model: groq(judgeModel),
-    output: Output.object({ schema: helpfulnessJudgment }),
-    prompt: `Score this answer.
+  const { data } = await gateway.completeStructured({
+    model: JUDGE_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: `Score this answer.
 
 Question: ${body.question}
 Answer: ${body.answer}
@@ -298,7 +323,12 @@ Answer: ${body.answer}
 - score: 0 = useless, 1 = extremely helpful
 - answersQuestion: directly addresses the question?
 - actionable: can the user act on this?`,
+      },
+    ],
+    response_schema: { name: 'helpfulness_judgment', schema: helpfulnessJudgment },
   });
+
+  const output = helpfulnessJudgment.parse(data);
 
   logger.info('judge complete', {
     score: output.score,

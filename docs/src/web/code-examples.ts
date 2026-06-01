@@ -152,14 +152,14 @@ export const report = {
 
 	'sse-stream': `import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 
 const app = new Hono();
 
 app.get("/api/sse-stream", (c) => {
   const result = streamText({
-    model: openai("gpt-5.4-mini"),
+    model: anthropic("claude-opus-4-8"),
     prompt: "What are AI agents and how do they work?",
   });
 
@@ -185,7 +185,7 @@ app.get("/api/sse-stream", (c) => {
 export default app;`,
 
 	streaming: `import { Hono } from "hono";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
 
 const app = new Hono();
@@ -198,7 +198,7 @@ app.post("/api/stream", async (c) => {
       : "Write a short note about AI agents.";
 
   const result = streamText({
-    model: openai("gpt-5.4-mini"),
+    model: anthropic("claude-opus-4-8"),
     prompt,
   });
 
@@ -281,10 +281,14 @@ export const summary = {
 };`,
 
 	'durable-stream': `import { StreamClient } from "@agentuity/stream";
-import { openai } from "@ai-sdk/openai";
+import { createGroq } from "@ai-sdk/groq";
 import { streamText } from "ai";
 
 const streams = new StreamClient();
+const groq = createGroq({
+  apiKey: process.env.AGENTUITY_SDK_KEY,
+  baseURL: process.env.GROQ_BASE_URL,
+});
 
 const durable = await streams.create("ai-summaries", {
   contentType: "text/plain",
@@ -293,7 +297,7 @@ const durable = await streams.create("ai-summaries", {
 });
 
 const result = streamText({
-  model: openai("gpt-5.4-mini"),
+  model: groq("openai/gpt-oss-120b"),
   prompt: "Write a short summary of today's customer feedback.",
 });
 
@@ -310,8 +314,7 @@ export const published = {
 };`,
 
 	chat: `import { KeyValueClient } from "@agentuity/keyvalue";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { AIGatewayClient } from "@agentuity/aigateway";
 
 type Message = {
   role: "user" | "assistant";
@@ -319,17 +322,26 @@ type Message = {
 };
 
 const kv = new KeyValueClient();
+const gateway = new AIGatewayClient();
+const MODEL = "anthropic/claude-opus-4-8";
 
 async function chat(conversationId: string, message: string) {
   const key = "conversation:" + conversationId + ":messages";
   const history = await kv.get<Message[]>("chat-history", key);
   const messages = history.exists ? history.data : [];
 
-  const result = await generateText({
-    model: openai("gpt-5.4-mini"),
-    system: "You are a concise support assistant.",
-    messages: [...messages, { role: "user", content: message }],
+  const result = await gateway.completeText({
+    model: MODEL,
+    messages: [
+      { role: "system", content: "You are a concise support assistant." },
+      ...messages,
+      { role: "user", content: message },
+    ],
   });
+
+  if (!result.hasText) {
+    throw new Error("The model returned no text.");
+  }
 
   const nextMessages = [
     ...messages,
@@ -351,21 +363,28 @@ export const preview = await chat(
   "What is Agentuity?"
 );`,
 
-	'model-arena': `import { anthropic } from "@ai-sdk/anthropic";
-import { groq } from "@ai-sdk/groq";
-import { openai } from "@ai-sdk/openai";
-import { generateObject, generateText } from "ai";
+	'model-arena': `import { AIGatewayClient } from "@agentuity/aigateway";
 import { z } from "zod";
 
+const gateway = new AIGatewayClient();
 const prompt = "Write a haiku about coding.";
+const ANTHROPIC_MODEL = "anthropic/claude-opus-4-8";
+const GOOGLE_MODEL = "googleai/gemini-3.5-flash";
+const JUDGE_MODEL = "groq/openai/gpt-oss-120b";
 
-const [openaiResult, anthropicResult] = await Promise.all([
-  generateText({ model: openai("gpt-5.4-nano"), prompt }),
-  generateText({ model: anthropic("claude-haiku-4-5"), prompt }),
+const [anthropicResult, googleResult] = await Promise.all([
+  gateway.completeText({
+    model: ANTHROPIC_MODEL,
+    messages: [{ role: "user", content: prompt }],
+  }),
+  gateway.completeText({
+    model: GOOGLE_MODEL,
+    messages: [{ role: "user", content: prompt }],
+  }),
 ]);
 
 const Judgment = z.object({
-  winner: z.enum(["openai", "anthropic"]),
+  winner: z.enum(["anthropic", "google"]),
   reasoning: z.string(),
   scores: z.object({
     clarity: z.number().min(0).max(1),
@@ -373,15 +392,26 @@ const Judgment = z.object({
   }),
 });
 
-const { object: judgment } = await generateObject({
-  model: groq("openai/gpt-oss-120b"),
-  schema: Judgment,
-  prompt:
-    "Pick the better answer.\\n\\nOpenAI:\\n" +
-    openaiResult.text +
-    "\\n\\nAnthropic:\\n" +
-    anthropicResult.text,
+if (!anthropicResult.hasText || !googleResult.hasText) {
+  throw new Error("One of the candidate models returned no text.");
+}
+
+const { data } = await gateway.completeStructured({
+  model: JUDGE_MODEL,
+  messages: [
+    {
+      role: "user",
+      content:
+        "Pick the better answer.\\n\\nAnthropic:\\n" +
+        anthropicResult.text +
+        "\\n\\nGoogle:\\n" +
+        googleResult.text,
+    },
+  ],
+  response_schema: { name: "model_judgment", schema: Judgment },
 });
+
+const judgment = Judgment.parse(data);
 
 export { judgment };`,
 
@@ -392,7 +422,7 @@ const gateway = new AIGatewayClient();
 const models = await gateway.listModels();
 
 const completion = await gateway.complete({
-  model: "openai/gpt-5.4-nano",
+  model: "anthropic/claude-opus-4-8",
   messages: [
     {
       role: "user",

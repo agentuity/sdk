@@ -12,6 +12,7 @@ import { Hono } from 'hono';
 
 // Fixed prompt for the demo - users choose the model
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
 const router = new Hono<ApiEnv>()
 
@@ -26,7 +27,7 @@ const router = new Hono<ApiEnv>()
 	.get(
 		'/stream',
 		sse(async (c, stream) => {
-			const model = c.req.query('model') ?? 'gpt-5.4-mini';
+			const model = c.req.query('model') ?? DEFAULT_MODEL;
 
 			c.var.logger?.info('SSE stream started', {
 				prompt: FIXED_PROMPT.slice(0, 50),

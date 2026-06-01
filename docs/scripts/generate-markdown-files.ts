@@ -1091,23 +1091,18 @@ function generateLlmsTxt(pages: DocPage[]): string {
 	}
 
 	if (missing.size > 0) {
-		console.error(
+		throw new Error(
 			`[generateLlmsTxt] Missing pages for nav URLs: ${Array.from(missing).join(', ')}`
 		);
 	}
 
 	const orphanPages = pages.filter((page) => !emitted.has(page.urlPath));
 	if (orphanPages.length > 0) {
-		console.error(
+		throw new Error(
 			`[generateLlmsTxt] Found orphan pages not present in nav-data.ts: ${orphanPages
 				.map((page) => page.urlPath)
 				.join(', ')}`
 		);
-		lines.push('## Other', '');
-		for (const page of orphanPages) {
-			lines.push(fmt(page));
-		}
-		lines.push('');
 	}
 
 	return lines.join('\n').trimEnd() + '\n';

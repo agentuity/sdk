@@ -17,10 +17,10 @@ The agent itself is a plain typed function. The route owns HTTP. The vector inde
 ## Install
 
 ```bash
-bun add hono ai @ai-sdk/openai @agentuity/vector@next valibot zod
+bun add hono @agentuity/aigateway@next @agentuity/vector@next valibot zod
 ```
 
-`@agentuity/vector` reads `AGENTUITY_SDK_KEY` from the environment, so run the route with `agentuity dev` or a linked Agentuity project.
+`@agentuity/vector` and `@agentuity/aigateway` read Agentuity project credentials from the environment, so run the route with `agentuity dev` or a linked Agentuity project.
 
 ## Index documents
 
@@ -75,8 +75,7 @@ The answer function searches the namespace, fetches the original text for the ma
 
 ```typescript title="src/lib/answer-question.ts"
 import { VectorClient } from '@agentuity/vector';
-import { openai } from '@ai-sdk/openai';
-import { generateText, Output } from 'ai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { z } from 'zod';
 
 type KnowledgeMetadata = {
@@ -99,6 +98,7 @@ const SEARCH_LIMIT = 5;
 const MIN_SIMILARITY = 0.7;
 
 const vector = new VectorClient();
+const gateway = new AIGatewayClient();
 
 interface AnswerResult {
   readonly answer: string;
@@ -140,18 +140,25 @@ export async function answerQuestion(question: string): Promise<AnswerResult> {
     })
     .join('\n\n');
 
-  const model = process.env.OPENAI_MODEL;
-  if (!model) {
-    throw new Error('Set OPENAI_MODEL to the model this RAG workflow should use.');
-  }
+  const model = 'anthropic/claude-opus-4-8';
 
-  const { output } = await generateText({
-    model: openai(model),
-    output: Output.object({ schema: answerSchema }),
-    system:
-      'Answer using only the provided context. If the context is insufficient, say so. Cite sources with [1], [2], etc.',
-    prompt: `Context:\n${context}\n\nQuestion: ${question}`,
+  const { data } = await gateway.completeStructured({
+    model,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Answer using only the provided context. If the context is insufficient, say so. Cite sources with [1], [2], etc.',
+      },
+      {
+        role: 'user',
+        content: `Context:\n${context}\n\nQuestion: ${question}`,
+      },
+    ],
+    response_schema: { name: 'rag_answer', schema: answerSchema },
   });
+
+  const output = answerSchema.parse(data);
 
   return {
     answer: output.answer,
@@ -265,7 +272,7 @@ The response includes the model answer, the source IDs the model cited, and an a
   );
   ```
 
-- **Stream the answer.** Swap `generateText` for `streamText` and return a `Response` whose body is the stream. See [Chat and Streaming](/build/agents/chat-and-streaming).
+- **Stream the answer.** Use `AIGatewayClient.streamRequest()` and return a `Response` whose body is the stream. See [Chat and Streaming](/build/agents/chat-and-streaming).
 - **Run indexing in the background.** Move `indexDocuments` behind a queue when documents arrive faster than the route should handle them. See [Background Work](/build/apps-and-apis/background-work).
 - **Track answer quality.** Feed the answer and retrieved context to a judge model to grade whether the answer was grounded. See [Agents](/build/agents) for the agent-as-function pattern.
 

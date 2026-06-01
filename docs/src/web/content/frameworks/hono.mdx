@@ -56,7 +56,7 @@ Install what the example uses:
 bun add hono openai @agentuity/keyvalue@next valibot
 ```
 
-This route translates input text, persists the last five translations under a session cookie, and routes the model call through Agentuity's AI Gateway.
+This route translates input text, persists the last five translations under a session cookie, and uses the OpenAI SDK through AI Gateway env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
 
 ```typescript title="src/index.ts"
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -160,7 +160,7 @@ export default app;
 
 `KeyValueClient.get()` returns a discriminated result: check `result.exists` before accessing `result.data` to keep the read path type-safe.
 
-Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
+Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
 ## Use `@agentuity/hono` for shared clients
 
@@ -239,7 +239,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
-| `OPENAI_MODEL` | example routes that call the OpenAI SDK |
+| `OPENAI_MODEL` | provider SDK env-wiring example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
 | `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |

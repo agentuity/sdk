@@ -17,13 +17,13 @@ export const TONE_LABELS: Record<Tone, string> = {
 };
 
 // Provider names for consistent typing
-export const PROVIDERS = ['openai', 'anthropic'] as const;
+export const PROVIDERS = ['anthropic', 'google'] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 // Display names for UI (proper capitalization)
 export const PROVIDER_DISPLAY_NAMES: Record<Provider, string> = {
-	openai: 'OpenAI',
 	anthropic: 'Anthropic',
+	google: 'Google',
 };
 
 // Model result from generation
@@ -37,19 +37,19 @@ export interface ModelResult {
 
 // Zod schemas for AI SDK generateObject
 export const ProviderScoreSchema = z.object({
-	provider: z.enum(PROVIDERS).describe('The provider being scored: openai or anthropic.'),
+	provider: z.enum(PROVIDERS).describe('The provider being scored: anthropic or google.'),
 	score: z.number().describe('Normalized score between 0.0 and 1.0.'),
 	reason: z.string().describe('Brief explanation for the score.'),
 });
 
 export const ProviderBinarySchema = z.object({
-	provider: z.enum(PROVIDERS).describe('The provider being checked: openai or anthropic.'),
+	provider: z.enum(PROVIDERS).describe('The provider being checked: anthropic or google.'),
 	passed: z.boolean().describe('Whether the provider passed the check.'),
 	reason: z.string().describe('Brief explanation for the pass or fail result.'),
 });
 
 export const JudgmentSchema = z.object({
-	winner: z.enum(PROVIDERS).describe('Overall winning provider: openai or anthropic.'),
+	winner: z.enum(PROVIDERS).describe('Overall winning provider: anthropic or google.'),
 	reasoning: z.string().describe('Short explanation for the overall winner.'),
 	scores: z.object({
 		creativity: z.array(ProviderScoreSchema).describe('Creativity scores for both providers.'),

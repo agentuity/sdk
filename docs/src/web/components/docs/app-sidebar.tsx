@@ -18,6 +18,7 @@ import {
 import { cn } from '../../lib/utils';
 import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data';
 import { SearchKeyboardShortcut } from './keyboard-shortcut';
+import { DocsVersionPicker } from './docs-version-picker';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 	currentPage: string;
@@ -294,6 +295,8 @@ export function AppSidebar({
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
+
+				<DocsVersionPicker />
 
 				<div className="flex items-center gap-1.5">
 					<button

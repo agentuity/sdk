@@ -1,10 +1,10 @@
 ---
 title: Choosing Coder Agents for a Session
 short_title: Agent Selection
-description: Use enabledAgents and defaultAgent to choose which Hub-provided Coder agents are available in a session
+description: Use enabledAgents and defaultAgent to choose which built-in or published custom Coder agents are available in a session
 ---
 
-A session can start with only the Hub-provided agents you care about. Use `enabledAgents` to choose the agent roster for a session, and `defaultAgent` when you want routed work to prefer a specific agent. The exact names come from your Hub. The example below uses `builder` and `reviewer`; replace them with names your Hub exposes.
+A session can start with the exact agents you care about. Use `enabledAgents` to choose the built-in or published custom agents mounted for a session, and `defaultAgent` when you want new work to route to one agent by default. The example below uses `builder` and `reviewer`; replace them with names your Hub exposes.
 
 <Callout type="tip" title="Read the session back after creation">
 `getSession()` returns the session's lifecycle state, `enabledAgents`, and `defaultAgent`. That's usually enough to confirm the session started the way you intended.
@@ -36,9 +36,9 @@ async function main(): Promise<void> {
     const created = await client.createSession({
       task,
       workflowMode: 'standard',
-      // defaultAgent: the Hub-provided agent used when no specific agent is named
+      // defaultAgent: the route target used when no specific agent is named
       defaultAgent: DEFAULT_AGENT, // [!code highlight]
-      // enabledAgents: the only Hub-provided agents mounted for this session
+      // enabledAgents: the only built-in or published custom agents mounted for this session
       enabledAgents: [...ENABLED_AGENTS], // [!code highlight]
       tags: ['docs-example', 'agent-selection'],
     });
@@ -86,7 +86,7 @@ void main();
 
 What this means:
 
-- `enabledAgents` limits which Hub-provided agents are mounted when you create the session
+- `enabledAgents` limits which agents are mounted when you create the session
 - `defaultAgent` tells the Hub which agent should handle routed work by default
 - `status` and `bucket` still describe the lifecycle state of the session itself
 
@@ -94,9 +94,9 @@ What this means:
 
 The simplest mental model:
 
-- `enabledAgents` is the set of Hub-provided specialists mounted for this session
+- `enabledAgents` is the set of specialists mounted for this session
 - `defaultAgent` is the preferred route target for session prompts
-- omitting both fields lets the Hub use its normal roster
+- omitting both fields lets the Hub use its normal Coder Lead behavior
 
 So if you create a session with:
 
@@ -109,6 +109,10 @@ So if you create a session with:
 
 you're saying: make `builder` and `reviewer` available, and route to `builder` by default.
 
+<Callout type="info" title="Lead is the default route target">
+When you omit `defaultAgent`, new work routes through the Coder Lead. Use workspace `systemPrompt` guidance to steer the Lead, and use custom agents when you need reusable specialist behavior.
+</Callout>
+
 ## When to use this pattern
 
 Use this pattern when you want:
@@ -117,15 +121,16 @@ Use this pattern when you want:
 - a review-oriented session with `reviewer`
 - a tighter set of agents than the full default team
 - a consistent default specialist for repeated automation
+- a published custom specialist mounted alongside built-in agents
 
 If you want a normal Coder session, omit both fields.
 
 ## Key points
 
-- Start with the Hub-provided agents you need. You can widen the selection later.
+- Start with the agents you need. You can widen the selection later.
 - Prefer `getSession()` over list views when you need a definitive view of one session.
 - Use agent names your Hub exposes.
-- For agent definitions you author yourself, switch to the custom-agent flow.
+- Publish custom-agent drafts before selecting their slugs in `enabledAgents` or `defaultAgent`.
 
 ## See also
 

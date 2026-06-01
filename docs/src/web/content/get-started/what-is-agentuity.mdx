@@ -16,20 +16,18 @@ bunx agentuity dev
 Your app stays a framework app. A Next.js route reads input, validates it, and calls a model:
 
 ```typescript title="src/app/api/chat/route.ts"
-import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
+
 const ChatRequest = z.object({
   message: z.string().min(1),
+  model: z.string().min(1).default(DEFAULT_MODEL),
 });
 
-const model = process.env.OPENAI_MODEL;
-
-if (!model) {
-  throw new Error('Set OPENAI_MODEL to the route model.');
-}
+const gateway = new AIGatewayClient();
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body: unknown = await request.json();
@@ -39,16 +37,24 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid chat request' }, { status: 400 });
   }
 
-  const { text } = await generateText({
-    model: openai(model),
-    prompt: parsed.data.message,
+  const result = await gateway.completeText({
+    model: parsed.data.model,
+    messages: [{ role: 'user', content: parsed.data.message }],
   });
 
-  return NextResponse.json({ response: text });
+  if (!result.hasText) {
+    return NextResponse.json({ error: 'The model returned no text.' }, { status: 502 });
+  }
+
+  return NextResponse.json({ response: result.text });
 }
 ```
 
-`agentuity dev` runs your framework's `dev` script and routes OpenAI, Anthropic, and Groq SDK calls through Agentuity's AI Gateway when `AGENTUITY_SDK_KEY` is set. If you already have a provider key in `.env`, the CLI leaves it alone and the call goes straight to the provider.
+The starter uses `@agentuity/aigateway` for app-owned model calls. `AIGatewayClient` reads the Agentuity gateway key or project SDK key from env; the model is normal app input or configuration. `agentuity dev` runs your framework's `dev` script and also wires OpenAI, Anthropic, and Groq SDK base URLs for provider SDK compatibility. If you use one of those provider SDKs directly and already have a provider key in `.env`, the CLI leaves it alone and the call goes straight to the provider.
+
+<Callout type="tip" title="Use one project credential for Gateway calls">
+For `AIGatewayClient`, the Agentuity project SDK key authenticates model calls across Gateway providers. Pick the model in code, request input, or app configuration; add provider keys only when the route calls a provider SDK directly.
+</Callout>
 
 `agentuity build` and `agentuity deploy` detect the framework and package the app around its native conventions.
 

@@ -60,7 +60,7 @@ const router = new Hono<ApiEnv>()
 			contentType: 'text/plain',
 			metadata: {
 				type: 'ai-summary',
-				model: 'llama-3.3-70b-versatile',
+				model: 'groq/openai/gpt-oss-120b',
 				startTime: new Date().toISOString(),
 			},
 		});
@@ -74,7 +74,7 @@ const router = new Hono<ApiEnv>()
 		const generateInBackground = async () => {
 			try {
 				const { textStream } = streamText({
-					model: getModel('llama-3.3-70b-versatile'),
+					model: getModel('groq/openai/gpt-oss-120b'),
 					prompt: PROMPT,
 				});
 

@@ -76,7 +76,7 @@ npm install @agentuity/keyvalue@next zod openai
 npm install -D @types/bun
 ```
 
-The server below handles `POST /api/translate`, stores session history in KV, calls OpenAI through the AI Gateway, and falls back to a Vite dev proxy in development:
+The server below handles `POST /api/translate`, stores session history in KV, uses the OpenAI SDK through AI Gateway env wiring, and falls back to a Vite dev proxy in development. For generic model calls, use `AIGatewayClient` or see [AI Gateway](/services/ai-gateway#choose-the-model-path):
 
 ```typescript title="server.ts"
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -210,7 +210,7 @@ Bun.serve({ // [!code highlight]
 
 The local script below runs this file with Bun so `Bun.serve`, `Bun.file`, and HMR work as shown.
 
-Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
+Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
 ### Call the server from React
 
@@ -280,7 +280,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` in `server.ts` |
-| `OPENAI_MODEL` | example routes that call the OpenAI SDK |
+| `OPENAI_MODEL` | provider SDK env-wiring example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
 | `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |

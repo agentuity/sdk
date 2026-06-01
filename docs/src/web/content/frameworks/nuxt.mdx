@@ -54,6 +54,8 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 
 Use standalone service clients directly from Nitro routes. Files under `server/api/` are automatically prefixed with `/api`, and the `.post.ts` suffix limits this example to `POST` requests.
 
+The route below intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
+
 ```bash
 bun add @agentuity/keyvalue@next openai arktype
 ```
@@ -166,7 +168,7 @@ export default defineEventHandler(async (event) => {
 
 `KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run with `agentuity dev` for local development so the linked project key is available to Nitro routes.
 
-Set `OPENAI_MODEL` in `.env` to a provider model ID from [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list.
+Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
 ## Call from the frontend
 
@@ -230,7 +232,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
-| `OPENAI_MODEL` | example routes that call the OpenAI SDK |
+| `OPENAI_MODEL` | provider SDK env-wiring example routes that call the OpenAI SDK |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
 | `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |

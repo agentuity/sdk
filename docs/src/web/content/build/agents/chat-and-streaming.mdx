@@ -7,12 +7,11 @@ Use streaming when the user should see tokens as they arrive rather than waiting
 
 ## Minimal route
 
-The smallest-complete shape: stream a response, then store the assistant turn after the stream closes.
+The smallest-complete shape: read recent history, call the Gateway with `stream: true`, and return the SSE stream.
 
 ```typescript
 import { Hono } from 'hono';
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { KeyValueClient } from '@agentuity/keyvalue';
 
 interface ChatMessage {
@@ -21,56 +20,47 @@ interface ChatMessage {
 }
 
 const kv = new KeyValueClient();
+const gateway = new AIGatewayClient();
 const app = new Hono();
-const model = process.env.OPENAI_MODEL;
-
-if (!model) {
-  throw new Error('Set OPENAI_MODEL to the chat model this route should use.');
-}
+const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
 
 app.post('/api/chat', async (c) => {
-  const { conversationId, message } = await c.req.json<{
+  const { conversationId, message, model = DEFAULT_MODEL } = await c.req.json<{
     conversationId: string;
     message: string;
+    model?: string;
   }>();
 
   const stored = await kv.get<ChatMessage[]>('chat-history', conversationId);
   const messages: ChatMessage[] = stored.exists ? (stored.data ?? []) : [];
   const next = [...messages, { role: 'user' as const, content: message }];
 
-  const result = streamText({ // [!code highlight]
-    model: openai(model),
-    messages: next,
-    async onFinish({ text }) { // [!code highlight]
-      // Write assistant turn only after the stream completes
-      // If the stream fails, history stays consistent
-      await kv.set('chat-history', conversationId, [
-        ...next,
-        { role: 'assistant', content: text },
-      ]);
-    },
+  const { stream } = await gateway.streamRequest({ // [!code highlight]
+    path: '/',
+    body: { model, stream: true, messages: next },
   });
 
-  return result.toTextStreamResponse(); // [!code highlight]
+  return new Response(stream, { // [!code highlight]
+    headers: { 'content-type': 'text/event-stream' },
+  });
 });
 
 export default app;
 ```
 
-`onFinish` fires after the last token. Store the assistant message there, not before returning the response.
+`streamRequest()` passes through the Gateway SSE stream. The SDK key authenticates the request; the `model` value is normal app input or configuration.
 
 ## Complete Hono route with KV history
 
 This route reads stored history, streams the next answer, then appends the assistant turn.
 
 ```bash
-bun add hono ai@latest @ai-sdk/openai@latest @agentuity/keyvalue@next valibot @agentuity/telemetry@next
+bun add hono @agentuity/aigateway@next @agentuity/keyvalue@next valibot @agentuity/telemetry@next
 ```
 
 ```typescript title="src/index.ts"
 import { Hono } from 'hono';
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { KeyValueClient } from '@agentuity/keyvalue';
 import { logger } from '@agentuity/telemetry';
 import * as v from 'valibot';
@@ -78,6 +68,7 @@ import * as v from 'valibot';
 const inputSchema = v.object({
   conversationId: v.string(),
   message: v.string(),
+  model: v.optional(v.string()),
 });
 
 const messageSchema = v.object({
@@ -90,16 +81,14 @@ const historySchema = v.array(messageSchema);
 type ChatMessage = v.InferOutput<typeof messageSchema>;
 
 const kv = new KeyValueClient();
+const gateway = new AIGatewayClient();
 const app = new Hono();
-const model = process.env.OPENAI_MODEL;
-
-if (!model) {
-  throw new Error('Set OPENAI_MODEL to the chat model this route should use.');
-}
+const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
 
 app.post('/api/chat', async (c) => {
   const body: unknown = await c.req.json();
   const input = v.parse(inputSchema, body);
+  const model = input.model ?? DEFAULT_MODEL;
 
   const stored = await kv.get<unknown>('chat-history', input.conversationId);
   const history: ChatMessage[] = stored.exists
@@ -109,34 +98,111 @@ app.post('/api/chat', async (c) => {
   const userMessage: ChatMessage = { role: 'user', content: input.message };
   const nextHistory = [...history, userMessage];
 
-  const result = streamText({
-    model: openai(model),
-    system: 'You are a concise product support assistant.',
-    messages: nextHistory,
-    async onFinish({ text }) { // [!code highlight]
-      const assistantMessage: ChatMessage = { role: 'assistant', content: text };
-
-      await kv.set( // [!code highlight]
-        'chat-history',
-        input.conversationId,
-        [...nextHistory, assistantMessage],
-        { ttl: 60 * 60 * 24 * 30 }, // 30-day TTL
-      );
-
-      logger.info('conversation saved', {
-        conversationId: input.conversationId,
-        turns: nextHistory.length + 1,
-      });
+  const { stream } = await gateway.streamRequest({
+    path: '/',
+    body: {
+      model,
+      stream: true,
+      messages: [
+        { role: 'system', content: 'You are a concise product support assistant.' },
+        ...nextHistory,
+      ],
     },
   });
 
-  return result.toTextStreamResponse(); // [!code highlight]
+  const [clientStream, historyStream] = stream.tee(); // [!code highlight]
+
+  void saveAssistantTurn(input.conversationId, nextHistory, historyStream).catch((error) => {
+    logger.error('conversation save failed', { conversationId: input.conversationId, error });
+  });
+
+  return new Response(clientStream, { // [!code highlight]
+    headers: { 'content-type': 'text/event-stream' },
+  });
 });
+
+async function saveAssistantTurn(
+  conversationId: string,
+  nextHistory: readonly ChatMessage[],
+  stream: ReadableStream<Uint8Array>,
+): Promise<void> {
+  const text = await readOpenAICompatibleStreamText(stream);
+  if (!text) return;
+
+  await kv.set(
+    'chat-history',
+    conversationId,
+    [...nextHistory, { role: 'assistant', content: text }],
+    { ttl: 60 * 60 * 24 * 30 }, // 30-day TTL
+  );
+
+  logger.info('conversation saved', {
+    conversationId,
+    turns: nextHistory.length + 1,
+  });
+}
+
+async function readOpenAICompatibleStreamText(
+  stream: ReadableStream<Uint8Array>,
+): Promise<string> {
+  const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  let text = '';
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += value;
+    const frames = buffer.split(/\r?\n\r?\n/);
+    buffer = frames.pop() ?? '';
+    text += frames.map(readFrameText).join('');
+  }
+
+  return text + readFrameText(buffer);
+}
+
+function readFrameText(frame: string): string {
+  const data = frame
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart())
+    .join('\n')
+    .trim();
+
+  if (!data || data === '[DONE]') return '';
+
+  try {
+    return readDeltaText(JSON.parse(data));
+  } catch {
+    return '';
+  }
+}
+
+function readDeltaText(event: unknown): string {
+  if (!isRecord(event)) return '';
+  const choices = event.choices;
+  if (!Array.isArray(choices)) return '';
+
+  return choices
+    .map((choice) => {
+      if (!isRecord(choice)) return '';
+      const delta = choice.delta;
+      if (!isRecord(delta)) return '';
+      const content = delta.content;
+      return typeof content === 'string' ? content : '';
+    })
+    .join('');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
 export default app;
 ```
 
-`streamText()` returns a standard Web `Response`, so this works in Hono and any framework that accepts Web `Response` objects. The service client reads `AGENTUITY_SDK_KEY` from the project environment.
+`streamRequest()` returns a standard Web stream, so this works in Hono and any framework that accepts Web `Response` objects. `KeyValueClient` and `AIGatewayClient` can both authenticate from `AGENTUITY_SDK_KEY`. The parser above stores text from OpenAI-compatible SSE frames; if you choose a model with a different stream event shape, parse that provider's frame format before writing assistant history.
 
 <Callout type="info" title="Logging in Hono routes">
 In `@agentuity/hono` routes use `c.var.logger`. In standalone framework apps like this one, import `logger` from `@agentuity/telemetry` instead.
@@ -164,22 +230,63 @@ async function sendMessage(conversationId: string, message: string): Promise<str
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); // [!code highlight]
   let assistantMessage = '';
+  let buffer = '';
 
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
-    assistantMessage += value; // [!code highlight]
+    buffer += value;
+    const frames = buffer.split(/\r?\n\r?\n/);
+    buffer = frames.pop() ?? '';
+    assistantMessage += frames.map(readGatewayFrameText).join(''); // [!code highlight]
   }
 
-  return assistantMessage;
+  return assistantMessage + readGatewayFrameText(buffer);
+}
+
+function readGatewayFrameText(frame: string): string {
+  const data = frame
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart())
+    .join('\n')
+    .trim();
+
+  if (!data || data === '[DONE]') return '';
+
+  try {
+    return readGatewayDeltaText(JSON.parse(data));
+  } catch {
+    return '';
+  }
+}
+
+function readGatewayDeltaText(event: unknown): string {
+  if (!isRecord(event)) return '';
+  const choices = event.choices;
+  if (!Array.isArray(choices)) return '';
+
+  return choices
+    .map((choice) => {
+      if (!isRecord(choice)) return '';
+      const delta = choice.delta;
+      if (!isRecord(delta)) return '';
+      const content = delta.content;
+      return typeof content === 'string' ? content : '';
+    })
+    .join('');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 ```
 
-If you use AI SDK UI helpers on the frontend, switch to `toUIMessageStreamResponse()` on the server instead of `toTextStreamResponse()`. That format includes tool call results, finish reason, and usage metadata in the stream.
+The Gateway returns provider-compatible SSE frames, not plain text chunks. If the selected model uses OpenAI-compatible frames, reuse `readFrameText()` from the route example before appending to the UI. If you use AI SDK UI helpers on the frontend, use an AI SDK route with `toUIMessageStreamResponse()` so the stream format matches the UI package.
 
-## Stream with Anthropic
+## Stream with an AI SDK provider
 
-AI SDK streaming works the same way with Anthropic. Install the provider package and swap the model.
+When the frontend expects AI SDK UI message streams, keep the route on AI SDK and use one provider package. This example uses the Anthropic provider; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway when no provider key override is set.
 
 ```bash
 bun add ai@latest @ai-sdk/anthropic@latest
@@ -205,7 +312,7 @@ export async function streamWithAnthropic(message: string): Promise<Response> {
 }
 ```
 
-Keep model IDs in configuration so each route can use the provider and tier that fits the task. Use [AI Gateway model catalog](/services/ai-gateway#model-catalog) or the provider's model docs before setting examples or defaults.
+Keep model IDs in configuration so each route can use the provider and tier that fits the task. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) for direct Gateway calls, or the provider's model docs for provider SDK calls.
 
 ## Smoke test with curl
 
@@ -221,8 +328,9 @@ curl -N http://127.0.0.1:3000/api/chat \
 
 | Stream shape | Use it when |
 |---|---|
-| `toTextStreamResponse()` | client only needs plain text chunks |
-| `toUIMessageStreamResponse()` | frontend uses AI SDK UI and needs tool calls, usage, finish reason |
+| Gateway SSE stream | route calls `AIGatewayClient.streamRequest()` directly |
+| `toTextStreamResponse()` | AI SDK route returns plain text chunks |
+| `toUIMessageStreamResponse()` | AI SDK frontend needs tool calls, usage, finish reason |
 | [Durable Streams](/services/storage/durable-streams) | output must survive a page refresh or be replayed later |
 | Server-sent events | you need named events such as `status`, `chunk`, and `done` |
 
@@ -238,7 +346,7 @@ interface ChatMemory {
   readonly recent: readonly ChatMessage[];
 }
 
-// In onFinish, replace the flat history with a bounded memory object
+// After the stream collector finishes, replace the flat history with a bounded memory object
 const memory: ChatMemory = {
   summary: existingSummary, // update periodically with a summarization call
   recent: allMessages.slice(-8), // keep last 8 turns
@@ -250,17 +358,17 @@ await kv.set('chat-memory', input.conversationId, memory, {
 ```
 
 <Callout type="tip" title="Rolling summary pattern">
-Store a plain-text summary of older turns plus the last N messages. Pass both to the model as context: the summary as a system prompt addendum, the recent turns as the messages array. Update the summary every N turns with a separate `generateText` call.
+Store a plain-text summary of older turns plus the last N messages. Pass both to the model as context: the summary as a system prompt addendum, the recent turns as the messages array. Update the summary every N turns with a separate `completeText()` call.
 </Callout>
 
 ## Common gotchas
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| History written even when stream fails | Saving to KV before returning the response | Move writes into `onFinish` |
+| History written even when stream fails | Saving to KV before the stream drains | Tee the stream and write history after the collector finishes |
 | Context window errors after long conversations | Sending full history every request | Use bounded memory (summary + recent turns) |
-| Client sees no chunks | Response buffered by middleware or proxy | Verify `Content-Type: text/plain; charset=utf-8` and no buffering layer |
-| Tool calls missing from client | Using `toTextStreamResponse()` with AI SDK UI | Switch to `toUIMessageStreamResponse()` |
+| Client sees no chunks | Response buffered by middleware or proxy | Verify `Content-Type: text/event-stream` and no buffering layer |
+| Tool calls missing from client | Reading the Gateway SSE stream as plain text | Parse the provider-compatible stream event shape, or use an AI SDK route when the frontend expects AI SDK UI messages |
 | KV TTL errors | TTL below minimum (60 s) or above maximum (365 days) | Use `ttl: null` or `ttl: 0` for never-expire; otherwise pass a value in `[60, 31_536_000]` seconds |
 
 ## Next steps

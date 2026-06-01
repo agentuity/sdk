@@ -8,9 +8,9 @@
  * Usage: bun run src/run/chat.ts '{"message":"Hello!"}'
  */
 import { getDemoContext, runWithDemoContext } from '../api/context';
-import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import agentuityDocs from '../agent/chat/agentuity-context.txt';
+import { getModel } from '../lib/models';
 
 interface Message {
 	role: 'user' | 'assistant';
@@ -22,6 +22,7 @@ interface Input {
 }
 
 const standaloneCtx = getDemoContext();
+const DEFAULT_MODEL = 'anthropic/claude-opus-4-8';
 
 try {
 	const input: Input = JSON.parse(process.argv[2] ?? '{}');
@@ -43,7 +44,7 @@ try {
 
 		ctx.logger.info('Generating response');
 		const { text } = await generateText({
-			model: openai('gpt-5.4-nano'),
+			model: getModel(DEFAULT_MODEL),
 			system: `You are an Agentuity expert assistant. Keep responses concise (2-3 sentences).
 
 ## Agentuity Documentation

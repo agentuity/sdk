@@ -12,6 +12,10 @@
 				"preparing-coder-sessions-for-remote-attach",
 				"observing-a-coder-session-through-the-hub"
 			]
+		},
+		{
+			"title": "Sandbox",
+			"pages": ["running-external-coding-tools-in-sandbox"]
 		}
 	],
 	"pages": [
