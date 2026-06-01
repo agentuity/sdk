@@ -13,7 +13,7 @@ import matter from 'gray-matter';
 import * as pagefind from 'pagefind';
 import { navData, type NavItem } from '../src/web/components/docs/nav-data.ts';
 
-const BASE_URL = 'https://agentuity.dev';
+const BASE_URL = 'https://v2.agentuity.dev';
 const CONTENT_DIR = join(import.meta.dir, '../src/web/content');
 const OUTPUT_DIR = join(import.meta.dir, '../src/web/public');
 const PAGEFIND_OUTPUT_DIR = join(OUTPUT_DIR, 'pagefind');
@@ -1170,12 +1170,11 @@ Services include, but are not limited to:
 }
 
 function generateSitemapXml(pages: DocPage[]): string {
-	const DOCS_BASE = 'https://agentuity.com/docs';
 	const today = new Date().toISOString().split('T')[0];
 
 	const urls = pages
 		.map((page) => {
-			const loc = page.urlPath === '/' ? DOCS_BASE : `${DOCS_BASE}${page.urlPath}`;
+			const loc = page.urlPath === '/' ? BASE_URL : `${BASE_URL}${page.urlPath}`;
 			return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`;
 		})
 		.join('\n');
