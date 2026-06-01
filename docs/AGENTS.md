@@ -20,6 +20,10 @@ Agentuity docs app and SDK Explorer. This app serves as:
 
 Do not deploy from this repo unless explicitly asked.
 
+When checking deploy failures, verify the project root first. This docs app
+uses `docs/agentuity.json`; failures from another root may belong to a
+separate project.
+
 ## Architecture
 
 This app demonstrates:
