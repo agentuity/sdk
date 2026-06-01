@@ -1,10 +1,11 @@
 import * as React from 'react';
-import { ChevronRight, SearchIcon, SparklesIcon } from 'lucide-react';
+import { ChevronRight, ExternalLink, SearchIcon, SparklesIcon } from 'lucide-react';
 import {
 	Collapsible,
 	CollapsibleContent,
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
@@ -16,6 +17,7 @@ import {
 	SidebarRail,
 } from '../ui';
 import { cn } from '../../lib/utils';
+import { DOCS_VERSIONS } from '../../lib/docs-versions';
 import { navData, hasActiveChild, type NavItem, type NavSection } from './nav-data';
 import { SearchKeyboardShortcut } from './keyboard-shortcut';
 import { DocsVersionPicker } from './docs-version-picker';
@@ -322,6 +324,20 @@ export function AppSidebar({
 			<SidebarContent>
 				<NavMain sections={navData} currentUrl={currentUrl} onNavigate={onNavigate} />
 			</SidebarContent>
+
+			<SidebarFooter className="border-t border-sidebar-border/70 pt-2 group-data-[collapsible=icon]:hidden">
+				<a
+					href={DOCS_VERSIONS.v2.url}
+					aria-label="Open v2 docs for older Agentuity apps"
+					className="group flex items-center gap-1.5 rounded-md px-2 py-2 text-xs leading-5 text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+				>
+					<span className="min-w-0 truncate">
+						Using an older app?{' '}
+						<span className="font-medium text-sidebar-foreground">Open v2 docs</span>
+					</span>
+					<ExternalLink className="size-3 shrink-0 text-sidebar-foreground/55 group-hover:text-sidebar-foreground/80" />
+				</a>
+			</SidebarFooter>
 
 			<SidebarRail />
 		</Sidebar>

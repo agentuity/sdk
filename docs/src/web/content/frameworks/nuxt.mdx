@@ -6,7 +6,7 @@ description: Add Agentuity service clients, local development, and deployment me
 
 Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity adds service clients, local development support, and deploy validation around Nitro server routes and build output.
 
-## Create a starter
+## Create a Starter
 
 ```bash
 bun create agentuity@next --name my-nuxt-app --framework nuxt
@@ -23,7 +23,7 @@ If you choose the AI example, the key files are:
 | `app/app.vue` | UI that calls the API route with `$fetch` |
 | `nuxt.config.ts` | Nuxt configuration in the normal Nuxt shape |
 
-## Existing app import
+## Import an Existing App
 
 For an existing Nuxt app, add the CLI and import the project:
 
@@ -50,7 +50,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | Nitro output under `.output/` | `agentuity build` runs the build and packages launch metadata |
 | deploy | the Nitro server entry | `agentuity deploy` ships the packaged app |
 
-## Add a service client and AI Gateway call
+## Add a Service Client and AI Gateway Call
 
 Use standalone service clients directly from Nitro routes. Files under `server/api/` are automatically prefixed with `/api`, and the `.post.ts` suffix limits this example to `POST` requests.
 
@@ -170,7 +170,7 @@ export default defineEventHandler(async (event) => {
 
 Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
-## Call from the frontend
+## Call from the Frontend
 
 Call the Nitro route from `app/app.vue` using Nuxt's built-in `$fetch`:
 
@@ -209,7 +209,7 @@ async function translate(): Promise<void> {
 </template>
 ```
 
-## Run locally
+## Run Locally
 
 Run through Agentuity. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Nuxt process:
 
@@ -225,7 +225,7 @@ curl http://localhost:3000/api/translate \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -239,7 +239,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database Nitro routes |
 | `AWS_*` | object storage Nitro routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Run the framework build when you want Nuxt-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
@@ -269,7 +269,7 @@ Deploy only after the framework build, Agentuity build, and a local packaged val
 agentuity deploy --confirm
 ```
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -281,12 +281,12 @@ agentuity deploy --confirm
 | Server credentials leak to the browser | Keep `KeyValueClient` and `OpenAI` instantiation in `server/api/` or other server-only files; Nitro does not bundle server files into the client |
 | Cookie flags rejected by browser | `secure: true` requires HTTPS; for local testing use `secure: process.env.NODE_ENV !== 'development'` |
 
-## Framework docs
+## Framework Docs
 
 - [Nuxt `server/` directory](https://nuxt.com/docs/4.x/directory-structure/server): confirm `server/api` routing, HTTP method suffixes, and h3 helpers
 - [Nuxt deployment](https://nuxt.com/docs/4.x/getting-started/deployment): Nitro output targets and how to match build output to your runtime
 
-## Next steps
+## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): store short-lived state from Nitro routes
 - [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity

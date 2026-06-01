@@ -25,7 +25,7 @@ Use this path when the behavior under test is app-owned: a framework route, retr
 | command or generated-code checks | [Sandbox](/services/sandbox) |
 | failure investigation | [Logging](/services/observability/logging), [Tracing](/services/observability/tracing), and [Sessions & Debugging](/services/observability/sessions-debugging) |
 
-## Shape evals like tests
+## Shape Evals Like Tests
 
 | Part | Keep Stable |
 |------|-------------|
@@ -37,7 +37,7 @@ Use this path when the behavior under test is app-owned: a framework route, retr
 
 That shape keeps evals close to the code they protect. A CI job can run the same script as a local developer, and a failed run can point back to logs, spans, and the exact output that broke the contract.
 
-## Define the output contract
+## Define the Output Contract
 
 Do this before adding a judge. The output contract is the part your app, CI job, or reviewer can inspect without reading model prose.
 
@@ -58,7 +58,7 @@ Do this before adding a judge. The output contract is the part your app, CI job,
 
 For coding-agent tasks, include the expected report path, verification command, changed files, and blocker format in the task prompt. See [Building Coding Agents](/build/agents/coding-agent) for a fuller output-contract pattern.
 
-## Run an LLM-as-judge check
+## Run an LLM-as-Judge Check
 
 This script grades an answer against a rubric. Drop it into a Bun or Node script that has Agentuity project credentials or runs under `agentuity dev`.
 
@@ -117,11 +117,11 @@ const judgment = await judgeAnswer({
 logger.info('eval complete', judgment);
 ```
 
-## Trace the run
+## Trace the Run
 
 Wrap eval runs with spans when you need to inspect the app call, model choice, tool behavior, assertion, and judge result later. Prefer attributes such as `eval.run_id`, `eval.fixture_id`, `eval.contract_version`, `eval.passed`, and `eval.failure_reason`; avoid raw prompts, secrets, and personal data in span attributes. See [Tracing](/services/observability/tracing) for OpenTelemetry setup and exporter configuration.
 
-## Choose the eval runner
+## Choose the Eval Runner
 
 Start with the runner that gives the check enough context. Hosted tools help with datasets, experiment comparison, reviewers, and reports. Unit and integration tests are better for deterministic checks such as JSON shape, latency budget, retrieval count, or exact routing behavior.
 
@@ -134,7 +134,7 @@ Start with the runner that gives the check enough context. Hosted tools help wit
 | App-function regression suite with reports | [Braintrust Evals](/cookbook/patterns/braintrust-evals) or your eval runner |
 | Debugging one bad request | OpenTelemetry traces and logs |
 
-## Next steps
+## Next Steps
 
 - [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): score model output with a rubric in code
 - [OpenAI Evals API](/cookbook/patterns/openai-evals-api): run OpenAI-hosted evals when that service owns the prompt regression suite

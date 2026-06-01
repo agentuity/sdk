@@ -6,7 +6,7 @@ description: Use storage, queues, logging, and error handling utilities from ext
 
 Use Agentuity services from external apps, scripts, or backends. Standalone packages are the shortest path, while `@agentuity/server` gives you lower-level control over adapters and service URLs.
 
-## Standalone packages
+## Standalone Packages
 
 The fastest way to access Agentuity services from external apps. Each package reads `AGENTUITY_SDK_KEY`, `AGENTUITY_REGION`, and service URL overrides from the environment.
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
 See [Standalone Packages](/reference/standalone-packages) for the full list of available packages and their APIs.
 
-## Manual configuration
+## Manual Configuration
 
 For custom adapter configuration, direct service URL overrides, or when you need lower-level control, use `@agentuity/server` directly.
 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-### Vector storage
+### Vector Storage
 
 ```typescript title="app/api/search/route.ts"
 import type { NextRequest } from 'next/server';
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 }
 ```
 
-### Stream storage
+### Stream Storage
 
 Use streams for large data exports or file transfers:
 
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-## Queue management
+## Queue Management
 
 Manage queues programmatically from external apps or scripts using `APIClient`:
 
@@ -199,7 +199,7 @@ export const client = new APIClient(
 );
 ```
 
-### Creating and managing queues
+### Creating and Managing Queues
 
 ```typescript
 import {
@@ -232,7 +232,7 @@ await resumeQueue(client, 'order-processing');
 await deleteQueue(client, 'old-queue');
 ```
 
-### Dead letter queue operations
+### Dead Letter Queue Operations
 
 ```typescript
 import {
@@ -256,7 +256,7 @@ for (const msg of messages) {
 await purgeDeadLetter(client, 'order-processing');
 ```
 
-### Webhook destinations
+### Webhook Destinations
 
 ```typescript
 import { createDestination } from '@agentuity/server';
@@ -287,7 +287,7 @@ await createDestination(client, 'order-processing', {
 });
 ```
 
-### HTTP ingestion sources
+### HTTP Ingestion Sources
 
 ```typescript
 import { createSource } from '@agentuity/server';
@@ -304,7 +304,7 @@ const source = await createSource(client, 'webhook-queue', {
 logger.info('Source created', { url: source.url });
 ```
 
-### Pull-based consumption
+### Pull-Based Consumption
 
 For workers that pull and acknowledge messages:
 
@@ -330,7 +330,7 @@ if (message) {
 For one-off queue management, use `agentuity cloud queue --help` to inspect the current queue commands and flags. The service page covers the queue lifecycle and links to the lower-level API reference.
 </Callout>
 
-## Alternative: Hono routes
+## Alternative: Hono Routes
 
 If you want to centralize storage logic in a Hono app, use the Agentuity middleware and keep service access behind routes.
 
@@ -409,7 +409,7 @@ router.delete('/:id', async (c) => {
 export default router;
 ```
 
-### Securing storage routes
+### Securing Storage Routes
 
 Add authentication middleware to protect storage endpoints:
 
@@ -474,7 +474,7 @@ requestLogger.info('Starting'); // Includes requestId in all logs
 | `colorScheme` | `'light' \| 'dark'` | `'dark'` | Terminal color scheme |
 | `context` | `Record<string, unknown>` | `{}` | Default context for all logs |
 
-## Safe JSON serialization
+## Safe JSON Serialization
 
 `safeStringify` handles circular references and BigInt values that break `JSON.stringify`:
 
@@ -491,7 +491,7 @@ const data = { user: obj, balance: 9007199254740991n };
 safeStringify(data, 2);
 ```
 
-## Error handling utilities
+## Error Handling Utilities
 
 ### RichError
 
@@ -548,7 +548,7 @@ try {
 }
 ```
 
-## Schema conversion
+## Schema Conversion
 
 Convert Zod schemas to JSON Schema for tooling or OpenAPI generation:
 
@@ -561,7 +561,7 @@ const jsonSchema = toJSONSchema(schema);
 // { type: 'object', properties: { name: { type: 'string' }, age: { type: 'number' } }, ... }
 ```
 
-## Key points
+## Key Points
 
 - **Standalone packages** are the simplest way to access services from external backends
 - **Manual configuration** with `@agentuity/server` is for custom adapters, direct service URL overrides, or lower-level API helpers
@@ -569,7 +569,7 @@ const jsonSchema = toJSONSchema(schema);
 - **HTTP routes** are an alternative for centralized logic, middleware, or sharing across apps
 - **Works with any framework**: Next.js, React Router, Remix, Express, and more.
 
-## See also
+## See Also
 
 - [Standalone Packages](/reference/standalone-packages): Full list of service packages and their APIs
 - [Queues](/services/queues): queue concepts, publish options, lifecycle, and API links

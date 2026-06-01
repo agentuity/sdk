@@ -10,7 +10,7 @@ Automatic deployments require a GitHub connection. Connect your identity, instal
 The Agentuity GitHub App automates deployments on push, creates preview environments for PRs, and posts build status to GitHub Checks. See [Automating Deployments with the GitHub App](/reference/github-app) for the full overview.
 </Callout>
 
-## Connecting your GitHub identity
+## Connecting Your GitHub Identity
 
 Authorize Agentuity to access your GitHub account. This opens a browser-based OAuth flow:
 
@@ -40,7 +40,7 @@ agentuity git identity disconnect
 agentuity git identity disconnect --confirm
 ```
 
-## Installing the GitHub app
+## Installing the GitHub App
 
 After connecting your identity, install the Agentuity GitHub App on organizations or personal accounts to grant repository access.
 
@@ -74,7 +74,7 @@ agentuity git account remove --account inst_xyz --confirm
 Your **identity** is your GitHub user account. **Installations** are per-organization GitHub App installs that grant repository access. You need both: connect your identity first, then add at least one installation.
 </Callout>
 
-## Linking a repository
+## Linking a Repository
 
 Link your Agentuity project to a GitHub repository for automatic deployments.
 
@@ -90,7 +90,7 @@ The CLI detects your current git remote and branch, then walks you through confi
 4. Enable/disable auto-deploy on push
 5. Enable/disable preview deployments on PRs
 
-### Non-interactive linking
+### Non-Interactive Linking
 
 ```bash
 # Link to a specific repo without prompts
@@ -106,7 +106,7 @@ agentuity git link --deploy false
 agentuity git link --preview true
 ```
 
-### Link options
+### Link Options
 
 | Option | Description |
 |--------|-------------|
@@ -117,7 +117,7 @@ agentuity git link --preview true
 | `--preview <bool>` | Enable preview deployments on PRs (default: `true`) |
 | `--confirm` | Skip confirmation prompts |
 
-### Browsing repositories
+### Browsing Repositories
 
 List all repositories accessible through your installations:
 
@@ -142,7 +142,7 @@ agentuity git unlink
 agentuity git unlink --confirm
 ```
 
-## Checking status
+## Checking Status
 
 View the full GitHub connection status for your project, including identity, installations, and repository link:
 
@@ -159,7 +159,7 @@ The status output includes:
 - Linked repository, branch, and directory
 - Auto-deploy and preview deployment settings
 
-## Next steps
+## Next Steps
 
 - [Deployment](/reference/cli/deployment): Configure preview and branch deployments
 - [Configuration](/reference/cli/configuration): Set environment variables for linked repos

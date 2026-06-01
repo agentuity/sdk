@@ -40,7 +40,7 @@ The `from` address must belong to your organization. Create one with `createAddr
 | receive HTTP callbacks from external services | [Webhooks](/services/webhooks) |
 | hand email work to a background process | [Queues](/services/queues) |
 
-## Client setup
+## Client Setup
 
 Construct the client once at module scope and reuse it from handlers, routes, or scripts.
 
@@ -59,7 +59,7 @@ const email = new EmailClient({
 | `url` | Optional Email API URL. Defaults to `AGENTUITY_EMAIL_URL`, then the regional Agentuity email service URL. |
 | `logger` | Optional logger instance. |
 
-## Create addresses
+## Create Addresses
 
 Email addresses live under the `@agentuity.email` domain. Pass the local part you want to own.
 
@@ -76,7 +76,7 @@ Address IDs are prefixed with `eaddr_`. Delete an address only when you no longe
 await email.deleteAddress(address.id);
 ```
 
-## Send email
+## Send Email
 
 `send()` queues the outbound email and returns the outbound record. Delivery is asynchronous: initial `status` is `pending`, and a later `getOutbound()` reveals the final outcome.
 
@@ -135,7 +135,7 @@ await email.send({
 
 The total RFC 822 message, including attachments, must stay within the service size limit for your org (25 MB by default). Encode binary attachments with `Buffer.from(bytes).toString('base64')` or the equivalent in your runtime.
 
-## Inbound email
+## Inbound Email
 
 `listInbound()` returns all inbound messages for the org. Pass an address ID to filter to one mailbox.
 
@@ -153,7 +153,7 @@ Inbound records carry sender, recipient, subject, optional text and HTML, header
 await email.deleteInbound('einb_123');
 ```
 
-## Forward inbound email to an HTTP endpoint
+## Forward Inbound Email to an HTTP Endpoint
 
 A destination forwards each inbound email to an HTTP endpoint as it arrives. This is the usual way to wire inbound mail into your app.
 
@@ -173,7 +173,7 @@ await email.deleteDestination(address.id, destination.id);
 
 `createDestination(addressId, type, config)` takes three positional arguments. The current type is `url`. The `config.url` must be public `http` or `https` and must not point at private or loopback addresses. Destination IDs are prefixed with `edst_`.
 
-## Receive inbound email from a server route
+## Receive Inbound Email from a Server Route
 
 The route below pairs a managed address with a destination so the platform forwards every inbound email to your app. Verify any signature your destination URL expects, then publish, store, or open a task as needed.
 
@@ -207,7 +207,7 @@ app.post('/email/inbound', async (c) => {
 export default app;
 ```
 
-## Connection config
+## Connection Config
 
 Some workflows need IMAP or POP3 access to an Agentuity address, for example to plug it into an existing mail client.
 
@@ -226,7 +226,7 @@ The returned config includes `host`, `port`, `tls`, `username`, and `password` f
 The IMAP and POP3 passwords returned by `getConnectionConfig()` are real credentials. Store them with your other secrets, do not log them, and do not embed them in client-side code.
 </Callout>
 
-## Activity counts
+## Activity Counts
 
 `getActivity()` returns daily inbound and outbound counts.
 
@@ -236,7 +236,7 @@ const activity = await email.getActivity({ days: 30 });
 
 `days` is optional and accepts values between 7 and 365. Values outside that range are clamped. Defaults to 7 when omitted.
 
-## Hono middleware variant
+## Hono Middleware Variant
 
 `@agentuity/hono` builds `EmailClient` once and exposes it on `c.var.email`.
 
@@ -276,7 +276,7 @@ app.post('/notify', async (c) => {
 export default app;
 ```
 
-## Next steps
+## Next Steps
 
 - [Queues](/services/queues): move email sending or inbound parsing out of the request path
 - [Webhooks](/services/webhooks): receive HTTP callbacks alongside inbound email

@@ -12,7 +12,7 @@ Three mechanisms cover the most common integration shapes:
 - **Event history (`listEventHistory`)** for structured, paginated inspection of what the session emitted
 - **Replay (`getReplay`)** for a client that attaches after the session has started and needs to catch up to current state
 
-## Live observation with `subscribeToCoderHub`
+## Live Observation with `subscribeToCoderHub`
 
 `subscribeToCoderHub` is an async iterator that yields server messages as the Hub broadcasts them. Use it from Bun or another runtime that already exposes a global `WebSocket`.
 
@@ -67,7 +67,7 @@ try {
 
 The client handles the WebSocket handshake and heartbeat for you. Break out of the loop, or let your stop flag fire, when your app no longer needs the stream.
 
-## Structured audit with event history
+## Structured Audit with Event History
 
 `listEventHistory` returns the events the session has emitted so far, sorted and paginated. Use `limit` and `offset` to page through large sessions without loading all events at once.
 
@@ -140,7 +140,7 @@ Frame `getReplay` as hydration, not narrative review. A newly attached client ca
 | `listEventHistory` | Structured audit: evaluators, audit logs, session timelines |
 | `getReplay` | Client hydration: a late-joining client catching up to current session state |
 
-## See also
+## See Also
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Create sessions, read state, and manage lifecycle
 - [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Poll loop state for headless autonomous runs

@@ -6,7 +6,7 @@ description: How the Agentuity GitHub App automates deployments from your reposi
 
 Manually deploying after every push is error-prone and slow. Linking a GitHub repository to the Agentuity GitHub App automates deployments on push and creates isolated preview environments for pull requests.
 
-## Events and actions
+## Events and Actions
 
 Once a repository is linked, Agentuity listens for GitHub events and acts on them:
 
@@ -17,7 +17,7 @@ Once a repository is linked, Agentuity listens for GitHub events and acts on the
 
 Push deploys and preview environments can each be enabled or disabled independently via `agentuity git link`.
 
-## Deployment flow
+## Deployment Flow
 
 **Push to linked branch:**
 
@@ -65,15 +65,15 @@ agentuity git link --repo owner/repo --branch main --deploy true --preview true
 If your project lives in a subdirectory, set `--root packages/my-agent`. Agentuity uses this path to locate `agentuity.json` and scope the build to that directory.
 </Callout>
 
-## Deployment events
+## Deployment Events
 
-### Push deploys
+### Push Deploys
 
 When auto-deploy is enabled, any push to the linked branch triggers a build and live deployment. The project URL updates to point to the new deployment once it succeeds.
 
 Pushes to other branches are ignored. Only the configured branch triggers deploys.
 
-### Preview environments
+### Preview Environments
 
 When preview environments are enabled, each pull request gets its own isolated deployment. Preview environments:
 
@@ -86,11 +86,11 @@ When preview environments are enabled, each pull request gets its own isolated d
 Preview URLs are tied to the PR, not the commit. The URL stays the same for the lifetime of the PR, but the deployment behind it updates on each new commit.
 </Callout>
 
-## Build process
+## Build Process
 
 When the Agentuity GitHub App builds your project, it downloads your source code, installs dependencies, and runs deploy lifecycle scripts around `agentuity deploy` from an isolated build environment.
 
-### Default behavior
+### Default Behavior
 
 The platform installs dependencies before running deployment scripts:
 
@@ -102,7 +102,7 @@ The platform installs dependencies before running deployment scripts:
 
 No extra setup is required beyond linking your repository.
 
-### Pre-deploy scripts
+### Pre-Deploy Scripts
 
 If your `package.json` defines a `predeploy` script, it runs after dependency installation and before `agentuity deploy`:
 
@@ -117,11 +117,11 @@ If your `package.json` defines a `predeploy` script, it runs after dependency in
 
 Use `predeploy` for monorepo package builds, generated assets, or validation that must happen before deployment.
 
-### Post-deploy scripts
+### Post-Deploy Scripts
 
 If your `package.json` defines a `postdeploy` script, it runs after `agentuity deploy` completes successfully. Use it for notifications, changelog updates, or downstream tasks.
 
-### Build resources
+### Build Resources
 
 The build environment is separate from your runtime environment. If builds time out or run out of memory, increase the build resources in `agentuity.json`:
 
@@ -146,7 +146,7 @@ Agentuity verifies that each push or PR sender has a linked Agentuity account an
 
 Every contributor who should trigger deployments must connect their GitHub identity via `agentuity git identity connect` and be a member of the project's organization.
 
-## GitHub checks and PR comments
+## GitHub Checks and PR Comments
 
 **GitHub Checks** appear on every commit that triggers a build. They show:
 
@@ -163,7 +163,7 @@ Every contributor who should trigger deployments must connect their GitHub ident
 
 If a PR already has a comment from a previous build, it is updated in place rather than posting a new one.
 
-## Multi-account support
+## Multi-Account Support
 
 The Agentuity GitHub App can be installed on multiple GitHub accounts, both personal and organization. Each installation grants access to repositories under that account.
 
@@ -175,7 +175,7 @@ agentuity git account add
 
 You can link projects to repositories from any installed account. See [Setting Up Git Integration](/reference/cli/git-integration) for the full account setup flow.
 
-## Next steps
+## Next Steps
 
 - [Setting Up Git Integration](/reference/cli/git-integration): CLI commands for connecting GitHub, installing the app, and linking repositories
 - [Deployment](/reference/cli/deployment): Deployment configuration, URLs, rollback, and environment variables

@@ -34,7 +34,7 @@ Start here when the thing you are deploying is an app, API, static site, worker 
   />
 </Cards>
 
-## Choose the app shape
+## Choose the App Shape
 
 | App shape | Use when | Start with |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ Start here when the thing you are deploying is an app, API, static site, worker 
 | Static site | The app is plain HTML, a docs site, or a static SPA bundle. | [Static Sites](/build/apps-and-apis/static-sites) |
 | Background work | A request starts work that needs retries, status, or durable output. | [Background Work](/build/apps-and-apis/background-work) |
 
-## Minimal backend shape
+## Minimal Backend Shape
 
 A deployable app can be a plain HTTP server. This Hono example has no agent-specific wrapper:
 
@@ -66,7 +66,7 @@ export default app;
 
 Add service clients only where the app needs them. A route can call `KeyValueClient`, a worker can publish to `QueueClient`, and a script can call `SandboxClient` with the same project credentials. Keep your app database, ORM, and framework logger where they already fit.
 
-## Next steps
+## Next Steps
 
 Use these pages after you choose the HTTP, static, or background-work shape.
 

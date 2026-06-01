@@ -26,7 +26,7 @@ For normal managed sessions, omit `runtime`. Coder's default runtime includes th
 
 Use Coder when the unit of work is a shared session with history, lifecycle, and reconnect semantics, not just a sandbox process.
 
-## Session output contracts
+## Session Output Contracts
 
 Coder works best when the task prompt defines what "done" means. Include the goal, inputs, expected files or report paths, verification command, stopping rule, and what the agent should do when evidence is missing.
 
@@ -49,7 +49,7 @@ Stop when:
 
 Put the same run id and expected paths in session `metadata` so dashboards, webhooks, or follow-up jobs can correlate the Coder session with your app's record. See [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk) for a complete session creation example.
 
-## Managing sessions
+## Managing Sessions
 
 | Method | Best For |
 |--------|----------|
@@ -76,7 +76,7 @@ A Coder session has three components:
 
 Sessions support multiple participants: the Lead agent, delegated specialist agents, teammates in the web app, a terminal TUI, SDK/API clients, and observers that stream the session in real time.
 
-## Agents and skills
+## Agents and Skills
 
 Coder has a Lead agent for coordination. The Lead can delegate work to enabled specialists, including built-in agents such as `builder` and `reviewer`, and published custom agents from your org library.
 
@@ -102,7 +102,7 @@ Keep these library concepts separate:
 
 Workspaces bundle the setup a coding session needs: repositories, saved skills, skill buckets, dependency setup, Lead prompt guidance, and agent selections. Use `createAgentBuilderSession()` when you want Agent Builder to help create or update a reusable custom agent programmatically.
 
-## Reading session state
+## Reading Session State
 
 When you inspect a session from the SDK or CLI, these fields do most of the work:
 
@@ -138,7 +138,7 @@ In practice:
 | See who is currently attached | `listParticipants()` |
 | Watch the live session feed | `subscribeToCoderHub()` |
 
-## Create, then attach later
+## Create, Then Attach Later
 
 A common app flow starts a Coder session from a route or admin tool, stores the returned `sessionId`, then lets another client attach when the runtime is available.
 
@@ -172,7 +172,7 @@ if (!session.runtimeAvailable) {
 
 Use `listConnectableSessions()` for a picker of sessions that are good candidates for attach flows. `prepareSessionForRemoteAttach()` wakes a paused, wakeable session and polls until it is live enough to attach or the timeout is reached.
 
-## SDK usage
+## SDK Usage
 
 Install the standalone package:
 
@@ -182,7 +182,7 @@ bun add @agentuity/coder@next @agentuity/telemetry@next
 
 For the first SDK integration, start with [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk). For the rest of the runnable Coder examples, see the [Coder cookbook section](/cookbook#coder), including how to branch into [Loop-Mode Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions), [Attach Skills](/cookbook/patterns/attaching-skills-to-a-coder-session), [Use Workspaces](/cookbook/patterns/using-workspaces-to-reuse-repos-skills-and-agent-selection), and more.
 
-### Creating and listing sessions
+### Creating and Listing Sessions
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -209,7 +209,7 @@ for (const s of sessions) {
 }
 ```
 
-### Session operations
+### Session Operations
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -235,7 +235,7 @@ await client.resumeSession('codesess_abc123');
 await client.deleteSession('codesess_abc123');
 ```
 
-### Session data and replay
+### Session Data and Replay
 
 ```typescript
 import { CoderClient } from '@agentuity/coder';
@@ -256,7 +256,7 @@ const events = await client.listEventHistory(sessionId, { limit: 50 });
 const loopState = await client.getLoopState(sessionId);
 ```
 
-### Workspaces and skills
+### Workspaces and Skills
 
 Workspaces group repositories, setup inputs, skills, and agent selections into reusable configurations that can be attached to sessions. Dependencies are APT packages, `setupScript` runs while the workspace is prepared, and `systemPromptMode` controls whether workspace guidance appends to or overwrites the Lead prompt.
 
@@ -334,7 +334,7 @@ const { buckets } = await client.listSkillBuckets();
 await client.deleteSkillBucket('bucket_abc123');
 ```
 
-### Custom agents
+### Custom Agents
 
 Custom agents package reusable domain knowledge, tools, service access, saved skills, and companion agents. Create or edit a draft, then publish it before selecting its slug in a session or workspace roster.
 
@@ -368,7 +368,7 @@ const { agents } = await client.listCustomAgents();
 await client.archiveCustomAgent(agent.id);
 ```
 
-### Agent Builder sessions
+### Agent Builder Sessions
 
 `createAgentBuilderSession()` opens a session that uses Agent Builder to create or edit a custom agent. It supports three modes: `new` (default), `edit` (update an existing agent), and `from_session` (derive a new agent from a past session's history).
 
@@ -429,7 +429,7 @@ if (firstAccount) {
 
 `createSession()` and the custom agent methods accept an optional `model` string that overrides the default for that session or agent. The Hub maps model strings to provider profiles. Valid values are managed by the platform; check the web app for the current list.
 
-### Client configuration
+### Client Configuration
 
 The client picks one of two modes based on what you provide.
 
@@ -465,7 +465,7 @@ The client resolves the Hub URL in this order:
 
 Most apps only need the API key. Set `AGENTUITY_SDK_KEY` and let the client discover the rest.
 
-## CLI usage
+## CLI Usage
 
 ```bash
 # Open the interactive terminal session (aliases: start, run)
@@ -512,7 +512,7 @@ agentuity coder users
 
 See [Coder CLI Commands](/reference/cli/coder) for the full command reference including all flags.
 
-### Session modes
+### Session Modes
 
 `CoderSessionMode` is `'sandbox' | 'tui'`. Running `agentuity coder tui` with no extra flags launches the interactive local terminal session (`tui` mode). The `--sandbox` flag creates a cloud sandbox session and attaches to it. The `--remote` flag is not a mode: it attaches to an existing connectable sandbox session.
 
@@ -521,7 +521,7 @@ See [Coder CLI Commands](/reference/cli/coder) for the full command reference in
 | `tui` | Interactive agent in your local terminal |
 | `sandbox` | Agent runs in a cloud sandbox; observe via CLI or web |
 
-## Session lifecycle
+## Session Lifecycle
 
 `status` is a detailed string from the Coder service. For UI grouping, use the SDK's `bucket` field.
 
@@ -532,14 +532,14 @@ See [Coder CLI Commands](/reference/cli/coder) for the full command reference in
 | `paused` | Runtime is offline, but the session may still be wakeable |
 | `history` | Session is replay-only; use replay or event history instead of live attach |
 
-## Connecting via plugins
+## Connecting via Plugins
 
 The Claude Code and OpenCode plugins integrate with the Coder ecosystem:
 
 - **Claude Code/Cowork**: The [Agentuity plugin](/reference/cli/claude-code-plugin) adds auto-activated Agentuity skills to Claude Code and Cowork. Use it when you want help deploying apps, managing cloud services, or building with the SDK from that editor workflow. It is not the API for creating or inspecting Coder sessions.
 - **OpenCode**: The [OpenCode plugin](/reference/cli/opencode-plugin) adds Agentuity-aware agents, slash commands, and dashboard tooling to OpenCode. Use it when you want an editor-based multi-agent workflow rather than a managed Coder session.
 
-## Next steps
+## Next Steps
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Core SDK flow for create, read, archive, and delete operations
 - [Choosing Coder Agents for a Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Choose the built-in or published custom agent roster for a session

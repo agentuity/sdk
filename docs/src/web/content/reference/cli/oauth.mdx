@@ -10,7 +10,7 @@ Use `agentuity cloud oidc` to create OAuth apps, inspect their configuration, ro
 Run from an Agentuity project, pass the global `--org-id <id>` option, set `AGENTUITY_CLOUD_ORG_ID`, or configure a default organization before running `cloud oidc` commands.
 </Callout>
 
-## Quick reference
+## Quick Reference
 
 | Command | Description |
 |---------|-------------|
@@ -24,7 +24,7 @@ Run from an Agentuity project, pass the global `--org-id <id>` option, set `AGEN
 
 Global CLI options such as `--json`, `--org-id`, `--validate`, and `--help` work with these commands.
 
-## Create an application
+## Create an Application
 
 Register a new OAuth application interactively:
 
@@ -43,7 +43,7 @@ agentuity cloud oidc create \
   --scopes "openid,profile,email"
 ```
 
-### Create options
+### Create Options
 
 | Option | Required in non-interactive mode | Description |
 |--------|----------------------------------|-------------|
@@ -62,7 +62,7 @@ The client secret is displayed when a confidential app is created. It cannot be 
 
 **Alias:** `new`
 
-## List applications
+## List Applications
 
 ```bash
 agentuity cloud oidc list
@@ -76,7 +76,7 @@ agentuity cloud oidc list --json
 
 **Alias:** `ls`
 
-## Get application details
+## Get Application Details
 
 ```bash
 agentuity cloud oidc get <id>
@@ -90,7 +90,7 @@ agentuity cloud oidc get oac_abc123 --json
 
 **Aliases:** `show`, `info`
 
-## Delete an application
+## Delete an Application
 
 ```bash
 agentuity cloud oidc delete <id>
@@ -109,7 +109,7 @@ agentuity cloud oidc delete oac_abc123 --force
 
 **Aliases:** `rm`, `del`, `remove`, `terminate`
 
-## Rotate a client secret
+## Rotate a Client Secret
 
 ```bash
 agentuity cloud oidc rotate-secret <id>
@@ -129,7 +129,7 @@ agentuity cloud oidc rotate-secret oac_abc123 --force
 After rotation, apps that still use the old secret cannot exchange authorization codes. Update the consuming app's environment variables as part of the rotation.
 </Callout>
 
-## View activity
+## View Activity
 
 ```bash
 agentuity cloud oidc activity <id>
@@ -145,7 +145,7 @@ Shows daily activity records with total access count and unique users. The defau
 agentuity cloud oidc activity oac_abc123 --days 30
 ```
 
-## List connected users
+## List Connected Users
 
 ```bash
 agentuity cloud oidc users <id>
@@ -153,7 +153,7 @@ agentuity cloud oidc users <id>
 
 Displays user IDs, granted scopes, and the connection date for users who authorized the application.
 
-## Validate without creating
+## Validate without Creating
 
 Use the global `--validate` option to check command arguments without executing the create request:
 
@@ -166,7 +166,7 @@ agentuity --validate cloud oidc create \
   --scopes "openid,profile,email"
 ```
 
-## Next steps
+## Next Steps
 
 - [Sign in with Agentuity](/services/oidc-provider): add OIDC sign-in, token storage, and scoped access
 - [REST API OAuth Reference](/reference/api/oauth): manage OAuth applications and consent grants over HTTP

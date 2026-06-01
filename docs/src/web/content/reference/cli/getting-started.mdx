@@ -96,7 +96,7 @@ agentuity cloud region current
 agentuity cloud region unselect
 ```
 
-## Creating projects
+## Creating Projects
 
 Create a new Agentuity project:
 
@@ -138,7 +138,7 @@ Create-supported framework slugs:
 
 React Router, Vite + React, and TanStack Start are import-first paths, not create slugs. Start with the framework's own CLI, then run `agentuity project import`.
 
-### Project creation options
+### Project Creation Options
 
 | Option | Description |
 |--------|-------------|
@@ -159,7 +159,7 @@ React Router, Vite + React, and TanStack Start are import-first paths, not creat
 `--no-register` leaves the app without `agentuity.json` or an Agentuity SDK key in `.env`. Run `agentuity project import --name my-app` before the first deploy.
 </Callout>
 
-## Importing existing apps
+## Importing Existing Apps
 
 Use `agentuity project import` when you already have a framework app, or when a project was created with `--no-register`.
 
@@ -187,7 +187,7 @@ agentuity project import --dir ./my-app --name my-app --deploy
 
 The import flow checks for `agentuity.json`, verifies your access to the linked project when one exists, and creates or updates project configuration when needed.
 
-### Project import options
+### Project Import Options
 
 | Option | Description |
 |--------|-------------|
@@ -203,7 +203,7 @@ The import flow checks for `agentuity.json`, verifies your access to the linked 
 | `--org-id <id>` | Organization ID |
 | `-y, --confirm` | Skip confirmation prompts |
 
-## Managing projects
+## Managing Projects
 
 List registered projects:
 

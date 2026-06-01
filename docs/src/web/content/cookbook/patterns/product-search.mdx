@@ -10,7 +10,7 @@ A product search built on vector storage understands natural language ("comforta
 bun add hono @agentuity/aigateway@next @agentuity/vector@next zod
 ```
 
-## Index products
+## Index Products
 
 Indexing is idempotent. Run it again on the same `id` to update the stored vector and metadata.
 
@@ -58,7 +58,7 @@ export async function indexProducts(body: unknown): Promise<{ indexed: number }>
 }
 ```
 
-## Search with filters
+## Search with Filters
 
 `vector.search()` returns `id`, `key`, `similarity`, and optional `metadata`. Filter the result list by category, price, and availability after the search.
 
@@ -157,7 +157,7 @@ A note on metadata generics:
 
 `vector.search<T>()` requires `T extends Record<string, unknown>`. Use a `type` intersection (`& Record<string, unknown>`) so a normal interface with known fields satisfies the constraint. An interface declared without that intersection will fail typecheck.
 
-## Optional: recommend the best match
+## Optional: Recommend the Best Match
 
 When customers benefit from guidance ("which chair fits a tall desk?"), feed the top matches into a model and ask for one structured pick. Validate the parsed response before it leaves the route.
 
@@ -223,7 +223,7 @@ export async function recommendProduct(body: unknown): Promise<Recommendation> {
 }
 ```
 
-## Wire the routes
+## Wire the Routes
 
 The same product search powers two routes: a plain GET for query-string consumers and a POST that returns a recommendation alongside matches.
 
@@ -266,7 +266,7 @@ function parseOptionalNumber(value: string | undefined): number | undefined {
 export default app;
 ```
 
-## Try it
+## Try It
 
 ```bash
 agentuity dev
@@ -321,7 +321,7 @@ curl -X POST http://localhost:3000/api/products/recommend \
 - treat `vector.upsert()` as idempotent; reindex the same `id` to replace it
 - pass a schema to `completeStructured()`, then validate `data` before the route returns
 
-## Next steps
+## Next Steps
 
 - [Vector Storage](/services/storage/vector): metadata generics, TTL behavior, and search options
 - [Build a RAG Agent](/cookbook/tutorials/rag-agent): retrieval plus a generated answer with citations

@@ -6,7 +6,7 @@ description: Create a loop-mode Coder session and inspect its workflow state wit
 
 Loop mode gives a session explicit workflow state across iterations: a goal, iteration counters, and loop-specific status you can inspect separately from the standard session detail. It's the shape you want for review loops, bounded research, or any iteration-aware workflow that needs explicit pause and resume state.
 
-## The pattern
+## The Pattern
 
 Create the session with `workflowMode: 'loop'`, then call `getLoopState()` to read the workflow state back.
 
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## Example output
+## Example Output
 
 ```json
 {
@@ -98,7 +98,7 @@ void main();
 - `goal`: the high-level goal you gave the loop
 - `autoContinue` and `allowDetached`: whether the loop can advance and keep running without a manual step or an attached client
 
-## Checking loop progress
+## Checking Loop Progress
 
 For headless, unattended runs, configure the loop with `autoContinue: true` and `allowDetached: true`. Then have your UI refresh, worker, or scheduler call `getLoopState()` until the loop reaches a terminal status.
 
@@ -164,14 +164,14 @@ Use loop mode when your app needs explicit iteration-aware workflow state, not j
 
 If you only need a normal interactive coding session, stick with `workflowMode: 'standard'`.
 
-## Key points
+## Key Points
 
 - Loop mode is explicit. Sessions do not become loop-mode sessions automatically.
 - `getLoopState()` is the right place to inspect loop progress. Do not infer it only from top-level session status.
 - Keep the loop goal concrete. It becomes part of the state your app can show to users.
 - Start with `autoContinue: false` unless you specifically want unattended advancement.
 
-## See also
+## See Also
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the standard session flow and core lifecycle
 - [Reconnecting to Existing Coder Sessions](/cookbook/patterns/preparing-coder-sessions-for-remote-attach): Resume or inspect sessions that may still be live

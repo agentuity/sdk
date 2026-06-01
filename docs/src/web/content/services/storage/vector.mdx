@@ -48,7 +48,7 @@ const results = await vector.search('docs', {
 | files or binary data | [Object Storage](/services/storage/object) |
 | append-only ordered data | [Durable Streams](/services/storage/durable-streams) |
 
-## Upsert data
+## Upsert Data
 
 Pass `document` when you want Agentuity to generate embeddings. Pass `embeddings` when you already have vectors from another model.
 
@@ -105,7 +105,7 @@ Search results include `id`, `key`, `similarity`, optional `metadata`, and optio
 You can pass `document` and let Agentuity embed text, or pass `embeddings` from your own model. Keep a namespace on one embedding strategy so similarity scores remain comparable.
 </Callout>
 
-## Type-safe metadata
+## Type-Safe Metadata
 
 `get()`, `getMany()`, and `search()` accept a metadata generic. The constraint is `Record<string, unknown>`, so define metadata types as a `type` intersection or as an interface that extends the record.
 
@@ -128,7 +128,7 @@ if (document.exists) {
 }
 ```
 
-## Retrieve and delete
+## Retrieve and Delete
 
 Use `get()` when you already know the key, `getMany()` for batches, and `delete()` when you want to remove one or more vectors.
 
@@ -143,7 +143,7 @@ const batch = await vector.getMany('products', 'chair-001', 'desk-001');
 const deleted = await vector.delete('products', 'chair-001', 'desk-001');
 ```
 
-## Namespaces and stats
+## Namespaces and Stats
 
 Vector namespaces are created on first upsert. Use stats and namespace methods to inspect or clean up stored data.
 
@@ -203,7 +203,7 @@ app.get('/search', async (c) => {
 export default app;
 ```
 
-## Next steps
+## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): store exact-key cache and state
 - [Database](/services/database): store relational data with SQL and transactions

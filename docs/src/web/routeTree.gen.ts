@@ -63,10 +63,7 @@ import { Route as DocsGetStartedQuickstartRouteImport } from './routes/_docs/get
 import { Route as DocsGetStartedProjectStructureRouteImport } from './routes/_docs/get-started/project-structure'
 import { Route as DocsGetStartedInstallationRouteImport } from './routes/_docs/get-started/installation'
 import { Route as DocsGetStartedImportExistingAppRouteImport } from './routes/_docs/get-started/import-existing-app'
-import { Route as DocsGetStartedFaqRouteImport } from './routes/_docs/get-started/faq'
-import { Route as DocsGetStartedDocsForAgentsRouteImport } from './routes/_docs/get-started/docs-for-agents'
 import { Route as DocsGetStartedAppConfigurationRouteImport } from './routes/_docs/get-started/app-configuration'
-import { Route as DocsGetStartedAgentDrivenSetupRouteImport } from './routes/_docs/get-started/agent-driven-setup'
 import { Route as DocsFrontendWorkbenchRouteImport } from './routes/_docs/frontend/workbench'
 import { Route as DocsFrontendStaticRenderingRouteImport } from './routes/_docs/frontend/static-rendering'
 import { Route as DocsFrontendRpcClientRouteImport } from './routes/_docs/frontend/rpc-client'
@@ -483,27 +480,10 @@ const DocsGetStartedImportExistingAppRoute =
     path: '/get-started/import-existing-app',
     getParentRoute: () => DocsRouteRoute,
   } as any)
-const DocsGetStartedFaqRoute = DocsGetStartedFaqRouteImport.update({
-  id: '/get-started/faq',
-  path: '/get-started/faq',
-  getParentRoute: () => DocsRouteRoute,
-} as any)
-const DocsGetStartedDocsForAgentsRoute =
-  DocsGetStartedDocsForAgentsRouteImport.update({
-    id: '/get-started/docs-for-agents',
-    path: '/get-started/docs-for-agents',
-    getParentRoute: () => DocsRouteRoute,
-  } as any)
 const DocsGetStartedAppConfigurationRoute =
   DocsGetStartedAppConfigurationRouteImport.update({
     id: '/get-started/app-configuration',
     path: '/get-started/app-configuration',
-    getParentRoute: () => DocsRouteRoute,
-  } as any)
-const DocsGetStartedAgentDrivenSetupRoute =
-  DocsGetStartedAgentDrivenSetupRouteImport.update({
-    id: '/get-started/agent-driven-setup',
-    path: '/get-started/agent-driven-setup',
     getParentRoute: () => DocsRouteRoute,
   } as any)
 const DocsFrontendWorkbenchRoute = DocsFrontendWorkbenchRouteImport.update({
@@ -1344,10 +1324,7 @@ export interface FileRoutesByFullPath {
   '/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
   '/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/frontend/workbench': typeof DocsFrontendWorkbenchRoute
-  '/get-started/agent-driven-setup': typeof DocsGetStartedAgentDrivenSetupRoute
   '/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
-  '/get-started/docs-for-agents': typeof DocsGetStartedDocsForAgentsRoute
-  '/get-started/faq': typeof DocsGetStartedFaqRoute
   '/get-started/import-existing-app': typeof DocsGetStartedImportExistingAppRoute
   '/get-started/installation': typeof DocsGetStartedInstallationRoute
   '/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
@@ -1537,10 +1514,7 @@ export interface FileRoutesByTo {
   '/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
   '/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/frontend/workbench': typeof DocsFrontendWorkbenchRoute
-  '/get-started/agent-driven-setup': typeof DocsGetStartedAgentDrivenSetupRoute
   '/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
-  '/get-started/docs-for-agents': typeof DocsGetStartedDocsForAgentsRoute
-  '/get-started/faq': typeof DocsGetStartedFaqRoute
   '/get-started/import-existing-app': typeof DocsGetStartedImportExistingAppRoute
   '/get-started/installation': typeof DocsGetStartedInstallationRoute
   '/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
@@ -1734,10 +1708,7 @@ export interface FileRoutesById {
   '/_docs/frontend/rpc-client': typeof DocsFrontendRpcClientRoute
   '/_docs/frontend/static-rendering': typeof DocsFrontendStaticRenderingRoute
   '/_docs/frontend/workbench': typeof DocsFrontendWorkbenchRoute
-  '/_docs/get-started/agent-driven-setup': typeof DocsGetStartedAgentDrivenSetupRoute
   '/_docs/get-started/app-configuration': typeof DocsGetStartedAppConfigurationRoute
-  '/_docs/get-started/docs-for-agents': typeof DocsGetStartedDocsForAgentsRoute
-  '/_docs/get-started/faq': typeof DocsGetStartedFaqRoute
   '/_docs/get-started/import-existing-app': typeof DocsGetStartedImportExistingAppRoute
   '/_docs/get-started/installation': typeof DocsGetStartedInstallationRoute
   '/_docs/get-started/project-structure': typeof DocsGetStartedProjectStructureRoute
@@ -1931,10 +1902,7 @@ export interface FileRouteTypes {
     | '/frontend/rpc-client'
     | '/frontend/static-rendering'
     | '/frontend/workbench'
-    | '/get-started/agent-driven-setup'
     | '/get-started/app-configuration'
-    | '/get-started/docs-for-agents'
-    | '/get-started/faq'
     | '/get-started/import-existing-app'
     | '/get-started/installation'
     | '/get-started/project-structure'
@@ -2124,10 +2092,7 @@ export interface FileRouteTypes {
     | '/frontend/rpc-client'
     | '/frontend/static-rendering'
     | '/frontend/workbench'
-    | '/get-started/agent-driven-setup'
     | '/get-started/app-configuration'
-    | '/get-started/docs-for-agents'
-    | '/get-started/faq'
     | '/get-started/import-existing-app'
     | '/get-started/installation'
     | '/get-started/project-structure'
@@ -2320,10 +2285,7 @@ export interface FileRouteTypes {
     | '/_docs/frontend/rpc-client'
     | '/_docs/frontend/static-rendering'
     | '/_docs/frontend/workbench'
-    | '/_docs/get-started/agent-driven-setup'
     | '/_docs/get-started/app-configuration'
-    | '/_docs/get-started/docs-for-agents'
-    | '/_docs/get-started/faq'
     | '/_docs/get-started/import-existing-app'
     | '/_docs/get-started/installation'
     | '/_docs/get-started/project-structure'
@@ -2870,32 +2832,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsGetStartedImportExistingAppRouteImport
       parentRoute: typeof DocsRouteRoute
     }
-    '/_docs/get-started/faq': {
-      id: '/_docs/get-started/faq'
-      path: '/get-started/faq'
-      fullPath: '/get-started/faq'
-      preLoaderRoute: typeof DocsGetStartedFaqRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/_docs/get-started/docs-for-agents': {
-      id: '/_docs/get-started/docs-for-agents'
-      path: '/get-started/docs-for-agents'
-      fullPath: '/get-started/docs-for-agents'
-      preLoaderRoute: typeof DocsGetStartedDocsForAgentsRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
     '/_docs/get-started/app-configuration': {
       id: '/_docs/get-started/app-configuration'
       path: '/get-started/app-configuration'
       fullPath: '/get-started/app-configuration'
       preLoaderRoute: typeof DocsGetStartedAppConfigurationRouteImport
-      parentRoute: typeof DocsRouteRoute
-    }
-    '/_docs/get-started/agent-driven-setup': {
-      id: '/_docs/get-started/agent-driven-setup'
-      path: '/get-started/agent-driven-setup'
-      fullPath: '/get-started/agent-driven-setup'
-      preLoaderRoute: typeof DocsGetStartedAgentDrivenSetupRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/_docs/frontend/workbench': {
@@ -3963,10 +3904,7 @@ interface DocsRouteRouteChildren {
   DocsFrontendRpcClientRoute: typeof DocsFrontendRpcClientRoute
   DocsFrontendStaticRenderingRoute: typeof DocsFrontendStaticRenderingRoute
   DocsFrontendWorkbenchRoute: typeof DocsFrontendWorkbenchRoute
-  DocsGetStartedAgentDrivenSetupRoute: typeof DocsGetStartedAgentDrivenSetupRoute
   DocsGetStartedAppConfigurationRoute: typeof DocsGetStartedAppConfigurationRoute
-  DocsGetStartedDocsForAgentsRoute: typeof DocsGetStartedDocsForAgentsRoute
-  DocsGetStartedFaqRoute: typeof DocsGetStartedFaqRoute
   DocsGetStartedImportExistingAppRoute: typeof DocsGetStartedImportExistingAppRoute
   DocsGetStartedInstallationRoute: typeof DocsGetStartedInstallationRoute
   DocsGetStartedProjectStructureRoute: typeof DocsGetStartedProjectStructureRoute
@@ -4112,10 +4050,7 @@ const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsFrontendRpcClientRoute: DocsFrontendRpcClientRoute,
   DocsFrontendStaticRenderingRoute: DocsFrontendStaticRenderingRoute,
   DocsFrontendWorkbenchRoute: DocsFrontendWorkbenchRoute,
-  DocsGetStartedAgentDrivenSetupRoute: DocsGetStartedAgentDrivenSetupRoute,
   DocsGetStartedAppConfigurationRoute: DocsGetStartedAppConfigurationRoute,
-  DocsGetStartedDocsForAgentsRoute: DocsGetStartedDocsForAgentsRoute,
-  DocsGetStartedFaqRoute: DocsGetStartedFaqRoute,
   DocsGetStartedImportExistingAppRoute: DocsGetStartedImportExistingAppRoute,
   DocsGetStartedInstallationRoute: DocsGetStartedInstallationRoute,
   DocsGetStartedProjectStructureRoute: DocsGetStartedProjectStructureRoute,

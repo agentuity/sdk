@@ -69,7 +69,7 @@ Managed KV clamps per-key TTL values below 60 seconds to 60 seconds and values a
 Managed KV uses sliding expiration: a read on a key with less than 50% of its TTL remaining renews it back to the original TTL. Frequently accessed cache entries stay alive without manual renewal.
 </Callout>
 
-## Type safety
+## Type Safety
 
 Pass a generic to `get()`, `set()`, and `search()` to keep stored values typed end to end. The `exists` discriminator lets TypeScript narrow the result.
 
@@ -92,7 +92,7 @@ async function loadCachedResponse(
 }
 ```
 
-## Search and inspect keys
+## Search and Inspect Keys
 
 Use `search()` when you need matching keys with stored value metadata. Use `getKeys()` when you only need the keys in a namespace.
 
@@ -124,7 +124,7 @@ const allStats = await kv.getAllStats({ limit: 100, sort: 'size' });
 `@agentuity/local` is useful when you want local reads and writes without managed credentials. For search, key listing, stats, or namespace operations, test against the managed KV service.
 </Callout>
 
-## Namespace management
+## Namespace Management
 
 Create namespaces when you want a default TTL before the first write. Delete namespaces only when you mean to remove every key inside them.
 
@@ -140,9 +140,9 @@ await kv.deleteNamespace('old-cache');
 `deleteNamespace()` permanently removes the namespace and all keys inside it.
 </Callout>
 
-## Common patterns
+## Common Patterns
 
-### Cache around a slow read
+### Cache Around a Slow Read
 
 Cache an expensive call with a short TTL and a cheap key.
 
@@ -166,7 +166,7 @@ export async function getQuote(symbol: string): Promise<PriceQuote> {
 }
 ```
 
-### Session record with sliding renewal
+### Session Record with Sliding Renewal
 
 Store session state with a 24-hour TTL. Reads renew the TTL automatically while the user is active.
 
@@ -228,7 +228,7 @@ app.get('/sessions/:id', async (c) => {
 export default app;
 ```
 
-## Next steps
+## Next Steps
 
 - [Vector Storage](/services/storage/vector): use semantic search when exact keys are not enough
 - [Database](/services/database): use Postgres for joins, constraints, and transactions

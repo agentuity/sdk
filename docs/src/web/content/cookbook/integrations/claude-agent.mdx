@@ -9,7 +9,7 @@ The [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/typescript)
 bun add hono @anthropic-ai/claude-agent-sdk @agentuity/keyvalue@next arktype
 ```
 
-## Run a single turn
+## Run a Single Turn
 
 `query()` returns an async iterator of SDK messages. Drain the iterator to get the final result message; it carries the assistant text plus the session ID.
 
@@ -54,7 +54,7 @@ export async function runCodeAssist(prompt: string, sessionId?: string): Promise
 
 The `resume` option carries on a previous session by ID. The first call creates a session; subsequent calls reuse it for cheap multi-turn conversations.
 
-## Track sessions per conversation
+## Track Sessions per Conversation
 
 Map your app's conversation IDs to Claude session IDs in [key-value storage](/services/storage/key-value). The route looks up the session before calling `query()` and stores the latest one after each response.
 
@@ -133,7 +133,7 @@ For deployed apps that need workspaces to outlive a process, write files to [obj
 
 Pick this SDK when you want Claude's full agent loop with file tools, planning, and multi-turn caching. Pick the [Anthropic SDK Messages API](/cookbook/patterns/autonomous-research) when you want full control over `tool_use` blocks. Pick [AI SDK](/build/agents) for one provider-agnostic surface.
 
-## Next steps
+## Next Steps
 
 - [Agents](/build/agents): the plain-function pattern this page wraps
 - [Chat with History](/cookbook/patterns/chat-with-history): a similar conversation pattern, without an external SDK

@@ -10,7 +10,7 @@ Use a coding-agent sandbox when your app needs to run a specific agent CLI or se
 bun add @agentuity/sandbox@next @agentuity/telemetry@next
 ```
 
-## Choose a path
+## Choose a Path
 
 | Path | Use It When | What You Manage |
 |------|-------------|-----------------|
@@ -21,7 +21,7 @@ bun add @agentuity/sandbox@next @agentuity/telemetry@next
 
 A runtime being present only proves the tool image is available. Model access, provider credentials, network policy, and tool permissions are separate prerequisites.
 
-## Verify a runtime in the catalog
+## Verify a Runtime in the Catalog
 
 List runtimes before hard-coding one into a workflow. Runtime names are catalog data for your org, not a TypeScript enum or a guaranteed product roster.
 
@@ -55,7 +55,7 @@ Expected output excerpt:
 
 Use this catalog check for the runtime you intend to run. The examples below use `opencode:latest` only after the catalog returns it. If your org does not return that runtime, stop and pick a listed runtime or ask an org admin whether that image should be enabled.
 
-## Verify OpenCode is installed
+## Verify OpenCode Is Installed
 
 Use `SandboxClient.run()` for a fast runtime check before you build a longer workflow around a coding-agent image.
 
@@ -94,7 +94,7 @@ Expected output excerpt:
 
 Do not assume the writable directory or binary path across runtimes. Use `pwd`, `which`, and relative paths unless the runtime catalog or your own validation proves a fixed path.
 
-## Run agent CLIs with explicit failure checks
+## Run Agent CLIs with Explicit Failure Checks
 
 Coding-agent CLIs can emit structured error events even when the process exits successfully. When you run a headless agent command, parse the event stream and fail the workflow if any event reports an error.
 
@@ -173,7 +173,7 @@ logger.info('coding agent command finished', {
 `opencode --version` only proves the runtime image and binary are available. A headless `opencode run --format json` command can still return provider, network, auth, or permission errors in JSON event output. Treat those as configuration failures, not as proof that the runtime is missing.
 </Callout>
 
-## Long-lived agent servers
+## Long-Lived Agent Servers
 
 Use `SandboxClient.create()` when the coding agent exposes a server or needs multiple requests against the same workspace.
 
@@ -202,7 +202,7 @@ This pattern fits assistant-style workflows where your app keeps a conversation 
 | JSON event has `type: "error"` | Provider, network, auth, or tool permission failure | Log the event payload and fix the provider/runtime config |
 | Workflow needs repo history, review, or reconnect | Plain sandbox state is the wrong abstraction | Start a [Coder session](/services/coder) with a repo/workspace and output contract |
 
-## See also
+## See Also
 
 - [Ephemeral workflows](/services/sandbox/ephemeral-workflows): validate generated code with one-shot sandboxes
 - [Run External Coding Tools in Sandbox](/cookbook/patterns/running-external-coding-tools-in-sandbox): run a formatter, linter, test command, or agent CLI with a bounded result contract

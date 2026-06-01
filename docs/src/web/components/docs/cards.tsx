@@ -1,3 +1,4 @@
+import { Children } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ExternalLink } from 'lucide-react';
@@ -131,8 +132,14 @@ export function ExternalCard({
  * Grid container for CardLink components on section index pages
  */
 export function Cards({ children, className }: CardsProps) {
+	const childCount = Children.toArray(children).filter((child) => {
+		return typeof child !== 'string' || child.trim().length > 0;
+	}).length;
+	const balancedColumns =
+		childCount === 2 || childCount === 4 ? 'lg:grid-cols-2' : 'lg:grid-cols-3';
+
 	return (
-		<div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-3 my-6', className)}>
+		<div className={cn('grid gap-4 sm:grid-cols-2 my-6', balancedColumns, className)}>
 			{children}
 		</div>
 	);

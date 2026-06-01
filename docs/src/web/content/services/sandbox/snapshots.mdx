@@ -65,7 +65,7 @@ try {
 
 When `snapshot` is set, do not also set `runtime` or `runtimeId`. The snapshot already includes its base runtime.
 
-## Declarative snapshots
+## Declarative Snapshots
 
 Use a snapshot file when you want the environment definition in version control.
 
@@ -116,7 +116,7 @@ Use `--dry-run` to validate that the build file is well-formed and all reference
 
 Use `--public --confirm` only when you intentionally want a public snapshot.
 
-## Manual snapshots
+## Manual Snapshots
 
 Manual snapshots are useful while you are exploring an environment from the CLI.
 
@@ -158,7 +158,7 @@ try {
 }
 ```
 
-## Managing snapshots
+## Managing Snapshots
 
 List and inspect snapshots with `SandboxClient`:
 
@@ -216,7 +216,7 @@ agentuity cloud sandbox snapshot tag snp_xyz789 --clear
 agentuity cloud sandbox snapshot delete snp_xyz789 --confirm
 ```
 
-## Versioned environments
+## Versioned Environments
 
 Use tags when callers should not need to know snapshot IDs.
 
@@ -245,7 +245,7 @@ Snapshots include:
 
 Snapshots do not include running processes or active network connections. For manual snapshots, pass environment variables again when you create or run the next sandbox.
 
-## Snapshots vs checkpoints
+## Snapshots vs Checkpoints
 
 Snapshots are reusable bases for new sandboxes. Checkpoints belong to one sandbox and let you restore that same sandbox to a previous filesystem state.
 
@@ -257,14 +257,14 @@ await checkpoint.restore();
 await checkpoint.delete();
 ```
 
-## Best practices
+## Best Practices
 
 - Use snapshots for dependencies that are expensive to install repeatedly.
 - Keep snapshot contents small. Include only files and packages needed by the run.
 - Tag snapshots that application code will reference, such as `latest`, `v1.0`, or `python-data-v2`.
 - Delete old snapshots once no active workflow depends on them.
 
-## Next steps
+## Next Steps
 
 - [Using the Sandbox API](/services/sandbox/sdk-usage): file I/O, jobs, checkpoints, and method reference tables
 - [CLI Sandbox Commands](/reference/cli/sandbox): manage sandbox resources from the terminal

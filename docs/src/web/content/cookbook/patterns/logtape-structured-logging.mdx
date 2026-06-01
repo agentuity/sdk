@@ -10,7 +10,7 @@ When an Agentuity app already uses [LogTape](https://logtape.org/manual/start) c
 bun add @logtape/logtape @logtape/otel
 ```
 
-## Configure sinks at startup
+## Configure Sinks at Startup
 
 Configure LogTape once before route modules or workers start logging. Keep the OpenTelemetry sink behind an explicit option so local tests can run with console output only.
 
@@ -75,7 +75,7 @@ export async function disposeSupportLogging(): Promise<void> {
 }
 ```
 
-## Point the sink at a collector
+## Point the Sink at a Collector
 
 The LogTape OpenTelemetry sink reads standard OTLP log exporter environment variables. Use the log-specific variables when your collector has separate endpoints.
 
@@ -90,7 +90,7 @@ For vendor collectors, add the headers that collector requires:
 OTEL_EXPORTER_OTLP_LOGS_HEADERS='Authorization=Bearer ...'
 ```
 
-## Use it from app code
+## Use It from App Code
 
 Keep the logger call close to the app boundary that knows IDs, counts, and outcome fields.
 
@@ -119,13 +119,13 @@ export function recordSupportAnswer(
 
 LogTape message placeholders become structured fields on the record. Keep secrets, raw prompts, tokens, and full request bodies out of the properties object.
 
-## Keep Agentuity beside it
+## Keep Agentuity Beside It
 
 This path does not require an Agentuity logging integration. Keep LogTape for process logs, then add [Tracing](/services/observability/tracing) or [Sessions & Debugging](/services/observability/sessions-debugging) when you need Agentuity timelines, deployment logs, or spans from Agentuity telemetry.
 
 Use [`@agentuity/telemetry`](/services/observability/logging#use-agentuity-telemetry-logger) instead when you want Agentuity's logger and telemetry export setup to own the log path.
 
-## Next steps
+## Next Steps
 
 - [Logging](/services/observability/logging): choose between app-owned logs and Agentuity telemetry logs
 - [Tracing](/services/observability/tracing): add spans around slow or multi-step work

@@ -129,36 +129,20 @@ export const navData: NavSection[] = [
 		url: '/get-started',
 		items: [
 			{
-				title: 'Quickstart',
-				url: '/get-started/quickstart',
-				description: 'Scaffold a Next.js starter, run it locally, and deploy it',
-			},
-			{
-				title: 'Agentic Setup',
-				url: '/get-started/agent-driven-setup',
-				description: 'Use a coding agent to create an Agentuity project with the CLI.',
-			},
-			{
-				title: 'FAQ',
-				url: '/get-started/faq',
+				title: 'What is Agentuity?',
+				url: '/get-started/what-is-agentuity',
 				description:
-					'Short answers for common Agentuity v3 setup, deploy, services, AI Gateway, Coder, Sandbox, and migration questions.',
-			},
-			{
-				title: 'Docs for Agents',
-				url: '/get-started/docs-for-agents',
-				description:
-					'Give coding agents the Agentuity docs, markdown files, and CLI context they should use before editing a project.',
-			},
-			{
-				title: 'Add to Existing App',
-				url: '/get-started/import-existing-app',
-				description: 'Add Agentuity services and local validation to an app you already have.',
+					'Deploy framework apps, APIs, static sites, backend work, and agents on Agentuity',
 			},
 			{
 				title: 'Installation',
 				url: '/get-started/installation',
 				description: 'Install the Agentuity CLI, sign in, and create a framework starter',
+			},
+			{
+				title: 'Quickstart',
+				url: '/get-started/quickstart',
+				description: 'Scaffold a Next.js starter, run it locally, and deploy it',
 			},
 			{
 				title: 'Project Structure',
@@ -171,10 +155,9 @@ export const navData: NavSection[] = [
 				description: 'Configure scripts, agentuity.json, env vars, and service clients',
 			},
 			{
-				title: 'What is Agentuity?',
-				url: '/get-started/what-is-agentuity',
-				description:
-					'Deploy framework apps, APIs, static sites, backend work, and agents on Agentuity',
+				title: 'Add to Existing App',
+				url: '/get-started/import-existing-app',
+				description: 'Add Agentuity services and local validation to an app you already have.',
 			},
 		],
 	},

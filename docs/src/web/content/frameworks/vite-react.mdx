@@ -6,7 +6,7 @@ description: Build a Vite React SPA with a Bun server boundary for secrets and A
 
 A Vite React app runs entirely in the browser, which means it cannot safely hold API keys or call Agentuity services directly. The pattern here pairs the SPA with a thin `server.ts` that handles `/api/*` routes, holds secrets, and proxies the Vite dev server in development. In deployed builds the same process serves the static bundle.
 
-## Create the framework app
+## Create the Framework App
 
 ```bash
 npm create vite@latest my-vite-app -- --template react-ts
@@ -40,7 +40,7 @@ Agentuity does not scaffold Vite + React from `bun create agentuity@next` today.
 | `server.ts` | Bun server: handles `/api/*` and serves static files in deployed builds |
 | `vite.config.ts` | Vite configuration |
 
-## Add to an existing app
+## Add to an Existing App
 
 Install the CLI as a dev dependency, then import the project:
 
@@ -67,7 +67,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | Vite browser bundle | `agentuity build` runs the build and packages the Bun server entry |
 | deploy | `dist/server.js` plus static assets | `agentuity deploy` ships the packaged app |
 
-## Add a server boundary
+## Add a Server Boundary
 
 Browser code cannot use `AGENTUITY_SDK_KEY` or provider secrets safely. Move those calls into `server.ts` and call them from React over `fetch`.
 
@@ -212,7 +212,7 @@ The local script below runs this file with Bun so `Bun.serve`, `Bun.file`, and H
 
 Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
-### Call the server from React
+### Call the Server from React
 
 ```tsx title="src/App.tsx"
 async function translate(text: string, toLanguage: string): Promise<string> {
@@ -231,7 +231,7 @@ async function translate(text: string, toLanguage: string): Promise<string> {
 }
 ```
 
-## Run locally
+## Run Locally
 
 A Vite + React app needs two processes during development: Vite for the SPA and `server.ts` for the API. The default `dev` script from `create-vite` only runs Vite, so configure `package.json` to run both.
 
@@ -273,7 +273,7 @@ curl http://localhost:3000/api/translate \
 In development, `server.ts` proxies non-API requests to Vite on port 5173. Your browser hits port 3000 for everything, including HMR. `vite.config.ts` does not need a proxy entry because the proxy runs in the other direction.
 </Callout>
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -287,7 +287,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database routes in `server.ts` |
 | `AWS_*` | object storage routes in `server.ts`; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Run the framework build when you want Vite/server-only feedback, then run the Agentuity build validator before deploying. `agentuity build` runs the build script during packaging and writes `.agentuity/launch.json`.
 
@@ -309,7 +309,7 @@ npx agentuity deploy --confirm
 `vite build` only bundles the browser code. The `build` script must also run `bun build server.ts --target=bun --outfile=dist/server.js` so the deployed process has a compiled server entry. Missing this step means Agentuity will have no server to start.
 </Callout>
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Fix |
 |---------|-----|
@@ -321,12 +321,12 @@ npx agentuity deploy --confirm
 | OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway in the server process and a local `.env` is not intentionally overriding provider SDK wiring |
 | Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway in the server process. See [AI Gateway](/services/ai-gateway) |
 
-## Framework docs
+## Framework Docs
 
 - [Vite Backend Integration](https://vite.dev/guide/backend-integration): how to connect Vite development to a backend server
 - [Vite Static Deploy](https://vite.dev/guide/static-deploy.html): `vite preview` is for local build verification only, not for serving deployed apps
 
-## Next steps
+## Next Steps
 
 - [App Configuration](/get-started/app-configuration): configure `agentuity.json`, environment variables, and scripts
 - [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output

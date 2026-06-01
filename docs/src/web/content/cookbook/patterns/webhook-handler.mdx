@@ -14,7 +14,7 @@ bun add hono stripe @agentuity/queue@next @agentuity/keyvalue@next
 Use [`WebhookClient`](/services/webhooks) for a hosted ingest URL with receipts and delivery retries. The patterns below are for external webhooks where your app owns the verification and dispatch path.
 </Callout>
 
-## Stripe: verify and hand off
+## Stripe: Verify and Hand Off
 
 Stripe's SDK verifies the signature against the raw request body. Once the event is verified, push it onto a queue and return immediately.
 
@@ -88,7 +88,7 @@ export default app;
 
 The route is bounded by signature verification and one queue publish. The slower work happens later in the worker route.
 
-## Slack: verify without an SDK
+## Slack: Verify without an SDK
 
 Slack signs requests with an HMAC over `v0:<timestamp>:<rawBody>`. Skip retries by checking the `x-slack-retry-num` header, and handle the `url_verification` challenge inline.
 
@@ -178,7 +178,7 @@ function isEventCallback(payload: unknown): payload is { event_id: string } {
 export default app;
 ```
 
-## Process events on the worker side
+## Process Events on the Worker Side
 
 Configure an HTTP destination on the queue once. Every published event is delivered to the worker route, which deserializes the payload and runs the slow work.
 
@@ -230,7 +230,7 @@ The queue calls your worker route over HTTPS. `localhost` is not reachable from 
 - keep secrets in environment variables; do not check them in
 - Hono's `c.executionCtx?.waitUntil()` is a Cloudflare Workers feature. For Bun and Node, hand work off via [Queues](/services/queues) instead
 
-## Next steps
+## Next Steps
 
 - [Queues](/services/queues): publish API, partitioning, idempotency, and HTTP destinations
 - [Background Work](/build/apps-and-apis/background-work): wire request, status, worker, and stream routes around a queue

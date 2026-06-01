@@ -6,7 +6,7 @@ description: Add Agentuity service clients, local development, and deploy valida
 
 Start with a normal [Astro](https://docs.astro.build) app. Agentuity adds service clients, local development support, and deploy validation around the file-based routing and build output you already use.
 
-## Create a starter
+## Create a Starter
 
 ```bash
 bun create agentuity@next --name my-astro-app --framework astro
@@ -24,7 +24,7 @@ Key files in the AI example:
 | `astro.config.mjs` | Adapter and output mode config |
 | `package.json` | `dev`, `build`, and `deploy` scripts pre-wired |
 
-## Import an existing app
+## Import an Existing App
 
 For an existing Astro app, add the CLI and register the project:
 
@@ -51,7 +51,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | Astro server output and adapter config | `agentuity build` runs the build and packages launch metadata |
 | deploy | the Node adapter server entry | `agentuity deploy` ships the packaged app |
 
-## Add an API route
+## Add an API Route
 
 Astro [endpoint files](https://docs.astro.build/en/guides/endpoints/) in `src/pages/api/` export named functions per HTTP method. Put Agentuity service clients here; never import them from client-side `<script>` blocks.
 
@@ -176,7 +176,7 @@ export const POST: APIRoute = async ({ cookies, request }) => {
 
 Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
-## Call the route from a page
+## Call the Route from a Page
 
 The `.astro` page calls the server route from a client-side `<script>` block:
 
@@ -240,7 +240,7 @@ const title = 'Agentuity + Astro';
 For richer client-side behavior, use an Astro island with `client:load` and a React or Svelte component instead of the inline `<script>` block above. The API call pattern stays the same.
 </Callout>
 
-## Run locally
+## Run Locally
 
 Run through Agentuity. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Astro process:
 
@@ -256,7 +256,7 @@ curl http://localhost:4321/api/translate \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -270,7 +270,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database endpoints |
 | `AWS_*` | object storage endpoints; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Astro requires a server adapter for routes that must render on demand. The starter uses `@astrojs/node` in `standalone` mode. Install it either via the Astro CLI or directly:
 
@@ -319,7 +319,7 @@ Astro 6 and official server adapters require Node `22.12.0` or newer. Pin that v
 Without `output: 'server'` (or an adapter with `output: 'hybrid'` and `export const prerender = false`), Astro attempts to prerender API routes as static files at build time. The route will be missing or return the wrong content type when deployed.
 </Callout>
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -332,13 +332,13 @@ Without `output: 'server'` (or an adapter with `output: 'hybrid'` and `export co
 | Service client code appears in the browser bundle | Keep `KeyValueClient` and `OpenAI` in `src/pages/api/*.ts`, never in client `<script>` blocks |
 | Cookies do not persist across requests | Pass `path: '/'` when setting cookies; Astro's `cookies.set` defaults differ from browser `document.cookie` |
 
-## Framework docs
+## Framework Docs
 
 - [Astro Endpoints](https://docs.astro.build/en/guides/endpoints/): `src/pages/api/*.ts` handler shape, HTTP method exports, and `APIRoute` type
 - [Astro On-Demand Rendering](https://docs.astro.build/en/guides/on-demand-rendering/): `output: 'server'` vs `'hybrid'`, and the `prerender` export flag
 - [Astro Node Adapter](https://docs.astro.build/en/guides/integrations-guide/node/): `mode: 'standalone'` vs `'middleware'`, and the `dist/server/entry.mjs` entry point
 
-## Next steps
+## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): TTL semantics, namespaces, and type-safe reads
 - [AI Gateway](/services/ai-gateway): supported providers and how environment injection works

@@ -10,7 +10,7 @@ Agents that interact with live websites belong in a sandbox. Each session gets i
 bun add hono ai @ai-sdk/anthropic @agentuity/sandbox@next @agentuity/keyvalue@next @agentuity/telemetry@next arktype zod
 ```
 
-## Prerequisite: a browser-ready snapshot
+## Prerequisite: A Browser-Ready Snapshot
 
 `SandboxClient.create({ snapshot })` accepts a snapshot ID or tag. Build a snapshot that includes a headless browser (Playwright with Chromium is the common choice). If your tool loop shells out to a `browser-cli`, bake that wrapper into the snapshot before you save it, then create sandboxes from the tag.
 
@@ -46,7 +46,7 @@ See [Sandbox Snapshots](/services/sandbox/snapshots) for the full snapshot workf
 
 If you use the `browser-cli` pattern from the examples below, install that wrapper into the snapshot alongside Playwright. The wrapper implementation is project-specific, so this page focuses on the sandbox and tool-loop wiring around it.
 
-## Define the browser tools
+## Define the Browser Tools
 
 Tools dispatch to commands inside the sandbox. Keep the tool surface small: one tool for browser actions, one for storing findings, one to finish the loop.
 
@@ -194,7 +194,7 @@ async function indexDomain(kv: KeyValueClient, rawUrl: string): Promise<void> {
 
 `finish_exploration` has no `execute`. Calling it short-circuits the AI SDK tool loop via `hasToolCall('finish_exploration')`, and the call's `input.summary` becomes the result.
 
-## Run the loop
+## Run the Loop
 
 The exploration is one `generateText` call with three tools and two stop conditions: a successful finish, or a step cap.
 
@@ -300,7 +300,7 @@ async function loadPastVisits(
 
 The sandbox is destroyed in `finally` so a thrown error inside the loop still cleans up. `network: { enabled: true }` is required because the sandbox default disables egress. This example uses the Anthropic AI SDK provider for the tool loop; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway from the Agentuity SDK key when no provider key override is set.
 
-## Wire the route
+## Wire the Route
 
 The route is a thin call through to `explore()`. The interesting code lives in the library module, so it is also reachable from a queue worker or a script.
 
@@ -340,7 +340,7 @@ export default app;
 - raise `timeout.execution` when one browser action may spend longer than 30 seconds on a slow page
 - always destroy the sandbox in a `finally` block; an idle sandbox keeps billing until the idle timeout fires
 
-## Next steps
+## Next Steps
 
 - [Sandbox SDK Usage](/services/sandbox/sdk-usage): full lifecycle for `SandboxClient` and `SandboxInstance`
 - [Sandbox Snapshots](/services/sandbox/snapshots): build, tag, and reuse snapshots

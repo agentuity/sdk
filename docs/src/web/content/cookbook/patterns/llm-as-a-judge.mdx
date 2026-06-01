@@ -22,7 +22,7 @@ bun add @agentuity/aigateway@next @agentuity/queue@next @agentuity/vector@next @
 These examples use `AIGatewayClient`, so the same Agentuity project credential can call the candidate and judge models through the Gateway. Keep the model IDs explicit, and validate judge output before acting on it.
 </Callout>
 
-## Inline quality check
+## Inline Quality Check
 
 Run the judge in the same request when the score is part of the response. Fast judge models keep the added latency manageable.
 
@@ -82,7 +82,7 @@ Score 0.7+ to pass.`,
 
 The judge model is intentionally smaller and faster than the answer model. Inline judging is for cases where the user sees the score; otherwise move it off the request path.
 
-## Model arena
+## Model Arena
 
 Compare two providers side-by-side and let a third model pick the winner. Run the candidates in parallel, then judge.
 
@@ -175,7 +175,7 @@ async function generateWithTiming(
 }
 ```
 
-## Grounding check for RAG
+## Grounding Check for RAG
 
 Score whether an answer is supported by the retrieved sources. Returning the unsupported claims back to the caller turns the judge into a hallucination filter.
 
@@ -260,7 +260,7 @@ Return any factual claim in the answer that is not supported by the sources.`,
 
 Pair this with [Build a RAG Agent](/cookbook/tutorials/rag-agent) when answers should be filtered or flagged before they reach the user.
 
-## Background judging
+## Background Judging
 
 For monitoring and review flows, the judge does not need to block the response. Publish to a queue and let a worker route do the scoring.
 
@@ -343,7 +343,7 @@ export default app;
 
 The worker route is fired by an HTTP destination on the `answer-quality` queue. See [Background Work](/build/apps-and-apis/background-work) for the full request/status/worker shape.
 
-## Prompt structure
+## Prompt Structure
 
 Judge prompts work better when the rubric is explicit and the scale is fixed.
 
@@ -372,7 +372,7 @@ Return scores and a one-sentence reason.
 - include the original question or source in the prompt; the judge has no other context
 - prefer faster judge models for lower added latency, and keep the exact model ID in configuration
 
-## Cost notes
+## Cost Notes
 
 LLM-as-judge doubles the model calls per request. Manage the cost by:
 
@@ -381,7 +381,7 @@ LLM-as-judge doubles the model calls per request. Manage the cost by:
 - sampling a percentage of requests in high-volume traffic
 - batching judgments when the rubric is the same across many items
 
-## Next steps
+## Next Steps
 
 - [Build a RAG Agent](/cookbook/tutorials/rag-agent): the answer pipeline this judge plugs into
 - [Background Work](/build/apps-and-apis/background-work): wire the judge worker route to a queue with retries and status

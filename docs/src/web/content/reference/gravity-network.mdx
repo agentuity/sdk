@@ -7,13 +7,13 @@ import { Database, DatabaseZap, BookText, ListTodo, Container, Radio } from 'luc
 
 The Gravity Network is Agentuity's infrastructure layer for storage, data, compute, messaging, and service coordination. The useful mental model is a stack: low-level primitives provide durable capabilities, and higher-level services compose them for app workflows.
 
-## Layered architecture
+## Layered Architecture
 
 Agentuity services build on a layered primitive model. Each layer provides building blocks for the layer above it.
 
 <GravityNetworkDiagram />
 
-### Core primitives
+### Core Primitives
 
 At the foundation, core primitives provide the durable systems that most services use:
 
@@ -25,7 +25,7 @@ At the foundation, core primitives provide the durable systems that most service
 
 These primitives use standard protocols where possible. Storage speaks S3-compatible APIs, and relational data uses Postgres.
 
-### Platform primitives
+### Platform Primitives
 
 On top of the core primitives, we build higher-level platform primitives:
 
@@ -42,7 +42,7 @@ On top of the core primitives, we build higher-level platform primitives:
 
 These primitives use the core layer but do not require sibling services to function.
 
-### Application services
+### Application Services
 
 The highest layer provides application-level services that combine multiple Platform Primitives:
 

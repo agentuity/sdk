@@ -10,7 +10,7 @@ A session can start with the exact agents you care about. Use `enabledAgents` to
 `getSession()` returns the session's lifecycle state, `enabledAgents`, and `defaultAgent`. That's usually enough to confirm the session started the way you intended.
 </Callout>
 
-## The pattern
+## The Pattern
 
 Create the session with an explicit agent selection, then inspect the session detail:
 
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## Example output
+## Example Output
 
 ```json
 {
@@ -125,14 +125,14 @@ Use this pattern when you want:
 
 If you want a normal Coder session, omit both fields.
 
-## Key points
+## Key Points
 
 - Start with the agents you need. You can widen the selection later.
 - Prefer `getSession()` over list views when you need a definitive view of one session.
 - Use agent names your Hub exposes.
 - Publish custom-agent drafts before selecting their slugs in `enabledAgents` or `defaultAgent`.
 
-## See also
+## See Also
 
 - [Managing Coder Sessions with the SDK](/cookbook/patterns/creating-coder-sessions-with-sdk): Start with the core create, read, archive, and delete flow
 - [Creating Loop-Mode Coder Sessions](/cookbook/patterns/creating-loop-mode-coder-sessions): Add explicit workflow state on top of session composition

@@ -40,7 +40,7 @@ For Agentuity projects, observability starts with the app's existing logging, tr
   />
 </Cards>
 
-## Quick reference
+## Quick Reference
 
 | Need | Use |
 |------|-----|
@@ -52,7 +52,7 @@ For Agentuity projects, observability starts with the app's existing logging, tr
 | deployment output | `agentuity cloud deployment logs` |
 | browser page views and events | `@agentuity/analytics` when a collect endpoint is configured, or your framework analytics tool |
 
-## Access patterns
+## Access Patterns
 
 | App Shape | Logging | Tracing | Analytics |
 |-----------|---------|---------|-----------|
@@ -81,7 +81,7 @@ await tracer.startActiveSpan('load-context', async (span) => {
 
 `@agentuity/telemetry` reads Agentuity environment variables when they are present. Use explicit `register()` options when the code runs outside an Agentuity project or you want to set service metadata yourself.
 
-## Choose a telemetry path
+## Choose a Telemetry Path
 
 | Path | Use when |
 |------|----------|
@@ -93,7 +93,7 @@ await tracer.startActiveSpan('load-context', async (span) => {
 
 OpenTelemetry is useful for timing and cross-service context, but it does not need to be the center of every app. OpenTelemetry JavaScript traces and metrics are stable, while the JavaScript logs signal is still marked development by the upstream project. Normal stdout or structured logging remains a reasonable log path.
 
-## Hono middleware
+## Hono Middleware
 
 Hono apps can install one middleware when `c.var.*` is the cleanest injection point for shared Agentuity clients and telemetry defaults.
 
@@ -140,7 +140,7 @@ agentuity cloud session logs sess_abc123xyz
 Use your framework or auth provider for user sessions. Agentuity session records are observability records used for debugging requests, logs, and traces.
 </Callout>
 
-## Next steps
+## Next Steps
 
 - [Logging](/services/observability/logging): write structured server logs
 - [Tracing](/services/observability/tracing): add OpenTelemetry spans around important work

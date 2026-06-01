@@ -5,7 +5,7 @@ description: Stream model output from framework routes and persist chat history 
 
 Use streaming when the user should see tokens as they arrive rather than waiting for the full response. Persist chat state separately in KV, writing it only after the stream finishes.
 
-## Minimal route
+## Minimal Route
 
 The smallest-complete shape: read recent history, call the Gateway with `stream: true`, and return the SSE stream.
 
@@ -50,7 +50,7 @@ export default app;
 
 `streamRequest()` passes through the Gateway SSE stream. The SDK key authenticates the request; the `model` value is normal app input or configuration.
 
-## Complete Hono route with KV history
+## Complete Hono Route with KV History
 
 This route reads stored history, streams the next answer, then appends the assistant turn.
 
@@ -208,7 +208,7 @@ export default app;
 In `@agentuity/hono` routes use `c.var.logger`. In standalone framework apps like this one, import `logger` from `@agentuity/telemetry` instead.
 </Callout>
 
-## Read the stream in the browser
+## Read the Stream in the Browser
 
 For a custom UI, read the response body and append chunks as they arrive. This is the lowest-level browser shape.
 
@@ -284,7 +284,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 The Gateway returns provider-compatible SSE frames, not plain text chunks. If the selected model uses OpenAI-compatible frames, reuse `readFrameText()` from the route example before appending to the UI. If you use AI SDK UI helpers on the frontend, use an AI SDK route with `toUIMessageStreamResponse()` so the stream format matches the UI package.
 
-## Stream with an AI SDK provider
+## Stream with an AI SDK Provider
 
 When the frontend expects AI SDK UI message streams, keep the route on AI SDK and use one provider package. This example uses the Anthropic provider; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway when no provider key override is set.
 
@@ -314,7 +314,7 @@ export async function streamWithAnthropic(message: string): Promise<Response> {
 
 Keep model IDs in configuration so each route can use the provider and tier that fits the task. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) for direct Gateway calls, or the provider's model docs for provider SDK calls.
 
-## Smoke test with curl
+## Smoke Test with `curl`
 
 ```bash
 curl -N http://127.0.0.1:3000/api/chat \
@@ -324,7 +324,7 @@ curl -N http://127.0.0.1:3000/api/chat \
 
 `-N` disables output buffering so you see chunks as they arrive.
 
-## Choose the right stream shape
+## Choose the Right Stream Shape
 
 | Stream shape | Use it when |
 |---|---|
@@ -336,7 +336,7 @@ curl -N http://127.0.0.1:3000/api/chat \
 
 Durable streams persist to storage and return a URL. Use them when the generated content is large, long-running, or must remain available after the HTTP connection closes.
 
-## Keep history bounded
+## Keep History Bounded
 
 Sending an unlimited transcript to the model on every request increases cost and latency. Keep a rolling summary and the most recent turns instead of the full history.
 
@@ -361,7 +361,7 @@ await kv.set('chat-memory', input.conversationId, memory, {
 Store a plain-text summary of older turns plus the last N messages. Pass both to the model as context: the summary as a system prompt addendum, the recent turns as the messages array. Update the summary every N turns with a separate `completeText()` call.
 </Callout>
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -371,7 +371,7 @@ Store a plain-text summary of older turns plus the last N messages. Pass both to
 | Tool calls missing from client | Reading the Gateway SSE stream as plain text | Parse the provider-compatible stream event shape, or use an AI SDK route when the frontend expects AI SDK UI messages |
 | KV TTL errors | TTL below minimum (60 s) or above maximum (365 days) | Use `ttl: null` or `ttl: 0` for never-expire; otherwise pass a value in `[60, 31_536_000]` seconds |
 
-## Next steps
+## Next Steps
 
 - [Durable Streams](/services/storage/durable-streams): persist large or long-running output outside the HTTP response
 - [Key-Value Storage](/services/storage/key-value): compact conversation state keyed by conversation ID

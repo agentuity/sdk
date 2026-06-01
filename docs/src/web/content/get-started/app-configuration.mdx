@@ -59,7 +59,7 @@ bunx agentuity dev --script dev:web
 `agentuity.json` covers project metadata and deploy resources. Pages, API routes, middleware, and server handlers stay in the framework's own files.
 </Callout>
 
-### Deployment resources
+### Deployment Resources
 
 `deployment.resources` sizes the running app. `build.resources` sizes the cloud build sandbox separately. Override either when defaults aren't enough:
 
@@ -90,11 +90,11 @@ bunx agentuity dev --script dev:web
 
 Increase `build.resources` when dependency installation or framework compilation is hitting limits. Increase `deployment.resources` when the running app is memory- or CPU-bound. See [Building Deployment Bundles](/reference/cli/build-configuration) for build options and [Deploying with the CLI](/reference/cli/deployment#runtime-and-build-resources) for the resource schema.
 
-## Environment variables
+## Environment Variables
 
 The CLI manages a small, named set of Agentuity values and leaves everything else to your framework's loader.
 
-### Agentuity keys
+### Agentuity Keys
 
 | Variable | Read by | Purpose |
 |----------|---------|---------|
@@ -105,7 +105,7 @@ The CLI manages a small, named set of Agentuity values and leaves everything els
 
 `AGENTUITY_SDK_KEY` is the only Agentuity value the local CLI loads from `.env` files for the dev process.
 
-### Provider keys
+### Provider Keys
 
 `agentuity dev` patches gateway base URLs into the dev process for OpenAI, Anthropic, and Groq SDKs:
 
@@ -125,7 +125,7 @@ AGENTUITY_SDK_KEY=sdk_...
 
 See [Local Development](/deploy-operate/local-development) for the full env loading order and [AI Gateway](/services/ai-gateway) for the provider list.
 
-### Public variables
+### Public Variables
 
 The CLI treats variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_` as public when syncing to the cloud. Public values ship to the browser bundle.
 
@@ -133,7 +133,7 @@ The CLI treats variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_
 `AGENTUITY_PUBLIC_*`, `VITE_*`, and `PUBLIC_*` values are visible in the client bundle. Keep API keys, tokens, and signed URLs out of these prefixes.
 </Callout>
 
-## Service clients
+## Service Clients
 
 Add Agentuity services to the route, server function, or script that needs them. Standalone clients read `AGENTUITY_SDK_KEY` automatically:
 
@@ -151,7 +151,7 @@ await kv.set('settings', 'theme', { value: 'dark' });
 
 The same pattern works for queues, vector storage, email, schedules, tasks, sandbox, and the rest. See [Using Standalone Packages](/reference/standalone-packages) for the package list and constructor options.
 
-## Deploy lifecycle scripts
+## Deploy Lifecycle Scripts
 
 Package manager lifecycle hooks fire when you call the package script:
 
@@ -167,7 +167,7 @@ Package manager lifecycle hooks fire when you call the package script:
 
 `bun run deploy` runs `predeploy`, the `deploy` script, and then `postdeploy`. Calling `agentuity deploy` directly skips both hooks.
 
-## Next steps
+## Next Steps
 
 - [Project Structure](/get-started/project-structure): see exactly what the scaffold adds
 - [Frameworks](/frameworks): per-framework setup, route patterns, and deploy notes

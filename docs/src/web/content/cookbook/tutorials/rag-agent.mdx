@@ -22,7 +22,7 @@ bun add hono @agentuity/aigateway@next @agentuity/vector@next valibot zod
 
 `@agentuity/vector` and `@agentuity/aigateway` read Agentuity project credentials from the environment, so run the route with `agentuity dev` or a linked Agentuity project.
 
-## Index documents
+## Index Documents
 
 Indexing accepts a list of documents, calls `vector.upsert()` once per document, and returns the count. Upserts are idempotent: the same `id` overwrites the existing vector.
 
@@ -69,7 +69,7 @@ export type { IndexInput };
 
 `document` is the searchable text. Vector storage generates the embeddings server-side. Pass `embeddings` directly only when you already have vectors from another model.
 
-## Answer questions
+## Answer Questions
 
 The answer function searches the namespace, fetches the original text for the matches with `getMany()`, and asks the model to write an answer that cites which source it used. The model output is validated by the schema, so the route can return a typed object straight to the client.
 
@@ -182,7 +182,7 @@ A few details worth calling out:
 - The metadata generic must satisfy `Record<string, unknown>`. Use a `type` intersection (`& Record<string, unknown>`) so the generic accepts an interface that has known fields.
 - The structured output schema's `.describe()` strings are passed to the model and reduce drift on enum or numeric fields.
 
-## Wire the routes
+## Wire the Routes
 
 The Hono app pulls both functions together. Validation happens at the route boundary; the agent functions take typed input.
 
@@ -214,7 +214,7 @@ app.post('/api/knowledge', async (c) => {
 export default app;
 ```
 
-## Try it
+## Try It
 
 Run the app locally:
 
@@ -276,7 +276,7 @@ The response includes the model answer, the source IDs the model cited, and an a
 - **Run indexing in the background.** Move `indexDocuments` behind a queue when documents arrive faster than the route should handle them. See [Background Work](/build/apps-and-apis/background-work).
 - **Track answer quality.** Feed the answer and retrieved context to a judge model to grade whether the answer was grounded. See [Agents](/build/agents) for the agent-as-function pattern.
 
-## Next steps
+## Next Steps
 
 - [Vector Storage](/services/storage/vector): metadata generics, TTL behavior, and search options
 - [Agents](/build/agents): the plain-function pattern for model-backed work

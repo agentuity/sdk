@@ -9,7 +9,7 @@ Use background work when a request starts something slow: report generation, web
 bun add hono @agentuity/queue@next @agentuity/keyvalue@next @agentuity/stream@next arktype
 ```
 
-## Set up the queue
+## Set Up the Queue
 
 Create the worker queue once, outside the request path. The `--visibility-timeout` controls how long a message stays invisible after delivery before it is retried if your worker never responds.
 
@@ -33,7 +33,7 @@ agentuity cloud queue destinations create report-jobs \
 `queue.publish()` stores the message. The platform only calls your worker route when a queue destination is configured and points at a reachable public URL. `127.0.0.1` and `localhost` are not reachable from the queue; use a tunnel for local testing or the deployed URL.
 </Callout>
 
-## Status type
+## Status Type
 
 Define the discriminated union for the status record first. Both the request route and the worker route will write it; the status route and the client will read it.
 
@@ -69,7 +69,7 @@ const streams = new StreamClient();
 const app = new Hono();
 ```
 
-## Request route
+## Request Route
 
 The request route validates input, publishes the job, writes an initial status record, and returns `202 Accepted` with a status URL the client can poll.
 
@@ -108,7 +108,7 @@ app.post('/api/reports', async (c) => {
   Treat the queue message as the retry boundary. Use a stable `jobId` as the `idempotencyKey`, make the worker safe to run more than once, and write status only after each durable step completes.
 </Callout>
 
-## Status route
+## Status Route
 
 The status route reads the KV record written by the request route and later updated by the worker. Keep it thin.
 
@@ -124,7 +124,7 @@ app.get('/api/reports/:jobId', async (c) => {
 });
 ```
 
-## Worker route
+## Worker Route
 
 The worker route receives the queue message payload from the HTTP destination, updates the status record, writes output to a durable stream, and marks the job done.
 
@@ -185,7 +185,7 @@ export default app;
 The queue decouples the request from the worker. KV holds user-visible status so any route or client can check it without coupling to the worker. Durable streams hold output that is too large or too useful to fit in a response body.
 </Callout>
 
-## Poll from the client
+## Poll from the Client
 
 Poll the status URL until the worker writes `done` or `failed`. Validate the response at the boundary so TypeScript knows which fields are present.
 
@@ -221,7 +221,7 @@ async function waitForReport(statusUrl: string): Promise<ReportStatus> {
 }
 ```
 
-## Pick the right service
+## Pick the Right Service
 
 | Need | Service |
 |------|---------|
@@ -231,7 +231,7 @@ async function waitForReport(statusUrl: string): Promise<ReportStatus> {
 | Recurring work on a timer | [Schedules](/services/schedules) |
 | External event intake from Stripe, GitHub, etc. | [Webhooks](/services/webhooks) |
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -241,7 +241,7 @@ async function waitForReport(statusUrl: string): Promise<ReportStatus> {
 | Status record disappears before the user checks it | Set a KV TTL that outlives the queue retry window |
 | Stream URL returns empty content | The worker threw before calling `stream.close()`; always close in a `finally` block |
 
-## Next steps
+## Next Steps
 
 - [Queues](/services/queues): full publish API with partitioning, metadata, DLQ, and WebSocket subscriptions
 - [Key-Value Storage](/services/storage/key-value): TTL, namespaces, and key search

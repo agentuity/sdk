@@ -17,7 +17,7 @@ const client = new SandboxClient({
 
 `apiKey` is optional when `AGENTUITY_SDK_KEY` or `AGENTUITY_CLI_KEY` is already set.
 
-## Choose a lifecycle
+## Choose a Lifecycle
 
 | Workflow | Start With | Check Before You Treat It as Done |
 |----------|------------|-----------------------------------|
@@ -30,7 +30,7 @@ const client = new SandboxClient({
 
 Sandboxes are process and filesystem primitives. Use them when your app should own the command, files, timeouts, output parsing, and cleanup. Use [Coding agents in sandboxes](/services/sandbox/coding-agents) when you need direct control over a coding-agent runtime, and use [Coder](/services/coder) when the work should be a managed session.
 
-## Runtime catalog
+## Runtime Catalog
 
 `runtime` is a catalog name available to your org, not a TypeScript union. Call `client.listRuntimes()` in setup, admin tooling, or startup checks before storing a runtime name in a long-lived workflow.
 
@@ -48,7 +48,7 @@ logger.info('sandbox runtimes', {
 
 Coding-agent images can appear in the same catalog as language runtimes. Runtime availability only proves the image is listed; provider credentials, network access, and tool permissions are separate checks.
 
-## One-shot execution
+## One-Shot Execution
 
 Use `client.run()` for a disposable sandbox. The client creates a one-shot sandbox, runs the command, captures output, and the sandbox is auto-destroyed after the command exits.
 
@@ -74,7 +74,7 @@ logger.info('sandbox run finished', {
 });
 ```
 
-### Write files before running
+### Write Files Before Running
 
 Pass `command.files` to write files into the sandbox before the one-shot command starts.
 
@@ -105,7 +105,7 @@ const result = await client.run({
 logger.info('sandbox output', { stdout: result.stdout });
 ```
 
-### Stream output
+### Stream Output
 
 The optional second argument to `run()` accepts Node streams and an `AbortSignal`.
 
@@ -131,7 +131,7 @@ logger.info('sandbox run finished', { exitCode: result.exitCode });
 
 If you pass `stdin` in the second argument, the client needs an API key value so it can create the backing stream.
 
-## Interactive sandboxes
+## Interactive Sandboxes
 
 Use `client.create()` when the workflow needs persistent files or multiple commands.
 
@@ -177,7 +177,7 @@ try {
 }
 ```
 
-## File operations
+## File Operations
 
 Interactive sandbox instances support file reads, writes, directory creation, listing, and removal.
 
@@ -234,7 +234,7 @@ logger.info('sandbox files removed', {
 });
 ```
 
-## Reading execution output
+## Reading Execution Output
 
 `sandbox.execute()` waits for the command to finish and returns stream URLs when output was captured. Fetch those URLs when you need stdout or stderr after the command completes.
 
@@ -275,7 +275,7 @@ async function readOutputUrl(url: string): Promise<string> {
 }
 ```
 
-## Streaming execution output
+## Streaming Execution Output
 
 Use `pipe` in `execute()` to stream stdout or stderr directly to Node writable streams instead of buffering them for later fetch.
 
@@ -303,7 +303,7 @@ try {
 
 `pipe` and `stream` are separate concerns: `pipe` writes to a local writable stream; `stream` configures server-side stream IDs for routing output elsewhere.
 
-## Environment variables
+## Environment Variables
 
 Pass environment variables when creating or running a sandbox.
 
@@ -340,7 +340,7 @@ logger.info('sandbox env updated', { apiUrl: updated.API_URL });
 
 Code inside the sandbox is a separate process. Pass values explicitly with `env`, `setEnv()`, or files.
 
-## Exposing ports
+## Exposing Ports
 
 Set `network.port` to expose one port from the sandbox. Set `network.enabled: true` too when commands inside the sandbox need outbound network access.
 
@@ -380,7 +380,7 @@ try {
 }
 ```
 
-## Project association
+## Project Association
 
 Pass `projectId` when you want sandboxes to show up with a specific project or be filterable later.
 
@@ -409,7 +409,7 @@ try {
 }
 ```
 
-## Cancelling commands
+## Cancelling Commands
 
 Pass an `AbortSignal` to `execute()` or as the second argument to `run()`.
 
@@ -437,7 +437,7 @@ try {
 }
 ```
 
-## Sandbox management
+## Sandbox Management
 
 Use `list()`, `get()`, `connect()`, and `destroy()` for existing sandboxes.
 
@@ -476,7 +476,7 @@ logger.info('sandbox files', { files: files.map((file) => file.path) });
 await existing.destroy();
 ```
 
-## Background jobs
+## Background Jobs
 
 Use jobs for commands that should keep running after the request that started them returns.
 
@@ -504,7 +504,7 @@ try {
 
 Job statuses are `pending`, `running`, `completed`, `failed`, or `cancelled`.
 
-## Lifecycle and failure checks
+## Lifecycle and Failure Checks
 
 A successful SDK call only means the API request completed. For sandbox work, check the lifecycle surface that matches the thing you started.
 
@@ -527,7 +527,7 @@ Common failure paths:
 
 For coding-agent runtimes, see [Coding agents in sandboxes](/services/sandbox/coding-agents): many tools report useful errors in stdout/stderr events even when the process exit code is not enough.
 
-## Pause, resume, and checkpoints
+## Pause, Resume, and Checkpoints
 
 Pause a sandbox when you want to preserve its filesystem but stop the runtime. Resume it before issuing a batch of commands.
 
@@ -703,7 +703,7 @@ app.post('/execute', async (c) => {
 export default app;
 ```
 
-## Configuration reference
+## Configuration Reference
 
 ### SandboxClientOptions
 
@@ -801,7 +801,7 @@ const sandbox = await client.create({
 | `stdout` | `string \| undefined` | Captured stdout |
 | `stderr` | `string \| undefined` | Captured stderr |
 
-### Snapshot methods
+### Snapshot Methods
 
 | Method | Returns |
 |--------|---------|
@@ -812,7 +812,7 @@ const sandbox = await client.create({
 | `deleteSnapshot(snapshotId)` | `Promise<void>` |
 | `getSnapshotLineage(params?)` | `Promise<SnapshotLineageResponse>` |
 
-## Best practices
+## Best Practices
 
 - Use `run()` for single commands so cleanup happens automatically.
 - List runtimes before hard-coding a runtime name in app configuration.
@@ -824,7 +824,7 @@ const sandbox = await client.create({
 - Treat stdout/stderr as data to parse, not proof of success by itself.
 - Use `projectId` when you need to filter sandboxes later; use metadata for context returned on sandbox detail.
 
-## Next steps
+## Next Steps
 
 - [Coding agents in sandboxes](/services/sandbox/coding-agents): run agent CLIs or servers when you need direct process control
 - [Creating and Using Snapshots](/services/sandbox/snapshots): declarative snapshot files and CLI snapshot workflows

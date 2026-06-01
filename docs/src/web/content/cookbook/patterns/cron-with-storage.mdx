@@ -10,7 +10,7 @@ Read-heavy routes can serve a cached payload while a scheduled task refreshes it
 bun add hono @agentuity/schedule@next @agentuity/keyvalue@next valibot
 ```
 
-## Define the worker and reader routes
+## Define the Worker and Reader Routes
 
 The worker route is what the schedule calls. It fetches external data, validates it, and writes a single key. The reader route serves whatever is in key-value storage.
 
@@ -86,7 +86,7 @@ export default app;
 
 The worker accepts any payload from the schedule and ignores it. Verifying signatures or restricting the route to scheduled callers belongs in middleware if the worker should not be publicly reachable.
 
-## Create the schedule
+## Create the Schedule
 
 The schedule is created once with the SDK. The CLI subcommand `agentuity cloud schedule create` does not accept destinations, so do this from a one-time script rather than an interactive flow.
 
@@ -120,7 +120,7 @@ logger.info('schedule created', { id: schedule.id });
 The platform calls the destination URL. `localhost` is unreachable. For local iteration, expose the dev server with a tunnel like ngrok and point the destination at the tunnel URL.
 </Callout>
 
-## Inspect recent deliveries
+## Inspect Recent Deliveries
 
 Each schedule firing produces a delivery record. Use it for audit and debugging.
 
@@ -138,7 +138,7 @@ for (const delivery of recent.deliveries) {
 
 `delivery.date` is the ISO 8601 timestamp when the platform attempted to deliver. `delivery.error` and `delivery.response` carry the destination's reply (or the failure reason).
 
-## Update or delete
+## Update or Delete
 
 Change the cron expression or description with `update()`. Removing the schedule also cancels future deliveries.
 
@@ -154,7 +154,7 @@ await schedules.delete(schedule.id);
 - write the entire payload as one key when reads should be atomic; split into multiple keys when callers want to read parts independently
 - `update()` recomputes the next run time the moment the new expression is saved
 
-## Next steps
+## Next Steps
 
 - [Schedules](/services/schedules): destinations, deliveries, and platform behavior
 - [Key-Value Storage](/services/storage/key-value): TTL, namespaces, and search

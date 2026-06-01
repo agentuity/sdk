@@ -6,7 +6,7 @@ description: SSH into containers, inspect sessions, and troubleshoot issues in y
 
 Debug live deployments by SSHing into containers, transferring files, inspecting sessions and threads, and viewing deployment logs.
 
-## SSH access
+## SSH Access
 
 Connect to your deployed containers for debugging:
 
@@ -54,7 +54,7 @@ cat .env
 exit
 ```
 
-## File transfer
+## File Transfer
 
 Use SCP to upload and download files from deployments:
 
@@ -90,7 +90,7 @@ agentuity cloud scp download ~/logs/*.log ./logs/
 - Transfer debug scripts
 - Backup application state
 
-## Agent inspection
+## Agent Inspection
 
 List and inspect agents deployed in your project:
 
@@ -114,7 +114,7 @@ Use agent inspection to:
 - Verify deployed agent configuration
 - Explore available agents in a project
 
-## Session logs
+## Session Logs
 
 Inspect individual agent sessions, including request details, timeline, and logs:
 
@@ -176,7 +176,7 @@ agentuity cloud session logs sess_abc123xyz --no-timestamps
 Session logs show output for a single request. Deployment logs show all output from a deployment, including startup, errors, and background tasks.
 </Callout>
 
-### Session list options
+### Session List Options
 
 | Option | Description |
 |--------|-------------|
@@ -195,7 +195,7 @@ Session logs show output for a single request. Deployment logs show all output f
 `--org-id` and `--project-id` cannot be used together. Use one or the other.
 </Callout>
 
-## Thread inspection
+## Thread Inspection
 
 List and manage conversation threads. For details on how threads work in agents, see [State Management](/services/storage/key-value).
 
@@ -234,7 +234,7 @@ Use thread inspection to:
 - Verify thread metadata
 - Track thread lifecycle
 
-### Thread list options
+### Thread List Options
 
 | Option | Description |
 |--------|-------------|
@@ -245,7 +245,7 @@ Use thread inspection to:
 | `--direction <dir>` | Sort direction: `asc` or `desc` (default: `desc`) |
 | `--all` | List all threads regardless of project context |
 
-## Deployment logs
+## Deployment Logs
 
 Stream logs from a specific deployment:
 
@@ -275,7 +275,7 @@ agentuity cloud deployment logs deploy_abc123xyz --project-id=proj_abc123xyz
 - Track errors across requests
 - Analyze performance issues
 
-## JSON output for scripting
+## JSON Output for Scripting
 
 All commands support `--json` for machine-readable output. Combined with a JSON processor such as `jq`, you can filter and transform results:
 
@@ -323,7 +323,7 @@ agentuity --json cloud thread list --count=100 | \
   jq -r '.[] | [.id, .user_data] | @csv' > threads.csv
 ```
 
-## Support commands
+## Support Commands
 
 Generate diagnostic information for troubleshooting or support requests:
 
@@ -355,7 +355,7 @@ agentuity support system
 Support reports automatically redact sensitive information like API keys, tokens, and environment variable values. Review the output before sharing.
 </Callout>
 
-## Next steps
+## Next Steps
 
 - [Managing Cloud Storage](/reference/cli/storage): Inspect storage, env vars, and secrets
 - [Deploying to the Cloud](/reference/cli/deployment): Deploy and manage projects

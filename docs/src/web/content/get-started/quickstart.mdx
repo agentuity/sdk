@@ -5,7 +5,7 @@ description: Scaffold a Next.js starter, run it locally, and deploy it
 
 This page follows the framework-first happy path with Next.js. You end with a normal Next.js app that uses Agentuity for service clients, local environment wiring, and deploy packaging. The same create flow works for the five create-supported frameworks: Next.js, Nuxt, SvelteKit, Astro, and Hono. For React Router, Vite + React, and TanStack Start, start with the framework CLI and then [import the app](/get-started/import-existing-app).
 
-## 1. Create the project
+## 1. Create the Project
 
 ```bash
 bun create agentuity@next \
@@ -27,7 +27,7 @@ The scaffold runs `create-next-app`, then layers on:
 
 Expected result: the command exits with a `my-app/` directory that contains the framework files, `agentuity.json`, `.env`, and the translation route. If it stops before those files exist, rerun the command from an empty directory. If authentication fails before the project is created, run `bunx @agentuity/cli@next auth login`, then create the project again.
 
-## 2. Run it locally
+## 2. Run It Locally
 
 ```bash
 bunx agentuity dev
@@ -47,7 +47,7 @@ The response includes the translation, token count, model, and target language.
 
 If the dev server starts but the route fails, read the route response and terminal error first. `401` or missing-key errors usually mean the command is not running from the registered project root or `AGENTUITY_SDK_KEY` is missing from the dev process. If the port is already in use, run `bunx agentuity dev --port 8080` or use the port your framework prints.
 
-## 3. Make an edit
+## 3. Make an Edit
 
 Open `src/app/page.tsx` and add a language to the picker:
 
@@ -57,7 +57,7 @@ const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese', 'Japanese'] as cons
 
 Save the file. Next.js hot-reloads, the new option appears in the dropdown, and the route accepts it without any other change.
 
-## 4. Add a service client
+## 4. Add a Service Client
 
 Service clients work in any framework route or script. Add key-value storage without touching the router or runtime:
 
@@ -91,7 +91,7 @@ The `deploy` script runs `agentuity deploy`, which:
 
 The CLI prints both the deployment-specific URL and the latest deployment URL. Visit either in a browser, or check [app.agentuity.com](https://app.agentuity.com) for logs and resource settings.
 
-## Verify the path
+## Verify the Path
 
 | Stage | Success looks like | If it fails |
 | --- | --- | --- |
@@ -100,7 +100,7 @@ The CLI prints both the deployment-specific URL and the latest deployment URL. V
 | Service client | `bun add @agentuity/keyvalue@next` installs, and server code imports `KeyValueClient` | Keep the client in server-side code, not browser components |
 | Deploy | The CLI prints deployment URLs after the framework build | Fix the framework build error first; deploy packages that build output |
 
-## Next steps
+## Next Steps
 
 - [Project Structure](/get-started/project-structure): the file map for each framework
 - [App Configuration](/get-started/app-configuration): scripts, `agentuity.json`, env vars, and service clients

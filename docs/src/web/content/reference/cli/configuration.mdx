@@ -10,36 +10,36 @@ These CLI commands help you manage configuration values for your deployed agents
 All configuration commands require the `cloud` prefix. For example: `agentuity cloud env list`
 </Callout>
 
-## Environment variables
+## Environment Variables
 
 Manage non-sensitive configuration values.
 
-### List variables
+### List Variables
 
 ```bash
 agentuity cloud env list
 ```
 
-### Get a variable
+### Get a Variable
 
 ```bash
 agentuity cloud env get NODE_ENV
 ```
 
-### Set a variable
+### Set a Variable
 
 ```bash
 agentuity cloud env set NODE_ENV production
 agentuity cloud env set API_URL https://api.example.com
 ```
 
-### Delete a variable
+### Delete a Variable
 
 ```bash
 agentuity cloud env delete OLD_CONFIG
 ```
 
-### Push from local file
+### Push from Local File
 
 Upload variables from `.env` to cloud:
 
@@ -49,7 +49,7 @@ agentuity cloud env push
 
 This filters out `AGENTUITY_` prefixed keys automatically.
 
-### Pull to local file
+### Pull to Local File
 
 Download cloud variables to `.env`:
 
@@ -61,7 +61,7 @@ agentuity cloud env pull
 agentuity cloud env pull --force
 ```
 
-### Import from file
+### Import from File
 
 ```bash
 agentuity cloud env import .env.staging
@@ -75,32 +75,32 @@ There is no separate `cloud secret` command. Store sensitive values with `agentu
 
 Manage sensitive values like API keys and tokens through `cloud env`.
 
-### List secrets
+### List Secrets
 
 ```bash
 agentuity cloud env list --secrets
 ```
 
-### Get a secret
+### Get a Secret
 
 ```bash
 agentuity cloud env get API_KEY
 ```
 
-### Set a secret
+### Set a Secret
 
 ```bash
 agentuity cloud env set API_KEY "sk_live_..." --secret
 agentuity cloud env set DATABASE_URL "postgresql://..." --secret
 ```
 
-### Delete a secret
+### Delete a Secret
 
 ```bash
 agentuity cloud env delete OLD_TOKEN
 ```
 
-### Push/pull
+### Push/Pull
 
 ```bash
 # Push from local file
@@ -111,7 +111,7 @@ agentuity cloud env pull
 agentuity cloud env pull --force
 ```
 
-### Import from file
+### Import from File
 
 ```bash
 agentuity cloud env import .env.secrets
@@ -119,11 +119,11 @@ agentuity cloud env import .env.secrets
 
 **In agents:** Access secrets via `process.env.API_KEY`. Secrets are injected at runtime and never logged.
 
-## Organization-level configuration
+## Organization-Level Configuration
 
 Set environment variables and secrets at the organization level to share them across all projects in that organization. Use the `--org` flag with `cloud env` commands.
 
-### Set org-level variables
+### Set Org-Level Variables
 
 ```bash
 # Set using your default org
@@ -133,7 +133,7 @@ agentuity cloud env set DATABASE_URL "postgresql://..." --org
 agentuity cloud env set DATABASE_URL "postgresql://..." --org org_abc123
 ```
 
-### Set org-level secrets
+### Set Org-Level Secrets
 
 ```bash
 # Set shared secret for default org
@@ -143,7 +143,7 @@ agentuity cloud env set SHARED_API_KEY "sk_..." --secret --org
 agentuity cloud env set SHARED_API_KEY "sk_..." --secret --org org_abc123
 ```
 
-### List org-level values
+### List Org-Level Values
 
 ```bash
 # List org environment variables
@@ -153,7 +153,7 @@ agentuity cloud env list --org
 agentuity cloud env list --secrets --org
 ```
 
-### Get/delete org-level values
+### Get/Delete Org-Level Values
 
 ```bash
 # Get an org variable
@@ -171,11 +171,11 @@ Organization-level values are inherited by all projects in that organization. Pr
 Set a default organization with `agentuity auth org select` to avoid specifying `--org` on every command. If you use multiple accounts or organizations, see [CLI Profiles](/reference/cli/profiles) for separate defaults.
 </Callout>
 
-## API keys
+## API Keys
 
 Create and manage API keys for programmatic access to your project.
 
-### Create an API key
+### Create an API Key
 
 ```bash
 # With 1 year expiration
@@ -195,13 +195,13 @@ agentuity cloud apikey create --name "CI/CD Key" --expires-at 90d --confirm
 The API key value is shown only once during creation. Copy it immediately; you cannot retrieve it later.
 </Callout>
 
-### List API keys
+### List API Keys
 
 ```bash
 agentuity cloud apikey list
 ```
 
-### Get API key details
+### Get API Key Details
 
 ```bash
 agentuity cloud apikey get <key-id>
@@ -209,7 +209,7 @@ agentuity cloud apikey get <key-id>
 
 This shows metadata (name, expiration) but not the key value.
 
-### Delete an API key
+### Delete an API Key
 
 ```bash
 agentuity cloud apikey delete <key-id>
@@ -225,7 +225,7 @@ AGENTUITY_SDK_KEY=agt_...
 For the difference between project SDK keys and CLI login credentials, see [Agentuity Keys](/get-started/app-configuration#agentuity-keys).
 </Callout>
 
-## Next steps
+## Next Steps
 
 - [Storage Commands](/reference/cli/storage): Manage KV, S3, Vector, Database, and Streams
 - [Deployment Commands](/reference/cli/deployment): Deploy and manage your agents

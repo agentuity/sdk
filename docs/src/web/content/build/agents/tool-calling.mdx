@@ -11,7 +11,7 @@ For chat-style tool loops that span requests, see [State and Memory](/build/agen
 bun add ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue@next zod
 ```
 
-## Choose the right loop
+## Choose the Right Loop
 
 | Use | Good fit |
 |-----|----------|
@@ -100,7 +100,7 @@ This section uses the Anthropic AI SDK provider because AI SDK owns the tool loo
   Each `generateText` iteration (whether or not it makes a tool call) is one step. `stepCountIs(4)` stops after four turns regardless of how many individual tool calls occurred in those turns.
 </Callout>
 
-### Require approval for risky tools
+### Require Approval for Risky Tools
 
 Use `needsApproval` when the model can propose an action but your app should gate execution on a user decision. When `needsApproval` returns `true`, `execute` is skipped and the pending tool call is surfaced in the result.
 
@@ -368,7 +368,7 @@ export async function answerWithAnthropic(question: string): Promise<string> {
   This example handles one tool call. For multi-tool or multi-turn loops, keep calling `anthropic.messages.create` and appending the assistant and `tool_result` messages until `message.stop_reason !== 'tool_use'`.
 </Callout>
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -379,7 +379,7 @@ export async function answerWithAnthropic(question: string): Promise<string> {
 | Tool output is too large | Store the full result in KV or Streams and return a compact pointer (ID or summary) |
 | `needsApproval` skipping execution unexpectedly | `needsApproval` returning `true` means approval is required, not granted; check your approval response flow |
 
-## Next steps
+## Next Steps
 
 - [State and Memory](/build/agents/state-and-memory): persist tool results and pending approvals across requests
 - [Background Work](/build/apps-and-apis/background-work): enqueue tool actions that should outlive the HTTP request

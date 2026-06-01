@@ -6,7 +6,7 @@ description: Use separate CLI profiles for different accounts, organizations, an
 
 Use profiles to keep separate Agentuity CLI identities and defaults on one machine. For example, keep one profile for your personal account and another for your company account, then switch between them without logging out and back in.
 
-## Common uses
+## Common Uses
 
 | Use case | Example profiles | Why it helps |
 |----------|------------------|--------------|
@@ -15,7 +15,7 @@ Use profiles to keep separate Agentuity CLI identities and defaults on one machi
 | Staging and production | `staging`, `production` | Keep deployment defaults and profile-specific `.env` files separate |
 | Local service testing | `local` | Point the CLI at local or internal Agentuity services |
 
-## Create profiles
+## Create Profiles
 
 Create one profile for each account or environment:
 
@@ -36,7 +36,7 @@ agentuity auth login
 
 Each profile stores its own credentials and preferences. A default organization is optional.
 
-## Switch profiles
+## Switch Profiles
 
 Switch your active profile:
 
@@ -62,7 +62,7 @@ List all profiles:
 agentuity profile list
 ```
 
-## Optional: save a default organization
+## Optional: Save a Default Organization
 
 If a profile can access multiple organizations, you can save a default organization for that profile:
 
@@ -95,7 +95,7 @@ When no organization is saved, `agentuity auth org current --json` returns `null
 }
 ```
 
-## Run commands in a profile
+## Run Commands in a Profile
 
 When you switch between projects, switch to the matching profile before running project commands:
 
@@ -108,7 +108,7 @@ If you saved a default organization, check it with `agentuity auth org current -
 
 Profiles separate local CLI identity and defaults. They do not change organization membership or project permissions in the cloud.
 
-## Check profile state in scripts
+## Check Profile State in Scripts
 
 Use `--json` when a script or agent needs CLI state:
 
@@ -123,7 +123,7 @@ agentuity auth org current --json
 
 Use the global `--describe` flag for command metadata. For profile and organization state, use `--json`.
 
-## Use a profile for one command
+## Use a Profile for One Command
 
 Use `AGENTUITY_PROFILE` when you want one command to run with a different profile without changing your default:
 
@@ -137,7 +137,7 @@ You can also use the global `--profile` flag:
 agentuity --profile production cloud deploy
 ```
 
-## Profile-specific environment files
+## Profile-Specific Environment Files
 
 Profile-specific `.env` files let you pair CLI profiles with local environment variables:
 
@@ -148,7 +148,7 @@ Profile-specific `.env` files let you pair CLI profiles with local environment v
 
 For `agentuity dev`, the CLI checks `.env.{profile}`, `.env.development`, then `.env`. Later files override earlier files. See [App Configuration](/get-started/app-configuration) for the full loading order.
 
-## Manage profiles
+## Manage Profiles
 
 Show a profile's configuration:
 

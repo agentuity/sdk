@@ -15,7 +15,7 @@ agentuity deploy
 
 These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
 
-## Register the project
+## Register the Project
 
 Validate the directory before doing anything that talks to the cloud:
 
@@ -50,7 +50,7 @@ The project metadata and `.env` are written inside `apps/web`. A monorepo-aware 
 In an interactive terminal, `agentuity deploy` offers to register an unregistered project before it builds. In CI or any non-TTY context, deploy fails fast with `PROJECT_NOT_FOUND` if there is no `agentuity.json`. Run `agentuity project import --confirm` once before the first deploy.
 </Callout>
 
-## Configure agentuity.json
+## Configure `agentuity.json`
 
 `agentuity project import` writes the project link file with sensible defaults. Open it before your first deploy when you want to set the region, custom domains, or runtime limits.
 
@@ -83,7 +83,7 @@ agentuity cloud region current
 
 Deploy compares the local region with the server's record. If they diverge, an interactive deploy prompts before changing the project. In CI, pass `--confirm` to accept the change; without it, deploy refuses to update the region.
 
-### Runtime resources
+### Runtime Resources
 
 `deployment.resources` controls the running app's CPU, memory, and disk. Defaults apply when the field is omitted.
 
@@ -95,15 +95,15 @@ Deploy compares the local region with the server's record. If they diverge, an i
 
 `1000m`, `0.5`, and `1` mean one core, half a core, and one core respectively. There is no CLI flag to override these at deploy time. Edit `agentuity.json` and redeploy.
 
-### Build resources
+### Build Resources
 
 `build.resources` and `build.timeout` apply to the build environment when the GitHub App or another CI path runs your deploy. They are platform-defaulted when omitted. Bump them when builds time out or run out of memory under heavy framework dependencies.
 
-### Custom domains
+### Custom Domains
 
 Domains live on `deployment.domains` as an array of strings. See [Custom Domains](/deploy-operate/custom-domains) for DNS records, validation behavior, and TLS provisioning.
 
-## Build and inspect
+## Build and Inspect
 
 `agentuity deploy` runs the build internally. Run it explicitly when you want to see the detector output, the bundled launch metadata, or the static assets that will be uploaded:
 
@@ -221,7 +221,7 @@ The package-script wrapper also lets you use `predeploy`/`postdeploy` lifecycle 
 `agentuity deploy` runs `bunx tsc --noEmit --skipLibCheck` before packaging. There is no `--skip-type-check` on `deploy` (only on `agentuity build`). When your build fails on a type error, fix the type error or widen `tsconfig.json` (`"target": "es2022"`, `"lib": ["es2022", "dom"]` covers most modern stdlib usage) and re-run.
 </Callout>
 
-## Read the output
+## Read the Output
 
 The banner is the canonical source for the deployed URL. The output shape looks like this:
 
@@ -246,7 +246,7 @@ The output includes `urls.app` (public URL of the latest deployment), `urls.dash
 Each deploy gets a unique vanity URL tied to that build. The project also has a stable "latest" URL that points to whatever deployment is currently active. Use the deployment URL to verify a specific build, the project URL when you want a stable address.
 </Callout>
 
-## Validate before and after deploy
+## Validate Before and After Deploy
 
 ```bash
 agentuity project import --validate-only        # confirm directory shape
@@ -257,7 +257,7 @@ curl https://<vanity-url>/                       # exercise the running deploy
 
 Use the build report when something fails non-obviously: it captures TypeScript errors with file paths and line numbers, build phase timings, and warnings. The deploy banner gives you the URL; a quick `curl` or browser load confirms the platform actually started the process.
 
-## Recover common failures
+## Recover Common Failures
 
 | Symptom | First check |
 |---------|-------------|
@@ -267,11 +267,11 @@ Use the build report when something fails non-obviously: it captures TypeScript 
 | typecheck fails during deploy | Fix the TypeScript error locally. `agentuity deploy` does not accept `--skip-type-check` |
 | server routes work in dev but 404 after packaging | Inspect `.agentuity/launch.json`; the web process must start the server output, not a static `_serve.js` helper |
 
-## Operate a deployment
+## Operate a Deployment
 
 These commands work against deployments after they ship.
 
-### List, show, and read logs
+### List, Show, and Read Logs
 
 ```bash
 agentuity cloud deployment list                       # 10 most recent, latest first
@@ -293,7 +293,7 @@ agentuity cloud deployment logs <deployment-id> --limit 500 --no-timestamps
 `deployment logs` is a one-shot fetch, and `--limit` defaults to 100. For live tailing, open the `Deployment Logs` URL from `cloud deployment show` in your browser. The deploy command itself streams warmup logs in-place during provisioning.
 </Callout>
 
-### Roll back
+### Roll Back
 
 ```bash
 agentuity cloud deployment rollback
@@ -311,7 +311,7 @@ agentuity cloud deployment undeploy --force
 
 Stops the active deployment. The project URL returns 404 until a new deploy ships. Per-deployment URLs continue to resolve; only the active one is paused.
 
-### Delete a deployment
+### Delete a Deployment
 
 ```bash
 agentuity cloud deployment delete <deployment-id>
@@ -320,7 +320,7 @@ agentuity cloud deployment delete <deployment-id> --force
 
 Permanently removes a single deployment from the project's history. The deployment URL stops resolving.
 
-### Delete a project
+### Delete a Project
 
 ```bash
 agentuity project delete                              # interactive multi-select
@@ -344,7 +344,7 @@ agentuity cloud machine delete <machine-id> --confirm
 
 `machine show` surfaces the instance type, availability zone, private IPv4, and the deployments currently scheduled on it.
 
-## Lifecycle scripts
+## Lifecycle Scripts
 
 `agentuity deploy` runs the deploy command directly. Wrap it in a package script when you want lifecycle hooks:
 
@@ -364,7 +364,7 @@ bun run deploy
 
 When the GitHub App runs the deploy in its build environment, it honors the same `predeploy` and `postdeploy` script slots. See [Pre-Deploy Scripts](/reference/github-app#pre-deploy-scripts) for the CI-side behavior.
 
-## Automating with the GitHub app
+## Automating with the GitHub App
 
 For repository-driven deploys, link the repo with the Agentuity GitHub App:
 
@@ -376,7 +376,7 @@ Pushes to the linked branch trigger a deploy. Pull requests get isolated preview
 
 See [Automating Deployments with the GitHub App](/reference/github-app) for the full lifecycle, [Push Deploys](/reference/github-app#push-deploys) for branch deploys, and [Preview Environments](/reference/github-app#preview-environments) for PR builds.
 
-## Coming from a legacy project
+## Coming from a Legacy Project
 
 For projects on the older deploy path, inspect the migration CLI before changing anything:
 
@@ -386,7 +386,7 @@ npx @agentuity/migrate@next --help
 
 Use the migration command to inspect the changes needed before moving an existing project onto the latest CLI. Keep legacy projects on their existing deploy path until you have run the migration and checked the new build.
 
-## Next steps
+## Next Steps
 
 - [Custom Domains](/deploy-operate/custom-domains): attach your own domain, set DNS, verify TLS.
 - [Environment Variables](/deploy-operate/environment-variables): how `.env` values become cloud project vars and secrets.

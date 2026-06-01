@@ -6,7 +6,7 @@ description: Connect a React Router framework-mode app to Agentuity services and
 
 Add Agentuity service clients to a [React Router](https://reactrouter.com/home) **framework-mode** app (the full-stack SSR mode, not a plain SPA). Keep your route modules, loaders, actions, and `routes.ts` as-is. Agentuity connects through the CLI and its service packages wherever server code needs storage, AI Gateway routing, or deploy metadata.
 
-## Create the framework app
+## Create the Framework App
 
 ```bash
 npx create-react-router@latest my-react-router-app
@@ -44,7 +44,7 @@ The examples below use these files:
 | `app/routes/api.translate.ts` | Resource route that exports `loader` and `action` only |
 | `app/routes.ts` | Route map registering both modules |
 
-## Import an existing app
+## Import an Existing App
 
 Use the same Agentuity commands in an app that already exists:
 
@@ -69,7 +69,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | React Router build output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the React Router server entry | `agentuity deploy` ships the packaged app |
 
-## Add a resource route
+## Add a Resource Route
 
 A resource route is any route module that exports `loader` or `action` but no default component. React Router sends `GET` requests to `loader` and `POST`, `PUT`, `PATCH`, `DELETE` to `action`.
 
@@ -221,7 +221,7 @@ export default [
 ] satisfies RouteConfig;
 ```
 
-## Call from a component
+## Call from a Component
 
 Use `fetch` from client code. Do not use React Router's `<Link>` for resource routes because client-side navigation won't reach a module with no component to render.
 
@@ -250,7 +250,7 @@ await fetch('/api/translate', { method: 'DELETE' });
 
 Plain anchor tags and `<Link reloadDocument>` also work for non-JSON resource routes (downloads, feeds, etc.) because they issue a full browser request.
 
-## Run locally
+## Run Locally
 
 `agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value. Use a wrapper script that delegates to the framework dev command:
 
@@ -288,7 +288,7 @@ curl http://localhost:3000/api/translate \
 curl -X DELETE http://localhost:3000/api/translate
 ```
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -302,7 +302,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database resource routes |
 | `AWS_*` | object storage resource routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Run React Router typegen and the framework build when you want framework-only feedback, then run the Agentuity packaging check. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
@@ -324,7 +324,7 @@ Deploy only after the packaging check and a local packaged validation of `/` and
 npx agentuity deploy --confirm
 ```
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | What to check |
 |---------|---------------|
@@ -336,13 +336,13 @@ npx agentuity deploy --confirm
 | Deploy starts but only static assets are served | Inspect `.agentuity/launch.json`: `processes[0].command` must run the React Router server entry (`build/server/index.js`) |
 | Client-side `<Link>` to the resource route renders nothing or errors | [Resource routes](https://reactrouter.com/how-to/resource-routes) have no component; navigate to them with `fetch`, plain `<a>`, or `<Link reloadDocument>` |
 
-## Framework docs
+## Framework Docs
 
 - [React Router `routes.ts`](https://reactrouter.com/api/framework-conventions/routes.ts): route module registration reference
 - [React Router Resource Routes](https://reactrouter.com/how-to/resource-routes): `loader`/`action` behavior for non-UI routes
 - [React Router Route Module](https://reactrouter.com/start/framework/route-module): `Route.LoaderArgs`, `Route.ActionArgs`, and other typegen exports
 
-## Next steps
+## Next Steps
 
 - [App Configuration](/get-started/app-configuration): configure `agentuity.json`, env vars, and scripts
 - [Build Configuration](/reference/cli/build-configuration): inspect launch metadata and packaging output

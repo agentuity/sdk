@@ -19,7 +19,7 @@ export default await createApp({
 
 When you switch to the v3 CLI after migration, the commands below use `agentuity ...` for readability. If the CLI is only installed locally, run the same command through your package manager's exec wrapper, for example `bunx agentuity ...` or `npx agentuity ...`.
 
-## Keep the framework entry point
+## Keep the Framework Entry Point
 
 A v3 app keeps the framework's normal entry point. In a Hono app, that means `new Hono()` and normal route mounting:
 
@@ -41,7 +41,7 @@ export default app;
 
 For Next.js, React Router, Remix, TanStack Start, Astro, SvelteKit, or Nuxt, keep that framework's route and server conventions instead of recreating the v2 runtime structure.
 
-## Replace runtime concepts
+## Replace Runtime Concepts
 
 | v2 concept | v3 replacement |
 | --- | --- |
@@ -56,7 +56,7 @@ For Next.js, React Router, Remix, TanStack Start, Astro, SvelteKit, or Nuxt, kee
 
 The `@agentuity/runtime` package in v3 exists to catch old imports and point you at the framework model. Existing v2 apps can keep using their v2 packages until they migrate. Do not install the v3 runtime package expecting the v2 app container to run unchanged.
 
-## Prefer service clients first
+## Prefer Service Clients First
 
 Direct service clients are the portable default because the same code can run in routes, server functions, scripts, and workers.
 
@@ -110,7 +110,7 @@ app.get('/api/latest', async (c) => {
 export default app;
 ```
 
-## Move agents into app code
+## Move Agents into App Code
 
 Simple v2 agents usually become plain functions:
 
@@ -151,7 +151,7 @@ Complex agents need review when they use lifecycle hooks, event listeners, `ctx.
 
 Thread and session state also need a design pass. A chat app might move message history to KV or a database keyed by an app session cookie. A debugging tool might use platform session and thread records only for inspection.
 
-## Register and build the framework app
+## Register and Build the Framework App
 
 After the app shape is framework-native, link it to Agentuity Cloud and run the packaging check:
 
@@ -163,7 +163,7 @@ agentuity build
 
 `agentuity project import` writes `agentuity.json` and creates or updates `.env` with `AGENTUITY_SDK_KEY`. `agentuity build` detects the framework, runs the framework build, writes `.agentuity`, and packages launch metadata for deploy.
 
-## Next steps
+## Next Steps
 
 - [Migrating from v2](/migration/from-v2): run the migration in order
 - [Migration CLI](/migration/migrate-cli): inspect what the tool changes automatically

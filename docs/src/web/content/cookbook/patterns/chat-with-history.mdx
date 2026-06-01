@@ -118,7 +118,7 @@ export default app;
 
 `KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. `AIGatewayClient` reads `AGENTUITY_AIGATEWAY_KEY`, `AGENTUITY_SDK_KEY`, or `AGENTUITY_CLI_KEY`. The route accepts a model override but does not require provider keys or provider SDK env. Run this through `agentuity dev` or a linked Agentuity project when you want managed key-value storage and AI Gateway model routing.
 
-## Call the route
+## Call the Route
 
 Generate a conversation ID in your app, cookie, or authenticated user session. Pass that ID on each request.
 
@@ -143,7 +143,7 @@ const result = await response.json();
 
 The response includes the assistant message, model name, finish reason, and stored message count.
 
-## Reset a conversation
+## Reset a Conversation
 
 Delete the key when the user starts over:
 
@@ -158,7 +158,7 @@ await fetch(`/api/chat/${conversationId}`, { method: 'DELETE' });
 - keep gateway metadata in the response when the UI should show model details
 - use key-value storage or a database for new app state, not legacy runtime thread state
 
-## Next steps
+## Next Steps
 
 - [Chat and Streaming](/build/agents/chat-and-streaming): stream assistant text while storing the final transcript
 - [Key-Value Storage](/services/storage/key-value): configure TTLs, search keys, and manage namespaces

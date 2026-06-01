@@ -7,7 +7,7 @@ When a request, job, or script needs a model-backed decision loop, put that work
 
 Because agents are app code, they use the same dependencies as the rest of the app: your framework logger, OpenTelemetry setup, database client or ORM, model SDK, and any Agentuity service client that fits the workflow.
 
-## The minimal shape
+## The Minimal Shape
 
 Start with a plain typed function. It accepts validated input, returns typed output, and does not call `createAgent()`.
 
@@ -86,7 +86,7 @@ export async function POST(request: Request): Promise<Response> {
 }
 ```
 
-## Complete self-contained example
+## Complete Self-Contained Example
 
 This is the full file version: one module, schemas, agent function, and route handler together. Use this shape for smaller features before splitting.
 
@@ -171,7 +171,7 @@ What each layer does:
 Keep the model ID in configuration so you can change extraction, classification, review, and reasoning workflows independently. Direct Gateway calls use the Agentuity project credential; use [AI Gateway](/services/ai-gateway#model-catalog) or your provider's catalog to pick the exact model ID.
 </Callout>
 
-## Split the route from the work
+## Split the Route from the Work
 
 Once the function is stable, move it to a shared module. The same function can then run from a route, a queue consumer, a schedule, or a test, without duplicating any logic.
 
@@ -194,7 +194,7 @@ export async function POST(request: Request): Promise<Response> {
 
 Unit tests call `triageMessage()` directly with plain objects, so you do not need to build a `Request`.
 
-## Migration boundary
+## Migration Boundary
 
 The current Agentuity shape is a normal app where routes, schedules, queues, and scripts call plain server-side functions. If you are copying code from previous SDK versions, use [Migration](/migration) first when you see the older patterns below.
 
@@ -208,7 +208,7 @@ The current Agentuity shape is a normal app where routes, schedules, queues, and
 
 See [Migrating Runtime Apps to Frameworks](/migration/runtime-to-frameworks) when an existing app still has runtime-managed agents.
 
-## Use Hono middleware for shared clients
+## Use Hono Middleware for Shared Clients
 
 In a Hono app, `@agentuity/hono` initializes all service clients once and injects them via `c.var`. Use this when most routes in the app need the same clients or logger.
 
@@ -247,7 +247,7 @@ Use `c.var.logger` only inside Hono route handlers. For code outside a Hono cont
 
 Direct clients (`new KeyValueClient()`) are the portable default and work in Next.js, React Router, TanStack Start, Nuxt, SvelteKit, Astro, scripts, and workers. Hono middleware is the better choice when you are already in a Hono app and want a single initialization point.
 
-## Choose this shape
+## Choose This Shape
 
 | Use this shape for | Consider something else when |
 |---|---|
@@ -256,7 +256,7 @@ Direct clients (`new KeyValueClient()`) are the portable default and work in Nex
 | Logic that may later run from queues, schedules, or scripts | You need a long-running sandbox or Coder session |
 | Features that need unit tests around the model call | The logic is too simple to warrant a separate function |
 
-## Best practices
+## Best Practices
 
 - **Separate parsing from work.** Parse and validate at the route boundary. Pass typed values into the agent function, not raw `Request` bodies.
 - **Instantiate clients at module scope.** `new KeyValueClient()` at the top of the file, not inside the handler. One instance per process.
@@ -265,7 +265,7 @@ Direct clients (`new KeyValueClient()`) are the portable default and work in Nex
 - **Keep agent functions framework-free.** Don't import Hono or Next.js internals into the function that does model work. That keeps it testable and portable.
 - **Log with the right logger.** Use `c.var.logger` in Hono route handlers when `@agentuity/hono` is mounted, and `logger` from `@agentuity/telemetry` in shared Agentuity examples. If the app already standardizes on another server logger, keep that boundary consistent. Avoid `console.log` for app diagnostics that need structured fields.
 
-## Next steps
+## Next Steps
 
 - [Chat and Streaming](/build/agents/chat-and-streaming): return model output as it is generated, rather than waiting for a complete response
 - [Tool Calling](/build/agents/tool-calling): let a model call bounded app functions and act on results

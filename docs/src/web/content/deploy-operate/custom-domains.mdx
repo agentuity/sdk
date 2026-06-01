@@ -14,7 +14,7 @@ agentuity deploy
 
 These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
 
-## Add a domain
+## Add a Domain
 
 `agentuity project add domain` writes the domain into `deployment.domains` and validates DNS before saving:
 
@@ -38,7 +38,7 @@ After a successful add, `agentuity.json` contains:
 
 You can also add domains by editing `agentuity.json` directly. Validation runs on the next deploy.
 
-## DNS records
+## DNS Records
 
 For each domain, point either a CNAME or an A record at the per-project ION host. The CLI prints the exact target after `project add domain` and again during deploy.
 
@@ -69,13 +69,13 @@ DNS validation also runs as a deploy step before any environment sync or build:
 
 Run `agentuity project domain check` before CI deploys when DNS changes are part of the release. If DNS is intentionally incomplete for a deploy validation run, pass `agentuity deploy --skip-dns-validation` and verify the domain before sending traffic to it.
 
-## TLS certificates
+## TLS Certificates
 
 After a successful deploy, the CLI fires a HEAD request at each configured domain to nudge the platform's cert issuance. This is non-blocking: the deploy banner prints regardless, and certs also issue on the first real request from any client.
 
 The first request after a fresh domain attach can take a few seconds while the cert provisions. Subsequent requests use the cached cert.
 
-## Custom domains in the deploy banner
+## Custom Domains in the Deploy Banner
 
 When a deployment has at least one custom domain configured, the deploy banner prints the custom URL and dashboard URL:
 
@@ -89,7 +89,7 @@ Deployment: deploy_abc...
 
 The Agentuity-hosted URLs still exist, but the custom-domain banner focuses on the configured domain. `agentuity --json project show <project-id>` returns `urls.custom`, and `agentuity cloud deployment show` surfaces configured domains in the `Domains` and `DNS Records` fields.
 
-## Removing a domain
+## Removing a Domain
 
 The CLI does not have a `domain remove` subcommand today. Edit `agentuity.json` and delete the entry from `deployment.domains`, then redeploy:
 
@@ -100,7 +100,7 @@ agentuity deploy
 
 Removing a domain from `agentuity.json` does not delete DNS records you set. Clean those up at your DNS provider once the deploy with the new config is live.
 
-## Multiple domains
+## Multiple Domains
 
 `deployment.domains` accepts any number of domains. Each one is validated independently at deploy time and gets its own TLS cert. Use this for staging vs production hostnames on the same project, or for serving the same app at multiple brands.
 
@@ -112,7 +112,7 @@ Removing a domain from `agentuity.json` does not delete DNS records you set. Cle
 }
 ```
 
-## Next steps
+## Next Steps
 
 - [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): the deploy flow that validates and serves your domain.
 - [Custom Domains in the CLI Reference](/reference/cli/deployment#custom-domains): full DNS troubleshooting surface.

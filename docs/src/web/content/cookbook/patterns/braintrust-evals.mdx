@@ -10,7 +10,7 @@ When an Agentuity project needs evals that call app code, keep the task in route
 bun add braintrust
 ```
 
-## Keep the task in app code
+## Keep the Task in App Code
 
 The eval imports the same server-side function your route, worker, or script calls. This example is deterministic so it can run locally without a provider key.
 
@@ -40,7 +40,7 @@ export async function answerSupportQuestion(input: SupportAnswerInput): Promise<
 }
 ```
 
-## Define the Braintrust eval
+## Define the Braintrust Eval
 
 Braintrust evals have three pieces: data, the task function, and scorers. Type the scorer with `EvalScorer` so the output and expected shapes stay aligned.
 
@@ -121,7 +121,7 @@ Eval('Agentuity support answer', {
 });
 ```
 
-## Run locally before uploading
+## Run Locally Before Uploading
 
 Use `--no-send-logs` while wiring the eval. The task and scorers still run, but the results stay local.
 
@@ -139,11 +139,11 @@ BRAINTRUST_API_KEY=... bunx braintrust eval src/evals/support-answer.eval.ts
 If the task uses Agentuity service clients, run it with the same environment you use for app tests or `agentuity dev`. Pass `--org-id org_2zgmb8jl16mZ3tzXBqg9gO9SS5V` to Agentuity CLI commands that support it.
 </Callout>
 
-## Add traces around failures
+## Add Traces Around Failures
 
 Braintrust gives you experiment summaries and per-case scores. Pair it with [OpenTelemetry spans](/cookbook/patterns/opentelemetry-route-spans) or [`@agentuity/telemetry`](/services/observability/tracing#use-agentuity-telemetry-spans) when a failed case needs timing, request IDs, retrieval counts, or service-client context.
 
-## Next steps
+## Next Steps
 
 - [Evals and Testing](/services/observability/evals-and-testing): choose between tests, output contracts, judges, and hosted eval tooling
 - [OpenAI Evals API](/cookbook/patterns/openai-evals-api): run prompt and model suites through OpenAI's eval service

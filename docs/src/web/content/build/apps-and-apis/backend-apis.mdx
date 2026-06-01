@@ -47,7 +47,7 @@ app.post('/api/events', async (c) => {
 export default app;
 ```
 
-## Package scripts
+## Package Scripts
 
 The generic deploy path needs package scripts that build and start the server.
 
@@ -64,7 +64,7 @@ The generic deploy path needs package scripts that build and start the server.
 
 Run `agentuity build` before the first deploy and inspect `.agentuity/launch.json`. The command in `processes[0].command` is what Agentuity starts after upload.
 
-## Use backend APIs for
+## When to Use Backend APIs
 
 | Use case | Notes |
 | --- | --- |
@@ -73,7 +73,7 @@ Run `agentuity build` before the first deploy and inspect `.agentuity/launch.jso
 | Internal service boundaries | Deploy a small API that other apps or jobs call. |
 | Worker destinations | Point queues or schedules at HTTP routes that do the work. |
 
-## Related docs
+## Related Docs
 
 - [Background Work](/build/apps-and-apis/background-work): wire request routes, worker routes, status records, and durable streams
 - [Webhook Handler](/cookbook/patterns/webhook-handler): verify signed external webhooks and hand off to queues

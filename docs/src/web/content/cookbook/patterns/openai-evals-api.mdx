@@ -14,7 +14,7 @@ bun add openai zod @agentuity/telemetry@next
 The script below uploads a JSONL file and creates an eval run through the OpenAI API. Keep `OPENAI_API_KEY` and `OPENAI_EVAL_MODEL` out of committed files.
 </Callout>
 
-## Share the task prompt
+## Share the Task Prompt
 
 Put the prompt and output vocabulary in the same server module your app uses. The eval script can import those constants without importing the framework route.
 
@@ -43,7 +43,7 @@ export function normalizeTicketLabel(value: string): TicketLabel | undefined {
 }
 ```
 
-## Write the dataset
+## Write the Dataset
 
 The Evals API file upload expects JSONL rows whose `item` object matches the eval's `item_schema`.
 
@@ -53,7 +53,7 @@ The Evals API file upload expects JSONL rows whose `item` object matches the eva
 { "item": { "ticket_text": "Where should I eat lunch?", "correct_label": "Other" } }
 ```
 
-## Create the eval run
+## Create the Eval Run
 
 Create the eval once, upload the dataset, then start a run that uses the Responses API data source. The `string_check` grader compares the model output with the human label in each row.
 
@@ -147,7 +147,7 @@ Run the script from your app root:
 OPENAI_EVAL_MODEL=gpt-4.1 bun run src/evals/openai-ticket-eval.ts
 ```
 
-## Check the run status
+## Check the Run Status
 
 Eval runs execute asynchronously. Poll the run or open the `report_url` returned by the API.
 
@@ -161,13 +161,13 @@ logger.info('openai eval run status', {
 });
 ```
 
-## Keep Agentuity beside it
+## Keep Agentuity Beside It
 
 The Evals API runs the model task from the eval configuration. It does not call your deployed Agentuity route or exercise Agentuity service clients unless your eval task is shaped to do that elsewhere.
 
 Use [Evals and Testing](/services/observability/evals-and-testing) or [Braintrust Evals](/cookbook/patterns/braintrust-evals) when the test needs to call app functions, routes, retrieval code, service clients, or a full workflow. Use [Tracing](/services/observability/tracing) when a failed eval needs spans around the app-owned work.
 
-## Next steps
+## Next Steps
 
 - [Evals and Testing](/services/observability/evals-and-testing): choose the eval shape for app-owned workflows
 - [LLM as a Judge](/cookbook/patterns/llm-as-a-judge): score model output with a rubric in code

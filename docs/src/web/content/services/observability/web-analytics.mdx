@@ -15,7 +15,7 @@ The package is a browser collector: it queues events in the page and sends them 
 bun add @agentuity/analytics@next
 ```
 
-## Initialize analytics
+## Initialize Analytics
 
 Call `init()` from a client-side entry point. `orgId` and `projectId` are identifiers, not secrets, so they can come from your framework's public runtime config. Always pass an explicit `endpoint` pointing at a server route you control.
 
@@ -47,7 +47,7 @@ export function startAnalytics(config: AnalyticsRuntimeConfig): void {
 
 `init()` stores config on `window.__AGENTUITY_ANALYTICS__` and loads the beacon. The beacon initializes page-view tracking, sets up event listeners, and exposes `window.agentuityAnalytics`.
 
-## Framework setup
+## Framework Setup
 
 Framework apps usually need two files: one browser entry that calls `init()`, and one server route that receives the payload. Keep the Agentuity service clients in the server route only.
 
@@ -159,7 +159,7 @@ export default defineNuxtPlugin(() => {
 });
 ```
 
-## Server-injected config
+## Server-Injected Config
 
 If your framework injects script tags, set `window.__AGENTUITY_ANALYTICS__` before loading a module that imports the beacon.
 
@@ -189,7 +189,7 @@ import '@agentuity/analytics/beacon';
 Static ESM imports run before the rest of the module body. Use `init()` or inject `window.__AGENTUITY_ANALYTICS__` before loading a separate beacon entry.
 </Callout>
 
-## Custom events
+## Custom Events
 
 Track named events from framework components, route transitions, or plain browser handlers.
 
@@ -209,7 +209,7 @@ flush();
 
 `track()` queues the event with the current page view. `identify()` stores a user ID and stringified traits for the payload. `flush()` forces a send.
 
-## Data attributes
+## Data Attributes
 
 Add `data-analytics` to elements when you want click events without a custom handler. The beacon records them as `click:<value>` events.
 
@@ -218,7 +218,7 @@ Add `data-analytics` to elements when you want click events without a custom han
 <a href="/pricing" data-analytics="pricing_link">View Pricing</a>
 ```
 
-## Access the client
+## Access the Client
 
 Use `getAnalytics()` when non-module code needs the global client after the beacon is ready.
 
@@ -270,7 +270,7 @@ Events are sent when the page becomes hidden, unloads, or changes SPA routes. Th
 | `sampleRate` | `number` | `1` | Sample rate from 0 to 1 |
 | `endpoint` | `string` | `/_agentuity/webanalytics/collect` | Collection endpoint that receives browser payloads. No built-in collector exists at this path; set this to a route you control. |
 
-## Collection endpoint
+## Collection Endpoint
 
 The analytics client sends JSON payloads to `endpoint` with `navigator.sendBeacon()` when available and `fetch()` as a fallback. In dev mode, it logs the payload to the browser console instead of sending it.
 
@@ -388,7 +388,7 @@ await queue.createQueue('web-analytics', {
 
 The route intentionally validates and stores the fields it needs. If your collector needs the full page-view payload, extend the schema with the fields from `AnalyticsPayload` instead of accepting arbitrary JSON.
 
-## Endpoint checklist
+## Endpoint Checklist
 
 | Rule | Reason |
 |------|--------|
@@ -427,7 +427,7 @@ curl -i http://127.0.0.1:3000/api/analytics/collect \
   }'
 ```
 
-## Framework route shapes
+## Framework Route Shapes
 
 The collector is just a server route. Keep the same handler behavior and place it in the framework-native location:
 
@@ -470,7 +470,7 @@ export function toggleAnalyticsOptOut(): boolean {
 
 To disable analytics for a page or environment, initialize with `enabled: false` or do not initialize the package.
 
-## Next steps
+## Next Steps
 
 - [Logging](/services/observability/logging): collect logs from server routes and scripts
 - [Tracing](/services/observability/tracing): add OpenTelemetry spans for performance debugging

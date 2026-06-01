@@ -9,7 +9,7 @@ Use this command to check the health of infrastructure machines, track CPU/memor
 This command requires the `cloud` prefix: `agentuity cloud monitor ...`
 </Callout>
 
-## Quick reference
+## Quick Reference
 
 ```bash
 agentuity cloud monitor [options]
@@ -24,9 +24,9 @@ agentuity cloud monitor [options]
 | `--org-id <id>` | Use a specific organization |
 | `--json` | JSON output |
 
-## Monitoring modes
+## Monitoring Modes
 
-### Watch mode (default)
+### Watch Mode (Default)
 
 Without `--snapshot`, the monitor connects to a live WebSocket stream and continuously updates the terminal as machine state changes.
 
@@ -46,7 +46,7 @@ Press `Ctrl+C` to stop watching.
 In watch mode, state transitions (e.g., `CONNECTED` to `STALE`) are highlighted inline so you can spot problems as they happen.
 </Callout>
 
-### Snapshot mode
+### Snapshot Mode
 
 Use `--snapshot` to print the current state once and exit. This is useful for scripting and CI checks.
 
@@ -57,7 +57,7 @@ agentuity cloud monitor --snapshot
 
 ## Filtering
 
-### By machine
+### By Machine
 
 Focus on a single machine by ID:
 
@@ -65,7 +65,7 @@ Focus on a single machine by ID:
 agentuity cloud monitor --machine mach_abc123
 ```
 
-### By deployment
+### By Deployment
 
 Show only machines that are running containers for a specific deployment:
 
@@ -73,7 +73,7 @@ Show only machines that are running containers for a specific deployment:
 agentuity cloud monitor --deployment deploy_xyz789
 ```
 
-### Distressed only
+### Distressed Only
 
 Filter to machines in a distressed state:
 
@@ -85,7 +85,7 @@ agentuity cloud monitor --distressed
 `--machine` and `--distressed` cannot be combined. Similarly, `--deployment` and `--distressed` cannot be combined. Use one filter at a time.
 </Callout>
 
-## Health states
+## Health States
 
 | State | Indicator | Meaning |
 |-------|-----------|---------|
@@ -93,11 +93,11 @@ agentuity cloud monitor --distressed
 | `STALE` | `◌` | Reports are delayed, may indicate issues |
 | `DISCONNECTED` | `○` | Machine is not reporting |
 
-## Pressure score
+## Pressure Score
 
 Each machine has a composite pressure score from 0.00 to 1.00. Scores at or above 0.85 are flagged with a warning indicator. High pressure typically means the machine is approaching resource limits for CPU, memory, or disk.
 
-## JSON output
+## JSON Output
 
 Combine `--json` with `--snapshot` (or use `--json` alone, which implies snapshot behavior) for machine-readable output:
 
@@ -125,7 +125,7 @@ agentuity cloud monitor --json
 ]
 ```
 
-## Next steps
+## Next Steps
 
 - [Debugging](/reference/cli/debugging): SSH into containers and inspect sessions for deployed apps
 - [Deployment](/reference/cli/deployment): Deploy registered projects to Agentuity Cloud

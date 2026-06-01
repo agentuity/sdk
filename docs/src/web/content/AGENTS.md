@@ -244,7 +244,7 @@ Available components in doc pages:
 ### Headings and Intros
 
 - **Titles** are action-oriented: "Using Key-Value Storage" not "Key-Value Storage Overview"
-- **Headings** create hierarchy for readers and agents. Use sentence case, keep them concrete, and capitalize only proper nouns, acronyms, API names, and exact identifiers. Prefer headings that name the job of the section, for example "When to use this pattern", "Add service clients", or "View traces"
+- **Headings** create hierarchy for readers, agents, and the right-side "On this page" table of contents. Use concrete labels that scan well in the ToC. Prefer Title Case for short, chapter-like headings such as "Running Your Application" or "JSON Schema Support". Use sentence case for questions and explanatory headings such as "What is `launch.json`?" or "Configure your AI Gateway API key". Preserve exact casing for product names, acronyms, API names, config keys, CLI commands, file names, model IDs, and code identifiers.
 - **Intros** are 1-2 sentences. Lead with the problem, not the feature. Don't repeat frontmatter description
 
 ### Content

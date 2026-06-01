@@ -55,7 +55,7 @@ export async function getPreferences(request: Request): Promise<Response> {
 
 Keep `AGENTUITY_SDK_KEY`, OAuth client secrets, and refresh tokens on the server. Browser code should call your framework routes, not Agentuity service APIs directly.
 
-## Pick the auth path
+## Pick the Auth Path
 
 | Need | Use | Start Here |
 |------|-----|------------|
@@ -65,7 +65,7 @@ Keep `AGENTUITY_SDK_KEY`, OAuth client secrets, and refresh tokens on the server
 | Server routes call Agentuity services | Agentuity service clients with server env vars | [App Configuration](/get-started/app-configuration#environment-variables) |
 | Manage OAuth app credentials | CLI or REST API | [CLI OAuth Commands](/reference/cli/oauth) |
 
-## Framework-owned sessions
+## Framework-Owned Sessions
 
 Most v3 apps should authenticate users before they reach Agentuity service calls:
 
@@ -95,7 +95,7 @@ The callback route still creates your app's local session. Agentuity handles the
 
 If you maintain an older app that still uses `@agentuity/auth`, treat that package as migration context. New v3 apps should keep browser session state in the framework or auth provider, then call Agentuity services from server routes.
 
-## Auth in different contexts
+## Auth in Different Contexts
 
 <Cards>
   <CardLink
@@ -124,7 +124,7 @@ If you maintain an older app that still uses `@agentuity/auth`, treat that packa
   />
 </Cards>
 
-## Next steps
+## Next Steps
 
 - [Sign in with Agentuity](/services/oidc-provider): add Agentuity account sign-in and scoped access
 - [Framework-Owned Sessions](/services/authentication#framework-owned-sessions): wire browser UI to server-owned sessions

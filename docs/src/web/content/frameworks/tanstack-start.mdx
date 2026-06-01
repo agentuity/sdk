@@ -6,7 +6,7 @@ description: Add Agentuity service clients to a TanStack Start app and validate 
 
 TanStack Start is not a `bun create agentuity@next --framework` starter today. Start with TanStack's own CLI, then add Agentuity to the resulting app and inspect the server output before deploying.
 
-## Create the framework app
+## Create the Framework App
 
 ```bash
 npx @tanstack/cli@latest create my-start-app --framework React --deployment nitro
@@ -37,7 +37,7 @@ A global install is optional. It only makes bare `agentuity ...` work outside a 
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
 
-## Configure Vite for deploy
+## Configure Vite for Deploy
 
 For the Node-style hosting path that Agentuity uses, configure TanStack Start with the Nitro plugin in `vite.config.ts`. Include the Agentuity Vite plugin for public local dev:
 
@@ -68,7 +68,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | TanStack Start and Nitro output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the emitted server entry | `agentuity deploy` ships the packaged app |
 
-## Add a server route
+## Add a Server Route
 
 TanStack Start server routes use `createFileRoute` with a `server.handlers` object. A file named `src/routes/api.visits.tsx` maps to `/api/visits`.
 
@@ -107,7 +107,7 @@ const response = await fetch('/api/visits');
 const { count } = await response.json();
 ```
 
-## Run locally
+## Run Locally
 
 `agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value. The recommended pattern is a wrapper `dev` script that delegates to a `dev:start` script with the framework-specific flags:
 
@@ -137,7 +137,7 @@ Smoke-test the route once the dev server is up:
 curl http://localhost:3000/api/visits
 ```
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -150,7 +150,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database server routes |
 | `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Agentuity detects TanStack Start from `@tanstack/react-start`. Run the framework build when you want framework-only feedback, then inspect the package metadata so you know whether the deployed command starts the server output you expect. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
@@ -178,7 +178,7 @@ npx agentuity deploy --confirm
 Do not deploy until `.agentuity/launch.json` points at the server bundle emitted by the TanStack Start build. Validate `/` and one server route from the packaged output first.
 </Callout>
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -191,13 +191,13 @@ Do not deploy until `.agentuity/launch.json` points at the server bundle emitted
 | Launch command points at a missing file | Compare the command in `launch.json` against files emitted under `.agentuity` |
 | App detected as `vite` instead of `tanstack-start` | Confirm `@tanstack/react-start` is installed in the app package and rerun `agentuity build` |
 
-## Framework docs
+## Framework Docs
 
 - [TanStack Start Getting Started](https://tanstack.com/start/latest/docs/framework/react/getting-started): scaffold with the TanStack CLI
 - [TanStack Start Server Routes](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes): `createFileRoute` server handlers reference
 - [TanStack Start Hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting): Nitro and platform-specific deployment adapters
 
-## Next steps
+## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): use the same `KeyValueClient` API from any server route
 - [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity

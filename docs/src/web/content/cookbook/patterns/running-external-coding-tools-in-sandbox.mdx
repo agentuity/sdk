@@ -12,7 +12,7 @@ Use [Coder](/services/coder) instead when the work should be a managed session w
 bun add @agentuity/sandbox@next @agentuity/telemetry@next
 ```
 
-## The pattern
+## The Pattern
 
 This example runs Biome as an external coding tool. It writes a tiny TypeScript project into a one-shot sandbox, lets Biome rewrite the source, runs `bun test`, and prints a diff plus final source between result markers.
 
@@ -158,7 +158,7 @@ __AGENTUITY_RESULT_END__
 
 `client.run()` creates a one-shot sandbox, captures stdout/stderr, and destroys the sandbox after the command exits. Keep the `sandboxId` for logs and debugging, not for follow-up file reads.
 
-## Check a coding-agent runtime first
+## Check a Coding-Agent Runtime First
 
 If the external tool is a coding-agent CLI, validate the runtime and binary before sending real work. Runtime availability proves the image exists. Provider credentials and model access are separate checks.
 
@@ -207,7 +207,7 @@ Use `client.create()` instead of `client.run()` when the workflow needs:
 
 Wrap interactive sandboxes in `try`/`finally` and call `sandbox.destroy()` when the workflow is done.
 
-## Key points
+## Key Points
 
 - Use `command.files` for the files a one-shot command needs before it starts.
 - Set `network.enabled: true` when the tool needs to download packages or call a provider.
@@ -215,7 +215,7 @@ Wrap interactive sandboxes in `try`/`finally` and call `sandbox.destroy()` when 
 - Check `exitCode`, stdout/stderr, and the app-level contract you asked the tool to satisfy.
 - Use [Coder](/services/coder) when the task needs session state, replay, skills, or human review.
 
-## See also
+## See Also
 
 - [Coding agents in sandboxes](/services/sandbox/coding-agents): validate coding-agent runtimes and parse agent event output
 - [Using the Sandbox API](/services/sandbox/sdk-usage): file I/O, jobs, pause/resume, and snapshots

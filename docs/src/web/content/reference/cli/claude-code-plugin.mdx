@@ -36,7 +36,7 @@ Skills activate automatically based on conversation context. No slash commands n
 | **agentuity-frontend** | v2 migration support for frontend packages | Hono client (`hc()`), `@agentuity/auth`, `@agentuity/frontend`, and `@agentuity/react` migration guidance for v2 apps |
 | **agentuity-ops** | Running Agentuity CLI commands | CLI reference, cloud service management, deployments |
 
-### Example interactions
+### Example Interactions
 
 **Deploy an existing app:**
 > "I want to deploy this Express app"
@@ -50,7 +50,7 @@ Skills activate automatically based on conversation context. No slash commands n
 > "Create a React frontend that calls my agent"
 > `agentuity-frontend` activates with v2-migration guidance for `hc()` client patterns, `@agentuity/auth`, `@agentuity/frontend`, and `@agentuity/react`. None of these are v3 packages; see [Migration](/migration) for moving to v3.
 
-## Session hook
+## Session Hook
 
 The plugin runs a `SessionStart` hook that detects whether you're in an Agentuity project (by checking for `agentuity.json` with a valid `projectId`). When found, it injects project context including the project name, region, and deployment commands. This means Claude knows about your Agentuity project from the start of every session without manual setup.
 
@@ -65,7 +65,7 @@ The install script configures Claude Code permissions in `~/.claude/settings.loc
 
 Deny rules take precedence, keeping sensitive credentials out of the conversation.
 
-## Local development
+## Local Development
 
 To test the plugin locally instead of the marketplace version:
 
@@ -77,7 +77,7 @@ claude --plugin-dir /path/to/sdk/packages/claude-code
 claude plugin validate /path/to/sdk/packages/claude-code
 ```
 
-## Next steps
+## Next Steps
 
 - [OpenCode Plugin](/reference/cli/opencode-plugin): Alternative plugin for OpenCode with a multi-agent team
 - [AI Commands](/reference/cli/ai-commands): Other AI-related CLI commands

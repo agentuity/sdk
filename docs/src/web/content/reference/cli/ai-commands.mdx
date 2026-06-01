@@ -23,7 +23,7 @@ agentuity ai prompt llm
 | broad safety prompt for an LLM agent | `agentuity ai prompt llm` |
 | app-provided first-run handoff token | `agentuity setup --setup-token <token>` |
 
-## Agent introduction
+## Agent Introduction
 
 Print the short primer a coding agent should read before it modifies an Agentuity project:
 
@@ -46,7 +46,7 @@ agentuity --json ai capabilities show
 
 Use JSON when another program needs to parse the result. The output lists capability groups and workflows, but the exact command flags still come from command help or schema output.
 
-## Schema inspection
+## Schema Inspection
 
 Use the CLI schema when an agent needs exact command names, options, defaults, and requirements:
 
@@ -61,7 +61,7 @@ Generate the project config schema when an editor or validation tool needs the `
 agentuity ai schema generate
 ```
 
-## Prompt generation
+## Prompt Generation
 
 Generate a broad CLI safety prompt for LLM agents:
 
@@ -73,7 +73,7 @@ agentuity ai prompt llm
 `agentuity ai prompt llm` is broad CLI context. For a coding agent that needs to create, import, build, or deploy an app, start with `agentuity ai intro` and a task-specific prompt.
 </Callout>
 
-## Agentic setup token
+## Agentic Setup Token
 
 The app can launch an authenticated first-run flow by calling the hidden setup command with a one-time token:
 
@@ -83,9 +83,9 @@ agentuity setup --setup-token <token>
 
 When the token is valid, the command authenticates through the CLI and prints the onboarding prompt used by coding agents. The token must come from the app-to-agent handoff flow. Do not invent one in a prompt.
 
-## Integration examples
+## Integration Examples
 
-### IDE extension
+### IDE Extension
 
 Use the CLI to provide autocomplete, validation, and project configuration help:
 
@@ -109,14 +109,14 @@ const schema: unknown = JSON.parse(
 );
 ```
 
-### AI coding agent
+### AI Coding Agent
 
 ```bash
 agentuity ai intro > /tmp/agentuity-context.md
 cat /tmp/agentuity-context.md
 ```
 
-## OpenCode plugin
+## OpenCode Plugin
 
 Install the Agentuity plugin for [OpenCode](https://opencode.ai) to enable AI-assisted development:
 
@@ -144,7 +144,7 @@ agentuity ai opencode run --json "fix the bug"
 
 The plugin provides Agentuity Coder agents, slash commands, memory support, and session tools. See [OpenCode Plugin](/reference/cli/opencode-plugin) for full documentation.
 
-## Claude Code plugin
+## Claude Code Plugin
 
 Install or remove the Agentuity Coder plugin for Claude Code:
 
@@ -155,7 +155,7 @@ agentuity ai claude-code uninstall
 
 The installer adds the plugin package locally, configures Claude Code permissions, and prints the `claude --plugin-dir ...` command to start Claude Code with the plugin. See [Claude Code Plugin](/reference/cli/claude-code-plugin) for setup details.
 
-## Cadence mode
+## Cadence Mode
 
 Cadence enables long-running autonomous work sessions. Access it via:
 
@@ -172,7 +172,7 @@ agentuity ai opencode run "/agentuity-cadence Build a complete auth system with 
 
 See [OpenCode Plugin: Cadence Mode](/reference/cli/opencode-plugin#cadence-mode) for details on controlling Cadence sessions.
 
-## Next steps
+## Next Steps
 
 - [Getting Started with the CLI](/reference/cli/getting-started): Install and authenticate
 - [Local Development](/reference/cli/development): Run Agentuity projects locally

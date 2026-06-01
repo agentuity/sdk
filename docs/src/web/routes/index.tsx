@@ -115,7 +115,7 @@ function HomePage() {
 			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
 				Explore Further
 			</h2>
-			<Cards className="lg:grid-cols-2">
+			<Cards>
 				<CardLink
 					href="/cookbook"
 					title="Cookbook"
@@ -139,7 +139,7 @@ function HomePage() {
 			<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
 				Find What You Need
 			</h2>
-			<Cards>
+			<Cards className="lg:grid-cols-2">
 				<CardLink
 					href="/reference/sdk-reference"
 					title="SDK Reference"

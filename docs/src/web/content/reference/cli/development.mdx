@@ -6,7 +6,7 @@ description: Run your framework development server with Agentuity environment wi
 
 `agentuity dev` runs your project's package script and passes the Agentuity environment it can resolve for the current project.
 
-## Starting the dev server
+## Starting the Dev Server
 
 Run the default `dev` script:
 
@@ -41,7 +41,7 @@ agentuity dev --script dev:web
 
 The command reads `package.json`, detects the package manager, and runs that package manager's `run` command for the selected script. The framework still owns hot reload, routing, terminal output, and local server behavior.
 
-## Dev options
+## Dev Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -55,7 +55,7 @@ The command reads `package.json`, detects the package manager, and runs that pac
 The CLI examples may mention `agentuity dev --no-public`, but the current parser rejects it. To disable a previously enabled public tunnel, set `"devmode": { "public": false }` in `agentuity.json`, or answer `n` when the CLI asks.
 </Callout>
 
-## Environment loading
+## Environment Loading
 
 `agentuity dev` starts with your current shell environment. If `AGENTUITY_SDK_KEY` is not already set, the CLI tries to load a project SDK key from local project configuration and `.env` files. If the project is not linked yet, it can fall back to your CLI auth key for AI Gateway routing and prints the import command to link the project.
 
@@ -65,7 +65,7 @@ agentuity project import --name my-app
 
 When an Agentuity SDK key is available, the CLI can route supported provider SDKs through the Agentuity AI Gateway by setting provider API key and base URL environment variables in the child process.
 
-## Public tunnel
+## Public Tunnel
 
 When public mode is enabled, `agentuity dev` starts Gravity, prints the public URL, and injects:
 
@@ -76,7 +76,7 @@ When public mode is enabled, `agentuity dev` starts Gravity, prints the public U
 
 Vite-based apps should include `@agentuity/vite` so Vite accepts the public host and HMR works through the tunnel.
 
-## Framework scripts
+## Framework Scripts
 
 Use the same dev script you would use without Agentuity:
 
@@ -97,7 +97,7 @@ agentuity dev --script dev:web
 
 For generated Hono projects, `agentuity dev` is the local path to use today. If you are preparing a deployable bundle, see [Build Configuration](/reference/cli/build-configuration) for the current build caveats.
 
-## Building locally
+## Building Locally
 
 Build a deployment bundle with:
 
@@ -107,13 +107,13 @@ agentuity build
 
 The build command is separate from `agentuity dev`. It detects the framework, runs the build adapter, writes launch metadata, and creates the `.agentuity` output directory for deployment.
 
-## Environment files
+## Environment Files
 
 Keep local-only values in `.env.local` or your framework's standard local env file. Keep shared deploy values in `.env` when you want `agentuity deploy` to sync them to Agentuity Cloud.
 
 See [App Configuration](/get-started/app-configuration) for environment file conventions.
 
-## Next steps
+## Next Steps
 
 - [Build Configuration](/reference/cli/build-configuration): Create and inspect the deployment bundle
 - [Deployment](/reference/cli/deployment): Deploy the registered project

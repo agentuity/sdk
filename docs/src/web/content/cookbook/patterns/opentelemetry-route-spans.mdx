@@ -10,7 +10,7 @@ When an Agentuity app already starts telemetry through an OpenTelemetry Collecto
 bun add @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto
 ```
 
-## Keep startup in instrumentation
+## Keep Startup in Instrumentation
 
 Load this module before your route modules with your framework's instrumentation hook, process manager, or runtime preload. Route code does not create another SDK.
 
@@ -35,7 +35,7 @@ const sdk = new NodeSDK({
 sdk.start();
 ```
 
-## Keep collector tooling outside route code
+## Keep Collector Tooling Outside Route Code
 
 Run the OpenTelemetry Collector, vendor agent, or framework instrumentation as startup or infrastructure. Keep SDK creation out of route code; use the standard API and let the active startup path decide where spans go.
 
@@ -47,7 +47,7 @@ OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
 
 Keep the collector config with your deployment or local observability tooling, not in the route module.
 
-## Add spans in route code
+## Add Spans in Route Code
 
 Route code only needs the OpenTelemetry API package. The active SDK or instrumentation setup decides where spans go.
 
@@ -90,11 +90,11 @@ export async function reserveInventory(
 
 Use IDs, counts, categories, and booleans as attributes. Keep raw prompts, tokens, secrets, full emails, and full request bodies out of span attributes.
 
-## Use Agentuity telemetry defaults
+## Use Agentuity Telemetry Defaults
 
 Use [`@agentuity/telemetry`](/services/observability/tracing#use-agentuity-telemetry-spans) when you want Agentuity's logger, tracer, meter, auto-instrumentation, and exporter defaults from one package. Hono apps can use [`@agentuity/hono`](/frameworks/hono) when route handlers read the tracer from `c.var.tracer`.
 
-## Test the function
+## Test the Function
 
 Without an SDK registered, OpenTelemetry's API returns a no-op tracer. That keeps unit tests focused on your function behavior while the deployed startup path handles exporting.
 
@@ -113,7 +113,7 @@ test('reserves inventory for a non-empty SKU', async () => {
 });
 ```
 
-## Next steps
+## Next Steps
 
 - [Tracing](/services/observability/tracing): choose between app-owned OpenTelemetry and Agentuity telemetry defaults
 - [Sessions & Debugging](/services/observability/sessions-debugging): inspect Agentuity-collected timelines and logs

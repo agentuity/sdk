@@ -11,7 +11,7 @@ bun add -d @agentuity/cli@next
 bun add @agentuity/keyvalue@next
 ```
 
-## Pick the right path
+## Pick the Right Path
 
 | Starting point | Good fit | First command |
 | --- | --- | --- |
@@ -21,7 +21,7 @@ bun add @agentuity/keyvalue@next
 
 For an existing app, keep the app shape you have. Add service clients only inside server-only routes, handlers, server actions, or background jobs.
 
-## Keep your existing stack
+## Keep Your Existing Stack
 
 Agentuity fits beside the app stack you already trust. Keep the thing that owns the request, session, data model, or vendor account, then add Agentuity where a managed resource or project credential helps.
 
@@ -36,7 +36,7 @@ Agentuity fits beside the app stack you already trust. Keep the thing that owns 
 
 Add Agentuity service clients only in server-only code. Verify the change with your app's normal dev server and build first, then run through `agentuity dev` and `agentuity build` before deploy.
 
-## Add one server route
+## Add One Server Route
 
 This Next.js route is a small read-only validation route. It keeps `AGENTUITY_SDK_KEY` on the server and does not use a `NEXT_PUBLIC_*` env var. Use `app/api/agentuity/route.ts` instead if your Next.js app does not use a `src/` directory.
 
@@ -94,7 +94,7 @@ Use the same idea in the route shape your framework already uses:
 Do not put `AGENTUITY_SDK_KEY` in `NEXT_PUBLIC_*`, `VITE_*`, or other client-exposed prefixes. Browser code calls your server route, and the route calls Agentuity.
 </Callout>
 
-## Validate locally
+## Validate Locally
 
 Run the app the way you normally do:
 
@@ -116,7 +116,7 @@ Then run the native build:
 bun run build
 ```
 
-## Add Agentuity project metadata
+## Add Agentuity Project Metadata
 
 Validate the directory before writing project metadata:
 
@@ -151,7 +151,7 @@ bunx agentuity project import \
 
 That writes `apps/web/agentuity.json` and `apps/web/.env`. The build step detects the workspace root and writes a launch command with `workingDirectory: "apps/web"` for the app subdirectory.
 
-## Run through Agentuity
+## Run Through Agentuity
 
 `agentuity dev` wraps your existing `dev` script and injects Agentuity env values into the server process:
 
@@ -183,7 +183,7 @@ An interactive `agentuity deploy` can offer to register an unregistered director
 bunx agentuity deploy --name existing-app --confirm
 ```
 
-## Remote repos
+## Remote Repos
 
 You can import from GitHub when the app is not local:
 
@@ -197,7 +197,7 @@ Use `--deploy` when you want the import flow to deploy after the project is regi
 bunx agentuity project import --source owner/repo --name existing-app --deploy --confirm
 ```
 
-## Next steps
+## Next Steps
 
 - [Frameworks](/frameworks): add framework-specific route and deploy notes
 - [Deploy Framework Apps](/deploy-operate/deploy-framework-apps): inspect build output before deploying

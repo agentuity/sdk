@@ -10,7 +10,7 @@ Start coding sessions where AI agents work in cloud sandboxes. The `agentuity co
 All commands accept `--json` for machine-readable output. This is a global CLI flag, not listed per-command.
 </Callout>
 
-## Quick reference
+## Quick Reference
 
 | Command | Description |
 |---------|-------------|
@@ -36,7 +36,7 @@ All commands accept `--json` for machine-readable output. This is a global CLI f
 - `rm`, `del`, `remove` → `delete`
 - `run`, `start` → `tui`
 
-## Starting a session
+## Starting a Session
 
 ```bash
 agentuity coder tui
@@ -81,7 +81,7 @@ agentuity coder tui --sandbox "Build an auth system"
 agentuity coder tui --sandbox "Build auth" --repo https://github.com/org/repo
 ```
 
-## Creating a session
+## Creating a Session
 
 ```bash
 agentuity coder create "Build a REST API"
@@ -115,7 +115,7 @@ Creates a new Coder session. Pass `--connect` to attach immediately after creati
 | `--env <pairs>` | Comma-separated `KEY=VALUE` environment variables |
 | `--org-id <id>` | Organization ID override |
 
-## Listing sessions
+## Listing Sessions
 
 ```bash
 agentuity coder list
@@ -130,7 +130,7 @@ Shows all active sessions on the connected Hub.
 | `--url <url>` | Coder API URL override |
 | `--org-id <id>` | Organization ID override |
 
-### Output fields
+### Output Fields
 
 | Field | Description |
 |-------|-------------|
@@ -144,7 +144,7 @@ Shows all active sessions on the connected Hub.
 | `observerCount` | Number of observers |
 | `participantCount` | Total participants connected |
 
-## Inspecting a session
+## Inspecting a Session
 
 ```bash
 agentuity coder get <session-id>
@@ -190,7 +190,7 @@ agentuity coder workspace get ws_abc123
 agentuity coder workspace delete ws_abc123
 ```
 
-### Workspace create options
+### Workspace Create Options
 
 | Option | Description |
 |--------|-------------|
@@ -235,7 +235,7 @@ agentuity coder skill delete skill_abc123
 agentuity coder skill buckets --delete bucket_abc123
 ```
 
-### Skill create options
+### Skill Create Options
 
 | Option | Description |
 |--------|-------------|
@@ -246,7 +246,7 @@ agentuity coder skill buckets --delete bucket_abc123
 | `--content <text>` | Inline `SKILL.md` content |
 | `--content-file <path>` | Read `SKILL.md` content from a file |
 
-## URL resolution
+## URL Resolution
 
 Coder commands resolve the Hub URL in this order:
 
@@ -256,7 +256,7 @@ Coder commands resolve the Hub URL in this order:
 
 Authentication comes from your normal CLI login session or the standard CLI auth environment variables.
 
-## Next steps
+## Next Steps
 
 - [Coder Service](/services/coder): Overview and SDK usage with `@agentuity/coder`
 - [Claude Code Plugin](/reference/cli/claude-code-plugin): AI-assisted development from Claude Code

@@ -6,7 +6,7 @@ description: Connect Agentuity service clients, local development, and deploy pa
 
 Call Agentuity services (key-value, AI Gateway, queues) from Next.js App Router route handlers. Use `agentuity build` to inspect the package, then deploy with `agentuity deploy`.
 
-## Create a starter
+## Create a Starter
 
 The quickest way to start is with the Agentuity CLI:
 
@@ -23,7 +23,7 @@ The starter includes a working translation demo: a React page that calls an API 
 | `src/app/api/translate/route.ts` | Route handler that calls the AI Gateway |
 | `package.json` | `dev`, `build`, and `deploy` scripts pre-wired |
 
-## Add to an existing app
+## Add to an Existing App
 
 Install the CLI as a dev dependency, then import the project:
 
@@ -50,7 +50,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for the
 | build | `next build` and standalone output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the generated standalone server | `agentuity deploy` ships the packaged app |
 
-## Service client example
+## Service Client Example
 
 Route handlers use standalone service clients. They do not need an Agentuity-owned router or `createApp()`.
 
@@ -115,7 +115,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
 `KeyValueClient` reads `AGENTUITY_SDK_KEY` from the environment. Run the app with `agentuity dev` so the linked project key is available during local development.
 
-## Provider SDK env-wiring example
+## Provider SDK Env Wiring Example
 
 This example intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path). `agentuity dev` can wire `OPENAI_API_KEY` and `OPENAI_BASE_URL` so the SDK routes calls through the AI Gateway. It preserves a provider key you already set, so keep provider env in `.env` intentional.
 
@@ -169,7 +169,7 @@ Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK exampl
 Agentuity does not require `createApp()` or an Agentuity-owned router for Next.js projects. Standard App Router route handlers work as-is.
 </Callout>
 
-## Run locally
+## Run Locally
 
 Start the app with `agentuity dev`. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Next.js process:
 
@@ -185,7 +185,7 @@ curl http://localhost:3000/api/chat \
   -d '{"message":"Hello"}'
 ```
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -199,7 +199,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database routes |
 | `AWS_*` | object storage routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Run the framework build when you want Next.js-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and produces `.agentuity/launch.json` with the start command for the deployed container.
 
@@ -229,7 +229,7 @@ Deploy only after the framework build, Agentuity build, and a local packaged val
 agentuity deploy --confirm
 ```
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -240,12 +240,12 @@ agentuity deploy --confirm
 | `.next/standalone` is empty after build | Confirm Next.js version is 12+; older versions do not support standalone output |
 | Files outside the app root are missing in the standalone bundle | Set `outputFileTracingRoot` in `next.config.ts` to include monorepo paths |
 
-## Framework docs
+## Framework Docs
 
 - [Next.js Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers): current App Router route handler shape and HTTP method exports
 - [Next.js Standalone Output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output): how `output: 'standalone'` works and what it produces
 
-## Next steps
+## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): TTL semantics, namespaces, and type-safe reads
 - [AI Gateway](/services/ai-gateway): supported providers and how environment injection works

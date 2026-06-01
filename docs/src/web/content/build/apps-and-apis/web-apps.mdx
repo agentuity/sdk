@@ -5,7 +5,7 @@ description: Use Agentuity services from framework routes, server functions, and
 
 Build the UI with the framework you already chose. Put Agentuity service clients in server-only code, then call those routes from the browser with normal `fetch`.
 
-## Server route
+## Server Route
 
 This example uses a Next.js route handler, but the boundary is the same in other frameworks: validate the request, call the service from server code, and return a Web `Response`.
 
@@ -52,7 +52,7 @@ export async function GET(): Promise<Response> {
 
 `KeyValueClient` reads project credentials from the environment that `agentuity dev` and `agentuity deploy` provide. Keep that client out of browser components and browser bundles.
 
-## Browser call
+## Browser Call
 
 Call the route through the same origin. The browser never receives `AGENTUITY_SDK_KEY`.
 
@@ -70,7 +70,7 @@ export async function saveTheme(theme: 'light' | 'dark'): Promise<void> {
 }
 ```
 
-## Framework-specific setup
+## Framework-Specific Setup
 
 | Framework | Server boundary |
 | --- | --- |
@@ -84,7 +84,7 @@ export async function saveTheme(theme: 'light' | 'dark'): Promise<void> {
 
 See [Frameworks](/frameworks): choose the route shape for your framework before adding service clients.
 
-## Related docs
+## Related Docs
 
 - [Backend APIs](/build/apps-and-apis/backend-apis): deploy an API without a browser UI
 - [Static Sites](/build/apps-and-apis/static-sites): deploy static output and add a server boundary only when secrets are needed

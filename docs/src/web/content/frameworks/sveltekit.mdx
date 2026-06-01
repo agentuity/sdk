@@ -6,7 +6,7 @@ description: Add Agentuity service clients, local development, and deploy valida
 
 Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. Agentuity adds service clients, local development support, and deploy validation around the file-based routing and build output you already use.
 
-## Create a starter
+## Create a Starter
 
 ```bash
 bun create agentuity@next --name my-sveltekit-app --framework sveltekit
@@ -26,7 +26,7 @@ Key files in the AI example:
 
 The starter sets `kit.paths.relative` to `false`, so SvelteKit emits root-relative build asset URLs during server rendering unless you configure an external asset path.
 
-## Import an existing app
+## Import an Existing App
 
 For an existing SvelteKit app, add the CLI and register the project:
 
@@ -53,7 +53,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | SvelteKit adapter output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the adapter server entry | `agentuity deploy` ships the packaged app |
 
-## Add an API route
+## Add an API Route
 
 SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define pure JSON endpoints. Put Agentuity service clients here; never import them in client-side `<script>` blocks.
 
@@ -162,7 +162,7 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 
 Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
-## Call the route from a component
+## Call the Route from a Component
 
 Svelte 5 uses rune-based reactivity (`$state`, `$props`). The component calls the server route directly:
 
@@ -205,7 +205,7 @@ Svelte 5 uses rune-based reactivity (`$state`, `$props`). The component calls th
 The starter uses `+page.server.ts` form actions for the page UI because they integrate with SvelteKit's progressive enhancement via `use:enhance`. Use `+server.ts` routes for pure JSON endpoints called by `fetch` or external clients.
 </Callout>
 
-## Run locally
+## Run Locally
 
 `agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value to the dev process. If you want `bun run dev` to go through Agentuity on a fixed port, wrap the framework command like this:
 
@@ -236,7 +236,7 @@ curl http://localhost:3000/api/translate \
 
 The `--port 3000` flag is required because Vite ignores the `PORT` env var. Frameworks like Next.js read `PORT` directly, while Nuxt's native `nuxt dev` flow does not need this wrapper pattern.
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -250,7 +250,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database server routes |
 | `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 Run the framework build when you want SvelteKit-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
@@ -277,7 +277,7 @@ agentuity deploy --confirm
 `@sveltejs/adapter-static` produces no server entry. If your app has SSR routes or API endpoints, use `adapter-node` or another server-capable adapter before deploying.
 </Callout>
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -290,12 +290,12 @@ agentuity deploy --confirm
 | Route returns HTML instead of JSON | API handlers go in `+server.ts`, not in `+page.server.ts` actions |
 | Missing adapter error at build | Confirm `svelte.config.js` imports a server-capable adapter; `@sveltejs/adapter-static` has no server entry. See [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters) |
 
-## Framework docs
+## Framework Docs
 
 - [SvelteKit Routing](https://svelte.dev/docs/kit/routing): `+server.ts` shape, `RequestHandler` type, and `json()` helper
 - [SvelteKit Adapters](https://svelte.dev/docs/kit/adapters): choose a server adapter for apps with runtime routes
 
-## Next steps
+## Next Steps
 
 - [Key-Value Storage](/services/storage/key-value): store compact state from server routes with TTL
 - [AI Gateway](/services/ai-gateway): route provider SDK calls through Agentuity for all supported models

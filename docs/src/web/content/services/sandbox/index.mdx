@@ -42,7 +42,7 @@ Older runtime examples may show `ctx.sandbox` inside `createAgent()` handlers. I
 | AI coding assistants | give an assistant a workspace where it can edit and execute files |
 | data processing | run short-lived scripts with explicit CPU, memory, and timeout limits |
 
-## Access patterns
+## Access Patterns
 
 | Pattern | Use It When |
 |---------|-------------|
@@ -52,7 +52,7 @@ Older runtime examples may show `ctx.sandbox` inside `createAgent()` handlers. I
 | `agentuity cloud sandbox` | You want to inspect, debug, or script sandboxes from your terminal |
 | [Web App](https://app.agentuity.com) | You want to browse runtimes, snapshots, and service state visually |
 
-## Choose the execution surface
+## Choose the Execution Surface
 
 | Need | Start With | Why |
 |------|------------|-----|
@@ -61,7 +61,7 @@ Older runtime examples may show `ctx.sandbox` inside `createAgent()` handlers. I
 | repo-aware coding work with session history, skills, review, and reconnects | [Coder](/services/coder) | the unit of work is a managed session, not only a process |
 | direct control over a coding-agent CLI or server image | [Coding agents in sandboxes](/services/sandbox/coding-agents) | you choose the runtime and manage provider config, events, and cleanup |
 
-## Key concepts
+## Key Concepts
 
 | Concept | Description |
 |---------|-------------|
@@ -72,7 +72,7 @@ Older runtime examples may show `ctx.sandbox` inside `createAgent()` handlers. I
 
 Runtimes, sandboxes, and snapshots build on each other: runtime, sandbox, snapshot. Checkpoints stay scoped to one sandbox.
 
-## Execution modes
+## Execution Modes
 
 Use `client.run()` for one command. It creates a one-shot sandbox, runs the command, captures output, and the sandbox is auto-destroyed after the command exits.
 
@@ -199,7 +199,7 @@ const sandbox = await client.create({
 
 See [Creating and Using Snapshots](/services/sandbox/snapshots) for declarative snapshot files, CLI commands, and snapshot management APIs.
 
-## Background jobs
+## Background Jobs
 
 Use jobs for commands that should keep running while your process does other work. Jobs are managed from `SandboxClient` with a sandbox ID.
 
@@ -251,7 +251,7 @@ app.post('/run', async (c) => {
 export default app;
 ```
 
-## Events and lifecycle
+## Events and Lifecycle
 
 Every sandbox records lifecycle events. Use `client.listEvents()` when you need to inspect what happened to a sandbox.
 
@@ -291,13 +291,13 @@ logger.info('sandbox execution finished', {
 });
 ```
 
-## Security defaults
+## Security Defaults
 
 Sandboxes give each run an isolated workspace and explicit resource limits. Outbound network access is disabled unless you set `network.enabled: true`. Expose inbound access separately with `network.port`.
 
 Set timeouts for untrusted commands, keep resource limits tight, and use snapshots for shared dependencies instead of reinstalling packages on every run.
 
-## Next steps
+## Next Steps
 
 - [Using the Sandbox API](/services/sandbox/sdk-usage): method examples for `SandboxClient`
 - [Coding agents in sandboxes](/services/sandbox/coding-agents): run and verify coding-agent runtimes without assuming provider access

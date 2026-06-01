@@ -16,7 +16,7 @@ LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_BASE_URL=https://cloud.langfuse.com
 ```
 
-## Start Langfuse once
+## Start Langfuse Once
 
 Create an instrumentation module and import it before route modules that create observations. The Langfuse processor reads credentials from the environment.
 
@@ -47,7 +47,7 @@ startLangfuseTelemetry();
 // Import and start your framework app after telemetry is registered.
 ```
 
-## Trace an app function
+## Trace an App Function
 
 Keep the function framework-free. A Hono route, Next.js route handler, queue consumer, or script can call it after parsing input at the boundary.
 
@@ -103,7 +103,7 @@ export async function answerWithLangfuseTrace(
 }
 ```
 
-## Keep Agentuity paths visible
+## Keep Agentuity Paths Visible
 
 Langfuse receives the trace data. Agentuity still gives the app deploy packaging, `agentuity dev` environment wiring, service clients, AI Gateway routing, sessions, and deployment logs.
 
@@ -115,7 +115,7 @@ Langfuse receives the trace data. Agentuity still gives the app deploy packaging
 
 Langfuse v5 uses a default span filter for Langfuse and GenAI/LLM spans. If you need every framework, database, or queue span in Langfuse, configure the Langfuse span processor deliberately and inspect the resulting trace volume.
 
-## Next steps
+## Next Steps
 
 - [Tracing](/services/observability/tracing): choose between app-owned OpenTelemetry and Agentuity telemetry spans
 - [Adding OpenTelemetry Spans to App Routes](/cookbook/patterns/opentelemetry-route-spans): keep standard OTel spans in app code

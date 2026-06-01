@@ -19,7 +19,7 @@ The CLI runtime also supports Node.js `24.0.0` or newer. Use Node for existing p
 node --version
 ```
 
-## Create a project
+## Create a Project
 
 Scaffold a starter and pick a framework:
 
@@ -44,7 +44,7 @@ bun create agentuity@next \
 
 The create flow runs the framework's official create CLI, applies an Agentuity overlay (an AI translation example, scripts, deps), then registers the project unless you pass `--no-register`.
 
-### Create-supported framework slugs
+### Supported Framework Slugs
 
 | Slug | Framework | Created with |
 |------|-----------|--------------|
@@ -56,7 +56,7 @@ The create flow runs the framework's official create CLI, applies an Agentuity o
 
 React Router, Vite + React, and TanStack Start are build/deploy detection targets, not create slugs. Start with each framework's own CLI, then run `agentuity project import` to add Agentuity metadata.
 
-### Useful flags
+### Useful Flags
 
 | Flag | What it does |
 |------|--------------|
@@ -71,7 +71,7 @@ React Router, Vite + React, and TanStack Start are build/deploy detection target
 
 Run `bun create agentuity@next --help` for the full list.
 
-## Run locally
+## Run Locally
 
 `@agentuity/cli@next` is added as a devDependency during the create flow, so `bunx` resolves the right CLI inside the project:
 
@@ -94,7 +94,7 @@ Use a non-default script name:
 bunx agentuity dev --script dev:web
 ```
 
-## Local versus global CLI
+## Local Versus Global CLI
 
 We recommend a project-local CLI for app repos. `-D`, `--dev`, or Bun's lowercase `-d` records `@agentuity/cli` in `devDependencies`. This keeps the CLI version with the app instead of relying on whichever global CLI is installed on your machine.
 
@@ -121,7 +121,7 @@ bun run deploy
 
 See [Deploy & Operate](/deploy-operate) for the full lifecycle.
 
-## Optional: install the CLI globally
+## Optional: Install the CLI Globally
 
 Install the CLI globally if you want to type `agentuity ...` outside a project, or to run `agentuity project import` against an existing directory before scaffolding:
 
@@ -147,7 +147,7 @@ agentuity auth login
 Inside a scaffolded project, `bunx agentuity` uses the local `@agentuity/cli@next` devDependency. Outside a project, use `bunx @agentuity/cli@next` when you want this CLI without installing it globally.
 </Callout>
 
-## Verify the install
+## Verify the Install
 
 In a scaffolded project:
 
@@ -163,7 +163,7 @@ agentuity --version
 # 3.0.x
 ```
 
-## Next steps
+## Next Steps
 
 - [Quickstart](/get-started/quickstart): scaffold a Next.js starter, run it locally, and deploy
 - [Project Structure](/get-started/project-structure): see exactly what the scaffold adds to a framework app

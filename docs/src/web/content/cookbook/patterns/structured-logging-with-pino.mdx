@@ -10,7 +10,7 @@ When an Agentuity app already writes JSON process logs and your platform reads s
 bun add pino
 ```
 
-## Create an app logger
+## Create an App Logger
 
 Keep the logger in a normal server module. The module can be imported by routes, workers, scripts, or server functions.
 
@@ -22,7 +22,7 @@ export const appLogger = pino({
 });
 ```
 
-## Add request and domain fields
+## Add Request and Domain Fields
 
 Create child loggers at the boundary that knows the request ID, user ID, order ID, or tenant ID. Those fields stay on every log line emitted by that child.
 
@@ -57,7 +57,7 @@ export async function acceptCheckout(
 
 This path does not require an Agentuity integration. Keep shipping stdout through the log drain, collector, or platform agent your app already uses.
 
-## Format logs during local development
+## Format Logs During Local Development
 
 Keep prettifying out of app code. When you want readable local output, install `pino-pretty` as a dev tool and pipe the process output through its CLI:
 
@@ -68,13 +68,13 @@ bun run src/smoke-pino.ts | bunx pino-pretty
 
 Use the raw JSON output for log drains, collectors, and deployed runtimes unless your platform expects a different format.
 
-## Add Agentuity beside it
+## Add Agentuity Beside It
 
 When the same route also needs Agentuity, keep the service client in server-only code and keep Pino as the process logger. Use [Key-Value Storage](/services/storage/key-value) for exact-key state, [Database](/services/database) for relational data, or [AI Gateway](/services/ai-gateway) for model routing.
 
 Use [`@agentuity/telemetry`](/services/observability/logging#use-agentuity-telemetry-logger) instead when you want Agentuity's logger and telemetry export setup to own the log path.
 
-## Test the function
+## Test the Function
 
 This smoke test keeps the logger app-owned and checks the function result. The log line still writes to stdout.
 
@@ -94,7 +94,7 @@ test('accepts positive checkout totals', async () => {
 });
 ```
 
-## Next steps
+## Next Steps
 
 - [Logging](/services/observability/logging): choose between app-owned logs and Agentuity telemetry logs
 - [Tracing](/services/observability/tracing): add spans around slow or multi-step work

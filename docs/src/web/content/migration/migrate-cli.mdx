@@ -39,7 +39,7 @@ The tool can also auto-detect migration mode from `@agentuity/runtime` in `packa
 
 Pass `--v2-to-v3` when you are following the v3 migration docs. Pass `--v1-to-v2` only when an older app must land on v2 first.
 
-## Safe workflow
+## Safe Workflow
 
 Preview first:
 
@@ -74,9 +74,9 @@ Manual (requires human action)
   (dry-run mode, no files modified)
 ```
 
-## What the tool changes
+## What the Tool Changes
 
-The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically. It creates a Hono starting point because that is the closest mechanical replacement for the old runtime container.
+The v2 to v3 migrator looks for runtime-era patterns and applies the changes it can make mechanically. It creates a Hono starting point because that is the closest replacement for the old runtime container. Use that output as a cleanup baseline, not as a requirement to choose Hono for the final app.
 
 | Area | Change |
 | --- | --- |
@@ -95,7 +95,7 @@ The v1 to v2 migrator keeps the runtime model. It rewrites older route files to 
 
 After writing changes, the tool runs `bun install` and a TypeScript check. If TypeScript reports errors, keep the diff and fix the remaining migration work manually.
 
-## What still needs review
+## What Still Needs Review
 
 Manual work is normal for apps that used runtime container features:
 
@@ -112,7 +112,7 @@ Manual work is normal for apps that used runtime container features:
 The migrator gives you a starting point, not a deploy guarantee. Review `src/index.ts`, `src/services.ts`, package scripts, and the TypeScript output before deploying.
 </Callout>
 
-## After migration
+## After Migration
 
 Review the diff first:
 
@@ -139,7 +139,9 @@ agentuity project import
 
 Deploy only after the framework build and `agentuity build` both succeed for your app shape.
 
-## Next steps
+Inspect `.agentuity/launch.json` before deploying. For normal framework apps, prefer fixing the framework build or `start` script so `agentuity build` can infer the process. If the app uses a custom runtime or start command, add a root `launch.json`; see [Custom Launchers](/reference/cli/build-configuration#custom-launchers).
+
+## Next Steps
 
 - [Migrating from v2](/migration/from-v2): put the CLI into the full migration flow
 - [Runtime to Frameworks](/migration/runtime-to-frameworks): map runtime APIs to framework code

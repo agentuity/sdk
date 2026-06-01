@@ -9,7 +9,7 @@ Use database resources when your app needs SQL, joins, constraints, or transacti
 Use database helpers for relational Postgres. For KV, vector, queues, tasks, schedules, email, webhooks, streams, and sandboxes, start from that service's dedicated package instead.
 </Callout>
 
-## Create or link a database
+## Create or Link a Database
 
 ```bash
 agentuity cloud db create --name app_data
@@ -24,7 +24,7 @@ Recover the connection string later with `--show-credentials`. The normal termin
 agentuity cloud db get app_data --show-credentials
 ```
 
-## Choose a database client
+## Choose a Database Client
 
 | Need | Use |
 |------|-----|
@@ -75,7 +75,7 @@ const activeUsers = await db.select().from(users).where(eq(users.active, true));
 
 Define larger schemas in a separate file and import them into your route or service module.
 
-## Bun-only compatibility helpers
+## Bun-Only Compatibility Helpers
 
 Use `@agentuity/postgres` or `@agentuity/drizzle` only when you are running in Bun and explicitly want those deprecated compatibility helpers around `DATABASE_URL`. They are not the default database path for framework apps.
 
@@ -104,7 +104,7 @@ export const users = pgTable('users', {
 });
 ```
 
-## Query through the database service API
+## Query Through the Database Service API
 
 `DBClient` calls the Agentuity database service API by database name and org ID. Use it for trusted scripts that inspect tables, run administrative queries, or read query logs without opening a direct Postgres connection from the script.
 
@@ -135,7 +135,7 @@ const logs = await db.logs({ limit: 50 });
 `DBClient.query(sql)` accepts a raw SQL string and does not bind parameters. Use it only for trusted SQL such as schema introspection or admin scripts. For application queries with dynamic values, use Drizzle, `pg`, or another parameterized Postgres client.
 </Callout>
 
-## Framework routes
+## Framework Routes
 
 Initialize the database client at module scope so framework routes can reuse it between requests.
 
@@ -161,7 +161,7 @@ export async function GET(): Promise<Response> {
 
 Database clients are direct clients. `@agentuity/hono` injects KV, vector, stream, queue, email, schedule, task, and sandbox clients, but it does not inject a database client.
 
-## Next steps
+## Next Steps
 
 - [Postgres Clients](/services/database/postgres): query Agentuity-managed Postgres with `pg` or the Bun-only helper
 - [Drizzle ORM](/services/database/drizzle): define schemas and query with standard Drizzle

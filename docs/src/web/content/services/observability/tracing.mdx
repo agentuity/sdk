@@ -5,7 +5,7 @@ description: OpenTelemetry spans for performance debugging and operation trackin
 
 For Agentuity apps, tracing helps when logs tell you something happened but not where the time went. Keep an existing collector, vendor SDK, or framework instrumentation if you already have one. Use `@agentuity/telemetry` when you want Agentuity defaults, or `@agentuity/hono` when Hono routes read the tracer from `c.var.tracer`.
 
-## Bring your own OpenTelemetry
+## Bring Your Own OpenTelemetry
 
 If your app already sends traces to an OpenTelemetry Collector or vendor backend, keep that setup. Add spans with the standard OpenTelemetry API in the route, server function, worker, or script that owns the work.
 
@@ -46,7 +46,7 @@ See [Adding OpenTelemetry Spans to App Routes](/cookbook/patterns/opentelemetry-
 
 Use `@agentuity/telemetry` when you want Agentuity's logger, tracer, meter, auto-instrumentation, and exporter defaults from one package.
 
-## Use Agentuity telemetry spans
+## Use Agentuity Telemetry Spans
 
 ```bash
 bun add @agentuity/telemetry@next @opentelemetry/api
@@ -91,7 +91,7 @@ export async function searchProducts(input: SearchInput): Promise<readonly strin
 
 `startActiveSpan()` makes the span active while the callback runs, but it does not close the span. Call `span.end()` in a `finally` block, and set status when the outcome is meaningful.
 
-## Add attributes
+## Add Attributes
 
 Use attributes for searchable span context: IDs, counts, categories, and boolean flags. Avoid raw prompts, tokens, secrets, or personal data.
 
@@ -122,7 +122,7 @@ export async function loadUser(input: UserLookup): Promise<{ readonly found: boo
 }
 ```
 
-## Record events
+## Record Events
 
 Use `addEvent()` to mark important moments inside a longer span.
 
@@ -150,7 +150,7 @@ export async function processBatch(records: readonly string[]): Promise<{ readon
 
 Events create a timeline inside the span. Use them for milestones, not for every loop iteration.
 
-## Nest spans
+## Nest Spans
 
 Create child spans for multi-step operations. Inner spans inherit the active parent span.
 
@@ -200,7 +200,7 @@ export async function answerQuestion(question: string): Promise<{ readonly answe
 
 Nested spans preserve parent-child timing for any trace backend or timeline view that receives them.
 
-## Fetch propagation
+## Fetch Propagation
 
 When telemetry starts with an exporter or console debug exporter, `fetch()` calls made inside an active span get a child HTTP span and trace-context headers.
 
@@ -227,7 +227,7 @@ export async function loadCatalog(): Promise<Response> {
 }
 ```
 
-## AI SDK telemetry
+## AI SDK Telemetry
 
 AI SDK calls emit OpenTelemetry spans when telemetry is enabled for the call. Pass the Agentuity tracer when you want those spans to share the same trace pipeline as your framework code.
 
@@ -269,7 +269,7 @@ for await (const delta of stream.textStream) {
 
 AI SDK telemetry span names and attributes can change with AI SDK releases. After enabling telemetry, inspect the emitted spans in your collector or Agentuity session timeline before building dashboards or alerts around exact attribute names. Pass request, user, or session IDs in `metadata` when you need to search for them later.
 
-## Hono routes
+## Hono Routes
 
 Hono routes can read the tracer from `c.var.tracer` after installing the Agentuity middleware.
 
@@ -319,7 +319,7 @@ app.post('/customers/:id/notify', async (c) => {
 export default app;
 ```
 
-## View traces
+## View Traces
 
 View Agentuity-collected traces for a session using the CLI:
 
@@ -339,7 +339,7 @@ The command includes the session timeline when it is available. Traces are also 
 | External API calls | Wrap in spans to track latency |
 | Cross-service calls | Let trace context propagate through active spans and fetch |
 
-## Best practices
+## Best Practices
 
 - Name spans after work, not implementation steps: `generate-summary`, not `step-2`.
 - End every span in `finally`.
@@ -348,7 +348,7 @@ The command includes the session timeline when it is available. Traces are also 
 - Keep sensitive payloads out of span attributes and events.
 - Use events for milestones inside long operations.
 
-## Next steps
+## Next Steps
 
 - [Logging](/services/observability/logging): add searchable context to logs
 - [Sessions & Debugging](/services/observability/sessions-debugging): inspect timelines and logs from the CLI

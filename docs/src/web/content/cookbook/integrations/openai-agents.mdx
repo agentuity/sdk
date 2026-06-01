@@ -9,7 +9,7 @@ The [OpenAI Agents SDK](https://openai.github.io/openai-agents-js/) provides a s
 bun add hono @openai/agents zod
 ```
 
-## Define the agent and tools
+## Define the Agent and Tools
 
 Tools use Zod schemas for parameters. Each tool has a `name`, `description`, parameters schema, and an `execute` function.
 
@@ -43,7 +43,7 @@ export const researchAgent = new Agent({
 
 `setTracingDisabled(true)` skips the SDK's local tracing exporter. Remove that line if you want the SDK's traces.
 
-## Wire the route
+## Wire the Route
 
 `run(agent, message)` runs the full ReAct loop. The route validates, runs, returns.
 
@@ -112,7 +112,7 @@ Pick this SDK when you want OpenAI's first-party agent loop, especially for hand
 
 Run locally with `agentuity dev` to use [AI Gateway](/services/ai-gateway) env wiring for the OpenAI SDK. For deployed apps, set provider keys directly unless you have verified the project receives the gateway env your SDK path needs.
 
-## Next steps
+## Next Steps
 
 - [Agents](/build/agents): the plain-function pattern this page wraps
 - [Tool Calling](/build/agents/tool-calling): the AI SDK path with provider-agnostic tool calls

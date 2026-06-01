@@ -6,7 +6,7 @@ description: Add Agentuity service clients and AI Gateway routing to a Hono app
 
 Write normal [Hono](https://hono.dev/docs/) route handlers. Use direct Agentuity clients inside handlers by default, or add `@agentuity/hono` when middleware is the convenient place to share clients and telemetry across routes.
 
-## Create a starter
+## Create a Starter
 
 ```bash
 bun create agentuity@next --name my-hono-api --framework hono --services keyvalue
@@ -46,7 +46,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | build | your Node-targeted build command | `agentuity build` runs the build and writes generic launch metadata |
 | deploy | the built server entry | `agentuity deploy` ships the packaged app |
 
-## Use service clients in routes
+## Use Service Clients in Routes
 
 Direct service clients work in any Hono handler. They read `AGENTUITY_SDK_KEY` (with `AGENTUITY_CLI_KEY` as a fallback) from the process environment, so `agentuity dev` can supply the linked project key for local runs.
 
@@ -162,7 +162,7 @@ export default app;
 
 Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
 
-## Use `@agentuity/hono` for shared clients
+## Use `@agentuity/hono` for Shared Clients
 
 When most routes need the same Agentuity clients, `@agentuity/hono` can initialize them once and expose them on `c.var.*`. Keep direct clients for a single route, one-off script, or code you want to move across frameworks. Use middleware when the app benefits from shared clients, telemetry defaults, and route-local access through `c.var`. If your unbundled dev runner has trouble resolving the telemetry package, keep direct clients in dev or bundle the server entry before using the middleware path.
 
@@ -210,7 +210,7 @@ export default app;
 | **Telemetry** | Use your existing setup or `@agentuity/telemetry` directly | Agentuity telemetry defaults through `c.var.logger` and `c.var.tracer` |
 | **Best for** | Single route, script, or cross-framework module | Most routes need multiple services |
 
-## Run locally
+## Run Locally
 
 `agentuity dev` runs your package manager's `dev` script. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Hono process.
 
@@ -232,7 +232,7 @@ curl -X POST http://localhost:3000/api/translate \
   -d '{"text":"Hello","toLanguage":"Spanish"}'
 ```
 
-## Deployed environment variables
+## Deployed Environment Variables
 
 Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
 
@@ -246,7 +246,7 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 | `DATABASE_URL` | database routes |
 | `AWS_*` | object storage routes; see [Object Storage](/services/storage/object) for exact variables |
 
-## Validate before deploy
+## Validate Before Deploy
 
 The current starter uses Hono's Node template and adds explicit build and start scripts so the deploy can launch a single process.
 
@@ -274,7 +274,7 @@ Deploy only after `.agentuity/launch.json` points at the documented web process 
 agentuity deploy --confirm
 ```
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -287,13 +287,13 @@ agentuity deploy --confirm
 | `c.var.kv` is undefined | Add `app.use('*', agentuity())` before any route that reads from `c.var` |
 | `c.var.*` types are missing | Declare the `Variables` generic on `new Hono<{ Variables: ... }>()` |
 
-## Framework docs
+## Framework Docs
 
 - [Hono on Node.js](https://hono.dev/docs/getting-started/nodejs): confirm the `src/index.ts` entry and `@hono/node-server` adapter setup
 - [Hono Routing](https://hono.dev/docs/api/routing): use standard Hono routing helpers
 - [Hono Cookies](https://hono.dev/docs/helpers/cookie): configure `getCookie`, `setCookie`, and signed cookies
 
-## Next steps
+## Next Steps
 
 - [Agents](/build/agents): wrap model calls in reusable functions called from Hono routes
 - [Chat and Streaming](/build/agents/chat-and-streaming): return streamed model output from Hono routes

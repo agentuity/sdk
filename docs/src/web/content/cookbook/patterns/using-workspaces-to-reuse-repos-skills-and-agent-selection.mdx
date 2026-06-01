@@ -10,7 +10,7 @@ Workspaces save a session setup once and reuse it everywhere by `workspaceId`. T
 This example stores a saved skill and an agent selection, then pulls both in by `workspaceId`. Repositories and skill buckets can join the same workspace later.
 </Callout>
 
-## The pattern
+## The Pattern
 
 Create a workspace, then create a session that points at it:
 
@@ -80,7 +80,7 @@ async function main(): Promise<void> {
 void main();
 ```
 
-## Example output
+## Example Output
 
 ```json
 {
@@ -160,14 +160,14 @@ Use this pattern when you want:
 - a stable place to store reusable skill and agent selections
 - session creation that starts from a named workspace instead of a long config object
 
-## Key points
+## Key Points
 
 - Workspaces pay off when the same selections repeat across sessions.
 - A workspace can't be empty. Include at least one repo, dependency, setup script, system prompt, saved skill, skill bucket, or agent selection.
 - `workspaceId` doesn't replace the normal session lifecycle APIs; create, inspect, archive, and delete sessions the same way.
 - Read the session back after creation to confirm the workspace selections flowed through.
 
-## See also
+## See Also
 
 - [Attaching Skills to a Coder Session](/cookbook/patterns/attaching-skills-to-a-coder-session): Attach saved skills directly without first creating a workspace
 - [Choosing Coder Agents for a Session](/cookbook/patterns/choosing-built-in-agents-for-a-coder-session): Set the agent roster without introducing a workspace

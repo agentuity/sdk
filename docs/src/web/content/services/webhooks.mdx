@@ -47,7 +47,7 @@ export async function createStripeWebhook(destinationUrl: string): Promise<strin
 | hand received events to background workers | [Queues](/services/queues) |
 | forward inbound email to an HTTP endpoint | [Email](/services/email) |
 
-## Client setup
+## Client Setup
 
 Construct the client once at module scope and reuse it from handlers, routes, or scripts.
 
@@ -70,7 +70,7 @@ const webhooks = new WebhookClient({
 `@agentuity/hono` injects KV, vector, stream, queue, email, schedule, task, and sandbox clients. Webhooks are not in that set, so build a `WebhookClient` directly when you need it.
 </Callout>
 
-## Create a webhook
+## Create a Webhook
 
 `create()` returns the new webhook record with its ingest URL. Keep a copy anywhere you configure the upstream sender.
 
@@ -96,7 +96,7 @@ const ingestUrl = webhook.url;
 `webhook.url` is optional in the client type, even though user-created webhooks include it in current create and get responses. Save the value where the upstream sender, such as Stripe or GitHub, is configured.
 </Callout>
 
-## Add destinations
+## Add Destinations
 
 Destinations receive forwarded payloads when the ingest URL receives a request. The current destination type is `url`.
 
@@ -138,7 +138,7 @@ const receipt = first ? await webhooks.getReceipt(webhook.id, first.id) : null;
 
 Receipts are useful for audit trails and for replaying a payload through your own handler code while you debug.
 
-## Delivery tracking and retry
+## Delivery Tracking and Retry
 
 Every receipt produces delivery records for the webhook destinations. `listDeliveries()` returns the recent attempts, and `retryDelivery()` re-attempts a failed delivery.
 
@@ -167,7 +167,7 @@ Delivery records carry `webhook_destination_id` and `webhook_receipt_id`, so you
 When downstream processing fails, inspect the receipt, fix the destination, then retry the failed delivery. Do not ask the upstream service to resend unless the original receipt is missing.
 </Callout>
 
-## List, get, and update
+## List, Get, and Update
 
 Use `list()` for admin views, `get()` for one webhook plus its destinations, and `update()` to change the name or description.
 
@@ -184,7 +184,7 @@ const { webhook: updated } = await webhooks.update(webhook.id, {
 
 `update()` requires `name`. `description` is optional.
 
-## Use receipts from a server route
+## Use Receipts from a Server Route
 
 A common pattern is to expose a small admin route that lists recent receipts for one webhook so on-call engineers can debug an integration without leaving the app.
 
@@ -239,7 +239,7 @@ await webhooks.delete(webhook.id);
 `delete()` permanently removes the webhook, its destinations, receipts, and delivery records. There is no undo.
 </Callout>
 
-## Next steps
+## Next Steps
 
 - [Queues](/services/queues): move webhook processing out of the request path
 - [Email](/services/email): receive inbound email through managed addresses and destinations

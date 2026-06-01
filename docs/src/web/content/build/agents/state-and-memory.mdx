@@ -9,7 +9,7 @@ State belongs to your app. Use cookies, auth sessions, or request headers to ide
 bun add hono @agentuity/keyvalue@next zod @agentuity/telemetry@next
 ```
 
-## Choose the state boundary
+## Choose the State Boundary
 
 Pick the right store before writing any code. The wrong boundary is the most common source of memory bugs.
 
@@ -23,7 +23,7 @@ Pick the right store before writing any code. The wrong boundary is the most com
 
 The examples on this page use KV because that data is compact and fetched by exact key.
 
-## Store session memory
+## Store Session Memory
 
 This route creates a signed browser session cookie when one does not exist, then reads and writes typed memory under that session ID.
 
@@ -98,7 +98,7 @@ If you have already added `@agentuity/hono`, `kv` is available on `c.var` after 
 Cookie helpers are framework-specific. Nuxt and h3 expose `getCookie`/`setCookie` from `h3`. Next.js App Router exposes `cookies()` from `next/headers`. SvelteKit exposes `cookies` on the request event. The KV calls are identical across all of them.
 </Callout>
 
-## Choose the key
+## Choose the Key
 
 Use the most stable identifier available. Authenticated apps should key memory by user ID. Anonymous apps can fall back to a signed cookie, device token, or conversation ID.
 
@@ -117,7 +117,7 @@ await kv.set('app-memory', key, memory, { // [!code highlight]
 
 Do not key durable user memory by request ID. Request IDs are useful for logs and tracing but do not identify the next request from the same user.
 
-## Validate on read
+## Validate on Read
 
 KV stores raw JSON. Treat every read as a boundary: the value may have been written by older code, a migration script, or a manual test.
 
@@ -153,7 +153,7 @@ Inside `@agentuity/hono` route handlers, replace `logger` with `c.var.logger` so
 `result.data` is only accessible when `result.exists` is `true`. TypeScript enforces this: accessing `result.data` without the check is a type error.
 </Callout>
 
-## Keep memory small
+## Keep Memory Small
 
 Store summaries, preferences, IDs, and pointers. Put large transcripts in a database or durable stream, then store only the reference in KV.
 
@@ -198,7 +198,7 @@ await kv.set('cache', cacheKey, value);
 
 See [Key-Value Storage](/services/storage/key-value) for namespace-level TTL defaults and key inspection.
 
-## Common gotchas
+## Common Gotchas
 
 | Symptom | Check |
 |---------|-------|
@@ -208,7 +208,7 @@ See [Key-Value Storage](/services/storage/key-value) for namespace-level TTL def
 | chat history grows without bound | store a summary plus recent turns, not the full transcript |
 | keys disappear unexpectedly | the per-key or namespace TTL is shorter than expected; check `result.expiresAt` on a read |
 
-## Next steps
+## Next Steps
 
 - [Agents](/build/agents): read memory before model calls
 - [Chat and Streaming](/build/agents/chat-and-streaming): persist chat history after streamed responses

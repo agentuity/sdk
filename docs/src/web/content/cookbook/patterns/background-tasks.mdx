@@ -11,7 +11,7 @@ Some side effects do not need to complete before the response goes out: analytic
 | ephemeral side effect, OK if dropped on restart | in-process promise |
 | durable handoff with retries, status, and observability | [Queues](/services/queues) and the [Background Work](/build/apps-and-apis/background-work) pattern |
 
-## In-process promise
+## In-Process Promise
 
 For best-effort work, kick off the promise and return. Wrap it in `try/catch` so an uncaught rejection cannot crash the process.
 
@@ -55,7 +55,7 @@ export default app;
 A redeploy, container shutdown, or crash drops in-flight promises. Use this pattern only for work the app can lose without consequence. Move durable work to a queue.
 </Callout>
 
-## Durable queue handoff
+## Durable Queue Handoff
 
 When the work must survive restarts, has retry semantics, or needs status reporting, hand it off to a queue. The request route publishes; a worker route runs the slow part.
 
@@ -94,7 +94,7 @@ The full request, status, worker, and stream wiring lives in [Background Work](/
 - prefer the queue path for anything that must reach a definite state
 - record an idempotency key in the queue payload when retries should converge
 
-## Next steps
+## Next Steps
 
 - [Background Work](/build/apps-and-apis/background-work): the durable request/status/worker/stream pattern
 - [Queues](/services/queues): publish API, partitioning, idempotency, and HTTP destinations

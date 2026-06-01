@@ -253,7 +253,7 @@ if (session.runtimeAvailable) {
 }
 ```
 
-## Session data
+## Session Data
 
 ### getReplay(sessionId, params?)
 
@@ -299,7 +299,7 @@ List historical events for a session.
 const history = await client.listEventHistory('codesess_abc123', { limit: 50 });
 ```
 
-## Loop state
+## Loop State
 
 ### getLoopState(sessionId, params?)
 
@@ -431,7 +431,7 @@ Delete a workspace.
 
 **Returns:** `Promise<void>`
 
-## Custom agents
+## Custom Agents
 
 ### listCustomAgents(options?)
 
@@ -636,7 +636,7 @@ List known users in the Coder Hub. Supports search and pagination.
 const { users } = await client.listUsers({ search: 'alice', limit: 10 });
 ```
 
-## Next steps
+## Next Steps
 
 - [Coder](/services/coder): Concepts, session lifecycle, and workflow guidance
 - [`@agentuity/coder` Package](/reference/standalone-packages#coder): Install and constructor overview
