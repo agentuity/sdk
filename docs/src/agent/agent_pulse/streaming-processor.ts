@@ -48,7 +48,7 @@ export function createStreamingProcessor<TOOLS extends Record<string, Tool>>(
 						break;
 
 					case 'tool-result':
-						if (chunk.toolName === 'askDocsAgentTool' && chunk.result?.documents) {
+						if (chunk.toolName === 'askDocsAssistantTool' && chunk.result?.documents) {
 							for (const doc of chunk.result.documents) {
 								if (doc.url && !accumulatedSources.has(doc.url)) {
 									accumulatedSources.set(doc.url, {
@@ -143,7 +143,7 @@ function getToolStatusMessage(toolName: string): string {
 	switch (toolName) {
 		case 'startTutorialAtStep':
 			return 'Starting tutorial...';
-		case 'askDocsAgentTool':
+		case 'askDocsAssistantTool':
 			return 'Searching documentation...';
 		default:
 			return 'Processing your request...';

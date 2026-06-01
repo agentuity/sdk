@@ -256,7 +256,7 @@ bun add @agentuity/aigateway@next
 import { AIGatewayClient } from '@agentuity/aigateway';
 
 const gateway = new AIGatewayClient();
-const SUMMARY_MODEL = process.env.AI_GATEWAY_MODEL ?? 'anthropic/claude-opus-4-8';
+const SUMMARY_MODEL = process.env.APP_SUMMARY_MODEL ?? 'anthropic/claude-opus-4-8';
 
 const result = await gateway.completeText({
   model: SUMMARY_MODEL,

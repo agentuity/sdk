@@ -3,7 +3,7 @@ import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { rephraseVaguePrompt } from './prompt';
 import { retrieveRelevantDocs } from './retriever';
-import type { Answer } from './types';
+import type { Answer, DocsAssistantContext, RelevantDoc } from './types';
 
 // Zod schema for AI SDK compatibility
 const DocumentReferenceSchemaZod = z.object({
@@ -16,21 +16,28 @@ const AnswerSchemaZod = z.object({
 	documents: z.array(DocumentReferenceSchemaZod),
 });
 
-export default async function answerQuestion(ctx: any, prompt: string): Promise<Answer> {
-	// First, rephrase the prompt for better vector search
-	const rephrasedPrompt = await rephraseVaguePrompt(ctx, prompt);
+interface AnswerDocsQuestionOptions {
+	readonly rephrasePrompt?: (ctx: DocsAssistantContext, prompt: string) => Promise<string>;
+	readonly retrieveDocs?: (
+		ctx: DocsAssistantContext,
+		rephrasedPrompt: string
+	) => Promise<RelevantDoc[]>;
+	readonly generateAnswer?: (systemPrompt: string) => Promise<Answer>;
+}
 
-	// Use the rephrased prompt for document retrieval
-	const relevantDocs = await retrieveRelevantDocs(ctx, rephrasedPrompt);
-
-	const systemPrompt = `
+export function buildDocsAnswerSystemPrompt(
+	rephrasedPrompt: string,
+	relevantDocs: readonly RelevantDoc[]
+): string {
+	return `
 You are Agentuity's developer-documentation assistant.
 
 === CONTEXT ===
 Your role is to be as helpful as possible and try to assist user by answering their questions.
 
 === PLATFORM ===
-Agentuity is a **TypeScript/JavaScript-only** platform. Agents and all SDK code are written exclusively in TypeScript. Do NOT reference Python or other non-TypeScript languages in examples.
+Agentuity v3 is a **TypeScript/JavaScript-only** platform. App code is written in TypeScript or JavaScript. Do NOT reference Python or other non-TypeScript languages in examples.
+New v3 apps use framework routes, server functions, queue consumers, schedules, tasks, webhooks, direct service clients, or plain shared functions. Do NOT recommend v2 runtime helpers such as \`createApp()\`, \`createRouter()\`, \`createAgent()\`, \`AgentRequest\`, \`AgentResponse\`, or \`AgentContext\` unless the cited docs are explicitly about migration from v2.
 
 === RULES ===
 1. Use ONLY the content inside <DOCS> tags to craft your reply. If the required information is missing, state that the docs do not cover it.
@@ -74,33 +81,35 @@ If you cited no documents, return an empty array. Do NOT wrap the JSON in Markdo
 === MDX FORMATTING EXAMPLES ===
 For CLI commands:
 \`\`\`bash
-agentuity agent create my-agent "My agent description" bearer
+bun create agentuity@next my-app
 \`\`\`
 
 For code examples:
 \`\`\`typescript
-import type { AgentRequest, AgentResponse, AgentContext } from "@agentuity/sdk";
+import { Hono } from 'hono';
 
-export default async function Agent(req: AgentRequest, resp: AgentResponse, ctx: AgentContext) {
-    return resp.json({hello: 'world'});
-}
+const app = new Hono();
+
+app.post('/api/summarize', async (c) => {
+	const body: unknown = await c.req.json();
+	return c.json({ ok: true, input: body });
+});
+
+export default app;
 \`\`\`
 
 For structured responses:
-## Creating a New Agent
+## Creating a v3 app
 
-To create a new agent, use the CLI command:
+To create a new Agentuity app, use the CLI command:
 
 \`\`\`bash
-agentuity agent create [name] [description] [auth_type]
+bun create agentuity@next my-app
 \`\`\`
 
-**Parameters:**
-- \`name\`: The agent name
-- \`description\`: Agent description
-- \`auth_type\`: Either \`bearer\` or \`none\`
+Then add model-backed work in the route, server function, queue consumer, schedule, task, webhook, or shared function that owns the trigger.
 
-> **Note**: This command will create the agent in the Agentuity Cloud and set up local files.
+> **Note**: If an older app imports \`@agentuity/runtime\` or calls \`createAgent()\`, use the migration docs before applying v3 examples.
 
 <USER_QUESTION>
 ${rephrasedPrompt}
@@ -110,13 +119,32 @@ ${rephrasedPrompt}
 ${JSON.stringify(relevantDocs, null, 2)}
 </DOCS>
 `;
+}
+
+export async function answerDocsQuestion(
+	ctx: DocsAssistantContext,
+	prompt: string,
+	options: AnswerDocsQuestionOptions = {}
+): Promise<Answer> {
+	// First, rephrase the prompt for better vector search
+	const rephrasePrompt = options.rephrasePrompt ?? rephraseVaguePrompt;
+	const rephrasedPrompt = await rephrasePrompt(ctx, prompt);
+
+	// Use the rephrased prompt for document retrieval
+	const retrieveDocs = options.retrieveDocs ?? retrieveRelevantDocs;
+	const relevantDocs = await retrieveDocs(ctx, rephrasedPrompt);
+	const systemPrompt = buildDocsAnswerSystemPrompt(rephrasedPrompt, relevantDocs);
 
 	try {
+		if (options.generateAnswer) {
+			return await options.generateAnswer(systemPrompt);
+		}
+
 		const result = await generateObject({
 			model: openai('gpt-5.4-mini'),
 			system: systemPrompt,
 			prompt:
-				'The user is mostly a software engineer. Your answer should be concise, straightforward and in most cases, supplying the answer with examples code snipped is ideal.',
+				'The user is mostly a software engineer. Your answer should be concise and straightforward. When code is useful, supply a complete v3 example from the cited docs.',
 			schema: AnswerSchemaZod,
 		});
 		return result.object as Answer;

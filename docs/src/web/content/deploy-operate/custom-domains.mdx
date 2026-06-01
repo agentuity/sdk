@@ -21,7 +21,7 @@ These examples show `agentuity ...` for readability. If the CLI is project-local
 ```bash
 agentuity project add domain example.com
 agentuity project add domain example.com --skip-validation
-agentuity project add domain example.com --dry-run
+agentuity --dry-run project add domain example.com
 ```
 
 `--skip-validation` writes the domain without checking DNS first. Use it when you intend to add the records after committing the change. `--dry-run` previews the file edit without writing.
@@ -67,7 +67,7 @@ DNS validation also runs as a deploy step before any environment sync or build:
 - During `project add domain`, non-interactive runs fail when DNS is missing unless you pass `--skip-validation`.
 - During deploy, the CLI shows the missing records and retries every 5 seconds until DNS resolves or the command is cancelled.
 
-Run `agentuity project domain check` before CI deploys when DNS changes are part of the release. There is no deploy flag that skips domain validation.
+Run `agentuity project domain check` before CI deploys when DNS changes are part of the release. If DNS is intentionally incomplete for a deploy validation run, pass `agentuity deploy --skip-dns-validation` and verify the domain before sending traffic to it.
 
 ## TLS certificates
 
@@ -87,7 +87,7 @@ Deployment: deploy_abc...
 -> Dashboard:  https://app.agentuity.com/r/deploy_abc...
 ```
 
-The Agentuity-hosted URLs still exist, but the custom-domain banner focuses on the configured domain. `agentuity project show --json` returns `urls.custom`, and `agentuity cloud deployment show` surfaces configured domains in the `Domains` and `DNS Records` fields.
+The Agentuity-hosted URLs still exist, but the custom-domain banner focuses on the configured domain. `agentuity --json project show <project-id>` returns `urls.custom`, and `agentuity cloud deployment show` surfaces configured domains in the `Domains` and `DNS Records` fields.
 
 ## Removing a domain
 

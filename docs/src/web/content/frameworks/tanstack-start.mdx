@@ -9,33 +9,51 @@ TanStack Start is not a `bun create agentuity@next --framework` starter today. S
 ## Create the framework app
 
 ```bash
-npx @tanstack/cli@latest create my-start-app
+npx @tanstack/cli@latest create my-start-app --framework React --deployment nitro
 cd my-start-app
 ```
 
-Choose the React framework. For Agentuity deploys, configure Nitro as the hosting/deployment adapter during setup if your CLI prompts for it, or add Nitro from the TanStack Start hosting guide afterward. The examples below assume the build emits `.output/server/index.mjs` and the app has a `start` script for that file.
+Choose React and Nitro if the CLI prompts instead of accepting flags. The examples below assume the build emits `.output/server/index.mjs` and the app has a `start` script for that file.
 
 Then add Agentuity:
 
 ```bash
 npm install @agentuity/keyvalue@next
-npm install -D @agentuity/cli@next
+npm install -D @agentuity/cli@next @agentuity/vite@next
 npx agentuity project import --validate-only   # dry run: checks config only
 npx agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-Use the package manager that the TanStack CLI configured. Install service packages such as `@agentuity/keyvalue` as app dependencies. Install `@agentuity/cli` as a project-local dev dependency so the CLI version stays in the app's lockfile. Bun's equivalent of `npm install -D` is lowercase `bun add -d`.
+Use the package manager that the TanStack CLI configured. Install service packages such as `@agentuity/keyvalue` as app dependencies. Install `@agentuity/cli` as a project-local dev dependency so the CLI version stays in the app's lockfile. Add `@agentuity/vite` when you use `agentuity dev --public`; the Vite plugin keeps public local dev and HMR pointed at the Agentuity dev hostname. Bun's equivalent of `npm install -D` is lowercase `bun add -d`.
 
-| Package manager | Add local CLI | Run local CLI | Undo local install |
+| Package manager | Add local tooling | Run local CLI | Undo local install |
 | --- | --- | --- | --- |
-| npm | `npm install -D @agentuity/cli@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli` |
-| Bun | `bun add -d @agentuity/cli@next` | `bunx agentuity ...` | `bun remove @agentuity/cli` |
-| pnpm | `pnpm add -D @agentuity/cli@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli` |
-| Yarn | `yarn add -D @agentuity/cli@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli` |
+| npm | `npm install -D @agentuity/cli@next @agentuity/vite@next` | `npx agentuity ...` | `npm uninstall @agentuity/cli @agentuity/vite` |
+| Bun | `bun add -d @agentuity/cli@next @agentuity/vite@next` | `bunx agentuity ...` | `bun remove @agentuity/cli @agentuity/vite` |
+| pnpm | `pnpm add -D @agentuity/cli@next @agentuity/vite@next` | `pnpm exec agentuity ...` | `pnpm remove @agentuity/cli @agentuity/vite` |
+| Yarn | `yarn add -D @agentuity/cli@next @agentuity/vite@next` | `yarn exec agentuity ...` | `yarn remove @agentuity/cli @agentuity/vite` |
 
 A global install is optional. It only makes bare `agentuity ...` work outside a project; it does not import or register the app. You can switch back by adding the dev dependency again and using the package-manager exec wrapper. The global install can stay installed, or you can remove it with the package manager that created it. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for the trade-offs.
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
+
+## Configure Vite for deploy
+
+For the Node-style hosting path that Agentuity uses, configure TanStack Start with the Nitro plugin in `vite.config.ts`. Include the Agentuity Vite plugin for public local dev:
+
+```ts title="vite.config.ts"
+import agentuity from '@agentuity/vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
+import { nitro } from 'nitro/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+	plugins: [agentuity(), tanstackStart(), nitro(), viteReact()],
+});
+```
+
+`nitro()` emits the server bundle that your deployed `start` script points at. `agentuity()` supports public local dev and HMR through `agentuity dev --public`; it is a no-op when the Agentuity dev hostname is not present. Agentuity preserves the Nitro output and uses your `start` script when it packages the app.
 
 <Callout type="tip" title="Existing app?">
 See [Add Agentuity to an existing app](/get-started/import-existing-app) for validation, import, the `Invalid project folder` deploy case, and first deploy.

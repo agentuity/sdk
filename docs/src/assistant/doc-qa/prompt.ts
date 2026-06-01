@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { openai } from '@ai-sdk/openai';
 import { generateObject, generateText } from 'ai';
 
-import type { PromptType } from './types';
+import type { DocsAssistantContext, PromptType } from './types';
 
 // Zod schema for AI SDK compatibility (separate from @agentuity/schema)
 const PromptClassificationSchemaZod = z.object({
@@ -94,7 +94,10 @@ function expandKnownDocsTerms(input: string): string {
 	return `${trimmedInput} ${addedTerms.join(' ')}`;
 }
 
-export async function rephraseVaguePrompt(ctx: any, input: string): Promise<string> {
+export async function rephraseVaguePrompt(
+	ctx: DocsAssistantContext,
+	input: string
+): Promise<string> {
 	const expandedQuery = expandKnownDocsTerms(input);
 	if (expandedQuery !== input) {
 		ctx.logger.info('Expanded query from "%s" to "%s"', input, expandedQuery);
@@ -160,11 +163,11 @@ Return ONLY the query text, nothing else.`;
 /**
  * Determines the prompt type based on the input string using LLM classification.
  * Uses specific, measurable criteria to decide between Normal and Agentic RAG.
- * @param ctx - Agent Context for logging and LLM access
+ * @param ctx - Docs assistant context for logging
  * @param input - The input string to analyze
  * @returns {Promise<PromptType>} - The determined PromptType
  */
-export async function getPromptType(ctx: any, input: string): Promise<PromptType> {
+export async function getPromptType(ctx: DocsAssistantContext, input: string): Promise<PromptType> {
 	const systemPrompt = `
 You are a query classifier that determines whether a user question requires simple retrieval (Normal) or complex reasoning (Thinking).
 

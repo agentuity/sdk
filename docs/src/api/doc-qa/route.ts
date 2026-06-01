@@ -1,16 +1,29 @@
 import type { ApiEnv } from '../context';
-import docQAAgent from '../../agent/doc_qa';
+import { answerDocsQuestion } from '../../assistant/doc-qa';
 import { documentPathToUrl } from '../../lib/doc-urls';
 import { Hono } from 'hono';
+import { z } from 'zod';
+
+const DocQaRequestSchema = z.object({
+	message: z.string().min(1, 'Message is required'),
+});
 
 const router = new Hono<ApiEnv>()
 
 	// POST /api/doc-qa - Answer questions about documentation
 	.post('/', async (c) => {
-		const data = await c.req.json();
-		let result: Awaited<ReturnType<typeof docQAAgent.run>>;
+		const parsed = DocQaRequestSchema.safeParse(await c.req.json());
+		if (!parsed.success) {
+			return c.json({ error: 'Invalid Doc QA request' }, 400);
+		}
+
 		try {
-			result = await docQAAgent.run(data);
+			const result = await answerDocsQuestion(c.var, parsed.data.message);
+			const documents = result.documents.map((doc) => ({
+				...doc,
+				url: documentPathToUrl(doc.url),
+			}));
+			return c.json({ ...result, documents });
 		} catch (error) {
 			c.var.logger.error('Doc QA search failed', { error });
 			return c.json({
@@ -19,16 +32,6 @@ const router = new Hono<ApiEnv>()
 				documents: [],
 			});
 		}
-
-		// Transform document URLs from raw paths to proper URLs
-		if (result.documents && Array.isArray(result.documents)) {
-			result.documents = result.documents.map((doc) => ({
-				...doc,
-				url: documentPathToUrl(doc.url),
-			}));
-		}
-
-		return c.json(result);
 	});
 
 export default router;

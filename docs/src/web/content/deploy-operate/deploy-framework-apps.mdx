@@ -290,7 +290,7 @@ agentuity cloud deployment logs <deployment-id> --limit 500 --no-timestamps
 - Build metadata (Agentuity CLI version, Bun version, platform, arch)
 
 <Callout type="info" title="No --follow on cloud deployment logs">
-`deployment logs` is a one-shot fetch with `--limit` capped at 100 by default. For live tailing, open the `Deployment Logs` URL from `cloud deployment show` in your browser. The deploy command itself streams warmup logs in-place during provisioning.
+`deployment logs` is a one-shot fetch, and `--limit` defaults to 100. For live tailing, open the `Deployment Logs` URL from `cloud deployment show` in your browser. The deploy command itself streams warmup logs in-place during provisioning.
 </Callout>
 
 ### Roll back
@@ -339,7 +339,7 @@ agentuity cloud machine list
 agentuity cloud machine list --org-id org_...
 agentuity cloud machine show <machine-id>
 agentuity cloud machine deployments <machine-id>
-agentuity cloud machine delete <machine-id> --force
+agentuity cloud machine delete <machine-id> --confirm
 ```
 
 `machine show` surfaces the instance type, availability zone, private IPv4, and the deployments currently scheduled on it.

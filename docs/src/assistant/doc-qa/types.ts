@@ -1,4 +1,28 @@
 import { s } from '@agentuity/schema';
+import type { Logger } from '@agentuity/hono';
+import type { VectorSearchParams, VectorSearchResult } from '@agentuity/vector';
+
+export interface DocsAssistantContext {
+	readonly logger: Pick<Logger, 'debug' | 'error' | 'info' | 'warn'>;
+	readonly vector: {
+		search(
+			name: string,
+			params: VectorSearchParams<DocsChunkMetadata>
+		): Promise<VectorSearchResult<DocsChunkMetadata>[]>;
+	};
+}
+
+export interface DocsChunkMetadata {
+	readonly path?: string;
+	readonly title?: string;
+	readonly text?: string;
+	readonly chunkIndex?: number;
+	readonly totalChunks?: number;
+	readonly contentType?: string;
+	readonly heading?: string;
+	readonly description?: string;
+	readonly createdAt?: string;
+}
 
 export const RelevantDocSchema = s.object({
 	path: s.string(),

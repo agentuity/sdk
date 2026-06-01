@@ -1,12 +1,13 @@
 import { VECTOR_STORE_NAME, vectorSearchNumber } from '../../config';
-import type { RelevantDoc } from './types';
+import type { VectorSearchResult } from '@agentuity/vector';
+import type { DocsAssistantContext, DocsChunkMetadata, RelevantDoc } from './types';
 
 /**
  * Expands a group of chunks from the same path by creating a set of all needed chunk indices
  * and querying for them once
  */
 async function expandPathGroup(
-	ctx: any,
+	ctx: DocsAssistantContext,
 	path: string,
 	pathChunks: Array<{
 		path: string;
@@ -44,13 +45,14 @@ async function expandPathGroup(
 
 	try {
 		// Query for all chunks at once
-		const chunkQueries = validIndices.map((index) =>
-			ctx.vector.search(VECTOR_STORE_NAME, {
-				query: path,
-				limit: 1,
-				metadata: { path: path, chunkIndex: index },
-			})
-		);
+		const chunkQueries: Array<Promise<VectorSearchResult<DocsChunkMetadata>[]>> =
+			validIndices.map((index) =>
+				ctx.vector.search(VECTOR_STORE_NAME, {
+					query: path,
+					limit: 1,
+					metadata: { path: path, chunkIndex: index },
+				})
+			);
 
 		const results = await Promise.all(chunkQueries);
 
@@ -111,7 +113,10 @@ async function expandPathGroup(
 	}
 }
 
-export async function retrieveRelevantDocs(ctx: any, prompt: string): Promise<RelevantDoc[]> {
+export async function retrieveRelevantDocs(
+	ctx: DocsAssistantContext,
+	prompt: string
+): Promise<RelevantDoc[]> {
 	const dbQuery = {
 		query: prompt,
 		limit: vectorSearchNumber,
@@ -154,13 +159,13 @@ export async function retrieveRelevantDocs(ctx: any, prompt: string): Promise<Re
 				continue;
 			}
 
-			const relevanceScore = (vector as any).similarity;
+			const relevanceScore = vector.similarity;
 
 			ctx.logger.debug(
 				'Vector for path %s, chunk %d: similarity=%s, relevanceScore=%s',
 				path,
 				chunkIndex,
-				(vector as any).similarity,
+				vector.similarity,
 				relevanceScore
 			);
 

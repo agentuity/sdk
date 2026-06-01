@@ -1,7 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { getTutorialMeta } from './tutorial';
-import docQAAgent from '../doc_qa';
+import { answerDocsQuestion } from '../../assistant/doc-qa';
+import type { DemoContext } from '../../api/context';
 import type { Action } from './types';
 import { ActionType } from './types';
 import { documentPathToUrl } from '../../lib/doc-urls';
@@ -13,7 +14,7 @@ interface ToolState {
 /**
  * Factory function that creates tools with state management context
  */
-export async function createTools(state: ToolState, agentContext: any) {
+export async function createTools(state: ToolState, agentContext: DemoContext) {
 	/**
 	 * Tool for starting a tutorial - adds action to state queue
 	 */
@@ -51,31 +52,25 @@ export async function createTools(state: ToolState, agentContext: any) {
 	});
 
 	/**
-	 * Tool that talks to docs agent.
+	 * Tool that talks to the docs assistant.
 	 * This tool doesn't use state - it returns data directly
 	 */
-	const askDocsAgentTool = tool({
+	const askDocsAssistantTool = tool({
 		description:
-			'Query the Agentuity Development Documentation agent using RAG (Retrieval Augmented Generation) to get relevant documentation and answers about the Agentuity platform, APIs, and development concepts',
+			'Search Agentuity developer documentation and answer questions about the Agentuity platform, APIs, and development concepts',
 		inputSchema: z.object({
 			query: z.string().describe('The question or query to send to the query function'),
 		}),
 		execute: async ({ query }) => {
 			try {
-				const response = await docQAAgent.run({
-					message: query,
-				});
-				if (response.documents && Array.isArray(response.documents)) {
-					response.documents = response.documents.map(
-						(doc: { url: string; title: string }) => ({
-							...doc,
-							url: documentPathToUrl(doc.url),
-						})
-					);
-				}
-				return response;
+				const response = await answerDocsQuestion(agentContext, query);
+				const documents = response.documents.map((doc) => ({
+					...doc,
+					url: documentPathToUrl(doc.url),
+				}));
+				return { ...response, documents };
 			} catch (error) {
-				agentContext.logger.error('Error calling doc-qa agent: %s', error);
+				agentContext.logger.error('Error calling docs assistant: %s', error);
 				return {
 					answer: 'Failed to retrieve documentation',
 					documents: [] as { url: string; title: string }[],
@@ -87,6 +82,6 @@ export async function createTools(state: ToolState, agentContext: any) {
 	// Return tools object
 	return {
 		startTutorialAtStep,
-		askDocsAgentTool,
+		askDocsAssistantTool,
 	};
 }

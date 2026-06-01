@@ -176,6 +176,18 @@ Completion request. Use `messages` for chat-compatible models and `prompt` for l
     "type": "string | string[]",
     "description": "",
     "required": false
+  },
+  {
+    "name": "response_format",
+    "type": "any",
+    "description": "OpenAI-style `response_format` passed through to OpenAI-compatible providers. Prefer `response_schema` for provider-agnostic structured output.",
+    "required": false
+  },
+  {
+    "name": "response_schema",
+    "type": "object | any",
+    "description": "Provider-agnostic structured-output schema (JSON Schema, StandardSchema v1, or Zod). At request time the gateway translates this to the right provider-native primitive: OpenAI `response_format: { type: \"json_schema\" }`, Anthropic `submit_response` tool with forced `tool_choice`, Google `generationConfig.responseSchema`, or schema-injected prompt fallback for unknown models.",
+    "required": false
   }
 ]} />
 
@@ -399,6 +411,18 @@ Completion request with `stream` set to `true`.
     "name": "stop",
     "type": "string | string[]",
     "description": "",
+    "required": false
+  },
+  {
+    "name": "response_format",
+    "type": "any",
+    "description": "OpenAI-style `response_format` passed through to OpenAI-compatible providers. Prefer `response_schema` for provider-agnostic structured output.",
+    "required": false
+  },
+  {
+    "name": "response_schema",
+    "type": "object | any",
+    "description": "Provider-agnostic structured-output schema (JSON Schema, StandardSchema v1, or Zod). At request time the gateway translates this to the right provider-native primitive: OpenAI `response_format: { type: \"json_schema\" }`, Anthropic `submit_response` tool with forced `tool_choice`, Google `generationConfig.responseSchema`, or schema-injected prompt fallback for unknown models.",
     "required": false
   }
 ]} />
