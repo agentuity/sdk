@@ -1175,7 +1175,7 @@ Services include, but are not limited to:
 }
 
 function generateSitemapXml(pages: DocPage[]): string {
-	const DOCS_BASE = 'https://agentuity.com/docs';
+	const DOCS_BASE = 'https://agentuity.dev';
 	const today = new Date().toISOString().split('T')[0];
 
 	const urls = pages
