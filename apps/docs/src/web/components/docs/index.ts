@@ -1,6 +1,7 @@
 export { AppSidebar } from './app-sidebar';
 export { CopyPageDropdown } from './copy-page-dropdown';
 export { DocsLayout } from './docs-layout';
+export { DocsVersionPicker } from './docs-version-picker';
 export { FooterNav } from './footer-nav';
 export { HeaderLinks } from './header-links';
 export { MDXPage, getFrontmatterForRoute } from './mdx-page';
