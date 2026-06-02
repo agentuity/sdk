@@ -5,16 +5,19 @@ launcher that delegates to `@agentuity/cli`'s `project create` flow.
 
 ## Usage
 
-```bash
-bun create agentuity my-project
-cd my-project
-bun run dev
-```
-
-Or with npm:
+Use whichever package manager you already have — the launcher dispatches the
+underlying CLI through the same one (npm/pnpm/yarn/bun), so Bun is not required.
 
 ```bash
 npm create agentuity@latest my-project
+cd my-project
+npm run dev
+```
+
+```bash
+pnpm create agentuity my-project
+yarn create agentuity my-project
+bun create agentuity my-project
 ```
 
 ## What you get

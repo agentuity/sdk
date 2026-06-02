@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { realpathSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getCliVersionSpecifier } from './index.ts';
+import { detectPackageManager, getCliVersionSpecifier, getCreateCommand } from './index.ts';
 
 // Read our own package.json to get the version. dist/bin.js lives alongside
 // dist/index.js; the published package.json is one level up from dist/.
@@ -34,8 +34,15 @@ function checkIsMain(): boolean {
 if (checkIsMain()) {
 	const cliVersion = getCliVersionSpecifier(pkg.version);
 	const args = process.argv.slice(2);
-	const result = spawnSync('bunx', [`@agentuity/cli@${cliVersion}`, 'create', ...args], {
+	const pm = detectPackageManager(process.env.npm_config_user_agent);
+	const { command, args: commandArgs } = getCreateCommand(
+		pm,
+		`@agentuity/cli@${cliVersion}`,
+		args
+	);
+	const result = spawnSync(command, commandArgs, {
 		stdio: 'inherit',
+		shell: process.platform === 'win32',
 	});
 	process.exit(result.status ?? 0);
 }
