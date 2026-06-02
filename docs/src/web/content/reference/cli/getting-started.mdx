@@ -14,9 +14,11 @@ Install the v3 CLI with the universal installer:
 curl -fsSL https://agentuity.sh | sh -s -- --version next
 ```
 
-Or install it with Bun:
+Or install it with npm:
 
 ```bash
+npm install -g @agentuity/cli@next
+# or
 bun add -g @agentuity/cli@next
 ```
 
@@ -26,8 +28,8 @@ Verify the installation:
 agentuity --version
 ```
 
-<Callout type="info" title="Use Bun 1.3 or newer">
-The CLI expects Bun 1.3 or newer.
+<Callout type="info" title="Use Node.js 24 or Bun 1.3">
+The CLI runs under Node.js 24.0.0 or newer, and it also supports Bun 1.3.3 or newer.
 </Callout>
 
 ## Upgrading
@@ -147,7 +149,7 @@ React Router, Vite + React, and TanStack Start are import-first paths, not creat
 | `--framework <framework>` | Framework slug to scaffold |
 | `--domains <domains>` | Custom domains to add to `agentuity.json` |
 | `--region <region>` | Cloud region for registered projects |
-| `--no-install` | Skip `bun install` after scaffolding |
+| `--no-install` | Skip dependency installation after scaffolding |
 | `--no-build` | Skip the create-time build step when the create flow runs one |
 | `--no-register` | Create local files without registering the project in Agentuity Cloud |
 | `--database <value>` | Database action: `skip`, `new`, or an existing database name |

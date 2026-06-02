@@ -6,7 +6,7 @@ description: Publish messages for async processing, webhooks, and event-driven w
 Use queues when a request should hand work off and return quickly. The handler accepts the request, the publish is durable, and a separate consumer or destination handles the slow part. Start with `QueueClient`; Hono apps can use `c.var.queue` after installing the Agentuity middleware.
 
 ```bash
-bun add @agentuity/queue@next
+npm install @agentuity/queue@next
 ```
 
 ```typescript
@@ -266,7 +266,7 @@ export async function publishNotification(userId: string): Promise<boolean> {
 `@agentuity/hono` constructs `QueueClient` once and exposes it on `c.var.queue`. Use it when several routes share the same client and you do not want to manage instances by hand.
 
 ```bash
-bun add @agentuity/hono@next hono
+npm install @agentuity/hono@next hono
 ```
 
 ```typescript

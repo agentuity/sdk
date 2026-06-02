@@ -20,14 +20,14 @@ The framework's create command writes `dev`, `build`, and `start`. The Agentuity
 }
 ```
 
-`bun run deploy` runs the local devDependency CLI, so it works without a global install.
+`npm run deploy` runs the local devDependency CLI, so it works without a global install.
 
 For local dev, wrap the framework's dev server through the CLI to wire `AGENTUITY_SDK_KEY` and AI Gateway base URLs:
 
 ```bash
-bunx agentuity dev
-bunx agentuity dev --port 8080
-bunx agentuity dev --script dev:web
+npx agentuity dev
+npx agentuity dev --port 8080
+npx agentuity dev --script dev:web
 ```
 
 `agentuity dev` reads `package.json`, picks the runner from the lockfile, and runs the named script. Default script name is `dev`.
@@ -138,7 +138,7 @@ The CLI treats variables prefixed with `AGENTUITY_PUBLIC_`, `VITE_`, or `PUBLIC_
 Add Agentuity services to the route, server function, or script that needs them. Standalone clients read `AGENTUITY_SDK_KEY` automatically:
 
 ```bash
-bun add @agentuity/keyvalue@next
+npm install @agentuity/keyvalue@next
 ```
 
 ```typescript
@@ -158,14 +158,14 @@ Package manager lifecycle hooks fire when you call the package script:
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "bun run typecheck",
+    "predeploy": "npm run typecheck",
     "deploy": "agentuity deploy",
     "postdeploy": "echo 'Deploy complete'"
   }
 }
 ```
 
-`bun run deploy` runs `predeploy`, the `deploy` script, and then `postdeploy`. Calling `agentuity deploy` directly skips both hooks.
+`npm run deploy` runs `predeploy`, the `deploy` script, and then `postdeploy`. Calling `agentuity deploy` directly skips both hooks.
 
 ## Next Steps
 

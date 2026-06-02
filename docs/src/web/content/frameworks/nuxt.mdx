@@ -9,7 +9,7 @@ Start with a normal [Nuxt](https://nuxt.com/docs) app. Agentuity adds service cl
 ## Create a Starter
 
 ```bash
-bun create agentuity@next --name my-nuxt-app --framework nuxt
+npm create agentuity@next -- --name my-nuxt-app --framework nuxt
 cd my-nuxt-app
 ```
 
@@ -28,12 +28,12 @@ If you choose the AI example, the key files are:
 For an existing Nuxt app, add the CLI and import the project:
 
 ```bash
-bun add -d @agentuity/cli@next
-bunx agentuity project import --validate-only
-bunx agentuity project import
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only
+npx agentuity project import
 ```
 
-`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
+`npm install -D` installs the CLI as a project-local dev dependency, not a global install. Use `npx` to run that local CLI. For Bun, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` registers the app and writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy for existing apps.
 
@@ -57,7 +57,7 @@ Use standalone service clients directly from Nitro routes. Files under `server/a
 The route below intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
 
 ```bash
-bun add @agentuity/keyvalue@next openai arktype
+npm install @agentuity/keyvalue@next openai arktype
 ```
 
 ```typescript title="server/api/translate.post.ts"
@@ -244,8 +244,8 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 Run the framework build when you want Nuxt-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
 ```bash
-bun run build
-agentuity build
+npm run build
+npx agentuity build
 ```
 
 Nuxt is detected as its own framework (`nuxt`, `nuxt3`, `nuxt-edge`, or `nuxt-nightly` in dependencies). The build adapter packages the Nitro output. Verify the metadata points at the right paths:

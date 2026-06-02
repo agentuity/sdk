@@ -6,7 +6,7 @@ description: Add eval workflows with output contracts, judges, traces, and exter
 To add evaluations to an Agentuity project, set up a workflow that runs normal app code, captures a stable output, checks it, and records enough logs or traces to explain failures. Use deterministic assertions for structural checks, LLM-as-judge checks for qualitative behavior, OpenTelemetry traces to inspect failures, and hosted eval tools when you need datasets, reviewers, or reports.
 
 ```bash
-bun add @agentuity/aigateway@next zod @agentuity/telemetry@next
+npm install @agentuity/aigateway@next zod @agentuity/telemetry@next
 ```
 
 <Callout type="info" title="Keep evals in your app repo">

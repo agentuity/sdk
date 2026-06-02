@@ -7,7 +7,7 @@ description: Run OpenAI Evals API suites against prompts that live in an Agentui
 When an Agentuity app needs a prompt and model regression suite, keep the prompt text in app code and let the [OpenAI Evals API](https://developers.openai.com/api/docs/guides/evals) run the dataset and graders. This fits checks where the behavior under test is the prompt, model choice, and output contract.
 
 ```bash
-bun add openai zod @agentuity/telemetry@next
+npm install openai zod @agentuity/telemetry@next
 ```
 
 <Callout type="warning" title="This creates OpenAI resources">

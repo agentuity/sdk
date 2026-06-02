@@ -49,7 +49,7 @@ Start with the framework that owns your routes and build command. Each guide kee
   <CardLink
     href="/frameworks/vite-react"
     title="Vite + React"
-    description="React SPA with a Bun server boundary for service clients and secrets"
+    description="React SPA with a server boundary for service clients and secrets"
     icon={<picture><img src="/images/integrations/vite.svg" alt="Vite" width={28} height={28} /></picture>}
   />
   <CardLink
@@ -64,8 +64,8 @@ Start with the framework that owns your routes and build command. Each guide kee
 
 | Path | Use when | Start with |
 | --- | --- | --- |
-| Create a new Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example routes. | `bun create agentuity@next --framework nextjs --services keyvalue` |
-| Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `bun add -d @agentuity/cli@next` and `bun add @agentuity/keyvalue@next` |
+| Create a new Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example routes. | `npm create agentuity@next -- --framework nextjs --services keyvalue` |
+| Add Agentuity to a new framework app | You just created the app with the framework's own CLI. | `npm install -D @agentuity/cli@next` and `npm install @agentuity/keyvalue@next` |
 | Add Agentuity to an existing app | The app already has routes, scripts, env files, and a working build. | [Add Agentuity to an existing app](/get-started/import-existing-app) |
 
 ## How the Framework Shape Works
@@ -80,14 +80,14 @@ Keep the framework's normal file conventions. Agentuity overlays service clients
 | SvelteKit | `+server.ts` routes and server actions | standalone service clients |
 | Astro | `src/pages/api/*.ts` endpoints | standalone service clients |
 | Hono | `new Hono()` routes | standalone clients or `@agentuity/hono` |
-| Vite + React | browser UI with a Bun server boundary | standalone service clients |
+| Vite + React | browser UI with a server boundary | standalone service clients |
 | TanStack Start | server routes and server functions | standalone service clients |
 
 `agentuity dev` runs your package manager's `dev` script with service credentials and supported provider SDK wiring when the linked project key is available. `agentuity build` runs the framework build, packages the app, and writes `.agentuity/launch.json` when packaging succeeds. Treat that as a packaging check, then validate the packaged command locally before relying on server routes.
 
 ## Framework Starters
 
-`bun create agentuity@next --framework <slug>` scaffolds these starters:
+`npm create agentuity@next -- --framework <slug>` scaffolds these starters:
 
 | Slug | Framework |
 | --- | --- |
@@ -119,7 +119,7 @@ If a framework page calls out a detector fallback or packaging caveat, treat it 
 Direct service clients are the portable default across supported frameworks. Use them in route handlers, server functions, workers, scripts, or CLIs that own the work:
 
 ```bash
-bun add @agentuity/keyvalue@next
+npm install @agentuity/keyvalue@next
 ```
 
 ```typescript

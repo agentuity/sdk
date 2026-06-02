@@ -7,17 +7,17 @@ description: Add Agentuity services and local validation to an app you already h
 Choose this path when the app already exists and you want to add one server-side Agentuity endpoint without changing the router, scripts, or build setup.
 
 ```bash
-bun add -d @agentuity/cli@next
-bun add @agentuity/keyvalue@next
+npm install -D @agentuity/cli@next
+npm install @agentuity/keyvalue@next
 ```
 
 ## Pick the Right Path
 
 | Starting point | Good fit | First command |
 | --- | --- | --- |
-| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `bun create agentuity@next --framework nextjs --services keyvalue` |
-| New framework app | You already ran the framework's create command and want to add Agentuity next. | `bun add -d @agentuity/cli@next` |
-| Existing app | The app already has routes, scripts, env conventions, and a working build. | `bun add -d @agentuity/cli@next` |
+| Create-supported Agentuity starter | You want Agentuity to scaffold one of the five built-in starters and example route. | `npm create agentuity@next -- --framework nextjs --services keyvalue` |
+| New framework app | You already ran the framework's create command and want to add Agentuity next. | `npm install -D @agentuity/cli@next` |
+| Existing app | The app already has routes, scripts, env conventions, and a working build. | `npm install -D @agentuity/cli@next` |
 
 For an existing app, keep the app shape you have. Add service clients only inside server-only routes, handlers, server actions, or background jobs.
 
@@ -100,7 +100,7 @@ Run the app the way you normally do:
 
 ```bash
 cd existing-app
-bun run dev
+npm run dev
 ```
 
 Check the existing page and the new route:
@@ -113,7 +113,7 @@ curl http://localhost:3000/api/agentuity
 Then run the native build:
 
 ```bash
-bun run build
+npm run build
 ```
 
 ## Add Agentuity Project Metadata
@@ -121,19 +121,19 @@ bun run build
 Validate the directory before writing project metadata:
 
 ```bash
-bunx agentuity project import --validate-only
+npx agentuity project import --validate-only
 ```
 
 If the output looks right, register the project and write `agentuity.json`:
 
 ```bash
-bunx agentuity project import --name existing-app --confirm
+npx agentuity project import --name existing-app --confirm
 ```
 
 For non-interactive cloud setup, pass the org explicitly:
 
 ```bash
-bunx agentuity project import \
+npx agentuity project import \
   --name existing-app \
   --org-id <org-id> \
   --confirm
@@ -142,7 +142,7 @@ bunx agentuity project import \
 In a monorepo, run the command from the app package or pass `--dir`:
 
 ```bash
-bunx agentuity project import \
+npx agentuity project import \
   --dir apps/web \
   --name existing-web-app \
   --org-id <org-id> \
@@ -156,7 +156,7 @@ That writes `apps/web/agentuity.json` and `apps/web/.env`. The build step detect
 `agentuity dev` wraps your existing `dev` script and injects Agentuity env values into the server process:
 
 ```bash
-bunx agentuity dev --port 3000
+npx agentuity dev --port 3000
 ```
 
 If the framework prints a different URL, open or curl the printed URL. Some framework dev scripts own their port flags.
@@ -164,7 +164,7 @@ If the framework prints a different URL, open or curl the printed URL. Some fram
 Build the Agentuity package after the native build passes:
 
 ```bash
-bunx agentuity build
+npx agentuity build
 ```
 
 This is a packaging check. When `.agentuity/launch.json` exists, inspect it before deploying. The launch command is the process Agentuity will start for the packaged app. For a local validation check, run that command from `.agentuity` and curl the root page and the route you added.
@@ -174,13 +174,13 @@ This is a packaging check. When `.agentuity/launch.json` exists, inspect it befo
 After import and local validation, deploy from the same directory:
 
 ```bash
-bunx agentuity deploy
+npx agentuity deploy
 ```
 
 An interactive `agentuity deploy` can offer to register an unregistered directory before it builds. In a non-interactive shell, pass `--confirm` and a name, or run `project import --confirm` first:
 
 ```bash
-bunx agentuity deploy --name existing-app --confirm
+npx agentuity deploy --name existing-app --confirm
 ```
 
 ## Remote Repos
@@ -188,13 +188,13 @@ bunx agentuity deploy --name existing-app --confirm
 You can import from GitHub when the app is not local:
 
 ```bash
-bunx agentuity project import --source owner/repo --name existing-app --confirm
+npx agentuity project import --source owner/repo --name existing-app --confirm
 ```
 
 Use `--deploy` when you want the import flow to deploy after the project is registered:
 
 ```bash
-bunx agentuity project import --source owner/repo --name existing-app --deploy --confirm
+npx agentuity project import --source owner/repo --name existing-app --deploy --confirm
 ```
 
 ## Next Steps

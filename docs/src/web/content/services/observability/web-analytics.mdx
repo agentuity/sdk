@@ -12,7 +12,7 @@ Use `@agentuity/analytics` in browser code when you have a collection endpoint f
 The package is a browser collector: it queues events in the page and sends them to the configured endpoint. The platform does not currently expose a built-in collection endpoint, so configure `endpoint` to point at a route you control. If you do not have a collector yet, set `isDevmode: true` to log payloads to the browser console instead of sending them, or use your framework analytics tool.
 
 ```bash
-bun add @agentuity/analytics@next
+npm install @agentuity/analytics@next
 ```
 
 ## Initialize Analytics
@@ -283,7 +283,7 @@ A same-origin endpoint, such as `/api/analytics/collect`, avoids CORS preflight 
 Install the server-side packages your collector needs:
 
 ```bash
-bun add @agentuity/queue@next @agentuity/telemetry@next zod
+npm install @agentuity/queue@next @agentuity/telemetry@next zod
 ```
 
 This Next.js route accepts the beacon payload, validates the fields it uses, publishes the event to a queue, and returns `202`. The queue consumer can batch, enrich, or forward the event without slowing down the page unload path.

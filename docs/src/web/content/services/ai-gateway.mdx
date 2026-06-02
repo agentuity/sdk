@@ -7,7 +7,7 @@ description: Use supported model providers through Agentuity
 The Agentuity AI Gateway lets your app call supported model providers through Agentuity project credentials. Use it when you want model catalog lookup, provider routing, and local provider-SDK env wiring to live with the Agentuity project instead of each framework route carrying its own gateway setup.
 
 ```bash
-bun add @agentuity/aigateway@next
+npm install @agentuity/aigateway@next
 ```
 
 ```typescript
@@ -181,7 +181,7 @@ export async function summarizeTicket(ticket: string): Promise<Summary> {
 ## AI SDK
 
 ```bash
-bun add ai@latest @ai-sdk/openai@latest
+npm install ai@latest @ai-sdk/openai@latest
 ```
 
 ```typescript
@@ -209,7 +209,7 @@ The AI SDK accepts provider model IDs as strings. `@ai-sdk/openai` reads `OPENAI
 For Google Gemini, use an explicit provider factory. `agentuity dev` does not patch Google env vars automatically. This example uses a provider-owned Google key:
 
 ```bash
-bun add ai@latest @ai-sdk/google@latest
+npm install ai@latest @ai-sdk/google@latest
 ```
 
 ```typescript
@@ -242,7 +242,7 @@ If your project has a confirmed Google gateway base URL, pass it as `baseURL` in
 ## Raw Anthropic SDK
 
 ```bash
-bun add @anthropic-ai/sdk
+npm install @anthropic-ai/sdk
 ```
 
 ```typescript

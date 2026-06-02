@@ -4,7 +4,7 @@ short_title: TanStack Start
 description: Add Agentuity service clients to a TanStack Start app and validate the detected build path before deploying
 ---
 
-TanStack Start is not a `bun create agentuity@next --framework` starter today. Start with TanStack's own CLI, then add Agentuity to the resulting app and inspect the server output before deploying.
+TanStack Start is not an Agentuity create-flow starter today. Start with TanStack's own CLI, then add Agentuity to the resulting app and inspect the server output before deploying.
 
 ## Create the Framework App
 
@@ -183,6 +183,7 @@ Do not deploy until `.agentuity/launch.json` points at the server bundle emitted
 | Symptom | Check |
 |---------|-------|
 | Route URL does not match | Confirm the `src/routes/api.*.tsx` filename and `createFileRoute()` path string agree |
+| TypeScript says `server` does not exist on `createFileRoute()` | Keep `@tanstack/react-start`, `@tanstack/react-router`, and `@tanstack/router-plugin` versions aligned, then reinstall |
 | Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` |
 | OpenAI or other AI SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
 | Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |

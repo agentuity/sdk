@@ -48,7 +48,7 @@ agentuity deploy
 If your `package.json` has a deploy script, this is also valid:
 
 ```bash
-bun run deploy
+npm run deploy
 ```
 
 The deploy flow:
@@ -307,19 +307,19 @@ Deleting a machine terminates deployments running on it. Use it only when you in
 
 ## Deploy Lifecycle Scripts
 
-`bun run deploy` follows normal package manager lifecycle hooks. Add `predeploy` and `postdeploy` scripts when you want local work to run before or after the CLI command.
+`npm run deploy` follows normal package manager lifecycle hooks. Add `predeploy` and `postdeploy` scripts when you want local work to run before or after the CLI command.
 
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "bun run build:shared",
+    "predeploy": "npm run build:shared",
     "deploy": "agentuity deploy",
     "postdeploy": "echo 'Deploy complete'"
   }
 }
 ```
 
-`predeploy` and `postdeploy` run when you call `bun run deploy`. They do not run when you call `agentuity deploy` directly.
+`predeploy` and `postdeploy` run when you call `npm run deploy`. They do not run when you call `agentuity deploy` directly.
 
 ## CI Deployments
 

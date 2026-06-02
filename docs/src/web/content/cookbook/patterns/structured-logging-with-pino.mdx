@@ -7,7 +7,7 @@ description: Keep app-owned Pino logs while adding Agentuity services beside the
 When an Agentuity app already writes JSON process logs and your platform reads stdout, keep Pino as the process logger. Agentuity services can still run in the same server-only code.
 
 ```bash
-bun add pino
+npm install pino
 ```
 
 ## Create an App Logger
@@ -62,7 +62,7 @@ This path does not require an Agentuity integration. Keep shipping stdout throug
 Keep prettifying out of app code. When you want readable local output, install `pino-pretty` as a dev tool and pipe the process output through its CLI:
 
 ```bash
-bun add -d pino-pretty
+npm install -D pino-pretty
 bun run src/smoke-pino.ts | bunx pino-pretty
 ```
 

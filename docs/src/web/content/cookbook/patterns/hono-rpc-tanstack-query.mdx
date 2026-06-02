@@ -7,7 +7,7 @@ description: Share Hono route types with a React client and wrap calls in TanSta
 Use [Hono RPC](https://hono.dev/docs/guides/rpc) when a React client should call a Hono route with inferred request and response types. Add [TanStack Query](https://tanstack.com/query) when the UI needs caching, request state, and invalidation around those calls.
 
 ```bash
-bun add hono @tanstack/react-query zod @hono/zod-validator
+npm install hono @tanstack/react-query zod @hono/zod-validator
 ```
 
 ## Define Typed Routes
@@ -262,7 +262,7 @@ If you mount a router at `.route('/users', users)`, define the users router with
 Hono RPC works with ordinary Hono route handlers. If the route needs Agentuity service clients, install `@agentuity/hono` and add the middleware before the route handlers that read `c.var.*`.
 
 ```bash
-bun add @agentuity/hono@next
+npm install @agentuity/hono@next
 ```
 
 ```typescript title="src/api/index.ts"

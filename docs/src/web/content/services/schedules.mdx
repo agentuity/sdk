@@ -6,7 +6,7 @@ description: Create platform-managed cron jobs with HTTP and sandbox destination
 Use schedules when timing should live in Agentuity instead of inside your app process. The platform validates the cron expression, computes the next run, fires the schedule on time, and records each delivery attempt. Start with `ScheduleClient`; Hono apps can use `c.var.schedule` after installing the Agentuity middleware.
 
 ```bash
-bun add @agentuity/schedule@next
+npm install @agentuity/schedule@next
 ```
 
 ```typescript

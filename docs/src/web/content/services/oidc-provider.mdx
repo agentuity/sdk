@@ -9,7 +9,7 @@ Use Sign in with Agentuity when users should authenticate with their Agentuity a
 The v3 OAuth helpers are flow helpers, not a full session framework. They build authorization URLs, exchange codes, fetch user info, refresh tokens, and store tokens when you need scoped access. Your framework still creates cookies, sessions, redirects, roles, and app-specific authorization.
 
 ```bash
-bun add @agentuity/core@next hono
+npm install @agentuity/core@next hono
 ```
 
 ```typescript title="src/index.ts"
@@ -254,7 +254,7 @@ The CLI `--scopes` flag is comma-separated, for example `openid,profile,email`. 
 If your app needs to call Agentuity APIs on behalf of the signed-in user, store OAuth tokens server-side. `KeyValueTokenStorage` stores tokens in Agentuity KV and refreshes expired access tokens when a refresh token and OAuth config are available.
 
 ```bash
-bun add @agentuity/keyvalue@next
+npm install @agentuity/keyvalue@next
 ```
 
 ```typescript

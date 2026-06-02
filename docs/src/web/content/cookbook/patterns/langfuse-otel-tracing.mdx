@@ -7,7 +7,7 @@ description: Keep Langfuse as the trace backend for Agentuity app code
 When [Langfuse](https://langfuse.com/docs/observability/sdk/overview) already owns LLM trace review for an Agentuity app, keep Langfuse as the trace backend. Start the Langfuse OpenTelemetry processor at app startup, then instrument the route, worker, or shared function that owns the model workflow.
 
 ```bash
-bun add @langfuse/tracing @langfuse/otel @opentelemetry/sdk-node
+npm install @langfuse/tracing @langfuse/otel @opentelemetry/sdk-node
 ```
 
 ```bash

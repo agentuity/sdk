@@ -11,7 +11,7 @@ Call Agentuity services (key-value, AI Gateway, queues) from Next.js App Router 
 The quickest way to start is with the Agentuity CLI:
 
 ```bash
-bun create agentuity@next --name my-next-app --framework nextjs --services keyvalue
+npm create agentuity@next -- --name my-next-app --framework nextjs --services keyvalue
 cd my-next-app
 ```
 
@@ -28,12 +28,12 @@ The starter includes a working translation demo: a React page that calls an API 
 Install the CLI as a dev dependency, then import the project:
 
 ```bash
-bun add -d @agentuity/cli@next
-bunx agentuity project import --validate-only   # dry run: checks config only
-bunx agentuity project import                   # registers the project and writes agentuity.json
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only   # dry run: checks config only
+npx agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
+`npm install -D` installs the CLI as a project-local dev dependency, not a global install. Use `npx` to run that local CLI. For Bun, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy.
 
@@ -55,7 +55,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for the
 Route handlers use standalone service clients. They do not need an Agentuity-owned router or `createApp()`.
 
 ```bash
-bun add @agentuity/keyvalue@next
+npm install @agentuity/keyvalue@next
 ```
 
 ```typescript title="src/app/api/notes/route.ts"
@@ -120,7 +120,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 This example intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path). `agentuity dev` can wire `OPENAI_API_KEY` and `OPENAI_BASE_URL` so the SDK routes calls through the AI Gateway. It preserves a provider key you already set, so keep provider env in `.env` intentional.
 
 ```bash
-bun add openai zod
+npm install openai zod
 ```
 
 ```typescript title="src/app/api/chat/route.ts"
@@ -204,8 +204,8 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 Run the framework build when you want Next.js-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and produces `.agentuity/launch.json` with the start command for the deployed container.
 
 ```bash
-bun run build
-agentuity build
+npm run build
+npx agentuity build
 cat .agentuity/launch.json   # verify the command points at the standalone server
 ```
 

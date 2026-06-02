@@ -10,7 +10,7 @@ description: Run your framework dev script with Agentuity environment wiring.
 agentuity dev
 ```
 
-These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
+These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `npx agentuity ...`, `bunx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
 
 ## What it runs
 
@@ -35,7 +35,7 @@ The default script name is `dev`. Use `--script` when your `dev` script does som
 }
 ```
 
-This is the recommended pattern for existing apps. Keep your real dev command in `dev:start` and let `dev` wrap it through Agentuity. `agentuity dev` and `bun run dev` then do the same thing.
+This is the recommended pattern for existing apps. Keep your real dev command in `dev:start` and let `dev` wrap it through Agentuity. `agentuity dev` and `npm run dev` then do the same thing.
 
 If the named script is missing, the CLI prints the available scripts and exits.
 

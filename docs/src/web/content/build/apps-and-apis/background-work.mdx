@@ -6,7 +6,7 @@ description: Use queues, status records, and durable streams for work that shoul
 Use background work when a request starts something slow: report generation, webhook fan-out, email preparation, model evaluation, or file processing. The pattern is: the route enqueues the job and returns a handle; the worker route does the work and writes output to a durable stream; KV holds a status record the client can poll at any time.
 
 ```bash
-bun add hono @agentuity/queue@next @agentuity/keyvalue@next @agentuity/stream@next arktype
+npm install hono @agentuity/queue@next @agentuity/keyvalue@next @agentuity/stream@next arktype
 ```
 
 ## Set Up the Queue

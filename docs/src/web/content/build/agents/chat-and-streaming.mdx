@@ -55,7 +55,7 @@ export default app;
 This route reads stored history, streams the next answer, then appends the assistant turn.
 
 ```bash
-bun add hono @agentuity/aigateway@next @agentuity/keyvalue@next valibot @agentuity/telemetry@next
+npm install hono @agentuity/aigateway@next @agentuity/keyvalue@next valibot @agentuity/telemetry@next
 ```
 
 ```typescript title="src/index.ts"
@@ -289,7 +289,7 @@ The Gateway returns provider-compatible SSE frames, not plain text chunks. If th
 When the frontend expects AI SDK UI message streams, keep the route on AI SDK and use one provider package. This example uses the Anthropic provider; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway when no provider key override is set.
 
 ```bash
-bun add ai@latest @ai-sdk/anthropic@latest
+npm install ai@latest @ai-sdk/anthropic@latest
 ```
 
 ```typescript

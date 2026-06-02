@@ -9,7 +9,7 @@ Start with a normal [Astro](https://docs.astro.build) app. Agentuity adds servic
 ## Create a Starter
 
 ```bash
-bun create agentuity@next --name my-astro-app --framework astro
+npm create agentuity@next -- --name my-astro-app --framework astro
 cd my-astro-app
 ```
 
@@ -29,12 +29,12 @@ Key files in the AI example:
 For an existing Astro app, add the CLI and register the project:
 
 ```bash
-bun add -d @agentuity/cli@next
-bunx agentuity project import --validate-only   # dry run: checks config only
-bunx agentuity project import                   # registers the project and writes agentuity.json
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only   # dry run: checks config only
+npx agentuity project import                   # registers the project and writes agentuity.json
 ```
 
-`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
+`npm install -D` installs the CLI as a project-local dev dependency, not a global install. Use `npx` to run that local CLI. For Bun, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the Astro `dev` script with the Agentuity environment values your app needs.
 
@@ -58,7 +58,7 @@ Astro [endpoint files](https://docs.astro.build/en/guides/endpoints/) in `src/pa
 The route below intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
 
 ```bash
-bun add @agentuity/keyvalue@next arktype openai
+npm install @agentuity/keyvalue@next arktype openai
 ```
 
 ```typescript title="src/pages/api/translate.ts"
@@ -279,7 +279,7 @@ Astro requires a server adapter for routes that must render on demand. The start
 npx astro add node
 
 # Option B: manual
-bun add @astrojs/node
+npm install @astrojs/node
 ```
 
 The explicit `astro.config.mjs` the starter ships with:
@@ -297,11 +297,11 @@ export default defineConfig({
 });
 ```
 
-Then build and inspect the launch metadata. Run `bun run build` when you want Astro-only feedback; `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
+Then build and inspect the launch metadata. Run `npm run build` when you want Astro-only feedback; `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
 ```bash
-bun run build
-agentuity build
+npm run build
+npx agentuity build
 cat .agentuity/launch.json   # verify processes[0].command runs dist/server/entry.mjs
 ```
 

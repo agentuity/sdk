@@ -7,7 +7,7 @@ description: Keep existing OpenTelemetry startup and add route-level spans with 
 When an Agentuity app already starts telemetry through an OpenTelemetry Collector, vendor SDK, or framework instrumentation, keep that startup path. Add spans inside the route, worker, or server function that owns the work.
 
 ```bash
-bun add @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto
+npm install @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-trace-otlp-proto
 ```
 
 ## Keep Startup in Instrumentation

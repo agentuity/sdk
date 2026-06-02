@@ -9,7 +9,7 @@ Start with a normal [SvelteKit](https://svelte.dev/docs/kit/introduction) app. A
 ## Create a Starter
 
 ```bash
-bun create agentuity@next --name my-sveltekit-app --framework sveltekit
+npm create agentuity@next -- --name my-sveltekit-app --framework sveltekit
 cd my-sveltekit-app
 ```
 
@@ -31,12 +31,12 @@ The starter sets `kit.paths.relative` to `false`, so SvelteKit emits root-relati
 For an existing SvelteKit app, add the CLI and register the project:
 
 ```bash
-bun add -d @agentuity/cli@next
-bunx agentuity project import --validate-only
-bunx agentuity project import
+npm install -D @agentuity/cli@next
+npx agentuity project import --validate-only
+npx agentuity project import
 ```
 
-`bun add -d` installs the CLI as a project-local dev dependency, not a global install. Use `bunx` to run that local CLI. For npm, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
+`npm install -D` installs the CLI as a project-local dev dependency, not a global install. Use `npx` to run that local CLI. For Bun, pnpm, and Yarn equivalents, see [Local versus global CLI](/get-started/installation#local-versus-global-cli).
 
 `agentuity project import` writes the local project metadata that `agentuity deploy` expects. Run it once before the first deploy. After that, `agentuity dev` runs the SvelteKit `dev` script with the Agentuity environment values your app needs.
 
@@ -60,7 +60,7 @@ SvelteKit [+server.ts files](https://svelte.dev/docs/kit/routing#server) define 
 The route below intentionally uses the OpenAI SDK to show provider SDK env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
 
 ```bash
-bun add @agentuity/keyvalue@next valibot openai
+npm install @agentuity/keyvalue@next valibot openai
 ```
 
 ```typescript title="src/routes/api/translate/+server.ts"
@@ -207,7 +207,7 @@ The starter uses `+page.server.ts` form actions for the page UI because they int
 
 ## Run Locally
 
-`agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value to the dev process. If you want `bun run dev` to go through Agentuity on a fixed port, wrap the framework command like this:
+`agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value to the dev process. If you want `npm run dev` to go through Agentuity on a fixed port, wrap the framework command like this:
 
 ```json title="package.json"
 {
@@ -223,7 +223,7 @@ The starter uses `+page.server.ts` form actions for the page UI because they int
 Then run:
 
 ```bash
-bun run dev
+npm run dev
 ```
 
 Smoke-test the JSON route on port 3000:
@@ -255,8 +255,8 @@ Configure the variables your deployed app needs. `agentuity dev` can provide the
 Run the framework build when you want SvelteKit-only feedback, then run the Agentuity build. `agentuity build` runs the framework build during packaging and writes `.agentuity/launch.json`.
 
 ```bash
-bun run build
-agentuity build
+npm run build
+npx agentuity build
 ```
 
 After both succeed, inspect the launch metadata:

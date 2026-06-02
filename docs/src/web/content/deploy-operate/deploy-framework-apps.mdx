@@ -13,7 +13,7 @@ agentuity build
 agentuity deploy
 ```
 
-These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `bunx agentuity ...`, `npx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
+These examples show `agentuity ...` for readability. If the CLI is project-local, run the same command through your package-manager exec wrapper, for example `npx agentuity ...`, `bunx agentuity ...`, `pnpm exec agentuity ...`, or `yarn exec agentuity ...`. See [Local versus global CLI](/get-started/installation#local-versus-global-cli) for install and undo commands.
 
 ## Register the Project
 
@@ -211,7 +211,7 @@ The deploy build step resolves binaries from local `node_modules/.bin` before it
 ```
 
 ```bash
-bun run deploy
+npm run deploy
 ```
 
 The package-script wrapper also lets you use `predeploy`/`postdeploy` lifecycle hooks.
@@ -351,15 +351,15 @@ agentuity cloud machine delete <machine-id> --confirm
 ```json title="package.json"
 {
   "scripts": {
-    "predeploy": "bun run typecheck",
+    "predeploy": "npm run typecheck",
     "deploy": "agentuity deploy",
-    "postdeploy": "bun run notify-team"
+    "postdeploy": "npm run notify-team"
   }
 }
 ```
 
 ```bash
-bun run deploy
+npm run deploy
 ```
 
 When the GitHub App runs the deploy in its build environment, it honors the same `predeploy` and `postdeploy` script slots. See [Pre-Deploy Scripts](/reference/github-app#pre-deploy-scripts) for the CI-side behavior.

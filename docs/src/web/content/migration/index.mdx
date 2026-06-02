@@ -11,7 +11,7 @@ Use these pages when an existing Agentuity app needs a controlled move between S
 npx @agentuity/migrate@next --v2-to-v3 --dry-run
 ```
 
-When the follow-up steps call the Agentuity CLI, use your package manager's exec wrapper if the CLI is only installed locally, for example `bunx agentuity ...` or `npx agentuity ...`.
+When the follow-up steps call the Agentuity CLI, use your package manager's exec wrapper if the CLI is only installed locally, for example `npx agentuity ...` or `bunx agentuity ...`.
 
 <Tabs items={["v2 → v3", "v1 → v2"]} defaultValue="v2 → v3">
   <Tab value="v2 → v3">
@@ -86,7 +86,7 @@ The migration CLI gives you a reviewable starting point. It does not decide your
 | the v2 app is stable and only needs small maintenance | stay on v2 for now |
 | you are adding framework routes, server functions, or new service clients | plan the v3 migration |
 | you rely heavily on `ctx.thread`, `ctx.session`, lifecycle hooks, or Workbench | budget manual design time before applying changes |
-| you are starting a new app | create a v3 app with `bun create agentuity@next` |
+| you are starting a new app | create a v3 app with `npm create agentuity@next` |
 
 ## Recommended Order
 

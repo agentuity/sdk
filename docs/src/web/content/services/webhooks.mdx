@@ -6,7 +6,7 @@ description: Create webhook endpoints to receive HTTP callbacks with delivery tr
 Use webhooks when an external service needs a stable Agentuity ingest URL. Each request becomes a stored receipt, fans out to one or more URL destinations, and produces delivery records you can replay. Start with `WebhookClient` directly; it is not injected by the Hono middleware.
 
 ```bash
-bun add @agentuity/webhook@next
+npm install @agentuity/webhook@next
 ```
 
 ```typescript

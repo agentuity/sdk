@@ -7,8 +7,8 @@ description: Query Agentuity-managed Postgres from framework apps and scripts
 Use the Postgres client your framework or app already owns. Agentuity writes a normal `DATABASE_URL`; `pg`, Prisma, Kysely, Drizzle, and other Postgres clients can connect to it directly.
 
 ```bash
-bun add pg
-bun add -D @types/pg
+npm install pg
+npm install -D @types/pg
 ```
 
 ```typescript
@@ -59,7 +59,7 @@ The default terminal output masks credentials. Use `--show-credentials` only in 
 `@agentuity/postgres` is a deprecated, opt-in compatibility helper for Bun code that wants Bun's tagged SQL driver with Agentuity reconnect defaults. It is not required for framework apps.
 
 ```bash
-bun add @agentuity/postgres@next
+npm install @agentuity/postgres@next
 ```
 
 ```typescript

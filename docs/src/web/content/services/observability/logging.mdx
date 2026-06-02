@@ -10,7 +10,7 @@ For Agentuity apps, keep your framework's normal stdout path or structured logge
 Keep this path when the app already owns process logs and your platform or log drain reads stdout. This is app-owned logging; Agentuity does not need a Pino integration for these lines to keep working.
 
 ```bash
-bun add pino
+npm install pino
 ```
 
 ```typescript
@@ -35,7 +35,7 @@ Child loggers keep request and order fields on every line in that scope. See [St
 Keep this path when the app already uses LogTape categories, structured message placeholders, or a LogTape OpenTelemetry sink. Agentuity does not need a LogTape integration for those logs to keep flowing through your process logger or collector.
 
 ```bash
-bun add @logtape/logtape @logtape/otel
+npm install @logtape/logtape @logtape/otel
 ```
 
 See [Using LogTape with an OpenTelemetry Sink](/cookbook/patterns/logtape-structured-logging) for a complete startup and server-function example.
@@ -45,7 +45,7 @@ See [Using LogTape with an OpenTelemetry Sink](/cookbook/patterns/logtape-struct
 Use the Agentuity logger when you want child loggers and the same telemetry configuration as your traces:
 
 ```bash
-bun add @agentuity/telemetry@next
+npm install @agentuity/telemetry@next
 ```
 
 ```typescript
@@ -136,7 +136,7 @@ Nested children inherit parent fields and add their own fields.
 `@agentuity/hono` initializes telemetry once and exposes the logger on `c.var.logger`.
 
 ```bash
-bun add @agentuity/hono@next hono
+npm install @agentuity/hono@next hono
 ```
 
 ```typescript

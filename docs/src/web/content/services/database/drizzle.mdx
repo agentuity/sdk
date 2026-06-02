@@ -7,8 +7,8 @@ description: Type-safe database access with Drizzle ORM and Agentuity-managed Po
 Use Drizzle the same way you would in any framework app: connect the `node-postgres` driver to `DATABASE_URL`, define your schema with `drizzle-orm/pg-core`, and import the database client from the routes or jobs that need it.
 
 ```bash
-bun add drizzle-orm pg
-bun add -D drizzle-kit @types/pg
+npm install drizzle-orm pg
+npm install -D drizzle-kit @types/pg
 ```
 
 ```typescript title="src/db/schema.ts"
@@ -115,7 +115,7 @@ await db.transaction(async (tx) => {
 `@agentuity/drizzle` is a deprecated, opt-in compatibility helper for Bun code that wants Agentuity's Drizzle wrapper around the same Postgres resource. It is not required for framework apps, and Node.js routes should use Drizzle's standard `node-postgres` driver directly.
 
 ```bash
-bun add @agentuity/drizzle@next drizzle-orm
+npm install @agentuity/drizzle@next drizzle-orm
 ```
 
 ```typescript
