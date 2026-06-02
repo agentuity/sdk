@@ -9,6 +9,7 @@ import type { ApiEnv } from '../context';
 import { streamText } from 'ai';
 import { getModel } from '../../lib/models';
 import { Hono } from 'hono';
+import { modelFromRequestBody } from '../request-body';
 
 // Fixed prompt for the demo - users choose the model
 const FIXED_PROMPT = 'What are AI agents and how do they work?';
@@ -28,11 +29,8 @@ const router = new Hono<ApiEnv>()
 		'/stream',
 		stream(async (c) => {
 			try {
-				const body = await c.req.json();
-				const model =
-					typeof (body as { model?: unknown }).model === 'string'
-						? (body as { model: string }).model
-						: DEFAULT_MODEL;
+				const body: unknown = await c.req.json();
+				const model = modelFromRequestBody(body, DEFAULT_MODEL);
 
 				c.var.logger?.info('Raw stream started', {
 					prompt: FIXED_PROMPT.slice(0, 50),

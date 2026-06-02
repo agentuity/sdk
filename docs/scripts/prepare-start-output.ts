@@ -29,13 +29,28 @@ const contentTypes = new Map([
 	['.woff2', 'font/woff2'],
 ]);
 
+const immutableAssetPattern = /^assets[/\\].+-[A-Za-z0-9_-]{8,}\.[^.]+$/;
+
 function contentTypeFor(pathname) {
 	const dotIndex = pathname.lastIndexOf('.');
 	if (dotIndex === -1) return 'application/octet-stream';
 	return contentTypes.get(pathname.slice(dotIndex).toLowerCase()) ?? 'application/octet-stream';
 }
 
-function clientFilePath(pathname) {
+function cacheControlFor(relativePath) {
+	return immutableAssetPattern.test(relativePath)
+		? 'public, max-age=31536000, immutable'
+		: 'no-store';
+}
+
+function staticHeadersFor(relativePath, filePath) {
+	return {
+		'cache-control': cacheControlFor(relativePath),
+		'content-type': contentTypeFor(filePath),
+	};
+}
+
+function clientFile(pathname) {
 	let decodedPath;
 	try {
 		decodedPath = decodeURIComponent(pathname);
@@ -49,20 +64,18 @@ function clientFilePath(pathname) {
 	const filePath = join(clientRoot, normalizedPath);
 	const relativePath = relative(clientRoot, filePath);
 	if (relativePath === '' || relativePath.startsWith('..')) return undefined;
-	return filePath;
+	return { filePath, relativePath };
 }
 
 async function serveStatic(pathname) {
-	const filePath = clientFilePath(pathname);
-	if (!filePath) return undefined;
+	const resolved = clientFile(pathname);
+	if (!resolved) return undefined;
 
-	const file = Bun.file(filePath);
+	const file = Bun.file(resolved.filePath);
 	if (!(await file.exists())) return undefined;
 
 	return new Response(file, {
-		headers: {
-			'content-type': contentTypeFor(filePath),
-		},
+		headers: staticHeadersFor(resolved.relativePath, resolved.filePath),
 	});
 }
 
@@ -106,6 +119,10 @@ Bun.serve({
 console.log('TanStack Start docs server listening on http://' + hostname + ':' + port);
 `;
 
+export function createLaunchServer(): string {
+	return launchServer;
+}
+
 async function assertPathExists(url: URL, label: string): Promise<void> {
 	try {
 		await access(url);
@@ -114,8 +131,14 @@ async function assertPathExists(url: URL, label: string): Promise<void> {
 	}
 }
 
-await assertPathExists(serverBundleUrl, 'TanStack Start server bundle');
-await assertPathExists(clientBundleUrl, 'TanStack Start client bundle');
-await writeFile(launchServerUrl, launchServer, 'utf-8');
+export async function prepareStartOutput(): Promise<void> {
+	await assertPathExists(serverBundleUrl, 'TanStack Start server bundle');
+	await assertPathExists(clientBundleUrl, 'TanStack Start client bundle');
+	await writeFile(launchServerUrl, createLaunchServer(), 'utf-8');
 
-console.log('Prepared dist/server.js for Agentuity launch metadata.');
+	console.log('Prepared dist/server.js for Agentuity launch metadata.');
+}
+
+if (import.meta.main) {
+	await prepareStartOutput();
+}

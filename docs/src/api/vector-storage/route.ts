@@ -9,6 +9,7 @@ import type { ApiEnv } from '../context';
 import vectorAgent from '../../agent/vector/agent';
 import sampleProducts from '../../agent/vector/sample-products.json';
 import { Hono } from 'hono';
+import { requiredStringFromRequestBody } from '../request-body';
 
 const VECTOR_NAMESPACE = 'sdk-explorer';
 
@@ -42,15 +43,15 @@ const router = new Hono<ApiEnv>()
 	})
 
 	.post('/search', async (c) => {
-		let query: unknown;
+		let body: unknown;
 		try {
-			const body = (await c.req.json()) as { query?: unknown };
-			query = body.query;
+			body = await c.req.json();
 		} catch {
 			return c.json({ success: false, error: 'Invalid JSON body' }, 400);
 		}
 
-		if (typeof query !== 'string' || !query.trim()) {
+		const query = requiredStringFromRequestBody(body, 'query');
+		if (!query) {
 			return c.json({ success: false, error: 'Query must be a non-empty string' }, 400);
 		}
 

@@ -30,37 +30,40 @@ export default defineConfig({
 				quoteStyle: 'single',
 			},
 		}),
-		// MDX support with GitHub Flavored Markdown + Shiki syntax highlighting
-		mdx({
-			remarkPlugins: [
-				remarkFrontmatter,
-				remarkMdxFrontmatter,
-				remarkGfm,
-				[remarkCodeImport, { rootDir: process.cwd() }],
-			],
-			rehypePlugins: [
-				rehypeSlug,
-				rehypeExtractToc,
-				rehypeExtractTocExport,
-				[rehypeMermaid, { strategy: 'img-svg' }],
-				[
-					rehypePrettyCode,
-					{
-						theme: {
-							dark: 'github-dark',
-							light: 'github-light',
-						},
-						keepBackground: false,
-						transformers: [
-							transformerNotationHighlight(),
-							transformerNotationFocus(),
-							transformerNotationDiff(),
-						],
-					},
+		// MDX must run before React so Vite does not hand raw .mdx files to the JSX transform.
+		{
+			enforce: 'pre',
+			...mdx({
+				remarkPlugins: [
+					remarkFrontmatter,
+					remarkMdxFrontmatter,
+					remarkGfm,
+					[remarkCodeImport, { rootDir: process.cwd() }],
 				],
-			],
-			providerImportSource: '@mdx-js/react',
-		}),
+				rehypePlugins: [
+					rehypeSlug,
+					rehypeExtractToc,
+					rehypeExtractTocExport,
+					[rehypeMermaid, { strategy: 'img-svg' }],
+					[
+						rehypePrettyCode,
+						{
+							theme: {
+								dark: 'github-dark',
+								light: 'github-light',
+							},
+							keepBackground: false,
+							transformers: [
+								transformerNotationHighlight(),
+								transformerNotationFocus(),
+								transformerNotationDiff(),
+							],
+						},
+					],
+				],
+				providerImportSource: '@mdx-js/react',
+			}),
+		},
 		react(),
 		tailwindcss(),
 	],

@@ -19,6 +19,7 @@ interface RouteEnv {
 
 interface PeerSocket {
 	send(data: string): void;
+	close(code?: number, reason?: string): void;
 }
 
 interface Peer {
@@ -115,6 +116,7 @@ const router = new Hono<RouteEnv>()
 							type: 'room-full',
 							message: 'This demo room already has two peers.',
 						});
+						ws.close(1008, 'Room full');
 						return;
 					}
 
