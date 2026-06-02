@@ -25,7 +25,12 @@ export function getCliVersionSpecifier(version: string): string {
 }
 
 /** Package managers we know how to dispatch a one-off package execution through. */
-export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn';
+/**
+ * Package managers we know how to dispatch a one-off package execution
+ * through. Yarn is split because Classic (1.x) has no `dlx` command, so it
+ * must fall back to `npx`, while Berry (2+) uses `yarn dlx`.
+ */
+export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn' | 'yarn-classic';
 
 /**
  * Identify the package manager that invoked us from `npm_config_user_agent`.
@@ -33,30 +38,42 @@ export type PackageManager = 'bun' | 'npm' | 'pnpm' | 'yarn';
  * Every supported package manager sets this env var when running
  * `<pm> create agentuity` / `<pm> dlx` / `npx`, in the form
  * `name/version node/version ...` (e.g. `pnpm/8.15.4 npm/? node/v20.11.1`).
+ * Yarn 1.x is reported as `yarn-classic` because it lacks `yarn dlx`.
  * Returns `undefined` when the var is absent or unrecognized, so callers
  * can fall back to a safe default.
  */
 export function detectPackageManager(userAgent: string | undefined): PackageManager | undefined {
 	if (!userAgent) return undefined;
-	const name = userAgent.split('/')[0]?.toLowerCase();
-	if (name === 'bun' || name === 'npm' || name === 'pnpm' || name === 'yarn') {
-		return name;
+	const [name, version] = userAgent.split(' ')[0]?.split('/') ?? [];
+	switch (name?.toLowerCase()) {
+		case 'bun':
+			return 'bun';
+		case 'npm':
+			return 'npm';
+		case 'pnpm':
+			return 'pnpm';
+		case 'yarn':
+			// Yarn Classic (1.x) has no `dlx`; treat it separately so we can
+			// route it through npx instead.
+			return version?.startsWith('1.') ? 'yarn-classic' : 'yarn';
+		default:
+			return undefined;
 	}
-	return undefined;
 }
 
 /**
  * Build the command + args that run `@agentuity/cli@<version> create ...`
  * through the given package manager's one-off execution tool.
  *
- *   bun   → bunx @agentuity/cli@<v> create ...
- *   pnpm  → pnpm dlx @agentuity/cli@<v> create ...
- *   yarn  → yarn dlx @agentuity/cli@<v> create ...
- *   npm   → npx --yes @agentuity/cli@<v> create ...
+ *   bun           → bunx @agentuity/cli@<v> create ...
+ *   pnpm          → pnpm dlx @agentuity/cli@<v> create ...
+ *   yarn (Berry)  → yarn dlx @agentuity/cli@<v> create ...
+ *   npm / yarn 1.x → npx --yes @agentuity/cli@<v> create ...
  *
- * Defaults to `npx` when the package manager is unknown, because the
- * wrapper runs under `#!/usr/bin/env node`, so Node (and therefore npx)
- * is guaranteed to be present even when Bun is not installed.
+ * Defaults to `npx` when the package manager is unknown (or is Yarn Classic,
+ * which has no `dlx`), because the wrapper runs under `#!/usr/bin/env node`,
+ * so Node (and therefore npx) is guaranteed to be present even when Bun is
+ * not installed.
  */
 export function getCreateCommand(
 	pm: PackageManager | undefined,

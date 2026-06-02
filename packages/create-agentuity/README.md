@@ -46,8 +46,8 @@ The exact scripts depend on the framework you pick (the official CLI's own
 defaults are preserved). Every project gets at least:
 
 ```bash
-bun run dev          # Run the framework's dev server with AI Gateway env
-bun run build        # Framework build
+npm run dev          # Run the framework's dev server with AI Gateway env
+npm run build        # Framework build
 agentuity deploy     # Deploy to Agentuity Cloud
 ```
 

@@ -61,8 +61,13 @@ describe('detectPackageManager', () => {
 	test('pnpm user agent', () => {
 		expect(detectPackageManager('pnpm/8.15.4 npm/? node/v20.11.1 linux x64')).toBe('pnpm');
 	});
-	test('yarn user agent', () => {
-		expect(detectPackageManager('yarn/1.22.22 npm/? node/v20.11.1 linux x64')).toBe('yarn');
+	test('yarn berry (2+) user agent', () => {
+		expect(detectPackageManager('yarn/4.1.0 npm/? node/v20.11.1 linux x64')).toBe('yarn');
+	});
+	test('yarn classic (1.x) user agent maps to yarn-classic', () => {
+		expect(detectPackageManager('yarn/1.22.22 npm/? node/v20.11.1 linux x64')).toBe(
+			'yarn-classic'
+		);
 	});
 	test('undefined when env var is absent', () => {
 		expect(detectPackageManager(undefined)).toBeUndefined();
@@ -88,10 +93,16 @@ describe('getCreateCommand', () => {
 			args: ['dlx', pkg, 'create', '--name', 'my-app'],
 		});
 	});
-	test('yarn uses yarn dlx', () => {
+	test('yarn berry uses yarn dlx', () => {
 		expect(getCreateCommand('yarn', pkg, args)).toEqual({
 			command: 'yarn',
 			args: ['dlx', pkg, 'create', '--name', 'my-app'],
+		});
+	});
+	test('yarn classic falls back to npx (no dlx in 1.x)', () => {
+		expect(getCreateCommand('yarn-classic', pkg, args)).toEqual({
+			command: 'npx',
+			args: ['--yes', pkg, 'create', '--name', 'my-app'],
 		});
 	});
 	test('npm uses npx --yes', () => {
