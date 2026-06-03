@@ -42,7 +42,7 @@ import * as tui from '../../tui.ts';
 import { createSubcommand, DeployOptionsSchema } from '../../types.ts';
 import type { Logger } from '../../types.ts';
 import { extractDependencies } from '../../utils/deps.ts';
-import { detectAgentuityV2 } from '../build/detect/agentuity-v2.ts';
+import { detectAgentuityLegacy } from '../build/detect/agentuity-legacy.ts';
 import { readPackageJson } from '../build/detect/util.ts';
 import { findLocalCli } from '../../local-delegate.ts';
 import { spawnInherit } from '../../node-compat/proc.ts';
@@ -63,57 +63,62 @@ const DeploymentCancelledError = StructuredError(
 );
 
 /**
- * Loop guard so a handed-off v2 deploy doesn't try to hand off again (the
+ * Loop guard so a handed-off legacy deploy doesn't try to hand off again (the
  * project-local CLI might itself be a v3 in some odd setup).
  */
-const V2_DEPLOY_HANDOFF_ENV = 'AGENTUITY_V2_DEPLOY_HANDOFF';
+const LEGACY_DEPLOY_HANDOFF_ENV = 'AGENTUITY_LEGACY_DEPLOY_HANDOFF';
 
 /**
- * When this (v3) CLI is asked to deploy a v2 Agentuity project, hand the
- * whole deploy to the project-local v2 CLI's `deploy` and return its exit
- * outcome. v2 apps can't go through the v3 buildpack pipeline because the v2
- * build bakes route/agent ids keyed to the deployment id — only the v2
- * `deploy` flow knows that id at build time.
+ * When this (v3) CLI is asked to deploy a legacy (v1/v2) Agentuity project,
+ * hand the whole deploy to the project-local legacy CLI's `deploy` and return
+ * its exit outcome. Legacy apps can't go through the v3 buildpack pipeline
+ * because the legacy build bakes route/agent ids keyed to the deployment id —
+ * only the legacy `deploy` flow knows that id at build time.
  *
  * Returns a `DeployResponse`-shaped value when it handed off (the caller
  * returns it and the process exits), or null to let the normal v3 pipeline
- * run (not a v2 project).
+ * run (not a legacy project).
  *
- * If the project IS v2 but no local v2 CLI is available to hand off to, we
- * fatal with a clear, actionable message instead of letting the v3 pipeline
- * ship a broken deploy.
+ * If the project IS legacy but no local legacy CLI is available to hand off
+ * to, we fatal with a clear, actionable message instead of letting the v3
+ * pipeline ship a broken deploy.
  */
-async function maybeHandoffV2Deploy(
+async function maybeHandoffLegacyDeploy(
 	projectDir: string,
 	logger: Logger
 ): Promise<{ success: boolean; deploymentId: string; projectId: string } | null> {
-	if (process.env[V2_DEPLOY_HANDOFF_ENV]) return null;
+	if (process.env[LEGACY_DEPLOY_HANDOFF_ENV]) return null;
 
 	const pkg = await readPackageJson(projectDir);
 	if (!pkg) return null;
 
-	const v2 = await detectAgentuityV2(projectDir, pkg);
-	if (!v2) return null; // not a v2 app — run the v3 pipeline as usual
+	const legacy = await detectAgentuityLegacy(projectDir, pkg);
+	if (!legacy) return null; // not a legacy app — run the v3 pipeline as usual
+
+	// Match the install hint to the detected major (v1 → ^1, v2 → ^2).
+	const major = legacy.version?.split('.')[0] ?? '2';
 
 	const local = findLocalCli(projectDir);
 	if (!local) {
 		tui.fatal(
-			'This is an Agentuity v2 project (@agentuity/runtime ' +
-				`${v2.version}) which must be deployed with the v2 CLI. ` +
-				'Install it locally with `bun add -D @agentuity/cli@^2` and re-run ' +
+			`This is an Agentuity v${major} project (@agentuity/runtime ` +
+				`${legacy.version}) which must be deployed with the v${major} CLI. ` +
+				`Install it locally with \`bun add -D @agentuity/cli@^${major}\` and re-run ` +
 				'`agentuity deploy`, or migrate to v3 with `npx @agentuity/migrate@next`.',
 			ErrorCode.CONFIG_INVALID
 		);
 	}
 
-	tui.info(`Detected a v2 project — deploying with the local v2 CLI (${local.version}).`);
-	logger.debug('v2 deploy handoff: %s %s', local.binPath, process.argv.slice(2).join(' '));
+	tui.info(
+		`Detected a v${major} project — deploying with the local v${major} CLI (${local.version}).`
+	);
+	logger.debug('legacy deploy handoff: %s %s', local.binPath, process.argv.slice(2).join(' '));
 
 	const argv = process.argv.slice(2);
 	const { exitCode } = await spawnInherit({
 		cmd: [local.binPath, ...argv],
 		cwd: projectDir,
-		env: { [V2_DEPLOY_HANDOFF_ENV]: '1' },
+		env: { [LEGACY_DEPLOY_HANDOFF_ENV]: '1' },
 	});
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,19 +220,19 @@ export const deploySubcommand = createSubcommand({
 	async handler(ctx) {
 		const { apiClient, projectDir, config, options, logger, opts, auth, orgId, region } = ctx;
 
-		// v2 handoff: a v2 Agentuity app cannot be deployed by the v3 buildpack
-		// pipeline (its `agentuity build` bakes route/agent ids keyed to the
-		// deployment id, which only the v2 `deploy` flow knows). When this v3
-		// CLI is asked to deploy a v2 project, hand the whole deploy to the
-		// project-local v2 CLI's `deploy` and exit with its code. Skipped when
-		// we're a forked child (the parent already handed off or this isn't v2)
-		// or already running as the handed-off v2 deploy.
+		// Legacy handoff: a legacy (v1/v2) Agentuity app cannot be deployed by
+		// the v3 buildpack pipeline (its `agentuity build` bakes route/agent ids
+		// keyed to the deployment id, which only the legacy `deploy` flow knows).
+		// When this v3 CLI is asked to deploy a legacy project, hand the whole
+		// deploy to the project-local legacy CLI's `deploy` and exit with its
+		// code. Skipped when we're a forked child (the parent already handed off
+		// or this isn't legacy) or already running as the handed-off legacy deploy.
 		const isForkedChild = opts.childMode || process.env.AGENTUITY_FORK_PARENT === '1';
 		if (!isForkedChild) {
 			// Pin any "latest"-pinned Agentuity deps to the version actually
 			// installed (from the lockfile) before anything else — including the
-			// v2 handoff below, so v2 apps get pinned too. Keeps the deploy
-			// reproducible and stops a "latest"-pinned v2 project from silently
+			// legacy handoff below, so legacy apps get pinned too. Keeps the deploy
+			// reproducible and stops a "latest"-pinned legacy project from silently
 			// pulling v3 once v3 becomes the `latest` dist-tag.
 			try {
 				const { pinLatestAgentuityDeps } = await import('../../pin-latest.ts');
@@ -244,7 +249,7 @@ export const deploySubcommand = createSubcommand({
 				logger.debug('pin-latest: skipped due to error: %s', err);
 			}
 
-			const handed = await maybeHandoffV2Deploy(projectDir, logger);
+			const handed = await maybeHandoffLegacyDeploy(projectDir, logger);
 			if (handed) return handed as never;
 		}
 
