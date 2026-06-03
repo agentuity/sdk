@@ -1,4 +1,5 @@
 import { tmpdir } from 'node:os';
+import { gt as semverGt, valid as semverValid } from 'semver';
 import { getExecutingAgent } from './agent-detection.ts';
 import { fetchLatestVersion } from './cmd/upgrade/index.ts';
 import { saveConfig } from './config.ts';
@@ -295,6 +296,25 @@ export async function checkForUpdates(
 			// Update timestamp - we confirmed we're on latest version
 			await updateCheckTimestamp(config, logger);
 			logger.trace('Already on latest version: %s', currentVersion);
+			return;
+		}
+
+		// Skip the prompt when the installed version is NEWER than the `latest`
+		// dist-tag. This happens while v3 ships on `next` and `latest` still
+		// points at v2: a globally-installed v3 (e.g. 3.0.4) would otherwise be
+		// told that 2.0.26 is "a new version available" and prompted to
+		// downgrade. Only nudge when there's genuinely a newer release.
+		if (
+			semverValid(normalizedCurrent) &&
+			semverValid(normalizedLatest) &&
+			semverGt(normalizedCurrent, normalizedLatest)
+		) {
+			await updateCheckTimestamp(config, logger);
+			logger.trace(
+				'Installed version %s is newer than latest %s; skipping upgrade prompt',
+				currentVersion,
+				latestVersion
+			);
 			return;
 		}
 
