@@ -2,7 +2,6 @@ import { createCommand } from '../../types.ts';
 import { apikeyCommand } from './apikey.ts';
 import { loginCommand } from './login.ts';
 import { logoutCommand } from './logout.ts';
-import { signupCommand } from './signup.ts';
 import { whoamiCommand } from './whoami.ts';
 import { sshSubcommand } from './ssh/index.ts';
 import { orgSubcommand } from './org/index.ts';
@@ -21,7 +20,6 @@ export const command = createCommand({
 		apikeyCommand,
 		loginCommand,
 		logoutCommand,
-		signupCommand,
 		whoamiCommand,
 		sshSubcommand,
 		orgSubcommand,
