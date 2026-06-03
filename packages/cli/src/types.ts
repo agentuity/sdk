@@ -98,6 +98,8 @@ export interface GlobalOptions {
 	json?: boolean;
 	quiet?: boolean;
 	noProgress?: boolean;
+	/** False when `--no-interactive` is passed: suppress prompts, fail instead of asking. */
+	interactive?: boolean;
 	color?: 'auto' | 'always' | 'never';
 	explain?: boolean;
 	dryRun?: boolean;

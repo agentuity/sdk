@@ -24,6 +24,7 @@ function shouldSkipCheck(
 		validate?: boolean;
 		dryRun?: boolean;
 		skipVersionCheck?: boolean;
+		interactive?: boolean;
 	},
 	commandDef: CommandDefinition | undefined,
 	subcommandDef: SubcommandDefinition | undefined,
@@ -42,6 +43,17 @@ function shouldSkipCheck(
 
 	// Skip if no TTY (CI, redirected output, etc.)
 	if (!process.stdin.isTTY || !process.stdout.isTTY) {
+		return true;
+	}
+
+	// Skip when interactivity is explicitly disabled. `--no-interactive`
+	// (options.interactive === false) or AGENTUITY_NON_INTERACTIVE / CI mean
+	// "never prompt" even on a TTY — the upgrade prompt is a prompt, so honor it.
+	if (
+		options.interactive === false ||
+		process.env.AGENTUITY_NON_INTERACTIVE === '1' ||
+		process.env.CI
+	) {
 		return true;
 	}
 
@@ -250,6 +262,7 @@ export async function checkForUpdates(
 		validate?: boolean;
 		dryRun?: boolean;
 		skipVersionCheck?: boolean;
+		interactive?: boolean;
 	},
 	commandDef: CommandDefinition | undefined,
 	subcommandDef: SubcommandDefinition | undefined,
