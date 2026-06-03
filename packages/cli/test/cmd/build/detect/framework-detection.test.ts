@@ -371,10 +371,10 @@ describe('Framework Detection', () => {
 		});
 	});
 
-	// ── Agentuity v2 runtime ──
+	// ── Agentuity legacy (v1/v2) runtime ──
 
-	describe('Agentuity v2 runtime', () => {
-		test('detects a v2 app by @agentuity/runtime and builds via the v2 CLI', async () => {
+	describe('Agentuity legacy runtime', () => {
+		test('detects a v2 app by @agentuity/runtime and builds via the legacy CLI', async () => {
 			writePackageJson(testDir, {
 				name: 'v2-app',
 				scripts: { build: 'agentuity build', start: 'bun .agentuity/app.js' },
@@ -383,7 +383,8 @@ describe('Framework Detection', () => {
 
 			const result = await detectFramework(testDir);
 			expect(result).not.toBeNull();
-			expect(result!.name).toBe('agentuity-v2');
+			expect(result!.name).toBe('agentuity-legacy');
+			expect(result!.version).toBe('2.0.0');
 			expect(result!.runtime).toBe('bun');
 			expect(result!.packageManager).toBe('bun');
 			expect(result!.buildOutput).toBe('.agentuity');
@@ -395,9 +396,21 @@ describe('Framework Detection', () => {
 			expect(result!.warnings?.[0]).toContain('@agentuity/cli is not installed locally');
 		});
 
+		test('detects a v1 app by @agentuity/runtime at a 1.x major', async () => {
+			writePackageJson(testDir, {
+				name: 'v1-app',
+				scripts: { build: 'agentuity build', start: 'bun .agentuity/app.js' },
+				dependencies: { '@agentuity/runtime': '^1.0.0' },
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('agentuity-legacy');
+			expect(result!.version).toBe('1.0.0');
+		});
+
 		test('takes precedence over generic/vite detection', async () => {
 			writePackageJson(testDir, {
-				name: 'v2-vite-app',
+				name: 'legacy-vite-app',
 				scripts: { build: 'vite build' },
 				dependencies: { '@agentuity/runtime': '~2.1.0' },
 				devDependencies: { vite: '^7.0.0' },
@@ -405,7 +418,7 @@ describe('Framework Detection', () => {
 			writeFileSync(join(testDir, 'vite.config.ts'), 'export default {}');
 
 			const result = await detectFramework(testDir);
-			expect(result!.name).toBe('agentuity-v2');
+			expect(result!.name).toBe('agentuity-legacy');
 		});
 
 		test('does not claim a floating runtime spec (e.g. "latest")', async () => {
@@ -418,7 +431,7 @@ describe('Framework Detection', () => {
 			writeFileSync(join(testDir, 'vite.config.ts'), 'export default {}');
 
 			const result = await detectFramework(testDir);
-			expect(result!.name).not.toBe('agentuity-v2');
+			expect(result!.name).not.toBe('agentuity-legacy');
 		});
 
 		test('does not claim a v3 app (no @agentuity/runtime)', async () => {
@@ -430,7 +443,7 @@ describe('Framework Detection', () => {
 			writeFileSync(join(testDir, 'vite.config.ts'), 'export default {}');
 
 			const result = await detectFramework(testDir);
-			expect(result!.name).not.toBe('agentuity-v2');
+			expect(result!.name).not.toBe('agentuity-legacy');
 		});
 	});
 

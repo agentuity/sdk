@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
 import { readPackageJson, detectPackageManager, isAgentuityCliInvocation } from './util.ts';
-import { detectAgentuityV2 } from './agentuity-v2.ts';
+import { detectAgentuityLegacy } from './agentuity-legacy.ts';
 import { frameworkDefinitions, type FrameworkDefinition } from './frameworks.ts';
 import { detectFromDatabase } from './engine.ts';
 import { genericDetector } from './generic.ts';
@@ -289,10 +289,10 @@ export async function detectFramework(projectDir: string): Promise<DetectedFrame
 		return (await detectCustomLauncher(projectDir, null)) ?? detectBareStaticHtml(projectDir);
 	}
 
-	// 0. Agentuity v2 runtime apps: detected before the database engine so a
-	// v2 app isn't mis-classified as a generic vite SPA.
-	const v2 = await detectAgentuityV2(projectDir, pkg);
-	if (v2) return v2;
+	// 0. Agentuity legacy (v1/v2) runtime apps: detected before the database
+	// engine so a legacy app isn't mis-classified as a generic vite SPA.
+	const legacy = await detectAgentuityLegacy(projectDir, pkg);
+	if (legacy) return legacy;
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);
@@ -321,10 +321,10 @@ export async function detectFrameworkWithPackageJson(
 		return { framework: await detectBareStaticHtml(projectDir), packageJson: null };
 	}
 
-	// 0. Agentuity v2 runtime apps: detected before the database engine so a
-	// v2 app isn't mis-classified as a generic vite SPA.
-	const v2 = await detectAgentuityV2(projectDir, pkg);
-	if (v2) return { framework: v2, packageJson: pkg };
+	// 0. Agentuity legacy (v1/v2) runtime apps: detected before the database
+	// engine so a legacy app isn't mis-classified as a generic vite SPA.
+	const legacy = await detectAgentuityLegacy(projectDir, pkg);
+	if (legacy) return { framework: legacy, packageJson: pkg };
 
 	// 1. Run through the framework database
 	const match = await detectFromDatabase(projectDir, pkg, frameworkDefinitions);

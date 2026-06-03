@@ -526,6 +526,11 @@ export async function createCLI(version: string): Promise<Command> {
 		.option('--json', 'Output in JSON format (machine-readable)', false)
 		.option('--quiet', 'Suppress non-essential output', false)
 		.option('--no-progress', 'Disable progress indicators', false)
+		.option(
+			'--no-interactive',
+			'Disable interactive prompts (e.g. the upgrade prompt); fail instead of asking',
+			true
+		)
 		.option('--explain', 'Show what the command would do without executing', false)
 		.option('--dry-run', 'Execute command without making changes', false)
 		.option('--validate', 'Validate arguments and options without executing', false)

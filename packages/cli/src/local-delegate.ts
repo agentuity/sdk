@@ -132,7 +132,7 @@ function runtimeSpec(pkg: {
 }
 
 /**
- * Self-heal a v2 project that has `@agentuity/runtime` but no
+ * Self-heal a legacy (v1 or v2) project that has `@agentuity/runtime` but no
  * `@agentuity/cli` dependency: add `@agentuity/cli` (matching the runtime's
  * spec) to devDependencies and install it, so the project-local CLI exists
  * for delegation to defer to.
@@ -141,7 +141,7 @@ function runtimeSpec(pkg: {
  * cli dep is already declared, or a local install already exists. Returns
  * true when it installed the local CLI.
  *
- * v2 projects are Bun-only, so we install with `bun add -D`.
+ * Legacy projects are Bun-only, so we install with `bun add -D`.
  */
 async function ensureLocalCliForV2(projectDir: string): Promise<boolean> {
 	const root = findProjectRoot(projectDir);
@@ -162,13 +162,14 @@ async function ensureLocalCliForV2(projectDir: string): Promise<boolean> {
 	}
 
 	const spec = runtimeSpec(pkg);
-	if (!spec) return false; // not a v2-runtime project
+	if (!spec) return false; // not a legacy-runtime project
 
-	// Only self-heal when the runtime is pinned to a concrete v2 range. A
-	// floating spec (`latest`, `*`, `workspace:*`, git/url) could resolve the
-	// CLI to v3 and defeat the whole point, so we bail and let the global CLI
-	// handle it rather than guess.
-	if (!/^[\^~]?2\./.test(spec)) {
+	// Only self-heal when the runtime is pinned to a concrete legacy (v1 or v2)
+	// range. v3 dropped @agentuity/runtime entirely, so a v1/v2 major is the
+	// signal. A floating spec (`latest`, `*`, `workspace:*`, git/url) could
+	// resolve the CLI to v3 and defeat the whole point, so we bail and let the
+	// global CLI handle it rather than guess.
+	if (!/^[\^~]?[12]\./.test(spec)) {
 		return false;
 	}
 
@@ -178,7 +179,7 @@ async function ensureLocalCliForV2(projectDir: string): Promise<boolean> {
 	}
 
 	tui.info(
-		`Detected a v2 project (@agentuity/runtime ${spec}) without @agentuity/cli. Adding @agentuity/cli@${spec} so the local CLI handles this project.`
+		`Detected a legacy project (@agentuity/runtime ${spec}) without @agentuity/cli. Adding @agentuity/cli@${spec} so the local CLI handles this project.`
 	);
 
 	// `bun add -D` rewrites package.json + installs in one step, matching the
