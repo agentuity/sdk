@@ -5,16 +5,19 @@ launcher that delegates to `@agentuity/cli`'s `project create` flow.
 
 ## Usage
 
-```bash
-bun create agentuity my-project
-cd my-project
-bun run dev
-```
-
-Or with npm:
+Use whichever package manager you already have — the launcher dispatches the
+underlying CLI through the same one (npm/pnpm/yarn/bun), so Bun is not required.
 
 ```bash
 npm create agentuity@latest my-project
+cd my-project
+npm run dev
+```
+
+```bash
+pnpm create agentuity my-project
+yarn create agentuity my-project
+bun create agentuity my-project
 ```
 
 ## What you get
@@ -43,8 +46,8 @@ The exact scripts depend on the framework you pick (the official CLI's own
 defaults are preserved). Every project gets at least:
 
 ```bash
-bun run dev          # Run the framework's dev server with AI Gateway env
-bun run build        # Framework build
+npm run dev          # Run the framework's dev server with AI Gateway env
+npm run build        # Framework build
 agentuity deploy     # Deploy to Agentuity Cloud
 ```
 
