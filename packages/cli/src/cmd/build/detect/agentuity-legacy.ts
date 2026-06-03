@@ -19,7 +19,7 @@
  * must already have `@agentuity/cli` installed (legacy scaffolds do by default).
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { pathExists } from '../../../node-compat/fs.ts';
 import type { DetectedFramework, PackageJsonData } from './types.ts';
@@ -36,18 +36,18 @@ const LEGACY_OUTPUT_DIR = '.agentuity';
  * command — doesn't trip on a legitimate legacy build, and so we never
  * accidentally shell back into the running v3 CLI.
  */
-function resolveLocalCliEntry(projectDir: string): string | null {
+async function resolveLocalCliEntry(projectDir: string): Promise<string | null> {
 	const pkgDir = join(projectDir, 'node_modules', '@agentuity', 'cli');
 	const pkgJsonPath = join(pkgDir, 'package.json');
-	if (!existsSync(pkgJsonPath)) return null;
+	if (!(await pathExists(pkgJsonPath))) return null;
 	try {
-		const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf-8')) as {
+		const pkg = JSON.parse(await readFile(pkgJsonPath, 'utf-8')) as {
 			bin?: string | Record<string, string>;
 		};
 		const binEntry = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.agentuity;
 		if (!binEntry) return null;
 		const binPath = isAbsolute(binEntry) ? binEntry : join(pkgDir, binEntry);
-		return existsSync(binPath) ? binPath : null;
+		return (await pathExists(binPath)) ? binPath : null;
 	} catch {
 		return null;
 	}
@@ -81,7 +81,7 @@ export async function detectAgentuityLegacy(
 	if (!spec) return null;
 
 	const warnings: string[] = [];
-	const localCliEntry = resolveLocalCliEntry(projectDir);
+	const localCliEntry = await resolveLocalCliEntry(projectDir);
 	// `agentuity build` is provided by the project-local legacy CLI. Surface a
 	// hint when it isn't installed so the failure (if any) is self-explanatory.
 	if (!(await pathExists(join(projectDir, 'node_modules', '@agentuity', 'cli')))) {

@@ -40,7 +40,8 @@ import {
 } from '../../steps.ts';
 import * as tui from '../../tui.ts';
 import { createSubcommand, DeployOptionsSchema } from '../../types.ts';
-import type { Logger } from '../../types.ts';
+import type { GlobalOptions, Logger } from '../../types.ts';
+import { isJSONMode, outputJSON } from '../../output.ts';
 import { extractDependencies } from '../../utils/deps.ts';
 import { detectAgentuityLegacy } from '../build/detect/agentuity-legacy.ts';
 import { readPackageJson } from '../build/detect/util.ts';
@@ -85,7 +86,8 @@ const LEGACY_DEPLOY_HANDOFF_ENV = 'AGENTUITY_LEGACY_DEPLOY_HANDOFF';
  */
 async function maybeHandoffLegacyDeploy(
 	projectDir: string,
-	logger: Logger
+	logger: Logger,
+	options: GlobalOptions
 ): Promise<{ success: boolean; deploymentId: string; projectId: string } | null> {
 	if (process.env[LEGACY_DEPLOY_HANDOFF_ENV]) return null;
 
@@ -97,21 +99,54 @@ async function maybeHandoffLegacyDeploy(
 
 	// Match the install hint to the detected major (v1 → ^1, v2 → ^2).
 	const major = legacy.version?.split('.')[0] ?? '2';
+	const json = isJSONMode(options);
+
+	// Fatal helper that emits a structured error in --json mode and a
+	// human-readable fatal otherwise. Declared as a function so its `never`
+	// return type narrows `local` after the guards below.
+	function fatal(message: string): never {
+		if (json) {
+			outputJSON({ success: false, errorCode: ErrorCode.CONFIG_INVALID, message });
+			const exit = (globalThis as { AGENTUITY_PROCESS_EXIT?: (c: number) => never })
+				.AGENTUITY_PROCESS_EXIT;
+			if (exit) exit(1);
+			process.exit(1);
+		}
+		tui.fatal(message, ErrorCode.CONFIG_INVALID);
+		// tui.fatal exits the process; this throw is unreachable but makes the
+		// `never` return type provable to the type checker.
+		throw new Error(message);
+	}
 
 	const local = findLocalCli(projectDir);
 	if (!local) {
-		tui.fatal(
+		fatal(
 			`This is an Agentuity v${major} project (@agentuity/runtime ` +
 				`${legacy.version}) which must be deployed with the v${major} CLI. ` +
 				`Install it locally with \`bun add -D @agentuity/cli@^${major}\` and re-run ` +
-				'`agentuity deploy`, or migrate to v3 with `npx @agentuity/migrate@next`.',
-			ErrorCode.CONFIG_INVALID
+				'`agentuity deploy`, or migrate to v3 with `npx @agentuity/migrate@next`.'
 		);
 	}
 
-	tui.info(
-		`Detected a v${major} project — deploying with the local v${major} CLI (${local.version}).`
-	);
+	// `findLocalCli` returns ANY local @agentuity/cli regardless of major. If it
+	// doesn't match the project's legacy major, handing off would run the wrong
+	// CLI (and the "deploying with v${major}" message would be a lie), so fail
+	// fast with an actionable hint instead.
+	const localMajor = local.version.split('.')[0];
+	if (localMajor !== major) {
+		fatal(
+			`This is an Agentuity v${major} project, but the locally-installed ` +
+				`@agentuity/cli is v${local.version}. Install \`@agentuity/cli@^${major}\` ` +
+				'locally and re-run `agentuity deploy`.'
+		);
+	}
+
+	const handoffMsg = `Detected a v${major} project — deploying with the local v${major} CLI (${local.version}).`;
+	if (json) {
+		outputJSON({ status: 'legacy-handoff', major, localVersion: local.version });
+	} else {
+		tui.info(handoffMsg);
+	}
 	logger.debug('legacy deploy handoff: %s %s', local.binPath, process.argv.slice(2).join(' '));
 
 	const argv = process.argv.slice(2);
@@ -237,7 +272,9 @@ export const deploySubcommand = createSubcommand({
 			try {
 				const { pinLatestAgentuityDeps } = await import('../../pin-latest.ts');
 				const pinned = await pinLatestAgentuityDeps(projectDir, logger);
-				if (pinned.length > 0) {
+				// Human-readable summary only outside --json mode (keeps machine
+				// output clean). The pin still happens either way.
+				if (pinned.length > 0 && !isJSONMode(options)) {
 					tui.info(
 						`Pinned ${pinned.length} Agentuity ${pinned.length === 1 ? 'dependency' : 'dependencies'} from "latest" to installed version:`
 					);
@@ -249,7 +286,7 @@ export const deploySubcommand = createSubcommand({
 				logger.debug('pin-latest: skipped due to error: %s', err);
 			}
 
-			const handed = await maybeHandoffLegacyDeploy(projectDir, logger);
+			const handed = await maybeHandoffLegacyDeploy(projectDir, logger, options);
 			if (handed) return handed as never;
 		}
 
