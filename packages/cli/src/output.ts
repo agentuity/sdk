@@ -159,9 +159,20 @@ export function outputWarning(message: string, options: GlobalOptions): void {
  * Check if interactive prompts should be allowed
  */
 export function canPrompt(options: GlobalOptions): boolean {
-	// Disable prompts in JSON mode, quiet mode, or non-TTY
+	// Disable prompts in JSON mode, quiet mode, non-TTY, or when interactivity
+	// is explicitly turned off via --no-interactive / AGENTUITY_NON_INTERACTIVE / CI.
+	if (
+		options.interactive === false ||
+		process.env.AGENTUITY_NON_INTERACTIVE === '1' ||
+		process.env.CI
+	) {
+		return false;
+	}
 	return (
-		!isJSONMode(options) && !isQuietMode(options) && process.stdin.isTTY && process.stdout.isTTY
+		!isJSONMode(options) &&
+		!isQuietMode(options) &&
+		!!process.stdin.isTTY &&
+		!!process.stdout.isTTY
 	);
 }
 
