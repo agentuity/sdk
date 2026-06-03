@@ -16,8 +16,11 @@
  *   - Only runs when the invoked binary is a global install.
  *   - Only delegates when the local version differs from the global version
  *     (same version → run in-process, no extra spawn).
- *   - Never delegates `upgrade` (it manages the global install itself) or
- *     `--version` / `--help` (the user is introspecting the invoked binary).
+ *   - Delegates EVERYTHING with no command/flag exclusions: once we've decided
+ *     the project-local CLI owns this project, it should own every command,
+ *     including `--version` / `--help` / `--ai-help` (so introspection reflects
+ *     the CLI actually handling the project) and `upgrade` (so it upgrades the
+ *     CLI being used here).
  *   - A loop guard env var (`AGENTUITY_DELEGATED`) prevents the local CLI
  *     from delegating again.
  *
@@ -40,22 +43,6 @@ import { getVersion } from './version.ts';
 const DELEGATED_ENV = 'AGENTUITY_DELEGATED';
 const PACKAGE_NAME = '@agentuity/cli';
 
-/** Commands/flags that must always run with the invoked (global) binary. */
-const NON_DELEGATING_COMMANDS = new Set(['upgrade']);
-const NON_DELEGATING_FLAGS = new Set([
-	'--version',
-	'-V',
-	'version',
-	'--help',
-	'-h',
-	'help',
-	// Schema/introspection paths handled by main.ts's early exits — these must
-	// describe the actually-invoked binary, not a delegated one.
-	'--help=json',
-	'--ai-help',
-	'--describe',
-]);
-
 export interface LocalCli {
 	/** Absolute path to the local CLI's executable (the `bin.agentuity` entry). */
 	binPath: string;
@@ -76,27 +63,6 @@ function dirFromArgs(args: string[]): string | undefined {
 			const next = args[i + 1];
 			if (next !== undefined && !next.startsWith('-')) return next;
 		}
-	}
-	return undefined;
-}
-
-/**
- * The first positional token (the command name) in argv, skipping the
- * `--dir`/`--dir=` flag and its value so a path value like `--dir upgrade`
- * isn't mistaken for the `upgrade` command. We only need to skip `--dir`
- * here because it's the sole global option whose value could be a bare word
- * — every other global option we exclude is matched by flag, not position.
- */
-function firstCommand(args: string[]): string | undefined {
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i];
-		if (arg === undefined) continue;
-		if (arg === '--dir') {
-			i++; // skip its value
-			continue;
-		}
-		if (arg.startsWith('-')) continue;
-		return arg;
 	}
 	return undefined;
 }
@@ -248,11 +214,6 @@ export async function maybeDelegateToLocal(argv: string[]): Promise<void> {
 
 	// Only a global install should defer to a project-local one.
 	if (getInstallationType() !== 'global') return;
-
-	// Never delegate commands that introspect or manage the global binary.
-	if (argv.some((a) => NON_DELEGATING_FLAGS.has(a))) return;
-	const command = firstCommand(argv);
-	if (command && NON_DELEGATING_COMMANDS.has(command)) return;
 
 	const projectDir = dirFromArgs(argv) ?? process.cwd();
 
