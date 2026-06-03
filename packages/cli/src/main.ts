@@ -20,6 +20,7 @@ import { generateAIHelp } from './ai-help.ts';
 import { setOutputOptions } from './output.ts';
 import type { Config, GlobalOptions } from './types.ts';
 import { ensureBunOnPath } from './bun-path.ts';
+import { maybeDelegateToLocal } from './local-delegate.ts';
 import { checkForUpdates } from './version-check.ts';
 import { closeDatabase } from './cache/index.ts';
 import { ErrorCode, createError, formatErrorJSON } from './errors.ts';
@@ -88,6 +89,13 @@ process.on('SIGTERM', () => {
 
 validateRuntime();
 await ensureBunOnPath();
+
+// If we're a global install running inside a project that pins its own
+// @agentuity/cli at a different version, hand off to the project-local CLI
+// and exit. This keeps v2 projects on v2 behavior even when the global
+// binary has been upgraded to v3. Runs before any command parsing so the
+// local CLI sees the original argv verbatim.
+await maybeDelegateToLocal(process.argv.slice(2));
 
 // Preprocess arguments to convert --help=json to --help json
 // Commander.js doesn't support --option=value syntax for optional values

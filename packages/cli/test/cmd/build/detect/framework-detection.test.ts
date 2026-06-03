@@ -371,6 +371,69 @@ describe('Framework Detection', () => {
 		});
 	});
 
+	// ── Agentuity v2 runtime ──
+
+	describe('Agentuity v2 runtime', () => {
+		test('detects a v2 app by @agentuity/runtime and builds via the v2 CLI', async () => {
+			writePackageJson(testDir, {
+				name: 'v2-app',
+				scripts: { build: 'agentuity build', start: 'bun .agentuity/app.js' },
+				dependencies: { '@agentuity/runtime': '^2.0.0' },
+			});
+
+			const result = await detectFramework(testDir);
+			expect(result).not.toBeNull();
+			expect(result!.name).toBe('agentuity-v2');
+			expect(result!.runtime).toBe('bun');
+			expect(result!.packageManager).toBe('bun');
+			expect(result!.buildOutput).toBe('.agentuity');
+			expect(result!.staticDir).toBe(join('.agentuity', 'client'));
+			expect(result!.startCommand).toBe(`bun ${join('.agentuity', 'app.js')}`);
+			// No local CLI installed in the test dir → falls back to bare command
+			// and surfaces a hint.
+			expect(result!.buildCommand).toBe('agentuity build');
+			expect(result!.warnings?.[0]).toContain('@agentuity/cli is not installed locally');
+		});
+
+		test('takes precedence over generic/vite detection', async () => {
+			writePackageJson(testDir, {
+				name: 'v2-vite-app',
+				scripts: { build: 'vite build' },
+				dependencies: { '@agentuity/runtime': '~2.1.0' },
+				devDependencies: { vite: '^7.0.0' },
+			});
+			writeFileSync(join(testDir, 'vite.config.ts'), 'export default {}');
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).toBe('agentuity-v2');
+		});
+
+		test('does not claim a floating runtime spec (e.g. "latest")', async () => {
+			writePackageJson(testDir, {
+				name: 'ambiguous',
+				scripts: { build: 'vite build' },
+				dependencies: { '@agentuity/runtime': 'latest' },
+				devDependencies: { vite: '^7.0.0' },
+			});
+			writeFileSync(join(testDir, 'vite.config.ts'), 'export default {}');
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).not.toBe('agentuity-v2');
+		});
+
+		test('does not claim a v3 app (no @agentuity/runtime)', async () => {
+			writePackageJson(testDir, {
+				name: 'v3-app',
+				scripts: { build: 'vite build' },
+				devDependencies: { vite: '^7.0.0' },
+			});
+			writeFileSync(join(testDir, 'vite.config.ts'), 'export default {}');
+
+			const result = await detectFramework(testDir);
+			expect(result!.name).not.toBe('agentuity-v2');
+		});
+	});
+
 	// ── Generic ──
 
 	describe('Generic fallback', () => {
