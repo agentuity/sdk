@@ -7,17 +7,16 @@ Tool calling lets a model request structured function results mid-generation. Yo
 
 For chat-style tool loops that span requests, see [State and Memory](/build/agents/state-and-memory).
 
-```bash
-npm install ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue@next zod
-```
-
 ## Choose the Right Loop
+
+Start with AI Gateway when the model call is normal app code and the model choice should stay configurable. Use provider SDKs when the provider-specific workflow is the feature.
 
 | Use | Good fit |
 |-----|----------|
-| [AI SDK](#ai-sdk) | one typed tool loop across providers, minimal boilerplate |
-| [OpenAI Responses API](#openai-responses-api) | apps already on Responses with `previous_response_id` turn chaining |
-| [Anthropic Messages API](#anthropic-messages-api) | apps that need `tool_use` block fidelity or `strict: true` on every tool |
+| [AI Gateway structured output](/services/ai-gateway#structured-output) | typed JSON output, provider-agnostic model routing, and app-owned validation |
+| [AI SDK](#ai-sdk) | automatic tool loops, AI SDK UI streams, or an app already built around AI SDK primitives |
+| [OpenAI Responses API](#openai-responses-api) | apps already on Responses with `previous_response_id` turn chaining or Responses-only tools |
+| [Anthropic Messages API](#anthropic-messages-api) | apps that need Anthropic `tool_use` block fidelity or provider-specific schema controls |
 
 ## What belongs in a tool
 
@@ -30,7 +29,11 @@ npm install ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue@next zod
 
 ## AI SDK
 
-The AI SDK handles the tool loop internally. `generateText` calls your `execute` function, injects the result into the next turn, and continues until the model stops or `stopWhen` fires. All tools are validated with `inputSchema` before `execute` runs.
+Use AI SDK when you want the library to own the tool loop. `generateText` calls your `execute` function, injects the result into the next turn, and continues until the model stops or `stopWhen` fires. All tools are validated with `inputSchema` before `execute` runs.
+
+```bash
+npm install ai@latest @ai-sdk/anthropic@latest @agentuity/keyvalue@next zod
+```
 
 ```typescript title="app/api/orders/answer/route.ts"
 import { KeyValueClient } from '@agentuity/keyvalue';
@@ -94,7 +97,7 @@ export async function POST(request: Request): Promise<Response> {
 }
 ```
 
-This section uses the Anthropic AI SDK provider because AI SDK owns the tool loop. Under `agentuity dev`, `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` can route through AI Gateway from `AGENTUITY_SDK_KEY` when no provider key override is set. For structured JSON without an AI SDK tool loop, use [`AIGatewayClient.completeStructured()`](/services/ai-gateway#structured-output).
+This section uses the Anthropic AI SDK provider because AI SDK owns the loop. Under `agentuity dev`, `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` can route through AI Gateway from `AGENTUITY_SDK_KEY` when no provider key override is set. For structured JSON without an AI SDK loop, use [`AIGatewayClient.completeStructured()`](/services/ai-gateway#structured-output).
 
 <Callout type="info" title="stepCountIs counts model turns, not tool calls">
   Each `generateText` iteration (whether or not it makes a tool call) is one step. `stepCountIs(4)` stops after four turns regardless of how many individual tool calls occurred in those turns.

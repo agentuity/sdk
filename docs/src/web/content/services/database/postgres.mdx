@@ -6,12 +6,14 @@ description: Query Agentuity-managed Postgres from framework apps and scripts
 
 Use the Postgres client your framework or app already owns. Agentuity writes a normal `DATABASE_URL`; `pg`, Prisma, Kysely, Drizzle, and other Postgres clients can connect to it directly.
 
+Use this path when you want direct SQL with parameter binding. If your app already uses Prisma, Kysely, or Drizzle, keep that client and point it at the same `DATABASE_URL`.
+
 ```bash
 npm install pg
 npm install -D @types/pg
 ```
 
-```typescript
+```typescript title="src/db/client.ts"
 import { Pool } from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -54,173 +56,89 @@ agentuity cloud db get app_data --show-credentials
 
 The default terminal output masks credentials. Use `--show-credentials` only in a trusted shell.
 
-## Bun-Only Compatibility Helper
+## Pooling
 
-`@agentuity/postgres` is a deprecated, opt-in compatibility helper for Bun code that wants Bun's tagged SQL driver with Agentuity reconnect defaults. It is not required for framework apps.
+Create one `Pool` at module scope, then import it where the app needs queries. Avoid creating a new pool inside every request handler; that can exhaust database connections under load.
 
-```bash
-npm install @agentuity/postgres@next
-```
+```typescript title="src/db/client.ts"
+import { Pool } from 'pg';
 
-```typescript
-import { postgres } from '@agentuity/postgres';
+const databaseUrl = process.env.DATABASE_URL;
 
-const sql = postgres();
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is required');
+}
 
-const users = await sql`
-  SELECT id, email
-  FROM users
-  WHERE active = ${true}
-`;
-```
-
-<Callout type="info" title="This client is Bun-native">
-`@agentuity/postgres` imports Bun's SQL driver. The package is deprecated, so prefer `pg` or `drizzle-orm/node-postgres` for new work. Use it only in Bun-based apps and scripts that intentionally keep this helper. In Node.js processes, use your framework's Postgres client, ORM, or the `@agentuity/db` service client for trusted admin scripts.
-</Callout>
-
-## Helper Connection Setup
-
-`postgres()` reads `DATABASE_URL` by default. You can also pass a connection URL or a configuration object.
-
-```typescript
-import { postgres } from '@agentuity/postgres';
-
-const sql = postgres({
-  url: process.env.DATABASE_URL,
+export const pool = new Pool({
+  connectionString: databaseUrl,
   max: 10,
-  prepare: false,
-  reconnect: {
-    enabled: true,
-    maxAttempts: 10,
-    initialDelayMs: 100,
-    maxDelayMs: 30_000,
-  },
+  idleTimeoutMillis: 30_000,
 });
 ```
 
-Leave `prepare: false` when your database connection may pass through a connection pooler.
+Tune `max` for your app's request concurrency and database size. For many framework routes, the default is a reasonable starting point; set it explicitly when you know the workload.
+
+## Route Usage
+
+Import the shared pool into server-only code. This example uses a standard Web `Response`, so the same query shape works in Next.js route handlers, Hono handlers, SvelteKit server routes, Nuxt Nitro routes, Astro endpoints, or a standalone server.
+
+```typescript title="app/api/users/route.ts"
+import { pool } from '@/src/db/client';
+
+export async function GET(request: Request): Promise<Response> {
+  const { searchParams } = new URL(request.url);
+  const email = searchParams.get('email');
+
+  if (!email) {
+    return Response.json({ error: 'email query param is required' }, { status: 400 });
+  }
+
+  const { rows } = await pool.query<{
+    readonly id: string;
+    readonly email: string;
+  }>('SELECT id, email FROM users WHERE email = $1 LIMIT 1', [email]);
+
+  return Response.json({ user: rows[0] ?? null });
+}
+```
+
+Do not concatenate request values into SQL strings. Use `$1`, `$2`, and later placeholders for every dynamic value.
 
 ## Transactions
 
-Transactions group related queries so they succeed or roll back together. The transaction object is not callable: use `tx.query` for tagged-template queries inside the transaction.
+Use a pooled client for explicit transactions. Always release the client in `finally` so the pool can reuse the connection.
 
-```typescript
-const tx = await sql.begin();
+```typescript title="src/db/transfer.ts"
+import { pool } from './client';
 
+const client = await pool.connect();
 try {
-  await tx.query`UPDATE accounts SET balance = balance - ${100} WHERE name = ${'Alice'}`;
-  await tx.query`UPDATE accounts SET balance = balance + ${100} WHERE name = ${'Bob'}`;
-  await tx.commit();
+  await client.query('BEGIN');
+  await client.query('UPDATE accounts SET balance = balance - $1 WHERE name = $2', [100, 'Alice']);
+  await client.query('UPDATE accounts SET balance = balance + $1 WHERE name = $2', [100, 'Bob']);
+  await client.query('COMMIT');
 } catch (error) {
-  await tx.rollback();
+  await client.query('ROLLBACK');
   throw error;
+} finally {
+  client.release();
 }
 ```
 
-Pass transaction options when you need a specific isolation level.
+Use your ORM's transaction helper when the app already uses Prisma, Kysely, or Drizzle. Keep one transaction boundary in the route or job that owns the write.
 
-```typescript
-const tx = await sql.begin({
-  isolationLevel: 'serializable',
-  readOnly: true,
-  deferrable: true,
-});
-```
+## Existing Clients
 
-Use savepoints when only part of the transaction should roll back.
+Agentuity does not require a special relational database package in v3. If your app already has one of these clients, keep it and configure the connection URL:
 
-```typescript
-const tx = await sql.begin();
+| App client | Configure |
+|------------|-----------|
+| Prisma | `datasource db { url = env("DATABASE_URL") }` |
+| Kysely | `new PostgresDialect({ pool })` with a `pg` pool |
+| Drizzle | `drizzle(pool, { schema })` from `drizzle-orm/node-postgres` |
+| custom SQL module | import the shared `pg` pool |
 
-try {
-  await tx.query`INSERT INTO users (name) VALUES (${'Alice'})`;
-
-  const savepoint = await tx.savepoint();
-
-  try {
-    await tx.query`INSERT INTO users (name) VALUES (${'Bob'})`;
-    throw new Error('Rollback Bob only');
-  } catch {
-    await savepoint.rollback();
-  }
-
-  await tx.commit();
-} catch (error) {
-  await tx.rollback();
-  throw error;
-}
-```
-
-## Connection Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `url` | `DATABASE_URL` | PostgreSQL connection string |
-| `hostname`, `port`, `username`, `password`, `database` | none | Individual connection fields when not using `url` |
-| `max` | `10` | Maximum connections in the pool |
-| `preconnect` | `false` | Run a test query during client creation instead of connecting lazily |
-| `prepare` | `false` | Use named prepared statements |
-| `bigint` | `false` | Return large integers as `BigInt` instead of strings |
-| `maxLifetime` | `0` | Maximum connection lifetime in seconds. `0` disables the limit |
-| `reconnect.enabled` | `true` | Enable automatic reconnection |
-| `reconnect.maxAttempts` | `10` | Maximum reconnection attempts |
-| `reconnect.initialDelayMs` | `100` | Initial delay before first retry |
-| `reconnect.maxDelayMs` | `30000` | Maximum delay between retries |
-
-The client also supports callbacks such as `onclose`, `onreconnect`, `onreconnected`, and `onreconnectfailed`.
-
-## Connection Stats
-
-Use `sql.stats` when you need to inspect connection state, for example from a health route.
-
-```typescript
-const stats = sql.stats;
-
-if (stats.reconnecting) {
-  // surface this to your health endpoint or logger
-}
-```
-
-| Property | Description |
-|----------|-------------|
-| `connected` | Whether the client is currently connected |
-| `reconnecting` | Whether a reconnect attempt is in progress |
-| `totalConnections` | Total successful connections |
-| `reconnectAttempts` | Current reconnect attempt count |
-| `failedReconnects` | Total failed reconnect attempts |
-| `lastConnectedAt` | Last successful connection time |
-| `lastDisconnectedAt` | Last disconnection time |
-| `lastReconnectAttemptAt` | Last reconnect attempt time |
-
-## Utility Methods
-
-Wait for a lazy connection to be established:
-
-```typescript
-await sql.waitForConnection(5_000);
-```
-
-Shut down without starting new reconnect attempts:
-
-```typescript
-sql.shutdown();
-await sql.close();
-```
-
-Run a raw SQL string with retry behavior. `unsafeQuery` retries transient errors and wraps mutations (`INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CALL`, `DO`, `COPY`, `TRUNCATE`) in a transaction so retries do not double-apply.
-
-```typescript
-const version = await sql.unsafeQuery('SELECT version()');
-
-const inserted = await sql.unsafeQuery(
-  'INSERT INTO items (name) VALUES ($1) RETURNING *',
-  ['demo-item']
-);
-
-const arrays = await sql.unsafeQuery('SELECT id, name FROM items').values();
-```
-
-Each `unsafeQuery` result can be consumed once, either as row objects (`await result`) or as raw arrays (`await result.values()`), not both. For dynamic values prefer tagged templates; reach for `unsafeQuery` when the SQL itself is built from a trusted source.
+Use [`DBClient`](/services/database#query-through-the-database-service-api) only for trusted admin scripts that call the Agentuity database service API by resource name and org ID. It is not a parameterized query layer for app traffic.
 
 ## Next Steps
 

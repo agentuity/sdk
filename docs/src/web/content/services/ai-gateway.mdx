@@ -120,6 +120,7 @@ agentuity cloud aigateway models --recommended
 agentuity cloud aigateway models --ids
 agentuity cloud aigateway models --provider openai
 agentuity cloud aigateway models --refresh-models
+agentuity cloud aigateway models --recommended --ids --refresh-models --org-id <org_id>
 ```
 
 The gateway `/models` response is the source of truth for model metadata. The CLI reads that catalog and can filter by provider, model name, modality, reasoning support, and recommended status. Use `--refresh-models` when freshness matters, because the CLI can serve cached catalog results between runs.
@@ -132,6 +133,11 @@ extra Gateway credential.
 When you choose or change a Gateway model, run the catalog command and use the
 exact ID it returns. When you call a provider SDK directly, use the model string
 expected by that SDK.
+
+Starter examples use an efficient recommended model so new apps have a balanced
+default. Use a flagship model such as `openai/gpt-5.5` when the route needs the
+best current OpenAI model and you have evaluated the latency and cost trade-off
+for that workflow.
 
 ## Structured Output
 

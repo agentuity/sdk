@@ -6,6 +6,8 @@ description: Type-safe database access with Drizzle ORM and Agentuity-managed Po
 
 Use Drizzle the same way you would in any framework app: connect the `node-postgres` driver to `DATABASE_URL`, define your schema with `drizzle-orm/pg-core`, and import the database client from the routes or jobs that need it.
 
+Use this path when you want schema-first TypeScript queries and migrations while still connecting through the standard Postgres URL that Agentuity writes for the project.
+
 ```bash
 npm install drizzle-orm pg
 npm install -D drizzle-kit @types/pg
@@ -38,6 +40,24 @@ export const pool = new Pool({ connectionString: databaseUrl });
 export const db = drizzle(pool, { schema });
 ```
 
+Keep both `pool` and `db` at module scope. Framework routes, queue consumers, schedules, and scripts can import `db` without creating a new connection pool for every request.
+
+## Get `DATABASE_URL`
+
+Link a database resource to the project before running migrations or local routes:
+
+```bash
+agentuity project add database app_data
+```
+
+That command writes `DATABASE_URL` to `.env`. To recover the connection string later, use:
+
+```bash
+agentuity cloud db get app_data --show-credentials
+```
+
+The default terminal output masks credentials. Use `--show-credentials` only in a trusted shell.
+
 ## Framework Route
 
 Initialize the database client at module scope, then import it into framework routes, server functions, queue consumers, or scripts.
@@ -57,6 +77,8 @@ export async function GET(): Promise<Response> {
   return Response.json({ users: activeUsers });
 }
 ```
+
+Use Drizzle placeholders and query builders for dynamic values. If a route needs raw SQL, use Drizzle's `sql` helper instead of concatenating request values into SQL strings.
 
 ## Migrations
 
@@ -88,6 +110,14 @@ bunx drizzle-kit migrate
 
 See the [Drizzle migrations documentation](https://orm.drizzle.team/docs/migrations) for migration modes and configuration options.
 
+For a quick local schema push while developing, use:
+
+```bash
+bunx drizzle-kit push
+```
+
+Use `generate` and `migrate` when you want checked-in migration files and repeatable deploy-time migration steps.
+
 ## Transactions
 
 Use Drizzle's transaction API for atomic operations.
@@ -110,45 +140,20 @@ await db.transaction(async (tx) => {
 });
 ```
 
-## Bun-Only Compatibility Helper
+Keep the transaction boundary near the route, job, or service function that owns the write. Avoid splitting one business operation across separate transactions unless the partial states are valid.
 
-`@agentuity/drizzle` is a deprecated, opt-in compatibility helper for Bun code that wants Agentuity's Drizzle wrapper around the same Postgres resource. It is not required for framework apps, and Node.js routes should use Drizzle's standard `node-postgres` driver directly.
+## Existing Drizzle Apps
 
-```bash
-npm install @agentuity/drizzle@next drizzle-orm
-```
+If the app already has a Drizzle setup, keep it and swap the connection URL to `DATABASE_URL`. The important v3 change is the connection source, not the ORM shape.
 
-```typescript
-import { createPostgresDrizzle, eq } from '@agentuity/drizzle';
-import * as schema from './schema';
+| Existing setup | Keep |
+|----------------|------|
+| `drizzle-orm/node-postgres` | the same driver and schema files |
+| checked-in migrations | the existing `drizzle` output directory |
+| app-owned auth/session tables | the same table definitions and relation queries |
+| framework route imports | the same `db` import pattern |
 
-const { db, close } = createPostgresDrizzle({ schema });
-
-try {
-  const activeUsers = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.active, true));
-} finally {
-  await close();
-}
-```
-
-If you use the helper, keep schema files importable by migration tooling with the schema-only entry point:
-
-```typescript title="src/db/schema.ts"
-import { boolean, pgTable, serial, text } from '@agentuity/drizzle/schema';
-
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  email: text('email').notNull().unique(),
-  active: boolean('active').notNull().default(true),
-});
-```
-
-<Callout type="info" title="Runtime imports and schema imports are different">
-Use top-level `@agentuity/drizzle` only from Bun code that intentionally keeps this deprecated helper. Use `@agentuity/drizzle/schema` from schema files and migration tooling when you need the helper's schema re-exports.
-</Callout>
+Use [`Postgres Clients`](/services/database/postgres) when SQL is clearer than an ORM. Use [`Database Overview`](/services/database#query-through-the-database-service-api) for trusted scripts that need `DBClient` against the Agentuity database service API.
 
 ## Auth and User Tables
 
@@ -157,5 +162,5 @@ In v3 apps, keep authentication in your framework or identity provider, then use
 ## Next Steps
 
 - [Database Overview](/services/database): managed Postgres setup and provisioning
-- [Postgres Clients](/services/database/postgres): query with `pg` or the Bun-only compatibility helper
+- [Postgres Clients](/services/database/postgres): query with `pg`
 - [Database API Reference](/reference/api/database): inspect the service API used by trusted admin scripts

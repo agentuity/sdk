@@ -42,7 +42,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | Area | Hono keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | `new Hono()` and normal route handlers | direct service clients or `@agentuity/hono` middleware |
-| local dev | your Hono dev script | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| local dev | your Hono dev script | `agentuity dev` supplies service credentials |
 | build | your Node-targeted build command | `agentuity build` runs the build and writes generic launch metadata |
 | deploy | the built server entry | `agentuity deploy` ships the packaged app |
 
@@ -53,19 +53,20 @@ Direct service clients work in any Hono handler. They read `AGENTUITY_SDK_KEY` (
 Install what the example uses:
 
 ```bash
-npm install hono openai @agentuity/keyvalue@next valibot
+npm install hono @agentuity/aigateway@next @agentuity/keyvalue@next valibot
 ```
 
-This route translates input text, persists the last five translations under a session cookie, and uses the OpenAI SDK through AI Gateway env wiring. For generic model calls, use `AIGatewayClient` as in the starter or see [AI Gateway](/services/ai-gateway#choose-the-model-path).
+This route translates input text, persists the last five translations under a session cookie, and calls AI Gateway with the project SDK key. Use a provider SDK directly only when the provider-specific API is the point of the route.
 
 ```typescript title="src/index.ts"
+import { AIGatewayClient } from '@agentuity/aigateway';
 import { KeyValueClient } from '@agentuity/keyvalue';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
-import OpenAI from 'openai';
 import * as v from 'valibot';
 
+const DEFAULT_MODEL = 'openai/gpt-5.4-mini';
 const HISTORY_NAMESPACE = 'translation-history';
 const SESSION_COOKIE = 'agentuity_session';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -81,7 +82,6 @@ interface HistoryEntry {
 	readonly sessionId: string;
 	readonly text: string;
 	readonly timestamp: string;
-	readonly tokens: number;
 	readonly toLanguage: string;
 	readonly translation: string;
 }
@@ -92,6 +92,7 @@ interface HistoryState {
 }
 
 const kv = new KeyValueClient(); // [!code highlight]
+const gateway = new AIGatewayClient(); // [!code highlight]
 const app = new Hono();
 
 function getSessionId(c: Context): string {
@@ -118,23 +119,19 @@ app.post('/api/translate', async (c) => {
 
 	const input = parsed.output;
 	const sessionId = getSessionId(c);
-	const model = input.model ?? process.env.OPENAI_MODEL;
-	if (!model) {
-		return c.json({ error: 'OPENAI_MODEL is required' }, 500);
-	}
-
-	// Instantiate after validation so plain Bun builds do not need provider env at module load.
-	const openai = new OpenAI(); // [!code highlight]
-
-	const completion = await openai.chat.completions.create({ // [!code highlight]
+	const model = input.model ?? DEFAULT_MODEL;
+	const result = await gateway.completeText({ // [!code highlight]
 		model,
 		messages: [
 			{ role: 'user', content: `Translate to ${input.toLanguage}:\n\n${input.text}` },
 		],
 	});
 
-	const translation = completion.choices[0]?.message?.content ?? '';
-	const tokens = completion.usage?.total_tokens ?? 0;
+	if (!result.hasText) {
+		return c.json({ error: 'model returned no text' }, 502);
+	}
+
+	const translation = result.text;
 	const previous = await kv.get<HistoryState>(HISTORY_NAMESPACE, sessionId);
 	const history = [
 		...(previous.exists ? previous.data.history : []),
@@ -143,7 +140,6 @@ app.post('/api/translate', async (c) => {
 			sessionId,
 			text: input.text,
 			timestamp: new Date().toISOString(),
-			tokens,
 			toLanguage: input.toLanguage,
 			translation,
 		},
@@ -152,7 +148,7 @@ app.post('/api/translate', async (c) => {
 
 	await kv.set(HISTORY_NAMESPACE, sessionId, { history, translationCount }, { ttl: SESSION_TTL_SECONDS }); // [!code highlight]
 
-	return c.json({ sessionId, model, toLanguage: input.toLanguage, translation, history, tokens, translationCount });
+	return c.json({ sessionId, model, toLanguage: input.toLanguage, translation, history, translationCount });
 });
 
 export default app;
@@ -160,7 +156,7 @@ export default app;
 
 `KeyValueClient.get()` returns a discriminated result: check `result.exists` before accessing `result.data` to keep the read path type-safe.
 
-Set `OPENAI_MODEL` in `.env` to the provider model ID for this OpenAI SDK example. Use the [AI Gateway model catalog](/services/ai-gateway#model-catalog) or your provider's model list before choosing a value.
+Use the model `id` exactly as it appears in the [AI Gateway model catalog](/services/ai-gateway#model-catalog). The default example keeps the model in code, but you can move it to app configuration or request input.
 
 ## Use `@agentuity/hono` for Shared Clients
 
@@ -212,7 +208,7 @@ export default app;
 
 ## Run Locally
 
-`agentuity dev` runs your package manager's `dev` script. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` and supported provider SDK env wiring to the Hono process.
+`agentuity dev` runs your package manager's `dev` script. When the linked project key is available, the CLI supplies `AGENTUITY_SDK_KEY` to the Hono process.
 
 ```bash
 agentuity dev
@@ -234,15 +230,11 @@ curl -X POST http://localhost:3000/api/translate \
 
 ## Deployed Environment Variables
 
-Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
+Configure the variables your deployed app needs. Direct `AIGatewayClient` calls use `AGENTUITY_SDK_KEY`; the model ID in this example is normal app configuration or request input.
 
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
-| `OPENAI_MODEL` | provider SDK env-wiring example routes that call the OpenAI SDK |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
-| `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
-| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database routes |
 | `AWS_*` | object storage routes; see [Object Storage](/services/storage/object) for exact variables |
 
@@ -279,8 +271,7 @@ agentuity deploy --confirm
 | Symptom | Check |
 |---------|-------|
 | Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` |
-| OpenAI calls bypass Agentuity AI Gateway | Verify `OPENAI_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
-| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
+| Model call returns an auth error | Verify `AGENTUITY_SDK_KEY` is available to the server process. See [AI Gateway](/services/ai-gateway) |
 | Cookies not set or missing flags | Import `getCookie`/`setCookie` from [`hono/cookie`](https://hono.dev/docs/helpers/cookie); setting cookies directly on the response object bypasses Hono's helper |
 | Route works in dev but not after build | Re-inspect `.agentuity/launch.json` after `agentuity build`. See [Hono on Node.js](https://hono.dev/docs/getting-started/nodejs) for the adapter shape |
 | Deploy starts the wrong file | Confirm `scripts.start` in `package.json` points at the built server entry (`dist/src/index.cjs`) |

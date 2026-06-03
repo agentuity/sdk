@@ -64,7 +64,7 @@ See [Add Agentuity to an existing app](/get-started/import-existing-app) for val
 | Area | TanStack Start keeps | Agentuity adds |
 | --- | --- | --- |
 | routing | file routes, server routes, and server functions | service clients imported in server handlers |
-| local dev | Vite dev server | `agentuity dev` supplies service credentials and supported provider SDK wiring |
+| local dev | Vite dev server | `agentuity dev` supplies service credentials |
 | build | TanStack Start and Nitro output | `agentuity build` runs the build and packages launch metadata |
 | deploy | the emitted server entry | `agentuity deploy` ships the packaged app |
 
@@ -109,7 +109,7 @@ const { count } = await response.json();
 
 ## Run Locally
 
-`agentuity dev` supplies `AGENTUITY_SDK_KEY`, supported provider SDK env wiring, and a `PORT` value. The recommended pattern is a wrapper `dev` script that delegates to a `dev:start` script with the framework-specific flags:
+`agentuity dev` supplies `AGENTUITY_SDK_KEY` and a `PORT` value. The recommended pattern is a wrapper `dev` script that delegates to a `dev:start` script with the framework-specific flags:
 
 ```json title="package.json"
 {
@@ -139,14 +139,11 @@ curl http://localhost:3000/api/visits
 
 ## Deployed Environment Variables
 
-Configure the variables your deployed app needs. `agentuity dev` can provide the Agentuity SDK key and provider SDK wiring locally, but deployed apps should set the same values through project env or secrets.
+Configure the variables your deployed app needs. Direct `AIGatewayClient` calls use `AGENTUITY_SDK_KEY`; model IDs belong in app configuration or request input.
 
 | Variable | Used by |
 | --- | --- |
 | `AGENTUITY_SDK_KEY` | Agentuity service clients and `@agentuity/aigateway` |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI SDK through AI Gateway env wiring |
-| `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | Anthropic SDK through the AI Gateway |
-| `GROQ_API_KEY`, `GROQ_BASE_URL` | Groq SDK through the AI Gateway |
 | `DATABASE_URL` | database server routes |
 | `AWS_*` | object storage server routes; see [Object Storage](/services/storage/object) for exact variables |
 
@@ -185,8 +182,7 @@ Do not deploy until `.agentuity/launch.json` points at the server bundle emitted
 | Route URL does not match | Confirm the `src/routes/api.*.tsx` filename and `createFileRoute()` path string agree |
 | TypeScript says `server` does not exist on `createFileRoute()` | Keep `@tanstack/react-start`, `@tanstack/react-router`, and `@tanstack/router-plugin` versions aligned, then reinstall |
 | Service client returns auth errors | Run with `agentuity dev` or set `AGENTUITY_SDK_KEY` |
-| OpenAI or other AI SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway and a local `.env` is not intentionally overriding provider SDK wiring |
-| Anthropic or Groq SDK calls bypass the AI Gateway | Verify the matching `*_BASE_URL` points at the AI Gateway. See [AI Gateway](/services/ai-gateway) |
+| Model call returns an auth error | Verify `AGENTUITY_SDK_KEY` is available to the server route. See [AI Gateway](/services/ai-gateway) |
 | `launch.json` points at a static helper | Add `"start": "node .output/server/index.mjs"` so Agentuity starts the TanStack/Nitro server entry |
 | `launch.json` shows static-only server | Verify the build emits a Nitro server bundle under `.output/server/`; check [TanStack Start Hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting) for supported adapters |
 | Launch command points at a missing file | Compare the command in `launch.json` against files emitted under `.agentuity` |

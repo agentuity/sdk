@@ -4,6 +4,12 @@ short_title: From v2
 description: Move a v2 runtime app toward the v3 framework-first app shape.
 ---
 
+The recommended v3 migration is a framework port: choose the framework you want to keep, then move useful v2 handlers, service calls, and state boundaries into that app. Use the migrator when you want a mechanical starting diff, not as the final app shape.
+
+<Callout type="warning" title="Treat migrated Hono and Vite output as a starting point">
+The migrator may generate Hono routes and, for frontend apps, a Vite dev split because those are close mechanical replacements for v2 runtime pieces. Keep that output only when it matches your target app.
+</Callout>
+
 Start with a dry run. It tells you which v2 runtime patterns the migrator can rewrite and which parts need a person to choose the v3 shape.
 
 ```bash
@@ -15,7 +21,7 @@ npx @agentuity/migrate@next --v2-to-v3 --dry-run
 Work from a branch with a clean git worktree. The migration tool checks this before writing files, because it rewrites source files and package metadata.
 
 <Callout type="info" title="v2 remains supported for existing apps">
-You can keep a v2 app on the v2 runtime model until you are ready to migrate. Use v3 when you want framework-native routes, direct service clients, and the v3 build and deploy flow.
+You can keep a v2 app on the v2 runtime model until you are ready to migrate. Keep the v2 CLI installed locally in that project. A global v3 CLI delegates to a different project-local CLI before handling commands. During deploy, v3 pins Agentuity-owned dependencies set to `latest` to versions resolved from `bun.lock` when possible, then hands v2 deploys to the local v2 CLI.
 </Callout>
 
 ## What Changes

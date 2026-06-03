@@ -286,7 +286,7 @@ The Gateway returns provider-compatible SSE frames, not plain text chunks. If th
 
 ## Stream with an AI SDK Provider
 
-When the frontend expects AI SDK UI message streams, keep the route on AI SDK and use one provider package. This example uses the Anthropic provider; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway when no provider key override is set.
+The direct Gateway stream above is the default path for app-owned streaming routes. When the frontend expects AI SDK UI message streams, keep the route on AI SDK and use one provider package. This example uses the Anthropic provider; under `agentuity dev`, Anthropic SDK env wiring can route through AI Gateway when no provider key override is set.
 
 ```bash
 npm install ai@latest @ai-sdk/anthropic@latest
