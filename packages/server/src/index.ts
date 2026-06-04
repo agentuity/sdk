@@ -11,6 +11,12 @@ export {
 // Note: Full re-export maintained for backward compatibility with CLI and other packages
 export * from '@agentuity/core';
 
+// Platform APIs owned by @agentuity/server (core copies retained for subpath exports until Phase 5)
+export * from './api/user/index.ts';
+export * from './api/org/index.ts';
+export * from './api/project/index.ts';
+export * from './api/region/index.ts';
+
 // Server-specific exports (these remain in @agentuity/server only)
 export { type ColorScheme, ConsoleLogger, createLogger } from './logger.ts';
 export { toJSONSchema } from './schema.ts';

@@ -14,7 +14,7 @@ Server-side utilities for Node.js and Bun applications. Provides API clients for
 
 - **Runtime**: Node.js and Bun compatible
 - **Exports**: All public APIs from `src/index.ts`
-- **Dependencies**: @agentuity/core, zod
+- **Dependencies**: @agentuity/core, @agentuity/sandbox, @agentuity/adapter, zod
 
 ## Structure
 

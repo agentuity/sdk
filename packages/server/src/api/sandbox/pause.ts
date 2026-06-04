@@ -1,1 +1,5 @@
-export * from '@agentuity/core';
+export {
+	sandboxPause,
+	SandboxPauseParamsSchema,
+	type SandboxPauseParams,
+} from '@agentuity/sandbox';

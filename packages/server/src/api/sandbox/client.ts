@@ -1,1 +1,5 @@
-export * from '@agentuity/core';
+export {
+	SandboxClient,
+	SandboxClientOptionsSchema,
+	type SandboxClientOptions,
+} from '@agentuity/sandbox';

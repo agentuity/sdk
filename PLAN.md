@@ -160,9 +160,10 @@ Per service checklist:
 
 ### Phase 4 — Platform API separation
 
-- [ ] Move CLI-only domains from core to `@agentuity/server` (or `@agentuity/platform`):
-  project, org, oauth, user, region, apikey, deploy, monitoring, session, thread,
-  workflow, machine, storage, coder
+- [x] Pilot: move `user`, `org` env, `project` (get/list/malware), `region` create into `@agentuity/server`; wire sandbox stubs to `@agentuity/sandbox`
+- [ ] Move remaining CLI-only domains from core to `@agentuity/server`:
+  oauth, apikey, deploy, monitoring, session, thread, workflow, machine, storage,
+  project (deploy/env/create/…), org (list/resources), region (list/delete), coder platform helpers
 - [ ] Slim `@agentuity/core` to foundation-only exports
 - [ ] CLI depends on `@agentuity/server` + service packages, not monolithic core services
 

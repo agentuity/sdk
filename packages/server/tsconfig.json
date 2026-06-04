@@ -7,5 +7,10 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../adapter" }, { "path": "../core" }, { "path": "../schema" }]
+	"references": [
+		{ "path": "../adapter" },
+		{ "path": "../core" },
+		{ "path": "../sandbox" },
+		{ "path": "../schema" }
+	]
 }

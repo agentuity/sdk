@@ -6,8 +6,5 @@ export * from './deployment.ts';
 export * from './env-delete.ts';
 export * from './env-update.ts';
 export * from './exists.ts';
-export * from './get.ts';
 export * from './hostname.ts';
-export * from './list.ts';
-export * from './malware.ts';
 export * from './update-region.ts';

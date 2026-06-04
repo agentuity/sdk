@@ -29,7 +29,6 @@ export * from './stats.ts';
 export * from './storage/index.ts';
 export * from './stream/index.ts';
 export * from './thread/index.ts';
-export * from './user/index.ts';
 export * from './webhook/index.ts';
 export * from './workflow/index.ts';
 

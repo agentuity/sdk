@@ -1,1 +1,5 @@
-export * from '@agentuity/core';
+export {
+	sandboxResume,
+	SandboxResumeParamsSchema,
+	type SandboxResumeParams,
+} from '@agentuity/sandbox';
