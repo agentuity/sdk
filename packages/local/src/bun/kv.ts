@@ -9,7 +9,7 @@ import type {
 	CreateNamespaceParams,
 	GetAllStatsParams,
 	KeyValueStatsPaginated,
-} from '@agentuity/core';
+} from '@agentuity/keyvalue';
 import { now } from './util';
 
 export class LocalKeyValueStorage implements KeyValueStorage {

@@ -23,7 +23,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "workspace:*",
+		"@agentuity/keyvalue": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

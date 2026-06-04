@@ -10,13 +10,13 @@
 
 // Re-export core interfaces so users can implement their own
 export type {
-	KeyValueStorage,
 	StreamStorage,
 	VectorStorage,
 	QueueService,
 	EmailService,
 	TaskStorage,
 } from '@agentuity/core';
+export type { KeyValueStorage } from '@agentuity/keyvalue';
 
 // Runtime detection
 export { detectRuntime, isLocalAvailable, getRuntimeName, type Runtime } from './runtime';
