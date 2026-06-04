@@ -146,7 +146,7 @@ Tier 3 (large):
 
 Tier 4 (sandbox — migrate before coder cleanup):
 
-- [ ] sandbox
+- [x] sandbox (full module in `@agentuity/sandbox`; cli-list stays in core for `@agentuity/server`; core copy retained)
 
 Per service checklist:
 

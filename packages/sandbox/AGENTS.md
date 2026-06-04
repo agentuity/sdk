@@ -13,8 +13,8 @@ Standalone package for the Agentuity Sandbox service. Provides a simple, ergonom
 ## Architecture
 
 - **Runtime**: Node.js and Bun compatible
-- **Exports**: SandboxClient and all types from @agentuity/core/sandbox
-- **Dependencies**: @agentuity/core
+- **Exports**: SandboxClient and sandbox types/API from this package (`cli-list` stays in core for `@agentuity/server`)
+- **Dependencies**: @agentuity/core, @agentuity/config, @agentuity/client, zod
 
 ## Usage
 
