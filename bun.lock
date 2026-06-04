@@ -168,6 +168,7 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/email": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
+        "@agentuity/schedule": "workspace:*",
         "@agentuity/server": "workspace:*",
         "@agentuity/storage": "workspace:*",
         "@agentuity/stream": "workspace:*",
@@ -475,7 +476,6 @@
         "@agentuity/adapter": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
-        "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
       "devDependencies": {

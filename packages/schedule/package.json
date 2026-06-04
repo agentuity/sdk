@@ -28,7 +28,6 @@
 		"@agentuity/adapter": "workspace:*",
 		"@agentuity/config": "workspace:*",
 		"@agentuity/client": "workspace:*",
-		"@agentuity/core": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {

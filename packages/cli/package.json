@@ -41,6 +41,7 @@
 		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/email": "workspace:*",
+		"@agentuity/schedule": "workspace:*",
 		"@agentuity/stream": "workspace:*",
 		"@agentuity/vector": "workspace:*",
 		"@agentuity/keyvalue": "workspace:*",

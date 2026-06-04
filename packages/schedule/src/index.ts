@@ -1,26 +1,5 @@
-export {
-	ScheduleService,
-	type Schedule,
-	type ScheduleDestination,
-	type ScheduleDelivery,
-	type CreateScheduleParams,
-	type UpdateScheduleParams,
-	type CreateScheduleDestinationParams,
-	type ScheduleListResult,
-	type ScheduleGetResult,
-	type ScheduleCreateResult,
-	type ScheduleDeliveryListResult,
-	ScheduleSchema,
-	ScheduleDestinationSchema,
-	ScheduleDeliverySchema,
-	CreateScheduleParamsSchema,
-	UpdateScheduleParamsSchema,
-	CreateScheduleDestinationParamsSchema,
-	ScheduleListResultSchema,
-	ScheduleGetResultSchema,
-	ScheduleCreateResultSchema,
-	ScheduleDeliveryListResultSchema,
-} from '@agentuity/core/schedule';
+export * from './service.ts';
+export * from './types.ts';
 
 import {
 	ScheduleService,
@@ -33,7 +12,7 @@ import {
 	type ScheduleDeliveryListResult,
 	type Schedule,
 	type ScheduleDestination,
-} from '@agentuity/core/schedule';
+} from './service.ts';
 import { getServiceUrls } from '@agentuity/config';
 import {
 	createServiceAdapter,
