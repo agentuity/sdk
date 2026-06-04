@@ -9,11 +9,19 @@
 		"resolveJsonModule": true,
 		"paths": {
 			"@agentuity/core": ["../core/src"],
+			"@agentuity/keyvalue": ["../keyvalue/src"],
 			"@agentuity/server": ["../server/src"],
-			"@agentuity/storage": ["../storage/src"]
+			"@agentuity/storage": ["../storage/src"],
+			"@agentuity/stream": ["../stream/src"]
 		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*", "src/**/*.test.ts", "src/cmd/project/templates/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../storage" }]
+	"references": [
+		{ "path": "../core" },
+		{ "path": "../keyvalue" },
+		{ "path": "../server" },
+		{ "path": "../storage" },
+		{ "path": "../stream" }
+	]
 }
