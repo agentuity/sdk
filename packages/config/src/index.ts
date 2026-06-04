@@ -1,6 +1,7 @@
+export { getEnv } from './env.ts';
 export {
 	getServiceUrls,
 	resolveRegion,
 	ServiceUrlsSchema,
 	type ServiceUrls,
-} from '@agentuity/config';
+} from './config.ts';

@@ -247,6 +247,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/config": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {

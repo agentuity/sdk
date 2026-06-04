@@ -1,38 +1,32 @@
 {
-	"name": "@agentuity/keyvalue",
-	"version": "3.0.11",
+	"name": "@agentuity/config",
+	"version": "3.0.5",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
+	"description": "Region and service URL resolution for Agentuity clients",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"files": [
-		"AGENTS.md",
-		"README.md",
-		"src",
-		"dist"
-	],
 	"exports": {
 		".": {
-			"import": "./dist/index.js",
-			"types": "./dist/index.d.ts"
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
 		}
 	},
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"scripts": {
-		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "tsgo --build --force",
 		"typecheck": "tsgo --noEmit",
-		"prepublishOnly": "bun run clean && bun run build"
+		"clean": "rm -rf dist *.tsbuildinfo"
 	},
 	"dependencies": {
-		"@agentuity/adapter": "workspace:*",
-		"@agentuity/config": "workspace:*",
-		"@agentuity/core": "workspace:*",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"@types/node": "^22.0.0",
 		"typescript": "^6.0.2"
 	},
 	"publishConfig": {
@@ -42,6 +36,6 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/agentuity/sdk.git",
-		"directory": "packages/keyvalue"
+		"directory": "packages/config"
 	}
 }

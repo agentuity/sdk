@@ -86,7 +86,7 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 - [x] **Semver:** Use v4 to remove `@agentuity/core/{service}` subpath exports?
 - [x] **Shim duration:** Re-export from core for one major version, or break immediately?
-- [ ] **New packages:** Approve `@agentuity/config` and `@agentuity/client`?
+- [x] **New packages:** Approve `@agentuity/config` and `@agentuity/client`? (config added; client pending)
 - [ ] **URL resolution:** Centralized `getServiceUrls` vs per-service URL helpers (recommend hybrid)?
 - [ ] **CLI strategy:** Migrate to `*Client` classes vs keep low-level `*Service` for CLI?
 - [ ] **Platform APIs:** Keep in `@agentuity/server` only vs new `@agentuity/platform`?
@@ -107,9 +107,9 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 - [x] Move HTTP primitives from core → `@agentuity/adapter`:
   - `adapter.ts`, `exception.ts`, `_util.ts` (`buildUrl`, `fromResponse`, `toServiceException`)
 - [x] Keep temporary re-exports in core for backward compatibility (core retains canonical copies until Phase 5; adapter owns parallel implementation for service clients)
-- [ ] Add `@agentuity/config` (or agreed alternative) for region/URL resolution
+- [x] Add `@agentuity/config` (or agreed alternative) for region/URL resolution
 - [ ] Add `@agentuity/client` shared factory to dedupe `*Client` constructors
-- [ ] Service packages stop importing `@agentuity/core/config` directly
+- [x] Service packages stop importing `@agentuity/core/config` directly (keyvalue pilot)
 
 **Exit:** shared client boilerplate centralized; adapter owns HTTP runtime types.
 
@@ -205,7 +205,7 @@ Per service checklist:
 | 2026-06-04 | Replace root `PLAN.md` with this plan | Prior monorepo deploy plan superseded by this effort |
 | 2026-06-04 | v4 removes `@agentuity/core/{service}` subpaths; shims for one major version | Minimize breakage while migrating imports |
 | 2026-06-04 | `@agentuity/adapter` owns HTTP fetch types + util; core keeps copies until Phase 5 | Avoid TS project-reference cycle (adapter ↔ core) |
-| 2026-06-04 | `@agentuity/keyvalue` owns implementation; core copy retained until config/client extraction enables shim without cycle | keyvalue → core dep blocks core → keyvalue re-export today |
+| 2026-06-04 | `@agentuity/config` owns getEnv + getServiceUrls; core re-exports via shim | No core dep in config package; keyvalue uses config instead of core/config |
 
 ## Suggested First Sprint
 
