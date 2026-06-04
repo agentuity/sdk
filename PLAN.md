@@ -128,7 +128,7 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 Tier 1 (storage, few cross-deps):
 
-- [x] stream (implementation in `@agentuity/stream`; core copy retained; CLI util updated)
+- [x] stream (StreamStorageService in `@agentuity/stream`; platform CLI helpers removed from package, remain in core/`@agentuity/server`)
 - [x] vector (implementation in `@agentuity/vector`; core copy retained; CLI util updated)
 - [x] email (implementation in `@agentuity/email`; core copy retained; CLI util updated)
 
