@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { CODE_EXAMPLES } from './code-examples';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
@@ -76,12 +77,12 @@ export const DEMOS: DemoConfig[] = [
 					Start here before adding storage, model calls, or background work
 				</span>
 				. Once you're comfortable here, explore{' '}
-				<a
-					href={explorerHref('handler-context')}
+				<Link
+					to={explorerHref('handler-context')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Route Context
-				</a>{' '}
+				</Link>{' '}
 				to see request data, logging, and service clients.
 			</>
 		),
@@ -132,12 +133,12 @@ export const DEMOS: DemoConfig[] = [
 					Use KV for preferences, cache entries, counters, and short-lived state
 				</span>
 				. For searching by meaning or similarity, use{' '}
-				<a
-					href={explorerHref('vector-storage')}
+				<Link
+					to={explorerHref('vector-storage')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Vector storage
-				</a>{' '}
+				</Link>{' '}
 				instead.
 			</>
 		),
@@ -167,12 +168,12 @@ export const DEMOS: DemoConfig[] = [
 					Use vector search when you need to find content by meaning
 				</span>{' '}
 				rather than exact keywords. For exact key lookups, use{' '}
-				<a
-					href={explorerHref('key-value')}
+				<Link
+					to={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					KV storage
-				</a>{' '}
+				</Link>{' '}
 				instead.
 			</>
 		),
@@ -203,12 +204,12 @@ export const DEMOS: DemoConfig[] = [
 				</span>{' '}
 				when the data is a file people or systems need to download. For exact-key JSON state,
 				see{' '}
-				<a
-					href={explorerHref('key-value')}
+				<Link
+					to={explorerHref('key-value')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					KV storage
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -260,12 +261,12 @@ export const DEMOS: DemoConfig[] = [
 				</span>{' '}
 				and the browser doesn't need typed events. If you need event names, completion events,
 				or browser-managed reconnects, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE streaming
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -292,12 +293,12 @@ export const DEMOS: DemoConfig[] = [
 					Use SSE for LLM output, progress updates, and live feeds
 				</span>
 				. For simpler use cases where you only need raw text chunks, see{' '}
-				<a
-					href={explorerHref('streaming')}
+				<Link
+					to={explorerHref('streaming')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Text Stream
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -324,12 +325,12 @@ export const DEMOS: DemoConfig[] = [
 					Use WebSockets when clients must send live input without opening a new HTTP request
 				</span>
 				. For one-way server updates, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE Stream
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -355,12 +356,12 @@ export const DEMOS: DemoConfig[] = [
 					The browser RTCPeerConnection carries media and data peer-to-peer
 				</span>
 				. Open the same room in another tab to connect. For server-to-client events, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE Stream
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -386,12 +387,12 @@ export const DEMOS: DemoConfig[] = [
 					Use durable streams when generated output needs to outlive the request
 				</span>
 				. For live browser output that doesn't need a saved URL, see{' '}
-				<a
-					href={explorerHref('sse-stream')}
+				<Link
+					to={explorerHref('sse-stream')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					SSE streaming
-				</a>
+				</Link>
 				.
 			</>
 		),
@@ -467,12 +468,12 @@ export const DEMOS: DemoConfig[] = [
 					Use this shape for lightweight chat history
 				</span>
 				. Use{' '}
-				<a
-					href="/build/agents/state-and-memory"
+				<Link
+					to="/build/agents/state-and-memory"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					State and Memory
-				</a>{' '}
+				</Link>{' '}
 				when the state needs stronger ownership, search, or retention rules.
 			</>
 		),
@@ -493,12 +494,12 @@ export const DEMOS: DemoConfig[] = [
 			<>
 				Model Arena compares model outputs with a second model acting as judge. This demo runs
 				the same prompt through multiple providers via the{' '}
-				<a
-					href={explorerHref('ai-gateway')}
+				<Link
+					to={explorerHref('ai-gateway')}
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					AI Gateway
-				</a>
+				</Link>
 				, then scores the answers against criteria.{' '}
 				<span className="bg-cyan-500/10 px-1 rounded">
 					Use it for early prompt and model evaluation
@@ -575,12 +576,12 @@ export const DEMOS: DemoConfig[] = [
 					Use a database when exact filters and transactions matter
 				</span>
 				. Use{' '}
-				<a
-					href="/explorer/vector-storage"
+				<Link
+					to="/explorer/vector-storage"
 					className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 				>
 					Vector Search
-				</a>{' '}
+				</Link>{' '}
 				when meaning matters more than exact fields.
 			</>
 		),

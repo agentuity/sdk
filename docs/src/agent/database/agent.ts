@@ -5,13 +5,15 @@
  * Uses the same 6 chair products from the vector demo, stored in a relational table.
  *
  * Key concepts:
- * - createPostgresDrizzle() connects using DATABASE_URL by default
+ * - pg connects using DATABASE_URL
  * - Schema defined in TypeScript with full autocompletion
  * - Composable queries: filters, aggregates, keyword search
  *
  * Docs: https://agentuity.dev/services/database
  */
-import { createPostgresDrizzle, sql, lt, gte, ilike } from '@agentuity/drizzle';
+import { gte, ilike, lt, sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import { defineDemoAgent } from '../demo-agent';
 import { s } from '@agentuity/schema';
 import { products } from './schema';
@@ -40,10 +42,13 @@ const agent = defineDemoAgent('database', {
 	},
 
 	handler: async (ctx, { query, seedData }) => {
-		const { db, close } = createPostgresDrizzle({
-			schema: { products },
-			driver: 'pg',
-		});
+		const databaseUrl = process.env.DATABASE_URL;
+		if (!databaseUrl) {
+			throw new Error('DATABASE_URL is required');
+		}
+
+		const pool = new Pool({ connectionString: databaseUrl });
+		const db = drizzle(pool, { schema: { products } });
 
 		try {
 			// Seed data if requested: create table + upsert all products
@@ -122,7 +127,7 @@ const agent = defineDemoAgent('database', {
 
 			return { rows, query, count: rows.length };
 		} finally {
-			await close();
+			await pool.end();
 		}
 	},
 });

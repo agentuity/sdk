@@ -7,6 +7,32 @@ on:
       branches:
          - main
       paths:
+         - .github/workflows/snapshot.yaml
+         - bun.lock
+         - package.json
+         - docs/package.json
+         - docs/scripts/bundle-run-scripts.ts
+         - docs/scripts/generate-sandbox-scripts.ts
+         - docs/src/agent/**
+         - docs/src/api/context.ts
+         - docs/src/api/sandbox/**
+         - docs/src/lib/**
+         - docs/src/run/**
+         - packages/adapter/**
+         - packages/core/**
+         - packages/db/**
+         - packages/email/**
+         - packages/hono/**
+         - packages/keyvalue/**
+         - packages/queue/**
+         - packages/sandbox/**
+         - packages/schedule/**
+         - packages/schema/**
+         - packages/server/**
+         - packages/storage/**
+         - packages/stream/**
+         - packages/task/**
+         - packages/vector/**
          - snapshots/**
    workflow_dispatch:
       inputs:

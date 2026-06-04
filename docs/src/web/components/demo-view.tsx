@@ -1,4 +1,5 @@
 import { BookOpenIcon } from '@heroicons/react/24/outline';
+import { Link } from '@tanstack/react-router';
 import { useCallback, useEffect } from 'react';
 import { CodeBlock } from './CodeBlock';
 import { TerminalOutput } from './TerminalOutput';
@@ -33,6 +34,8 @@ export function DemoView({ demoId }: { demoId: string }) {
 
 	const DemoComponent = demo.component;
 	const isRunning = sandbox.state.status === 'creating' || sandbox.state.status === 'running';
+	// Most demos link to internal docs; keep external URLs possible for ecosystem examples.
+	const isInternalDocsUrl = demo.docsUrl?.startsWith('/') && !demo.docsUrl.startsWith('//');
 
 	return (
 		<div className="flex min-h-full flex-col">
@@ -45,10 +48,21 @@ export function DemoView({ demoId }: { demoId: string }) {
 							<h2 className="text-lg font-normal text-cyan-700 dark:text-cyan-400">
 								{demo.title}
 							</h2>
-							{demo.docsUrl && (
+							{demo.docsUrl && isInternalDocsUrl && (
+								<Link
+									to={demo.docsUrl}
+									className="flex items-center gap-1.5 text-zinc-500 hover:text-cyan-700 dark:hover:text-cyan-500 transition-colors cursor-pointer"
+								>
+									<BookOpenIcon className="w-5 h-5" />
+									<span className="text-sm">Docs</span>
+								</Link>
+							)}
+							{demo.docsUrl && !isInternalDocsUrl && (
 								<a
 									href={demo.docsUrl}
 									className="flex items-center gap-1.5 text-zinc-500 hover:text-cyan-700 dark:hover:text-cyan-500 transition-colors cursor-pointer"
+									rel="noreferrer"
+									target="_blank"
 								>
 									<BookOpenIcon className="w-5 h-5" />
 									<span className="text-sm">Docs</span>

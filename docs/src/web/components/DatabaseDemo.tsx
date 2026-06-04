@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { BarChart3, CheckCircle, Database, DollarSign, Search, Star } from 'lucide-react';
 import { type ReactNode, useCallback, useState } from 'react';
 import { usePersistentDemoState } from '../hooks/usePersistentDemoState';
@@ -370,12 +371,12 @@ export function DatabaseDemo() {
 			<div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg px-4 py-3">
 				<p className="text-zinc-600 dark:text-zinc-400 text-xs">
 					<span className="text-cyan-800 dark:text-cyan-400 font-medium">Tip:</span> The{' '}
-					<a
-						href="/explorer/vector-storage"
+					<Link
+						to="/explorer/vector-storage"
 						className="text-zinc-600 dark:text-zinc-400 underline hover:text-cyan-700 dark:hover:text-cyan-500"
 					>
 						vector demo
-					</a>{' '}
+					</Link>{' '}
 					found these same chairs by meaning. This demo finds them by exact criteria — same
 					data, different query model.
 				</p>
