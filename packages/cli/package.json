@@ -40,6 +40,7 @@
 	"dependencies": {
 		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/keyvalue": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@agentuity/storage": "workspace:*",
 		"@types/yazl": "^3.3.1",

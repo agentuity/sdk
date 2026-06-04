@@ -7,5 +7,10 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"],
-	"references": [{ "path": "../adapter" }, { "path": "../config" }, { "path": "../core" }]
+	"references": [
+		{ "path": "../adapter" },
+		{ "path": "../client" },
+		{ "path": "../config" },
+		{ "path": "../core" }
+	]
 }

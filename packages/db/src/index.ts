@@ -46,8 +46,15 @@ export {
 export { DbInvalidArgumentError, DbResponseError } from '@agentuity/core/db';
 
 import { APIClient } from '@agentuity/core/api';
-import { createMinimalLogger, type Logger } from '@agentuity/core';
-import { getEnv, getServiceUrls } from '@agentuity/config';
+import { getServiceUrls } from '@agentuity/config';
+import {
+	createMinimalLogger,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
 import { z } from 'zod';
 import {
 	dbQuery,
@@ -66,7 +73,7 @@ export const DBClientOptionsSchema = z.object({
 	database: z.string().describe('Database name'),
 	orgId: z.string().describe('Organization ID'),
 	region: z.string().optional().describe('Cloud region'),
-	logger: z.custom<Logger>().optional().describe('Custom logger instance'),
+	logger: z.custom<Logger>(isLogger).optional().describe('Custom logger instance'),
 });
 export type DBClientOptions = z.infer<typeof DBClientOptionsSchema>;
 
@@ -84,12 +91,14 @@ export class DBClient {
 			throw new Error('orgId is required for DBClient');
 		}
 
-		const apiKey = options.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = options.region || (getEnv('AGENTUITY_REGION') ?? 'usc');
+		const apiKey = resolveApiKey(options.apiKey);
+		const region = options.region || resolveRegion();
 		const serviceUrls = getServiceUrls(region);
-
-		const url = options.url || getEnv('AGENTUITY_DB_URL') || serviceUrls.catalyst;
-
+		const url = resolveServiceUrl({
+			url: options.url,
+			envKey: 'AGENTUITY_DB_URL',
+			fallback: serviceUrls.catalyst,
+		});
 		const logger = options.logger ?? createMinimalLogger();
 
 		this.#client = new APIClient(url, logger, apiKey ?? '');

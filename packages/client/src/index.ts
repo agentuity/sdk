@@ -5,9 +5,10 @@ import {
 	type Logger,
 } from '@agentuity/adapter';
 import { getEnv } from '@agentuity/config';
-import { createMinimalLogger } from '@agentuity/core';
+import { createMinimalLogger } from './logger.ts';
 
 export type { Logger } from '@agentuity/adapter';
+export { createMinimalLogger } from './logger.ts';
 
 export function isLogger(val: unknown): val is Logger {
 	return (
@@ -25,6 +26,14 @@ export function resolveApiKey(apiKey?: string): string | undefined {
 
 export function resolveRegion(): string {
 	return getEnv('AGENTUITY_REGION') ?? 'usc';
+}
+
+export function resolveServiceUrl(options: {
+	url?: string;
+	envKey: string;
+	fallback: string;
+}): string {
+	return options.url || getEnv(options.envKey) || options.fallback;
 }
 
 export interface ServiceAdapterOptions {

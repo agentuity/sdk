@@ -5,5 +5,5 @@
 		"rootDir": "./src"
 	},
 	"include": ["src/**/*"],
-	"references": [{ "path": "../adapter" }, { "path": "../config" }, { "path": "../core" }]
+	"references": [{ "path": "../adapter" }, { "path": "../config" }]
 }

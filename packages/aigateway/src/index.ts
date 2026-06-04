@@ -50,17 +50,16 @@ import {
 	type AIGatewayResponseSchemaInput,
 	type AIGatewayStreamingCompletion,
 } from '@agentuity/core/aigateway';
-import { createMinimalLogger, type Logger } from '@agentuity/core';
 import { getEnv, getServiceUrls } from '@agentuity/config';
-import { buildClientHeaders, createServerFetchAdapter } from '@agentuity/adapter';
+import {
+	createServiceAdapter,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
 import { z } from 'zod';
-
-const isLogger = (val: unknown): val is Logger =>
-	typeof val === 'object' &&
-	val !== null &&
-	['info', 'warn', 'error', 'debug', 'trace'].every(
-		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
-	);
 
 function normalizeOrgId(orgId: string | undefined): string | undefined {
 	const trimmed = orgId?.trim();
@@ -91,21 +90,18 @@ export class AIGatewayClient {
 	constructor(options: AIGatewayClientOptions = {}) {
 		const validatedOptions = AIGatewayClientOptionsSchema.parse(options);
 		const apiKey =
-			validatedOptions.apiKey ||
-			getEnv('AGENTUITY_AIGATEWAY_KEY') ||
-			getEnv('AGENTUITY_SDK_KEY') ||
-			getEnv('AGENTUITY_CLI_KEY');
-		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
-		const serviceUrls = getServiceUrls(region);
-		const url =
-			validatedOptions.url || getEnv('AGENTUITY_AIGATEWAY_URL') || serviceUrls.aigateway;
-		const logger = validatedOptions.logger ?? createMinimalLogger();
-		const headers = buildClientHeaders({
+			validatedOptions.apiKey || getEnv('AGENTUITY_AIGATEWAY_KEY') || resolveApiKey();
+		const serviceUrls = getServiceUrls(resolveRegion());
+		const url = resolveServiceUrl({
+			url: validatedOptions.url,
+			envKey: 'AGENTUITY_AIGATEWAY_URL',
+			fallback: serviceUrls.aigateway,
+		});
+		const { adapter } = createServiceAdapter({
 			apiKey,
 			orgId: resolveOrgId(validatedOptions.orgId),
+			logger: validatedOptions.logger,
 		});
-
-		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new AIGatewayService(url, adapter);
 	}
 

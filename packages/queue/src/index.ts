@@ -21,17 +21,17 @@ import {
 	type QueueCreateParams,
 	type QueueCreateResult,
 } from '@agentuity/core/queue';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
-import { createMinimalLogger, StructuredError } from '@agentuity/core';
-import { getEnv, getServiceUrls } from '@agentuity/config';
+import { StructuredError } from '@agentuity/core';
+import { getServiceUrls } from '@agentuity/config';
+import {
+	createServiceAdapter,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
 import { z, ZodError } from 'zod';
-
-const isLogger = (val: unknown): val is Logger =>
-	typeof val === 'object' &&
-	val !== null &&
-	['info', 'warn', 'error', 'debug', 'trace'].every(
-		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
-	);
 
 const QueueClientValidationError = StructuredError('QueueClientValidationError')<{
 	schema: string;
@@ -67,21 +67,18 @@ export class QueueClient {
 			}
 			throw err;
 		}
-		const apiKey =
-			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
-		const serviceUrls = getServiceUrls(region);
-
-		const url = validatedOptions.url || getEnv('AGENTUITY_QUEUE_URL') || serviceUrls.catalyst;
-
-		const logger = validatedOptions.logger ?? createMinimalLogger();
-
-		const headers = buildClientHeaders({
+		const apiKey = resolveApiKey(validatedOptions.apiKey);
+		const serviceUrls = getServiceUrls(resolveRegion());
+		const url = resolveServiceUrl({
+			url: validatedOptions.url,
+			envKey: 'AGENTUITY_QUEUE_URL',
+			fallback: serviceUrls.catalyst,
+		});
+		const { adapter } = createServiceAdapter({
 			apiKey,
 			orgId: validatedOptions.orgId,
+			logger: validatedOptions.logger,
 		});
-
-		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new QueueStorageService(url, adapter);
 	}
 

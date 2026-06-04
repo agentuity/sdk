@@ -6,12 +6,13 @@ import {
 	type KeyValueStorageSetParams,
 	type DataResult,
 } from './service.ts';
-import { getEnv, getServiceUrls } from '@agentuity/config';
+import { getServiceUrls } from '@agentuity/config';
 import {
 	createServiceAdapter,
 	isLogger,
 	resolveApiKey,
 	resolveRegion,
+	resolveServiceUrl,
 	type Logger,
 } from '@agentuity/client';
 import { z } from 'zod';
@@ -31,7 +32,11 @@ export class KeyValueClient {
 		const validatedOptions = KeyValueClientOptionsSchema.parse(options);
 		const serviceUrls = getServiceUrls(resolveRegion());
 
-		const url = validatedOptions.url || getEnv('AGENTUITY_KEYVALUE_URL') || serviceUrls.keyvalue;
+		const url = resolveServiceUrl({
+			url: validatedOptions.url,
+			envKey: 'AGENTUITY_KEYVALUE_URL',
+			fallback: serviceUrls.keyvalue,
+		});
 
 		const { adapter } = createServiceAdapter({
 			apiKey: resolveApiKey(validatedOptions.apiKey),

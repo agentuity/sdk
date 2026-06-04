@@ -24,8 +24,7 @@
 	},
 	"dependencies": {
 		"@agentuity/adapter": "workspace:*",
-		"@agentuity/config": "workspace:*",
-		"@agentuity/core": "workspace:*"
+		"@agentuity/config": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

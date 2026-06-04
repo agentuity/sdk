@@ -34,17 +34,16 @@ import {
 	type Schedule,
 	type ScheduleDestination,
 } from '@agentuity/core/schedule';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
-import { createMinimalLogger } from '@agentuity/core';
-import { getEnv, getServiceUrls } from '@agentuity/config';
+import { getServiceUrls } from '@agentuity/config';
+import {
+	createServiceAdapter,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	resolveServiceUrl,
+	type Logger,
+} from '@agentuity/client';
 import { z } from 'zod';
-
-const isLogger = (val: unknown): val is Logger =>
-	typeof val === 'object' &&
-	val !== null &&
-	['info', 'warn', 'error', 'debug', 'trace'].every(
-		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
-	);
 
 export const ScheduleClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -59,21 +58,17 @@ export class ScheduleClient {
 
 	constructor(options: ScheduleClientOptions = {}) {
 		const validatedOptions = ScheduleClientOptionsSchema.parse(options);
-		const apiKey =
-			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
-		const serviceUrls = getServiceUrls(region);
-
-		const url = validatedOptions.url || getEnv('AGENTUITY_SCHEDULE_URL') || serviceUrls.catalyst;
-
-		const logger = validatedOptions.logger ?? createMinimalLogger();
-
-		const headers = buildClientHeaders({
-			apiKey,
-			orgId: validatedOptions.orgId,
+		const serviceUrls = getServiceUrls(resolveRegion());
+		const url = resolveServiceUrl({
+			url: validatedOptions.url,
+			envKey: 'AGENTUITY_SCHEDULE_URL',
+			fallback: serviceUrls.catalyst,
 		});
-
-		const adapter = createServerFetchAdapter({ headers }, logger);
+		const { adapter } = createServiceAdapter({
+			apiKey: resolveApiKey(validatedOptions.apiKey),
+			orgId: validatedOptions.orgId,
+			logger: validatedOptions.logger,
+		});
 		this.#service = new ScheduleService(url, adapter);
 	}
 
