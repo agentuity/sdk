@@ -135,7 +135,7 @@ Tier 1 (storage, few cross-deps):
 Tier 2 (medium):
 
 - [x] schedule (implementation in `@agentuity/schedule`; core copy retained; CLI util updated; zero `@agentuity/core` runtime dep)
-- [ ] webhook
+- [x] webhook (WebhookService in `@agentuity/webhook`; platform APIClient helpers stay in core until Phase 4)
 - [ ] db (platform helpers stay on `@agentuity/core/api` until Phase 4; `@agentuity/api` package ready)
 
 Tier 3 (large):
