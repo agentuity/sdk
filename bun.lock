@@ -102,6 +102,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "zod": "^4.3.5",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -313,6 +314,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "@agentuity/keyvalue": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",

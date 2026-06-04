@@ -1,39 +1,13 @@
-export {
-	KeyValueStorageService,
-	KeyValueStorage,
-	type KeyValueStats,
-	type KeyValueStatsPaginated,
-	type KeyValueItemWithMetadata,
-	type DataResult,
-	type DataResultFound,
-	type DataResultNotFound,
-	type KeyValueStorageSetParams,
-	type CreateNamespaceParams,
-	type GetAllStatsParams,
-	type KVSortField,
-	KV_MIN_TTL_SECONDS,
-	KV_MAX_TTL_SECONDS,
-	KV_DEFAULT_TTL_SECONDS,
-	DataResultFoundSchema,
-	DataResultNotFoundSchema,
-	DataResultSchema,
-	KeyValueStorageSetParamsSchema,
-	CreateNamespaceParamsSchema,
-	GetAllStatsParamsSchema,
-	KeyValueStatsSchema,
-	KeyValueStatsPaginatedSchema,
-	KeyValueItemWithMetadataSchema,
-	KVSortFieldSchema,
-} from '@agentuity/core/keyvalue';
+export * from './service.ts';
+export * from './types.ts';
 
 import {
 	KeyValueStorageService,
 	type KeyValueStorageSetParams,
 	type DataResult,
-} from '@agentuity/core/keyvalue';
+} from './service.ts';
 import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
-import { createMinimalLogger } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
+import { createMinimalLogger, getEnv } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/core/config';
 import { z } from 'zod';
 

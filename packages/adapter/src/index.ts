@@ -1,6 +1,30 @@
 // Re-export Logger type from core for convenience
 export type { Logger } from '@agentuity/core';
 
+export type {
+	Body,
+	FetchAdapter,
+	FetchErrorResponse,
+	FetchRequest,
+	FetchResponse,
+	FetchSuccessResponse,
+	HttpMethod,
+} from './fetch.ts';
+export {
+	BodySchema,
+	FetchErrorResponseSchema,
+	FetchRequestSchema,
+	FetchResponseSchema,
+	FetchSuccessResponseSchema,
+	HttpMethodSchema,
+} from './fetch.ts';
+export {
+	ServiceException,
+	ServiceExceptionPayloadSchema,
+	type ServiceExceptionPayload,
+} from './exception.ts';
+export { buildUrl, fromResponse, toPayload, toServiceException } from './http-util.ts';
+
 /**
  * HTTP client adapter for Agentuity service clients.
  *
@@ -16,10 +40,11 @@ import type {
 	FetchErrorResponse,
 	FetchResponse,
 	FetchAdapter,
-	Logger,
 	HttpMethod,
-} from '@agentuity/core';
-import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
+} from './fetch.ts';
+import type { Logger } from '@agentuity/core';
+import { ServiceException } from './exception.ts';
+import { fromResponse, toServiceException } from './http-util.ts';
 import { appendFileSync } from 'node:fs';
 
 // =============================================================================

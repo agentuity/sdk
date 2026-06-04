@@ -84,8 +84,8 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 ## Open Questions
 
-- [ ] **Semver:** Use v4 to remove `@agentuity/core/{service}` subpath exports?
-- [ ] **Shim duration:** Re-export from core for one major version, or break immediately?
+- [x] **Semver:** Use v4 to remove `@agentuity/core/{service}` subpath exports?
+- [x] **Shim duration:** Re-export from core for one major version, or break immediately?
 - [ ] **New packages:** Approve `@agentuity/config` and `@agentuity/client`?
 - [ ] **URL resolution:** Centralized `getServiceUrls` vs per-service URL helpers (recommend hybrid)?
 - [ ] **CLI strategy:** Migrate to `*Client` classes vs keep low-level `*Service` for CLI?
@@ -95,18 +95,18 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 ### Phase 0 — Baseline & guardrails
 
-- [ ] Inventory all `@agentuity/core` and `@agentuity/core/{service}` imports (CLI, local, docs, tests)
+- [x] Inventory all `@agentuity/core` and `@agentuity/core/{service}` imports (CLI, local, docs, tests)
 - [ ] Record install/bundle size baseline per service package
-- [ ] Lock semver and shim policy (decisions above)
+- [x] Lock semver and shim policy (decisions above)
 - [ ] Update `docs/scripts/generate-api-reference.ts` plan for new source paths
 
 **Exit:** dependency graph documented, semver decision recorded in Decisions Log.
 
 ### Phase 1 — Extract shared infrastructure
 
-- [ ] Move HTTP primitives from core → `@agentuity/adapter`:
+- [x] Move HTTP primitives from core → `@agentuity/adapter`:
   - `adapter.ts`, `exception.ts`, `_util.ts` (`buildUrl`, `fromResponse`, `toServiceException`)
-- [ ] Keep temporary re-exports in core for backward compatibility
+- [x] Keep temporary re-exports in core for backward compatibility (core retains canonical copies until Phase 5; adapter owns parallel implementation for service clients)
 - [ ] Add `@agentuity/config` (or agreed alternative) for region/URL resolution
 - [ ] Add `@agentuity/client` shared factory to dedupe `*Client` constructors
 - [ ] Service packages stop importing `@agentuity/core/config` directly
@@ -115,12 +115,12 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 ### Phase 2 — Pilot: `@agentuity/keyvalue`
 
-- [ ] Move `packages/core/src/services/keyvalue/*` → `packages/keyvalue/src/`
-- [ ] Update `@agentuity/local` to import types from `@agentuity/keyvalue`
+- [x] Move `packages/core/src/services/keyvalue/*` → `packages/keyvalue/src/` (service + types; core copy retained until shim bootstrap solved)
+- [x] Update `@agentuity/local` to import types from `@agentuity/keyvalue`
 - [ ] Update CLI `packages/cli/src/cmd/cloud/keyvalue/util.ts`
 - [ ] Point docs API reference generator at keyvalue package
-- [ ] Add core shim: `export * from '@agentuity/keyvalue'`
-- [ ] Run `tests/services/keyvalue` smoke tests
+- [ ] Add core shim: `export * from '@agentuity/keyvalue'` (blocked: TS project-reference cycle with keyvalue → core)
+- [x] Run `tests/services/keyvalue` smoke tests
 
 **Exit:** keyvalue has zero imports from `@agentuity/core/keyvalue`; core shim works.
 
@@ -203,6 +203,9 @@ Per service checklist:
 | ---- | -------- | --------- |
 | 2026-06-04 | Plan created on branch `plan/service-package-isolation` | Capture analysis from initial planning session |
 | 2026-06-04 | Replace root `PLAN.md` with this plan | Prior monorepo deploy plan superseded by this effort |
+| 2026-06-04 | v4 removes `@agentuity/core/{service}` subpaths; shims for one major version | Minimize breakage while migrating imports |
+| 2026-06-04 | `@agentuity/adapter` owns HTTP fetch types + util; core keeps copies until Phase 5 | Avoid TS project-reference cycle (adapter ↔ core) |
+| 2026-06-04 | `@agentuity/keyvalue` owns implementation; core copy retained until config/client extraction enables shim without cycle | keyvalue → core dep blocks core → keyvalue re-export today |
 
 ## Suggested First Sprint
 
