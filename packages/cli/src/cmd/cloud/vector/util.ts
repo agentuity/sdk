@@ -1,4 +1,5 @@
-import { type Logger, VectorStorageService } from '@agentuity/core';
+import { VectorStorageService } from '@agentuity/vector';
+import type { Logger } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
 import { getCatalystUrl } from '../../../catalyst.ts';
 import * as tui from '../../../tui.ts';

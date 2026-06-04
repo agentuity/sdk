@@ -41,6 +41,7 @@
 		"@agentuity/coder-tui": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/stream": "workspace:*",
+		"@agentuity/vector": "workspace:*",
 		"@agentuity/keyvalue": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@agentuity/storage": "workspace:*",

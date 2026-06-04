@@ -1,44 +1,4 @@
-export {
-	VectorStorageService,
-	VectorStorage,
-	type VectorUpsertParams,
-	type VectorUpsertBase,
-	type VectorUpsertEmbeddings,
-	type VectorUpsertText,
-	type VectorUpsertResult,
-	type VectorSearchParams,
-	type VectorSearchResult,
-	type VectorSearchResultWithDocument,
-	type VectorResult,
-	type VectorResultFound,
-	type VectorResultNotFound,
-	type VectorNamespaceStats,
-	type VectorNamespaceStatsWithSamples,
-	type VectorItemStats,
-	type VectorGetAllStatsParams,
-	type VectorStatsPaginated,
-	type VectorSortField,
-	VECTOR_MIN_TTL_SECONDS,
-	VECTOR_MAX_TTL_SECONDS,
-	VECTOR_DEFAULT_TTL_SECONDS,
-	VectorUpsertBaseSchema,
-	VectorUpsertEmbeddingsSchema,
-	VectorUpsertTextSchema,
-	VectorUpsertParamsSchema,
-	VectorSearchParamsSchema,
-	VectorSearchResultSchema,
-	VectorSearchResultWithDocumentSchema,
-	VectorUpsertResultSchema,
-	VectorResultFoundSchema,
-	VectorResultNotFoundSchema,
-	VectorResultSchema,
-	VectorNamespaceStatsSchema,
-	VectorNamespaceStatsWithSamplesSchema,
-	VectorItemStatsSchema,
-	VectorGetAllStatsParamsSchema,
-	VectorStatsPaginatedSchema,
-	VectorSortFieldSchema,
-} from '@agentuity/core/vector';
+export * from './service.ts';
 
 import {
 	VectorStorageService,
@@ -48,7 +8,7 @@ import {
 	type VectorSearchResult,
 	type VectorSearchResultWithDocument,
 	type VectorUpsertResult,
-} from '@agentuity/core/vector';
+} from './service.ts';
 import { getServiceUrls } from '@agentuity/config';
 import {
 	createServiceAdapter,

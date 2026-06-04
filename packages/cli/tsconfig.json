@@ -12,7 +12,8 @@
 			"@agentuity/keyvalue": ["../keyvalue/src"],
 			"@agentuity/server": ["../server/src"],
 			"@agentuity/storage": ["../storage/src"],
-			"@agentuity/stream": ["../stream/src"]
+			"@agentuity/stream": ["../stream/src"],
+			"@agentuity/vector": ["../vector/src"]
 		}
 	},
 	"include": ["src/**/*"],
@@ -22,6 +23,7 @@
 		{ "path": "../keyvalue" },
 		{ "path": "../server" },
 		{ "path": "../storage" },
-		{ "path": "../stream" }
+		{ "path": "../stream" },
+		{ "path": "../vector" }
 	]
 }
