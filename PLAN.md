@@ -140,7 +140,7 @@ Tier 2 (medium):
 
 Tier 3 (large):
 
-- [ ] queue
+- [x] queue (QueueStorageService in `@agentuity/queue`; platform APIClient helpers stay in core until Phase 4)
 - [ ] task
 - [ ] aigateway
 

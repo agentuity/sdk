@@ -1,18 +1,4 @@
-export {
-	QueueStorageService,
-	QueueService,
-	type QueuePublishParams,
-	type QueuePublishResult,
-	type QueueCreateParams,
-	type QueueCreateResult,
-	QueuePublishParamsSchema,
-	QueuePublishResultSchema,
-	QueueCreateParamsSchema,
-	QueueCreateResultSchema,
-	QueuePublishError,
-	QueueNotFoundError,
-	QueueValidationError,
-} from '@agentuity/core/queue';
+export * from './service.ts';
 
 import {
 	QueueStorageService,
@@ -20,7 +6,7 @@ import {
 	type QueuePublishResult,
 	type QueueCreateParams,
 	type QueueCreateResult,
-} from '@agentuity/core/queue';
+} from './service.ts';
 import { StructuredError } from '@agentuity/core';
 import { getServiceUrls } from '@agentuity/config';
 import {
