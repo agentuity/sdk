@@ -166,6 +166,7 @@
       "dependencies": {
         "@agentuity/coder-tui": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/email": "workspace:*",
         "@agentuity/keyvalue": "workspace:*",
         "@agentuity/server": "workspace:*",
         "@agentuity/storage": "workspace:*",
@@ -251,7 +252,6 @@
       "name": "@agentuity/core",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/api": "workspace:*",
         "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -277,7 +277,6 @@
       "name": "@agentuity/db",
       "version": "3.0.10",
       "dependencies": {
-        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -502,7 +501,6 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/api": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -530,7 +528,6 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
-        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",

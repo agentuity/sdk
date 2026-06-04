@@ -1,4 +1,5 @@
-import { EmailStorageService, type Logger } from '@agentuity/core';
+import { EmailStorageService } from '@agentuity/email';
+import type { Logger } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
 import { z } from 'zod';
 import { getCatalystUrl } from '../../../catalyst.ts';
@@ -13,7 +14,7 @@ export type {
 	EmailInbound,
 	EmailOutbound,
 	EmailSendParams,
-} from '@agentuity/core';
+} from '@agentuity/email';
 
 export interface EmailContext {
 	logger: Logger;

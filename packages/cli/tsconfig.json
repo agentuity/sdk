@@ -9,6 +9,7 @@
 		"resolveJsonModule": true,
 		"paths": {
 			"@agentuity/core": ["../core/src"],
+			"@agentuity/email": ["../email/src"],
 			"@agentuity/keyvalue": ["../keyvalue/src"],
 			"@agentuity/server": ["../server/src"],
 			"@agentuity/storage": ["../storage/src"],
@@ -20,6 +21,7 @@
 	"exclude": ["test/**/*", "src/**/*.test.ts", "src/cmd/project/templates/**/*"],
 	"references": [
 		{ "path": "../core" },
+		{ "path": "../email" },
 		{ "path": "../keyvalue" },
 		{ "path": "../server" },
 		{ "path": "../storage" },

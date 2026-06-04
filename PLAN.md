@@ -130,7 +130,7 @@ Tier 1 (storage, few cross-deps):
 
 - [x] stream (implementation in `@agentuity/stream`; core copy retained; CLI util updated)
 - [x] vector (implementation in `@agentuity/vector`; core copy retained; CLI util updated)
-- [ ] email
+- [x] email (implementation in `@agentuity/email`; core copy retained; CLI util updated)
 
 Tier 2 (medium):
 

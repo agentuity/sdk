@@ -1,41 +1,17 @@
-export {
-	EmailStorageService,
-	EmailService,
-	type EmailAddress,
-	type EmailDestination,
-	type EmailConnectionConfig,
-	type EmailInbound,
-	type EmailOutbound,
-	type EmailAttachment,
-	type EmailStoredAttachment,
-	type EmailSendParams,
-	type EmailActivityParams,
-	type EmailActivityResult,
-	type EmailActivityDataPoint,
-	EmailAddressSchema,
-	EmailDestinationSchema,
-	EmailConnectionConfigSchema,
-	EmailInboundSchema,
-	EmailOutboundSchema,
-	EmailAttachmentSchema,
-	EmailStoredAttachmentSchema,
-	EmailSendParamsSchema,
-	EmailActivityParamsSchema,
-	EmailActivityResultSchema,
-	EmailActivityDataPointSchema,
-} from '@agentuity/core/email';
+export * from './service.ts';
+export * from './types.ts';
 
 import {
 	EmailStorageService,
-	type EmailSendParams,
-	type EmailOutbound,
 	type EmailAddress,
 	type EmailDestination,
 	type EmailConnectionConfig,
 	type EmailInbound,
-	type EmailActivityResult,
+	type EmailOutbound,
+	type EmailSendParams,
 	type EmailActivityParams,
-} from '@agentuity/core/email';
+	type EmailActivityResult,
+} from './service.ts';
 import { getServiceUrls } from '@agentuity/config';
 import {
 	createServiceAdapter,
