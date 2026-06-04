@@ -7,5 +7,10 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"],
-	"references": [{ "path": "../core" }, { "path": "../server" }]
+	"references": [
+		{ "path": "../client" },
+		{ "path": "../config" },
+		{ "path": "../core" },
+		{ "path": "../sandbox" }
+	]
 }

@@ -4,7 +4,7 @@ import {
 	type CoderUpdateWorkspaceRequest,
 	type CoderWorkspaceDetail,
 	type CoderWorkspaceSystemPromptMode,
-} from '@agentuity/core/coder';
+} from '@agentuity/coder';
 import { StructuredError } from '@agentuity/core';
 import * as tui from '../../../tui.ts';
 

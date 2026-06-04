@@ -3,7 +3,7 @@ import {
 	CoderClient,
 	type CoderWorkspaceDetail,
 	CoderWorkspaceDetailSchema,
-} from '@agentuity/core/coder';
+} from '@agentuity/coder';
 import { ValidationOutputError } from '@agentuity/core';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';

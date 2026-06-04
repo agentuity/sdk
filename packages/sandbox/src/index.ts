@@ -1,3 +1,4 @@
+export { base64Encode } from './base64.ts';
 export * from './types.ts';
 export type {
 	ExecuteOptions,

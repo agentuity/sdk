@@ -8,6 +8,7 @@
 		"types": ["node"],
 		"resolveJsonModule": true,
 		"paths": {
+			"@agentuity/coder": ["../coder/src"],
 			"@agentuity/core": ["../core/src"],
 			"@agentuity/aigateway": ["../aigateway/src"],
 			"@agentuity/email": ["../email/src"],
@@ -24,6 +25,7 @@
 	"exclude": ["test/**/*", "src/**/*.test.ts", "src/cmd/project/templates/**/*"],
 	"references": [
 		{ "path": "../aigateway" },
+		{ "path": "../coder" },
 		{ "path": "../core" },
 		{ "path": "../email" },
 		{ "path": "../keyvalue" },

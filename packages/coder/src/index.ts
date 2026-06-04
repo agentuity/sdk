@@ -1,91 +1,111 @@
+export * from './types.ts';
+
+export type {
+	FileToWrite,
+	SandboxCommand,
+	SandboxCreateOptions,
+	SandboxNetworkConfig,
+	SandboxResources,
+	SandboxStreamConfig,
+	SandboxTimeoutConfig,
+} from '@agentuity/sandbox';
+
+export { discoverUrl, DiscoverCoderUrlDataSchema } from './discover.ts';
+
+export type {
+	CoderCreateAgentBuilderSessionParams,
+	CoderCreateSessionParams,
+	CoderCreateSessionResponse,
+	CoderGetSessionParams,
+	CoderLifecycleResponse,
+	CoderListConnectableSessionsParams,
+	CoderListSessionsParamsWithOrg,
+	CoderSessionIdParams,
+	CoderUpdateSessionParams,
+	CoderUpdateSessionResponse,
+} from './sessions.ts';
 export {
-	CoderClient,
-	type CoderClientOptions,
-	CoderClientOptionsSchema,
-	// Session types
-	type CoderSession,
-	type CoderSessionListItem,
-	type CoderSessionListResponse,
-	type CoderCreateSessionRequest,
-	type CoderUpdateSessionRequest,
-	type CoderListSessionsParams,
-	type FileToWrite,
-	type SandboxCommand,
-	type SandboxCreateOptions,
-	type SandboxNetworkConfig,
-	type SandboxResources,
-	type SandboxStreamConfig,
-	type SandboxTimeoutConfig,
-	// Session domain types
-	type CoderSessionVisibility,
-	type CoderWorkflowMode,
-	type CoderSessionMode,
-	type CoderSessionBucket,
-	type CoderSkillRef,
-	type CoderSessionRepositoryRef,
-	type CoderSessionLoopConfig,
-	type CoderSessionOwner,
-	type CoderSessionOrigin,
-	type CoderSessionWorkspace,
-	// Loop state
-	type CoderLoopStateResponse,
-	type CoderSessionLoopState,
-	type CoderLoopStatus,
-	// Session data
-	type CoderSessionReplay,
-	type CoderSessionParticipants,
-	type CoderParticipant,
-	type CoderSessionEventHistory,
-	type CoderSessionEvent,
-	// Users
-	type CoderUser,
-	type CoderListUsersResponse,
-	type CoderListUsersParams,
-	// Workspaces and skill library
-	type CoderSavedSkill,
-	type CoderSkillBucket,
-	type CoderWorkspaceDetail,
-	type CoderSavedSkillListResponse,
-	type CoderSkillBucketListResponse,
-	type CoderWorkspaceListResponse,
-	type CoderCreateWorkspaceRequest,
-	type CoderSaveSkillRequest,
-	// GitHub
-	type CoderGitHubAccount,
-	type CoderGitHubRepository,
-	type CoderGitHubAccountListResponse,
-	type CoderGitHubRepositoryListResponse,
-	// WebSocket client
+	coderArchiveSession,
+	coderCreateAgentBuilderSession,
+	coderCreateSession,
+	coderDeleteSession,
+	coderGetSession,
+	coderListConnectableSessions,
+	coderListSessions,
+	coderResumeSession,
+	coderUpdateSession,
+	CoderCreateAgentBuilderSessionParamsSchema,
+	CoderCreateSessionParamsSchema,
+	CoderGetSessionParamsSchema,
+	CoderListConnectableSessionsParamsSchema,
+	CoderListSessionsParamsWithOrgSchema,
+	CoderSessionIdParamsSchema,
+	CoderUpdateSessionParamsSchema,
+} from './sessions.ts';
+
+export * from './skills.ts';
+export * from './agents.ts';
+export * from './workspaces.ts';
+export * from './github.ts';
+
+export type {
+	CoderGetSessionReplayParams,
+	CoderListEventHistoryParams,
+	CoderListParticipantsParams,
+} from './session-data.ts';
+export {
+	coderGetReplay,
+	coderListEventHistory,
+	coderListParticipants,
+	CoderGetSessionReplayParamsSchema,
+	CoderListEventHistoryParamsSchema,
+	CoderListParticipantsParamsSchema,
+} from './session-data.ts';
+
+export type { CoderGetLoopStateParams } from './loop-state.ts';
+export { coderGetLoopState, CoderGetLoopStateParamsSchema } from './loop-state.ts';
+
+export type { CoderListUsersParamsWithOrg } from './users.ts';
+export { coderListUsers, CoderListUsersParamsWithOrgSchema } from './users.ts';
+
+export type { CoderClientOptions, CoderRemoteAttachPreparationOptions } from './client.ts';
+export { CoderClient, CoderClientOptionsSchema } from './client.ts';
+
+export type { CoderErrorCode, CoderErrorContext } from './util.ts';
+export {
+	CoderErrorCodeSchema,
+	CoderErrorContextSchema,
+	CoderResponseError,
+	CoderSessionArchivedError,
+	CoderSessionConflictError,
+	CoderSessionNotFoundError,
+	normalizeCoderUrl,
+	throwCoderError,
+	withOrgId,
+} from './util.ts';
+
+export * from './protocol.ts';
+
+export { CODER_WS_CLOSE_CODE, type CoderWsCloseCode, isTerminalCloseCode } from './close-codes.ts';
+
+export type { CoderHubWebSocketState, CoderHubWebSocketOptions } from './websocket.ts';
+export {
 	CoderHubWebSocketClient,
-	type CoderHubWebSocketOptions,
-	type CoderHubWebSocketState,
 	CoderHubWebSocketOptionsSchema,
 	CoderHubWebSocketError,
 	subscribeToCoderHub,
-	// SSE client
-	CoderSSEClient,
-	type CoderSSEOptions,
-	type CoderSSEClientOptions,
-	type CoderSSEEvent,
-	type CoderSSEState,
+} from './websocket.ts';
+
+export type {
+	CoderSSEOptions,
+	CoderSSEEvent,
+	CoderSSEClientOptions,
+	CoderSSEState,
+} from './sse.ts';
+export {
 	CoderSSEOptionsSchema,
 	CoderSSEClientOptionsSchema,
 	CoderSSEError,
+	CoderSSEClient,
 	streamCoderSessionSSE,
-	// Protocol types
-	type ClientMessage,
-	type ServerMessage,
-	type CoderHubInitMessage,
-	type CoderHubResponse,
-	type ObserverSseMessage,
-	type BroadcastEventMessage,
-	type PresenceEventMessage,
-	type ConnectionParams,
-	// Close codes
-	CODER_WS_CLOSE_CODE,
-	type CoderWsCloseCode,
-	isTerminalCloseCode,
-} from '@agentuity/core/coder';
-
-// Passthrough export for full protocol surface
-export * from '@agentuity/core/coder';
+} from './sse.ts';

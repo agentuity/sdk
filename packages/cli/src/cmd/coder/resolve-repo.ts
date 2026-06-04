@@ -1,4 +1,4 @@
-import type { CoderClient, CoderSessionRepositoryRef } from '@agentuity/core/coder';
+import type { CoderClient, CoderSessionRepositoryRef } from '@agentuity/coder';
 
 /**
  * Parse a GitHub reference string into owner/repo/branch.

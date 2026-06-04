@@ -24,7 +24,6 @@ package should not pull in the full core service catalog (~60k+ LOC under
 
 ### Out (for now)
 
-- `@agentuity/coder` platform package cleanup (follows sandbox migration)
 - `@agentuity/schema` deprecation (separate effort)
 - Runtime/agent context wiring (`@agentuity/hono`, `@agentuity/runtime`) — already
   uses service packages correctly
@@ -147,6 +146,7 @@ Tier 3 (large):
 Tier 4 (sandbox — migrate before coder cleanup):
 
 - [x] sandbox (full module in `@agentuity/sandbox`; cli-list stays in core for `@agentuity/server`; core copy retained)
+- [x] coder (full module in `@agentuity/coder`; `api-reference` stays in core; CLI uses `@agentuity/coder`; core copy retained)
 
 Per service checklist:
 

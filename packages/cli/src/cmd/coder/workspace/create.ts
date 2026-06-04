@@ -4,7 +4,7 @@ import {
 	CoderClient,
 	CoderCreateWorkspaceRequestSchema,
 	type CoderCreateWorkspaceRequest,
-} from '@agentuity/core/coder';
+} from '@agentuity/coder';
 import { createSubcommand } from '../../../types.ts';
 import * as tui from '../../../tui.ts';
 import { getCommand } from '../../../command-prefix.ts';
