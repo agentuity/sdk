@@ -15,6 +15,7 @@
 			"@agentuity/server": ["../server/src"],
 			"@agentuity/storage": ["../storage/src"],
 			"@agentuity/stream": ["../stream/src"],
+			"@agentuity/task": ["../task/src"],
 			"@agentuity/vector": ["../vector/src"]
 		}
 	},
@@ -28,6 +29,7 @@
 		{ "path": "../server" },
 		{ "path": "../storage" },
 		{ "path": "../stream" },
+		{ "path": "../task" },
 		{ "path": "../vector" }
 	]
 }

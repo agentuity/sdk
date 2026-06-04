@@ -141,7 +141,7 @@ Tier 2 (medium):
 Tier 3 (large):
 
 - [x] queue (QueueStorageService in `@agentuity/queue`; platform APIClient helpers stay in core until Phase 4)
-- [ ] task
+- [x] task (TaskStorageService in `@agentuity/task`; core copy retained; CLI util updated)
 - [ ] aigateway
 
 Tier 4 (sandbox — migrate before coder cleanup):

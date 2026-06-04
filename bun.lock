@@ -172,6 +172,7 @@
         "@agentuity/server": "workspace:*",
         "@agentuity/storage": "workspace:*",
         "@agentuity/stream": "workspace:*",
+        "@agentuity/task": "workspace:*",
         "@agentuity/vector": "workspace:*",
         "@types/yazl": "^3.3.1",
         "cli-table3": "^0.6.5",

@@ -43,6 +43,7 @@
 		"@agentuity/email": "workspace:*",
 		"@agentuity/schedule": "workspace:*",
 		"@agentuity/stream": "workspace:*",
+		"@agentuity/task": "workspace:*",
 		"@agentuity/vector": "workspace:*",
 		"@agentuity/keyvalue": "workspace:*",
 		"@agentuity/server": "workspace:*",
