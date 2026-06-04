@@ -93,6 +93,17 @@ function routeDeclaration(routePath: string): string {
 )({`;
 }
 
+function contentImport(mdxImportPath: string): string {
+	const singleLine = `import Content, { frontmatter, tableOfContents } from '${mdxImportPath}';`;
+	if (singleLine.length <= 100) {
+		return singleLine;
+	}
+	return `import Content, {
+\tfrontmatter,
+\ttableOfContents,
+} from '${mdxImportPath}';`;
+}
+
 /** Generate the content for a route .tsx file. */
 function generateRouteFile(
 	routePath: string,
@@ -103,10 +114,7 @@ function generateRouteFile(
 	return `import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '${importPath}';
 import type { MDXModule } from '${importPath}';
-import Content, {
-\tfrontmatter,
-\ttableOfContents,
-} from '${mdxImportPath}';
+${contentImport(mdxImportPath)}
 
 const mdxModule = {
 \tdefault: Content,

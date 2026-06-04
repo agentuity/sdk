@@ -163,7 +163,7 @@ export const frontmatterByPath: Record<string, FrontmatterData> = {
 	},
 	"/cookbook/patterns/running-external-coding-tools-in-sandbox": {
 		"title": "Run External Coding Tools in Sandbox",
-		"short_title": "External Coding Tools",
+		"short_title": "Sandbox Coding Tools",
 		"description": "Run a formatter, linter, test command, or agent CLI in a disposable Sandbox workflow"
 	},
 	"/cookbook/patterns/server-utilities": {

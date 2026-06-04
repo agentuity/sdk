@@ -404,24 +404,59 @@ Access any Agentuity Platform Service directly via REST APIs, the TypeScript SDK
 </Cards>`;
 }
 
-function renderServiceRoute(service: Service): string {
+function routeDeclaration(routePath: string): string {
+	const singleLine = `export const Route = createFileRoute('/_docs/${routePath}')({`;
+	if (singleLine.length <= 100) {
+		return singleLine;
+	}
+	return `export const Route = createFileRoute(
+\t'/_docs/${routePath}'
+)({`;
+}
+
+function contentImport(mdxImportPath: string): string {
+	const singleLine = `import Content, { frontmatter, tableOfContents } from '${mdxImportPath}';`;
+	if (singleLine.length <= 100) {
+		return singleLine;
+	}
+	return `import Content, {
+\tfrontmatter,
+\ttableOfContents,
+} from '${mdxImportPath}';`;
+}
+
+function renderRouteFile(routePath: string, mdxImportPath: string, crumb: string): string {
 	return `import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../../components/docs/mdx-page';
+${contentImport(mdxImportPath)}
 
-export const Route = createFileRoute('/_docs/reference/api/${service.slug}')({
-	component: () => <MDXPage route="reference/api/${service.slug}" />,
-	staticData: { crumb: '${service.name}' },
+const mdxModule = {
+\tdefault: Content,
+\tfrontmatter,
+\ttableOfContents,
+} satisfies MDXModule;
+
+${routeDeclaration(routePath)}
+\tcomponent: () => <MDXPage module={mdxModule} />,
+\tstaticData: { crumb: '${crumb.replace(/'/g, "\\'")}' },
 });`;
 }
 
-function renderApiIndexRoute(): string {
-	return `import { createFileRoute } from '@tanstack/react-router';
-import { MDXPage } from '../../../../components/docs/mdx-page';
+function renderServiceRoute(service: Service): string {
+	return renderRouteFile(
+		`reference/api/${service.slug}`,
+		`../../../../content/reference/api/${service.slug}.mdx`,
+		service.name
+	);
+}
 
-export const Route = createFileRoute('/_docs/reference/api/')({
-	component: () => <MDXPage route="reference/api" />,
-	staticData: { crumb: 'API Reference' },
-});`;
+function renderApiIndexRoute(): string {
+	return renderRouteFile(
+		'reference/api/',
+		'../../../../content/reference/api/index.mdx',
+		'REST API Reference'
+	);
 }
 
 async function main() {

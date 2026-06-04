@@ -4,21 +4,27 @@ description: Tutorials, reusable patterns, and external integrations for Agentui
 ---
 
 import {
+  Activity,
   BookOpen,
   Bot,
   Brain,
   Calendar,
+  ClipboardCheck,
   Compass,
-  Globe,
+  FileText,
+  Gauge,
   Link,
   MessageSquare,
   Network,
+  Palette,
   Plug,
   Scale,
+  ScrollText,
   Search,
   Server,
   Sparkles,
   Terminal,
+  Waypoints,
   Webhook,
   Workflow,
   Zap,
@@ -41,89 +47,7 @@ End-to-end builds. Start here when you want a complete feature, not a snippet.
 
 ## Patterns
 
-Reusable shapes for common app problems. Each pattern is one focused job.
-
-<Cards>
-  <CardLink
-    href="/cookbook/patterns/chat-with-history"
-    title="Chat with History"
-    description="Store chat turns in key-value storage from a framework route"
-    icon={<MessageSquare />}
-  />
-  <CardLink
-    href="/cookbook/patterns/product-search"
-    title="Product Search"
-    description="Semantic search with metadata filters and an optional model recommendation"
-    icon={<Search />}
-  />
-  <CardLink
-    href="/cookbook/patterns/webhook-handler"
-    title="Webhook Handler"
-    description="Verify a signed webhook in a framework route and hand the payload to a queue"
-    icon={<Webhook />}
-  />
-  <CardLink
-    href="/cookbook/patterns/cron-with-storage"
-    title="Cron with Storage"
-    description="Refresh data on a schedule, cache it in key-value, and serve fast reads"
-    icon={<Calendar />}
-  />
-  <CardLink
-    href="/cookbook/patterns/background-tasks"
-    title="Background Tasks"
-    description="Return a fast response while side effects continue in the background"
-    icon={<Zap />}
-  />
-  <CardLink
-    href="/cookbook/patterns/autonomous-research"
-    title="Autonomous Research"
-    description="Drive an Anthropic Messages API tool loop with native tool_use blocks"
-    icon={<Brain />}
-  />
-  <CardLink
-    href="/cookbook/patterns/llm-as-a-judge"
-    title="LLM as a Judge"
-    description="Score quality, check grounding, or pick a winner with a fast judge model"
-    icon={<Scale />}
-  />
-  <CardLink
-    href="/cookbook/patterns/web-exploration"
-    title="Web Exploration"
-    description="Run a headless browser inside a sandbox with an AI SDK tool loop"
-    icon={<Compass />}
-  />
-  <CardLink
-    href="/cookbook/patterns/hono-rpc-tanstack-query"
-    title="Hono RPC + TanStack"
-    description="Share Hono route types with a React client using TanStack Query"
-    icon={<Link />}
-  />
-  <CardLink
-    href="/cookbook/patterns/server-utilities"
-    title="Server Utilities"
-    description="Use Agentuity services from external apps, scripts, and backends"
-    icon={<Server />}
-  />
-  <CardLink
-    href="/cookbook/patterns/tailwind-setup"
-    title="Tailwind Setup"
-    description="Use your framework's Tailwind setup with Agentuity service routes"
-    icon={<Globe />}
-  />
-</Cards>
-
-### Sandbox
-
-Run bounded code workflows in isolated sandboxes when your app owns the command, files, and result parsing.
-
-<Cards>
-  <CardLink
-    href="/cookbook/patterns/running-external-coding-tools-in-sandbox"
-    title="External Coding Tools"
-    description="Run a formatter, linter, test command, or agent CLI as a one-shot sandbox workflow"
-    icon={<Terminal />}
-  />
-</Cards>
+Reusable shapes for common app problems. Each pattern is one focused job; related recipes are grouped by the kind of work they do.
 
 ### Coder
 
@@ -171,6 +95,156 @@ Manage [Coder](/services/coder) sessions, skills, and workspaces from the SDK.
     title="Observe Sessions"
     description="Subscribe to a session's live event stream, page through its event history, and hydrate a client from the durable replay stream"
     icon={<Bot />}
+  />
+</Cards>
+
+### Research
+
+Drive multi-step research and browsing loops with model tool calls.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/autonomous-research"
+    title="Autonomous Research"
+    description="Drive an Anthropic Messages API tool loop with native tool_use blocks"
+    icon={<Brain />}
+  />
+  <CardLink
+    href="/cookbook/patterns/web-exploration"
+    title="Web Exploration"
+    description="Run a headless browser inside a sandbox with an AI SDK tool loop"
+    icon={<Compass />}
+  />
+</Cards>
+
+### Background Work
+
+Handle webhooks, schedules, and fire-and-forget side effects off the request path.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/webhook-handler"
+    title="Webhook Handler"
+    description="Verify a signed webhook in a framework route and hand the payload to a queue"
+    icon={<Webhook />}
+  />
+  <CardLink
+    href="/cookbook/patterns/cron-with-storage"
+    title="Cron with Storage"
+    description="Refresh data on a schedule, cache it in key-value, and serve fast reads"
+    icon={<Calendar />}
+  />
+  <CardLink
+    href="/cookbook/patterns/background-tasks"
+    title="Background Tasks"
+    description="Return a fast response while side effects continue in the background"
+    icon={<Zap />}
+  />
+</Cards>
+
+### Evals
+
+Score and grade model output with a judge model or an evals framework.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/llm-as-a-judge"
+    title="LLM as a Judge"
+    description="Score quality, check grounding, or pick a winner with a fast judge model"
+    icon={<Scale />}
+  />
+  <CardLink
+    href="/cookbook/patterns/openai-evals-api"
+    title="OpenAI Evals API"
+    description="Run OpenAI Evals API suites against prompts that live in an Agentuity app"
+    icon={<ClipboardCheck />}
+  />
+  <CardLink
+    href="/cookbook/patterns/braintrust-evals"
+    title="Braintrust Evals"
+    description="Run Braintrust evals against app-owned Agentuity functions"
+    icon={<Gauge />}
+  />
+</Cards>
+
+### Logging & Tracing
+
+Keep app-owned logs and traces while running alongside Agentuity services.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/structured-logging-with-pino"
+    title="Pino Logging"
+    description="Keep app-owned Pino logs while adding Agentuity services beside them"
+    icon={<ScrollText />}
+  />
+  <CardLink
+    href="/cookbook/patterns/logtape-structured-logging"
+    title="LogTape Logging"
+    description="Keep LogTape structured logs app-owned and export them through OpenTelemetry"
+    icon={<FileText />}
+  />
+  <CardLink
+    href="/cookbook/patterns/opentelemetry-route-spans"
+    title="OpenTelemetry Spans"
+    description="Add route-level spans with the standard OpenTelemetry API"
+    icon={<Activity />}
+  />
+  <CardLink
+    href="/cookbook/patterns/langfuse-otel-tracing"
+    title="Langfuse Tracing"
+    description="Keep Langfuse as the trace backend for Agentuity app code"
+    icon={<Waypoints />}
+  />
+</Cards>
+
+### App Structure
+
+Wire types, utilities, and styling across the app you deploy with Agentuity.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/hono-rpc-tanstack-query"
+    title="Hono RPC + TanStack"
+    description="Share Hono route types with a React client using TanStack Query"
+    icon={<Link />}
+  />
+  <CardLink
+    href="/cookbook/patterns/server-utilities"
+    title="Server Utilities"
+    description="Use Agentuity services from external apps, scripts, and backends"
+    icon={<Server />}
+  />
+  <CardLink
+    href="/cookbook/patterns/tailwind-setup"
+    title="Tailwind Setup"
+    description="Use your framework's Tailwind setup with Agentuity service routes"
+    icon={<Palette />}
+  />
+</Cards>
+
+### More Patterns
+
+Standalone recipes that each solve one focused job.
+
+<Cards>
+  <CardLink
+    href="/cookbook/patterns/chat-with-history"
+    title="Chat with History"
+    description="Store chat turns in key-value storage from a framework route"
+    icon={<MessageSquare />}
+  />
+  <CardLink
+    href="/cookbook/patterns/product-search"
+    title="Product Search"
+    description="Semantic search with metadata filters and an optional model recommendation"
+    icon={<Search />}
+  />
+  <CardLink
+    href="/cookbook/patterns/running-external-coding-tools-in-sandbox"
+    title="Sandbox Coding Tools"
+    description="Run a formatter, linter, test command, or agent CLI as a one-shot sandbox workflow"
+    icon={<Terminal />}
   />
 </Cards>
 

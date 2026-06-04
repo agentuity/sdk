@@ -16,5 +16,5 @@ export const Route = createFileRoute(
 	'/_docs/cookbook/patterns/running-external-coding-tools-in-sandbox'
 )({
 	component: () => <MDXPage module={mdxModule} />,
-	staticData: { crumb: 'External Coding Tools' },
+	staticData: { crumb: 'Sandbox Coding Tools' },
 });

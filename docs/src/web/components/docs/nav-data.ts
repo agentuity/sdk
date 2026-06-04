@@ -542,13 +542,115 @@ export const navData: NavSection[] = [
 						],
 					},
 					{
-						title: 'Sandbox',
+						title: 'Research',
 						items: [
 							{
-								title: 'External Coding Tools',
-								url: '/cookbook/patterns/running-external-coding-tools-in-sandbox',
+								title: 'Autonomous Research',
+								url: '/cookbook/patterns/autonomous-research',
 								description:
-									'Run a formatter, linter, test command, or agent CLI in a disposable Sandbox workflow',
+									'Build a recursive research loop using the Anthropic SDK Messages API and native tool_use blocks',
+							},
+							{
+								title: 'Web Exploration',
+								url: '/cookbook/patterns/web-exploration',
+								description:
+									'Run a headless browser inside a sandbox so an agent can navigate, screenshot, and extract content under isolation',
+							},
+						],
+					},
+					{
+						title: 'Background Work',
+						items: [
+							{
+								title: 'Webhook Handler',
+								url: '/cookbook/patterns/webhook-handler',
+								description:
+									'Verify a signed external webhook in a framework route and hand the payload to a queue',
+							},
+							{
+								title: 'Cron with Storage',
+								url: '/cookbook/patterns/cron-with-storage',
+								description:
+									'Refresh data on a schedule, cache it in key-value storage, and serve fast reads from a normal route',
+							},
+							{
+								title: 'Background Tasks',
+								url: '/cookbook/patterns/background-tasks',
+								description:
+									'Return a fast response while side effects continue in the background, plus when to upgrade to a durable queue',
+							},
+						],
+					},
+					{
+						title: 'Evals',
+						items: [
+							{
+								title: 'LLM as a Judge',
+								url: '/cookbook/patterns/llm-as-a-judge',
+								description:
+									"Use a model to evaluate another model's output for quality, grounding, or comparison",
+							},
+							{
+								title: 'OpenAI Evals API',
+								url: '/cookbook/patterns/openai-evals-api',
+								description:
+									'Run OpenAI Evals API suites against prompts that live in an Agentuity app',
+							},
+							{
+								title: 'Braintrust Evals',
+								url: '/cookbook/patterns/braintrust-evals',
+								description: 'Run Braintrust evals against app-owned Agentuity functions',
+							},
+						],
+					},
+					{
+						title: 'Logging & Tracing',
+						items: [
+							{
+								title: 'Pino Logging',
+								url: '/cookbook/patterns/structured-logging-with-pino',
+								description:
+									'Keep app-owned Pino logs while adding Agentuity services beside them',
+							},
+							{
+								title: 'LogTape Logging',
+								url: '/cookbook/patterns/logtape-structured-logging',
+								description:
+									'Keep LogTape structured logs app-owned while optionally exporting logs through OpenTelemetry',
+							},
+							{
+								title: 'OpenTelemetry Spans',
+								url: '/cookbook/patterns/opentelemetry-route-spans',
+								description:
+									'Keep existing OpenTelemetry startup and add route-level spans with the standard API',
+							},
+							{
+								title: 'Langfuse Tracing',
+								url: '/cookbook/patterns/langfuse-otel-tracing',
+								description: 'Keep Langfuse as the trace backend for Agentuity app code',
+							},
+						],
+					},
+					{
+						title: 'App Structure',
+						items: [
+							{
+								title: 'Hono RPC + TanStack',
+								url: '/cookbook/patterns/hono-rpc-tanstack-query',
+								description:
+									'Share Hono route types with a React client and wrap calls in TanStack Query',
+							},
+							{
+								title: 'Server Utilities',
+								url: '/cookbook/patterns/server-utilities',
+								description:
+									'Use storage, queues, logging, and error handling utilities from external backends like Next.js or Express',
+							},
+							{
+								title: 'Tailwind Setup',
+								url: '/cookbook/patterns/tailwind-setup',
+								description:
+									'Add Tailwind CSS to the framework app you deploy with Agentuity',
 							},
 						],
 					},
@@ -564,91 +666,10 @@ export const navData: NavSection[] = [
 							'Semantic product search with metadata filters and an optional model recommendation',
 					},
 					{
-						title: 'Webhook Handler',
-						url: '/cookbook/patterns/webhook-handler',
+						title: 'Sandbox Coding Tools',
+						url: '/cookbook/patterns/running-external-coding-tools-in-sandbox',
 						description:
-							'Verify a signed external webhook in a framework route and hand the payload to a queue',
-					},
-					{
-						title: 'Cron with Storage',
-						url: '/cookbook/patterns/cron-with-storage',
-						description:
-							'Refresh data on a schedule, cache it in key-value storage, and serve fast reads from a normal route',
-					},
-					{
-						title: 'Background Tasks',
-						url: '/cookbook/patterns/background-tasks',
-						description:
-							'Return a fast response while side effects continue in the background, plus when to upgrade to a durable queue',
-					},
-					{
-						title: 'Autonomous Research',
-						url: '/cookbook/patterns/autonomous-research',
-						description:
-							'Build a recursive research loop using the Anthropic SDK Messages API and native tool_use blocks',
-					},
-					{
-						title: 'LLM as a Judge',
-						url: '/cookbook/patterns/llm-as-a-judge',
-						description:
-							"Use a model to evaluate another model's output for quality, grounding, or comparison",
-					},
-					{
-						title: 'OpenAI Evals API',
-						url: '/cookbook/patterns/openai-evals-api',
-						description:
-							'Run OpenAI Evals API suites against prompts that live in an Agentuity app',
-					},
-					{
-						title: 'Braintrust Evals',
-						url: '/cookbook/patterns/braintrust-evals',
-						description: 'Run Braintrust evals against app-owned Agentuity functions',
-					},
-					{
-						title: 'Pino Logging',
-						url: '/cookbook/patterns/structured-logging-with-pino',
-						description:
-							'Keep app-owned Pino logs while adding Agentuity services beside them',
-					},
-					{
-						title: 'LogTape Logging',
-						url: '/cookbook/patterns/logtape-structured-logging',
-						description:
-							'Keep LogTape structured logs app-owned while optionally exporting logs through OpenTelemetry',
-					},
-					{
-						title: 'OpenTelemetry Spans',
-						url: '/cookbook/patterns/opentelemetry-route-spans',
-						description:
-							'Keep existing OpenTelemetry startup and add route-level spans with the standard API',
-					},
-					{
-						title: 'Langfuse Tracing',
-						url: '/cookbook/patterns/langfuse-otel-tracing',
-						description: 'Keep Langfuse as the trace backend for Agentuity app code',
-					},
-					{
-						title: 'Web Exploration',
-						url: '/cookbook/patterns/web-exploration',
-						description:
-							'Run a headless browser inside a sandbox so an agent can navigate, screenshot, and extract content under isolation',
-					},
-					{
-						title: 'Hono RPC + TanStack',
-						url: '/cookbook/patterns/hono-rpc-tanstack-query',
-						description:
-							'Share Hono route types with a React client and wrap calls in TanStack Query',
-					},
-					{
-						title: 'Server Utilities',
-						url: '/cookbook/patterns/server-utilities',
-						description:
-							'Use storage, queues, logging, and error handling utilities from external backends like Next.js or Express',
-					},
-					{
-						title: 'Tailwind Setup',
-						url: '/cookbook/patterns/tailwind-setup',
-						description: 'Add Tailwind CSS to the framework app you deploy with Agentuity',
+							'Run a formatter, linter, test command, or agent CLI in a disposable Sandbox workflow',
 					},
 				],
 			},
