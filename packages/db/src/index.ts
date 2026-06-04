@@ -1,12 +1,35 @@
 export {
+	DbLogsAPIResponseSchema,
+	DbLogsRequestSchema,
+	DbLogsResponseSchema,
+	type DbQueryLog,
+	DbQueryLogSchema,
+	type DbQueryLogs,
+	dbLogs,
+} from './logs.ts';
+export {
+	DbLogStatsAPIResponseSchema,
+	DbLogStatsCommandBreakdownSchema,
+	type DbLogStatsCommandBreakdown,
+	DbLogStatsQueryPatternSchema,
+	type DbLogStatsQueryPattern,
+	DbLogStatsRequestSchema,
+	DbLogStatsResponseSchema,
+	type DbLogStatsResponse,
+	DbLogStatsSummarySchema,
+	type DbLogStatsSummary,
+	DbLogStatsTimeSeriesPointSchema,
+	type DbLogStatsTimeSeriesPoint,
+	dbLogStats,
+} from './stats.ts';
+export {
 	dbQuery,
 	type QueryColumn,
 	QueryColumnSchema,
+	QueryResponseSchema,
 	type QueryResult,
 	QueryResultSchema,
-	QueryResponseSchema,
-} from '@agentuity/core/db';
-
+} from './query.ts';
 export {
 	dbTables,
 	generateCreateTableSQL,
@@ -15,35 +38,9 @@ export {
 	type TableSchema,
 	TableSchemaSchema,
 	TablesResponseSchema,
-} from '@agentuity/core/db';
-
-export {
-	dbLogs,
-	type DbQueryLog,
-	DbQueryLogSchema,
-	type DbQueryLogs,
-	DbLogsAPIResponseSchema,
-	DbLogsRequestSchema,
-	DbLogsResponseSchema,
-} from '@agentuity/core/db';
-
-export {
-	dbLogStats,
-	type DbLogStatsResponse,
-	type DbLogStatsSummary,
-	type DbLogStatsCommandBreakdown,
-	type DbLogStatsQueryPattern,
-	type DbLogStatsTimeSeriesPoint,
-	DbLogStatsAPIResponseSchema,
-	DbLogStatsCommandBreakdownSchema,
-	DbLogStatsQueryPatternSchema,
-	DbLogStatsRequestSchema,
-	DbLogStatsResponseSchema,
-	DbLogStatsSummarySchema,
-	DbLogStatsTimeSeriesPointSchema,
-} from '@agentuity/core/db';
-
-export { DbInvalidArgumentError, DbResponseError } from '@agentuity/core/db';
+} from './tables.ts';
+export { DbExecuteQueryRequestSchema, type DbExecuteQueryRequest } from './types.ts';
+export { DbInvalidArgumentError, DbResponseError } from './util.ts';
 
 import { APIClient } from '@agentuity/core/api';
 import { getServiceUrls } from '@agentuity/config';
@@ -56,16 +53,10 @@ import {
 	type Logger,
 } from '@agentuity/client';
 import { z } from 'zod';
-import {
-	dbQuery,
-	dbTables,
-	dbLogs,
-	dbLogStats,
-	type QueryResult,
-	type TableSchema,
-	type DbQueryLogs,
-	type DbLogStatsResponse,
-} from '@agentuity/core/db';
+import { dbQuery, type QueryResult } from './query.ts';
+import { dbTables, type TableSchema } from './tables.ts';
+import { dbLogs, type DbQueryLogs } from './logs.ts';
+import { dbLogStats, type DbLogStatsResponse } from './stats.ts';
 
 export const DBClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
