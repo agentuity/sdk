@@ -119,8 +119,8 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 - [x] Update `@agentuity/local` to import types from `@agentuity/keyvalue`
 - [x] Update CLI `packages/cli/src/cmd/cloud/keyvalue/util.ts`
 - [ ] Point docs API reference generator at keyvalue package
-- [ ] Add core shim: `export * from '@agentuity/keyvalue'` (blocked: TS project-reference cycle with keyvalue → core)
-- [x] Run `tests/services/keyvalue` smoke tests
+- [ ] Add core shim: `export * from '@agentuity/keyvalue'` (blocked: clean-build cycle adapter→core vs core→keyvalue; needs StructuredError split or export redirect)
+- [x] keyvalue: pagination via `@agentuity/client` (zero `@agentuity/core` runtime dep)
 
 **Exit:** keyvalue has zero imports from `@agentuity/core/keyvalue`; core shim works.
 
@@ -128,7 +128,7 @@ import { KeyValueClient } from '@agentuity/keyvalue';
 
 Tier 1 (storage, few cross-deps):
 
-- [ ] stream
+- [x] stream (implementation in `@agentuity/stream`; core copy retained; CLI util updated)
 - [ ] vector
 - [ ] email
 

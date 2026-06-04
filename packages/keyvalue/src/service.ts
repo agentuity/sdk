@@ -1,5 +1,5 @@
 import { FetchAdapter, buildUrl, toPayload, toServiceException } from '@agentuity/adapter';
-import { ListParamsSchema, SortDirectionSchema } from '@agentuity/core/pagination';
+import { ListParamsSchema, SortDirectionSchema } from '@agentuity/client';
 import { z } from 'zod';
 
 /**

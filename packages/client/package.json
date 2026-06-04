@@ -24,7 +24,8 @@
 	},
 	"dependencies": {
 		"@agentuity/adapter": "workspace:*",
-		"@agentuity/config": "workspace:*"
+		"@agentuity/config": "workspace:*",
+		"zod": "^4.3.5"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
