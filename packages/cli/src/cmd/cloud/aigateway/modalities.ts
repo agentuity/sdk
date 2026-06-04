@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { StructuredError } from '@agentuity/core';
-import { type AIGatewayService } from '@agentuity/core/aigateway';
+import { type AIGatewayService } from '@agentuity/aigateway';
 import { z } from 'zod';
 import { getCommand } from '../../../command-prefix.ts';
 import { readStdinText } from '../../../node-compat/stdin.ts';

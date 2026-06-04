@@ -164,6 +164,7 @@
         "agentuity": "./bin/cli.js",
       },
       "dependencies": {
+        "@agentuity/aigateway": "workspace:*",
         "@agentuity/coder-tui": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/email": "workspace:*",

@@ -1,39 +1,4 @@
-export {
-	AIGatewayService,
-	applyAIGatewayResponseSchema,
-	buildAIGatewayCompletionParams,
-	getAIGatewayCompletionStructured,
-	getAIGatewayCompletionText,
-	getAIGatewayCompletionTextResult,
-	getAIGatewayProviderFamily,
-	type AIGatewayChatCompletion,
-	type AIGatewayChatCompletionParams,
-	type AIGatewayChatMessage,
-	type AIGatewayCompletionAdapterRequest,
-	type AIGatewayCompletionTextReason,
-	type AIGatewayCompletionTextResult,
-	type AIGatewayModel,
-	type AIGatewayModelProvider,
-	type AIGatewayModels,
-	type AIGatewayModelsResponse,
-	type AIGatewayPricing,
-	type AIGatewayProviderFamily,
-	type AIGatewayRequestOptions,
-	type AIGatewayRequestResponse,
-	type AIGatewayReasoning,
-	type AIGatewayResponseMetadata,
-	type AIGatewayResponseSchemaInput,
-	type AIGatewayStreamingCompletion,
-	AIGatewayChatCompletionParamsSchema,
-	AIGatewayChatCompletionSchema,
-	AIGatewayChatMessageSchema,
-	AIGatewayModelProviderSchema,
-	AIGatewayModelSchema,
-	AIGatewayModelsResponseSchema,
-	AIGatewayModelsSchema,
-	AIGatewayPricingSchema,
-	AIGatewayResponseSchemaSchema,
-} from '@agentuity/core/aigateway';
+export * from './service.ts';
 
 import {
 	AIGatewayService,
@@ -49,7 +14,7 @@ import {
 	type AIGatewayRequestResponse,
 	type AIGatewayResponseSchemaInput,
 	type AIGatewayStreamingCompletion,
-} from '@agentuity/core/aigateway';
+} from './service.ts';
 import { getEnv, getServiceUrls } from '@agentuity/config';
 import {
 	createServiceAdapter,
@@ -113,15 +78,6 @@ export class AIGatewayClient {
 		return this.#service.complete(params);
 	}
 
-	/**
-	 * Run a completion and return the assistant's textual reply directly, normalized across
-	 * provider response shapes. Returns the raw `completion` alongside so callers don't lose
-	 * usage/metadata.
-	 *
-	 * The `text` field is the concatenated assistant text. `hasText` distinguishes "the model
-	 * returned no textual content" (e.g. it stopped on `tool_calls` or hit `length`) from
-	 * "the model returned an empty string".
-	 */
 	async completeText(
 		params: AIGatewayChatCompletionParams
 	): Promise<AIGatewayCompletionTextResult & { completion: AIGatewayChatCompletion }> {
@@ -130,16 +86,6 @@ export class AIGatewayClient {
 		return { ...result, completion };
 	}
 
-	/**
-	 * Run a structured-output completion: the gateway translates `response_schema` (or the
-	 * `response_schema` field on `params`) into the right provider-native structured-output
-	 * primitive, and the parsed JSON payload is returned in the `data` field. The raw
-	 * `completion` is included so callers can still inspect usage / cost / finish reason.
-	 *
-	 * `data` is typed as the caller-supplied generic. The runtime guarantee is only "the
-	 * provider returned JSON that parsed" — pass a Zod / StandardSchema schema and call
-	 * `safeParse` on the result if you want validated narrowing.
-	 */
 	async completeStructured<T = unknown>(
 		params: AIGatewayChatCompletionParams & { response_schema: AIGatewayResponseSchemaInput }
 	): Promise<{
