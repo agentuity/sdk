@@ -114,6 +114,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -245,6 +246,7 @@
       "name": "@agentuity/db",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -274,6 +276,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -402,6 +405,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -435,6 +439,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -488,6 +493,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -502,6 +508,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -554,6 +561,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -595,6 +603,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },

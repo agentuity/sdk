@@ -38,8 +38,7 @@ import {
 } from '@agentuity/core/email';
 import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
 import { createMinimalLogger } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
+import { getEnv, getServiceUrls } from '@agentuity/config';
 import { z } from 'zod';
 
 const isLogger = (val: unknown): val is Logger =>

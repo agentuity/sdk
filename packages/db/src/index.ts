@@ -47,8 +47,7 @@ export { DbInvalidArgumentError, DbResponseError } from '@agentuity/core/db';
 
 import { APIClient } from '@agentuity/core/api';
 import { createMinimalLogger, type Logger } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
+import { getEnv, getServiceUrls } from '@agentuity/config';
 import { z } from 'zod';
 import {
 	dbQuery,

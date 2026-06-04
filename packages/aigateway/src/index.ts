@@ -50,8 +50,8 @@ import {
 	type AIGatewayResponseSchemaInput,
 	type AIGatewayStreamingCompletion,
 } from '@agentuity/core/aigateway';
-import { createMinimalLogger, getEnv, type Logger } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
+import { createMinimalLogger, type Logger } from '@agentuity/core';
+import { getEnv, getServiceUrls } from '@agentuity/config';
 import { buildClientHeaders, createServerFetchAdapter } from '@agentuity/adapter';
 import { z } from 'zod';
 

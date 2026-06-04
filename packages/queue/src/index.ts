@@ -23,8 +23,7 @@ import {
 } from '@agentuity/core/queue';
 import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
 import { createMinimalLogger, StructuredError } from '@agentuity/core';
-import { getEnv } from '@agentuity/core';
-import { getServiceUrls } from '@agentuity/core/config';
+import { getEnv, getServiceUrls } from '@agentuity/config';
 import { z, ZodError } from 'zod';
 
 const isLogger = (val: unknown): val is Logger =>
