@@ -4,6 +4,7 @@
 		{ "path": "./packages/adapter" },
 		{ "path": "./packages/aigateway" },
 		{ "path": "./packages/analytics" },
+		{ "path": "./packages/api" },
 		{ "path": "./packages/telemetry" },
 		{ "path": "./packages/claude-code" },
 		{ "path": "./packages/client" },

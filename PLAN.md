@@ -136,7 +136,7 @@ Tier 2 (medium):
 
 - [ ] schedule
 - [ ] webhook
-- [ ] db (may need `@agentuity/api` or move `APIClient` with db)
+- [ ] db (platform helpers stay on `@agentuity/core/api` until Phase 4; `@agentuity/api` package ready)
 
 Tier 3 (large):
 
@@ -206,8 +206,14 @@ Per service checklist:
 | 2026-06-04 | v4 removes `@agentuity/core/{service}` subpaths; shims for one major version | Minimize breakage while migrating imports |
 | 2026-06-04 | `@agentuity/adapter` owns HTTP fetch types + util; core keeps copies until Phase 5 | Avoid TS project-reference cycle (adapter ↔ core) |
 | 2026-06-04 | `@agentuity/config` owns getEnv + getServiceUrls; core re-exports via shim | No core dep in config package; keyvalue uses config instead of core/config |
+| 2026-06-04 | `@agentuity/api` owns `APIClient` + platform errors; core keeps parallel copy until Phase 4 | api→core dep (StructuredError) blocks core shim; duplicate classes are not interchangeable across packages |
 
-## Suggested First Sprint
+### Phase 1 — Extract shared infrastructure (continued)
+
+- [x] Add `@agentuity/api` for platform HTTP (`APIClient`, Pulse response schemas, platform errors)
+
+**Exit:** `@agentuity/api` builds and publishes; core retains canonical copy until platform code migrates in Phase 4.
+
 
 1. Phase 0 inventory (grep + dependency graph)
 2. Phase 1a: move HTTP infra to `@agentuity/adapter` with core shims

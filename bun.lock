@@ -135,6 +135,19 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/api": {
+      "name": "@agentuity/api",
+      "version": "3.0.5",
+      "dependencies": {
+        "@agentuity/config": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^6.0.2",
+      },
+    },
     "packages/claude-code": {
       "name": "@agentuity/claude-code",
       "version": "3.0.10",
@@ -238,6 +251,7 @@
       "name": "@agentuity/core",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/api": "workspace:*",
         "@agentuity/config": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -263,6 +277,7 @@
       "name": "@agentuity/db",
       "version": "3.0.10",
       "dependencies": {
+        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -487,6 +502,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
       },
@@ -514,6 +530,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/api": "workspace:*",
         "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -884,6 +901,8 @@
     "@agentuity/aigateway": ["@agentuity/aigateway@workspace:packages/aigateway"],
 
     "@agentuity/analytics": ["@agentuity/analytics@workspace:packages/analytics"],
+
+    "@agentuity/api": ["@agentuity/api@workspace:packages/api"],
 
     "@agentuity/claude-code": ["@agentuity/claude-code@workspace:packages/claude-code"],
 
