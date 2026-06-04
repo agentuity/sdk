@@ -6,17 +6,15 @@ import {
 	type KeyValueStorageSetParams,
 	type DataResult,
 } from './service.ts';
-import { createServerFetchAdapter, buildClientHeaders, type Logger } from '@agentuity/adapter';
-import { createMinimalLogger } from '@agentuity/core';
 import { getEnv, getServiceUrls } from '@agentuity/config';
+import {
+	createServiceAdapter,
+	isLogger,
+	resolveApiKey,
+	resolveRegion,
+	type Logger,
+} from '@agentuity/client';
 import { z } from 'zod';
-
-const isLogger = (val: unknown): val is Logger =>
-	typeof val === 'object' &&
-	val !== null &&
-	['info', 'warn', 'error', 'debug', 'trace'].every(
-		(m) => typeof (val as Record<string, unknown>)[m] === 'function'
-	);
 
 export const KeyValueClientOptionsSchema = z.object({
 	apiKey: z.string().optional().describe('API key for authentication'),
@@ -31,21 +29,15 @@ export class KeyValueClient {
 
 	constructor(options: KeyValueClientOptions = {}) {
 		const validatedOptions = KeyValueClientOptionsSchema.parse(options);
-		const apiKey =
-			validatedOptions.apiKey || getEnv('AGENTUITY_SDK_KEY') || getEnv('AGENTUITY_CLI_KEY');
-		const region = getEnv('AGENTUITY_REGION') ?? 'usc';
-		const serviceUrls = getServiceUrls(region);
+		const serviceUrls = getServiceUrls(resolveRegion());
 
 		const url = validatedOptions.url || getEnv('AGENTUITY_KEYVALUE_URL') || serviceUrls.keyvalue;
 
-		const logger = validatedOptions.logger ?? createMinimalLogger();
-
-		const headers = buildClientHeaders({
-			apiKey,
+		const { adapter } = createServiceAdapter({
+			apiKey: resolveApiKey(validatedOptions.apiKey),
 			orgId: validatedOptions.orgId,
+			logger: validatedOptions.logger,
 		});
-
-		const adapter = createServerFetchAdapter({ headers }, logger);
 		this.#service = new KeyValueStorageService(url, adapter);
 	}
 

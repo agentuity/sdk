@@ -178,6 +178,19 @@
         "hono": "^4.7.13",
       },
     },
+    "packages/client": {
+      "name": "@agentuity/client",
+      "version": "3.0.5",
+      "dependencies": {
+        "@agentuity/adapter": "workspace:*",
+        "@agentuity/config": "workspace:*",
+        "@agentuity/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^6.0.2",
+      },
+    },
     "packages/coder": {
       "name": "@agentuity/coder",
       "version": "3.0.10",
@@ -315,6 +328,7 @@
       "version": "3.0.10",
       "dependencies": {
         "@agentuity/adapter": "workspace:*",
+        "@agentuity/client": "workspace:*",
         "@agentuity/config": "workspace:*",
         "@agentuity/core": "workspace:*",
         "zod": "^4.3.5",
@@ -863,6 +877,8 @@
     "@agentuity/claude-code": ["@agentuity/claude-code@workspace:packages/claude-code"],
 
     "@agentuity/cli": ["@agentuity/cli@workspace:packages/cli"],
+
+    "@agentuity/client": ["@agentuity/client@workspace:packages/client"],
 
     "@agentuity/coder": ["@agentuity/coder@workspace:packages/coder"],
 

@@ -108,7 +108,7 @@ import { KeyValueClient } from '@agentuity/keyvalue';
   - `adapter.ts`, `exception.ts`, `_util.ts` (`buildUrl`, `fromResponse`, `toServiceException`)
 - [x] Keep temporary re-exports in core for backward compatibility (core retains canonical copies until Phase 5; adapter owns parallel implementation for service clients)
 - [x] Add `@agentuity/config` (or agreed alternative) for region/URL resolution
-- [ ] Add `@agentuity/client` shared factory to dedupe `*Client` constructors
+- [x] Add `@agentuity/client` shared factory to dedupe `*Client` constructors (keyvalue pilot)
 - [x] Service packages stop importing `@agentuity/core/config` directly
 
 **Exit:** shared client boilerplate centralized; adapter owns HTTP runtime types.

@@ -6,6 +6,7 @@
 		{ "path": "./packages/analytics" },
 		{ "path": "./packages/telemetry" },
 		{ "path": "./packages/claude-code" },
+		{ "path": "./packages/client" },
 		{ "path": "./packages/cli" },
 		{ "path": "./packages/config" },
 		{ "path": "./packages/coder" },
