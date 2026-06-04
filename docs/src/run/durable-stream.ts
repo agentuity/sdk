@@ -7,6 +7,7 @@
  * Usage: bun run src/run/durable-stream.ts
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { streamText } from 'ai';
 import { getModel } from '../lib/models';
 
@@ -22,11 +23,6 @@ try {
 		contentType: 'text/plain',
 		metadata: { created: new Date().toISOString() },
 	});
-
-	console.log('---OUTPUT---');
-	console.log(`Stream created: ${streamName}`);
-	console.log(`Stream ID: ${stream.id}`);
-	console.log('');
 
 	// The route version would stream chunks as they arrive; the sandbox buffers stdout.
 	const { textStream } = streamText({
@@ -44,20 +40,23 @@ try {
 
 	await stream.close();
 
-	console.log('Content written:');
-	console.log(fullText);
-	console.log('');
-	console.log(`[Wrote ${chunkCount} text chunks]`);
-	console.log('');
-	console.log('Stream closed');
-	console.log('');
-
-	console.log('Public URL (shareable):');
-	console.log(`  ${stream.url}`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Stream created: ${streamName}`,
+			`Stream ID: ${stream.id}`,
+			'',
+			'Content written:',
+			fullText,
+			'',
+			`[Wrote ${chunkCount} text chunks]`,
+			'',
+			'Stream closed',
+			'',
+			'Public URL (shareable):',
+			`  ${stream.url}`,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

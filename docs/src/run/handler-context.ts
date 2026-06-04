@@ -12,6 +12,7 @@
  * Usage: bun run src/run/handler-context.ts '{}'
  */
 import { getDemoContext, runWithDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 const standaloneCtx = getDemoContext();
 const stateByVisitorId = new Map<string, { lastSeenAt: string; visits: number }>();
@@ -20,24 +21,22 @@ await runWithDemoContext(standaloneCtx, async () => {
 	try {
 		const ctx = getDemoContext();
 		const visitorId = `demo_${crypto.randomUUID()}`;
+		const output: string[] = [''];
 
-		console.log('---OUTPUT---');
-		console.log('');
-
-		console.log('Route logging:');
+		output.push('Route logging:');
 		ctx.logger.info('Context inspected', { visitorId });
 		ctx.logger.debug('Service surface checked', { visitorId });
 		ctx.logger.warn('Example warning log');
 		ctx.logger.error('Example error log');
-		console.log('  Hono routes read the logger from c.var.logger');
-		console.log('');
+		output.push('  Hono routes read the logger from c.var.logger');
+		output.push('');
 
-		console.log('Services available to route code:');
-		console.log('  c.var.kv - Key-Value storage');
-		console.log('  c.var.vector - Vector storage');
-		console.log('  c.var.stream - Durable stream management');
-		console.log('  c.var.queue - Queue publishing');
-		console.log('');
+		output.push('Services available to route code:');
+		output.push('  c.var.kv - Key-Value storage');
+		output.push('  c.var.vector - Vector storage');
+		output.push('  c.var.stream - Durable stream management');
+		output.push('  c.var.queue - Queue publishing');
+		output.push('');
 
 		const previous = stateByVisitorId.get(visitorId);
 		const next = {
@@ -46,27 +45,25 @@ await runWithDemoContext(standaloneCtx, async () => {
 		};
 		stateByVisitorId.set(visitorId, next);
 
-		console.log('App-owned state boundary:');
-		console.log(`  visitorId: ${visitorId}`);
-		console.log(`  previous visits: ${previous?.visits ?? 0}`);
-		console.log(`  current visits: ${next.visits}`);
-		console.log('  in a real route, keep the id in a cookie and the record in KV or your DB');
-		console.log('');
+		output.push('App-owned state boundary:');
+		output.push(`  visitorId: ${visitorId}`);
+		output.push(`  previous visits: ${previous?.visits ?? 0}`);
+		output.push(`  current visits: ${next.visits}`);
+		output.push('  in a real route, keep the id in a cookie and the record in KV or your DB');
+		output.push('');
 
-		console.log('Background helper:');
+		output.push('Background helper:');
 		const backgroundTask = new Promise<void>((resolve) => {
 			setTimeout(() => {
-				console.log('  background task completed');
+				output.push('  background task completed');
 				resolve();
 			}, 25);
 		});
 		ctx.waitUntil(backgroundTask);
 		await backgroundTask;
-		console.log('---OUTPUT---');
+		writeSandboxOutput(output.join('\n'));
 	} catch (error) {
 		process.exitCode = 1;
-		console.log('---OUTPUT---');
-		console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-		console.log('---OUTPUT---');
+		writeSandboxError(error);
 	}
 });

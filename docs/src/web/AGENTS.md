@@ -47,9 +47,17 @@ Docs routes wrap MDX content with `MDXPage`:
 ```typescript
 import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../components/docs/mdx-page';
+import Content, { frontmatter, tableOfContents } from '../../../content/services/example.mdx';
+
+const mdxModule = {
+    default: Content,
+    frontmatter,
+    tableOfContents,
+} satisfies MDXModule;
 
 export const Route = createFileRoute('/_docs/services/example')({
-	component: () => <MDXPage route="services/example" />,
+	component: () => <MDXPage module={mdxModule} />,
 	staticData: { crumb: 'Example' },
 });
 ```

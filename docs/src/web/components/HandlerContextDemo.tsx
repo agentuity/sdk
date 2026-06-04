@@ -272,7 +272,7 @@ export function HandlerContextDemo() {
 						<span className="text-cyan-800 dark:text-cyan-400">/{lastEndpoint}</span>
 					)}
 				</h3>
-				<JsonDisplay data={data} loading={loading} error={error} />
+				<JsonDisplay data={data} loading={loading && data === null} error={error} />
 
 				{/* Mock Terminal - shows what the server terminal would display */}
 				{mockLogs.length > 0 && <MockTerminal logs={mockLogs} />}

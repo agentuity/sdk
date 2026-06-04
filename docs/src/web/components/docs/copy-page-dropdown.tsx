@@ -26,7 +26,6 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [preferredAction, setPreferredAction] = useState<ActionType>('copy-markdown');
-	const [isInitialized, setIsInitialized] = useState(false);
 	const location = useLocation();
 	const pathname = location.pathname;
 
@@ -41,8 +40,6 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 			}
 		} catch {
 			// Ignore corrupted storage
-		} finally {
-			setIsInitialized(true);
 		}
 	}, []);
 
@@ -155,10 +152,6 @@ export function CopyPageDropdown({ enhanced = false }: CopyPageDropdownProps) {
 			await action.handler();
 		}
 	};
-
-	if (!isInitialized) {
-		return null;
-	}
 
 	if (enhanced) {
 		return (

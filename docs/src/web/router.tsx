@@ -5,8 +5,8 @@ function createDocsRouter() {
 	return createTanStackRouter({
 		routeTree,
 		defaultPreload: 'intent',
-		defaultPreloadStaleTime: 0,
 		scrollRestoration: true,
+		scrollToTopSelectors: ['#docs-main-scroll'],
 	});
 }
 

@@ -24,10 +24,9 @@ function ExplorerPage() {
 					SDK Explorer
 				</h1>
 				<p className="text-lg text-zinc-600 dark:text-zinc-400 text-pretty">
-					Explore live Agentuity demos without creating a project. The examples use Hono so
-					request, route, and service boundaries stay visible. The same server-side patterns
-					apply in Next.js route handlers, SvelteKit <code>+server.ts</code>, and
-					TanStack&nbsp;Start server routes.
+					Explore live Agentuity demos without creating a project. The examples use Hono to
+					keep request, routing, and service boundaries explicit, with patterns that carry over
+					to Next.js, SvelteKit, and TanStack&nbsp;Start.
 				</p>
 			</div>
 			{categories.map((category) => {
@@ -38,7 +37,7 @@ function ExplorerPage() {
 						<h2 className="text-lg font-normal text-zinc-600 dark:text-zinc-400 mb-2">
 							{categoryLabels[category] ?? category}
 						</h2>
-						<Cards>
+						<Cards columns={3}>
 							{demos.map((demo) => (
 								<CardLink
 									key={demo.id}

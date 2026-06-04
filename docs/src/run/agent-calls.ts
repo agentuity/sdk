@@ -7,6 +7,7 @@
  * Usage: bun run src/run/agent-calls.ts '{"name":"World"}'
  */
 import { getDemoContext, runWithDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import hello from '../agent/hello/agent';
 
 const standaloneCtx = getDemoContext();
@@ -39,19 +40,19 @@ try {
 		// Sandboxes print buffered output, so wait long enough to show the handoff.
 		await new Promise((resolve) => setTimeout(resolve, 150));
 
-		console.log('---OUTPUT---');
-		console.log('Direct work:');
-		console.log(`  Input: { name: "${name}" }`);
-		console.log(`  Result: ${JSON.stringify(greeting)}`);
-		console.log('');
-		console.log('Background task:');
-		console.log('  Scheduled async work after main execution');
-		console.log(`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`);
-		console.log('---OUTPUT---');
+		writeSandboxOutput(
+			[
+				'Direct work:',
+				`  Input: { name: "${name}" }`,
+				`  Result: ${JSON.stringify(greeting)}`,
+				'',
+				'Background task:',
+				'  Scheduled async work after main execution',
+				`  Status: ${backgroundCompleted ? 'completed' : 'still running'}`,
+			].join('\n')
+		);
 	});
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

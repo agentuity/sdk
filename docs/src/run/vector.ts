@@ -7,6 +7,7 @@
  * Usage: bun run src/run/vector.ts '{"query":"comfortable chair"}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 const input = JSON.parse(process.argv[2] ?? '{}');
 const query = input.query ?? 'comfortable chair';
@@ -46,18 +47,18 @@ try {
 	await ctx.vector.delete(namespace, product.sku);
 	ctx.logger.info('Cleaned up', { sku: product.sku });
 
-	console.log('---OUTPUT---');
-	console.log(`Upserted: "${product.name}" (${product.sku})`);
-	console.log(`Searched: "${query}"`);
-	console.log(`Found: ${results.length} match(es)`);
-	for (const r of results) {
-		console.log(
-			`  - "${r.metadata?.name}" ($${r.metadata?.price}) - ${Math.round(r.similarity * 100)}%`
-		);
-	}
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Upserted: "${product.name}" (${product.sku})`,
+			`Searched: "${query}"`,
+			`Found: ${results.length} match(es)`,
+			...results.map(
+				(r) =>
+					`  - "${r.metadata?.name}" ($${r.metadata?.price}) - ${Math.round(r.similarity * 100)}%`
+			),
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

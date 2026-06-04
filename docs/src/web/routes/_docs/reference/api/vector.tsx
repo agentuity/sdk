@@ -1,7 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../../components/docs/mdx-page';
+import Content, {
+	frontmatter,
+	tableOfContents,
+} from '../../../../content/reference/api/vector.mdx';
+
+const mdxModule = {
+	default: Content,
+	frontmatter,
+	tableOfContents,
+} satisfies MDXModule;
 
 export const Route = createFileRoute('/_docs/reference/api/vector')({
-	component: () => <MDXPage route="reference/api/vector" />,
+	component: () => <MDXPage module={mdxModule} />,
 	staticData: { crumb: 'Vector Search' },
 });

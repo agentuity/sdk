@@ -1,12 +1,14 @@
 /**
  * Standalone run script for SSE Stream demo
  *
- * The sandbox buffers stdout, so this script collects generated chunks and
- * prints the same content the route would send as named SSE events.
+ * Emits each model chunk to stdout as it arrives so the Explorer's sandbox
+ * route forwards it to the browser live, mirroring how a real SSE route would
+ * push each chunk as a named event.
  *
  * Usage: bun run src/run/sse-stream.ts '{"prompt":"Tell me a story"}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { streamText } from 'ai';
 import { getModel } from '../lib/models';
 
@@ -26,25 +28,17 @@ try {
 		prompt,
 	});
 
-	// Count chunks to make the stream visible even though stdout is buffered.
-	let fullText = '';
+	// Emit each chunk as it arrives so the route streams it to the browser live.
+	writeSandboxOutput(`Prompt: "${prompt}"\n\n`);
 	let chunkCount = 0;
 	for await (const chunk of textStream) {
-		fullText += chunk;
+		writeSandboxOutput(chunk);
 		chunkCount++;
 	}
-
-	console.log('---OUTPUT---');
-	console.log(`Prompt: "${prompt}"`);
-	console.log('');
-	console.log(fullText);
-	console.log('');
-	console.log(`[Buffered ${chunkCount} text chunks in the sandbox]`);
-	console.log('In a real route, each chunk would be wrapped in named SSE events');
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		`\n\n[Streamed ${chunkCount} text chunks live; a real route wraps each in a named SSE event]`
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

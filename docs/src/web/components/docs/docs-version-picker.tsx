@@ -24,13 +24,16 @@ export function DocsVersionPicker({ className }: DocsVersionPickerProps) {
 		setVersion(getCurrentVersion());
 	}, []);
 
-	const handleVersionChange = React.useCallback((value: string) => {
-		if (!isDocsVersion(value)) return;
-
-		setVersion(value);
-		// Versions live on separate subdomains, so switch with a full navigation.
-		window.location.assign(DOCS_VERSIONS[value].url);
-	}, []);
+	const handleVersionChange = React.useCallback(
+		(value: string) => {
+			if (!isDocsVersion(value) || value === version) return;
+			// Other versions live on separate subdomains. Open in a new tab so the
+			// current reading position is preserved; keep the picker on the current
+			// version since this tab does not navigate.
+			window.open(DOCS_VERSIONS[value].url, '_blank', 'noopener,noreferrer');
+		},
+		[version]
+	);
 
 	return (
 		<div className={cn('w-full group-data-[collapsible=icon]:hidden', className)}>
@@ -42,7 +45,7 @@ export function DocsVersionPicker({ className }: DocsVersionPickerProps) {
 				>
 					<span className="flex min-w-0 items-center gap-2">
 						<GitBranch className="size-3.5 shrink-0 text-sidebar-foreground/60" />
-						<SelectValue />
+						<SelectValue>{DOCS_VERSIONS[version].label}</SelectValue>
 					</span>
 				</SelectTrigger>
 				<SelectContent align="start">

@@ -1,12 +1,13 @@
 /**
  * Standalone run script for Streaming demo
  *
- * The sandbox buffers stdout, so this script collects generated chunks and
- * prints the same content the route would stream as raw text.
+ * Emits each model chunk to stdout as it arrives so the Explorer's sandbox
+ * route forwards it to the browser live, token by token.
  *
  * Usage: bun run src/run/streaming.ts '{"prompt":"Tell me a story"}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { streamText } from 'ai';
 import { getModel } from '../lib/models';
 
@@ -26,24 +27,15 @@ try {
 		prompt,
 	});
 
-	// Count chunks to make the stream visible even though stdout is buffered.
-	let fullText = '';
+	// Emit each chunk as it arrives so the route streams it to the browser live.
+	writeSandboxOutput(`Prompt: "${prompt}"\n\n`);
 	let chunkCount = 0;
 	for await (const chunk of textStream) {
-		fullText += chunk;
+		writeSandboxOutput(chunk);
 		chunkCount++;
 	}
-
-	console.log('---OUTPUT---');
-	console.log(`Prompt: "${prompt}"`);
-	console.log('');
-	console.log(fullText);
-	console.log('');
-	console.log(`[Buffered ${chunkCount} text chunks in the sandbox]`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(`\n\n[Streamed ${chunkCount} text chunks live from the sandbox]`);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

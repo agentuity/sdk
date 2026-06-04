@@ -7,6 +7,7 @@
  * Usage: bun run src/run/email.ts '{"template":"welcome"}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import email from '../agent/email/agent';
 
 const ctx = getDemoContext();
@@ -50,8 +51,7 @@ try {
 	const result = await email.run(input);
 	const outbound = await waitForOutboundStatus(result.id);
 
-	console.log('---OUTPUT---');
-	console.log(
+	writeSandboxOutput(
 		JSON.stringify(
 			{
 				status: outbound?.status ?? result.status,
@@ -63,9 +63,7 @@ try {
 			2
 		)
 	);
-	console.log('---OUTPUT---');
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

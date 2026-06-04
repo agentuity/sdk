@@ -8,6 +8,7 @@
  * Usage: bun run src/run/queue.ts '{}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 const ctx = getDemoContext();
 const output: string[] = [];
@@ -86,7 +87,5 @@ try {
 		process.exitCode = 1;
 	}
 
-	console.log('---OUTPUT---');
-	console.log(output.join('\n'));
-	console.log('---OUTPUT---');
+	writeSandboxOutput(output.join('\n'));
 }

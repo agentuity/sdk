@@ -7,6 +7,7 @@
  * Usage: bun run src/run/database.ts '{"query":"summary","seedData":true}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import database from '../agent/database/agent';
 
 const ctx = getDemoContext();
@@ -16,11 +17,8 @@ try {
 	ctx.logger.info('Running database query', { query: input.query, seedData: input.seedData });
 	const result = await database.run(input);
 
-	console.log('---OUTPUT---');
-	console.log(JSON.stringify(result, null, 2));
-	console.log('---OUTPUT---');
+	writeSandboxOutput(JSON.stringify(result, null, 2));
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

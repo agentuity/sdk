@@ -1,7 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../../components/docs/mdx-page';
+import Content, {
+	frontmatter,
+	tableOfContents,
+} from '../../../../content/cookbook/patterns/logtape-structured-logging.mdx';
+
+const mdxModule = {
+	default: Content,
+	frontmatter,
+	tableOfContents,
+} satisfies MDXModule;
 
 export const Route = createFileRoute('/_docs/cookbook/patterns/logtape-structured-logging')({
-	component: () => <MDXPage route="cookbook/patterns/logtape-structured-logging" />,
+	component: () => <MDXPage module={mdxModule} />,
 	staticData: { crumb: 'LogTape Logging' },
 });

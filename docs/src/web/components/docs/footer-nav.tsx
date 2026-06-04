@@ -1,8 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useLocation, useNavigate } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import { Badge } from '../ui';
+import { getFrontmatterForRoute } from './generated/frontmatter-data';
 import { findPrevNext, type NavItem } from './nav-data';
-import { getFrontmatterForRoute } from './mdx-page';
 
 function getDescription(item: (NavItem & { url: string }) | undefined): string | null {
 	if (!item) return null;
@@ -11,7 +11,6 @@ function getDescription(item: (NavItem & { url: string }) | undefined): string |
 
 export function FooterNav() {
 	const location = useLocation();
-	const navigate = useNavigate();
 
 	const currentPage = location.pathname === '/' ? 'home' : location.pathname.slice(1);
 	const { prev, next } = findPrevNext(currentPage);
@@ -29,21 +28,12 @@ export function FooterNav() {
 	const prevDescription = getDescription(prev);
 	const nextDescription = getDescription(next);
 
-	const handleNavigate = (url: string) => {
-		const to = url === '/' ? '/' : url;
-		void navigate({ to });
-	};
-
 	return (
 		<footer className="not-prose border-t border-zinc-200 dark:border-zinc-800 mt-12 pt-8 pb-6">
 			<nav className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
 				{prev ? (
-					<a
-						href={prev.url}
-						onClick={(e) => {
-							e.preventDefault();
-							handleNavigate(prev.url);
-						}}
+					<Link
+						to={prev.url}
 						className="group flex min-h-28 flex-col items-start gap-2 rounded-lg border border-zinc-200 p-4 transition-colors duration-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
 					>
 						<Badge variant="outline" className="gap-1 px-2 py-0 text-[11px] font-medium">
@@ -56,18 +46,14 @@ export function FooterNav() {
 								{prevDescription}
 							</span>
 						)}
-					</a>
+					</Link>
 				) : (
 					<div />
 				)}
 
 				{next ? (
-					<a
-						href={next.url}
-						onClick={(e) => {
-							e.preventDefault();
-							handleNavigate(next.url);
-						}}
+					<Link
+						to={next.url}
 						className="group flex min-h-28 flex-col items-start gap-2 rounded-lg border border-zinc-200 p-4 text-left transition-colors duration-200 hover:bg-zinc-50 sm:items-end sm:text-right dark:border-zinc-800 dark:hover:bg-zinc-800/50"
 					>
 						<Badge variant="outline" className="gap-1 px-2 py-0 text-[11px] font-medium">
@@ -80,7 +66,7 @@ export function FooterNav() {
 								{nextDescription}
 							</span>
 						)}
-					</a>
+					</Link>
 				) : (
 					<div />
 				)}

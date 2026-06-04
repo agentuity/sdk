@@ -7,6 +7,7 @@
  * Usage: bun run src/run/schedule.ts '{"expression":"* * * * *"}'
  */
 import { ScheduleClient } from '@agentuity/schedule';
+import { writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 const DEFAULT_DESTINATION_URL = 'https://agentuity.dev/api/hello';
 const DEFAULT_EXPRESSION = '* * * * *';
@@ -74,7 +75,5 @@ try {
 		}
 	}
 
-	console.log('---OUTPUT---');
-	console.log(output.join('\n'));
-	console.log('---OUTPUT---');
+	writeSandboxOutput(output.join('\n'));
 }

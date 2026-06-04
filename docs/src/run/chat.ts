@@ -8,6 +8,7 @@
  * Usage: bun run src/run/chat.ts '{"message":"Hello!"}'
  */
 import { getDemoContext, runWithDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { generateText } from 'ai';
 import agentuityDocs from '../agent/chat/agentuity-context.txt';
 import { getModel } from '../lib/models';
@@ -61,19 +62,17 @@ ${agentuityDocs}`,
 		const elapsed = Date.now() - (ctx.session.state.get('requestStart') as number);
 		ctx.logger.info('Request completed', { elapsedMs: elapsed });
 
-		console.log('---OUTPUT---');
-		console.log(`User: "${message}"`);
-		console.log(`Assistant: "${text}"`);
-		console.log(`Conversation: ${ctx.thread.id}`);
-		console.log(`Turn: ${turnCount + 1} (elapsed: ${elapsed}ms)`);
-		console.log(
-			'Note: standalone sandbox runs create a new conversation unless one is supplied.'
+		writeSandboxOutput(
+			[
+				`User: "${message}"`,
+				`Assistant: "${text}"`,
+				`Conversation: ${ctx.thread.id}`,
+				`Turn: ${turnCount + 1} (elapsed: ${elapsed}ms)`,
+				'Note: standalone sandbox runs create a new conversation unless one is supplied.',
+			].join('\n')
 		);
-		console.log('---OUTPUT---');
 	});
 } catch (error) {
 	process.exitCode = 1;
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 }

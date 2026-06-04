@@ -8,6 +8,7 @@
  * Usage: bun run src/run/ai-gateway.ts '{"prompt":"Tell me a joke"}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { generateText } from 'ai';
 import { getModel } from '../lib/models';
 
@@ -47,18 +48,18 @@ try {
 
 	ctx.logger.info('Both completed');
 
-	console.log('---OUTPUT---');
-	console.log(`Prompt: "${prompt}"`);
-	console.log('');
-	console.log(`Anthropic (${ANTHROPIC_MODEL}):`);
-	console.log(anthropicResult.text);
-	console.log('');
-	console.log(`Google (${GOOGLE_MODEL}):`);
-	console.log(googleResult.text);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Prompt: "${prompt}"`,
+			'',
+			`Anthropic (${ANTHROPIC_MODEL}):`,
+			anthropicResult.text,
+			'',
+			`Google (${GOOGLE_MODEL}):`,
+			googleResult.text,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
 	process.exitCode = 1;
 }

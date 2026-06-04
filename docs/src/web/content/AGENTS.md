@@ -156,14 +156,22 @@ Route file template (generated automatically, but for reference):
 ```typescript
 import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../components/docs/mdx-page';
+import Content, { frontmatter, tableOfContents } from '../../../content/section/page-name.mdx';
+
+const mdxModule = {
+    default: Content,
+    frontmatter,
+    tableOfContents,
+} satisfies MDXModule;
 
 export const Route = createFileRoute('/_docs/section/page-name')({
-	component: () => <MDXPage route="section/page-name" />,
+	component: () => <MDXPage module={mdxModule} />,
 	staticData: { crumb: 'Page Title' },
 });
 ```
 
-The import depth for `MDXPage` varies by nesting level. Run `bun run scripts/validate-routes.ts` to generate correct route files, or use `--check` to validate without generating.
+The import depth for `MDXPage` and the MDX content file varies by nesting level. Run `bun run scripts/validate-routes.ts` to generate correct route files and frontmatter metadata, or use `--check` to validate without generating.
 
 ## Provider Documentation
 

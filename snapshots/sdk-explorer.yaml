@@ -1,16 +1,16 @@
 # yaml-language-server: $schema=https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json
-# SDK Explorer Snapshot - pre-bundled standalone run scripts (no node_modules needed)
+# SDK Explorer Snapshot (v3) - pre-bundled standalone run scripts (no node_modules needed)
+# v2 docs build their own snapshot named sdk-explorer-v2 on the v2 branch.
 
 version: 1
 runtime: agentuity:latest
-name: sdk-explorer
-description: SDK Explorer with pre-bundled standalone run scripts
+name: sdk-explorer-v3
+description: SDK Explorer (v3) with pre-bundled standalone run scripts
 public: true
 dir: docs
 
 files:
    - dist/run/**
-   - agentuity.metadata.json
 
 metadata:
    project: sdk-docs

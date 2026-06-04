@@ -7,6 +7,7 @@
  * Usage: bun run src/run/kv.ts '{}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 
 const ctx = getDemoContext();
 
@@ -33,15 +34,16 @@ try {
 	await ctx.kv.delete(bucket, key);
 	ctx.logger.info('Deleted key');
 
-	console.log('---OUTPUT---');
-	console.log(`Set: "${key}"`);
-	console.log(`  visitorId: "${sessionData.visitorId}"`);
-	console.log(`  theme: "${sessionData.preferences.theme}"`);
-	console.log(`Get: ${result.exists ? 'found' : 'not found'}`);
-	console.log(`Deleted: "${key}"`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Set: "${key}"`,
+			`  visitorId: "${sessionData.visitorId}"`,
+			`  theme: "${sessionData.preferences.theme}"`,
+			`Get: ${result.exists ? 'found' : 'not found'}`,
+			`Deleted: "${key}"`,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

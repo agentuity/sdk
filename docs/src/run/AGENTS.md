@@ -9,16 +9,24 @@ This folder contains standalone scripts used by the SDK Explorer sandbox runner.
 - Do not import `@agentuity/runtime`.
 - Do not use `createAgentContext()`, `getAgentContext()`, or `ctx.invoke()`.
 - Use `ctx.logger` for logs when using the demo context.
-- Always print results between `---OUTPUT---` markers.
+- Always emit Explorer-visible output with `writeSandboxOutput()` from
+  `../lib/sandbox-output-writer`.
+- Use `writeSandboxError(error)` in catch blocks and set `process.exitCode = 1`.
 - Clean up created demo resources when the service supports cleanup.
 - After adding or renaming a script, run `bun run generate:scripts` from `docs/`.
 
 ## Output Format
 
 ```typescript
-console.log('---OUTPUT---');
-console.log(JSON.stringify(result, null, 2));
-console.log('---OUTPUT---');
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+
+try {
+  const result = await runDemo();
+  writeSandboxOutput(JSON.stringify(result, null, 2));
+} catch (error) {
+  writeSandboxError(error);
+  process.exitCode = 1;
+}
 ```
 
 ## Context Helper

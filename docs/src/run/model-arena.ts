@@ -8,6 +8,7 @@
  */
 import { generateText, generateObject } from 'ai';
 import { z } from 'zod';
+import { writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { getModel } from '../lib/models';
 
 interface Input {
@@ -77,6 +78,4 @@ Model B (${GOOGLE_MODEL}): ${responseB.text.slice(0, 200)}`,
 	process.exitCode = 1;
 }
 
-console.log('---OUTPUT---');
-console.log(output.join('\n'));
-console.log('---OUTPUT---');
+writeSandboxOutput(output.join('\n'));

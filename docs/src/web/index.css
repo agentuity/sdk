@@ -239,6 +239,18 @@
 	animation: var(--animate-ellipsis);
 }
 
+.shortcut-modifier-meta {
+	display: none;
+}
+
+[data-shortcut-modifier='meta'] .shortcut-modifier-meta {
+	display: inline;
+}
+
+[data-shortcut-modifier='meta'] .shortcut-modifier-ctrl {
+	display: none;
+}
+
 /* Monaco editor line highlighting */
 .line-highlight-subtle {
 	background-color: rgba(255, 255, 0, 0.1);

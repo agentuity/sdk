@@ -1,7 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../components/docs/mdx-page';
+import Content, {
+	frontmatter,
+	tableOfContents,
+} from '../../../content/deploy-operate/local-development.mdx';
+
+const mdxModule = {
+	default: Content,
+	frontmatter,
+	tableOfContents,
+} satisfies MDXModule;
 
 export const Route = createFileRoute('/_docs/deploy-operate/local-development')({
-	component: () => <MDXPage route="deploy-operate/local-development" />,
+	component: () => <MDXPage module={mdxModule} />,
 	staticData: { crumb: 'Local Development' },
 });

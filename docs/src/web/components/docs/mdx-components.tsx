@@ -1,6 +1,7 @@
 'use client';
 
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from 'react';
+import { Link } from '@tanstack/react-router';
 import {
 	Children,
 	createContext,
@@ -77,6 +78,18 @@ function findCodeNode(node: ReactNode): ReactElement<{ children?: ReactNode }> |
 	}
 
 	return null;
+}
+
+function getInternalRouteLink(href: string | undefined): { to: string; hash?: string } | null {
+	if (!href?.startsWith('/') || href.startsWith('//') || href.includes('?')) return null;
+
+	const hashIndex = href.indexOf('#');
+	if (hashIndex === -1) return { to: href };
+
+	return {
+		to: href.slice(0, hashIndex) || '/',
+		hash: href.slice(hashIndex + 1),
+	};
 }
 
 // Code figure with sticky header + copy button
@@ -355,12 +368,23 @@ export const mdxComponents: MDXComponents = {
 	// Links - white/dark text, cyan underline, dim on hover
 	a: ({ className, href, children, ...props }: ComponentPropsWithoutRef<'a'>) => {
 		const isExternal = href?.startsWith('http://') || href?.startsWith('https://');
+		const internalRouteLink = getInternalRouteLink(href);
+		const linkClassName = cn(
+			'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-700 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
+			className
+		);
+
+		if (internalRouteLink) {
+			return (
+				<Link className={linkClassName} {...internalRouteLink} {...props}>
+					{children}
+				</Link>
+			);
+		}
+
 		return (
 			<a
-				className={cn(
-					'text-zinc-900 dark:text-zinc-100 underline decoration-cyan-700 dark:decoration-cyan-400 underline-offset-4 hover:opacity-80 transition-opacity duration-200',
-					className
-				)}
+				className={linkClassName}
 				href={href}
 				{...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
 				{...props}

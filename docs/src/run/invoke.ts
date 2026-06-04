@@ -10,6 +10,8 @@
  *   bun run src/run/invoke.ts hello '{"name":"World"}'
  *   bun run src/run/invoke.ts vector '{"query":"ergonomic chair","seedData":true}'
  */
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
+
 const [moduleName, inputJson] = process.argv.slice(2);
 
 if (!moduleName) {
@@ -31,9 +33,8 @@ try {
 try {
 	const result = await moduleRunner.run(input);
 
-	console.log('---OUTPUT---');
-	console.log(JSON.stringify(result, null, 2));
+	writeSandboxOutput(JSON.stringify(result, null, 2));
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

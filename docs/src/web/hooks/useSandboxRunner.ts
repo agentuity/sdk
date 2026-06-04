@@ -11,9 +11,8 @@ const VALID_STATUSES: Set<TerminalStatus> = new Set([
 	'error',
 ]);
 
-/** Decode SSE-encoded newlines and clean output for display */
-function decodeAndClean(text: string): string {
-	return text.replace(/\\n/g, '\n').replace(/---OUTPUT---\n?/g, '');
+export function decodeSandboxOutputEvent(text: string): string {
+	return text.replace(/\\n/g, '\n');
 }
 
 /** Validate that a status string is a valid TerminalStatus */
@@ -110,7 +109,7 @@ export function useSandboxRunner(): UseSandboxRunnerReturn {
 		});
 
 		eventSource.addEventListener('stdout', (event) => {
-			const decoded = decodeAndClean(event.data);
+			const decoded = decodeSandboxOutputEvent(event.data);
 			setState((prev) => ({
 				...prev,
 				status: 'running',

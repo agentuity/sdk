@@ -7,6 +7,7 @@
  * Usage: bun run src/run/objectstore.ts '{}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import { bucketConfigFromEnv, createS3Client } from '@agentuity/storage';
 
 const ctx = getDemoContext();
@@ -31,17 +32,18 @@ try {
 
 	await storage.delete(key);
 
-	console.log('---OUTPUT---');
-	console.log(`Write: "${key}"`);
-	console.log(`  Content: ${content.split('\n')[0]}...`);
-	console.log(`  Bytes written: ${bytesWritten}`);
-	console.log(`Read: "${key}"`);
-	console.log(`  Content: ${readContent.split('\n')[0]}...`);
-	console.log(`  Size: ${stat.size}`);
-	console.log(`Deleted: "${key}"`);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(
+		[
+			`Write: "${key}"`,
+			`  Content: ${content.split('\n')[0]}...`,
+			`  Bytes written: ${bytesWritten}`,
+			`Read: "${key}"`,
+			`  Content: ${readContent.split('\n')[0]}...`,
+			`  Size: ${stat.size}`,
+			`Deleted: "${key}"`,
+		].join('\n')
+	);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

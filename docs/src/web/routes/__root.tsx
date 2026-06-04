@@ -5,11 +5,19 @@ import { ThemeProvider } from '../components/ThemeContext';
 
 import appCss from '../index.css?url';
 
-const themeScript = `(function () {
+const browserBootstrapScript = `(function () {
 	const stored = localStorage.getItem('theme-preference');
 	const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 	const isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
 	if (isDark) document.documentElement.classList.add('dark');
+
+	const platform =
+		(navigator.userAgentData && navigator.userAgentData.platform) ||
+		navigator.platform ||
+		navigator.userAgent;
+	if (/mac|iphone|ipad|ipod/i.test(platform)) {
+		document.documentElement.dataset.shortcutModifier = 'meta';
+	}
 })();`;
 
 function NotFound() {
@@ -77,8 +85,8 @@ function RootDocument({ children }: { readonly children: ReactNode }) {
 		<html lang="en" className="h-full antialiased" suppressHydrationWarning>
 			<head>
 				<HeadContent />
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme bootstrap prevents a flash before hydration. */}
-				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static browser bootstrap prevents theme and shortcut-label flashes before hydration. */}
+				<script dangerouslySetInnerHTML={{ __html: browserBootstrapScript }} />
 			</head>
 			<body className="h-full">
 				{children}

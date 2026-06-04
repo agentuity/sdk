@@ -7,6 +7,7 @@
  * Usage: bun run src/run/hello.ts '{"name":"World"}'
  */
 import { getDemoContext } from '../api/context';
+import { writeSandboxError, writeSandboxOutput } from '../lib/sandbox-output-writer';
 import hello from '../agent/hello/agent';
 
 const input = JSON.parse(process.argv[2] ?? '{"name":"World"}');
@@ -16,11 +17,8 @@ try {
 	ctx.logger.info('Processing greeting', { name: input.name });
 	const result = await hello.run(input);
 
-	console.log('---OUTPUT---');
-	console.log(result);
-	console.log('---OUTPUT---');
+	writeSandboxOutput(result);
 } catch (error) {
-	console.log('---OUTPUT---');
-	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
-	console.log('---OUTPUT---');
+	writeSandboxError(error);
+	process.exitCode = 1;
 }

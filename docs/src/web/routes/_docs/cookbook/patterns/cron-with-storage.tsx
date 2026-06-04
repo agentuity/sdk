@@ -1,7 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { MDXPage } from '../../../../components/docs/mdx-page';
+import type { MDXModule } from '../../../../components/docs/mdx-page';
+import Content, {
+	frontmatter,
+	tableOfContents,
+} from '../../../../content/cookbook/patterns/cron-with-storage.mdx';
+
+const mdxModule = {
+	default: Content,
+	frontmatter,
+	tableOfContents,
+} satisfies MDXModule;
 
 export const Route = createFileRoute('/_docs/cookbook/patterns/cron-with-storage')({
-	component: () => <MDXPage route="cookbook/patterns/cron-with-storage" />,
+	component: () => <MDXPage module={mdxModule} />,
 	staticData: { crumb: 'Cron with Storage' },
 });
