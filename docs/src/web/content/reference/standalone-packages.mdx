@@ -141,13 +141,15 @@ Storage buckets use a different env shape:
 
 | Variable | Description |
 |----------|-------------|
-| `AWS_ENDPOINT` | Shared S3 host for the linked bucket. |
+| `AWS_ENDPOINT` | S3 endpoint for the linked bucket. Can be a shared host or bucket-scoped endpoint. |
 | `AWS_BUCKET` | Bucket name. |
 | `AWS_ACCESS_KEY_ID` | S3 access key ID for the linked bucket. |
 | `AWS_SECRET_ACCESS_KEY` | S3 secret access key for the linked bucket. |
 | `AWS_REGION` | Optional region. Defaults to `auto` when omitted. |
 
-`@agentuity/storage` reads these variables directly through `bucketConfigFromEnv()`.
+`@agentuity/storage` reads these variables through `bucketConfigFromEnv()`. Leave
+`AWS_ENDPOINT` exactly as the CLI writes it; the client handles both Agentuity
+endpoint shapes.
 
 ## Key-Value Storage
 

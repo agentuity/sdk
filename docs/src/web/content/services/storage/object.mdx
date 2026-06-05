@@ -48,6 +48,9 @@ The credentials written to `.env` are:
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION` (optional)
 
+Leave `AWS_ENDPOINT` exactly as the CLI writes it. `@agentuity/storage` accepts both
+shared-host and bucket-scoped Agentuity endpoints from `bucketConfigFromEnv()`.
+
 <Callout type="warning" title="Keep S3 credentials on the server">
 Do not expose bucket credentials to browser code. Create presigned URLs from a server route when a browser needs direct upload or download access.
 </Callout>
