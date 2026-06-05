@@ -22,11 +22,11 @@
  *    sent on the wire.
  *
  * 3. **Bucket-in-endpoint addressing.** Agentuity buckets use
- *    virtual-host-style endpoints (`<bucket>.<host>`), so the bucket
- *    name is implicit in the URL. The SDK still requires a `Bucket`
- *    parameter on each command; we extract it from the endpoint's
- *    leading hostname label and rely on the endpoint override to route
- *    correctly. `forcePathStyle` is `false`.
+ *    virtual-host-style endpoints (`<bucket>.<host>`), but the AWS SDK
+ *    composes virtual-host requests from a shared endpoint plus the
+ *    command's `Bucket` parameter. We keep `forcePathStyle` false and
+ *    pass the SDK the shared endpoint so it does not prepend the bucket
+ *    twice.
  */
 
 import { Buffer } from 'node:buffer';
@@ -74,14 +74,7 @@ interface InternalState {
 }
 
 export function createS3Client(bucket: BucketConfig): S3ClientLike {
-	const endpoint = resolveEndpoint(bucket);
-
-	// The SDK's `Bucket` parameter is essentially a placeholder for our
-	// purposes — we always send virtual-hosted-style requests, so the
-	// `endpoint` URL is what actually routes. Prefer the explicit
-	// `bucket` field when supplied; otherwise fall back to parsing the
-	// leading hostname label out of the composed endpoint.
-	const bucketLabel = bucket.bucket ?? extractBucketLabel(endpoint);
+	const { endpoint, bucketLabel } = resolveSdkTarget(bucket);
 
 	const state: InternalState = {
 		endpoint,
@@ -222,6 +215,25 @@ export function createS3Client(bucket: BucketConfig): S3ClientLike {
 			await client.send(new sdk.DeleteObjectCommand({ Bucket: state.bucketLabel, Key: key }));
 		},
 	};
+}
+
+function resolveSdkTarget(bucket: BucketConfig): { endpoint: string; bucketLabel: string } {
+	// Resolve first so invalid BucketConfig shapes fail before SDK adaptation.
+	const canonicalEndpoint = resolveEndpoint(bucket);
+
+	if (bucket.host && bucket.bucket) {
+		return {
+			endpoint: sharedEndpointFromHost(bucket.host),
+			bucketLabel: bucket.bucket,
+		};
+	}
+
+	return splitBucketEndpoint(canonicalEndpoint);
+}
+
+function sharedEndpointFromHost(host: string): string {
+	const hostOnly = host.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+	return `https://${hostOnly}`;
 }
 
 /**
@@ -375,18 +387,20 @@ function concatUint8Arrays(parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
 	return out;
 }
 
-/**
- * Pull the leading hostname label off a virtual-hosted-style endpoint
- * URL. Falls back to `'bucket'` if parsing fails — which is fine
- * because the endpoint override controls actual routing; the SDK only
- * uses `Bucket` to construct path-style URLs (which we never do).
- */
-function extractBucketLabel(endpoint: string): string {
+function splitBucketEndpoint(endpoint: string): { endpoint: string; bucketLabel: string } {
 	try {
 		const url = new URL(endpoint);
-		const firstLabel = url.hostname.split('.')[0];
-		return firstLabel || 'bucket';
+		const [firstLabel, ...rest] = url.hostname.split('.');
+		if (!firstLabel || rest.length === 0) {
+			return { endpoint, bucketLabel: firstLabel || 'bucket' };
+		}
+
+		url.hostname = rest.join('.');
+		return {
+			endpoint: url.toString().replace(/\/$/, ''),
+			bucketLabel: firstLabel,
+		};
 	} catch {
-		return 'bucket';
+		return { endpoint, bucketLabel: 'bucket' };
 	}
 }
