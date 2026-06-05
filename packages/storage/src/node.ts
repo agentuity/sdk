@@ -388,19 +388,23 @@ function concatUint8Arrays(parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
 }
 
 function splitBucketEndpoint(endpoint: string): { endpoint: string; bucketLabel: string } {
+	let url: URL;
 	try {
-		const url = new URL(endpoint);
-		const [firstLabel, ...rest] = url.hostname.split('.');
-		if (!firstLabel || rest.length === 0) {
-			return { endpoint, bucketLabel: firstLabel || 'bucket' };
-		}
-
-		url.hostname = rest.join('.');
-		return {
-			endpoint: url.toString().replace(/\/$/, ''),
-			bucketLabel: firstLabel,
-		};
+		url = new URL(endpoint);
 	} catch {
-		return { endpoint, bucketLabel: 'bucket' };
+		throw new Error(`Invalid bucket endpoint URL: ${endpoint}`);
 	}
+
+	const [firstLabel, ...rest] = url.hostname.split('.');
+	if (!firstLabel || rest.length === 0) {
+		throw new Error(
+			`Bucket endpoint must be bucket-scoped as \`<bucket>.<host>\`, got host \`${url.hostname}\` from endpoint \`${endpoint}\`. Use \`host\` + \`bucket\` for shared endpoints.`
+		);
+	}
+
+	url.hostname = rest.join('.');
+	return {
+		endpoint: url.toString().replace(/\/$/, ''),
+		bucketLabel: firstLabel,
+	};
 }

@@ -76,6 +76,53 @@ describe('Node S3 client endpoint resolution', () => {
 		});
 	});
 
+	test('splits explicit bucket-scoped endpoint for the AWS SDK', async () => {
+		const storage = createS3Client({
+			endpoint: 'https://example-bucket.storage.example.test',
+			access_key: 'access',
+			secret_key: 'secret',
+		});
+
+		await storage.list({ prefix: 'sdk-explorer/', maxKeys: 1 });
+
+		expect(captured.clientConfigs).toHaveLength(1);
+		expect(captured.clientConfigs).toContainEqual(
+			expect.objectContaining({
+				endpoint: 'https://storage.example.test',
+				forcePathStyle: false,
+			})
+		);
+		expect(captured.commands).toContainEqual({
+			input: expect.objectContaining({
+				Bucket: 'example-bucket',
+				Prefix: 'sdk-explorer/',
+				MaxKeys: 1,
+			}),
+		});
+	});
+
+	test('rejects explicit endpoints without a bucket label', () => {
+		expect(() =>
+			createS3Client({
+				endpoint: 'https://localhost',
+				access_key: 'access',
+				secret_key: 'secret',
+			})
+		).toThrow(
+			'Bucket endpoint must be bucket-scoped as `<bucket>.<host>`, got host `localhost` from endpoint `https://localhost`.'
+		);
+	});
+
+	test('rejects malformed explicit endpoint URLs', () => {
+		expect(() =>
+			createS3Client({
+				endpoint: 'https://',
+				access_key: 'access',
+				secret_key: 'secret',
+			})
+		).toThrow('Invalid bucket endpoint URL: https://');
+	});
+
 	test('rejects configs that mix endpoint and host bucket forms', () => {
 		expect(() =>
 			createS3Client({

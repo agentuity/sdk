@@ -8,7 +8,7 @@ node_modules
 out
 dist
 *.tgz
-/.agentuity/
+.agentuity/
 
 # code coverage
 coverage
