@@ -37,6 +37,7 @@ import {
 import { sandboxPause, type SandboxPauseResult } from './pause.ts';
 import { sandboxResume } from './resume.ts';
 import { sandboxRun } from './run.ts';
+import { pulseV2StreamUrl } from './util.ts';
 import {
 	executionGet,
 	executionList,
@@ -131,7 +132,7 @@ async function pipeStreamToWritable(
 	writable: Writable,
 	signal?: AbortSignal
 ): Promise<void> {
-	const response = await fetch(streamUrl, { signal });
+	const response = await fetch(pulseV2StreamUrl(streamUrl), { signal });
 	if (!response.ok) {
 		throw new Error(`Failed to fetch stream: ${response.status} ${response.statusText}`);
 	}

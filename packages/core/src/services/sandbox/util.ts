@@ -245,6 +245,156 @@ export function throwSandboxError(
 
 /** Current sandbox API version */
 
+/** Maximum server-side wait for sandbox status long-polls (Catalyst caps at 60s). */
+export const SANDBOX_STATUS_WAIT_MS = 60_000;
+
+/** Default sandbox execution timeout when none is specified (matches Catalyst). */
+export const DEFAULT_SANDBOX_EXECUTION_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Extra client wait after execution timeout for stream drain and exit-code propagation. */
+export const SANDBOX_RUN_TEARDOWN_GRACE_MS = 15_000;
+
+/** Sandbox lifecycle statuses that mean the run will not produce more output. */
+export const TERMINAL_SANDBOX_STATUSES = ['idle', 'terminated', 'failed'] as const;
+
+/** Execution statuses that mean the command will not run again. */
+export const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'timeout', 'cancelled']);
+
+const DURATION_UNITS_MS: Record<string, number> = {
+	s: 1000,
+	m: 60 * 1000,
+	h: 60 * 60 * 1000,
+	d: 24 * 60 * 60 * 1000,
+	w: 7 * 24 * 60 * 60 * 1000,
+};
+
+/** Parse a duration string such as `30s` or `5m` into milliseconds. */
+export function parseDurationMs(duration: string): number {
+	const match = duration.match(/^(\d+)([smhdw])$/);
+	if (!match) {
+		throw new Error(
+			`Invalid duration format: "${duration}". Use a number followed by s, m, h, d, or w.`
+		);
+	}
+	const value = parseInt(match[1]!, 10);
+	const unit = match[2]!;
+	const ms = DURATION_UNITS_MS[unit];
+	if (!ms) {
+		throw new Error(`Unknown duration unit: "${unit}"`);
+	}
+	return value * ms;
+}
+
+export function isTerminalSandboxStatus(status: string): boolean {
+	return (TERMINAL_SANDBOX_STATUSES as readonly string[]).includes(status);
+}
+
+export function isTerminalExecutionStatus(status: string): boolean {
+	return TERMINAL_EXECUTION_STATUSES.has(status);
+}
+
+export function sandboxStatusToRunResult(result: {
+	status: string;
+	exitCode?: number | null;
+}): { exitCode?: number; status: string } | null {
+	if (result.exitCode != null) {
+		return { exitCode: result.exitCode, status: 'completed' };
+	}
+	if (result.status === 'failed') {
+		return { exitCode: 1, status: 'failed' };
+	}
+	if (isTerminalSandboxStatus(result.status)) {
+		return { status: 'completed' };
+	}
+	return null;
+}
+
+export function executionStatusToExitCode(
+	status: string,
+	exitCode?: number | null
+): number | undefined {
+	if (exitCode != null) {
+		return exitCode;
+	}
+	switch (status) {
+		case 'completed':
+			return 0;
+		case 'timeout':
+			return 124;
+		case 'failed':
+		case 'cancelled':
+			return 1;
+		default:
+			return undefined;
+	}
+}
+
+/** Format remaining milliseconds as a Catalyst-compatible wait duration. */
+export function formatWaitDuration(remainingMs: number): string {
+	if (remainingMs <= 0) {
+		return '0s';
+	}
+	const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+	return `${seconds}s`;
+}
+
+export function createRunAbortSignal(options: { userSignal?: AbortSignal; deadlineAt: number }): {
+	signal: AbortSignal;
+	cleanup: () => void;
+	isRunTimeout: (reason: unknown) => boolean;
+} {
+	const controller = new AbortController();
+	const cleanups: (() => void)[] = [];
+
+	const scheduleTimeout = () => {
+		const remainingMs = options.deadlineAt - Date.now();
+		if (remainingMs <= 0) {
+			controller.abort(new DOMException('Sandbox run timeout exceeded', 'TimeoutError'));
+			return;
+		}
+		const timer = setTimeout(() => {
+			controller.abort(new DOMException('Sandbox run timeout exceeded', 'TimeoutError'));
+		}, remainingMs);
+		cleanups.push(() => clearTimeout(timer));
+	};
+
+	scheduleTimeout();
+
+	if (options.userSignal) {
+		if (options.userSignal.aborted) {
+			controller.abort(options.userSignal.reason);
+		} else {
+			const onAbort = () => controller.abort(options.userSignal!.reason);
+			options.userSignal.addEventListener('abort', onAbort, { once: true });
+			cleanups.push(() => options.userSignal!.removeEventListener('abort', onAbort));
+		}
+	}
+
+	return {
+		signal: controller.signal,
+		cleanup: () => {
+			for (const cleanup of cleanups) {
+				cleanup();
+			}
+		},
+		isRunTimeout: (reason: unknown) =>
+			reason instanceof DOMException && reason.name === 'TimeoutError',
+	};
+}
+
+/**
+ * Append Pulse v2 stream query params so readers use the sequenced download path
+ * instead of falling back to legacy blob polling after complete/v2.
+ */
+export function pulseV2StreamUrl(url: string, options?: { follow?: boolean }): string {
+	const fetchUrl = new URL(url);
+	fetchUrl.searchParams.set('v', '2');
+	if (options?.follow) {
+		fetchUrl.searchParams.set('follow', 'true');
+	}
+	return fetchUrl.href;
+}
+
 /**
  * Write a chunk to a writable stream and wait for it to drain if necessary.
  * Properly cleans up event listeners to avoid memory leaks.

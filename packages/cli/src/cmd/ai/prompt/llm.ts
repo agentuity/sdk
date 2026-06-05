@@ -143,9 +143,6 @@ ${getCommand('auth whoami')}
 
 # Browser-based login (interactive)
 ${getCommand('auth login')}
-
-# Create a new account (interactive)
-${getCommand('auth signup')}
 \`\`\`
 
 In non-TTY contexts, log in interactively first, or pre-set

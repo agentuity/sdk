@@ -8,14 +8,28 @@ import { sandboxCreate } from './create.ts';
 import { sandboxDestroy } from './destroy.ts';
 import { executionGet } from './execution.ts';
 import { sandboxGetStatus } from './getStatus.ts';
-import { ExecutionCancelledError, writeAndDrain } from './util.ts';
+import {
+	createRunAbortSignal,
+	DEFAULT_SANDBOX_EXECUTION_TIMEOUT_MS,
+	executionStatusToExitCode,
+	ExecutionCancelledError,
+	ExecutionTimeoutError,
+	formatWaitDuration,
+	isTerminalExecutionStatus,
+	isTerminalSandboxStatus,
+	parseDurationMs,
+	pulseV2StreamUrl,
+	SANDBOX_RUN_TEARDOWN_GRACE_MS,
+	SANDBOX_STATUS_WAIT_MS,
+	sandboxStatusToRunResult,
+	TERMINAL_SANDBOX_STATUSES,
+	writeAndDrain,
+} from './util.ts';
 import { SandboxRunOptionsSchema, type SandboxRunResult } from './types.ts';
 import { getServiceUrls } from '../config.ts';
 
 const timingLogsEnabled = false;
-const EXECUTION_WAIT_DURATION = '5m';
 const EXIT_CODE_FAST_WAIT_DURATION = '250ms';
-const TERMINAL_EXECUTION_STATUSES = new Set(['completed', 'failed', 'timeout', 'cancelled']);
 
 /**
  * Creates a Writable stream that captures all chunks to a buffer array
@@ -116,6 +130,18 @@ export async function sandboxRun(
 	const sandboxId = createResponse.sandboxId;
 	const stdoutStreamUrl = createResponse.stdoutStreamUrl;
 	const stderrStreamUrl = createResponse.stderrStreamUrl;
+	const executionTimeoutMs = options.timeout?.execution
+		? parseDurationMs(options.timeout.execution)
+		: DEFAULT_SANDBOX_EXECUTION_TIMEOUT_MS;
+	const runDeadlineAt = started + executionTimeoutMs + SANDBOX_RUN_TEARDOWN_GRACE_MS;
+	const {
+		signal: runSignal,
+		cleanup: cleanupRunSignal,
+		isRunTimeout,
+	} = createRunAbortSignal({
+		userSignal: signal,
+		deadlineAt: runDeadlineAt,
+	});
 
 	logger?.debug(
 		'sandbox created: %s, stdoutUrl: %s, stderrUrl: %s',
@@ -127,23 +153,24 @@ export async function sandboxRun(
 		console.error(`[TIMING] +${Date.now() - started}ms: sandbox created (${sandboxId})`);
 
 	const abortController = new AbortController();
-	const streamPromises: Promise<void>[] = [];
+	runSignal.addEventListener('abort', () => abortController.abort(), { once: true });
+	/** Output streams only — stdin must never block run completion. */
+	const outputStreamPromises: Promise<void>[] = [];
 
 	// Create capture buffers for stdout/stderr
 	const stdoutChunks: Buffer[] = [];
 	const stderrChunks: Buffer[] = [];
 
 	try {
-		// Start stdin streaming if we have stdin and a stream URL
+		// Start stdin streaming if we have stdin and a stream URL. Stdin is
+		// best-effort input and may stay open in non-TTY environments; never
+		// include it in output drain waits.
 		if (stdin && stdinStreamUrl && apiKey) {
-			const stdinPromise = streamStdinToUrl(
-				stdin,
-				stdinStreamUrl,
-				apiKey,
-				abortController.signal,
-				logger
+			void streamStdinToUrl(stdin, stdinStreamUrl, apiKey, abortController.signal, logger).catch(
+				() => {
+					// Abort or early close is expected once the run finishes.
+				}
 			);
-			streamPromises.push(stdinPromise);
 		}
 
 		// Check if stdout and stderr are the same stream (combined output)
@@ -162,7 +189,7 @@ export async function sandboxRun(
 					logger,
 					started
 				);
-				streamPromises.push(combinedPromise);
+				outputStreamPromises.push(combinedPromise);
 			}
 		} else {
 			// Start stdout streaming with capture
@@ -175,7 +202,7 @@ export async function sandboxRun(
 					logger,
 					started
 				);
-				streamPromises.push(stdoutPromise);
+				outputStreamPromises.push(stdoutPromise);
 			}
 
 			// Start stderr streaming with capture
@@ -188,7 +215,7 @@ export async function sandboxRun(
 					logger,
 					started
 				);
-				streamPromises.push(stderrPromise);
+				outputStreamPromises.push(stderrPromise);
 			}
 		}
 
@@ -204,29 +231,57 @@ export async function sandboxRun(
 			| undefined;
 		if (createResponse.executionId) {
 			logger?.debug(
-				'waiting for execution %s and %d stream(s) in parallel',
+				'waiting for execution %s and %d output stream(s) in parallel',
 				createResponse.executionId,
-				streamPromises.length
+				outputStreamPromises.length
 			);
 			const completionPromise = waitForRunCompletion(
 				client,
 				sandboxId,
 				createResponse.executionId,
 				orgId,
-				signal,
+				runSignal,
 				logger,
-				started
+				runDeadlineAt
+			);
+			const streamsPromise = waitForStreamsToDrain(
+				outputStreamPromises,
+				runSignal,
+				abortController,
+				sandboxId,
+				isRunTimeout
 			);
 
-			finalExecution = signal
-				? await raceWithAbort(completionPromise, signal, abortController, sandboxId)
-				: await completionPromise;
-			await waitForStreamsToDrain(streamPromises, signal, abortController, sandboxId);
+			try {
+				// Resolve execution/status first so a hung Pulse reader cannot block the
+				// whole run until the client deadline. Output stream fetches still run in parallel.
+				const [execution] = await Promise.all([completionPromise, streamsPromise]);
+				finalExecution = execution;
+				abortController.abort();
+			} catch (error) {
+				throw mapRunAbortError(
+					error,
+					runSignal,
+					isRunTimeout,
+					sandboxId,
+					createResponse.executionId
+				);
+			}
 		} else {
 			logger?.debug(
 				'missing executionId on create response, falling back to stream-first completion'
 			);
-			await waitForStreamsToDrain(streamPromises, signal, abortController, sandboxId);
+			try {
+				await waitForStreamsToDrain(
+					outputStreamPromises,
+					runSignal,
+					abortController,
+					sandboxId,
+					isRunTimeout
+				);
+			} catch (error) {
+				throw mapRunAbortError(error, runSignal, isRunTimeout, sandboxId);
+			}
 		}
 
 		if (timingLogsEnabled)
@@ -244,7 +299,10 @@ export async function sandboxRun(
 		// linear 1s polling interval (not exponential backoff) so we don't overshoot
 		// the window — 15 attempts × 1s = 15s total, which comfortably covers the
 		// drain + lifecycle propagation delay.
-		let exitCode = finalExecution?.exitCode ?? 0;
+		let exitCode =
+			finalExecution != null
+				? (executionStatusToExitCode(finalExecution.status, finalExecution.exitCode) ?? 0)
+				: 0;
 		const statusPollStart = Date.now();
 		let shouldWaitForSandboxStatus = finalExecution?.exitCode == null;
 		let sandboxStatusReconciled = false;
@@ -255,7 +313,7 @@ export async function sandboxRun(
 						executionId: createResponse.executionId,
 						orgId,
 						wait: EXIT_CODE_FAST_WAIT_DURATION,
-						signal,
+						signal: runSignal,
 					});
 					if (execution.exitCode != null) {
 						exitCode = execution.exitCode;
@@ -278,33 +336,25 @@ export async function sandboxRun(
 				}
 			}
 		}
-		if (shouldWaitForSandboxStatus) {
+		if (shouldWaitForSandboxStatus && runSignal.aborted === false) {
 			try {
+				const remainingMs = runDeadlineAt - Date.now();
 				const sandboxStatus = await sandboxGetStatus(client, {
 					sandboxId,
 					orgId,
-					waitForStatus: ['terminated', 'failed'],
-					waitMs: 15000,
+					waitForStatus: [...TERMINAL_SANDBOX_STATUSES],
+					waitMs: Math.min(15_000, Math.max(0, remainingMs)),
+					signal: runSignal,
 				});
-				if (sandboxStatus.exitCode != null) {
-					exitCode = sandboxStatus.exitCode;
+				const reconciled = sandboxStatusToRunResult(sandboxStatus);
+				if (reconciled) {
+					exitCode =
+						executionStatusToExitCode(reconciled.status, reconciled.exitCode) ?? exitCode;
 					sandboxStatusReconciled = true;
 					logger?.debug(
-						'[run] exit code %d found after server-side wait (+%dms)',
-						exitCode,
-						Date.now() - statusPollStart
-					);
-				} else if (sandboxStatus.status === 'failed') {
-					exitCode = 1;
-					sandboxStatusReconciled = true;
-					logger?.debug(
-						'[run] sandbox failed after server-side wait (+%dms)',
-						Date.now() - statusPollStart
-					);
-				} else if (sandboxStatus.status === 'terminated') {
-					sandboxStatusReconciled = true;
-					logger?.debug(
-						'[run] sandbox terminated without exit code after server-side wait (+%dms)',
+						'[run] sandbox status reconciled to exit=%s status=%s (+%dms)',
+						reconciled.exitCode ?? 'undefined',
+						reconciled.status,
 						Date.now() - statusPollStart
 					);
 				} else {
@@ -315,6 +365,13 @@ export async function sandboxRun(
 					);
 				}
 			} catch (err) {
+				if (isRunTimeout(runSignal.reason)) {
+					throw new ExecutionTimeoutError({
+						message: 'Sandbox execution timed out',
+						sandboxId,
+						executionId: createResponse.executionId,
+					});
+				}
 				if (!(err instanceof DOMException && err.name === 'AbortError')) {
 					logger?.debug(
 						'[run] sandboxGetStatus server-side wait failed (+%dms): %s',
@@ -326,14 +383,16 @@ export async function sandboxRun(
 		}
 		if (
 			finalExecution &&
-			finalExecution?.exitCode == null &&
-			finalExecution?.status !== 'completed' &&
+			finalExecution.exitCode == null &&
+			isTerminalExecutionStatus(finalExecution.status) &&
+			finalExecution.status !== 'completed' &&
 			!sandboxStatusReconciled
 		) {
-			exitCode = 1;
+			exitCode = executionStatusToExitCode(finalExecution.status) ?? 1;
 			logger?.debug(
-				'[run] using fallback exit code 1 for terminal status=%s after sandbox status reconciliation failed',
-				finalExecution?.status
+				'[run] using fallback exit code %d for terminal execution status=%s',
+				exitCode,
+				finalExecution.status
 			);
 		}
 		if (exitCode === 0) {
@@ -373,7 +432,35 @@ export async function sandboxRun(
 			// Ignore cleanup errors
 		}
 		throw error;
+	} finally {
+		cleanupRunSignal();
 	}
+}
+
+function mapRunAbortError(
+	error: unknown,
+	runSignal: AbortSignal,
+	isRunTimeout: (reason: unknown) => boolean,
+	sandboxId: string,
+	executionId?: string
+): unknown {
+	if (isRunTimeout(runSignal.reason)) {
+		return new ExecutionTimeoutError({
+			message: 'Sandbox execution timed out',
+			sandboxId,
+			executionId,
+		});
+	}
+	if (error instanceof ExecutionCancelledError) {
+		return error;
+	}
+	if (error instanceof DOMException && error.name === 'AbortError') {
+		return new ExecutionCancelledError({
+			message: 'Sandbox execution cancelled',
+			sandboxId,
+		});
+	}
+	return error;
 }
 
 async function waitForRunCompletion(
@@ -383,7 +470,7 @@ async function waitForRunCompletion(
 	orgId: string | undefined,
 	signal: AbortSignal | undefined,
 	logger: Logger | undefined,
-	started: number
+	deadlineAt: number
 ): Promise<{ exitCode?: number; status: string }> {
 	const completionAbortController = new AbortController();
 	let onAbort: (() => void) | undefined;
@@ -404,7 +491,7 @@ async function waitForRunCompletion(
 			orgId,
 			completionSignal,
 			logger,
-			started
+			deadlineAt
 		);
 		const statusPromise = waitForSandboxStatusCompletion(
 			client,
@@ -412,7 +499,7 @@ async function waitForRunCompletion(
 			orgId,
 			completionSignal,
 			logger,
-			started
+			deadlineAt
 		).catch((err) => {
 			if (completionSignal.aborted) {
 				throw err;
@@ -436,28 +523,33 @@ async function waitForExecutionCompletion(
 	orgId: string | undefined,
 	signal: AbortSignal | undefined,
 	logger: Logger | undefined,
-	started: number
+	deadlineAt: number
 ): Promise<{ exitCode?: number; status: string }> {
 	while (true) {
 		if (signal?.aborted) {
 			throw new DOMException('Aborted', 'AbortError');
 		}
 
+		const remainingMs = deadlineAt - Date.now();
+		if (remainingMs <= 0) {
+			throw new DOMException('Sandbox run timeout exceeded', 'TimeoutError');
+		}
+
 		const result = await executionGet(client, {
 			executionId,
 			orgId,
-			wait: EXECUTION_WAIT_DURATION,
+			wait: formatWaitDuration(remainingMs),
 			signal,
 		});
 		logger?.debug(
-			'[run] execution wait: id=%s status=%s exit=%s +%dms',
+			'[run] execution wait: id=%s status=%s exit=%s remaining=%dms',
 			executionId,
 			result.status,
 			result.exitCode ?? 'undefined',
-			Date.now() - started
+			remainingMs
 		);
 
-		if (TERMINAL_EXECUTION_STATUSES.has(result.status)) {
+		if (isTerminalExecutionStatus(result.status)) {
 			return {
 				exitCode: result.exitCode,
 				status: result.status,
@@ -472,47 +564,41 @@ async function waitForSandboxStatusCompletion(
 	orgId: string | undefined,
 	signal: AbortSignal | undefined,
 	logger: Logger | undefined,
-	started: number
+	deadlineAt: number
 ): Promise<{ exitCode?: number; status: string }> {
 	while (true) {
 		if (signal?.aborted) {
 			throw new DOMException('Aborted', 'AbortError');
 		}
 
+		const remainingMs = deadlineAt - Date.now();
+		if (remainingMs <= 0) {
+			throw new DOMException('Sandbox run timeout exceeded', 'TimeoutError');
+		}
+
 		const result = await sandboxGetStatus(client, {
 			sandboxId,
 			orgId,
-			waitForStatus: ['idle', 'terminated', 'failed'],
-			waitMs: 300000,
+			waitForStatus: [...TERMINAL_SANDBOX_STATUSES],
+			waitMs: Math.min(SANDBOX_STATUS_WAIT_MS, remainingMs),
 			signal,
 		});
 		logger?.debug(
-			'[run] sandbox status wait: sandbox=%s status=%s exit=%s +%dms',
+			'[run] sandbox status wait: sandbox=%s status=%s exit=%s remaining=%dms',
 			sandboxId,
 			result.status,
 			result.exitCode ?? 'undefined',
-			Date.now() - started
+			remainingMs
 		);
 
-		if (result.exitCode != null) {
-			return {
-				exitCode: result.exitCode,
-				status: 'completed',
-			};
-		}
-		if (result.status === 'failed') {
-			return {
-				exitCode: 1,
-				status: 'failed',
-			};
-		}
-		if (result.status === 'terminated') {
-			return {
-				status: 'completed',
-			};
+		const terminalResult = sandboxStatusToRunResult(result);
+		if (terminalResult) {
+			return terminalResult;
 		}
 
-		await new Promise((resolve) => setTimeout(resolve, 25));
+		if (!isTerminalSandboxStatus(result.status)) {
+			await new Promise((resolve) => setTimeout(resolve, 25));
+		}
 	}
 }
 
@@ -520,7 +606,8 @@ async function waitForStreamsToDrain(
 	streamPromises: Promise<void>[],
 	signal: AbortSignal | undefined,
 	abortController: AbortController,
-	sandboxId: string
+	sandboxId: string,
+	isRunTimeout: (reason: unknown) => boolean
 ): Promise<void> {
 	if (streamPromises.length === 0) {
 		return;
@@ -534,6 +621,10 @@ async function waitForStreamsToDrain(
 				new Promise<never>((_, reject) => {
 					onAbort = () => {
 						abortController.abort();
+						if (isRunTimeout(signal.reason)) {
+							reject(new DOMException('Sandbox run timeout exceeded', 'TimeoutError'));
+							return;
+						}
 						reject(
 							new ExecutionCancelledError({
 								message: 'Sandbox execution cancelled',
@@ -557,40 +648,6 @@ async function waitForStreamsToDrain(
 	}
 
 	await Promise.allSettled(streamPromises);
-}
-
-async function raceWithAbort<T>(
-	promise: Promise<T>,
-	signal: AbortSignal,
-	abortController: AbortController,
-	sandboxId: string
-): Promise<T> {
-	let onAbort: (() => void) | undefined;
-	try {
-		return await Promise.race([
-			promise,
-			new Promise<never>((_, reject) => {
-				onAbort = () => {
-					abortController.abort();
-					reject(
-						new ExecutionCancelledError({
-							message: 'Sandbox execution cancelled',
-							sandboxId,
-						})
-					);
-				};
-				if (signal.aborted) {
-					onAbort();
-				} else {
-					signal.addEventListener('abort', onAbort, { once: true });
-				}
-			}),
-		]);
-	} finally {
-		if (onAbort) {
-			signal.removeEventListener('abort', onAbort);
-		}
-	}
 }
 
 async function createStdinStream(
@@ -676,7 +733,11 @@ async function streamStdinToUrl(
 				signal.addEventListener('abort', () => {
 					if (!controllerClosed) {
 						controllerClosed = true;
-						controller.close();
+						try {
+							controller.close();
+						} catch {
+							// Stream may already be closed after stdin end.
+						}
 					}
 				});
 			},
@@ -715,12 +776,9 @@ async function streamUrlToWritable(
 ): Promise<void> {
 	const streamStart = Date.now();
 	try {
-		// Signal to Pulse that this is a v2 stream so it waits for v2 metadata
-		// instead of falling back to the legacy download path on a short timeout.
-		const v2Url = new URL(url);
-		v2Url.searchParams.set('v', '2');
-		logger?.debug('[stream] fetching: %s', v2Url.href);
-		const response = await fetch(v2Url.href, { signal });
+		const fetchUrl = pulseV2StreamUrl(url);
+		logger?.debug('[stream] fetching: %s', fetchUrl);
+		const response = await fetch(fetchUrl, { signal });
 		logger?.debug(
 			'[stream] response status=%d in %dms',
 			response.status,

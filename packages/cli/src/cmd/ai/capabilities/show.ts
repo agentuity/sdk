@@ -73,7 +73,7 @@ export const showSubcommand = createSubcommand({
 					id: 'auth',
 					name: 'Authentication',
 					description: 'Login, logout, and manage API keys',
-					commands: ['auth login', 'auth logout', 'auth whoami', 'auth signup'],
+					commands: ['auth login', 'auth logout', 'auth whoami'],
 					requiresAuth: false,
 				},
 				{
@@ -183,13 +183,7 @@ export const showSubcommand = createSubcommand({
 				{
 					name: 'Initial Setup',
 					description: 'Get started with Agentuity',
-					steps: [
-						'auth signup',
-						'auth login',
-						'project create',
-						'env set API_KEY <value> --secret',
-						'dev',
-					],
+					steps: ['auth login', 'project create', 'env set API_KEY <value> --secret', 'dev'],
 				},
 				{
 					name: 'Deploy Application',

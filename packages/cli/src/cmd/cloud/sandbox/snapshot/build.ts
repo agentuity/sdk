@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, statSync } from 'node:fs';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, isAbsolute, join, resolve } from 'node:path';
 import { Readable } from 'node:stream';
@@ -739,6 +739,7 @@ export const buildSubcommand = createCommand({
 		const archivePath = join(tempDir, 'snapshot.tar.gz');
 
 		try {
+			await mkdir(tempDir, { recursive: true });
 			await writeFile(join(tempDir, '.placeholder'), '');
 
 			if (files.size > 0) {

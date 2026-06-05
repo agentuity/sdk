@@ -96,13 +96,13 @@ export function resolveEndpoint(bucket: BucketConfig): string {
 export function bucketConfigFromEnv(
 	env: Record<string, string | undefined> = process.env
 ): BucketConfig {
-	const host = env.AWS_ENDPOINT;
+	const rawEndpoint = env.AWS_ENDPOINT;
 	const bucket = env.AWS_BUCKET;
 	const access = env.AWS_ACCESS_KEY_ID;
 	const secret = env.AWS_SECRET_ACCESS_KEY;
-	if (host && bucket && access && secret) {
+	if (rawEndpoint && bucket && access && secret) {
 		return {
-			host,
+			host: normalizeHost(rawEndpoint, bucket),
 			bucket,
 			access_key: access,
 			secret_key: secret,
@@ -115,6 +115,12 @@ export function bucketConfigFromEnv(
 			'AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY. Provision an Agentuity ' +
 			'bucket or set them manually.'
 	);
+}
+
+function normalizeHost(endpoint: string, bucket: string): string {
+	const host = endpoint.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+	const bucketPrefix = `${bucket}.`;
+	return host.startsWith(bucketPrefix) ? host.slice(bucketPrefix.length) : host;
 }
 
 /** Options for `list()`. */
