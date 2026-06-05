@@ -90,10 +90,12 @@ export function DocsLayout() {
 		[navigate]
 	);
 
-	const openAISearch = React.useCallback(() => {
-		setSearchInitialMode('ai');
+	const openSearch = React.useCallback((mode: 'search' | 'ai') => {
+		setSearchInitialMode(mode);
 		setSearchOpen(true);
 	}, []);
+
+	const openAISearch = React.useCallback(() => openSearch('ai'), [openSearch]);
 
 	const handleSearchOpenChange = React.useCallback((open: boolean) => {
 		setSearchOpen(open);
@@ -109,24 +111,20 @@ export function DocsLayout() {
 				}
 
 				e.preventDefault();
-				setSearchInitialMode('search');
-				setSearchOpen(true);
+				openSearch('search');
 			}
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, [searchOpen]);
+	}, [searchOpen, openSearch]);
 
 	return (
 		<SidebarProvider className="min-h-0! h-full">
 			<title>{pageTitle}</title>
 			<AppSidebar
 				currentPage={currentPage}
-				onOpenSearch={() => {
-					setSearchInitialMode('search');
-					setSearchOpen(true);
-				}}
+				onOpenSearch={() => openSearch('search')}
 				onOpenAISearch={openAISearch}
 			/>
 			<SidebarInset className="flex flex-col">

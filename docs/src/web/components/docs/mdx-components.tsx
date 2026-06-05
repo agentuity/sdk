@@ -21,6 +21,7 @@ import { ThemeImage } from './theme-image';
 import { CLICommand } from './cli-command';
 import { GravityNetworkDiagram } from './gravity-network-diagram';
 import { CopyMigrationPrompt } from './copy-migration-prompt';
+import { isKnownRoutePath, normalizeRoutePath } from './generated/frontmatter-data';
 import { RegionPicker, ApiEndpoint, ApiExample, ParamTable, ResponseFields } from './api';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,10 +85,17 @@ function getInternalRouteLink(href: string | undefined): { to: string; hash?: st
 	if (!href?.startsWith('/') || href.startsWith('//') || href.includes('?')) return null;
 
 	const hashIndex = href.indexOf('#');
-	if (hashIndex === -1) return { to: href };
+	const rawPath = hashIndex === -1 ? href : href.slice(0, hashIndex) || '/';
+	const to = normalizeRoutePath(rawPath);
+
+	// Only known app routes should use TanStack navigation. Other absolute URLs
+	// can target public assets or product pages like /pricing.
+	if (!isKnownRoutePath(to)) return null;
+
+	if (hashIndex === -1) return { to };
 
 	return {
-		to: href.slice(0, hashIndex) || '/',
+		to,
 		hash: href.slice(hashIndex + 1),
 	};
 }
