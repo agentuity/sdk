@@ -40,17 +40,7 @@ export async function streamUrlToWritable(
 	logger: Logger,
 	options: StreamUrlOptions = {}
 ): Promise<StreamUrlResult> {
-	const {
-		signal,
-		follow,
-		timestamps,
-		grep,
-		tail,
-		json,
-		label = 'stream',
-		raw = false,
-		v2 = false,
-	} = options;
+	const { signal, follow, timestamps, grep, tail, json, label = 'stream', raw = false } = options;
 	const streamStart = Date.now();
 	let bytesRead = 0;
 	let chunks = 0;
@@ -58,9 +48,8 @@ export async function streamUrlToWritable(
 	try {
 		const fetchUrl = new URL(url);
 
-		if (follow || v2) {
-			fetchUrl.searchParams.set('v', '2');
-		}
+		// Always request the Pulse v2 sequenced reader so complete/v2 EOF is honored.
+		fetchUrl.searchParams.set('v', '2');
 		if (follow) {
 			fetchUrl.searchParams.set('follow', 'true');
 		}

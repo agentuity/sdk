@@ -157,7 +157,9 @@ export const runSubcommand = createCommand({
 		const outputChunks: string[] = [];
 
 		// Determine if we have stdin data (not a TTY means piped input)
-		const hasStdin = !process.stdin.isTTY;
+		// Non-TTY stdin in CI/agent shells is often an idle open pipe, not real input.
+		const stdinIsNull = detectNullStream(0);
+		const hasStdin = !process.stdin.isTTY && !stdinIsNull;
 
 		// Detect if stdout/stderr are redirected to /dev/null
 		const stdoutIsNull = detectNullStream(1);
